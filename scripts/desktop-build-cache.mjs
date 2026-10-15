@@ -8,6 +8,8 @@ const FORMAT_VERSION = 1;
 const FRONTEND_INPUTS = [
   ".node-version",
   "package.json",
+  "vite.config.ts",
+  "tsconfig.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   "apps/desktop/public",
@@ -15,11 +17,12 @@ const FRONTEND_INPUTS = [
   "apps/desktop/index.html",
   "apps/desktop/package.json",
   "apps/desktop/tsconfig.json",
-  "apps/desktop/tsconfig.node.json",
-  "apps/desktop/tsconfig.orchestration.json",
+  "tsconfig.base.json",
   "apps/desktop/vite.config.ts",
   "apps/desktop/scripts/build-frontend.mjs",
   "scripts/dev-storage.mjs",
+  "scripts/dev-storage.d.mts",
+  "scripts/browser-traces.ts",
   "scripts/tool-cache.mjs",
 ];
 const FRONTEND_OPTIONAL_INPUTS = [

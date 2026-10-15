@@ -1,8 +1,7 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
+import { defineConfig, lazyPlugins, type PluginOption } from "vite-plus";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { desktopProjects, testReporters } from "../../vite.config.ts";
 
 const desktopRoot = fileURLToPath(new URL(".", import.meta.url));
 
@@ -12,7 +11,7 @@ export function assertScenarioExclusion(
   allowCompatibilityFixture = false,
 ) {
   for (const id of moduleIds) {
-    const normalized = id.replaceAll("\\", "/").split("?", 1)[0];
+    const normalized = id.replaceAll("\\", "/").replace(/\?[\s\S]*$/u, "");
     if (
       normalized.includes("/src/dev-scenarios/") ||
       normalized.includes("/src/browser/") ||
@@ -27,8 +26,14 @@ export function assertScenarioExclusion(
       throw new Error("Development scenario entrypoint cannot ship");
 }
 
-export default defineConfig({
-  plugins: [
+// Metadata resolution intentionally omits plugins; ordinary dev/build keeps the
+// asynchronous loader. Omit the key rather than claim an undefined plugin list.
+const plugins = lazyPlugins(async (): Promise<PluginOption[]> => {
+  const [{ default: react }, { default: tailwindcss }] = await Promise.all([
+    import("@vitejs/plugin-react"),
+    import("@tailwindcss/vite"),
+  ]);
+  return [
     react(),
     tailwindcss(),
     {
@@ -44,12 +49,41 @@ export default defineConfig({
         );
       },
     },
-  ],
+  ];
+});
+
+export default defineConfig({
+  ...(plugins === undefined ? {} : { plugins }),
   clearScreen: false,
   resolve: { alias: { "@": path.resolve(desktopRoot, "src") } },
-  server: { strictPort: true },
+  server: {
+    host: "127.0.0.1",
+    port: 1420,
+    strictPort: true,
+    watch: { ignored: ["**/src-tauri/**"] },
+  },
   // Only explicitly public frontend inputs are exposed. Tauri target/debug
   // variables remain available to native tooling without exposing signing inputs.
   envPrefix: "VITE_",
-  build: { target: ["es2021", "chrome105", "safari13"], sourcemap: true },
+  // Transforms match the selected CSS stack; native OS/WebView qualification remains separate.
+  build: { target: ["chrome111", "safari16.4"], sourcemap: true },
+  test: { projects: desktopProjects, reporters: testReporters },
+  run: {
+    tasks: {
+      "bundle:cached": {
+        command: "vp build",
+        cache: {
+          input: [{ auto: true }, { pattern: "pnpm-lock.yaml", base: "workspace" }],
+          output: ["dist/**"],
+        },
+      },
+      "test:cached": {
+        command: "vp test --project unit",
+        cache: {
+          input: [{ auto: true }, { pattern: "pnpm-lock.yaml", base: "workspace" }],
+          output: [],
+        },
+      },
+    },
+  },
 });

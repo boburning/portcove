@@ -35,7 +35,7 @@ interface SourceIntakeDialogProps {
   close: () => void;
   onAdded?: () => Promise<unknown>;
   openEvidence?: (evidenceId: string) => void;
-  hostTools?: HostToolStatus[];
+  hostTools?: HostToolStatus[] | undefined;
   hostToolActions?: HostToolActions;
 }
 
@@ -157,13 +157,19 @@ function SourceIntakeSession({
     }
   };
   const review = async (mode: SourceImportMode) => {
-    if (!result?.report?.inspection?.record || selectedPaths.length !== 1) return;
+    const [selectedPath] = selectedPaths;
+    if (
+      !result?.report?.inspection?.record ||
+      selectedPaths.length !== 1 ||
+      selectedPath === undefined
+    )
+      return;
     const current = ++intent.current;
     setBusy(`Checking ${request.purpose === "bios" ? "BIOS file" : "game files"} and destination…`);
     setError(undefined);
     setNotice(undefined);
     try {
-      const next = await desktopApi.planSourceImport(request.profile.id, selectedPaths[0], mode);
+      const next = await desktopApi.planSourceImport(request.profile.id, selectedPath, mode);
       if (intent.current === current) setPlan(next);
     } catch (value) {
       if (intent.current === current) setError(errorText(value));

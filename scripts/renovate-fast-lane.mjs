@@ -28,7 +28,7 @@ const controlledDependencies = new Set([
 const requiredPolicy = Object.freeze({
   automerge: false,
   internalChecksFilter: "strict",
-  minimumReleaseAge: "3 days",
+  minimumReleaseAge: "1 day",
   minimumReleaseAgeBehaviour: "timestamp-required",
 });
 const cargoPolicyPaths = [

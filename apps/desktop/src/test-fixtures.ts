@@ -9,6 +9,13 @@ import type {
   SourceInspectionReport,
 } from "./types";
 
+/** Fail a fixture's setup at the missing value, rather than pass a partial
+ * transport record or silently skip a mocked operation. */
+export function fixtureValue<T>(value: T | null | undefined, description: string): T {
+  if (value === undefined || value === null) throw new Error(`Missing fixture: ${description}`);
+  return value;
+}
+
 export function preliminarySourceInspection(
   record: SourceRecord,
 ): NonNullable<SourceInspectionReport["inspection"]> {

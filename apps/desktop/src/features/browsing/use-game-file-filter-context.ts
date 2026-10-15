@@ -24,10 +24,10 @@ export function useGameFileFilterContext({
   generation,
   libraryKey,
 }: {
-  catalog?: CatalogDocument | null;
+  catalog?: CatalogDocument | null | undefined;
   sources: readonly SourceRecord[];
   statuses: readonly PortStatus[];
-  browsing?: CatalogBrowsingSnapshot | null;
+  browsing?: CatalogBrowsingSnapshot | null | undefined;
   generation: number;
   libraryKey?: string | null;
 }) {

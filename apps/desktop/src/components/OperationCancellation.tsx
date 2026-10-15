@@ -10,7 +10,7 @@ export function OperationCancellation({
   label = "Cancel operation",
 }: {
   operationId: string;
-  state?: CancellationState;
+  state?: CancellationState | undefined;
   label?: string;
 }) {
   const [requested, setRequested] = useState(false);

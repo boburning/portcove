@@ -36,16 +36,17 @@ export async function pickSourcePath(
     title: purpose === "bios" ? "Choose BIOS file" : "Choose game files",
     multiple: false,
     directory,
-    defaultPath: currentPath || undefined,
-    filters:
-      !directory && extensions.length
-        ? [
+    ...(currentPath ? { defaultPath: currentPath } : {}),
+    ...(!directory && extensions.length
+      ? {
+          filters: [
             {
               name: purpose === "bios" ? "Required BIOS file or ZIP" : "Original game file",
               extensions,
             },
-          ]
-        : undefined,
+          ],
+        }
+      : {}),
   });
 }
 
@@ -54,7 +55,7 @@ export function pickSourceArchivePath(currentPath: string, purpose: SourcePicker
     title: "Choose ZIP file",
     multiple: false,
     directory: false,
-    defaultPath: currentPath || undefined,
+    ...(currentPath ? { defaultPath: currentPath } : {}),
     filters: [
       {
         name:
@@ -71,7 +72,7 @@ export function pickInstallFolder(currentPath: string) {
   return open({
     multiple: false,
     directory: true,
-    defaultPath: currentPath || undefined,
+    ...(currentPath ? { defaultPath: currentPath } : {}),
   });
 }
 
@@ -80,7 +81,7 @@ export function pickGameFileFolder(currentPath: string) {
     title: "Choose game-file folder",
     multiple: false,
     directory: true,
-    defaultPath: currentPath || undefined,
+    ...(currentPath ? { defaultPath: currentPath } : {}),
   });
 }
 
@@ -89,7 +90,7 @@ export function pickLibraryFolder(currentPath: string) {
     title: "Choose Portcove library",
     multiple: false,
     directory: true,
-    defaultPath: currentPath || undefined,
+    ...(currentPath ? { defaultPath: currentPath } : {}),
   });
 }
 
@@ -98,7 +99,7 @@ export function pickSteamFolder(currentPath: string) {
     title: "Choose Steam installation",
     multiple: false,
     directory: true,
-    defaultPath: currentPath || undefined,
+    ...(currentPath ? { defaultPath: currentPath } : {}),
   });
 }
 
@@ -107,7 +108,7 @@ export function pickGameOutputFolder(currentPath: string) {
     title: "Choose install folder",
     multiple: false,
     directory: true,
-    defaultPath: currentPath || undefined,
+    ...(currentPath ? { defaultPath: currentPath } : {}),
   });
 }
 
@@ -116,7 +117,7 @@ export function pickHostToolExecutable(displayName: string, currentPath: string)
     title: `Locate ${displayName} executable`,
     multiple: false,
     directory: false,
-    defaultPath: currentPath || undefined,
+    ...(currentPath ? { defaultPath: currentPath } : {}),
   });
 }
 

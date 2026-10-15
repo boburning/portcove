@@ -1,7 +1,8 @@
+import { fixtureValue } from "../test-fixtures";
 // @vitest-environment jsdom
 import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import { copyText } from "../clipboard";
 import type { ActivityDiagnostic as Diagnostic } from "../types";
@@ -11,7 +12,7 @@ import { ActivityDiagnostic } from "./ActivityDiagnostic";
 vi.mock("../clipboard", () => ({
   copyText: vi.fn().mockResolvedValue(undefined),
 }));
-const fixture = (): Diagnostic => [
+const fixture = (): [Diagnostic[number]] => [
   {
     activity_id: "owned",
     phase: "preparation.setup",
@@ -115,11 +116,13 @@ it("keeps completed conversion output beside an interrupted setup phase", async 
   await open();
   const phases = [...host.querySelectorAll("section")];
   expect(phases).toHaveLength(2);
-  expect(phases[0].textContent).toContain("Preparing source data");
-  expect(phases[0].textContent).toContain("earlier conversion output");
-  expect(phases[0].textContent).toContain("Both output streams ended. Saved output is shown below");
-  expect(phases[1].textContent).toContain("Running game setup");
-  expect(phases[1].textContent).toContain(
+  expect(fixtureValue(phases[0], "phases[0]").textContent).toContain("Preparing source data");
+  expect(fixtureValue(phases[0], "phases[0]").textContent).toContain("earlier conversion output");
+  expect(fixtureValue(phases[0], "phases[0]").textContent).toContain(
+    "Both output streams ended. Saved output is shown below",
+  );
+  expect(fixtureValue(phases[1], "phases[1]").textContent).toContain("Running game setup");
+  expect(fixtureValue(phases[1], "phases[1]").textContent).toContain(
     "Only the output saved before the last observation is available",
   );
 });

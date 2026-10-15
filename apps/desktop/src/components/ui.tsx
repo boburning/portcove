@@ -40,7 +40,7 @@ export function EmptyState({
   description,
   action,
 }: {
-  icon?: LucideIcon;
+  icon?: LucideIcon | undefined;
   visual?: ReactNode;
   eyebrow?: string;
   title: string;
@@ -60,7 +60,7 @@ export function EmptyState({
   );
 }
 
-function EmptyVisual({ icon, visual }: { icon?: LucideIcon; visual?: ReactNode }) {
+function EmptyVisual({ icon, visual }: { icon?: LucideIcon | undefined; visual?: ReactNode }) {
   if (visual) return visual;
   if (!icon) return null;
   return (
@@ -78,7 +78,7 @@ export function NavigationHints({
   controller,
   workspace = false,
 }: {
-  controller?: string;
+  controller?: string | undefined;
   workspace?: boolean;
 }) {
   return (

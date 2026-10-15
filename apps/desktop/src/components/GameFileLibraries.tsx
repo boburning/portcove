@@ -115,7 +115,7 @@ function CandidateAction({
   registeredSources: SourceRecord[];
   statuses: ReadonlyMap<string, PortStatus>;
   ports: PortDefinition[];
-  onOpenPort?: (portId: string, originKey: string) => void;
+  onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
   busy: boolean;
   registrationConfirmed: boolean;
   workspaceRefreshFailed: boolean;
@@ -202,12 +202,12 @@ function ContinueToGame({
   ports,
   onOpenPort,
 }: {
-  registeredSource?: SourceRecord;
+  registeredSource?: SourceRecord | undefined;
   sourceVisible: boolean;
   busy: boolean;
-  retryRefresh?: () => void;
+  retryRefresh?: (() => void) | undefined;
   ports: PortDefinition[];
-  onOpenPort?: (portId: string, originKey: string) => void;
+  onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
 }) {
   if (!registeredSource || !onOpenPort) return null;
   const matchingPorts = ports.filter(
@@ -313,16 +313,16 @@ function CompletedScan({
   busy,
   review,
 }: {
-  snapshot?: GameFileScanSnapshot | null;
+  snapshot?: GameFileScanSnapshot | null | undefined;
   readConfirmed: boolean;
-  roots?: GameFileRoot[];
+  roots?: GameFileRoot[] | undefined;
   ports: PortDefinition[];
   profiles: SourceProfile[];
   registeredSources: SourceRecord[];
   statuses: ReadonlyMap<string, PortStatus>;
   registrationConfirmed: boolean;
   workspaceRefreshFailed: boolean;
-  onOpenPort?: (portId: string, originKey: string) => void;
+  onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
   busy: boolean;
   review: (candidate: Pick<SourceRecord, "profile_id" | "path">) => void;
 }) {
@@ -459,10 +459,10 @@ function SavedRootRows({
   relink,
   remove,
 }: {
-  roots?: GameFileRoot[];
+  roots?: GameFileRoot[] | undefined;
   busy: boolean;
   scanning: boolean;
-  removingId?: string;
+  removingId?: string | undefined;
   setRemovingId: (id?: string) => void;
   relink: (root: GameFileRoot) => void;
   remove: (root: GameFileRoot) => void;
@@ -546,7 +546,7 @@ function LiveScanResults({
   registrationConfirmed: boolean;
   workspaceRefreshFailed: boolean;
   ports: PortDefinition[];
-  onOpenPort?: (portId: string, originKey: string) => void;
+  onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
   busy: boolean;
   review: (candidate: Pick<SourceRecord, "profile_id" | "path">) => void;
 }) {
@@ -663,10 +663,10 @@ export function GameFileLibraries({
   registeredSources?: SourceRecord[];
   statuses?: ReadonlyMap<string, PortStatus>;
   workspaceRefreshFailed?: boolean;
-  onAdded?: () => Promise<unknown>;
-  onOpenPort?: (portId: string, originKey: string) => void;
-  setupSource?: SourceRecord;
-  setSetupSource?: (source?: SourceRecord) => void;
+  onAdded?: (() => Promise<unknown>) | undefined;
+  onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
+  setupSource?: SourceRecord | undefined;
+  setSetupSource?: ((source?: SourceRecord) => void) | undefined;
 }) {
   const [busy, setBusy] = useState("");
   const scanState = useGameFileScanObserver();

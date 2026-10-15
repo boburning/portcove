@@ -1,6 +1,7 @@
+import { fixtureValue } from "../../test-fixtures";
 // @vitest-environment jsdom
 import { invoke } from "@tauri-apps/api/core";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
 import type { OperationEvent } from "../../types";
 import { preparation } from "./scenarios";
@@ -29,7 +30,12 @@ it("keeps preparation pending until explicitly completed and removes it on dispo
   expect(event.mock.calls.map(([value]) => value.type)).toEqual(["started", "message"]);
   transport.complete();
   await expect(result).resolves.toMatchObject({ port_id: "sample" });
-  expect((await desktopApi.workspaceSnapshot(1)).statuses[0].readiness?.pending_setup).toBe(false);
+  expect(
+    fixtureValue(
+      (await desktopApi.workspaceSnapshot(1)).statuses[0],
+      "(await desktopApi.workspaceSnapshot(1)).statuses[0]",
+    ).readiness?.pending_setup,
+  ).toBe(false);
   transport.dispose();
   transport = undefined;
   expect("__TAURI_INTERNALS__" in window).toBe(false);

@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import type { GameFileQuerySnapshot } from "../types";
 import type { GameFileFilterContext } from "../features/browsing/game-file-query-context";
 import { GameFileFilterObservation } from "./GameFileFilterObservation";

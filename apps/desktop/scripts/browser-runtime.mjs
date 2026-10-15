@@ -1,8 +1,7 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolvePhysicalPath, spawnCommand } from "../../../scripts/dev-storage.mjs";
-import { checkBrowserPackageCompatibility } from "./browser-package-compatibility.mjs";
 
 const desktop = fileURLToPath(new URL("../", import.meta.url));
 const root = path.resolve(desktop, "../..");
@@ -16,14 +15,6 @@ if (
   relativeCache.startsWith(`..${path.sep}`)
 )
   throw new Error(`Browser cache resolves outside the checkout: ${physicalCache}`);
-const packageJson = JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8"));
-if (
-  packageJson.devDependencies["@vitest/browser-playwright"] !== "5.0.3" ||
-  packageJson.devDependencies.playwright !== "1.63.0"
-) {
-  throw new Error("Browser package versions differ from the reviewed browser contract");
-}
-checkBrowserPackageCompatibility(path.join(desktop, "package.json"));
 process.env.PLAYWRIGHT_BROWSERS_PATH = browserCache;
 const { chromium } = await import("playwright");
 const executable = chromium.executablePath();
@@ -54,8 +45,8 @@ if (process.argv[2] === "bootstrap") {
   } finally {
     await browser.close();
   }
-} else if (process.argv[2] === "test" || process.argv[2] === "probe") {
-  if (process.argv[2] === "probe") process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE = "1";
+} else if (process.argv[2] === "probe") {
+  process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE = "1";
   let browser;
   try {
     browser = await chromium.launch({ headless: true });
@@ -76,18 +67,16 @@ if (process.argv[2] === "bootstrap") {
   const result = spawnCommand(
     process.execPath,
     [
-      path.join(desktop, "node_modules", "vitest", "vitest.mjs"),
-      "run",
-      "--config",
-      "vitest.browser.config.ts",
-      ...(process.argv[2] === "probe"
-        ? ["src/browser/failure-probe.browser.test.tsx"]
-        : process.argv.slice(3)),
+      path.join(root, "node_modules", "vite-plus", "bin", "vp"),
+      "test",
+      "--project",
+      "browser",
+      "src/browser/failure-probe.browser.test.tsx",
     ],
     { cwd: desktop, env: process.env, stdio: "inherit", windowsHide: true },
   );
   if (result.status === 0) rmSync(traceRun, { recursive: true });
   process.exit(result.status ?? 1);
 } else {
-  throw new Error("Usage: browser-runtime.mjs bootstrap|test [Vitest filters]|probe");
+  throw new Error("Usage: browser-runtime.mjs bootstrap|probe");
 }

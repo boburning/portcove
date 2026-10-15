@@ -27,7 +27,7 @@ function npmArtifact(version, integrity = "AAAA", extra = "") {
 
 const config = {
   automerge: false,
-  minimumReleaseAge: "3 days",
+  minimumReleaseAge: "1 day",
   minimumReleaseAgeBehaviour: "timestamp-required",
   internalChecksFilter: "strict",
   packageRules: [

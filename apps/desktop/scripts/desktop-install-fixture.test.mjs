@@ -9,7 +9,7 @@ import { setTimeout as waitRealTime } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 import { gunzipSync } from "node:zlib";
-import { afterAll, beforeAll, describe, test, vi } from "vitest";
+import { afterAll, beforeAll, describe, test, vi } from "vite-plus/test";
 import { JSDOM } from "jsdom";
 import {
   createInstallFixture,

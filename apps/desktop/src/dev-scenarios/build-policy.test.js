@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { URL } from "node:url";
 
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import config, { assertScenarioExclusion } from "../../vite.config";
 
 it("rejects scenario modules and entrypoints from a production bundle", () => {
@@ -36,10 +36,9 @@ it("rejects scenario modules and entrypoints from a production bundle", () => {
   expect(() => assertScenarioExclusion([], ["scenarios.html"])).toThrow("cannot ship");
 });
 
-it("registers scenario exclusion on production builds", () => {
-  const plugin = config.plugins.find(
-    (candidate) => candidate.name === "exclude-development-scenarios",
-  );
+it("registers scenario exclusion on production builds", async () => {
+  const plugins = (await Promise.all(config.plugins)).flat(Infinity);
+  const plugin = plugins.find((candidate) => candidate.name === "exclude-development-scenarios");
   expect(plugin.apply).toBe("build");
   expect(typeof plugin.generateBundle).toBe("function");
 });

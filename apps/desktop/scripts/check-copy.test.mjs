@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { explicitCopyFiles, inspectCopy, isProductionCopyPath } from "./check-copy.mjs";
 
 describe("desktop static-copy safeguards", () => {

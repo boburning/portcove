@@ -289,7 +289,7 @@ function StagedApplicationUpdateItem({
 }: {
   status: ApplicationUpdateStatus;
   disabled: boolean;
-  blocker?: string;
+  blocker?: string | undefined;
   onRestart: () => Promise<void>;
 }) {
   if (!status.staged) return null;
@@ -362,7 +362,7 @@ function ApplicationUpdateStatusPanel({
   onRecover: (area: ApplicationUpdateRecoveryArea) => Promise<void>;
   onRestart: () => Promise<void>;
   restartDisabled: boolean;
-  restartBlocker?: string;
+  restartBlocker?: string | undefined;
 }) {
   const applyCopy = status?.apply ? applicationUpdateApplyCopy(status) : undefined;
 
@@ -454,7 +454,7 @@ function useApplicationUpdateOperation({
   changed: boolean;
   onStart: () => void;
   onComplete: () => Promise<void>;
-  automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"];
+  automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"] | undefined;
 }): ApplicationUpdateOperationState {
   const requests = useRef(new LatestRequestGeneration());
   const [busy, setBusy] = useState(false);
@@ -678,10 +678,10 @@ export function ApplicationUpdateSettings({
   preferencesState,
 }: {
   currentVersion: string;
-  generation?: number;
+  generation?: number | undefined;
   disabled?: boolean;
-  automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"];
-  preferencesState?: ApplicationUpdatePreferencesState;
+  automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"] | undefined;
+  preferencesState?: ApplicationUpdatePreferencesState | undefined;
 }) {
   const requests = useRef(new LatestRequestGeneration());
   const statusRequests = useRef(new LatestRequestGeneration());

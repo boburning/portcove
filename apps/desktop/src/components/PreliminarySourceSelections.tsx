@@ -25,7 +25,7 @@ export function PreliminarySourceSelections({
   onReview,
   renderActions,
 }: {
-  selections?: Inspection[];
+  selections?: Inspection[] | undefined;
   profiles: SourceProfile[];
   disabled: boolean;
   onReview: (candidate: Pick<SourceRecord, "profile_id" | "path">) => void;

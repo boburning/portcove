@@ -231,7 +231,7 @@ operation-lock behavior.
 npm, GitHub Actions and Rust toolchains, plus regex-managed Node, repository
 quality crates, tauri-driver, Aqua and its registry/tools, PSScriptAnalyzer, and
 the release Syft version. It groups coupled ecosystems, pins action digests,
-waits three days before proposing new releases, disables automerge, and opens
+waits one day before proposing routine new releases, disables automerge, and opens
 eligible product-dependency pull requests immediately so pull-request-only CI
 can evaluate them.
 Non-security development-tool proposals use all-day Monday and Thursday creation
@@ -249,7 +249,7 @@ qualification group. The standard Aqua registry ref remains an extracted,
 visible authority but is disabled as an independent update: change it in the
 same reviewed change when a tool version, compatibility repair, integrity update,
 or security response requires a newer registry. Routine updates retain the
-three-day age policy. Renovate vulnerability-alert pull requests bypass the
+one-day age policy. Renovate vulnerability-alert pull requests bypass the
 ordinary schedule, queue limits, and minimum release age so detected security
 repairs surface immediately; they still retain applicable checksums, protected
 CI, review and authorized guarded merge.
@@ -273,7 +273,7 @@ precise-update path before `cargo update --workspace`. The deployed 44.156.3
 [replay fixture](../scripts/fixtures/serde-json-renovate-44.156.3.json) records
 eligible 1.0.153 remaining locked while 1.0.154 was pending, with semver unchanged.
 
-The three-day timestamp-required age policy, disabled automerge, existing security
+The one-day timestamp-required age policy, disabled automerge, existing security
 overrides and major dashboard approval remain intact. Out-of-range proposals can
 still change a manifest and require a separate scope decision; this authorization
 does not approve them. Full lockfile maintenance uses Cargo's general update path
@@ -325,19 +325,30 @@ Use four delivery paths:
   from elective upgrades, without the ordinary release-age or intake delay; review,
   signatures, required checks and affected native/installed behavior remain.
 
-The actual pnpm lock delta is audited by `dependency-release-age.mjs` in the
-existing hosted dependency-review lanes and `renovate-check`.
-The blocking hosted audit runs at the PR delivery boundary. Main push checks do
-not reclassify an already reviewed security merge without its PR intent metadata.
-Every newly introduced registry artifact, including transitives, needs an authoritative npm
-publication timestamp and three complete days. Unchanged artifacts and removals
-are excluded; peer contexts retain package identity. Young artifacts report their
-exact eligibility time. Unsupported sources, malformed locks or unavailable
-registry evidence are explicit unknowns requiring a specific reviewed resolution.
-A green Renovate selected-version status does not qualify newer lock resolutions.
-Security intent reports the same age findings and routes to the existing
-advisory-backed controlled review described above; it never grants ordinary age
-eligibility. No global pnpm resolver setting or new required status is introduced.
+Frontend resolution uses pnpm 12.11.2's native `minimumReleaseAge: 1440`
+and `minimumReleaseAgeStrict: false`. It prefers eligible versions within a
+requested range, but can install a younger version when none qualifies. Renovate
+filters routine proposals with `minimumReleaseAge: "1 day"`,
+`minimumReleaseAgeBehaviour: "timestamp-required"` and
+`internalChecksFilter: "strict"`. This is not a universal 24-hour installed-age
+guarantee, including for frozen lockfiles or newly resolved transitives. Keep
+native missing-timestamp handling; do not recreate the retired custom age gate.
+
+The dependency-review lanes still execute the pinned dependency-review action
+with high-severity failure propagation. Advisory/license policy, vulnerability
+alerts, frozen lockfiles, registry artifact integrity and restricted install
+scripts retain their existing responsibilities. The old three-day audit,
+age-only artifacts and delivery consumer are removed. Historical failures and
+eligibility times remain evidence of the superseded policy, not resume gates.
+The independent lock inventory remains a source/integrity input to build
+comparison; it supplies no publication-age verdict.
+
+Vite+ releases are discovered automatically by Renovate. The primary proposal
+selects a target; it must be completed through the supported migrator from
+verified pre-upgrade inputs before ordinary checks can pass. Bundled aliases,
+Vitest and browser providers do not take independent ordinary upgrades. Security
+alerts remain enabled and take the same coordinated compatibility review. See
+[the completion procedure](DEVELOPMENT-TOOLS.md#coordinated-upgrades-and-rollback).
 
 The fast-lane whole-lock comparison permits only the claimed direct version and
 registry integrity transition. Unknown syntax, other resolution changes, source,
@@ -358,7 +369,7 @@ and rollback scope justify it.
 
 Validate configuration with the official pinned client used for the current
 resolved-rule receipt:
-`corepack pnpm --package=renovate@44.125.1 dlx --allow-build=re2 renovate-config-validator --strict renovate.json`.
+`corepack pnpm --package=renovate@44.156.3 dlx --allow-build=re2 renovate-config-validator --strict renovate.json`.
 Schema validation supplements the repository's rule/extraction/classifier tests;
 it does not prove effective inherited grouping or hosted proposal uptake. Inspect
 resolved presets and rule precedence with the matching official engine, then read

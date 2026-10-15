@@ -84,7 +84,7 @@ export function ReleaseChannelControl({
             Your saved choice has not changed.
           </p>
         </div>
-      ) : channels.length === 1 ? (
+      ) : channels.length === 1 && channels[0] !== undefined ? (
         <p>
           <strong>{releaseChannelPresentation(channels[0]).label} only</strong>
         </p>

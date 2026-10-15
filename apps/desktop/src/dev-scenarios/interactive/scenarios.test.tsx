@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act } from "react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { startInteractiveScenarios, stopInteractiveScenarios } from "./entry";
 import { recoveryKey } from "./transport";
 beforeEach(() => {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { beforeEach, afterEach, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
 import { useFavorites } from "./use-favorites";
 function deferred<T>() {

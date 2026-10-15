@@ -1,7 +1,8 @@
+import { fixtureValue } from "../test-fixtures";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import { portDefinition } from "../test-fixtures";
 import type { GameFileQuerySnapshot, GameFileQueryRefreshRequest } from "../types";
@@ -13,7 +14,7 @@ vi.mock("../api", () => ({
 const port = portDefinition();
 const request: GameFileQueryRefreshRequest["routes"][number] = {
   port_id: port.id,
-  platform: port.platforms[0],
+  platform: fixtureValue(port.platforms[0], "port.platforms[0]"),
   channel: "stable",
   route: "managed_install",
 };
@@ -106,7 +107,10 @@ it("discards obsolete completion and late events after a library/context switch"
   );
   await render();
   await check();
-  const event = vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[0][2];
+  const event = fixtureValue(
+    vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[0],
+    "vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[0]",
+  )[2];
   await act(async () => {
     event?.({
       schema_version: 3,
@@ -166,7 +170,10 @@ it("keeps the real refresh pending after cancellation acknowledgment and rejects
     button.click();
   });
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
-  const event = vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[0][2];
+  const event = fixtureValue(
+    vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[0],
+    "vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[0]",
+  )[2];
   await act(async () =>
     event?.({
       schema_version: 3,
@@ -244,7 +251,7 @@ it("rejects stale, mismatched, duplicated and contradictory producer observation
   const baseline = snapshot();
   expect(acceptedGameFileQuery(baseline, request, library, now)).toBe(true);
   const positive = {
-    ...baseline.routes[0],
+    ...fixtureValue(baseline.routes[0], "baseline.routes[0]"),
     state: "files_available" as const,
     reason: "complete_compatible_observation" as const,
     contract_id: "contract",
@@ -260,9 +267,30 @@ it("rejects stale, mismatched, duplicated and contradictory producer observation
     { ...baseline, expires_at: now - 1 },
     { ...baseline, observed_at: now + 1 },
     { ...baseline, routes: [...baseline.routes, ...baseline.routes] },
-    { ...baseline, routes: [{ ...baseline.routes[0], channel: "rolling" as const }] },
-    { ...baseline, routes: [{ ...baseline.routes[0], state: "files_available" as const }] },
-    { ...baseline, routes: [{ ...baseline.routes[0], state: "no_files_required" as const }] },
+    {
+      ...baseline,
+      routes: [
+        { ...fixtureValue(baseline.routes[0], "baseline.routes[0]"), channel: "rolling" as const },
+      ],
+    },
+    {
+      ...baseline,
+      routes: [
+        {
+          ...fixtureValue(baseline.routes[0], "baseline.routes[0]"),
+          state: "files_available" as const,
+        },
+      ],
+    },
+    {
+      ...baseline,
+      routes: [
+        {
+          ...fixtureValue(baseline.routes[0], "baseline.routes[0]"),
+          state: "no_files_required" as const,
+        },
+      ],
+    },
     { ...baseline, routes: [{ ...positive, contract_id: null }] },
     { ...baseline, routes: [{ ...positive, identity: null }] },
     { ...baseline, routes: [{ ...positive, identity: { ...positive.identity, variant_id: "" } }] },
@@ -270,7 +298,7 @@ it("rejects stale, mismatched, duplicated and contradictory producer observation
       ...baseline,
       routes: [
         {
-          ...baseline.routes[0],
+          ...fixtureValue(baseline.routes[0], "baseline.routes[0]"),
           state: "no_files_required" as const,
           reason: "explicit_empty_requirements" as const,
           route_definition_sha256: null,

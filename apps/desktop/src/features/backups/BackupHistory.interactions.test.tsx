@@ -1,7 +1,8 @@
+import { fixtureValue } from "../../test-fixtures";
 // @vitest-environment jsdom
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
 import { BackupHistory } from "../../components/BackupHistory";
 import { DetailPanel, type DetailActions } from "../../components/DetailPanel";
@@ -224,7 +225,10 @@ it("returns focus to Saves and storage when the uninstalled detail consumer remo
   await act(async () => root.render(<DetailHistory />));
   const opener = await openDeletion("backup-1");
   await click("Delete this backup permanently");
-  expect(deleteBackup).toHaveBeenCalledExactlyOnceWith(backups[0], "reviewed-data");
+  expect(deleteBackup).toHaveBeenCalledExactlyOnceWith(
+    fixtureValue(backups[0], "backups[0]"),
+    "reviewed-data",
+  );
   expect(opener.isConnected).toBe(false);
   expect(container.querySelector(".backup-history")).toBeNull();
   await vi.waitFor(() =>
@@ -248,7 +252,10 @@ it("keeps a failed deletion in review, then returns focus to its opener on cance
   await act(async () => root.render(<History remove={remove} />));
   const opener = await openDeletion("backup-1");
   await click("Delete this backup permanently");
-  expect(remove).toHaveBeenCalledExactlyOnceWith(backups[0], "reviewed-data");
+  expect(remove).toHaveBeenCalledExactlyOnceWith(
+    fixtureValue(backups[0], "backups[0]"),
+    "reviewed-data",
+  );
   expect(desktopApi.previewBackupAction).toHaveBeenCalledExactlyOnceWith(
     "sample",
     "backup-1",
@@ -318,7 +325,10 @@ it("returns focus to the restore opener after a successful reviewed restore", as
     opener.click();
   });
   await click("Restore this backup");
-  expect(restore).toHaveBeenCalledExactlyOnceWith(backups[0], "reviewed-data");
+  expect(restore).toHaveBeenCalledExactlyOnceWith(
+    fixtureValue(backups[0], "backups[0]"),
+    "reviewed-data",
+  );
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   await vi.waitFor(() => expect(document.activeElement).toBe(opener));
 });
@@ -870,7 +880,9 @@ it("preserves a completed reviewed delete and its focus after readback fails, th
       backups: backups.slice(1),
       problems: [],
     });
-  const remove = vi.spyOn(desktopApi, "deleteBackup").mockResolvedValueOnce(backups[0]);
+  const remove = vi
+    .spyOn(desktopApi, "deleteBackup")
+    .mockResolvedValueOnce(fixtureValue(backups[0], "backups[0]"));
   const restore = vi.spyOn(desktopApi, "restoreBackup");
   await act(async () => root.render(<DetailReadHistory />));
   const opener = await openDeletion("backup-1");
@@ -963,9 +975,10 @@ it("preserves a completed reviewed restore and its focus when inventory readback
       backups,
       problems: [],
     });
-  const restore = vi
-    .spyOn(desktopApi, "restoreBackup")
-    .mockResolvedValueOnce({ restored_backup: backups[0], safety_backup: null });
+  const restore = vi.spyOn(desktopApi, "restoreBackup").mockResolvedValueOnce({
+    restored_backup: fixtureValue(backups[0], "backups[0]"),
+    safety_backup: null,
+  });
   const remove = vi.spyOn(desktopApi, "deleteBackup");
   await act(async () => root.render(<DetailReadHistory />));
   const opener = container.querySelector<HTMLButtonElement>(

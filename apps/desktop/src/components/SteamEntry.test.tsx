@@ -1,7 +1,8 @@
+import { fixtureValue } from "../test-fixtures";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import { portDefinition } from "../test-fixtures";
 import type { SteamBatchReview, SteamEntryReview } from "../types";
@@ -267,9 +268,9 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
   );
   expect(reviewButton?.disabled).toBe(true);
   const boxes = [...document.body.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
-  await act(async () => boxes[0].click());
+  await act(async () => fixtureValue(boxes[0], "boxes[0]").click());
   expect(reviewButton?.disabled).toBe(true);
-  await act(async () => boxes[1].click());
+  await act(async () => fixtureValue(boxes[1], "boxes[1]").click());
   await input("Steam installation folder", review.steam_root);
   await input("Steam profile ID", review.steam_user_id);
   await click("Review selected shortcuts");
@@ -292,6 +293,6 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
     "batch-review",
     7,
   );
-  await act(async () => boxes[1].click());
+  await act(async () => fixtureValue(boxes[1], "boxes[1]").click());
   expect(document.body.textContent).not.toContain(review.shortcuts_path);
 });

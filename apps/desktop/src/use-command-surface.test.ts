@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { portDefinition, portStatus } from "./test-fixtures";
 import { commandSurfaceCommands } from "./use-command-surface";
 

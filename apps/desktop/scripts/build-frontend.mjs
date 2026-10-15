@@ -9,26 +9,25 @@ export function frontendEnvironment(environment) {
   );
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const environment = frontendEnvironment(process.env);
-  for (const arguments_ of [["typecheck"], ["exec", "vite", "build"]]) {
-    let result;
-    try {
-      result = spawnCommand("corepack", ["pnpm", ...arguments_], {
+export function buildFrontend(environment = process.env, run = spawnCommand, cached = false) {
+  try {
+    const result = run(
+      "corepack",
+      ["pnpm", "exec", "vp", ...(cached ? ["run", "bundle:cached"] : ["build"])],
+      {
         cwd: fileURLToPath(new URL("../", import.meta.url)),
-        env: environment,
+        env: frontendEnvironment(environment),
         stdio: "inherit",
-      });
-    } catch (error) {
-      console.error(
-        `Frontend build requires Corepack with the repository's pinned pnpm: ${error.message}. Run the repository bootstrap; no global pnpm shim is required.`,
-      );
-      process.exitCode = 1;
-      break;
-    }
-    if (result.status !== 0) {
-      process.exitCode = result.status ?? 1;
-      break;
-    }
+      },
+    );
+    return result.status ?? 1;
+  } catch (error) {
+    console.error(
+      `Frontend build requires Corepack with the repository's pinned pnpm: ${error.message}. Run the repository bootstrap; no global pnpm shim is required.`,
+    );
+    return 1;
   }
 }
+
+if (process.argv[1] === fileURLToPath(import.meta.url))
+  process.exitCode = buildFrontend(process.env, spawnCommand, process.argv.includes("--cached"));

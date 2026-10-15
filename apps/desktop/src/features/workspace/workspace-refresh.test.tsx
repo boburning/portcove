@@ -1,7 +1,8 @@
+import { fixtureValue } from "../../test-fixtures";
 // @vitest-environment jsdom
 import { act, StrictMode, useMemo } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "../../api";
 import { useUpdateCenter } from "../port-updates/use-update-center";
@@ -230,7 +231,10 @@ describe("workspace refresh recovery", () => {
 
   it("preserves catalog, source, and unchanged record references for a status-only change", async () => {
     const secondStatus = { ...portStatus(), port_id: "second-port" };
-    const initial = { ...snapshot, statuses: [snapshot.statuses[0], secondStatus] };
+    const initial = {
+      ...snapshot,
+      statuses: [fixtureValue(snapshot.statuses[0], "workspace status"), secondStatus],
+    };
     vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(initial);
     await render();
     const before = {
@@ -245,7 +249,7 @@ describe("workspace refresh recovery", () => {
       statuses: statusIndexCount,
     };
     const changed = structuredClone(initial);
-    changed.statuses[0].successful_launches += 1;
+    fixtureValue(changed.statuses[0], "changed.statuses[0]").successful_launches += 1;
     vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(changed);
 
     await act(async () => data.refresh());
@@ -265,7 +269,8 @@ describe("workspace refresh recovery", () => {
     await render();
     const before = { statuses: data.statuses, sources: data.sources };
     const changed = structuredClone(snapshot);
-    changed.catalog.ports[0].name = "Changed by an external client";
+    fixtureValue(changed.catalog.ports[0], "changed.catalog.ports[0]").name =
+      "Changed by an external client";
     vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(changed);
 
     await act(async () => data.refresh());
@@ -302,19 +307,25 @@ describe("workspace refresh recovery", () => {
   it("keeps retained status records correct across removal and reordering", async () => {
     const secondStatus = { ...portStatus(), port_id: "second-port" };
     const thirdStatus = { ...portStatus(), port_id: "third-port" };
-    const initial = { ...snapshot, statuses: [snapshot.statuses[0], secondStatus, thirdStatus] };
+    const initial = {
+      ...snapshot,
+      statuses: [fixtureValue(snapshot.statuses[0], "workspace status"), secondStatus, thirdStatus],
+    };
     vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(initial);
     await render();
     const retained = data.statuses[2];
     const changed = structuredClone(initial);
-    changed.statuses = [changed.statuses[2], changed.statuses[0]];
+    changed.statuses = [
+      fixtureValue(changed.statuses[2], "third status"),
+      fixtureValue(changed.statuses[0], "first status"),
+    ];
     vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(changed);
 
     await act(async () => data.refresh());
 
     expect(data.statuses.map((status) => status.port_id)).toEqual([
       "third-port",
-      initial.statuses[0].port_id,
+      fixtureValue(initial.statuses[0], "initial.statuses[0]").port_id,
     ]);
     expect(data.statuses[0]).toBe(retained);
   });
@@ -652,12 +663,22 @@ describe("workspace refresh recovery", () => {
     });
     const notices = [...host.querySelectorAll("section")];
     expect(notices).toHaveLength(2);
-    expect(notices[0].textContent).toContain("Library information could not be refreshed");
-    expect(notices[0].textContent).toContain("The change was saved");
-    expect(notices[0].textContent).not.toContain("retained recovery diagnostic");
-    expect(notices[1].textContent).toContain("Library recovery could not finish");
-    expect(notices[1].textContent).toContain("An earlier attempt left unfinished work");
-    expect(notices[1].textContent).not.toContain("separate refresh diagnostic");
+    expect(fixtureValue(notices[0], "notices[0]").textContent).toContain(
+      "Library information could not be refreshed",
+    );
+    expect(fixtureValue(notices[0], "notices[0]").textContent).toContain("The change was saved");
+    expect(fixtureValue(notices[0], "notices[0]").textContent).not.toContain(
+      "retained recovery diagnostic",
+    );
+    expect(fixtureValue(notices[1], "notices[1]").textContent).toContain(
+      "Library recovery could not finish",
+    );
+    expect(fixtureValue(notices[1], "notices[1]").textContent).toContain(
+      "An earlier attempt left unfinished work",
+    );
+    expect(fixtureValue(notices[1], "notices[1]").textContent).not.toContain(
+      "separate refresh diagnostic",
+    );
     expect(
       notices.map((notice) => JSON.parse(notice.querySelector("pre")!.textContent) as unknown),
     ).toEqual([

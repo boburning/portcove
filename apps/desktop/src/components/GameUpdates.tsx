@@ -91,7 +91,7 @@ export function GameUpdateControl({
   generation: number;
   policy: UpdatePolicy;
   busy: boolean;
-  perform?: Perform;
+  perform?: Perform | undefined;
 }) {
   const [activate, setActivate] = useState(policy === "automatic");
   const [plan, setPlan] = useState<GameUpdatePlan>();

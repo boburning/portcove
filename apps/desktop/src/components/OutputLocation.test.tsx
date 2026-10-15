@@ -1,7 +1,8 @@
+import { fixtureValue } from "../test-fixtures";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import type {
   InstallRecord,
@@ -491,7 +492,7 @@ describe("per-game install folder", () => {
     await click("Review library default", first);
     await click("Use library default for future installs");
     expect(reset).toHaveBeenCalledTimes(1);
-    expect(reset.mock.calls[0][0]).toBe("first");
+    expect(fixtureValue(reset.mock.calls[0], "reset.mock.calls[0]")[0]).toBe("first");
     expect(second.textContent).toContain("F:/Games/second");
   });
 

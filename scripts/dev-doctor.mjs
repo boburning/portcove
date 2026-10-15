@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, lstatSync, realpathSync, readdirSync } from "node:fs";
 import os from "node:os";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -228,8 +229,14 @@ export function existingAquaDefinition(definition, aquaRoot, platform = process.
 
 export function existingNpmDefinition(id, base, name, bin) {
   try {
-    const desired = JSON.parse(readFileSync(path.join(base, "package.json"), "utf8"))
+    let desired = JSON.parse(readFileSync(path.join(base, "package.json"), "utf8"))
       .devDependencies?.[name];
+    if (desired === "catalog:") {
+      const { parse } = createRequire(import.meta.url)("yaml");
+      desired = String(
+        parse(readFileSync(path.join(base, "pnpm-workspace.yaml"), "utf8")).catalog[name],
+      );
+    }
     const packageRoot = path.join(base, "node_modules", name);
     const installed = JSON.parse(readFileSync(path.join(packageRoot, "package.json"), "utf8"));
     if (installed.name !== name || !/^\d+\.\d+\.\d+$/u.test(desired ?? "")) return null;
@@ -316,9 +323,7 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
       platform,
     );
   const npm = {
-    "npm-oxfmt": [root, "oxfmt", "oxfmt"],
-    "npm-oxlint": [root, "oxlint", "oxlint"],
-    "npm-oxlint-tsgolint": [root, "oxlint-tsgolint", "tsgolint"],
+    "npm-vite-plus": [root, "vite-plus", "vp"],
     "npm-stylelint": [path.join(root, "apps/desktop"), "stylelint", "stylelint"],
   };
   for (const [id, [base, name, bin]] of Object.entries(npm)) {

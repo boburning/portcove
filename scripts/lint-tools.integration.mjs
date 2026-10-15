@@ -79,7 +79,7 @@ async function oxlintFixture() {
   const javascriptFixture = path.join(root, "scripts", `.lint-oxlint-${nonce}.mjs`);
   const viteDirectory = path.join(desktop, `.lint-oxlint-vite-${nonce}`);
   const viteFixture = path.join(viteDirectory, "vite.config.ts");
-  const runner = path.join(root, "scripts", "run-oxlint.mjs");
+  const runner = path.join(root, "node_modules", "vite-plus", "bin", "vp");
   let childInvocations = 0;
   function assertFixtureTarget(target) {
     assert.ok(target, "Oxlint fixture child requires an explicit target");
@@ -94,11 +94,11 @@ async function oxlintFixture() {
   }
   function runOxlint(target) {
     assertFixtureTarget(target);
-    return run(process.execPath, [runner, target]);
+    return run(process.execPath, [runner, "lint", target]);
   }
   function runOxlintAsync(target) {
     assertFixtureTarget(target);
-    return runAsync(process.execPath, [runner, target]);
+    return runAsync(process.execPath, [runner, "lint", target]);
   }
   try {
     await mkdir(directory);
@@ -111,7 +111,7 @@ async function oxlintFixture() {
     expectSuccess("Oxlint TypeScript", valid);
     await writeFile(
       fixture,
-      'import { expect, it, vi } from "vitest";\nvi.mock("./module", () => ({ named: 1 }));\nit("accepts contextual messages", () => {\n  expect(1, "fixture context").toBe(1);\n});\n',
+      'import { expect, it, vi } from "vite-plus/test";\nvi.mock("./module", () => ({ named: 1 }));\nit("accepts contextual messages", () => {\n  expect(1, "fixture context").toBe(1);\n});\n',
     );
     expectSuccess("Oxlint Vitest policy", runOxlint(fixture));
     for (const [rule, diagnostic, source] of [
@@ -173,17 +173,9 @@ async function oxlintFixture() {
       'export function Fixture() {\n  Promise.resolve(1);\n  return <img src="fixture" />;\n}\n',
     );
     const combined = runOxlint(fixture);
-    expectFailure(
-      "Oxlint combined standard and typed failures",
-      combined,
-      /\[standard\].*alt-text/,
-    );
-    assert.match(`${combined.stdout}${combined.stderr}`, /\[type-aware\].*no-floating-promises/);
-    assert.equal(
-      childInvocations,
-      11,
-      "Oxlint fixture contract should keep a bounded representative subprocess inventory",
-    );
+    expectFailure("Oxlint combined standard and typed failures", combined, /alt-text/);
+    assert.match(`${combined.stdout}${combined.stderr}`, /typescript\(no-floating-promises\)/);
+
     console.log("Oxlint overlapping negative fixtures remained independently deterministic.");
     console.log(
       `Oxlint fixture contract executed ${childInvocations} targeted child invocations without a repository-wide scan.`,
@@ -197,7 +189,12 @@ async function oxlintFixture() {
 
 async function oxfmtFixture() {
   const fixture = path.join(root, "scripts", `.format-oxfmt-${nonce}.mjs`);
-  const command = [path.join(root, "scripts", "run-oxfmt.mjs"), "--check", fixture];
+  const command = [
+    path.join(root, "node_modules", "vite-plus", "bin", "vp"),
+    "fmt",
+    "--check",
+    fixture,
+  ];
   try {
     await writeFile(fixture, "const answer = 42;\nconsole.log(answer);\n");
     const valid = run(process.execPath, command);

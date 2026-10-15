@@ -1,5 +1,5 @@
 import { portDefinition, portStatus } from "./test-fixtures";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { primaryCliCommand, quoteCliArg } from "./cli-command";
 import type { PortDefinition, PortStatus } from "./types";
 

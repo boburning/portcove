@@ -1,7 +1,8 @@
+import { fixtureValue } from "../test-fixtures";
 // @vitest-environment jsdom
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import {
   GameFileScanProvider,
@@ -22,6 +23,7 @@ import type {
   GameFileScanSnapshot,
   OperationEvent,
   SourceImportPlan,
+  SourceRecord,
 } from "../types";
 import { GameFileLibraries } from "./GameFileLibraries";
 
@@ -40,6 +42,15 @@ function rootsWithAvailability(available: number, unavailable: number): GameFile
     availability: index < available ? "available" : "unavailable",
   }));
 }
+const savedCandidate: SourceRecord = {
+  profile_id: "game",
+  path: "D:/Games/game.z64",
+  sha256: "b".repeat(64),
+  size: 64,
+  storage_sha256: "b".repeat(64),
+  storage_size: 64,
+  updated_at: 1,
+};
 const snapshot: GameFileScanSnapshot = {
   format_version: 3,
   catalog_sha256: "a".repeat(64),
@@ -56,17 +67,7 @@ const snapshot: GameFileScanSnapshot = {
   report: {
     searched_roots: [saved.path],
     searched_profiles: ["game"],
-    candidates: [
-      {
-        profile_id: "game",
-        path: "D:/Games/game.z64",
-        sha256: "b".repeat(64),
-        size: 64,
-        storage_sha256: "b".repeat(64),
-        storage_size: 64,
-        updated_at: 1,
-      },
-    ],
+    candidates: [savedCandidate],
     entries_examined: 2,
     files_hashed: 1,
     hash_bytes: 64,
@@ -78,6 +79,8 @@ const snapshot: GameFileScanSnapshot = {
 };
 function mockCompletedScan(roots: GameFileRoot[]) {
   const available = roots.filter((root) => root.availability === "available");
+  const [firstAvailable] = available;
+  if (!firstAvailable) throw new Error("Completed scan fixture requires an available root");
   const scanned: GameFileScanSnapshot = {
     ...snapshot,
     roots,
@@ -86,7 +89,7 @@ function mockCompletedScan(roots: GameFileRoot[]) {
       searched_roots: available.map((root) => root.path),
       candidates: snapshot.report.candidates.map((candidate) => ({
         ...candidate,
-        path: `${available[0].path}/game.z64`,
+        path: `${firstAvailable.path}/game.z64`,
       })),
     },
   };
@@ -172,7 +175,7 @@ it("continues Core's saved frontier without discarding matches or changing scan 
 });
 
 it("connects a registered preliminary selection to truthful port guidance and bounded setup review", async () => {
-  const record = { ...snapshot.report.candidates[0], path: "D:/Games/selected.iso" };
+  const record = { ...savedCandidate, path: "D:/Games/selected.iso" };
   const inspection = preliminarySourceInspection(record);
   const observed = {
     ...snapshot,
@@ -236,7 +239,7 @@ it("connects a registered preliminary selection to truthful port guidance and bo
 });
 
 it("returns preliminary review cancellation to its opener or the heading when that control is unavailable", async () => {
-  const record = { ...snapshot.report.candidates[0], path: "D:/Games/selected.iso" };
+  const record = { ...savedCandidate, path: "D:/Games/selected.iso" };
   const inspection = preliminarySourceInspection(record);
   const observed = {
     ...snapshot,
@@ -285,7 +288,7 @@ it("returns preliminary review cancellation to its opener or the heading when th
 it.each(["inputs_match", "inputs_changed"] as const)(
   "suspends preliminary queued review during an active batch and respects completed freshness: %s",
   async (freshness) => {
-    const record = { ...snapshot.report.candidates[0], path: "D:/Games/selected.iso" };
+    const record = { ...savedCandidate, path: "D:/Games/selected.iso" };
     const inspection = preliminarySourceInspection(record);
     const observed = {
       ...resumableSnapshot(),
@@ -352,7 +355,7 @@ it.each(["continued", "fresh", "stale", "restart"] as const)(
   "keeps earlier setup reviews available only during a confirmed continuation: %s",
   async (mode) => {
     const prior = resumableSnapshot();
-    const source = prior.report.candidates[0];
+    const source = savedCandidate;
     const open = vi.fn();
     const port = { ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" };
     const status = {
@@ -520,7 +523,7 @@ it("keeps exhausted coverage distinct from skipped files and gameplay support", 
 });
 
 it("marks matching registered candidates without claiming installation and keeps each port distinct", async () => {
-  const source = snapshot.report.candidates[0];
+  const source = savedCandidate;
   const onOpenPort = vi.fn();
   const ports = [
     { ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" },
@@ -645,7 +648,7 @@ it("uses core action reasons and installation state for each registered match", 
 });
 
 it("holds a prior setup continuation when a later workspace refresh fails", async () => {
-  const source = snapshot.report.candidates[0];
+  const source = savedCandidate;
   const ports = [{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }];
   const onOpenPort = vi.fn();
   await act(async () =>
@@ -680,7 +683,7 @@ it("holds a prior setup continuation when a later workspace refresh fails", asyn
 });
 
 it("recognizes a registered source in streamed results but still reviews a different identity", async () => {
-  const source = snapshot.report.candidates[0];
+  const source = savedCandidate;
   let onEvent: ((event: OperationEvent) => void) | undefined;
   vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
     onEvent = callback;
@@ -758,7 +761,7 @@ it("keeps live catalog associations distinct through completion and stale readba
     { ...portDefinition(), id: "unrelated", name: "Unrelated", source_profile: "other" },
   ];
   const orphan = {
-    ...snapshot.report.candidates[0],
+    ...savedCandidate,
     profile_id: "orphan",
     path: "D:/Games/orphan.bin",
   };
@@ -885,7 +888,7 @@ it("reviews a streamed match through a fresh core plan before the scan completes
     schema_version: 1,
     profile_id: "game",
     mode: "use_current_location",
-    source: snapshot.report.candidates[0],
+    source: savedCandidate,
     admission_mode: "exact_identity",
     destination: "D:/Games/game.z64",
     destination_exists: true,
@@ -958,7 +961,7 @@ it("ignores delayed events from a completed scan while another scan runs", async
     });
   });
   await act(async () => button("Scan saved folders").click());
-  await act(async () => resolvers[0](snapshot));
+  await act(async () => fixtureValue(resolvers[0], "resolvers[0]")(snapshot));
   await act(async () => button("Scan saved folders").click());
   const late = {
     schema_version: 3,
@@ -974,10 +977,13 @@ it("ignores delayed events from a completed scan while another scan runs", async
     sha256: "b".repeat(64),
     size: 64,
   } as const;
-  await act(async () => callbacks[0](late));
+  await act(async () => fixtureValue(callbacks[0], "callbacks[0]")(late));
   expect(document.body.querySelector('[aria-label="Matches found during scan"]')).toBeNull();
   await act(async () =>
-    callbacks[1]({ ...late, operation_id: "new-scan", path: "D:/Games/new.z64" }),
+    fixtureValue(
+      callbacks[1],
+      "callbacks[1]",
+    )({ ...late, operation_id: "new-scan", path: "D:/Games/new.z64" }),
   );
   expect(
     document.body.querySelector('[aria-label="Matches found during scan"]')?.textContent,
@@ -985,7 +991,7 @@ it("ignores delayed events from a completed scan while another scan runs", async
   expect(
     document.body.querySelector('[aria-label="Matches found during scan"]')?.textContent,
   ).not.toContain("stale.z64");
-  await act(async () => resolvers[1](snapshot));
+  await act(async () => fixtureValue(resolvers[1], "resolvers[1]")(snapshot));
 });
 
 it("keeps a streamed match unregistered when fresh planning rejects changed bytes", async () => {
@@ -1038,7 +1044,7 @@ it("reports a cancelled source check without describing the saved scan as cancel
 it("reports cancelled source addition while keeping its review and completed scan", async () => {
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
   await click("Scan saved folders");
-  const source = snapshot.report.candidates[0];
+  const source = savedCandidate;
   vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue({
     schema_version: 1,
     profile_id: "game",
@@ -1068,7 +1074,7 @@ it("reports cancelled source addition while keeping its review and completed sca
 });
 
 it("retains a progressive scan across selected game details without starting another scan", async () => {
-  const source = snapshot.report.candidates[0];
+  const source = savedCandidate;
   let emit: ((event: OperationEvent) => void) | undefined;
   let finish: ((value: GameFileScanSnapshot) => void) | undefined;
   vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
@@ -1139,7 +1145,7 @@ it("retains a progressive scan across selected game details without starting ano
 
 it("offers only affected catalog ports after explicit source registration", async () => {
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
-  const source = snapshot.report.candidates[0];
+  const source = savedCandidate;
   const plan: SourceImportPlan = {
     schema_version: 1,
     profile_id: "game",
@@ -1289,9 +1295,12 @@ it("disposes scan observation with its workspace and ignores old events and comp
   await act(async () => {
     void scan?.start();
   });
-  const source = snapshot.report.candidates[0];
+  const source = savedCandidate;
   await act(async () => {
-    callbacks[0]({
+    fixtureValue(
+      callbacks[0],
+      "callbacks[0]",
+    )({
       schema_version: 3,
       type: "source_candidate",
       operation_id: "old",
@@ -1302,13 +1311,16 @@ it("disposes scan observation with its workspace and ignores old events and comp
       operation: "discover_sources",
       ...source,
     });
-    finishes[0](snapshot);
+    fixtureValue(finishes[0], "finishes[0]")(snapshot);
   });
   expect(scan?.scanning).toBe(true);
   expect(scan?.candidates).toEqual([]);
   expect(scan?.completion).toBe(0);
   await act(async () => {
-    callbacks[1]({
+    fixtureValue(
+      callbacks[1],
+      "callbacks[1]",
+    )({
       schema_version: 3,
       type: "started",
       operation_id: "new",
@@ -1320,13 +1332,13 @@ it("disposes scan observation with its workspace and ignores old events and comp
     });
   });
   expect(scan?.operationId).toBe("new");
-  await act(async () => finishes[1](snapshot));
+  await act(async () => fixtureValue(finishes[1], "finishes[1]")(snapshot));
   expect(scan?.completion).toBe(1);
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
 it("retains a scan failure that arrives while selected game details are open", async () => {
-  const source = snapshot.report.candidates[0];
+  const source = savedCandidate;
   let emit: ((event: OperationEvent) => void) | undefined;
   let fail: ((error: Error) => void) | undefined;
   vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
@@ -1381,7 +1393,7 @@ it("retains a scan failure that arrives while selected game details are open", a
 
 it("keeps a committed source visible but holds setup until a failed refresh recovers", async () => {
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
-  const source = snapshot.report.candidates[0];
+  const source = savedCandidate;
   const plan: SourceImportPlan = {
     schema_version: 1,
     profile_id: "game",
@@ -1473,7 +1485,7 @@ it.each([
         key="loaded"
         ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
         profiles={[]}
-        registeredSources={[snapshot.report.candidates[0]]}
+        registeredSources={[savedCandidate]}
         onOpenPort={onOpenPort}
       />,
     ),
@@ -1704,7 +1716,9 @@ it.each([
       expect.any(Function),
     );
     expect(document.body.textContent).toContain("Unavailable saved folders were not searched.");
-    expect(document.body.textContent).toContain(roots[available].path);
+    expect(document.body.textContent).toContain(
+      fixtureValue(roots[available], "roots[available]").path,
+    );
     expect(desktopApi.importSource).not.toHaveBeenCalled();
   },
 );
@@ -1727,7 +1741,7 @@ it("allows another available folder without removing disconnected saved folders"
   expect(add).toHaveBeenCalledOnce();
   expect(add).toHaveBeenCalledWith(added.path);
   expect(remove).not.toHaveBeenCalled();
-  expect(document.body.textContent).toContain(roots[7].path);
+  expect(document.body.textContent).toContain(fixtureValue(roots[7], "roots[7]").path);
   expect(button("Add folder").disabled).toBe(true);
   expect(button("Scan saved folders").disabled).toBe(false);
   expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
@@ -1783,7 +1797,7 @@ it("blocks a scan when refreshed availability exceeds eight and keeps prior evid
   expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
   expect(button("Scan saved folders").disabled).toBe(true);
   expect(document.body.textContent).toContain("at most eight available folders");
-  expect(document.body.textContent).toContain(snapshot.report.candidates[0].path);
+  expect(document.body.textContent).toContain(savedCandidate.path);
   expect(button("Review game files").disabled).toBe(true);
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });

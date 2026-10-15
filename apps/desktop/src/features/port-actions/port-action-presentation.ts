@@ -120,7 +120,8 @@ function presentAssessment(
       blocked: true,
       reason: definitionHoldReason(action === "install" ? "Setup" : "Launch", definition?.reason),
     };
-  if (Object.hasOwn(actionReasons, reason)) return { blocked: true, reason: actionReasons[reason] };
+  const explanation = Object.hasOwn(actionReasons, reason) ? actionReasons[reason] : undefined;
+  if (explanation !== undefined) return { blocked: true, reason: explanation };
   return unavailable(action);
 }
 
@@ -135,10 +136,11 @@ export function portActionPresentation(
     return action === "rollback" ? unavailable(action) : { blocked: false };
   if (!Array.isArray(assessments)) return unavailable(action);
   const matching = assessments.filter((assessment) => assessment?.action === action);
-  if (matching.length !== 1) return unavailable(action);
+  const [assessment] = matching;
+  if (matching.length !== 1 || !assessment) return unavailable(action);
   return action === "rollback"
-    ? presentRollbackAssessment(matching[0])
-    : presentAssessment(matching[0], action);
+    ? presentRollbackAssessment(assessment)
+    : presentAssessment(assessment, action);
 }
 
 type SetupRoute = "install" | "register_external";
@@ -162,8 +164,9 @@ export function catalogSetupPresentation(status: PortStatus | undefined) {
     const assessments = status?.port_actions;
     if (!Array.isArray(assessments)) return unknown;
     const matches = assessments.filter((assessment) => assessment?.action === action);
-    if (matches.length !== 1) return unknown;
-    const { availability, reason, definition } = matches[0];
+    const [assessment] = matches;
+    if (matches.length !== 1 || !assessment) return unknown;
+    const { availability, reason, definition } = assessment;
     const definitionDisposition = () => {
       if (availability === "held" && reason === "definition_ineligible") {
         if (
@@ -243,7 +246,7 @@ export function catalogSetupPresentation(status: PortStatus | undefined) {
   return { label, routes };
 }
 
-const installedInputLabels: Record<string, string> = {
+const installedInputLabels = {
   missing_source: "Game files missing",
   changed_source: "Game files changed",
   unreadable_source: "Game files unreadable",
@@ -263,7 +266,8 @@ export function installedCardInputPresentation(status: PortStatus | undefined) {
   )
     return undefined;
   const inputs = [...new Set(readiness.blockers)].filter(
-    (reason) => typeof reason === "string" && Object.hasOwn(installedInputLabels, reason),
+    (reason): reason is keyof typeof installedInputLabels =>
+      typeof reason === "string" && Object.hasOwn(installedInputLabels, reason),
   );
   const reasons = inputs.map((reason) => {
     const recovery = reason.startsWith("unreadable_")
@@ -275,12 +279,13 @@ export function installedCardInputPresentation(status: PortStatus | undefined) {
   const launch = Array.isArray(assessments)
     ? assessments.filter((assessment) => assessment?.action === "launch")
     : [];
+  const [launchAssessment] = launch;
   const mismatch =
     launch.length === 1 &&
-    launch[0].availability === "held" &&
-    launch[0].reason === "definition_ineligible" &&
-    ["hold", "escalate"].includes(launch[0].definition?.outcome ?? "") &&
-    launch[0].definition?.reason === "source_identity_mismatch";
+    launchAssessment?.availability === "held" &&
+    launchAssessment.reason === "definition_ineligible" &&
+    ["hold", "escalate"].includes(launchAssessment.definition?.outcome ?? "") &&
+    launchAssessment.definition?.reason === "source_identity_mismatch";
   if (mismatch)
     reasons.push(
       `${definitionHoldReason("Launch", "source_identity_mismatch")} View details to review the input requirements.`,
@@ -288,10 +293,11 @@ export function installedCardInputPresentation(status: PortStatus | undefined) {
   if (reasons.length === 0) return undefined;
   const game = inputs.some((reason) => reason.endsWith("_source"));
   const bios = inputs.some((reason) => reason.endsWith("_bios"));
+  const [singleInput] = inputs;
   const label = mismatch
     ? "Input edition mismatch"
-    : inputs.length === 1
-      ? installedInputLabels[inputs[0]]
+    : inputs.length === 1 && singleInput !== undefined
+      ? installedInputLabels[singleInput]
       : game && bios
         ? "Game files and BIOS need review"
         : bios

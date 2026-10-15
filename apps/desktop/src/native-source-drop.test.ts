@@ -1,8 +1,9 @@
+import { fixtureValue } from "./test-fixtures";
 // @vitest-environment jsdom
 import type { DragDropEvent } from "@tauri-apps/api/webview";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   createNativeSourceDropCoordinator,
   sourceDropTargetAt,
@@ -122,7 +123,11 @@ describe("native source listener lifetime", () => {
       },
     });
 
-    expect(() => nativeEvents.register.mock.calls[0][0]({ payload })).not.toThrow();
+    expect(() =>
+      fixtureValue(nativeEvents.register.mock.calls[0], "nativeEvents.register.mock.calls[0]")[0]({
+        payload,
+      }),
+    ).not.toThrow();
     expect(accept).not.toHaveBeenCalled();
   });
 
