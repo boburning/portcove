@@ -38,6 +38,14 @@ import {
   readPrelaunchCustody,
 } from "./retained-evidence.mjs";
 
+// Retained-store controls must live outside disposable checkout temp roots,
+// including when dev-storage redirects TMP/TEMP for the test process.
+async function retainedFixture(prefix) {
+  const parent = path.join(os.homedir(), ".portcove-test-fixtures");
+  await mkdir(parent, { recursive: true, mode: 0o700 });
+  return mkdtemp(path.join(parent, prefix));
+}
+
 function preparationObservation(overrides = {}) {
   return {
     portId: "owned-port",
@@ -127,7 +135,7 @@ test("failed preparation reads retain bounded diagnostic phase and propagate fai
 });
 
 test("bounded evidence streams hash and retain the complete multi-buffer tail", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-stream-tail-"));
+  const directory = await retainedFixture("pcv-stream-tail-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
   const bytes = Buffer.alloc(2 * 1024 * 1024 + 37, 7);
@@ -160,7 +168,7 @@ test("bounded evidence streams hash and retain the complete multi-buffer tail", 
 });
 
 test("bootstrap verifies late mutation after manifest preparation before importing target bytes", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-bootstrap-guard-"));
+  const directory = await retainedFixture("pcv-bootstrap-guard-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
   await writeFile(file, "original");
@@ -204,7 +212,7 @@ test("bootstrap verifies late mutation after manifest preparation before importi
 });
 
 test("prelaunch custody accepts native equivalent absolute path separators", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-prelaunch-path-"));
+  const directory = await retainedFixture("pcv-prelaunch-path-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "product");
   await writeFile(file, "product bytes");
@@ -235,7 +243,7 @@ test("prelaunch custody accepts native equivalent absolute path separators", asy
 });
 
 test("retention rejects absent and untagged cleanup roots before creating them", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-cleanup-boundary-"));
+  const directory = await retainedFixture("pcv-cleanup-boundary-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   for (const suffix of [
     "target/evidence",
@@ -299,7 +307,7 @@ test("capture/read/verification expiry refuses every later launch", async () => 
 });
 
 test("retained input is published without overwrite, deduplicated and bound before consumption", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-retained-"));
+  const directory = await retainedFixture("pcv-retained-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
   const root = path.join(directory, "evidence");
@@ -321,7 +329,7 @@ test("retained input is published without overwrite, deduplicated and bound befo
 });
 
 test("a retained executable is actually consumed through its retained path", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-retained-launch-"));
+  const directory = await retainedFixture("pcv-retained-launch-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const captured = await retainEvidenceInput({
     root: path.join(directory, "evidence"),
@@ -345,7 +353,7 @@ test("a retained executable is actually consumed through its retained path", asy
 });
 
 test("corrupt published evidence and interrupted publication preserve partial failures", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-retained-failure-"));
+  const directory = await retainedFixture("pcv-retained-failure-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
   const root = path.join(directory, "evidence");
@@ -372,7 +380,7 @@ test("corrupt published evidence and interrupted publication preserve partial fa
 });
 
 test("deduplication never republishes a discarded copy after published custody changes", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-dedup-race-"));
+  const directory = await retainedFixture("pcv-dedup-race-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
   await writeFile(file, "original");
@@ -403,7 +411,7 @@ test("deduplication never republishes a discarded copy after published custody c
 });
 
 test("retained evidence refuses disposable ancestry and unavailable capacity", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-retained-capacity-"));
+  const directory = await retainedFixture("pcv-retained-capacity-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
   await writeFile(file, "original");
@@ -422,7 +430,7 @@ test("retained evidence refuses disposable ancestry and unavailable capacity", a
 });
 
 test("cancellation joins the blocked publication worker and preserves staging without publication", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-retained-cancel-"));
+  const directory = await retainedFixture("pcv-retained-cancel-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
   await writeFile(file, "original");
@@ -463,7 +471,7 @@ test("cancellation joins the blocked publication worker and preserves staging wi
 });
 
 test("late cancellation preserves already admitted evidence publication", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-retained-late-cancel-"));
+  const directory = await retainedFixture("pcv-retained-late-cancel-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
   await writeFile(file, "original");
@@ -648,7 +656,13 @@ test("settled visual binds retained image to semantic state and preserves negati
     executeScript: async () => structuredClone(state),
     takeScreenshot: async () => Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64"),
   };
-  const run = (name, readiness = async () => ({ ready: true, phase: "review" })) =>
+  // Successful publication performs real filesystem writes. Keep short deadlines
+  // only for the controls that explicitly exercise expiry.
+  const run = (
+    name,
+    readiness = async () => ({ ready: true, phase: "review" }),
+    timeoutMs = 5000,
+  ) =>
     captureSettledVisual({
       browser,
       output: directory,
@@ -656,17 +670,17 @@ test("settled visual binds retained image to semantic state and preserves negati
       scenario: "owned-review",
       target: "#review",
       readiness,
-      timeoutMs: 200,
+      timeoutMs,
     });
   const captured = await run("positive");
   assert.deepEqual(await fileIdentity(captured.image.path), captured.image);
   assert.equal(JSON.parse(await readFile(captured.receipt, "utf8")).scenario, "owned-review");
   await assert.rejects(
-    run("loading", async () => ({ ready: false })),
+    run("loading", async () => ({ ready: false }), 30),
     /timed out/u,
   );
   state.visible = false;
-  await assert.rejects(run("offscreen"), /timed out/u);
+  await assert.rejects(run("offscreen", undefined, 30), /timed out/u);
   state.visible = true;
   browser.takeScreenshot = async () => {
     throw Error("screen failure");
@@ -1255,7 +1269,7 @@ test("a required image must belong to its criterion's scenario", async (t) => {
 });
 
 test("retained metadata read binds validated bytes even after the original file changes", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-metadata-read-"));
+  const directory = await retainedFixture("pcv-metadata-read-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const original = path.join(directory, "original.json");
   await writeFile(original, JSON.stringify({ criteria: "original" }));

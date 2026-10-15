@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createGitHubRunner } from "./github-api.mjs";
 
@@ -9,6 +10,7 @@ import {
   roadmapCommandHelp,
   deliveryMode,
   analyzeReleaseReadiness,
+  renderReadinessSummary,
   catalogQualificationSummary,
   completionEvidenceLinks,
   dependencyCycles,
@@ -5096,3 +5098,166 @@ test("Roadmap command help is available without the GitHub executable or operati
   assert.equal(result.status, 1);
   assert.match(result.stderr, /mutually exclusive/);
 });
+
+{
+  const approval = JSON.parse(
+    readFileSync(new URL("../.github/linux-beta-risk-706.json", import.meta.url)),
+  );
+  const now = "2026-10-16T00:00:00.000Z";
+  const item = (n, deps = []) => ({
+    id: `i${n}`,
+    title: `Remediation ${n}`,
+    status: "Blocked",
+    platform: "Linux",
+    "work type": "Security",
+    "target release": "Public beta",
+    "release commitment": "Planned",
+    content: {
+      number: n,
+      state: "OPEN",
+      url: `https://github.com/boburning/portcove/issues/${n}`,
+      blockedBy: { totalCount: deps.length, nodes: deps.map((number) => ({ number })) },
+    },
+  });
+  const items = () => [item(49, [706]), item(706)];
+  function evidence() {
+    const policy = { ...approval, firstPublicationTag: "v0.1.0-beta.1" };
+    const candidate = {
+      head: "a".repeat(40),
+      lockSha256: "b".repeat(64),
+      target: "x86_64-unknown-linux-gnu",
+      features: ["default", "tauri/custom-protocol"],
+      inputsSha256: policy.inputsSha256,
+      dependenciesSha256: policy.dependenciesSha256,
+    };
+    const diagnostic = {
+      type: "diagnostic",
+      fields: {
+        severity: "error",
+        code: "unsound",
+        advisory: { id: policy.advisory, package: "glib" },
+        labels: [{ span: "glib 0.18.5 registry+https://github.com/rust-lang/crates.io-index" }],
+      },
+    };
+    const summary = Object.fromEntries(
+      ["advisories", "bans", "licenses", "sources"].map((g) => [
+        g,
+        { errors: g === "advisories" ? 1 : 0, warnings: 0, notes: 0, helps: 0 },
+      ]),
+    );
+    return {
+      risk706Approval: policy,
+      now,
+      risk706Evidence: {
+        approval: policy,
+        candidate,
+        scan: {
+          head: candidate.head,
+          lockSha256: candidate.lockSha256,
+          complete: true,
+          signal: null,
+          error: null,
+          exitCode: 1,
+          unsoundAll: true,
+          configSha256: policy.policySha256,
+          toolVersion: "cargo-deny 0.20.2",
+          scope: "workspace-default-all-targets-all-checks",
+          stdout: "",
+          stderr: [diagnostic, { type: "summary", fields: summary }].map(JSON.stringify).join("\n"),
+        },
+        releases: [],
+        purpose: "release",
+        publicationTag: policy.firstPublicationTag,
+      },
+    };
+  }
+  test("approved remediation planning is valid but never establishes release eligibility", () => {
+    assert.deepEqual(
+      parseArguments(["readiness", "--release", "Public beta", "--linux-beta-706"]),
+      {
+        command: "readiness",
+        positionals: [],
+        options: { "--release": "Public beta", "--linux-beta-706": true },
+      },
+    );
+    const result = analyzeReleaseReadiness(items(), "Public beta", { now });
+    assert.equal(result.safetyConflicts.length, 0);
+    assert.equal(result.dependencyConflicts.length, 0);
+    assert.equal(result.pendingRiskDispositions.length, 2);
+    assert.equal(result.ready, false);
+    assert.match(renderReadinessSummary(result), /Pending:.*actual candidate/);
+    for (const options of [{ now, risk706Approval: null }, { now: "2026-11-15T04:59:00.000Z" }]) {
+      assert.equal(
+        analyzeReleaseReadiness(items(), "Public beta", options).safetyConflicts.length,
+        2,
+      );
+    }
+  });
+  test("only a fully revalidated release candidate can satisfy the scoped pending nodes", () => {
+    const options = evidence();
+    const result = analyzeReleaseReadiness(items(), "Public beta", options);
+    assert.equal(result.ready, true);
+    assert.equal(result.candidateDisposition706.scanPassed, false);
+    assert.equal(result.effectiveRequired.length, 2);
+    assert.equal(result.unfinishedRequired.length, 0);
+    assert.ok(items().every((i) => i.content.state === "OPEN"));
+    for (const mutate of [
+      (e) => {
+        e.scan.complete = false;
+      },
+      (e) => {
+        e.candidate.inputsSha256 = "f".repeat(64);
+      },
+      (e) => {
+        e.purpose = "qualification";
+      },
+    ]) {
+      const changed = evidence();
+      mutate(changed.risk706Evidence);
+      assert.throws(() => analyzeReleaseReadiness(items(), "Public beta", changed));
+    }
+    assert.throws(() => analyzeReleaseReadiness(items(), "1.0", options));
+  });
+  test("canonical scope and all other dependency checks remain enforced", () => {
+    for (const change of [
+      (i) => {
+        i.platform = "Steam Deck";
+      },
+      (i) => {
+        i.content.url = "https://example.test/706";
+      },
+      (i) => {
+        i["release commitment"] = "Opportunistic";
+      },
+    ]) {
+      const list = items();
+      change(list[1]);
+      assert.equal(analyzeReleaseReadiness(list, "Public beta", { now }).safetyConflicts.length, 1);
+    }
+    assert.equal(analyzeReleaseReadiness(items(), "1.0", { now }).safetyConflicts.length, 2);
+    assert.equal(
+      analyzeReleaseReadiness(items(), "Public beta", { now, candidateIssues: [49] })
+        .safetyConflicts.length,
+      1,
+    );
+    const list = items();
+    list[1].content.blockedBy = { totalCount: 1, nodes: [{ number: 999 }] };
+    assert.equal(
+      analyzeReleaseReadiness(list, "Public beta", evidence()).missingProjectDependencies.length,
+      1,
+    );
+    list[1].content.blockedBy = { totalCount: 1, nodes: [{ number: 49 }] };
+    const cycle = analyzeReleaseReadiness(list, "Public beta", evidence());
+    assert.equal(cycle.cycles.length, 1);
+    assert.equal(cycle.dependencyConflicts.length, 1);
+    assert.equal(cycle.ready, false);
+    const deck = item(215, [49]);
+    deck.platform = "Steam Deck";
+    deck["release commitment"] = "Required";
+    assert.equal(
+      analyzeReleaseReadiness([...items(), deck], "Public beta", evidence()).dependencyConflicts
+        .length,
+      1,
+    );
+  });
+}

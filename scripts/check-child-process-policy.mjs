@@ -7,6 +7,10 @@ const SOURCE_ROOTS = ["crates", "apps/desktop/src-tauri"];
 const ALLOWED_DIRECT_COMMAND_FILES = new Set([
   "crates/portcove-core/src/process.rs",
   "crates/portcove-cli/tests/machine_contract.rs",
+  // Extracted integration/namespace controls must launch independent children
+  // to test the policy itself. These are exact test modules, not production adapters.
+  "crates/portcove-cli/tests/machine_contract/source_discovery.rs",
+  "crates/portcove-core/src/tool_process/linux_tests.rs",
 ]);
 
 function rustFiles(directory) {

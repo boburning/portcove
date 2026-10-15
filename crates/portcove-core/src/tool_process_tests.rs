@@ -878,13 +878,19 @@ fn windows_console_image_child_exits_while_the_caller_checkpoint_is_blocked() {
     let images = proof
         .get("process_tree_image_identities")
         .and_then(|value| serde_json::from_str::<Vec<serde_json::Value>>(value).ok());
+    let console_host_image =
+        std::path::PathBuf::from(std::env::var_os("SystemRoot").expect("Windows system root"))
+            .join("System32")
+            .join("conhost.exe")
+            .to_string_lossy()
+            .into_owned();
     let hosts = images.as_ref().map(|images| {
         images
             .iter()
             .filter(|entry| {
-                entry["image"].as_str().is_some_and(|image| {
-                    image.eq_ignore_ascii_case("C:\\Windows\\System32\\conhost.exe")
-                })
+                entry["image"]
+                    .as_str()
+                    .is_some_and(|image| image.eq_ignore_ascii_case(&console_host_image))
             })
             .collect::<Vec<_>>()
     });

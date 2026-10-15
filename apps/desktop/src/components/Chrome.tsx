@@ -474,28 +474,31 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
   const code =
     typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
   const cancelled = code === "cancelled";
+  const renderFailureDetails = () => (
+    <div>
+      <strong>
+        {committed
+          ? "Change saved; review the current state"
+          : neutral
+            ? "Operation cancelled"
+            : cancelled
+              ? presentation?.mutation_state === "recovery_required"
+                ? "Cancelled operation needs recovery review"
+                : "Cancellation outcome needs review"
+              : "Portcove couldn’t finish that action"}
+      </strong>
+      {!((neutral || committed || cancelled) && summary === "The operation was cancelled.") && (
+        <p>{summary}</p>
+      )}
+      {presentation && <FailureDetails presentation={presentation} code={code} />}
+    </div>
+  );
   return (
     <section className="error-banner" role={neutral ? "status" : "alert"}>
       <span className="error-icon">
         <Icon glyph={neutral ? CircleMinus : AlertTriangle} />
       </span>
-      <div>
-        <strong>
-          {committed
-            ? "Change saved; review the current state"
-            : neutral
-              ? "Operation cancelled"
-              : cancelled
-                ? presentation?.mutation_state === "recovery_required"
-                  ? "Cancelled operation needs recovery review"
-                  : "Cancellation outcome needs review"
-                : "Portcove couldn’t finish that action"}
-        </strong>
-        {!((neutral || committed || cancelled) && summary === "The operation was cancelled.") && (
-          <p>{summary}</p>
-        )}
-        {presentation && <FailureDetails presentation={presentation} code={code} />}
-      </div>
+      {renderFailureDetails()}
       <div className="error-actions">
         <Button
           data-focusable

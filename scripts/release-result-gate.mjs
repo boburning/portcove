@@ -29,6 +29,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   if (!raw) throw new Error("PORTCOVE_RELEASE_RESULTS is required");
   evaluateReleaseResults(JSON.parse(raw));
   console.log(
-    "Release identity, qualification, release audit, build matrix, and Intel verification all succeeded.",
+    "Required release decision and qualification jobs succeeded; retained security evidence distinguishes scan results from approved risk dispositions.",
   );
 }

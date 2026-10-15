@@ -455,7 +455,7 @@ impl PolicyDocument {
         let restricted = crate::definition_acquisition::restricted_grant(&value.grant_id);
         if (value.policy_schema == 1
             && (restricted || matches!(value.decision, PolicyDecision::ManagedGithub { .. })))
-            || (matches!(value.policy_schema, 2 | 3 | 4)
+            || (matches!(value.policy_schema, 2..=4)
                 && (!restricted || matches!(value.decision, PolicyDecision::Availability { .. })))
         {
             return Err(PortcoveError::unsupported(

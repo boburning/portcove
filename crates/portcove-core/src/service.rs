@@ -9993,6 +9993,11 @@ fn main() {
         port.platforms = vec![platform];
         port.release.user_prepared = [(platform, runtime)].into();
         port.executable_hints = [(platform, vec!["DKC3Recomp.exe".into()])].into();
+        // This inert fixture substitutes the host platform for the real Windows
+        // package. Its source-qualification scope must describe the same fixture.
+        for record in &mut document.source_catalog.as_mut().unwrap().qualification {
+            record.scope.platform = platform;
+        }
         service.replace_catalog_for_test(
             Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
         );
@@ -13368,7 +13373,8 @@ fn main() {
             rollback_after.previous.as_ref().map(|install| &install.id),
             rollback_before.previous.as_ref().map(|install| &install.id)
         );
-        tamper_host_test_executable(&previous_executable, &original_executable);
+        fs::write(&previous_executable, &original_executable).unwrap();
+        crate::permissions::normalize_archive_entry(&previous_executable, false, true).unwrap();
         assert_eq!(
             assessment(service.status("zelda64-recomp").unwrap()),
             observed

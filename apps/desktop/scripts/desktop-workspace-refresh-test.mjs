@@ -1,8 +1,8 @@
+import { ownedFixtureCommand } from "./desktop-scenario-state.mjs";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { By, until } from "selenium-webdriver";
-import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { captureAccessibilityReport } from "./desktop-review-controls.mjs";
 
 export async function workspaceRefreshScenario({
@@ -174,22 +174,7 @@ export async function workspaceRefreshScenario({
 
   await scenario("native-external-cli-reconciliation", async () => {
     assert.ok(cli && tool, "external CLI reconciliation requires owned fixture inputs");
-    const command = (args) => {
-      const result = spawnCommand(
-        cli,
-        ["--library", library, "--json", "--non-interactive", ...args],
-        {
-          encoding: "utf8",
-          windowsHide: true,
-          timeout: 15_000,
-          env: { ...process.env, PORTCOVE_PREFERENCES: path.join(output, "preferences.json") },
-        },
-      );
-      assert.equal(result.status, 0, result.stderr || result.stdout);
-      const response = JSON.parse(result.stdout);
-      assert.equal(response.ok, true);
-      return response.data;
-    };
+    const command = ownedFixtureCommand({ cli, library, output });
     const platform =
       process.platform === "win32"
         ? "windows-x86-64"

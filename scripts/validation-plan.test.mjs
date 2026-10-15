@@ -7,6 +7,7 @@ import {
   qualificationPlatforms,
   validateValidationPlan,
   validateQualificationBinding,
+  validationOwnershipForPath,
 } from "./validation-plan.mjs";
 import { discoverCiPlan } from "./select-ci-plan.mjs";
 const sha = (c) => c.repeat(40);
@@ -29,6 +30,21 @@ const plan = (changes, values = {}) =>
     ...values,
   });
 const redigest = (p) => ({ ...p, digest: digestValidationPlan(p) });
+
+test("scoped beta matcher and Roadmap release consumer retain protected qualification ownership", () => {
+  for (const file of [
+    "scripts/linux-beta-risk-706.mjs",
+    "scripts/linux-beta-risk-706.test.mjs",
+    "scripts/roadmap.mjs",
+    "scripts/roadmap.test.mjs",
+  ]) {
+    const ownership = validationOwnershipForPath(file);
+    assert.equal(ownership.qualificationRequired, true);
+    assert.ok(ownership.areas.includes("policy"));
+    assert.ok(ownership.areas.includes("release-security"));
+    assert.deepEqual(ownership.platforms, qualificationPlatforms);
+  }
+});
 
 test("ordinary layers select the minimum baseline and union mixed changes", () => {
   for (const [file, groups] of [

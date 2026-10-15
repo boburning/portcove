@@ -24,6 +24,14 @@ const config = JSON.parse(
   await readFile(new URL("../release/upstream-observer.json", import.meta.url), "utf8"),
 );
 
+const accountingCases = JSON.parse(
+  await readFile(
+    new URL("./fixtures/upstream-health-accounting-cases.json", import.meta.url),
+    "utf8",
+  ),
+);
+const { reviewedAccounting } = accountingCases;
+
 test("the compiled CLI fixture uses the same canonical facts digest", async () => {
   const fixture = JSON.parse(
     await readFile(
@@ -1275,13 +1283,6 @@ test("exact Git discovery binds base, merge base, head and checkout; drift and m
     );
 });
 
-const accountingCases = JSON.parse(
-  await readFile(
-    new URL("./fixtures/upstream-health-accounting-cases.json", import.meta.url),
-    "utf8",
-  ),
-);
-const { reviewedAccounting } = accountingCases;
 // Generic monitoring tests use retained independent cases, not a changing live
 // catalog/pin inventory. Explicit negative-policy cases still override this.
 function collectRepositoryHealth(catalog, options = {}) {

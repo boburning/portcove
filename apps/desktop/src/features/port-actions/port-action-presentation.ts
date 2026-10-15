@@ -164,29 +164,34 @@ export function catalogSetupPresentation(status: PortStatus | undefined) {
     const matches = assessments.filter((assessment) => assessment?.action === action);
     if (matches.length !== 1) return unknown;
     const { availability, reason, definition } = matches[0];
-    if (availability === "held" && reason === "definition_ineligible") {
+    const definitionDisposition = () => {
+      if (availability === "held" && reason === "definition_ineligible") {
+        if (
+          !definition ||
+          !["hold", "escalate"].includes(definition.outcome) ||
+          !Object.hasOwn(definitionReasons, definition.reason)
+        )
+          return unknown;
+        return {
+          action,
+          route,
+          availability,
+          reason: definitionHoldReason("Setup", definition.reason),
+        };
+      }
       if (
-        !definition ||
-        !["hold", "escalate"].includes(definition.outcome) ||
-        !Object.hasOwn(definitionReasons, definition.reason)
+        definition != null &&
+        !(
+          availability === "allowed" &&
+          definition.outcome === "eligible" &&
+          definition.reason === "mandatory_checks_passed"
+        )
       )
         return unknown;
-      return {
-        action,
-        route,
-        availability,
-        reason: definitionHoldReason("Setup", definition.reason),
-      };
-    }
-    if (
-      definition != null &&
-      !(
-        availability === "allowed" &&
-        definition.outcome === "eligible" &&
-        definition.reason === "mandatory_checks_passed"
-      )
-    )
-      return unknown;
+      return undefined;
+    };
+    const reviewedDefinition = definitionDisposition();
+    if (reviewedDefinition) return reviewedDefinition;
     if (action === "install" && availability === "allowed" && reason === "available")
       return {
         action,

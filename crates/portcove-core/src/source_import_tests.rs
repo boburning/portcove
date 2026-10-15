@@ -2133,14 +2133,6 @@ fn selected_directory_inventory_refuses_escaping_and_changed_originals() {
 #[cfg(unix)]
 #[test]
 fn selected_directory_copy_preserves_native_optical_basenames() {
-    let (temporary, _library, service, original) = fixture();
-    let mut source = service
-        .inspect_source(PROFILE, &original)
-        .unwrap()
-        .require_admitted_record()
-        .unwrap();
-    source.path = temporary.path().join("selected");
-    fs::create_dir(&source.path).unwrap();
     let names = [
         "disc:01.chd",
         "Disc.chd",
@@ -2149,37 +2141,80 @@ fn selected_directory_copy_preserves_native_optical_basenames() {
         "disc\\01.chd",
         "disc\n01.chd",
     ];
-    let mut identity = observed_optical_identity(names[0]);
-    let template = identity.components[0].clone();
-    identity.components = names
-        .iter()
-        .enumerate()
-        .map(|(index, name)| {
-            fs::write(source.path.join(name), [index as u8 + 1]).unwrap();
-            let mut component = template.clone();
-            component.id = format!("disc-{index}");
-            component.name = Some((*name).into());
-            component
-        })
-        .collect();
-    source.storage_size = names.len() as u64;
-    source.observed_identity = Some(identity);
-    let destination = temporary.path().join("copied");
-    let coordinator = OperationCoordinator::resume("owned-copy", "import_source", None);
-    copy_selected_directory(
-        &source,
-        &destination,
-        &coordinator,
-        &mut |_| {},
-        source.storage_size,
-    )
-    .unwrap();
-    assert_eq!(fs::read_dir(&destination).unwrap().count(), names.len());
-    for name in names {
-        assert_eq!(
-            fs::read(source.path.join(name)).unwrap(),
-            fs::read(destination.join(name)).unwrap()
-        );
+    let spelling = tempfile::tempdir().unwrap();
+    fs::write(spelling.path().join("Disc.chd"), b"upper spelling").unwrap();
+    let distinct_case = match fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(spelling.path().join("disc.chd"))
+    {
+        Ok(_) => true,
+        Err(error) => {
+            // Case-folding filesystems cannot hold this pair as independent
+            // originals. Prove the alias/refusal instead of overwriting one.
+            assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists);
+            assert_eq!(
+                fs::read(spelling.path().join("disc.chd")).unwrap(),
+                b"upper spelling"
+            );
+            false
+        }
+    };
+    let groups = if distinct_case {
+        vec![names.to_vec()]
+    } else {
+        vec![
+            names
+                .iter()
+                .copied()
+                .filter(|name| *name != "disc.chd")
+                .collect(),
+            vec!["disc.chd"],
+        ]
+    };
+    // Preserve every original lexical input and the multi-component copy. The
+    // case-only pair coexists in one directory wherever the native FS permits it.
+    for names in groups {
+        let (temporary, _library, service, original) = fixture();
+        let mut source = service
+            .inspect_source(PROFILE, &original)
+            .unwrap()
+            .require_admitted_record()
+            .unwrap();
+        source.path = temporary.path().join("selected");
+        fs::create_dir(&source.path).unwrap();
+        let mut identity = observed_optical_identity(names[0]);
+        let template = identity.components[0].clone();
+        identity.components = names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| {
+                fs::write(source.path.join(name), [index as u8 + 1]).unwrap();
+                let mut component = template.clone();
+                component.id = format!("disc-{index}");
+                component.name = Some((*name).into());
+                component
+            })
+            .collect();
+        source.storage_size = names.len() as u64;
+        source.observed_identity = Some(identity);
+        let destination = temporary.path().join("copied");
+        let coordinator = OperationCoordinator::resume("owned-copy", "import_source", None);
+        copy_selected_directory(
+            &source,
+            &destination,
+            &coordinator,
+            &mut |_| {},
+            source.storage_size,
+        )
+        .unwrap();
+        assert_eq!(fs::read_dir(&destination).unwrap().count(), names.len());
+        for name in names {
+            assert_eq!(
+                fs::read(source.path.join(name)).unwrap(),
+                fs::read(destination.join(name)).unwrap()
+            );
+        }
     }
 }
 

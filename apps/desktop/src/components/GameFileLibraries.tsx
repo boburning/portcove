@@ -268,6 +268,37 @@ function savedScanAction(
   return "Scan saved folders";
 }
 
+function CandidateRow({
+  candidate,
+  profiles,
+  ports,
+  completed,
+  children,
+}: {
+  candidate: Pick<SourceRecord, "profile_id" | "path" | "size">;
+  profiles: SourceProfile[];
+  ports: PortDefinition[];
+  completed: boolean;
+  children: import("react").ReactNode;
+}) {
+  return (
+    <div
+      className="source-health-row grid grid-cols-[minmax(0,1fr)_minmax(0,18rem)] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3 max-[55rem]:grid-cols-[minmax(0,1fr)]"
+      data-candidate-row
+      data-completed-candidate={completed || undefined}
+      data-live-candidate={!completed || undefined}
+      data-profile-id={candidate.profile_id}
+      data-path={candidate.path}
+    >
+      <div className="min-w-0">
+        <CandidateIdentity candidate={candidate} profiles={profiles} />
+        <CatalogPortAssociations profileId={candidate.profile_id} ports={ports} />
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function CompletedScan({
   snapshot,
   readConfirmed,
@@ -360,18 +391,13 @@ function CompletedScan({
         </ul>
       )}
       {report.candidates.map((candidate) => (
-        <div
-          className="source-health-row grid grid-cols-[minmax(0,1fr)_minmax(0,18rem)] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3 max-[55rem]:grid-cols-[minmax(0,1fr)]"
-          data-candidate-row
+        <CandidateRow
+          candidate={candidate}
+          profiles={profiles}
+          ports={ports}
+          completed={true}
           key={`${candidate.profile_id}:${candidate.path}`}
-          data-completed-candidate
-          data-profile-id={candidate.profile_id}
-          data-path={candidate.path}
         >
-          <div className="min-w-0">
-            <CandidateIdentity candidate={candidate} profiles={profiles} />
-            <CatalogPortAssociations profileId={candidate.profile_id} ports={ports} />
-          </div>
           <CandidateAction
             candidate={candidate}
             registeredSources={registeredSources}
@@ -385,7 +411,7 @@ function CompletedScan({
             review={() => review(candidate)}
             reviewLabel="Review game files"
           />
-        </div>
+        </CandidateRow>
       ))}
       <PreliminarySourceSelections
         selections={report.preliminary_selections}
@@ -533,18 +559,13 @@ function LiveScanResults({
         Portcove checks its current files again before adding it as a source.
       </p>
       {candidates.map((candidate) => (
-        <div
-          className="source-health-row grid grid-cols-[minmax(0,1fr)_minmax(0,18rem)] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3 max-[55rem]:grid-cols-[minmax(0,1fr)]"
-          data-candidate-row
+        <CandidateRow
+          candidate={candidate}
+          profiles={profiles}
+          ports={ports}
+          completed={false}
           key={`${candidate.profile_id}:${candidate.path}`}
-          data-live-candidate
-          data-profile-id={candidate.profile_id}
-          data-path={candidate.path}
         >
-          <div className="min-w-0">
-            <CandidateIdentity candidate={candidate} profiles={profiles} />
-            <CatalogPortAssociations profileId={candidate.profile_id} ports={ports} />
-          </div>
           <CandidateAction
             candidate={candidate}
             registeredSources={registeredSources}
@@ -557,7 +578,7 @@ function LiveScanResults({
             review={() => review(candidate)}
             reviewLabel="Review game files now"
           />
-        </div>
+        </CandidateRow>
       ))}
     </section>
   );
@@ -856,6 +877,126 @@ export function GameFileLibraries({
         );
       }
     });
+  const renderHeading = () => (
+    <div className="settings-title">
+      <h2 ref={heading} id="game-file-libraries-heading" tabIndex={-1}>
+        Game-file libraries
+      </h2>
+      <Button
+        data-focusable
+        data-settings-control="add-game-file-root"
+        variant="outline"
+        size="sm"
+        disabled={
+          Boolean(busy) ||
+          scanning ||
+          roots === undefined ||
+          availableRootCount(roots) >= maxAvailableRootsPerScan
+        }
+        onClick={() => void add()}
+      >
+        Add folder
+      </Button>
+    </div>
+  );
+  const renderScanActions = () => (
+    <div className="actions">
+      <Button
+        data-focusable
+        variant="outline"
+        disabled={Boolean(busy) || scanning}
+        onClick={() =>
+          void run("Refreshing folders…", async () => {
+            await refresh();
+          })
+        }
+      >
+        Refresh folders
+      </Button>
+      <Button
+        data-focusable
+        variant="outline"
+        disabled={
+          Boolean(busy) ||
+          scanning ||
+          !roots?.length ||
+          availableRootCount(roots) > maxAvailableRootsPerScan
+        }
+        onClick={() => void scan()}
+      >
+        {savedScanAction(snapshot, readConfirmed)}
+      </Button>
+    </div>
+  );
+  const renderLiveResults = () =>
+    scanning && (
+      <LiveScanResults
+        candidates={liveCandidates}
+        profiles={profiles}
+        registeredSources={registeredSources}
+        statuses={statuses}
+        registrationConfirmed={refreshConfirmed && !workspaceRefreshFailed}
+        workspaceRefreshFailed={workspaceRefreshFailed}
+        ports={ports}
+        onOpenPort={onOpenPort}
+        busy={Boolean(busy)}
+        review={(candidate) => void review(candidate)}
+      />
+    );
+  const renderCompletedScan = () => (
+    <CompletedScan
+      snapshot={snapshot}
+      readConfirmed={readConfirmed}
+      roots={roots}
+      ports={ports}
+      profiles={profiles}
+      registeredSources={registeredSources}
+      statuses={statuses}
+      registrationConfirmed={refreshConfirmed && !workspaceRefreshFailed}
+      workspaceRefreshFailed={workspaceRefreshFailed}
+      onOpenPort={onOpenPort}
+      busy={Boolean(busy)}
+      review={(candidate) => void review(candidate)}
+    />
+  );
+  const renderSetupReviews = () => (
+    <GameFileSetupReviews
+      ports={ports}
+      statuses={statuses}
+      candidates={scanning ? liveCandidates : (snapshot?.report.candidates ?? [])}
+      preliminarySelections={scanning ? [] : snapshot?.report.preliminary_selections}
+      registeredSources={registeredSources}
+      current={
+        refreshConfirmed &&
+        !workspaceRefreshFailed &&
+        (scanning || (readConfirmed && snapshot?.freshness === "inputs_match"))
+      }
+      busy={Boolean(busy) || Boolean(plan)}
+      onOpenPort={onOpenPort}
+    />
+  );
+  const renderSourceReview = () => (
+    <SourceImportReview
+      plan={plan}
+      profiles={profiles}
+      busy={Boolean(busy)}
+      onCancel={() => {
+        focusAfterReview.current = true;
+        setPlan(undefined);
+      }}
+      onApply={apply}
+    />
+  );
+  const renderContinue = () => (
+    <ContinueToGame
+      registeredSource={registeredSource}
+      sourceVisible={sourceVisible}
+      busy={Boolean(busy)}
+      retryRefresh={onAdded ? () => void retryRefresh() : undefined}
+      ports={ports}
+      onOpenPort={onOpenPort}
+    />
+  );
   return (
     <article
       className="settings-row source-health col-span-full min-h-0"
@@ -871,26 +1012,7 @@ export function GameFileLibraries({
       }}
     >
       <p className="eyebrow">SAVED FOLDERS</p>
-      <div className="settings-title">
-        <h2 ref={heading} id="game-file-libraries-heading" tabIndex={-1}>
-          Game-file libraries
-        </h2>
-        <Button
-          data-focusable
-          data-settings-control="add-game-file-root"
-          variant="outline"
-          size="sm"
-          disabled={
-            Boolean(busy) ||
-            scanning ||
-            roots === undefined ||
-            availableRootCount(roots) >= maxAvailableRootsPerScan
-          }
-          onClick={() => void add()}
-        >
-          Add folder
-        </Button>
-      </div>
+      {renderHeading()}
       <p>
         Choose folders on this PC, a mounted network share, or a removable drive. Portcove searches
         only saved folders. Searching does not change the game files or save their locations.
@@ -910,100 +1032,19 @@ export function GameFileLibraries({
         relink={(root) => void relink(root)}
         remove={(root) => void remove(root)}
       />
-      <div className="actions">
-        <Button
-          data-focusable
-          variant="outline"
-          disabled={Boolean(busy) || scanning}
-          onClick={() =>
-            void run("Refreshing folders…", async () => {
-              await refresh();
-            })
-          }
-        >
-          Refresh folders
-        </Button>
-        <Button
-          data-focusable
-          variant="outline"
-          disabled={
-            Boolean(busy) ||
-            scanning ||
-            !roots?.length ||
-            availableRootCount(roots) > maxAvailableRootsPerScan
-          }
-          onClick={() => void scan()}
-        >
-          {savedScanAction(snapshot, readConfirmed)}
-        </Button>
-      </div>
+      {renderScanActions()}
       {busy && <p role="status">{busy}</p>}
       {scanning && <p role="status">Scanning selected folders…</p>}
       {operationId && <OperationCancellation operationId={operationId} label="Cancel scan" />}
-      {scanning && (
-        <LiveScanResults
-          candidates={liveCandidates}
-          profiles={profiles}
-          registeredSources={registeredSources}
-          statuses={statuses}
-          registrationConfirmed={refreshConfirmed && !workspaceRefreshFailed}
-          workspaceRefreshFailed={workspaceRefreshFailed}
-          ports={ports}
-          onOpenPort={onOpenPort}
-          busy={Boolean(busy)}
-          review={(candidate) => void review(candidate)}
-        />
-      )}
+      {renderLiveResults()}
       {scanState.error && <p role="alert">{scanState.error}</p>}
       {scanState.notice && <p role="status">{scanState.notice}</p>}
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
-      <CompletedScan
-        snapshot={snapshot}
-        readConfirmed={readConfirmed}
-        roots={roots}
-        ports={ports}
-        profiles={profiles}
-        registeredSources={registeredSources}
-        statuses={statuses}
-        registrationConfirmed={refreshConfirmed && !workspaceRefreshFailed}
-        workspaceRefreshFailed={workspaceRefreshFailed}
-        onOpenPort={onOpenPort}
-        busy={Boolean(busy)}
-        review={(candidate) => void review(candidate)}
-      />
-      <GameFileSetupReviews
-        ports={ports}
-        statuses={statuses}
-        candidates={scanning ? liveCandidates : (snapshot?.report.candidates ?? [])}
-        preliminarySelections={scanning ? [] : snapshot?.report.preliminary_selections}
-        registeredSources={registeredSources}
-        current={
-          refreshConfirmed &&
-          !workspaceRefreshFailed &&
-          (scanning || (readConfirmed && snapshot?.freshness === "inputs_match"))
-        }
-        busy={Boolean(busy) || Boolean(plan)}
-        onOpenPort={onOpenPort}
-      />
-      <SourceImportReview
-        plan={plan}
-        profiles={profiles}
-        busy={Boolean(busy)}
-        onCancel={() => {
-          focusAfterReview.current = true;
-          setPlan(undefined);
-        }}
-        onApply={apply}
-      />
-      <ContinueToGame
-        registeredSource={registeredSource}
-        sourceVisible={sourceVisible}
-        busy={Boolean(busy)}
-        retryRefresh={onAdded ? () => void retryRefresh() : undefined}
-        ports={ports}
-        onOpenPort={onOpenPort}
-      />
+      {renderCompletedScan()}
+      {renderSetupReviews()}
+      {renderSourceReview()}
+      {renderContinue()}
     </article>
   );
 }

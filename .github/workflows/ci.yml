@@ -528,7 +528,7 @@ jobs:
         shell: pwsh
         run: ./scripts/run-windows-qualification.ps1
       - name: Test development diagnostics and evidence
-        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-linux-native-session.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-capabilities.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/handoff-evidence.test.mjs scripts/native-confirmation.test.mjs scripts/native-helper-dependencies.test.mjs scripts/frontend-command-preflight.test.mjs scripts/windows-helper-checks.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
+        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-linux-native-session.test.mjs scripts/desktop-linux-stop.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-capabilities.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/handoff-evidence.test.mjs scripts/native-confirmation.test.mjs scripts/native-helper-dependencies.test.mjs scripts/frontend-command-preflight.test.mjs scripts/windows-helper-checks.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
       - name: Lint PowerShell scripts
         shell: pwsh
         run: |
@@ -689,8 +689,11 @@ jobs:
         if: runner.os == 'Linux'
         timeout-minutes: 15
         run: ./scripts/install-linux-desktop-prerequisites.sh
-      - name: Test workspace documentation
-        run: cargo test --locked --workspace --doc
+      - name: Test non-Desktop workspace documentation
+        run: cargo test --locked --workspace --exclude portcove-desktop --doc
+      - name: Test Desktop documentation with its own build-script linker inputs
+        if: ${{ !cancelled() }}
+        run: cargo test --locked -p portcove-desktop --doc
 
   rust:
     if: always()
@@ -787,7 +790,18 @@ jobs:
       - name: Test development storage on Linux
         run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs --test-skip-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs
       - run: cargo shear --deny-warnings
-      - run: cargo deny check --hide-inclusion-graph -W unmaintained
+      - name: Dependency policy and separate approved Linux beta disposition
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/linux-beta-risk-706.mjs check
+      - name: Preserve original dependency results and separate disposition
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linux-beta-risk-706-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/linux-beta-risk-706/
+          if-no-files-found: error
+          retention-days: 7
       - run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-rust-architecture.test.mjs
       - run: node scripts/check-rust-architecture.mjs
       - name: Install Linux desktop schema-export prerequisites
@@ -825,7 +839,9 @@ jobs:
     name: frontend-full
     needs: classify
     if: needs.classify.outputs.mode == 'qualification'
-    runs-on: ubuntu-latest
+    # Match the maintained Linux native target for the private user/PID-namespace
+    # harness. No host AppArmor/sysctl policy or runtime privilege is changed.
+    runs-on: ubuntu-22.04
     env:
       npm_config_audit: "false"
     defaults:
@@ -873,7 +889,8 @@ jobs:
       - run: pnpm test
       - name: Check maintained native scenario consumer contracts
         run: |
-          node --test --test-timeout=30000 scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-linux-native-session.test.mjs scripts/desktop-verify.test.mjs scripts/development-evidence.test.mjs scripts/handoff-evidence.test.mjs scripts/native-session-lock.test.mjs
+          /usr/bin/unshare --user --map-current-user --mount --pid --fork --mount-proc /usr/bin/true
+          node --test --test-timeout=30000 scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-linux-native-session.test.mjs scripts/desktop-linux-stop.test.mjs scripts/desktop-verify.test.mjs scripts/development-evidence.test.mjs scripts/handoff-evidence.test.mjs scripts/native-session-lock.test.mjs
           node apps/desktop/scripts/desktop-preparation-test.mjs --context-preflight
         working-directory: .
       - name: Provision reviewed Chromium for browser composition
@@ -932,7 +949,7 @@ jobs:
       - name: Verify repository and release contracts
         run: |
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/checked-git.test.mjs scripts/resource-status.test.mjs scripts/report-summary.test.mjs scripts/ci-metrics.test.mjs scripts/checkout-context.test.mjs scripts/github-body.test.mjs scripts/audit.test.mjs scripts/audit-evidence.test.mjs scripts/audit-archive.test.mjs scripts/audit-reuse.test.mjs scripts/check-release-metadata.test.mjs scripts/desktop-build-cache.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/release-result-gate.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/ci-baseline.test.mjs scripts/rust-test-impact.test.mjs scripts/qualification-coverage.test.mjs scripts/test-duration-reporter.test.mjs scripts/ui-test-selection.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/dependency-release-age.test.mjs scripts/corepack-frontend.test.mjs scripts/frontend-build-compare.test.mjs scripts/renovate-engine-probe.test.mjs scripts/repository-settings.test.mjs scripts/repository-skills.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/renovate-fast-lane.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/process-lock.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/run-fallow.test.mjs scripts/generate-catalog.test.mjs scripts/catalog-proposal-costs.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
+          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/checked-git.test.mjs scripts/resource-status.test.mjs scripts/report-summary.test.mjs scripts/ci-metrics.test.mjs scripts/checkout-context.test.mjs scripts/github-body.test.mjs scripts/audit.test.mjs scripts/audit-evidence.test.mjs scripts/audit-archive.test.mjs scripts/audit-reuse.test.mjs scripts/check-release-metadata.test.mjs scripts/desktop-build-cache.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/release-result-gate.test.mjs scripts/linux-beta-risk-706.test.mjs scripts/desktop-input-observation.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/ci-baseline.test.mjs scripts/rust-test-impact.test.mjs scripts/qualification-coverage.test.mjs scripts/test-duration-reporter.test.mjs scripts/ui-test-selection.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/dependency-release-age.test.mjs scripts/corepack-frontend.test.mjs scripts/frontend-build-compare.test.mjs scripts/renovate-engine-probe.test.mjs scripts/repository-settings.test.mjs scripts/repository-skills.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/renovate-fast-lane.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/process-lock.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/run-fallow.test.mjs scripts/generate-catalog.test.mjs scripts/catalog-proposal-costs.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
           node scripts/check-release-metadata.mjs
           node scripts/quality-tools.mjs --validate
           node scripts/qualification-coverage.mjs

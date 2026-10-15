@@ -285,9 +285,7 @@ fn selected_registration_fixture() {
             assert_eq!(fs::read(path).unwrap(), *bytes);
         }
     } else {
-        let error = result
-            .err()
-            .expect("mixed, incomplete or failed inspection cannot register");
+        let error = result.expect_err("mixed, incomplete or failed inspection cannot register");
         assert!(
             matches!(
                 error.code,
@@ -999,7 +997,7 @@ fn decoder_job_memory_bound_is_enforced_on_the_actual_child() {
         let temporary = tempfile::tempdir().unwrap();
         let mut spec = ChildProcessPolicy::native_tool_spec(
             ChildProcessClass::HostTool,
-            &std::env::current_exe().unwrap(),
+            std::env::current_exe().unwrap(),
         )
         .unwrap();
         spec.args([
