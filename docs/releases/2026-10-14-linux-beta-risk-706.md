@@ -276,3 +276,27 @@ complete qualification with the exact finding separately accounted for, not an
 accidental requirement that GLib first be fixed. Actual graph remediation,
 undismissed alert resolution and affected Linux qualification remain issue-closure
 criteria. Later #215/#217/#535 Deck qualification remains unchanged.
+
+## Vite+ consolidation input reconfirmation
+
+The bounded reassessment at `fd5e8b499ed764f6edb398fcf79064992b14b459`
+accounts for exactly two fingerprinted-file changes since `3f370fd7`:
+Oxfmt's meaning-preserving Cargo workspace array formatting, and #2002's
+already-delivered Tauri frontend build command (`pnpm build` to
+`node scripts/build-frontend.mjs`). The launcher reaches the declared installed
+Vite+ executable, preserves signing isolation and production fixture exclusion,
+and does not change native GLib iteration or code generation. No Rust source,
+native manifest, toolchain, `.cargo` input or Cargo lock changes occur in that
+range. Replacing those two fingerprint entries with the approved preimages
+reproduces the previous input digest exactly.
+
+The reconfirmed conservative input digest is
+`eec15b842f4f8bf6474e99fd6448715f9b3843a63a963d9fc76569d46b6b3fb1`.
+The resolved dependency/code-generator digest remains
+`80bab63cf9f86838b1517c42767894bdc5151e09dafd41e22bbf97e220a365f2`;
+native build-environment overrides remain unset. Reuse of the unchanged bounded
+application-risk evidence follows the existing approval's reassessment procedure.
+This reconfirmation changes no advisory, severity, scanner policy, acceptance
+scope, expiry or publication identity. PR #2005 must still obtain separate
+review and complete exact-head protected qualification; failed scans and earlier
+qualification attempts remain retained with their original outcomes.

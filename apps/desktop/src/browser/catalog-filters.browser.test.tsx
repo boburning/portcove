@@ -306,7 +306,7 @@ it.each(["dark", "light"])(
     )!;
     chip.focus();
     await userEvent.keyboard("{Enter}");
-    expect(document.activeElement?.textContent).toContain("Filters (0)");
+    await expect.poll(() => document.activeElement?.textContent).toContain("Filters (0)");
     expect(invoke).not.toHaveBeenCalled();
   },
 );
