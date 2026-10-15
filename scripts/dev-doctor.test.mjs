@@ -228,13 +228,20 @@ console.log(${JSON.stringify(version)});
   );
   chmodSync(shim, 0o755);
   const environment = Object.freeze({
-    ...process.env,
+    ...Object.fromEntries(
+      Object.entries(process.env).filter(([key]) => key.toLowerCase() !== "path"),
+    ),
     PATH: directory,
     COREPACK_HOME: directory,
     COREPACK_ENABLE_NETWORK: "1",
   });
   const globalNetwork = process.env.COREPACK_ENABLE_NETWORK;
-  const options = { environment, frontendDependenciesAvailable: () => true, storage: {} };
+  const options = {
+    environment,
+    frontendDependenciesAvailable: () => true,
+    storage: {},
+    pnpmDefinition: () => ({ ...pnpmDefinition(version), command: [shim, "--version"] }),
+  };
   for (const warm of [false, true]) {
     if (warm) writeFileSync(runtime, "verified warm fixture");
     const selected = await collectSelectedPrerequisites([{ id: "oxfmt" }], options);
