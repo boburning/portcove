@@ -925,11 +925,14 @@ test("cancelled navigation permits only observed GETs and never popup or executi
     assert.throws(() => assertOwnedBoundaryRequests([invalid]));
 });
 
+const normalFixtureMainUrl =
+  process.platform === "linux" ? "tauri://localhost/" : "http://tauri.localhost/";
+
 test("owned frame CSP requires a trusted enforced event and removes its frame/listener/timer", async (t) => {
   const outputRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-frame-boundary-"));
   t.after(() => rm(outputRoot, { recursive: true, force: true }));
   const library = path.resolve("work", "frame-boundary-library");
-  const url = "http://tauri.localhost/";
+  const url = normalFixtureMainUrl;
   const valid = {
     isTrusted: true,
     effectiveDirective: "frame-src",
@@ -1161,7 +1164,7 @@ test("reviewed link refusals require guard errors and preserve the ready native 
     };
     await normalPackageBoundaryScenario({
       browser: {
-        getCurrentUrl: async () => (refused && urlChange) || "http://tauri.localhost/",
+        getCurrentUrl: async () => (refused && urlChange) || normalFixtureMainUrl,
         manage: () => ({ setTimeouts: async () => {} }),
         executeScript: async () => ({}),
         executeAsyncScript: async () => ({}),
@@ -1309,7 +1312,7 @@ test("shipping secondary creation requires ACL refusal and preserves native main
     try {
       await normalPackageBoundaryScenario({
         browser: {
-          getCurrentUrl: async () => state().url ?? "http://tauri.localhost/",
+          getCurrentUrl: async () => state().url ?? normalFixtureMainUrl,
           manage: () => ({ setTimeouts: async () => {} }),
           executeScript: async (callback) => {
             if (callback.toString().includes("document.scripts"))
