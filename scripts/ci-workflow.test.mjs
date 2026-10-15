@@ -1521,7 +1521,8 @@ test("Linux Rust quality keeps its platform-specific and policy gates without pn
   );
   assert.match(nativeRust, /cargo nextest run --locked --workspace/);
   assert.match(rustQuality, /cargo shear --deny-warnings/);
-  assert.match(rustQuality, /cargo deny check/);
+  assert.match(rustQuality, /node scripts\/linux-beta-risk-706\.mjs check/);
+  assert.match(rustQuality, /GH_TOKEN: \$\{\{ github.token \}\}/);
   assert.match(rustQuality, /check-rust-architecture\.mjs/);
   assert.match(rustQuality, /run-rscheck\.mjs/);
   const bootstrap = rustQuality.indexOf("./scripts/bootstrap-quality-tools.sh");
@@ -1887,10 +1888,7 @@ test("manual deep workflow preserves fresh default with explicit bounded audit r
   assert.match(deep, /^ {2}audit:\r?$/m);
   assert.match(deep, /just audit --fresh/);
   assert.match(deep, /default: audit\r?\n {8}options: \[audit, audit-reuse, local-check\]/);
-  assert.match(
-    deep,
-    /GH_TOKEN: \$\{\{ inputs.operation == 'audit-reuse' && github.token \|\| '' \}\}/,
-  );
+  assert.match(deep, /GH_TOKEN: \$\{\{ github.token \}\}/);
   assert.match(deep, /if: always\(\) && inputs.operation != 'audit-reuse'/);
   assert.doesNotMatch(deep, /actions: read|actions: write|contents: write/);
   assert.doesNotMatch(deep, /^ {2}(?:hawk|duplicates):/m);
@@ -2547,7 +2545,7 @@ test("deep audit evidence retains audit status without privilege changes", async
   assert.match(deep, /id: fresh-audit/);
   assert.match(
     deep,
-    /if \[\[ "\$AUDIT_OPERATION" == "audit-reuse" \]\]; then\r?\n {12}just audit\r?\n {10}else\r?\n {12}just audit --fresh\r?\n {10}fi\r?\n {10}audit_status=\$\?/,
+    /if \[\[ "\$AUDIT_OPERATION" == "audit-reuse" \]\]; then\r?\n {12}just audit --linux-beta-706\r?\n {10}else\r?\n {12}just audit --fresh --linux-beta-706\r?\n {10}fi\r?\n {10}audit_status=\$\?/,
   );
   assert.match(deep, /exit "\$audit_status"/);
   assert.match(deep, /node scripts\/deep-audit-summary\.mjs --start/);
@@ -2638,6 +2636,37 @@ test("failed full audit retains actual stage failure and exit status", () => {
   assert.match(text, /receipt: failed/);
   assert.match(text, /\| rust \| failed \| 123 \| 2 \|/);
   assert.match(text, /Recorded audit exit status: 1/);
+});
+
+test("accepted #706 qualification remains a failed audit and cannot cover another stage failure", () => {
+  const payload = fixture();
+  payload.success = false;
+  payload.originalExitCode = 1;
+  Object.assign(
+    payload.stages.find((stage) => stage.id === "dependency-policy"),
+    { status: "failed", exitCode: 1 },
+  );
+  payload.policyDecision = {
+    disposition: "accepted-risk",
+    approvalUrl: "https://github.com/boburning/portcove/issues/706#issuecomment-6182222682",
+    candidate: auditSummarySource,
+    purpose: "qualification",
+    scanPassed: false,
+    scanExitCode: 1,
+  };
+  const text = renderDeepAuditSummary(receiptEnvelope(payload), identity, binding(payload));
+  assert.match(text, /receipt: failed/);
+  assert.match(text, /Original audit exit status: 1/);
+  assert.match(text, /accepted risk \(not an audit pass\)/);
+  assert.doesNotMatch(text, /receipt: passed/);
+  Object.assign(
+    payload.stages.find((stage) => stage.id === "ui"),
+    { status: "failed", exitCode: 1 },
+  );
+  assert.match(
+    renderDeepAuditSummary(receiptEnvelope(payload), identity, binding(payload)),
+    /unavailable or invalid/,
+  );
 });
 for (const [name, mutate] of [
   [

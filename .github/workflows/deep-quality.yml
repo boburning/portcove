@@ -106,19 +106,29 @@ jobs:
         env:
           PORTCOVE_AUDIT_CAPTURE: "1"
           AUDIT_OPERATION: ${{ inputs.operation }}
-          GH_TOKEN: ${{ inputs.operation == 'audit-reuse' && github.token || '' }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           node scripts/deep-audit-summary.mjs --start || echo "Audit summary initialization unavailable"
           set +e
           if [[ "$AUDIT_OPERATION" == "audit-reuse" ]]; then
-            just audit
+            just audit --linux-beta-706
           else
-            just audit --fresh
+            just audit --fresh --linux-beta-706
           fi
           audit_status=$?
           echo "exit_code=$audit_status" >> "$GITHUB_OUTPUT"
           node scripts/deep-audit-summary.mjs --finish "$audit_status"
           exit "$audit_status"
+      - name: Preserve original dependency results and separate policy decision
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linux-beta-risk-706-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/linux-beta-risk-706/
+            work/validation-receipts/audits/
+          if-no-files-found: error
+          retention-days: 7
       - name: Summarize structured audit evidence
         if: always() && inputs.operation != 'audit-reuse'
         env:

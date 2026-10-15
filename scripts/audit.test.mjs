@@ -265,6 +265,7 @@ test("candidate coverage constants cannot authorize their own reduced transition
     "scripts/windows-helper-checks.mjs",
     "scripts/native-helper-dependencies.mjs",
     "scripts/development-evidence.mjs",
+    "scripts/retained-evidence.mjs",
     "scripts/qualification-coverage.mjs",
     ".github/qualification-coverage.json",
     ".github/workflows/ci.yml",

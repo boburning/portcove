@@ -39,6 +39,18 @@ export function renderDeepAuditSummary(receipt, identity, binding) {
   const exitValid = number.test(identity.exitCode) && Number(identity.exitCode) <= 255;
   lines.push(`Recorded audit exit status: ${exitValid ? identity.exitCode : "unavailable"}`);
   const payload = receipt?.payload;
+  const accepted =
+    payload?.success === false &&
+    payload.originalExitCode === 1 &&
+    payload.policyDecision?.disposition === "accepted-risk" &&
+    payload.policyDecision.approvalUrl ===
+      "https://github.com/boburning/portcove/issues/706#issuecomment-6182222682" &&
+    payload.policyDecision.candidate === identity.source &&
+    payload.policyDecision.purpose === "qualification" &&
+    payload.policyDecision.scanPassed === false &&
+    payload.policyDecision.scanExitCode === 1 &&
+    payload.stages?.filter((stage) => stage.status === "failed").length === 1 &&
+    payload.stages.some((stage) => stage.id === "dependency-policy" && stage.exitCode === 1);
   const valid =
     payload &&
     receipt.integrity === receiptEnvelope(payload).integrity &&
@@ -80,7 +92,8 @@ export function renderDeepAuditSummary(receipt, identity, binding) {
     payload.success === payload.stages.every((stage) => stage.status === "passed") &&
     exitValid &&
     ((payload.success && identity.exitCode === "0" && identity.outcome === "success") ||
-      (!payload.success && identity.exitCode !== "0" && identity.outcome === "failure"));
+      (!payload.success && identity.exitCode !== "0" && identity.outcome === "failure") ||
+      (accepted && identity.exitCode === "0" && identity.outcome === "success"));
   if (!valid)
     lines.push(
       "",
@@ -90,6 +103,11 @@ export function renderDeepAuditSummary(receipt, identity, binding) {
     lines.push(
       "",
       `Complete fresh audit receipt: ${payload.success ? "passed" : "failed"}`,
+      ...(accepted
+        ? [
+            "Original audit exit status: 1; separate owner-approved #706 qualification disposition: accepted risk (not an audit pass).",
+          ]
+        : []),
       "",
       "| Stage | Result | Duration (ms) | Exit status |",
       "| --- | --- | ---: | --- | ",
