@@ -338,7 +338,24 @@ import {
   normalPackageBoundaryScenario,
   assertLocalMainUrl,
   verifyLinuxPackageEvidence,
+  chromeObserverEndpoint,
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
+
+test("external browser observation uses only the owned Chrome loopback endpoint", () => {
+  const id = "12345678-1234-1234-1234-123456789abc";
+  assert.equal(
+    chromeObserverEndpoint(`45123\n/devtools/browser/${id}\n`),
+    `ws://127.0.0.1:45123/devtools/browser/${id}`,
+  );
+  for (const input of [
+    `0\n/devtools/browser/${id}`,
+    `65536\n/devtools/browser/${id}`,
+    `45123\nws://external.invalid/devtools/browser/${id}`,
+    `45123\n/devtools/page/${id}`,
+    `45123\n/devtools/browser/${id}\n\nignored-extra`,
+  ])
+    assert.throws(() => chromeObserverEndpoint(input));
+});
 
 test("local native boundary identity does not treat opaque URL origins as equal", () => {
   assertLocalMainUrl("tauri://localhost/", "linux");

@@ -1,9 +1,147 @@
 import assert from "node:assert/strict";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir, realpath } from "node:fs/promises";
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
+
+export function chromeObserverEndpoint(value) {
+  const lines = value.trim().split("\n");
+  assert.equal(lines.length, 2);
+  const [port, endpoint] = lines;
+  assert.match(port, /^\d{1,5}$/u);
+  assert.ok(Number(port) >= 1024 && Number(port) <= 65535);
+  assert.match(endpoint, /^\/devtools\/browser\/[a-f0-9-]{36}$/u);
+  return `ws://127.0.0.1:${port}${endpoint}`;
+}
+
+export async function prepareLinuxExternalBrowser() {
+  assert.equal(process.platform, "linux");
+  const displayReceipt = process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT;
+  assert.ok(
+    displayReceipt && path.isAbsolute(displayReceipt),
+    "Maintained private X11 route required",
+  );
+  const runtime = path.dirname(displayReceipt);
+  const receipt = JSON.parse(await readFile(displayReceipt, "utf8"));
+  assert.equal(receipt.gtk_readiness?.outcome, "ready");
+  for (const [variable, name] of [
+    ["XDG_CONFIG_HOME", "xdg_config_home"],
+    ["XDG_DATA_HOME", "xdg_data_home"],
+    ["XDG_CACHE_HOME", "xdg_cache_home"],
+  ]) {
+    assert.equal(process.env[variable], path.join(runtime, name));
+    assert.equal(await realpath(process.env[variable]), process.env[variable]);
+  }
+  const profile = path.join(process.env.XDG_CACHE_HOME, "external-browser-profile");
+  // Qualification paths are controlled; never interpolate desktop-entry metacharacters.
+  assert.match(profile, /^\/[A-Za-z0-9_./-]+$/u);
+  await mkdir(profile, { mode: 0o700 });
+  const applications = path.join(process.env.XDG_DATA_HOME, "applications");
+  await mkdir(applications, { mode: 0o700 });
+  const desktop = path.join(applications, "portcove-qualification-browser.desktop");
+  const association = path.join(process.env.XDG_CONFIG_HOME, "mimeapps.list");
+  await writeFile(
+    desktop,
+    `[Desktop Entry]\nType=Application\nName=Portcove isolated qualification browser\nExec=/usr/bin/google-chrome --ozone-platform=x11 --user-data-dir=${profile} --no-first-run --no-default-browser-check --remote-debugging-port=0 %u\nMimeType=x-scheme-handler/https;\nTerminal=false\n`,
+    { flag: "wx", mode: 0o600 },
+  );
+  await writeFile(
+    association,
+    "[Default Applications]\nx-scheme-handler/https=portcove-qualification-browser.desktop;\n",
+    { flag: "wx", mode: 0o600 },
+  );
+  assert.equal(
+    execFileSync("/usr/bin/xdg-mime", ["query", "default", "x-scheme-handler/https"], {
+      encoding: "utf8",
+      timeout: 5000,
+    }).trim(),
+    "portcove-qualification-browser.desktop",
+  );
+  return {
+    profile,
+    identities: await Promise.all(
+      [
+        "/usr/bin/xdg-open",
+        "/usr/bin/xdg-mime",
+        await realpath("/usr/bin/google-chrome"),
+        "/opt/google/chrome/chrome",
+        desktop,
+        association,
+      ].map(fileIdentity),
+    ),
+  };
+}
+
+async function observeLinuxApprovedLink({
+  browser,
+  invoke,
+  library,
+  observations,
+  externalBrowser,
+}) {
+  assert.ok(externalBrowser, "Isolated real browser preparation required");
+  const record = (observations.approvedExternalLink = {
+    url: "https://github.com/boburning/portcove",
+    identities: externalBrowser.identities,
+  });
+  record.before = await readyMainContext({ browser, invoke, library });
+  record.windowsBefore = await invoke("plugin:window|get_all_windows");
+  assert.equal(record.windowsBefore.ok, true);
+  const deadline = Date.now() + 15_000;
+  record.request = await invoke("open_external_url", { url: record.url });
+  assert.equal(record.request.ok, true);
+  let ownedBrowser;
+  try {
+    let endpoint;
+    while (!endpoint) {
+      assert.ok(
+        Date.now() < deadline,
+        "Actual browser observer was not ready within the startup budget",
+      );
+      try {
+        endpoint = chromeObserverEndpoint(
+          await readFile(path.join(externalBrowser.profile, "DevToolsActivePort"), "utf8"),
+        );
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+    const { chromium } = await import("playwright");
+    ownedBrowser = await chromium.connectOverCDP(endpoint, {
+      timeout: Math.max(1, deadline - Date.now()),
+    });
+    while (
+      !ownedBrowser
+        .contexts()
+        .flatMap((context) => context.pages())
+        .some((page) => page.url() === record.url)
+    ) {
+      assert.ok(
+        Date.now() < deadline,
+        "Approved destination was not observed in the real external browser",
+      );
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    record.actualBrowserVersion = ownedBrowser.version();
+    record.actualPageUrl = ownedBrowser
+      .contexts()
+      .flatMap((context) => context.pages())
+      .find((page) => page.url() === record.url)
+      .url();
+    record.after = await readyMainContext({ browser, invoke, library });
+    assert.deepEqual(record.after, record.before);
+    record.windowsAfter = await invoke("plugin:window|get_all_windows");
+    assert.equal(record.windowsAfter.ok, true);
+    assert.deepEqual([...record.windowsAfter.value].sort(), [...record.windowsBefore.value].sort());
+    record.interpretation =
+      "Actual browser tab destination under an isolated desktop association/profile; not the host's ordinary default-browser configuration or network content health.";
+  } finally {
+    if (ownedBrowser) await ownedBrowser.close();
+  }
+}
 
 export function assertLocalMainUrl(value, platform = process.platform) {
   const url = new URL(value);
@@ -274,6 +412,7 @@ export async function normalPackageBoundaryScenario({
   output,
   artifacts,
   packageEvidence,
+  externalBrowser,
 }) {
   const observations = { package: packageEvidence };
   const requests = [];
@@ -331,6 +470,10 @@ export async function normalPackageBoundaryScenario({
     const fixtureUrl = `http://127.0.0.1:${server.address().port}/untrusted`;
     phase = "frame-csp";
     await assertRemoteFrameCsp({ browser, invoke, library, fixtureUrl, observations });
+    if (process.platform === "linux") {
+      phase = "approved-external-browser";
+      await observeLinuxApprovedLink({ browser, invoke, library, observations, externalBrowser });
+    }
     phase = "main-containment";
     await assertMainWebviewContainment({
       browser,

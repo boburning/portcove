@@ -589,6 +589,13 @@ provisioning or fallback qualification is implied.
 
 For ordinary Linux shipping boundaries, select only
 `native-linux-packaged-webview-boundary` and pass `--package-evidence ABSOLUTE_JSON`.
+The maintained private-X11 route also requires an installed Google Chrome at
+`/usr/bin/google-chrome`. It creates a desktop association and explicit fresh
+browser profile inside its owned XDG directories, retains browser/opener identities,
+and observes the approved destination through the real browser's profile-bound
+DevTools endpoint. Chrome keeps its normal sandbox. This observation covers that
+isolated association; the host's ordinary default-browser configuration remains
+separate. Existing personal browser profiles are not selected.
 The manifest binds the current source, exact ordinary
 `corepack pnpm tauri build --bundles deb` command, empty qualification features,
 package and configuration identities, and the actual `dpkg-deb --extract` receipt

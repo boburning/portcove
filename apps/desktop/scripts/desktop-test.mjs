@@ -30,6 +30,7 @@ import {
   verifyLinuxPackageEvidence,
   createOriginBoundaryFixture,
   linuxOriginBoundaryScenario,
+  prepareLinuxExternalBrowser,
 } from "./desktop-main-webview-boundary.mjs";
 import { OwnedNativeSession, nativeSessionScript } from "./desktop-owned-native-session.mjs";
 import { launchLinuxNativeSession } from "./desktop-linux-native-session.mjs";
@@ -212,6 +213,7 @@ let linuxCleanup;
 let linuxLaunchCount = 0;
 let packageEvidence;
 let originFixture;
+let externalBrowser;
 if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundary")) {
   assert.equal(process.platform, "linux");
   assert.deepEqual(selection.selected_scenarios, ["native-linux-packaged-webview-boundary"]);
@@ -1265,6 +1267,11 @@ function driverEnvironment(childEnvironment) {
     PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(output, "application-update-state"),
     WEBVIEW2_USER_DATA_FOLDER: profile,
   };
+  if (externalBrowser) {
+    delete environment.BROWSER;
+    delete environment.CHROME_CONFIG_HOME;
+    delete environment.CHROME_USER_DATA_DIR;
+  }
   return savedLibraryRecoverySession ? bootstrapRecoveryEnvironment(environment) : environment;
 }
 
@@ -1548,6 +1555,10 @@ try {
   }
   await requireUnusedPort(port);
   await requireUnusedPort(port + 1);
+  if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundary")) {
+    externalBrowser = await prepareLinuxExternalBrowser();
+    inputs.push(...externalBrowser.identities);
+  }
   if (selection.selected_scenarios.includes("native-linux-webview-origin-boundary")) {
     await requireUnusedPort(port + 2);
     originFixture = await createOriginBoundaryFixture();
@@ -1665,6 +1676,7 @@ try {
       output,
       artifacts,
       packageEvidence,
+      externalBrowser,
     });
     assertOwnedBoundaryRequests(requests);
   });
