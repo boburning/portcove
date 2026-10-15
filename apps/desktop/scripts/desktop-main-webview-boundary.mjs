@@ -121,6 +121,7 @@ export async function normalPackageBoundaryScenario({
       "create_boundary_windows",
       "queue_boundary_reply",
       "recreate_boundary_owner",
+      "arm_boundary_main_navigation",
     ]) {
       const result = await invoke(command);
       observations.qualificationCommands[command] = result;
