@@ -134,6 +134,15 @@ does not amend the GLib approval's scope, expiry or publication identity and is
 not permission to accept unrelated qualification failures. Original failed
 attempts remain retained. Final exact-head results belong to PR #1997.
 
+The timing-only source reconfirmation is `71619ab12c3cc0bfe10ce5b667f575a519195fb7`,
+with conservative native input fingerprint
+`d768e94fd232c5950177bd4565e123e3771084b703adf3f54a7357cdcc750aa0`.
+Only the publisher-policy test source inventory changed from the prior
+reconfirmation; production inputs, lockfile, resolved native dependencies,
+enabled features and code-generation fingerprint remain identical. Reuse the
+unchanged bounded application-risk evidence; this is not universal
+unreachability or remediation.
+
 ## Execution and separate decision
 
 `just deny` preserves the scanner's original exit status and full structured
