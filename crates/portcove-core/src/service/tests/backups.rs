@@ -291,17 +291,30 @@ fn backup_restore_preview_preserves_preparing_and_usable_degraded_history() {
 fn backup_create_assessment_preserves_direct_owned_root_without_runtime_substitution() {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
-    let service = PortcoveService::new(library.clone()).unwrap();
-    let port_id = "snap64-recomp";
-    let install = library.versions_dir().join(port_id).join("fixture");
-    fs::create_dir_all(&install).unwrap();
-    write_host_test_executable_with_contents(&install, port_id, b"test");
-    register_existing_test_install(&library, port_id, "v1.0.5", &install, true);
+    let mut service = PortcoveService::new(library.clone()).unwrap();
+    // Exercise direct owned-data binding on every maintained host using an inert
+    // definition fixture. Snap64 has no macOS definition; this grants it no support.
+    let port_id = "zelda64-recomp";
+    let mut document = service.catalog().authoritative_document();
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == port_id)
+        .unwrap()
+        .user_data_environment = Some("FIXTURE_USER_DIR".into());
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let install =
+        register_zelda_install_contract(&library, "v1.0.5", true, b"test", Some(&catalog));
+    service.replace_catalog_for_test(catalog);
     fs::write(install.join(LAUNCH_MARKER), b"1").unwrap();
-    let owned = library.user_dir(port_id).join("pokemonsnap.z64");
+    let owned = library.user_dir(port_id).join("mm.n64.us.1.0.z64");
     fs::create_dir_all(owned.parent().unwrap()).unwrap();
     fs::write(&owned, b"owned fixture source").unwrap();
-    fs::write(install.join("pokemonsnap.z64"), b"different runtime bytes").unwrap();
+    fs::write(
+        install.join("mm.n64.us.1.0.z64"),
+        b"different runtime bytes",
+    )
+    .unwrap();
     assert_eq!(
         service
             .list_backups(port_id)
@@ -313,12 +326,12 @@ fn backup_create_assessment_preserves_direct_owned_root_without_runtime_substitu
     assert_eq!(fs::read(&owned).unwrap(), b"owned fixture source");
     let backup = service.create_backup(port_id).unwrap();
     assert_eq!(
-        fs::read(backup.path.join("data/pokemonsnap.z64")).unwrap(),
+        fs::read(backup.path.join("data/mm.n64.us.1.0.z64")).unwrap(),
         b"owned fixture source"
     );
     assert_eq!(fs::read(&owned).unwrap(), b"owned fixture source");
     assert_eq!(
-        fs::read(install.join("pokemonsnap.z64")).unwrap(),
+        fs::read(install.join("mm.n64.us.1.0.z64")).unwrap(),
         b"different runtime bytes"
     );
 }

@@ -1894,20 +1894,24 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     let operation_id = activity.id.clone();
     let staging = library.staging_dir().join(&operation_id);
     let latch = Arc::new((
-        Mutex::new((None::<std::path::PathBuf>, false)),
+        Mutex::new((None::<(std::path::PathBuf, u64)>, false)),
         Condvar::new(),
     ));
     let hook_latch = latch.clone();
     let finished = Arc::new(AtomicBool::new(false));
     let hook = crate::curated_cache::CacheWorkerTestHook {
         after_copy: Arc::new(move |path, written| {
-            if written == 64 * 1024 {
+            if written >= 64 * 1024 {
                 let (lock, condition) = &*hook_latch;
                 let mut state = lock.lock().unwrap();
-                state.0 = Some(path.to_owned());
-                condition.notify_all();
-                while !state.1 {
-                    state = condition.wait(state).unwrap();
+                // A regular-file read may be short. Capture the first threshold
+                // crossing instead of requiring one exact cumulative chunk size.
+                if state.0.is_none() {
+                    state.0 = Some((path.to_owned(), written));
+                    condition.notify_all();
+                    while !state.1 {
+                        state = condition.wait(state).unwrap();
+                    }
                 }
             }
             Ok(())
@@ -1957,7 +1961,7 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     let partial_size = reached
         .as_ref()
         .ok()
-        .map(|path| fs::metadata(path).unwrap().len());
+        .map(|(path, _)| fs::metadata(path).unwrap().len());
     {
         let (lock, condition) = &*latch;
         lock.lock().unwrap().1 = true;
@@ -1965,12 +1969,19 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     }
     let (activity, result) = install.await.unwrap();
     let result = service.finish_activity(activity, result);
-    let partial = reached.expect("actual cache copy reached the bounded latch");
+    let (partial, copied) = reached.unwrap_or_else(|error| {
+        panic!("actual cache copy missed its five-second latch: {error}; installer={result:?}; worker_finished={worker_finished}; result_finished={result_finished}; final_copy={:?}", latch.0.lock().unwrap().0)
+    });
     disposition.unwrap();
     assert!(!result_finished && !worker_finished);
     assert!(staging_present);
     assert_eq!(journals.unwrap().len(), 1);
-    assert_eq!(partial_size, Some(64 * 1024));
+    assert!((64 * 1024..=128 * 1024).contains(&copied));
+    assert!(
+        copied < record.size,
+        "intervention must observe an incomplete copy"
+    );
+    assert_eq!(partial_size, Some(copied));
     assert!(finished.load(Ordering::SeqCst));
     let refusal = result.unwrap_err();
     if policy_loss {
@@ -2018,7 +2029,7 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
         assert!(partial.starts_with(cache_root));
         assert_eq!(
             fs::metadata(&partial).unwrap().len(),
-            if policy_loss { record.size } else { 64 * 1024 }
+            if policy_loss { record.size } else { copied }
         );
         if policy_loss {
             assert_eq!(fs::read(partial).unwrap(), bytes);

@@ -2614,10 +2614,7 @@ mod launch_tests {
             "Alpha=\0PATH=replacement\0zeta=雪=café\0\0"
         );
         assert_eq!(spec.environment.len(), 3);
-        assert_eq!(
-            launch.application,
-            wide(OsStr::new(r"E:\owned fixture\probe.exe")).unwrap()
-        );
+        assert_eq!(launch.application, wide(spec.program.as_os_str()).unwrap());
     }
 
     #[test]

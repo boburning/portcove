@@ -1612,17 +1612,33 @@ fn opaque_one_off_names_leave_readable_results_and_serializable_unknown_coverage
     let opaque = temporary
         .path()
         .join(std::ffi::OsString::from_vec(b"opaque-\xff.chd".to_vec()));
-    fs::write(&opaque, b"uninspected opaque fixture").unwrap();
+    let opaque_created = match fs::write(&opaque, b"uninspected opaque fixture") {
+        Ok(()) => true,
+        Err(error) => {
+            // The hosted macOS filesystem refuses this input before discovery.
+            // Other failures must still fail; Linux keeps the actual opaque-name control.
+            assert!(cfg!(target_os = "macos"));
+            assert_eq!(error.raw_os_error(), Some(libc::EILSEQ));
+            false
+        }
+    };
     let mut selected = request(temporary.path());
     selected.profile_ids = vec!["animal-crossing-gamecube".into()];
     let report = scan(&raw_gamecube_catalog(payload), &selected).unwrap();
     assert_eq!(report.candidates.len(), 1);
-    assert!(
+    assert_eq!(
         report.issues.iter().any(|issue| issue.path.is_none()
-            && issue.message.contains("cannot be displayed as Unicode"))
+            && issue.message.contains("cannot be displayed as Unicode")),
+        opaque_created
     );
     serde_json::to_string(&report).unwrap();
-    assert_eq!(fs::read(opaque).unwrap(), b"uninspected opaque fixture");
+    if opaque_created {
+        assert_eq!(fs::read(opaque).unwrap(), b"uninspected opaque fixture");
+    }
+    assert_eq!(
+        fs::read(temporary.path().join("readable.iso")).unwrap(),
+        payload
+    );
 }
 
 #[cfg(any(windows, target_os = "linux"))]
@@ -1717,7 +1733,14 @@ fn opaque_linked_chd_names_keep_serializable_incomplete_sets_and_readable_candid
     let opaque = temporary
         .path()
         .join(std::ffi::OsString::from_vec(b"linked-\xff.chd".to_vec()));
-    symlink(&readable, &opaque).unwrap();
+    let opaque_created = match symlink(&readable, &opaque) {
+        Ok(()) => true,
+        Err(error) => {
+            assert!(cfg!(target_os = "macos"));
+            assert_eq!(error.raw_os_error(), Some(libc::EILSEQ));
+            false
+        }
+    };
     let mut document = Catalog::embedded().unwrap().authoritative_document();
     let source = document.source_catalog.as_mut().unwrap();
     let set_id = source
@@ -1753,20 +1776,23 @@ fn opaque_linked_chd_names_keep_serializable_incomplete_sets_and_readable_candid
     selected.profile_ids = vec!["animal-crossing-gamecube".into(), set_id];
     let report = scan(&catalog, &selected).unwrap();
     assert_eq!(report.candidates.len(), 1);
-    assert_eq!(report.symlinks_skipped, 1);
-    assert!(
+    assert_eq!(report.symlinks_skipped, u32::from(opaque_created));
+    assert_eq!(
         report
             .issues
             .iter()
-            .any(|issue| issue.path.is_none() && issue.message.contains("linked disc"))
+            .any(|issue| issue.path.is_none() && issue.message.contains("linked disc")),
+        opaque_created
     );
     serde_json::to_string(&report).unwrap();
-    assert!(
-        fs::symlink_metadata(opaque)
-            .unwrap()
-            .file_type()
-            .is_symlink()
-    );
+    if opaque_created {
+        assert!(
+            fs::symlink_metadata(opaque)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+    }
     assert_eq!(fs::read(readable).unwrap(), bytes);
 }
 
