@@ -117,6 +117,8 @@ export function planDesktopExecution(
   if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundary")) {
     inputs.push(receiptSource(new URL("./desktop-main-webview-boundary.mjs", harnessUrl)));
   }
+  if (selection.selected_scenarios.includes("native-linux-webview-origin-boundary"))
+    inputs.push(receiptSource(new URL("desktop-main-webview-boundary.mjs", harnessUrl)));
   if (
     selection.selected_scenarios.some((id) =>
       [
@@ -307,7 +309,9 @@ export function planDesktopExecution(
       qualificationFeatures:
         needs("install-fixture") || needs("steam-fixture") || needs("external-runtime-fixture")
           ? ["qualification-fixtures"]
-          : [],
+          : needs("webview-origin-fixture")
+            ? ["native-compatibility-qualification"]
+            : [],
     },
     fixtureFamilies,
   });

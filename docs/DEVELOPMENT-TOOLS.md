@@ -545,6 +545,17 @@ It cannot satisfy controller functionality. `native-controller-large-list` still
 requires actual injected behavior and an available API; no physical-controller
 qualification is added. Device exposure alone is not a physical observation.
 
+The standalone Linux `native-linux-webview-origin-boundary` scenario explicitly
+selects `native-compatibility-qualification`; it is excluded from ordinary profiles.
+Use the existing native harness and private-X11 route below with that feature build,
+without a capability overlay. An owned loopback page is created before launch;
+the embedded qualification driver uses the separately checked harness port plus
+two. Actual Tauri metadata identifies WebKit handles. Secondary, remote and
+same-label remote-main requests must reach their expected IPC guards, followed
+by a healthy local-main return with the same library identity and generation.
+This fixture establishes no ordinary-package, media-device, updater or minimum
+environment claim. Its listener stays owned until native cleanup joins.
+
 `node scripts/desktop-linux-x11.mjs --config ABSOLUTE_JSON` reuses the proven uid-1000
 ext4/private authenticated virtual-X11 route. On Windows it holds the existing
 Windows native slot and Heavy Rust guard while dispatching existing Ubuntu tools;

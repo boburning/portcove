@@ -109,6 +109,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
       platforms: ["linux"],
     },
   ),
+  scenario(
+    "native-linux-webview-origin-boundary",
+    "Actual Linux secondary, remote and same-label main contexts enforce IPC authority.",
+    {
+      source: "desktop-main-webview-boundary.mjs",
+      prerequisites: ["desktop", "webview-origin-fixture"],
+      qualification_only: true,
+      platforms: ["linux"],
+    },
+  ),
   scenario("empty-library", "Native bootstrap uses the isolated empty library."),
   scenario(
     "native-library-switch-recovery",
@@ -597,6 +607,13 @@ export function resolveDesktopSelection({
     throw new Error(
       "native-linux-packaged-webview-boundary requires one exact standalone scenario",
     );
+  if (
+    uniqueRequested.includes("native-linux-webview-origin-boundary") &&
+    uniqueRequested.length !== 1
+  )
+    throw new Error("native-linux-webview-origin-boundary requires one exact standalone scenario");
+  if (uniqueRequested.includes("native-linux-webview-origin-boundary") && platform !== "linux")
+    throw new Error("native-linux-webview-origin-boundary requires Linux");
   if (uniqueRequested.includes("native-startup-network-diagnostic") && platform !== "win32")
     throw new Error("native-startup-network-diagnostic requires Windows");
   if (uniqueRequested.includes("native-saved-folder-selected-setup")) {
