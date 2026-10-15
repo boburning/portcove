@@ -128,7 +128,7 @@ export function SourceDiscoveryButton({
 }: {
   profiles: SourceProfile[];
   disabled: boolean;
-  onAdded?: () => Promise<unknown>;
+  onAdded?: (() => Promise<unknown>) | undefined;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -427,7 +427,7 @@ export function SourceImportReview({
   onCancel,
   onApply,
 }: {
-  plan?: SourceImportPlan;
+  plan?: SourceImportPlan | undefined;
   profiles?: Pick<SourceProfile, "id" | "label">[];
   busy: boolean;
   onCancel: () => void;
@@ -503,7 +503,7 @@ function SourceDiscoveryDialog({
   close,
 }: {
   profiles: SourceProfile[];
-  onAdded?: () => Promise<unknown>;
+  onAdded?: (() => Promise<unknown>) | undefined;
   close: () => void;
 }) {
   const workflow = useSourceDiscoveryWorkflow(onAdded);

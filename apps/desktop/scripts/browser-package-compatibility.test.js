@@ -3,6 +3,7 @@ import { versions as bundled } from "vite-plus/versions";
 import { URL, fileURLToPath } from "node:url";
 import {
   assertBrowserPackageCompatibility,
+  assertVitePlusCompatibility,
   checkBrowserPackageCompatibility,
 } from "./browser-package-compatibility.mjs";
 
@@ -26,6 +27,34 @@ function fixture() {
 }
 
 describe("installed browser package compatibility", () => {
+  it("rejects primary-only proposals and coordinated bundle mismatches", () => {
+    const workspace = {
+      catalog: {
+        "vite-plus": "1.2.0",
+        vite: "npm:@voidzero-dev/vite-plus-core@1.2.0",
+        vitest: "5.0.4",
+        "@vitest/browser-playwright": "5.0.4",
+      },
+      overrides: { "vite@*": "catalog:", "vitest@*": "catalog:" },
+    };
+    const manifests = {
+      "vite-plus": { version: "1.2.0" },
+      vite: { name: "@voidzero-dev/vite-plus-core", version: "1.2.0" },
+      vitest: { version: "5.0.4" },
+      "@vitest/browser-playwright": { version: "5.0.4" },
+    };
+    assertVitePlusCompatibility(workspace, manifests, { vitest: "5.0.4" });
+    for (const key of ["vite-plus", "vite", "vitest", "@vitest/browser-playwright"]) {
+      const proposal = { ...workspace, catalog: { ...workspace.catalog } };
+      proposal.catalog[key] = "9.0.0";
+      expect(() => assertVitePlusCompatibility(proposal, manifests, { vitest: "5.0.4" })).toThrow(
+        /coordinated migration/,
+      );
+    }
+    expect(() => assertVitePlusCompatibility(workspace, manifests, { vitest: "5.0.5" })).toThrow(
+      /coordinated migration/,
+    );
+  });
   it("accepts the frozen installed core/provider and their provider-local dependencies", () => {
     const versions = checkBrowserPackageCompatibility(
       fileURLToPath(new URL("../package.json", import.meta.url)),

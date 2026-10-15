@@ -1,3 +1,4 @@
+import { fixtureValue } from "../test-fixtures";
 import type { CatalogQuery } from "../features/browsing/catalog-query";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useState } from "react";
@@ -34,7 +35,7 @@ function Fixture({ generation = 1, renamed = false }: { generation?: number; ren
         ) : (
           <PortBrowser
             view={view}
-            ports={filter === "stable" ? [ports[0]] : ports}
+            ports={filter === "stable" ? [fixtureValue(ports[0], "ports[0]")] : ports}
             statuses={new Map()}
             overview={{ installed: 2, ready: 0, needsSetup: 2, staged: 0 }}
             filter={filter}

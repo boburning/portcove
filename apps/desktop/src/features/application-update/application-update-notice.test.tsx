@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../test-fixtures";
 // @vitest-environment jsdom
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -209,8 +210,8 @@ describe("application update notice", () => {
     const buttons = [...status.querySelectorAll<HTMLButtonElement>("button")];
     expect(buttons.map((button) => button.textContent)).toEqual(["Review options", "Not now"]);
     expect(buttons.every((button) => button.hasAttribute("data-focusable"))).toBe(true);
-    await act(async () => buttons[0].click());
-    await act(async () => buttons[1].click());
+    await act(async () => fixtureValue(buttons[0], "buttons[0]").click());
+    await act(async () => fixtureValue(buttons[1], "buttons[1]").click());
     expect(review).toHaveBeenCalledExactlyOnceWith("choice");
     expect(dismiss).toHaveBeenCalledOnce();
   });

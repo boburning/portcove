@@ -7,8 +7,8 @@
     "allowImportingTsExtensions": true,
     "target": "ES2022",
     "lib": ["ES2022"],
-    "strict": true,
     "noEmit": true
   },
-  "include": ["vite.config.ts", "i18next.config.ts", "i18next.invalid.config.ts"]
+  "include": ["vite.config.ts", "i18next.config.ts", "i18next.invalid.config.ts"],
+  "extends": "../../tsconfig.base.json"
 }

@@ -133,14 +133,14 @@ export function useLibraryBrowsingContext({
   catalogCount,
 }: {
   root: string | null;
-  initial?: LibraryBrowsingContext;
-  returnToSelection?: "switch" | "reset";
+  initial?: LibraryBrowsingContext | undefined;
+  returnToSelection?: "switch" | "reset" | undefined;
   remember: (root: string, context: LibraryBrowsingContext) => void;
   switchLibrary: (path: string) => Promise<void>;
   resetLibrary: () => Promise<void>;
   ready?: boolean;
-  installedCount?: number;
-  catalogCount?: number;
+  installedCount?: number | undefined;
+  catalogCount?: number | undefined;
 }) {
   const [restored] = useState(() => {
     const stored = readBrowsingInputs(root);

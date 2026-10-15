@@ -234,11 +234,6 @@ export default defineConfig({
   staged: { "*": "vp check --fix" },
   run: {
     tasks: {
-      "check:orchestration": {
-        command: "vp -C apps/desktop exec tsc --project tsconfig.orchestration.json",
-        // TypeScript 7 uses execve on POSIX; automatic task tracking returns EBUSY.
-        cache: false,
-      },
       "verify:frontend": {
         command:
           "vp run check && vp -C apps/desktop run check:content && vp -C apps/desktop test --project unit && vp -C apps/desktop run build",

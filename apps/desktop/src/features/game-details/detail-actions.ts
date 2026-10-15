@@ -1,3 +1,4 @@
+import { defaultReleaseChannel } from "../../view-model";
 import { desktopApi } from "../../api";
 import type { DetailActions } from "../../components/DetailPanel";
 import type { PortDefinition, PortStatus } from "../../types";
@@ -59,7 +60,7 @@ export function detailActions({
         return await perform("install", () =>
           desktopApi.install(
             port.id,
-            status?.channel ?? port.channels[0],
+            status?.channel ?? defaultReleaseChannel(port),
             sourcePath,
             biosPath,
             false,

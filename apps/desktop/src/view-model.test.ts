@@ -1,3 +1,4 @@
+import { fixtureValue } from "./test-fixtures";
 import { portDefinition, portStatus, sourceProfile } from "./test-fixtures";
 import { describe, expect, it } from "vite-plus/test";
 import type { ActivityRecord, InstallRecord, PortDefinition, PortStatus } from "./types";
@@ -21,7 +22,7 @@ const port = (id: string, channels: PortDefinition["channels"]): PortDefinition 
   name: id === "alpha" ? "Alpha Port" : "Beta Port",
   summary: `${id} summary`,
   project_url: `https://example.com/${id}`,
-  support_tier: channels[0],
+  support_tier: fixtureValue(channels[0], "channels[0]"),
   channels,
   platforms: ["windows-x86-64"],
   adapter: "staged-source-portable",
@@ -113,7 +114,7 @@ describe("catalog view model", () => {
 
   it("combines declared platform and installation method in one query", () => {
     const linux = {
-      ...ports[1],
+      ...fixtureValue(ports[1], "ports[1]"),
       platforms: ["linux-x86-64"] as PortDefinition["platforms"],
       presentation: {
         installation_method: "user-prepared-runtime" as const,
@@ -123,7 +124,7 @@ describe("catalog view model", () => {
     };
     expect(
       filterPorts(
-        [ports[0], linux],
+        [fixtureValue(ports[0], "ports[0]"), linux],
         new Map(),
         "catalog",
         {
@@ -204,7 +205,7 @@ describe("catalog view model", () => {
 
   it("searches the visible installation method without indexing the internal adapter id", () => {
     const searchable = {
-      ...ports[0],
+      ...fixtureValue(ports[0], "ports[0]"),
       presentation: {
         installation_method: "staged-game-files" as const,
         source_requirements: [],
@@ -223,7 +224,7 @@ describe("catalog view model", () => {
   });
 
   it("distinguishes playable installs from missing-source setup", () => {
-    const withSource = { ...ports[0], source_profile: "alpha-source" };
+    const withSource = { ...fixtureValue(ports[0], "ports[0]"), source_profile: "alpha-source" };
     const blocked: PortStatus = {
       ...status,
       readiness: {
@@ -403,9 +404,9 @@ describe("catalog view model", () => {
 
   it("groups missing source and BIOS requirements for installed ports only", () => {
     const configured = [
-      { ...ports[0], source_profile: "shared-source" },
+      { ...fixtureValue(ports[0], "ports[0]"), source_profile: "shared-source" },
       {
-        ...ports[1],
+        ...fixtureValue(ports[1], "ports[1]"),
         source_profile: "beta-source",
         bios_source_profile: "shared-source",
       },
@@ -445,8 +446,8 @@ describe("catalog view model", () => {
     ]);
 
     expect(requirements).toHaveLength(1);
-    expect(requirements[0].profile.id).toBe("shared-source");
-    expect(requirements[0].requiredBy).toEqual([
+    expect(fixtureValue(requirements[0], "requirements[0]").profile.id).toBe("shared-source");
+    expect(fixtureValue(requirements[0], "requirements[0]").requiredBy).toEqual([
       { portId: "alpha", portName: "Alpha Port", role: "Game files" },
       { portId: "beta", portName: "Beta Port", role: "BIOS" },
     ]);

@@ -319,7 +319,7 @@ export function domainsForPath(input) {
     file === ".oxfmtrc.json" ||
     file === ".oxlintrc.json" ||
     file === "vite.config.ts" ||
-    file === "tsconfig.json"
+    ["tsconfig.json", "tsconfig.base.json"].includes(file)
   ) {
     add(domains, "ui");
     if (

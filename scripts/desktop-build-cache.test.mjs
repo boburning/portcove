@@ -23,7 +23,7 @@ const inputFiles = [
   "apps/desktop/package.json",
   "apps/desktop/tsconfig.json",
   "apps/desktop/tsconfig.node.json",
-  "apps/desktop/tsconfig.orchestration.json",
+  "tsconfig.base.json",
   "apps/desktop/vite.config.ts",
   "apps/desktop/scripts/build-frontend.mjs",
   "scripts/dev-storage.mjs",

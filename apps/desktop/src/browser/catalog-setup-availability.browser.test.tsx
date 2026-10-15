@@ -74,10 +74,14 @@ const cases = [
   },
 ] as const;
 const ports = cases.map(({ name }) => ({ ...portDefinition(), id: name, name }));
-const statuses = new Map(
-  ports.map((port, index) => [
-    port.id,
-    { ...portStatus(), port_id: port.id, port_actions: cases[index].actions } as PortStatus,
+const statuses = new Map<string, PortStatus>(
+  cases.map((entry) => [
+    entry.name,
+    {
+      ...portStatus(),
+      port_id: entry.name,
+      ...(entry.actions ? { port_actions: [...entry.actions] } : {}),
+    },
   ]),
 );
 let host: HTMLDivElement;

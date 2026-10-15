@@ -23,6 +23,9 @@ async function render(portId = "sample", generation = 7, imageId = "") {
       {
         ...port,
         presentation: {
+          installation_method: "portable-package",
+          saves_and_settings: "portcove-managed",
+          source_requirements: [],
           artwork: {
             game_id: 194694,
             cover_id: 287780,
@@ -31,7 +34,7 @@ async function render(portId = "sample", generation = 7, imageId = "") {
             game_slug: "ship-of-harkinian",
             match_kind: "port",
           },
-        } as typeof port.presentation,
+        } satisfies NonNullable<typeof port.presentation>,
       },
     ],
   };

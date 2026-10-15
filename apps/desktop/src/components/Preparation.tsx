@@ -21,7 +21,7 @@ export function PreparationControl({
   portId: string;
   generation: number;
   disabled: boolean;
-  run?: RunPreparation;
+  run?: RunPreparation | undefined;
   focusFallback?: () => HTMLElement | null;
 }) {
   const [plan, setPlan] = useState<PreparationPlan>();

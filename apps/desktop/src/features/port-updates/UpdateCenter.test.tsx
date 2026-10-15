@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../test-fixtures";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -49,8 +50,14 @@ describe("update center presentation", () => {
     }));
     const records: ActivityRecord[] = [
       ...finished,
-      { ...finished[0], id: "attention", status: "failed" },
-      { ...finished[0], id: "current", operation: "install", status: "running", finished_at: null },
+      { ...fixtureValue(finished[0], "finished[0]"), id: "attention", status: "failed" },
+      {
+        ...fixtureValue(finished[0], "finished[0]"),
+        id: "current",
+        operation: "install",
+        status: "running",
+        finished_at: null,
+      },
     ];
     const feed: ActivityFeed = {
       records,
@@ -91,7 +98,7 @@ describe("update center presentation", () => {
     );
     const withUnknownStatus = [...records];
     withUnknownStatus[2] = {
-      ...withUnknownStatus[2],
+      ...fixtureValue(withUnknownStatus[2], "withUnknownStatus[2]"),
       status: "future-status" as ActivityRecord["status"],
     };
     expect(renderHistory({ ...feed, records: withUnknownStatus }, withUnknownStatus)).toContain(
@@ -618,14 +625,26 @@ describe("individual update failure interaction", () => {
     await act(async () => details.querySelector("summary")!.click());
     expect(details.open).toBe(true);
     await act(async () => region!.querySelector<HTMLButtonElement>("button")!.click());
-    expect(JSON.parse(vi.mocked(clipboard.copyText).mock.calls[0][0])).toEqual({
+    expect(
+      JSON.parse(
+        fixtureValue(
+          vi.mocked(clipboard.copyText).mock.calls[0],
+          "vi.mocked(clipboard.copyText).mock.calls[0]",
+        )[0],
+      ),
+    ).toEqual({
       code: error.code,
       mutation_state: error.presentation.mutation_state,
       phase: error.presentation.phase,
       message: error.presentation.technical_message,
       context: error.presentation.technical_context,
     });
-    expect(vi.mocked(clipboard.copyText).mock.calls[0][0]).not.toContain("raw-secret");
+    expect(
+      fixtureValue(
+        vi.mocked(clipboard.copyText).mock.calls[0],
+        "vi.mocked(clipboard.copyText).mock.calls[0]",
+      )[0],
+    ).not.toContain("raw-secret");
     expect(onSelect).not.toHaveBeenCalled();
     expect(checkAll).not.toHaveBeenCalled();
     await act(async () =>

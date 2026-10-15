@@ -1272,7 +1272,7 @@ test("hosted binding rejects frontend validation helper and test-policy changes"
     "tsconfig.json",
     "apps/desktop/vite.config.ts",
     "apps/desktop/stylelint.config.mjs",
-    "apps/desktop/tsconfig.orchestration.json",
+    "tsconfig.base.json",
     "apps/desktop/i18next.config.ts",
     "apps/desktop/i18next.invalid.config.ts",
   ]) {

@@ -33,7 +33,7 @@ let timestamp: number;
 function Fixture({
   chooseFolder = async () => null,
 }: {
-  chooseFolder?: () => Promise<string | null>;
+  chooseFolder?: (() => Promise<string | null>) | undefined;
 }) {
   state = useBootstrapState(chooseFolder);
   return state.bootstrapError

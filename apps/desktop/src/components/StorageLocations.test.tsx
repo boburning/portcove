@@ -21,7 +21,7 @@ function RemountedWorkspace({
   resetLibrary,
 }: {
   generation: number;
-  trigger?: "switch" | "reset";
+  trigger?: "switch" | "reset" | undefined;
   consume: () => void;
   switchLibrary: (path: string) => Promise<void>;
   resetLibrary: () => Promise<void>;

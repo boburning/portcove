@@ -48,9 +48,9 @@ export function useBootstrapState(chooseLibraryFolder: ChooseLibraryFolder = pic
       });
     return () => {
       if (ownershipState.owner === lifecycle) {
-        ownershipState.owner = undefined;
+        delete ownershipState.owner;
         ++ownershipState.revision;
-        ownershipState.pending = undefined;
+        delete ownershipState.pending;
       }
     };
   }, [acceptBootstrap]);
@@ -76,7 +76,7 @@ export function useBootstrapState(chooseLibraryFolder: ChooseLibraryFolder = pic
       if (current()) throw error;
     } finally {
       if (current()) {
-        ownershipState.pending = undefined;
+        delete ownershipState.pending;
         setRecoveryPending(false);
       }
     }

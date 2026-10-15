@@ -111,7 +111,7 @@ export function UpdateCenter({
   cleanupChanged = refreshDiagnostics,
 }: {
   generation: number;
-  repair?: DoctorReport["repair"];
+  repair?: DoctorReport["repair"] | undefined;
   diagnosticsRefreshing: boolean;
   diagnosticsStale: boolean;
   diagnosticFailure?: unknown;
@@ -121,10 +121,10 @@ export function UpdateCenter({
   sourceProfiles?: SourceProfile[];
   statuses: Map<string, PortStatus>;
   activities: ActivityRecord[];
-  activityFeed?: ActivityFeed;
+  activityFeed?: ActivityFeed | undefined;
   outcomes: UpdateCheckOutcome[];
   batchRead?: UpdateBatchRead;
-  busy?: string;
+  busy?: string | undefined;
   checkAll: () => void | Promise<void>;
   onSelect: (portId: string, originKey?: string) => void;
   onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
@@ -387,8 +387,8 @@ function UpdateCheckControl({
   hasInstalled,
   checkAll,
 }: {
-  busy?: string;
-  status?: UpdateBatchRead["status"];
+  busy?: string | undefined;
+  status?: UpdateBatchRead["status"] | undefined;
   hasInstalled: boolean;
   checkAll: () => void | Promise<void>;
 }) {
@@ -418,7 +418,7 @@ function UpdateCheckControl({
   );
 }
 
-function UpdateBatchNotice({ read }: { read?: UpdateBatchRead }) {
+function UpdateBatchNotice({ read }: { read?: UpdateBatchRead | undefined }) {
   if (!read || read.status === "idle" || read.status === "current") return null;
   return (
     <div
@@ -470,7 +470,7 @@ function ActivityHistory({
   ports: PortDefinition[];
   sourceProfiles: SourceProfile[];
   activities: ActivityRecord[];
-  activityFeed?: ActivityFeed;
+  activityFeed?: ActivityFeed | undefined;
   onSelect: (portId: string, originKey?: string) => void;
   onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {

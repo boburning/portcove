@@ -41,7 +41,7 @@
     "transport:check": "node scripts/generate-transport-types.mjs",
     "test:cli-handoff": "vp test scripts/cli-command-shell.test.mjs src/cli-command.test.ts src/components/CliContinuity.test.tsx",
     "test:after-copy": "vp test --project unit",
-    "check": "vp check",
+    "check": "node scripts/browser-package-compatibility.mjs && vp check",
     "check:content": "node scripts/check-copy.mjs && node scripts/check-theme.mjs && vp run i18n:check",
     "test:browser:trace-probe": "node scripts/browser-runtime.mjs probe",
     "build:cached": "node scripts/build-frontend.mjs --cached"

@@ -23,7 +23,7 @@ export function FailureDetails({
   showMutationSummary = true,
 }: {
   presentation: FailureDisplay;
-  code?: string;
+  code?: string | undefined;
   contextLabel?: (key: string) => string | undefined;
   showMutationSummary?: boolean;
 }) {

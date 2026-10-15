@@ -34,7 +34,7 @@ export function RecoveryReview({
   generation = 0,
   cleanupChanged = refresh,
 }: {
-  repair?: Repair;
+  repair?: Repair | undefined;
   ports: PortDefinition[];
   refreshing: boolean;
   stale: boolean;

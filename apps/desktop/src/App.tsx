@@ -298,11 +298,11 @@ function Workspace({
   consumeLibrarySelectionReturn,
 }: {
   bootstrap: BootstrapStatus;
-  initialBrowsingContext?: LibraryBrowsingContext;
+  initialBrowsingContext?: LibraryBrowsingContext | undefined;
   rememberBrowsingContext: (root: string, context: LibraryBrowsingContext) => void;
   switchLibrary: (path: string) => Promise<void>;
   resetLibrary: () => Promise<void>;
-  returnToSelection?: "switch" | "reset";
+  returnToSelection?: "switch" | "reset" | undefined;
   consumeLibrarySelectionReturn: () => void;
 }) {
   const data = usePortcoveData(bootstrap.generation);
@@ -903,7 +903,7 @@ function CurrentView({
   applicationUpdateNotice: ReturnType<typeof useApplicationUpdateNotice>["notice"];
   applicationUpdatePreferences: ReturnType<typeof useApplicationUpdateChoice>;
   openPortDetails: (portId: string, originKey?: string) => void;
-  setupSource?: SourceRecord;
+  setupSource?: SourceRecord | undefined;
   setSetupSource: (source?: SourceRecord) => void;
 }) {
   if (ui.view === "updates")

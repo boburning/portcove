@@ -42,8 +42,8 @@ function SettingsFixture({
   generation,
   visible = true,
 }: {
-  automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"];
-  onPreferencesChanged?: (preferences: ApplicationUpdatePreferences) => void;
+  automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"] | undefined;
+  onPreferencesChanged?: ((preferences: ApplicationUpdatePreferences) => void) | undefined;
   generation?: number;
   visible?: boolean;
 }) {

@@ -1,3 +1,4 @@
+import { fixtureValue } from "../test-fixtures";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -75,8 +76,18 @@ it("keeps registered preliminary inputs distinct while opening only fresh Core-e
   expect(element.querySelectorAll("[data-setup-review-port]")).toHaveLength(18);
   expect(element.textContent).toContain("Validation has not run for a selected input");
   expect(element.textContent).not.toContain("Exact identity");
-  await act(async () => element.querySelectorAll<HTMLInputElement>("input")[0].click());
-  await act(async () => element.querySelectorAll<HTMLInputElement>("input")[1].click());
+  await act(async () =>
+    fixtureValue(
+      element.querySelectorAll<HTMLInputElement>("input")[0],
+      'element.querySelectorAll<HTMLInputElement>("input")[0]',
+    ).click(),
+  );
+  await act(async () =>
+    fixtureValue(
+      element.querySelectorAll<HTMLInputElement>("input")[1],
+      'element.querySelectorAll<HTMLInputElement>("input")[1]',
+    ).click(),
+  );
   await act(async () => button("Review Port 0 setup").click());
   expect(open).toHaveBeenCalledWith("p0", "game-file-libraries-setup");
   await act(async () => render(false));
@@ -117,8 +128,18 @@ it("retains independent selections through details/back and never treats opening
       </SetupReviewSelectionProvider>,
     );
   await act(async () => render(true));
-  await act(async () => element.querySelectorAll<HTMLInputElement>("input")[0].click());
-  await act(async () => element.querySelectorAll<HTMLInputElement>("input")[1].click());
+  await act(async () =>
+    fixtureValue(
+      element.querySelectorAll<HTMLInputElement>("input")[0],
+      'element.querySelectorAll<HTMLInputElement>("input")[0]',
+    ).click(),
+  );
+  await act(async () =>
+    fixtureValue(
+      element.querySelectorAll<HTMLInputElement>("input")[1],
+      'element.querySelectorAll<HTMLInputElement>("input")[1]',
+    ).click(),
+  );
   await act(async () => button("Review Port 0 setup").click());
   expect(open).toHaveBeenCalledWith("p0", "game-file-libraries-setup");
   await act(async () => render(false));
@@ -152,11 +173,26 @@ it("bounds selection without hiding eligible ports, and replaces it with the lib
     );
   await act(async () => render("old"));
   for (let i = 0; i < 16; i++)
-    await act(async () => element.querySelectorAll<HTMLInputElement>("input")[i].click());
+    await act(async () =>
+      fixtureValue(
+        element.querySelectorAll<HTMLInputElement>("input")[i],
+        'element.querySelectorAll<HTMLInputElement>("input")[i]',
+      ).click(),
+    );
   expect(element.querySelectorAll("input")).toHaveLength(18);
-  expect(element.querySelectorAll<HTMLInputElement>("input")[16].disabled).toBe(true);
+  expect(
+    fixtureValue(
+      element.querySelectorAll<HTMLInputElement>("input")[16],
+      'element.querySelectorAll<HTMLInputElement>("input")[16]',
+    ).disabled,
+  ).toBe(true);
   await act(async () => button("Remove Port 0 from selection").click());
-  expect(element.querySelectorAll<HTMLInputElement>("input")[16].disabled).toBe(false);
+  expect(
+    fixtureValue(
+      element.querySelectorAll<HTMLInputElement>("input")[16],
+      'element.querySelectorAll<HTMLInputElement>("input")[16]',
+    ).disabled,
+  ).toBe(false);
   await act(async () => render("new"));
   expect(element.textContent).not.toContain("ports selected");
 });
@@ -164,8 +200,8 @@ it("bounds selection without hiding eligible ports, and replaces it with the lib
 it("offers independent Core-eligible ports when a scanned BIOS completes previously registered game inputs", async () => {
   const bios = { ...source, profile_id: "bios", path: "D:/new-folder/bios.bin" };
   const choices = [
-    { ...ports[0], bios_source_profile: "bios" },
-    { ...ports[1], bios_source_profile: "bios" },
+    { ...fixtureValue(ports[0], "ports[0]"), bios_source_profile: "bios" },
+    { ...fixtureValue(ports[1], "ports[1]"), bios_source_profile: "bios" },
   ];
   const open = vi.fn();
   const render = (current = true, records = [source, bios], held = false) =>

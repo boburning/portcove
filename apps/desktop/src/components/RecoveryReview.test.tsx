@@ -1,3 +1,4 @@
+import { fixtureValue } from "../test-fixtures";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -62,8 +63,10 @@ it("puts paths behind a collapsed review and omits raw errors and execution cont
       details.open = true;
       details.dispatchEvent(new Event("toggle"));
     });
-    expect(details.textContent).toContain(repair.items[0].path);
-    expect(details.textContent).toContain(repair.items[0].proposed_action);
+    expect(details.textContent).toContain(fixtureValue(repair.items[0], "repair.items[0]").path);
+    expect(details.textContent).toContain(
+      fixtureValue(repair.items[0], "repair.items[0]").proposed_action,
+    );
     expect(host.innerHTML).not.toContain("raw-machine-secret");
     expect(host.querySelectorAll("button,a")).toHaveLength(0);
     expect(JSON.stringify(repair)).toBe(original);

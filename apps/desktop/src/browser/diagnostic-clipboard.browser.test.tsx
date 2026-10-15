@@ -1,3 +1,4 @@
+import { fixtureValue } from "../test-fixtures";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
@@ -72,7 +73,9 @@ it("announces diagnostic copy outcomes and offers exact selectable fallback with
   field.select();
   expect(field.selectionStart).toBe(0);
   expect(field.selectionEnd).toBe(field.value.length);
-  expect(field.value).toBe(vi.mocked(copyText).mock.calls[0][0]);
+  expect(field.value).toBe(
+    fixtureValue(vi.mocked(copyText).mock.calls[0], "vi.mocked(copyText).mock.calls[0]")[0],
+  );
   await expect
     .element(page.getByText("The change was saved. Check the result before trying again."))
     .toBeVisible();
@@ -83,7 +86,7 @@ it("announces diagnostic copy outcomes and offers exact selectable fallback with
   await userEvent.click(page.getByText("View preparation log", { exact: true }));
   await expect
     .element(page.getByRole("textbox", { name: "Preparation standard output" }))
-    .toHaveValue(capture[0].stdout.text);
+    .toHaveValue(fixtureValue(capture[0], "capture[0]").stdout.text);
   await userEvent.click(page.getByRole("button", { name: "Copy retained log", exact: true }));
   await expect
     .element(page.getByRole("alert"))
@@ -95,7 +98,9 @@ it("announces diagnostic copy outcomes and offers exact selectable fallback with
   logField.focus();
   logField.select();
   expect(logField.selectionEnd - logField.selectionStart).toBe(logField.value.length);
-  expect(vi.mocked(copyText).mock.calls[2][0]).toBe(logField.value);
+  expect(
+    fixtureValue(vi.mocked(copyText).mock.calls[2], "vi.mocked(copyText).mock.calls[2]")[0],
+  ).toBe(logField.value);
   await userEvent.click(page.getByRole("button", { name: "Copy retained log", exact: true }));
   await expect.element(page.getByText("Retained log copied.", { exact: true })).toBeVisible();
   await expect.element(log).not.toBeInTheDocument();

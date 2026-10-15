@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../test-fixtures";
 // @vitest-environment jsdom
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -139,7 +140,12 @@ it("checks one complete catalog once, then composes choices and counts without i
   expect(button("Compatible complete files available (unavailable)").disabled).toBe(true);
   await click("Check game-file filters");
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
-  expect(vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[0][0].routes).toHaveLength(5);
+  expect(
+    fixtureValue(
+      vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[0],
+      "vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[0]",
+    )[0].routes,
+  ).toHaveLength(5);
   for (const label of [
     "Compatible complete files available",
     "Files missing",
@@ -218,7 +224,10 @@ it("rejects held A-to-B-to-A completions and pre-switch events, without overlapp
     void state.refresh();
   });
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
-  const [request, , event] = vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[0];
+  const [request, , event] = fixtureValue(
+    vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[0],
+    "query request call",
+  );
   await act(async () =>
     event?.({
       schema_version: 3,

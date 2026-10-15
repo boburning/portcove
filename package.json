@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "check": "vp check && vp run check:orchestration && vp -C apps/desktop run lint:style",
+    "check": "node apps/desktop/scripts/browser-package-compatibility.mjs && vp check && vp -C apps/desktop run lint:style",
     "build": "node apps/desktop/scripts/build-frontend.mjs",
     "test": "vp test",
     "format": "vp fmt && vp -C apps/desktop run format:toml",

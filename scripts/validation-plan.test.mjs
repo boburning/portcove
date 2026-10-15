@@ -31,6 +31,12 @@ const plan = (changes, values = {}) =>
   });
 const redigest = (p) => ({ ...p, digest: digestValidationPlan(p) });
 
+test("shared frontend compiler policy selects the same required checks as the root compiler config", () => {
+  const shared = validationOwnershipForPath("tsconfig.base.json");
+  const root = validationOwnershipForPath("tsconfig.json");
+  assert.deepEqual({ ...shared, path: root.path }, root);
+});
+
 test("scoped beta matcher and Roadmap release consumer retain protected qualification ownership", () => {
   for (const file of [
     "scripts/linux-beta-risk-706.mjs",

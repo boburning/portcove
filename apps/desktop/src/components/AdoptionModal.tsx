@@ -22,8 +22,8 @@ export function AdoptionModal({
 }: {
   path: string;
   setPath: (path: string) => void;
-  preview?: AdoptionPreview;
-  busy?: string;
+  preview?: AdoptionPreview | undefined;
+  busy?: string | undefined;
   applying?: boolean;
   copyFailed?: boolean;
   close: () => void;
@@ -242,8 +242,8 @@ function AdoptionActions({
   adopt,
 }: {
   path: string;
-  preview?: AdoptionPreview;
-  busy?: string;
+  preview?: AdoptionPreview | undefined;
+  busy?: string | undefined;
   applying: boolean;
   dismiss: () => void;
   review: () => void;

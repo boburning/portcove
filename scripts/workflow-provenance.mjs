@@ -31,7 +31,7 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   "apps/desktop/package.json",
   "apps/desktop/vite.config.ts",
   "apps/desktop/tsconfig.json",
-  "apps/desktop/tsconfig.orchestration.json",
+  "tsconfig.base.json",
   "apps/desktop/tsconfig.node.json",
   "apps/desktop/stylelint.config.mjs",
   "apps/desktop/.fallowrc.json",

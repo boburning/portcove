@@ -1,3 +1,4 @@
+import { fixtureValue } from "./test-fixtures";
 // @vitest-environment jsdom
 import type { DragDropEvent } from "@tauri-apps/api/webview";
 import { act, createElement } from "react";
@@ -122,7 +123,11 @@ describe("native source listener lifetime", () => {
       },
     });
 
-    expect(() => nativeEvents.register.mock.calls[0][0]({ payload })).not.toThrow();
+    expect(() =>
+      fixtureValue(nativeEvents.register.mock.calls[0], "nativeEvents.register.mock.calls[0]")[0]({
+        payload,
+      }),
+    ).not.toThrow();
     expect(accept).not.toHaveBeenCalled();
   });
 

@@ -40,7 +40,7 @@ function ActivityDiagnosticSession({
   const [capture, setCapture] = useState<Diagnostic>();
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<{
-    presentation?: FailureDisplay;
+    presentation: FailureDisplay | undefined;
     cancelled: boolean;
   }>();
   const [copyOutcome, setCopyOutcome] = useState<"idle" | "copied" | "failed">("idle");

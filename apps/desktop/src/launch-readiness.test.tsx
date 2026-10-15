@@ -27,7 +27,7 @@ const installed = (readiness?: PortStatus["readiness"]): PortStatus => ({
     selected_executable: "game.exe",
     runtime: null,
   },
-  readiness,
+  ...(readiness !== undefined ? { readiness } : {}),
   last_launched_at: 1,
   successful_launches: 1,
 });

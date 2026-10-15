@@ -90,7 +90,7 @@ function retainedContext(statuses: ReadonlyMap<string, PortStatus>): CatalogQuer
     devicePlatform: browsing.host_platform,
   };
 }
-function Fixture({ initial = "all" }: { initial?: Filter | CatalogQuery }) {
+function Fixture({ initial = "all" }: { initial?: Filter | CatalogQuery | undefined }) {
   const [filter, setFilter] = useState(initial);
   const [context, contextSetter] = useState<CatalogQueryContext>();
   setContext = contextSetter;

@@ -5,9 +5,9 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
-    "strict": true,
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts"],
+  "extends": "./tsconfig.base.json"
 }

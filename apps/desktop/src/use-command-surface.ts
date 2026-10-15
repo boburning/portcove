@@ -14,7 +14,7 @@ import { commandShortcut, useGlobalShortcuts } from "./keyboard-shortcuts";
 import type { RecentPort, View } from "./view-model";
 
 interface CommandSurfaceOptions {
-  recent?: RecentPort;
+  recent?: RecentPort | undefined;
   installedCount: number;
   busy: boolean;
   setView: (view: View) => void;
@@ -123,7 +123,7 @@ export function useCommandSurface({
   setSelectedId,
   checkAll,
 }: {
-  recent?: RecentPort;
+  recent?: RecentPort | undefined;
   installedCount: number;
   busy: boolean;
   setView: (view: View) => void;

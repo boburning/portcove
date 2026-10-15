@@ -100,12 +100,12 @@ export function CatalogFilters({
   gameFileQuery,
   view = "catalog",
 }: {
-  candidates?: readonly PortDefinition[];
-  context?: CatalogQueryContext;
+  candidates?: readonly PortDefinition[] | undefined;
+  context?: CatalogQueryContext | undefined;
   view?: "catalog" | "library";
   filter: Filter | CatalogQuery;
   setFilter: Dispatch<SetStateAction<Filter | CatalogQuery>>;
-  gameFileQuery?: GameFileFilterState;
+  gameFileQuery?: GameFileFilterState | undefined;
 }) {
   const trigger = useRef<HTMLButtonElement>(null);
   const query = queryFromFilter(filter);

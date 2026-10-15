@@ -1,3 +1,4 @@
+import { fixtureValue } from "../test-fixtures";
 import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -87,9 +88,9 @@ const mortalKombat4Profile = {
 const mortalKombat4Source = {
   profile_id: mortalKombat4Profile.id,
   path: "game.chd",
-  sha256: mortalKombat4Profile.accepted_sha256[0],
+  sha256: fixtureValue(mortalKombat4Profile.accepted_sha256[0], "reviewed MK4 digest"),
   size: 1,
-  storage_sha256: mortalKombat4Profile.accepted_sha256[0],
+  storage_sha256: fixtureValue(mortalKombat4Profile.accepted_sha256[0], "reviewed MK4 digest"),
   storage_size: 1,
   updated_at: 1,
 };
@@ -184,7 +185,10 @@ it.each([
     />,
   );
   const button = [...html.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].find(
-    ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim() === "Restore previous version",
+    ([, content]) =>
+      fixtureValue(content, "button HTML capture")
+        .replaceAll(/<[^>]+>/g, "")
+        .trim() === "Restore previous version",
   )?.[0];
   expect(button).toBeDefined();
   expect(button?.includes('disabled=""')).toBe(disabled);
@@ -963,7 +967,7 @@ describe("desktop components", () => {
             launchable: health === "current",
             blockers: [],
             pending_setup: false,
-            source: health,
+            ...(health !== undefined ? { source: health } : {}),
           },
         }}
       />,
@@ -2214,7 +2218,7 @@ describe("desktop components", () => {
               launchable: false,
               blockers: ["missing_source"],
               pending_setup: false,
-              source: health,
+              ...(health !== undefined ? { source: health } : {}),
             },
           }}
         />,
@@ -2339,7 +2343,10 @@ describe("desktop components", () => {
       />,
     );
     const buttonLabels = [...installed.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(
-      ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim(),
+      ([, content]) =>
+        fixtureValue(content, "button HTML capture")
+          .replaceAll(/<[^>]+>/g, "")
+          .trim(),
     );
     expect(uninstalled).toContain("Choose game files");
     expect(uninstalled.match(/Game files needed/g)).toHaveLength(1);
@@ -2560,7 +2567,9 @@ describe("desktop components", () => {
       />,
     );
     const buttonLabels = [...html.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(([, content]) =>
-      content.replaceAll(/<[^>]+>/g, "").trim(),
+      fixtureValue(content, "button HTML capture")
+        .replaceAll(/<[^>]+>/g, "")
+        .trim(),
     );
     expect(html).toContain("Final Fantasy VII (USA) three-disc set");
     expect(html).toContain("Choose the folder that contains all required game discs");
@@ -2616,7 +2625,9 @@ describe("desktop components", () => {
       />,
     );
     const buttonLabels = [...html.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(([, content]) =>
-      content.replaceAll(/<[^>]+>/g, "").trim(),
+      fixtureValue(content, "button HTML capture")
+        .replaceAll(/<[^>]+>/g, "")
+        .trim(),
     );
     expect(html).toContain("Choose the folder or ZIP file that contains the required game files");
     expect(html).toContain("Portcove checks this location without uploading or changing it.");
@@ -2650,7 +2661,10 @@ describe("desktop components", () => {
     );
     expect(unselected).toContain("Choose BIOS file");
     const unselectedButtons = [...unselected.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(
-      ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim(),
+      ([, content]) =>
+        fixtureValue(content, "button HTML capture")
+          .replaceAll(/<[^>]+>/g, "")
+          .trim(),
     );
     expect(unselectedButtons.filter((label) => label === "Choose BIOS file")).toHaveLength(2);
     expect(unselected).toContain("Add the required BIOS file before installing");
@@ -2906,8 +2920,15 @@ describe("desktop components", () => {
           presentation: {
             ...port.presentation!,
             source_requirements: [
-              { ...requirements[0], verification: "upstream-validator" },
-              { ...requirements[0], role: "bios", verification: "catalog-rules" },
+              {
+                ...fixtureValue(requirements[0], "configured game-file requirement"),
+                verification: "upstream-validator",
+              },
+              {
+                ...fixtureValue(requirements[0], "configured game-file requirement"),
+                role: "bios",
+                verification: "catalog-rules",
+              },
             ],
           },
         }}

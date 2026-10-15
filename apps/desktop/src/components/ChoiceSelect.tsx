@@ -15,7 +15,7 @@ export function ChoiceSelect<T extends string>({
   label: string;
   value: T;
   options: readonly { value: T; label: string }[];
-  disabled?: boolean;
+  disabled?: boolean | undefined;
   onChange: (value: T) => void;
   open?: boolean;
   onOpenChange?: (open: boolean, reason: string) => void;

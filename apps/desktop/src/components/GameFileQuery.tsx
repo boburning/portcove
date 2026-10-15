@@ -2,7 +2,12 @@ import { useObservationExpired } from "../features/browsing/use-observation-expi
 import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import type { GameFileQuerySnapshot, PortDefinition, ReleaseChannel } from "../types";
-import { errorText, platformLabel, releaseChannelPresentation } from "../view-model";
+import {
+  defaultPortPlatform,
+  errorText,
+  platformLabel,
+  releaseChannelPresentation,
+} from "../view-model";
 import { Button } from "./ui/button";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { OperationCancellation } from "./OperationCancellation";
@@ -31,7 +36,7 @@ export function GameFileQueryControl({
   busy?: boolean;
 }) {
   const [route, setRoute] = useState<Route["route"]>("managed_install");
-  const [platform, setPlatform] = useState<Route["platform"]>(port.platforms[0]);
+  const [platform, setPlatform] = useState<Route["platform"]>(() => defaultPortPlatform(port));
   const [pending, setPending] = useState(false);
   const [operation, setOperation] = useState<{ epoch: number; id: string }>();
   type Observation = { epoch: number; snapshot: GameFileQuerySnapshot; deadline: number };

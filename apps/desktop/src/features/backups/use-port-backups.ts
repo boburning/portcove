@@ -38,12 +38,15 @@ export function usePortBackups(portId: string | undefined, setError?: (error?: s
           setRead({ selection, inventory, status: "current" });
       })
       .catch((value: unknown) => {
+        const failure = failurePresentation(value);
         if (request === requestId.current && currentSelection.current === selection) {
           setRead((previous) => ({
             selection,
-            inventory: previous.selection === selection ? previous.inventory : undefined,
+            ...(previous.selection === selection && previous.inventory
+              ? { inventory: previous.inventory }
+              : {}),
             status: "failed",
-            failure: failurePresentation(value),
+            ...(failure ? { failure } : {}),
           }));
           setError?.(errorText(value));
         }
@@ -53,7 +56,9 @@ export function usePortBackups(portId: string | undefined, setError?: (error?: s
     if (!portId || currentSelection.current !== selection) return;
     setRead((previous) => ({
       selection,
-      inventory: previous.selection === selection ? previous.inventory : undefined,
+      ...(previous.selection === selection && previous.inventory
+        ? { inventory: previous.inventory }
+        : {}),
       status: "pending",
     }));
     await readInventory();
@@ -76,7 +81,7 @@ export function usePortBackups(portId: string | undefined, setError?: (error?: s
   const readState: BackupReadState = {
     status: current?.status ?? (portId ? "pending" : "idle"),
     hasInventory: Boolean(current?.inventory),
-    failure: current?.failure,
+    ...(current?.failure ? { failure: current.failure } : {}),
   };
   return { backups: inventory.backups, inventory, readState, refresh };
 }

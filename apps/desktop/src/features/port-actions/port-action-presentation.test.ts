@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../test-fixtures";
 import { expect, it } from "vite-plus/test";
 import { portStatus } from "../../test-fixtures";
 import type { PortStatus } from "../../types";
@@ -291,8 +292,10 @@ it.each(["missing_source", "missing_bios"] as const)(
     expect(portActionPresentation(status, "install")).toEqual({ blocked: false });
     const display = catalogSetupPresentation(status);
     expect(display.label).toBe("Setup needs review");
-    expect(display.routes[0].reason).toContain("select and review");
-    expect(display.routes[0].availability).toBe("waiting");
+    expect(fixtureValue(display.routes[0], "display.routes[0]").reason).toContain(
+      "select and review",
+    );
+    expect(fixtureValue(display.routes[0], "display.routes[0]").availability).toBe("waiting");
   },
 );
 
@@ -306,9 +309,12 @@ it("keeps offered external review visible when managed installation is not offer
     },
   );
   expect(catalogSetupPresentation(status).label).toBe("Setup needs review");
-  expect(catalogSetupPresentation(status).routes[1].reason).toContain(
-    "External updates remain yours to manage",
-  );
+  expect(
+    fixtureValue(
+      catalogSetupPresentation(status).routes[1],
+      "catalogSetupPresentation(status).routes[1]",
+    ).reason,
+  ).toContain("External updates remain yours to manage");
 });
 
 it("explains known definition holds without upgrading source mismatch to gameplay support", () => {
@@ -321,7 +327,9 @@ it("explains known definition holds without upgrading source mismatch to gamepla
     }),
   );
   expect(display.label).toBe("Setup on hold");
-  expect(display.routes[0].reason).toContain("do not match the required edition");
+  expect(fixtureValue(display.routes[0], "display.routes[0]").reason).toContain(
+    "do not match the required edition",
+  );
 });
 
 it("presents eligible setup without claiming installed readiness", () => {
@@ -334,7 +342,9 @@ it("presents eligible setup without claiming installed readiness", () => {
     }),
   );
   expect(display.label).toBe("Setup available");
-  expect(display.routes[0].reason).toContain("review installation");
+  expect(fixtureValue(display.routes[0], "display.routes[0]").reason).toContain(
+    "review installation",
+  );
 });
 
 it.each([
@@ -379,7 +389,7 @@ it("keeps both unavailable routes separate from unsupported gameplay", () => {
     setupStatus({ action: "install", availability: "not_offered", reason: "unsupported_platform" }),
   );
   expect(display.label).toBe("Setup unavailable");
-  expect(display.routes[0].reason).toContain("on this platform");
+  expect(fixtureValue(display.routes[0], "display.routes[0]").reason).toContain("on this platform");
 });
 
 const installedStatus = (
@@ -439,7 +449,11 @@ it("displays only the explicit launch edition mismatch, without attributing it t
 it.each([
   undefined,
   portStatus(),
-  { ...installedStatus([]), readiness: undefined },
+  (() => {
+    const status = installedStatus([]);
+    delete status.readiness;
+    return status;
+  })(),
   {
     ...installedStatus(["changed_source"]),
     readiness: { launchable: true, pending_setup: false, blockers: [] },

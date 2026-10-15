@@ -53,7 +53,13 @@ export function isRepositoryLintInput(file) {
     /^(?:apps\/desktop\/)?(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.npmrc)$/u.test(
       file,
     ) ||
-    ["vite.config.ts", "tsconfig.json", ".gitignore", ".node-version"].includes(file)
+    [
+      "vite.config.ts",
+      "tsconfig.json",
+      "tsconfig.base.json",
+      ".gitignore",
+      ".node-version",
+    ].includes(file)
   );
 }
 
@@ -583,6 +589,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       "pnpm-workspace.yaml",
       "vite.config.ts",
       "tsconfig.json",
+      "tsconfig.base.json",
       "apps/desktop/pnpm-workspace.yaml",
     ].includes(file)
   ) {

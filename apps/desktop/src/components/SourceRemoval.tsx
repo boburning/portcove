@@ -17,7 +17,7 @@ export function SourceRemovalControl({
   generation: number;
   ports: PortDefinition[];
   disabled: boolean;
-  onRemoved?: () => Promise<unknown>;
+  onRemoved?: (() => Promise<unknown>) | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const [refreshError, setRefreshError] = useState(false);

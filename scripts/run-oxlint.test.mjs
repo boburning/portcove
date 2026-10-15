@@ -6,6 +6,7 @@ test("cross-language selection includes Vite+ inputs and actual script consumers
   for (const file of [
     "vite.config.ts",
     "tsconfig.json",
+    "tsconfig.base.json",
     "pnpm-workspace.yaml",
     "scripts/tool.mjs",
     "apps/desktop/src/App.tsx",

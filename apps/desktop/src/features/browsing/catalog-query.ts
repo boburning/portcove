@@ -37,13 +37,13 @@ type Group = keyof typeof catalogQueryOptions;
 export type CatalogQuery = { version: number } & Partial<Record<Group, readonly string[]>>;
 
 export interface CatalogQueryContext {
-  devicePlatform?: PortDefinition["platforms"][number];
+  devicePlatform?: PortDefinition["platforms"][number] | undefined;
   /** A supplied Core snapshot for this selected library; absent is not empty. */
   library?: { id: string; statuses: ReadonlyMap<string, PortStatus> };
   /** A completely covered, currently accepted Core route snapshot, never a readiness approximation. */
-  gameFiles?: GameFileFilterContext;
+  gameFiles?: GameFileFilterContext | undefined;
   /** Ephemeral Core facts accepted atomically with this library's workspace. */
-  browsing?: CatalogBrowsingSnapshot;
+  browsing?: CatalogBrowsingSnapshot | undefined;
 }
 
 export interface CatalogQueryResult {
