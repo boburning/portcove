@@ -26,6 +26,7 @@ export const desktopProjects = [
       include: ["src/**/*.test.{ts,tsx,js}", "scripts/**/*.test.{js,mjs}"],
       exclude: ["src/browser/**"],
       maxWorkers: 2,
+      sequence: { groupOrder: 0 },
     },
   },
   {
@@ -33,6 +34,7 @@ export const desktopProjects = [
     root: fileURLToPath(new URL("./apps/desktop", import.meta.url)),
     test: {
       name: "browser",
+      sequence: { groupOrder: 1 },
       include: ["src/browser/**/*.browser.test.tsx"],
       browser: {
         enabled: true,

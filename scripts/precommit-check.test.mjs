@@ -39,7 +39,7 @@ function fixture() {
   writeFileSync(path.join(cwd, "package.json"), '{"private":true,"type":"module"}\n');
   writeFileSync(
     path.join(cwd, "vite.config.ts"),
-    'export default { staged: { "*.js": "vp fmt" } };\n',
+    'export default { fmt: {}, staged: { "*.js": "vp fmt --config vite.config.ts --ignore-path .gitignore" } };\n',
   );
   writeFileSync(path.join(cwd, "sample.js"), "export const value = 1;\n");
   writeFileSync(path.join(cwd, ".gitignore"), ".vite-hooks/_/\n");
@@ -114,7 +114,7 @@ test(
     const cwd = fixture();
     writeFileSync(
       path.join(cwd, "vite.config.ts"),
-      'export default { staged: { "*.js": ["vp fmt", "node slow.mjs"] } };\n',
+      'export default { fmt: {}, staged: { "*.js": ["vp fmt --config vite.config.ts --ignore-path .gitignore", "node slow.mjs"] } };\n',
     );
     writeFileSync(
       path.join(cwd, "slow.mjs"),

@@ -46,10 +46,7 @@ test("actual build child uses only Corepack, filters signing values and propagat
     const calls = readFileSync(log, "utf8").trim().split("\n").map(JSON.parse);
     assert.deepEqual(
       calls.map((call) => call.args),
-      [
-        ["pnpm", "typecheck"],
-        ["pnpm", "exec", "vite", "build"],
-      ],
+      [["pnpm", "exec", "vp", "build"]],
     );
     assert(calls.every((call) => call.signing === undefined && call.public === "public-value"));
     assert(calls.every((call) => path.resolve(call.cwd) === path.join(root, "apps/desktop")));
