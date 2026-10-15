@@ -6,6 +6,43 @@ import { ChoiceSelect } from "./ChoiceSelect";
 
 afterEach(cleanup);
 
+it("does not turn a held unmatched key into a preference change when the current option retires", async () => {
+  const change = vi.fn();
+  const first = [
+    { value: "a", label: "Alpha" },
+    { value: "b", label: "Beta" },
+  ];
+  const second = [
+    { value: "a", label: "Alpha" },
+    { value: "c", label: "Charlie" },
+  ];
+  const view = await render(
+    <ChoiceSelect label="Preference" value="a" options={first} onChange={change} />,
+  );
+  const trigger = page.getByRole("combobox");
+  await userEvent.tab();
+  await expect.element(trigger).toHaveFocus();
+  await expect.poll(() => document.querySelectorAll('[role="option"]').length).toBe(2);
+  await view.rerender(
+    <ChoiceSelect label="Preference" value="b" options={first} onChange={change} />,
+  );
+  await expect.poll(() => trigger.element().textContent).toContain("Beta");
+  await userEvent.keyboard("{z>}");
+  try {
+    await view.rerender(
+      <ChoiceSelect label="Preference" value="b" options={second} onChange={change} />,
+    );
+    await expect.poll(() => trigger.element().textContent).toContain("Unavailable");
+    await expect
+      .poll(() => [...document.querySelectorAll('[role="option"]')].map((node) => node.textContent))
+      .toEqual(["Alpha", "Charlie"]);
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    expect(change).not.toHaveBeenCalled();
+  } finally {
+    await userEvent.keyboard("{/z}");
+  }
+});
+
 it("preserves closed-trigger typeahead without accepting internal collection changes", async () => {
   const change = vi.fn();
   function Fixture() {

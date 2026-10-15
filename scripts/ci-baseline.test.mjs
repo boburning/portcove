@@ -129,6 +129,11 @@ test("first pushes and missing historical bases retain full lint without changed
     assert.deepEqual(baselineLintPlan(plan), local);
   }
 });
+test("unknown ownership executes the canonical static group exactly once", () => {
+  const plan = make(["unknown/input.bin"]);
+  const commands = buildPlan(baselineSelection(plan), { validationPlan: plan });
+  assert.equal(commands.filter((entry) => entry.args.includes("frontend:static")).length, 1);
+});
 test("Playnite and handoff repairs select their cheap regressions in ordinary CI", () => {
   const tests = baselineContractTests(
     make(["integrations/playnite/check.ps1", "scripts/handoff-evidence.mjs"]),

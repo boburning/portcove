@@ -41,6 +41,35 @@ import { resolveUiSelection } from "./ui-test-selection.mjs";
 
 const allFilesExist = () => true;
 
+test("removed, renamed-away and non-code frontend inputs retain complete execution", () => {
+  for (const change of [
+    { status: "D", path: "apps/desktop/src/components/removed.tsx" },
+    {
+      status: "R100",
+      path: "apps/desktop/src/components/renamed.tsx",
+      previousPath: "apps/desktop/src/components/old.tsx",
+    },
+    {
+      status: "R100",
+      path: "apps/desktop/src/components/new.browser.test.tsx",
+      previousPath: "apps/desktop/src/components/old.browser.test.tsx",
+    },
+    { status: "M", path: "apps/desktop/src/image.png" },
+  ]) {
+    const selection = classifyChanges([change], { fileExists: allFilesExist });
+    assert.equal(selection.uiFullTests, true, change.path);
+    assert.ok(
+      !selection.uiRelatedFiles.has(
+        change.previousPath ?? (change.status === "D" ? change.path : ""),
+      ),
+    );
+    const plan = buildPlan(selection);
+    assert.ok(plan.some(({ id }) => id === "ui-tests"));
+    assert.ok(plan.some(({ id }) => id === "ui-browser-tests"));
+    assert.ok(!plan.some(({ id }) => id === "ui-related-tests"));
+  }
+});
+
 test("shared browser trace runtime selects full frontend tests and build", () => {
   const selection = classifyChanges([{ status: "M", path: "scripts/browser-traces.ts" }], {
     fileExists: allFilesExist,

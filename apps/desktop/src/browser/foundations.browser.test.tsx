@@ -78,6 +78,54 @@ afterEach(async () => {
   document.documentElement.removeAttribute("dir");
 });
 for (const theme of ["dark", "light"] as const) {
+  it(`retains the ${theme} bundled font, bounded transitions and pressed action feedback`, async () => {
+    document.documentElement.dataset.theme = theme;
+    await render(
+      <>
+        <Button variant="primary">Play</Button>
+        <button className="palette-command">Command</button>
+        <button className="port-card port-card-selectable">Port</button>
+      </>,
+    );
+    await document.fonts.ready;
+    const play = page.getByRole("button", { name: "Play", exact: true }).element();
+    expect(getComputedStyle(play).fontFamily.split(",")[0]?.replaceAll('"', "")).toBe(
+      "Geist Variable",
+    );
+    expect(document.fonts.check('14px "Geist Variable"')).toBe(true);
+    const transitions = getComputedStyle(play)
+      .transitionProperty.split(",")
+      .map((value) => value.trim());
+    expect(transitions).not.toContain("all");
+    for (const property of ["color", "background-color", "border-color", "box-shadow", "transform"])
+      expect(transitions).toContain(property);
+    for (const [name, token] of [
+      ["Play", "--color-accent-active"],
+      ["Command", "--color-bg-active"],
+      ["Port", "--color-bg-hover"],
+    ] as const) {
+      const action = page.getByRole("button", { name, exact: true });
+      await userEvent.tab();
+      await expect.element(action).toHaveFocus();
+      await userEvent.keyboard("{Space>}");
+      try {
+        await expect
+          .poll(() => rgba(getComputedStyle(action.element()).backgroundColor))
+          .toEqual(rgba(getComputedStyle(action.element()).getPropertyValue(token)));
+        await expect
+          .poll(() => {
+            const style = getComputedStyle(action.element());
+            return (
+              (Number.parseFloat(style.translate.split(" ")[1] ?? "0") || 0) +
+              new DOMMatrixReadOnly(style.transform === "none" ? undefined : style.transform).m42
+            );
+          })
+          .toBe(1);
+      } finally {
+        await userEvent.keyboard("{/Space}");
+      }
+    }
+  });
   it(`renders ${theme} semantic controls with keyboard focus and inert pending/disabled actions`, async () => {
     document.documentElement.dataset.theme = theme;
     const activate = vi.fn();

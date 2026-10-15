@@ -573,7 +573,9 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       file.startsWith("apps/desktop/scripts/") ||
       file.startsWith("apps/desktop/test/")
     ) {
-      selection.uiRelatedFiles.add(file);
+      if (options.isDeletion || !/\.(?:[cm]?[jt]sx?|css)$/u.test(file))
+        selection.uiFullTests = true;
+      else selection.uiRelatedFiles.add(file);
       selection.fallow = true;
     } else {
       selection.uiFullTests = true;
@@ -998,7 +1000,7 @@ export function buildPlan(selection, context = {}) {
   }
   if (selection.ui || broad) {
     commands.push(
-      ...(!selection.repositoryLint
+      ...(!fullStatic
         ? [frontendTask("ui-check", "frontend static checks", "frontend:static")]
         : []),
       frontendTask("ui-content", "frontend content policy", "frontend:content"),

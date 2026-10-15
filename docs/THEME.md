@@ -80,13 +80,14 @@ authority. A DTCG-compatible interchange format is conditional on a demonstrated
 second consumer and review of the then-current community specification; it is not
 a present requirement or a W3C Recommendation.
 
-`check-theme.mjs` reads the semantic CSS authority, checked-in control source, and
-available production CSS. It retains raw-color, primitive-token, dark/light,
-focus-versus-selection, declared-token, contrast, discoverability, and required
-production-variant protection. Third-party directives and variables receive
-narrow handling rather than a blanket exemption. Advisory checks for unused
-tokens, duplicated ownership, or arbitrary geometry must allow justified
-exceptions rather than turning taste into a brittle parser.
+Oxlint and Stylelint own source-pattern constraints and CSS correctness.
+Deterministic token tests check declared roles, aliases, cycles and contrast.
+Browser tests check applied themes, bundled typography, bounded transitions,
+pressed feedback, focus, disabled/pending actions and layout. The production
+build validates its own emitted CSS and required variants; an old `dist` never
+changes the scope of a source check. Third-party directives and variables receive
+narrow handling rather than a blanket exemption. Geometry and exact utility
+spelling are not separate authorities for observable design behavior.
 
 ## Semantic hierarchy
 

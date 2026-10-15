@@ -170,6 +170,43 @@ it("rejects an emitted application build with no current CSS", async () => {
     await rm(fixture, { recursive: true, force: true });
   }
 });
+
+it("uses resolved public environment for the explicit compatibility fixture boundary", async () => {
+  const fixture = await mkdtemp(new URL("../../../work/design-env-probe-", import.meta.url));
+  const previous = process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE;
+  delete process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE;
+  try {
+    const entry = path.join(fixture, "entry.js");
+    await writeFile(
+      entry,
+      `import ${JSON.stringify(fileURLToPath(new URL("../src/styles.css", import.meta.url)))};\nimport ${JSON.stringify(fileURLToPath(new URL("../src/design-compatibility/design-compatibility.css", import.meta.url)))};\nglobalThis.designProbe = true;`,
+    );
+    const buildProbe = () =>
+      build({
+        ...config,
+        root: fileURLToPath(new URL("../", import.meta.url)),
+        envDir: fixture,
+        configFile: false,
+        logLevel: "silent",
+        build: {
+          ...config.build,
+          write: false,
+          lib: { entry, formats: ["iife"], name: "DesignProbe" },
+        },
+      });
+    await expect(buildProbe()).rejects.toThrow("Design compatibility fixture cannot ship");
+    await writeFile(
+      path.join(fixture, ".env.production"),
+      "VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE=1\n",
+    );
+    await expect(buildProbe()).resolves.toBeDefined();
+    expect(process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE).toBeUndefined();
+  } finally {
+    if (previous === undefined) delete process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE;
+    else process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE = previous;
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { readFile } from "node:fs/promises";

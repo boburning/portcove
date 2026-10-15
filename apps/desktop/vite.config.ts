@@ -26,6 +26,7 @@ export function assertScenarioExclusion(
 // Metadata resolution intentionally omits plugins; ordinary dev/build keeps the
 // asynchronous loader. Omit the key rather than claim an undefined plugin list.
 const plugins = lazyPlugins(async (): Promise<PluginOption[]> => {
+  let allowCompatibilityFixture = false;
   const [{ default: react }, { default: tailwindcss }] = await Promise.all([
     import("@vitejs/plugin-react"),
     import("@tailwindcss/vite"),
@@ -36,6 +37,9 @@ const plugins = lazyPlugins(async (): Promise<PluginOption[]> => {
     {
       name: "exclude-development-scenarios",
       apply: "build",
+      configResolved(config) {
+        allowCompatibilityFixture = config.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE === "1";
+      },
       generateBundle: {
         order: "post",
         handler(_options, bundle) {
@@ -54,7 +58,7 @@ const plugins = lazyPlugins(async (): Promise<PluginOption[]> => {
               output.type === "chunk" ? Object.keys(output.modules) : [],
             ),
             Object.keys(bundle),
-            process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE === "1",
+            allowCompatibilityFixture,
           );
         },
       },
