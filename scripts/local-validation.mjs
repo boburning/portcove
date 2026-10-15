@@ -591,6 +591,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       "tsconfig.json",
       "tsconfig.base.json",
       "apps/desktop/pnpm-workspace.yaml",
+      "scripts/browser-traces.ts",
     ].includes(file)
   ) {
     selection.ui = true;

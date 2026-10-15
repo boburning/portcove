@@ -618,8 +618,8 @@ node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop test:browse
 `browser:bootstrap` installs only the reviewed Chromium shell and its companions
 under `work/browser-cache`, then launches it to verify the result. A warm invocation
 rechecks the same artifact. `test:browser` checks the existing binary and never
-downloads one. It runs one Vitest Browser Mode Chromium worker, with ten-second
-test bounds and Playwright traces retained in a per-run directory under
+downloads one. It runs Vitest Browser Mode with a Chromium instance and the
+selected bundle's scheduling and timeout defaults. Playwright traces stay in a per-run directory under
 `work/browser-traces` when a run fails. Successful runs remove only their own raw
 trace directory. Failure screenshots share that invocation's namespace; Vitest
 attachments may also remain in `apps/desktop/.vitest`. Both locations are ignored

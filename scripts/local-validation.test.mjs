@@ -42,6 +42,19 @@ import { resolveUiSelection } from "./ui-test-selection.mjs";
 
 const allFilesExist = () => true;
 
+test("shared browser trace runtime selects full frontend tests and build", () => {
+  const selection = classifyChanges([{ status: "M", path: "scripts/browser-traces.ts" }], {
+    fileExists: allFilesExist,
+  });
+  assert.equal(selection.ui, true);
+  assert.equal(selection.uiFullTests, true);
+  const plan = buildPlan(selection);
+  assert.ok(plan.some((entry) => entry.id === "ui-build"));
+  const tests = plan.find((entry) => entry.id === "ui-tests");
+  assert.ok(tests.args.includes("test:after-copy"));
+  assert.ok(!tests.args.includes("--related"));
+});
+
 test("source copy fails before expensive stages while preserving valid selected obligations", () => {
   const selection = classifyChanges([{ status: "M", path: "apps/desktop/tsconfig.json" }], {
     fileExists: allFilesExist,

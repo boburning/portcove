@@ -250,6 +250,7 @@ function classifyPath(file) {
   if (!documentation) {
     match(
       file.startsWith("apps/desktop/src/") ||
+        file === "scripts/browser-traces.ts" ||
         file.startsWith("apps/desktop/public/") ||
         nativeScenarioFiles.has(file) ||
         /^apps\/desktop\/(?:index\.html|package\.json|tsconfig.*\.json|vite\.config\.[cm]?ts|stylelint\.config\.mjs)$/u.test(
@@ -445,6 +446,7 @@ function classifyAuditPath(file) {
   );
   match(
     file.startsWith("apps/desktop/src/") ||
+      file === "scripts/browser-traces.ts" ||
       nativeScenarioFiles.has(file) ||
       file.startsWith("apps/desktop/public/") ||
       /^apps\/desktop\/(?:index\.html|package\.json|tsconfig.*\.json|vite\.config\.[cm]?ts|stylelint\.config\.mjs)$/u.test(
