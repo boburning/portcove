@@ -27,18 +27,15 @@ test("native frontend harness retains the qualified Linux target and a failing n
   assert.match(block, /scripts\/desktop-linux-native-session\.test\.mjs/u);
   assert.doesNotMatch(block, /continue-on-error:|sysctl\s+-|apparmor_parser\s/u);
 });
-test("both existing dependency lanes audit exact changed pnpm artifacts", () => {
+test("dependency lanes run actual security review without a custom age audit", () => {
   for (const name of ["fast_dependency_review", "dependency_review_full"]) {
     const block = workflow.split("  " + name + ":")[1].split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0];
-    assert.match(block, /fetch-depth: 0/u);
-    assert.match(block, /dependency-release-age\.mjs --base/u);
-    assert.match(
+    assert.match(block, /actions\/dependency-review-action@/u);
+    assert.match(block, /fail-on-severity: high/u);
+    assert.doesNotMatch(
       block,
-      /name: Audit actual changed pnpm artifacts\n\s+if: github\.event_name == 'pull_request'/u,
+      /dependency-release-age|dependency-age|continue-on-error|minimumReleaseAge/u,
     );
-    assert.match(block, /pull_request\.base\.sha/u);
-    assert.match(block, /pull_request\.head\.sha/u);
-    assert.match(block, /--frozen-lockfile --ignore-scripts/u);
   }
 });
 const qualificationWorkflow = await readFile(
@@ -1596,7 +1593,7 @@ test("frontend tools resolve through the pinned Vite+ bundle", async () => {
   assert.equal(manifest.devDependencies["vite-plus"], "catalog:");
   for (const superseded of ["oxfmt", "oxlint", "oxlint-tsgolint", "husky", "lint-staged"])
     assert.equal(manifest.devDependencies[superseded], undefined);
-  assert.match(manifest.scripts.check, /vp check && vp run check:orchestration/);
+  assert.match(manifest.scripts.check, /browser-package-compatibility.mjs && vp check/);
   assert.match(manifest.scripts.check, /run lint:style/);
   assert.equal(manifest.scripts.build, "node apps/desktop/scripts/build-frontend.mjs");
 });

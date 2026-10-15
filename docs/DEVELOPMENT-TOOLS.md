@@ -166,9 +166,11 @@ screenshots and traces remain under `.vitest` and `work/browser-traces`.
 The trace-probe script deliberately fails and preserves diagnostics.
 
 `vp check` integrates formatting, linting and TypeScript checking. `pnpm check`
-also runs Stylelint and the narrow stricter orchestration project. The latter retains indexed
-access and exact optional-property checks on lifecycle modules; a whole-app
-trial currently requires a separate application-level migration. Untyped Node
+first verifies the coordinated installed toolchain and also runs Stylelint. The
+shared compiler policy enables strict, exactOptionalPropertyTypes and
+noUncheckedIndexedAccess across application TS/TSX, typed tests/fixtures and
+runtime-specific configuration projects. There is no narrow strict project or
+duplicate compiler task. Untyped Node
 scripts use Node globals and correctness lint; browser and typed code retain
 their actual execution-environment distinctions. Stylelint, TOML/Rust formatting,
 copy/theme/localization checks and generated transport checks retain their
@@ -226,17 +228,58 @@ after power loss or forced termination.
 
 ## Coordinated upgrades and rollback
 
-Select an exact supported Vite+ release from its official release notes. Keep the
-current manifests, lockfile and installed runner until the target migrator has
-read them. Run the target pinned CLI's `help migrate`, then `vp migrate
---no-interactive --no-agent --no-editor --no-hooks` from the workspace root.
-Review every report and align `vite-plus`, the `vite` core alias, the bundled
-Vitest pin/override and the Playwright provider catalog entry. Install and inspect
-`vp toolchain`, then run checks, unit/browser tests, build and affected native
-consumers. Upgrade the provider from the bundled Vitest version, not its latest
-independent release. Independent Renovate updates of these coupled entries are
-disabled; upstream migration owns that coordinated upgrade. Directly consumed
-React/Tailwind/Playwright/parser packages retain their own reviewed updates.
+Renovate automatically proposes eligible primary `vite-plus` catalog releases.
+The proposal selects an exact target; a primary-only manifest/lock bump is
+intentionally not merge-ready. Ordinary `pnpm check` compares the selection,
+installed bundle, exact core alias, Vitest, browser provider and catalog-preserving
+overrides. React, Tailwind, Playwright and parser packages retain their independent
+reviewed update paths. Security alerts remain visible and follow the same
+compatibility discipline.
+
+Complete each proposal through the existing Codex issue/PR delivery process:
+
+1. Refresh proposal head, target, owning issue and actual writers. Select the
+   exact supported release from its official notes. Identify and verify the
+   pre-proposal base commit and its manifests, catalog and lockfile. Do not run
+   the migrator against an already bumped proposal or rely on stale node_modules.
+2. Create a clean owned worktree at that verified pre-upgrade commit. Run
+   `corepack pnpm install --frozen-lockfile` there. Preserve input/source identities;
+   keep the proposal and unrelated checkouts intact, without resetting their work.
+3. From that root, run the target migrator before updating project dependencies
+   (replace SELECTED_VERSION with the selected exact release):
+
+   `corepack pnpm --package=vite-plus@SELECTED_VERSION dlx vp migrate --no-interactive --no-agent --no-editor --no-hooks`
+
+   Existing Vite+ projects take the upstream version-only migration, not --full.
+   Inspect every manifest, catalog, alias and override. Match the directly consumed
+   browser provider to the target's bundled Vitest; verify every upgrade even when
+   the migrator updates it automatically.
+
+4. Preserve the 1440-minute/non-strict pnpm policy. Remove migrator-added
+   minimumReleaseAgeExclude entries for the bundle: non-strict resolution already
+   supports an explicit selection. Preserve allowBuilds restrictions and worktree
+   hook/signing adapters. Frozen-install, inspect `pnpm exec vp toolchain`, then
+   run checks, units/browser tests, build, affected cache/portability checks and
+   invalidated native acceptance.
+5. Commit the coherent result in that worktree. Integrate it into the owned
+   proposal branch through normal Git merge and explicit conflict review; retain
+   the verified complete manifest/lock result. Obtain separate non-writing review,
+   complete exact-head CI, guarded merge and remote readback.
+
+Repository postUpgradeTasks are not used: arbitrary commands are blocked by
+Renovate's default hosting policy, and no administrator allowedCommands support
+has been established here. Automatic proposals plus existing Codex delivery need
+no paid host, new monitor or persistent coordinator.
+`node scripts/viteplus-renovate-probe.mjs ENGINE_DIRECTORY` inspects extraction,
+resolved presets and ordinary/security rules with the verified 44.156.3 engine.
+It is local engine evidence, not a future hosted-proposal observation.
+
+The isolated 1.1.0-to-1.2.0 exercise retained pre-upgrade manifest/lock hashes,
+rejected a real primary-only installed proposal, reconstructed a clean workspace
+from those inputs, ran the target migrator, and passed compatibility, frozen
+install and a runner test. It validates this completion path without waiting
+for a release. Consult the [upstream upgrade guide](https://viteplus.dev/guide/upgrade-project)
+when the target migrator changes.
 
 Rollback is a normal reviewed Git revert of the migration commits followed by a
 frozen install of the restored lockfile. Keep unrelated work and failure evidence.

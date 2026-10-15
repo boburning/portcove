@@ -4,8 +4,8 @@ packages:
 allowBuilds:
   "@swc/core": true
   esbuild: true
-minimumReleaseAgeExclude:
-  - react-i18next@17.0.15
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: false
 storeDir: work/pnpm-store
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@1.2.0

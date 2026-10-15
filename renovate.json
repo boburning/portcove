@@ -4,7 +4,7 @@
   "enabledManagers": ["cargo", "npm", "github-actions", "rust-toolchain", "custom.regex"],
   "labels": ["dependencies"],
   "automerge": false,
-  "minimumReleaseAge": "3 days",
+  "minimumReleaseAge": "1 day",
   "minimumReleaseAgeBehaviour": "timestamp-required",
   "internalChecksFilter": "strict",
   "prConcurrentLimit": 2,
@@ -126,22 +126,27 @@
       "prPriority": -10
     },
     {
-      "description": "Upgrade the coordinated Vite+ release through vp migrate, including aliases and browser providers",
-      "matchPackageNames": [
-        "vite-plus",
-        "@voidzero-dev/vite-plus-core",
-        "vitest",
-        "/^@vitest\\//",
-        "vite"
-      ],
+      "description": "Keep bundled aliases and browser providers on the selected Vite+ release",
+      "matchPackageNames": ["@voidzero-dev/vite-plus-core", "vitest", "/^@vitest\\//", "vite"],
       "enabled": false,
-      "matchJsonata": ["isVulnerabilityAlert != true"]
+      "matchJsonata": ["$not($exists(isVulnerabilityAlert)) or isVulnerabilityAlert != true"]
     },
     {
       "description": "Directly consumed Oxc parser is independent of the bundled linter/formatter",
       "matchPackageNames": ["oxc-parser"],
       "groupName": "oxc-parser",
       "schedule": ["* * * * 1,4"]
+    },
+    {
+      "description": "Discover Vite+ releases automatically; complete the coordinated migrator graph before delivery",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["vite-plus"],
+      "groupName": "vite-plus",
+      "enabled": true,
+      "schedule": ["at any time"],
+      "prBodyNotes": [
+        "This proposal selects a Vite+ target only. Before merge, use the verified pre-upgrade inputs and supported target migrator to update the complete toolchain, including catalogs, aliases, overrides and the browser provider. Follow docs/DEVELOPMENT-TOOLS.md#coordinated-upgrades-and-rollback. A primary-only bump is not merge-ready."
+      ]
     }
   ],
   "customManagers": [

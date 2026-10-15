@@ -99,7 +99,7 @@ test("all external GitHub Actions are immutable SHA references", async () => {
 test("Renovate is the sole conservative routine update authority", async () => {
   const renovate = JSON.parse(await read("renovate.json"));
   assert.equal(renovate.automerge, false);
-  assert.equal(renovate.minimumReleaseAge, "3 days");
+  assert.equal(renovate.minimumReleaseAge, "1 day");
   assert.equal(renovate.minimumReleaseAgeBehaviour, "timestamp-required");
   assert.equal(renovate.internalChecksFilter, "strict");
   assert.equal(renovate.prConcurrentLimit, 2);
@@ -140,6 +140,20 @@ test("Renovate is the sole conservative routine update authority", async () => {
   );
   assert.equal(powershellAnalyzerManager.versioningTemplate, "nuget");
   await assert.rejects(read(".github/dependabot.yml"), (error) => error.code === "ENOENT");
+});
+
+test("pnpm prefers one-day releases without turning the preference into a strict install gate", async () => {
+  const { parse } = await import("yaml");
+  const workspace = parse(await read("pnpm-workspace.yaml"));
+  assert.equal(workspace.minimumReleaseAge, 1440);
+  assert.equal(workspace.minimumReleaseAgeStrict, false);
+  assert.equal(workspace.minimumReleaseAgeExclude, undefined);
+  assert.deepEqual(workspace.allowBuilds, { "@swc/core": true, esbuild: true });
+  const config = JSON.parse(await read("renovate.json"));
+  const primary = config.packageRules.find((rule) => rule.groupName === "vite-plus");
+  assert.equal(primary.enabled, true);
+  assert.deepEqual(primary.matchPackageNames, ["vite-plus"]);
+  assert.equal(config.postUpgradeTasks, undefined);
 });
 
 test("Renovate excludes the extracted rusqlite Git dependency identity", async () => {
@@ -304,7 +318,7 @@ test("Renovate batches development tools and suppresses only the Aqua registry a
     false,
   );
   assert.notEqual(renovate.vulnerabilityAlerts?.enabled, false);
-  assert.match(quality, /Routine updates retain the\s+three-day age policy\./u);
+  assert.match(quality, /Routine updates retain the\s+one-day age policy\./u);
   assert.match(
     quality,
     /vulnerability-alert pull requests bypass the\s+ordinary schedule, queue limits, and minimum release age/u,
@@ -427,7 +441,7 @@ test("selective migration intake and security overrides preserve immediate contr
   );
   assert.deepEqual(config.lockFileMaintenance.schedule, ["before 6am on monday"]);
   for (const rule of config.packageRules.filter(
-    (rule) => rule.schedule && !["react", "tauri"].includes(rule.groupName),
+    (rule) => rule.schedule && !["react", "tauri", "vite-plus"].includes(rule.groupName),
   ))
     assert.deepEqual(rule.schedule, ["* * * * 1,4"]);
 });
