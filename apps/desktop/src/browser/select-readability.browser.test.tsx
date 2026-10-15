@@ -1,8 +1,9 @@
+import { fixtureValue } from "../test-fixtures";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page, userEvent } from "vite-plus/test/browser";
 import catalog from "../../../../crates/portcove-core/catalog/catalog.json";
 import { SourceDiscoveryButton } from "../components/SourceDiscovery";
 import { sourceProfile } from "../test-fixtures";
@@ -88,12 +89,24 @@ it.each(layouts)(
     await expect.element(page.getByRole("dialog")).toBeVisible();
     await expect.element(trigger).toHaveFocus();
     await expect
-      .element(page.getByRole("option", { name: profiles[0].label, exact: true }))
+      .element(
+        page.getByRole("option", {
+          name: fixtureValue(profiles[0], "profiles[0]").label,
+          exact: true,
+        }),
+      )
       .not.toBeInTheDocument();
     await userEvent.click(trigger);
-    await userEvent.click(page.getByRole("option", { name: profiles[0].label, exact: true }));
+    await userEvent.click(
+      page.getByRole("option", {
+        name: fixtureValue(profiles[0], "profiles[0]").label,
+        exact: true,
+      }),
+    );
     await expect.element(trigger).toHaveFocus();
-    await expect.element(trigger).toHaveAccessibleName(`Required files ${profiles[0].label}`);
+    await expect
+      .element(trigger)
+      .toHaveAccessibleName(`Required files ${fixtureValue(profiles[0], "profiles[0]").label}`);
     const selected = document.querySelector<HTMLElement>('[data-slot="select-value"]')!;
     const triggerElement = trigger.element() as HTMLElement;
     expect(selected.scrollWidth).toBeLessThanOrEqual(selected.clientWidth + 1);

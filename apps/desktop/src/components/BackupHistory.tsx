@@ -24,10 +24,10 @@ export function BackupHistory({
   backups: BackupRecord[];
   problems?: BackupProblem[];
   state?: BackupInventory["state"];
-  readState?: BackupReadState;
-  restoreAssessment?: BackupInventory["restore_assessment"];
-  retryRead?: () => Promise<void>;
-  busy?: string;
+  readState?: BackupReadState | undefined;
+  restoreAssessment?: BackupInventory["restore_assessment"] | undefined;
+  retryRead?: (() => Promise<void>) | undefined;
+  busy?: string | undefined;
   generation?: number;
   restore: ApplyBackupAction;
   remove: ApplyBackupAction;

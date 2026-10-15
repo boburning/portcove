@@ -221,7 +221,7 @@ test("workflow guidance routes to owned contracts without unsafe runnable shortc
     /^git\s+(?:reset|stash)\b/iu,
     /^cargo\s+clean\b/iu,
     /^just\s+(?:check|audit)\s*$/iu,
-    /^(?:corepack\s+)?pnpm\s+install\b/iu,
+    /^(?:corepack\s+)?pnpm\s+install\b(?![^\n]*--frozen-lockfile\b)/iu,
   ];
   assert.deepEqual(fencedShellCommands("```pwsh\njust local-check --plan\n```"), [
     "just local-check --plan",
@@ -232,7 +232,13 @@ test("workflow guidance routes to owned contracts without unsafe runnable shortc
     for (const pattern of forbidden)
       assert.doesNotMatch(command, pattern, `unsafe warm-workflow shortcut: ${command}`);
   }
-  for (const unsafe of ["git reset --hard", "git stash", "cargo clean", "just audit"]) {
+  for (const unsafe of [
+    "git reset --hard",
+    "git stash",
+    "cargo clean",
+    "just audit",
+    "pnpm install",
+  ]) {
     assert.deepEqual(fencedShellCommands(`\`\`\`pwsh\n${unsafe}\n\`\`\``), [unsafe]);
     assert.ok(
       forbidden.some((pattern) => pattern.test(unsafe)),

@@ -1,100 +1,75 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { runCheckedGit } from "./checked-git.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-function observe(args) {
-  const result = spawnSync("git", args, {
-    cwd: root,
-    encoding: "utf8",
-    timeout: 30_000,
-    windowsHide: true,
+const cli = path.join(root, "node_modules/vite-plus/bin/vp");
+
+// Vite+ 1.2 writes --local, which is shared across linked worktrees. Keep its
+// generated dispatcher and stage engine; isolate only installation preferences.
+export function configureHooks(directory = root, mode = "install", environment = process.env) {
+  if (!["install", "enable", "disable", "status"].includes(mode))
+    throw new Error("Unknown hook operation");
+  const invoke = (command, args, cwd = directory) => {
+    const result = spawnSync(command, args, {
+      cwd,
+      env: environment,
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    if (result.error) throw result.error;
+    return result;
+  };
+  const git = (...args) => invoke("git", args);
+  const get = (...args) => git("config", ...args).stdout?.trim() ?? "";
+  const checked = (result) => {
+    if (result.status !== 0) throw new Error(result.stderr || result.stdout || "Hook setup failed");
+    return result.stdout;
+  };
+  if (git("rev-parse", "--is-inside-work-tree").status !== 0)
+    return "Source archive: hooks skipped";
+  if (environment.VP_GIT_HOOKS === "0" || environment.CI === "true")
+    return "Non-development setup: hooks skipped";
+  const hookPath = get("--get", "core.hooksPath").replaceAll("\\", "/");
+  if (hookPath && ![".husky/_", ".vite-hooks/_"].includes(hookPath))
+    return `Existing hook manager preserved: ${hookPath}`;
+  if (hookPath === ".husky/_" && mode === "install")
+    return "Legacy Husky hook preserved; review it, then run pnpm hooks:enable";
+  if (get("--bool", "--get", "extensions.worktreeConfig") !== "true") {
+    const gitDir = checked(git("rev-parse", "--path-format=absolute", "--git-dir")).trim();
+    const common = checked(git("rev-parse", "--path-format=absolute", "--git-common-dir")).trim();
+    if (gitDir !== common)
+      return "Linked checkout: enable Git worktreeConfig before installing isolated hooks";
+    return checked(
+      invoke(process.execPath, [
+        cli,
+        ...(mode === "install" ? ["config", "--no-agent"] : ["hooks", mode]),
+      ]),
+    );
+  }
+  if (mode === "status")
+    return `Worktree hooks: path=${hookPath || "disabled"}; disabled=${get("--bool", "--get", "vp.hooks.disabled") || "false"}`;
+  if (mode === "disable") {
+    checked(git("config", "--worktree", "vp.hooks.disabled", "true"));
+    checked(git("config", "--worktree", "core.hooksPath", ""));
+    return "Hooks disabled in this worktree";
+  }
+  if (mode === "install" && get("--bool", "--get", "vp.hooks.disabled") === "true")
+    return "Hooks remain disabled in this worktree";
+  const scratchRoot = path.join(directory, "work/hook-setup");
+  mkdirSync(scratchRoot, { recursive: true });
+  const scratch = mkdtempSync(path.join(scratchRoot, "dispatcher-"));
+  checked(invoke("git", ["init", "-q"], scratch));
+  checked(invoke(process.execPath, [cli, "hooks", "enable"], scratch));
+  cpSync(path.join(scratch, ".vite-hooks/_"), path.join(directory, ".vite-hooks/_"), {
+    recursive: true,
   });
-  if (result.error || ![0, 1].includes(result.status))
-    throw result.error ?? new Error(result.stderr);
-  return result.status === 0 ? result.stdout.trim() : null;
+  checked(git("config", "--worktree", "vp.hooks.dir", ".vite-hooks"));
+  checked(git("config", "--worktree", "vp.hooks.disabled", "false"));
+  checked(git("config", "--worktree", "core.hooksPath", ".vite-hooks/_"));
+  return "Vite+ dispatcher installed with worktree-local preferences";
 }
 
-export async function installHooks() {
-  if (!existsSync(path.join(root, ".git"))) {
-    console.log("Source archive: no Git hooks to install.");
-    return;
-  }
-  if (process.env.GITHUB_ACTIONS === "true" && process.env.GITHUB_RUN_ID) {
-    console.log("Hosted Actions: canonical validation runs directly; hook installation skipped.");
-    return;
-  }
-  const current = observe(["config", "--get", "core.hooksPath"]);
-  if (current && current !== ".husky/_")
-    throw new Error(
-      `Existing hook manager (${current}) preserved; integrate explicitly before installing Portcove hooks.`,
-    );
-  const defaults = path.resolve(
-    root,
-    runCheckedGit(["rev-parse", "--git-path", "hooks"], { cwd: root }).trim(),
-  );
-  if (!current && existsSync(defaults)) {
-    const active = readdirSync(defaults).filter((file) => !file.endsWith(".sample"));
-    if (active.length)
-      throw new Error(`Existing default Git hooks preserved: ${active.join(", ")}`);
-  }
-  if (
-    observe(["config", "--local", "--get", "core.worktree"]) ||
-    observe(["config", "--local", "--get", "core.bare"]) === "true"
-  )
-    throw new Error("Custom core.worktree/bare configuration requires explicit hook integration.");
-  const expected = [
-    "if ! command -v node >/dev/null 2>&1; then",
-    '  echo "Portcove pre-commit requires the pinned Node runtime; prepare dependencies and run pnpm run hooks:install." >&2',
-    "  exit 1",
-    "fi",
-    "node scripts/precommit-check.mjs",
-  ].join("\n");
-  if (readFileSync(path.join(root, ".husky/pre-commit"), "utf8").trim() !== expected)
-    throw new Error(
-      "Maintained pre-commit entrypoint unavailable; restore it before reinstalling.",
-    );
-  const { default: husky } = await import("husky");
-  const pins = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).devDependencies;
-  for (const name of ["husky", "lint-staged"]) {
-    const installed = JSON.parse(
-      readFileSync(path.join(root, "node_modules", name, "package.json"), "utf8"),
-    );
-    if (installed.version !== pins[name])
-      throw new Error(`Install pinned ${name} before hook setup.`);
-  }
-  runCheckedGit(["config", "--local", "extensions.worktreeConfig", "true"], { cwd: root });
-  const config = path.resolve(
-    root,
-    runCheckedGit(["rev-parse", "--git-path", "config.worktree"], { cwd: root }).trim(),
-  );
-  const previous = process.env.GIT_CONFIG;
-  const previousCwd = process.cwd();
-  try {
-    process.env.GIT_CONFIG = config;
-    process.chdir(root);
-    const error = husky();
-    if (error) throw new Error(error);
-  } finally {
-    process.chdir(previousCwd);
-    if (previous === undefined) delete process.env.GIT_CONFIG;
-    else process.env.GIT_CONFIG = previous;
-  }
-  if (
-    observe(["config", "--worktree", "--get", "core.hooksPath"]) !== ".husky/_" ||
-    !existsSync(path.join(root, ".husky/_/pre-commit")) ||
-    !existsSync(path.join(root, ".husky/_/h"))
-  )
-    throw new Error("Husky entrypoint setup did not complete; reinstall before committing.");
-  console.log(
-    "Portcove staged checks installed for this worktree. Reinstall: pnpm run hooks:install",
-  );
-}
-
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  installHooks().catch((error) => {
-    console.error(error.message);
-    process.exitCode = 1;
-  });
+if (process.argv[1] === fileURLToPath(import.meta.url))
+  console.log(configureHooks(root, process.argv[2]));

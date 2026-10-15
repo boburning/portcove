@@ -1,7 +1,8 @@
+import { fixtureValue } from "../test-fixtures";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { portStatus } from "../test-fixtures";
 import type { PortStatus, ReleaseChannel } from "../types";
 import { ReleaseChannelControl } from "./ReleaseChannel";
@@ -56,7 +57,7 @@ it.each(["stable", "beta", "rolling"] as ReleaseChannel[])(
       ),
     );
     expect(container.textContent).toContain(
-      `${channel === "beta" ? "Preview" : channel[0].toUpperCase() + channel.slice(1)} only`,
+      `${channel === "beta" ? "Preview" : fixtureValue(channel[0], "channel[0]").toUpperCase() + channel.slice(1)} only`,
     );
     expect(container.querySelector("button")).toBeNull();
     expect(change).not.toHaveBeenCalled();

@@ -1,7 +1,8 @@
+import { fixtureValue } from "../test-fixtures";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import type { LibraryMovePlan } from "../types";
 import { LibraryCopySummary } from "./LibraryMove";
 
@@ -97,17 +98,20 @@ it.each([0, 1, 40])(
   "discloses all %s recorded files and empty folders without altering the plan",
   async (count) => {
     const plan = fixture();
-    plan.content[0].copy.files = Array.from({ length: count }, (_, index) => ({
-      relative_path: `owned-port/${"long-path-".repeat(12)}${index}.save`,
-      size: index,
-      sha256: "e".repeat(64),
-    }));
+    fixtureValue(plan.content[0], "plan.content[0]").copy.files = Array.from(
+      { length: count },
+      (_, index) => ({
+        relative_path: `owned-port/${"long-path-".repeat(12)}${index}.save`,
+        size: index,
+        sha256: "e".repeat(64),
+      }),
+    );
     const original = JSON.stringify(plan);
     await render(plan);
     expect(host.querySelector('[aria-label="Files in user"]')).toBeNull();
     await toggleFolder(true);
     expect(host.querySelectorAll('[aria-label="Files in user"] li')).toHaveLength(count);
-    for (const file of plan.content[0].copy.files)
+    for (const file of fixtureValue(plan.content[0], "plan.content[0]").copy.files)
       expect(host.textContent).toContain(file.relative_path);
     expect(host.textContent).toContain(
       count === 0
@@ -130,11 +134,15 @@ it.each(["future_kind", "constructor", "__proto__"])(
   "keeps an unfamiliar %s folder explicit and inspectable",
   async (kind) => {
     const plan = fixture();
-    plan.content[0].kind = kind as LibraryMovePlan["content"][number]["kind"];
+    fixtureValue(plan.content[0], "plan.content[0]").kind =
+      kind as LibraryMovePlan["content"][number]["kind"];
     await render(plan);
     expect(host.querySelector("summary")?.textContent).toContain("Other recorded content");
     await toggleFolder(true);
-    expect(host.textContent).toContain(plan.content[0].copy.files[0].relative_path);
+    expect(host.textContent).toContain(
+      fixtureValue(fixtureValue(plan.content[0], "plan.content[0]").copy.files[0], "copied file")
+        .relative_path,
+    );
   },
 );
 
@@ -146,8 +154,9 @@ it("names the recorded installation and source paths without promising relocatio
     plan.destination_root,
     "owned-port",
     "1.2.3",
-    plan.metadata.application_versions[0].path,
-    plan.metadata.source_references[0].path,
+    fixtureValue(plan.metadata.application_versions[0], "plan.metadata.application_versions[0]")
+      .path,
+    fixtureValue(plan.metadata.source_references[0], "saved source reference").path,
   ])
     expect(host.textContent).toContain(value);
   expect(host.textContent).toContain("1 saved file location will stay unchanged.");
@@ -166,7 +175,7 @@ it("names the recorded installation and source paths without promising relocatio
 it("uses a count-aware saved game-file location summary", async () => {
   const plan = fixture();
   plan.metadata.source_references.push({
-    ...plan.metadata.source_references[0],
+    ...fixtureValue(plan.metadata.source_references[0], "plan.metadata.source_references[0]"),
     profile_id: "owned-bios",
     path: "D:/Owned BIOS/bios.bin",
   });
@@ -182,7 +191,10 @@ it("replaces displayed inventory with the current plan and distinguishes empty m
   const next = fixture();
   next.metadata.application_versions = [];
   next.metadata.source_references = [];
-  next.content[0].copy.files[0].relative_path = "current-port/current.save";
+  fixtureValue(
+    fixtureValue(next.content[0], "next.content[0]").copy.files[0],
+    "replacement file",
+  ).relative_path = "current-port/current.save";
   await render(next);
   expect(host.textContent).toContain("current-port/current.save");
   expect(host.textContent).not.toContain("owned-port/save.bin");

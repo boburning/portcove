@@ -231,7 +231,7 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
     assert.equal(serde.rangeStrategy, "update-lockfile");
     assert.equal(control.rangeStrategy, "bump");
     for (const dep of effective) {
-      assert.equal(dep.minimumReleaseAge, "3 days");
+      assert.equal(dep.minimumReleaseAge, "1 day");
       assert.equal(dep.minimumReleaseAgeBehaviour, "timestamp-required");
       assert.equal(dep.internalChecksFilter, "strict");
       assert.equal(dep.automerge, false);

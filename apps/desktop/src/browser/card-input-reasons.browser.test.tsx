@@ -2,8 +2,8 @@ import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page, userEvent } from "vite-plus/test/browser";
 import { PortBrowser } from "../components/PortBrowser";
 import { portDefinition, portStatus } from "../test-fixtures";
 import type { PortStatus } from "../types";
@@ -56,25 +56,31 @@ const statuses = new Map<string, PortStatus>(
         port_id: port.id,
         channel: "beta",
         active: { ...install, port_id: port.id },
-        readiness:
-          port.id === "Unknown"
-            ? undefined
-            : { launchable: ready, pending_setup: false, blockers: problem ? [...problem[2]] : [] },
+        ...(port.id === "Unknown"
+          ? {}
+          : {
+              readiness: {
+                launchable: ready,
+                pending_setup: false,
+                blockers: problem ? [...problem[2]] : [],
+              },
+            }),
         staged:
           port.id === "Staged ready"
             ? { ...install, port_id: port.id, staged: true, version: "2" }
             : null,
-        port_actions:
-          port.id === "Wrong edition"
-            ? [
+        ...(port.id === "Wrong edition"
+          ? {
+              port_actions: [
                 {
                   action: "launch",
                   availability: "held",
                   reason: "definition_ineligible",
                   definition: { outcome: "hold", reason: "source_identity_mismatch" },
                 },
-              ]
-            : undefined,
+              ],
+            }
+          : {}),
       },
     ];
   }),

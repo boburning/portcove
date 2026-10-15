@@ -49,8 +49,8 @@ export function OutputLocationControl({
 }: {
   portId: string;
   generation: number;
-  busy?: string;
-  onChanged?: () => void;
+  busy?: string | undefined;
+  onChanged?: (() => void) | undefined;
   onApplying?: (applying: boolean) => void;
 }) {
   const [location, setLocation] = useState<PortOutputLocation>();
@@ -404,9 +404,9 @@ function CurrentOutputDestination({
   pending,
   error,
 }: {
-  preview?: OutputDestinationPreview;
+  preview?: OutputDestinationPreview | undefined;
   pending: boolean;
-  error?: string;
+  error?: string | undefined;
 }) {
   const safe =
     preview?.availability === "available" &&
@@ -469,9 +469,9 @@ function OutputLocationStatus({
   status,
   error,
 }: {
-  result?: OutputRelocationResult;
-  status?: OutputRelocationStatus;
-  error?: string;
+  result?: OutputRelocationResult | undefined;
+  status?: OutputRelocationStatus | undefined;
+  error?: string | undefined;
 }) {
   return (
     <>
@@ -552,8 +552,8 @@ function OutputLocationReview({
   finalFocus,
 }: {
   preview: OutputDestinationPreview;
-  relocation?: OutputRelocationPlan;
-  pending?: "load" | "pick" | "review" | "apply";
+  relocation?: OutputRelocationPlan | undefined;
+  pending?: "load" | "pick" | "review" | "apply" | undefined;
   apply: () => void;
   reviewRelocation: () => void;
   applyRelocation: () => void;

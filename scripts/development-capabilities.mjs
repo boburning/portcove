@@ -121,8 +121,8 @@ export function validationCapabilities(entry, platform = process.platform) {
   if (entry.id === "lint-tool-fixtures") {
     const selected = entry.args?.slice(1) ?? [];
     const fixtures = {
-      oxfmt: ["npm-oxfmt"],
-      oxlint: ["npm-oxlint", "npm-oxlint-tsgolint"],
+      oxfmt: ["npm-vite-plus"],
+      oxlint: ["npm-vite-plus"],
       stylelint: ["npm-stylelint"],
       ruff: ["ruff"],
       shellcheck: ["shellcheck"],

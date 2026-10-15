@@ -1,18 +1,21 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import catalog from "../../../../crates/portcove-core/catalog/catalog.json";
 import type { PortDefinition, SourceInspectionReport } from "../types";
 import type { SourceCatalog } from "../transport-types.generated";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
 import { DetailQualificationSummary } from "./DetailQualificationSummary";
-import { portStatus } from "../test-fixtures";
+import { fixtureValue, portStatus } from "../test-fixtures";
 
 const sourceCatalog = catalog.source_catalog as unknown as SourceCatalog;
 const snap64 = catalog.ports.find(
   (port) => port.id === "snap64-recomp",
 ) as unknown as PortDefinition;
 
-function report(port = snap64, role: "game" | "bios" = "game"): SourceInspectionReport {
+type FixtureReport = SourceInspectionReport & {
+  applications: [SourceInspectionReport["applications"][number]];
+};
+function report(port = snap64, role: "game" | "bios" = "game"): FixtureReport {
   const profile = role === "game" ? port.source_profile : port.bios_source_profile;
   const contract = sourceCatalog.contracts.find(
     (candidate) => candidate.port_id === port.id && candidate.role === role,
@@ -25,7 +28,10 @@ function report(port = snap64, role: "game" | "bios" = "game"): SourceInspection
     state_code: "not_inspected",
     summary: "No fresh file inspection",
     next_action: "Select files",
-    expected_identity: sourceCatalog.identities.find((identity) => identity.id === profile),
+    expected_identity: fixtureValue(
+      sourceCatalog.identities.find((identity) => identity.id === profile),
+      "catalog identity",
+    ),
     applications: [
       {
         port_id: port.id,
@@ -110,37 +116,37 @@ describe("detail qualification history", () => {
   it.each([
     [
       "report profile",
-      (value: SourceInspectionReport) => {
+      (value: FixtureReport) => {
         value.profile_id = "other";
       },
     ],
     [
       "application port",
-      (value: SourceInspectionReport) => {
+      (value: FixtureReport) => {
         value.applications[0].port_id = "other";
       },
     ],
     [
       "application role",
-      (value: SourceInspectionReport) => {
+      (value: FixtureReport) => {
         value.applications[0].role = "bios";
       },
     ],
     [
       "contract profile",
-      (value: SourceInspectionReport) => {
+      (value: FixtureReport) => {
         value.applications[0].contract.profile_id = "other";
       },
     ],
     [
       "contract port",
-      (value: SourceInspectionReport) => {
+      (value: FixtureReport) => {
         value.applications[0].contract.port_id = "other";
       },
     ],
     [
       "contract role",
-      (value: SourceInspectionReport) => {
+      (value: FixtureReport) => {
         value.applications[0].contract.role = "bios";
       },
     ],
@@ -187,7 +193,9 @@ describe("detail qualification history", () => {
     const variant = bios.expected_identity!.variants.find((candidate) =>
       application.contract.supported_variant_ids.includes(candidate.id),
     )!;
-    const record = structuredClone(sourceCatalog.qualification[0]);
+    const record = structuredClone(
+      fixtureValue(sourceCatalog.qualification[0], "qualification record"),
+    );
     record.method = "Recorded BIOS structural observation";
     record.scope.port_id = biosPort.id;
     record.scope.contract_id = application.contract.id;
@@ -196,7 +204,7 @@ describe("detail qualification history", () => {
       identity: {
         game_id: bios.profile_id,
         variant_id: variant.id,
-        representation_id: variant.representations[0].id,
+        representation_id: fixtureValue(variant.representations[0], "qualification record").id,
       },
     };
     application.qualification.exact_records = [record];
@@ -208,7 +216,10 @@ describe("detail qualification history", () => {
 
   it("preserves different kinds and failed, not-run and unknown outcomes", () => {
     const value = report();
-    const original = value.applications[0].qualification.exact_records[0];
+    const original = fixtureValue(
+      value.applications[0].qualification.exact_records[0],
+      "qualification record",
+    );
     value.applications[0].qualification.exact_records = [
       { ...original, kind: "hands_on", outcome: "not_run", method: "Hands-on was not run" },
       {
@@ -233,7 +244,10 @@ describe("detail qualification history", () => {
 
   it("does not treat incomplete recorded release or variant scope as a wildcard", () => {
     const value = report();
-    const record = value.applications[0].qualification.exact_records[0];
+    const record = fixtureValue(
+      value.applications[0].qualification.exact_records[0],
+      "qualification record",
+    );
     record.scope.artifact_sha256 = null;
     record.scope.upstream_ref = null;
     record.scope.check_version = null;
@@ -269,7 +283,10 @@ describe("detail qualification history", () => {
 
   it("escapes recorded methods and renders no new interactive control", () => {
     const value = report();
-    value.applications[0].qualification.exact_records[0].method = "<script>unsafe</script>";
+    fixtureValue(
+      value.applications[0].qualification.exact_records[0],
+      "qualification record",
+    ).method = "<script>unsafe</script>";
     const markup = renderToStaticMarkup(
       <DetailQualificationSummary port={snap64} sourceInspection={value} />,
     );

@@ -42,7 +42,7 @@ export function browsingContextFixture(
         ...common,
         context_id: (++identity).toString(16).padStart(64, "0"),
         route: status?.active ? "managed_launch" : "external_launch",
-        platform: status?.external_runtime?.platform ?? port.platforms[0],
+        platform: status?.external_runtime?.platform ?? port.platforms[0] ?? null,
         channel: status?.active?.channel ?? "stable",
         installation_method: status?.active ? "referenced-disc" : "user-prepared-runtime",
         member_context: true,

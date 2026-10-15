@@ -4,7 +4,7 @@ import type { DetailDestination } from "../../view-model";
 
 type DetailReturn = {
   portId: string;
-  originKey?: string;
+  originKey: string | undefined;
   scrollTop: number;
   token: number;
 };

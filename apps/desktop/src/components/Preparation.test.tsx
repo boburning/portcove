@@ -1,7 +1,8 @@
+import { fixtureValue } from "../test-fixtures";
 // @vitest-environment jsdom
 import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import type { PreparationPlan } from "../types";
 import { PreparationControl, type RunPreparation } from "./Preparation";
@@ -171,7 +172,7 @@ it.each(["other:7", "sample:8"])(
           <summary ref={summary}>Game-file requirements and setup</summary>
           <PreparationControl
             key={owner}
-            portId={owner.split(":")[0]}
+            portId={fixtureValue(owner.split(":")[0], "requirements owner port")}
             generation={Number(owner.split(":")[1])}
             disabled={false}
             run={vi.fn()}

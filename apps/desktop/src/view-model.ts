@@ -235,7 +235,8 @@ const platformLabels: Record<string, string> = {
 };
 
 export function platformLabel(value: string) {
-  return Object.hasOwn(platformLabels, value) ? platformLabels[value] : "Unknown platform";
+  const label = Object.hasOwn(platformLabels, value) ? platformLabels[value] : undefined;
+  return label ?? "Unknown platform";
 }
 
 export const installationMethodLabels: Record<
@@ -269,7 +270,7 @@ export function releaseChannelPresentation(value: string) {
   const known = Object.hasOwn(channelLabels, value);
   return {
     known,
-    label: known ? channelLabels[value] : "Unknown channel",
+    label: (known ? channelLabels[value] : undefined) ?? "Unknown channel",
     tone: known ? value : "unknown",
   };
 }
@@ -515,4 +516,17 @@ export function formatBytes(bytes: number) {
   const unit = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   const value = bytes / 1024 ** unit;
   return `${value >= 100 || unit === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`;
+}
+/** Core catalog validation requires an offered channel and platform. Reject a
+ * malformed projection instead of inventing a selection at the UI boundary. */
+export function defaultReleaseChannel(port: PortDefinition) {
+  const channel = port.channels[0];
+  if (channel === undefined) throw new Error(`Port ${port.id} has no release channels`);
+  return channel;
+}
+
+export function defaultPortPlatform(port: PortDefinition) {
+  const platform = port.platforms[0];
+  if (platform === undefined) throw new Error(`Port ${port.id} has no platforms`);
+  return platform;
 }

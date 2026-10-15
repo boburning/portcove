@@ -14,7 +14,7 @@ export function ReviewedRemovalFooter({
   canApply = true,
 }: {
   hasPreview: boolean;
-  pending?: "review" | "apply";
+  pending?: "review" | "apply" | undefined;
   dismiss: () => void;
   review: () => Promise<void>;
   apply: () => Promise<void>;
@@ -22,7 +22,7 @@ export function ReviewedRemovalFooter({
   reviewLabel: string;
   applyLabel: string;
   applyingLabel: string;
-  canApply?: boolean;
+  canApply?: boolean | undefined;
 }) {
   return (
     <DialogFooter className="mt-4">

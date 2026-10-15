@@ -1,6 +1,6 @@
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { it, expect } from "vitest";
+import { it, expect } from "vite-plus/test";
 import { shellCommand } from "../src/cli-command.ts";
 
 it("passes shell-sensitive values as literal arguments to a harmless child process", () => {

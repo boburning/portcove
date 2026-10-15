@@ -81,15 +81,15 @@ export function PortBrowser({
   loading,
   nativeSourceDrag = { active: false, pathCount: 0 },
 }: {
-  favorites?: ReturnType<typeof useFavorites>;
+  favorites?: ReturnType<typeof useFavorites> | undefined;
   view: View;
   ports: PortDefinition[];
   /** Search/view narrowed candidates, before either editable Catalog group. */
-  catalogFilterCandidates?: PortDefinition[];
+  catalogFilterCandidates?: PortDefinition[] | undefined;
   /** Search and canonical Library membership, before readiness and declared query. */
-  libraryFilterCandidates?: PortDefinition[];
+  libraryFilterCandidates?: PortDefinition[] | undefined;
   queryContext?: CatalogQueryContext;
-  gameFileQuery?: GameFileFilterState;
+  gameFileQuery?: GameFileFilterState | undefined;
   libraryReadiness?: string;
   setLibraryReadiness?: (readiness: string) => void;
   statuses: Map<string, PortStatus>;
@@ -98,14 +98,14 @@ export function PortBrowser({
   query?: string;
   catalogSort?: CatalogSort;
   setCatalogSort?: Dispatch<SetStateAction<CatalogSort>>;
-  recent?: RecentPort;
+  recent?: RecentPort | undefined;
   setFilter: Dispatch<SetStateAction<Filter | CatalogQuery>>;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onContinue?: (portId: string) => void;
-  onBrowseCatalog?: () => void;
-  onConnectGameFiles?: () => void;
+  onBrowseCatalog?: (() => void) | undefined;
+  onConnectGameFiles?: (() => void) | undefined;
   steamBatch?: { ports: PortDefinition[]; generation: number };
-  clearFilters?: () => void;
+  clearFilters?: (() => void) | undefined;
   loading: boolean;
   nativeSourceDrag?: NativeSourceDragState;
 }) {
@@ -482,7 +482,7 @@ function BrowserResults({
   loading,
   nativeSourceDrag,
 }: {
-  favorites?: ReturnType<typeof useFavorites>;
+  favorites?: ReturnType<typeof useFavorites> | undefined;
   onFavoriteToggle: (portId: string, button: HTMLButtonElement) => void;
   view: View;
   ports: PortDefinition[];
@@ -490,10 +490,10 @@ function BrowserResults({
   constrained: boolean;
   statuses: Map<string, PortStatus>;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
-  onLaunch?: (portId: string) => void;
-  onBrowseCatalog?: () => void;
-  onConnectGameFiles?: () => void;
-  clearFilters?: () => void;
+  onLaunch?: ((portId: string) => void) | undefined;
+  onBrowseCatalog?: (() => void) | undefined;
+  onConnectGameFiles?: (() => void) | undefined;
+  clearFilters?: (() => void) | undefined;
   loading: boolean;
   nativeSourceDrag: NativeSourceDragState;
 }) {
@@ -563,9 +563,9 @@ function BrowserEmptyState({
   view: View;
   installedCount: number;
   constrained: boolean;
-  clearFilters?: () => void;
-  onBrowseCatalog?: () => void;
-  onConnectGameFiles?: () => void;
+  clearFilters?: (() => void) | undefined;
+  onBrowseCatalog?: (() => void) | undefined;
+  onConnectGameFiles?: (() => void) | undefined;
 }) {
   if (view === "library" && installedCount === 0 && !constrained)
     return (
@@ -722,12 +722,12 @@ type CardState = {
 
 type PortCardProps = {
   onFavoriteToggle: (portId: string, button: HTMLButtonElement) => void;
-  favorites?: ReturnType<typeof useFavorites>;
+  favorites?: ReturnType<typeof useFavorites> | undefined;
   port: PortDefinition;
-  status?: PortStatus;
+  status?: PortStatus | undefined;
   readiness: PortReadiness;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
-  onLaunch?: (portId: string) => void;
+  onLaunch?: ((portId: string) => void) | undefined;
   nativeSourceDrag: NativeSourceDragState;
   view: View;
 };
@@ -856,9 +856,9 @@ function PortCardContents({
   view,
 }: Pick<PortCardProps, "port" | "status" | "onSelect" | "onLaunch" | "view"> & {
   state: CardState;
-  setup?: ReturnType<typeof catalogSetupPresentation>;
+  setup?: ReturnType<typeof catalogSetupPresentation> | undefined;
   setupDescriptionId: string;
-  input?: ReturnType<typeof installedCardInputPresentation>;
+  input?: ReturnType<typeof installedCardInputPresentation> | undefined;
   channel: ReturnType<typeof releaseChannelPresentation> | undefined;
   updateAvailable?: boolean;
   dropEligible: boolean;
@@ -989,7 +989,7 @@ function PortCardStatus({
   onLaunch,
   view,
 }: Pick<PortCardProps, "port" | "status" | "onSelect" | "onLaunch" | "view"> & {
-  inputDescriptionId?: string;
+  inputDescriptionId?: string | undefined;
   state: CardState;
   detailOrigin: string;
 }) {

@@ -60,7 +60,9 @@ export function useUpdateCenter(perform: UpdateCheckOperation, statuses: PortSta
       requests.current.isCurrent(request) && currentSelection.current === selection;
     setChecked((previous) => ({
       selection,
-      outcomes: previous?.selection === selection ? previous.outcomes : undefined,
+      ...(previous?.selection === selection && previous.outcomes
+        ? { outcomes: previous.outcomes }
+        : {}),
       status: "pending",
     }));
     const result = await perform(
@@ -69,12 +71,15 @@ export function useUpdateCenter(perform: UpdateCheckOperation, statuses: PortSta
         try {
           return await desktopApi.checkInstalled();
         } catch (error) {
+          const failure = isCancellation(error) ? undefined : failurePresentation(error);
           if (isCurrent()) {
             setChecked((previous) => ({
               selection,
-              outcomes: previous?.selection === selection ? previous.outcomes : undefined,
+              ...(previous?.selection === selection && previous.outcomes
+                ? { outcomes: previous.outcomes }
+                : {}),
               status: isCancellation(error) ? "cancelled" : "failed",
-              failure: isCancellation(error) ? undefined : failurePresentation(error),
+              ...(failure ? { failure } : {}),
             }));
             throw error;
           }
@@ -97,7 +102,7 @@ export function useUpdateCenter(perform: UpdateCheckOperation, statuses: PortSta
   const batchRead: UpdateBatchRead = {
     status: current?.status ?? "idle",
     hasResults: current?.outcomes !== undefined,
-    failure: current?.failure,
+    ...(current?.failure ? { failure: current.failure } : {}),
   };
   return { outcomes, batchRead, checkAll };
 }

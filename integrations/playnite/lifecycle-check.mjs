@@ -481,6 +481,8 @@ async function main() {
     if (cleanupFailed) {
       if (primaryFailure)
         process.stderr.write("Fixture cleanup also failed after the primary error.\n");
+      // The primary failure is rethrown above; only a successful journey reaches this branch.
+      // oxlint-disable-next-line no-unsafe-finally
       else throw new Error("The isolated lifecycle fixture could not be completely removed.");
     }
   }

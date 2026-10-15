@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { failureReport, portDefinition } from "../test-fixtures";
 import { StatusLayer } from "./Chrome";
 import { UpdateCenter } from "./UpdateCenter";

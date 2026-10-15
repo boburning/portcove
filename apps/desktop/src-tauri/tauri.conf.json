@@ -5,7 +5,7 @@
   "identifier": "io.github.portcove.portcove",
   "build": {
     "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "node scripts/build-frontend.mjs",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },

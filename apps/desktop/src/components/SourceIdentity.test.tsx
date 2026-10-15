@@ -2,9 +2,10 @@
 import { act, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { SourceInspectionReport } from "../types";
 import { copyText } from "../clipboard";
+import { fixtureValue } from "../test-fixtures";
 import { focusableControls } from "../focus";
 import { SourceIdentityPanel } from "./SourceIdentity";
 
@@ -13,7 +14,11 @@ vi.mock("../clipboard", () => ({ copyText: vi.fn().mockResolvedValue(undefined) 
 const calculatedSha = "a".repeat(64);
 const expectedSha = "b".repeat(64);
 
-function report(stateCode = "recognized_exact"): SourceInspectionReport {
+type FixtureReport = SourceInspectionReport & {
+  applications: [SourceInspectionReport["applications"][number]];
+  evidence: [SourceInspectionReport["evidence"][number]];
+};
+function report(stateCode = "recognized_exact"): FixtureReport {
   const classification =
     stateCode === "ambiguous_identity"
       ? {
@@ -43,6 +48,71 @@ function report(stateCode = "recognized_exact"): SourceInspectionReport {
       : stateCode === "accepted_identity_unknown"
         ? { state: "admitted" as const, mode: "informational_consent" as const }
         : { state: "admitted" as const, mode: "exact_identity" as const };
+  const inspection: SourceInspectionReport["inspection"] =
+    stateCode === "source_missing"
+      ? undefined
+      : {
+          profile_id: "game",
+          path: "D:/Games/selected.zip",
+          observed_digests: [
+            {
+              algorithm: "sha256",
+              scope: "original-container",
+              value: "c".repeat(64),
+              size: 8192,
+            },
+            {
+              algorithm: "sha256",
+              scope: "normalized-content",
+              value: calculatedSha,
+              size: 4096,
+            },
+          ],
+          archive_member_name: "game.z64",
+          components: [
+            {
+              id: "program",
+              kind: "file_set_member",
+              name: "program.bin",
+              digests: [
+                {
+                  algorithm: "sha256",
+                  scope: "file-set-member",
+                  value: "d".repeat(64),
+                  size: 1024,
+                },
+              ],
+              size: 1024,
+              track_count: null,
+              volume_id: null,
+            },
+            {
+              id: "disc-1",
+              kind: "optical_disc",
+              name: "Disc 1",
+              digests: [
+                {
+                  algorithm: "sha1",
+                  scope: "disc-set-member",
+                  value: "e".repeat(40),
+                  size: 2048,
+                },
+              ],
+              size: 2048,
+              track_count: 12,
+              volume_id: "GAME_DISC_1",
+            },
+          ],
+          assessment: {
+            health: "current",
+            classification,
+            contract: { state: "supported", contract_id: "game-port" },
+            admission,
+            evidence: [],
+          },
+          message: "Checked locally",
+          record: null,
+        };
   return {
     schema_version: 1,
     profile_id: "game",
@@ -67,75 +137,10 @@ function report(stateCode = "recognized_exact"): SourceInspectionReport {
       storage_size: 8192,
       updated_at: 1,
     },
-    inspection:
-      stateCode === "source_missing"
-        ? undefined
-        : {
-            profile_id: "game",
-            path: "D:/Games/selected.zip",
-            observed_digests: [
-              {
-                algorithm: "sha256",
-                scope: "original-container",
-                value: "c".repeat(64),
-                size: 8192,
-              },
-              {
-                algorithm: "sha256",
-                scope: "normalized-content",
-                value: calculatedSha,
-                size: 4096,
-              },
-            ],
-            archive_member_name: "game.z64",
-            components: [
-              {
-                id: "program",
-                kind: "file_set_member",
-                name: "program.bin",
-                digests: [
-                  {
-                    algorithm: "sha256",
-                    scope: "file-set-member",
-                    value: "d".repeat(64),
-                    size: 1024,
-                  },
-                ],
-                size: 1024,
-                track_count: null,
-                volume_id: null,
-              },
-              {
-                id: "disc-1",
-                kind: "optical_disc",
-                name: "Disc 1",
-                digests: [
-                  {
-                    algorithm: "sha1",
-                    scope: "disc-set-member",
-                    value: "e".repeat(40),
-                    size: 2048,
-                  },
-                ],
-                size: 2048,
-                track_count: 12,
-                volume_id: "GAME_DISC_1",
-              },
-            ],
-            assessment: {
-              health: "current",
-              classification,
-              contract: { state: "supported", contract_id: "game-port" },
-              admission,
-              evidence: [],
-            },
-            message: "Checked locally",
-            record: null,
-          },
-    problem:
-      stateCode === "source_missing"
-        ? { code: "not_found", message: "The registered file is missing." }
-        : undefined,
+    ...(inspection ? { inspection } : {}),
+    ...(stateCode === "source_missing"
+      ? { problem: { code: "not_found", message: "The registered file is missing." } }
+      : {}),
     expected_identity: {
       id: "game",
       label: "Sample Game File",
@@ -398,7 +403,10 @@ describe("source identity presentation", () => {
 
   it("keeps failed, unrun, and other-edition evidence distinct from a passed test", () => {
     const value = report();
-    const automated = value.applications[0].qualification.exact_records[0];
+    const automated = fixtureValue(
+      value.applications[0].qualification.exact_records[0],
+      "automated qualification",
+    );
     automated.outcome = "failed";
     const unrun = structuredClone(automated);
     unrun.outcome = "not_run";
@@ -427,7 +435,7 @@ describe("source identity presentation", () => {
 
   it("labels a legacy row without structured observations as not evaluated", () => {
     const legacy = report("not_evaluated");
-    legacy.inspection = undefined;
+    delete legacy.inspection;
     legacy.legacy.registration_identity_not_recorded = true;
     const html = renderToStaticMarkup(<SourceIdentityPanel report={legacy} />);
     expect(html).toContain("Legacy registration · not evaluated");

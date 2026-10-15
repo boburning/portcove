@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { spawnCommand } from "./dev-storage.mjs";
 import { frontendEnvironment } from "../apps/desktop/scripts/build-frontend.mjs";
-import { introducedPackages } from "./dependency-release-age.mjs";
+import { introducedPackages } from "./pnpm-lock-inventory.mjs";
 import { validateDependencyDelta } from "./renovate-fast-lane.mjs";
 import { retainCommandEvidence, renderBoundedSummary } from "./report-summary.mjs";
 

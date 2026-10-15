@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import { portDefinition } from "../test-fixtures";
 import type { AdoptionPreview } from "../types";
 import { AdoptionModal } from "./AdoptionModal";

@@ -19,9 +19,9 @@ export function BrowsingMatchDetails({
   gameFiles,
 }: {
   portId: string;
-  result?: CatalogQueryResult;
-  binding?: string;
-  gameFiles?: GameFileFilterContext;
+  result?: CatalogQueryResult | undefined;
+  binding?: string | undefined;
+  gameFiles?: GameFileFilterContext | undefined;
 }) {
   const [selected, setSelected] = useState<{
     binding: string;

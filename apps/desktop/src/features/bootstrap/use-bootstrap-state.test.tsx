@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, createElement, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
 import { BootstrapRecovery } from "../../App";
 import { failureReport } from "../../test-fixtures";
@@ -33,7 +33,7 @@ let timestamp: number;
 function Fixture({
   chooseFolder = async () => null,
 }: {
-  chooseFolder?: () => Promise<string | null>;
+  chooseFolder?: (() => Promise<string | null>) | undefined;
 }) {
   state = useBootstrapState(chooseFolder);
   return state.bootstrapError

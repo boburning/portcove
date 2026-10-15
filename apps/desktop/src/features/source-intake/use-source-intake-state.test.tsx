@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { portDefinition, sourceProfile } from "../../test-fixtures";
 import type { CatalogDocument } from "../../types";
 import { useSourceIntakeState } from "./use-source-intake-state";

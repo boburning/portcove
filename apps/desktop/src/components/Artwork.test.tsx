@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import { ArtworkProvider } from "../artwork";
 import * as picker from "../file-picker";
@@ -23,6 +23,9 @@ async function render(portId = "sample", generation = 7, imageId = "") {
       {
         ...port,
         presentation: {
+          installation_method: "portable-package",
+          saves_and_settings: "portcove-managed",
+          source_requirements: [],
           artwork: {
             game_id: 194694,
             cover_id: 287780,
@@ -31,7 +34,7 @@ async function render(portId = "sample", generation = 7, imageId = "") {
             game_slug: "ship-of-harkinian",
             match_kind: "port",
           },
-        } as typeof port.presentation,
+        } satisfies NonNullable<typeof port.presentation>,
       },
     ],
   };

@@ -73,6 +73,13 @@ on the owning issue/PR. Freeze source while final checks run.
 | CLI/integrations                  | [CLI](docs/CLI.md); [integration author](docs/INTEGRATION-AUTHOR.md)                                           |
 | Storage/cleanup                   | [Development storage](docs/DEVELOPMENT-STORAGE.md)                                                             |
 
+## Frontend workflow
+
+Use the repository-pinned Vite+ CLI through the package scripts or `pnpm exec vp`.
+[Frontend workflow](docs/DEVELOPMENT-TOOLS.md#frontend-workflow) owns setup,
+focused unit/browser commands, cache behavior and coordinated upgrades.
+Native observations remain distinct from replayed task results.
+
 ## Change quality and techniques
 
 Prefer cohesive responsibilities, explicit behavior, narrow APIs and existing

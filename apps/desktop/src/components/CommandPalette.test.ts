@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vite-plus/test";
 import { Boxes, Library } from "lucide-react";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { CommandPalette, filterCommands, type PaletteCommand } from "./CommandPalette";
 
-const commands: PaletteCommand[] = [
+const commands: [PaletteCommand, PaletteCommand] = [
   {
     id: "library",
     label: "Open library",
@@ -330,7 +330,7 @@ describe("command input ownership", () => {
   let host: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
   let close: Mock<() => void>;
-  let available: PaletteCommand[];
+  let available: [PaletteCommand, PaletteCommand];
   const search = () => document.body.querySelector<HTMLInputElement>('[role="combobox"]')!;
   const key = async (value: string, options: KeyboardEventInit = {}) => {
     const event = new KeyboardEvent("keydown", {
@@ -350,7 +350,10 @@ describe("command input ownership", () => {
     host = document.body.appendChild(document.createElement("div"));
     root = createRoot(host);
     close = vi.fn();
-    available = commands.map((command) => ({ ...command, action: vi.fn() }));
+    available = [
+      { ...commands[0], action: vi.fn() },
+      { ...commands[1], action: vi.fn() },
+    ];
     await act(async () =>
       root.render(createElement(CommandPalette, { open: true, commands: available, close })),
     );

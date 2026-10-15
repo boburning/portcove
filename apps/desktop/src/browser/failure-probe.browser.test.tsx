@@ -1,5 +1,5 @@
-import { expect, it } from "vitest";
-import { page } from "vitest/browser";
+import { expect, it } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 
 it.skipIf(import.meta.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE !== "1")(
   "retains an intentional browser UI failure trace",

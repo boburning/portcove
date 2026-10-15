@@ -72,7 +72,7 @@ test("validation consumers share the exact mapping and keep Node wrappers and fi
       id: "lint-tool-fixtures",
       args: ["scripts/lint-tool-fixtures.mjs", "oxfmt"],
     }),
-    ["node", "npm-oxfmt"],
+    ["node", "npm-vite-plus"],
   );
   assert.deepEqual(
     selectedPrerequisites({

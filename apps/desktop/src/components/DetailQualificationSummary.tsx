@@ -22,8 +22,8 @@ export function DetailQualificationSummary({
   technical = false,
 }: {
   port: PortDefinition;
-  sourceInspection?: SourceInspectionReport;
-  biosInspection?: SourceInspectionReport;
+  sourceInspection?: SourceInspectionReport | undefined;
+  biosInspection?: SourceInspectionReport | undefined;
   technical?: boolean;
 }) {
   return (

@@ -20,11 +20,11 @@ export function GameFileSetupReviews({
   ports: PortDefinition[];
   statuses: ReadonlyMap<string, PortStatus>;
   candidates: Pick<SourceRecord, "profile_id" | "path" | "sha256">[];
-  preliminarySelections?: NonNullable<SourceInspectionReport["inspection"]>[];
+  preliminarySelections?: NonNullable<SourceInspectionReport["inspection"]>[] | undefined;
   registeredSources: SourceRecord[];
   current: boolean;
   busy: boolean;
-  onOpenPort?: (portId: string, originKey: string) => void;
+  onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
 }) {
   const { selected, toggle, clear, requestReview } = useSetupReviewSelection();
   const section = useRef<HTMLElement>(null);

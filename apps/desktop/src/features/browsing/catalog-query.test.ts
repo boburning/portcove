@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { fixtureValue } from "../../test-fixtures";
+import { describe, expect, it } from "vite-plus/test";
 import { portDefinition, portStatus } from "../../test-fixtures";
 import type { PortDefinition, PortStatus } from "../../types";
 import { evaluateCatalogQuery, type CatalogQueryContext } from "./catalog-query";
@@ -214,7 +215,7 @@ describe("declared catalog query", () => {
   });
 
   it("counts each port once after other groups and before its own selection", () => {
-    const result = evaluateCatalogQuery([...ports, ports[0]], {
+    const result = evaluateCatalogQuery([...ports, fixtureValue(ports[0], "ports[0]")], {
       version: 1,
       platforms: ["windows-x86-64"],
       channels: ["stable"],
@@ -291,7 +292,11 @@ describe("Core installation attention", () => {
       attention: ["missing-source", "finish-setup"],
       channels: ["rolling"],
     };
-    const result = evaluateCatalogQuery([...ports, ports[1]], query, context);
+    const result = evaluateCatalogQuery(
+      [...ports, fixtureValue(ports[1], "ports[1]")],
+      query,
+      context,
+    );
     expect(result.state).toBe("unavailable");
     expect(result.counts.attention["missing-source"]).toBeNull();
     expect(result.counts.attention["finish-setup"]).toBeNull();
@@ -329,7 +334,13 @@ describe("Core installation attention", () => {
     for (const status of [
       observed("linux", ["missing_source"]),
       { ...good, active: managed("linux").active },
-      { ...good, external_runtime: external("linux").external_runtime },
+      {
+        ...good,
+        external_runtime: fixtureValue(
+          external("linux").external_runtime,
+          "external linux runtime",
+        ),
+      },
       { ...good, active: null, staged: good.active },
       { ...good, readiness: null },
       { ...good, readiness: { ...good.readiness!, blockers: null } } as unknown as PortStatus,
@@ -426,7 +437,7 @@ describe("identity-bound observed update queries", () => {
         "linux",
       ]);
       const result = evaluateCatalogQuery(
-        [...ports, ports[1]],
+        [...ports, fixtureValue(ports[1], "ports[1]")],
         { version: 1, updates: ["available", "staged"], channels: ["rolling"] },
         facts,
       );
@@ -503,7 +514,10 @@ describe("identity-bound observed update queries", () => {
     if (difference === "missing") status.last_update_check = null;
     if (difference === "external-only") {
       status.active = null;
-      status.external_runtime = external("multi").external_runtime;
+      status.external_runtime = fixtureValue(
+        external("multi").external_runtime,
+        "external multi runtime",
+      );
     }
     if (difference === "boolean") check.update_available = undefined as unknown as boolean;
     if (difference === "timestamp") status.last_update_check!.checked_at = NaN;
