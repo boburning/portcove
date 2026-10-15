@@ -812,12 +812,14 @@ separate existing route.
 
 The existing manual `native-design-compatibility.yml` workflow also offers the
 fixed `linux-package-boundary` operation on standard `ubuntu-22.04` only. After
-review and ordinary candidate CI, it prepares distribution v4l2loopback with
-matching running-kernel headers, one private synthetic video producer and a
-foreground private PulseAudio null source. An actual mapped-user readiness probe
+review and ordinary candidate CI, it prepares the distribution's matching
+`linux-modules-extra` Vivid capture-only webcam and a foreground private PulseAudio
+null source. The [Linux 6.8 driver contract](https://www.kernel.org/doc/html/v6.8/admin-guide/media/vivid.html#configuring-the-driver)
+defines the single webcam node; its supported 640×360 format replaces the failed
+DKMS loopback fixture. An actual mapped-user readiness probe
 must read both synthetic devices before the unchanged ordinary-DEB scenario.
-Existing devices, missing headers, module/signature refusal or unknown process
-joins stop qualification; no custom kernel, reboot, key enrollment or WebKit
+Existing devices, missing matching modules, module/signature refusal or unknown
+process joins stop qualification; no custom kernel, reboot, key enrollment or WebKit
 permission override is used. Only the operation's identified quiescent fixture
 may be removed. This route supplies no physical capture, installed GUI or minimum
 claim, and a ready fixture alone does not satisfy the strict media refusal.

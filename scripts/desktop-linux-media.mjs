@@ -91,7 +91,7 @@ async function prepare() {
       "Refuse existing camera devices",
     );
     assert.equal(
-      (await readdir("/sys/module")).includes("v4l2loopback"),
+      (await readdir("/sys/module")).includes("vivid"),
       false,
       "Refuse a pre-existing module",
     );
@@ -107,8 +107,7 @@ async function prepare() {
         "install",
         "--yes",
         "--no-install-recommends",
-        `linux-headers-${receipt.kernel}`,
-        "v4l2loopback-dkms",
+        `linux-modules-extra-${receipt.kernel}`,
         "v4l-utils",
         "pulseaudio",
         "pulseaudio-utils",
@@ -118,13 +117,10 @@ async function prepare() {
       ],
       { timeout: 14 * 60_000, stdio: "inherit" },
     );
-    assert.equal((await lstat(`/lib/modules/${receipt.kernel}/build`)).isSymbolicLink(), true);
-    receipt.headers = await realpath(`/lib/modules/${receipt.kernel}/build`);
     receipt.packages = command("dpkg-query", [
       "-W",
       "-f=${Package}=${Version}\n",
-      `linux-headers-${receipt.kernel}`,
-      "v4l2loopback-dkms",
+      `linux-modules-extra-${receipt.kernel}`,
       "v4l-utils",
       "pulseaudio",
       "pulseaudio-utils",
@@ -132,28 +128,34 @@ async function prepare() {
       "gstreamer1.0-plugins-base",
       "gstreamer1.0-plugins-good",
     ]);
-    receipt.module = await fileIdentity(command("modinfo", ["-n", "v4l2loopback"]).trim());
-    receipt.module_version = command("modinfo", ["-F", "version", "v4l2loopback"]).trim();
-    receipt.module_signer = command("modinfo", ["-F", "signer", "v4l2loopback"]).trim();
+    receipt.module = await fileIdentity(command("modinfo", ["-n", "vivid"]).trim());
+    receipt.module_package_owner = command("dpkg-query", ["-S", receipt.module.path]).trim();
+    assert.ok(receipt.module_package_owner.startsWith(`linux-modules-extra-${receipt.kernel}: `));
+    receipt.module_version = command("modinfo", ["-F", "version", "vivid"]).trim();
+    receipt.module_signer = command("modinfo", ["-F", "signer", "vivid"]).trim();
+    receipt.module_vermagic = command("modinfo", ["-F", "vermagic", "vivid"]).trim();
+    assert.equal(receipt.module_vermagic.split(" ")[0], receipt.kernel);
     receipt.phase = "normal-module-load";
     await record();
-    assert.equal((await readdir("/sys/module")).includes("v4l2loopback"), false);
+    assert.equal((await readdir("/sys/module")).includes("vivid"), false);
     assert.equal(
       (await readdir("/dev")).some((name) => /^video\d+$/u.test(name)),
       false,
     );
-    // A signature/Secure Boot/header refusal is a failure. No key enrollment,
+    // A signature/Secure Boot/module refusal is a failure. No key enrollment,
     // alternate kernel, reboot, custom module or security-policy override.
     command(
       "sudo",
       [
         "-n",
         "modprobe",
-        "v4l2loopback",
-        "devices=1",
-        "video_nr=42",
-        "card_label=PortcoveQualification",
-        "exclusive_caps=1",
+        "vivid",
+        "n_devs=1",
+        "node_types=0x1",
+        "num_inputs=1",
+        "input_types=0",
+        "vid_cap_nr=42",
+        "no_error_inj=1",
       ],
       { stdio: "inherit" },
     );
@@ -166,10 +168,20 @@ async function prepare() {
     assert.equal((await lstat(device)).isCharacterDevice(), true);
     assert.match(
       await readFile("/sys/class/video4linux/video42/name", "utf8"),
-      /^PortcoveQualification\s*$/u,
+      /^vivid-000-vid-cap\s*$/u,
     );
     command("sudo", ["-n", "chown", `${receipt.uid}:${receipt.gid}`, device]);
     command("sudo", ["-n", "chmod", "600", device]);
+    assert.deepEqual(
+      (await readdir("/dev")).filter((name) => /^video\d+$/u.test(name)),
+      ["video42"],
+    );
+    command("/usr/bin/v4l2-ctl", [
+      "--device",
+      device,
+      "--set-fmt-video=width=640,height=360,pixelformat=YUYV",
+      "--set-parm=30",
+    ]);
     receipt.device = nodeIdentity(await lstat(device));
     receipt.tools = await Promise.all(
       ["/usr/bin/pulseaudio", "/usr/bin/pactl", "/usr/bin/v4l2-ctl", "/usr/bin/gst-launch-1.0"].map(
@@ -339,8 +351,8 @@ async function probe(file) {
   assert.equal(sources.length, 1, "Only the private synthetic source may be exposed");
   assert.equal(sources[0].split(/\s+/u)[1], sourceName);
   const video = observe("/usr/bin/v4l2-ctl", ["--device", device, "--all"]);
-  assert.match(video, /Video Capture/u, "Producer must expose capture capability");
-  assert.match(video, /640\/480/u);
+  assert.match(video, /Video Capture/u, "Kernel fixture must expose capture capability");
+  assert.match(video, /640\/360/u);
   // Positive readiness reads synthetic media only. The unchanged app test must
   // still refuse capture, rather than succeeding because no device exists.
   observe("/usr/bin/gst-launch-1.0", [
@@ -403,7 +415,7 @@ async function run() {
   assert.equal(preparation.module_created, true);
   assert.deepEqual(nodeIdentity(await lstat(device)), preparation.device);
   assert.equal(
-    (await fileIdentity(command("modinfo", ["-n", "v4l2loopback"]).trim())).sha256,
+    (await fileIdentity(command("modinfo", ["-n", "vivid"]).trim())).sha256,
     preparation.module.sha256,
   );
   const lock = await acquireNativeSessionLock({
@@ -482,30 +494,6 @@ async function run() {
       pulse,
       async () => (await lstat(config.socket).catch(() => null))?.isSocket() === true,
     );
-    const video = await launch("video", "/usr/bin/gst-launch-1.0", [
-      "-q",
-      "videotestsrc",
-      "is-live=true",
-      "pattern=black",
-      "!",
-      "video/x-raw,format=YUY2,width=640,height=480,framerate=30/1",
-      "!",
-      "v4l2sink",
-      `device=${device}`,
-    ]);
-    await waitReady(video, async () => {
-      try {
-        return /Video Capture/u.test(
-          command("/usr/bin/v4l2-ctl", ["--device", device, "--get-fmt-video"]),
-        );
-      } catch (error) {
-        video.receipt.capture_readiness_last_failure = {
-          status: error.status,
-          stderr: String(error.stderr ?? "").slice(-2048),
-        };
-        return false;
-      }
-    });
     Object.assign(process.env, environment);
     const { runLinuxX11 } = await import("./desktop-linux-x11.mjs");
     await runLinuxX11(path.join(output, "private-x11.json"));
@@ -557,14 +545,14 @@ async function cleanup() {
     const joins = JSON.parse(await readFile(path.join(output, "media-runtime-joins.json"), "utf8"));
     assert.equal(joins.quiesced, true, "Unknown consumers prohibit fixture removal");
   }
-  const module = await fileIdentity(command("modinfo", ["-n", "v4l2loopback"]).trim());
+  const module = await fileIdentity(command("modinfo", ["-n", "vivid"]).trim());
   assert.equal(module.sha256, preparation.module.sha256);
   assert.deepEqual(nodeIdentity(await lstat(device)), preparation.device);
   assert.match(
     await readFile("/sys/class/video4linux/video42/name", "utf8"),
-    /^PortcoveQualification\s*$/u,
+    /^vivid-000-vid-cap\s*$/u,
   );
-  command("sudo", ["-n", "modprobe", "--remove", "v4l2loopback"], { stdio: "inherit" });
+  command("sudo", ["-n", "modprobe", "--remove", "vivid"], { stdio: "inherit" });
   assert.equal((await readdir("/dev")).includes("video42"), false);
   await save(path.join(output, "media-module-cleanup.json"), {
     source: revision(),
