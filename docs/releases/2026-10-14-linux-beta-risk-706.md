@@ -87,6 +87,12 @@ also retained all native results: Linux, Mac ARM and all four doctest platforms
 passed; Linux Clippy, the dependency-free Windows contract job and Intel native
 cases failed. Neither workflow is passing qualification evidence.
 
+Reconfirmation at `cd7b99e11728c03b59a71c6af882b2394d0688b8` changes only
+four Rust test inventories, including the `library.rs` test module. Production
+Rust behavior, the lockfile, resolved native dependencies, enabled features and
+code-generation inputs are unchanged. The protected record updates the
+conservative native-source hash; the unchanged application-risk trace is reused.
+
 The bounded follow-up removes three fixture-only Clippy causes and one needless
 borrow, and evaluates the actual field-presentation helper in the dependency-free
 unit contract without loading desktop-driver packages. Intel cache, retained
