@@ -276,3 +276,33 @@ complete qualification with the exact finding separately accounted for, not an
 accidental requirement that GLib first be fixed. Actual graph remediation,
 undismissed alert resolution and affected Linux qualification remain issue-closure
 criteria. Later #215/#217/#535 Deck qualification remains unchanged.
+
+## Package 2 scanner follow-up reconfirmation
+
+The native-source delta in `40e850fcb38d01233535734825b3ebf28401fbf0` adds only
+test diagnostics above the delivered baseline. The Core delta adds elapsed phase output to
+existing publisher-policy fixtures; the entire module is included through
+`definition_repository.rs`'s `#[cfg(test)]` module. The Windows delta adds wrapper
+stderr markers and bounded failure context to the existing picker-refusal test.
+It changes no native helper, production call path, assertion, fixture input,
+permission, timeout, retry, resource reservation, dependency, enabled feature or
+code generator. Separate non-writing review cleared both deltas. No GLib API or
+affected iterator constructor is introduced.
+
+The conservative native-input fingerprint changes to
+`d934c863b768d00961fd23ee169f19c7ae8c336227813af3e08481d22427f902` for
+those tracked test bytes. The resolved dependency/code-generation fingerprint
+`80bab63cf9f86838b1517c42767894bdc5151e09dafd41e22bbf97e220a365f2`,
+lock SHA256 `4307115323c5f4c9edb97ca8c1877f21f9a85ef27292b366d012d4013669837c`
+and scanner policy remain unchanged. Reuse the existing bounded production
+application-risk analysis under the same owner approval, scope, expiry and
+unallocated publication identity. This reconfirmation is not remediation,
+universal unreachability, runtime safety or passing qualification evidence.
+
+The prior scanner-only source38 audit and both failed qualification attempts
+remain original-source evidence on PR #1993. Its single fresh-Intel comparison
+reproduced the policy-loss copy latch and cache-reuse cutoff failures; no further
+unchanged rerun followed. Diagnostic source983 retains all existing limits. The
+changed observation and this conservative binding refresh do not authorize a new
+timing exception or accept any failed/incomplete required stage. Final exact-head
+review, complete protected qualification and normal guarded delivery remain due.
