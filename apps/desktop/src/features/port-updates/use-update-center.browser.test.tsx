@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../../api";
 import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type { InstallRecord, PortStatus, UpdateCheckOutcome } from "../../types";
@@ -580,9 +580,10 @@ describe("port update read owner", () => {
         ),
       );
       await act(async () => state.checkAll());
-      const retry = [...host.querySelectorAll("button")].find((button) =>
-        button.textContent?.includes("Retry update check"),
-      )!;
+      const retry = page
+        .getByRole("button", { name: "Retry update check", exact: true })
+        .element() as HTMLButtonElement;
+      expect(retry.getAttribute("data-variant")).toBe("outline");
       await act(async () => {
         retry.focus();
         retry.click();
