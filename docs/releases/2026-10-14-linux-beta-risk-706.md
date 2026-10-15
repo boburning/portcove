@@ -39,6 +39,13 @@ published-source files matched lock-bound crate archives. This is source evidenc
 not native execution, complete macro expansion or universal unreachability.
 The owning issue records independent review and any limits of this reconfirmation.
 
+Target integration at `103015efe1d03632044878cf188d5511164f5729` was examined
+separately: the native delta adds qualification-feature-only navigation controls
+and Windows test diagnostics. Ordinary default-feature behavior and resolved
+native dependencies are unchanged; no affected iterator constructor is introduced.
+The protected fingerprint was refreshed for those conservatively tracked bytes,
+reusing the prior production dependency and constructor analysis.
+
 The protected `.github/linux-beta-risk-706.json` pins native-source and resolved
 dependency/code-generator fingerprints. `candidate706` recomputes them for the
 actual source head and lock. Release version metadata and unrelated documentation

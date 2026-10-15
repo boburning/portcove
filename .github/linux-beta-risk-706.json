@@ -8,8 +8,8 @@
   "approvedAt": "2026-10-15T01:21:44.000Z",
   "expiresAt": "2026-11-15T04:59:00.000Z",
   "assessmentHead": "3b25e32d9eb776790790b128f18d8d6ea4e37e52",
-  "reconfirmedHead": "8fb708d32a427e5a9c728e9e260cdd3d6e8b29ac",
-  "inputsSha256": "e926663f604d2f87775687a1c1d2546809add34fb561d671dad68227401ef9fc",
+  "reconfirmedHead": "103015efe1d03632044878cf188d5511164f5729",
+  "inputsSha256": "0444941902f0cc4df97236e70d4628c6c623b5af60099eb15e7fcbb1ba6b1c66",
   "dependenciesSha256": "80bab63cf9f86838b1517c42767894bdc5151e09dafd41e22bbf97e220a365f2",
   "firstPublicationTag": null,
   "policySha256": "7cbe77e7ef591e476797956f7bf3e79a0fc659a646505f079580c16d51499525"
