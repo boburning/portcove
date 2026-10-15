@@ -1961,12 +1961,13 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
                 .await,
         )
     });
-    // Owner-approved #706 calibration (issuecomment-6190196270): preserve the
+    // Owner-approved #706 calibration (issuecomments 6190196270/6191752545): preserve the
     // whole-install starting point and every actual partial-copy assertion.
     let latch_timeout = if cfg!(all(target_os = "macos", target_arch = "x86_64"))
         && matches!(
             intervention,
-            CacheIntervention::ArtifactRevocationRetain
+            CacheIntervention::CancelRetain
+                | CacheIntervention::ArtifactRevocationRetain
                 | CacheIntervention::ArtifactWithdrawalRetain
         ) {
         Duration::from_secs(10)

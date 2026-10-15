@@ -66,9 +66,11 @@ not a timeout or permission to omit coverage. Report cold builds, broad/unmapped
 changes and root dependencies separately. Preserve nextest's two slots,
 heavyweight reservations, default 30-second test budgets and process/resource/storage guards.
 The owner's [October 15 #706 timing calibration](https://github.com/boburning/portcove/issues/706#issuecomment-6190196270)
-permits only two ten-second whole-install-to-copy latches on Intel macOS:
-`curated_cache_retention_revocation_during_copy_refuses_publication` and
-`curated_cache_retention_withdrawal_during_copy_refuses_publication`.
+and [exact cancellation-latch addendum](https://github.com/boburning/portcove/issues/706#issuecomment-6191752545)
+permit only three ten-second whole-install-to-copy latches on Intel macOS:
+`curated_cache_retention_revocation_during_copy_refuses_publication`,
+`curated_cache_retention_withdrawal_during_copy_refuses_publication` and
+`curated_cache_retention_cancellation_preserves_partial_after_worker_exit`.
 The same approval permits a 45-second nextest budget only on
 `x86_64-apple-darwin` for
 `curated_rollback_withdrawal_permits_exact_retained_target`, alongside the existing

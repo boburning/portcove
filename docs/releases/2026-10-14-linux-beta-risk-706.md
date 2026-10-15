@@ -143,6 +143,48 @@ enabled features and code-generation fingerprint remain identical. Reuse the
 unchanged bounded application-risk evidence; this is not universal
 unreachability or remediation.
 
+## Approved exact cancellation-latch addendum and target reconciliation
+
+At `6de10f891bf364aac6cb3541f9844e02f11e39b8`, the two approved Intel copy
+cases passed and retained rollback completed in 35.602 seconds. A different
+cancellation-retention test failed its unchanged five-second latch: no first
+copy was observed. The later cancellation is not during-copy evidence. The
+owner [approved the exact additional Intel case](https://github.com/boburning/portcove/issues/706#issuecomment-6191752545)
+on October 15. Only `CacheIntervention::CancelRetain` is added to the existing
+ten-second branch. Timer origin, actual partial/incomplete copy, cancellation,
+worker drain, journal/preservation, overall thirty-second limit, two-slot
+reservation and zero retries remain intact. Other cases/targets are unchanged.
+
+The [complete fresh audit on 6de10f8](https://github.com/boburning/portcove/actions/runs/38726012175)
+ran all ten stages within the approved 45-minute limit. Nine passed; dependency
+policy retained original exit 1 and raw aggregate success:false, with the exact
+separate approved qualification decision and scanPassed:false. Downloaded
+original inputs/receipts, manifest hashes, source/run/attempt binding and scanner
+output verified using production validators. Its bundle remains diagnostic-only,
+not a reusable green audit receipt. A single controlled Windows storage rerun
+passed all 25 integration cases, 388 diagnostic cases with 27 existing platform
+skips and PowerShell lint, under unchanged budgets. Its earlier PowerShell child
+timeout remains unexplained and is not described as causally fixed. All failures
+remain retained. These observations stay bound to their original source/attempts.
+
+Main advanced to `5b498cf68fea2dba194044766ff4cce13c5a51b7` during qualification.
+The only overlapping test file retains both independent helper/test insertions,
+external retained fixtures, the reviewed positive publication deadline parameter
+and explicit negative expiry controls. The separate combined tree passed all
+36 focused controls and received independent review before actual reconciliation.
+The reconciled implementation requires its own final review, native fingerprint
+reconfirmation and all applicable exact-head qualification before delivery. No
+production native dependency, feature or affected iterator path changed.
+
+The actual guarded composition check exposed four newly added retained-store
+fixtures under disposable temp ancestry and an unregistered Linux-stop test file.
+The fixtures now use the existing owned external retained-fixture helper, keeping
+every mutation/refusal assertion. The new inert Linux-stop contracts are included
+in both maintained CI consumers and the local development-tools inventory.
+The failing observations are retained; all 168 focused workflow/policy/audit,
+retention and Linux-stop controls pass after these exact setup repairs. No custody
+guard, scanner scope, test deadline or production behavior is relaxed.
+
 ## Execution and separate decision
 
 `just deny` preserves the scanner's original exit status and full structured

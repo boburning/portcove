@@ -46,7 +46,6 @@ async function retainedFixture(prefix) {
   return mkdtemp(path.join(parent, prefix));
 }
 
-
 function preparationObservation(overrides = {}) {
   return {
     portId: "owned-port",
@@ -136,7 +135,7 @@ test("failed preparation reads retain bounded diagnostic phase and propagate fai
 });
 
 test("bounded evidence streams hash and retain the complete multi-buffer tail", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-stream-tail-"));
+  const directory = await retainedFixture("pcv-stream-tail-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
   const bytes = Buffer.alloc(2 * 1024 * 1024 + 37, 7);
@@ -169,7 +168,7 @@ test("bounded evidence streams hash and retain the complete multi-buffer tail", 
 });
 
 test("bootstrap verifies late mutation after manifest preparation before importing target bytes", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-bootstrap-guard-"));
+  const directory = await retainedFixture("pcv-bootstrap-guard-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
   await writeFile(file, "original");
@@ -381,7 +380,7 @@ test("corrupt published evidence and interrupted publication preserve partial fa
 });
 
 test("deduplication never republishes a discarded copy after published custody changes", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-dedup-race-"));
+  const directory = await retainedFixture("pcv-dedup-race-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
   await writeFile(file, "original");
@@ -1270,7 +1269,7 @@ test("a required image must belong to its criterion's scenario", async (t) => {
 });
 
 test("retained metadata read binds validated bytes even after the original file changes", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-metadata-read-"));
+  const directory = await retainedFixture("pcv-metadata-read-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const original = path.join(directory, "original.json");
   await writeFile(original, JSON.stringify({ criteria: "original" }));
