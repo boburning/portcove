@@ -17,11 +17,12 @@ const FRONTEND_INPUTS = [
   "apps/desktop/index.html",
   "apps/desktop/package.json",
   "apps/desktop/tsconfig.json",
-  "apps/desktop/tsconfig.node.json",
   "tsconfig.base.json",
   "apps/desktop/vite.config.ts",
   "apps/desktop/scripts/build-frontend.mjs",
   "scripts/dev-storage.mjs",
+  "scripts/dev-storage.d.mts",
+  "scripts/browser-traces.ts",
   "scripts/tool-cache.mjs",
 ];
 const FRONTEND_OPTIONAL_INPUTS = [

@@ -621,8 +621,10 @@ rechecks the same artifact. `test:browser` checks the existing binary and never
 downloads one. It runs one Vitest Browser Mode Chromium worker, with ten-second
 test bounds and Playwright traces retained in a per-run directory under
 `work/browser-traces` when a run fails. Successful runs remove only their own raw
-trace directory. Failure screenshots remain in `apps/desktop/.vitest`; both
-locations are ignored by Git and retained for diagnosis. In CI, the fast and full
+trace directory. Failure screenshots share that invocation's namespace; Vitest
+attachments may also remain in `apps/desktop/.vitest`. Both locations are ignored
+by Git and retained for diagnosis. Repeated runs preserve earlier failure files.
+In CI, the fast and full
 frontend lanes run the explicit bootstrap before browser tests and upload failure
 artifacts. The intentional failure probe is
 `corepack pnpm --dir apps/desktop test:browser:trace-probe`; it exits nonzero and

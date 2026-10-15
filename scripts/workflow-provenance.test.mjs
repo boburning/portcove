@@ -1269,6 +1269,8 @@ test("hosted binding rejects frontend validation helper and test-policy changes"
   for (const name of [
     "apps/desktop/scripts/check-copy.mjs",
     "vite.config.ts",
+    "scripts/browser-traces.ts",
+    "scripts/dev-storage.d.mts",
     "tsconfig.json",
     "apps/desktop/vite.config.ts",
     "apps/desktop/stylelint.config.mjs",

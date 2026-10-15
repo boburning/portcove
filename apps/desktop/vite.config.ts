@@ -1,7 +1,7 @@
 import { defineConfig, lazyPlugins, type PluginOption } from "vite-plus";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { desktopProjects } from "../../vite.config.ts";
+import { desktopProjects, testReporters } from "../../vite.config.ts";
 
 const desktopRoot = fileURLToPath(new URL(".", import.meta.url));
 
@@ -11,7 +11,7 @@ export function assertScenarioExclusion(
   allowCompatibilityFixture = false,
 ) {
   for (const id of moduleIds) {
-    const normalized = id.replaceAll("\\", "/").split("?", 1)[0];
+    const normalized = id.replaceAll("\\", "/").replace(/\?[\s\S]*$/u, "");
     if (
       normalized.includes("/src/dev-scenarios/") ||
       normalized.includes("/src/browser/") ||
@@ -26,30 +26,34 @@ export function assertScenarioExclusion(
       throw new Error("Development scenario entrypoint cannot ship");
 }
 
-export default defineConfig({
-  plugins: lazyPlugins(async (): Promise<PluginOption[]> => {
-    const [{ default: react }, { default: tailwindcss }] = await Promise.all([
-      import("@vitejs/plugin-react"),
-      import("@tailwindcss/vite"),
-    ]);
-    return [
-      react(),
-      tailwindcss(),
-      {
-        name: "exclude-development-scenarios",
-        apply: "build",
-        generateBundle(_options, bundle) {
-          assertScenarioExclusion(
-            Object.values(bundle).flatMap((output) =>
-              output.type === "chunk" ? Object.keys(output.modules) : [],
-            ),
-            Object.keys(bundle),
-            process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE === "1",
-          );
-        },
+// Metadata resolution intentionally omits plugins; ordinary dev/build keeps the
+// asynchronous loader. Omit the key rather than claim an undefined plugin list.
+const plugins = lazyPlugins(async (): Promise<PluginOption[]> => {
+  const [{ default: react }, { default: tailwindcss }] = await Promise.all([
+    import("@vitejs/plugin-react"),
+    import("@tailwindcss/vite"),
+  ]);
+  return [
+    react(),
+    tailwindcss(),
+    {
+      name: "exclude-development-scenarios",
+      apply: "build",
+      generateBundle(_options, bundle) {
+        assertScenarioExclusion(
+          Object.values(bundle).flatMap((output) =>
+            output.type === "chunk" ? Object.keys(output.modules) : [],
+          ),
+          Object.keys(bundle),
+          process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE === "1",
+        );
       },
-    ];
-  }),
+    },
+  ];
+});
+
+export default defineConfig({
+  ...(plugins === undefined ? {} : { plugins }),
   clearScreen: false,
   resolve: { alias: { "@": path.resolve(desktopRoot, "src") } },
   server: {
@@ -63,7 +67,7 @@ export default defineConfig({
   envPrefix: "VITE_",
   // Transforms match the selected CSS stack; native OS/WebView qualification remains separate.
   build: { target: ["chrome111", "safari16.4"], sourcemap: true },
-  test: { projects: desktopProjects },
+  test: { projects: desktopProjects, reporters: testReporters },
   run: {
     tasks: {
       "bundle:cached": {

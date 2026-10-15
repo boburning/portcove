@@ -84,8 +84,10 @@ run `node scripts/dev-storage.mjs run -- corepack pnpm install --frozen-lockfile
 Browser Mode keeps its explicitly provisioned Chromium shell and companions under
 the checkout's ignored `work/browser-cache`; `browser:bootstrap` owns that cache,
 and the browser project reports the missing executable when it is absent. Browser
-failure traces remain under ignored `work/browser-traces`, and failure screenshots
-under ignored `apps/desktop/.vitest`. Preserve failed evidence during diagnosis.
+failure traces and screenshots remain in distinct invocation directories under
+ignored `work/browser-traces`; Vitest attachments may also remain under ignored
+`apps/desktop/.vitest`. Successful runs remove only their own raw trace resources.
+Preserve failed evidence during diagnosis.
 Use the owning task's narrow test command and `just local-check`; exhaustive
 validation remains required only for its documented acceptance or investigation.
 

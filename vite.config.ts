@@ -1,6 +1,16 @@
-import { defineConfig, type TestProjectConfiguration } from "vite-plus";
+import { defineConfig, type TestProjectConfiguration, type TestUserConfig } from "vite-plus";
 import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { playwright } from "vite-plus/test/browser-playwright";
+import { createBrowserTraceRun } from "./scripts/browser-traces.ts";
+
+const traceRun = createBrowserTraceRun(
+  fileURLToPath(new URL(".", import.meta.url)),
+  process.env.PORTCOVE_BROWSER_TRACE_DIR,
+);
+export const testReporters = ["default", traceRun.reporter] satisfies NonNullable<
+  TestUserConfig["reporters"]
+>;
 
 process.env.PLAYWRIGHT_BROWSERS_PATH ??= fileURLToPath(
   new URL("./work/browser-cache", import.meta.url),
@@ -31,9 +41,10 @@ export const desktopProjects = [
         instances: [{ browser: "chromium" }],
         trace: {
           mode: "retain-on-failure",
-          tracesDir: fileURLToPath(new URL("./work/browser-traces", import.meta.url)),
+          tracesDir: traceRun.directory,
         },
         screenshotFailures: true,
+        screenshotDirectory: path.join(traceRun.directory, "screenshots"),
       },
     },
   },
@@ -230,7 +241,7 @@ export default defineConfig({
       },
     ],
   },
-  test: { projects: desktopProjects },
+  test: { projects: desktopProjects, reporters: testReporters },
   staged: { "*": "vp check --fix" },
   run: {
     tasks: {

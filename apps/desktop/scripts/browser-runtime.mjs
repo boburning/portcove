@@ -46,7 +46,7 @@ if (process.argv[2] === "bootstrap") {
     await browser.close();
   }
 } else if (process.argv[2] === "probe") {
-  if (process.argv[2] === "probe") process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE = "1";
+  process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE = "1";
   let browser;
   try {
     browser = await chromium.launch({ headless: true });
@@ -71,14 +71,12 @@ if (process.argv[2] === "bootstrap") {
       "test",
       "--project",
       "browser",
-      ...(process.argv[2] === "probe"
-        ? ["src/browser/failure-probe.browser.test.tsx"]
-        : process.argv.slice(3)),
+      "src/browser/failure-probe.browser.test.tsx",
     ],
     { cwd: desktop, env: process.env, stdio: "inherit", windowsHide: true },
   );
   if (result.status === 0) rmSync(traceRun, { recursive: true });
   process.exit(result.status ?? 1);
 } else {
-  throw new Error("Usage: browser-runtime.mjs bootstrap|test [Vitest filters]|probe");
+  throw new Error("Usage: browser-runtime.mjs bootstrap|probe");
 }
