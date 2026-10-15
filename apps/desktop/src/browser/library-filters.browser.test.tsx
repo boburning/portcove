@@ -270,12 +270,16 @@ it.each(["dark", "light"])(
     await userEvent.click(button("Filters (2)"));
     await expect.element(button("Linux (0)")).toBeEnabled();
     await userEvent.keyboard("{Escape}");
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+    await expect.element(button("Filters (2)")).toHaveFocus();
     const chip = document.querySelector<HTMLButtonElement>(
       'button[aria-label="Remove Linux filter"]',
     )!;
     chip.focus();
+    await expect.element(button("Remove Linux filter")).toHaveFocus();
     await userEvent.keyboard("{Enter}");
-    expect(document.activeElement?.textContent).toContain("Filters (1)");
+    await expect.element(button("Remove Linux filter")).not.toBeInTheDocument();
+    await expect.element(button("Filters (1)")).toHaveFocus();
     await userEvent.click(
       page
         .getByRole("group", { name: "Library filters", exact: true })
