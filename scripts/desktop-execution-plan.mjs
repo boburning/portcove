@@ -114,6 +114,9 @@ export function planDesktopExecution(
       inputs.push({ kind: "file", path: source });
   inputs.push({ kind: "file", path: "scripts/native-readiness.mjs" });
   inputs.push(receiptSource(harnessUrl));
+  if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundary")) {
+    inputs.push(receiptSource(new URL("./desktop-main-webview-boundary.mjs", harnessUrl)));
+  }
   if (
     selection.selected_scenarios.some((id) =>
       [

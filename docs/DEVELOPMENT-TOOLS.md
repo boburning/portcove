@@ -576,6 +576,17 @@ that private virtual display; WSLg, physical display/controller and other Linux
 routes remain separate. Missing or unsupported prerequisites are reported; no
 provisioning or fallback qualification is implied.
 
+For ordinary Linux shipping boundaries, select only
+`native-linux-packaged-webview-boundary` and pass `--package-evidence ABSOLUTE_JSON`.
+The manifest binds the current source, exact ordinary
+`corepack pnpm tauri build --bundles deb` command, empty qualification features,
+package and configuration identities, and the actual `dpkg-deb --extract` receipt
+with its `usr/bin/portcove-desktop` identity. This route uses the existing native
+PID namespace and requires positive join before releasing custody. It observes
+the extracted DEB payload; it supplies no system installation, updater or
+claimed-minimum evidence. Windows current-installed NSIS acceptance keeps its
+separate existing route.
+
 ## Native desktop smoke tests
 
 For the normal Codex and maintainer workflow, start with a non-launching plan and

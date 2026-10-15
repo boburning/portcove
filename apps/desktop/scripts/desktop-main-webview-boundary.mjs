@@ -5,6 +5,65 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 
+export function assertLocalMainUrl(value, platform = process.platform) {
+  const url = new URL(value);
+  assert.ok(["win32", "linux"].includes(platform), "Qualified native boundary platform required");
+  assert.equal(url.protocol, platform === "linux" ? "tauri:" : "http:");
+  assert.equal(url.hostname, platform === "linux" ? "localhost" : "tauri.localhost");
+  assert.equal(url.port, "");
+  assert.equal(url.username, "");
+  assert.equal(url.password, "");
+}
+
+export async function verifyLinuxPackageEvidence(file, revision, executable, root) {
+  assert.ok(file && path.isAbsolute(file));
+  const manifest = JSON.parse(await readFile(file, "utf8"));
+  assert.equal(manifest.revision, revision);
+  assert.deepEqual(manifest.build_command, [
+    "corepack",
+    "pnpm",
+    "tauri",
+    "build",
+    "--bundles",
+    "deb",
+  ]);
+  assert.deepEqual(manifest.qualification_features, []);
+  assert.equal(manifest.execution_context, "extracted-deb-payload");
+  assert.deepEqual(
+    manifest.configuration.map((entry) => entry.path),
+    [
+      path.join(root, "apps/desktop/src-tauri/tauri.conf.json"),
+      path.join(root, "apps/desktop/src-tauri/Cargo.toml"),
+    ],
+  );
+  const identities = [await fileIdentity(file)];
+  for (const binding of [
+    manifest.package,
+    manifest.extraction_evidence,
+    ...manifest.configuration,
+  ]) {
+    assert.ok(path.isAbsolute(binding.path));
+    const identity = await fileIdentity(binding.path);
+    assert.equal(identity.sha256, binding.sha256, "Linux package input changed");
+    assert.equal(identity.bytes, binding.bytes);
+    identities.push(identity);
+  }
+  const receipt = JSON.parse(await readFile(manifest.extraction_evidence.path, "utf8"));
+  assert.equal(receipt.exit_code, 0);
+  assert.equal(receipt.package_sha256, manifest.package.sha256);
+  assert.deepEqual(receipt.command, [
+    "dpkg-deb",
+    "--extract",
+    manifest.package.path,
+    receipt.payload_root,
+  ]);
+  assert.ok(path.isAbsolute(receipt.payload_root));
+  assert.equal(executable.path, path.join(receipt.payload_root, "usr/bin/portcove-desktop"));
+  assert.equal(receipt.executable_sha256, executable.sha256);
+  assert.equal((await fileIdentity(executable.path)).sha256, executable.sha256);
+  return { manifest, receipt, identities, execution_context: manifest.execution_context };
+}
+
 // Evidence binding only; this does not authorize signing, installation or publication.
 export async function verifyNormalPackageEvidence(file, revision, executable, root) {
   assert.ok(file && path.isAbsolute(file), "Normal package evidence requires an absolute path");
@@ -112,7 +171,7 @@ export async function normalPackageBoundaryScenario({
   });
   try {
     const initialUrl = await browser.getCurrentUrl();
-    assert.equal(new URL(initialUrl).origin, "http://tauri.localhost");
+    assertLocalMainUrl(initialUrl);
     await browser.manage().setTimeouts({ script: 10_000, pageLoad: 10_000 });
     await assertMainWebviewAccess({ browser, invoke, library, observations });
     await assertReviewedLinkRefusals({ browser, invoke, library, observations });
@@ -121,6 +180,7 @@ export async function normalPackageBoundaryScenario({
       "create_boundary_windows",
       "queue_boundary_reply",
       "recreate_boundary_owner",
+      "arm_boundary_main_navigation",
     ]) {
       const result = await invoke(command);
       observations.qualificationCommands[command] = result;
@@ -133,7 +193,11 @@ export async function normalPackageBoundaryScenario({
     );
     assert.ok(observations.assets.length > 0);
     assert.ok(
-      observations.assets.every((source) => new URL(source).origin === new URL(initialUrl).origin),
+      observations.assets.every((source) => {
+        const asset = new URL(source),
+          main = new URL(initialUrl);
+        return asset.protocol === main.protocol && asset.host === main.host;
+      }),
     );
     const fixtureUrl = `http://127.0.0.1:${server.address().port}/untrusted`;
     phase = "frame-csp";
@@ -169,10 +233,14 @@ export async function normalPackageBoundaryScenario({
     observations.nativePermissionDenials = diagnostics.filter(
       (entry) => entry.fields.operation_id === "webview-permission",
     );
-    assert.ok(
-      observations.nativePermissionDenials.length > 0,
-      "Actual native permission denial is required",
-    );
+    if (process.platform === "win32")
+      assert.ok(
+        observations.nativePermissionDenials.length > 0,
+        "Actual native permission denial is required",
+      );
+    else
+      observations.nativePermissionInterpretation =
+        "Linux engine/API outcomes are recorded separately; Windows COM denial callbacks are inapplicable.";
     // WebView2 NavigationStarting cancellation preserves the page but explicitly
     // permits a speculative GET while the host responds. Do not claim network silence.
   } finally {
@@ -233,7 +301,7 @@ async function assertReviewedLinkRefusals({ browser, invoke, library, observatio
     const record = { ...request };
     observations.reviewedLinkRefusals.push(record);
     record.before = await context();
-    assert.equal(new URL(record.before.url).origin, "http://tauri.localhost");
+    assertLocalMainUrl(record.before.url);
     record.result = await invoke(request.command, request.args);
     assert.equal(record.result.ok, false, "Unreviewed link must be refused");
     assert.equal(record.result.error?.code, request.expected.code, "Require the actual link guard");
@@ -290,7 +358,7 @@ async function captureSecondaryContext({ browser, invoke, library }) {
 
 function assertSecondaryMainContext(snapshot) {
   assert.deepEqual(snapshot.readFailures, {}, "Require every actual native context observation");
-  assert.equal(new URL(snapshot.context.url).origin, "http://tauri.localhost");
+  assertLocalMainUrl(snapshot.context.url);
   assert.deepEqual(snapshot.windows, { ok: true, value: ["main"] });
   assert.deepEqual(snapshot.webviews, {
     ok: true,
@@ -517,8 +585,12 @@ export async function assertMainWebviewContainment({
           entry.fields.webview_label === "main",
       );
   observations.navigationRefusals = [];
-  const inactiveAlias = new URL(initialUrl);
-  inactiveAlias.protocol = inactiveAlias.protocol === "http:" ? "https:" : "http:";
+  const inactiveAlias =
+    process.platform === "linux"
+      ? new URL(new URL(initialUrl).pathname, "http://tauri.localhost")
+      : new URL(initialUrl);
+  if (process.platform !== "linux")
+    inactiveAlias.protocol = inactiveAlias.protocol === "http:" ? "https:" : "http:";
   for (const destination of [fixtureUrl, inactiveAlias.href]) {
     onNavigation(destination);
     const previous = (await navigationRefusals()).length;

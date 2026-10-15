@@ -100,6 +100,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     "Ordinary Windows package enforces effective main-window assets, IPC, CSP, permission and navigation boundaries.",
     { source: "desktop-main-webview-boundary.mjs", qualification_only: true },
   ),
+  scenario(
+    "native-linux-packaged-webview-boundary",
+    "Ordinary Linux DEB payload preserves local assets, IPC, CSP and navigation boundaries; package extraction is not installed-system proof.",
+    {
+      source: "desktop-main-webview-boundary.mjs",
+      qualification_only: true,
+      platforms: ["linux"],
+    },
+  ),
   scenario("empty-library", "Native bootstrap uses the isolated empty library."),
   scenario(
     "native-library-switch-recovery",
@@ -581,6 +590,13 @@ export function resolveDesktopSelection({
   }
   if (uniqueRequested.includes("native-startup-network-diagnostic") && uniqueRequested.length !== 1)
     throw new Error("native-startup-network-diagnostic requires one exact standalone scenario");
+  if (
+    uniqueRequested.includes("native-linux-packaged-webview-boundary") &&
+    uniqueRequested.length !== 1
+  )
+    throw new Error(
+      "native-linux-packaged-webview-boundary requires one exact standalone scenario",
+    );
   if (uniqueRequested.includes("native-startup-network-diagnostic") && platform !== "win32")
     throw new Error("native-startup-network-diagnostic requires Windows");
   if (uniqueRequested.includes("native-saved-folder-selected-setup")) {

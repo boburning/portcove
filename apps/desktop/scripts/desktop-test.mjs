@@ -27,6 +27,7 @@ import {
   assertOwnedBoundaryRequests,
   normalPackageBoundaryScenario,
   verifyNormalPackageEvidence,
+  verifyLinuxPackageEvidence,
 } from "./desktop-main-webview-boundary.mjs";
 import { OwnedNativeSession, nativeSessionScript } from "./desktop-owned-native-session.mjs";
 import { launchLinuxNativeSession } from "./desktop-linux-native-session.mjs";
@@ -197,12 +198,32 @@ let historyInventory;
 const linuxSelectedSession =
   process.platform === "linux" &&
   selection.selected_scenarios.some((name) =>
-    ["native-selected-setup-completion", "native-saved-folder-selected-setup"].includes(name),
+    [
+      "native-selected-setup-completion",
+      "native-saved-folder-selected-setup",
+      "native-linux-packaged-webview-boundary",
+    ].includes(name),
   );
 let linuxLaunch;
 let linuxCleanup;
 let linuxLaunchCount = 0;
 let packageEvidence;
+if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundary")) {
+  assert.equal(process.platform, "linux");
+  assert.deepEqual(selection.selected_scenarios, ["native-linux-packaged-webview-boundary"]);
+  packageEvidence = await verifyLinuxPackageEvidence(
+    values["package-evidence"],
+    revision,
+    inputs[0],
+    root,
+  );
+  inputs.push(
+    ...packageEvidence.identities,
+    await fileIdentity(
+      fileURLToPath(new URL("./desktop-main-webview-boundary.mjs", import.meta.url)),
+    ),
+  );
+}
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
   assert.deepEqual(selection.selected_scenarios, ["native-normal-package-webview-boundary"]);
@@ -1612,6 +1633,17 @@ try {
     });
   });
   await scenario("native-normal-package-webview-boundary", async () => {
+    const requests = await normalPackageBoundaryScenario({
+      browser,
+      invoke,
+      library,
+      output,
+      artifacts,
+      packageEvidence,
+    });
+    assertOwnedBoundaryRequests(requests);
+  });
+  await scenario("native-linux-packaged-webview-boundary", async () => {
     const requests = await normalPackageBoundaryScenario({
       browser,
       invoke,

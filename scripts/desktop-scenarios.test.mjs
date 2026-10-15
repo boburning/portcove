@@ -336,7 +336,112 @@ import {
   verifyNormalPackageEvidence,
   assertOwnedBoundaryRequests,
   normalPackageBoundaryScenario,
+  assertLocalMainUrl,
+  verifyLinuxPackageEvidence,
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
+
+test("local native boundary identity does not treat opaque URL origins as equal", () => {
+  assertLocalMainUrl("tauri://localhost/", "linux");
+  assertLocalMainUrl("http://tauri.localhost/", "win32");
+  for (const url of [
+    "tauri://untrusted/",
+    "file:///tmp/index.html",
+    "http://tauri.localhost/",
+    "tauri://user@localhost/",
+    "tauri://localhost:8443/",
+  ])
+    assert.throws(() => assertLocalMainUrl(url, "linux"), url);
+  for (const url of [
+    "https://tauri.localhost/",
+    "tauri://localhost/",
+    "http://tauri.localhost:8443/",
+  ])
+    assert.throws(() => assertLocalMainUrl(url, "win32"), url);
+  assert.throws(() => assertLocalMainUrl("tauri://localhost/", "darwin"));
+});
+
+test("Linux packaged boundary refuses substituted payload, producer and qualification evidence", async (t) => {
+  const selection = resolveDesktopSelection({
+    scenarios: ["native-linux-packaged-webview-boundary"],
+    platform: "linux",
+  });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.throws(
+    () =>
+      resolveDesktopSelection({
+        scenarios: ["native-linux-packaged-webview-boundary", "empty-library"],
+        platform: "linux",
+      }),
+    /standalone/,
+  );
+  for (const ids of Object.values(DESKTOP_PROFILES))
+    assert.ok(!ids.includes("native-linux-packaged-webview-boundary"));
+  const work = path.resolve("work");
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(path.join(work, "linux-package-contract-"));
+  t.after(async () => {
+    assert.equal(path.dirname(root), work);
+    await rm(root, { recursive: true });
+  });
+  await mkdir(path.join(root, "apps/desktop/src-tauri"), { recursive: true });
+  const configuration = [];
+  for (const name of ["tauri.conf.json", "Cargo.toml"]) {
+    const file = path.join(root, "apps/desktop/src-tauri", name);
+    await writeFile(file, "owned configuration");
+    configuration.push(await fileIdentity(file));
+  }
+  const packagePath = path.join(root, "owned.deb"),
+    payload = path.join(root, "payload");
+  await writeFile(packagePath, "owned package");
+  await mkdir(path.join(payload, "usr/bin"), { recursive: true });
+  const executablePath = path.join(payload, "usr/bin/portcove-desktop");
+  await writeFile(executablePath, "owned executable");
+  const executable = await fileIdentity(executablePath),
+    packageIdentity = await fileIdentity(packagePath);
+  const receiptPath = path.join(root, "extraction.json");
+  await writeFile(
+    receiptPath,
+    JSON.stringify({
+      exit_code: 0,
+      package_sha256: packageIdentity.sha256,
+      executable_sha256: executable.sha256,
+      payload_root: payload,
+      command: ["dpkg-deb", "--extract", packagePath, payload],
+    }),
+  );
+  const manifest = {
+    revision: "a".repeat(40),
+    build_command: ["corepack", "pnpm", "tauri", "build", "--bundles", "deb"],
+    qualification_features: [],
+    execution_context: "extracted-deb-payload",
+    configuration,
+    package: packageIdentity,
+    extraction_evidence: await fileIdentity(receiptPath),
+  };
+  const file = path.join(root, "manifest.json");
+  const save = () => writeFile(file, JSON.stringify(manifest));
+  await save();
+  await verifyLinuxPackageEvidence(file, manifest.revision, executable, root);
+  await assert.rejects(verifyLinuxPackageEvidence(file, "b".repeat(40), executable, root));
+  await assert.rejects(
+    verifyLinuxPackageEvidence(
+      file,
+      manifest.revision,
+      { ...executable, path: path.join(root, "outside") },
+      root,
+    ),
+  );
+  manifest.qualification_features = ["native-compatibility-qualification"];
+  await save();
+  await assert.rejects(verifyLinuxPackageEvidence(file, manifest.revision, executable, root));
+  manifest.qualification_features = [];
+  await save();
+  await writeFile(executablePath, "substituted executable");
+  await assert.rejects(verifyLinuxPackageEvidence(file, manifest.revision, executable, root));
+  await writeFile(executablePath, "owned executable");
+  await writeFile(packagePath, "substituted package");
+  await assert.rejects(verifyLinuxPackageEvidence(file, manifest.revision, executable, root));
+});
 import { assertSteamEntryContext } from "../apps/desktop/scripts/desktop-context-contract.mjs";
 import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mjs";
 import { observeStartupNetwork } from "../apps/desktop/scripts/desktop-startup-network-diagnostic.mjs";
@@ -589,7 +694,9 @@ test(
         kind === "directory-input"
           ? "-DirectoryPath $PSScriptRoot"
           : kind === "outside-prepared"
-            ? "-PreparedRuntimeDirectory $PSScriptRoot"
+            ? // An admitted basename with the wrong parent reaches the path check,
+              // rather than the earlier fixture-name refusal.
+              "-PreparedRuntimeDirectory (Join-Path (Split-Path $PSScriptRoot -Parent) 'player-owned-runtime')"
             : "";
       await writeFile(
         helper,
