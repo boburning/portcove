@@ -19,6 +19,27 @@ const sha256 = /^[a-f0-9]{64}$/u;
 const groups = ["advisories", "bans", "licenses", "sources"];
 const canonicalText = (value) => value.replaceAll("\r\n", "\n");
 
+// Recognize a retained qualification decision for diagnostics, not fresh release eligibility.
+export function recordsAcceptedQualification706(payload, source) {
+  return (
+    payload?.success === false &&
+    payload.originalExitCode === 1 &&
+    payload.policyDecision?.disposition === "accepted-risk" &&
+    payload.policyDecision.approvalUrl === approval706 &&
+    payload.policyDecision.candidate === source &&
+    payload.policyDecision.purpose === "qualification" &&
+    payload.policyDecision.scanPassed === false &&
+    payload.policyDecision.scanExitCode === 1 &&
+    Array.isArray(payload.stages) &&
+    payload.stages.filter((stage) => stage?.status === "failed").length === 1 &&
+    payload.stages.every(
+      (stage) =>
+        stage?.status === "passed" ||
+        (stage?.id === "dependency-policy" && stage.status === "failed" && stage.exitCode === 1),
+    )
+  );
+}
+
 function command(commandName, args, cwd) {
   return execFileSync(commandName, args, {
     cwd,

@@ -2674,6 +2674,9 @@ test("accepted #706 qualification remains a failed audit and cannot cover anothe
   const text = renderDeepAuditSummary(receiptEnvelope(payload), identity, binding(payload));
   assert.match(text, /receipt: failed/);
   assert.match(text, /Original audit exit status: 1/);
+  assert.match(text, /Recorded policy operation exit status: 0/);
+  assert.match(text, /Qualification policy operation outcome: success/);
+  assert.doesNotMatch(text, /Recorded audit exit status: 0/);
   assert.match(text, /accepted risk \(not an audit pass\)/);
   assert.doesNotMatch(text, /receipt: passed/);
   Object.assign(

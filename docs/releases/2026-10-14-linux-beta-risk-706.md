@@ -95,7 +95,9 @@ is used. A failed scan remains failed, including in audit receipts and summaries
 Qualification's dependency consumer and `just audit --fresh --linux-beta-706`
 can record a separate `accepted-risk` qualification decision for that finding.
 Every other stage must satisfy its existing contract. Raw failed audits never
-become successful reusable receipts. The protected transition requires the
+become successful reusable receipts. Attempt-bound bundles retain approved
+raw failures as diagnostic-only evidence, including original exit 1 and the
+separate policy-operation status. Reuse admission still refuses those bundles. The protected transition requires the
 existing complete fresh pre-change audit and exhaustive exact-head qualification
 on all maintained platforms, plus independent review; acceptance is not a shortcut.
 

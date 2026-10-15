@@ -153,6 +153,84 @@ function fixture() {
   return { bundle, proof, currentPlan, source, workflowBytes };
 }
 
+test("approved #706 audit failure exports diagnostics but cannot be admitted as passed evidence", () => {
+  const f = fixture();
+  const read = (name) => JSON.parse(f.bundle.files.get(name).toString("utf8"));
+  const payload = read("audit.json").payload;
+  payload.success = false;
+  payload.originalExitCode = 1;
+  Object.assign(
+    payload.stages.find((stage) => stage.id === "dependency-policy"),
+    {
+      status: "failed",
+      exitCode: 1,
+    },
+  );
+  payload.policyDecision = {
+    disposition: "accepted-risk",
+    approvalUrl: "https://github.com/boburning/portcove/issues/706#issuecomment-6182222682",
+    candidate: f.source,
+    purpose: "qualification",
+    scanPassed: false,
+    scanExitCode: 1,
+  };
+  const aggregate = receiptEnvelope(payload);
+  const input = {
+    identity: f.bundle.manifest.identity,
+    binding: { ...read("binding.json"), receiptIntegrity: aggregate.integrity },
+    capture: read("inputs.json"),
+    aggregate,
+    receipts: Object.fromEntries(
+      [...f.bundle.files]
+        .filter(([name]) => name.startsWith("receipts/"))
+        .map(([name, bytes]) => [name.slice(9, -5), JSON.parse(bytes.toString("utf8"))]),
+    ),
+  };
+  const bundle = buildAuditBundle(input);
+  assert.equal(bundle.manifest.diagnosticOnly, true);
+  assert.equal(JSON.parse(bundle.files.get("audit.json")).payload.success, false);
+  assert.equal(JSON.parse(bundle.files.get("audit.json")).payload.originalExitCode, 1);
+  assert.equal(JSON.parse(bundle.files.get("binding.json")).exitCode, "0");
+  assert.equal(bundle.files.has("receipts/dependency-policy.json"), false);
+  assert.throws(
+    () => validateAuditProducer(bundle.files, f.proof, { workflowDigest: f.proof.workflowDigest }),
+    /changed-contract-or-attempt/,
+  );
+  const tampered = new Map(bundle.files);
+  tampered.set(
+    "manifest.json",
+    Buffer.from(JSON.stringify({ ...bundle.manifest, diagnosticOnly: false })),
+  );
+  assert.throws(
+    () => validateAuditProducer(tampered, f.proof, { workflowDigest: f.proof.workflowDigest }),
+    /incomplete-bundle/,
+  );
+  for (const mutate of [
+    (p) => delete p.policyDecision,
+    (p) => (p.policyDecision.approvalUrl = "https://example.invalid/unapproved"),
+    (p) => (p.policyDecision.candidate = "b".repeat(40)),
+    (p) => (p.policyDecision.purpose = "release"),
+    (p) => (p.policyDecision.scanPassed = true),
+    (p) => (p.originalExitCode = 0),
+    (p) =>
+      Object.assign(
+        p.stages.find((stage) => stage.id === "ui"),
+        { status: "failed", exitCode: 1 },
+      ),
+    (p) =>
+      Object.assign(
+        p.stages.find((stage) => stage.id === "dependency-policy"),
+        { exitCode: 2 },
+      ),
+  ]) {
+    const bad = structuredClone(input);
+    mutate(bad.aggregate.payload);
+    bad.aggregate = receiptEnvelope(bad.aggregate.payload);
+    bad.binding.receiptIntegrity = bad.aggregate.integrity;
+    assert.throws(() => buildAuditBundle(bad), /complete execution report/);
+  }
+});
+
 test("successful main producer imports exact original receipts with retained inputs and provenance", () => {
   const f = fixture();
   const root = mkdtempSync(path.join(os.tmpdir(), "audit-import-"));

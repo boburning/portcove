@@ -2,6 +2,7 @@ import { readFileSync, appendFileSync, writeFileSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { AUDIT_STAGES, receiptEnvelope } from "./audit.mjs";
+import { recordsAcceptedQualification706 } from "./linux-beta-risk-706.mjs";
 
 const sha = /^[a-f0-9]{40}$/;
 const number = /^(?:0|[1-9][0-9]{0,12})$/;
@@ -26,6 +27,8 @@ export function renderDeepAuditSummary(receipt, identity, binding) {
     !outcomes.has(identity.outcome)
   )
     return "## Deep audit evidence\n\nIdentity unavailable or invalid; no audit result claimed.\n";
+  const payload = receipt?.payload;
+  const accepted = recordsAcceptedQualification706(payload, identity.source);
   const lines = [
     "## Deep audit evidence",
     "",
@@ -34,23 +37,12 @@ export function renderDeepAuditSummary(receipt, identity, binding) {
     `Workflow source: ${identity.workflowSha}`,
     `Workflow bytes SHA-256: ${identity.workflowDigest}`,
     `Run: ${identity.run}; attempt: ${identity.attempt}`,
-    `Audit step outcome: ${identity.outcome}`,
+    `${accepted ? "Qualification policy operation" : "Audit step"} outcome: ${identity.outcome}`,
   ];
   const exitValid = number.test(identity.exitCode) && Number(identity.exitCode) <= 255;
-  lines.push(`Recorded audit exit status: ${exitValid ? identity.exitCode : "unavailable"}`);
-  const payload = receipt?.payload;
-  const accepted =
-    payload?.success === false &&
-    payload.originalExitCode === 1 &&
-    payload.policyDecision?.disposition === "accepted-risk" &&
-    payload.policyDecision.approvalUrl ===
-      "https://github.com/boburning/portcove/issues/706#issuecomment-6182222682" &&
-    payload.policyDecision.candidate === identity.source &&
-    payload.policyDecision.purpose === "qualification" &&
-    payload.policyDecision.scanPassed === false &&
-    payload.policyDecision.scanExitCode === 1 &&
-    payload.stages?.filter((stage) => stage.status === "failed").length === 1 &&
-    payload.stages.some((stage) => stage.id === "dependency-policy" && stage.exitCode === 1);
+  lines.push(
+    `Recorded ${accepted ? "policy operation" : "audit"} exit status: ${exitValid ? identity.exitCode : "unavailable"}`,
+  );
   const valid =
     payload &&
     receipt.integrity === receiptEnvelope(payload).integrity &&
