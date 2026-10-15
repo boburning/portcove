@@ -2533,7 +2533,9 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
   assert.match(rustTests, /cargo nextest run --locked @Arguments/);
   assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);
   assert.match(config, /^test-threads = 2$/m);
-  assert.match(rustDocs, /cargo test --locked --workspace --doc/);
+  assert.match(rustDocs, /cargo test --locked --workspace --exclude portcove-desktop --doc/);
+  assert.match(rustDocs, /cargo test --locked -p portcove-desktop --doc/);
+  assert.doesNotMatch(rustDocs, /--no-default-features|--no-deps|--exclude (?!portcove-desktop)/);
   for (const platform of ["windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-aarch64"]) {
     assert.ok(rustDocs.includes(`platform: ${platform}`));
   }

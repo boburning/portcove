@@ -99,6 +99,14 @@ become successful reusable receipts. The protected transition requires the
 existing complete fresh pre-change audit and exhaustive exact-head qualification
 on all maintained platforms, plus independent review; acceptance is not a shortcut.
 
+The qualification recheck found tauri-build 2.7.2 CRT search paths leaking
+into sibling-package Windows doctests without their matching link arguments.
+Maintained doctest callers now separately select the non-Desktop workspace and
+Desktop package, retaining every member, default features, platform matrix and
+original failure status. Production CRT configuration is unchanged. The
+upstream-observer test fixture is initialized before test registration to avoid
+its demonstrated temporal initialization error; its assertions are unchanged.
+
 Release validation invokes `just audit --fresh --profile release --linux-beta-706`.
 It refuses an affected graph with a green direct-only scan. It also refuses release
 reliance while `firstPublicationTag` is unallocated. At the actual first candidate:

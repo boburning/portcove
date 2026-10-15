@@ -99,7 +99,8 @@ clippy:
 
 rust-test:
     {{storage}} node scripts/run-rust-tests.mjs --locked --workspace
-    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo test --locked --workspace --doc
+    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo test --locked --workspace --exclude portcove-desktop --doc
+    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo test --locked -p portcove-desktop --doc
 
 shear:
     {{storage}} cargo shear --deny-warnings

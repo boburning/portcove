@@ -689,8 +689,11 @@ jobs:
         if: runner.os == 'Linux'
         timeout-minutes: 15
         run: ./scripts/install-linux-desktop-prerequisites.sh
-      - name: Test workspace documentation
-        run: cargo test --locked --workspace --doc
+      - name: Test non-Desktop workspace documentation
+        run: cargo test --locked --workspace --exclude portcove-desktop --doc
+      - name: Test Desktop documentation with its own build-script linker inputs
+        if: ${{ !cancelled() }}
+        run: cargo test --locked -p portcove-desktop --doc
 
   rust:
     if: always()
