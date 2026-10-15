@@ -494,6 +494,13 @@ Synchronous work cannot be interrupted by Node's event-loop timeout; measured
 latency still appears in the report and CI job timeouts bound a stuck process.
 Suite aggregate durations are not individual test durations.
 
+The Windows development-diagnostics step runs its existing 23 Node test files
+with `--test-concurrency=1`, retaining file process isolation. The step has one
+active file worker; tests retain responsibility for child-process closure. Its inventory,
+30-second test timeout, internal child deadlines and assertions remain unchanged.
+The local parallel/serial comparison passed both arms and did not establish the
+cause of hosted timeouts; each changed candidate still requires hosted qualification.
+
 Windows qualification session integration tests remain a separate required step;
 they exercise compiled processes and installer lifecycle behavior using their
 existing integration deadlines. The static qualification contract runs with the

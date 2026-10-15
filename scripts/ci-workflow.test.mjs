@@ -381,6 +381,50 @@ const fastDependencyReview = jobSection("fast_dependency_review", "dependency_re
 const dependencyReview = jobSection("dependency_review_full", "dependency-review");
 const dependencyReviewGate = jobSection("dependency-review");
 
+test("Windows diagnostics serialize file workers without changing coverage or deadlines", () => {
+  const command = windowsStorage
+    .match(/- name: Test development diagnostics and evidence\r?\n\s+run: ([^\r\n]+)/u)?.[1]
+    .trim()
+    .split(/\s+/u);
+  assert.ok(command);
+  assert.deepEqual(command.slice(0, 9), [
+    "node",
+    "scripts/dev-storage.mjs",
+    "run",
+    "--",
+    "node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=30000",
+    "--test-reporter=./scripts/test-duration-reporter.mjs",
+  ]);
+  assert.deepEqual(command.slice(9), [
+    "scripts/desktop-scenarios.test.mjs",
+    "scripts/desktop-execution-plan.test.mjs",
+    "scripts/desktop-linux-native-session.test.mjs",
+    "scripts/desktop-linux-stop.test.mjs",
+    "scripts/desktop-verify.test.mjs",
+    "scripts/dev-doctor.test.mjs",
+    "scripts/development-capabilities.test.mjs",
+    "scripts/development-cli-help.test.mjs",
+    "scripts/development-evidence.test.mjs",
+    "scripts/handoff-evidence.test.mjs",
+    "scripts/native-confirmation.test.mjs",
+    "scripts/native-helper-dependencies.test.mjs",
+    "scripts/frontend-command-preflight.test.mjs",
+    "scripts/windows-helper-checks.test.mjs",
+    "scripts/heavy-rust-test-lock.test.mjs",
+    "scripts/local-validation.test.mjs",
+    "scripts/native-session-lock.test.mjs",
+    "scripts/native-session.test.mjs",
+    "scripts/run-rust-tests.test.mjs",
+    "scripts/rust-support-cache.test.mjs",
+    "scripts/rust-test-impact.test.mjs",
+    "scripts/rust-test-tree-supervisor.test.mjs",
+    "scripts/tool-cache.test.mjs",
+  ]);
+});
+
 test("every Node test file is included in required CI and the local quality workflow", async () => {
   const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
   const localQualitySurface = `${recipes}\n${windowsQualificationRunner}`;
