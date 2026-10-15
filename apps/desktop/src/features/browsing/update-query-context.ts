@@ -70,7 +70,10 @@ export function observedUpdateCandidate(
     !check ||
     check.port_id !== portId ||
     !channels.includes(status.channel) ||
-    check.channel !== status.channel ||
+    check.channel !== status.channel
+  )
+    return undefined;
+  const installedSnapshotInvalid = () =>
     typeof active.version !== "string" ||
     active.version.length === 0 ||
     check.installed_version !== active.version ||
@@ -82,11 +85,10 @@ export function observedUpdateCandidate(
     !sameRuntime(active.runtime, check.installed_runtime) ||
     !Number.isSafeInteger(snapshot.checked_at) ||
     snapshot.checked_at < 0 ||
-    typeof check.update_available !== "boolean"
-  )
-    return undefined;
+    typeof check.update_available !== "boolean";
+  if (installedSnapshotInvalid()) return undefined;
   const release = check.release;
-  if (
+  const releaseInvalid = () =>
     !release ||
     release.channel !== check.channel ||
     typeof release.version !== "string" ||
@@ -98,24 +100,25 @@ export function observedUpdateCandidate(
     !digest.test(release.asset.sha256) ||
     !Number.isSafeInteger(release.asset.size) ||
     release.asset.size < 0 ||
-    !runtimeKnown(check.required_runtime)
-  )
-    return undefined;
+    !runtimeKnown(check.required_runtime);
+  if (releaseInvalid()) return undefined;
   const staged = status.staged;
-  const matchingStaged = Boolean(
-    check.update_available &&
-    staged?.verified === true &&
-    staged.staged === true &&
-    staged.port_id === portId &&
-    staged.channel === check.channel &&
-    staged.version === release.version &&
-    artifactKnown(staged.artifact) &&
-    staged.artifact.asset_name === release.asset.name &&
-    staged.artifact.sha256.toLowerCase() === release.asset.sha256.toLowerCase() &&
-    // Core treats a zero release size as unspecified; the digest still binds bytes.
-    (release.asset.size === 0 || staged.artifact.size === release.asset.size) &&
-    runtimeKnown(staged.runtime) &&
-    sameRuntime(staged.runtime, check.required_runtime),
-  );
+  const matchesStaged = () =>
+    Boolean(
+      check.update_available &&
+      staged?.verified === true &&
+      staged.staged === true &&
+      staged.port_id === portId &&
+      staged.channel === check.channel &&
+      staged.version === release.version &&
+      artifactKnown(staged.artifact) &&
+      staged.artifact.asset_name === release.asset.name &&
+      staged.artifact.sha256.toLowerCase() === release.asset.sha256.toLowerCase() &&
+      // Core treats a zero release size as unspecified; the digest still binds bytes.
+      (release.asset.size === 0 || staged.artifact.size === release.asset.size) &&
+      runtimeKnown(staged.runtime) &&
+      sameRuntime(staged.runtime, check.required_runtime),
+    );
+  const matchingStaged = matchesStaged();
   return { availableAtLastCheck: check.update_available && !matchingStaged, matchingStaged };
 }

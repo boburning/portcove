@@ -1,3 +1,4 @@
+import { assertReviewFieldPresentation } from "./desktop-review-controls.mjs";
 // Controlled native consumer proof for one explicit Steam profile. No Steam client is launched.
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -70,35 +71,12 @@ export async function steamEntryScenario(context) {
     await browser.wait(until.elementLocated(dialog), 15_000);
     const installationField = await browser.findElement(By.id("steam-installation"));
     const installationLabel = await browser.findElement(By.css('label[for="steam-installation"]'));
-    const fieldPresentation = await browser.executeScript(
-      `const field = arguments[0];
-       const label = arguments[1];
-       const dialog = arguments[2];
-       const fieldStyle = getComputedStyle(field);
-       const labelStyle = getComputedStyle(label);
-       const dialogStyle = getComputedStyle(dialog);
-       return {
-         width: fieldStyle.width,
-         paddingLeft: fieldStyle.paddingLeft,
-         borderStyle: fieldStyle.borderStyle,
-         borderWidth: fieldStyle.borderWidth,
-         backgroundColor: fieldStyle.backgroundColor,
-         dialogBackgroundColor: dialogStyle.backgroundColor,
-         color: fieldStyle.color,
-         labelColor: labelStyle.color,
-         labelFontWeight: labelStyle.fontWeight,
-       };`,
+    await assertReviewFieldPresentation(
+      browser,
       installationField,
       installationLabel,
       await browser.findElement(dialog),
     );
-    assert.ok(parseFloat(fieldPresentation.width) >= 200, JSON.stringify(fieldPresentation));
-    assert.ok(parseFloat(fieldPresentation.paddingLeft) >= 10, JSON.stringify(fieldPresentation));
-    assert.equal(fieldPresentation.borderStyle, "solid");
-    assert.ok(parseFloat(fieldPresentation.borderWidth) >= 1, JSON.stringify(fieldPresentation));
-    assert.notEqual(fieldPresentation.backgroundColor, "rgba(0, 0, 0, 0)");
-    assert.notEqual(fieldPresentation.backgroundColor, fieldPresentation.dialogBackgroundColor);
-    assert.ok(Number(fieldPresentation.labelFontWeight) >= 700, JSON.stringify(fieldPresentation));
     await browser.findElement(By.id("steam-installation")).sendKeys(steamRoot);
     await selectLocalProfile(browser, click, steamUserId, "steam-profile");
     const profileScreenshot = path.join(output, "native-steam-profile-selection.png");

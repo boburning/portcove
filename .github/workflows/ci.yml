@@ -836,7 +836,9 @@ jobs:
     name: frontend-full
     needs: classify
     if: needs.classify.outputs.mode == 'qualification'
-    runs-on: ubuntu-latest
+    # Match the maintained Linux native target for the private user/PID-namespace
+    # harness. No host AppArmor/sysctl policy or runtime privilege is changed.
+    runs-on: ubuntu-22.04
     env:
       npm_config_audit: "false"
     defaults:
@@ -884,6 +886,7 @@ jobs:
       - run: pnpm test
       - name: Check maintained native scenario consumer contracts
         run: |
+          /usr/bin/unshare --user --map-current-user --mount --pid --fork --mount-proc /usr/bin/true
           node --test --test-timeout=30000 scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-linux-native-session.test.mjs scripts/desktop-verify.test.mjs scripts/development-evidence.test.mjs scripts/handoff-evidence.test.mjs scripts/native-session-lock.test.mjs
           node apps/desktop/scripts/desktop-preparation-test.mjs --context-preflight
         working-directory: .

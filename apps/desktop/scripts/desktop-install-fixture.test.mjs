@@ -9,7 +9,7 @@ import { setTimeout as waitRealTime } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 import { gunzipSync } from "node:zlib";
-import { test, vi } from "vitest";
+import { afterAll, beforeAll, test, vi } from "vitest";
 import { JSDOM } from "jsdom";
 import {
   createInstallFixture,
@@ -257,26 +257,39 @@ test("completion fixture refuses missing tool inputs and mixed discovery selecti
   assert.deepEqual(registered, ["native-selected-setup-completion"]);
 });
 
+// Compiler preparation has its own existing 30-second child budget; it must
+// not consume Vitest's five-second per-behavior assertion budget.
+let probeOutput;
+let probeTool;
+beforeAll(async () => {
+  if (process.platform !== "win32") return;
+  probeOutput = await mkdtemp(path.join(tmpdir(), "portcove-probe-compiler-"));
+  probeTool = path.join(probeOutput, "probe.exe");
+  const compiled = spawnCommand(
+    "rustc",
+    [
+      "--edition=2024",
+      "--crate-name",
+      "portcove_probe_mode_contract",
+      path.join(root, "crates/portcove-core/src/testdata/host_tool_probe.rs.txt"),
+      "-o",
+      probeTool,
+    ],
+    { encoding: "utf8", windowsHide: true, timeout: 30_000 },
+  );
+  assert.equal(compiled.error, undefined);
+  assert.equal(compiled.status, 0, compiled.stderr);
+}, 30_000);
+afterAll(async () => {
+  if (probeOutput) await rm(probeOutput, { recursive: true, force: true });
+});
+
 test.runIf(process.platform === "win32")(
   "Windows owned probe explicit mode works in empty isolated cwd and preserves the legacy mode route",
   async () => {
     const output = await mkdtemp(path.join(tmpdir(), "portcove-probe-mode-"));
     try {
-      const tool = path.join(output, process.platform === "win32" ? "probe.exe" : "probe");
-      const compiled = spawnCommand(
-        "rustc",
-        [
-          "--edition=2024",
-          "--crate-name",
-          "portcove_probe_mode_contract",
-          path.join(root, "crates/portcove-core/src/testdata/host_tool_probe.rs.txt"),
-          "-o",
-          tool,
-        ],
-        { encoding: "utf8", windowsHide: true, timeout: 30_000 },
-      );
-      assert.equal(compiled.error, undefined);
-      assert.equal(compiled.status, 0, compiled.stderr);
+      const tool = probeTool;
       for (const [name, args, legacy, succeeds, marker] of [
         ["explicit", ["--owned-fixture-mode", "success"], null, true, true],
         ["default", [], null, true, false],

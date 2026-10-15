@@ -1816,10 +1816,13 @@ mod tests {
             "[game]\nname = 'fixture'\n",
         )
         .unwrap();
+        let absolute_original = temporary.path().join("absolute-original.BIN");
+        fs::write(&absolute_original, b"owned original must not be admitted").unwrap();
+        let absolute_name = absolute_original.to_string_lossy().replace('\\', "/");
         for rom in [
             "../original.BIN",
             "bios/../original.BIN",
-            "/original.BIN",
+            absolute_name.as_str(),
             "other/original.BIN",
         ] {
             fs::write(

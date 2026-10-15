@@ -17,7 +17,6 @@ use tokio_util::sync::CancellationToken;
 
 use crate::transport::{DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, emit_desktop_event};
 
-use crate::application_update::ApplicationUpdateCandidateSummary;
 use crate::application_update_connectivity::observe_application_update_connectivity;
 use crate::application_update_coordinator::{
     ApplicationUpdateCheckEnvironment, ApplicationUpdateCoordinator,
@@ -845,6 +844,7 @@ fn operation_error(error: ApplicationUpdateOperationError) -> DesktopError {
 
 #[cfg(test)]
 mod tests {
+    use crate::desktop_contract::ApplicationUpdateCandidateSummary;
     use std::sync::Arc;
 
     use tokio::sync::Semaphore;

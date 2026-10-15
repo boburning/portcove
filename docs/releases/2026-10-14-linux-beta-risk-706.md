@@ -46,6 +46,27 @@ native dependencies are unchanged; no affected iterator constructor is introduce
 The protected fingerprint was refreshed for those conservatively tracked bytes,
 reusing the prior production dependency and constructor analysis.
 
+PR #1997's qualification repairs were also examined as a bounded native delta.
+They box the private error context, preserve the existing public failure report,
+apply mechanical control-flow lint fixes, and correct test fixtures and test-only
+callback lifetimes. They add no GLib API, iterator constructor, dependency,
+production feature or code generator. The unchanged lock and resolved dependency
+evidence is reused; the protected native-input fingerprint is refreshed for the
+reviewed source bytes. This is a source assessment, not a universal reachability
+or native runtime safety claim.
+
+The accompanying qualification repairs retain analyzer thresholds and test
+assertions. Nine exact platform-node/tool/switch values receive documented,
+value-wide rscheck portability allowances; unrelated absolute paths still fail.
+An actual pinned-scanner control reproduces eleven denies with the original
+policy, two unrelated denies with the amended policy, and zero denies for only
+the nine reviewed values. The compatibility test's `.mjs` to `.js` rename lets
+Fallow recognize an already executed Vitest test; it removes no test or assertion.
+The frontend native harness uses Ubuntu 22.04, matching the maintained Linux
+native target, with an executing namespace preflight and no host privilege or
+security-policy change. Success there does not qualify Ubuntu 24.04 or expand
+platform support. Startup refusals now retain bounded original stderr.
+
 The protected `.github/linux-beta-risk-706.json` pins native-source and resolved
 dependency/code-generator fingerprints. `candidate706` recomputes them for the
 actual source head and lock. Release version metadata and unrelated documentation

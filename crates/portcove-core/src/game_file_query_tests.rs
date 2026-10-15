@@ -237,7 +237,7 @@ fn service_projects_real_missing_registration_without_planning_or_mutation() {
     };
     let before = serde_json::to_vec(&service.library().activities(100).unwrap()).unwrap();
     let result = service
-        .game_file_query_snapshot(&batch, &[request.clone()], 300)
+        .game_file_query_snapshot(&batch, std::slice::from_ref(&request), 300)
         .unwrap();
     assert_eq!(result.routes[0].state, GameFileQueryState::FilesMissing);
     assert_eq!(
@@ -258,7 +258,7 @@ fn service_projects_real_missing_registration_without_planning_or_mutation() {
     stale.observed_at = Library::now() - 301;
     assert_eq!(
         service
-            .game_file_query_snapshot(&stale, &[request.clone()], 300)
+            .game_file_query_snapshot(&stale, std::slice::from_ref(&request), 300)
             .unwrap()
             .routes[0]
             .reason,

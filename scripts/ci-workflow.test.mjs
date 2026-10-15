@@ -16,6 +16,17 @@ import { AUDIT_STAGES, receiptEnvelope } from "./audit.mjs";
 import { renderDeepAuditSummary } from "./deep-audit-summary.mjs";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+
+test("native frontend harness retains the qualified Linux target and a failing namespace preflight", () => {
+  const block = workflow.split("  frontend_full:")[1].split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0];
+  assert.match(block, /runs-on: ubuntu-22\.04/u);
+  assert.match(
+    block,
+    /unshare --user --map-current-user --mount --pid --fork --mount-proc \/usr\/bin\/true/u,
+  );
+  assert.match(block, /scripts\/desktop-linux-native-session\.test\.mjs/u);
+  assert.doesNotMatch(block, /continue-on-error:|sysctl\s+-|apparmor_parser\s/u);
+});
 test("both existing dependency lanes audit exact changed pnpm artifacts", () => {
   for (const name of ["fast_dependency_review", "dependency_review_full"]) {
     const block = workflow.split("  " + name + ":")[1].split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0];

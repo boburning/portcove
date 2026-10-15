@@ -14,10 +14,84 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { runInNewContext } from "node:vm";
+import { ownedFixtureCommand } from "../apps/desktop/scripts/desktop-scenario-state.mjs";
+import { assertReviewFieldPresentation } from "../apps/desktop/scripts/desktop-review-controls.mjs";
 import {
   isUntrustworthyProbeError,
   requireTrustedProbeCleanup,
 } from "../apps/desktop/scripts/desktop-owned-ipc-probe.mjs";
+
+test("owned fixture CLI binds catalog, preferences, literal selection and refuses failed responses", () => {
+  const calls = [];
+  let response = { status: 0, stdout: JSON.stringify({ ok: true, data: { owned: true } }) };
+  const command = ownedFixtureCommand(
+    {
+      cli: "owned-cli",
+      library: "default library",
+      output: "owned-output",
+      catalogPath: "owned-catalog",
+    },
+    (...args) => {
+      calls.push(args);
+      return response;
+    },
+  );
+  assert.deepEqual(command(["source", "list"], "literal $selected library"), { owned: true });
+  const [exe, args, options] = calls[0];
+  assert.equal(exe, "owned-cli");
+  assert.deepEqual(args, [
+    "--library",
+    "literal $selected library",
+    "--json",
+    "--non-interactive",
+    "source",
+    "list",
+  ]);
+  assert.equal(options.env.PORTCOVE_QUALIFICATION_CATALOG, "owned-catalog");
+  assert.equal(options.env.PORTCOVE_PREFERENCES, path.join("owned-output", "preferences.json"));
+  assert.equal(options.timeout, 15_000);
+  for (response of [
+    { status: 1, stderr: "original failure" },
+    { status: 0, stdout: '{"ok":false}' },
+    { status: 0, stdout: "incomplete" },
+  ])
+    assert.throws(() => command(["status"]));
+});
+
+test("shared review presentation preserves native visual acceptance thresholds", async () => {
+  const valid = {
+    width: "200px",
+    paddingLeft: "10px",
+    borderStyle: "solid",
+    borderWidth: "1px",
+    backgroundColor: "rgb(1, 1, 1)",
+    dialogBackgroundColor: "rgb(2, 2, 2)",
+    labelFontWeight: "700",
+  };
+  const field = {},
+    label = {},
+    dialog = {};
+  let observation = valid;
+  const browser = {
+    executeScript: async (_script, ...args) => {
+      assert.deepEqual(args, [field, label, dialog]);
+      return observation;
+    },
+  };
+  assert.equal(await assertReviewFieldPresentation(browser, field, label, dialog), valid);
+  for (const [key, value] of [
+    ["width", "199px"],
+    ["paddingLeft", "9px"],
+    ["borderStyle", "none"],
+    ["borderWidth", "0px"],
+    ["backgroundColor", "rgba(0, 0, 0, 0)"],
+    ["backgroundColor", valid.dialogBackgroundColor],
+    ["labelFontWeight", "699"],
+  ]) {
+    observation = { ...valid, [key]: value };
+    await assert.rejects(assertReviewFieldPresentation(browser, field, label, dialog));
+  }
+});
 
 test("untrustworthy probe cleanup retains the primary error and reaches outer teardown", async () => {
   const source = await readFile(
@@ -618,7 +692,7 @@ try {
         kind === "directory-input"
           ? /Parameter set cannot be resolved/
           : kind === "outside-prepared"
-            ? /exact regular owned fixture directory/
+            ? /Picker input is not an admitted owned fixture directory/
             : /Captured picker driver identity changed/,
       );
       await assert.rejects(stat(path.join(output, `${kind}.json`)), /ENOENT/);

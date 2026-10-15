@@ -101,7 +101,7 @@ impl BackupDataScan {
                 "bounded backup data assessment limit reached",
             ));
         }
-        let metadata = match fs::symlink_metadata(&path) {
+        let metadata = match fs::symlink_metadata(path) {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
             result => result?,
         };
@@ -119,7 +119,7 @@ impl BackupDataScan {
         if metadata.is_file() {
             return Ok(true);
         } else {
-            for entry in fs::read_dir(&path)? {
+            for entry in fs::read_dir(path)? {
                 let entry = entry?;
                 if self.probe(root, &entry.path(), excluded, depth + 1)? {
                     return Ok(true);

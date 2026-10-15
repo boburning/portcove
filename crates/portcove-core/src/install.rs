@@ -1823,7 +1823,7 @@ fn verified_manifest_with_limit(
 fn verified_manifest_with_budget(
     install: &InstallRecord,
     maximum_bytes: Option<u64>,
-    mut budget: Option<&mut u64>,
+    budget: Option<&mut u64>,
 ) -> Result<InstallManifest> {
     validate_artifact(&install.artifact)?;
     if install.manifest_sha256.len() != 64
@@ -1851,7 +1851,7 @@ fn verified_manifest_with_budget(
             .map_err(std::io::Error::other),
         None => fs::read(&manifest_path),
     };
-    if let Some(remaining) = budget.as_deref_mut() {
+    if let Some(remaining) = budget {
         let spent = read
             .as_ref()
             .map_or(maximum_bytes.unwrap_or(*remaining), |bytes| {

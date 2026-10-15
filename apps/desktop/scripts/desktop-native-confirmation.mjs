@@ -6,6 +6,15 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 
+async function retainPickerObservation(result, output, name, artifacts) {
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const observation = JSON.parse(result.stdout);
+  const report = path.join(output, `${name}.json`);
+  await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
+  artifacts.push(report);
+  return observation;
+}
+
 async function validatePickerInput({ output, title, button, filePath, directoryPath }) {
   assert.ok(!(filePath && directoryPath), "Choose only one native picker input");
   const pickerPath = filePath ?? directoryPath;
@@ -52,11 +61,7 @@ async function retainPickerResult({ output, artifacts }, name, before, result) {
     { flag: "wx" },
   );
   artifacts.push(execution);
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const observation = JSON.parse(result.stdout);
-  const report = path.join(output, `${name}.json`);
-  await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
-  artifacts.push(report);
+  const observation = await retainPickerObservation(result, output, name, artifacts);
   return observation;
 }
 
@@ -194,11 +199,7 @@ function ownedLinuxGameFilePicker({ application, getLinuxLaunch, output, artifac
       { flag: "wx" },
     );
     artifacts.push(retained);
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-    const observation = JSON.parse(result.stdout);
-    const report = path.join(output, `${name}.json`);
-    await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
-    artifacts.push(report);
+    const observation = await retainPickerObservation(result, output, name, artifacts);
     return observation;
   };
 }
@@ -447,13 +448,7 @@ export function nativeConfirmation({ application, getDriverPid, output, artifact
       { encoding: "utf8", windowsHide: true, timeout: 15_000 },
     );
     if (result.status !== 0) await retainConfirmationFailure({ output, artifacts }, name, result);
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-    const observation = JSON.parse(result.stdout);
-    const report = path.join(output, `${name}.json`);
-    await writeFile(report, JSON.stringify(observation, null, 2), {
-      flag: "wx",
-    });
-    artifacts.push(report);
+    const observation = await retainPickerObservation(result, output, name, artifacts);
     if (screenshot) {
       assert.ok((await stat(screenshot)).size > 0, "Actual native window screenshot is required");
       artifacts.push(screenshot);

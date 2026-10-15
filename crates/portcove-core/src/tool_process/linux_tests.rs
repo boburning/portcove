@@ -308,63 +308,63 @@ fn detached_writer_control(mode: &str, cancel: bool, unwind: bool) {
     // This separately owned process is outside the namespace and must survive.
     let mut sentinel = Command::new("/bin/sleep").arg("15").spawn().unwrap();
     let mut retained: Option<OwnedFd> = None;
-    let mut checkpoint = || {
-        if retained.is_none()
-            && let Ok(pid) = fs::read_to_string(temporary.path().join("descendant-ready"))
-        {
-            let descriptor = unsafe {
-                libc::syscall(libc::SYS_pidfd_open, pid.trim().parse::<i32>().unwrap(), 0)
-            };
-            assert!(descriptor >= 0);
-            retained = Some(unsafe { OwnedFd::from_raw_fd(descriptor as RawFd) });
-            if unwind {
-                panic!("owned active-child unwind control");
+    {
+        let mut checkpoint = || {
+            if retained.is_none()
+                && let Ok(pid) = fs::read_to_string(temporary.path().join("descendant-ready"))
+            {
+                let descriptor = unsafe {
+                    libc::syscall(libc::SYS_pidfd_open, pid.trim().parse::<i32>().unwrap(), 0)
+                };
+                assert!(descriptor >= 0);
+                retained = Some(unsafe { OwnedFd::from_raw_fd(descriptor as RawFd) });
+                if unwind {
+                    panic!("owned active-child unwind control");
+                }
+                if cancel {
+                    return Err(PortcoveError::new(
+                        crate::ErrorCode::Cancelled,
+                        "owned cancellation",
+                    ));
+                }
+                fs::write(
+                    temporary.path().join("release-init"),
+                    b"exact descendant handle retained",
+                )
+                .unwrap();
             }
-            if cancel {
-                return Err(PortcoveError::new(
-                    crate::ErrorCode::Cancelled,
-                    "owned cancellation",
-                ));
-            }
-            fs::write(
-                temporary.path().join("release-init"),
-                b"exact descendant handle retained",
+            Ok(())
+        };
+        // The callback interface is Fn: interior mutability keeps ownership explicit.
+        let callback = std::cell::RefCell::new(&mut checkpoint);
+        let closed = std::cell::Cell::new(false);
+        let mut confirm = || {
+            closed.set(true);
+            Ok(())
+        };
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            super::super::run_tool(
+                &mut specification,
+                &|| (callback.borrow_mut())(),
+                super::super::ToolProcessObserver {
+                    diagnostics: None,
+                    quiesced: Some(&mut confirm),
+                },
             )
-            .unwrap();
+        }));
+        if unwind {
+            assert!(result.is_err());
+            assert!(!closed.get());
+        } else if cancel {
+            let error = result.unwrap().err().expect("cancelled decoder");
+            assert_eq!(error.code, crate::ErrorCode::Cancelled);
+            assert_eq!(error.details["process_tree_active"], "0");
+            assert!(closed.get());
+        } else {
+            assert!(result.unwrap().unwrap().status.success());
+            assert!(closed.get());
         }
-        Ok(())
-    };
-    // The callback interface is Fn: interior mutability keeps ownership explicit.
-    let callback = std::cell::RefCell::new(&mut checkpoint);
-    let closed = std::cell::Cell::new(false);
-    let mut confirm = || {
-        closed.set(true);
-        Ok(())
-    };
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        super::super::run_tool(
-            &mut specification,
-            &|| (callback.borrow_mut())(),
-            super::super::ToolProcessObserver {
-                diagnostics: None,
-                quiesced: Some(&mut confirm),
-            },
-        )
-    }));
-    if unwind {
-        assert!(result.is_err());
-        assert!(!closed.get());
-    } else if cancel {
-        let error = result.unwrap().err().expect("cancelled decoder");
-        assert_eq!(error.code, crate::ErrorCode::Cancelled);
-        assert_eq!(error.details["process_tree_active"], "0");
-        assert!(closed.get());
-    } else {
-        assert!(result.unwrap().unwrap().status.success());
-        assert!(closed.get());
     }
-    drop(callback);
-    drop(checkpoint);
     let descriptor = retained.unwrap();
     let mut observed = libc::pollfd {
         fd: descriptor.as_raw_fd(),

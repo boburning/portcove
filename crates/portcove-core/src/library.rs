@@ -2555,7 +2555,7 @@ mod tests {
     #[test]
     fn prepared_private_directory_refuses_junction_leaf_and_ancestry() {
         let temporary = tempfile::tempdir().unwrap();
-        let library = Library::open(&temporary.path().join("library")).unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
         let outside = temporary.path().join("outside");
         fs::create_dir(&outside).unwrap();
         fs::write(outside.join("retained"), b"preserve").unwrap();

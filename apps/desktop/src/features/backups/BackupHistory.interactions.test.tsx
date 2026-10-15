@@ -702,18 +702,8 @@ it("waits for current degraded inventory rather than a pending or failed read no
       return predicate();
     },
   };
-  type Notice = ReturnType<typeof element>;
-  const { waitForDegradedInventory, degradedInventorySelector } = await vi.importActual<{
-    degradedInventorySelector: string;
-    waitForDegradedInventory: (
-      observer: {
-        readNotices: () => Promise<Notice[]>;
-        readProblems: (notice: Notice) => Promise<unknown[]>;
-        wait: typeof browser.wait;
-      },
-      count: number,
-    ) => Promise<Notice | false>;
-  }>("../../../scripts/desktop-backup-review-test.mjs");
+  const { waitForDegradedInventory, degradedInventorySelector } =
+    await import("../../../scripts/desktop-backup-review-test.mjs");
   const current = (count: number) =>
     waitForDegradedInventory(
       {
