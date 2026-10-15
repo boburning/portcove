@@ -306,3 +306,37 @@ unchanged rerun followed. Diagnostic source983 retains all existing limits. The
 changed observation and this conservative binding refresh do not authorize a new
 timing exception or accept any failed/incomplete required stage. Final exact-head
 review, complete protected qualification and normal guarded delivery remain due.
+
+## Delivered frontend toolchain reconfirmation
+
+The package 2 candidate consumes independently delivered [#2002](https://github.com/boburning/portcove/pull/2002),
+source `2b39b06fc92a6bbd6961d434d5d15be60863b6c5`, merge
+`34e433feaf5e5db4817cdc692c13dac1b715d5d4`. Its Vite+ 1.2.0 and coordinated
+Vitest/provider 5.0.4 replace the previous frontend build tooling. The integrated
+reconfirmation source is `34cb48c1dc2cf5e3e8461acd64bdf0e712bb9d22`.
+
+All 192 normalized native inputs were compared independently. Only Tauri's
+`beforeBuildCommand` changes: `pnpm build` becomes
+`node scripts/build-frontend.mjs`, invoking the delivered wrapper and Vite+ build.
+Production Rust source, Cargo manifests/lock, native features, native generator
+dependency closure and assessed GLib call paths are unchanged. The additional
+Node test reporter retains four bounded worker-exit fields. It removes no existing
+test or assertion and changes no execution deadline, worker isolation or native
+input. Its added real exit7 control preserves the failed outer run. It does not explain the
+earlier hosted worker failure.
+
+Actual integrated recomputation gives native-input fingerprint
+`888c31cd0294b4ed8752ac410896bc620e2d76ab289aac7cf999a3be8f8064ad`.
+The resolved dependency/code-generation fingerprint remains
+`80bab63cf9f86838b1517c42767894bdc5151e09dafd41e22bbf97e220a365f2`,
+and lock SHA256 remains
+`4307115323c5f4c9edb97ca8c1877f21f9a85ef27292b366d012d4013669837c`.
+Separate non-writing review cleared this bounded reconfirmation under the
+existing approval. Owner, advisory/version, scope, expiry, scanner policy and
+unallocated publication identity remain unchanged.
+
+Source746's audit and failed qualification remain historical evidence. They do
+not qualify this integrated frontend/build stack. Fresh exact-head ordinary
+checks, complete audit and maintained qualification, final independent review
+and guarded delivery remain required. GLib remediation and minimum-environment
+acceptance remain outstanding; this reconfirmation supplies neither.
