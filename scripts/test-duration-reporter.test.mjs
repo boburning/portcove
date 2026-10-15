@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { isSlowTest } from "./test-duration-reporter.mjs";
 import { checkVitestDurations, completeRelatedUiCoverage } from "./check-vitest-durations.mjs";
@@ -38,6 +41,32 @@ test("a synchronous slow result is reported without failing a correct test", () 
   });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Slow tests to investigate/);
+});
+
+test("an abnormal worker exit retains bounded status and remains a failed run", (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-worker-reporter-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const fixture = path.join(root, "exiting.test.mjs");
+  writeFileSync(fixture, "process.exit(7);\n");
+  const reporter = new URL("./test-duration-reporter.mjs", import.meta.url).href;
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  const result = spawnSync(
+    process.execPath,
+    ["--test", "--test-timeout=30000", `--test-reporter=${reporter}`, fixture],
+    { encoding: "utf8", windowsHide: true, timeout: 3_000, env },
+  );
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(result.signal, null);
+  const prefix = "Worker process failure: ";
+  const diagnostic = result.stdout.split("\n").find((line) => line.startsWith(prefix));
+  assert.ok(diagnostic, result.stdout);
+  assert.deepEqual(JSON.parse(diagnostic.slice(prefix.length)), {
+    exitCode: 7,
+    signal: null,
+    failureType: "testCodeFailure",
+    code: "ERR_TEST_FAILURE",
+  });
 });
 
 test("UI timing reports slow tests and rejects missing or incomplete measurements", () => {
