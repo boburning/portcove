@@ -746,7 +746,12 @@ $boundary = @'
 $insertion = $code.IndexOf('    public static bool Matches')
 $code = $code.Insert($insertion, $boundary + [Environment]::NewLine)
 Write-SelectionPhase 'compile-begin'
-Add-Type -TypeDefinition $code
+# Restrict compiler metadata to this algorithm's paired PowerShell reference pack.
+$references = @(
+    (Join-Path $PSHOME 'ref/System.Runtime.dll')
+    (Join-Path $PSHOME 'ref/System.Collections.dll')
+)
+Add-Type -TypeDefinition $code -ReferencedAssemblies $references
 Write-SelectionPhase 'compile-end'
 $handles = @([PortcoveNativeWindows]::Find(42, 'Choose Portcove library') | ForEach-Object { $_.ToInt32() } | Sort-Object)
 if (($handles -join ',') -cne '2,5') { throw 'PID/title/child filtering or deduplication changed' }
