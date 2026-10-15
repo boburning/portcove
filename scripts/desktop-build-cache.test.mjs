@@ -25,6 +25,7 @@ const inputFiles = [
   "tsconfig.base.json",
   "apps/desktop/vite.config.ts",
   "apps/desktop/scripts/build-frontend.mjs",
+  "scripts/viteplus-cli.mjs",
   "scripts/dev-storage.mjs",
   "scripts/dev-storage.d.mts",
   "scripts/browser-traces.ts",
@@ -51,7 +52,7 @@ const identity = (root, overrides = {}) =>
   createFrontendBuildIdentity({
     root,
     packageManager: "pnpm@12.4.1",
-    packageManagerVersion: "12.4.1",
+    vitePlusVersion: "1.2.0",
     environment: { VITE_CHANNEL: "test" },
     platform: "win32",
     architecture: "x64",

@@ -20,6 +20,7 @@ const FRONTEND_INPUTS = [
   "tsconfig.base.json",
   "apps/desktop/vite.config.ts",
   "apps/desktop/scripts/build-frontend.mjs",
+  "scripts/viteplus-cli.mjs",
   "scripts/dev-storage.mjs",
   "scripts/dev-storage.d.mts",
   "scripts/browser-traces.ts",
@@ -94,18 +95,18 @@ function buildEnvironment(environment) {
 export async function createFrontendBuildIdentity({
   root,
   packageManager,
-  packageManagerVersion,
+  vitePlusVersion,
   environment = process.env,
   platform = process.platform,
   architecture = process.arch,
 }) {
   const identity = {
     format_version: FORMAT_VERSION,
-    command: [packageManager, "--dir", "apps/desktop", "build"],
+    command: ["node", "apps/desktop/scripts/build-frontend.mjs"],
     toolchain: {
       node: process.version,
       package_manager: packageManager,
-      package_manager_version: packageManagerVersion,
+      vite_plus_version: vitePlusVersion,
       platform,
       architecture,
     },

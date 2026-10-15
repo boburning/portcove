@@ -1,5 +1,5 @@
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
-import { URL } from "node:url";
+import { fileURLToPath, URL } from "node:url";
 import process from "node:process";
 import { runInNewContext } from "node:vm";
 import { build } from "vite";
@@ -7,6 +7,7 @@ import { build } from "vite";
 import { expect, it } from "vite-plus/test";
 import config from "../vite.config.ts";
 import { frontendEnvironment, buildFrontend } from "./build-frontend.mjs";
+import { vitePlusCommand } from "../../../scripts/viteplus-cli.mjs";
 
 it("removes signing inputs before frontend children while preserving native inputs", () => {
   const environment = {
@@ -110,7 +111,7 @@ it.each([false, true])(
           TAURI_ENV_PLATFORM: "windows",
         },
         (command, args, options) => {
-          expect(command).toBe("corepack");
+          expect(command).toBe(process.execPath);
           childResult = spawnSync(process.execPath, [child, ...args], {
             ...options,
             stdio: "pipe",
@@ -129,7 +130,10 @@ it.each([false, true])(
       expect(JSON.parse(await readFile(marker, "utf8"))).toEqual({
         signing: null,
         native: "windows",
-        args: ["pnpm", "exec", "vp", ...(cached ? ["run", "bundle:cached"] : ["build"])],
+        args: [
+          ...vitePlusCommand(fileURLToPath(new URL("../", import.meta.url))).args,
+          ...(cached ? ["run", "bundle:cached"] : ["build"]),
+        ],
       });
     } finally {
       await rm(fixture, { recursive: true, force: true });

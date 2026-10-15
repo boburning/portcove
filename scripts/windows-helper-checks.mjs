@@ -9,6 +9,7 @@ const helperPaths = new Set([
   nativeHelperRegistryPath,
   "scripts/native-helper-dependencies.test.mjs",
   "scripts/frontend-command-preflight.mjs",
+  "scripts/viteplus-cli.mjs",
   "scripts/frontend-command-preflight.test.mjs",
   "scripts/desktop-verify.mjs",
   "scripts/desktop-verify.test.mjs",

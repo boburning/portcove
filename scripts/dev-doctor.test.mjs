@@ -8,6 +8,7 @@ import {
   existsSync,
   rmSync,
   symlinkSync,
+  chmodSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -16,7 +17,7 @@ import {
   probeTool,
   selectedPrerequisites,
   collectSelectedPrerequisites,
-  existingPnpmDefinition,
+  pnpmDefinition,
   existingAquaDefinition,
   existingNpmDefinition,
 } from "./dev-doctor.mjs";
@@ -166,7 +167,7 @@ test("cache observations never install a missing package manager or Aqua payload
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-prerequisite-cache-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const environment = { COREPACK_HOME: path.join(directory, "absent") };
-  assert.equal(existingPnpmDefinition("12.7.0", environment), null);
+  assert.deepEqual(pnpmDefinition("12.7.0").command, ["pnpm", "--version"]);
   assert.equal(existsSync(environment.COREPACK_HOME), false);
   const calls = [];
   const results = await collectSelectedPrerequisites([{ id: "oxfmt" }, { id: "actionlint" }], {
@@ -184,29 +185,14 @@ test("cache observations never install a missing package manager or Aqua payload
   assert.equal(existsSync(environment.COREPACK_HOME), false);
 });
 
-test("cached package-manager observations require exact identity and contained regular entrypoint", (t) => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-cached-pnpm-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  const installed = path.join(directory, "v1/pnpm/12.7.0");
-  mkdirSync(path.join(installed, "bin"), { recursive: true });
-  writeFileSync(path.join(installed, "bin/pnpm.mjs"), "console.log('12.7.0');\n");
-  const marker = path.join(installed, ".corepack");
-  const metadata = {
-    locator: { name: "pnpm", reference: "12.7.0" },
-    bin: { pnpm: "bin/pnpm.mjs" },
-  };
-  writeFileSync(marker, JSON.stringify(metadata));
-  const definition = existingPnpmDefinition("12.7.0", { COREPACK_HOME: directory });
-  assert.equal(definition.command[0], process.execPath);
-  assert.ok(!definition.command.includes("corepack"));
-  writeFileSync(
-    marker,
-    JSON.stringify({ ...metadata, locator: { name: "pnpm", reference: "12.8.0" } }),
-  );
-  assert.equal(existingPnpmDefinition("12.7.0", { COREPACK_HOME: directory }), null);
-  writeFileSync(path.join(directory, "outside.mjs"), "throw Error('must not execute');");
-  writeFileSync(marker, JSON.stringify({ ...metadata, bin: { pnpm: "../../../outside.mjs" } }));
-  assert.equal(existingPnpmDefinition("12.7.0", { COREPACK_HOME: directory }), null);
+test("pinned pnpm readiness uses its declared command and rejects observed version mismatch", () => {
+  const definition = pnpmDefinition("12.7.0");
+  const result = probeTool(definition, (command, args) => {
+    assert.equal(command, "pnpm");
+    assert.deepEqual(args, ["--version"]);
+    return { status: 0, stdout: "12.8.0", stderr: "" };
+  });
+  assert.equal(result.status, "mismatch");
 });
 
 test("selected and profile observations refuse missing pnpm runtime acquisition and reuse warm runtime", async (t) => {
@@ -215,15 +201,8 @@ test("selected and profile observations refuse missing pnpm runtime acquisition 
   const version = JSON.parse(
     readFileSync(new URL("../package.json", import.meta.url), "utf8"),
   ).packageManager.split("@")[1];
-  const installed = path.join(directory, "v1/pnpm", version);
+  const installed = directory;
   mkdirSync(path.join(installed, "bin"), { recursive: true });
-  writeFileSync(
-    path.join(installed, ".corepack"),
-    JSON.stringify({
-      locator: { name: "pnpm", reference: version },
-      bin: { pnpm: "bin/pnpm.mjs" },
-    }),
-  );
   const runtime = path.join(installed, "pnpm-native");
   const acquisition = path.join(installed, "acquisition-attempt");
   writeFileSync(
@@ -239,8 +218,18 @@ if (!existsSync(${JSON.stringify(runtime)})) {
 console.log(${JSON.stringify(version)});
 `,
   );
+  const shim = path.join(directory, process.platform === "win32" ? "pnpm.cmd" : "pnpm");
+  const runtimeScript = path.join(installed, "bin/pnpm.mjs");
+  writeFileSync(
+    shim,
+    process.platform === "win32"
+      ? `@"${process.execPath}" "${runtimeScript}" %*\r\n`
+      : `#!/bin/sh\n"${process.execPath}" "${runtimeScript}" "$@"\n`,
+  );
+  chmodSync(shim, 0o755);
   const environment = Object.freeze({
     ...process.env,
+    PATH: directory,
     COREPACK_HOME: directory,
     COREPACK_ENABLE_NETWORK: "1",
   });
@@ -253,7 +242,7 @@ console.log(${JSON.stringify(version)});
     for (const tools of [selected, profile.tools]) {
       const pnpm = tools.find((tool) => tool.id === "pnpm");
       assert.equal(pnpm.status, warm ? "ok" : "unavailable");
-      if (!warm) assert.match(pnpm.remediation, /pinned package-manager bootstrap/u);
+      if (!warm) assert.match(pnpm.remediation, /repository-pinned pnpm/u);
       assert.equal(tools.find((tool) => tool.id === "node").status, "ok");
     }
     assert.equal(profile.ok, warm);
@@ -287,29 +276,6 @@ test("Aqua observations use an existing unique payload and reject ambiguous or m
   mkdirSync(path.join(versionRoot, "other"));
   writeFileSync(path.join(versionRoot, "other/actionlint"), "ambiguous fixture");
   assert.equal(existingAquaDefinition(definition, directory, "linux"), null);
-});
-
-test("a linked Corepack version cannot execute an entrypoint outside the configured cache", (t) => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-linked-pnpm-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  const cache = path.join(directory, "cache"),
-    foreign = path.join(directory, "foreign");
-  mkdirSync(path.join(cache, "v1/pnpm"), { recursive: true });
-  mkdirSync(path.join(foreign, "bin"), { recursive: true });
-  writeFileSync(path.join(foreign, "bin/pnpm.mjs"), "throw Error('must not execute');");
-  writeFileSync(
-    path.join(foreign, ".corepack"),
-    JSON.stringify({
-      locator: { name: "pnpm", reference: "12.7.0" },
-      bin: { pnpm: "bin/pnpm.mjs" },
-    }),
-  );
-  symlinkSync(
-    foreign,
-    path.join(cache, "v1/pnpm/12.7.0"),
-    process.platform === "win32" ? "junction" : "dir",
-  );
-  assert.equal(existingPnpmDefinition("12.7.0", { COREPACK_HOME: cache }), null);
 });
 
 const definition = {

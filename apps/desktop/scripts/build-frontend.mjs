@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
+import { vitePlusCommand } from "../../../scripts/viteplus-cli.mjs";
 
 export function frontendEnvironment(environment) {
   return Object.fromEntries(
@@ -11,11 +12,13 @@ export function frontendEnvironment(environment) {
 
 export function buildFrontend(environment = process.env, run = spawnCommand, cached = false) {
   try {
+    const cwd = fileURLToPath(new URL("../", import.meta.url));
+    const cli = vitePlusCommand(cwd);
     const result = run(
-      "corepack",
-      ["pnpm", "exec", "vp", ...(cached ? ["run", "bundle:cached"] : ["build"])],
+      cli.command,
+      [...cli.args, ...(cached ? ["run", "bundle:cached"] : ["build"])],
       {
-        cwd: fileURLToPath(new URL("../", import.meta.url)),
+        cwd,
         env: frontendEnvironment(environment),
         stdio: "inherit",
       },
@@ -23,7 +26,7 @@ export function buildFrontend(environment = process.env, run = spawnCommand, cac
     return result.status ?? 1;
   } catch (error) {
     console.error(
-      `Frontend build requires Corepack with the repository's pinned pnpm: ${error.message}. Run the repository bootstrap; no global pnpm shim is required.`,
+      `Frontend build requires the installed local Vite+ CLI: ${error.message}. Run pnpm install --frozen-lockfile from the repository root.`,
     );
     return 1;
   }

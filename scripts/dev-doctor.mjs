@@ -1,5 +1,4 @@
 import { existsSync, readFileSync, lstatSync, realpathSync, readdirSync } from "node:fs";
-import os from "node:os";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -144,46 +143,13 @@ export function probeTool(definition, run = spawnCommand, options = {}) {
 // Test fixtures and build scripts can expose further prerequisites at execution.
 export { selectedPrerequisites };
 
-export function existingPnpmDefinition(version, environment = process.env) {
-  // Corepack's bundled v1 cache is observed; Corepack itself is never invoked.
-  const cache =
-    environment.COREPACK_HOME ??
-    path.join(
-      environment.XDG_CACHE_HOME ??
-        environment.LOCALAPPDATA ??
-        path.join(os.homedir(), process.platform === "win32" ? "AppData/Local" : ".cache"),
-      "node/corepack",
-    );
-  const directory = path.join(cache, "v1", "pnpm", version);
-  try {
-    const cacheRelative = path.relative(realpathSync(cache), realpathSync(directory));
-    if (!cacheRelative || cacheRelative.startsWith("..") || path.isAbsolute(cacheRelative))
-      return null;
-    const metadata = JSON.parse(readFileSync(path.join(directory, ".corepack"), "utf8"));
-    if (
-      metadata.locator?.name !== "pnpm" ||
-      metadata.locator.reference.split("+")[0] !== version ||
-      typeof metadata.bin?.pnpm !== "string"
-    )
-      return null;
-    const executable = path.resolve(directory, metadata.bin.pnpm);
-    const relative = path.relative(realpathSync(directory), realpathSync(executable));
-    if (
-      !relative ||
-      relative.startsWith("..") ||
-      path.isAbsolute(relative) ||
-      !lstatSync(executable).isFile()
-    )
-      return null;
-    return {
-      id: "pnpm",
-      version,
-      command: [process.execPath, executable, "--version"],
-      remediation: "run the normal pinned package-manager bootstrap",
-    };
-  } catch {
-    return null;
-  }
+export function pnpmDefinition(version) {
+  return {
+    id: "pnpm",
+    version,
+    command: ["pnpm", "--version"],
+    remediation: "provide the repository-pinned pnpm on PATH; Corepack is optional",
+  };
 }
 
 export function existingAquaDefinition(definition, aquaRoot, platform = process.platform) {
@@ -285,7 +251,7 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
       command: [process.execPath, "--version"],
       version: readFileSync(path.join(root, ".node-version"), "utf8").trim(),
     },
-    pnpm: (options.pnpmDefinition ?? existingPnpmDefinition)(
+    pnpm: (options.pnpmDefinition ?? pnpmDefinition)(
       repositoryPackage.packageManager.split("@")[1],
       environment,
     ),

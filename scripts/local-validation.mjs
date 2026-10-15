@@ -221,17 +221,19 @@ const explicitNodeTests = new Map([
       "scripts/windows-helper-checks.test.mjs",
     ],
   ]),
-  ...["scripts/frontend-command-preflight.mjs", "apps/desktop/scripts/build-frontend.mjs"].map(
-    (file) => [
-      file,
-      [
-        "scripts/frontend-command-preflight.test.mjs",
-        "scripts/desktop-verify.test.mjs",
-        "scripts/desktop-execution-plan.test.mjs",
-        "scripts/windows-helper-checks.test.mjs",
-      ],
+  ...[
+    "scripts/frontend-command-preflight.mjs",
+    "apps/desktop/scripts/build-frontend.mjs",
+    "scripts/viteplus-cli.mjs",
+  ].map((file) => [
+    file,
+    [
+      "scripts/frontend-command-preflight.test.mjs",
+      "scripts/desktop-verify.test.mjs",
+      "scripts/desktop-execution-plan.test.mjs",
+      "scripts/windows-helper-checks.test.mjs",
     ],
-  ),
+  ]),
   [
     "scripts/desktop-execution-plan.test.mjs",
     ["scripts/desktop-scenarios.test.mjs", "scripts/desktop-verify.test.mjs"],
@@ -590,6 +592,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       "tsconfig.base.json",
       "apps/desktop/pnpm-workspace.yaml",
       "scripts/browser-traces.ts",
+      "scripts/viteplus-cli.mjs",
     ].includes(file)
   ) {
     selection.ui = true;

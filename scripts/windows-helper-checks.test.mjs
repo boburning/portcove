@@ -29,6 +29,7 @@ test("Windows helper selection includes rename/delete sides and policy inputs wi
     "apps/desktop/scripts/desktop-native-confirmation.mjs",
     "apps/desktop/scripts/desktop-test.mjs",
     "scripts/frontend-command-preflight.mjs",
+    "scripts/viteplus-cli.mjs",
     "scripts/desktop-verify.mjs",
     ".github/workflows/ci.yml",
     ".config/powershell-resources.psd1",

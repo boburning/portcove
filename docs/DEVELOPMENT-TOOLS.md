@@ -172,7 +172,7 @@ noUncheckedIndexedAccess across application TS/TSX, typed tests/fixtures and
 runtime-specific configuration projects. There is no narrow strict project or
 duplicate compiler task. Untyped Node
 scripts use Node globals and correctness lint; browser and typed code retain
-their actual execution-environment distinctions. Stylelint, TOML/Rust formatting,
+their actual execution-environment distinctions. Stylelint, Rust formatting,
 copy/theme/localization checks and generated transport checks retain their
 specialized responsibilities. `vp run verify:frontend` composes these frontend
 checks with unit tests and a production build. Builds and tests do not silently
@@ -987,13 +987,16 @@ frozen-install remedy when a prerequisite is missing. Use `--require-clean` for
 final evidence; dirty source is allowed and recorded during iteration.
 
 Before acquiring its own native session lease or building, `desktop-verify`
-executes `pnpm --version` with the same Desktop cwd and signing-filtered
-environment as `build-frontend.mjs`. The observed version must match the repository
-pin; a ten-second deadline and 16 KiB per-stream cap bound the probe. The fresh
+executes the installed package's declared Vite+ executable with `--version`,
+using the same launcher, Desktop cwd and signing-filtered environment as
+`build-frontend.mjs`. The observed version must match its installed package
+metadata; workspace package readiness separately checks the declared graph.
+A ten-second deadline and 16 KiB per-stream cap bound the probe. The fresh
 run directory retains `frontend-command-preflight.json` even on failure.
-Corepack success and cached tool metadata cannot substitute for this command.
+Corepack and a global Vite+ are not operation prerequisites. Cached tool metadata
+cannot substitute for this command.
 `--plan` reports command-file availability and an unobserved version without
-executing pnpm, installing packages or acquiring a lease. An inherited caller
+executing Vite+, installing packages or acquiring a lease. An inherited caller
 lease remains the caller's responsibility.
 
 Native helper dependencies are declared in
