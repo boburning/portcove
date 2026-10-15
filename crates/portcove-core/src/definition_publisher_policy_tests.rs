@@ -1961,7 +1961,19 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
                 .await,
         )
     });
-    let reached = tokio::time::timeout(Duration::from_secs(5), async {
+    // Owner-approved #706 calibration (issuecomment-6190196270): preserve the
+    // whole-install starting point and every actual partial-copy assertion.
+    let latch_timeout = if cfg!(all(target_os = "macos", target_arch = "x86_64"))
+        && matches!(
+            intervention,
+            CacheIntervention::ArtifactRevocationRetain
+                | CacheIntervention::ArtifactWithdrawalRetain
+        ) {
+        Duration::from_secs(10)
+    } else {
+        Duration::from_secs(5)
+    };
+    let reached = tokio::time::timeout(latch_timeout, async {
         loop {
             if let Some(path) = latch.0.lock().unwrap().0.clone() {
                 break path;
@@ -1993,7 +2005,7 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     let (activity, result) = install.await.unwrap();
     let result = service.finish_activity(activity, result);
     let (partial, copied) = reached.unwrap_or_else(|error| {
-        panic!("actual cache copy missed its five-second latch: {error}; installer={result:?}; worker_finished={worker_finished}; result_finished={result_finished}; final_copy={:?}", latch.0.lock().unwrap().0)
+        panic!("actual cache copy missed its {latch_timeout:?} latch: {error}; installer={result:?}; worker_finished={worker_finished}; result_finished={result_finished}; final_copy={:?}", latch.0.lock().unwrap().0)
     });
     disposition.unwrap();
     assert!(!result_finished && !worker_finished);

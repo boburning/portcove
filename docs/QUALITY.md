@@ -64,7 +64,21 @@ fresh audit. Existing trusted main audit receipt import/reuse is preserved.
 Warm focused PR required CI targets five minutes. This is a measurement goal,
 not a timeout or permission to omit coverage. Report cold builds, broad/unmapped
 changes and root dependencies separately. Preserve nextest's two slots,
-heavyweight reservations, 30-second test budgets and process/resource/storage guards.
+heavyweight reservations, default 30-second test budgets and process/resource/storage guards.
+The owner's [October 15 #706 timing calibration](https://github.com/boburning/portcove/issues/706#issuecomment-6190196270)
+permits only two ten-second whole-install-to-copy latches on Intel macOS:
+`curated_cache_retention_revocation_during_copy_refuses_publication` and
+`curated_cache_retention_withdrawal_during_copy_refuses_publication`.
+The same approval permits a 45-second nextest budget only on
+`x86_64-apple-darwin` for
+`curated_rollback_withdrawal_permits_exact_retained_target`, alongside the existing
+exact managed-artifact lifecycle override. Every assertion, actual partial-copy
+observation, restart/rollback, trust/persistence check, resource reservation and
+zero-retry rule remains. Other cases and targets retain their existing limits.
+Only Deep audit's outer `audit` job receives 45 minutes; `local_check` stays at
+30 minutes. All required independent stages must finish with complete evidence;
+these finite calibrations do not accept a failed test or an incomplete audit.
+Retain the original failures and independently review and qualify the final head.
 Use the [CI timing diagnostics](DEVELOPMENT-TOOLS.md#ci-timing-diagnostics) to
 assess the next three genuine warm focused hosted runs; instrumentation alone
 does not establish the target or add another gate.

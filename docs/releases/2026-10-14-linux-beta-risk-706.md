@@ -102,6 +102,38 @@ restart, child-start, trust and persistence assertions stay intact. Diagnostics
 are not a repair or permission to waive those failures. The owning PR records
 subsequent exact-head review and qualification results.
 
+## Owner-approved qualification timing calibration
+
+The [instrumented qualification at `a1ed49b`](https://github.com/boburning/portcove/actions/runs/38694081625)
+completed all jobs but failed two Intel copy-observation latches and the retained
+rollback-withdrawal test. Download began 4.778 and 4.628 seconds into the two
+five-second latches without observing first copy. The rollback test completed
+its first rollback/preservation but reached thirty seconds during the second
+rollback. Later Conflict results and forward progress do not qualify the missing
+observations. The [fresh audit](https://github.com/boburning/portcove/actions/runs/38694084246)
+was canceled by its thirty-minute outer job limit during Rust tests, after 1,761
+recorded passes. Later stages and the scanner were not reached; that audit is
+incomplete and cannot be substituted by a separate scanner run.
+
+The owner [separately approved the reviewed finite calibration](https://github.com/boburning/portcove/issues/706#issuecomment-6190196270)
+on October 15. Only Intel macOS's retention-revocation/withdrawal during-copy
+latches receive ten seconds from the unchanged whole-install starting point.
+Only Intel's exact retained rollback-withdrawal case receives a 45-second nextest
+budget with its five-second slow alert. Both actual rollbacks, restart, trust,
+preservation, partial/incomplete-copy, drain, conflict and journal assertions
+remain. Two-slot reservations and zero retries remain; other cases and targets
+keep existing limits. Existing contract tests reject a broad filter, wrong or
+absent target, or an enlarged override.
+
+Only Deep audit's outer audit job receives 45 minutes; local-check stays at
+30 minutes. No independent stage or internal acceptance condition is omitted.
+The final reviewed source must complete fresh audit, exhaustive maintained-platform
+qualification and distinct Windows qualification. Proposed longer bounds were
+not passing evidence; subsequent failures remain blocking. This timing decision
+does not amend the GLib approval's scope, expiry or publication identity and is
+not permission to accept unrelated qualification failures. Original failed
+attempts remain retained. Final exact-head results belong to PR #1997.
+
 ## Execution and separate decision
 
 `just deny` preserves the scanner's original exit status and full structured

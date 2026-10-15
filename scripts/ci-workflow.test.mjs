@@ -2497,6 +2497,11 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
     /filter = 'package\(portcove-core\) & test\(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes\)'\r?\nthreads-required = 2/,
   );
   const lifecycleFilter = outputOverrides[0].trim().split(/\r?\n/)[0];
+  const intelRollbackBudget = [
+    "platform = 'x86_64-apple-darwin'",
+    "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)'",
+    'slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }',
+  ].join("\n");
   function assertTimeoutOverrides(source) {
     const [defaults, ...overrides] = source.split("[[profile.default.overrides]]");
     assert.match(
@@ -2504,21 +2509,29 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
       /^slow-timeout = \{ period = "5s", terminate-after = 6, grace-period = "0s" \}$/m,
     );
     const budgets = overrides.filter((override) => /^slow-timeout = /m.test(override));
-    assert.equal(budgets.length, 1);
+    assert.equal(budgets.length, 2);
     assert.equal(budgets[0].trim().split(/\r?\n/)[0], lifecycleFilter);
     assert.match(
       budgets[0],
       /^slow-timeout = \{ period = "5s", terminate-after = 9, grace-period = "0s" \}$/m,
     );
+    assert.equal(budgets[1].trim().split(/\r?\n/).slice(0, 3).join("\n"), intelRollbackBudget);
     for (const override of overrides) {
       assert.doesNotMatch(override, /retries/);
-      if (override !== budgets[0]) assert.doesNotMatch(override, /slow-timeout/);
+      if (!budgets.includes(override)) assert.doesNotMatch(override, /slow-timeout/);
     }
   }
   assertTimeoutOverrides(config);
   for (const changed of [
     config.replace("terminate-after = 9", "terminate-after = 18"),
     config.replace("terminate-after = 6", "terminate-after = 9"),
+    config.replace("platform = 'x86_64-apple-darwin'", "platform = 'aarch64-apple-darwin'"),
+    config.replace("platform = 'x86_64-apple-darwin'\n", ""),
+    config.replace(
+      intelRollbackBudget,
+      intelRollbackBudget.replace("terminate-after = 9", "terminate-after = 18"),
+    ),
+    config.replace(intelRollbackBudget.split("\n")[1], "filter = 'package(portcove-core)'"),
     config.replace(lifecycleFilter, "filter = 'package(portcove-core)'"),
     config.replace(
       'terminate-after = 9, grace-period = "0s"',
@@ -2557,6 +2570,9 @@ test("deep audit evidence retains audit status without privilege changes", async
   );
   const auditJob = deep.split("  audit:")[1].split(/\n  [a-z_]+:/u)[0];
   assert.match(auditJob, /runs-on: ubuntu-22\.04/u);
+  assert.match(auditJob, /^    timeout-minutes: 45$/m);
+  const localJob = deep.split("  local_check:")[1].split(/\n  [a-z_]+:/u)[0];
+  assert.match(localJob, /^    timeout-minutes: 30$/m);
   assert.match(auditJob, /shared-key: deep-quality-ubuntu-22\.04/u);
   assert.match(auditJob, /key: quality-rscheck-binaries-v2-ubuntu-22\.04-/u);
   assert.match(deep, /id: fresh-audit/);
