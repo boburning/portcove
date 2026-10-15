@@ -585,6 +585,7 @@ export async function assertMainWebviewContainment({
           entry.fields.webview_label === "main",
       );
   observations.navigationRefusals = [];
+  observations.navigationRequests = [];
   const inactiveAlias =
     process.platform === "linux"
       ? new URL(new URL(initialUrl).pathname, "http://tauri.localhost")
@@ -594,8 +595,25 @@ export async function assertMainWebviewContainment({
   for (const destination of [fixtureUrl, inactiveAlias.href]) {
     onNavigation(destination);
     const previous = (await navigationRefusals()).length;
-    await browser.get(destination);
-    const deadline = Date.now() + 10_000;
+    const request = {
+      destination,
+      trigger: process.platform === "linux" ? "page-location" : "webdriver-get",
+    };
+    observations.navigationRequests.push(request);
+    let deadline;
+    if (process.platform === "linux") {
+      deadline = Date.now() + 10_000;
+      request.scheduled = await browser.executeScript((url) => {
+        setTimeout(() => {
+          window.location.href = url;
+        }, 0);
+        return true;
+      }, destination);
+      assert.equal(request.scheduled, true, "Navigation scheduling acknowledgement is required");
+    } else {
+      await browser.get(destination);
+      deadline = Date.now() + 10_000;
+    }
     while ((await navigationRefusals()).length <= previous) {
       if (Date.now() >= deadline)
         throw new Error("New navigation refusal was not observed by the native host");
