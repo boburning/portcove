@@ -17,6 +17,14 @@ fn lost_preparation_output_is_resolved_by_fresh_public_readback_without_replay()
 }
 
 fn preparation_roundtrip(chd: bool, lose_output: bool) {
+    let started = std::time::Instant::now();
+    let phase = |name: &str| {
+        eprintln!(
+            "preparation-roundtrip chd={chd} lose_output={lose_output} phase={name} elapsed_ms={}",
+            started.elapsed().as_millis()
+        );
+    };
+    phase("fixture-begin");
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");
     let original = temporary.path().join("owned-installation");
@@ -50,6 +58,8 @@ fn preparation_roundtrip(chd: bool, lose_output: bool) {
         fs::copy(&executable, destination).unwrap();
     }
     fs::write(original.join("owned-setup-mode"), "success").unwrap();
+    phase("fixture-end");
+    phase("adoption-begin");
     let adopted = portcove(
         &library,
         &[
@@ -67,6 +77,8 @@ fn preparation_roundtrip(chd: bool, lose_output: bool) {
         .as_str()
         .unwrap()
         .to_owned();
+    phase("adoption-end");
+    phase("source-plan-begin");
     let source = temporary
         .path()
         .join(if chd { "owned.chd" } else { "owned.iso" });
@@ -87,7 +99,9 @@ fn preparation_roundtrip(chd: bool, lose_output: bool) {
         &["--json", "preparation", "plan", &port.id],
     ));
     let fingerprint = plan["data"]["plan_sha256"].as_str().unwrap();
+    phase("source-plan-end");
     if !chd {
+        phase("refusal-controls-begin");
         let denied = portcove(
             &library,
             &[
@@ -116,6 +130,7 @@ fn preparation_roundtrip(chd: bool, lose_output: bool) {
             ],
         );
         assert_eq!(json_stdout(&stale)["error"]["code"], "conflict");
+        phase("refusal-controls-end");
     }
     let preparation_args = [
         "--jsonl",
@@ -127,6 +142,7 @@ fn preparation_roundtrip(chd: bool, lose_output: bool) {
         fingerprint,
         "--yes",
     ];
+    phase("preparation-begin");
     let prepared = if lose_output {
         portcove_core::ChildProcessPolicy::native_command(
             portcove_core::ChildProcessClass::HostIntegration,
@@ -146,7 +162,9 @@ fn preparation_roundtrip(chd: bool, lose_output: bool) {
         portcove(&library, &preparation_args)
     };
     assert!(prepared.status.success(), "{prepared:?}");
+    phase("preparation-end");
     if lose_output {
+        phase("lost-output-readbacks-begin");
         assert!(prepared.stdout.is_empty());
         let status = json_stdout(&portcove(&library, &["--json", "status", &port.id]));
         assert_eq!(status["data"]["previous"]["id"], original_id);
@@ -188,8 +206,10 @@ fn preparation_roundtrip(chd: bool, lose_output: bool) {
             b"owned source awaiting upstream validation"
         );
         assert!(original.is_dir());
+        phase("lost-output-readbacks-end");
         return;
     }
+    phase("diagnostic-readbacks-begin");
     let events = String::from_utf8(prepared.stdout)
         .unwrap()
         .lines()
@@ -250,12 +270,16 @@ fn preparation_roundtrip(chd: bool, lose_output: bool) {
         assert!(!human_log.contains("owned-fixture-private-value"));
     }
     assert_eq!(events.last().unwrap()["command"], "preparation.run");
+    phase("diagnostic-readbacks-end");
+    phase("fresh-status-begin");
     let status = json_stdout(&portcove(&library, &["--json", "status", &port.id]));
     assert_eq!(status["data"]["previous"]["id"], original_id);
     assert_eq!(status["data"]["readiness"]["launchable"], true);
     let installed = std::path::PathBuf::from(status["data"]["active"]["path"].as_str().unwrap());
     let log = installed.join("data/log/setup.log");
     fs::write(&log, b"setup must not run during CLI exec").unwrap();
+    phase("fresh-status-end");
+    phase("launch-observation-begin");
     let played = if chd {
         portcove(&library, &["exec", &port.id])
     } else {
@@ -263,15 +287,19 @@ fn preparation_roundtrip(chd: bool, lose_output: bool) {
     };
     assert!(played.status.success(), "{played:?}");
     assert!(String::from_utf8_lossy(&played.stdout).contains("owned game launched"));
+    phase("launch-observation-end");
     if !chd {
+        phase("interrupted-launch-recovery-begin");
         super::launch_contract::recover_interrupted_prepared_launch(
             &library,
             &preferences,
             &port.id,
         );
+        phase("interrupted-launch-recovery-end");
     }
     assert_eq!(
         fs::read(log).unwrap(),
         b"setup must not run during CLI exec"
     );
+    phase("complete");
 }
