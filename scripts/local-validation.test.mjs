@@ -1568,6 +1568,17 @@ test("containment selector changes retain their dependent audit and hosted contr
   }
 });
 
+test("approved #706 record has an exact protected test owner without admitting another approval", () => {
+  const owned = planFor([".github/linux-beta-risk-706.json"]);
+  assert.equal(owned.selection.unknown.size, 0);
+  assert.ok(owned.selection.nodeTests.has("scripts/linux-beta-risk-706.test.mjs"));
+  assert.ok(owned.selection.nodeTests.has("scripts/validation-plan.test.mjs"));
+  const other = classifyChanges([{ status: "M", path: ".github/linux-beta-risk-999.json" }], {
+    fileExists: allFilesExist,
+  });
+  assert.ok(other.unknown.has(".github/linux-beta-risk-999.json"));
+});
+
 test("reviewed upstream accounting has an exact health-test owner without admitting other configuration", () => {
   const owned = planFor([".github/upstream-health-accounting.json"]);
   assert.equal(owned.selection.unknown.size, 0);
