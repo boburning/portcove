@@ -595,7 +595,9 @@ browser profile inside its owned XDG directories, retains browser/opener identit
 and observes the approved destination through the real browser's profile-bound
 DevTools endpoint. Chrome keeps its normal sandbox. This observation covers that
 isolated association; the host's ordinary default-browser configuration remains
-separate. Existing personal browser profiles are not selected.
+separate. Existing personal browser profiles are not selected. The owned profile
+also retains a default-redaction network log with a 4 MB size budget and ten-second
+capture for failed-navigation diagnosis; it is not destination acceptance.
 The manifest binds the current source, exact ordinary
 `corepack pnpm tauri build --bundles deb` command, empty qualification features,
 package and configuration identities, and the actual `dpkg-deb --extract` receipt

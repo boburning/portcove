@@ -44,7 +44,7 @@ export async function prepareLinuxExternalBrowser() {
   const association = path.join(process.env.XDG_CONFIG_HOME, "mimeapps.list");
   await writeFile(
     desktop,
-    `[Desktop Entry]\nType=Application\nName=Portcove isolated qualification browser\nExec=/usr/bin/google-chrome --ozone-platform=x11 --user-data-dir=${profile} --no-first-run --no-default-browser-check --remote-debugging-port=0 %u\nMimeType=x-scheme-handler/https;\nTerminal=false\n`,
+    `[Desktop Entry]\nType=Application\nName=Portcove isolated qualification browser\nExec=/usr/bin/google-chrome --ozone-platform=x11 --user-data-dir=${profile} --no-first-run --no-default-browser-check --remote-debugging-port=0 --log-net-log=${profile}/network.json --net-log-max-size-mb=4 --net-log-duration=10 %u\nMimeType=x-scheme-handler/https;\nTerminal=false\n`,
     { flag: "wx", mode: 0o600 },
   );
   await writeFile(
@@ -61,6 +61,7 @@ export async function prepareLinuxExternalBrowser() {
   );
   return {
     profile,
+    networkLog: path.join(profile, "network.json"),
     identities: await Promise.all(
       [
         "/usr/bin/xdg-open",
@@ -85,6 +86,7 @@ async function observeLinuxApprovedLink({
   const record = (observations.approvedExternalLink = {
     url: "https://github.com/boburning/portcove",
     identities: externalBrowser.identities,
+    networkLog: externalBrowser.networkLog,
   });
   record.before = await readyMainContext({ browser, invoke, library });
   record.windowsBefore = await invoke("plugin:window|get_all_windows");
