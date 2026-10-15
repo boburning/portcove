@@ -71,7 +71,7 @@ export async function steamEntryScenario(context) {
     await browser.wait(until.elementLocated(dialog), 15_000);
     const installationField = await browser.findElement(By.id("steam-installation"));
     const installationLabel = await browser.findElement(By.css('label[for="steam-installation"]'));
-    await assertReviewFieldPresentation(
+    const fieldPresentation = await assertReviewFieldPresentation(
       browser,
       installationField,
       installationLabel,

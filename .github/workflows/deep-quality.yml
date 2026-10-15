@@ -40,7 +40,8 @@ concurrency:
 jobs:
   audit:
     if: inputs.operation != 'local-check'
-    runs-on: ubuntu-24.04
+    # Match the maintained Linux native target for the actual namespace controls.
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -58,8 +59,8 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          # Reuse the cache created by the former single deep-quality job.
-          shared-key: deep-quality
+          # Keep executable build artifacts specific to this image/glibc baseline.
+          shared-key: deep-quality-ubuntu-22.04
       - name: Install Linux desktop prerequisites
         timeout-minutes: 15
         run: ./scripts/install-linux-desktop-prerequisites.sh
@@ -69,7 +70,7 @@ jobs:
           path: |
             ~/.cargo/bin/cargo-rscheck
             ~/.cargo/bin/rscheck
-          key: quality-rscheck-binaries-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
+          key: quality-rscheck-binaries-v2-ubuntu-22.04-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
       - name: Install pinned prebuilt audit tools
         uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:

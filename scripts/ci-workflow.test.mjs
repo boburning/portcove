@@ -2555,6 +2555,10 @@ test("deep audit evidence retains audit status without privilege changes", async
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
     "utf8",
   );
+  const auditJob = deep.split("  audit:")[1].split(/\n  [a-z_]+:/u)[0];
+  assert.match(auditJob, /runs-on: ubuntu-22\.04/u);
+  assert.match(auditJob, /shared-key: deep-quality-ubuntu-22\.04/u);
+  assert.match(auditJob, /key: quality-rscheck-binaries-v2-ubuntu-22\.04-/u);
   assert.match(deep, /id: fresh-audit/);
   assert.match(
     deep,

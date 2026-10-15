@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fileURLToPath } from "node:url";
+import { URL, fileURLToPath } from "node:url";
 import {
   assertBrowserPackageCompatibility,
   checkBrowserPackageCompatibility,
