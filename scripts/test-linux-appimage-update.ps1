@@ -335,8 +335,13 @@ function Test-PayloadSignatureFailure(
     $Result.data_preserved = $true
     Write-Evidence "$Label-rejected"
 
-    $recoveryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare $PredecessorVersion $trustedRoot $recoveryMetadata $recoveryTargets $candidate $casePreferences $caseUpdateRoot $libraryRoot 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) { throw "$Label did not recover through the valid version-2 repository: $recoveryOutput" }
+    $recoveryStderr = Join-Path $state "application-update-$Label-recovery.stderr.log"
+    $recoveryOutput = & cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- prepare $PredecessorVersion $trustedRoot $recoveryMetadata $recoveryTargets $candidate $casePreferences $caseUpdateRoot $libraryRoot 2> $recoveryStderr | Out-String
+    $recoveryExitCode = $LASTEXITCODE
+    $recoveryDiagnostic = [IO.File]::ReadAllText($recoveryStderr)
+    [ordered]@{ exit_code = $recoveryExitCode; stdout = $recoveryOutput; stderr = $recoveryDiagnostic } |
+        ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $state "application-update-$Label-recovery-process.json") -Encoding utf8NoBOM
+    if ($recoveryExitCode -ne 0) { throw "$Label did not recover through the valid version-2 repository: $recoveryOutput $recoveryDiagnostic" }
     $recovered = $recoveryOutput.Trim() | ConvertFrom-Json
     if ($recovered.candidate_version -ne $CandidateVersion -or
         $recovered.candidate_sha256 -ne $candidateHash -or

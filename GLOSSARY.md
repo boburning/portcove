@@ -27,3 +27,9 @@ _Avoid_: Screenshot existence
 
 **Acceptance packet**: A bounded collection of bindings, requirements and evidence with preflight and completed stages. It records observations and review without granting acceptance or merge authority.
 _Avoid_: Approval token
+
+**Preflight packet**: Frozen prospective execution and review bindings. It does not claim future outcomes or images.
+_Avoid_: Completed evidence
+
+**Completed packet**: Actual outcomes and retained artifacts bound to process closure, exact-image inspection, separate review and final delivery. It records evidence without granting acceptance or merge authority.
+_Avoid_: Acceptance authority

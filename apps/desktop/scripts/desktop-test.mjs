@@ -1,3 +1,8 @@
+import os from "node:os";
+import {
+  writeAcceptancePreflight,
+  observePacketDeliveryBindings,
+} from "../../../scripts/acceptance-packet.mjs";
 import { captureSettledVisual } from "../../../scripts/native-readiness.mjs";
 import {
   parseDesktopHarnessOptions,
@@ -7,6 +12,8 @@ import {
   readPrelaunchCustody,
   verifyConsumedInputs,
   executionAdmission,
+  retainedEvidenceRoot,
+  retainEvidenceInput,
 } from "../../../scripts/retained-evidence.mjs";
 import assert from "node:assert/strict";
 import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mjs";
@@ -27,6 +34,8 @@ import {
   assertOwnedBoundaryRequests,
   normalPackageBoundaryScenario,
   verifyNormalPackageEvidence,
+  createOriginBoundaryFixture,
+  linuxOriginBoundaryScenario,
 } from "./desktop-main-webview-boundary.mjs";
 import { OwnedNativeSession, nativeSessionScript } from "./desktop-owned-native-session.mjs";
 import { launchLinuxNativeSession } from "./desktop-linux-native-session.mjs";
@@ -113,6 +122,11 @@ librarySwitchRecoverySelection(selection, process.platform);
 preferencesRecoverySelection(selection, process.platform);
 const executionPlan = planDesktopExecution(selection, {
   prelaunchCustody: Boolean(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST),
+  retainedMetadata: Boolean(
+    process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST &&
+    JSON.parse(await readFile(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST, "utf8"))
+      .retained_metadata,
+  ),
 });
 const {
   bootstrapRecoverySession,
@@ -179,6 +193,8 @@ if (values["run-metadata"]) {
   inputs.push(await fileIdentity(values["run-metadata"]));
   runnerMetadata = JSON.parse(await readFile(values["run-metadata"], "utf8"));
 }
+let acceptancePreflight;
+const packetFixtureIdentities = [];
 let installFixture;
 let externalFixture;
 let bootstrapRecoveryFixture;
@@ -197,12 +213,18 @@ let historyInventory;
 const linuxSelectedSession =
   process.platform === "linux" &&
   selection.selected_scenarios.some((name) =>
-    ["native-selected-setup-completion", "native-saved-folder-selected-setup"].includes(name),
+    [
+      "native-selected-setup-completion",
+      "native-saved-folder-selected-setup",
+      "native-linux-webview-origin-boundary",
+    ].includes(name),
   );
 let linuxLaunch;
 let linuxCleanup;
 let linuxLaunchCount = 0;
+let linuxStop;
 let packageEvidence;
+let originFixture;
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
   assert.deepEqual(selection.selected_scenarios, ["native-normal-package-webview-boundary"]);
@@ -253,14 +275,20 @@ const admission = executionAdmission(
 async function stopDriver() {
   if (linuxSelectedSession) {
     if (!linuxLaunch) return;
-    const cleanup = await linuxLaunch.stop();
-    const evidence = path.join(output, `linux-native-launch-${linuxLaunchCount}-join.json`);
-    await writeFile(evidence, JSON.stringify(cleanup, null, 2) + "\n", { flag: "wx" });
-    artifacts.push(evidence);
-    linuxCleanup = cleanup;
-    linuxLaunch = undefined;
-    driver = undefined;
-    return;
+    if (!linuxStop) {
+      const launch = linuxLaunch;
+      const launchIndex = linuxLaunchCount;
+      linuxStop = (async () => {
+        const cleanup = await launch.stop();
+        const evidence = path.join(output, `linux-native-launch-${launchIndex}-join.json`);
+        await writeFile(evidence, JSON.stringify(cleanup, null, 2) + "\n", { flag: "wx" });
+        artifacts.push(evidence);
+        linuxCleanup = cleanup;
+        linuxLaunch = undefined;
+        driver = undefined;
+      })();
+    }
+    return linuxStop;
   }
   if (identityBoundSession) {
     stopBackupFocusDriver();
@@ -1222,6 +1250,12 @@ function driverEnvironment(childEnvironment) {
   const environment = {
     ...process.env,
     ...childEnvironment,
+    ...(originFixture
+      ? {
+          PORTCOVE_WEBVIEW_BOUNDARY_FIXTURE_URL: originFixture.url,
+          TAURI_WEBDRIVER_PORT: String(port + 2),
+        }
+      : {}),
     ...(installFixture ? { PORTCOVE_QUALIFICATION_CATALOG: installFixture.catalogPath } : {}),
     ...(externalFixture ? { PORTCOVE_QUALIFICATION_CATALOG: externalFixture.catalogPath } : {}),
     ...(selection.prerequisites.includes("steam-fixture")
@@ -1250,7 +1284,9 @@ async function startDriver(childEnvironment = {}) {
     values["native-driver"],
   ];
   if (linuxSelectedSession) {
+    assert.equal(linuxLaunch, undefined, "The previous Linux launch must finish publication");
     linuxCleanup = undefined;
+    linuxStop = undefined;
     linuxLaunchCount++;
     linuxLaunch = await launchLinuxNativeSession(
       values.driver,
@@ -1515,10 +1551,120 @@ try {
     );
     inputs.push(await fileIdentity(externalFixture.catalogPath), ...externalFixture.identities);
   }
+  if (runnerMetadata.acceptance_bindings) {
+    assert.equal(
+      custody?.retained_metadata,
+      true,
+      "Finite packet declarations require retained metadata",
+    );
+    const retainedRoot = retainedEvidenceRoot(output);
+    const fixtures = packetFixtureIdentities;
+    for (let index = 0; index < inputs.length; index++)
+      if (!inputs[index].retained) {
+        const retained = await retainEvidenceInput({
+          root: retainedRoot,
+          file: inputs[index].path,
+          signal: admission.signal,
+        });
+        assert.equal(retained.sha256, inputs[index].sha256, "Fixture changed before capture");
+        fixtures.push({ ...retained.retained, role: `fixture-${fixtures.length}` });
+        inputs[index] = {
+          ...inputs[index],
+          ...retained,
+          role: `fixture-${fixtures.length - 1}`,
+          kind: "fixture",
+        };
+      }
+  }
   await requireUnusedPort(port);
   await requireUnusedPort(port + 1);
+  if (selection.selected_scenarios.includes("native-linux-webview-origin-boundary")) {
+    await requireUnusedPort(port + 2);
+    originFixture = await createOriginBoundaryFixture();
+  }
   await startDriver();
   await connect();
+  if (runnerMetadata.acceptance_bindings) {
+    assert.equal(
+      custody?.retained_metadata,
+      true,
+      "Finite packet declarations must be consumed from retained non-secret metadata",
+    );
+    const declaration = runnerMetadata.acceptance_bindings;
+    const retainedRoot = retainedEvidenceRoot(output);
+    const fixtures = packetFixtureIdentities;
+    const capabilities = await browser.getCapabilities();
+    const nodeIdentity = await fileIdentity(process.execPath, { signal: admission.signal });
+    let privateDisplay;
+    if (process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT) {
+      privateDisplay = await retainEvidenceInput({
+        root: retainedRoot,
+        file: process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT,
+        signal: admission.signal,
+      });
+      inputs.push({ ...privateDisplay, role: "private-display-observation", kind: "runtime" });
+    }
+    const runtime = {
+      platform: process.platform,
+      architecture: process.arch,
+      node: process.version,
+      node_executable: nodeIdentity,
+      operating_system: os.release(),
+      browser: {
+        name: capabilities.get("browserName") ?? null,
+        version: capabilities.get("browserVersion") ?? null,
+        platform: capabilities.get("platformName") ?? null,
+      },
+      ...(privateDisplay ? { private_display: privateDisplay.retained } : {}),
+      display_route: process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT
+        ? "private-authenticated-virtual-X11"
+        : "native-platform-display",
+      physical_controller: "not-qualified",
+      driver_inputs: inputs
+        .filter((input) => ["driver", "native-driver"].includes(input.role))
+        .map(({ role, sha256, bytes }) => ({ role, sha256, bytes })),
+    };
+    acceptancePreflight = await writeAcceptancePreflight(
+      path.join(path.dirname(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST), "packet"),
+      {
+        root,
+        author: declaration.author,
+        source_review: declaration.source_review,
+        bindings: {
+          ...observePacketDeliveryBindings(root, revision),
+          build_inputs: runnerMetadata.verification_build,
+          product_artifacts: inputs
+            .filter((input) => ["app", "preparation-cli", "preparation-tool"].includes(input.role))
+            .map((input) => ({ ...input.retained, role: input.role })),
+          harness_inputs: inputs
+            .filter((input) => input.kind === "file")
+            .map((input) => ({ ...input.retained, role: input.role })),
+          execution_qualification: {
+            runtime_conditions: runtime,
+            fixture_identities: fixtures,
+            initial_state: {
+              isolated: true,
+              fixture_consumption:
+                "Original owned paths; cooperative ownership and pre/post content checks, not immutable Core consumption",
+              seeded_owned_fixture: Boolean(installFixture),
+              restart_cycles: restartCycles,
+              reload_cycles: reloadCycles,
+            },
+            requirements: declaration.requirements,
+            scenarios: selection.selected_scenarios,
+            acceptance_criteria: declaration.acceptance_criteria,
+          },
+        },
+        prerequisites: selection.prerequisites.map((id) => ({
+          id,
+          outcome: "available-for-selected-run",
+        })),
+        reusable_evidence: declaration.reusable_evidence ?? [],
+        known_gaps: declaration.known_gaps ?? [],
+      },
+    );
+    console.log(JSON.stringify({ acceptance_preflight: acceptancePreflight.identity }));
+  }
   if (historySession) {
     historyInventory = await captureHistorySession(driver.pid, values.driver, values.app);
     const record = path.join(output, "qualification-history-process-identities.json");
@@ -1621,6 +1767,16 @@ try {
       packageEvidence,
     });
     assertOwnedBoundaryRequests(requests);
+  });
+  await scenario("native-linux-webview-origin-boundary", async () => {
+    await linuxOriginBoundaryScenario({
+      browser,
+      invoke,
+      library,
+      output,
+      artifacts,
+      fixture: originFixture,
+    });
   });
   await scenario("empty-library", async () => {
     const bootstrap = await invoke("get_bootstrap_status");
@@ -3267,6 +3423,7 @@ try {
       method: selection.profile ? `native-desktop-${selection.profile}` : "native-desktop-focused",
       context: {
         ...runnerMetadata,
+        ...(acceptancePreflight ? { acceptance_preflight: acceptancePreflight.identity } : {}),
         execution_binding: custody
           ? {
               format_version: 1,
@@ -3288,6 +3445,13 @@ try {
                 ["driver", "native-driver"].includes(input.role),
               ),
               harness_inputs: custody.inputs.filter((input) => input.kind === "file"),
+              ...(acceptancePreflight
+                ? {
+                    build_inputs: runnerMetadata.verification_build,
+                    execution_qualification:
+                      acceptancePreflight.packet.bindings.execution_qualification,
+                  }
+                : {}),
               verification:
                 "Content checked before target import, each application/driver launch and after execution; trusted launcher/verifier source observations are not immutable execution proof",
               limitations: custody.limitations,
@@ -3338,6 +3502,7 @@ try {
       }
     }
     if (installFixture) await installFixture.close();
+    if (originFixture) await originFixture.close();
     await nativeLock.release();
   }
 }

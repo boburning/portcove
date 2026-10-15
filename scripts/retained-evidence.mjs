@@ -15,7 +15,7 @@ import path from "node:path";
 import os from "node:os";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { fileIdentity } from "./development-evidence.mjs";
+import { EVIDENCE_READ_CHUNK_BYTES, fileIdentity } from "./development-evidence.mjs";
 
 const initializing = new Map();
 const verifiedPrivateRoots = new Set();
@@ -195,17 +195,19 @@ export async function retainEvidenceInput({
     if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino)
       throw new Error("Retention input identity changed before opening");
     output = await open(partial, "wx", 0o600);
+    signal?.throwIfAborted();
     const hash = createHash("sha256");
     let bytes = 0;
-    for await (const chunk of input.createReadStream({ autoClose: false, signal })) {
+    for await (const chunk of input.createReadStream({
+      autoClose: false,
+      signal,
+      highWaterMark: EVIDENCE_READ_CHUNK_BYTES,
+    })) {
       hash.update(chunk);
       bytes += chunk.length;
       if (bytes > before.size) throw new Error("Retention input grew during capture");
       await output.writeFile(chunk);
     }
-    await output.sync();
-    await output.close();
-    output = null;
     identity = { path: path.resolve(file), bytes, sha256: hash.digest("hex") };
     const after = await fileIdentity(file, { maxBytes: bytes, signal });
     const current = await lstat(file);
@@ -227,18 +229,34 @@ export async function retainEvidenceInput({
       directory,
       `${identity.sha256}${executable ? (process.platform === "win32" ? ".exe" : ".executable") : ".input"}`,
     );
+    let deduplicated = false;
+    try {
+      const existing = await fileIdentity(published, { maxBytes: bytes, signal });
+      if (existing.sha256 !== identity.sha256 || existing.bytes !== bytes)
+        throw new Error("Published evidence is corrupt; refusing overwrite");
+      deduplicated = true;
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    // Only a new object needs this private copy durably flushed. A verified
+    // published object already has custody; never publish the unsynced copy
+    // if that object disappears before the final verification.
+    if (!deduplicated) await output.sync();
+    await output.close();
+    output = null;
     await chmod(partial, executable ? 0o500 : 0o400);
     await beforePublish({ partial, published, identity });
     signal?.throwIfAborted();
     const ready = await fileIdentity(partial, { maxBytes: bytes, signal });
     if (ready.sha256 !== identity.sha256 || ready.bytes !== bytes)
       throw new Error("Private retained input changed before publication");
-    let deduplicated = false;
-    try {
-      await link(partial, published);
-    } catch (error) {
-      if (error.code !== "EEXIST") throw error;
-      deduplicated = true;
+    if (!deduplicated) {
+      try {
+        await link(partial, published);
+      } catch (error) {
+        if (error.code !== "EEXIST") throw error;
+        deduplicated = true;
+      }
     }
     await afterPublish({ published, identity, deduplicated });
     const actual = await fileIdentity(published);
@@ -309,12 +327,12 @@ export function executionAdmission(startedAt, budgetMs, now = Date.now) {
   };
 }
 
-export function retainedExecutableCanLaunch(input, drivers) {
+export function retainedExecutableCanLaunch(input, drivers, platform = process.platform) {
   // Product metadata is provenance, never proof of a relocatable layout.
   // Only the bootstrap's standalone cached driver executables are established.
   return (
     (input.role === "driver" && input.path === drivers?.driver) ||
-    (input.role === "native-driver" && input.path === drivers?.nativeDriver)
+    (platform === "win32" && input.role === "native-driver" && input.path === drivers?.nativeDriver)
   );
 }
 
@@ -340,7 +358,7 @@ export async function readPrelaunchCustody(
   )
     throw new Error("Prelaunch input custody does not bind this execution");
   const declared = plan.receiptInputs.map((input) =>
-    input.kind === "executable" ? input.name : input.path,
+    ["executable", "argument-file"].includes(input.kind) ? input.name : input.path,
   );
   const roles = manifest.inputs.map((input) => input.role);
   if (
@@ -350,19 +368,24 @@ export async function readPrelaunchCustody(
     throw new Error("Prelaunch input inventory is incomplete");
   for (const input of manifest.inputs) {
     const expected = plan.receiptInputs.find(
-      (entry) => (entry.kind === "executable" ? entry.name : entry.path) === input.role,
+      (entry) =>
+        (["executable", "argument-file"].includes(entry.kind) ? entry.name : entry.path) ===
+        input.role,
     );
     if (
       !/^[a-f0-9]{64}$/u.test(input.sha256 ?? "") ||
       !Number.isSafeInteger(input.bytes) ||
       input.bytes < 0 ||
       !path.isAbsolute(input.retained?.path ?? "") ||
-      (expected.kind === "executable"
-        ? !["retained-artifact", "live-path-checked-cooperative"].includes(input.binding) ||
-          path.resolve(values[expected.name] ?? ".") !==
-            (input.binding === "retained-artifact" ? input.retained.path : input.path)
-        : input.binding !== "live-path-checked-cooperative" ||
-          input.path !== path.join(root, expected.path))
+      (expected.kind === "argument-file"
+        ? input.binding !== "retained-metadata-read" ||
+          path.resolve(values[expected.name] ?? ".") !== input.retained.path
+        : expected.kind === "executable"
+          ? !["retained-artifact", "live-path-checked-cooperative"].includes(input.binding) ||
+            path.resolve(values[expected.name] ?? ".") !==
+              (input.binding === "retained-artifact" ? input.retained.path : input.path)
+          : input.binding !== "live-path-checked-cooperative" ||
+            input.path !== path.join(root, expected.path))
     )
       throw new Error("Consumed input differs from the prelaunch declaration");
   }

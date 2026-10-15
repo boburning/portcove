@@ -1,4 +1,7 @@
-import { captureSettledVisual } from "../../../scripts/native-readiness.mjs";
+import {
+  captureSettledVisual,
+  observePreparationCompletion,
+} from "../../../scripts/native-readiness.mjs";
 // Actual Tauri/Core journey; synthetic source and first-party probe, never a game qualification.
 import assert from "node:assert/strict";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
@@ -589,26 +592,20 @@ export async function selectedSetupCompletionScenario({
           .filter((item) => item.operation === "prepare" && item.target_id === port.id)
           .map((item) => item.id),
       );
+      const preparationWait = { requested_at: new Date().toISOString() };
+      report.observations.preparation_wait = preparationWait;
       await click(button("Prepare game data"));
       const { status: prepared, activity: completedPreparation } = await browser.wait(
-        async () => {
-          const value = await status();
-          const records = (await read("get_activities")).records.filter(
-            (item) =>
-              item.operation === "prepare" &&
-              item.target_id === port.id &&
-              !priorPreparationIds.has(item.id),
-          );
-          const terminal = records.find((item) => item.status === "succeeded");
-          const closed = (await browser.findElements(preparationDialog)).length === 0;
-          if (!value.readiness.launchable || !terminal || !closed) return false;
-          assert.equal(
-            records.length,
-            1,
-            "One deliberate preparation must produce exactly one new operation",
-          );
-          return { status: value, activity: terminal };
-        },
+        () =>
+          observePreparationCompletion({
+            readActivities: () => read("get_activities"),
+            readStatus: status,
+            isReviewClosed: async () =>
+              (await browser.findElements(preparationDialog)).length === 0,
+            portId: port.id,
+            priorPreparationIds,
+            observation: preparationWait,
+          }),
         15_000,
         "The new Core preparation must reach terminal success, readiness and a closed review",
       );
