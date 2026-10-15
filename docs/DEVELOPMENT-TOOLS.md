@@ -528,11 +528,79 @@ directory and can be used outside Portcove. Keep a repository skill focused:
 update its trigger and owning references when behavior changes instead of copying
 the same detailed contract into the root instructions.
 
+## Finite acceptance packets
+
+The existing Windows/Linux verification route accepts optional
+`--acceptance-bindings-file ABSOLUTE_JSON` for an owning finite qualification.
+The same declarations can be supplied in retained, explicitly non-secret
+`runner-metadata.json` through the documented low-level route. They name the
+actual author/source review, requirements with required scenarios, acceptance
+criteria with required image filenames, reusable evidence and visible gaps.
+These are execution declarations, not a new universal packet gate.
+
+The harness retains declared inputs before launch. After initial isolated
+application readiness and before selected scenarios, it writes
+`preflight.json` outside the source checkout, alongside the retained prelaunch
+observation. It freezes source/current-target/composed-tree, partial build-input
+fingerprint, product artifact identities, declared harness inputs, runtime,
+initial fixture identities/state, requirements and scenarios. Runtime bindings
+include observed browser/OS/Node versions and the retained public private-X11
+receipt where applicable; authentication bytes remain excluded. Original fixture
+reads remain protected by the existing cooperative ownership and content checks;
+retaining fixture copies does not prove immutable Core consumption. It needs no future
+screenshots. The build inventory's incomplete external native SDK coverage
+continues to require the normal Cargo build in the build-oriented
+`desktop-verify` route; it is not a native cache waiver. The explicit built-product
+`desktop-test` route may rerun a changed harness against an existing executable
+after review establishes unchanged effective product inputs. Preserve that
+product's actual compilation/Cargo-validation revisions and platform-specific
+frontend/build provenance, record the new harness head separately, and keep
+native SDK completeness and automatic native reuse false. This does not require
+restoring another platform's working `dist` or relabeling an older binary as a new build.
+
+After the run, `evidence.json` remains the actual run observation. The existing
+`completeAcceptancePacket` helper writes the same format at stage `completed`
+only after the canonical run binds the exact preflight and its observed build,
+product, harness and execution dependencies, real outcomes, retained artifacts, process-closure evidence,
+image-specific inspection, separate outcome review and final delivery bindings
+are supplied. Never insert placeholders or treat report reading as image
+inspection. Inspect each required PNG itself, rehash it and record reviewer,
+time and findings against those exact bytes. Required visuals also bind to their
+successful settled capture receipts and their criterion's declared scenario.
+Closure uses the existing Windows process inventory/exit receipt or Linux
+positive PID-1 namespace join; an arbitrary artifact and caller flag are insufficient.
+Missing images, failed mandatory setup, required gaps, failed,
+skipped or unsupported outcomes cannot become qualification success. Preserve
+failed evidence and the original preflight; a packet does not confer acceptance,
+merge authority or permission to change its own verifier.
+
+`reusableAcceptanceScenarios` compares effective product, harness, runtime,
+fixture, state, requirements and criteria bindings. Product changes invalidate
+product-dependent observations; harness changes invalidate scenarios using those
+inputs; runtime/display/fixture/criteria changes invalidate their observations.
+The bounded profiles conservatively rerun the selected affected set when a
+shared binding changes. Missing/ambiguous bindings require requalification.
+Documentation-only source changes may retain fully bound evidence while exact
+source-head CI remains required. Reuse references a previous completed packet
+and the unchanged evidence bytes, preserving its original execution source and
+time. Historical version-2 acceptance is not retroactively subjected to this
+format or granted earlier custody by a later copy.
+
+Keep the existing fresh current-target/composed-tree review and trusted guarded
+delivery route. A changed target requires an explicit reviewed qualification
+decision; candidate declarations cannot waive required acceptance or protected
+pre-change qualification. Retain one existing exact-head watcher and compact
+change-driven progress. At finite completion, summarize already-observed build
+reuse, deduplicated bytes, affected reruns and removed duplicate steps without
+creating a benchmark or numerical gate.
+
 ## Bounded native readiness and private Linux execution
 
 `captureSettledVisual` requires a scenario, intended target and caller-specific
 semantic readiness. The connected-folder completion journey uses it for each
-required image. Its bounded operation records viewport/application state before
+required image. Within the same deadline, two consecutive semantic/viewport/target
+observations must match before its single candidate screenshot. This waits for
+layout transitions; a later change still fails capture. It records state before
 and after PNG capture, retains and hashes the exact image, then publishes the
 capture receipt. Loading, offscreen targets, changed state, timeouts and retention
 failures produce diagnostic evidence; they cannot publish an accepted capture.

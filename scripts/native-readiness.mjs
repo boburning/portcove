@@ -1,6 +1,64 @@
 import { writeFile, link, unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileIdentity } from "./development-evidence.mjs";
+import assert from "node:assert/strict";
+
+export async function observePreparationCompletion({
+  readActivities,
+  readStatus,
+  isReviewClosed,
+  portId,
+  priorPreparationIds,
+  observation,
+}) {
+  observation.samples = (observation.samples ?? 0) + 1;
+  const sample = {
+    observed_at: new Date().toISOString(),
+    readiness: "not-read-before-terminal",
+    review_closed: "not-read-before-readiness",
+  };
+  observation.last = sample;
+  const read = async (kind, action) => {
+    sample.phase = kind;
+    observation[`${kind}_reads`] = (observation[`${kind}_reads`] ?? 0) + 1;
+    const started = performance.now();
+    try {
+      return await action();
+    } finally {
+      sample[`${kind}_ms`] = performance.now() - started;
+    }
+  };
+  const records = (await read("activity", readActivities)).records.filter(
+    (item) =>
+      item.operation === "prepare" &&
+      item.target_id === portId &&
+      !priorPreparationIds.has(item.id),
+  );
+  sample.new_activity_count = records.length;
+  sample.activities = records.slice(0, 8).map(({ id, status, started_at, finished_at }) => ({
+    id,
+    status,
+    started_at,
+    finished_at,
+  }));
+  const terminal = records.find((item) => item.status === "succeeded");
+  // Full catalog status hydration performs filesystem/readiness work. Avoid
+  // repeating it while the owned mutation is still running. The caller keeps
+  // one unchanged deadline around all three completion conditions.
+  if (!terminal) return false;
+  const value = await read("status", readStatus);
+  sample.readiness = value.readiness.launchable;
+  if (!sample.readiness) return false;
+  sample.review_closed = await read("review", isReviewClosed);
+  if (!sample.review_closed) return false;
+  assert.equal(
+    records.length,
+    1,
+    "One deliberate preparation must produce exactly one new operation",
+  );
+  sample.phase = "complete";
+  return { status: value, activity: terminal };
+}
 
 // Serializable in the actual WebView; do not import host state into this probe.
 export function observeGamepadCapability() {
@@ -146,12 +204,16 @@ export async function captureSettledVisual({
     value.state.application_state.document_ready === "complete" &&
     value.state.application_state.loading === 0;
   try {
-    let before;
-    do {
+    let before, previous;
+    for (;;) {
       before = await observe();
-      if (ready(before)) break;
+      // Semantic readiness can precede a returning panel's layout transition.
+      // Require two matching observations before taking the one candidate PNG;
+      // the post-capture check still rejects any later state change.
+      if (ready(before) && previous && JSON.stringify(previous) === JSON.stringify(before)) break;
+      previous = before;
       await bounded(() => new Promise((resolve) => setTimeout(resolve, 50)));
-    } while (!ready(before));
+    }
     const bytes = Buffer.from(await bounded(() => browser.takeScreenshot()), "base64");
     if (!bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])))
       throw new Error("Screenshot is not PNG evidence");

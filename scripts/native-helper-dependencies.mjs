@@ -239,7 +239,9 @@ export async function captureDesktopReceiptInputs({
   let failedPath;
   try {
     for (const input of plan.receiptInputs) {
-      failedPath = input.kind === "executable" ? values[input.name] : path.join(root, input.path);
+      failedPath = ["executable", "argument-file"].includes(input.kind)
+        ? values[input.name]
+        : path.join(root, input.path);
       inputs.push(
         retainedRoot
           ? {
@@ -249,7 +251,7 @@ export async function captureDesktopReceiptInputs({
                 executable: input.kind === "executable",
                 signal,
               })),
-              role: input.kind === "executable" ? input.name : input.path,
+              role: ["executable", "argument-file"].includes(input.kind) ? input.name : input.path,
               kind: input.kind,
             }
           : await fileIdentity(failedPath),
