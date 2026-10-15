@@ -25,7 +25,7 @@
     "test:native-compatibility:embedded": "node test/native-compatibility.mjs",
     "dev": "vp dev",
     "typecheck": "vp check --no-fmt --no-lint",
-    "build": "vp build",
+    "build": "node scripts/build-frontend.mjs",
     "lint:oxlint": "vp lint",
     "lint:style": "stylelint --config stylelint.config.mjs --max-warnings 0 \"src/**/*.css\"",
     "lint": "vp lint && vp run lint:style",
@@ -43,7 +43,8 @@
     "test:after-copy": "vp test --project unit",
     "check": "vp check",
     "check:content": "node scripts/check-copy.mjs && node scripts/check-theme.mjs && vp run i18n:check",
-    "test:browser:trace-probe": "node scripts/browser-runtime.mjs probe"
+    "test:browser:trace-probe": "node scripts/browser-runtime.mjs probe",
+    "build:cached": "node scripts/build-frontend.mjs --cached"
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",

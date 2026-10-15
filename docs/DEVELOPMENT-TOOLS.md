@@ -166,7 +166,7 @@ screenshots and traces remain under `.vitest` and `work/browser-traces`.
 The trace-probe script deliberately fails and preserves diagnostics.
 
 `vp check` integrates formatting, linting and TypeScript checking. `pnpm check`
-also runs the narrow stricter orchestration project. The latter retains indexed
+also runs Stylelint and the narrow stricter orchestration project. The latter retains indexed
 access and exact optional-property checks on lifecycle modules; a whole-app
 trial currently requires a separate application-level migration. Untyped Node
 scripts use Node globals and correctness lint; browser and typed code retain
@@ -176,8 +176,10 @@ specialized responsibilities. `vp run verify:frontend` composes these frontend
 checks with unit tests and a production build. Builds and tests do not silently
 repeat the entire aggregate.
 
-Vite Task caches only named repeatable tasks. Use `vp -C apps/desktop run
-build:cached` and `vp -C apps/desktop run test:cached` for reuse. The ordinary
+Vite Task caches only named repeatable tasks. Use `pnpm build:cached` and `vp -C apps/desktop run test:cached` for reuse.
+Both build aliases strip signing inputs before starting Vite+; invoke them when
+using a shell with native signing credentials. Raw `vp build`/`vp run` commands
+do not provide that environment boundary. The ordinary
 `vp build` and `vp test` execute directly; `--no-cache` forces task execution.
 A cached test result is prior deterministic feedback, never new native,
 screenshot, benchmark or acceptance evidence. Native and verification tasks

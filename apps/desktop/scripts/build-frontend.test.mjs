@@ -77,48 +77,62 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 
-it("Tauri strips signing inputs before starting the frontend toolchain", async () => {
-  const nativeConfig = JSON.parse(
-    await readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
-  );
-  expect(nativeConfig.build.beforeBuildCommand).toBe("node scripts/build-frontend.mjs");
-  const fixture = await mkdtemp(new URL("../../../work/frontend-child-", import.meta.url));
-  const child = path.join(fixture, "observe.mjs");
-  const marker = path.join(fixture, "observed.json");
-  try {
-    await writeFile(
-      child,
-      `import {writeFileSync} from "node:fs";writeFileSync(${JSON.stringify(marker)},JSON.stringify({signing:process.env.TAURI_SIGNING_PRIVATE_KEY??null,native:process.env.TAURI_ENV_PLATFORM,args:process.argv.slice(2)}));`,
+it.each([false, true])(
+  "build entrypoints strip signing inputs before the toolchain (cached=%s)",
+  async (cached) => {
+    const nativeConfig = JSON.parse(
+      await readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
     );
-    let childResult;
-    const status = buildFrontend(
-      {
-        ...process.env,
-        TAURI_SIGNING_PRIVATE_KEY: "fake-only-child-key",
-        TAURI_ENV_PLATFORM: "windows",
-      },
-      (command, args, options) => {
-        expect(command).toBe("corepack");
-        childResult = spawnSync(process.execPath, [child, ...args], {
-          ...options,
-          stdio: "pipe",
-          encoding: "utf8",
-          timeout: 5000,
-          windowsHide: true,
-        });
-        return childResult;
-      },
+    expect(nativeConfig.build.beforeBuildCommand).toBe("node scripts/build-frontend.mjs");
+    const rootPackage = JSON.parse(
+      await readFile(new URL("../../../package.json", import.meta.url), "utf8"),
     );
-    const result = childResult;
-    expect(status).toBe(0);
-    expect(result.error).toBeUndefined();
-    expect(result.status, result.stderr).toBe(0);
-    expect(JSON.parse(await readFile(marker, "utf8"))).toEqual({
-      signing: null,
-      native: "windows",
-      args: ["pnpm", "exec", "vp", "build"],
-    });
-  } finally {
-    await rm(fixture, { recursive: true, force: true });
-  }
-});
+    const appPackage = JSON.parse(
+      await readFile(new URL("../package.json", import.meta.url), "utf8"),
+    );
+    expect(rootPackage.scripts.build).toBe("node apps/desktop/scripts/build-frontend.mjs");
+    expect(appPackage.scripts.build).toBe("node scripts/build-frontend.mjs");
+    expect(rootPackage.scripts["build:cached"]).toBe(`${rootPackage.scripts.build} --cached`);
+    expect(appPackage.scripts["build:cached"]).toBe(`${appPackage.scripts.build} --cached`);
+    const fixture = await mkdtemp(new URL("../../../work/frontend-child-", import.meta.url));
+    const child = path.join(fixture, "observe.mjs");
+    const marker = path.join(fixture, "observed.json");
+    try {
+      await writeFile(
+        child,
+        `import {writeFileSync} from "node:fs";writeFileSync(${JSON.stringify(marker)},JSON.stringify({signing:process.env.TAURI_SIGNING_PRIVATE_KEY??null,native:process.env.TAURI_ENV_PLATFORM,args:process.argv.slice(2)}));`,
+      );
+      let childResult;
+      const status = buildFrontend(
+        {
+          ...process.env,
+          TAURI_SIGNING_PRIVATE_KEY: "fake-only-child-key",
+          TAURI_ENV_PLATFORM: "windows",
+        },
+        (command, args, options) => {
+          expect(command).toBe("corepack");
+          childResult = spawnSync(process.execPath, [child, ...args], {
+            ...options,
+            stdio: "pipe",
+            encoding: "utf8",
+            timeout: 5000,
+            windowsHide: true,
+          });
+          return childResult;
+        },
+        cached,
+      );
+      const result = childResult;
+      expect(status).toBe(0);
+      expect(result.error).toBeUndefined();
+      expect(result.status, result.stderr).toBe(0);
+      expect(JSON.parse(await readFile(marker, "utf8"))).toEqual({
+        signing: null,
+        native: "windows",
+        args: ["pnpm", "exec", "vp", ...(cached ? ["run", "bundle:cached"] : ["build"])],
+      });
+    } finally {
+      await rm(fixture, { recursive: true, force: true });
+    }
+  },
+);

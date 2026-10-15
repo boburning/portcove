@@ -862,7 +862,7 @@ jobs:
       - name: Check repository formatting
         working-directory: .
         run: pnpm --dir apps/desktop format:check
-      - run: vp check && vp run check:orchestration && vp -C apps/desktop run lint:style
+      - run: pnpm check
         working-directory: .
       - name: Prove frontend formatting and lint rules reject invalid fixtures
         working-directory: .

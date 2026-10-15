@@ -9,13 +9,17 @@ export function frontendEnvironment(environment) {
   );
 }
 
-export function buildFrontend(environment = process.env, run = spawnCommand) {
+export function buildFrontend(environment = process.env, run = spawnCommand, cached = false) {
   try {
-    const result = run("corepack", ["pnpm", "exec", "vp", "build"], {
-      cwd: fileURLToPath(new URL("../", import.meta.url)),
-      env: frontendEnvironment(environment),
-      stdio: "inherit",
-    });
+    const result = run(
+      "corepack",
+      ["pnpm", "exec", "vp", ...(cached ? ["run", "bundle:cached"] : ["build"])],
+      {
+        cwd: fileURLToPath(new URL("../", import.meta.url)),
+        env: frontendEnvironment(environment),
+        stdio: "inherit",
+      },
+    );
     return result.status ?? 1;
   } catch (error) {
     console.error(
@@ -25,4 +29,5 @@ export function buildFrontend(environment = process.env, run = spawnCommand) {
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) process.exitCode = buildFrontend();
+if (process.argv[1] === fileURLToPath(import.meta.url))
+  process.exitCode = buildFrontend(process.env, spawnCommand, process.argv.includes("--cached"));

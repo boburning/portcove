@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "check": "vp check && vp run check:orchestration",
-    "build": "vp build",
+    "check": "vp check && vp run check:orchestration && vp -C apps/desktop run lint:style",
+    "build": "node apps/desktop/scripts/build-frontend.mjs",
     "test": "vp test",
     "format": "vp fmt && vp -C apps/desktop run format:toml",
     "format:check": "vp fmt --check && vp -C apps/desktop run format:toml:check",
@@ -18,7 +18,8 @@
     "prepare": "node scripts/hooks-install.mjs",
     "hooks:enable": "node scripts/hooks-install.mjs enable",
     "hooks:disable": "node scripts/hooks-install.mjs disable",
-    "hooks:status": "node scripts/hooks-install.mjs status"
+    "hooks:status": "node scripts/hooks-install.mjs status",
+    "build:cached": "node apps/desktop/scripts/build-frontend.mjs --cached"
   },
   "devDependencies": {
     "@taplo/cli": "0.7.0",

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createCiMetrics } from "./ci-metrics.mjs";
@@ -239,4 +239,10 @@ test("fixture subprocess timings cannot contaminate the hosted batch report", (t
   );
   assert.equal(child.status, 0, child.stderr);
   assert.equal(readdirSync(directory).length, 1, "only actual parent batch diagnostics survive");
+});
+
+test("ordinary selected checking retains CSS correctness", () => {
+  const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  assert.match(manifest.scripts.check, /vp -C apps\/desktop run lint:style/);
+  assert.deepEqual(baselineLintPlan(make(["apps/desktop/src/app.css"]))[0].args, ["pnpm", "check"]);
 });

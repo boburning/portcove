@@ -241,7 +241,7 @@ export default defineConfig({
       },
       "verify:frontend": {
         command:
-          "vp check && vp run check:orchestration && vp -C apps/desktop run check:content && vp -C apps/desktop run lint:style && vp -C apps/desktop test --project unit && vp -C apps/desktop build",
+          "vp run check && vp -C apps/desktop run check:content && vp -C apps/desktop test --project unit && vp -C apps/desktop build",
         cache: false,
       },
       "test:native": { command: "vp -C apps/desktop run test:desktop", cache: false },

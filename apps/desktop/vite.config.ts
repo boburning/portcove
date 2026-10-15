@@ -66,7 +66,7 @@ export default defineConfig({
   test: { projects: desktopProjects },
   run: {
     tasks: {
-      "build:cached": {
+      "bundle:cached": {
         command: "vp build",
         cache: {
           input: [{ auto: true }, { pattern: "pnpm-lock.yaml", base: "workspace" }],
