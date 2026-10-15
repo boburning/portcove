@@ -127,6 +127,8 @@ async function virtualDisplay(config, runtime) {
   const record = () =>
     writeFile(path.join(runtime, "runtime-receipt.json"), JSON.stringify(receipt, null, 2) + "\n");
   let server, probe, program;
+  let display = "",
+    serverStderr = "";
   async function close(launch, name) {
     if (!launch) return;
     try {
@@ -157,10 +159,12 @@ async function virtualDisplay(config, runtime) {
       ],
       environment,
     );
-    let display = "";
     server.child.stdout.on("data", (chunk) => {
       display += chunk;
       if (display.length > 8192) receipt.server_output_exceeded = true;
+    });
+    server.child.stderr.on("data", (chunk) => {
+      serverStderr = (serverStderr + chunk).slice(0, 8192);
     });
     server.child.stderr.pipe(process.stderr);
     await server.ready();
@@ -231,6 +235,8 @@ async function virtualDisplay(config, runtime) {
     await close(probe, "gtk_join");
     await close(program, "harness_join");
     await close(server, "xserver_join");
+    if (receipt.outcome === "failed")
+      receipt.server_diagnostics = { stdout: display.slice(0, 8192), stderr: serverStderr };
     await record();
   }
   console.log(

@@ -965,7 +965,13 @@ test("owned frame CSP requires a trusted enforced event and removes its frame/li
     const frames = [];
     let attempts = 0;
     let appended = false;
-    const invoke = async (command) => {
+    const invoke = async (command, args) => {
+      if (
+        appended &&
+        command === "open_external_url" &&
+        args?.url === "https://github.com/boburning/portcove"
+      )
+        throw new Error("Contract fixture stops after frame guard");
       if (command === "get_locale_preference" && appended)
         throw new Error("Contract fixture stops after frame guard");
       if (command === "get_locale_preference") return { ok: true, value: { locale: "en" } };
@@ -1089,6 +1095,7 @@ test("owned frame CSP requires a trusted enforced event and removes its frame/li
         output,
         artifacts: [],
         packageEvidence: { fixture: true },
+        externalBrowser: { fixture: true },
       });
     } catch (caught) {
       if (caught.message !== "Contract fixture stops after frame guard") error = caught;
