@@ -1983,12 +1983,25 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
         }
     })
     .await;
+    println!(
+        "curated cache latch resolved: {:?}; reached={}",
+        clock.elapsed(),
+        reached.is_ok()
+    );
+    println!(
+        "curated cache policy intervention begin: {:?}",
+        clock.elapsed()
+    );
     let disposition = match withdrawal {
         Some((admission, candidate)) => library
             .apply_definition_publisher_policy(&admission, candidate.as_ref())
             .map(|changed| assert!(changed)),
         None => service.request_cancellation(&operation_id).map(|_| ()),
     };
+    println!(
+        "curated cache policy intervention complete: {:?}",
+        clock.elapsed()
+    );
     tokio::time::sleep(Duration::from_millis(75)).await;
     let result_finished = install.is_finished();
     let worker_finished = finished.load(Ordering::SeqCst);
@@ -3223,6 +3236,7 @@ async fn curated_installer_boundary_fixture(
     release[0]["assets"][0]["browser_download_url"] = format!("{}{path}", server.origin).into();
     let tag = serde_json::json!({"ref":"refs/tags/v1", "object":{"type":"commit","sha":record.commit_sha1}});
     for iteration in 0..2 {
+        phase(&format!("iteration {iteration} begin"));
         let before = server.requests.lock().unwrap().len();
         server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
         server.json(release.clone());
@@ -3551,6 +3565,7 @@ async fn curated_installer_boundary_fixture(
             if !cache_controls {
                 continue;
             }
+            phase("cache lock refusal begin");
             let guard = library.try_lock_curated_cache().unwrap();
             let blocked = library.root().join("busy-cache-copy.zip");
             assert!(
@@ -3565,6 +3580,7 @@ async fn curated_installer_boundary_fixture(
             );
             assert!(!blocked.exists());
             drop(guard);
+            phase("cache lock refusal complete");
             let cached = library
                 .downloads_dir()
                 .join("curated-v1")
@@ -3572,6 +3588,7 @@ async fn curated_installer_boundary_fixture(
             let mut corrupted = bytes.clone();
             corrupted[0] ^= 1;
             std::fs::write(&cached, &corrupted).unwrap();
+            phase("corrupted cache restore begin");
             let refusal = crate::curated_cache::CacheWorker::new(
                 &scope,
                 &resolved.release.asset,
@@ -3586,7 +3603,11 @@ async fn curated_installer_boundary_fixture(
                 corrupted,
                 "failed cache evidence must remain"
             );
+            phase("corrupted cache restore complete");
+            phase("installed verification after corruption begin");
             assert!(installer.verify(&installed).unwrap().valid);
+            phase("installed verification after corruption complete");
+            phase("capacity fixture creation begin");
             let root = library.downloads_dir().join("curated-v1");
             std::fs::rename(
                 &root,
@@ -3597,8 +3618,10 @@ async fn curated_installer_boundary_fixture(
             for number in 0..256 {
                 std::fs::write(root.join(format!("{number:064x}.asset")), []).unwrap();
             }
+            phase("capacity fixture creation complete");
             let original = library.root().join("capacity-source.zip");
             std::fs::write(&original, &bytes).unwrap();
+            phase("capacity retention refusal begin");
             assert!(
                 !crate::curated_cache::CacheWorker::new(
                     &scope,
@@ -3614,7 +3637,9 @@ async fn curated_installer_boundary_fixture(
                 256,
                 "a full cache must not evict evidence"
             );
+            phase("capacity retention refusal complete");
         }
+        phase(&format!("iteration {iteration} complete"));
     }
     if cache_controls {
         assert!(server.responses.lock().unwrap().is_empty());
