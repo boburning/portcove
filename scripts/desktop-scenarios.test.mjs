@@ -339,7 +339,89 @@ import {
   assertLocalMainUrl,
   verifyLinuxPackageEvidence,
   chromeObserverEndpoint,
+  assertMainWebviewContainment,
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
+
+test("failed permission command retains bounded redacted progress without acceptance or error replacement", async () => {
+  async function run(mode) {
+    const original = new Error("Owned permission command timed out");
+    const observations = {};
+    const window = {};
+    let reads = 0;
+    const browser = {
+      executeAsyncScript: async (callback) => {
+        const source = callback.toString();
+        if (source.includes("window.open")) return { refused: true };
+        if (source.includes("securitypolicyviolation"))
+          return { executed: false, blockedUri: "inline" };
+        assert.ok(source.includes("Notification.requestPermission"));
+        runInNewContext(`(${source})(done)`, {
+          window,
+          done: () => assert.fail("Pending media must not complete the command"),
+          Notification: { requestPermission: () => Promise.resolve("denied") },
+          navigator: {
+            geolocation: {
+              getCurrentPosition: (_success, failure, constraints) => {
+                assert.equal(constraints.timeout, 5000);
+                failure({ code: 1 });
+              },
+            },
+            mediaDevices: {
+              getUserMedia: (constraints) => {
+                assert.deepEqual(JSON.parse(JSON.stringify(constraints)), {
+                  audio: true,
+                  video: true,
+                });
+                return new Promise(() => {});
+              },
+            },
+          },
+        });
+        await new Promise((resolve) => setImmediate(resolve));
+        if (mode === "foreign")
+          window.__portcovePermissionProgress = {
+            notifications: "owned-private-value",
+            geolocation: "code-1",
+            media: { private: "owned-private-value" },
+            extra: "owned-private-value",
+          };
+        throw original;
+      },
+      executeScript: async (callback) => {
+        reads++;
+        if (mode === "read-error") throw new Error("owned-private-value");
+        if (mode === "deadline") return new Promise(() => {});
+        return runInNewContext(`(${callback.toString()})()`, { window });
+      },
+    };
+    await assert.rejects(
+      assertMainWebviewContainment({
+        browser,
+        invoke: async (command) => {
+          assert.equal(command, "get_locale_preference");
+          return { value: { locale: "en" } };
+        },
+        observations,
+        onNavigation: () => assert.fail("Original permission failure must stop navigation"),
+      }),
+      (error) => error === original,
+    );
+    assert.equal(reads, 1);
+    assert.equal(Object.hasOwn(observations, "permissionRequests"), false);
+    assert.ok(!JSON.stringify(observations).includes("owned-private-value"));
+    return JSON.parse(JSON.stringify(observations.permissionRequestDiagnostic));
+  }
+  assert.deepEqual(await run("captured"), {
+    status: "captured",
+    requests: { notifications: "denied", geolocation: "code-1", media: "pending" },
+  });
+  assert.deepEqual(await run("foreign"), {
+    status: "captured",
+    requests: { notifications: "unclassified", geolocation: "code-1", media: "unclassified" },
+  });
+  assert.deepEqual(await run("read-error"), { status: "unavailable", reason: "read-error" });
+  assert.deepEqual(await run("deadline"), { status: "unavailable", reason: "deadline" });
+});
 
 test("external browser observation uses only the owned Chrome loopback endpoint", () => {
   const id = "12345678-1234-1234-1234-123456789abc";

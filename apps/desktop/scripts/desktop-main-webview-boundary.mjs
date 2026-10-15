@@ -825,25 +825,119 @@ export async function assertMainWebviewContainment({
   });
   assert.equal(observations.cspInline.executed, false);
   assert.equal(observations.cspInline.blockedUri, "inline");
-  observations.permissionRequests = await browser.executeAsyncScript((done) => {
-    Promise.all([
-      Notification.requestPermission().then((value) => ["notifications", value]),
-      new Promise((resolve) =>
-        navigator.geolocation.getCurrentPosition(
-          () => resolve(["geolocation", "unexpected-grant"]),
-          (error) => resolve(["geolocation", { code: error.code }]),
-          { timeout: 5000 },
+  try {
+    observations.permissionRequests = await browser.executeAsyncScript((done) => {
+      const kinds = ["notifications", "geolocation", "media"];
+      const progress = Object.fromEntries(kinds.map((kind) => [kind, "pending"]));
+      window.__portcovePermissionProgress = progress;
+      Promise.all(
+        [
+          Notification.requestPermission().then((value) => ["notifications", value]),
+          new Promise((resolve) =>
+            navigator.geolocation.getCurrentPosition(
+              () => resolve(["geolocation", "unexpected-grant"]),
+              (error) => resolve(["geolocation", { code: error.code }]),
+              { timeout: 5000 },
+            ),
+          ),
+          navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then(
+            (stream) => {
+              stream.getTracks().forEach((track) => track.stop());
+              return ["media", "unexpected-grant"];
+            },
+            (error) => ["media", { name: error.name }],
+          ),
+        ].map((request, index) =>
+          request.then(
+            (entry) => {
+              const value = entry[1];
+              const outcome =
+                typeof value === "string"
+                  ? value
+                  : kinds[index] === "geolocation"
+                    ? `code-${value?.code}`
+                    : value?.name;
+              progress[kinds[index]] = [
+                "denied",
+                "default",
+                "granted",
+                "unexpected-grant",
+                "code-1",
+                "code-2",
+                "code-3",
+                "NotAllowedError",
+                "OverconstrainedError",
+                "NotFoundError",
+                "NotReadableError",
+                "AbortError",
+                "SecurityError",
+                "InvalidStateError",
+                "NotSupportedError",
+                "TypeError",
+              ].includes(outcome)
+                ? outcome
+                : "unclassified";
+              return entry;
+            },
+            (error) => {
+              progress[kinds[index]] = "rejected";
+              throw error;
+            },
+          ),
         ),
-      ),
-      navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then(
-        (stream) => {
-          stream.getTracks().forEach((track) => track.stop());
-          return ["media", "unexpected-grant"];
-        },
-        (error) => ["media", { name: error.name }],
-      ),
-    ]).then((entries) => done(Object.fromEntries(entries)));
-  });
+      ).then((entries) => done(Object.fromEntries(entries)));
+    });
+  } catch (original) {
+    // Read-only failure diagnostics cannot supply acceptance or replace the failure.
+    let timer;
+    const deadline = new Error("Permission progress readback deadline");
+    try {
+      const requests = await Promise.race([
+        browser.executeScript(() => {
+          const progress = window.__portcovePermissionProgress;
+          const allowed = [
+            "pending",
+            "rejected",
+            "denied",
+            "default",
+            "granted",
+            "unexpected-grant",
+            "code-1",
+            "code-2",
+            "code-3",
+            "NotAllowedError",
+            "OverconstrainedError",
+            "NotFoundError",
+            "NotReadableError",
+            "AbortError",
+            "SecurityError",
+            "InvalidStateError",
+            "NotSupportedError",
+            "TypeError",
+            "unclassified",
+          ];
+          return Object.fromEntries(
+            ["notifications", "geolocation", "media"].map((kind) => {
+              const outcome = progress?.[kind];
+              return [kind, allowed.includes(outcome) ? outcome : "unclassified"];
+            }),
+          );
+        }),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(deadline), 1000);
+        }),
+      ]);
+      observations.permissionRequestDiagnostic = { status: "captured", requests };
+    } catch (error) {
+      observations.permissionRequestDiagnostic = {
+        status: "unavailable",
+        reason: error === deadline ? "deadline" : "read-error",
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+    throw original;
+  }
   assert.equal(observations.permissionRequests.notifications, "denied");
   assert.equal(observations.permissionRequests.geolocation.code, 1);
   assert.notEqual(observations.permissionRequests.media, "unexpected-grant");
