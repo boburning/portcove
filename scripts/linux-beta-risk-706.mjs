@@ -228,15 +228,7 @@ export function parseScan706(stdout, stderr) {
   return { errors, summary, diagnostics };
 }
 
-export function decide706({
-  approval,
-  candidate,
-  scan,
-  releases,
-  purpose = "qualification",
-  publicationTag = null,
-  now = new Date().toISOString(),
-}) {
+export function validateApproval706(approval, now = new Date().toISOString()) {
   if (
     approval?.approvalUrl !== approval706 ||
     approval.owner !== "boburning" ||
@@ -255,6 +247,18 @@ export function decide706({
     instant >= Date.parse(expiry706)
   )
     throw new Error("#706 approval is not valid at this instant");
+}
+
+export function decide706({
+  approval,
+  candidate,
+  scan,
+  releases,
+  purpose = "qualification",
+  publicationTag = null,
+  now = new Date().toISOString(),
+}) {
+  validateApproval706(approval, now);
   if (
     !sha.test(candidate?.head) ||
     !sha256.test(candidate?.lockSha256) ||
@@ -430,7 +434,7 @@ export function scan706(cwd = root, filename = process.env.PORTCOVE_706_SCAN_REC
   return { scan, output };
 }
 
-export function disposition706(cwd, scan, now, purpose = "qualification") {
+export function decisionInputs706(cwd, scan, now, purpose = "qualification") {
   const approval = JSON.parse(readFileSync(path.join(cwd, approvalPath), "utf8"));
   const releases = new GitHubApiClient().paginateRest(
     "repos/boburning/portcove/releases?per_page=100",
@@ -449,7 +453,7 @@ export function disposition706(cwd, scan, now, purpose = "qualification") {
           label: "#706 published asset inventory",
         },
       );
-  return decide706({
+  return {
     approval,
     candidate: candidate706(cwd),
     scan,
@@ -457,7 +461,11 @@ export function disposition706(cwd, scan, now, purpose = "qualification") {
     now,
     purpose,
     publicationTag: purpose === "release" ? process.env.GITHUB_REF_NAME : null,
-  });
+  };
+}
+
+export function disposition706(cwd, scan, now, purpose = "qualification") {
+  return decide706(decisionInputs706(cwd, scan, now, purpose));
 }
 
 export function validateScan706(scan, approval) {

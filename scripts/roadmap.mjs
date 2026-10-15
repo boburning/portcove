@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { access, readFile } from "node:fs/promises";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,6 +17,12 @@ import { acquireOwnedProcessLock } from "./process-lock.mjs";
 import { validateGitHubBody } from "./github-body.mjs";
 import { captureCheckoutContext, checkContextualDoctor } from "./checkout-context.mjs";
 import { summarizeReport, retainReportSummary } from "./report-summary.mjs";
+import {
+  decide706,
+  decisionInputs706,
+  scan706,
+  validateApproval706,
+} from "./linux-beta-risk-706.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
@@ -1217,7 +1223,7 @@ usage:
   node scripts/roadmap.mjs handoff-return --offer-file <path> --runner <actual-instance> --disposition <accepted|declined|pending> --evidence <exact-reference> [--json]
   node scripts/roadmap.mjs history --issue <number> [--coordination-pr <number>] [--json]
   node scripts/roadmap.mjs rename-commitment [--apply]
-  node scripts/roadmap.mjs readiness --release <release>
+  node scripts/roadmap.mjs readiness --release <release> [--linux-beta-706]
   node scripts/roadmap.mjs candidate-scope --issues <issue,issue,...>
   node scripts/roadmap.mjs snapshot --release <release> --output <docs/releases/path>
 
@@ -3446,7 +3452,18 @@ export function dependencyCycles(items) {
   return cycles;
 }
 
-export function analyzeReleaseReadiness(items, release, { candidateIssues = null } = {}) {
+export function analyzeReleaseReadiness(
+  items,
+  release,
+  {
+    candidateIssues = null,
+    risk706Approval = JSON.parse(
+      readFileSync(path.join(projectRoot, ".github/linux-beta-risk-706.json"), "utf8"),
+    ),
+    risk706Evidence = null,
+    now = new Date().toISOString(),
+  } = {},
+) {
   if (
     candidateIssues !== null &&
     (!Array.isArray(candidateIssues) ||
@@ -3480,12 +3497,43 @@ export function analyzeReleaseReadiness(items, release, { candidateIssues = null
     ? targeted
     : targeted.filter((item) => fieldValue(item, "Release commitment") === "Required");
   const relevantUnclassified = targeted.filter((item) => !fieldValue(item, "Release commitment"));
+  let approvedPlanning706 = false;
+  try {
+    validateApproval706(risk706Approval, now);
+    approvedPlanning706 = release === "Public beta" && !candidateIssues;
+  } catch {
+    /* Missing/expired approval retains the ordinary safety rules. */
+  }
+  const scopedRemediation706 = targeted.filter(
+    (item) =>
+      approvedPlanning706 &&
+      [49, 706].includes(issueNumber(item)) &&
+      itemUrl(item) === `https://github.com/boburning/portcove/issues/${issueNumber(item)}` &&
+      fieldValue(item, "Target release") === "Public beta" &&
+      fieldValue(item, "Platform") === "Linux" &&
+      fieldValue(item, "Status") === "Blocked" &&
+      fieldValue(item, "Work type") === "Security" &&
+      fieldValue(item, "Release commitment") === "Planned" &&
+      !itemDone(item),
+  );
+  // Planning is not candidate eligibility. Only the existing complete release evaluator
+  // may satisfy these two still-open remediation nodes for this ordinary Linux candidate.
+  let candidateDisposition706 = null;
+  if (risk706Evidence) {
+    if (!approvedPlanning706 || risk706Evidence.purpose !== "release")
+      throw new Error(
+        "#706 candidate disposition applies only to ordinary Public beta release readiness",
+      );
+    candidateDisposition706 = decide706({ ...risk706Evidence, approval: risk706Approval, now });
+  }
+  const pendingRiskDispositions = candidateDisposition706 ? [] : scopedRemediation706;
   const safetyConflicts = targeted.filter(
     (item) =>
       !itemDone(item) &&
       fieldValue(item, "Status") === "Blocked" &&
       fieldValue(item, "Work type") === "Security" &&
-      fieldValue(item, "Release commitment") !== "Required",
+      fieldValue(item, "Release commitment") !== "Required" &&
+      !scopedRemediation706.includes(item),
   );
   const planned = targeted.filter((item) =>
     ["Planned", "Opportunistic"].includes(fieldValue(item, "Release commitment")),
@@ -3526,22 +3574,33 @@ export function analyzeReleaseReadiness(items, release, { candidateIssues = null
           ? !commitment
           : commitment !== "Required" || !includedReleases.includes(target)
       ) {
-        dependencyConflicts.push({
-          item,
-          dependency: projectItem,
-          commitment,
-          target,
-        });
+        if (
+          !(
+            scopedRemediation706.includes(item) &&
+            scopedRemediation706.includes(projectItem) &&
+            issueNumber(item) === 49 &&
+            number === 706
+          )
+        )
+          dependencyConflicts.push({
+            item,
+            dependency: projectItem,
+            commitment,
+            target,
+          });
       }
       visit(projectItem);
     }
   };
-  for (const item of uniqueItems([...requiredRoots, ...safetyConflicts])) visit(item);
+  for (const item of uniqueItems([...requiredRoots, ...safetyConflicts, ...scopedRemediation706]))
+    visit(item);
   const effectiveRequired = [...effective.values()];
   if (candidateIssues)
     unassignedRequired = unassignedRequired.filter((item) => effectiveRequired.includes(item));
   const cycles = dependencyCycles(effectiveRequired.filter((item) => !item.missingProject));
-  const unfinishedRequired = effectiveRequired.filter((item) => !itemDone(item));
+  const unfinishedRequired = effectiveRequired.filter(
+    (item) => !itemDone(item) && !(candidateDisposition706 && scopedRemediation706.includes(item)),
+  );
   const statusConflicts = uniqueItems([...targeted, ...effectiveRequired]).filter((item) => {
     const state = repositoryState(item);
     return (
@@ -3562,6 +3621,9 @@ export function analyzeReleaseReadiness(items, release, { candidateIssues = null
     planned,
     opportunistic: planned, // Historical consumer compatibility; active reports use Planned.
     safetyConflicts,
+    scopedRemediation706,
+    pendingRiskDispositions,
+    candidateDisposition706,
     dependencyConflicts,
     missingProjectDependencies,
     truncatedDependencies,
@@ -3570,6 +3632,7 @@ export function analyzeReleaseReadiness(items, release, { candidateIssues = null
     unassignedRequired,
     statusConflicts,
     ready:
+      pendingRiskDispositions.length === 0 &&
       unfinishedRequired.length === 0 &&
       relevantUnclassified.length === 0 &&
       safetyConflicts.length === 0 &&
@@ -3610,7 +3673,7 @@ export function renderReadinessSummary(analysis) {
       (item) => `- Repository/Project status mismatch: ${itemLine(item)}`,
     ),
   );
-  return `# ${analysis.release} readiness\n\n- Result: ${analysis.ready ? "READY" : "NOT READY"}\n- Required outcomes including blocking dependencies: ${analysis.effectiveRequired.length}\n- Unfinished required outcomes: ${analysis.unfinishedRequired.length}\n\n## Unfinished required outcomes\n\n${section(analysis.unfinishedRequired)}\n\n## Relevant unclassified work\n\n${section(analysis.relevantUnclassified)}\n\n## Safety commitment conflicts\n\n${section(analysis.safetyConflicts)}\n\n## Dependency classification conflicts\n\n${[...dependencyConflicts, ...missing, ...truncated].join("\n") || "- None recorded."}\n\n## Dependency cycles\n\n${cycles.join("\n") || "- None recorded."}\n\n## Planned work through this release\n\n${section(analysis.planned)}\n`;
+  return `# ${analysis.release} readiness\n\n- Result: ${analysis.ready ? "READY" : "NOT READY"}\n- Required outcomes including blocking dependencies: ${analysis.effectiveRequired.length}\n- Unfinished required outcomes: ${analysis.unfinishedRequired.length}\n\n## Unfinished required outcomes\n\n${section(analysis.unfinishedRequired)}\n\n## Relevant unclassified work\n\n${section(analysis.relevantUnclassified)}\n\n## Scoped Linux beta disposition\n\n${section(analysis.scopedRemediation706)}\n\n${analysis.candidateDisposition706 ? `Exact candidate ${analysis.candidateDisposition706.candidate}: accepted risk under ${analysis.candidateDisposition706.approvalUrl}; raw scan remains failed.` : analysis.pendingRiskDispositions.length ? 'Pending: run readiness --release "Public beta" --linux-beta-706 against the actual candidate with its reviewed GITHUB_REF_NAME. Planned remediation alone does not establish eligibility.' : "No scoped disposition recorded."}\n\n## Safety commitment conflicts\n\n${section(analysis.safetyConflicts)}\n\n## Dependency classification conflicts\n\n${[...dependencyConflicts, ...missing, ...truncated].join("\n") || "- None recorded."}\n\n## Dependency cycles\n\n${cycles.join("\n") || "- None recorded."}\n\n## Planned work through this release\n\n${section(analysis.planned)}\n`;
 }
 
 export function catalogQualificationSummary(catalog) {
@@ -3741,7 +3804,7 @@ export function renderSnapshot({ release, generatedAt, commit, projectUrl, items
       (cycle) => `- Dependency cycle: ${cycle.map((number) => `#${number}`).join(" -> ")}`,
     ),
   );
-  return `# ${release} release readiness\n\n> Immutable snapshot generated from the live Portcove Roadmap and catalog. Project fields and genuine blocking dependencies define readiness after ${generatedAt}.\n\n- Generated: ${generatedAt}\n- Commit: \`${commit}\`\n- Project: ${projectUrl}\n- Target release: ${release}\n- Cumulative required stages: ${includedReleases.join(", ")}\n- Derived readiness: ${readiness.ready ? "READY" : "NOT READY"}\n\n## Open blockers\n\n${section(blockers)}\n\n## Completed required items\n\n${section(complete)}\n\n## Unfinished required items\n\n${section(unfinished)}\n\n## Relevant unclassified work\n\n${section(readiness.relevantUnclassified)}\n\n## Commitment and dependency conflicts\n\n${[...readiness.safetyConflicts.map(itemLine), ...conflictLines].join("\n") || "- None recorded."}\n\n## Planned work through this release\n\n${section(readiness.planned)}\n\n## Repository closure and Project Status inconsistencies\n\n${section(inconsistencies)}\n\nA closed or not-planned repository issue is not complete unless Project Status is Done. Resolve every inconsistency before release.\n\n## Consciously deferred or postponed\n\n${section(deferred)}\n\n## Catalog qualification summary\n\n- Catalog entries: ${summary.ports}\n- Declared port/platform pairs: ${summary.declaredPlatformPairs}\n- Automated port/platform pairs: ${summary.automatedPlatformPairs}\n- Manually validated port/platform pairs: ${summary.manuallyValidatedPlatformPairs}\n- Support tiers:\n${tiers}\n\n## Completion evidence links\n\n${links.length ? links.map((url) => `- ${url}`).join("\n") : "- No explicit completion evidence links were recorded on matching Project items."}\n\n## Test, CI, rehearsal, signing, and human validation\n\n- Record reviewed test commands and results here.\n- Record required CI runs here.\n- Record release rehearsal evidence here.\n- Record signing/notarization evidence or the explicit unsigned limitation here.\n- Record required human and physical-platform evidence here.\n\n## Explicit limitations\n\n- Review every unfinished, unclassified, conflicting, and deferred item above before publication.\n- This snapshot does not grant qualification or replace catalog evidence.\n- Project fields may change after generation; regenerate rather than editing this snapshot in place.\n`;
+  return `# ${release} release readiness\n\n> Immutable snapshot generated from the live Portcove Roadmap and catalog. Project fields and genuine blocking dependencies define readiness after ${generatedAt}.\n\n- Generated: ${generatedAt}\n- Commit: \`${commit}\`\n- Project: ${projectUrl}\n- Target release: ${release}\n- Cumulative required stages: ${includedReleases.join(", ")}\n- Derived readiness: ${readiness.ready ? "READY" : "NOT READY"}\n\n## Open blockers\n\n${section(blockers)}\n\n## Completed required items\n\n${section(complete)}\n\n## Unfinished required items\n\n${section(unfinished)}\n\n## Relevant unclassified work\n\n${section(readiness.relevantUnclassified)}\n\n## Scoped Linux beta disposition\n\n${section(readiness.scopedRemediation706)}\n\nCandidate decision remains separate; Planned remediation alone does not establish eligibility.\n\n## Commitment and dependency conflicts\n\n${[...readiness.safetyConflicts.map(itemLine), ...conflictLines].join("\n") || "- None recorded."}\n\n## Planned work through this release\n\n${section(readiness.planned)}\n\n## Repository closure and Project Status inconsistencies\n\n${section(inconsistencies)}\n\nA closed or not-planned repository issue is not complete unless Project Status is Done. Resolve every inconsistency before release.\n\n## Consciously deferred or postponed\n\n${section(deferred)}\n\n## Catalog qualification summary\n\n- Catalog entries: ${summary.ports}\n- Declared port/platform pairs: ${summary.declaredPlatformPairs}\n- Automated port/platform pairs: ${summary.automatedPlatformPairs}\n- Manually validated port/platform pairs: ${summary.manuallyValidatedPlatformPairs}\n- Support tiers:\n${tiers}\n\n## Completion evidence links\n\n${links.length ? links.map((url) => `- ${url}`).join("\n") : "- No explicit completion evidence links were recorded on matching Project items."}\n\n## Test, CI, rehearsal, signing, and human validation\n\n- Record reviewed test commands and results here.\n- Record required CI runs here.\n- Record release rehearsal evidence here.\n- Record signing/notarization evidence or the explicit unsigned limitation here.\n- Record required human and physical-platform evidence here.\n\n## Explicit limitations\n\n- Review every unfinished, unclassified, conflicting, and deferred item above before publication.\n- This snapshot does not grant qualification or replace catalog evidence.\n- Project fields may change after generation; regenerate rather than editing this snapshot in place.\n`;
 }
 
 function unwrapCollection(value, key) {
@@ -5767,10 +5830,26 @@ async function main(argv) {
     }
     if (parsed.command === "readiness") {
       const release = requiredOption(parsed.options, "--release");
+      let risk706Evidence = null;
+      let risk706Output = null;
+      if (parsed.options["--linux-beta-706"]) {
+        if (release !== "Public beta")
+          throw new Error("#706 covers only ordinary Linux Public beta");
+        const { scan, output } = scan706(projectRoot);
+        risk706Output = output;
+        risk706Evidence = decisionInputs706(projectRoot, scan, undefined, "release");
+      }
       const analysis = analyzeReleaseReadiness(
         client.itemList(config.project.number, { includeDependencies: true }),
         release,
+        { risk706Evidence },
       );
+      if (analysis.candidateDisposition706)
+        writeFileSync(
+          `${risk706Output}.decision.json`,
+          `${JSON.stringify(analysis.candidateDisposition706, null, 2)}\n`,
+          { flag: "wx" },
+        );
       console.log(renderReadinessSummary(analysis));
       if (!analysis.ready) process.exitCode = 1;
       return;

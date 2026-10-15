@@ -95,6 +95,17 @@ by source matching alone; @boburning must withdraw/revise reliance in #706 and
 the protected record before proceeding. Do not treat a Planned field as approval.
 Expiry or unmet conditions restore the Linux hold regardless of Project fields.
 
+Roadmap doctor recognizes the exact canonical #49/#706 Planned, Blocked, Security,
+Linux remediation records under this dated approval without forcing them back to
+Required. Ordinary readiness and immutable snapshots still show a pending scoped
+disposition and remain NOT READY. For the actual ordinary Linux candidate,
+`node scripts/roadmap.mjs readiness --release "Public beta" --linux-beta-706`
+executes the full scan and the same release evaluator using the reviewed
+`GITHUB_REF_NAME`; it retains the raw result and separate decision. Only a valid
+candidate decision conditionally satisfies these two open remediation nodes.
+All other blockers, dependency coverage/cycles and #215's later qualification
+remain enforced. Candidate implementation scope, 1.0 and Deck receive no exception.
+
 #1993's scanner coverage candidate retains its own review and applicable protected
 qualification. Once this path is reviewed and delivered, its resume condition is
 complete qualification with the exact finding separately accounted for, not an
