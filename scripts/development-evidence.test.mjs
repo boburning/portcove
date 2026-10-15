@@ -9,6 +9,7 @@ import {
   capabilityRequirement,
   captureSettledVisual,
   observeVisibleTarget,
+  observePreparationCompletion,
 } from "./native-readiness.mjs";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
@@ -36,6 +37,94 @@ import {
   retainedExecutableCanLaunch,
   readPrelaunchCustody,
 } from "./retained-evidence.mjs";
+
+function preparationObservation(overrides = {}) {
+  return {
+    portId: "owned-port",
+    priorPreparationIds: new Set(["previous"]),
+    observation: {},
+    readActivities: async () => ({
+      records: [{ id: "new", operation: "prepare", target_id: "owned-port", status: "succeeded" }],
+    }),
+    readStatus: async () => ({ readiness: { launchable: true } }),
+    isReviewClosed: async () => true,
+    ...overrides,
+  };
+}
+
+test("preparation polling avoids full status hydration before new terminal success", async () => {
+  const input = preparationObservation({
+    readActivities: async () => ({
+      records: [
+        { id: "previous", operation: "prepare", target_id: "owned-port", status: "succeeded" },
+        { id: "other", operation: "prepare", target_id: "other-port", status: "succeeded" },
+        { id: "new", operation: "prepare", target_id: "owned-port", status: "running" },
+      ],
+    }),
+    readStatus: async () => assert.fail("No full status work during preparation"),
+    isReviewClosed: async () => assert.fail("No premature UI completion observation"),
+  });
+  assert.equal(await observePreparationCompletion(input), false);
+  assert.equal(input.observation.activity_reads, 1);
+  assert.equal(input.observation.status_reads, undefined);
+  assert.equal(input.observation.last.new_activity_count, 1);
+  assert.equal(input.observation.last.readiness, "not-read-before-terminal");
+});
+
+test("Core success still requires authoritative readiness and actual review closure", async () => {
+  let launchable = false;
+  let closed = false;
+  const input = preparationObservation({
+    readStatus: async () => ({ readiness: { launchable } }),
+    isReviewClosed: async () => closed,
+  });
+  assert.equal(await observePreparationCompletion(input), false);
+  assert.equal(input.observation.last.review_closed, "not-read-before-readiness");
+  launchable = true;
+  assert.equal(await observePreparationCompletion(input), false);
+  assert.equal(input.observation.last.review_closed, false);
+  closed = true;
+  const actual = await observePreparationCompletion(input);
+  assert.equal(actual.activity.id, "new");
+  assert.equal(actual.status.readiness.launchable, true);
+  assert.equal(input.observation.samples, 3);
+  assert.equal(input.observation.status_reads, 3);
+  assert.equal(input.observation.review_reads, 2);
+  assert.equal(input.observation.last.phase, "complete");
+});
+
+test("preparation observation refuses duplicate new operations", async () => {
+  const input = preparationObservation({
+    readActivities: async () => ({
+      records: ["first", "second"].map((id) => ({
+        id,
+        operation: "prepare",
+        target_id: "owned-port",
+        status: "succeeded",
+      })),
+    }),
+  });
+  await assert.rejects(observePreparationCompletion(input), /exactly one new operation/);
+  assert.equal(input.observation.last.new_activity_count, 2);
+});
+
+test("failed preparation reads retain bounded diagnostic phase and propagate failure", async () => {
+  for (const [phase, callback] of [
+    ["activity", "readActivities"],
+    ["status", "readStatus"],
+    ["review", "isReviewClosed"],
+  ]) {
+    const failure = new Error("owned observation failed");
+    const input = preparationObservation({
+      [callback]: async () => {
+        throw failure;
+      },
+    });
+    await assert.rejects(observePreparationCompletion(input), (error) => error === failure);
+    assert.equal(input.observation.last.phase, phase);
+    assert.equal(Number.isFinite(input.observation.last[`${phase}_ms`]), true);
+  }
+});
 
 test("bounded evidence streams hash and retain the complete multi-buffer tail", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-stream-tail-"));
