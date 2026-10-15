@@ -27,6 +27,8 @@ import {
   assertOwnedBoundaryRequests,
   normalPackageBoundaryScenario,
   verifyNormalPackageEvidence,
+  createOriginBoundaryFixture,
+  linuxOriginBoundaryScenario,
 } from "./desktop-main-webview-boundary.mjs";
 import { OwnedNativeSession, nativeSessionScript } from "./desktop-owned-native-session.mjs";
 import { launchLinuxNativeSession } from "./desktop-linux-native-session.mjs";
@@ -197,12 +199,17 @@ let historyInventory;
 const linuxSelectedSession =
   process.platform === "linux" &&
   selection.selected_scenarios.some((name) =>
-    ["native-selected-setup-completion", "native-saved-folder-selected-setup"].includes(name),
+    [
+      "native-selected-setup-completion",
+      "native-saved-folder-selected-setup",
+      "native-linux-webview-origin-boundary",
+    ].includes(name),
   );
 let linuxLaunch;
 let linuxCleanup;
 let linuxLaunchCount = 0;
 let packageEvidence;
+let originFixture;
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
   assert.deepEqual(selection.selected_scenarios, ["native-normal-package-webview-boundary"]);
@@ -1222,6 +1229,12 @@ function driverEnvironment(childEnvironment) {
   const environment = {
     ...process.env,
     ...childEnvironment,
+    ...(originFixture
+      ? {
+          PORTCOVE_WEBVIEW_BOUNDARY_FIXTURE_URL: originFixture.url,
+          TAURI_WEBDRIVER_PORT: String(port + 2),
+        }
+      : {}),
     ...(installFixture ? { PORTCOVE_QUALIFICATION_CATALOG: installFixture.catalogPath } : {}),
     ...(externalFixture ? { PORTCOVE_QUALIFICATION_CATALOG: externalFixture.catalogPath } : {}),
     ...(selection.prerequisites.includes("steam-fixture")
@@ -1517,6 +1530,10 @@ try {
   }
   await requireUnusedPort(port);
   await requireUnusedPort(port + 1);
+  if (selection.selected_scenarios.includes("native-linux-webview-origin-boundary")) {
+    await requireUnusedPort(port + 2);
+    originFixture = await createOriginBoundaryFixture();
+  }
   await startDriver();
   await connect();
   if (historySession) {
@@ -1621,6 +1638,16 @@ try {
       packageEvidence,
     });
     assertOwnedBoundaryRequests(requests);
+  });
+  await scenario("native-linux-webview-origin-boundary", async () => {
+    await linuxOriginBoundaryScenario({
+      browser,
+      invoke,
+      library,
+      output,
+      artifacts,
+      fixture: originFixture,
+    });
   });
   await scenario("empty-library", async () => {
     const bootstrap = await invoke("get_bootstrap_status");
@@ -3338,6 +3365,7 @@ try {
       }
     }
     if (installFixture) await installFixture.close();
+    if (originFixture) await originFixture.close();
     await nativeLock.release();
   }
 }

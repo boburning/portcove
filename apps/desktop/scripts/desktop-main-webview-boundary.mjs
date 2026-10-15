@@ -5,6 +5,135 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 
+export async function createOriginBoundaryFixture() {
+  const requests = [];
+  const server = createServer((request, response) => {
+    requests.push(request.url);
+    response.setHeader("Content-Type", "text/html");
+    response.end(
+      "<!doctype html><title>Owned untrusted origin</title><h1>Owned untrusted origin</h1>",
+    );
+  });
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  return {
+    url: `http://127.0.0.1:${server.address().port}/untrusted`,
+    requests,
+    close: () =>
+      new Promise((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      ),
+  };
+}
+
+export async function linuxOriginBoundaryScenario({
+  browser,
+  invoke,
+  library,
+  output,
+  artifacts,
+  fixture,
+}) {
+  assert.equal(process.platform, "linux");
+  const report = { outcome: "failed", fixture: fixture.url, observations: {} };
+  const observations = report.observations;
+  const metadata = () =>
+    browser.executeScript(() => ({
+      label: window.__TAURI_INTERNALS__?.metadata?.currentWebview?.label ?? null,
+      ipc: typeof window.__TAURI_INTERNALS__?.invoke === "function",
+      url: location.href,
+    }));
+  const select = async (label) => {
+    let selected;
+    await browser.wait(
+      async () => {
+        for (const handle of await browser.getAllWindowHandles()) {
+          await browser.switchTo().window(handle);
+          const context = await metadata();
+          if (context.label === label) {
+            assert.equal(context.ipc, true, "Require actual Tauri IPC, not API absence");
+            selected = { handle, ...context };
+            return true;
+          }
+        }
+        return false;
+      },
+      10_000,
+      `Owned ${label} webview was not observed`,
+    );
+    return selected;
+  };
+  const refusals = async (name, customGuard) => {
+    const records = (observations[name] = []);
+    for (const [command, args] of [
+      ["get_bootstrap_status", {}],
+      ["set_locale_preference", { locale: null }],
+      ["plugin:dialog|open", { options: {} }],
+      ["arm_boundary_main_navigation", {}],
+    ]) {
+      const record = { command, args };
+      records.push(record);
+      record.result = await invoke(command, args);
+      assert.equal(record.result.ok, false, "The actual privileged request must be refused");
+      assert.equal(typeof record.result.error, "string");
+      assert.match(
+        record.result.error,
+        command === "plugin:dialog|open" ? /not allowed/i : customGuard,
+        "Require the expected host/ACL guard, not malformed arguments or missing IPC",
+      );
+    }
+  };
+  try {
+    await browser.manage().setTimeouts({ script: 10_000, pageLoad: 10_000 });
+    observations.main = await select("main");
+    assert.equal(observations.main.url, "tauri://localhost");
+    observations.before = await readyMainContext({ browser, invoke, library });
+    observations.positiveMutation = await invoke("set_locale_preference", { locale: "en" });
+    assert.equal(observations.positiveMutation.ok, true);
+    observations.created = await invoke("create_boundary_windows");
+    assert.equal(
+      observations.created.ok,
+      true,
+      "Require the explicitly enabled qualification fixture",
+    );
+    observations.secondary = await select("boundary-secondary");
+    assert.equal(observations.secondary.url, observations.main.url);
+    await refusals("secondaryRefusals", /only to the main window/);
+    observations.remote = await select("boundary-remote");
+    assert.equal(observations.remote.url, fixture.url);
+    await refusals("remoteRefusals", /not allowed/i);
+    await select("main");
+    observations.armed = await invoke("arm_boundary_main_navigation");
+    assert.equal(observations.armed.ok, true);
+    await browser.get(fixture.url);
+    observations.sameLabel = await metadata();
+    assert.deepEqual(observations.sameLabel, { label: "main", ipc: true, url: fixture.url });
+    assert.equal(await browser.getWindowHandle(), observations.main.handle);
+    await refusals("sameLabelRefusals", /not allowed/i);
+    await browser.get(observations.main.url);
+    await browser.wait(async () => (await metadata()).ipc, 10_000);
+    observations.returned = await readyMainContext({ browser, invoke, library });
+    assert.deepEqual(observations.returned, observations.before);
+    observations.returnedLocale = await invoke("get_locale_preference");
+    assert.deepEqual(observations.returnedLocale, { ok: true, value: { locale: "en" } });
+    observations.restoredLocale = await invoke("set_locale_preference", { locale: null });
+    assert.equal(observations.restoredLocale.ok, true);
+    report.outcome = "passed";
+  } catch (error) {
+    report.failure = { name: error.name, message: error.message, stack: error.stack };
+    throw error;
+  } finally {
+    report.fixtureRequests = [...fixture.requests];
+    report.interpretation =
+      "Qualification-feature Linux IPC origin observations; not ordinary shipping, device permissions, installed/updater or minimum-environment proof.";
+    const file = path.join(output, "linux-webview-origin-boundary.json");
+    await writeFile(file, JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
+    artifacts.push(file);
+  }
+}
+
 // Evidence binding only; this does not authorize signing, installation or publication.
 export async function verifyNormalPackageEvidence(file, revision, executable, root) {
   assert.ok(file && path.isAbsolute(file), "Normal package evidence requires an absolute path");
