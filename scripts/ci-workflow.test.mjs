@@ -1562,7 +1562,7 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(frontend, /Install pinned recipe runner/);
   const install = frontend.indexOf("args: [--frozen-lockfile]");
   const formatting = frontend.indexOf("pnpm --dir apps/desktop format:check");
-  const lint = frontend.indexOf("vp check");
+  const lint = frontend.indexOf("pnpm check");
   const build = frontend.indexOf("pnpm build");
   assert.ok(install >= 0 && formatting > install && lint > formatting && build > lint);
   assert.match(frontend, /lint-tools\.integration\.mjs oxfmt oxlint stylelint/);
@@ -1596,8 +1596,9 @@ test("frontend tools resolve through the pinned Vite+ bundle", async () => {
   assert.equal(manifest.devDependencies["vite-plus"], "catalog:");
   for (const superseded of ["oxfmt", "oxlint", "oxlint-tsgolint", "husky", "lint-staged"])
     assert.equal(manifest.devDependencies[superseded], undefined);
-  assert.equal(manifest.scripts.check, "vp check && vp run check:orchestration");
-  assert.equal(manifest.scripts.build, "vp build");
+  assert.match(manifest.scripts.check, /vp check && vp run check:orchestration/);
+  assert.match(manifest.scripts.check, /run lint:style/);
+  assert.equal(manifest.scripts.build, "node apps/desktop/scripts/build-frontend.mjs");
 });
 
 test("ordinary tooling contracts select the workflow contract and full CI retains its inventory", async () => {
