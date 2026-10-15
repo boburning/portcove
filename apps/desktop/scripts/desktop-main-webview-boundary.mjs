@@ -572,7 +572,7 @@ export async function assertMainWebviewContainment({
   });
   assert.equal(observations.permissionRequests.notifications, "denied");
   assert.equal(observations.permissionRequests.geolocation.code, 1);
-  assert.equal(observations.permissionRequests.media.name, "NotAllowedError");
+  assert.notEqual(observations.permissionRequests.media, "unexpected-grant");
   const diagnosticPath = path.join(library, "logs", "portcove-desktop.jsonl");
   const navigationRefusals = async () =>
     (await readFile(diagnosticPath, "utf8"))
@@ -611,4 +611,7 @@ export async function assertMainWebviewContainment({
   }
   observations.mainNavigatedUrl = await browser.getCurrentUrl();
   assert.equal(observations.mainNavigatedUrl, initialUrl);
+  // Constraint rejection can precede permission handling on a device-less host.
+  // Collect independent navigation evidence before retaining the strict failure.
+  assert.equal(observations.permissionRequests.media.name, "NotAllowedError");
 }
