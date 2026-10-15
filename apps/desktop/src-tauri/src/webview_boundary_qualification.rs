@@ -1,6 +1,25 @@
 //! Qualification-only windows exercise the existing command/origin guards.
 //! No additional capability or privileged command is granted to these windows.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static MAIN_FIXTURE_NAVIGATION: AtomicBool = AtomicBool::new(false);
+
+fn take_fixture_navigation(
+    label: &str,
+    url: &tauri::Url,
+    fixture: &tauri::Url,
+    armed: &AtomicBool,
+) -> bool {
+    label == "main" && url == fixture && armed.swap(false, Ordering::SeqCst)
+}
+
+pub fn take_main_fixture_navigation(label: &str, url: &tauri::Url) -> bool {
+    fixture_url().ok().flatten().is_some_and(|fixture| {
+        take_fixture_navigation(label, url, &fixture, &MAIN_FIXTURE_NAVIGATION)
+    })
+}
+
 fn fixture_url() -> Result<Option<tauri::Url>, String> {
     let Some(value) = std::env::var_os("PORTCOVE_WEBVIEW_BOUNDARY_FIXTURE_URL") else {
         return Ok(None);
@@ -81,7 +100,10 @@ pub async fn recreate_boundary_owner<R: tauri::Runtime>(
 pub fn handles(command: &str) -> bool {
     matches!(
         command,
-        "create_boundary_windows" | "queue_boundary_reply" | "recreate_boundary_owner"
+        "create_boundary_windows"
+            | "queue_boundary_reply"
+            | "recreate_boundary_owner"
+            | "arm_boundary_main_navigation"
     )
 }
 
@@ -93,7 +115,14 @@ pub fn dispatch<R: tauri::Runtime>(invoke: tauri::ipc::Invoke<R>) -> bool {
     use tauri::Manager;
     let command = invoke.message.command().to_owned();
     let app = invoke.message.webview_ref().app_handle().clone();
-    if command == "queue_boundary_reply" {
+    if command == "arm_boundary_main_navigation" {
+        let result = fixture_url().and_then(|fixture| {
+            fixture.ok_or("boundary fixture is inactive")?;
+            MAIN_FIXTURE_NAVIGATION.store(true, Ordering::SeqCst);
+            Ok(())
+        });
+        invoke.resolver.respond(result.map_err(Into::into));
+    } else if command == "queue_boundary_reply" {
         let callback = match invoke.message.payload() {
             tauri::ipc::InvokeBody::Json(value) => value
                 .get("callback")
@@ -119,4 +148,37 @@ pub fn dispatch<R: tauri::Runtime>(invoke: tauri::ipc::Invoke<R>) -> bool {
         });
     }
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn main_fixture_navigation_requires_exact_target_and_consumes_one_arm() {
+        let fixture = tauri::Url::parse("http://127.0.0.1:34567/untrusted").unwrap();
+        let armed = AtomicBool::new(false);
+        assert!(!take_fixture_navigation("main", &fixture, &fixture, &armed));
+        armed.store(true, Ordering::SeqCst);
+        assert!(!take_fixture_navigation(
+            "secondary",
+            &fixture,
+            &fixture,
+            &armed
+        ));
+        for other in [
+            "http://127.0.0.1:34568/untrusted",
+            "http://127.0.0.1:34567/other",
+            "https://127.0.0.1:34567/untrusted",
+        ] {
+            assert!(!take_fixture_navigation(
+                "main",
+                &tauri::Url::parse(other).unwrap(),
+                &fixture,
+                &armed
+            ));
+        }
+        assert!(take_fixture_navigation("main", &fixture, &fixture, &armed));
+        assert!(!take_fixture_navigation("main", &fixture, &fixture, &armed));
+    }
 }
