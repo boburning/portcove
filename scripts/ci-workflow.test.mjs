@@ -1120,7 +1120,7 @@ test("release, rehearsal and deep audit Rust callers preserve repository pin, co
     ["release.yml", "validate", undefined],
     ["linux-package-ownership-rehearsal.yml", "build", "key: linux-package-ownership-rehearsal"],
     ["updater-artifact-rehearsal.yml", "packages", "key: updater-artifact-rehearsal"],
-    ["deep-quality.yml", "audit", "shared-key: deep-quality"],
+    ["deep-quality.yml", "audit", "shared-key: deep-quality-ubuntu-22.04"],
   ]) {
     await t.test(`${file} ${name}`, async () => {
       const source = await readFile(
