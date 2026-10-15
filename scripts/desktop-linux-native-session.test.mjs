@@ -1,4 +1,4 @@
-import { readLinuxX11Configuration } from "./desktop-linux-x11.mjs";
+import { readLinuxX11Configuration, assertQualificationUidMap } from "./desktop-linux-x11.mjs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawn, spawnSync } from "node:child_process";
@@ -7,7 +7,61 @@ import { mkdtemp, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { launchLinuxNativeSession } from "../apps/desktop/scripts/desktop-linux-native-session.mjs";
+import { assertHostedMediaEnvironment, readMediaConfiguration } from "./desktop-linux-media.mjs";
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test("private-X11 bootstrap binds the actual ordinary caller rather than another user's UID", () => {
+  assertQualificationUidMap(1000, "0 1000 1\n");
+  assertQualificationUidMap(1001, "         0       1001          1\n");
+  for (const [uid, mapping] of [
+    [1001, "0 1000 1"],
+    [0, "0 0 1"],
+    [-1, "0 -1 1"],
+    [1.5, "0 1.5 1"],
+    [1001, "0 1001 2"],
+  ])
+    assert.throws(() => assertQualificationUidMap(uid, mapping));
+});
+
+test("media provisioning refuses a user host, root, other repository or other platform before privileged commands", () => {
+  const environment = {
+    GITHUB_ACTIONS: "true",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    RUNNER_OS: "Linux",
+    RUNNER_ARCH: "X64",
+    RUNNER_ENVIRONMENT: "github-hosted",
+  };
+  assertHostedMediaEnvironment(environment, "linux", 1001);
+  for (const [env, platform, uid] of [
+    [{ ...environment, GITHUB_ACTIONS: "false" }, "linux", 1001],
+    [{ ...environment, GITHUB_REPOSITORY: "other/repo" }, "linux", 1001],
+    [{ ...environment, RUNNER_ENVIRONMENT: "self-hosted" }, "linux", 1001],
+    [environment, "win32", 1001],
+    [environment, "linux", 0],
+  ])
+    assert.throws(() => assertHostedMediaEnvironment(env, platform, uid));
+});
+
+test("media configuration refuses arbitrary commands and device substitution", async () => {
+  const fs = await import("node:fs/promises");
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "pcv-media-config-"));
+  try {
+    const file = path.join(temporary, "media.json");
+    const config = {
+      video: "/dev/video42",
+      source: "portcove_qualification",
+      source_head: "a".repeat(40),
+      socket: path.join(temporary, "socket"),
+      cookie: path.join(temporary, "auth.cookie"),
+    };
+    await fs.writeFile(file, JSON.stringify({ ...config, command: "untrusted" }));
+    await assert.rejects(readMediaConfiguration(file));
+    await fs.writeFile(file, JSON.stringify({ ...config, video: "/dev/video0" }));
+    await assert.rejects(readMediaConfiguration(file));
+  } finally {
+    await fs.rm(temporary, { recursive: true, force: true });
+  }
+});
 
 test(
   "namespace startup failure retains bounded actual stderr and cannot establish custody",
@@ -409,6 +463,11 @@ test("private-X11 configuration refuses missing prerequisites and undeclared aut
         cookie: "must never capture",
       }),
     );
+    await assert.rejects(readLinuxX11Configuration(file), /Unsupported/u);
+    const publicConfig = JSON.parse(await fs.readFile(file, "utf8"));
+    delete publicConfig.cookie;
+    publicConfig._caller_uid = 0;
+    await fs.writeFile(file, JSON.stringify(publicConfig));
     await assert.rejects(readLinuxX11Configuration(file), /Unsupported/u);
   } finally {
     await fs.rm(temporary, { recursive: true, force: true });

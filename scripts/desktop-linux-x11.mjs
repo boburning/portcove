@@ -31,6 +31,10 @@ const source = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("../", import.meta.url));
 const scope =
   "Linux GTK/WebKit on ext4 with private authenticated virtual X11; no WSLg, physical display/controller or universal Linux qualification";
+export function assertQualificationUidMap(callerUid, mapping) {
+  assert.ok(Number.isSafeInteger(callerUid) && callerUid > 0 && callerUid < 0xffffffff);
+  assert.equal(mapping.trim().replace(/\s+/gu, " "), `0 ${callerUid} 1`);
+}
 export async function readLinuxX11Configuration(file) {
   const config = JSON.parse(await readFile(file, "utf8"));
   if (
@@ -126,7 +130,7 @@ async function virtualDisplay(config, runtime) {
   };
   const record = () =>
     writeFile(path.join(runtime, "runtime-receipt.json"), JSON.stringify(receipt, null, 2) + "\n");
-  let server, probe, program;
+  let server, probe, mediaProbe, program;
   let display = "",
     serverStderr = "";
   async function close(launch, name) {
@@ -204,6 +208,34 @@ async function virtualDisplay(config, runtime) {
     receipt.gtk_readiness = { outcome: "ready", exit: exited };
     await record();
     if (config.stage === "harness") {
+      if (process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG) {
+        mediaProbe = await launchLinuxNativeSession(
+          process.execPath,
+          [
+            path.join(root, "scripts/desktop-linux-media.mjs"),
+            "--probe",
+            process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG,
+          ],
+          environment,
+        );
+        let mediaResult = "";
+        mediaProbe.child.stdout.on("data", (chunk) => {
+          if (mediaResult.length < 16384) mediaResult += chunk;
+        });
+        mediaProbe.child.stderr.pipe(process.stderr);
+        await mediaProbe.ready();
+        const mediaExit = await waitExit(mediaProbe, 10_000);
+        await close(mediaProbe, "media_probe_join");
+        mediaProbe = undefined;
+        assert.equal(
+          mediaExit.code,
+          0,
+          "Synthetic devices must work in the app's mapped namespace",
+        );
+        assert.ok(mediaResult.length < 16384);
+        receipt.media_readiness = JSON.parse(mediaResult);
+        await record();
+      }
       environment.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT = path.join(
         runtime,
         "runtime-receipt.json",
@@ -233,6 +265,7 @@ async function virtualDisplay(config, runtime) {
     process.exitCode = 1;
   } finally {
     await close(probe, "gtk_join");
+    await close(mediaProbe, "media_probe_join");
     await close(program, "harness_join");
     await close(server, "xserver_join");
     if (receipt.outcome === "failed")
@@ -251,10 +284,7 @@ async function virtualDisplay(config, runtime) {
 async function bootstrap(config, runtime) {
   assert.equal(process.pid, 1);
   assert.equal(process.getuid(), 0);
-  assert.equal(
-    (await readFile("/proc/self/uid_map", "utf8")).trim().replace(/\s+/gu, " "),
-    "0 1000 1",
-  );
+  assertQualificationUidMap(config._caller_uid, await readFile("/proc/self/uid_map", "utf8"));
   execFileSync("/usr/bin/mount", ["-t", "tmpfs", "-o", "mode=1777,nosuid,nodev", "tmpfs", "/tmp"]);
   await mkdir("/tmp/.X11-unix", { mode: 0o1777 });
   await chmod("/tmp/.X11-unix", 0o1777);
@@ -299,7 +329,8 @@ async function bootstrap(config, runtime) {
 
 export async function runLinuxX11(file) {
   assert.equal(process.platform, "linux", "Private X11 route supports Linux only");
-  assert.equal(process.getuid(), 1000, "Proven private namespace route requires ordinary uid 1000");
+  const callerUid = process.getuid();
+  assertQualificationUidMap(callerUid, `0 ${callerUid} 1`);
   const { config, identities } = await readLinuxX11Configuration(file);
   const runtime = await mkdtemp(path.join(config.output_root, "private-x11-"));
   await chmod(runtime, 0o700);
@@ -321,6 +352,12 @@ export async function runLinuxX11(file) {
       source,
       path.join(root, "apps/desktop/scripts/desktop-linux-native-session.mjs"),
       path.join(root, "apps/desktop/scripts/native-linux-init.mjs"),
+      ...(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG
+        ? [
+            path.join(root, "scripts/desktop-linux-media.mjs"),
+            process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG,
+          ]
+        : []),
     ])
       inputs.push({
         ...(await retainEvidenceInput({ root: retainedRoot, file: input, signal })),
@@ -334,6 +371,7 @@ export async function runLinuxX11(file) {
           format_version: 1,
           scope,
           stage: config.stage,
+          caller_uid: callerUid,
           identities,
           inputs,
           limitations: [
@@ -360,7 +398,7 @@ export async function runLinuxX11(file) {
         process.execPath,
         source,
         "--internal-bootstrap",
-        JSON.stringify(config),
+        JSON.stringify({ ...config, _caller_uid: callerUid }),
         runtime,
       ],
       { ...process.env, PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: lease.owner.token },

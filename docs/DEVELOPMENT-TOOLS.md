@@ -754,14 +754,19 @@ by a healthy local-main return with the same library identity and generation.
 This fixture establishes no ordinary-package, media-device, updater or minimum
 environment claim. Its listener stays owned until native cleanup joins.
 
-`node scripts/desktop-linux-x11.mjs --config ABSOLUTE_JSON` reuses the proven uid-1000
+`node scripts/desktop-linux-x11.mjs --config ABSOLUTE_JSON` reuses the
 ext4/private authenticated virtual-X11 route. On Windows it holds the existing
 Windows native slot and Heavy Rust guard while dispatching existing Ubuntu tools;
 Linux holds its own native slot and maintained PID namespace/init controls.
 Stages `gtk` and `harness` permit selected diagnostics without running a whole
 journey. A version-1 configuration declares existing absolute `xvfb`, `xkbcomp`,
 `output_root` and `harness_args`; Windows dispatch additionally requires existing
-absolute Linux `node` and `tool_cache` paths. It installs nothing. For example:
+absolute Linux `node` and `tool_cache` paths. It installs nothing.
+
+The parent binds its actual ordinary caller UID to the bootstrap namespace map;
+public configuration cannot supply that binding. The inner application UID/map
+remains 1000-to-0. A different host UID needs its own actual runtime observation.
+For example:
 
 ```json
 {
@@ -804,6 +809,18 @@ PID namespace and requires positive join before releasing custody. It observes
 the extracted DEB payload; it supplies no system installation, updater or
 claimed-minimum evidence. Windows current-installed NSIS acceptance keeps its
 separate existing route.
+
+The existing manual `native-design-compatibility.yml` workflow also offers the
+fixed `linux-package-boundary` operation on standard `ubuntu-22.04` only. After
+review and ordinary candidate CI, it prepares distribution v4l2loopback with
+matching running-kernel headers, one private synthetic video producer and a
+foreground private PulseAudio null source. An actual mapped-user readiness probe
+must read both synthetic devices before the unchanged ordinary-DEB scenario.
+Existing devices, missing headers, module/signature refusal or unknown process
+joins stop qualification; no custom kernel, reboot, key enrollment or WebKit
+permission override is used. Only the operation's identified quiescent fixture
+may be removed. This route supplies no physical capture, installed GUI or minimum
+claim, and a ready fixture alone does not satisfy the strict media refusal.
 
 ## Native desktop smoke tests
 

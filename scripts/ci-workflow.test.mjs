@@ -51,6 +51,34 @@ const nativeCompatibilityRunner = await readFile(
   "utf8",
 );
 
+test("ordinary Linux package operation is fixed and isolated from fixture builds and broader dispatch", () => {
+  const sections = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
+  const block = sections.find((section) => section.startsWith("linux_package_boundary:\n"));
+  assert.ok(block);
+  assert.match(
+    block,
+    /if: \$\{\{ inputs\.operation == 'linux-package-boundary' && inputs\.runner == 'ubuntu-22\.04' && !inputs\.edge_driver_proof \}\}/u,
+  );
+  assert.match(block, /runs-on: ubuntu-22\.04/u);
+  assert.doesNotMatch(
+    block,
+    /VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE|--features|secrets\.|continue-on-error|sysctl|apparmor_parser/u,
+  );
+  assert.deepEqual(
+    sections
+      .filter((section) => /^\w+:\n    if:.*linux-package-boundary/mu.test(section))
+      .map((section) => section.split(":")[0]),
+    ["linux_package_boundary"],
+  );
+  assert.match(
+    block,
+    /desktop-linux-media\.mjs --prepare[\s\S]*desktop-linux-media\.mjs --build[\s\S]*desktop-linux-media\.mjs --run/u,
+  );
+  assert.match(block, /if: always\(\)[\s\S]*desktop-linux-media\.mjs --cleanup/u);
+  assert.match(block, /!\*\*\/private-authority/u);
+  assert.match(block, /!\*\*\/auth\.cookie/u);
+});
+
 test("candidate consumer selects only existing selected, compiled and history jobs", () => {
   const jobs = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
   const consumers = jobs.filter((job) => /^hosted_.*\n    if:.*candidate-consumer/mu.test(job));
