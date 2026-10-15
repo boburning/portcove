@@ -681,24 +681,37 @@ test(
         helper,
         `
 $ErrorActionPreference = 'Stop'
+[Console]::Error.WriteLine('picker refusal fixture: wrapper entered')
 $owned = [Diagnostics.Process]::GetCurrentProcess()
 $image = $owned.MainModule.FileName
 $expectedImage = ${kind === "wrong-image" ? "'C:\\not-the-owned-driver.exe'" : "$image"}
 $filetime = ${kind === "stale-time" ? "'1'" : "$owned.StartTime.ToUniversalTime().ToFileTimeUtc().ToString()"}
+[Console]::Error.WriteLine('picker refusal fixture: self identity read')
 try {
+    [Console]::Error.WriteLine('picker refusal fixture: invoking target')
     & '${script}' -DriverProcessId $PID -ApplicationPath $image -ObservePicker -ExpectedDriverPath $expectedImage -ExpectedDriverStartedFiletime $filetime -ObservationPath (Join-Path $PSScriptRoot '${kind}.json') ${extra}
     exit 0
 } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }
 `,
         { flag: "wx" },
       );
+      const started = performance.now();
       const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", helper], {
         encoding: "utf8",
         windowsHide: true,
         timeout: 15_000,
       });
-      assert.equal(result.error, undefined);
-      assert.equal(result.status, 1, result.stderr);
+      const diagnostic = JSON.stringify({
+        kind,
+        elapsedMs: performance.now() - started,
+        status: result.status,
+        signal: result.signal,
+        error: result.error?.message,
+        stdout: result.stdout?.slice(0, 2048),
+        stderr: result.stderr?.slice(0, 2048),
+      });
+      assert.equal(result.error, undefined, diagnostic);
+      assert.equal(result.status, 1, diagnostic);
       assert.match(
         result.stderr,
         kind === "directory-input"
@@ -706,6 +719,7 @@ try {
           : kind === "outside-prepared"
             ? /Picker input is not an admitted owned fixture directory/
             : /Captured picker driver identity changed/,
+        diagnostic,
       );
       await assert.rejects(stat(path.join(output, `${kind}.json`)), /ENOENT/);
     }
