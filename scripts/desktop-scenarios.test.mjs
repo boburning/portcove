@@ -15,7 +15,6 @@ import os from "node:os";
 import path from "node:path";
 import { runInNewContext } from "node:vm";
 import { ownedFixtureCommand } from "../apps/desktop/scripts/desktop-scenario-state.mjs";
-import { assertReviewFieldPresentation } from "../apps/desktop/scripts/desktop-review-controls.mjs";
 import {
   isUntrustworthyProbeError,
   requireTrustedProbeCleanup,
@@ -59,6 +58,19 @@ test("owned fixture CLI binds catalog, preferences, literal selection and refuse
 });
 
 test("shared review presentation preserves native visual acceptance thresholds", async () => {
+  // This contract runs without desktop packages installed. Execute the actual
+  // dependency-free helper body rather than loading the native-driver module.
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-review-controls.mjs", import.meta.url),
+    "utf8",
+  );
+  const marker = "export async function assertReviewFieldPresentation(";
+  const start = source.indexOf(marker);
+  assert(start >= 0 && start === source.lastIndexOf(marker));
+  const assertReviewFieldPresentation = runInNewContext(
+    `${source.slice(start).replace("export ", "")}\nassertReviewFieldPresentation`,
+    { assert },
+  );
   const valid = {
     width: "200px",
     paddingLeft: "10px",

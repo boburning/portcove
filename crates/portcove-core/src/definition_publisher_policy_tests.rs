@@ -1777,6 +1777,7 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
         },
         time::Duration,
     };
+    let clock = std::time::Instant::now();
     let cache_hit = matches!(
         intervention,
         CacheIntervention::CancelRestore
@@ -1907,6 +1908,10 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
                 // A regular-file read may be short. Capture the first threshold
                 // crossing instead of requiring one exact cumulative chunk size.
                 if state.0.is_none() {
+                    println!(
+                        "curated cache first copy: {:?}; written={written}; cache_hit={cache_hit}",
+                        clock.elapsed()
+                    );
                     state.0 = Some((path.to_owned(), written));
                     condition.notify_all();
                     while !state.1 {
@@ -1932,10 +1937,28 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
             .with_acquisition_resolution(resolution)
             .unwrap(),
     };
+    println!(
+        "curated cache installer start: {:?}; requests={}",
+        clock.elapsed(),
+        server.requests.lock().unwrap().len()
+    );
+    let mut observed_phase = None;
     let install = tokio::spawn(async move {
         (
             activity,
-            installer.install(request, &operation, |_| {}).await,
+            installer
+                .install(request, &operation, |event| {
+                    if let crate::OperationEventKind::Progress { phase, .. } = event.event
+                        && observed_phase.as_ref() != Some(&phase)
+                    {
+                        println!(
+                            "curated cache installer phase {phase}: {:?}",
+                            clock.elapsed()
+                        );
+                        observed_phase = Some(phase);
+                    }
+                })
+                .await,
         )
     });
     let reached = tokio::time::timeout(Duration::from_secs(5), async {
@@ -2604,6 +2627,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             .unwrap();
         library.select_definition_candidate(eligible).unwrap();
         let current_catalog = library.load_catalog().unwrap().0;
+        phase("launch transition admission");
         let without_baseline = PortcoveService::new(library.clone())
             .unwrap()
             .status(ID)
@@ -2622,6 +2646,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             baseline_refusal.eligibility.reason,
             crate::DefinitionEligibilityReason::CuratedArtifactRevoked
         );
+        phase("launch without-baseline status");
         let fresh_scope = policy::acquisition_scope(&library, &current_catalog, ID)
             .unwrap()
             .unwrap();
@@ -2658,6 +2683,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         library
             .apply_definition_launch_assessment(&accepted)
             .unwrap();
+        phase("launch baseline admitted");
         let service = PortcoveService::new(library.clone()).unwrap();
         let projected = service.status(ID).unwrap();
         let expected_reason = if status == "revoked" {
@@ -2718,6 +2744,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             rollback.availability,
             crate::PortActionAvailability::Allowed
         );
+        phase("launch single and bulk status");
         if operation == RetainedCuratedOperation::Launch {
             for attempt in 0..2 {
                 // The second construction consumes durable retained authority,
@@ -2725,6 +2752,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
                 let reopened = PortcoveService::new(library.clone()).unwrap();
                 let release = probe_directory.path().join(format!("release-{attempt}"));
                 let mut started = 0;
+                phase(&format!("launch begin {attempt}"));
                 let outcome = reopened.supervise_launch(
                     ID,
                     None,
@@ -2740,6 +2768,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
                         fs::write(&release, b"released").unwrap();
                     },
                 );
+                phase(&format!("launch returned {attempt}"));
                 if status == "revoked" {
                     assert!(outcome.unwrap_err().message.contains("revoked"));
                     assert_eq!(started, 0);
@@ -3023,6 +3052,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             assert_eq!(bulk.definition_operations, projected.definition_operations);
             assert_eq!(bulk.port_actions, projected.port_actions);
         }
+        phase(&format!("single and bulk status {attempt}"));
         if operation != RetainedCuratedOperation::ActivationRecovery {
             let result = match operation {
                 RetainedCuratedOperation::Rollback => service.rollback(ID),
@@ -3081,6 +3111,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             crate::library_transfer::reviewed_tree(&user).unwrap(),
             user_tree
         );
+        phase(&format!("preservation complete {attempt}"));
     }
     assert_eq!(count(&library, "installs"), 2);
     assert_eq!(count(&library, "curated_artifact_admissions"), 2);
@@ -3114,6 +3145,8 @@ async fn curated_installer_boundary_fixture(
 ) {
     use crate::ReleaseProvider;
     use std::io::{Cursor, Write};
+    let clock = std::time::Instant::now();
+    let phase = |name: &str| println!("curated installer {name}: {:?}", clock.elapsed());
     let platform = crate::Platform::current().unwrap();
     let executable = if cfg!(windows) {
         "fixture.exe"
@@ -3160,6 +3193,7 @@ async fn curated_installer_boundary_fixture(
         managed_fixture_for_policy(authored, true).await;
     let original_candidate = acquire(&fixture, &root).await.unwrap();
     let original_admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+    phase("initial admission and reacquisition");
     assert_eq!(scope.curated_checks, Some(1));
     let server = AcquisitionHttp::new();
     scope.fixture_origin = Some(server.origin.clone());
@@ -3189,6 +3223,7 @@ async fn curated_installer_boundary_fixture(
             )
             .await
             .unwrap();
+        phase(&format!("resolve {iteration}"));
         assert_eq!(resolved.release.asset.sha256, record.sha256);
         assert_eq!(resolved.release.asset.size, record.size);
         assert_eq!(
@@ -3292,6 +3327,7 @@ async fn curated_installer_boundary_fixture(
                 assert!(refusal.message.contains("owned fixture interruption"));
                 assert_eq!(count(&library, "installs"), 0);
             }
+            phase("pre-install refusals complete");
             let before = server.requests.lock().unwrap().len();
             server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
             server.json(release.clone());
@@ -3411,6 +3447,7 @@ async fn curated_installer_boundary_fixture(
                 server.requests.lock().unwrap().len(),
                 before + if artifact_status.is_some() { 4 } else { 3 }
             );
+            phase("actual install verified");
             if let Some(status) = artifact_status {
                 let qualification =
                     crate::InstallQualification::from_catalog(&catalog, ID, platform).unwrap();
@@ -3618,6 +3655,7 @@ async fn curated_installer_boundary_fixture(
         .get_mut(&record.platform)
         .unwrap()
         .sha256 = "d".repeat(64);
+    phase("repin publication begin");
     let repinned = Catalog::from_json(&serde_json::to_string(&repinned).unwrap()).unwrap();
     let mut targets = repository_targets_for(&repinned, ID);
     let mut document = managed_policy_for(&targets, true);

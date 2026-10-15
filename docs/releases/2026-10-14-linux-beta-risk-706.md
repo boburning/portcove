@@ -77,6 +77,25 @@ or frontend edits do not invalidate that evidence. Changed relevant inputs block
 until their delta has been reassessed and the protected record reviewed; no new
 permission is required merely to reuse unchanged evidence under this approval.
 
+## Protected qualification recheck
+
+The [fresh audit at `22e303a`](https://github.com/boburning/portcove/actions/runs/38687345604)
+executed all independent stages and retained a failed diagnostic-only bundle:
+Rust Clippy and the original GLib scan failed. The separate disposition refused
+because the unrelated Rust failure remained. The [full qualification attempt](https://github.com/boburning/portcove/actions/runs/38687343859)
+also retained all native results: Linux, Mac ARM and all four doctest platforms
+passed; Linux Clippy, the dependency-free Windows contract job and Intel native
+cases failed. Neither workflow is passing qualification evidence.
+
+The bounded follow-up removes three fixture-only Clippy causes and one needless
+borrow, and evaluates the actual field-presentation helper in the dependency-free
+unit contract without loading desktop-driver packages. Intel cache, retained
+rollback/launch and admitted-scope failures receive phase diagnostics. Their
+five-second latch and thirty-second test bounds, real signed full-catalog work,
+restart, child-start, trust and persistence assertions stay intact. Diagnostics
+are not a repair or permission to waive those failures. The owning PR records
+subsequent exact-head review and qualification results.
+
 ## Execution and separate decision
 
 `just deny` preserves the scanner's original exit status and full structured

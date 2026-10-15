@@ -252,6 +252,9 @@ fn namespace_fixture_child() {
         assert!(Instant::now() < deadline, "owned init was not released");
         std::thread::sleep(Duration::from_millis(10));
     }
+    // This owned PID-1 fixture must exit while its descendant is still alive.
+    // Namespace teardown and the outer pidfd/join proof own its termination.
+    std::process::exit(0);
 }
 
 #[test]

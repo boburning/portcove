@@ -1614,13 +1614,11 @@ fn opaque_one_off_names_leave_readable_results_and_serializable_unknown_coverage
         .join(std::ffi::OsString::from_vec(b"opaque-\xff.chd".to_vec()));
     let opaque_created = match fs::write(&opaque, b"uninspected opaque fixture") {
         Ok(()) => true,
-        Err(error) => {
-            // The hosted macOS filesystem refuses this input before discovery.
-            // Other failures must still fail; Linux keeps the actual opaque-name control.
-            assert!(cfg!(target_os = "macos"));
-            assert_eq!(error.raw_os_error(), Some(libc::EILSEQ));
-            false
-        }
+        // The hosted macOS filesystem refuses this input before discovery.
+        // Other failures must still fail; Linux keeps the actual opaque-name control.
+        #[cfg(target_os = "macos")]
+        Err(error) if error.raw_os_error() == Some(libc::EILSEQ) => false,
+        Err(error) => panic!("could not create opaque-name fixture: {error}"),
     };
     let mut selected = request(temporary.path());
     selected.profile_ids = vec!["animal-crossing-gamecube".into()];
@@ -1735,11 +1733,9 @@ fn opaque_linked_chd_names_keep_serializable_incomplete_sets_and_readable_candid
         .join(std::ffi::OsString::from_vec(b"linked-\xff.chd".to_vec()));
     let opaque_created = match symlink(&readable, &opaque) {
         Ok(()) => true,
-        Err(error) => {
-            assert!(cfg!(target_os = "macos"));
-            assert_eq!(error.raw_os_error(), Some(libc::EILSEQ));
-            false
-        }
+        #[cfg(target_os = "macos")]
+        Err(error) if error.raw_os_error() == Some(libc::EILSEQ) => false,
+        Err(error) => panic!("could not create opaque-name symlink fixture: {error}"),
     };
     let mut document = Catalog::embedded().unwrap().authoritative_document();
     let source = document.source_catalog.as_mut().unwrap();
