@@ -1,9 +1,5 @@
 import { defineConfig, lazyPlugins, type PluginOption } from "vite-plus";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { desktopProjects, testReporters } from "../../vite.config.ts";
-
-const desktopRoot = fileURLToPath(new URL(".", import.meta.url));
+import { productionCssFailures } from "./scripts/production-css.mjs";
 
 export function assertScenarioExclusion(
   moduleIds: Iterable<string>,
@@ -15,6 +11,7 @@ export function assertScenarioExclusion(
     if (
       normalized.includes("/src/dev-scenarios/") ||
       normalized.includes("/src/browser/") ||
+      /\/src\/.*\.test\.[cm]?[jt]sx?$/u.test(normalized) ||
       normalized.endsWith("/src/test-fixtures.ts")
     )
       throw new Error(`Development scenario module cannot ship: ${id}`);
@@ -39,14 +36,27 @@ const plugins = lazyPlugins(async (): Promise<PluginOption[]> => {
     {
       name: "exclude-development-scenarios",
       apply: "build",
-      generateBundle(_options, bundle) {
-        assertScenarioExclusion(
-          Object.values(bundle).flatMap((output) =>
-            output.type === "chunk" ? Object.keys(output.modules) : [],
-          ),
-          Object.keys(bundle),
-          process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE === "1",
-        );
+      generateBundle: {
+        order: "post",
+        handler(_options, bundle) {
+          const css = Object.values(bundle)
+            .flatMap((output) =>
+              output.type === "asset" && output.fileName.endsWith(".css")
+                ? [String(output.source)]
+                : [],
+            )
+            .join("\n");
+          const failures = productionCssFailures(css);
+          if (failures.length)
+            this.error(`Current build CSS contract failed: ${failures.join("; ")}`);
+          assertScenarioExclusion(
+            Object.values(bundle).flatMap((output) =>
+              output.type === "chunk" ? Object.keys(output.modules) : [],
+            ),
+            Object.keys(bundle),
+            process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE === "1",
+          );
+        },
       },
     },
   ];
@@ -55,7 +65,7 @@ const plugins = lazyPlugins(async (): Promise<PluginOption[]> => {
 export default defineConfig({
   ...(plugins === undefined ? {} : { plugins }),
   clearScreen: false,
-  resolve: { alias: { "@": path.resolve(desktopRoot, "src") } },
+  resolve: { tsconfigPaths: true },
   server: {
     host: "127.0.0.1",
     port: 1420,
@@ -67,21 +77,13 @@ export default defineConfig({
   envPrefix: "VITE_",
   // Transforms match the selected CSS stack; native OS/WebView qualification remains separate.
   build: { target: ["chrome111", "safari16.4"], sourcemap: true },
-  test: { projects: desktopProjects, reporters: testReporters },
   run: {
     tasks: {
-      "bundle:cached": {
+      "frontend:bundle": {
         command: "vp build",
         cache: {
           input: [{ auto: true }, { pattern: "pnpm-lock.yaml", base: "workspace" }],
           output: ["dist/**"],
-        },
-      },
-      "test:cached": {
-        command: "vp test --project unit",
-        cache: {
-          input: [{ auto: true }, { pattern: "pnpm-lock.yaml", base: "workspace" }],
-          output: [],
         },
       },
     },

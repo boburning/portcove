@@ -4,13 +4,12 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "check": "node apps/desktop/scripts/browser-package-compatibility.mjs && vp check && vp -C apps/desktop run lint:style",
+    "check": "vp run frontend:static",
     "build": "node apps/desktop/scripts/build-frontend.mjs",
-    "test": "vp test",
+    "test": "vp run frontend:unit",
     "format": "vp fmt",
     "format:check": "vp fmt --check",
-    "lint": "vp lint && vp -C apps/desktop run lint:style",
-    "lint:oxlint": "vp lint",
+    "lint": "vp run frontend:static",
     "lint:style": "vp -C apps/desktop run lint:style",
     "transport:check": "vp -C apps/desktop run transport:check",
     "precommit:check": "vp staged",
@@ -19,9 +18,12 @@
     "hooks:enable": "node scripts/hooks-install.mjs enable",
     "hooks:disable": "node scripts/hooks-install.mjs disable",
     "hooks:status": "node scripts/hooks-install.mjs status",
-    "build:cached": "node apps/desktop/scripts/build-frontend.mjs --cached"
+    "check:content": "vp run frontend:content",
+    "test:browser": "vp run frontend:browser",
+    "verify:frontend": "vp run frontend:verify"
   },
   "devDependencies": {
+    "@types/node": "26.4.1",
     "fallow": "^3.30.0",
     "vite-plus": "catalog:",
     "yaml": "2.9.1"

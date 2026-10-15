@@ -3,7 +3,6 @@ packages:
 
 allowBuilds:
   "@swc/core": true
-  esbuild: true
 minimumReleaseAge: 1440
 minimumReleaseAgeStrict: false
 storeDir: work/pnpm-store

@@ -16,13 +16,13 @@ sides and file modes. A missing historical/first-push base uses the entire basel
 unavailable, unsafe or incomplete discovery blocks. Safe unknown paths select
 the entire Windows baseline, never an empty package selection or an automatic audit.
 
-| Context           | Ordinary required coverage                                                                                                    |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| rust              | Windows workspace test-target compilation (`--locked --workspace --all-targets`), then affected maintained test families      |
-| frontend          | Build/typecheck and import-related unit tests; full unit fallback for shared/configuration/uncertain or empty graph selection |
-| rust-quality      | Repository/TOML formatting, Rust formatting for Rust inputs, and full frontend/tooling lint for affected inputs               |
-| catalog           | Relevant cheap schema, repository and tooling contract tests                                                                  |
-| dependency-review | Relevant dependency diff, with the existing high-severity rejection policy                                                    |
+| Context           | Ordinary required coverage                                                                                                               |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| rust              | Windows workspace test-target compilation (`--locked --workspace --all-targets`), then affected maintained test families                 |
+| frontend          | Content/schema, build and import-related Node/browser tests; full project fallback for shared/configuration/uncertain or empty selection |
+| rust-quality      | Repository/TOML formatting, Rust formatting for Rust inputs, and full frontend/tooling lint for affected inputs                          |
+| catalog           | Relevant cheap schema, repository and tooling contract tests                                                                             |
+| dependency-review | Relevant dependency diff, with the existing high-severity rejection policy                                                               |
 
 Affected native helper, frontend prerequisite, dependency receipt, PowerShell and
 CI routing changes also require `windows-helper-contracts` under the existing
@@ -34,11 +34,13 @@ unknown-path broad fallback includes it. A failed or missing selected producer
 fails `catalog`. Exhaustive qualification retains its Windows coverage.
 
 Linted JavaScript/TypeScript/CSS inputs, their lint configuration and dependency
-or toolchain inputs select one full `corepack pnpm lint` stage. Both rename sides
+or toolchain inputs select one full `frontend:static` task (bundle compatibility,
+formatting, lint/type checking and Stylelint). Both rename sides
 and deletions count; safe unknown-impact fallback also selects it. The existing
 quality producer owns hosted execution, including tooling-only changes, while
 the optional local baseline runs the same obligation. Prose-only, Rust-only and
-unrelated assets do not select lint. Pre-commit remains formatting/syntax/copy
+unrelated assets do not install frontend dependencies. Maintained TOML and normative
+documentation changes retain formatter coverage. Pre-commit remains formatting/syntax/source-policy
 feedback. Exhaustive qualification retains full lint independently.
 
 Rust execution reuses `.config/rust-test-impact.json`. Every group is package
@@ -369,7 +371,7 @@ and rollback scope justify it.
 
 Validate configuration with the official pinned client used for the current
 resolved-rule receipt:
-`corepack pnpm --package=renovate@44.156.3 dlx --allow-build=re2 renovate-config-validator --strict renovate.json`.
+`pnpm --package=renovate@44.156.3 dlx --allow-build=re2 renovate-config-validator --strict renovate.json`.
 Schema validation supplements the repository's rule/extraction/classifier tests;
 it does not prove effective inherited grouping or hosted proposal uptake. Inspect
 resolved presets and rule precedence with the matching official engine, then read

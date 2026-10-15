@@ -114,6 +114,15 @@ async function oxlintFixture() {
       'import { expect, it, vi } from "vite-plus/test";\nvi.mock("./module", () => ({ named: 1 }));\nit("accepts contextual messages", () => {\n  expect(1, "fixture context").toBe(1);\n});\n',
     );
     expectSuccess("Oxlint Vitest policy", runOxlint(fixture));
+    for (const [source, diagnostic] of [
+      ['export const message = "Source profile";', /portcove\(player-copy\)/u],
+      ['export const view = <p aria-label="&#86;erified">file(s)</p>;', /portcove\(player-copy\)/u],
+      ['export const broken = <p title="broken', /Unterminated|Expected/iu],
+      ["let value; let value; export {value};", /already.*declared|redeclar/iu],
+    ]) {
+      await writeFile(fixture, source);
+      expectFailure("Oxlint copy/parser policy", runOxlint(fixture), diagnostic);
+    }
     for (const [rule, diagnostic, source] of [
       [
         "floating promises",
@@ -251,10 +260,21 @@ async function stylelintFixture() {
     fixture,
   ];
   try {
-    await writeFile(fixture, "a { color: #fff; }\n");
+    await writeFile(fixture, "a { color: var(--color-text); }\n");
     const valid = run(process.execPath, args);
     await writeFile(fixture, "a { not-a-property: red; }\n");
     expectFixture("Stylelint", valid, run(process.execPath, args));
+    for (const [label, source] of [
+      ["semantic component color", "a { color: #fff; }\n"],
+      ["raw primitive color", "a { color: var(--n64-red-500); }\n"],
+      [
+        "component gradient",
+        "a { background: linear-gradient(var(--color-bg),var(--color-bg-elevated)); }\n",
+      ],
+    ]) {
+      await writeFile(fixture, source);
+      expectFixture(label, valid, run(process.execPath, args));
+    }
   } finally {
     await rm(fixture, { force: true });
   }

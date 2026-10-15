@@ -15,15 +15,24 @@ The approved identity direction uses those original palette families in expressi
 
 Dark is the default hardware-like graphite theme. Light uses warm controller-plastic gray and off-white surfaces with graphite text; it is a first-class semantic remap, not an inverted afterthought. System preference follows `prefers-color-scheme`, while explicit Dark and Light choices persist locally.
 
-The automated theme contract fails if a component introduces a raw hex/RGB/HSL color, references an N64 primitive directly, adds a gradient, removes a required semantic alias, changes a fixed primitive, or drops a reviewed foreground/background pair below its WCAG threshold. It also inventories the checked-in Button, Dialog, Select, and runtime owner, rejects dynamic or raw-color utility fragments, and checks required selectors in available production CSS. A source-only run reports that narrower coverage when no production build exists; `just local-check` builds first and therefore exercises both.
+Theme policy has distinct owners. Oxlint rejects ambiguous, raw-color and dynamic
+shared-control utility fragments. Stylelint rejects raw component colors, primitive
+references and gradients. Deterministic Node tests enforce fixed primitives,
+required aliases, reference/cycle integrity, light overrides and 72 contrast pairs.
+Browser tests verify applied control contrast, semantic focus, no-blur scrims,
+disabled/pending actions, RTL dialog bounds and actual forced colors. The build
+validates required selectors in its own emitted CSS and rejects missing output;
+it never scans an arbitrary previous dist tree. `pnpm verify:frontend` runs these
+checks through the canonical static/content/Node/browser/build graph.
 
-Run it directly with:
+Run the deterministic token tests directly with:
 
 ```powershell
-corepack pnpm --dir apps/desktop test:theme
+pnpm --dir apps/desktop test:theme
 ```
 
-It also runs as part of the desktop test suite.
+They also run in the Node project. `pnpm test:browser` exercises browser outcomes;
+`pnpm build` validates current emitted CSS.
 
 ## Approved styling architecture
 

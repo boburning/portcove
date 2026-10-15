@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { lstat, readdir, readFile, readlink, writeFile } from "node:fs/promises";
+import { lstat, readdir, readFile, readlink } from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { rustSupportCompilerIdentity } from "./rust-support-cache.mjs";
@@ -8,8 +8,6 @@ const FORMAT_VERSION = 1;
 const FRONTEND_INPUTS = [
   ".node-version",
   "package.json",
-  "vite.config.ts",
-  "tsconfig.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   "apps/desktop/public",
@@ -20,10 +18,10 @@ const FRONTEND_INPUTS = [
   "tsconfig.base.json",
   "apps/desktop/vite.config.ts",
   "apps/desktop/scripts/build-frontend.mjs",
+  "apps/desktop/scripts/production-css.mjs",
   "scripts/viteplus-cli.mjs",
   "scripts/dev-storage.mjs",
   "scripts/dev-storage.d.mts",
-  "scripts/browser-traces.ts",
   "scripts/tool-cache.mjs",
 ];
 const FRONTEND_OPTIONAL_INPUTS = [
@@ -125,49 +123,13 @@ async function outputInventory(outputDirectory) {
   return entries.map((entry) => ({ ...entry, path: entry.path.replace(/^dist\//u, "") }));
 }
 
-export async function checkFrontendBuildReuse({ identity, outputDirectory, stampPath }) {
-  let stamp;
-  try {
-    stamp = JSON.parse(await readFile(stampPath, "utf8"));
-  } catch (error) {
-    return {
-      reused: false,
-      reason: error.code === "ENOENT" ? "missing-cache-record" : "invalid-cache-record",
-    };
-  }
-  if (stamp.format_version !== FORMAT_VERSION || stamp.input_fingerprint !== identity.fingerprint)
-    return { reused: false, reason: "frontend-inputs-changed" };
-  let outputs;
-  try {
-    outputs = await outputInventory(outputDirectory);
-  } catch {
-    return { reused: false, reason: "frontend-output-missing-or-unsafe" };
-  }
-  if (JSON.stringify(outputs) !== JSON.stringify(stamp.outputs))
-    return { reused: false, reason: "frontend-output-changed" };
-  return {
-    reused: true,
-    reason: "exact-inputs-and-outputs-match",
-    input_fingerprint: identity.fingerprint,
-    output_fingerprint: stamp.output_fingerprint,
-    output_files: outputs.length,
-  };
-}
-
-export async function recordFrontendBuild({ identity, outputDirectory, stampPath }) {
+/** Observe output bytes after Vite Task executes/restores them; never skip execution here. */
+export async function observeFrontendBuild({ identity, outputDirectory }) {
   const outputs = await outputInventory(outputDirectory);
-  const stamp = {
-    format_version: FORMAT_VERSION,
+  return {
+    execution_owner: "vite-task",
     input_fingerprint: identity.fingerprint,
     output_fingerprint: sha256(JSON.stringify(outputs)),
-    outputs,
-  };
-  await writeFile(stampPath, `${JSON.stringify(stamp, null, 2)}\n`);
-  return {
-    reused: false,
-    reason: "frontend-built-and-recorded",
-    input_fingerprint: stamp.input_fingerprint,
-    output_fingerprint: stamp.output_fingerprint,
     output_files: outputs.length,
   };
 }
@@ -241,40 +203,4 @@ export async function createVerificationBuildIdentity({
       action: "Use the existing Cargo build and its supported incremental behavior",
     },
   };
-}
-
-export function qualificationBindingFingerprint({
-  productArtifacts,
-  harnessInputs,
-  runtimeConditions,
-  fixtureIdentities,
-  initialState,
-  selectedRequirements,
-  selectedScenarios,
-  acceptanceCriteria,
-}) {
-  for (const value of [
-    productArtifacts,
-    harnessInputs,
-    runtimeConditions,
-    fixtureIdentities,
-    initialState,
-    selectedRequirements,
-    selectedScenarios,
-    acceptanceCriteria,
-  ])
-    if (value === undefined || value === null)
-      throw new Error("Execution qualification binding is incomplete");
-  return sha256(
-    JSON.stringify({
-      productArtifacts,
-      harnessInputs,
-      runtimeConditions,
-      fixtureIdentities,
-      initialState,
-      selectedRequirements,
-      selectedScenarios,
-      acceptanceCriteria,
-    }),
-  );
 }

@@ -25,7 +25,8 @@ execution reuse even when product bytes match. Source-head provenance is separat
 from content reuse; documentation-only changes need not rebuild the frontend.
 Existing exact-head CI remains required.
 
-The existing frontend cache verifies its complete declared inputs and outputs.
+Vite Task executes or restores the frontend bundle from its tracked inputs and
+declared output scope. Native verification observes the resulting bytes.
 Native compiler/version observations do not seal SDK/system-provider inputs;
 native product build skipping remains unavailable at that boundary. Normal
 Cargo invocation and supported incremental behavior remain. This extends only
@@ -87,9 +88,10 @@ When a tool returns a running session, consume it with a bounded wait of at most
 60 seconds before the next commentary update. Reuse its final report; do not
 start another watcher or repeatedly fetch unchanged state.
 
-Frontend command chains use `corepack pnpm`, including nested typecheck and
-test commands. The build child filters `TAURI_SIGNING_*` and reports missing
-Corepack with the repository bootstrap route; no global pnpm shim is needed.
+Installed frontend operations resolve the package-declared local Vite+ executable.
+The build child filters `TAURI_SIGNING_*`; native signing retains its own inputs.
+Provision the declared Node/pnpm and frozen dependencies first. Corepack is an
+optional provisioning choice and is not an installed operation prerequisite.
 
 For a dependency-only bundle comparison, use:
 
@@ -131,21 +133,22 @@ With a supported Node runtime and the repository-pinned pnpm, a global `vp` is
 optional. From the repository root:
 
 ```sh
-corepack pnpm install --frozen-lockfile
-corepack pnpm dev
-corepack pnpm check
-corepack pnpm test --project unit
-corepack pnpm --dir apps/desktop browser:bootstrap
-corepack pnpm test --project browser
-corepack pnpm build
+pnpm install --frozen-lockfile
+pnpm dev
+pnpm check
+pnpm test
+pnpm --dir apps/desktop browser:bootstrap
+pnpm test:browser
+pnpm build
 ```
 
-Package scripts resolve the installed local CLI. `corepack pnpm exec vp <command>`
-is the equivalent explicit route. Contributors who already have the pinned pnpm
-can omit `corepack`. Node is pinned in `.node-version`; Corepack is supplied
-separately on Node distributions that do not include it. The existing bootstrap
-profiles still provision Rust, native drivers and other language tools as needed.
-They are independent of the frontend toolchain.
+Package scripts resolve the installed local CLI. `pnpm exec vp <command>`
+is the explicit route; `node scripts/run-viteplus.mjs <command>` also runs the
+installed package without a package-manager hop. Node and pnpm are pinned in
+`.node-version` and `package.json`. A contributor may choose Corepack during
+provisioning. Bootstrap prefers an already provided exact pnpm and uses Corepack
+only as an optional provisioning provider. Rust, drivers and other language
+tools retain their existing profiles.
 
 In controlled environments, use the official Vite+ installer with `VP_VERSION`
 pinned to the catalog release, or the SHA-pinned `setup-vp` action. Keep Node
@@ -159,10 +162,11 @@ or shell configuration.
 `vp dev`, `vp check`, `vp test` and `vp build` are built-ins. `vp run <name>`
 selects a configured task or package script. At the workspace root, the ordinary
 app dev/build commands select `apps/desktop`; `vp -C apps/desktop <command>` is
-explicit. Bare `vp test` runs both the unit and browser projects; browser tests
-need the prefetched Chromium shell. `vp test watch --project unit`, a literal
-file filter, and `--project browser` provide focused feedback. Failed browser
-screenshots and traces remain under `.vitest` and `work/browser-traces`.
+explicit. Bare `vp test` runs the Node, browser and small forced-colors projects; browser tests
+need the prefetched Chromium shell. `vp test watch --project unit` provides watch feedback. Use `just test-ui`
+with literal files for exact Node/browser selection and `just test-ui-related`
+for the public import graph. Failed browser
+screenshots and traces remain under `.vitest` and `work/bt`.
 The trace-probe script deliberately fails and preserves diagnostics.
 
 `vp check` integrates formatting, linting and TypeScript checking. `pnpm check`
@@ -172,24 +176,31 @@ noUncheckedIndexedAccess across application TS/TSX, typed tests/fixtures and
 runtime-specific configuration projects. There is no narrow strict project or
 duplicate compiler task. Untyped Node
 scripts use Node globals and correctness lint; browser and typed code retain
-their actual execution-environment distinctions. Stylelint, Rust formatting,
-copy/theme/localization checks and generated transport checks retain their
-specialized responsibilities. `vp run verify:frontend` composes these frontend
-checks with unit tests and a production build. Builds and tests do not silently
-repeat the entire aggregate.
+their actual execution-environment distinctions. Rust formatting,
+Oxlint source policy, Stylelint CSS, localization, deterministic theme tests
+and transport contracts retain their distinct responsibilities. `pnpm verify:frontend`
+(or `vp run frontend:verify`) composes static checks and the runtime group: content/schema,
+Node tests, both browser projects and an ordinary production build, once each.
+Package/just/local/audit/CI consumers delegate to this graph. Audit invokes its
+static/runtime groups separately for independent failure accounting.
 
-Vite Task caches only named repeatable tasks. Use `pnpm build:cached` and `vp -C apps/desktop run test:cached` for reuse.
-Both build aliases strip signing inputs before starting Vite+; invoke them when
-using a shell with native signing credentials. Raw `vp build`/`vp run` commands
-do not provide that environment boundary. The ordinary
-`vp build` and `vp test` execute directly; `--no-cache` forces task execution.
-A cached test result is prior deterministic feedback, never new native,
-screenshot, benchmark or acceptance evidence. Native and verification tasks
-explicitly disable caching; package scripts are uncached by default. Build
-restoration is bounded to `dist/**`, and cached tests restore no files. Inspect
-`vp run --last-details` for misses. `vp cache clean` removes the task cache only;
-use the existing storage tool for other bounded cleanup. Cross-run hosted task
-caching remains off until measured benefit justifies its transfer/storage cost.
+Vite Task owns build execution and restoration. The build adapter first removes
+only its ordinary, physically confined `apps/desktop/dist` directory: Task restores
+cached files but does not remove unrelated extra output. This preserves Vite's
+empty-output behavior. Linked output directories are refused, and failed builds
+retain their newly produced output for diagnosis. Native artifact observations
+never authorize skipping a task or count as fresh native execution.
+
+Vite Task owns production bundle execution and `dist/**` restoration. Ordinary
+`pnpm build` and the Tauri/native verification boundary use that task while
+filtering signing inputs. `pnpm build --fresh` forces upstream `--no-cache`.
+Raw `vp build` does not apply the signing filter. Checks and tests execute fresh;
+local/audit UI receipts cannot skip them, and a restored bundle is not a new
+native or acceptance observation. Specialized native code fingerprints actual
+inputs/outputs without deciding frontend reuse. Cargo still executes because
+compiler observations do not seal SDK/system-provider inputs. Inspect upstream
+`vp run --last-details` for cache decisions. Cross-run hosted result sharing
+remains off; no personal runtime configuration is changed.
 
 `just` remains the cross-language entrypoint for Rust, qualification, source
 selection and guarded delivery. It delegates frontend work to this toolchain;
@@ -232,7 +243,7 @@ Renovate automatically proposes eligible primary `vite-plus` catalog releases.
 The proposal selects an exact target; a primary-only manifest/lock bump is
 intentionally not merge-ready. Ordinary `pnpm check` compares the selection,
 installed bundle, exact core alias, Vitest, browser provider and catalog-preserving
-overrides. React, Tailwind, Playwright and parser packages retain their independent
+overrides. React, Tailwind and Playwright retain their independent
 reviewed update paths. Security alerts remain visible and follow the same
 compatibility discipline.
 
@@ -243,12 +254,12 @@ Complete each proposal through the existing Codex issue/PR delivery process:
    pre-proposal base commit and its manifests, catalog and lockfile. Do not run
    the migrator against an already bumped proposal or rely on stale node_modules.
 2. Create a clean owned worktree at that verified pre-upgrade commit. Run
-   `corepack pnpm install --frozen-lockfile` there. Preserve input/source identities;
+   `pnpm install --frozen-lockfile` there. Preserve input/source identities;
    keep the proposal and unrelated checkouts intact, without resetting their work.
 3. From that root, run the target migrator before updating project dependencies
    (replace SELECTED_VERSION with the selected exact release):
 
-   `corepack pnpm --package=vite-plus@SELECTED_VERSION dlx vp migrate --no-interactive --no-agent --no-editor --no-hooks`
+   `pnpm --package=vite-plus@SELECTED_VERSION dlx vp migrate --no-interactive --no-agent --no-editor --no-hooks`
 
    Existing Vite+ projects take the upstream version-only migration, not --full.
    Inspect every manifest, catalog, alias and override. Match the directly consumed
@@ -452,8 +463,8 @@ format, lint, and analysis tools are root development dependencies;
 `apps/desktop/package.json` remains the product package and owns its runtime
 dependencies, package-specific build/test tools, and scripts. The manifests have
 disjoint dependency ownership. Install from the repository root with
-`corepack pnpm install --frozen-lockfile`. Root commands such as `corepack pnpm
-format:check`, `corepack pnpm lint`, `corepack pnpm build`, and `corepack pnpm
+`pnpm install --frozen-lockfile`. Root commands such as `pnpm
+format:check`, `pnpm lint`, `pnpm build`, and `pnpm
 test` forward to the desktop package without creating another lockfile.
 
 On Windows, run `./scripts/bootstrap-quality-tools.ps1`. It downloads the exact
@@ -568,7 +579,7 @@ is [conditional](reference/validation-operations-history.md).
 #### Static component scenarios
 
 From the checkout root, run
-`node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop dev`, then open
+`node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop dev`, then open
 `http://127.0.0.1:1420/scenarios.html` in an ordinary browser. The development-only
 page offers typed deterministic empty-library, ready-game, missing-source,
 missing-tool, staged-update, interrupted-operation, refresh-failure and unavailable
@@ -611,8 +622,8 @@ After the frozen pnpm install, explicitly provision the pinned Playwright Chromi
 headless shell on the checkout volume:
 
 ```powershell
-node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop browser:bootstrap
-node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop test:browser
+node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop browser:bootstrap
+node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop test:browser
 ```
 
 `browser:bootstrap` installs only the reviewed Chromium shell and its companions
@@ -620,22 +631,25 @@ under `work/browser-cache`, then launches it to verify the result. A warm invoca
 rechecks the same artifact. `test:browser` checks the existing binary and never
 downloads one. It runs Vitest Browser Mode with a Chromium instance and the
 selected bundle's scheduling and timeout defaults. Playwright traces stay in a per-run directory under
-`work/browser-traces` when a run fails. Successful runs remove only their own raw
+`work/bt` when a run fails. Successful runs remove only their own raw
 trace directory. Failure screenshots share that invocation's namespace; Vitest
 attachments may also remain in `apps/desktop/.vitest`. Both locations are ignored
 by Git and retained for diagnosis. Repeated runs preserve earlier failure files.
 In CI, the fast and full
 frontend lanes run the explicit bootstrap before browser tests and upload failure
 artifacts. The intentional failure probe is
-`corepack pnpm --dir apps/desktop test:browser:trace-probe`; it exits nonzero and
+`pnpm --dir apps/desktop test:browser:trace-probe`; it exits nonzero and
 should be run only when validating trace retention.
 
 The initial browser composition mounts the shipped adoption modal, its review
 hook, shared controls, direction provider, styles, and a strict test-only Tauri
 transport. Unexpected commands and argument shapes fail, and no real library,
 filesystem, credentials, native picker, process, or mutation authority is present.
-Existing jsdom planning and pure-function tests stay in their cheaper suite;
-browser tests cover actual Chromium layout, focus, portals, and user events.
+Node runs pure logic and SSR assertions. DOM components/hooks and the extracted
+completion-focus predicate run in actual Chromium; a small separate project
+enables forced colors. Standard React rendering/cleanup and renderHook serve
+ordinary fixtures, while explicit roots preserve controlled lifetimes, remounts
+and same-turn races. Neither jsdom nor its type package is installed.
 The static scenario page remains inert. Browser results are not native Tauri,
 WebView, controller, operating-system, or package qualification.
 
@@ -1062,7 +1076,7 @@ The pinned Selenium client connects to the explicitly started driver server;
 the harness does not invoke Selenium Manager or provision browsers automatically.
 
 Build the frontend and a desktop binary with embedded assets using the storage
-wrapper (`corepack pnpm --dir apps/desktop build`, then `cargo build -p portcove-desktop
+wrapper (`pnpm --dir apps/desktop build`, then `cargo build -p portcove-desktop
 --features tauri/custom-protocol`). A plain debug build expects a Vite server and
 cannot establish the packaged-assets smoke claim. Then run:
 
@@ -1425,7 +1439,7 @@ fixtures do not change core admission policy or claim that current typed core
 outputs emit those future values. Core still validates every mutation and stale
 review; ordinary known-state behavior remains part of the native regression.
 
-`corepack pnpm --dir apps/desktop test:copy` exercises the static-copy checker and complete
+`pnpm --dir apps/desktop test:copy` exercises the static-copy checker and complete
 count-message formatter. The ordinary UI test command also runs the checker.
 Count messages provide full zero, plural-category and unknown variants, with
 number formatting in the selected message language (currently English by default).
@@ -1453,7 +1467,7 @@ CLI or original-file paths remain explicit templates. Program path and argument
 array are also available separately; a terminal command is not a launcher argument
 field. Native discovery does not execute or attest the CLI it finds.
 
-Run `corepack pnpm --dir apps/desktop test:cli-handoff` for the focused checks.
+Run `pnpm --dir apps/desktop test:cli-handoff` for the focused checks.
 The host shell test sends spaces, apostrophes, Unicode, literal substitution syntax,
 metacharacters, empty values and trailing separators to a harmless Node process,
 then compares its actual argument vector. Component tests cover missing inputs,
@@ -1481,7 +1495,7 @@ ordinary-package case through the existing external Tauri/EdgeDriver route.
 Use low-level `desktop-test.mjs --app <retained-installed-executable> --output
 <new-absolute-directory> --scenario native-normal-package-webview-boundary
 --package-evidence <absolute-manifest>`. The manifest binds the clean candidate
-revision, exact ordinary `corepack pnpm tauri build --bundles nsis` invocation,
+revision, exact ordinary `pnpm tauri build --bundles nsis` invocation,
 empty qualification-feature list, hashes of the normal Tauri configuration,
 Windows overlay and Desktop Cargo manifest, installer, and completed
 `test-windows-installer.ps1` evidence. Its retained executable must match the

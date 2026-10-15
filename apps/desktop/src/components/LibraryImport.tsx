@@ -1,3 +1,4 @@
+import { reloadWorkspace } from "../reload-workspace";
 import { useState } from "react";
 import { desktopApi } from "../api";
 import { pickInstallFolder, pickMetadataImportPath } from "../file-picker";
@@ -43,7 +44,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
   const [transferAttempted, setTransferAttempted] = useState(false);
   const dismiss = () => {
     if (!busy) {
-      if (transferAttempted) window.location.reload();
+      if (transferAttempted) reloadWorkspace();
       else close();
     }
   };
@@ -181,7 +182,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
                       plan.content_root,
                       plan.plan_sha256,
                     );
-                    window.location.reload();
+                    reloadWorkspace();
                   });
                 }}
               >
@@ -221,7 +222,7 @@ export function LibraryImportRecovery({
     onBusyChange?.(true);
     try {
       await desktopApi.recoverLibraryImport(destination);
-      window.location.reload();
+      reloadWorkspace();
     } catch (value) {
       setError(errorText(value));
     } finally {

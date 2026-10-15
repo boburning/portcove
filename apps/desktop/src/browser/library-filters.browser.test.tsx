@@ -234,7 +234,7 @@ it.each(["dark", "light"])(
     await userEvent.click(button("Linux (1)"));
     await userEvent.keyboard("{Escape}");
     await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
-    expect(document.activeElement?.textContent).toContain("Filters (1)");
+    await expect.poll(() => document.activeElement?.textContent).toContain("Filters (1)");
     await expect.element(button("Ready (1)")).toHaveAttribute("aria-pressed", "true");
     await expect.element(button("Needs attention (1)")).toHaveAttribute("aria-pressed", "false");
     await userEvent.click(button("Needs attention (1)"));
@@ -275,7 +275,7 @@ it.each(["dark", "light"])(
     )!;
     chip.focus();
     await userEvent.keyboard("{Enter}");
-    expect(document.activeElement?.textContent).toContain("Filters (1)");
+    await expect.poll(() => document.activeElement?.textContent).toContain("Filters (1)");
     await userEvent.click(
       page
         .getByRole("group", { name: "Library filters", exact: true })

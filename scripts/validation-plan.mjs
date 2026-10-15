@@ -250,7 +250,14 @@ function classifyPath(file) {
   if (!documentation) {
     match(
       file.startsWith("apps/desktop/src/") ||
-        ["scripts/browser-traces.ts", "scripts/viteplus-cli.mjs"].includes(file) ||
+        [
+          "scripts/browser-traces.ts",
+          "scripts/viteplus-cli.mjs",
+          "scripts/frontend-tests.ts",
+          "scripts/run-ui-tests.mjs",
+          "scripts/run-viteplus.mjs",
+          "scripts/ui-test-selection.mjs",
+        ].includes(file) ||
         file.startsWith("apps/desktop/public/") ||
         nativeScenarioFiles.has(file) ||
         /^apps\/desktop\/(?:index\.html|package\.json|tsconfig.*\.json|vite\.config\.[cm]?ts|stylelint\.config\.mjs)$/u.test(
@@ -445,7 +452,14 @@ function classifyAuditPath(file) {
   );
   match(
     file.startsWith("apps/desktop/src/") ||
-      ["scripts/browser-traces.ts", "scripts/viteplus-cli.mjs"].includes(file) ||
+      [
+        "scripts/browser-traces.ts",
+        "scripts/viteplus-cli.mjs",
+        "scripts/frontend-tests.ts",
+        "scripts/run-ui-tests.mjs",
+        "scripts/run-viteplus.mjs",
+        "scripts/ui-test-selection.mjs",
+      ].includes(file) ||
       nativeScenarioFiles.has(file) ||
       file.startsWith("apps/desktop/public/") ||
       /^apps\/desktop\/(?:index\.html|package\.json|tsconfig.*\.json|vite\.config\.[cm]?ts|stylelint\.config\.mjs)$/u.test(

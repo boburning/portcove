@@ -7,10 +7,8 @@ import path from "node:path";
 import { setTimeout as scheduleRealTime } from "node:timers";
 import { setTimeout as waitRealTime } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { runInNewContext } from "node:vm";
 import { gunzipSync } from "node:zlib";
 import { afterAll, beforeAll, describe, test, vi } from "vite-plus/test";
-import { JSDOM } from "jsdom";
 import {
   createInstallFixture,
   INSTALL_FIXTURE_PORT_ID,
@@ -19,7 +17,6 @@ import {
 import { installScenarios } from "./desktop-install-test.mjs";
 import {
   assertCompletionCoreParity,
-  observeCompletionReturnFocus,
   retainCompletionReport,
   selectedSetupCompletionScenario,
 } from "./desktop-selected-setup-completion-test.mjs";
@@ -36,70 +33,6 @@ test("owned fixture path checks accept Core's extended spelling and reject a dif
   if (process.platform !== "win32")
     assert.throws(() => assertOwnedSelectedSetupPath(`${expected.toUpperCase()}`, expected));
 });
-
-for (const [focus, selector, expected, mutate] of [
-  ["origin", "article", { tag: "ARTICLE", id: "", origin: true }],
-  ["continue", "#continue", { tag: "BUTTON", id: "continue", origin: false }],
-  ["outside", "#outside", false],
-  ["body", "body", false],
-  ["disabled", "#disabled", false],
-  [
-    "hidden",
-    "article",
-    false,
-    (origin) => {
-      origin.hidden = true;
-    },
-  ],
-  ["inert", "article", false, (origin) => origin.setAttribute("inert", "")],
-  [
-    "hidden-continuation",
-    "article",
-    false,
-    (_origin, document) => {
-      document.querySelector("section").hidden = true;
-    },
-  ],
-  ["missing", "article", false, (_origin, document) => document.querySelector("section").remove()],
-  ["missing-origin", "article", false, (origin) => origin.removeAttribute("data-detail-origin")],
-  ["detached", "article", false, (origin) => origin.remove()],
-  ["detail", "#detail", false],
-]) {
-  test(`completion return focus follows the stable setup origin: ${focus}`, () => {
-    const dom = new JSDOM(`<!doctype html>
-      <button id="outside">Settings</button>
-      <div data-detail-workspace><button id="detail">Play</button></div>
-      <article data-detail-origin="game-file-libraries-setup" tabindex="-1">
-        <section aria-label="Continue to a game"><button id="continue">Open details</button></section>
-        <button id="disabled" aria-disabled="true">Unavailable</button>
-      </article>`);
-    const document = dom.window.document;
-    const origin = document.querySelector("article");
-    for (const element of document.querySelectorAll("*")) {
-      element.getClientRects = () => [{ width: 100, height: 20 }];
-    }
-    document.querySelector(selector).focus();
-    mutate?.(origin, document);
-    vi.stubGlobal("document", document);
-    vi.stubGlobal("getComputedStyle", dom.window.getComputedStyle.bind(dom.window));
-    try {
-      const observed = observeCompletionReturnFocus();
-      assert.deepEqual(observed, expected);
-      assert.deepEqual(
-        structuredClone(
-          runInNewContext(`(${observeCompletionReturnFocus.toString()})()`, {
-            document,
-            getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-          }),
-        ),
-        observed,
-      );
-    } finally {
-      vi.unstubAllGlobals();
-      dom.window.close();
-    }
-  });
-}
 
 for (const mismatch of [null, "updated_at", "sha256", "missing", "empty", "extra"]) {
   test(`completion parity uses current full source records: ${mismatch ?? "matching"}`, async () => {

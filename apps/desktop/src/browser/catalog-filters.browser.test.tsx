@@ -281,7 +281,7 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Linux (2)"));
     await userEvent.keyboard("{Escape}");
     await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
-    expect(document.activeElement?.textContent).toContain("Filters (2)");
+    await expect.poll(() => document.activeElement?.textContent).toContain("Filters (2)");
     await expect.element(roleButton("Remove Windows filter")).toBeInTheDocument();
     await expect.element(roleButton("Remove Preview filter")).toBeInTheDocument();
     await userEvent.click(page.getByRole("button", { name: /^Both game\./ }));
@@ -415,7 +415,7 @@ it.each(["dark", "light"])(
       .querySelector<HTMLButtonElement>('button[aria-label="Remove Missing BIOS filter"]')!
       .focus();
     await userEvent.keyboard("{Enter}");
-    expect(document.activeElement?.textContent).toContain("Filters (2)");
+    await expect.poll(() => document.activeElement?.textContent).toContain("Filters (2)");
     await userEvent.click(roleButton("Remove Finish setup filter"));
     await userEvent.click(roleButton("Toggle membership snapshot"));
     await expect.element(roleButton("Remove Stable filter")).toBeInTheDocument();

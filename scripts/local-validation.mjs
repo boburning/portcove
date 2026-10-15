@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
@@ -293,7 +293,8 @@ const explicitNodeTests = new Map([
   ],
   ["scripts/rust-test-impact.mjs", ["scripts/rust-test-impact.test.mjs"]],
   ["scripts/ui-test-selection.mjs", ["scripts/ui-test-selection.test.mjs"]],
-  ["scripts/check-vitest-durations.mjs", ["scripts/test-duration-reporter.test.mjs"]],
+  ["scripts/run-ui-tests.mjs", ["scripts/ui-test-selection.test.mjs"]],
+  ["scripts/run-viteplus.mjs", ["scripts/frontend-command-preflight.test.mjs"]],
   ["scripts/pr-delivery.mjs", ["scripts/repository-skills.test.mjs"]],
   ["scripts/package-local.ps1", ["scripts/repository-skills.test.mjs"]],
   ["scripts/release-preflight.ps1", ["scripts/repository-skills.test.mjs"]],
@@ -467,8 +468,10 @@ export function deduplicateCommands(commands) {
   return unique;
 }
 
-function corepackCommand(id, reason, args, options = {}) {
-  return command(id, reason, "corepack", args, options);
+function frontendTask(id, reason, task) {
+  return command(id, reason, process.execPath, ["scripts/run-viteplus.mjs", "run", task], {
+    cwd: projectRoot,
+  });
 }
 
 function addNodeTest(selection, file) {
@@ -593,6 +596,9 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       "apps/desktop/pnpm-workspace.yaml",
       "scripts/browser-traces.ts",
       "scripts/viteplus-cli.mjs",
+      "scripts/frontend-tests.ts",
+      "scripts/run-ui-tests.mjs",
+      "scripts/run-viteplus.mjs",
     ].includes(file)
   ) {
     selection.ui = true;
@@ -904,33 +910,16 @@ function nodeTestCommand(files) {
 }
 
 function uiRelatedCommand(files) {
-  return corepackCommand(
-    "ui-related-tests",
-    "Vitest import-graph tests related to changed UI sources",
-    [
-      "pnpm",
-      "exec",
-      "vp",
-      "test",
-      "related",
-      "--project=unit",
-      ...files.map((file) => path.resolve(projectRoot, file)),
-      "--run",
-      "--passWithNoTests",
-      "--reporter=default",
-      "--reporter=json",
-      "--outputFile=../../work/ui-related-tests.json",
-    ],
-    { cwd: desktopRoot },
-  );
-}
-
-function uiRelatedDurationCommand() {
   return command(
-    "ui-related-durations",
-    "validate complete timing data for the related UI selection",
+    "ui-related-tests",
+    "bundled Vitest import-graph tests across maintained projects",
     process.execPath,
-    ["scripts/check-vitest-durations.mjs", "work/ui-related-tests.json", "--full-suite-on-empty"],
+    [
+      "scripts/run-ui-tests.mjs",
+      "related",
+      ...files.map((file) => path.resolve(projectRoot, file)),
+    ],
+    { cwd: projectRoot },
   );
 }
 
@@ -949,19 +938,16 @@ export function buildPlan(selection, context = {}) {
       context.mergeBase ?? "<merge-base>",
     ]),
   ];
-  if (selection.repositoryLint || broad || validation?.fallback || validation?.changes.length === 0)
+  const fullStatic =
+    selection.repositoryLint || broad || validation?.fallback || validation?.changes.length === 0;
+  if (fullStatic)
     commands.push(
-      corepackCommand(
-        "repository-lint",
-        "integrated repository format, lint and type checks",
-        ["pnpm", "check"],
-        { cwd: projectRoot },
-      ),
+      frontendTask("repository-lint", "integrated repository static checks", "frontend:static"),
     );
   const files = sorted(selection.oxfmtFiles).filter((file) =>
     existsSync(path.join(projectRoot, file)),
   );
-  if (!selection.repositoryLint && (files.length || broad))
+  if (!fullStatic && files.length)
     commands.push(
       command("oxfmt", "supported-file formatting", process.execPath, [
         "node_modules/vite-plus/bin/vp",
@@ -985,12 +971,6 @@ export function buildPlan(selection, context = {}) {
           file,
         ]),
       );
-  if (selection.ui || broad)
-    commands.push(
-      command("ui-copy", "production source copy before build/tests", process.execPath, [
-        "apps/desktop/scripts/check-copy.mjs",
-      ]),
-    );
   if (selection.nodeTests.size) commands.push(nodeTestCommand(sorted(selection.nodeTests)));
   if (
     selection.packages.size ||
@@ -1018,42 +998,18 @@ export function buildPlan(selection, context = {}) {
   }
   if (selection.ui || broad) {
     commands.push(
-      command(
-        "ui-transport-types",
-        "generated TypeScript matches schema snapshots",
-        process.execPath,
-        ["apps/desktop/scripts/generate-transport-types.mjs"],
-      ),
-      command(
-        "ui-ipc-exposure",
-        "shipped IPC/event consumers match native exposure",
-        process.execPath,
-        ["scripts/check-transport-contract.mjs", "--ipc-only"],
-      ),
-    );
-    commands.push(
       ...(!selection.repositoryLint
-        ? [
-            corepackCommand("ui-check", "frontend static checks", ["pnpm", "check"], {
-              cwd: projectRoot,
-            }),
-          ]
+        ? [frontendTask("ui-check", "frontend static checks", "frontend:static")]
         : []),
-      corepackCommand("ui-build", "frontend production build", ["pnpm", "run", "build"], {
-        cwd: desktopRoot,
-      }),
+      frontendTask("ui-content", "frontend content policy", "frontend:content"),
+      frontendTask("ui-build", "frontend production build", "frontend:build"),
     );
     if (selection.uiFullTests || broad || !selection.uiRelatedFiles.size)
       commands.push(
-        corepackCommand(
-          "ui-tests",
-          "complete unit suite for uncertain/shared frontend impact",
-          ["pnpm", "run", "test:after-copy"],
-          { cwd: desktopRoot },
-        ),
+        frontendTask("ui-tests", "complete frontend Node project", "frontend:unit"),
+        frontendTask("ui-browser-tests", "complete real DOM project", "frontend:browser"),
       );
-    else
-      commands.push(uiRelatedCommand(sorted(selection.uiRelatedFiles)), uiRelatedDurationCommand());
+    else commands.push(uiRelatedCommand(sorted(selection.uiRelatedFiles)));
   }
   return deduplicateCommands(commands);
 }
@@ -1467,12 +1423,10 @@ export function executePlan(plan, options = {}) {
 
 function localStageDomains(entry) {
   if (entry.id === "diff-check") return [];
-  if (entry.id === "ui-copy") return ["ui", "development"];
   // These stages read live native exposure, frontend consumers, and the
   // validator/runner implementation in addition to Rust schema exports.
-  if (["rust-workspace-tests", "ui-ipc-exposure"].includes(entry.id))
+  if (["rust-workspace-tests", "ui-content"].includes(entry.id))
     return ["rust", "ui", "format", "development"];
-  if (entry.id === "ui-transport-types") return ["ui", "format"];
   if (entry.id === "oxfmt") return ["format"];
   if (entry.id === "rustfmt" || entry.id === "dependency-policy" || entry.id.startsWith("rust-"))
     return ["rust"];
@@ -1510,11 +1464,8 @@ function localStageDomains(entry) {
 function localStageReusable(entry) {
   return (
     localStageDomains(entry).length > 0 &&
-    entry.id !== "dependency-policy" &&
-    entry.id !== "oxlint" &&
-    entry.id !== "repository-lint" &&
-    entry.id !== "ui-related-durations" &&
-    entry.id !== "ui-browser-tests"
+    !entry.id.startsWith("ui-") &&
+    !["dependency-policy", "oxlint", "oxfmt", "repository-lint"].includes(entry.id)
   );
 }
 
@@ -1657,42 +1608,16 @@ function runFocusedCommand(kind, args) {
       ]),
     ];
   } else if (kind === "test-ui-related") {
-    plan = [
-      uiRelatedCommand(resolveUiSelection(args, desktopRoot, "related")),
-      uiRelatedDurationCommand(),
-    ];
+    plan = [uiRelatedCommand(resolveUiSelection(args, desktopRoot, "related"))];
   } else if (kind === "test-ui") {
     const files = resolveUiSelection(args, desktopRoot);
-    const directory = path.join(projectRoot, "work/ui-explicit", randomUUID());
-    mkdirSync(directory, { recursive: true });
-    const selectionFile = path.join(directory, "selection.json");
-    const reportFile = path.join(directory, "report.json");
-    writeFileSync(selectionFile, JSON.stringify(files), { flag: "wx" });
     plan = [
-      corepackCommand(
-        "ui-explicit-tests",
-        "literal UI test files",
-        [
-          "pnpm",
-          "exec",
-          "vitest",
-          "run",
-          ...files,
-          "--pool=threads",
-          "--isolate",
-          "--maxWorkers=2",
-          "--testTimeout=5000",
-          "--reporter=default",
-          "--reporter=json",
-          `--outputFile=${reportFile}`,
-        ],
-        { cwd: desktopRoot },
-      ),
       command(
-        "ui-explicit-coverage",
-        "reconcile requested UI files and timing evidence",
+        "ui-explicit-tests",
+        "literal UI test files and execution reconciliation",
         process.execPath,
-        ["scripts/check-vitest-durations.mjs", reportFile, "--expected-tests", selectionFile],
+        ["scripts/run-ui-tests.mjs", "exact", ...files],
+        { cwd: projectRoot },
       ),
     ];
   } else if (kind === "test-node") {

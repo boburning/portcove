@@ -333,7 +333,7 @@ After changing them, run Cargo once so the workspace package entries in `Cargo.l
 
 `scripts/check-release-metadata.mjs` verifies those versions, the tag, package manager pin, repository/license metadata, Tauri identity, and the required master/runtime/platform brand assets. It also requires one created local `main` Tauri window, scopes the default capability to that window, and uses Cargo's metadata graph to keep the declared qualification-only features out of both the transitive default Desktop feature set and always-enabled dependency features. The production Vite build independently rejects development scenarios and test fixtures from emitted assets. Local packaging derives its default version from that check and rejects an explicit mismatch.
 
-The offline `corepack pnpm --dir apps/desktop release:policy` utility accepts `classify`,
+The offline `pnpm --dir apps/desktop release:policy` utility accepts `classify`,
 `select` or `propose` followed by one JSON input file. It shares the existing Node
 tooling workspace and maintained SemVer dependency; it is not renderer code.
 Classification defaults to Preview, including suffix-free 0.x and unapproved
@@ -352,7 +352,7 @@ grant production approval or publish a release. Its caller must establish input
 authority. Existing production publication remains separately protected; a
 proposal cannot activate that procedure. Download selection uses the same policy.
 
-`corepack pnpm --dir apps/desktop release:prepare REPOSITORY INPUT.json` accepts
+`pnpm --dir apps/desktop release:prepare REPOSITORY INPUT.json` accepts
 `classification` and `published_versions` using the proposal schema. It reads
 only the frozen commit, updates the coordinated Cargo/Desktop/Tauri versions and
 workspace lock entries in a temporary index, and creates a prepared child commit.

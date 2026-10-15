@@ -1488,7 +1488,7 @@ test("ordinary package boundary is isolated and rejects stale or substituted evi
   );
   const manifest = {
     revision: "b".repeat(40),
-    build_command: ["corepack", "pnpm", "tauri", "build", "--bundles", "nsis"],
+    build_command: ["pnpm", "tauri", "build", "--bundles", "nsis"],
     qualification_features: [],
     configuration,
     installer,

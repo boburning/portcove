@@ -573,7 +573,7 @@ export async function collectDoctor(options = {}) {
     },
     {
       id: "pnpm",
-      command: ["corepack", repositoryPackage.packageManager, "--version"],
+      command: ["pnpm", "--version"],
       version: repositoryPackage.packageManager.split("@")[1],
       remediation: "./scripts/bootstrap-quality-tools.ps1",
     },

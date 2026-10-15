@@ -81,11 +81,11 @@ prune-incremental:
 # Repository formatting
 fmt:
     {{storage}} cargo fmt --all
-    {{storage}} corepack pnpm format
+    {{storage}} node scripts/run-viteplus.mjs fmt
 
 fmt-check:
     {{storage}} cargo fmt --all -- --check
-    {{storage}} corepack pnpm format:check
+    {{storage}} node scripts/run-viteplus.mjs fmt --check
 
 # Rust fast loop
 rustfmt-check:
@@ -126,30 +126,36 @@ ui-transport:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/transport-types.test.mjs
 
 ui-build:
-    {{storage}} corepack pnpm build
+    {{storage}} node scripts/run-viteplus.mjs run frontend:build
 
 ui-test:
-    {{storage}} corepack pnpm test
+    {{storage}} node scripts/run-viteplus.mjs run frontend:unit
 
 fallow:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs scripts/run-fallow.test.mjs
     {{storage}} node scripts/run-fallow.mjs
 
 oxlint:
-    {{storage}} corepack pnpm lint:oxlint
+    {{storage}} node scripts/run-viteplus.mjs lint
 
 stylelint:
-    {{storage}} corepack pnpm lint:style
+    {{storage}} node scripts/run-viteplus.mjs -C apps/desktop run lint:style
 
 ui-lint-contracts:
     {{storage}} node scripts/lint-tools.integration.mjs oxfmt oxlint stylelint
 
-ui-check: ui-transport ui-build ui-test fallow oxlint stylelint
+ui-check:
+    {{storage}} node scripts/run-viteplus.mjs run frontend:verify
+    {{storage}} node scripts/run-fallow.mjs
 
-check-ui: fmt-frontend-check ui-check ui-lint-contracts
+ui-static:
+    {{storage}} node scripts/run-viteplus.mjs run frontend:static
 
-fmt-frontend-check:
-    {{storage}} corepack pnpm format:check
+ui-runtime:
+    {{storage}} node scripts/run-viteplus.mjs run frontend:runtime
+    {{storage}} node scripts/run-fallow.mjs
+
+check-ui: ui-check ui-lint-contracts
 
 # Cross-language scripts and hosted automation.
 python-lint:
