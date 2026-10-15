@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../../api";
 import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type { InstallRecord, PortStatus, UpdateCheckOutcome } from "../../types";
@@ -558,38 +559,53 @@ describe("port update read owner", () => {
     expect(checkInstalled).not.toHaveBeenCalled();
   });
 
-  it("retries only checking, keeps focus and suppresses repeated same-turn clicks", async () => {
-    const current = status("alpha", "a".repeat(64));
-    const pending = deferred<UpdateCheckOutcome[]>();
-    const read = vi
-      .spyOn(desktopApi, "checkInstalled")
-      .mockRejectedValueOnce(failureReport())
-      .mockReturnValueOnce(pending.promise);
-    const install = vi.spyOn(desktopApi, "install");
-    const update = vi.spyOn(desktopApi, "applyGameUpdate");
-    const activate = vi.spyOn(desktopApi, "activate");
-    await act(async () => root.render(<OperatingCenter statuses={[current]} />));
-    await act(async () => state.checkAll());
-    const retry = [...host.querySelectorAll("button")].find((button) =>
-      button.textContent?.includes("Retry update check"),
-    )!;
-    await act(async () => {
-      retry.focus();
-      retry.click();
-      retry.click();
-    });
-    expect(read).toHaveBeenCalledTimes(2);
-    expect(retry.disabled).toBe(true);
-    await act(async () => {
-      pending.resolve([outcome(current)]);
-    });
-    expect(retry.disabled).toBe(false);
-    expect(document.activeElement).toBe(retry);
-    expect(state.batchRead.status).toBe("current");
-    expect(install).not.toHaveBeenCalled();
-    expect(update).not.toHaveBeenCalled();
-    expect(activate).not.toHaveBeenCalled();
-  });
+  it.each([false, true])(
+    "retries only checking, keeps focus and suppresses repeated same-turn clicks (focus moved=%s)",
+    async (movedFocus) => {
+      const current = status("alpha", "a".repeat(64));
+      const pending = deferred<UpdateCheckOutcome[]>();
+      const read = vi
+        .spyOn(desktopApi, "checkInstalled")
+        .mockRejectedValueOnce(failureReport())
+        .mockReturnValueOnce(pending.promise);
+      const install = vi.spyOn(desktopApi, "install");
+      const update = vi.spyOn(desktopApi, "applyGameUpdate");
+      const activate = vi.spyOn(desktopApi, "activate");
+      await act(async () =>
+        root.render(
+          <>
+            <OperatingCenter statuses={[current]} />
+            <button data-focus-elsewhere>Elsewhere</button>
+          </>,
+        ),
+      );
+      await act(async () => state.checkAll());
+      const retry = [...host.querySelectorAll("button")].find((button) =>
+        button.textContent?.includes("Retry update check"),
+      )!;
+      await act(async () => {
+        retry.focus();
+        retry.click();
+        retry.click();
+      });
+      expect(read).toHaveBeenCalledTimes(2);
+      expect(retry.getAttribute("aria-disabled")).toBe("true");
+      await userEvent.keyboard("{Enter}");
+      expect(read).toHaveBeenCalledTimes(2);
+      const elsewhere = host.querySelector<HTMLButtonElement>("[data-focus-elsewhere]")!;
+      if (movedFocus) elsewhere.focus();
+      await act(async () => {
+        pending.resolve([outcome(current)]);
+      });
+      expect(retry.disabled).toBe(false);
+      expect(retry.getAttribute("aria-disabled")).not.toBe("true");
+      await expect.poll(() => document.activeElement).toBe(movedFocus ? elsewhere : retry);
+      expect(state.batchRead.status).toBe("current");
+      expect(install).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+      expect(activate).not.toHaveBeenCalled();
+    },
+  );
 
   it("does not manufacture a current batch when the operation returns no result", async () => {
     function NoResult() {

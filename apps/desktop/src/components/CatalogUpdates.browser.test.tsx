@@ -130,7 +130,9 @@ it("requires explicit review, invalidates changed candidates and uses core prove
       openPopup?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     });
     expect(document.body.querySelector('[aria-labelledby="catalog-update-title"]')).not.toBeNull();
-    expect(document.activeElement).toBe(document.body.querySelector("#catalog-update-source"));
+    await expect
+      .poll(() => document.activeElement)
+      .toBe(document.body.querySelector("#catalog-update-source"));
     await click("Choose file");
     expect(apply).not.toHaveBeenCalled();
     await click("Review update");
