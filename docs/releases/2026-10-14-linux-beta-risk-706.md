@@ -185,6 +185,15 @@ The failing observations are retained; all 168 focused workflow/policy/audit,
 retention and Linux-stop controls pass after these exact setup repairs. No custody
 guard, scanner scope, test deadline or production behavior is relaxed.
 
+The approved cancellation-latch source reconfirmation is `3f370fd75a0cc16e37a8262b36577949809b86e9`
+with native input fingerprint
+`06508d140e42471d8a0818293eb50ebfc6cc5331d61225afe70b2270e3fa426d`.
+Only publisher-policy test source differs from the preceding reconfirmation;
+lockfile, resolved native dependencies/code generation, production inputs and
+enabled features remain identical. The unchanged bounded application-risk trace
+is reused. Final reviewed source and all qualification results are recorded on
+PR #1997; this does not establish remediation or universal unreachability.
+
 ## Execution and separate decision
 
 `just deny` preserves the scanner's original exit status and full structured
