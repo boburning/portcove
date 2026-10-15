@@ -1192,7 +1192,10 @@ export function parseArguments(argv) {
       continue;
     }
     const [name, inline] = token.split("=", 2);
-    if (["--apply", "--json", "--summary", "--help"].includes(name) && inline === undefined) {
+    if (
+      ["--apply", "--json", "--summary", "--help", "--linux-beta-706"].includes(name) &&
+      inline === undefined
+    ) {
       options[name] = true;
       continue;
     }
@@ -5829,6 +5832,9 @@ async function main(argv) {
       return;
     }
     if (parsed.command === "readiness") {
+      executionOptions(parsed, ["--release", "--linux-beta-706"]);
+      if ("--linux-beta-706" in parsed.options && parsed.options["--linux-beta-706"] !== true)
+        throw new Error("--linux-beta-706 does not accept a value");
       const release = requiredOption(parsed.options, "--release");
       let risk706Evidence = null;
       let risk706Output = null;

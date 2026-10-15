@@ -5172,6 +5172,14 @@ test("Roadmap command help is available without the GitHub executable or operati
     };
   }
   test("approved remediation planning is valid but never establishes release eligibility", () => {
+    assert.deepEqual(
+      parseArguments(["readiness", "--release", "Public beta", "--linux-beta-706"]),
+      {
+        command: "readiness",
+        positionals: [],
+        options: { "--release": "Public beta", "--linux-beta-706": true },
+      },
+    );
     const result = analyzeReleaseReadiness(items(), "Public beta", { now });
     assert.equal(result.safetyConflicts.length, 0);
     assert.equal(result.dependencyConflicts.length, 0);
