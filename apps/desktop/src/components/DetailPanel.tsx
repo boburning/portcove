@@ -6,7 +6,7 @@ import { ExternalRuntimeControl } from "./ExternalRuntime";
 import { ArtworkControls, ArtworkImage, DetailArtwork } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -288,6 +288,20 @@ export function DetailPanel(props: DetailPanelProps) {
       ));
   const renderDetailBody = () => (
     <DetailBody
+      observations={
+        <>
+          {!props.browsingMatch && (
+            <GameFileFilterObservation portId={port.id} context={props.gameFileFilterContext} />
+          )}
+          <BrowsingMatchDetails
+            portId={port.id}
+            result={props.browsingMatch}
+            binding={props.browsingBinding}
+            gameFiles={props.gameFileFilterContext}
+          />
+          {renderQueryControl()}
+        </>
+      }
       installCancellations={props.cancellableActivities?.filter(
         (activity) => activity.operation === "install",
       )}
@@ -346,16 +360,6 @@ export function DetailPanel(props: DetailPanelProps) {
         state={state}
         missingSourceLabels={!installed ? missingSourceLabels : []}
       />
-      {!props.browsingMatch && (
-        <GameFileFilterObservation portId={port.id} context={props.gameFileFilterContext} />
-      )}
-      <BrowsingMatchDetails
-        portId={port.id}
-        result={props.browsingMatch}
-        binding={props.browsingBinding}
-        gameFiles={props.gameFileFilterContext}
-      />
-      {renderQueryControl()}
       {renderCancellations()}
       {renderDetailBody()}
     </section>
@@ -407,6 +411,7 @@ function DetailHero({
 }
 
 function DetailBody({
+  observations,
   installCancellations,
   perform,
   prepare,
@@ -440,6 +445,7 @@ function DetailBody({
   actions,
   openLibraryStorage,
 }: {
+  observations: ReactNode;
   installCancellations?: ActivityRecord[] | undefined;
   perform?: Perform | undefined;
   prepare?: RunPreparation | undefined;
@@ -515,6 +521,7 @@ function DetailBody({
       <p className="leading-[var(--leading-relaxed)] text-[var(--color-text-secondary)]">
         {port.summary}
       </p>
+      {observations}
       <NavigationHints />
       <ArtworkControls key={`${port.id}:${libraryGeneration}`} port={port} />
       <DetailArtwork key={`${port.id}:${libraryGeneration}`} port={port} />

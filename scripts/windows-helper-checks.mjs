@@ -3,7 +3,33 @@ import {
   nativeHelperRegistryPath,
 } from "./native-helper-dependencies.mjs";
 
+const nativeToolInputs = new Set([
+  "apps/desktop/scripts/desktop-install-fixture.native.test.mjs",
+  "apps/desktop/scripts/cli-command-shell.native.test.mjs",
+  "apps/desktop/src/cli-command.ts",
+  "crates/portcove-core/src/testdata/host_tool_probe.rs.txt",
+  "scripts/dev-storage.mjs",
+  "scripts/tool-cache.mjs",
+  ".node-version",
+  "rust-toolchain.toml",
+  ".github/actions/setup-rust/action.yml",
+  ".github/workflows/ci.yml",
+]);
+
+export function windowsNativeToolsRequired(plan) {
+  return (
+    plan.mode === "qualification" ||
+    (plan.mode === "fast" &&
+      (Boolean(plan.fallback) ||
+        !plan.changes.length ||
+        plan.changes.some((change) =>
+          [change.oldPath, change.newPath].some((file) => nativeToolInputs.has(file)),
+        )))
+  );
+}
+
 const helperPaths = new Set([
+  ...nativeToolInputs,
   ...Object.keys(nativeHelperDependencies),
   "apps/desktop/scripts/desktop-test.mjs",
   nativeHelperRegistryPath,

@@ -98,6 +98,8 @@ const nativeScenarioFiles = new Set([
   "apps/desktop/scripts/desktop-artwork-correction-test.mjs",
   "apps/desktop/scripts/desktop-default-cover-test.mjs",
   "apps/desktop/scripts/desktop-install-fixture.test.mjs",
+  "apps/desktop/scripts/desktop-install-fixture.native.test.mjs",
+  "apps/desktop/scripts/cli-command-shell.native.test.mjs",
   "apps/desktop/scripts/desktop-preparation-test.mjs",
   "apps/desktop/scripts/desktop-source-dialog-test.mjs",
   "apps/desktop/scripts/desktop-test.mjs",
@@ -609,6 +611,18 @@ export function digestValidationPlan(plan) {
   return createHash("sha256").update(stableJson(unsigned)).digest("hex");
 }
 
+function isRegularValidationChange(change) {
+  const status = String(change.status).charAt(0);
+  if (["A", "?"].includes(status))
+    return change.oldMode === "000000" && change.newMode === "100644";
+  if (status === "D") return change.oldMode === "100644" && change.newMode === "000000";
+  return (
+    ["M", "R"].includes(status) &&
+    ["100644", "100755"].includes(change.oldMode) &&
+    change.newMode === change.oldMode
+  );
+}
+
 export function buildValidationPlan({
   changes,
   eventName,
@@ -678,15 +692,8 @@ export function buildValidationPlan({
     .map(classifyPath);
   const changedFiles = paths.map((entry) => entry.path);
   const allProse = changedFiles.every((file) => proseOnlyAllowlist.includes(file));
-  const regular = normalizedChanges.every((change) => {
-    const status = String(change.status).charAt(0);
-    if (["A", "?"].includes(status))
-      return change.oldMode === "000000" && change.newMode === "100644";
-    if (status === "D") return change.oldMode === "100644" && change.newMode === "000000";
-    return (
-      ["M", "R"].includes(status) && change.oldMode === "100644" && change.newMode === "100644"
-    );
-  });
+  const regular = normalizedChanges.every(isRegularValidationChange);
+  const executable = normalizedChanges.some((change) => change.oldMode === "100755");
 
   if (!regular)
     return buildValidationPlan({
@@ -700,10 +707,10 @@ export function buildValidationPlan({
       blockedReason: "unsafe-file-type-or-change-status",
     });
   const areas = [
-    ...new Set([...paths.flatMap((entry) => entry.areas), ...(!regular ? ["policy"] : [])]),
+    ...new Set([...paths.flatMap((entry) => entry.areas), ...(executable ? ["policy"] : [])]),
   ].sort();
   const unknown = paths.filter((entry) => entry.unknown).map((entry) => entry.path);
-  const qualificationRequired = !regular || paths.some((entry) => entry.qualificationRequired);
+  const qualificationRequired = executable || paths.some((entry) => entry.qualificationRequired);
   const groups = qualificationRequired
     ? fastGroups
     : unknown.length
@@ -715,7 +722,7 @@ export function buildValidationPlan({
     : unknown.length || selectedPlatforms.length === 0
       ? ["primary-host"]
       : selectedPlatforms;
-  const mode = allProse && regular ? "prose" : qualificationRequired ? "qualification" : "fast";
+  const mode = allProse && !executable ? "prose" : qualificationRequired ? "qualification" : "fast";
   const plan = {
     format_version: validationPlanVersion,
     mode,
@@ -787,10 +794,14 @@ export function validateValidationPlan(plan) {
     if (!change || !["A", "D", "M", "R", "?"].includes(String(change.status).charAt(0)))
       throw new Error("invalid validation change status");
     changePaths.push(normalizedPath(change.oldPath), normalizedPath(change.newPath));
-    for (const mode of [change.oldMode, change.newMode])
-      if (!["000000", "100644"].includes(mode))
-        throw new Error("unsafe or missing validation file mode");
+    if (!isRegularValidationChange(change))
+      throw new Error("unsafe or missing validation file mode");
   }
+  if (
+    plan.changes.some((change) => change.oldMode === "100755") &&
+    (plan.mode !== "qualification" || !plan.qualification_required)
+  )
+    throw new Error("executable source changes require full qualification");
   if (JSON.stringify([...new Set(changePaths)].sort()) !== JSON.stringify(plan.changed_files))
     throw new Error("validation changes do not match changed files");
   const pathNames = [];

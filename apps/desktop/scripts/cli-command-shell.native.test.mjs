@@ -1,9 +1,10 @@
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { it, expect } from "vite-plus/test";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { shellCommand } from "../src/cli-command.ts";
 
-it("passes shell-sensitive values as literal arguments to a harmless child process", () => {
+test("passes shell-sensitive values as literal arguments to a harmless child process", () => {
   const shell = process.platform === "win32" ? "powershell" : "posix";
   const args = [
     "two words",
@@ -29,7 +30,7 @@ it("passes shell-sensitive values as literal arguments to a harmless child proce
           timeout: 10000,
         })
       : spawnSync("sh", ["-c", command], { encoding: "utf8", timeout: 10000 });
-  expect(child.error).toBeUndefined();
-  expect(child.status, child.stderr).toBe(0);
-  expect(JSON.parse(child.stdout.trim())).toEqual(args);
+  assert.ifError(child.error);
+  assert.equal(child.status, 0, child.stderr);
+  assert.deepEqual(JSON.parse(child.stdout.trim()), args);
 });

@@ -20,6 +20,7 @@
     "hooks:status": "node scripts/hooks-install.mjs status",
     "check:content": "vp run frontend:content",
     "test:browser": "vp run frontend:browser",
+    "test:native-tools": "vp run native:tools",
     "verify:frontend": "vp run frontend:verify"
   },
   "devDependencies": {

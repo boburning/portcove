@@ -243,6 +243,10 @@ export default defineConfig({
         cache: false,
       },
       "test:native": { command: "vp -C apps/desktop run test:desktop", cache: false },
+      "native:tools": {
+        command: "node --test --test-timeout=30000 apps/desktop/scripts/*.native.test.mjs",
+        cache: false,
+      },
     },
   },
 });

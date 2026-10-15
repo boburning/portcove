@@ -86,12 +86,15 @@ authority. Its changed native interactions still require the ordinary isolated
 native scenario. This exact entry grants no ownership to another harness, its
 Core/Tauri implementation, or a renamed or mixed authority input.
 
-The reviewed `apps/desktop/scripts/desktop-install-fixture.test.mjs` assertion
-file also belongs to frontend validation: both frontend lanes discover its
-Vitest cases. Its Windows-only process-tree case still requires actual Windows
-execution when changed; a Linux skip does not supply that evidence. This exact
-test ownership does not narrow its fixture, scenario or Playnite lifecycle
-implementations, which retain their existing conservative/native selection.
+The pure `apps/desktop/scripts/desktop-install-fixture.test.mjs` assertions
+belong to frontend Node validation. Compiler-backed probe and shell roundtrips
+live in `*.native.test.mjs` and run through Node directly. The canonical
+`native:tools` task retains their explicit local route. Existing affected Windows
+helper and full Windows qualification lanes provision pinned Rust and run these
+cases without installing frontend dependencies. Both rename/delete sides and
+the actual probe, quoting and launch inputs select Windows proof; a Linux skip
+does not supply it. This exact test ownership does not narrow fixture, scenario
+or Playnite lifecycle implementations.
 Selected local checks run the existing Fallow gate for frontend source, script
 and test changes. Both hosted frontend lanes also run that same gate; the fast
 lane checks it before build/test and browser preparation. Its settings and final

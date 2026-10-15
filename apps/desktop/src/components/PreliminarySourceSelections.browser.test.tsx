@@ -1,5 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import { render, cleanup } from "vitest-browser-react";
+import axe from "axe-core";
 import { expect, it, vi } from "vite-plus/test";
 import type { SourceInspectionReport, SourceProfile } from "../types";
 import {
@@ -47,6 +49,36 @@ const selection: Inspection = {
   },
   message: "Preliminary selection; validation has not run",
 };
+
+it.each([3, 4] as const)(
+  "keeps populated preliminary selection headings ordered at level %s",
+  async (headingLevel) => {
+    try {
+      await render(
+        <>
+          <h2>Game-file locations</h2>
+          {headingLevel === 4 && <h3>Last completed scan</h3>}
+          <PreliminarySourceSelections
+            selections={[selection]}
+            profiles={[profile]}
+            disabled={false}
+            onReview={vi.fn()}
+            headingLevel={headingLevel}
+          />
+        </>,
+      );
+      expect(document.querySelector(`h${headingLevel}`)?.textContent).toBe(
+        "Preliminary selections",
+      );
+      const result = await axe.run(document.body, {
+        runOnly: { type: "rule", values: ["heading-order"] },
+      });
+      expect(result.violations).toEqual([]);
+    } finally {
+      await cleanup();
+    }
+  },
+);
 
 it("refuses inconsistent identity, executed or unknown validator results and non-preliminary admission", () => {
   expect(preliminarySelectionRecord(selection)).toBe(selection.record);

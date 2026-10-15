@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { buildValidationPlan } from "./validation-plan.mjs";
-import { windowsHelperChecksRequired } from "./windows-helper-checks.mjs";
+import {
+  windowsHelperChecksRequired,
+  windowsNativeToolsRequired,
+} from "./windows-helper-checks.mjs";
 import { evaluateCiResults } from "./ci-result-gate.mjs";
 
 const sha = (character) => character.repeat(40);
@@ -23,6 +26,31 @@ const plan = (oldPath, newPath = oldPath, status = "M") =>
     head: sha("c"),
     checkout: sha("d"),
   });
+test("native tool inputs retain affected Windows proof without frontend installation", () => {
+  for (const file of [
+    "apps/desktop/src/cli-command.ts",
+    "crates/portcove-core/src/testdata/host_tool_probe.rs.txt",
+    "apps/desktop/scripts/desktop-install-fixture.native.test.mjs",
+    "apps/desktop/scripts/cli-command-shell.native.test.mjs",
+    "scripts/dev-storage.mjs",
+    "scripts/tool-cache.mjs",
+  ]) {
+    for (const selected of [
+      plan(file),
+      plan(file, "docs/moved.md", "R100"),
+      plan(file, file, "D"),
+    ]) {
+      assert.equal(windowsNativeToolsRequired(selected), true, file);
+      assert.equal(windowsHelperChecksRequired(selected), true, file);
+    }
+  }
+  assert.equal(windowsNativeToolsRequired(plan("apps/desktop/src/App.tsx")), false);
+  assert.equal(
+    windowsNativeToolsRequired({ ...plan("apps/desktop/src/App.tsx"), mode: "qualification" }),
+    true,
+  );
+});
+
 test("Windows helper selection includes rename/delete sides and policy inputs without changing Rust selection", () => {
   for (const file of [
     "apps/desktop/scripts/native-window-discovery.ps1",
@@ -98,7 +126,15 @@ test("workflow runs bounded Windows controls and pinned lint under the existing 
   assert.match(job, /lint-tools.integration.mjs psscriptanalyzer/);
   assert.doesNotMatch(
     job,
-    /cargo|setup-rust|desktop-verify.mjs|desktop:build|bootstrap.*Desktop|native-driver/,
+    /cargo (?:build|test)|desktop-verify.mjs|desktop:build|bootstrap.*Desktop|native-driver|setup-vp|pnpm install/,
+  );
+  assert.match(
+    job,
+    /uses: \.\/\.github\/actions\/setup-rust\n\s+if: needs.classify.outputs.native_tools == 'true'/,
+  );
+  assert.match(
+    job,
+    /node --test --test-timeout=30000 apps\/desktop\/scripts\/\*\.native\.test\.mjs/,
   );
   const catalog = workflow.split("\n  catalog:\n")[1].split("\n  fast_dependency_review:")[0];
   assert.match(

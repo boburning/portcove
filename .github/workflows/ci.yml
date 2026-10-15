@@ -70,6 +70,7 @@ jobs:
       plan_digest: ${{ steps.plan.outputs.plan_digest }}
       plan_json: ${{ steps.plan.outputs.plan_json }}
       windows_helpers: ${{ steps.plan.outputs.windows_helpers }}
+      native_tools: ${{ steps.plan.outputs.native_tools }}
       frontend_tools: ${{ steps.plan.outputs.frontend_tools }}
       frontend_workspace: ${{ steps.plan.outputs.frontend_workspace }}
     steps:
@@ -326,6 +327,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
+      - uses: ./.github/actions/setup-rust
+        if: needs.classify.outputs.native_tools == 'true'
+      - name: Test affected native compiler and shell integrations
+        if: needs.classify.outputs.native_tools == 'true'
+        run: node --test --test-timeout=30000 apps/desktop/scripts/*.native.test.mjs
       - name: Check native helper dependency declarations
         run: node scripts/native-helper-dependencies.mjs
       - name: Test Windows helper and prerequisite controls
@@ -514,6 +520,9 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
+      - uses: ./.github/actions/setup-rust
+      - name: Test native compiler and shell integrations without frontend dependencies
+        run: node --test --test-timeout=30000 apps/desktop/scripts/*.native.test.mjs
       - name: Test development storage on Windows
         run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs --test-skip-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mjs
       - name: Test Windows qualification unit contracts
@@ -901,6 +910,8 @@ jobs:
       - name: Fallow quality gate
         working-directory: .
         run: node scripts/run-fallow.mjs
+      - name: Test native compiler and shell integrations
+        run: node scripts/run-viteplus.mjs run native:tools
 
   frontend:
     if: always()

@@ -24,7 +24,7 @@ const browserProject = {
   root: fileURLToPath(new URL("../apps/desktop", import.meta.url)),
   server: { port: 0, strictPort: false },
   optimizeDeps: {
-    include: ["react-dom/client"],
+    include: ["react-dom/client", "axe-core"],
     exclude: ["vitest-browser-react", "vitest-browser-react/pure"],
   },
   test: {
@@ -56,7 +56,7 @@ export const desktopProjects = [
     test: {
       name: "unit",
       include: ["src/**/*.test.{ts,tsx,js}", "scripts/**/*.test.{js,mjs}"],
-      exclude: ["src/browser/**", "src/**/*.browser.test.{ts,tsx}"],
+      exclude: ["src/browser/**", "src/**/*.browser.test.{ts,tsx}", "scripts/**/*.native.test.mjs"],
       maxWorkers: 2,
       sequence: { groupOrder: 0 },
     },

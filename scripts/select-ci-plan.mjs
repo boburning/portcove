@@ -2,7 +2,10 @@ import { execFileSync } from "node:child_process";
 import { appendFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { windowsHelperChecksRequired } from "./windows-helper-checks.mjs";
+import {
+  windowsHelperChecksRequired,
+  windowsNativeToolsRequired,
+} from "./windows-helper-checks.mjs";
 
 import {
   buildValidationPlan,
@@ -213,6 +216,7 @@ export async function writeGithubOutputs(outputPath, plan) {
         (selection.repositoryLint || Boolean(plan.fallback) || plan.changes.length === 0),
     ),
     windows_helpers: String(windowsHelperChecksRequired(plan)),
+    native_tools: String(windowsNativeToolsRequired(plan)),
     frontend_tools: String(
       plan.mode !== "prose" &&
         (selection.repositoryLint ||

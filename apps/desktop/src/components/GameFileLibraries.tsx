@@ -414,6 +414,7 @@ function CompletedScan({
         </CandidateRow>
       ))}
       <PreliminarySourceSelections
+        headingLevel={4}
         selections={report.preliminary_selections}
         profiles={profiles}
         disabled={busy || !readConfirmed || snapshot.freshness !== "inputs_match"}

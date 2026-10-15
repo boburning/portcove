@@ -31,6 +31,41 @@ const plan = (changes, values = {}) =>
   });
 const redigest = (p) => ({ ...p, digest: digestValidationPlan(p) });
 
+test("unchanged executable permissions require full qualification while unsafe modes remain blocked", () => {
+  for (const status of ["M", "R100"]) {
+    const qualified = plan([
+      change("scripts/bootstrap-quality-tools.sh", {
+        status,
+        oldMode: "100755",
+        newMode: "100755",
+      }),
+    ]);
+    assert.equal(qualified.mode, "qualification");
+    assert.deepEqual(qualified.groups, fastGroups);
+    assert.deepEqual(qualified.platforms, qualificationPlatforms);
+    validateValidationPlan(qualified);
+    assert.throws(
+      () =>
+        validateValidationPlan(
+          redigest({ ...qualified, mode: "fast", qualification_required: false }),
+        ),
+      /executable source changes require full qualification/,
+    );
+  }
+  for (const modes of [
+    { status: "A", oldMode: "000000", newMode: "100755" },
+    { status: "D", oldMode: "100755", newMode: "000000" },
+    { oldMode: "100644", newMode: "100755" },
+    { oldMode: "100755", newMode: "100644" },
+    { oldMode: "120000", newMode: "120000" },
+    { oldMode: "160000", newMode: "160000" },
+  ]) {
+    const blocked = plan([change("scripts/bootstrap-quality-tools.sh", modes)]);
+    assert.equal(blocked.mode, "blocked");
+    validateValidationPlan(blocked);
+  }
+});
+
 test("shared browser trace runtime selects required frontend coverage", () => {
   const file = "scripts/browser-traces.ts";
   const ownership = validationOwnershipForPath(file);

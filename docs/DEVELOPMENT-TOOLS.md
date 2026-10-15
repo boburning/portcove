@@ -184,6 +184,13 @@ Node tests, both browser projects and an ordinary production build, once each.
 Package/just/local/audit/CI consumers delegate to this graph. Audit invokes its
 static/runtime groups separately for independent failure accounting.
 
+`pnpm test:native-tools` runs the separate Node compiler/shell integration
+suites. They require Rust for the Windows probe and PowerShell 7 on Windows (or
+the platform shell elsewhere). These integration checks retain qualification
+ownership without making the pure frontend unit project require native tools.
+The existing Windows qualification lane runs them through Node directly, with
+pinned Rust and no frontend dependency installation.
+
 Vite Task owns build execution and restoration. The build adapter first removes
 only its ordinary, physically confined `apps/desktop/dist` directory: Task restores
 cached files but does not remove unrelated extra output. This preserves Vite's
