@@ -1622,14 +1622,21 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(dependencyReview, /fail-on-severity: high/);
 });
 
-test("full frontend qualification provisions browser artifacts before composition", () => {
+test("full frontend and audit provision browser artifacts before combined tests", async () => {
   const full = workflow.split("  frontend_full:")[1].split("  frontend:")[0];
   const provision = full.indexOf("pnpm browser:bootstrap"),
+    combined = full.search(/- run: pnpm test\r?\n/u),
     run = full.indexOf("pnpm test:browser");
-  assert.ok(provision >= 0 && run > provision);
+  assert.ok(provision >= 0 && combined > provision && run > combined);
   assert.match(full, /browser-traces-full/);
   const fast = workflow.split("  fast_frontend:")[1].split("  fast_catalog:")[0];
   assert.doesNotMatch(fast, /browser:bootstrap|test:browser/);
+  const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
+  const auditTests = recipes.match(/^ui-test:\r?\n([\s\S]*?)(?=^\S)/mu)?.[1] ?? "";
+  assert.match(
+    auditTests,
+    /corepack pnpm --dir apps\/desktop browser:bootstrap\r?\n[^\n]*corepack pnpm test\r?\n/u,
+  );
 });
 
 test("frontend tools resolve through the pinned Vite+ bundle", async () => {

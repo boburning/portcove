@@ -129,6 +129,7 @@ ui-build:
     {{storage}} corepack pnpm build
 
 ui-test:
+    {{storage}} corepack pnpm --dir apps/desktop browser:bootstrap
     {{storage}} corepack pnpm test
 
 fallow:

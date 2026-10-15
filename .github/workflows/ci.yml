@@ -876,6 +876,8 @@ jobs:
         run: |
           node apps/desktop/scripts/generate-transport-types.mjs
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/transport-types.test.mjs
+      - name: Provision reviewed Chromium for browser composition
+        run: pnpm browser:bootstrap
       - run: pnpm test
       - name: Check maintained native scenario consumer contracts
         run: |
@@ -883,8 +885,6 @@ jobs:
           node --test --test-timeout=30000 scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-linux-native-session.test.mjs scripts/desktop-linux-stop.test.mjs scripts/desktop-verify.test.mjs scripts/development-evidence.test.mjs scripts/handoff-evidence.test.mjs scripts/native-session-lock.test.mjs
           node apps/desktop/scripts/desktop-preparation-test.mjs --context-preflight
         working-directory: .
-      - name: Provision reviewed Chromium for browser composition
-        run: pnpm browser:bootstrap
       - name: Test browser composition
         run: pnpm test:browser
       - name: Retain failed browser traces
