@@ -194,6 +194,19 @@ enabled features remain identical. The unchanged bounded application-risk trace
 is reused. Final reviewed source and all qualification results are recorded on
 PR #1997; this does not establish remediation or universal unreachability.
 
+The [ordinary c8af954 CI attempt](https://github.com/boburning/portcove/actions/runs/38733757002)
+retains a ten-second timeout in the unchanged PowerShell field-projection
+fixture, with empty child stdout/stderr. Its phase is unknown; a local pass does
+not establish a causal fix. The same fixture now emits seven short fixed phase
+markers and elapsed times inside its existing bounded diagnostic capture.
+Actual PowerShell AST extraction/call/guards, positive/adverse assertions,
+stdout success marker, ten-second child limit and thirty-second outer limit
+remain unchanged. Local original and instrumented controls pass; all 184
+selected workflow, policy, audit, retained-evidence, Linux-stop and native-helper
+controls pass with zero skips. This qualifies the diagnostics only. A later
+hosted pass is an observation under the unchanged contract, not a claimed repair
+of the original timeout; a repeat failure requires its phase evidence.
+
 ## Execution and separate decision
 
 `just deny` preserves the scanner's original exit status and full structured
