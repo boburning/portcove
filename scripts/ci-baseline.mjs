@@ -97,6 +97,12 @@ export function baselineRequiresRust(plan) {
   );
 }
 
+export function baselineRequiresPython(plan) {
+  if (plan.mode === "qualification") return true;
+  if (!["fast", "prose"].includes(plan.mode)) return false;
+  return baselineContractTests(plan).includes("scripts/nextest-equivalence.test.mjs");
+}
+
 // Run the cheap production checkers against the actual checkout when their
 // contracts are selected. Fixture-based unit tests alone cannot prove integrity.
 export function baselineIntegrityCommands(plan, options) {

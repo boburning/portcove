@@ -16,6 +16,7 @@ import {
   baselineBootstrapTests,
   baselineTestEnvironment,
   baselineSelection,
+  baselineRequiresPython,
 } from "./ci-baseline.mjs";
 const make = (files) =>
   buildValidationPlan({
@@ -262,4 +263,9 @@ test("ordinary selected checking retains CSS correctness", () => {
     "run",
     "frontend:static",
   ]);
+});
+
+test("Python is provisioned for the effective TOML positive contracts, not ordinary prose", () => {
+  assert.equal(baselineRequiresPython(make(["scripts/nextest-equivalence.mjs"])), true);
+  assert.equal(baselineRequiresPython(make(["docs/QUALITY.md"])), false);
 });

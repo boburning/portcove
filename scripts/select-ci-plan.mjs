@@ -200,6 +200,7 @@ export async function writeGithubOutputs(outputPath, plan, reuse = null) {
     script_tools: String(selection.actionsLint || selection.shellLint || selection.pythonLint),
     reuse_json: JSON.stringify(reuse),
     reused_groups: JSON.stringify(reuse?.groups ?? []),
+    contract_python: String((await import("./ci-baseline.mjs")).baselineRequiresPython(plan)),
     contract_rust: String((await import("./ci-baseline.mjs")).baselineRequiresRust(plan)),
     mode: plan.mode,
     frontend_workspace: String(

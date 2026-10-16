@@ -63,6 +63,7 @@ jobs:
       script_tools: ${{ steps.plan.outputs.script_tools }}
       reuse_json: ${{ steps.plan.outputs.reuse_json }}
       reused_groups: ${{ steps.plan.outputs.reused_groups }}
+      contract_python: ${{ steps.plan.outputs.contract_python }}
       contract_rust: ${{ steps.plan.outputs.contract_rust }}
       mode: ${{ steps.plan.outputs.mode }}
       reason: ${{ steps.plan.outputs.reason }}
@@ -417,6 +418,10 @@ jobs:
         run: pnpm --filter portcove-desktop-ui install --frozen-lockfile --ignore-scripts
       - uses: ./.github/actions/setup-rust
         if: needs.classify.outputs.contract_rust == 'true'
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        if: needs.classify.outputs.contract_python == 'true'
+        with:
+          python-version: "3.12"
       - name: Check relevant cheap repository contracts
         env:
           PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
@@ -1016,6 +1021,9 @@ jobs:
           path: work/prose-ci-integration/
           if-no-files-found: ignore
           retention-days: 7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
       - name: Verify repository and release contracts
         run: |
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs scripts/discovery-checkpoint.test.mjs scripts/discovery-intake.test.mjs
