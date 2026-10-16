@@ -543,3 +543,45 @@ assessment, approval owner/scope/expiry, advisory, policy and null publication
 tag remain unchanged. Separate actual-source review, current-head checks,
 fresh complete audit and maintained qualification remain required. This does
 not admit another finding, waive qualification or authorize publication.
+
+## Delivered Schemars delta reassessment — October 16, 2026
+
+Normal integration candidate `5aa223fe736026a67df7edf5ba6aa26f4ca21ef6` consumes delivered
+[#2019](https://github.com/boburning/portcove/pull/2019), source
+`8468ffe2c08e059adcd62fadafc97251b39361c6` / merge
+`e892cca7eaaba86c1c9e11ebd041ae32948d7547`, after the delivered
+Package 2 parent #1993. Schemars and schemars_derive change from 1.2.2 to 1.2.3;
+no other resolution, feature, generator dependency or local Rust source changes.
+The complete 192-entry input inventory differs only in the root Cargo.toml.
+The complete 238-entry native inventory differs only in those two registry
+identities/checksums and dependent references; both Schemars versions enable
+default, derive, schemars_derive and std.
+
+The bounded source refresh verifies four old/new lock-checksummed crate archives,
+246 published Rust/manifest files and eight manifest texts against their actual
+cached bytes. Ten changed Rust files (including one dependency test) concern
+schema property ordering, invalid arbitrary-precision schema input, and
+qualification/lint cleanup. Both packages' examined sources contain no found
+GLib/VariantStrIter/array_iter_str consumer. This independently reviewed delta
+preserves the preceding bounded affected-constructor assessment; it does not
+prove universal unreachability, linked/generated-code safety or remediation.
+The [versioned upstream release](https://github.com/GREsau/schemars/releases/tag/v1.2.3)
+and delivered parent's schema/transport contract checks support this scope.
+
+Lock SHA256 is `74ac6eb7331e478ac1e649dda817ec40677100f414504cf87c160ebf728a0869`;
+input digest `a13eae409bdf4974d24d895a5743aac045de3674b6aa716ff8a96d738d4b6c22`;
+dependency/generator digest `e2d7f9ca74f1562ae9ec32ad3314ab7d53ebb49960cebee7ebf12254506fa59a`.
+Only reconfirmedHead and the two fingerprints change in the protected record.
+Original assessment, approval owner/scope/expiry, policy, advisory/version and
+null publication identity remain intact. GLib 0.18.5 remains unsound and the
+alert remains a remediation obligation. No risk grant is renewed or broadened.
+
+Prior Windows security/installed, design and updater observations retain their
+original source/artifact/environment scope: this delta changes JSON Schema
+machinery, not their security guards, interaction or updater controller. It
+does not establish executable equality or fresh installation/updater execution.
+Final-source schema/transport and required checks, complete fresh raw audit,
+maintained qualification, and the integrated ordinary Linux package observation
+remain required. Original scanner output and failing raw status are preserved;
+only an otherwise eligible exact existing disposition may account for GLib.
+No minimum, release identity, signing or publication authority follows.
