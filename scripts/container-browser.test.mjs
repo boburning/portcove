@@ -20,6 +20,7 @@ import {
   cleanup,
 } from "./container-browser.mjs";
 import { preflight, isWindowsSystemDrivePath } from "./dev-storage.mjs";
+import { assertCommittedWorkspace } from "./container-source.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const info = {
@@ -171,9 +172,14 @@ test("an unpushed commit is selected exactly and dirty bytes/refs remain untouch
     const commit = await git("rev-parse", "HEAD"),
       tree = await git("rev-parse", "HEAD^{tree}");
     assert.equal(await git("remote"), "");
+    assertCommittedWorkspace(fixture, commit, tree);
     assert.equal((await selectedSource(commit, false, fixture)).tree, tree);
     writeFileSync(path.join(fixture, "source.txt"), "dirty bytes\n");
+    assert.throws(() => assertCommittedWorkspace(fixture, commit, tree), /committed bytes/u);
+    writeFileSync(path.join(fixture, "source.txt"), "committed\n");
     writeFileSync(path.join(fixture, "excluded.txt"), "untracked bytes\n");
+    assert.throws(() => assertCommittedWorkspace(fixture, commit, tree), /committed bytes/u);
+    writeFileSync(path.join(fixture, "source.txt"), "dirty bytes\n");
     const before = await git("status", "--porcelain=v1"),
       branch = await git("symbolic-ref", "HEAD");
     await assert.rejects(selectedSource(commit, false, fixture), /Dirty current work/u);

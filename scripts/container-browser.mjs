@@ -852,6 +852,9 @@ export async function browser({
       );
       writeFileSync(path.join(directory, "build.log"), build.stdout + build.stderr);
       image = JSON.parse((await docker(["image", "inspect", tag])).stdout)[0];
+      state.image = image.Id;
+      state.image_inspection = image;
+      save();
       state.build_cache_after_bytes = cacheBytes(
         (await docker(["system", "df", "--format", "json"], { timeout: 30_000 })).stdout,
       );
@@ -993,11 +996,13 @@ export async function cleanup(apply = false, minAgeHours = budgets.retention_hou
     }
   }
   const images = [];
+  const eligibleImages = new Set(candidates.map((item) => item.image_retained));
   const eligibleContainers = new Set(candidates.map((item) => item.container));
   for (const image of (await imageUsage()).images) {
     if (!Number.isFinite(Date.parse(image.Created)))
       throw new Error("Unknown image age; cleanup refused");
     if (
+      !eligibleImages.has(image.Id) ||
       protectedImages.has(image.Id) ||
       Date.now() - Date.parse(image.Created) < minAgeHours * 3600_000
     )

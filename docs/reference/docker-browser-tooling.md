@@ -60,8 +60,11 @@ The browser Dockerfile pins the official Vite+ image by exact tag and Linux
 index digest, with Linux x86-64 explicitly selected and verified. The tag must
 match the selected source catalog. The complete
 committed source, including manifests, lockfile, patches and lifecycle scripts,
-participates in preparation. Frozen installation and the maintained provider
-compatibility check precede Playwright's own system-library installer and
+participates in preparation. Git rejects tracked or
+untracked source changes after preparation and immediately before fresh tests.
+Ignored generated dependencies, caches and output remain separate. Frozen
+installation and the maintained provider compatibility check precede
+Playwright's own system-library installer and
 canonical Chromium headless-shell bootstrap. No Rust or packaging toolchain is
 added. The upstream image's sudo facility is removed before task execution.
 
@@ -112,6 +115,8 @@ an earlier failure.
 Cleanup defaults to an inspectable dry run. `--apply` may remove only this
 workspace's stopped, successful, fully exported resources older than 72 hours
 by default. `--older-than-hours` explicitly selects another finite age (0..8760).
+Images require a matching successful, verified export selected by that cleanup;
+orphaned or failed preparation images remain protected for manual inspection.
 Published bytes are reverified before removing recovery resources. Active runs,
 failures, unknown ownership and images still referenced by retained/unrelated
 containers remain protected. Published evidence and global builder caches are

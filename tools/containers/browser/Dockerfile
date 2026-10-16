@@ -26,4 +26,5 @@ USER vp
 RUN node apps/desktop/scripts/browser-runtime.mjs bootstrap
 RUN pnpm list --recursive --depth Infinity --json > /portcove/installed-npm-packages.json
 RUN node -e "const {execFileSync}=require('node:child_process'); require('node:fs').writeFileSync('/portcove/tool-versions.json', JSON.stringify(Object.fromEntries(['node','pnpm','vp'].map(command => [command,execFileSync(command,['--version'],{encoding:'utf8'}).trim()]))));"
+RUN node scripts/container-source.mjs "$SOURCE_COMMIT" "$SOURCE_TREE"
 ENTRYPOINT ["node", "/portcove/container-entry.mjs"]

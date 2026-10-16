@@ -13,6 +13,7 @@ import {
   appendFileSync,
 } from "node:fs";
 import path from "node:path";
+import { assertCommittedWorkspace } from "/workspace/scripts/container-source.mjs";
 
 const root = "/workspace";
 const output = path.join(root, "work/container-results");
@@ -183,6 +184,7 @@ try {
   )?.[1];
   if (!report.chromium)
     throw new Error("Canonical bootstrap did not identify the actual Chromium version");
+  assertCommittedWorkspace(root, report.commit, report.tree);
   report.fresh_execution = true;
   const result = await execute(commands[mode], "required-execution");
   report.command_exit = result.code;
@@ -198,7 +200,11 @@ try {
   clearTimeout(force);
   try {
     capture(path.join(root, "work/bt"), path.join(output, "traces"));
-    capture(path.join(root, "apps/desktop/.vitest/attachments"), path.join(output, "attachments"));
+    capture(path.join(root, ".vitest/attachments"), path.join(output, "attachments/root"));
+    capture(
+      path.join(root, "apps/desktop/.vitest/attachments"),
+      path.join(output, "attachments/desktop"),
+    );
   } catch (error) {
     report.export_error = error.message;
     process.exitCode = 1;
