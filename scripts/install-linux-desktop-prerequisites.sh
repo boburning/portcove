@@ -24,15 +24,15 @@ for option in "$@"; do
     --include-webdriver) packages+=(webkit2gtk-driver xvfb dbus-x11) ;;
     --install-timeout-seconds=*)
       seconds=${option#*=}
-      if [[ ! $seconds =~ ^[0-9]{3,4}$ ]] || (( 10#$seconds < 180 || 10#$seconds > 1800 )); then
-        echo "Install timeout must be an integer of 180..1800 seconds." >&2
+      if [[ ! $seconds =~ ^[0-9]{3,4}$ ]] || (( 10#$seconds < 180 || 10#$seconds > 3600 )); then
+        echo "Install timeout must be an integer of 180..3600 seconds." >&2
         exit 2
       fi
       install_deadline=$((10#$seconds))s
       fallback_install_deadline=$install_deadline
       ;;
     *)
-      echo "usage: $0 [--include-rpm] [--include-appimage-runtime] [--include-webdriver] [--install-timeout-seconds=180..1800]" >&2
+      echo "usage: $0 [--include-rpm] [--include-appimage-runtime] [--include-webdriver] [--install-timeout-seconds=180..3600]" >&2
       exit 2
       ;;
   esac

@@ -35,7 +35,7 @@ test("canonical APT helper rejects invalid explicit deadlines before installatio
       ? path.resolve(git.stdout.trim(), "../../../bin/bash.exe")
       : "bash";
   if (process.platform === "win32") assert(existsSync(bash));
-  for (const value of ["0", "179", "1801", "unbounded", "1.5", "999999999999999999"])
+  for (const value of ["0", "179", "3601", "unbounded", "1.5", "999999999999999999"])
     await assert.rejects(
       command(bash, [
         "scripts/install-linux-desktop-prerequisites.sh",
@@ -43,7 +43,7 @@ test("canonical APT helper rejects invalid explicit deadlines before installatio
       ]),
       (error) => {
         assert.equal(error.result.status, 2);
-        assert.match(error.result.stderr, /180\.\.1800 seconds/u);
+        assert.match(error.result.stderr, /180\.\.3600 seconds/u);
         return true;
       },
     );
@@ -79,7 +79,7 @@ test("package member inspection requires the exact regular executable", () => {
 test("builder modes are closed and isolated from browser resources", async () => {
   assert.throws(() => createContainerHost("arbitrary"), /Unknown/u);
   assert.equal(budgets.timeout_ms, 90 * 60000);
-  assert.equal(budgets.setup_ms, 60 * 60000);
+  assert.equal(budgets.setup_ms, 90 * 60000);
   for (const mode of ["suite", "probe", "exact", "arbitrary"])
     await assert.rejects(browser({ mode }), /Use check or package/u);
   const args = runtimeArguments({
