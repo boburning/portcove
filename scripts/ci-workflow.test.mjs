@@ -986,157 +986,167 @@ test("first reader observation ignores a sample finishing after close", async ()
   assert.equal(child.killedWith, undefined);
 });
 
-test("repository toolchain reader exports the declared components before installation", async (context) => {
-  const setup = await readFile(
-    new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
-    "utf8",
-  );
-  const body = setup.match(
-    /- name: Read repository toolchain[\s\S]*?run: \|\r?\n([\s\S]*?)(?= {4}- uses:)/,
-  )?.[1];
-  assert.ok(body);
-  const script = body.replace(/^ {8}/gm, "");
-  assert.doesNotMatch(script, /\$portcoveReaderClock\b/);
-  const phaseDiagnostic = (phase) =>
-    `[Console]::Error.WriteLine("portcove-reader-phase:${phase};elapsed_ms=$($portcoveReaderClock.ElapsedMilliseconds)")`;
-  let tracedScript = script;
-  for (const [line, phase] of [
-    ["$config = Get-Content rust-toolchain.toml -Raw", "read-config"],
-    ["$channel = $Matches[1]", "channel-parsed"],
-    ["$components = ConvertFrom-Json $Matches[1] -NoEnumerate", "parse-components"],
-    ['"channel=$channel" >> $env:GITHUB_OUTPUT', "write-output"],
-  ]) {
-    assert.equal(
-      script.split(line).length,
-      2,
-      `Reader phase must have one source anchor: ${phase}`,
+// Hosted first-reader evidence in PR #2038 spent 7.2s before stderr and then
+// waited in Get-Content at the old 10s deadline. Seven bounded invocations can
+// take 140s, so retain another 40s for diagnostics/cleanup; no retries or product
+// deadlines change. Preserve the original failure rather than calling this a
+// causal repair of host disk contention.
+test(
+  "repository toolchain reader exports the declared components before installation",
+  { timeout: 180_000 },
+  async (context) => {
+    const readerTimeoutMs = 20_000;
+    const setup = await readFile(
+      new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
+      "utf8",
     );
-    tracedScript = tracedScript.replace(
-      line,
-      `${phaseDiagnostic(phase)}\n${line}${phase === "read-config" ? `\n${phaseDiagnostic("config-read")}` : ""}`,
-    );
-  }
-  tracedScript =
-    "$portcoveReaderClock = [System.Diagnostics.Stopwatch]::StartNew()\n" +
-    `[Console]::Error.WriteLine("portcove-reader-phase:started;pwsh=$($PSVersionTable.PSVersion);elapsed_ms=$($portcoveReaderClock.ElapsedMilliseconds);utc=$([DateTime]::UtcNow.ToString('o'))")\n` +
-    tracedScript +
-    `\n${phaseDiagnostic("completed")}\n`;
-  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-toolchain-reader-"));
-  const output = path.join(directory, "github-output");
-  async function runReader(fixture, command = tracedScript) {
-    const startedAt = new Date().toISOString();
-    const started = performance.now();
-    const execute = fixture === "valid-1" ? observeFirstReader : spawnSync;
-    const result = await execute("pwsh", ["-NoProfile", "-NonInteractive", "-Command", command], {
-      cwd: directory,
-      env: { ...process.env, GITHUB_OUTPUT: output },
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 10_000,
-    });
-    const stream = (value) => ({
-      text: (value ?? "").slice(0, 8_192),
-      bytes: Buffer.byteLength(value ?? "", "utf8"),
-      truncated: (value ?? "").length > 8_192,
-    });
-    context.diagnostic(
-      JSON.stringify({
-        reader_fixture: fixture,
-        first_invocation_observation: result.observation ?? null,
-        observation_order: "reader-then-startup; startup is diagnostic-only",
-        node: process.version,
-        platform: process.platform,
-        architecture: process.arch,
-        os_release: os.release(),
-        runner_image: process.env.ImageOS ?? null,
-        runner_image_version: process.env.ImageVersion ?? null,
-        started_at: startedAt,
-        elapsed_ms: performance.now() - started,
-        timeout_ms: 10_000,
-        status: result.status,
-        signal: result.signal,
-        error: result.error
-          ? { code: result.error.code, errno: result.error.errno, message: result.error.message }
-          : null,
-        stdout: stream(result.stdout),
-        stderr: stream(result.stderr),
-      }),
-    );
-    return result;
-  }
-  try {
-    for (const [index, components] of [
-      ["clippy", "rustfmt", "rust-analyzer"],
-      ["rust-src", "rust-analyzer", "clippy", "rustfmt"],
-    ].entries()) {
-      await writeFile(
-        path.join(directory, "rust-toolchain.toml"),
-        `[toolchain]\nchannel = "1.98.1"\ncomponents = ${JSON.stringify(components)}\n`,
+    const body = setup.match(
+      /- name: Read repository toolchain[\s\S]*?run: \|\r?\n([\s\S]*?)(?= {4}- uses:)/,
+    )?.[1];
+    assert.ok(body);
+    const script = body.replace(/^ {8}/gm, "");
+    assert.doesNotMatch(script, /\$portcoveReaderClock\b/);
+    const phaseDiagnostic = (phase) =>
+      `[Console]::Error.WriteLine("portcove-reader-phase:${phase};elapsed_ms=$($portcoveReaderClock.ElapsedMilliseconds)")`;
+    let tracedScript = script;
+    for (const [line, phase] of [
+      ["$config = Get-Content rust-toolchain.toml -Raw", "read-config"],
+      ["$channel = $Matches[1]", "channel-parsed"],
+      ["$components = ConvertFrom-Json $Matches[1] -NoEnumerate", "parse-components"],
+      ['"channel=$channel" >> $env:GITHUB_OUTPUT', "write-output"],
+    ]) {
+      assert.equal(
+        script.split(line).length,
+        2,
+        `Reader phase must have one source anchor: ${phase}`,
       );
-      await writeFile(output, "");
-      const result = await runReader(`valid-${index + 1}`);
-      assert.ifError(result.error);
-      assert.equal(result.status, 0, result.stdout + result.stderr);
-      const phases = [
-        ...result.stderr.matchAll(
-          /portcove-reader-phase:([a-z-]+);(?:pwsh=[^;\r\n]+;)?elapsed_ms=(\d+)/g,
-        ),
-      ];
-      assert.deepEqual(
-        phases.map((phase) => phase[1]),
-        [
-          "started",
-          "read-config",
-          "config-read",
-          "channel-parsed",
-          "parse-components",
-          "write-output",
-          "completed",
-        ],
+      tracedScript = tracedScript.replace(
+        line,
+        `${phaseDiagnostic(phase)}\n${line}${phase === "read-config" ? `\n${phaseDiagnostic("config-read")}` : ""}`,
       );
-      assert.ok(
-        phases.every(
-          (phase, index) => index === 0 || Number(phase[2]) >= Number(phases[index - 1][2]),
-        ),
-      );
-      assert.match(result.stderr, /;utc=\d{4}-\d{2}-\d{2}T[^\r\n]+Z/);
-      assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/), [
-        "channel=1.98.1",
-        `components=${components.join(",")}`,
-      ]);
     }
-    for (const [index, declaration] of [
-      "",
-      'components = "clippy"',
-      'components = ["clippy", 7]',
-      'components = ["clippy", "rustfmt\\nextra=value"]',
-    ].entries()) {
-      await writeFile(
-        path.join(directory, "rust-toolchain.toml"),
-        `[toolchain]\nchannel = "1.98.1"\n${declaration}\n`,
+    tracedScript =
+      "$portcoveReaderClock = [System.Diagnostics.Stopwatch]::StartNew()\n" +
+      `[Console]::Error.WriteLine("portcove-reader-phase:started;pwsh=$($PSVersionTable.PSVersion);elapsed_ms=$($portcoveReaderClock.ElapsedMilliseconds);utc=$([DateTime]::UtcNow.ToString('o'))")\n` +
+      tracedScript +
+      `\n${phaseDiagnostic("completed")}\n`;
+    const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-toolchain-reader-"));
+    const output = path.join(directory, "github-output");
+    async function runReader(fixture, command = tracedScript) {
+      const startedAt = new Date().toISOString();
+      const started = performance.now();
+      const execute = fixture === "valid-1" ? observeFirstReader : spawnSync;
+      const result = await execute("pwsh", ["-NoProfile", "-NonInteractive", "-Command", command], {
+        cwd: directory,
+        env: { ...process.env, GITHUB_OUTPUT: output },
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: readerTimeoutMs,
+      });
+      const stream = (value) => ({
+        text: (value ?? "").slice(0, 8_192),
+        bytes: Buffer.byteLength(value ?? "", "utf8"),
+        truncated: (value ?? "").length > 8_192,
+      });
+      context.diagnostic(
+        JSON.stringify({
+          reader_fixture: fixture,
+          first_invocation_observation: result.observation ?? null,
+          observation_order: "reader-then-startup; startup is diagnostic-only",
+          node: process.version,
+          platform: process.platform,
+          architecture: process.arch,
+          os_release: os.release(),
+          runner_image: process.env.ImageOS ?? null,
+          runner_image_version: process.env.ImageVersion ?? null,
+          started_at: startedAt,
+          elapsed_ms: performance.now() - started,
+          timeout_ms: readerTimeoutMs,
+          status: result.status,
+          signal: result.signal,
+          error: result.error
+            ? { code: result.error.code, errno: result.error.errno, message: result.error.message }
+            : null,
+          stdout: stream(result.stdout),
+          stderr: stream(result.stderr),
+        }),
       );
-      await writeFile(output, "");
-      const result = await runReader(`invalid-${index + 1}`);
-      assert.ifError(result.error);
-      assert.notEqual(result.status, 0, declaration);
-      assert.equal(await readFile(output, "utf8"), "");
+      return result;
     }
-  } finally {
     try {
-      // Observe startup after the reader without warming its first invocation.
-      // This result cannot replace the reader verdict or explain an earlier timeout.
-      await runReader(
-        "startup-after-reader-diagnostic-only",
-        '[Console]::Error.WriteLine("portcove-startup-discriminator:entered"); ' +
-          "[PSCustomObject]@{version=$PSVersionTable.PSVersion.ToString();executable=[Environment]::ProcessPath} | ConvertTo-Json -Compress",
-      );
-    } catch {
-      // Best-effort diagnostics must preserve the original reader failure.
+      for (const [index, components] of [
+        ["clippy", "rustfmt", "rust-analyzer"],
+        ["rust-src", "rust-analyzer", "clippy", "rustfmt"],
+      ].entries()) {
+        await writeFile(
+          path.join(directory, "rust-toolchain.toml"),
+          `[toolchain]\nchannel = "1.98.1"\ncomponents = ${JSON.stringify(components)}\n`,
+        );
+        await writeFile(output, "");
+        const result = await runReader(`valid-${index + 1}`);
+        assert.ifError(result.error);
+        assert.equal(result.status, 0, result.stdout + result.stderr);
+        const phases = [
+          ...result.stderr.matchAll(
+            /portcove-reader-phase:([a-z-]+);(?:pwsh=[^;\r\n]+;)?elapsed_ms=(\d+)/g,
+          ),
+        ];
+        assert.deepEqual(
+          phases.map((phase) => phase[1]),
+          [
+            "started",
+            "read-config",
+            "config-read",
+            "channel-parsed",
+            "parse-components",
+            "write-output",
+            "completed",
+          ],
+        );
+        assert.ok(
+          phases.every(
+            (phase, index) => index === 0 || Number(phase[2]) >= Number(phases[index - 1][2]),
+          ),
+        );
+        assert.match(result.stderr, /;utc=\d{4}-\d{2}-\d{2}T[^\r\n]+Z/);
+        assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/), [
+          "channel=1.98.1",
+          `components=${components.join(",")}`,
+        ]);
+      }
+      for (const [index, declaration] of [
+        "",
+        'components = "clippy"',
+        'components = ["clippy", 7]',
+        'components = ["clippy", "rustfmt\\nextra=value"]',
+      ].entries()) {
+        await writeFile(
+          path.join(directory, "rust-toolchain.toml"),
+          `[toolchain]\nchannel = "1.98.1"\n${declaration}\n`,
+        );
+        await writeFile(output, "");
+        const result = await runReader(`invalid-${index + 1}`);
+        assert.ifError(result.error);
+        assert.notEqual(result.status, 0, declaration);
+        assert.equal(await readFile(output, "utf8"), "");
+      }
     } finally {
-      await rm(directory, { recursive: true, force: true });
+      try {
+        // Observe startup after the reader without warming its first invocation.
+        // This result cannot replace the reader verdict or explain an earlier timeout.
+        await runReader(
+          "startup-after-reader-diagnostic-only",
+          '[Console]::Error.WriteLine("portcove-startup-discriminator:entered"); ' +
+            "[PSCustomObject]@{version=$PSVersionTable.PSVersion.ToString();executable=[Environment]::ProcessPath} | ConvertTo-Json -Compress",
+        );
+      } catch {
+        // Best-effort diagnostics must preserve the original reader failure.
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
     }
-  }
-});
+  },
+);
 
 test("repository Rust setup provisions components before ordinary identity probes", async () => {
   const setup = await readFile(
