@@ -4,6 +4,7 @@
 @import "./tokens.css";
 @import "./base.css";
 @import "./motion.css";
+@import "./variants.css";
 
 @source "../";
 @source not "../**/*.test.{ts,tsx,js,mjs}";
@@ -11,7 +12,3 @@
 @source not "../dev-scenarios";
 @source not "../design-compatibility";
 @source not "../test-fixtures.ts";
-
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
-
-@custom-variant controller-focus (&:where([data-input-mode="controller"] *):focus);

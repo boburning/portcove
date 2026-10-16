@@ -46,10 +46,13 @@ export function WorkspaceRefreshNotice({
       : undefined;
   const recoveryNotice = recoveryFailure && (
     <Notice intent="danger" className="" role="alert" aria-busy={refreshing}>
-      <span className="error-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-danger-text)]">
+      <span
+        data-slot="notice-icon"
+        className="error-icon grid h-[2rem] w-[2rem] place-items-center"
+      >
         <Icon glyph={AlertTriangle} />
       </span>
-      <div>
+      <div data-slot="notice-body">
         <strong>Library recovery could not finish</strong>
         <p>
           {hasSnapshot
@@ -79,10 +82,13 @@ export function WorkspaceRefreshNotice({
   if (!failure)
     return (
       <Notice intent="neutral" className="" role="status" aria-busy={refreshing}>
-        <span className="error-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-danger-text)]">
+        <span
+          data-slot="notice-icon"
+          className="error-icon grid h-[2rem] w-[2rem] place-items-center"
+        >
           <Icon glyph={AlertTriangle} />
         </span>
-        <div>
+        <div data-slot="notice-body">
           <strong>Live workspace updates are unavailable</strong>
           <p>
             Portcove will keep checking activity at a reduced rate. Refresh manually after library
@@ -111,10 +117,13 @@ export function WorkspaceRefreshNotice({
   return (
     <>
       <Notice intent="danger" className="" role="alert" aria-busy={refreshing}>
-        <span className="error-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-danger-text)]">
+        <span
+          data-slot="notice-icon"
+          className="error-icon grid h-[2rem] w-[2rem] place-items-center"
+        >
           <Icon glyph={AlertTriangle} />
         </span>
-        <div>
+        <div data-slot="notice-body">
           <strong>
             {hasSnapshot
               ? "Library information could not be refreshed"

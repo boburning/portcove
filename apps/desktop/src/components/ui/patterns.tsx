@@ -17,7 +17,7 @@ export function SettingsRow({ className, ...props }: ComponentProps<"article">) 
 }
 
 const noticeVariants = cva(
-  "error-banner @container/notice mb-4 grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-pc-md border p-3 text-xs [overflow-wrap:anywhere]",
+  "error-banner @container/notice mb-4 flex min-w-0 flex-wrap items-start gap-3 rounded-pc-md border p-3 text-xs [overflow-wrap:anywhere] [&>[data-slot=notice-actions]]:ml-auto [&>[data-slot=notice-actions]]:flex [&>[data-slot=notice-actions]]:flex-wrap [&>[data-slot=notice-actions]]:gap-1 [&>[data-slot=notice-body]]:min-w-0 [&>[data-slot=notice-body]]:flex-[1_1_16rem] [&>[data-slot=notice-icon]]:flex-none",
   {
     variants: {
       intent: {

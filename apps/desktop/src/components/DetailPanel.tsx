@@ -994,7 +994,7 @@ function FutureSetupDisclosure({
     >
       <summary
         data-focusable={deferred ? true : undefined}
-        className={`advanced-summary ${disclosureSummaryStyle}`}
+        className={cn(`advanced-summary ${disclosureSummaryStyle}`, !deferred && "hidden")}
       >
         {title}
         <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />

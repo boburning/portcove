@@ -131,13 +131,11 @@ export function Sidebar({
             aria-current={view === item.view ? "page" : undefined}
             variant={view === item.view ? "selected" : "ghost"}
             size="lg"
-            className="group/nav nav-item grid h-auto min-h-[var(--control-height-lg)] w-full grid-cols-[var(--icon-lg)_minmax(0,_1fr)_auto_auto] items-center gap-2 p-[var(--space-2)_var(--space-3)] text-start whitespace-normal"
+            className="group/nav nav-item flex h-auto min-h-[var(--control-height-lg)] w-full items-center gap-2 p-[var(--space-2)_var(--space-3)] text-start whitespace-normal"
             onClick={() => setView(item.view)}
           >
             <Icon glyph={item.icon} />
-            <span className="[&:not(.icon)]:min-w-0 [&:not(.icon)]:[overflow-wrap:break-word]">
-              {item.label}
-            </span>
+            <span className="min-w-0 flex-1">{item.label}</span>
             {item.view === "library" && (
               <b
                 className="rounded-pc-md bg-[var(--color-warning-subtle)] p-[2px_7px] text-[length:var(--text-xs)] text-[var(--color-warning-text)]"
@@ -149,7 +147,9 @@ export function Sidebar({
             {item.view === "updates" && (updateCount > 0 || activityState) && (
               <NavigationStatus updateCount={updateCount} activityState={activityState} />
             )}
-            <Shortcut className="opacity-0">{commandShortcut(item.shortcut)}</Shortcut>
+            <Shortcut className="hidden opacity-0 group-hover/nav:opacity-100 group-focus-visible/nav:opacity-100 min-[65rem]:block">
+              {commandShortcut(item.shortcut)}
+            </Shortcut>
           </Button>
         ))}
       </nav>
@@ -379,10 +379,13 @@ function ApplicationUpdateProductionTransitionBanner({
       aria-atomic="true"
       aria-busy={busy}
     >
-      <span className="error-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-danger-text)]">
+      <span
+        data-slot="notice-icon"
+        className="error-icon grid h-[2rem] w-[2rem] place-items-center"
+      >
         <Icon glyph={ShieldCheck} />
       </span>
-      <div>
+      <div data-slot="notice-body">
         <strong>Choose an update channel</strong>
         <p>
           Stable is recommended and waits for an eligible production release newer than this
@@ -390,7 +393,7 @@ function ApplicationUpdateProductionTransitionBanner({
           test releases. Your update mode and pause setting stay unchanged.
         </p>
       </div>
-      <div className="error-actions flex gap-1">
+      <div data-slot="notice-actions" className="error-actions flex gap-1">
         <Button data-focusable variant="primary" size="sm" disabled={busy} onClick={useStable}>
           Use Stable
         </Button>
@@ -414,10 +417,13 @@ function ApplicationUpdateChoiceBanner({
 }) {
   return (
     <Notice intent="info" className="" role="status" aria-live="polite" aria-atomic="true">
-      <span className="error-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-danger-text)]">
+      <span
+        data-slot="notice-icon"
+        className="error-icon grid h-[2rem] w-[2rem] place-items-center"
+      >
         <Icon glyph={Settings} />
       </span>
-      <div>
+      <div data-slot="notice-body">
         <strong>Choose how Portcove updates</strong>
         <p>
           Automatic updates are recommended. During public beta, Preview receives eligible test
@@ -425,7 +431,7 @@ function ApplicationUpdateChoiceBanner({
           before applying them.
         </p>
       </div>
-      <div className="error-actions flex gap-1">
+      <div data-slot="notice-actions" className="error-actions flex gap-1">
         <Button data-focusable variant="primary" size="sm" onClick={review}>
           Review options
         </Button>
@@ -451,10 +457,13 @@ function ApplicationUpdateNoticeBanner({
   const channel = candidate.channel === "preview" ? "Preview" : "Stable";
   return (
     <Notice intent="success" className="" role="status" aria-live="polite" aria-atomic="true">
-      <span className="error-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-danger-text)]">
+      <span
+        data-slot="notice-icon"
+        className="error-icon grid h-[2rem] w-[2rem] place-items-center"
+      >
         <Icon glyph={Download} />
       </span>
-      <div>
+      <div data-slot="notice-body">
         <strong>
           {notice.result.staged
             ? `Portcove ${candidate.version} is ready to install`
@@ -466,7 +475,7 @@ function ApplicationUpdateNoticeBanner({
             : `${channel} update found (${formatBytes(candidate.bytes)}). Review it in Settings before downloading.`}
         </p>
       </div>
-      <div className="error-actions flex gap-1">
+      <div data-slot="notice-actions" className="error-actions flex gap-1">
         <Button data-focusable variant="primary" size="sm" onClick={review}>
           Review update
         </Button>
@@ -514,12 +523,19 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
     </div>
   );
   return (
-    <Notice intent="danger" className="" role={neutral ? "status" : "alert"}>
-      <span className="error-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-danger-text)]">
+    <Notice
+      intent={neutral ? "neutral" : "danger"}
+      className=""
+      role={neutral ? "status" : "alert"}
+    >
+      <span
+        data-slot="notice-icon"
+        className="error-icon grid h-[2rem] w-[2rem] place-items-center"
+      >
         <Icon glyph={neutral ? CircleMinus : AlertTriangle} />
       </span>
-      {renderFailureDetails()}
-      <div className="error-actions flex gap-1">
+      <div data-slot="notice-body">{renderFailureDetails()}</div>
+      <div data-slot="notice-actions" className="error-actions flex gap-1">
         <Button
           data-focusable
           variant="ghost"
@@ -568,7 +584,10 @@ function OperationProgress({
         aria-valuetext={detail}
       >
         <i
-          className="block h-full w-[32%] animate-pc-progress bg-pc-loading motion-safe:transition-[width] motion-safe:duration-300 motion-reduce:[animation:none] motion-reduce:animate-none"
+          className={cn(
+            "block h-full bg-pc-loading motion-safe:transition-[width] motion-safe:duration-300 motion-reduce:animate-none",
+            !range && "w-[32%] animate-pc-progress",
+          )}
           style={range ? { width: `${range.percent}%` } : undefined}
         />
       </div>

@@ -257,7 +257,13 @@ it("uses resolved public environment for the explicit compatibility fixture boun
       path.join(fixture, ".env.production"),
       "VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE=1\n",
     );
-    await expect(buildProbe()).resolves.toBeDefined();
+    const result = await buildProbe();
+    const output = Array.isArray(result) ? result.flatMap((item) => item.output) : result.output;
+    const fixtureCss = output
+      .filter((item) => item.type === "asset" && item.fileName.endsWith(".css"))
+      .map((item) => String(item.source))
+      .join("\n");
+    expect(fixtureCss).toContain("dark\\:opacity-50");
     expect(process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE).toBeUndefined();
   } finally {
     if (previous === undefined) delete process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE;

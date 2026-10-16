@@ -1,3 +1,4 @@
+import { controlFocus, floatingMotion } from "./ui/control-style";
 import { cn } from "cn";
 import { Notice } from "./ui/patterns";
 import type { useFavorites } from "../features/favorites/use-favorites";
@@ -253,7 +254,7 @@ export function PortBrowser({
   const renderFavoritesFailure = () =>
     favorites?.failure && (
       <Notice intent="danger" className="mb-3" role="alert">
-        <div>
+        <div data-slot="notice-body">
           <strong>
             {favorites.failure === "write"
               ? "Favorite choice could not be confirmed"
@@ -657,7 +658,7 @@ function ContinueCard({
     >
       <ArtworkImage
         port={port}
-        className="continue-art relative grid aspect-2/3 w-17 place-items-center overflow-hidden rounded-pc-lg bg-[var(--color-art-blue)]"
+        className="continue-art relative grid aspect-2/3 w-17 place-items-center overflow-hidden rounded-pc-lg bg-[var(--art-color)]"
       />
       <div>
         <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
@@ -821,10 +822,7 @@ function PortCard({
   if (view === "library")
     return (
       <article
-        className={cn(
-          className,
-          "active:[transform:translateY(1px)] active:bg-[var(--color-bg-hover)] active:shadow-[var(--shadow-pressed)]",
-        )}
+        className={className}
         aria-label={accessibleLabel}
         aria-describedby={input ? setupDescriptionId : undefined}
         data-source-drop-port-id={dropEligible ? port.id : undefined}
@@ -928,7 +926,7 @@ function PortCardContents({
       )}
       <ArtworkImage
         port={port}
-        className="card-art relative aspect-2/3 w-full self-center overflow-hidden bg-[var(--color-art-neutral)]"
+        className="card-art relative aspect-2/3 w-full self-center overflow-hidden bg-[var(--art-color)]"
       />
       <div
         className={`card-content flex min-w-0 flex-col p-4 ${view === "library" ? "gap-2" : ""}`}
@@ -1100,20 +1098,34 @@ function PortCardStatus({
               }
             />
             <Menu.Portal>
-              <Menu.Positioner side="bottom" align="end" sideOffset={4} className="isolate z-50">
+              <Menu.Positioner
+                side="bottom"
+                align="end"
+                sideOffset={4}
+                className="z-(--layer-floating)"
+              >
                 <Menu.Popup
                   data-portcove-focus-scope
                   aria-label={`More actions for ${port.name}`}
-                  className="min-w-48 rounded-lg bg-pc-surface p-1 text-pc-foreground shadow-md ring-1 ring-pc-foreground/10"
+                  className={cn(
+                    floatingMotion,
+                    "max-h-(--available-height) min-w-48 origin-(--transform-origin) overflow-y-auto rounded-pc-md border border-pc-border bg-pc-surface p-1 text-pc-foreground shadow-(--shadow-floating)",
+                  )}
                 >
                   <Menu.Item
-                    className="cursor-default rounded-md px-3 py-2 text-sm outline-none focus:bg-pc-selection focus:text-pc-selection-foreground"
+                    className={cn(
+                      controlFocus,
+                      "cursor-default rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground",
+                    )}
                     onClick={() => onSelect(port.id, overflowOrigin, "updates")}
                   >
                     Updates and activity
                   </Menu.Item>
                   <Menu.Item
-                    className="cursor-default rounded-md px-3 py-2 text-sm outline-none focus:bg-pc-selection focus:text-pc-selection-foreground"
+                    className={cn(
+                      controlFocus,
+                      "cursor-default rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground",
+                    )}
                     onClick={() => onSelect(port.id, overflowOrigin, "saves")}
                   >
                     Saves and storage

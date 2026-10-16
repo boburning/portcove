@@ -1,3 +1,8 @@
+@reference "../styles/tokens.css";
+@reference "../styles/variants.css";
+@tailwind utilities source(none);
+@source "./";
+
 @layer components {
   .design-compatibility-fixture {
     min-height: 100vh;

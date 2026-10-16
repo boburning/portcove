@@ -275,7 +275,7 @@ export function LibraryCopySummary({
 }) {
   return (
     <section
-      className="adoption-plan adoption-review m-[var(--space-4)_0] max-h-[none] overflow-visible rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-4"
+      className="adoption-plan adoption-review m-[var(--space-4)_0] max-h-[none] overflow-visible rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-4 [overflow-wrap:anywhere]"
       aria-label={label}
     >
       <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">

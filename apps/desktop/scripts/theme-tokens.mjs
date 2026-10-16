@@ -65,7 +65,7 @@ function contrast(foreground, background) {
 
 export function themeTokenFailures(css) {
   const themeBlockPattern =
-    /(:root|:root\[data-theme=(?:"light"|'light')\])\s*\{([\s\S]*?)\r?\n\}/g;
+    /(:root|:root\[data-theme=(?:"light"|'light')\])\s*\{([\s\S]*?)\r?\n\s*\}/g;
   const tokenBlocks = [...css.matchAll(themeBlockPattern)];
   const rootBlock = tokenBlocks.find(([, selector]) => selector === ":root");
   const lightBlock = tokenBlocks.find(([, selector]) => selector.includes("light"));

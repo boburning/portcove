@@ -6,7 +6,10 @@ export default {
     "portcove/semantic-colors": true,
     "declaration-no-important": true,
     "function-disallowed-list": ["linear-gradient", "radial-gradient", "conic-gradient"],
-    "at-rule-no-unknown": [true, { ignoreAtRules: ["custom-variant", "slot", "theme", "source"] }],
+    "at-rule-no-unknown": [
+      true,
+      { ignoreAtRules: ["custom-variant", "slot", "theme", "source", "reference", "tailwind"] },
+    ],
     "nesting-selector-no-missing-scoping-root": [true, { ignoreAtRules: ["custom-variant"] }],
   },
 };

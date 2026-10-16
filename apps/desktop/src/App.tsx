@@ -581,7 +581,7 @@ function Workspace({
   const renderPreferenceFailure = () =>
     preferenceFailure && (
       <Notice intent="danger" className="" role="alert">
-        <div>
+        <div data-slot="notice-body">
           <strong>Browsing choices are not saved</strong>
           <p>
             {preferenceFailure === "read"

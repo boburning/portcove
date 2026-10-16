@@ -8,9 +8,62 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { ChoiceSelect } from "../components/ChoiceSelect";
+import { StatusLayer } from "../components/Chrome";
+import { Notice } from "../components/ui/patterns";
 
 // The current-build guard rejects this if test source discovery leaks into shipping CSS.
 const discoverySentinel = <span className="w-[12345px]" />;
+
+it("keeps measured progress stationary and reserves the sweep for unknown progress", async () => {
+  const screen = await render(
+    <StatusLayer
+      busy="install"
+      clearError={() => {}}
+      operation={{
+        schema_version: 2,
+        parent_operation_id: null,
+        target: null,
+        operation_id: "css-progress",
+        sequence: 1,
+        timestamp_ms: 1,
+        operation: "install",
+        type: "progress",
+        phase: "install",
+        completed: 1,
+        total: 2,
+      }}
+    />,
+  );
+  const track = page.getByRole("progressbar").element();
+  const fill = track.querySelector("i")!;
+  expect(getComputedStyle(fill).animationName).toBe("none");
+  expect(fill.getBoundingClientRect().width / track.clientWidth).toBeCloseTo(0.5, 1);
+  await screen.rerender(<StatusLayer busy="install" clearError={() => {}} />);
+  expect(
+    getComputedStyle(page.getByRole("progressbar").element().querySelector("i")!).animationName,
+  ).toBe("pc-progress");
+});
+
+it("wraps notice actions without stealing the body column", async () => {
+  await render(
+    <div style={{ width: 320 }}>
+      <Notice intent="info">
+        <span data-slot="notice-icon">!</span>
+        <div data-slot="notice-body">A useful update description with enough room to read.</div>
+        <div data-slot="notice-actions">
+          <Button>Review options</Button>
+          <Button>Dismiss</Button>
+        </div>
+      </Notice>
+    </div>,
+  );
+  const notice = document.querySelector<HTMLElement>('[data-slot="notice"]')!;
+  const body = notice.querySelector<HTMLElement>('[data-slot="notice-body"]')!;
+  const actions = notice.querySelector<HTMLElement>('[data-slot="notice-actions"]')!;
+  expect(body.clientWidth).toBeGreaterThan(220);
+  expect(actions.getBoundingClientRect().top).toBeGreaterThan(body.getBoundingClientRect().top);
+  expect(notice.scrollWidth).toBeLessThanOrEqual(notice.clientWidth);
+});
 
 afterEach(async () => {
   await cleanup();
