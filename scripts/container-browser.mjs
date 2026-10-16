@@ -799,12 +799,14 @@ export async function browser({
   save();
   let interrupted;
   const abort = new AbortController();
-  const onInterrupt = () => {
-    interrupted = "SIGINT";
+  const onInterrupt = (signal) => {
+    interrupted ??= signal;
     abort.abort();
   };
-  process.on("SIGINT", onInterrupt);
-  process.on("SIGTERM", onInterrupt);
+  const onSigint = () => onInterrupt("SIGINT");
+  const onSigterm = () => onInterrupt("SIGTERM");
+  process.on("SIGINT", onSigint);
+  process.on("SIGTERM", onSigterm);
   try {
     const text = readFileSync(recipe, "utf8");
     const base =
@@ -1019,8 +1021,8 @@ export async function browser({
       { state },
     );
   } finally {
-    process.removeListener("SIGINT", onInterrupt);
-    process.removeListener("SIGTERM", onInterrupt);
+    process.removeListener("SIGINT", onSigint);
+    process.removeListener("SIGTERM", onSigterm);
     try {
       appendFileSync(
         path.join(directory, "events.jsonl"),
