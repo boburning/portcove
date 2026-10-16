@@ -8,6 +8,22 @@ use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
+mod bootstrap;
+pub(crate) use bootstrap::{BootstrapWitness, archive_path as retained_archive_path};
+mod generation_outputs;
+mod normalized_inputs;
+pub(crate) use normalized_inputs::{NormalizedInputWitness, ProvisionalGeneratedInstall};
+mod compile_plan;
+mod compile_stage;
+pub(crate) use compile_stage::{CompiledInstall, FinalizedInstall};
+mod pending;
+#[cfg(feature = "qualification-fixtures")]
+pub(crate) mod qualification_trace;
+mod stage;
+mod verification;
+#[cfg(feature = "qualification-fixtures")]
+pub use qualification_trace::qualification_psx_preparation_diagnostics;
+
 use crate::{
     ChildProcessClass, ChildProcessPolicy, Library, OperationCoordinator, OperationEvent,
     OperationResult, Platform, PortcoveError, Result, SourceRecord,
@@ -25,6 +41,922 @@ pub struct PsxManagedPreparation {
     pub runtime_source_directory: Option<PathBuf>,
     pub toolchain_root: PathBuf,
     pub executable_basename: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct GeneratedInstall {
+    tree: stage::GeneratedTree,
+    toolchain: stage::GeneratedTree,
+    normalized_disc: stage::GeneratedTree,
+    inputs: Vec<u8>,
+    generation_arguments: Vec<String>,
+    staged_bios: Option<PathBuf>,
+}
+
+/// Private successful configure output. No installation or publication follows
+/// merely from possession of this operation-bound inventory.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ConfiguredInstall {
+    tree: stage::GeneratedTree,
+    arguments: Vec<String>,
+    compile_plan: compile_plan::CompilePlan,
+}
+
+pub(crate) fn configure_install_stage(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    generated: &GeneratedInstall,
+) -> (Result<ConfiguredInstall>, bool) {
+    let mut quiesced = true;
+    let result = configure_install(root, preparation, operation, &mut quiesced, generated);
+    (result, quiesced)
+}
+
+fn configure_install(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+    generated: &GeneratedInstall,
+) -> Result<ConfiguredInstall> {
+    configure_install_with_recovery(root, preparation, operation, quiesced, generated, false)
+}
+
+fn configure_install_with_recovery(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+    generated: &GeneratedInstall,
+    recovered: bool,
+) -> Result<ConfiguredInstall> {
+    if generated.inputs != preparation_identity(preparation)? {
+        return Err(PortcoveError::verification("PS1 configure inputs changed"));
+    }
+    if recovered {
+        // Only the explicitly started failed-configure worker reaches this
+        // branch. Original files remain bound to the immutable sealed receipt.
+        generated
+            .tree
+            .configured_transition(root, operation, true)?;
+    } else {
+        generated.tree.verify(root, operation)?;
+    }
+    generated
+        .toolchain
+        .verify(&preparation.toolchain_root, operation)?;
+    generated
+        .normalized_disc
+        .verify(generated.normalized_disc.root(), operation)?;
+    crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    if let Some(bios) = &preparation.bios {
+        verify_raw_bios(bios, &|| operation.checkpoint())?;
+    }
+    PreparationConfiguration::from_preparation(preparation)?;
+    let build = root.join("build-portcove");
+    // Configuration is admitted only once into a fresh operation-owned tree.
+    // Never invoke CMake's relocated-cache deletion or repair another build.
+    match fs::symlink_metadata(&build) {
+        Ok(_) => {
+            return Err(PortcoveError::conflict(
+                "PS1 configure build directory already exists",
+            ));
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    let arguments = configure_arguments(root, &build, &preparation.toolchain_root)?;
+    let cmake = platform_executable(&preparation.toolchain_root.join("bin"), "cmake");
+    run_pinned_builder(
+        &cmake,
+        root,
+        &preparation.toolchain_root,
+        arguments.clone(),
+        operation,
+        quiesced,
+    )?;
+    generated
+        .toolchain
+        .verify(&preparation.toolchain_root, operation)?;
+    generated
+        .normalized_disc
+        .verify(generated.normalized_disc.root(), operation)?;
+    crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    if let Some(bios) = &preparation.bios {
+        verify_raw_bios(bios, &|| operation.checkpoint())?;
+    }
+    if !build.join("build.ninja").is_file() || !build.join("CMakeCache.txt").is_file() {
+        return Err(PortcoveError::install(
+            "PS1 configure completed without its Ninja graph and cache",
+        ));
+    }
+    let cache = verify_configure_cache(&build, &preparation.toolchain_root)?;
+    let tree = generated
+        .tree
+        .configured_transition(root, operation, *quiesced)?;
+    tree.require_file_bytes(Path::new("build-portcove/CMakeCache.txt"), &cache)?;
+    let compile_plan = compile_plan::derive(root, &preparation.executable_basename, operation)?;
+    tree.verify(root, operation)?;
+    Ok(ConfiguredInstall {
+        tree,
+        arguments,
+        compile_plan,
+    })
+}
+
+fn builder_path(path: &Path) -> Result<String> {
+    #[cfg(windows)]
+    if matches!(
+        path.components().next(),
+        Some(std::path::Component::Prefix(prefix))
+            if matches!(prefix.kind(), std::path::Prefix::UNC(_, _) | std::path::Prefix::VerbatimUNC(_, _))
+    ) {
+        return Err(PortcoveError::unsupported(
+            "managed PS1 command-shell builds require a local Windows working directory",
+        ));
+    }
+    crate::path::refuse_symlink_ancestors(path)?;
+    crate::adapter::psx_launch_path(path)
+}
+
+fn configure_arguments(root: &Path, build: &Path, toolchain: &Path) -> Result<Vec<String>> {
+    let bin = toolchain.join("bin");
+    let mut arguments = vec![
+        "-S".into(),
+        // CMake emits command-shell working directories into the Ninja graph.
+        // Use the existing identity-checked ordinary Windows spelling there;
+        // canonical paths remain the inventory and witness authority.
+        builder_path(root)?,
+        "-B".into(),
+        builder_path(build)?,
+        "-G".into(),
+        "Ninja".into(),
+        format!(
+            "-DCMAKE_MAKE_PROGRAM={}",
+            builder_path(&platform_executable(&bin, "ninja"))?
+        ),
+        format!(
+            "-DCMAKE_C_COMPILER={}",
+            builder_path(&platform_executable(&bin, "clang"))?
+        ),
+        format!(
+            "-DCMAKE_CXX_COMPILER={}",
+            builder_path(&platform_executable(&bin, "clang++"))?
+        ),
+        "-DCMAKE_BUILD_TYPE=Release".into(),
+        // The sealed graph is immutable across batches. CMake's always-dirty
+        // glob/regeneration preflight otherwise hides target work in Ninja -n.
+        "-DCMAKE_SUPPRESS_REGENERATION=ON".into(),
+        format!(
+            "-DPython3_EXECUTABLE={}",
+            builder_path(&toolchain_python(toolchain)?)?
+        ),
+        "-DPSX_PGO=".into(),
+        "-DBPE_FORCE_SETUP_HOST=OFF".into(),
+        "-DPSXRECOMP_FORCE_SETUP_HOST=OFF".into(),
+        "-DPSXRECOMP_ALLOW_NO_BIOS=OFF".into(),
+        "-DPSXRECOMP_REQUIRE_GAME_C=ON".into(),
+        "-DPSX_DEBUG_TOOLS=OFF".into(),
+        "-DCMAKE_C_COMPILER_LAUNCHER:STRING=".into(),
+        "-DCMAKE_CXX_COMPILER_LAUNCHER:STRING=".into(),
+    ];
+    // Match the SDK's Linux pack sysroot contract; Windows uses pack clang.cfg.
+    if cfg!(target_os = "linux") && toolchain.join("sysroot/usr/include").is_dir() {
+        arguments.push(format!(
+            "-DCMAKE_SYSROOT={}",
+            crate::path::unicode(&toolchain.join("sysroot"), "pinned sysroot")?
+        ));
+        arguments.push("-DOpenGL_GL_PREFERENCE=LEGACY".into());
+    }
+    for name in ["cmake", "ninja", "clang", "clang++"] {
+        let path = platform_executable(&bin, name);
+        crate::path::refuse_symlink_ancestors(&path)?;
+        if !fs::symlink_metadata(path)?.is_file() {
+            return Err(PortcoveError::verification(
+                "PS1 configure requires regular pinned tools",
+            ));
+        }
+    }
+    Ok(arguments)
+}
+
+fn verify_configure_cache(build: &Path, toolchain: &Path) -> Result<Vec<u8>> {
+    let cache = crate::external_runtime::read_stable_metadata(
+        &build.join("CMakeCache.txt"),
+        4 * 1024 * 1024,
+    )?;
+    let text = std::str::from_utf8(&cache)
+        .map_err(|_| PortcoveError::verification("PS1 configuration cache is not UTF-8"))?;
+    let expected_python = builder_path(&toolchain_python(toolchain)?)?.replace('\\', "/");
+    for (key, expected) in [
+        ("CMAKE_SUPPRESS_REGENERATION", "ON"),
+        ("Python3_EXECUTABLE", expected_python.as_str()),
+    ] {
+        let mut values = text.lines().filter_map(|line| {
+            let (name, value) = line.split_once('=')?;
+            (name.split_once(':')?.0 == key).then_some(value)
+        });
+        if values.next().map(|value| value.replace('\\', "/")) != Some(expected.to_owned())
+            || values.next().is_some()
+        {
+            return Err(PortcoveError::verification(
+                "PS1 configuration did not retain pinned Python and immutable graph policy",
+            ));
+        }
+    }
+    Ok(cache)
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct GeneratedInstallWitness {
+    schema_version: u32,
+    library_root: PathBuf,
+    library_id: String,
+    port_id: String,
+    final_path: Option<PathBuf>,
+    activate: bool,
+    created_at: i64,
+    contract: serde_json::Value,
+    generated: GeneratedInstall,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    bootstrap: Option<bootstrap::BootstrapBinding>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    normalized: Option<normalized_inputs::NormalizedGenerationBinding>,
+    #[serde(skip)]
+    persisted_sha256: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ConfiguredInstallWitness {
+    generation: GeneratedInstallWitness,
+    generation_sha256: String,
+    configured: ConfiguredInstall,
+    #[serde(skip)]
+    persisted_sha256: Option<String>,
+}
+
+/// Private store interface; deserialization alone never admits a stage.
+pub(crate) trait PsxStageWitness: Serialize + serde::de::DeserializeOwned {
+    fn generation_attempt_history(&self) -> Option<&crate::operation::GenerationAttemptHistory> {
+        None
+    }
+    fn library_id(&self) -> &str;
+    fn verify(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()>;
+    fn bootstrap_parent(&self) -> Option<(&str, &str)> {
+        None
+    }
+    fn normalized_parent(&self) -> Option<(&str, &str)> {
+        None
+    }
+    fn parent(&self) -> Result<Option<(&str, String)>> {
+        Ok(None)
+    }
+    fn ancestor(&self) -> Result<Option<(&str, String)>> {
+        Ok(None)
+    }
+    fn record_load(&mut self, _sha256: String) {}
+    fn retained_compile_batches(&self) -> Option<usize> {
+        None
+    }
+    fn record_compile_history(&mut self, _sha256: String) {}
+    fn compile_history_identity(&self) -> Option<&str> {
+        None
+    }
+    fn record_load_json(&mut self, _json: String) {}
+}
+
+impl PsxStageWitness for GeneratedInstallWitness {
+    fn generation_attempt_history(&self) -> Option<&crate::operation::GenerationAttemptHistory> {
+        self.normalized
+            .as_ref()
+            .and_then(|binding| binding.attempt_history())
+    }
+    fn normalized_parent(&self) -> Option<(&str, &str)> {
+        self.normalized.as_ref().map(|binding| binding.receipt())
+    }
+    fn bootstrap_parent(&self) -> Option<(&str, &str)> {
+        self.bootstrap.as_ref().map(|binding| binding.receipt())
+    }
+    fn library_id(&self) -> &str {
+        &self.library_id
+    }
+    fn verify(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        GeneratedInstallWitness::verify(self, library, journal, operation)
+    }
+    fn record_load(&mut self, sha256: String) {
+        self.persisted_sha256 = Some(sha256);
+    }
+}
+
+impl PsxStageWitness for ConfiguredInstallWitness {
+    fn generation_attempt_history(&self) -> Option<&crate::operation::GenerationAttemptHistory> {
+        self.generation.generation_attempt_history()
+    }
+    fn normalized_parent(&self) -> Option<(&str, &str)> {
+        self.generation.normalized_parent()
+    }
+    fn bootstrap_parent(&self) -> Option<(&str, &str)> {
+        self.generation.bootstrap_parent()
+    }
+    fn record_load(&mut self, sha256: String) {
+        self.persisted_sha256 = Some(sha256);
+    }
+    fn library_id(&self) -> &str {
+        &self.generation.library_id
+    }
+    fn parent(&self) -> Result<Option<(&str, String)>> {
+        Ok(Some((
+            &self.generation_sha256,
+            crate::operation::psx_witness_json(&self.generation)?,
+        )))
+    }
+    fn verify(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.generation.verify_inputs(library, journal, operation)?;
+        let root = self.generation.generated.tree.root();
+        let preparation = preparation_from_identity(&self.generation.generated.inputs)?;
+        if self.configured.arguments
+            != configure_arguments(
+                root,
+                &root.join("build-portcove"),
+                &preparation.toolchain_root,
+            )?
+        {
+            return Err(PortcoveError::verification("PS1 configure recipe changed"));
+        }
+        if self.configured.compile_plan
+            != compile_plan::derive(root, &preparation.executable_basename, operation)?
+        {
+            return Err(PortcoveError::verification(
+                "PS1 retained compile plan changed",
+            ));
+        }
+        let current = self
+            .generation
+            .generated
+            .tree
+            .configured_transition(root, operation, true)?;
+        if current != self.configured.tree {
+            return Err(PortcoveError::verification(
+                "PS1 configured stage identity changed",
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl ConfiguredInstallWitness {
+    pub(crate) fn artifact(&self) -> Result<crate::ArtifactIdentity> {
+        self.generation.artifact()
+    }
+    pub(crate) fn require_request(
+        &self,
+        contract: &serde_json::Value,
+        preparation: &PsxManagedPreparation,
+    ) -> Result<()> {
+        self.generation.require_request(contract, preparation)
+    }
+    pub(crate) fn observe_pending(
+        self,
+        preparation: &PsxManagedPreparation,
+        batch: usize,
+        operation: &OperationCoordinator,
+    ) -> (Result<usize>, bool) {
+        let mut quiesced = true;
+        let result = (|| {
+            if self.persisted_sha256.is_none()
+                || self.generation.generated.inputs != preparation_identity(preparation)?
+            {
+                return Err(PortcoveError::state(
+                    "PS1 pending query requires unchanged store-loaded configuration",
+                ));
+            }
+            let root = self.configured.tree.root();
+            self.configured.tree.verify(root, operation)?;
+            self.generation
+                .generated
+                .toolchain
+                .verify(&preparation.toolchain_root, operation)?;
+            self.generation
+                .generated
+                .normalized_disc
+                .verify(self.generation.generated.normalized_disc.root(), operation)?;
+            crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+            if let Some(bios) = &preparation.bios {
+                verify_raw_bios(bios, &|| operation.checkpoint())?;
+            }
+            let targets = self.configured.compile_plan.batch(batch)?;
+            let arguments = pending::arguments(targets, true);
+            let capture = capture_pinned_builder(
+                &platform_executable(&preparation.toolchain_root.join("bin"), "ninja"),
+                root,
+                &preparation.toolchain_root,
+                arguments,
+                operation,
+                &mut quiesced,
+                true,
+            )?;
+            let pending = pending::inspect(&capture, quiesced)?;
+            self.configured.tree.verify(root, operation)?;
+            self.generation
+                .generated
+                .toolchain
+                .verify(&preparation.toolchain_root, operation)?;
+            self.generation
+                .generated
+                .normalized_disc
+                .verify(self.generation.generated.normalized_disc.root(), operation)?;
+            crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+            if let Some(bios) = &preparation.bios {
+                verify_raw_bios(bios, &|| operation.checkpoint())?;
+            }
+            Ok(pending.count)
+        })();
+        (result, quiesced)
+    }
+    pub(crate) fn port_id(&self) -> &str {
+        self.generation.port_id()
+    }
+}
+
+impl GeneratedInstallWitness {
+    #[cfg(feature = "qualification-fixtures")]
+    pub(crate) fn acquired_contract(&self) -> &serde_json::Value {
+        &self.contract
+    }
+
+    pub(crate) fn with_bootstrap(mut self, binding: bootstrap::BootstrapBinding) -> Self {
+        self.bootstrap = Some(binding);
+        self
+    }
+    pub(crate) fn artifact(&self) -> Result<crate::ArtifactIdentity> {
+        serde_json::from_value(
+            self.contract.get("artifact").cloned().ok_or_else(|| {
+                PortcoveError::state("PS1 generation retained artifact is missing")
+            })?,
+        )
+        .map_err(Into::into)
+    }
+    pub(crate) fn port_id(&self) -> &str {
+        &self.port_id
+    }
+
+    pub(crate) fn new(
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+        contract: serde_json::Value,
+        generated: GeneratedInstall,
+    ) -> Result<Self> {
+        crate::path::refuse_symlink_ancestors(library.root())?;
+        Ok(Self {
+            schema_version: 1,
+            library_root: fs::canonicalize(library.root())?,
+            library_id: library.identity()?,
+            port_id: journal.port_id.clone(),
+            final_path: journal.paths.final_path.clone(),
+            activate: journal.activate,
+            created_at: journal.created_at,
+            contract,
+            generated,
+            bootstrap: None,
+            normalized: None,
+            persisted_sha256: None,
+        })
+    }
+
+    pub(crate) fn require_request(
+        &self,
+        contract: &serde_json::Value,
+        preparation: &PsxManagedPreparation,
+    ) -> Result<()> {
+        if &self.contract != contract || self.generated.inputs != preparation_identity(preparation)?
+        {
+            return Err(PortcoveError::conflict("PS1 continuation request changed"));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn configure(
+        self,
+        preparation: &PsxManagedPreparation,
+        operation: &OperationCoordinator,
+    ) -> (Result<ConfiguredInstallWitness>, bool) {
+        let Some(generation_sha256) = self.persisted_sha256.clone() else {
+            return (
+                Err(PortcoveError::state(
+                    "PS1 configure requires a store-loaded generation witness",
+                )),
+                true,
+            );
+        };
+        let (result, quiesced) = configure_install_stage(
+            self.generated.tree.root(),
+            preparation,
+            operation,
+            &self.generated,
+        );
+        (
+            result.map(|configured| ConfiguredInstallWitness {
+                generation: self,
+                generation_sha256,
+                configured,
+                persisted_sha256: None,
+            }),
+            quiesced,
+        )
+    }
+
+    pub(crate) fn require_owner(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+    ) -> Result<()> {
+        if journal.last_error.is_some() {
+            return Err(PortcoveError::state(
+                "PS1 generation witness custody changed",
+            ));
+        }
+        self.require_closed_owner(library, journal)
+    }
+
+    fn require_closed_owner(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+    ) -> Result<()> {
+        use crate::operation::{LifecycleOperationKind, LifecyclePhase};
+        let staging = journal.paths.staging.as_ref().ok_or_else(|| {
+            PortcoveError::state("PS1 generation witness has no owned staging root")
+        })?;
+        crate::path::refuse_symlink_ancestors(library.root())?;
+        crate::path::refuse_symlink_ancestors(staging)?;
+        let staging_identity = fs::canonicalize(staging)?;
+        if self.schema_version != 1
+            || self.library_root != fs::canonicalize(library.root())?
+            || self.library_id != library.identity()?
+            || self.port_id != journal.port_id
+            || self.final_path != journal.paths.final_path
+            || self.activate != journal.activate
+            || self.created_at != journal.created_at
+            || self.generated.tree.operation_id() != journal.id
+            || self.generated.tree.root() != fs::canonicalize(staging.join("payload"))?
+            || self.generated.normalized_disc.root().parent() != Some(staging_identity.as_path())
+            || journal.kind != LifecycleOperationKind::Install
+            || journal.phase != LifecyclePhase::StagedPreparing
+            || journal.install.is_some()
+            || journal.preparation.is_some()
+            || journal.relocation.is_some()
+            || journal.source_import.is_some()
+            || journal.paths.quarantine.is_some()
+            || !journal.original_paths.is_empty()
+            || journal.preparation_process_quiesced != Some(true)
+        {
+            return Err(PortcoveError::state(
+                "PS1 generation witness custody changed",
+            ));
+        }
+        if let Some(binding) = &self.bootstrap {
+            binding.require_current(library, &journal.id)?;
+        }
+        if let Some(binding) = &self.normalized {
+            binding.require_current(library, &journal.id)?;
+        } else {
+            let required: bool = library.connection()?.query_row(
+                "SELECT EXISTS(SELECT 1 FROM managed_psx_normalized_inputs WHERE operation_id=?1)
+                    OR EXISTS(SELECT 1 FROM managed_psx_pending_generation WHERE operation_id=?1)",
+                [&journal.id],
+                |row| row.get(0),
+            )?;
+            if required {
+                return Err(PortcoveError::verification(
+                    "PS1 normalized generation ancestry is missing",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn verify(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.verify_fenced(library, journal, operation, || Ok(()), || Ok(()))
+    }
+
+    fn verify_fenced(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+        operation: &OperationCoordinator,
+        after_inputs: impl FnOnce() -> Result<()> + Send,
+        after_outputs: impl FnOnce() -> Result<()>,
+    ) -> Result<()> {
+        operation.checkpoint()?;
+        // Admit the private output path before starting either read. These
+        // complete inventories are independent and dispatch no child process;
+        // keep both joined under the same cancellation scope and final store
+        // fence instead of paying their combined sequential verification cost.
+        self.require_owner(library, journal)?;
+        let root = journal
+            .paths
+            .staging
+            .as_ref()
+            .expect("owner checked staging")
+            .join("payload");
+        verification::joined_pair(
+            || {
+                self.verify_inputs(library, journal, operation)?;
+                after_inputs()
+            },
+            || {
+                self.generated.tree.verify(&root, operation)?;
+                after_outputs()
+            },
+        )?;
+        // The earlier-finishing inventory cannot remain unchecked while the
+        // other verifier runs. Fence all three fully hashed inventories again
+        // after both settle, before the existing exact durable store fence.
+        self.generated
+            .toolchain
+            .verify_capture_fence(self.generated.toolchain.root(), operation)?;
+        self.generated
+            .normalized_disc
+            .verify_capture_fence(self.generated.normalized_disc.root(), operation)?;
+        self.generated.tree.verify_capture_fence(&root, operation)?;
+        self.require_owner(library, journal)?;
+        operation.checkpoint()
+    }
+
+    fn verify_inputs(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.require_owner(library, journal)?;
+        if let Some(binding) = &self.normalized {
+            binding.verify_inputs(
+                &self.generated,
+                &self.contract,
+                self.bootstrap.as_ref(),
+                library,
+                journal,
+                operation,
+            )?;
+        }
+        self.verify_external_inputs(operation)
+    }
+
+    fn verify_external_inputs(&self, operation: &OperationCoordinator) -> Result<()> {
+        let preparation = preparation_from_identity(&self.generated.inputs)?;
+        let platform = Platform::current()?;
+        if !validate_toolchain_with_checkpoint(
+            &preparation.toolchain_root,
+            platform,
+            toolchain_artifact(platform)?,
+            || operation.checkpoint(),
+        )? {
+            return Err(PortcoveError::verification(
+                "PS1 generation toolchain identity changed",
+            ));
+        }
+        PreparationConfiguration::from_preparation(&preparation)?;
+        crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+        if let Some(bios) = &preparation.bios {
+            verify_raw_bios(bios, &|| operation.checkpoint())?;
+        }
+        self.generated
+            .toolchain
+            .verify(&preparation.toolchain_root, operation)?;
+        self.generated
+            .normalized_disc
+            .verify(self.generated.normalized_disc.root(), operation)?;
+        Ok(())
+    }
+
+    fn failed_configuration_inventory(
+        &self,
+        library: &Library,
+        closed: &crate::operation::ClosedGenerationPredecessor,
+        operation: &OperationCoordinator,
+    ) -> Result<stage::GeneratedTree> {
+        let journal = closed.journal();
+        if journal.last_error.is_none() || self.bootstrap.is_none() || self.normalized.is_none() {
+            return Err(PortcoveError::conflict(
+                "PS1 failed configuration requires its complete sealed ancestry",
+            ));
+        }
+        self.require_closed_owner(library, journal)?;
+        let root = self.generated.tree.root();
+        let (_, current) = verification::joined_pair(
+            || {
+                self.normalized
+                    .as_ref()
+                    .expect("checked normalized ancestry")
+                    .verify_closed_configuration_inputs(
+                        &self.generated,
+                        &self.contract,
+                        self.bootstrap.as_ref(),
+                        library,
+                        closed,
+                        operation,
+                    )?;
+                self.verify_external_inputs(operation)
+            },
+            || {
+                self.generated
+                    .tree
+                    .configured_transition(root, operation, true)
+            },
+        )?;
+        self.generated
+            .toolchain
+            .verify_capture_fence(self.generated.toolchain.root(), operation)?;
+        self.generated
+            .normalized_disc
+            .verify_capture_fence(self.generated.normalized_disc.root(), operation)?;
+        current.verify_capture_fence(root, operation)?;
+        self.require_closed_owner(library, journal)?;
+        operation.checkpoint()?;
+        Ok(current)
+    }
+
+    pub(crate) fn verify_closed_configuration(
+        &self,
+        library: &Library,
+        closed: &crate::operation::ClosedGenerationPredecessor,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.failed_configuration_inventory(library, closed, operation)
+            .map(|_| ())
+    }
+
+    pub(crate) fn configuration_parent_receipt(&self) -> Result<(String, String)> {
+        let sha = self
+            .persisted_sha256
+            .clone()
+            .ok_or_else(|| PortcoveError::state("PS1 configuration generation was not loaded"))?;
+        Ok((crate::operation::psx_witness_json(self)?, sha))
+    }
+
+    pub(crate) fn require_configuration_pending(&self, json: &str) -> Result<()> {
+        let pending: serde_json::Value = serde_json::from_str(json)?;
+        let generation = serde_json::to_value(self)?;
+        let normalized = generation.get("normalized").ok_or_else(|| {
+            PortcoveError::verification("PS1 configuration normalization is missing")
+        })?;
+        let pending_normalized = pending.get("normalized").ok_or_else(|| {
+            PortcoveError::verification("PS1 configuration pending normalization is missing")
+        })?;
+        if pending.get("generated") != generation.get("generated")
+            || pending_normalized.get("binding") != generation.get("bootstrap")
+            || pending.get("normalized_sha256") != normalized.get("sha256")
+            || pending.get("normalized_json") != normalized.get("json")
+            || pending.get("outputs") != normalized.get("outputs")
+            || pending.get("attempt_history") != normalized.get("attempt_history")
+        {
+            return Err(PortcoveError::verification(
+                "PS1 configuration pending and sealed predecessors differ",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn configure_recovered(
+        self,
+        library: &Library,
+        closed: &crate::operation::ClosedGenerationPredecessor,
+        preparation: &PsxManagedPreparation,
+        operation: &OperationCoordinator,
+        receipt: &serde_json::Value,
+        confirm_started: impl Fn() -> Result<()>,
+    ) -> (Result<ConfiguredInstallWitness>, bool) {
+        let mut quiesced = true;
+        let result = (|| {
+            confirm_started()?;
+            let generation_sha256 = self.persisted_sha256.clone().ok_or_else(|| {
+                PortcoveError::state("PS1 configuration requires store-loaded generation")
+            })?;
+            let evidence = configuration_failure_path(closed.journal())?;
+            // Exclusive, fixed, permanent hold on every later configure call.
+            fs::create_dir(&evidence)?;
+            let prior = serde_json::to_vec_pretty(receipt)?;
+            if prior.len() > 64 * 1024 {
+                return Err(PortcoveError::state(
+                    "PS1 configuration failure receipt is oversized",
+                ));
+            }
+            crate::durability::write_bytes_atomically(&evidence.join("prior.json"), &prior, false)?;
+            crate::durability::sync_publication(evidence.parent().expect("owned staging parent"))?;
+            let outputs = evidence.join("outputs");
+            fs::create_dir(&outputs)?;
+            let outputs = fs::canonicalize(outputs)?;
+            let current = self.failed_configuration_inventory(library, closed, operation)?;
+            confirm_started()?;
+            let retained = current.preserve_configuration_outputs(&outputs, operation)?;
+            let retained_json = serde_json::to_vec(&retained)?;
+            if retained_json.len() > 64 * 1024 * 1024 {
+                return Err(PortcoveError::state(
+                    "PS1 failed configuration inventory is oversized",
+                ));
+            }
+            crate::durability::write_bytes_atomically(
+                &evidence.join("outputs.json"),
+                &retained_json,
+                false,
+            )?;
+            retained.verify(&outputs, operation)?;
+            // No archived result becomes execution authority. The normal
+            // primitive hashes inputs again and refuses any existing build.
+            confirm_started()?;
+            let configured = configure_install_with_recovery(
+                self.generated.tree.root(),
+                preparation,
+                operation,
+                &mut quiesced,
+                &self.generated,
+                true,
+            )?;
+            Ok(ConfiguredInstallWitness {
+                generation: self,
+                generation_sha256,
+                configured,
+                persisted_sha256: None,
+            })
+        })();
+        (result, quiesced)
+    }
+}
+
+pub(crate) fn configuration_failure_path(
+    journal: &crate::operation::LifecycleOperation,
+) -> Result<PathBuf> {
+    let staging = journal
+        .paths
+        .staging
+        .as_ref()
+        .ok_or_else(|| PortcoveError::state("PS1 configuration staging is missing"))?;
+    crate::path::refuse_symlink_ancestors(staging)?;
+    let evidence = fs::canonicalize(staging)?.join("configuration-failure");
+    crate::path::refuse_symlink_ancestors(&evidence)?;
+    Ok(evidence)
+}
+
+pub(crate) fn require_fresh_configuration_attempt(
+    journal: &crate::operation::LifecycleOperation,
+) -> Result<()> {
+    match fs::symlink_metadata(configuration_failure_path(journal)?) {
+        Ok(_) => Err(PortcoveError::conflict(
+            "PS1 configuration failure evidence already exists; retain the operation",
+        )),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn preparation_identity(preparation: &PsxManagedPreparation) -> Result<Vec<u8>> {
+    Ok(serde_json::to_vec(&(
+        &preparation.source,
+        &preparation.bios,
+        &preparation.source_paths,
+        &preparation.runtime_source_directory,
+        &preparation.toolchain_root,
+        &preparation.executable_basename,
+    ))?)
+}
+
+fn preparation_from_identity(bytes: &[u8]) -> Result<PsxManagedPreparation> {
+    let (source, bios, source_paths, runtime_source_directory, toolchain_root, executable_basename) =
+        serde_json::from_slice(bytes)?;
+    Ok(PsxManagedPreparation {
+        source,
+        bios,
+        source_paths,
+        runtime_source_directory,
+        toolchain_root,
+        executable_basename,
+    })
 }
 
 struct PreparationConfiguration<'a> {
@@ -505,17 +1437,45 @@ pub(crate) fn prepare_install(
     (result, quiesced)
 }
 
+pub(crate) fn generate_install_stage(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+) -> (Result<GeneratedInstall>, bool) {
+    let mut quiesced = true;
+    let result = generate_install(root, preparation, operation, &mut quiesced);
+    (result, quiesced)
+}
+
 fn prepare_install_inner(
     root: &Path,
     preparation: &PsxManagedPreparation,
     operation: &OperationCoordinator,
     quiesced: &mut bool,
 ) -> Result<()> {
+    let generated = generate_install(root, preparation, operation, quiesced)?;
+    finish_generated_install(root, preparation, operation, quiesced, generated)
+}
+
+fn generate_install(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+) -> Result<GeneratedInstall> {
+    #[cfg(feature = "qualification-fixtures")]
+    let mut trace = qualification_trace::Trace::new(operation.operation_id(), "generation_entry");
+    #[cfg(feature = "qualification-fixtures")]
+    trace.phase("source_identity");
     operation.checkpoint()?;
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    #[cfg(feature = "qualification-fixtures")]
+    trace.phase("bios_identity");
     if let Some(bios) = &preparation.bios {
         verify_raw_bios(bios, &|| operation.checkpoint())?;
     }
+    #[cfg(feature = "qualification-fixtures")]
+    trace.phase("preparation_contracts");
     let configuration = PreparationConfiguration::from_preparation(preparation)?;
     let cli = root.join("psxrecomp").join("psxrecomp_cli.py");
     let config = root.join("game.toml");
@@ -524,20 +1484,28 @@ fn prepare_install_inner(
             "PS1 setup package is missing its fixed psxrecomp CLI contract",
         ));
     }
-    let staged_bios = preparation
-        .bios
-        .as_ref()
-        .map(|bios| {
-            let staged = staged_bios_path(root)?;
-            if crate::path::resolve_existing_ancestor(&staged)? == fs::canonicalize(&bios.path)? {
-                return Err(PortcoveError::verification(
-                    "staged PS1 BIOS aliases its original",
-                ));
-            }
-            Ok(staged)
-        })
-        .transpose()?;
+    let inputs = preparation_identity(preparation)?;
+    let staged_bios = if let Some(bios) = &preparation.bios {
+        let staged = staged_bios_path(root)?;
+        if crate::path::resolve_existing_ancestor(&staged)? == fs::canonicalize(&bios.path)? {
+            return Err(PortcoveError::verification(
+                "staged PS1 BIOS aliases its original",
+            ));
+        }
+        Some(staged)
+    } else {
+        None
+    };
+    #[cfg(feature = "qualification-fixtures")]
+    trace.phase("python_selection");
     let python = toolchain_python(&preparation.toolchain_root)?;
+    #[cfg(feature = "qualification-fixtures")]
+    trace.phase("toolchain_inventory");
+    let toolchain = stage::GeneratedTree::capture(&preparation.toolchain_root, operation, true)?;
+    #[cfg(feature = "qualification-fixtures")]
+    trace.complete();
+    #[cfg(feature = "qualification-fixtures")]
+    drop(trace);
     operation.checkpoint()?;
     let temporary = retained_source_workspace(root)?;
     let cue = materialize_managed_disc(
@@ -547,6 +1515,7 @@ fn prepare_install_inner(
         operation,
         quiesced,
     )?;
+    let normalized_disc = stage::GeneratedTree::capture(&temporary, operation, *quiesced)?;
     operation.checkpoint()?;
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
     let generate_arguments = generation_arguments(
@@ -560,7 +1529,7 @@ fn prepare_install_inner(
         &cli,
         root,
         &preparation.toolchain_root,
-        generate_arguments,
+        generate_arguments.clone(),
         operation,
         quiesced,
     )?;
@@ -568,6 +1537,47 @@ fn prepare_install_inner(
         verify_raw_bios(bios, &|| operation.checkpoint())?;
     }
     rewrite_game_discs(&config, configuration.source_paths)?;
+    crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    toolchain.verify(&preparation.toolchain_root, operation)?;
+    normalized_disc.verify(&temporary, operation)?;
+    Ok(GeneratedInstall {
+        tree: stage::GeneratedTree::capture_normalized_generation(root, operation, *quiesced)?,
+        toolchain,
+        normalized_disc,
+        inputs,
+        generation_arguments: generate_arguments,
+        staged_bios,
+    })
+}
+
+fn finish_generated_install(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+    generated: GeneratedInstall,
+) -> Result<()> {
+    if generated.inputs != preparation_identity(preparation)? {
+        return Err(PortcoveError::verification(
+            "PS1 preparation inputs changed before continuation",
+        ));
+    }
+    generated.tree.verify(root, operation)?;
+    generated
+        .normalized_disc
+        .verify(generated.normalized_disc.root(), operation)?;
+    generated
+        .toolchain
+        .verify(&preparation.toolchain_root, operation)?;
+    crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    if let Some(bios) = &preparation.bios {
+        verify_raw_bios(bios, &|| operation.checkpoint())?;
+    }
+    let configuration = PreparationConfiguration::from_preparation(preparation)?;
+    let config = root.join("game.toml");
+    let cli = root.join("psxrecomp").join("psxrecomp_cli.py");
+    let python = toolchain_python(&preparation.toolchain_root)?;
+    let staged_bios = generated.staged_bios;
     let build_dir = root.join("build-portcove");
     run_cli(
         &python,
@@ -578,6 +1588,27 @@ fn prepare_install_inner(
         operation,
         quiesced,
     )?;
+    prepare_built_runtime(root, preparation, operation, quiesced, staged_bios, None)?;
+    Ok(())
+}
+
+fn prepare_built_runtime(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+    staged_bios: Option<PathBuf>,
+    sealed_inputs: Option<&stage::GeneratedTree>,
+) -> Result<Vec<(PathBuf, PathBuf)>> {
+    let retain_inputs = sealed_inputs.is_some();
+    if retain_inputs && preparation.runtime_source_directory.is_some() {
+        return Err(PortcoveError::unsupported(
+            "bounded multi-disc runtime extraction requires a separate supervised stage",
+        ));
+    }
+    let configuration = PreparationConfiguration::from_preparation(preparation)?;
+    let config = root.join("game.toml");
+    let build_dir = root.join("build-portcove");
     let executable = platform_executable(&build_dir, configuration.executable_basename);
     if !executable.is_file() {
         return Err(PortcoveError::install(format!(
@@ -600,12 +1631,62 @@ fn prepare_install_inner(
     let runtime_config = build_dir.join("game.toml");
     prepare_runtime_config(&config, &runtime_config, &runtime_sources)?;
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    let mut removed = Vec::new();
+    let retained_root = root
+        .parent()
+        .ok_or_else(|| PortcoveError::state("PS1 payload owner missing"))?
+        .join("finalization-inputs");
+    if retain_inputs {
+        crate::path::refuse_symlink_ancestors(&retained_root)?;
+        fs::create_dir(&retained_root)?;
+    }
     let prepared_disc = root.join("disc");
     if prepared_disc.is_dir() {
-        fs::remove_dir_all(prepared_disc)?;
+        if let Some(sealed) = sealed_inputs {
+            sealed.archive_input(Path::new("disc"), &retained_root.join("disc"), operation)?;
+            removed.push((PathBuf::from("disc"), PathBuf::from("disc")));
+        } else {
+            fs::remove_dir_all(prepared_disc)?;
+        }
     }
     if let (Some(staged), Some(bios)) = (&staged_bios, &preparation.bios) {
-        remove_staged_bios(staged, bios, &|| operation.checkpoint())?;
+        if let Some(sealed) = sealed_inputs {
+            verify_raw_bios(bios, &|| operation.checkpoint())?;
+            if fs::canonicalize(staged)? == fs::canonicalize(&bios.path)? {
+                return Err(PortcoveError::verification(
+                    "PS1 staged BIOS aliases its original",
+                ));
+            }
+            let before =
+                crate::external_runtime::hash_stable_file(staged, bios.storage_size, &|| {
+                    operation.checkpoint()
+                })?;
+            if before.sha256 != bios.storage_sha256 || before.size() != bios.storage_size {
+                return Err(PortcoveError::verification(
+                    "PS1 staged BIOS changed before retention",
+                ));
+            }
+            let relative = staged
+                .strip_prefix(root)
+                .map_err(|_| PortcoveError::verification("PS1 staged BIOS escaped payload"))?
+                .to_path_buf();
+            let destination = retained_root.join("staged-bios.bin");
+            sealed.archive_input(&relative, &destination, operation)?;
+            let after = crate::external_runtime::hash_stable_file(
+                &destination,
+                bios.storage_size,
+                &|| operation.checkpoint(),
+            )?;
+            if !before.same_content_object(&after) {
+                return Err(PortcoveError::verification(
+                    "PS1 retained BIOS object changed",
+                ));
+            }
+            verify_raw_bios(bios, &|| operation.checkpoint())?;
+            removed.push((relative, PathBuf::from("staged-bios.bin")));
+        } else {
+            remove_staged_bios(staged, bios, &|| operation.checkpoint())?;
+        }
     }
     fs::write(
         root.join(".portcove-managed.json"),
@@ -618,14 +1699,19 @@ fn prepare_install_inner(
             toolchain_version: TOOLCHAIN_VERSION,
         })?,
     )?;
-    Ok(())
+    Ok(removed)
 }
 
 pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<()> {
+    let body = fs::read_to_string(config)?;
+    fs::write(config, rewritten_game_discs(&body, sources)?)?;
+    Ok(())
+}
+
+fn rewritten_game_discs(body: &str, sources: &[PathBuf]) -> Result<String> {
     if sources.is_empty() {
         return Err(config_error("no verified disc sources"));
     }
-    let body = fs::read_to_string(config)?;
     let (tokens, comments) = config_tokens(&body)?;
     let (header_end, field) = config_disc_field(&body, &tokens)?;
     let newline = if body.contains("\r\n") { "\r\n" } else { "\n" };
@@ -678,7 +1764,7 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
     // Only the key/value spans change. UTF-8, unrelated text, line endings and
     // the final newline are retained; comments within old values remain in order.
     // This is an editor for the fixed game/disc contract, not a TOML validator.
-    let mut output = body.clone();
+    let mut output = body.to_owned();
     if let Some((old_key, old_value)) = field {
         output.replace_range(old_value, &value);
         if config_key(&body, tokens_for_range(&tokens, &old_key))? != [key] {
@@ -702,8 +1788,7 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
         };
         output.insert_str(header_end, &format!("{separator}{key} = {value}{ending}"));
     }
-    fs::write(config, output)?;
-    Ok(())
+    Ok(output)
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -1205,16 +2290,16 @@ fn generation_arguments(
     let mut arguments = vec![
         "generate".into(),
         "--config".into(),
-        crate::path::unicode(config, "managed build config")?,
+        crate::adapter::psx_launch_path(config)?,
         "--project-root".into(),
-        crate::path::unicode(root, "managed build root")?,
+        crate::adapter::psx_launch_path(root)?,
         "--disc".into(),
-        crate::path::unicode(disc, "managed disc")?,
+        crate::adapter::psx_launch_path(disc)?,
         "--json-progress".into(),
         "--no-toolchain-download".into(),
     ];
     if let Some(bios) = bios {
-        arguments.extend(["--bios".into(), crate::path::unicode(bios, "BIOS source")?]);
+        arguments.extend(["--bios".into(), crate::adapter::psx_launch_path(bios)?]);
     }
     Ok(arguments)
 }
@@ -1259,14 +2344,68 @@ fn run_cli(
     operation: &OperationCoordinator,
     quiesced: &mut bool,
 ) -> Result<()> {
+    // The packaged C++ emitter also consumes these Python working coordinates.
+    // Reuse the identity-checked spelling already required by its runtime.
+    let project_root = PathBuf::from(crate::adapter::psx_launch_path(project_root)?);
+    run_pinned_builder(
+        python,
+        &project_root,
+        toolchain_root,
+        std::iter::once(crate::adapter::psx_launch_path(cli)?).chain(arguments),
+        operation,
+        quiesced,
+    )
+}
+
+fn run_pinned_builder(
+    executable: &Path,
+    project_root: &Path,
+    toolchain_root: &Path,
+    arguments: impl IntoIterator<Item = String>,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+) -> Result<()> {
+    capture_pinned_builder(
+        executable,
+        project_root,
+        toolchain_root,
+        arguments,
+        operation,
+        quiesced,
+        false,
+    )
+    .map(|_| ())
+}
+
+fn capture_pinned_builder(
+    executable: &Path,
+    project_root: &Path,
+    toolchain_root: &Path,
+    arguments: impl IntoIterator<Item = String>,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+    owned_ninja: bool,
+) -> Result<crate::ActivityDiagnostic> {
     operation.checkpoint()?;
+    // Refuse unsupported command-shell paths before profile creation or tools.
+    let command_directory = builder_path(&if owned_ninja {
+        project_root.join("build-portcove")
+    } else {
+        project_root.to_path_buf()
+    })?;
     let platform = Platform::current()?;
     if !validate_toolchain_with_checkpoint(
         toolchain_root,
         platform,
         toolchain_artifact(platform)?,
         || operation.checkpoint(),
-    )? || toolchain_python(toolchain_root)? != python
+    )? || ![
+        toolchain_python(toolchain_root)?,
+        platform_executable(&toolchain_root.join("bin"), "cmake"),
+        platform_executable(&toolchain_root.join("bin"), "ninja"),
+    ]
+    .iter()
+    .any(|allowed| allowed == executable)
     {
         return Err(PortcoveError::verification(
             "managed PS1 builder requires its unchanged pinned toolchain",
@@ -1289,20 +2428,34 @@ fn run_cli(
     }
     let path = std::env::join_paths([
         toolchain_root.join("bin"),
-        python
+        toolchain_python(toolchain_root)?
             .parent()
             .expect("bundled Python has a parent")
             .to_path_buf(),
     ])
     .map_err(|_| PortcoveError::verification("pinned PS1 toolchain PATH is invalid"))?;
     let mut command =
-        ChildProcessPolicy::native_tool_spec(ChildProcessClass::ManagedBuilder, python)?;
+        ChildProcessPolicy::native_tool_spec(ChildProcessClass::ManagedBuilder, executable)?;
     command
-        .arg(cli)
         .args(arguments)
-        .current_dir(project_root)
+        .current_dir(command_directory)
         .env("RETCOMM_TOOLCHAIN_DIR", toolchain_root)
         .env("PSXRECOMP_TOOLCHAIN_DIR", toolchain_root)
+        .env(
+            "PSXRECOMP_GAME",
+            platform_executable(
+                &project_root.join("psxrecomp/recompiler/build"),
+                "psxrecomp-game",
+            ),
+        )
+        .env(
+            "PSXRECOMP_BIOS",
+            platform_executable(
+                &project_root.join("psxrecomp/recompiler/build"),
+                "psxrecomp-bios",
+            ),
+        )
+        .env("PYTHONDONTWRITEBYTECODE", "1")
         .env_remove("LD_LIBRARY_PATH")
         .env_remove("DYLD_LIBRARY_PATH")
         .env_remove("HOMEDRIVE")
@@ -1323,6 +2476,14 @@ fn run_cli(
         .env("TEMP", environment_root.join("temp"))
         .env("TMP", environment_root.join("temp"))
         .env("TMPDIR", environment_root.join("temp"));
+    if owned_ninja {
+        if executable != platform_executable(&toolchain_root.join("bin"), "ninja") {
+            return Err(PortcoveError::verification(
+                "owned compile stage requires pinned Ninja",
+            ));
+        }
+        command.env("NINJA_STATUS", pending::STATUS);
+    }
     let previous_quiescence = *quiesced;
     *quiesced = false;
     let mut command_quiesced = false;
@@ -1348,7 +2509,7 @@ fn run_cli(
     *quiesced = previous_quiescence && command_quiesced;
     let output = output.map_err(builder_supervision_error)?;
     if output.status.success() {
-        return Ok(());
+        return captured.ok_or_else(|| PortcoveError::state("builder final capture missing"));
     }
     // Preserve the builder's stderr/stdout failure ordering while using the
     // existing bounded, redacted per-stream capture, not unbounded output().
@@ -1676,6 +2837,7 @@ mod tests {
     }
 
     use super::*;
+    use sha2::Digest;
     use std::{
         thread,
         time::{Duration, Instant},
@@ -1944,6 +3106,3468 @@ mod tests {
             crate::adapter::source_storage_identity(&preparation.source.path).unwrap(),
             identity
         );
+    }
+
+    #[test]
+    fn generation_witness_join_fence_refuses_drift_after_output_hashing() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+            mpsc,
+        };
+        use std::time::Duration;
+        for kind in ["output-file", "output-name", "toolchain-file", "disc-file"] {
+            let root = tempfile::tempdir().unwrap();
+            let (library, operation, journal, witness, _) = generation_witness_fixture(root.path());
+            let (entered_tx, entered_rx) = mpsc::channel();
+            let (release_tx, release_rx) = mpsc::channel();
+            let mutated = Arc::new(AtomicBool::new(false));
+            let observed = mutated.clone();
+            let result = witness.verify_fenced(
+                &library,
+                &journal,
+                &operation,
+                move || {
+                    entered_tx.send(()).unwrap();
+                    release_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+                    Ok(())
+                },
+                || {
+                    // Both complete content checks have run, but the input
+                    // worker is still held. This mutation cannot be concealed
+                    // by the owner check or the later durable-row SQL fence.
+                    entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+                    if kind == "output-name" {
+                        fs::write(witness.generated.tree.root().join("inserted.c"), "inserted")?;
+                    } else {
+                        let path = match kind {
+                            "output-file" => witness.generated.tree.root().join("generated.c"),
+                            "toolchain-file" => witness
+                                .generated
+                                .toolchain
+                                .root()
+                                .join("bin")
+                                .join(if cfg!(windows) { "cmake.exe" } else { "cmake" }),
+                            "disc-file" => {
+                                witness.generated.normalized_disc.root().join("disc.bin")
+                            }
+                            _ => unreachable!(),
+                        };
+                        let modified = fs::metadata(&path)?.modified()?;
+                        let mut bytes = fs::read(&path)?;
+                        bytes[0] ^= 1;
+                        fs::write(&path, bytes)?;
+                        // Make the metadata drift deterministic even on a
+                        // coarse-timestamp filesystem; size remains unchanged.
+                        fs::File::options().write(true).open(path)?.set_times(
+                            fs::FileTimes::new().set_modified(modified + Duration::from_secs(1)),
+                        )?;
+                    }
+                    observed.store(true, Ordering::SeqCst);
+                    release_tx.send(()).unwrap();
+                    Ok(())
+                },
+            );
+            assert!(
+                mutated.load(Ordering::SeqCst),
+                "mutation was not reached: {kind}"
+            );
+            assert!(result.is_err(), "post-hash drift was admitted: {kind}");
+            let rows: i64 = library
+                .connection()
+                .unwrap()
+                .query_row("SELECT count(*) FROM managed_psx_generation", [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            assert_eq!(rows, 0);
+            assert!(!journal.paths.final_path.as_ref().unwrap().exists());
+        }
+    }
+
+    fn generation_witness_fixture(
+        root: &Path,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        GeneratedInstallWitness,
+        PsxManagedPreparation,
+    ) {
+        use crate::operation::{LifecycleOperation, LifecycleOperationKind, OperationStore};
+        let library = Library::open(root.join("library")).unwrap();
+        let operation = OperationCoordinator::new("inert-generation-witness", None);
+        let mut journal = LifecycleOperation::new(
+            operation.operation_id(),
+            LifecycleOperationKind::Install,
+            "inert-port",
+        );
+        journal.phase = crate::operation::LifecyclePhase::StagedPreparing;
+        let staging = library.staging_dir().join(operation.operation_id());
+        let payload = staging.join("payload");
+        let normalized = staging.join("psx-source-inert");
+        fs::create_dir_all(&payload).unwrap();
+        fs::create_dir_all(&normalized).unwrap();
+        fs::write(payload.join("generated.c"), "inert generated source").unwrap();
+        fs::write(
+            payload.join("game.toml"),
+            "[game]\nname='inert fixture'\ndisc='initial.cue'\n",
+        )
+        .unwrap();
+        fs::create_dir(payload.join("disc")).unwrap();
+        fs::write(payload.join("disc/owned.bin"), "inert generated disc copy").unwrap();
+        fs::write(normalized.join("disc.bin"), "inert normalized disc").unwrap();
+        let mut preparation = preparation_input_fixture(root, false);
+        preparation.toolchain_root = root.join("inert-toolchain");
+        toolchain_fixture(&preparation.toolchain_root, None);
+        for name in ["clang", "clang++"] {
+            fs::write(
+                platform_executable(&preparation.toolchain_root.join("bin"), name),
+                "inert compiler; not executed",
+            )
+            .unwrap();
+        }
+        journal.paths.staging = Some(staging);
+        journal.paths.final_path = Some(root.join("unpublished-install"));
+        journal.preparation_process_quiesced = Some(true);
+        OperationStore::new(library.clone())
+            .put(&mut journal)
+            .unwrap();
+        // Inert storage/control fixture: no generator or game has executed.
+        let generated = GeneratedInstall {
+            tree: stage::GeneratedTree::capture(&payload, &operation, true).unwrap(),
+            toolchain: stage::GeneratedTree::capture(&preparation.toolchain_root, &operation, true)
+                .unwrap(),
+            normalized_disc: stage::GeneratedTree::capture(&normalized, &operation, true).unwrap(),
+            inputs: preparation_identity(&preparation).unwrap(),
+            generation_arguments: vec!["inert fixture; not executed".into()],
+            staged_bios: None,
+        };
+        let witness = GeneratedInstallWitness::new(
+            &library,
+            &journal,
+            serde_json::json!({"inert":true}),
+            generated,
+        )
+        .unwrap();
+        (library, operation, journal, witness, preparation)
+    }
+
+    fn bootstrap_fixture(
+        root: &Path,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        BootstrapWitness,
+        GeneratedInstallWitness,
+        PsxManagedPreparation,
+    ) {
+        let (library, operation, journal, generated, preparation) =
+            generation_witness_fixture(root);
+        let bytes = b"inert authenticated archive fixture";
+        fs::write(
+            journal
+                .paths
+                .staging
+                .as_ref()
+                .unwrap()
+                .join("artifact.download"),
+            bytes,
+        )
+        .unwrap();
+        use sha2::Digest;
+        let artifact = crate::ArtifactIdentity {
+            asset_name: "inert.zip".into(),
+            sha256: hex::encode(sha2::Sha256::digest(bytes)),
+            size: bytes.len() as u64,
+        };
+        let witness = BootstrapWitness::capture(
+            &library,
+            &journal,
+            serde_json::json!({"inert": true}),
+            &preparation,
+            artifact,
+            &operation,
+        )
+        .unwrap();
+        (library, operation, journal, witness, generated, preparation)
+    }
+
+    #[test]
+    fn bootstrap_reopen_grants_no_generation_and_rejects_changed_archive() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, _, _) = bootstrap_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_bootstrap(&journal, &witness, &operation)
+            .unwrap();
+        let reopened = Library::open(library.root()).unwrap();
+        OperationStore::new(reopened)
+            .psx_bootstrap(&operation)
+            .unwrap();
+        assert!(store.psx_generation(&operation).is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+        fs::write(
+            journal
+                .paths
+                .staging
+                .as_ref()
+                .unwrap()
+                .join("artifact.download"),
+            b"changed archive",
+        )
+        .unwrap();
+        assert!(store.psx_bootstrap(&operation).is_err());
+    }
+
+    fn normalized_input_fixture(
+        root: &Path,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        NormalizedInputWitness,
+        PsxManagedPreparation,
+    ) {
+        let (library, operation, journal, bootstrap, _, preparation) = bootstrap_fixture(root);
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_bootstrap(&journal, &bootstrap, &operation)
+            .unwrap();
+        let loaded = store.psx_bootstrap(&operation).unwrap();
+        let disc = journal
+            .paths
+            .staging
+            .as_ref()
+            .unwrap()
+            .join("psx-source-inert");
+        fs::write(
+            disc.join("disc.cue"),
+            "inert cue descriptor; no helper executed",
+        )
+        .unwrap();
+        let helper = root.join("inert-chd-helper");
+        fs::write(&helper, "inert helper; not executed").unwrap();
+        let witness =
+            NormalizedInputWitness::inert_fixture(loaded, &preparation, &disc, &helper, &operation)
+                .unwrap();
+        (library, operation, journal, witness, preparation)
+    }
+
+    fn normalized_generation_fixture(
+        root: &Path,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        NormalizedInputWitness,
+        PsxManagedPreparation,
+    ) {
+        let (library, operation, journal, _, mut preparation) = generation_witness_fixture(root);
+        preparation.bios = None;
+        let payload = journal.paths.staging.as_ref().unwrap().join("payload");
+        for directory in ["seeds", "psxrecomp/recompiler/build"] {
+            fs::create_dir_all(payload.join(directory)).unwrap();
+        }
+        fs::write(payload.join("game.toml"), concat!(
+            "[game]\nexe = 'disc/GAME.EXE'\n",
+            "[prepare_disc]\nout_dir = 'disc'\nbin_name = 'disc.bin'\ncue_name = 'disc.cue'\nboot_exe = 'GAME.EXE'\n",
+            "[recompiler]\nout_dir = 'generated'\nseeds = 'seeds/game.txt'\n",
+            "[runtime]\nopenbios = false\n",
+        )).unwrap();
+        fs::write(payload.join("seeds/game.txt"), "immutable inert seeds").unwrap();
+        fs::write(
+            payload.join("psxrecomp/.gitignore"),
+            "framework root marker",
+        )
+        .unwrap();
+        for name in ["psxrecomp-game", "psxrecomp-bios"] {
+            fs::write(
+                platform_executable(&payload.join("psxrecomp/recompiler/build"), name),
+                "inert emitter; never executed",
+            )
+            .unwrap();
+        }
+        let bytes = b"inert authenticated archive fixture";
+        fs::write(
+            journal
+                .paths
+                .staging
+                .as_ref()
+                .unwrap()
+                .join("artifact.download"),
+            bytes,
+        )
+        .unwrap();
+        use sha2::Digest;
+        let artifact = crate::ArtifactIdentity {
+            asset_name: "inert.zip".into(),
+            sha256: hex::encode(sha2::Sha256::digest(bytes)),
+            size: bytes.len() as u64,
+        };
+        let bootstrap = BootstrapWitness::capture(
+            &library,
+            &journal,
+            serde_json::json!({"inert":true}),
+            &preparation,
+            artifact,
+            &operation,
+        )
+        .unwrap();
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_bootstrap(&journal, &bootstrap, &operation)
+            .unwrap();
+        let disc = journal
+            .paths
+            .staging
+            .as_ref()
+            .unwrap()
+            .join("psx-source-inert");
+        fs::write(disc.join("disc.cue"), "inert cue; no helper executed").unwrap();
+        let helper = root.join("inert-chd-helper");
+        fs::write(&helper, "inert helper; never executed").unwrap();
+        let normalized = NormalizedInputWitness::inert_fixture(
+            store.psx_bootstrap(&operation).unwrap(),
+            &preparation,
+            &disc,
+            &helper,
+            &operation,
+        )
+        .unwrap();
+        store
+            .commit_psx_normalized_inputs(&journal, &normalized, &operation)
+            .unwrap();
+        let loaded = store.psx_normalized_inputs(&operation).unwrap();
+        (library, operation, journal, loaded, preparation)
+    }
+
+    fn provisional_generation_fixture(
+        root: &Path,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        ProvisionalGeneratedInstall,
+        PsxManagedPreparation,
+    ) {
+        let (library, operation, journal, loaded, preparation) =
+            normalized_generation_fixture(root);
+        let candidate = loaded
+            .inert_generated_fixture(&preparation, &operation)
+            .unwrap();
+        (library, operation, journal, candidate, preparation)
+    }
+
+    #[test]
+    fn pending_generation_reopens_unverified_blocks_replay_and_seals_without_dispatch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, candidate, preparation) =
+            provisional_generation_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_pending_generation(&journal, &candidate, &operation)
+            .unwrap();
+        assert!(store.psx_generation(&operation).is_err());
+        assert!(store.psx_configuration(&operation).is_err());
+        assert!(store.psx_inputs_for_generation(&operation).is_err());
+        assert!(
+            store
+                .commit_psx_pending_generation(&journal, &candidate, &operation)
+                .is_err()
+        );
+        assert!(library.all_installs().unwrap().is_empty());
+        let reopened =
+            crate::operation::OperationStore::new(Library::open(library.root()).unwrap());
+        let decoded = reopened.psx_pending_generation(&operation).unwrap();
+        decoded
+            .require_request(&serde_json::json!({"inert":true}), &preparation)
+            .unwrap();
+        assert_eq!(decoded.artifact().asset_name, "inert.zip");
+        reopened
+            .seal_psx_generation(&journal, decoded, &operation)
+            .unwrap();
+        let loaded = reopened.psx_generation(&operation).unwrap();
+        assert!(loaded.normalized_parent().is_some());
+        assert!(loaded.bootstrap_parent().is_some());
+        assert!(store.require_psx_generation_vacant(&operation).is_err());
+        assert!(
+            store
+                .seal_psx_generation(
+                    &journal,
+                    store.psx_pending_generation(&operation).unwrap(),
+                    &operation
+                )
+                .is_err()
+        );
+        assert!(library.all_installs().unwrap().is_empty());
+        assert!(!journal.paths.final_path.as_ref().unwrap().exists());
+        assert_eq!(
+            library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT count(*) FROM managed_psx_pending_generation",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn pending_generation_fences_exact_receipts_full_journal_and_library_after_hashing() {
+        assert_pending_generation_fences(&[
+            "pending",
+            "normalized",
+            "bootstrap",
+            "created",
+            "updated",
+        ]);
+    }
+
+    #[test]
+    fn pending_generation_fences_owner_closure_error_and_library_after_hashing() {
+        assert_pending_generation_fences(&["activate", "quiesced", "error", "original", "library"]);
+    }
+
+    fn assert_pending_generation_fences(cases: &[&str]) {
+        for &selected in cases {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, candidate, _) =
+                provisional_generation_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_pending_generation(&journal, &candidate, &operation)
+                .unwrap();
+            let decoded = store.psx_pending_generation(&operation).unwrap();
+            let result = store.seal_psx_generation_before_fence(&journal, decoded, &operation, || {
+                let connection = library.connection()?;
+                match selected {
+                    "pending" => { connection.execute("UPDATE managed_psx_pending_generation SET witness_json=witness_json||' '", [])?; }
+                    "normalized" => { connection.execute("UPDATE managed_psx_normalized_inputs SET witness_json=witness_json||' '", [])?; }
+                    "bootstrap" => { connection.execute("UPDATE managed_psx_bootstrap SET witness_json=witness_json||' '", [])?; }
+                    "created" => { connection.execute("UPDATE lifecycle_operations SET created_at=created_at+1", [])?; }
+                    "updated" => { connection.execute("UPDATE lifecycle_operations SET updated_at=updated_at+1", [])?; }
+                    "activate" => { connection.execute("UPDATE lifecycle_operations SET activate=1-activate", [])?; }
+                    "quiesced" => { connection.execute("UPDATE lifecycle_operations SET preparation_process_quiesced=0", [])?; }
+                    "error" => { connection.execute("UPDATE lifecycle_operations SET last_error='inert failure'", [])?; }
+                    "original" => { connection.execute("UPDATE lifecycle_operations SET original_paths_json='[\"unowned\"]'", [])?; }
+                    "library" => { connection.execute("UPDATE library_identity SET id='00000000000000000000000000000000'", [])?; }
+                    _ => unreachable!(),
+                }
+                Ok(())
+            });
+            assert!(result.is_err(), "{selected}");
+            assert_eq!(
+                library
+                    .connection()
+                    .unwrap()
+                    .query_row("SELECT count(*) FROM managed_psx_generation", [], |row| row
+                        .get::<_, i64>(0))
+                    .unwrap(),
+                0,
+                "{selected}"
+            );
+            assert!(!journal.paths.final_path.as_ref().unwrap().exists());
+        }
+    }
+
+    #[test]
+    fn pending_generation_restored_mtime_drift_refuses_promotion_retains_evidence() {
+        for selected in [
+            "output",
+            "seed",
+            "config",
+            "cue",
+            "archive",
+            "helper",
+            "source",
+            "toolchain",
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, candidate, preparation) =
+                provisional_generation_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_pending_generation(&journal, &candidate, &operation)
+                .unwrap();
+            let staging = journal.paths.staging.as_ref().unwrap();
+            let path = match selected {
+                "output" => staging.join("payload/generated/GAME.EXE_dispatch.c"),
+                "seed" => staging.join("payload/seeds/game.txt"),
+                "config" => staging.join("payload/game.toml"),
+                "cue" => staging.join("psx-source-inert/disc.cue"),
+                "archive" => staging.join("artifact.download"),
+                "helper" => temporary.path().join("inert-chd-helper"),
+                "source" => preparation.source.path.clone(),
+                "toolchain" => {
+                    platform_executable(&preparation.toolchain_root.join("bin"), "clang")
+                }
+                _ => unreachable!(),
+            };
+            let metadata = fs::metadata(&path).unwrap();
+            let mut bytes = fs::read(&path).unwrap();
+            bytes[0] ^= 1;
+            fs::write(&path, bytes).unwrap();
+            fs::File::options()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_times(fs::FileTimes::new().set_modified(metadata.modified().unwrap()))
+                .unwrap();
+            let decoded = store.psx_pending_generation(&operation).unwrap();
+            assert!(
+                store
+                    .seal_psx_generation(&journal, decoded, &operation)
+                    .is_err(),
+                "{selected}"
+            );
+            assert_eq!(
+                library
+                    .connection()
+                    .unwrap()
+                    .query_row("SELECT count(*) FROM managed_psx_generation", [], |row| row
+                        .get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
+            assert_eq!(
+                library
+                    .connection()
+                    .unwrap()
+                    .query_row(
+                        "SELECT count(*) FROM managed_psx_pending_generation",
+                        [],
+                        |row| row.get::<_, i64>(0)
+                    )
+                    .unwrap(),
+                1
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "qualification-fixtures")]
+    fn pending_generation_schema_bounds_cascade_and_cancelled_seal_preserve_no_publication() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, candidate, _) =
+            provisional_generation_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        let connection = library.connection().unwrap();
+        assert!(
+            connection
+                .execute(
+                    "INSERT INTO managed_psx_pending_generation VALUES('unowned','{}',?1)",
+                    ["a".repeat(64)]
+                )
+                .is_err()
+        );
+        assert!(
+            connection
+                .execute(
+                    "INSERT INTO managed_psx_pending_generation VALUES(?1,'',?2)",
+                    rusqlite::params![operation.operation_id(), "a".repeat(64)]
+                )
+                .is_err()
+        );
+        assert!(
+            connection
+                .execute(
+                    "INSERT INTO managed_psx_pending_generation VALUES(?1,'{}','short')",
+                    [operation.operation_id()]
+                )
+                .is_err()
+        );
+        store
+            .commit_psx_pending_generation(&journal, &candidate, &operation)
+            .unwrap();
+        let decoded = store.psx_pending_generation(&operation).unwrap();
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+        let (activity, control) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Port,
+                Some("inert-port"),
+            )
+            .unwrap();
+        let cancellation =
+            control.retained_child(operation.operation_id(), "seal-generation-cancel-control");
+        service.request_cancellation(&activity.id).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(55));
+        assert!(
+            store
+                .seal_psx_generation(&journal, decoded, &cancellation)
+                .is_err()
+        );
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT count(*) FROM managed_psx_pending_generation",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            1
+        );
+        assert!(library.all_installs().unwrap().is_empty());
+        store.remove(operation.operation_id()).unwrap();
+        for table in [
+            "managed_psx_bootstrap",
+            "managed_psx_normalized_inputs",
+            "managed_psx_pending_generation",
+        ] {
+            assert_eq!(
+                connection
+                    .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row
+                        .get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
+        }
+        assert!(
+            journal
+                .paths
+                .staging
+                .as_ref()
+                .unwrap()
+                .join("payload/generated/GAME.EXE_dispatch.c")
+                .is_file()
+        );
+    }
+
+    #[test]
+    fn materialized_inputs_reopen_as_unverified_and_seal_without_tool_dispatch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, _) = normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_materialized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        assert!(store.psx_normalized_inputs(&operation).is_err());
+        let reopened =
+            crate::operation::OperationStore::new(Library::open(library.root()).unwrap());
+        let decoded = reopened.psx_materialized_inputs(&operation).unwrap();
+        reopened
+            .seal_psx_materialized_inputs(&journal, decoded, &operation)
+            .unwrap();
+        assert!(reopened.psx_normalized_inputs(&operation).is_ok());
+        let connection = library.connection().unwrap();
+        for table in [
+            "managed_psx_materialized_inputs",
+            "managed_psx_normalized_inputs",
+        ] {
+            assert_eq!(
+                connection
+                    .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row
+                        .get::<_, i64>(0))
+                    .unwrap(),
+                1
+            );
+        }
+        for table in [
+            "managed_psx_generation",
+            "managed_psx_configuration",
+            "managed_psx_compilation",
+            "installs",
+        ] {
+            assert_eq!(
+                connection
+                    .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row
+                        .get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
+        }
+    }
+
+    #[test]
+    fn materialized_inputs_restored_mtime_content_drift_refuses_sealing() {
+        for selected in ["cue", "helper", "payload", "archive", "source"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, witness, preparation) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_materialized_inputs(&journal, &witness, &operation)
+                .unwrap();
+            let json: serde_json::Value =
+                serde_json::from_str(&crate::operation::psx_witness_json(&witness).unwrap())
+                    .unwrap();
+            let staging = journal.paths.staging.as_ref().unwrap();
+            let path = match selected {
+                "cue" => PathBuf::from(json["cue"].as_str().unwrap()),
+                "helper" => PathBuf::from(json["helper_path"].as_str().unwrap()),
+                "payload" => staging.join("payload/game.toml"),
+                "archive" => staging.join("artifact.download"),
+                "source" => preparation.source.path.clone(),
+                _ => unreachable!(),
+            };
+            let metadata = fs::metadata(&path).unwrap();
+            let mut bytes = fs::read(&path).unwrap();
+            assert!(!bytes.is_empty());
+            bytes[0] ^= 1;
+            fs::write(&path, bytes).unwrap();
+            fs::File::options()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_times(fs::FileTimes::new().set_modified(metadata.modified().unwrap()))
+                .unwrap();
+            // Provisional loading deliberately grants no fresh-content authority.
+            let decoded = store.psx_materialized_inputs(&operation).unwrap();
+            assert!(
+                store
+                    .seal_psx_materialized_inputs(&journal, decoded, &operation)
+                    .is_err(),
+                "{selected}"
+            );
+            assert!(store.psx_normalized_inputs(&operation).is_err());
+            assert_eq!(
+                library
+                    .connection()
+                    .unwrap()
+                    .query_row(
+                        "SELECT count(*) FROM managed_psx_materialized_inputs",
+                        [],
+                        |row| row.get::<_, i64>(0)
+                    )
+                    .unwrap(),
+                1
+            );
+        }
+    }
+
+    #[test]
+    fn materialized_inputs_exact_pending_parent_and_journal_fenced_after_verification() {
+        for selected in ["pending", "parent", "journal", "library"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, witness, _) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_materialized_inputs(&journal, &witness, &operation)
+                .unwrap();
+            let decoded = store.psx_materialized_inputs(&operation).unwrap();
+            let result = store.seal_psx_materialized_inputs_before_fence(&journal, decoded, &operation, || {
+                let connection = library.connection()?;
+                match selected {
+                    "pending" => { connection.execute("UPDATE managed_psx_materialized_inputs SET witness_json=witness_json||' '", [])?; }
+                    "parent" => { connection.execute("UPDATE managed_psx_bootstrap SET witness_json=witness_json||' '", [])?; }
+                    "journal" => { connection.execute("UPDATE lifecycle_operations SET updated_at=updated_at+1 WHERE id=?1", [operation.operation_id()])?; }
+                    "library" => { assert_eq!(connection.execute("UPDATE library_identity SET id=CASE WHEN id='00000000000000000000000000000000' THEN '11111111111111111111111111111111' ELSE '00000000000000000000000000000000' END", [])?, 1); }
+                    _ => unreachable!(),
+                }
+                Ok(())
+            });
+            assert!(result.is_err(), "{selected}");
+            assert_eq!(
+                library
+                    .connection()
+                    .unwrap()
+                    .query_row(
+                        "SELECT count(*) FROM managed_psx_normalized_inputs",
+                        [],
+                        |row| row.get::<_, i64>(0)
+                    )
+                    .unwrap(),
+                0
+            );
+        }
+    }
+
+    #[test]
+    fn materialized_inputs_refuse_replay_and_direct_normalization_bypass() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, preparation) =
+            normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_materialized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        assert!(
+            store
+                .commit_psx_materialized_inputs(&journal, &witness, &operation)
+                .is_err()
+        );
+        assert!(store.require_psx_normalization_vacant(&operation).is_err());
+        assert!(
+            store
+                .commit_psx_normalized_inputs(&journal, &witness, &operation)
+                .is_err()
+        );
+        let bootstrap = store.psx_bootstrap(&operation).unwrap();
+        let (result, quiesced) = bootstrap.generate(&library, &journal, &preparation, &operation);
+        assert!(result.is_err());
+        assert!(quiesced);
+        assert!(store.psx_generation(&operation).is_err());
+    }
+
+    #[test]
+    fn materialized_inputs_forged_candidate_cannot_become_normalized_authority() {
+        use sha2::Digest;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, _) = normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_materialized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        let mut value: serde_json::Value =
+            serde_json::from_str(&crate::operation::psx_witness_json(&witness).unwrap()).unwrap();
+        value["helper"]["sha256"] = serde_json::Value::String("0".repeat(64));
+        let json = serde_json::to_string(&value).unwrap();
+        let sha = hex::encode(sha2::Sha256::digest(json.as_bytes()));
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE managed_psx_materialized_inputs SET witness_json=?1,witness_sha256=?2",
+                rusqlite::params![json, sha],
+            )
+            .unwrap();
+        let decoded = store.psx_materialized_inputs(&operation).unwrap();
+        assert!(
+            store
+                .seal_psx_materialized_inputs(&journal, decoded, &operation)
+                .is_err()
+        );
+        assert!(store.psx_normalized_inputs(&operation).is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "qualification-fixtures")]
+    fn materialized_inputs_cancellation_preserves_unsealed_custody() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, _) = normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_materialized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+        let (activity, control) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Port,
+                Some("yu-gi-oh-forbidden-memories-recompiled"),
+            )
+            .unwrap();
+        let child = control.retained_child(operation.operation_id(), "seal-cancel-control");
+        let decoded = store.psx_materialized_inputs(&child).unwrap();
+        service.request_cancellation(&activity.id).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(55));
+        assert!(
+            store
+                .seal_psx_materialized_inputs(&journal, decoded, &child)
+                .is_err()
+        );
+        assert!(store.psx_normalized_inputs(&operation).is_err());
+        assert!(store.psx_materialized_inputs(&operation).is_ok());
+    }
+
+    #[test]
+    #[cfg(feature = "qualification-fixtures")]
+    fn normalization_decode_cancellation_refuses_before_helper_dispatch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, _, preparation) =
+            normalized_input_fixture(temporary.path());
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+        let (activity, control) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Port,
+                Some("yu-gi-oh-forbidden-memories-recompiled"),
+            )
+            .unwrap();
+        let child =
+            control.retained_child(operation.operation_id(), "normalization-cancel-control");
+        let store = crate::operation::OperationStore::new(library.clone());
+        let decoded = store.psx_bootstrap_for_normalization(&child).unwrap();
+        let mut worker = journal.clone();
+        worker.preparation_process_quiesced = Some(false);
+        store.put(&mut worker).unwrap();
+        service.request_cancellation(&activity.id).unwrap();
+        // Let the existing bounded cancellation cache expire, without changing
+        // its production interval or dispatching any executable fixture.
+        std::thread::sleep(std::time::Duration::from_millis(55));
+        let staging = journal.paths.staging.as_ref().unwrap();
+        let before = fs::read_dir(staging).unwrap().count();
+        let (result, quiesced) = NormalizedInputWitness::prepare(
+            decoded,
+            &library,
+            &journal,
+            &worker,
+            &preparation,
+            &child,
+        );
+        assert!(quiesced);
+        assert_eq!(result.err().unwrap().code, crate::ErrorCode::Cancelled);
+        assert_eq!(fs::read_dir(staging).unwrap().count(), before);
+        assert!(store.psx_normalized_inputs(&operation).is_err());
+    }
+
+    #[test]
+    fn normalization_decode_does_not_grant_content_acceptance() {
+        for changed in ["archive", "payload"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, _, preparation) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            let decoded = store.psx_bootstrap_for_normalization(&operation).unwrap();
+            let path = journal
+                .paths
+                .staging
+                .as_ref()
+                .unwrap()
+                .join(if changed == "archive" {
+                    "artifact.download"
+                } else {
+                    "payload/generated.c"
+                });
+            let original = fs::read(&path).unwrap();
+            let timestamp = fs::metadata(&path).unwrap().modified().unwrap();
+            let mut different = original.clone();
+            different[0] ^= 1;
+            fs::write(&path, different).unwrap();
+            fs::File::options()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_times(fs::FileTimes::new().set_modified(timestamp))
+                .unwrap();
+            assert_eq!(fs::metadata(&path).unwrap().len(), original.len() as u64);
+            assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), timestamp);
+            // Bounded decoding is deliberately not executable or content evidence.
+            let mut worker = journal.clone();
+            worker.preparation_process_quiesced = Some(false);
+            store.put(&mut worker).unwrap();
+            let staging = journal.paths.staging.as_ref().unwrap();
+            let before = fs::read_dir(staging).unwrap().count();
+            let (result, quiesced) = NormalizedInputWitness::prepare(
+                decoded,
+                &library,
+                &journal,
+                &worker,
+                &preparation,
+                &operation,
+            );
+            assert!(quiesced, "no helper was dispatched: {changed}");
+            assert_eq!(
+                result.err().unwrap().code,
+                crate::ErrorCode::Verification,
+                "{changed}"
+            );
+            assert_eq!(fs::read_dir(staging).unwrap().count(), before);
+            #[cfg(feature = "qualification-fixtures")]
+            {
+                let diagnostics =
+                    qualification_psx_preparation_diagnostics(operation.operation_id());
+                let preparation = diagnostics["records"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|record| record["scope"] == "normalized_inputs")
+                    .unwrap();
+                assert_eq!(preparation["phase"], "bootstrap_verification");
+                assert_eq!(preparation["completed"], false);
+            }
+            assert!(
+                store.psx_bootstrap(&operation).is_err(),
+                "ordinary loader remains fresh"
+            );
+            assert!(store.psx_normalized_inputs(&operation).is_err());
+        }
+    }
+
+    #[test]
+    fn normalization_decode_binds_only_the_exact_owned_worker_transition() {
+        for drift in ["none", "parent", "journal", "operation", "library"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, _, _) = normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            let decoded = store.psx_bootstrap_for_normalization(&operation).unwrap();
+            let mut worker = journal.clone();
+            worker.preparation_process_quiesced = Some(false);
+            store.put(&mut worker).unwrap();
+            let other_operation = OperationCoordinator::new("wrong-normalization-owner", None);
+            let selected = if drift == "operation" {
+                &other_operation
+            } else {
+                &operation
+            };
+            match drift {
+                "parent" => {
+                    library.connection().unwrap().execute(
+                    "UPDATE managed_psx_bootstrap SET witness_sha256=?1 WHERE operation_id=?2",
+                    rusqlite::params!["f".repeat(64), operation.operation_id()],
+                ).unwrap();
+                }
+                "journal" => {
+                    let mut changed = worker.clone();
+                    changed.last_error = Some("retained failure".into());
+                    store.put(&mut changed).unwrap();
+                }
+                "library" => {
+                    library
+                        .connection()
+                        .unwrap()
+                        .execute(
+                            "UPDATE library_identity SET id='ffffffffffffffffffffffffffffffff'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                _ => {}
+            }
+            let result = decoded.require_owned_worker(&library, &journal, &worker, selected);
+            assert_eq!(result.is_ok(), drift == "none", "{drift}");
+            assert!(store.psx_normalized_inputs(&operation).is_err());
+        }
+    }
+
+    #[test]
+    fn normalization_decode_retains_failed_journal_refusal() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut journal, _, _) = normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library);
+        journal.last_error = Some("retained cancellation".into());
+        store.put(&mut journal).unwrap();
+        assert!(store.psx_bootstrap_for_normalization(&operation).is_err());
+        assert_eq!(
+            store
+                .get(operation.operation_id())
+                .unwrap()
+                .unwrap()
+                .last_error
+                .as_deref(),
+            Some("retained cancellation")
+        );
+    }
+
+    #[test]
+    fn generated_retail_bios_requires_exact_bound_source_bytes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let operation = OperationCoordinator::new("generated-retail-bios-fixture", None);
+        let bios = bios_fixture(&temporary.path().join("original-retail-bios"));
+        let destination = temporary.path().join("staged-retail-bios");
+        fs::copy(&bios.path, &destination).unwrap();
+        normalized_inputs::verify_generated_bios(&destination, &bios, &operation).unwrap();
+        let timestamp = fs::metadata(&destination).unwrap().modified().unwrap();
+        let mut bytes = fs::read(&destination).unwrap();
+        bytes[0] ^= 1;
+        fs::write(&destination, bytes).unwrap();
+        fs::File::options()
+            .write(true)
+            .open(&destination)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(timestamp))
+            .unwrap();
+        assert!(normalized_inputs::verify_generated_bios(&destination, &bios, &operation).is_err());
+    }
+
+    #[test]
+    fn generation_recipe_refuses_serialized_argument_bios_and_input_drift() {
+        for drift in ["none", "arguments", "bios", "inputs", "disc"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (_, operation, _, normalized, preparation) =
+                normalized_input_fixture(temporary.path());
+            let json = serde_json::to_value(&normalized).unwrap();
+            let root: PathBuf =
+                serde_json::from_value(json["bootstrap"]["payload"]["root"].clone()).unwrap();
+            let cue: PathBuf = serde_json::from_value(json["cue"].clone()).unwrap();
+            let mut generated = GeneratedInstall {
+                tree: stage::GeneratedTree::capture(&root, &operation, true).unwrap(),
+                toolchain: stage::GeneratedTree::capture(
+                    &preparation.toolchain_root,
+                    &operation,
+                    true,
+                )
+                .unwrap(),
+                normalized_disc: serde_json::from_value(json["disc"].clone()).unwrap(),
+                inputs: preparation_identity(&preparation).unwrap(),
+                generation_arguments: generation_arguments(
+                    &root.join("game.toml"),
+                    &root,
+                    &cue,
+                    None,
+                )
+                .unwrap(),
+                staged_bios: None,
+            };
+            match drift {
+                "arguments" => generated.generation_arguments.push("--force-bios".into()),
+                "bios" => generated.staged_bios = Some(root.join("unbound-retail-bios")),
+                "inputs" => generated.inputs.push(b' '),
+                "disc" => {
+                    generated.normalized_disc =
+                        stage::GeneratedTree::capture(&root, &operation, true).unwrap()
+                }
+                _ => {}
+            }
+            // Model a store-loaded child with a freshly recomputed child hash:
+            // recipe authority must still come from the bound predecessor.
+            let decoded: GeneratedInstall =
+                serde_json::from_slice(&serde_json::to_vec(&generated).unwrap()).unwrap();
+            assert_eq!(
+                normalized
+                    .require_generation_recipe(&decoded, &preparation)
+                    .is_ok(),
+                drift == "none",
+                "{drift}"
+            );
+        }
+    }
+
+    #[test]
+    fn generation_input_decode_binds_normalized_bytes_and_exact_worker_transition() {
+        for drift in [
+            "none",
+            "normalized",
+            "parent",
+            "journal",
+            "operation",
+            "library",
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, witness, preparation) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_normalized_inputs(&journal, &witness, &operation)
+                .unwrap();
+            let decoded = store.psx_inputs_for_generation(&operation).unwrap();
+            let contract = serde_json::to_value(&witness).unwrap()["bootstrap"]["contract"].clone();
+            decoded.require_request(&contract, &preparation).unwrap();
+            assert_eq!(decoded.artifact(), witness.artifact());
+            let mut worker = journal.clone();
+            worker.preparation_process_quiesced = Some(false);
+            store.put(&mut worker).unwrap();
+            let other = OperationCoordinator::new("wrong-generation-owner", None);
+            match drift {
+                "normalized" | "parent" => {
+                    let table = if drift == "normalized" {
+                        "managed_psx_normalized_inputs"
+                    } else {
+                        "managed_psx_bootstrap"
+                    };
+                    library
+                        .connection()
+                        .unwrap()
+                        .execute(
+                            &format!("UPDATE {table} SET witness_sha256=?1 WHERE operation_id=?2"),
+                            rusqlite::params!["f".repeat(64), operation.operation_id()],
+                        )
+                        .unwrap();
+                }
+                "journal" => {
+                    let mut changed = worker.clone();
+                    changed.last_error = Some("preserved failed evidence".into());
+                    store.put(&mut changed).unwrap();
+                }
+                "library" => {
+                    library
+                        .connection()
+                        .unwrap()
+                        .execute(
+                            "UPDATE library_identity SET id='ffffffffffffffffffffffffffffffff'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                _ => {}
+            }
+            let selected = if drift == "operation" {
+                &other
+            } else {
+                &operation
+            };
+            assert_eq!(
+                decoded
+                    .require_owned_worker(&library, &journal, &worker, selected)
+                    .is_ok(),
+                drift == "none",
+                "{drift}"
+            );
+            assert!(store.psx_generation(&operation).is_err());
+        }
+    }
+
+    #[test]
+    fn generation_continuation_preserves_failed_journal_and_seals_strictly() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut prior, _, preparation) =
+            normalized_generation_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        prior.last_error = Some("Operation cancelled before publication".into());
+        store.put(&mut prior).unwrap();
+        assert!(store.psx_normalized_inputs(&operation).is_err());
+        assert!(store.psx_bootstrap(&operation).is_err());
+        #[cfg(feature = "qualification-fixtures")]
+        {
+            let expected = store
+                .psx_inputs_for_generation(&operation)
+                .unwrap()
+                .witness()
+                .acquired_contract()
+                .clone();
+            assert_eq!(
+                store
+                    .psx_historical_qualification_contract(&operation, true)
+                    .unwrap(),
+                expected
+            );
+            assert!(
+                store
+                    .psx_historical_qualification_contract(&operation, false)
+                    .is_err()
+            );
+            assert_eq!(
+                store
+                    .get(operation.operation_id())
+                    .unwrap()
+                    .unwrap()
+                    .last_error,
+                prior.last_error
+            );
+        }
+        let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+        let worker = store
+            .start_psx_generation(&mut decoded, &prior, &operation)
+            .unwrap();
+        assert!(worker.last_error.is_none());
+        assert_eq!(worker.preparation_process_quiesced, Some(false));
+        assert!(store.psx_inputs_for_generation(&operation).is_err());
+        let decoded = decoded
+            .verify_for_generation(&library, &prior, &worker, &operation)
+            .unwrap();
+        let history = decoded.attempt_history();
+        let receipt: String = library.connection().unwrap().query_row(
+            "SELECT receipt_json FROM managed_psx_generation_attempts WHERE operation_id=?1 AND attempt=1",
+            [operation.operation_id()], |row| row.get(0),
+        ).unwrap();
+        let receipt: serde_json::Value = serde_json::from_str(&receipt).unwrap();
+        assert_eq!(
+            receipt["prior_journal"][12],
+            prior.last_error.as_deref().unwrap()
+        );
+        assert_eq!(receipt["prior_journal"][16], 1);
+        assert_eq!(receipt["prior_journal"].as_array().unwrap().len(), 17);
+        let mut candidate = decoded
+            .into_witness()
+            .inert_generated_fixture(&preparation, &operation)
+            .unwrap();
+        candidate.retain_attempt_history(history.clone());
+        let mut completed = worker.clone();
+        completed.preparation_process_quiesced = Some(true);
+        store
+            .put_psx_generation_outcome(&worker, &mut completed, &history, &operation)
+            .unwrap();
+        store
+            .commit_psx_pending_generation(&completed, &candidate, &operation)
+            .unwrap();
+        let pending = store.psx_pending_generation(&operation).unwrap();
+        store
+            .seal_psx_generation(&completed, pending, &operation)
+            .unwrap();
+        let generation = store.psx_generation(&operation).unwrap();
+        assert_eq!(generation.generation_attempt_history(), Some(&history));
+        assert!(store.psx_inputs_for_generation(&operation).is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+        assert!(!completed.paths.final_path.as_ref().unwrap().exists());
+        assert_eq!(
+            library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT count(*) FROM managed_psx_generation_attempts",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn generation_continuation_acknowledgement_never_replaces_content_verification() {
+        for drift in ["archive", "payload", "disc", "helper", "source"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, mut prior, witness, preparation) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_normalized_inputs(&prior, &witness, &operation)
+                .unwrap();
+            prior.last_error = Some("retained prior failure".into());
+            store.put(&mut prior).unwrap();
+            let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+            let worker = store
+                .start_psx_generation(&mut decoded, &prior, &operation)
+                .unwrap();
+            let history = decoded.attempt_history();
+            let staging = prior.paths.staging.as_ref().unwrap();
+            let path = match drift {
+                "archive" => Some(staging.join("artifact.download")),
+                "payload" => Some(staging.join("payload/generated.c")),
+                "disc" => Some(staging.join("psx-source-inert/disc.cue")),
+                "helper" => Some(temporary.path().join("inert-chd-helper")),
+                "source" => Some(preparation.source.path.clone()),
+                _ => None,
+            };
+            if let Some(path) = path {
+                let timestamp = fs::metadata(&path).unwrap().modified().unwrap();
+                let mut bytes = fs::read(&path).unwrap();
+                bytes[0] ^= 1;
+                fs::write(&path, bytes).unwrap();
+                fs::File::options()
+                    .write(true)
+                    .open(&path)
+                    .unwrap()
+                    .set_times(fs::FileTimes::new().set_modified(timestamp))
+                    .unwrap();
+            }
+            let error = match decoded.verify_for_generation(&library, &prior, &worker, &operation) {
+                Err(error) => error,
+                Ok(_) => panic!("fresh verification accepted {drift}"),
+            };
+            let mut completed = worker.clone();
+            completed.preparation_process_quiesced = Some(true);
+            completed.last_error = Some(error.message);
+            store
+                .put_psx_generation_outcome(&worker, &mut completed, &history, &operation)
+                .unwrap();
+            assert!(store.psx_generation(&operation).is_err());
+            assert!(store.psx_pending_generation(&operation).is_err());
+            assert!(library.all_installs().unwrap().is_empty());
+            let receipt: String = library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT receipt_json FROM managed_psx_generation_attempts",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(
+                serde_json::from_str::<serde_json::Value>(&receipt).unwrap()["prior_journal"][12],
+                "retained prior failure"
+            );
+            assert_eq!(
+                store
+                    .get(operation.operation_id())
+                    .unwrap()
+                    .unwrap()
+                    .preparation_process_quiesced,
+                Some(true)
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "qualification-fixtures")]
+    fn generation_continuation_cancelled_before_dispatch_retains_both_failures() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut prior, witness, _) =
+            normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_normalized_inputs(&prior, &witness, &operation)
+            .unwrap();
+        prior.last_error = Some("historical failed attempt".into());
+        store.put(&mut prior).unwrap();
+        let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+        let worker = store
+            .start_psx_generation(&mut decoded, &prior, &operation)
+            .unwrap();
+        let history = decoded.attempt_history();
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+        let (activity, control) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Port,
+                Some(&prior.port_id),
+            )
+            .unwrap();
+        let cancellation =
+            control.retained_child(operation.operation_id(), "cancel-generation-continuation");
+        service.request_cancellation(&activity.id).unwrap();
+        let error = match decoded.verify_for_generation(&library, &prior, &worker, &cancellation) {
+            Err(error) => error,
+            Ok(_) => panic!("cancelled predecessor was admitted"),
+        };
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        let mut completed = worker.clone();
+        completed.preparation_process_quiesced = Some(true);
+        completed.last_error = Some(error.message);
+        store
+            .put_psx_generation_outcome(&worker, &mut completed, &history, &cancellation)
+            .unwrap();
+        assert!(
+            store
+                .get(operation.operation_id())
+                .unwrap()
+                .unwrap()
+                .last_error
+                .is_some()
+        );
+        history.require_current(&library, &operation).unwrap();
+        assert!(store.psx_pending_generation(&operation).is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    #[test]
+    fn generation_continuation_start_refuses_whole_journal_parent_and_replay_drift() {
+        assert_generation_start_refuses_drift(&[
+            "error", "port", "staging", "final", "created", "updated",
+        ]);
+    }
+
+    #[test]
+    fn generation_continuation_start_refuses_closure_and_parent_drift() {
+        assert_generation_start_refuses_drift(&[
+            "activate",
+            "closed",
+            "phase",
+            "original",
+            "normalized",
+            "parent",
+        ]);
+    }
+
+    #[test]
+    fn generation_continuation_start_refuses_advanced_or_installed_custody() {
+        assert_generation_start_refuses_drift(&[
+            "library",
+            "pending",
+            "advanced",
+            "compile-history",
+            "install",
+        ]);
+    }
+
+    fn assert_generation_start_refuses_drift(drifts: &[&str]) {
+        for &drift in drifts {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, mut prior, witness, _) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_normalized_inputs(&prior, &witness, &operation)
+                .unwrap();
+            prior.last_error = Some("unchanged historical failure".into());
+            store.put(&mut prior).unwrap();
+            let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+            let connection = library.connection().unwrap();
+            match drift {
+                "error" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET last_error='different failure'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "port" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET port_id='different-port'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "staging" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET staging_path='different-stage'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "final" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET final_path='different-final'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "created" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET created_at=created_at+1",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "updated" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET updated_at=updated_at+1",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "activate" => {
+                    connection
+                        .execute("UPDATE lifecycle_operations SET activate=1-activate", [])
+                        .unwrap();
+                }
+                "closed" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET preparation_process_quiesced=0",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "phase" => {
+                    connection
+                        .execute("UPDATE lifecycle_operations SET phase='prepared'", [])
+                        .unwrap();
+                }
+                "original" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET original_paths_json='[\"unowned\"]'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "normalized" | "parent" => {
+                    let table = if drift == "normalized" {
+                        "managed_psx_normalized_inputs"
+                    } else {
+                        "managed_psx_bootstrap"
+                    };
+                    connection
+                        .execute(
+                            &format!("UPDATE {table} SET witness_sha256=?1"),
+                            ["f".repeat(64)],
+                        )
+                        .unwrap();
+                }
+                "library" => {
+                    connection
+                        .execute(
+                            "UPDATE library_identity SET id='ffffffffffffffffffffffffffffffff'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "pending" | "advanced" => {
+                    let table = if drift == "pending" {
+                        "managed_psx_pending_generation"
+                    } else {
+                        "managed_psx_generation"
+                    };
+                    connection.execute(&format!("INSERT INTO {table}(operation_id,witness_json,witness_sha256) VALUES (?1,'{{}}',?2)"),
+                        rusqlite::params![operation.operation_id(), "f".repeat(64)]).unwrap();
+                }
+                "compile-history" => {
+                    for table in [
+                        "managed_psx_generation",
+                        "managed_psx_configuration",
+                        "managed_psx_compilation",
+                    ] {
+                        connection.execute(&format!("INSERT INTO {table}(operation_id,witness_json,witness_sha256) VALUES (?1,'{{}}',?2)"), rusqlite::params![operation.operation_id(), "f".repeat(64)]).unwrap();
+                    }
+                    connection.execute("INSERT INTO managed_psx_compile_history(operation_id,completed_batches,witness_json,witness_sha256) VALUES (?1,1,'{}',?2)", rusqlite::params![operation.operation_id(), "f".repeat(64)]).unwrap();
+                }
+                "install" => {
+                    connection.execute("INSERT INTO installs(id,port_id,version,path,channel,installed_at,verified) VALUES ('another',?1,'inert','unowned','inert',0,0)", [&prior.port_id]).unwrap();
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                store
+                    .start_psx_generation(&mut decoded, &prior, &operation)
+                    .is_err(),
+                "{drift}"
+            );
+            assert_eq!(
+                connection
+                    .query_row(
+                        "SELECT count(*) FROM managed_psx_generation_attempts",
+                        [],
+                        |row| row.get::<_, i64>(0)
+                    )
+                    .unwrap(),
+                0,
+                "{drift}"
+            );
+        }
+    }
+
+    #[test]
+    fn generation_continuation_start_rolls_back_retention_when_acknowledgement_fails() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut prior, witness, _) =
+            normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_normalized_inputs(&prior, &witness, &operation)
+            .unwrap();
+        prior.last_error = Some("must survive rollback".into());
+        store.put(&mut prior).unwrap();
+        let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+        library
+            .connection()
+            .unwrap()
+            .execute_batch(
+                "CREATE TRIGGER refuse_generation_ack BEFORE UPDATE ON lifecycle_operations
+             WHEN NEW.last_error IS NULL BEGIN SELECT RAISE(ABORT,'inert refusal'); END;",
+            )
+            .unwrap();
+        assert!(
+            store
+                .start_psx_generation(&mut decoded, &prior, &operation)
+                .is_err()
+        );
+        assert_eq!(
+            store
+                .get(operation.operation_id())
+                .unwrap()
+                .unwrap()
+                .last_error,
+            prior.last_error
+        );
+        assert_eq!(
+            library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT count(*) FROM managed_psx_generation_attempts",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn generation_continuation_history_drift_refuses_dispatch_completion_and_pending_commit() {
+        for drift in ["delete", "rewrite", "reorder"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, mut prior, _, preparation) =
+                normalized_generation_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            prior.last_error = Some("retained before history drift".into());
+            store.put(&mut prior).unwrap();
+            let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+            let worker = store
+                .start_psx_generation(&mut decoded, &prior, &operation)
+                .unwrap();
+            let history = decoded.attempt_history();
+            decoded
+                .require_owned_worker(&library, &prior, &worker, &operation)
+                .unwrap();
+            let connection = library.connection().unwrap();
+            match drift {
+                "delete" => {
+                    connection
+                        .execute("DELETE FROM managed_psx_generation_attempts", [])
+                        .unwrap();
+                }
+                "rewrite" => {
+                    connection
+                        .execute(
+                            "UPDATE managed_psx_generation_attempts SET receipt_json='{}'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "reorder" => {
+                    connection
+                        .execute("UPDATE managed_psx_generation_attempts SET attempt=2", [])
+                        .unwrap();
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                decoded
+                    .require_owned_worker(&library, &prior, &worker, &operation)
+                    .is_err()
+            );
+            let mut completed = worker.clone();
+            completed.preparation_process_quiesced = Some(true);
+            assert!(
+                store
+                    .put_psx_generation_outcome(&worker, &mut completed, &history, &operation)
+                    .is_err()
+            );
+            assert_eq!(
+                store
+                    .get(operation.operation_id())
+                    .unwrap()
+                    .unwrap()
+                    .preparation_process_quiesced,
+                Some(false)
+            );
+            // An inert output fixture cannot bypass the missing historical binding.
+            let mut candidate = decoded
+                .into_witness()
+                .inert_generated_fixture(&preparation, &operation)
+                .unwrap();
+            candidate.retain_attempt_history(history);
+            store.put(&mut completed).unwrap();
+            assert!(
+                store
+                    .commit_psx_pending_generation(&completed, &candidate, &operation)
+                    .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn generation_continuation_attempt_count_byte_and_row_caps_preserve_current_failure() {
+        for size in [16usize, 60_000, 65_536] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, mut prior, witness, _) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_normalized_inputs(&prior, &witness, &operation)
+                .unwrap();
+            prior.last_error = Some("real initial fixture failure".into());
+            store.put(&mut prior).unwrap();
+            let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+            let worker = store
+                .start_psx_generation(&mut decoded, &prior, &operation)
+                .unwrap();
+            let mut completed = worker.clone();
+            completed.preparation_process_quiesced = Some(true);
+            store
+                .put_psx_generation_outcome(
+                    &worker,
+                    &mut completed,
+                    &decoded.attempt_history(),
+                    &operation,
+                )
+                .unwrap();
+            prior = completed;
+            let mut connection = library.connection().unwrap();
+            let receipt: String = connection
+                .query_row(
+                    "SELECT receipt_json FROM managed_psx_generation_attempts",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            let mut receipt: serde_json::Value = serde_json::from_str(&receipt).unwrap();
+            // Seed a valid bounded history fixture at the boundary directly;
+            // repeated start/stop cycles are not needed to test one refusal.
+            receipt["prior_journal"][12] = serde_json::json!("e".repeat(size.min(60_000)));
+            let receipt = serde_json::to_string(&receipt).unwrap();
+            let count = if size == 65_536 {
+                1
+            } else {
+                (1024 * 1024 / receipt.len()).min(32)
+            };
+            let transaction = connection.transaction().unwrap();
+            transaction
+                .execute(
+                    "UPDATE managed_psx_generation_attempts SET receipt_json=?1,receipt_sha256=?2",
+                    rusqlite::params![
+                        receipt,
+                        hex::encode(sha2::Sha256::digest(receipt.as_bytes()))
+                    ],
+                )
+                .unwrap();
+            let mut digest = sha2::Sha256::new();
+            for attempt in 1..=count {
+                if attempt != 1 {
+                    transaction.execute("INSERT INTO managed_psx_generation_attempts(operation_id,attempt,receipt_json,receipt_sha256) VALUES (?1,?2,?3,?4)", rusqlite::params![operation.operation_id(), attempt as i64, receipt, hex::encode(sha2::Sha256::digest(receipt.as_bytes()))]).unwrap();
+                }
+                digest.update((attempt as i64).to_le_bytes());
+                digest.update((receipt.len() as u64).to_le_bytes());
+                digest.update(receipt.as_bytes());
+            }
+            transaction
+                .execute(
+                    "UPDATE managed_psx_normalized_inputs SET generation_attempt_history_sha256=?1",
+                    [hex::encode(digest.finalize())],
+                )
+                .unwrap();
+            transaction.commit().unwrap();
+            prior.last_error = Some("e".repeat(size));
+            store.put(&mut prior).unwrap();
+            let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+            assert!(
+                store
+                    .start_psx_generation(&mut decoded, &prior, &operation)
+                    .is_err(),
+                "{size}"
+            );
+            let retained = store.get(operation.operation_id()).unwrap().unwrap();
+            assert_eq!(retained.last_error, prior.last_error);
+            assert_eq!(retained.preparation_process_quiesced, Some(true));
+            let (count, bytes): (i64, i64) = library.connection().unwrap().query_row(
+                "SELECT count(*),coalesce(sum(length(CAST(receipt_json AS BLOB))),0) FROM managed_psx_generation_attempts", [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            ).unwrap();
+            assert_eq!(
+                count as usize,
+                if size == 65_536 {
+                    1
+                } else {
+                    (1024 * 1024 / receipt.len()).min(32)
+                }
+            );
+            assert!(bytes <= 1024 * 1024);
+        }
+    }
+
+    #[test]
+    fn generation_continuation_fresh_load_refuses_deleted_rewritten_or_truncated_history() {
+        for drift in ["delete", "rewrite", "truncate"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, mut prior, witness, _) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_normalized_inputs(&prior, &witness, &operation)
+                .unwrap();
+            for error in ["first preserved failure", "second preserved failure"] {
+                prior.last_error = Some(error.into());
+                store.put(&mut prior).unwrap();
+                let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+                let worker = store
+                    .start_psx_generation(&mut decoded, &prior, &operation)
+                    .unwrap();
+                let mut completed = worker.clone();
+                completed.preparation_process_quiesced = Some(true);
+                completed.last_error = Some("current closed failed attempt".into());
+                store
+                    .put_psx_generation_outcome(
+                        &worker,
+                        &mut completed,
+                        &decoded.attempt_history(),
+                        &operation,
+                    )
+                    .unwrap();
+                prior = completed;
+            }
+            let reopened =
+                crate::operation::OperationStore::new(Library::open(library.root()).unwrap());
+            assert!(reopened.psx_inputs_for_generation(&operation).is_ok());
+            let connection = library.connection().unwrap();
+            let anchor: String = connection
+                .query_row(
+                    "SELECT generation_attempt_history_sha256 FROM managed_psx_normalized_inputs",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            match drift {
+                "delete" => {
+                    connection
+                        .execute("DELETE FROM managed_psx_generation_attempts", [])
+                        .unwrap();
+                }
+                "truncate" => {
+                    connection
+                        .execute(
+                            "DELETE FROM managed_psx_generation_attempts WHERE attempt=2",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "rewrite" => {
+                    let receipt: String = connection.query_row("SELECT receipt_json FROM managed_psx_generation_attempts WHERE attempt=1", [], |row| row.get(0)).unwrap();
+                    let mut receipt: serde_json::Value = serde_json::from_str(&receipt).unwrap();
+                    receipt["prior_journal"][12] =
+                        serde_json::json!("validly rehashed replacement error");
+                    let json = serde_json::to_string(&receipt).unwrap();
+                    connection.execute("UPDATE managed_psx_generation_attempts SET receipt_json=?1,receipt_sha256=?2 WHERE attempt=1", rusqlite::params![json, hex::encode(sha2::Sha256::digest(json.as_bytes()))]).unwrap();
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                reopened.psx_inputs_for_generation(&operation).is_err(),
+                "{drift}"
+            );
+            assert_eq!(
+                store
+                    .get(operation.operation_id())
+                    .unwrap()
+                    .unwrap()
+                    .last_error,
+                prior.last_error
+            );
+            assert_eq!(connection.query_row("SELECT generation_attempt_history_sha256 FROM managed_psx_normalized_inputs", [], |row| row.get::<_, String>(0)).unwrap(), anchor);
+            assert!(store.psx_pending_generation(&operation).is_err());
+            assert!(library.all_installs().unwrap().is_empty());
+        }
+    }
+
+    #[test]
+    fn generation_input_decode_requires_fresh_content_without_helper_replay() {
+        for drift in ["none", "archive", "payload", "disc", "helper", "source"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, witness, preparation) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_normalized_inputs(&journal, &witness, &operation)
+                .unwrap();
+            let decoded = store.psx_inputs_for_generation(&operation).unwrap();
+            let staging = journal.paths.staging.as_ref().unwrap();
+            let path = match drift {
+                "archive" => Some(staging.join("artifact.download")),
+                "payload" => Some(staging.join("payload/generated.c")),
+                "disc" => Some(staging.join("psx-source-inert/disc.cue")),
+                "helper" => Some(temporary.path().join("inert-chd-helper")),
+                "source" => Some(preparation.source.path.clone()),
+                _ => None,
+            };
+            if let Some(path) = path {
+                let timestamp = fs::metadata(&path).unwrap().modified().unwrap();
+                let mut bytes = fs::read(&path).unwrap();
+                bytes[0] ^= 1;
+                fs::write(&path, bytes).unwrap();
+                fs::File::options()
+                    .write(true)
+                    .open(&path)
+                    .unwrap()
+                    .set_times(fs::FileTimes::new().set_modified(timestamp))
+                    .unwrap();
+            }
+            let mut worker = journal.clone();
+            worker.preparation_process_quiesced = Some(false);
+            store.put(&mut worker).unwrap();
+            let before = fs::read_dir(staging).unwrap().count();
+            let result = decoded.verify_for_generation(&library, &journal, &worker, &operation);
+            assert_eq!(result.is_ok(), drift == "none", "{drift}");
+            assert_eq!(fs::read_dir(staging).unwrap().count(), before);
+            assert!(store.psx_generation(&operation).is_err());
+            assert_eq!(
+                store
+                    .get(operation.operation_id())
+                    .unwrap()
+                    .unwrap()
+                    .preparation_process_quiesced,
+                Some(false)
+            );
+        }
+    }
+
+    #[test]
+    fn normalized_inputs_reopen_without_generation_or_publication() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, _) = normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_normalized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        let reopened = crate::Installer::new(library.clone())
+            .unwrap()
+            .managed_install_normalized_inputs(operation.operation_id())
+            .unwrap();
+        assert_eq!(reopened.operation_id, operation.operation_id());
+        assert_eq!(reopened.port_id, witness.port_id());
+        assert!(store.psx_generation(&operation).is_err());
+        assert!(store.psx_configuration(&operation).is_err());
+        assert!(store.psx_compilation(&operation).is_err());
+        let retained = store.get(operation.operation_id()).unwrap().unwrap();
+        assert_eq!(
+            retained.phase,
+            crate::operation::LifecyclePhase::StagedPreparing
+        );
+        assert_eq!(retained.preparation_process_quiesced, Some(true));
+        assert!(
+            retained.install.is_none()
+                && retained.preparation.is_none()
+                && retained.last_error.is_none()
+        );
+    }
+
+    #[test]
+    fn normalized_inputs_refuse_disc_helper_source_and_archive_drift() {
+        for changed in ["disc", "helper", "source", "archive"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, witness, preparation) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_normalized_inputs(&journal, &witness, &operation)
+                .unwrap();
+            let path = match changed {
+                "disc" => journal
+                    .paths
+                    .staging
+                    .as_ref()
+                    .unwrap()
+                    .join("psx-source-inert/disc.bin"),
+                "helper" => temporary.path().join("inert-chd-helper"),
+                "source" => preparation.source.path,
+                _ => journal
+                    .paths
+                    .staging
+                    .as_ref()
+                    .unwrap()
+                    .join("artifact.download"),
+            };
+            fs::write(path, "changed after sealing").unwrap();
+            assert!(
+                store.psx_normalized_inputs(&operation).is_err(),
+                "{changed}"
+            );
+            assert!(store.psx_generation(&operation).is_err());
+        }
+    }
+
+    #[test]
+    fn normalized_inputs_refuse_failed_or_unclosed_journal() {
+        for failed in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, mut journal, witness, _) =
+                normalized_input_fixture(temporary.path());
+            if failed {
+                journal.last_error = Some("retained failure".into());
+            } else {
+                journal.preparation_process_quiesced = Some(false);
+            }
+            let store = crate::operation::OperationStore::new(library.clone());
+            store.put(&mut journal).unwrap();
+            assert!(
+                store
+                    .commit_psx_normalized_inputs(&journal, &witness, &operation)
+                    .is_err()
+            );
+            assert!(store.psx_normalized_inputs(&operation).is_err());
+        }
+    }
+
+    #[test]
+    fn normalized_inputs_refuse_repeat_or_legacy_generation_before_dispatch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, preparation) =
+            normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_normalized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        assert!(store.require_psx_normalization_vacant(&operation).is_err());
+        assert!(
+            store
+                .commit_psx_normalized_inputs(&journal, &witness, &operation)
+                .is_err()
+        );
+        let loaded = store.psx_bootstrap(&operation).unwrap();
+        let (result, quiesced) = loaded.generate(&library, &journal, &preparation, &operation);
+        assert!(quiesced);
+        assert!(
+            result
+                .err()
+                .unwrap()
+                .message
+                .contains("normalized inputs already retained")
+        );
+        assert!(store.psx_generation(&operation).is_err());
+    }
+
+    #[test]
+    fn normalized_inputs_atomic_fence_refuses_changed_acquired_predecessor() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, _) = normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_normalized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        let result = store.psx_normalized_inputs_before_fence(&operation, || {
+            library.connection()?.execute(
+                "UPDATE managed_psx_bootstrap SET witness_sha256=?1 WHERE operation_id=?2",
+                rusqlite::params!["f".repeat(64), operation.operation_id()],
+            )?;
+            Ok(())
+        });
+        assert!(result.is_err());
+        assert!(store.psx_generation(&operation).is_err());
+    }
+
+    #[test]
+    fn normalized_inputs_refuse_coherently_changed_embedded_context_with_valid_child_hash() {
+        use sha2::Digest;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, mut preparation) =
+            normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_normalized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        // Change both embedded contexts coherently, while retaining the valid
+        // acquired binding and recomputing the child's ordinary integrity hash.
+        // This must not invent a new source contract for the same predecessor.
+        preparation.source.profile_id = "different-source-contract".into();
+        let inputs = serde_json::to_value(preparation_identity(&preparation).unwrap()).unwrap();
+        let mut changed = serde_json::to_value(&witness).unwrap();
+        changed["inputs"] = inputs.clone();
+        changed["bootstrap"]["inputs"] = inputs;
+        let json = serde_json::to_string(&changed).unwrap();
+        let sha = hex::encode(sha2::Sha256::digest(json.as_bytes()));
+        library.connection().unwrap().execute(
+            "UPDATE managed_psx_normalized_inputs SET witness_json=?1,witness_sha256=?2 WHERE operation_id=?3",
+            rusqlite::params![json, sha, operation.operation_id()],
+        ).unwrap();
+        let error = store.psx_normalized_inputs(&operation).err().unwrap();
+        assert!(error.message.contains("predecessor context changed"));
+        assert!(store.psx_generation(&operation).is_err());
+    }
+
+    #[test]
+    fn bootstrap_refuses_payload_replacement_and_unclosed_or_failed_journal() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut journal, witness, _, _) = bootstrap_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        journal.preparation_process_quiesced = Some(false);
+        store.put(&mut journal).unwrap();
+        assert!(
+            store
+                .commit_psx_bootstrap(&journal, &witness, &operation)
+                .is_err()
+        );
+        journal.preparation_process_quiesced = Some(true);
+        store.put(&mut journal).unwrap();
+        store
+            .commit_psx_bootstrap(&journal, &witness, &operation)
+            .unwrap();
+        journal.last_error = Some("retained failure".into());
+        store.put(&mut journal).unwrap();
+        assert!(store.psx_bootstrap(&operation).is_err());
+        journal.last_error = None;
+        store.put(&mut journal).unwrap();
+        let payload = journal
+            .paths
+            .staging
+            .as_ref()
+            .unwrap()
+            .join("payload/generated.c");
+        let bytes = fs::read(&payload).unwrap();
+        fs::rename(&payload, payload.with_extension("retained")).unwrap();
+        fs::write(&payload, bytes).unwrap();
+        assert!(store.psx_bootstrap(&operation).is_err());
+    }
+
+    #[test]
+    fn bootstrap_exact_witness_and_journal_fence_rejects_concurrent_drift() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, _, _) = bootstrap_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_bootstrap(&journal, &witness, &operation)
+            .unwrap();
+        let result = store.psx_bootstrap_before_fence(&operation, || {
+            library.connection()?.execute("UPDATE managed_psx_bootstrap SET witness_json=witness_json || ' ' WHERE operation_id=?1", [&journal.id])?;
+            Ok(())
+        });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn bootstrap_generation_requires_loaded_exact_predecessor_and_unchanged_request() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, bootstrap, generated, mut preparation) =
+            bootstrap_fixture(temporary.path());
+        assert!(bootstrap.binding().is_err());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_bootstrap(&journal, &bootstrap, &operation)
+            .unwrap();
+        let loaded = store.psx_bootstrap(&operation).unwrap();
+        loaded
+            .require_request(&serde_json::json!({"inert":true}), &preparation)
+            .unwrap();
+        preparation.executable_basename.push_str("-changed");
+        assert!(
+            loaded
+                .require_request(&serde_json::json!({"inert":true}), &preparation)
+                .is_err()
+        );
+        let bound = generated.with_bootstrap(loaded.binding().unwrap());
+        store
+            .commit_psx_generation(&journal, &bound, &operation)
+            .unwrap();
+        let reopened = store.psx_generation(&operation).unwrap();
+        assert_eq!(reopened.bootstrap_parent(), bound.bootstrap_parent());
+        library.connection().unwrap().execute("UPDATE managed_psx_bootstrap SET witness_json=witness_json || ' ' WHERE operation_id=?1", [&journal.id]).unwrap();
+        assert!(store.psx_generation(&operation).is_err());
+    }
+
+    #[test]
+    fn bootstrap_generation_vacancy_refuses_replay_before_worker_dispatch() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, bootstrap, generated, preparation) =
+            bootstrap_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_bootstrap(&journal, &bootstrap, &operation)
+            .unwrap();
+        let loaded = store.psx_bootstrap(&operation).unwrap();
+        store.require_psx_generation_vacant(&operation).unwrap();
+        let binding = loaded.binding().unwrap();
+        store
+            .commit_psx_generation(&journal, &generated.with_bootstrap(binding), &operation)
+            .unwrap();
+        assert!(store.require_psx_generation_vacant(&operation).is_err());
+        let before = fs::read(
+            journal
+                .paths
+                .staging
+                .as_ref()
+                .unwrap()
+                .join("payload/generated.c"),
+        )
+        .unwrap();
+        let (result, quiesced) = loaded.generate(&library, &journal, &preparation, &operation);
+        assert_eq!(
+            result.err().unwrap().message,
+            "PS1 acquired generation already advanced"
+        );
+        assert!(quiesced);
+        assert_eq!(
+            before,
+            fs::read(
+                journal
+                    .paths
+                    .staging
+                    .as_ref()
+                    .unwrap()
+                    .join("payload/generated.c")
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn bootstrap_optional_binding_preserves_legacy_generation_bytes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (_, _, _, generated, _) = generation_witness_fixture(temporary.path());
+        let json = crate::operation::psx_witness_json(&generated).unwrap();
+        assert!(
+            serde_json::from_str::<serde_json::Value>(&json)
+                .unwrap()
+                .get("bootstrap")
+                .is_none()
+        );
+        let reopened: GeneratedInstallWitness = serde_json::from_str(&json).unwrap();
+        assert_eq!(json, crate::operation::psx_witness_json(&reopened).unwrap());
+    }
+
+    #[test]
+    fn bootstrap_generation_fence_refuses_predecessor_drift_after_filesystem_verification() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, bootstrap, generated, _) =
+            bootstrap_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_bootstrap(&journal, &bootstrap, &operation)
+            .unwrap();
+        let loaded = store.psx_bootstrap(&operation).unwrap();
+        store
+            .commit_psx_generation(
+                &journal,
+                &generated.with_bootstrap(loaded.binding().unwrap()),
+                &operation,
+            )
+            .unwrap();
+        let result = store.psx_generation_before_fence(&operation, || {
+            library.connection()?.execute("UPDATE managed_psx_bootstrap SET witness_json=witness_json || ' ' WHERE operation_id=?1", [&journal.id])?;
+            Ok(())
+        });
+        assert!(result.is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    #[test]
+    fn configuration_witness_roundtrip_keeps_generation_and_private_ownership() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            configuration_witness_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        let before: String = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT witness_json FROM managed_psx_generation WHERE operation_id=?1",
+                [&journal.id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        store
+            .commit_psx_configuration(&journal, &configured, &operation)
+            .unwrap();
+        let reopened = Library::open(library.root()).unwrap();
+        crate::PortcoveService::new(reopened.clone()).unwrap();
+        let continuation = crate::Installer::new(reopened.clone())
+            .unwrap()
+            .managed_install_configured(&operation)
+            .unwrap();
+        assert_eq!(continuation.operation_id, journal.id);
+        assert_eq!(continuation.port_id, journal.port_id);
+        assert!(reopened.all_installs().unwrap().is_empty());
+        assert!(!journal.paths.final_path.unwrap().exists());
+        assert!(
+            !journal
+                .paths
+                .staging
+                .unwrap()
+                .join("payload/.portcove-managed.json")
+                .exists()
+        );
+        let after: String = reopened
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT witness_json FROM managed_psx_generation WHERE operation_id=?1",
+                [&journal.id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(before, after);
+        assert!(
+            store
+                .commit_psx_configuration(
+                    &store.get(&journal.id).unwrap().unwrap(),
+                    &configured,
+                    &operation
+                )
+                .is_err()
+        );
+    }
+
+    pub(super) fn configuration_witness_fixture(
+        root: &Path,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        ConfiguredInstallWitness,
+    ) {
+        configuration_witness_fixture_acquired(root, false)
+    }
+
+    pub(super) fn configuration_witness_fixture_acquired(
+        root: &Path,
+        acquired: bool,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        ConfiguredInstallWitness,
+    ) {
+        configuration_witness_fixture_ancestry(root, acquired, false)
+    }
+
+    fn configuration_witness_fixture_ancestry(
+        root: &Path,
+        acquired: bool,
+        normalized: bool,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        ConfiguredInstallWitness,
+    ) {
+        use crate::operation::OperationStore;
+        let (library, operation, journal, generation, preparation) = if normalized {
+            let (library, operation, journal, candidate, preparation) =
+                provisional_generation_fixture(root);
+            let store = OperationStore::new(library.clone());
+            store
+                .commit_psx_pending_generation(&journal, &candidate, &operation)
+                .unwrap();
+            store
+                .seal_psx_generation(
+                    &journal,
+                    store.psx_pending_generation(&operation).unwrap(),
+                    &operation,
+                )
+                .unwrap();
+            let generation = store.psx_generation(&operation).unwrap();
+            (library, operation, journal, generation, preparation)
+        } else if acquired {
+            let (library, operation, journal, bootstrap, generation, preparation) =
+                bootstrap_fixture(root);
+            let store = OperationStore::new(library.clone());
+            store
+                .commit_psx_bootstrap(&journal, &bootstrap, &operation)
+                .unwrap();
+            let loaded = store.psx_bootstrap(&operation).unwrap();
+            let generation = generation.with_bootstrap(loaded.binding().unwrap());
+            (library, operation, journal, generation, preparation)
+        } else {
+            generation_witness_fixture(root)
+        };
+        let store = OperationStore::new(library.clone());
+        if !normalized {
+            store
+                .commit_psx_generation(&journal, &generation, &operation)
+                .unwrap();
+        }
+        let generation = store.psx_generation(&operation).unwrap();
+        let generation_sha256 = generation.persisted_sha256.clone().unwrap();
+        let payload = generation.generated.tree.root();
+        let build = payload.join("build-portcove");
+        fs::create_dir(&build).unwrap();
+        fs::write(
+            build.join("build.ninja"),
+            format!("# Inert graph; no configure execution\ninclude CMakeFiles/rules.ninja\nbuild {}: LINK\nbuild psx-runtime: phony {}\n", platform_executable(Path::new(""), &preparation.executable_basename).display(), platform_executable(Path::new(""), &preparation.executable_basename).display()),
+        )
+        .unwrap();
+        fs::create_dir(build.join("CMakeFiles")).unwrap();
+        fs::write(
+            build.join("CMakeFiles/rules.ninja"),
+            "# Inert rules; no native execution\nrule LINK\n  command = not-executed\n",
+        )
+        .unwrap();
+        fs::write(
+            build.join("CMakeCache.txt"),
+            "inert cache; no configure execution",
+        )
+        .unwrap();
+        let tree = generation
+            .generated
+            .tree
+            .configured_transition(payload, &operation, true)
+            .unwrap();
+        let arguments = configure_arguments(payload, &build, &preparation.toolchain_root).unwrap();
+        let compile_plan =
+            compile_plan::derive(payload, &preparation.executable_basename, &operation).unwrap();
+        let configured = ConfiguredInstallWitness {
+            generation,
+            generation_sha256,
+            persisted_sha256: None,
+            configured: ConfiguredInstall {
+                tree,
+                arguments,
+                compile_plan,
+            },
+        };
+        (library, operation, journal, configured)
+    }
+
+    fn failed_configuration_fixture(
+        root: &Path,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        ConfiguredInstallWitness,
+    ) {
+        let (library, operation, mut journal, configured) =
+            configuration_witness_fixture_ancestry(root, false, true);
+        journal.last_error = Some("retained configure failure".into());
+        crate::operation::OperationStore::new(library.clone())
+            .put(&mut journal)
+            .unwrap();
+        (library, operation, journal, configured)
+    }
+
+    #[test]
+    #[cfg(feature = "qualification-fixtures")]
+    fn failed_configuration_contract_uses_closed_context_without_acknowledgement() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            failed_configuration_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        assert!(
+            store
+                .psx_historical_qualification_contract(&operation, false)
+                .is_err()
+        );
+        assert_eq!(
+            store
+                .psx_historical_configuration_contract(&operation)
+                .unwrap(),
+            configured.generation.contract
+        );
+        assert_eq!(
+            store.get(&journal.id).unwrap().unwrap().last_error,
+            journal.last_error
+        );
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE lifecycle_operations SET preparation_process_quiesced=0 WHERE id=?1",
+                [&journal.id],
+            )
+            .unwrap();
+        assert!(
+            store
+                .psx_historical_configuration_contract(&operation)
+                .is_err()
+        );
+        assert!(
+            store
+                .psx_historical_qualification_contract(&operation, false)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn failed_configuration_start_and_promotion_preserve_exact_generation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            failed_configuration_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        let original: (String, String) = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT witness_json,witness_sha256 FROM managed_psx_generation",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert!(store.psx_generation(&operation).is_err());
+        let mut context = store.psx_failed_configuration(&operation).unwrap();
+        assert!(
+            store
+                .commit_psx_recovered_configuration(
+                    &journal,
+                    &configured,
+                    context.bindings_for_fixture(),
+                    &operation
+                )
+                .is_err()
+        );
+        let started = store
+            .start_psx_configuration(&mut context, &operation)
+            .unwrap();
+        assert_eq!(started.last_error, journal.last_error);
+        assert_eq!(started.preparation_process_quiesced, Some(false));
+        assert!(
+            store
+                .start_psx_configuration(&mut context, &operation)
+                .is_err()
+        );
+        assert!(store.psx_failed_configuration(&operation).is_err());
+        let mut completed = started.clone();
+        completed.preparation_process_quiesced = Some(true);
+        store
+            .put_psx_configuration_outcome(&started, &mut completed)
+            .unwrap();
+        assert_eq!(
+            store.get(&journal.id).unwrap().unwrap().last_error,
+            journal.last_error
+        );
+        // A synthetic, fully captured fixture checks store atomicity only;
+        // it is deliberately not native configuration or installation proof.
+        store
+            .commit_psx_recovered_configuration(
+                &completed,
+                &configured,
+                context.bindings_for_fixture(),
+                &operation,
+            )
+            .unwrap();
+        assert!(
+            store
+                .get(&journal.id)
+                .unwrap()
+                .unwrap()
+                .last_error
+                .is_none()
+        );
+        assert!(store.psx_configuration(&operation).is_ok());
+        let after: (String, String) = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT witness_json,witness_sha256 FROM managed_psx_generation",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(after, original);
+        assert!(store.psx_failed_configuration(&operation).is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    #[test]
+    fn failed_configuration_promotion_refusals_do_not_acknowledge_owner() {
+        for change in ["closure", "parent", "insert"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, configured) =
+                failed_configuration_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            let mut context = store.psx_failed_configuration(&operation).unwrap();
+            let started = store
+                .start_psx_configuration(&mut context, &operation)
+                .unwrap();
+            let mut completed = started.clone();
+            completed.preparation_process_quiesced = Some(change != "closure");
+            store
+                .put_psx_configuration_outcome(&started, &mut completed)
+                .unwrap();
+            let connection = library.connection().unwrap();
+            match change {
+                "parent" => {
+                    connection.execute("UPDATE managed_psx_pending_generation SET witness_json=witness_json||' '", []).unwrap();
+                }
+                "insert" => {
+                    connection.execute_batch("CREATE TRIGGER refuse_configuration BEFORE INSERT ON managed_psx_configuration BEGIN SELECT RAISE(ABORT,'inert configuration retention refusal'); END;").unwrap();
+                }
+                _ => {}
+            }
+            assert!(
+                store
+                    .commit_psx_recovered_configuration(
+                        &completed,
+                        &configured,
+                        context.bindings_for_fixture(),
+                        &operation
+                    )
+                    .is_err(),
+                "{change}"
+            );
+            assert_eq!(
+                store.get(&journal.id).unwrap().unwrap().last_error,
+                journal.last_error
+            );
+            assert_eq!(
+                connection
+                    .query_row(
+                        "SELECT COUNT(*) FROM managed_psx_configuration",
+                        [],
+                        |row| row.get::<_, i64>(0)
+                    )
+                    .unwrap(),
+                0
+            );
+        }
+    }
+
+    #[test]
+    fn failed_configuration_start_refuses_journal_and_pending_drift() {
+        use sha2::Digest;
+        for change in ["journal", "pending", "closure"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, _) = failed_configuration_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            let mut context = store.psx_failed_configuration(&operation).unwrap();
+            let connection = library.connection().unwrap();
+            match change {
+                "journal" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET activate=1-activate WHERE id=?1",
+                            [&journal.id],
+                        )
+                        .unwrap();
+                }
+                "closure" => {
+                    connection.execute("UPDATE lifecycle_operations SET preparation_process_quiesced=0 WHERE id=?1", [&journal.id]).unwrap();
+                }
+                _ => {
+                    let raw: String = connection
+                        .query_row(
+                            "SELECT witness_json FROM managed_psx_pending_generation",
+                            [],
+                            |row| row.get(0),
+                        )
+                        .unwrap();
+                    let changed = format!("{raw} ");
+                    connection.execute("UPDATE managed_psx_pending_generation SET witness_json=?1,witness_sha256=?2", rusqlite::params![changed, hex::encode(sha2::Sha256::digest(changed.as_bytes()))]).unwrap();
+                }
+            }
+            let before = store.get(&journal.id).unwrap().unwrap();
+            assert!(
+                store
+                    .start_psx_configuration(&mut context, &operation)
+                    .is_err()
+            );
+            let after = store.get(&journal.id).unwrap().unwrap();
+            assert_eq!(
+                crate::operation::psx_journal_for_fixture(&after).unwrap(),
+                crate::operation::psx_journal_for_fixture(&before).unwrap()
+            );
+            assert!(!configuration_failure_path(&journal).unwrap().exists());
+        }
+    }
+
+    #[test]
+    fn failed_configuration_refuses_restored_timestamp_content_mutation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, _) = failed_configuration_fixture(temporary.path());
+        let config = journal
+            .paths
+            .staging
+            .as_ref()
+            .unwrap()
+            .join("payload/game.toml");
+        let modified = fs::metadata(&config).unwrap().modified().unwrap();
+        let mut bytes = fs::read(&config).unwrap();
+        bytes[1] ^= 1;
+        fs::write(&config, &bytes).unwrap();
+        fs::File::options()
+            .write(true)
+            .open(&config)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(modified))
+            .unwrap();
+        assert_eq!(fs::metadata(&config).unwrap().modified().unwrap(), modified);
+        assert!(
+            crate::operation::OperationStore::new(library)
+                .psx_failed_configuration(&operation)
+                .is_err()
+        );
+        assert!(!configuration_failure_path(&journal).unwrap().exists());
+    }
+
+    #[test]
+    fn failed_configuration_evidence_holds_both_failed_and_clean_admission() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut journal, _) = failed_configuration_fixture(temporary.path());
+        fs::create_dir(configuration_failure_path(&journal).unwrap()).unwrap();
+        assert!(require_fresh_configuration_attempt(&journal).is_err());
+        assert!(
+            crate::operation::OperationStore::new(library)
+                .psx_failed_configuration(&operation)
+                .is_err()
+        );
+        journal.last_error = None;
+        assert!(require_fresh_configuration_attempt(&journal).is_err());
+    }
+
+    #[test]
+    fn failed_configuration_preserves_partial_outputs_before_builder_failure() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            failed_configuration_fixture(temporary.path());
+        let preparation =
+            preparation_from_identity(&configured.generation.generated.inputs).unwrap();
+        let store = crate::operation::OperationStore::new(library.clone());
+        let mut context = store.psx_failed_configuration(&operation).unwrap();
+        let started = store
+            .start_psx_configuration(&mut context, &operation)
+            .unwrap();
+        let payload = configured.generation.generated.tree.root();
+        let original_cache = fs::read(payload.join("build-portcove/CMakeCache.txt")).unwrap();
+        let (result, quiesced) = context.configure(&library, &preparation, &operation);
+        assert!(result.is_err(), "inert fixture CMake cannot execute");
+        assert!(
+            quiesced,
+            "spawn refusal positively closes a process-free worker"
+        );
+        let evidence = configuration_failure_path(&journal).unwrap();
+        let prior: serde_json::Value =
+            serde_json::from_slice(&fs::read(evidence.join("prior.json")).unwrap()).unwrap();
+        assert_eq!(
+            prior["prior_journal"][12],
+            journal.last_error.as_ref().unwrap().as_str()
+        );
+        assert_eq!(prior["prior_journal"][16], 1);
+        assert_eq!(
+            fs::read(evidence.join("outputs/build-portcove/CMakeCache.txt")).unwrap(),
+            original_cache
+        );
+        assert!(evidence.join("outputs.json").is_file());
+        assert!(!payload.join("build-portcove").exists());
+        let mut completed = started.clone();
+        completed.preparation_process_quiesced = Some(quiesced);
+        store
+            .put_psx_configuration_outcome(&started, &mut completed)
+            .unwrap();
+        assert_eq!(completed.last_error, journal.last_error);
+        assert!(store.psx_failed_configuration(&operation).is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    #[test]
+    fn pending_generation_binding_omission_with_recomputed_hash_refuses_generation_and_configuration()
+     {
+        use sha2::Digest;
+        for stage in ["generation", "configuration"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, configured) =
+                configuration_witness_fixture_ancestry(temporary.path(), false, true);
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_configuration(&journal, &configured, &operation)
+                .unwrap();
+            assert!(store.psx_configuration(&operation).is_ok());
+            let connection = library.connection().unwrap();
+            let mut generation = serde_json::to_value(&configured.generation).unwrap();
+            assert!(
+                generation
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("normalized")
+                    .is_some()
+            );
+            let changed_generation: GeneratedInstallWitness =
+                serde_json::from_value(generation.clone()).unwrap();
+            let generation_json = crate::operation::psx_witness_json(&changed_generation).unwrap();
+            let generation_sha = hex::encode(sha2::Sha256::digest(generation_json.as_bytes()));
+            connection.execute("UPDATE managed_psx_generation SET witness_json=?1,witness_sha256=?2 WHERE operation_id=?3", rusqlite::params![generation_json, generation_sha, operation.operation_id()]).unwrap();
+            if stage == "configuration" {
+                let mut value = serde_json::to_value(&configured).unwrap();
+                value["generation"] = generation;
+                value["generation_sha256"] = serde_json::json!(generation_sha);
+                let changed_configuration: ConfiguredInstallWitness =
+                    serde_json::from_value(value).unwrap();
+                let json = crate::operation::psx_witness_json(&changed_configuration).unwrap();
+                let sha = hex::encode(sha2::Sha256::digest(json.as_bytes()));
+                connection.execute("UPDATE managed_psx_configuration SET witness_json=?1,witness_sha256=?2 WHERE operation_id=?3", rusqlite::params![json, sha, operation.operation_id()]).unwrap();
+                let error = store.psx_configuration(&operation).err().unwrap();
+                assert!(
+                    error
+                        .message
+                        .contains("normalized generation ancestry is missing"),
+                    "{error:?}"
+                );
+            } else {
+                // Generation has already transitioned to configured output, so
+                // assert the explicit ancestry error precedes that other refusal.
+                let error = store.psx_generation(&operation).err().unwrap();
+                assert!(
+                    error
+                        .message
+                        .contains("normalized generation ancestry is missing"),
+                    "{error:?}"
+                );
+            }
+            assert!(library.all_installs().unwrap().is_empty());
+            assert!(!journal.paths.final_path.as_ref().unwrap().exists());
+        }
+        // The existing legacy fixture has no normalized ancestor and remains
+        // readable without synthesizing a binding it never possessed.
+        let legacy = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            configuration_witness_fixture(legacy.path());
+        let store = crate::operation::OperationStore::new(library);
+        store
+            .commit_psx_configuration(&journal, &configured, &operation)
+            .unwrap();
+        assert!(store.psx_configuration(&operation).is_ok());
+    }
+
+    #[test]
+    fn configuration_pending_query_refuses_unloaded_evidence_and_unknown_batch_before_native() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            configuration_witness_fixture(temporary.path());
+        let preparation =
+            preparation_from_identity(&configured.generation.generated.inputs).unwrap();
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_configuration(&journal, &configured, &operation)
+            .unwrap();
+        let (result, quiesced) = configured.observe_pending(&preparation, 0, &operation);
+        assert!(result.is_err());
+        assert!(quiesced);
+        let loaded = store.psx_configuration(&operation).unwrap();
+        assert!(loaded.persisted_sha256.is_some());
+        let bytes = serde_json::to_vec(&loaded).unwrap();
+        let reconstructed: ConfiguredInstallWitness = serde_json::from_slice(&bytes).unwrap();
+        assert!(reconstructed.persisted_sha256.is_none());
+        let (result, quiesced) = loaded.observe_pending(&preparation, usize::MAX, &operation);
+        assert!(result.is_err());
+        assert!(quiesced);
+        assert!(library.all_installs().unwrap().is_empty());
+        assert!(store.psx_configuration(&operation).is_ok());
+        assert!(!journal.paths.final_path.unwrap().exists());
+    }
+
+    #[test]
+    fn configuration_witness_refuses_uncertain_closure_and_parent_drift() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut journal, configured) =
+            configuration_witness_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        journal.preparation_process_quiesced = Some(false);
+        store.put(&mut journal).unwrap();
+        assert!(
+            store
+                .commit_psx_configuration(&journal, &configured, &operation)
+                .is_err()
+        );
+        journal.preparation_process_quiesced = Some(true);
+        store.put(&mut journal).unwrap();
+        store
+            .commit_psx_configuration(&journal, &configured, &operation)
+            .unwrap();
+        library.connection().unwrap().execute("UPDATE managed_psx_generation SET witness_json=witness_json || ' ' WHERE operation_id=?1", [&journal.id]).unwrap();
+        assert!(store.psx_configuration(&operation).is_err());
+        let count: i64 = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT count(*) FROM managed_psx_configuration",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+        assert!(store.get(&journal.id).unwrap().is_some());
+    }
+
+    #[test]
+    fn configuration_witness_refuses_parent_drift_during_verification_and_cascades_with_owner() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            configuration_witness_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_configuration(&journal, &configured, &operation)
+            .unwrap();
+        assert!(store.psx_configuration_before_fence(&operation, || {
+            library.connection()?.execute("UPDATE managed_psx_generation SET witness_json=witness_json || ' ' WHERE operation_id=?1", [&journal.id])?;
+            Ok(())
+        }).is_err());
+        assert!(store.get(&journal.id).unwrap().is_some());
+        store.remove(&journal.id).unwrap();
+        let count: i64 = library.connection().unwrap().query_row("SELECT (SELECT count(*) FROM managed_psx_generation)+(SELECT count(*) FROM managed_psx_configuration)", [], |row| row.get(0)).unwrap();
+        assert_eq!(count, 0);
+        assert!(
+            journal
+                .paths
+                .staging
+                .unwrap()
+                .join("payload/build-portcove/build.ninja")
+                .is_file()
+        );
+    }
+
+    #[test]
+    fn configuration_witness_refuses_generated_and_configured_input_drift() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            configuration_witness_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_configuration(&journal, &configured, &operation)
+            .unwrap();
+        let payload = journal.paths.staging.unwrap().join("payload");
+        fs::write(payload.join("build-portcove/build.ninja"), "changed graph").unwrap();
+        assert!(store.psx_configuration(&operation).is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    #[test]
+    fn configure_stage_refuses_changed_generation_before_any_tool_or_output() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (_, operation, journal, witness, preparation) =
+            generation_witness_fixture(temporary.path());
+        let root = journal.paths.staging.unwrap().join("payload");
+        fs::write(root.join("generated.c"), "changed generated source").unwrap();
+        let (result, quiesced) =
+            configure_install_stage(&root, &preparation, &operation, &witness.generated);
+        assert!(result.is_err());
+        assert!(quiesced);
+        assert!(!root.join("build-portcove").exists());
+        assert!(!root.join(".portcove-builder-environment").exists());
+        assert!(!root.join(".portcove-managed.json").exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn configure_paths_bind_canonical_objects_with_command_shell_spelling() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload with spaces");
+        fs::create_dir(&root).unwrap();
+        let toolchain = temporary.path().join("toolchain");
+        toolchain_fixture(&toolchain, None);
+        for name in ["clang", "clang++"] {
+            fs::write(platform_executable(&toolchain.join("bin"), name), "inert").unwrap();
+        }
+        let canonical = fs::canonicalize(&root).unwrap();
+        let pinned = fs::canonicalize(&toolchain).unwrap();
+        let build = canonical.join("build-portcove");
+        let arguments = configure_arguments(&canonical, &build, &pinned).unwrap();
+        for argument in &arguments {
+            assert!(
+                !argument.contains(r"\\?\"),
+                "shell alias leaked: {argument}"
+            );
+        }
+        assert_eq!(fs::canonicalize(&arguments[1]).unwrap(), canonical);
+        assert_eq!(
+            crate::path::resolve_existing_ancestor(Path::new(&arguments[3])).unwrap(),
+            build
+        );
+        let mut command =
+            // Existing Windows test infrastructure resolves this literal with
+            // GetSystemDirectoryW, without ambient PATH or a mixed-slash alias.
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::ManagedBuilder, "cmd.exe")
+                .unwrap();
+        command
+            // cmd.exe parses a command string rather than native argv. This
+            // static test-only argument contains no path or interpolated text.
+            .raw_arg("/D /C cd")
+            .current_dir(builder_path(&canonical).unwrap());
+        let mut quiesced = false;
+        let output = crate::tool_process::run_tool(
+            &mut command,
+            &|| Ok(()),
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || {
+                    quiesced = true;
+                    Ok(())
+                }),
+            },
+        )
+        .unwrap();
+        assert!(
+            output.status.success(),
+            "{}: {}",
+            output.status,
+            output.output
+        );
+        assert!(quiesced);
+        assert_eq!(fs::canonicalize(output.output.trim()).unwrap(), canonical);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn configure_paths_refuse_unc_before_network_inspection() {
+        for path in [
+            r"\\unreachable.invalid\share\payload",
+            r"\\?\UNC\unreachable.invalid\share\payload",
+        ] {
+            assert_eq!(
+                builder_path(Path::new(path)).unwrap_err().code,
+                crate::ErrorCode::Unsupported
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn configure_paths_refuse_changed_symlink_ancestors() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let linked = root.path().join("linked");
+        std::os::unix::fs::symlink(outside.path(), &linked).unwrap();
+        assert!(builder_path(&linked.join("future-build")).is_err());
+    }
+
+    #[test]
+    fn configure_stage_pins_playable_recipe_and_refuses_missing_compiler() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        let toolchain = temporary.path().join("toolchain");
+        toolchain_fixture(&toolchain, None);
+        let build = root.join("build-portcove");
+        assert!(configure_arguments(&root, &build, &toolchain).is_err());
+        for name in ["clang", "clang++"] {
+            fs::write(
+                platform_executable(&toolchain.join("bin"), name),
+                "inert compiler; not executed",
+            )
+            .unwrap();
+        }
+        let arguments = configure_arguments(&root, &build, &toolchain).unwrap();
+        assert_eq!(
+            &arguments[..6],
+            &[
+                "-S",
+                root.to_str().unwrap(),
+                "-B",
+                build.to_str().unwrap(),
+                "-G",
+                "Ninja"
+            ]
+        );
+        for required in [
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DCMAKE_SUPPRESS_REGENERATION=ON",
+            "-DPSX_PGO=",
+            "-DPSXRECOMP_FORCE_SETUP_HOST=OFF",
+            "-DBPE_FORCE_SETUP_HOST=OFF",
+            "-DPSXRECOMP_REQUIRE_GAME_C=ON",
+            "-DPSXRECOMP_ALLOW_NO_BIOS=OFF",
+            "-DPSX_DEBUG_TOOLS=OFF",
+            "-DCMAKE_C_COMPILER_LAUNCHER:STRING=",
+            "-DCMAKE_CXX_COMPILER_LAUNCHER:STRING=",
+        ] {
+            assert!(arguments.iter().any(|value| value == required));
+        }
+        assert!(arguments.iter().any(|value| value
+            == &format!(
+                "-DPython3_EXECUTABLE={}",
+                builder_path(&toolchain_python(&toolchain).unwrap()).unwrap()
+            )));
+        assert!(
+            !arguments
+                .iter()
+                .any(|value| value == "--build" || value == "rebuild")
+        );
+        assert!(arguments.iter().any(|value| value
+            == &format!(
+                "-DCMAKE_C_COMPILER={}",
+                platform_executable(&toolchain.join("bin"), "clang").display()
+            )));
+        fs::remove_file(platform_executable(&toolchain.join("bin"), "clang")).unwrap();
+        assert!(configure_arguments(&root, &build, &toolchain).is_err());
+    }
+
+    #[test]
+    fn configure_cache_requires_unique_pinned_python_and_immutable_graph_policy() {
+        let temporary = tempfile::tempdir().unwrap();
+        let toolchain = temporary.path().join("toolchain");
+        toolchain_fixture(&toolchain, None);
+        let build = temporary.path().join("build");
+        fs::create_dir(&build).unwrap();
+        let cache = format!(
+            "CMAKE_SUPPRESS_REGENERATION:BOOL=ON\nPython3_EXECUTABLE:FILEPATH={}\n",
+            builder_path(&toolchain_python(&toolchain).unwrap()).unwrap()
+        );
+        fs::write(build.join("CMakeCache.txt"), &cache).unwrap();
+        verify_configure_cache(&build, &toolchain).unwrap();
+        for invalid in [
+            cache.replace("=ON", "=OFF"),
+            cache.replace("Python3_EXECUTABLE:", "_Python3_EXECUTABLE:"),
+            cache.clone() + "Python3_EXECUTABLE:FILEPATH=foreign/python\n",
+        ] {
+            fs::write(build.join("CMakeCache.txt"), invalid).unwrap();
+            assert!(verify_configure_cache(&build, &toolchain).is_err());
+        }
+    }
+
+    // Explicit representative native diagnostic, through the production builder
+    // and closure boundary. Uses only a copied pinned Ninja and private fixtures;
+    // no failed operation, database, SDK build or game source is opened.
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "explicit pinned-Ninja qualification fixture"]
+    fn ninja_native_manifest_and_repeatable_completion_control() {
+        let pinned = PathBuf::from(
+            std::env::var_os("PORTCOVE_QUALIFICATION_NINJA").expect("explicit pinned Ninja"),
+        );
+        assert_eq!(
+            hex::encode(sha2::Sha256::digest(
+                crate::external_runtime::read_stable_metadata(&pinned, 1024 * 1024).unwrap()
+            )),
+            "e52a7ad9538d9618c67a0bd777964e2eec8a30f68b810a2f6adce1f2daf847b8"
+        );
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let toolchain = root.join("owned-toolchain");
+        toolchain_fixture(&toolchain, Some(&pinned));
+        let ninja = platform_executable(&toolchain.join("bin"), "ninja");
+        let build = root.join("build-portcove");
+        fs::create_dir(&build).unwrap();
+        let graph = format!(
+            "cmake_ninja_workdir = {}/\ninclude CMakeFiles/rules.ninja\nrule MATERIAL\n  command = cmd.exe /C echo fixture>first.obj\nrule CUSTOM_COMMAND\n  command = $COMMAND\nrule VERIFY_GLOBS\n  command = cmd.exe /C exit 0\n  generator = 1\n  restat = 1\nrule RERUN_CMAKE\n  command = cmd.exe /C exit 0\n  generator = 1\nbuild first.obj: MATERIAL\nbuild CMakeFiles/psx-stage-configs.util: CUSTOM_COMMAND\n  COMMAND = cmd.exe /C \"copy /Y ..\\game.toml game.toml >NUL && copy /Y ..\\game_options.toml game_options.toml >NUL\"\nbuild CMakeFiles/psx-runtime_require_generated | ${{cmake_ninja_workdir}}CMakeFiles/psx-runtime_require_generated: CUSTOM_COMMAND\n  COMMAND = cmd.exe /C exit 0\nbuild game.exe: phony first.obj CMakeFiles/psx-stage-configs.util CMakeFiles/psx-runtime_require_generated\nbuild psx-runtime: phony game.exe\n",
+            builder_path(&build)
+                .unwrap()
+                .replace('\\', "/")
+                .replace(':', "$:")
+                .replace(' ', "$ ")
+        );
+        fs::create_dir(build.join("CMakeFiles")).unwrap();
+        fs::write(build.join("CMakeFiles/rules.ninja"), "# owned fixture\n").unwrap();
+        for name in ["game.toml", "game_options.toml"] {
+            fs::write(root.join(name), b"owned configuration").unwrap();
+        }
+        let regeneration = "build force: phony\nbuild glob: VERIFY_GLOBS force\nbuild build.ninja: RERUN_CMAKE glob\n";
+        fs::write(build.join("build.ninja"), graph.clone() + regeneration).unwrap();
+        let operation = OperationCoordinator::new("native-pending-control", None);
+        let targets = vec!["game.exe".into()];
+        let mut quiesced = true;
+        let capture = |dry, quiesced: &mut bool| {
+            capture_pinned_builder(
+                &ninja,
+                root,
+                &toolchain,
+                pending::arguments(&targets, dry),
+                &operation,
+                quiesced,
+                true,
+            )
+            .unwrap()
+        };
+        let manifest_only = capture(true, &mut quiesced);
+        assert!(quiesced);
+        assert_eq!(pending::inspect(&manifest_only, quiesced).unwrap().count, 2);
+        assert!(!manifest_only.stdout.text.contains("echo fixture"));
+        assert!(!build.join("first.obj").exists());
+        fs::write(build.join("build.ninja"), &graph).unwrap();
+        assert_eq!(
+            pending::inspect(&capture(true, &mut quiesced), quiesced)
+                .unwrap()
+                .count,
+            3
+        );
+        capture(false, &mut quiesced);
+        assert!(quiesced);
+        assert!(build.join("first.obj").is_file());
+        let after = pending::inspect(&capture(true, &mut quiesced), quiesced).unwrap();
+        assert_eq!(after.count, 2);
+        let tree = stage::GeneratedTree::capture(root, &operation, quiesced).unwrap();
+        assert_eq!(
+            pending::material_remaining(&after, &tree, "game.exe", &targets, &operation).unwrap(),
+            0
+        );
+        println!(
+            "native Ninja control: manifest-only=2; fresh-target=3; executed material=1; repeatable=2; remaining material=0; positive closure=true"
+        );
+    }
+
+    #[test]
+    fn generation_witness_refuses_destination_activation_and_library_drift() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut journal, witness, _) =
+            generation_witness_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_generation(&journal, &witness, &operation)
+            .unwrap();
+        let original = journal.clone();
+        journal.paths.final_path = Some(temporary.path().join("different-destination"));
+        store.put(&mut journal).unwrap();
+        assert!(store.psx_generation(&operation).is_err());
+        journal = original.clone();
+        journal.activate = !journal.activate;
+        store.put(&mut journal).unwrap();
+        assert!(store.psx_generation(&operation).is_err());
+        journal = original;
+        store.put(&mut journal).unwrap();
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE library_identity SET id=?1 WHERE singleton=1",
+                [Uuid::new_v4().simple().to_string()],
+            )
+            .unwrap();
+        assert!(store.psx_generation(&operation).is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    #[test]
+    fn generation_witness_refuses_oversized_serialization_without_committing() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, mut witness, _) =
+            generation_witness_fixture(temporary.path());
+        witness.contract = serde_json::Value::String("x".repeat(64 * 1024 * 1024));
+        let store = OperationStore::new(library.clone());
+        assert!(
+            store
+                .commit_psx_generation(&journal, &witness, &operation)
+                .is_err()
+        );
+        let rows: i64 = library
+            .connection()
+            .unwrap()
+            .query_row("SELECT count(*) FROM managed_psx_generation", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(rows, 0);
+        assert!(store.get(&journal.id).unwrap().is_some());
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    #[test]
+    fn generation_witness_refuses_phase_or_closure_drift_during_verification() {
+        use crate::operation::{LifecyclePhase, OperationStore};
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut journal, witness, _) =
+            generation_witness_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_generation(&journal, &witness, &operation)
+            .unwrap();
+        let original = journal.clone();
+        assert!(
+            store
+                .psx_generation_before_fence(&operation, || {
+                    journal.phase = LifecyclePhase::Prepared;
+                    store.put(&mut journal)
+                })
+                .is_err()
+        );
+        journal = original;
+        store.put(&mut journal).unwrap();
+        assert!(
+            store
+                .psx_generation_before_fence(&operation, || {
+                    journal.preparation_process_quiesced = Some(false);
+                    store.put(&mut journal)
+                })
+                .is_err()
+        );
+        assert!(store.get(&journal.id).unwrap().is_some());
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    #[test]
+    fn generation_witness_roundtrip_keeps_private_preparing_without_installation() {
+        use crate::operation::{LifecyclePhase, OperationStore};
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, _) =
+            generation_witness_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_generation(&journal, &witness, &operation)
+            .unwrap();
+        let reopened = Library::open(library.root()).unwrap();
+        crate::PortcoveService::new(reopened.clone()).unwrap();
+        let continuation = crate::Installer::new(reopened.clone())
+            .unwrap()
+            .managed_install_continuation(operation.operation_id())
+            .unwrap();
+        assert_eq!(continuation.operation_id, journal.id);
+        assert_eq!(continuation.port_id, journal.port_id);
+        let retained = OperationStore::new(reopened.clone())
+            .get(&journal.id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained.phase, LifecyclePhase::StagedPreparing);
+        assert!(retained.install.is_none());
+        assert!(reopened.all_installs().unwrap().is_empty());
+        assert!(!journal.paths.final_path.unwrap().exists());
+        assert!(
+            !journal
+                .paths
+                .staging
+                .unwrap()
+                .join("payload/.portcove-managed.json")
+                .exists()
+        );
+        assert!(
+            store
+                .commit_psx_generation(&retained, &witness, &operation)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn generation_witness_refuses_uncertain_and_changed_journal_custody() {
+        use crate::operation::{LifecyclePhase, OperationStore};
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut journal, witness, _) =
+            generation_witness_fixture(temporary.path());
+        let store = OperationStore::new(library);
+        let positive = journal.clone();
+        journal.preparation_process_quiesced = Some(false);
+        store.put(&mut journal).unwrap();
+        assert!(
+            store
+                .commit_psx_generation(&positive, &witness, &operation)
+                .is_err()
+        );
+        assert!(store.psx_generation(&operation).is_err());
+        journal.preparation_process_quiesced = Some(true);
+        store.put(&mut journal).unwrap();
+        store
+            .commit_psx_generation(&journal, &witness, &operation)
+            .unwrap();
+        journal.phase = LifecyclePhase::Prepared;
+        store.put(&mut journal).unwrap();
+        assert!(store.psx_generation(&operation).is_err());
+    }
+
+    #[test]
+    fn generation_witness_refuses_missing_or_changed_bytes_and_retains_failure() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, _) =
+            generation_witness_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        assert!(store.psx_generation(&operation).is_err());
+        store
+            .commit_psx_generation(&journal, &witness, &operation)
+            .unwrap();
+        library.connection().unwrap().execute(
+            "UPDATE managed_psx_generation SET witness_json=witness_json || ' ' WHERE operation_id=?1",
+            [operation.operation_id()],
+        ).unwrap();
+        assert!(store.psx_generation(&operation).is_err());
+        assert!(store.get(operation.operation_id()).unwrap().is_some());
+        assert!(
+            journal
+                .paths
+                .staging
+                .unwrap()
+                .join("payload/generated.c")
+                .is_file()
+        );
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    #[test]
+    fn generation_witness_refuses_source_drift_and_cascades_only_with_owner() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, preparation) =
+            generation_witness_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_generation(&journal, &witness, &operation)
+            .unwrap();
+        fs::write(&preparation.source.path, "changed inert source").unwrap();
+        assert!(store.psx_generation(&operation).is_err());
+        assert!(store.get(operation.operation_id()).unwrap().is_some());
+        store.remove(operation.operation_id()).unwrap();
+        let rows: i64 = library
+            .connection()
+            .unwrap()
+            .query_row("SELECT count(*) FROM managed_psx_generation", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(rows, 0);
+        assert!(
+            journal
+                .paths
+                .staging
+                .unwrap()
+                .join("payload/generated.c")
+                .is_file()
+        );
+    }
+
+    #[test]
+    fn generated_stage_refuses_another_valid_source_before_compilation() {
+        let root = tempfile::tempdir().unwrap();
+        let original = preparation_input_fixture(root.path(), false);
+        let other_root = tempfile::tempdir().unwrap();
+        let other = preparation_input_fixture(other_root.path(), false);
+        let payload = root.path().join("owned-payload");
+        fs::create_dir(&payload).unwrap();
+        fs::write(payload.join("generated.c"), "inert generated fixture").unwrap();
+        let operation = OperationCoordinator::new("owned-generation", None);
+        // Inert stage fixture, not native generation evidence.
+        let generated = GeneratedInstall {
+            tree: stage::GeneratedTree::capture(&payload, &operation, true).unwrap(),
+            toolchain: stage::GeneratedTree::capture(&payload, &operation, true).unwrap(),
+            normalized_disc: stage::GeneratedTree::capture(&payload, &operation, true).unwrap(),
+            inputs: preparation_identity(&original).unwrap(),
+            generation_arguments: vec!["inert fixture; not executed".into()],
+            staged_bios: None,
+        };
+        let mut quiesced = true;
+        let error =
+            finish_generated_install(&payload, &other, &operation, &mut quiesced, generated)
+                .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("inputs changed"));
+        assert!(quiesced);
+        assert!(!payload.join("build-portcove").exists());
+        assert!(!payload.join(".portcove-managed.json").exists());
+        crate::adapter::verify_source_storage_identity(&original.source, "original").unwrap();
+        crate::adapter::verify_source_storage_identity(&other.source, "other").unwrap();
     }
 
     #[test]

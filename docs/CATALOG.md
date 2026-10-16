@@ -596,6 +596,160 @@ contracts refuse rather than retrying with weaker arguments. This is builder
 acquisition/environment policy, not title-native qualification or a general OS
 sandbox. Retained workspaces and existing cancellation/closure guards still apply.
 
+Core's staged managed PS1 API can retain generation and configuration separately
+without publishing an installation. Core persists a distinct staged-preparing
+lifecycle intent before its first worker.
+Acquired setup can separately yield normalized disc inputs before generation.
+`normalize_acquired_managed_install` consumes the exact store-owned acquired
+checkpoint under fresh acquisition/request checks and the port lock, supervises
+only the selected disc helper, joins its worker and seals a separate input witness.
+Its private normalization loader binds bounded parent bytes and the complete
+library/journal SQL snapshot, but returns an explicitly unverified, nonserializable
+value. The joined worker admits only its exact quiescence/update-time transition,
+then fully hashes the acquired archive and payload before helper dispatch. Sealing
+still performs complete fresh post-helper verification; ordinary bootstrap and
+generation loaders retain their full content checks. No metadata-only fence can
+replace either required content scan. Qualification diagnostics use the retained
+lifecycle identity while cancellation continues to use the fresh activity identity.
+That witness binds the acquired predecessor, source/BIOS context, actual helper
+bytes and complete normalized inventory. It grants no generator, configure,
+compile or installation completion; existing progress or drift refuses rather
+than regenerating over retained data. The monolithic acquired-generation route
+refuses an operation that already has a normalized-input checkpoint.
+For a bounded continuation, `materialize_acquired_managed_inputs` retains the
+joined helper result in separate provisional custody. This performs the same
+full fresh pre-helper checks and positive closure, but grants retention only;
+the normalized-input getter, generation and installation remain unavailable.
+`seal_materialized_managed_inputs` loads exact provisional bytes through an
+opaque unverified value, performs the existing complete fresh post-helper
+archive/payload/source/BIOS/helper/disc checks, and atomically fences the exact
+provisional bytes, acquired predecessor and full journal/library snapshot while
+committing the normalized witness. Original provisional evidence is retained.
+Provisional presence refuses repeated materialization and legacy generation;
+failed or cancelled custody cannot be replayed or restored automatically. The
+original one-call normalization API and verification obligations are unchanged.
+`generate_normalized_managed_install` consumes the exact normalized checkpoint
+under fresh acquisition/request checks and the port lock. Its opaque loader
+binds the normalized and acquired bytes, library identity and full journal;
+the joined worker permits only its exact start transition. Complete fresh
+normalized-input verification and pinned-toolchain validation join before
+dispatch, followed by repeated content-inventory and owner fences. The fixed
+packaged generator receives the retained cue, with no Core CHD helper replay.
+Core pins the packaged emitters, disables Python bytecode writes and restricts
+outputs to the exact disc, game and enabled BIOS recipe plus its initially vacant
+builder environment. Original input bytes and objects are preserved. The exact
+Core runtime-config rewrite and complete positively closed output inventory yield
+only `ManagedInstallProvisionalGeneration`, not configure or installation authority.
+Schema 44 retains that result beneath the normalized predecessor and blocks
+generation replay even before full sealing.
+Schema 45 additionally retains bounded failed-attempt history for this normalized
+continuation alone. Its private predecessor context preserves the original error
+and requires positive closure. Under the port lock, one immediate transaction
+compares the complete 17-field journal, exact normalized/acquired bytes, library
+identity, prior attempt history and vacant later stages, compile history and
+install records. It retains the failed journal before acknowledging its error
+and marking the new worker nonquiescent. The normalized checkpoint retains an
+atomic digest anchor for the complete ordered history, so deletion, truncation
+or rewriting also refuses on a fresh invocation before a new token exists.
+Acknowledgement grants no successful
+checkpoint or executable authority: the unchanged complete content checks and
+fresh owner fences still precede generator dispatch. History is limited to 32
+receipts, 64 KiB per receipt and 1 MiB total; exceeding a bound refuses atomically
+without discarding failures. Joined completion and error retention compare the
+exact owned journal and history instead of overwriting changed custody, including
+after accepted cancellation. Attempt history remains bound through provisional
+generation, sealing and all later stages. Ordinary getters and other staged
+routes still reject an error-bearing journal; no helper replay is authorized.
+`seal_generated_managed_install` dispatches no external process. It freshly
+verifies archive, source/BIOS, helper, normalized disc, toolchain and generated
+bytes; rederives the fixed recipe and output policy from authenticated original
+config; and atomically fences exact provisional, normalized and acquired bytes
+with the full owner journal and library identity before promoting Generation.
+Provisional evidence remains retained. Normalized ancestry and its output policy
+remain bound through configure, compile and publication; omitting that binding
+cannot reinterpret a normalized operation as legacy. Older operations without
+normalized ancestry retain their original wire format. Upstream Windows path
+arguments use the existing identity-checked ordinary spelling, while canonical
+paths remain the inspection identity. These source contracts and inert controls
+do not establish real generation, resource fit or native lifecycle acceptance.
+Generated-stage verification admits the owned output path before running its
+complete input and output checks with one scoped read worker and the caller.
+Both checks settle on success, error, cancellation or panic. After joining,
+Core repeats cancellable object/metadata and complete-name fences over the fully
+hashed toolchain, normalized disc and generated payload before the existing
+exact durable-row fence. These inspection-time fences never replace fresh byte
+hashes or grant authority for a later execution window. This concurrency alone
+does not establish native performance or generator continuation acceptance.
+Ordinary service startup and cancellation retain that intent, private data and
+exact closure facts, including failed generation before any witness exists.
+Retention grants no automatic cleanup authority. Stage loaders still refuse
+missing, malformed, failed or changed custody; only the explicit normalized
+continuation above can acknowledge an exact positively closed failed predecessor.
+Before sealing initial generation, Core
+normalizes future file modification times only in the positively closed private
+payload, through inspected no-follow handles. Timestamp writes to shared
+hard-linked objects are refused; file bytes, object identity and the complete bounded inventory must
+remain unchanged apart from those timestamps. Source/BIOS and toolchain objects
+are not normalized. Partial failures remain retained without a retry grant.
+`generate_managed_install` returns a private
+operation identity; `configure_managed_install` resumes that same identity with
+an unchanged retained request, freshly checked acquisition authority and an owned
+port lock. It joins the cancellable configure worker and durably records process
+closure before committing a separate configuration witness. The original
+generation witness remains retained. Configuration also seals a finite dependency
+plan from bounded stable CMake/Ninja graph and rules reads. It selects only the
+`psx-runtime` executable closure, orders producers before consumers and records
+at most sixteen command targets per batch. Cycles, duplicate producers, extra
+graph includes, validations, dynamic dependencies and outputs outside the owned
+payload are refused. Loading configuration rederives the exact plan before its
+final inventory fence. A target batch is planning evidence; runtime process caps,
+actual pending commands and durable chunk closure must still be checked before
+compilation. `observe_managed_compile_batch` loads the same sealed operation under
+fresh acquisition/request/artifact checks and one port lock. It joins a pinned
+Ninja dry run with an owned status format, requires complete untruncated output,
+fixed command totals, one status line per command and positive closure, and refuses more than sixty-four
+pending commands. Inputs and durable configuration are fenced again afterward.
+Ninja target arguments follow a fixed option terminator, so graph names cannot
+select command-line options or tools. `compile_managed_install_first_batch`
+uses the same fresh authority and lock boundary, requires a complete bounded
+pending observation before dispatch, joins the first compile chunk and requires
+a fresh zero-pending observation afterward. Only positive closure and unchanged
+graph, retained inputs and bounded private-output transitions can yield a separate
+durable first-chunk checkpoint. The immutable configuration and generation rows
+remain retained and their exact bytes and digests are fenced at checkpoint commit
+and final load. Partial failure retains evidence without advancing a cursor or
+granting retry. `compile_managed_install_next_batch` resumes one subsequent batch
+from a store-loaded checkpoint under the same fresh authority, request, archive
+and port-lock boundary. An exhausted plan is refused before worker dispatch or
+journal mutation. Each successor atomically compares its exact predecessor and
+appends the old witness to bounded history; an ordered digest binds historical
+bytes to the current checkpoint. History integrity and identity are fenced at
+commit and final load. Serialization cannot restore store admission.
+`finalize_managed_install` requires every batch complete, fresh authority and a
+complete zero-pending runtime observation before joined packaging. Generation-only
+disc and staged BIOS copies move into the operation's retained input sibling;
+original sources and normalized evidence remain intact. The finalized tree and
+retained inputs are verified before manifest creation. Exact compilation, history,
+configuration, generation, library and journal custody are fenced atomically when
+entering the existing `Prepared` installation recovery contract. Normal installer
+publication, registration and successful cleanup then apply. Failure before that
+handoff retains the private journal and evidence without granting retry. Bounded
+multi-disc runtime extraction still requires its own supervised stage; this new
+continuation refuses that branch before launching its inherited extractor. Ordinary
+installation retains its existing route. Native installed/lifecycle qualification
+remains separate from these checkpoint and inert-control facts.
+Failures retain data/error/closure; the fresh observation grants no compilation,
+retry, publication or native qualification. Configuration uses pinned CMake, Ninja and
+compilers with the playable no-PGO recipe and no compiler launchers; it requires
+a fresh private build directory. Only the private build and builder-environment
+subtrees may change. Original generated inputs, source/BIOS, toolchain and
+normalized disc remain bound. Loading either stage checks bounded witness bytes,
+library/journal custody, exact parent evidence and complete file inventories,
+then fences the durable state again. A typed partial result proves neither
+publication nor native title qualification. Failed configure data and closure
+evidence are retained; this API grants no automatic retry or deletion. Compile
+continuation and final installation still require their own successful stages.
+
 Managed PS1 ports pass their reviewed runtime configuration with `--game` and
 an explicit `--memcard-dir` inside the managed runtime's `saves` directory.
 This applies both to referenced discs and to materialized raw disc sets. It

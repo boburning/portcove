@@ -11,6 +11,8 @@ fn main() {
         Some("--owned-tls-exceptions") => exception_fixture::verify_tls(),
         #[cfg(windows)]
         Some("--owned-dll-exceptions") => exception_fixture::verify_dll(&args[1]),
+        #[cfg(windows)]
+        Some("--owned-debug-notifications") => debug_notifications(&args[1]),
         Some("--observe-launch") => {
             // First-party launch-parity control: inputs are bounded by the
             // admitted test packet; no helper, network or game is invoked.
@@ -210,6 +212,24 @@ fn main() {
             fs::write(&args[1], b"orphaned").unwrap();
         }
         _ => println!("wrong program"),
+    }
+}
+
+#[cfg(windows)]
+fn debug_notifications(mode: &str) {
+    #[link(name = "kernel32")]
+    unsafe extern "system" { fn OutputDebugStringW(text: *const u16); }
+    let text = [b'o' as u16, b'w' as u16, b'n' as u16, 0];
+    // Each call synchronously passes an actual notification through the debugger.
+    // The completion/ready marker is written only after all 4,097 are continued.
+    for _ in 0..4097 { unsafe { OutputDebugStringW(text.as_ptr()); } }
+    match mode {
+        "complete" => fs::write("debug-notifications-completed", "4097").unwrap(),
+        "wait" => {
+            fs::write("debug-notifications-ready", "4097").unwrap();
+            loop { thread::sleep(Duration::from_millis(10)); }
+        }
+        _ => panic!("unknown owned notification mode"),
     }
 }
 

@@ -3620,6 +3620,7 @@ dependencies = [
  "thiserror 2.0.21",
  "time",
  "tokio",
+ "toml 1.1.6+spec-1.1.0",
  "tough",
  "tracing",
  "unicode-normalization",

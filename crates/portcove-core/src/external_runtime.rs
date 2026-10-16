@@ -4,6 +4,8 @@
 //! metadata inventory without callbacks. Cancellation is checked immediately
 //! before that final pass; it cannot interrupt the pass itself. These sequential
 //! observations do not freeze external writes or form an atomic tree snapshot.
+//! The private timestamp helper is used only by Core-owned PS1 generation;
+//! inspected player-runtime evidence never authorizes that mutation.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -23,7 +25,7 @@ const MAX_FILES: usize = 100_000;
 const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_TREE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 enum ObjectIdentity {
     #[cfg(unix)]
     Unix { device: u64, inode: u64 },
@@ -33,7 +35,8 @@ enum ObjectIdentity {
     Windows64 { volume: u32, file: u64 },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct FileSnapshot {
     identity: ObjectIdentity,
     size: u64,
@@ -42,10 +45,56 @@ struct FileSnapshot {
     changed_at: (i64, i64),
 }
 
-struct InspectedFile {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct InspectedFile {
     path: PathBuf,
     snapshot: FileSnapshot,
-    sha256: String,
+    pub(crate) sha256: String,
+}
+
+impl InspectedFile {
+    /// Freshly hashed bytes and object identity across an owned timestamp
+    /// normalization. This comparison is not a metadata-only content check.
+    pub(crate) fn same_bytes_object(&self, other: &Self) -> bool {
+        self.snapshot.identity == other.snapshot.identity
+            && self.snapshot.size == other.snapshot.size
+            && self.sha256 == other.sha256
+    }
+
+    /// Object and bytes across an explicitly owned rename; rename may change ctime.
+    pub(crate) fn same_content_object(&self, other: &Self) -> bool {
+        self.snapshot.identity == other.snapshot.identity
+            && self.snapshot.size == other.snapshot.size
+            && self.snapshot.modified == other.snapshot.modified
+            && self.sha256 == other.sha256
+    }
+    pub(crate) fn size(&self) -> u64 {
+        self.snapshot.size
+    }
+
+    pub(crate) fn matches_metadata(&self, size: u64, modified: SystemTime) -> bool {
+        self.snapshot.size == size && self.snapshot.modified == modified
+    }
+
+    pub(crate) fn modified_after(&self, cutoff: SystemTime) -> bool {
+        self.snapshot.modified > cutoff
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct InspectedDirectory {
+    identity: ObjectIdentity,
+    modified: SystemTime,
+    #[cfg(unix)]
+    changed_at: (i64, i64),
+}
+
+impl InspectedDirectory {
+    pub(crate) fn same_object(&self, other: &Self) -> bool {
+        self.identity == other.identity
+    }
 }
 
 enum InspectionPass<'a> {
@@ -159,7 +208,7 @@ pub(crate) fn inspect_with_checkpoint(
             "user-prepared runtime must be a directory",
         ));
     }
-    let root_identity = object_identity(&open_object(&root, true)?)?;
+    let root_identity = object_identity(&open_metadata_object(&root, true)?)?;
     let library = fs::canonicalize(library_root)?;
     if root.starts_with(&library) || library.starts_with(&root) {
         return Err(PortcoveError::conflict(
@@ -215,7 +264,7 @@ pub(crate) fn inspect_with_checkpoint(
     {
         return Err(changed_during_inspection());
     }
-    if object_identity(&open_object(&root, true)?)? != root_identity {
+    if object_identity(&open_metadata_object(&root, true)?)? != root_identity {
         return Err(changed_during_inspection());
     }
     Ok(InspectedExternalRuntime {
@@ -294,7 +343,7 @@ fn visit(
                 let expected = files.get(&key).ok_or_else(changed_during_inspection)?;
                 if !observed.insert(key)
                     || path != expected.path
-                    || file_snapshot(&open_object(&path, false)?)? != expected.snapshot
+                    || file_snapshot(&open_metadata_object(&path, false)?)? != expected.snapshot
                 {
                     return Err(changed_during_inspection());
                 }
@@ -317,6 +366,8 @@ fn hash_bounded(
     let mut digest = Sha256::new();
     let mut total = 0_u64;
     let mut buffer = [0_u8; 64 * 1024];
+    #[cfg(feature = "qualification-fixtures")]
+    let content_cost = crate::psx::qualification_trace::cost(|costs| &mut costs.content);
     loop {
         checkpoint()?;
         let read = reader.read(&mut buffer)?;
@@ -331,12 +382,15 @@ fn hash_bounded(
         }
         digest.update(&buffer[..read]);
     }
+    #[cfg(feature = "qualification-fixtures")]
+    drop(content_cost);
     if total != expected_size {
         return Err(PortcoveError::verification(
             "user-prepared runtime file changed during inspection",
         ));
     }
-    if file_snapshot(&reader)? != snapshot || file_snapshot(&open_object(path, false)?)? != snapshot
+    if file_snapshot(&reader)? != snapshot
+        || file_snapshot(&open_metadata_object(path, false)?)? != snapshot
     {
         return Err(changed_during_inspection());
     }
@@ -347,54 +401,294 @@ fn hash_bounded(
     })
 }
 
+/// Reuse object-bound, no-follow hashing for other Core-owned private trees.
+/// This supplies read evidence only; it grants no mutation or resume authority.
+pub(crate) fn hash_stable_file(
+    path: &Path,
+    expected_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<InspectedFile> {
+    hash_bounded(path, expected_size, checkpoint)
+}
+
+pub(crate) fn verify_inspected_file(file: &InspectedFile) -> Result<()> {
+    if file_snapshot(&open_metadata_object(&file.path, false)?)? != file.snapshot {
+        return Err(changed_during_inspection());
+    }
+    Ok(())
+}
+
+/// Caller must own the positively closed generation tree. Mutate only the
+/// inspected object's future modified time, never its bytes or another path.
+pub(crate) fn normalize_generated_mtime(
+    expected: &InspectedFile,
+    cutoff: SystemTime,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<InspectedFile> {
+    checkpoint()?;
+    verify_inspected_file(expected)?;
+    if expected.snapshot.modified <= cutoff {
+        return Ok(expected.clone());
+    }
+    let mut options = fs::File::options();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        use windows_sys::Win32::Storage::FileSystem::{
+            FILE_FLAG_OPEN_REPARSE_POINT, FILE_GENERIC_READ, FILE_WRITE_ATTRIBUTES,
+        };
+        options.access_mode(FILE_GENERIC_READ | FILE_WRITE_ATTRIBUTES);
+        options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+    }
+    let handle = options.open(&expected.path)?;
+    checkpoint()?;
+    if file_snapshot(&handle)? != expected.snapshot {
+        return Err(changed_during_inspection());
+    }
+    refuse_shared_timestamp_object(&handle)?;
+    verify_inspected_file(expected)?;
+    handle.set_times(fs::FileTimes::new().set_modified(cutoff))?;
+    let after = hash_stable_file(&expected.path, expected.snapshot.size, checkpoint)?;
+    if after.snapshot.identity != expected.snapshot.identity
+        || after.snapshot.modified != cutoff
+        || after.sha256 != expected.sha256
+        || file_snapshot(&handle)? != after.snapshot
+    {
+        return Err(changed_during_inspection());
+    }
+    refuse_shared_timestamp_object(&handle)?;
+    Ok(after)
+}
+
+fn refuse_shared_timestamp_object(file: &fs::File) -> Result<()> {
+    #[cfg(unix)]
+    let links = {
+        use std::os::unix::fs::MetadataExt;
+        file.metadata()?.nlink()
+    };
+    #[cfg(windows)]
+    let links = {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::{
+            BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle,
+        };
+        // SAFETY: initialized output and live borrowed handle for this call.
+        let mut information: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
+        if unsafe { GetFileInformationByHandle(file.as_raw_handle() as _, &mut information) } == 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        u64::from(information.nNumberOfLinks)
+    };
+    #[cfg(not(any(unix, windows)))]
+    let links = 0;
+    if links != 1 {
+        return Err(PortcoveError::verification(
+            "PS1 timestamp normalization refuses shared filesystem objects",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn inspect_directory(path: &Path) -> Result<InspectedDirectory> {
+    let reader = open_metadata_object(path, true)?;
+    let before = directory_snapshot(&reader)?;
+    if directory_snapshot(&reader)? != before
+        || directory_snapshot(&open_metadata_object(path, true)?)? != before
+    {
+        return Err(changed_during_inspection());
+    }
+    Ok(before)
+}
+
+fn directory_snapshot(reader: &fs::File) -> Result<InspectedDirectory> {
+    #[cfg(feature = "qualification-fixtures")]
+    let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.metadata);
+    let metadata = reader.metadata()?;
+    if !metadata.is_dir() {
+        return Err(changed_during_inspection());
+    }
+    #[cfg(unix)]
+    use std::os::unix::fs::MetadataExt;
+    Ok(InspectedDirectory {
+        identity: object_identity(reader)?,
+        modified: metadata.modified()?,
+        #[cfg(unix)]
+        changed_at: (metadata.ctime(), metadata.ctime_nsec()),
+    })
+}
+
 fn changed_during_inspection() -> PortcoveError {
     PortcoveError::verification("user-prepared runtime changed during inspection")
 }
 
 fn open_object(path: &Path, directory: bool) -> Result<fs::File> {
+    open_checked_object(path, directory, ObjectAccess::Contents)
+}
+
+fn open_metadata_object(path: &Path, directory: bool) -> Result<fs::File> {
+    open_checked_object(path, directory, ObjectAccess::Metadata)
+}
+
+#[derive(Clone, Copy)]
+enum ObjectAccess {
+    Contents,
+    Metadata,
+}
+
+#[cfg(all(test, windows))]
+thread_local! {
+    static CHECKED_OPEN_HOOK: std::cell::RefCell<Option<Box<dyn FnMut(&str)>>> = std::cell::RefCell::new(None);
+}
+#[cfg(all(test, windows))]
+fn checked_open_test_hook(phase: &str) {
+    CHECKED_OPEN_HOOK.with(|hook| {
+        if let Some(hook) = &mut *hook.borrow_mut() {
+            hook(phase);
+        }
+    });
+}
+
+fn open_checked_object(path: &Path, directory: bool, access: ObjectAccess) -> Result<fs::File> {
+    #[cfg(feature = "qualification-fixtures")]
+    let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.checked_open);
     crate::path::refuse_symlink_ancestors(path)?;
+    #[cfg(all(test, windows))]
+    checked_open_test_hook("before_open");
+    #[cfg(not(windows))]
     let metadata = fs::symlink_metadata(path)?;
-    if (directory && !metadata.is_dir())
-        || (!directory && !metadata.is_file())
-        || fs::canonicalize(path)? != path
-    {
+    #[cfg(not(windows))]
+    if (directory && !metadata.is_dir()) || (!directory && !metadata.is_file()) {
         return Err(changed_during_inspection());
     }
-    let file = open_identity_handle(path)?;
+    #[cfg(not(windows))]
+    if fs::canonicalize(path)? != path {
+        return Err(changed_during_inspection());
+    }
+    let file = match access {
+        ObjectAccess::Contents => open_identity_handle(path)?,
+        ObjectAccess::Metadata => open_metadata_identity_handle(path)?,
+    };
     let opened = file.metadata()?;
-    let current = fs::symlink_metadata(path)?;
-    if (directory && (!opened.is_dir() || !current.is_dir()))
-        || (!directory && (!opened.is_file() || !current.is_file()))
-        || opened.file_type().is_symlink()
-        || current.file_type().is_symlink()
-        || fs::canonicalize(path)? != path
+    #[cfg(all(test, windows))]
+    checked_open_test_hook("first_open");
+    #[cfg(not(windows))]
     {
-        return Err(changed_during_inspection());
-    }
-    crate::path::refuse_symlink_ancestors(path)?;
-    #[cfg(unix)]
-    if metadata_identity(&metadata) != metadata_identity(&opened)
-        || metadata_identity(&opened) != metadata_identity(&current)
-    {
-        return Err(changed_during_inspection());
+        let current = fs::symlink_metadata(path)?;
+        if (directory && (!opened.is_dir() || !current.is_dir()))
+            || (!directory && (!opened.is_file() || !current.is_file()))
+            || opened.file_type().is_symlink()
+            || current.file_type().is_symlink()
+            || !canonical_object_path_matches(path, &file)?
+        {
+            return Err(changed_during_inspection());
+        }
+        crate::path::refuse_symlink_ancestors(path)?;
+        #[cfg(unix)]
+        if metadata_identity(&metadata) != metadata_identity(&opened)
+            || metadata_identity(&opened) != metadata_identity(&current)
+        {
+            return Err(changed_during_inspection());
+        }
     }
     #[cfg(windows)]
     {
-        // Read the current path through another transient no-reparse handle;
-        // never retain an open handle per inspected file.
-        let at_path = open_identity_handle(path)?;
-        let current = fs::symlink_metadata(path)?;
+        // Both opens refuse following a leaf reparse point. Query their types
+        // and identities on these handles, rather than repeatedly opening the
+        // pathname for metadata between them. No callback or content read occurs
+        // in this phase. The fresh at-path handle and BOTH final normalized names
+        // fence replacement/rename; the final fresh ancestry walk fences parents.
+        // Nothing here may be reused across a read, checkpoint or joined phase.
+        if opened.file_type().is_symlink()
+            || (directory && !opened.is_dir())
+            || (!directory && !opened.is_file())
+        {
+            return Err(changed_during_inspection());
+        }
+        let at_path = open_metadata_identity_handle(path)?;
+        let current = at_path.metadata()?;
+        #[cfg(test)]
+        checked_open_test_hook("at_path_open");
         if object_identity(&file)? != object_identity(&at_path)?
             || current.file_type().is_symlink()
             || (directory && !current.is_dir())
             || (!directory && !current.is_file())
-            || fs::canonicalize(path)? != path
+            || !canonical_object_path_matches(path, &at_path)?
+            || !canonical_object_path_matches(path, &file)?
         {
             return Err(changed_during_inspection());
         }
         crate::path::refuse_symlink_ancestors(path)?;
     }
     Ok(file)
+}
+
+/// Query the freshly opened object's normalized name instead of opening the
+/// same Windows path again merely to canonicalize it. This is not a cached path
+/// proof: both the inspected handle and the fresh at-path handle are checked,
+/// alongside the unchanged identity, type and no-reparse ancestry fences.
+fn canonical_object_path_matches(path: &Path, file: &fs::File) -> Result<bool> {
+    #[cfg(feature = "qualification-fixtures")]
+    let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.canonical_name);
+    #[cfg(windows)]
+    {
+        use std::os::windows::{ffi::OsStringExt, io::AsRawHandle};
+        use windows_sys::Win32::Storage::FileSystem::GetFinalPathNameByHandleW;
+
+        // FILE_NAME_NORMALIZED | VOLUME_NAME_DOS are both zero. Never fall back
+        // to an opened spelling or a different volume namespace on failure.
+        const MAX_NAME_UNITS: usize = 32_768;
+        let mut name = vec![0_u16; 512];
+        for _ in 0..2 {
+            // SAFETY: the borrowed handle and writable UTF-16 buffer remain
+            // valid for the call; the supplied capacity is bounded below u32.
+            let length = unsafe {
+                GetFinalPathNameByHandleW(
+                    file.as_raw_handle() as _,
+                    name.as_mut_ptr(),
+                    name.len() as u32,
+                    0,
+                )
+            } as usize;
+            if length == 0 {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            if length < name.len() {
+                return Ok(PathBuf::from(std::ffi::OsString::from_wide(&name[..length])) == path);
+            }
+            if length > MAX_NAME_UNITS {
+                return Err(changed_during_inspection());
+            }
+            name.resize(length, 0);
+        }
+        Err(changed_during_inspection())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = file;
+        Ok(fs::canonicalize(path)? == path)
+    }
+}
+
+/// Fence a live database handle without treating its changing size/time as
+/// immutable content. The caller owns the handle; this never hashes or admits it.
+#[cfg(windows)]
+pub(crate) fn verify_open_file_at_path(path: &Path, file: &fs::File) -> Result<()> {
+    crate::path::refuse_symlink_ancestors(path)?;
+    let canonical = fs::canonicalize(path)?;
+    let current = open_metadata_object(&canonical, false)?;
+    if object_identity(file)? != object_identity(&current)?
+        || !canonical_object_path_matches(&canonical, file)?
+    {
+        return Err(changed_during_inspection());
+    }
+    crate::path::refuse_symlink_ancestors(path)?;
+    Ok(())
 }
 
 /// Bounded metadata read using the existing stable, no-follow object authority.
@@ -415,7 +709,7 @@ pub(crate) fn read_stable_metadata(path: &Path, limit: u64) -> Result<Vec<u8>> {
     if bytes.len() as u64 > limit
         || bytes.len() as u64 != before.size
         || file_snapshot(&file)? != before
-        || file_snapshot(&open_object(&canonical, false)?)? != before
+        || file_snapshot(&open_metadata_object(&canonical, false)?)? != before
     {
         return Err(changed_during_inspection());
     }
@@ -427,6 +721,8 @@ pub(crate) fn read_stable_metadata(path: &Path, limit: u64) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn open_identity_handle(path: &Path) -> Result<fs::File> {
+    #[cfg(feature = "qualification-fixtures")]
+    let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.content_open);
     let mut options = fs::File::options();
     options.read(true);
     #[cfg(unix)]
@@ -447,7 +743,32 @@ pub(crate) fn open_identity_handle(path: &Path) -> Result<fs::File> {
     Ok(options.open(path)?)
 }
 
+fn open_metadata_identity_handle(path: &Path) -> Result<fs::File> {
+    #[cfg(feature = "qualification-fixtures")]
+    let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.metadata_open);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        use windows_sys::Win32::Storage::FileSystem::{
+            FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_READ_ATTRIBUTES,
+        };
+        // Identity/type/size/time queries do not consume file bytes. Keep the
+        // same no-reparse handle and object fences without requesting data access.
+        let mut options = fs::File::options();
+        options.access_mode(FILE_READ_ATTRIBUTES);
+        options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS);
+        Ok(options.open(path)?)
+    }
+    #[cfg(not(windows))]
+    {
+        // Preserve the existing Unix no-follow/nonblocking reader semantics.
+        open_identity_handle(path)
+    }
+}
+
 fn file_snapshot(file: &fs::File) -> Result<FileSnapshot> {
+    #[cfg(feature = "qualification-fixtures")]
+    let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.metadata);
     let metadata = file.metadata()?;
     if !metadata.is_file() {
         return Err(changed_during_inspection());
@@ -465,6 +786,8 @@ fn file_snapshot(file: &fs::File) -> Result<FileSnapshot> {
 
 #[cfg(unix)]
 fn object_identity(file: &fs::File) -> Result<ObjectIdentity> {
+    #[cfg(feature = "qualification-fixtures")]
+    let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.identity);
     Ok(metadata_identity(&file.metadata()?))
 }
 
@@ -479,6 +802,8 @@ fn metadata_identity(metadata: &fs::Metadata) -> ObjectIdentity {
 
 #[cfg(windows)]
 fn object_identity(file: &fs::File) -> Result<ObjectIdentity> {
+    #[cfg(feature = "qualification-fixtures")]
+    let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.identity);
     use std::{
         mem::{size_of, zeroed},
         os::windows::io::AsRawHandle,
@@ -540,6 +865,191 @@ fn object_identity(_file: &fs::File) -> Result<ObjectIdentity> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn checked_open_refuses_replacement_and_rename_between_handle_fences() {
+        for phase in ["first_open", "at_path_open"] {
+            let root = tempfile::tempdir().unwrap();
+            let path = root.path().join("input.bin");
+            let retained = root.path().join("retained.bin");
+            fs::write(&path, b"unchanged bytes").unwrap();
+            let modified = fs::metadata(&path).unwrap().modified().unwrap();
+            let canonical = fs::canonicalize(&path).unwrap();
+            CHECKED_OPEN_HOOK.with(|hook| {
+                *hook.borrow_mut() = Some(Box::new(move |observed| {
+                    if observed == phase {
+                        fs::rename(&path, &retained).unwrap();
+                        fs::write(&path, b"unchanged bytes").unwrap();
+                        fs::File::options()
+                            .write(true)
+                            .open(&path)
+                            .unwrap()
+                            .set_times(fs::FileTimes::new().set_modified(modified))
+                            .unwrap();
+                    }
+                }))
+            });
+            let result = open_object(&canonical, false);
+            CHECKED_OPEN_HOOK.with(|hook| *hook.borrow_mut() = None);
+            assert!(
+                result.is_err(),
+                "accepted same-content replacement at {phase}"
+            );
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn checked_open_refuses_reparse_ancestor_after_initial_inspection() {
+        let root = tempfile::tempdir().unwrap();
+        let parent = root.path().join("parent");
+        let retained = root.path().join("retained");
+        fs::create_dir(&parent).unwrap();
+        fs::write(parent.join("input.bin"), b"unchanged bytes").unwrap();
+        let canonical = fs::canonicalize(parent.join("input.bin")).unwrap();
+        CHECKED_OPEN_HOOK.with(|hook| {
+            *hook.borrow_mut() = Some(Box::new(move |observed| {
+                if observed == "before_open" {
+                    fs::rename(&parent, &retained).unwrap();
+                    let output = crate::ChildProcessPolicy::native_command(
+                        crate::ChildProcessClass::HostTool,
+                        "cmd.exe",
+                    )
+                    .unwrap()
+                    .args(["/c", "mklink", "/J"])
+                    .arg(&parent)
+                    .arg(&retained)
+                    .output()
+                    .unwrap();
+                    assert!(output.status.success(), "junction fixture creation failed");
+                }
+            }))
+        });
+        let result = open_object(&canonical, false);
+        CHECKED_OPEN_HOOK.with(|hook| *hook.borrow_mut() = None);
+        assert!(
+            result.is_err(),
+            "accepted reparse ancestor after initial ancestry check"
+        );
+        assert_eq!(
+            fs::read(root.path().join("retained/input.bin")).unwrap(),
+            b"unchanged bytes"
+        );
+    }
+
+    #[cfg(all(windows, feature = "qualification-fixtures"))]
+    #[test]
+    fn checked_open_keeps_two_fresh_ancestry_and_name_fences() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("input.bin");
+        fs::write(&path, b"complete fresh content").unwrap();
+        let canonical = fs::canonicalize(&path).unwrap();
+        crate::psx::qualification_trace::take_costs();
+        let handle = open_object(&canonical, false).unwrap();
+        let costs = crate::psx::qualification_trace::take_costs();
+        assert_eq!(costs.checked_open.calls, 1);
+        assert_eq!(costs.ancestry.calls, 2);
+        assert_eq!(costs.canonical_name.calls, 2);
+        assert_eq!(costs.identity.calls, 2);
+        assert_eq!(costs.content.calls, 0);
+        drop(handle);
+        let hashed = hash_stable_file(&canonical, 22, &|| Ok(())).unwrap();
+        assert_eq!(
+            hashed.sha256,
+            hex::encode(Sha256::digest(b"complete fresh content"))
+        );
+        let costs = crate::psx::qualification_trace::take_costs();
+        assert_eq!(costs.content.calls, 1);
+        assert_eq!(costs.checked_open.calls, 2);
+        assert_eq!(costs.ancestry.calls, 4);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn canonical_handle_names_bind_current_objects_and_refuse_aliases() {
+        let temporary = tempfile::tempdir().unwrap();
+        let ordinary = temporary.path().join("named-object.bin");
+        fs::write(&ordinary, b"fresh object bytes").unwrap();
+        let canonical = fs::canonicalize(&ordinary).unwrap();
+        let handle = open_metadata_object(&canonical, false).unwrap();
+        assert!(canonical_object_path_matches(&canonical, &handle).unwrap());
+        assert!(!canonical_object_path_matches(&ordinary, &handle).unwrap());
+        assert!(open_metadata_object(&ordinary, false).is_err());
+
+        let moved = temporary.path().join("retained-object.bin");
+        fs::rename(&ordinary, &moved).unwrap();
+        fs::write(&ordinary, b"fresh object bytes").unwrap();
+        assert!(!canonical_object_path_matches(&canonical, &handle).unwrap());
+        let moved = fs::canonicalize(&moved).unwrap();
+        assert!(canonical_object_path_matches(&moved, &handle).unwrap());
+        let replacement = open_metadata_object(&canonical, false).unwrap();
+        assert_ne!(
+            object_identity(&handle).unwrap(),
+            object_identity(&replacement).unwrap()
+        );
+        assert!(canonical_object_path_matches(&canonical, &replacement).unwrap());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn canonical_handle_names_resize_for_long_file_and_directory_coordinates() {
+        use std::os::windows::ffi::OsStrExt;
+        let temporary = tempfile::tempdir().unwrap();
+        let mut directory = fs::canonicalize(temporary.path()).unwrap();
+        for n in 0..5 {
+            directory.push(format!("{n}-{}", "x".repeat(110)));
+        }
+        fs::create_dir_all(&directory).unwrap();
+        let file = directory.join("unicode-λ.bin");
+        fs::write(&file, b"long coordinate still hashes fresh bytes").unwrap();
+        let file = fs::canonicalize(&file).unwrap();
+        assert!(file.as_os_str().encode_wide().count() > 512);
+        let inspected = hash_stable_file(&file, 40, &|| Ok(())).unwrap();
+        verify_inspected_file(&inspected).unwrap();
+        let directory = fs::canonicalize(&directory).unwrap();
+        let handle = open_metadata_object(&directory, true).unwrap();
+        assert!(canonical_object_path_matches(&directory, &handle).unwrap());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn metadata_identity_handles_do_not_grant_content_reads() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("content.bin");
+        fs::write(&path, b"identity still requires content hashing").unwrap();
+        let canonical = fs::canonicalize(&path).unwrap();
+        let mut metadata = open_metadata_object(&canonical, false).unwrap();
+        let mut contents = open_object(&canonical, false).unwrap();
+        assert_eq!(
+            file_snapshot(&metadata).unwrap(),
+            file_snapshot(&contents).unwrap()
+        );
+        assert!(metadata.read(&mut [0_u8; 1]).is_err());
+        let mut bytes = Vec::new();
+        contents.read_to_end(&mut bytes).unwrap();
+        assert_eq!(bytes, b"identity still requires content hashing");
+        assert!(open_metadata_object(&fs::canonicalize(temporary.path()).unwrap(), true).is_ok());
+    }
+
+    #[test]
+    fn stable_content_hash_still_reads_every_chunk_and_final_byte() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("content.bin");
+        let mut bytes = vec![42; 128 * 1024 + 1];
+        *bytes.last_mut().unwrap() = 99;
+        fs::write(&path, &bytes).unwrap();
+        let canonical = fs::canonicalize(&path).unwrap();
+        let inspected = hash_bounded(&canonical, bytes.len() as u64, &|| Ok(())).unwrap();
+        assert_eq!(inspected.sha256, hex::encode(Sha256::digest(&bytes)));
+        verify_inspected_file(&inspected).unwrap();
+        // Same byte count still requires fresh content hashing, not metadata-only acceptance.
+        bytes[64 * 1024] = 43;
+        fs::write(&path, &bytes).unwrap();
+        let changed = hash_bounded(&canonical, bytes.len() as u64, &|| Ok(())).unwrap();
+        assert_ne!(changed.sha256, inspected.sha256);
+        assert_eq!(changed.sha256, hex::encode(Sha256::digest(&bytes)));
+    }
 
     #[test]
     fn stable_query_metadata_enforces_byte_budget_and_regular_object() {

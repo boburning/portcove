@@ -374,6 +374,11 @@ impl RelocationOperation {
             ));
         }
         let phase = match operation.phase {
+            LifecyclePhase::StagedPreparing => {
+                return Err(PortcoveError::state(
+                    "staged PS1 intent cannot authorize output relocation",
+                ));
+            }
             LifecyclePhase::Preparing => RelocationPhase::Copying,
             LifecyclePhase::Prepared => RelocationPhase::Prepared,
             LifecyclePhase::PayloadPublished => RelocationPhase::Published,

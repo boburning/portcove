@@ -24,6 +24,127 @@ fn service() -> (tempfile::TempDir, Arc<PortcoveService>) {
     (temporary, Arc::new(service))
 }
 
+#[cfg(windows)]
+#[test]
+fn scoped_reader_reads_committed_cancellation_and_releases_before_publication() {
+    let (_temporary, service) = service();
+    let activity = service
+        .library()
+        .begin_activity(
+            ActivityOperation::Prepare,
+            ActivityTargetKind::Library,
+            None,
+        )
+        .unwrap();
+    let scope = CancellationScope::begin(service.library(), &activity, "reader-control").unwrap();
+    #[cfg(feature = "qualification-fixtures")]
+    crate::psx::qualification_trace::take_costs();
+    scope.check_now().unwrap();
+    scope.check_now().unwrap();
+    {
+        let slot = scope.reader.lock().unwrap();
+        assert!(slot.reader.as_ref().unwrap().connection.is_autocommit());
+    }
+    #[cfg(feature = "qualification-fixtures")]
+    {
+        let costs = crate::psx::qualification_trace::take_costs();
+        assert_eq!(costs.checkpoint_connect.calls, 1);
+        assert_eq!(costs.checkpoint_query.calls, 2);
+    }
+    service.request_cancellation(&activity.id).unwrap();
+    assert_eq!(scope.check_now().unwrap_err().code, ErrorCode::Cancelled);
+    assert_eq!(
+        scope.begin_publication().unwrap_err().code,
+        ErrorCode::Cancelled
+    );
+    assert!(scope.reader.lock().unwrap().reader.is_none());
+    assert_eq!(scope.check_now().unwrap_err().code, ErrorCode::Cancelled);
+    assert!(scope.reader.lock().unwrap().reader.is_none());
+}
+
+#[cfg(windows)]
+#[test]
+fn scoped_reader_refuses_different_object_with_identical_database_bytes() {
+    let (temporary, service) = service();
+    let mut reader = CancellationReader::open(service.library()).unwrap();
+    let replacement = temporary.path().join("same-content.sqlite3");
+    fs::copy(&reader.path, &replacement).unwrap();
+    assert_eq!(
+        fs::read(&reader.path).unwrap(),
+        fs::read(&replacement).unwrap()
+    );
+    reader.file = fs::File::open(replacement).unwrap();
+    assert!(reader.read("missing-activity").is_err());
+}
+
+#[cfg(windows)]
+#[test]
+fn scoped_reader_live_wal_and_shm_refuse_replacement_and_observe_new_commits() {
+    let (_temporary, service) = service();
+    let activity = service
+        .library()
+        .begin_activity(
+            ActivityOperation::Prepare,
+            ActivityTargetKind::Library,
+            None,
+        )
+        .unwrap();
+    let scope =
+        CancellationScope::begin(service.library(), &activity, "side-file-control").unwrap();
+    let writer = database::connect(service.library().root()).unwrap();
+    writer
+        .execute(
+            "UPDATE activity_history SET cancellation_owner='side-file-updated' WHERE id=?1",
+            [&activity.id],
+        )
+        .unwrap();
+    scope.check_now().unwrap();
+    // The ordinary writer is gone: these controls must prove the reader's
+    // protection, rather than relying on another connection's file sharing.
+    drop(writer);
+    for suffix in ["", "-wal", "-shm"] {
+        let path = service
+            .library()
+            .root()
+            .join(format!("portcove.sqlite3{suffix}"));
+        assert!(path.is_file(), "reader did not retain {suffix}");
+        let moved = path.with_extension("replacement-control");
+        let result = fs::rename(&path, &moved);
+        if result.is_ok() {
+            fs::rename(&moved, &path).unwrap();
+        }
+        assert!(
+            result.is_err(),
+            "live reader permitted replacement of {suffix}"
+        );
+    }
+    service.request_cancellation(&activity.id).unwrap();
+    assert_eq!(scope.check_now().unwrap_err().code, ErrorCode::Cancelled);
+    let wal = service.library().root().join("portcove.sqlite3-wal");
+    let shm = service.library().root().join("portcove.sqlite3-shm");
+    let retained_wal = fs::read(&wal).unwrap();
+    drop(scope);
+    assert_eq!(
+        fs::read(&wal).unwrap(),
+        retained_wal,
+        "reader checkpointed/truncated WAL on close"
+    );
+    assert!(shm.is_file(), "reader unlinked SHM on close");
+    let writer = database::connect(service.library().root()).unwrap();
+    writer
+        .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
+        .unwrap();
+    drop(writer);
+    assert!(!wal.exists(), "ordinary writer did not clean WAL");
+    assert!(!shm.exists(), "ordinary writer did not clean SHM");
+    assert!(
+        cancellation_state(service.library(), &activity.id)
+            .unwrap()
+            .unwrap()
+            .requested
+    );
+}
+
 #[test]
 fn request_and_publication_admission_have_exactly_one_winner() {
     let (_temporary, service) = service();

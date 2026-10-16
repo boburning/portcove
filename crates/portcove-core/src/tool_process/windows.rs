@@ -67,12 +67,15 @@ use windows_sys::Win32::{
 };
 
 const MEMBER_LIMIT: usize = 512;
-const EVENT_LIMIT: usize = 4096;
 const CLOSURE_BOUND: Duration = Duration::from_secs(2);
 
 #[derive(Default, Clone)]
 struct Proof {
     first_failure: Option<(&'static str, Option<u32>)>,
+    membership_snapshot: Option<MembershipSnapshotCounts>,
+    membership_attempts: [Option<MembershipQueryObservation>; 3],
+    membership_context: Option<MembershipQueryContext>,
+    membership_pending: bool,
     retained: usize,
     identities: Vec<Identity>,
     #[cfg(test)]
@@ -88,6 +91,27 @@ struct Proof {
 }
 
 impl Proof {
+    fn observe_membership_episode(&mut self, episode: &MembershipQueryEpisode) {
+        self.membership_pending = episode.pending();
+        if self.first_failure.is_none() {
+            self.membership_attempts = episode.attempts;
+        }
+    }
+
+    fn record_membership_failure(
+        &mut self,
+        reason: &'static str,
+        code: Option<u32>,
+        counts: Option<MembershipSnapshotCounts>,
+        attempts: [Option<MembershipQueryObservation>; 3],
+    ) {
+        if self.first_failure.is_none() {
+            self.first_failure = Some((reason, code));
+            self.membership_snapshot = counts;
+            self.membership_attempts = attempts;
+        }
+    }
+
     fn publish_members(&mut self, retained: usize, identities: impl Iterator<Item = Identity>) {
         self.retained = retained;
         self.identities = identities.collect();
@@ -104,6 +128,10 @@ impl Proof {
 
     fn finish(&mut self, complete: bool, now: Instant) {
         self.latch_deadline(now);
+        if self.membership_pending {
+            self.quiesced = false;
+            return;
+        }
         self.quiesced = complete && !self.deadline_exhausted && self.first_failure.is_none();
         self.done = true;
     }
@@ -221,11 +249,47 @@ fn with_control_proof(control: &Control, mut error: PortcoveError) -> PortcoveEr
             error = error.detail("process_tree_api_error", code.to_string());
         }
     }
+    if let Some(snapshot) = proof.membership_snapshot {
+        error = error
+            .detail(
+                "process_tree_membership_assigned",
+                snapshot.assigned.to_string(),
+            )
+            .detail(
+                "process_tree_membership_returned",
+                snapshot.returned.to_string(),
+            )
+            .detail(
+                "process_tree_membership_buffer_bytes",
+                snapshot.buffer_bytes.to_string(),
+            )
+            .detail(
+                "process_tree_membership_returned_bytes",
+                snapshot.returned_bytes.to_string(),
+            );
+    }
+    if proof.membership_attempts.iter().any(Option::is_some) {
+        error = error.detail(
+            "process_tree_membership_attempts",
+            serde_json::to_string(&proof.membership_attempts)
+                .expect("fixed scalar query observations"),
+        );
+    }
+    if let Some(context) = proof.membership_context {
+        error = error.detail(
+            "process_tree_membership_context",
+            serde_json::to_string(&context).expect("fixed scalar event observation"),
+        );
+    }
     error = error
         .detail("process_tree_retained_members", proof.retained.to_string())
         .detail(
             "process_tree_membership_complete",
-            proof.first_failure.is_none().to_string(),
+            (proof.first_failure.is_none() && !proof.membership_pending).to_string(),
+        )
+        .detail(
+            "process_tree_membership_pending",
+            proof.membership_pending.to_string(),
         )
         .detail(
             "process_tree_deadline_exhausted",
@@ -805,7 +869,6 @@ struct Controller {
     control: Arc<Control>,
     job_assigned: bool,
     terminating: bool,
-    events: usize,
     #[cfg(test)]
     options: TestOptions,
     #[cfg(test)]
@@ -922,7 +985,6 @@ impl Controller {
             control,
             job_assigned: false,
             terminating: false,
-            events: 0,
             #[cfg(test)]
             options,
             #[cfg(test)]
@@ -1167,14 +1229,35 @@ impl Controller {
         Ok(key)
     }
 
-    fn observe_non_debug_members(&mut self) {
+    fn observe_non_debug_members(
+        &mut self,
+        episode: &mut MembershipQueryEpisode,
+        mut context: MembershipQueryContext,
+    ) {
         // Descendants that themselves become debuggers do not inherit our debug
         // port. Retain any observed exact Job identity in the SAME store. Missing
         // short lifetimes still fail the terminal total=retained equality.
-        let ids = match membership_snapshot(self.job.as_raw_handle()) {
-            Ok(ids) => ids,
-            Err((reason, code)) => {
-                self.fail(reason, code);
+        let ids = match episode.poll(|| membership_snapshot_once(self.job.as_raw_handle())) {
+            Ok(Some(ids)) => {
+                self.control.lock().observe_membership_episode(episode);
+                ids
+            }
+            Ok(None) => {
+                self.control.lock().observe_membership_episode(episode);
+                return;
+            }
+            Err((reason, code, counts, attempts)) => {
+                context.terminating = self.terminating;
+                context.retained_members = self.slots();
+                context.live_debug_members = self.live_debug_members.len();
+                let mut proof = self.control.lock();
+                proof.observe_membership_episode(episode);
+                if proof.first_failure.is_none() {
+                    proof.membership_context = Some(context);
+                }
+                proof.record_membership_failure(reason, code, counts, attempts);
+                drop(proof);
+                self.control.request_stop();
                 return;
             }
         };
@@ -1210,10 +1293,6 @@ impl Controller {
     }
 
     fn event(&mut self, event: &DEBUG_EVENT) -> i32 {
-        self.events += 1;
-        if self.events > EVENT_LIMIT {
-            self.fail("event_capacity", None);
-        }
         // SAFETY: the event code selects the initialized union member. Debug
         // hProcess/hThread are OS-owned and auto-close after EXIT continuation;
         // image hFile handles belong to the debugger and close here exactly once.
@@ -1321,12 +1400,21 @@ impl Controller {
     }
 
     fn run(&mut self) {
+        // Notifications are streamed one per turn, not retained in a queue.
+        // DLL/thread traffic therefore does not consume a lifetime event quota.
+        // Every turn still checks stop, membership, handles and the closure clock;
+        // retained process lifetimes remain capped by MEMBER_LIMIT.
+        let mut context = MembershipQueryContext::default();
+        let mut membership_episode = MembershipQueryEpisode::default();
         loop {
             self.terminate_if_requested();
             let mut event = DEBUG_EVENT::default();
             #[cfg(test)]
             let mut defer_root_sample = false;
             if unsafe { WaitForDebugEventEx(&mut event, 1) } != 0 {
+                context.last_event_code = Some(event.dwDebugEventCode);
+                context.last_event_pid = Some(event.dwProcessId);
+                context.wait_error = None;
                 let continuation = self.event(&event);
                 #[cfg(test)]
                 self.panic_after_owned_creation(&event);
@@ -1350,9 +1438,11 @@ impl Controller {
                     defer_root_sample = true;
                 }
                 self.terminate_if_requested();
-                if unsafe { ContinueDebugEvent(event.dwProcessId, event.dwThreadId, continuation) }
-                    == 0
-                {
+                let continued = unsafe {
+                    ContinueDebugEvent(event.dwProcessId, event.dwThreadId, continuation)
+                };
+                context.continuation_succeeded = Some(continued != 0);
+                if continued == 0 {
                     self.fail("event_continuation", Some(unsafe { GetLastError() }));
                 }
                 #[cfg(test)]
@@ -1370,6 +1460,7 @@ impl Controller {
                 }
             } else {
                 let error = unsafe { GetLastError() };
+                context.wait_error = Some(error);
                 let root_creation_seen = self
                     .root
                     .is_some_and(|root| self.members[&root].creation_seen);
@@ -1381,7 +1472,9 @@ impl Controller {
                 }
             }
             if self.job_assigned {
-                self.observe_non_debug_members();
+                // One fresh read per existing event-loop turn. A partial episode
+                // retains its attempt budget while CREATE/EXIT events continue.
+                self.observe_non_debug_members(&mut membership_episode, context);
             }
             #[cfg(test)]
             if !defer_root_sample {
@@ -1429,13 +1522,11 @@ impl Controller {
                 self.control.changed.notify_all();
                 return;
             }
-            if all_signaled
-                && self.live_debug_members.is_empty()
-                && self
-                    .control
-                    .lock()
-                    .accounting
-                    .is_some_and(|(active, _)| active == 0)
+            let membership_settled_and_inactive = {
+                let proof = self.control.lock();
+                !proof.membership_pending && proof.accounting.is_some_and(|(active, _)| active == 0)
+            };
+            if all_signaled && self.live_debug_members.is_empty() && membership_settled_and_inactive
             {
                 // The root may have signaled after the earlier root sample but
                 // before this retained-member sample. Publish only after the
@@ -1573,35 +1664,612 @@ impl Controller {
     }
 }
 
-fn membership_snapshot(job: HANDLE) -> Result<Vec<u32>, (&'static str, Option<u32>)> {
+#[derive(Clone, Copy, Debug)]
+struct MembershipSnapshotCounts {
+    assigned: u32,
+    returned: u32,
+    buffer_bytes: u32,
+    returned_bytes: u32,
+}
+
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+struct MembershipQueryObservation {
+    assigned: u32,
+    returned: u32,
+    buffer_bytes: u32,
+    returned_bytes: u32,
+}
+
+impl MembershipSnapshotCounts {
+    fn observation(self) -> MembershipQueryObservation {
+        MembershipQueryObservation {
+            assigned: self.assigned,
+            returned: self.returned,
+            buffer_bytes: self.buffer_bytes,
+            returned_bytes: self.returned_bytes,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default, serde::Serialize)]
+struct MembershipQueryContext {
+    last_event_code: Option<u32>,
+    last_event_pid: Option<u32>,
+    continuation_succeeded: Option<bool>,
+    wait_error: Option<u32>,
+    terminating: bool,
+    retained_members: usize,
+    live_debug_members: usize,
+}
+
+type MembershipSnapshotFailure = (
+    &'static str,
+    Option<u32>,
+    Option<MembershipSnapshotCounts>,
+    [Option<MembershipQueryObservation>; 3],
+);
+
+#[derive(Debug)]
+enum MembershipSnapshotAttempt {
+    Complete(Vec<u32>),
+    Partial(MembershipSnapshotCounts),
+}
+
+fn parse_membership_snapshot(
+    counts: MembershipSnapshotCounts,
+    complete_ids: impl FnOnce() -> Result<Vec<u32>, MembershipSnapshotFailure>,
+) -> Result<MembershipSnapshotAttempt, MembershipSnapshotFailure> {
+    require_membership_return_length(counts.returned_bytes, counts.buffer_bytes)?;
+    if counts.returned > counts.assigned || counts.assigned as usize > MEMBER_LIMIT {
+        return Err(("membership_capacity", None, Some(counts), [None; 3]));
+    }
+    let header_bytes = std::mem::offset_of!(JOBOBJECT_BASIC_PROCESS_ID_LIST, ProcessIdList) as u64;
+    let required_bytes =
+        header_bytes + u64::from(counts.returned) * std::mem::size_of::<usize>() as u64;
+    if required_bytes > u64::from(counts.returned_bytes) {
+        return Err(("membership_length", None, Some(counts), [None; 3]));
+    }
+    if counts.returned < counts.assigned && counts.assigned as usize <= MEMBER_LIMIT {
+        // A successful query may return a partial list. It supplies no IDs or
+        // membership authority; a fresh complete query is still required.
+        return Ok(MembershipSnapshotAttempt::Partial(counts));
+    }
+    require_membership_snapshot_counts(counts)?;
+    complete_ids().map(MembershipSnapshotAttempt::Complete)
+}
+
+#[derive(Default)]
+struct MembershipQueryEpisode {
+    first_partial: Option<MembershipSnapshotCounts>,
+    attempts: [Option<MembershipQueryObservation>; 3],
+    queries: usize,
+    failure: Option<MembershipSnapshotFailure>,
+}
+
+impl MembershipQueryEpisode {
+    fn pending(&self) -> bool {
+        self.queries != 0 && self.failure.is_none()
+    }
+
+    fn poll(
+        &mut self,
+        query: impl FnOnce() -> Result<MembershipSnapshotAttempt, MembershipSnapshotFailure>,
+    ) -> Result<Option<Vec<u32>>, MembershipSnapshotFailure> {
+        if let Some(failure) = self.failure {
+            return Err(failure);
+        }
+        let index = self.queries;
+        self.queries += 1;
+        match query() {
+            Ok(MembershipSnapshotAttempt::Complete(ids)) => {
+                // Only one fresh complete snapshot closes an unresolved episode.
+                // Partial observations are never combined or decoded as IDs.
+                *self = Self::default();
+                Ok(Some(ids))
+            }
+            Ok(MembershipSnapshotAttempt::Partial(counts)) => {
+                self.attempts[index] = Some(counts.observation());
+                self.first_partial.get_or_insert(counts);
+                if self.queries < 3 {
+                    return Ok(None);
+                }
+                let failure = (
+                    "membership_capacity",
+                    None,
+                    self.first_partial,
+                    self.attempts,
+                );
+                self.failure = Some(failure);
+                Err(failure)
+            }
+            Err((reason, code, counts, _)) => {
+                self.attempts[index] = counts.map(MembershipSnapshotCounts::observation);
+                let failure = (reason, code, counts, self.attempts);
+                self.failure = Some(failure);
+                Err(failure)
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+fn collect_membership_snapshot(
+    mut query: impl FnMut() -> Result<MembershipSnapshotAttempt, MembershipSnapshotFailure>,
+) -> Result<Vec<u32>, MembershipSnapshotFailure> {
+    let mut episode = MembershipQueryEpisode::default();
+    for _ in 0..3 {
+        if let Some(ids) = episode.poll(&mut query)? {
+            return Ok(ids);
+        }
+    }
+    unreachable!("third partial must refuse without a fourth query")
+}
+
+fn require_membership_return_length(
+    returned_bytes: u32,
+    buffer_bytes: u32,
+) -> Result<(), MembershipSnapshotFailure> {
+    let header_bytes = std::mem::offset_of!(JOBOBJECT_BASIC_PROCESS_ID_LIST, ProcessIdList) as u32;
+    if returned_bytes < header_bytes || returned_bytes > buffer_bytes {
+        return Err(("membership_length", None, None, [None; 3]));
+    }
+    Ok(())
+}
+
+fn require_membership_snapshot_counts(
+    counts: MembershipSnapshotCounts,
+) -> Result<(), MembershipSnapshotFailure> {
+    if counts.assigned != counts.returned || counts.returned as usize > MEMBER_LIMIT {
+        return Err(("membership_capacity", None, Some(counts), [None; 3]));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+fn membership_snapshot(job: HANDLE) -> Result<Vec<u32>, MembershipSnapshotFailure> {
+    collect_membership_snapshot(|| membership_snapshot_once(job))
+}
+
+fn membership_snapshot_once(
+    job: HANDLE,
+) -> Result<MembershipSnapshotAttempt, MembershipSnapshotFailure> {
     let mut buffer = [0_usize; MEMBER_LIMIT + 1];
+    let buffer_bytes = std::mem::size_of_val(&buffer) as u32;
+    let mut returned_bytes = 0;
     if unsafe {
         QueryInformationJobObject(
             job,
             JobObjectBasicProcessIdList,
             buffer.as_mut_ptr().cast(),
-            std::mem::size_of_val(&buffer) as u32,
-            std::ptr::null_mut(),
+            buffer_bytes,
+            &mut returned_bytes,
         )
     } == 0
     {
-        return Err(("membership_query", Some(unsafe { GetLastError() })));
+        return Err((
+            "membership_query",
+            Some(unsafe { GetLastError() }),
+            None,
+            [None; 3],
+        ));
     }
+    // The API's returned span must cover the header before either count is read.
+    // A fixed allocation bounds memory, but does not establish returned bytes.
+    require_membership_return_length(returned_bytes, buffer_bytes)?;
     let list = unsafe { &*buffer.as_ptr().cast::<JOBOBJECT_BASIC_PROCESS_ID_LIST>() };
-    if list.NumberOfAssignedProcesses != list.NumberOfProcessIdsInList
-        || list.NumberOfProcessIdsInList as usize > MEMBER_LIMIT
-    {
-        return Err(("membership_capacity", None));
-    }
-    let ids = unsafe {
-        std::slice::from_raw_parts(
-            list.ProcessIdList.as_ptr(),
-            list.NumberOfProcessIdsInList as usize,
-        )
+    let counts = MembershipSnapshotCounts {
+        assigned: list.NumberOfAssignedProcesses,
+        returned: list.NumberOfProcessIdsInList,
+        buffer_bytes,
+        returned_bytes,
     };
-    ids.iter()
-        .map(|&pid| u32::try_from(pid).map_err(|_| ("member_id_range", None)))
-        .collect()
+    parse_membership_snapshot(counts, || {
+        // Only an equal-count, in-bound result reaches this slice.
+        let ids = unsafe {
+            std::slice::from_raw_parts(
+                list.ProcessIdList.as_ptr(),
+                list.NumberOfProcessIdsInList as usize,
+            )
+        };
+        ids.iter()
+            .map(|&pid| u32::try_from(pid).map_err(|_| ("member_id_range", None, None, [None; 3])))
+            .collect()
+    })
+}
+
+#[cfg(test)]
+mod membership_snapshot_diagnostic_tests {
+    use super::*;
+
+    #[test]
+    fn membership_episode_queries_once_per_turn_and_only_complete_ids_close_pending() {
+        let mut episode = MembershipQueryEpisode::default();
+        let calls = std::cell::Cell::new(0);
+        let first = episode
+            .poll(|| {
+                calls.set(calls.get() + 1);
+                parse_membership_snapshot(counts(2, 1), || panic!("partial identifiers"))
+            })
+            .unwrap();
+        assert!(first.is_none());
+        assert_eq!(calls.get(), 1);
+        assert!(episode.pending());
+        let mut proof = Proof::default();
+        proof.observe_membership_episode(&episode);
+        assert!(proof.membership_pending);
+        let second = episode
+            .poll(|| {
+                calls.set(calls.get() + 1);
+                parse_membership_snapshot(counts(1, 1), || Ok(vec![42]))
+            })
+            .unwrap();
+        assert_eq!(calls.get(), 2);
+        assert_eq!(second.unwrap(), vec![42]);
+        assert!(!episode.pending());
+        proof.observe_membership_episode(&episode);
+        proof.finish(true, Instant::now());
+        assert!(proof.done && proof.quiesced);
+    }
+
+    #[test]
+    fn membership_episode_three_partial_turns_latch_refusal_without_fourth_query() {
+        let mut episode = MembershipQueryEpisode::default();
+        for turn in 1..=2 {
+            assert!(
+                episode
+                    .poll(|| parse_membership_snapshot(counts(2, 1), || panic!("partial IDs")))
+                    .unwrap()
+                    .is_none()
+            );
+            assert_eq!(episode.queries, turn);
+            assert!(episode.pending());
+        }
+        let error = episode
+            .poll(|| parse_membership_snapshot(counts(2, 1), || panic!("partial IDs")))
+            .unwrap_err();
+        assert_eq!(error.0, "membership_capacity");
+        assert_eq!(episode.queries, 3);
+        assert!(!episode.pending());
+        let repeated = episode
+            .poll(|| panic!("fourth query forbidden"))
+            .unwrap_err();
+        assert_eq!(repeated.0, error.0);
+        assert_eq!(episode.queries, 3);
+        assert!(repeated.3.iter().all(Option::is_some));
+    }
+
+    #[test]
+    fn membership_episode_root_exit_and_complete_accounting_cannot_finish_while_pending() {
+        let mut episode = MembershipQueryEpisode::default();
+        assert!(
+            episode
+                .poll(|| parse_membership_snapshot(counts(2, 1), || panic!("partial IDs")))
+                .unwrap()
+                .is_none()
+        );
+        let control = Control::default();
+        {
+            let mut proof = control.lock();
+            proof.observe_membership_episode(&episode);
+            proof.root_status = Some(ExitStatus::from_raw(0));
+            proof.accounting = Some((0, 3));
+            proof.retained = 3;
+            proof.all_retained_signaled = Some(true);
+            proof.finish(true, Instant::now());
+            assert!(!proof.done && !proof.quiesced);
+        }
+        let copied = crate::tool_process::copy_proof_details(&with_control_proof(
+            &control,
+            PortcoveError::state("inert root exit while pending"),
+        ));
+        assert_eq!(copied["process_tree_membership_complete"], "false");
+        assert_eq!(copied["process_tree_membership_pending"], "true");
+    }
+
+    #[test]
+    fn membership_episode_pending_cancellation_preserves_single_deadline_and_refuses() {
+        let mut episode = MembershipQueryEpisode::default();
+        episode
+            .poll(|| parse_membership_snapshot(counts(2, 1), || panic!("partial IDs")))
+            .unwrap();
+        let control = Control::default();
+        control.lock().observe_membership_episode(&episode);
+        control.request_stop();
+        let deadline = control.lock().deadline.unwrap();
+        control.request_stop();
+        assert_eq!(control.lock().deadline.unwrap(), deadline);
+        assert!(control.stop.load(Ordering::Acquire));
+        control
+            .lock()
+            .finish(true, deadline + Duration::from_millis(1));
+        let proof = control.lock();
+        assert!(!proof.quiesced && proof.deadline_exhausted && !proof.done);
+        assert_eq!(proof.first_failure, Some(("closure_deadline", None)));
+        assert!(proof.membership_pending);
+    }
+
+    #[test]
+    fn membership_episode_complete_read_does_not_override_sticky_prior_failure() {
+        let mut episode = MembershipQueryEpisode::default();
+        episode
+            .poll(|| parse_membership_snapshot(counts(2, 1), || panic!("partial IDs")))
+            .unwrap();
+        let mut proof = Proof::default();
+        proof.first_failure = Some(("creation_capture", None));
+        proof.observe_membership_episode(&episode);
+        episode
+            .poll(|| parse_membership_snapshot(counts(1, 1), || Ok(vec![42])))
+            .unwrap();
+        proof.observe_membership_episode(&episode);
+        proof.finish(true, Instant::now());
+        assert_eq!(proof.first_failure, Some(("creation_capture", None)));
+        assert!(proof.done && !proof.quiesced);
+        assert!(!proof.membership_pending);
+    }
+
+    #[test]
+    fn membership_snapshot_returned_lengths_refuse_before_identifier_decode() {
+        for (returned, returned_bytes) in [(1, 0), (1, 7), (1, 15), (1, 4105), (512, 4103)] {
+            let mut snapshot = counts(returned, returned);
+            snapshot.returned_bytes = returned_bytes;
+            let decoded = std::cell::Cell::new(false);
+            let result = parse_membership_snapshot(snapshot, || {
+                decoded.set(true);
+                Ok(vec![42; returned as usize])
+            });
+            assert!(
+                result.is_err(),
+                "accepted truncated/oversized returned bytes {returned_bytes}"
+            );
+            assert!(!decoded.get(), "decoded identifiers outside returned bytes");
+        }
+    }
+
+    #[test]
+    fn membership_snapshot_returned_lengths_admit_exact_empty_and_full_spans() {
+        for returned in [0, 1, 512] {
+            let mut snapshot = counts(returned, returned);
+            snapshot.returned_bytes = 8 + returned * 8;
+            let result = parse_membership_snapshot(snapshot, || Ok(vec![42; returned as usize]));
+            assert!(
+                matches!(result, Ok(MembershipSnapshotAttempt::Complete(ids)) if ids.len() == returned as usize)
+            );
+        }
+    }
+
+    #[test]
+    fn membership_snapshot_partial_length_refuses_and_never_reads_ids() {
+        let mut snapshot = counts(2, 1);
+        snapshot.returned_bytes = 15;
+        let error = parse_membership_snapshot(snapshot, || {
+            panic!("partial identifiers are never membership authority")
+        })
+        .unwrap_err();
+        assert_eq!(error.0, "membership_length");
+        assert_eq!(error.2.unwrap().returned, 1);
+    }
+
+    #[test]
+    fn membership_snapshot_diagnostic_copies_three_attempts_and_event_context() {
+        let mut query_index = 0;
+        let (reason, code, snapshot, attempts) = collect_membership_snapshot(|| {
+            query_index += 1;
+            parse_membership_snapshot(counts(query_index + 1, 1), || {
+                panic!("partial identifiers cannot be decoded")
+            })
+        })
+        .unwrap_err();
+        let control = Control::default();
+        let context = MembershipQueryContext {
+            last_event_code: Some(EXIT_PROCESS_DEBUG_EVENT),
+            last_event_pid: Some(42),
+            continuation_succeeded: Some(true),
+            wait_error: Some(ERROR_SEM_TIMEOUT),
+            terminating: false,
+            retained_members: 3,
+            live_debug_members: 1,
+        };
+        control.lock().membership_context = Some(context);
+        control
+            .lock()
+            .record_membership_failure(reason, code, snapshot, attempts);
+        control.lock().finish(true, Instant::now());
+        let copied = crate::tool_process::copy_proof_details(&with_control_proof(
+            &control,
+            PortcoveError::state("inert query observations"),
+        ));
+        let attempts: serde_json::Value =
+            serde_json::from_str(&copied["process_tree_membership_attempts"]).unwrap();
+        for index in 0..3 {
+            assert_eq!(attempts[index]["assigned"], index + 2);
+            assert_eq!(attempts[index]["returned"], 1);
+            assert_eq!(attempts[index]["returned_bytes"], 24);
+        }
+        let copied_context: serde_json::Value =
+            serde_json::from_str(&copied["process_tree_membership_context"]).unwrap();
+        assert_eq!(copied_context["last_event_pid"], 42);
+        assert_eq!(copied_context["continuation_succeeded"], true);
+        assert_eq!(copied_context["wait_error"], ERROR_SEM_TIMEOUT);
+        assert_eq!(copied_context["retained_members"], 3);
+        assert_eq!(copied_context["live_debug_members"], 1);
+        assert!(!control.lock().quiesced);
+        assert_eq!(copied["process_tree_membership_complete"], "false");
+    }
+
+    fn counts(assigned: u32, returned: u32) -> MembershipSnapshotCounts {
+        MembershipSnapshotCounts {
+            assigned,
+            returned,
+            buffer_bytes: 4104,
+            returned_bytes: 24,
+        }
+    }
+
+    #[test]
+    fn membership_snapshot_diagnostic_preserves_refusal_and_exact_counts() {
+        for (assigned, returned) in [(3, 2), (2, 3), (513, 513)] {
+            let (reason, code, snapshot, attempts) =
+                require_membership_snapshot_counts(counts(assigned, returned)).unwrap_err();
+            assert_eq!(reason, "membership_capacity");
+            assert_eq!(code, None);
+            let control = Control::default();
+            control
+                .lock()
+                .record_membership_failure(reason, code, snapshot, attempts);
+            control.lock().finish(true, Instant::now());
+            assert!(!control.lock().quiesced);
+            let error =
+                with_control_proof(&control, PortcoveError::state("inert snapshot refusal"));
+            let copied = crate::tool_process::copy_proof_details(&error);
+            assert_eq!(copied["process_tree_first_failure"], "membership_capacity");
+            assert_eq!(copied["process_tree_membership_complete"], "false");
+            assert_eq!(
+                copied["process_tree_membership_assigned"],
+                assigned.to_string()
+            );
+            assert_eq!(
+                copied["process_tree_membership_returned"],
+                returned.to_string()
+            );
+            assert_eq!(copied["process_tree_membership_buffer_bytes"], "4104");
+            assert_eq!(copied["process_tree_membership_returned_bytes"], "24");
+        }
+        for count in [0, 1, 512] {
+            require_membership_snapshot_counts(counts(count, count)).unwrap();
+        }
+    }
+
+    #[test]
+    fn membership_snapshot_diagnostic_preserves_first_failure_without_later_counts() {
+        let mut proof = Proof::default();
+        proof.first_failure = Some(("execution_deadline", None));
+        proof.record_membership_failure("membership_capacity", None, Some(counts(3, 2)), [None; 3]);
+        assert_eq!(proof.first_failure, Some(("execution_deadline", None)));
+        assert!(proof.membership_snapshot.is_none());
+        let mut proof = Proof::default();
+        proof.record_membership_failure("membership_capacity", None, Some(counts(3, 2)), [None; 3]);
+        proof.record_membership_failure("membership_capacity", None, Some(counts(4, 2)), [None; 3]);
+        assert_eq!(proof.membership_snapshot.unwrap().assigned, 3);
+    }
+
+    #[test]
+    fn membership_snapshot_bounded_partial_then_complete_uses_only_complete_ids() {
+        let mut queries = 0;
+        let mut id_reads = 0;
+        let ids = collect_membership_snapshot(|| {
+            queries += 1;
+            let observed = if queries == 1 {
+                counts(2, 1)
+            } else {
+                counts(1, 1)
+            };
+            parse_membership_snapshot(observed, || {
+                id_reads += 1;
+                assert_eq!(queries, 2, "partial IDs must never be read");
+                Ok(vec![42])
+            })
+        })
+        .unwrap();
+        assert_eq!(queries, 2);
+        assert_eq!(id_reads, 1);
+        assert_eq!(ids, vec![42]);
+    }
+
+    #[test]
+    fn membership_snapshot_bounded_three_partials_refuse_with_first_counts() {
+        let mut queries = 0;
+        let error = collect_membership_snapshot(|| {
+            queries += 1;
+            parse_membership_snapshot(counts(queries + 1, 1), || {
+                panic!("partial IDs must not escape")
+            })
+        })
+        .unwrap_err();
+        assert_eq!(queries, 3);
+        assert_eq!(error.0, "membership_capacity");
+        assert_eq!(error.2.unwrap().assigned, 2);
+    }
+
+    #[test]
+    fn membership_snapshot_bounded_partial_then_api_error_refuses_immediately() {
+        let mut queries = 0;
+        let error = collect_membership_snapshot(|| {
+            queries += 1;
+            if queries == 1 {
+                parse_membership_snapshot(counts(2, 1), || panic!("partial IDs must not escape"))
+            } else {
+                Err(("membership_query", Some(5), None, [None; 3]))
+            }
+        })
+        .unwrap_err();
+        assert_eq!(queries, 2);
+        assert_eq!(error.0, "membership_query");
+        assert_eq!(error.1, Some(5));
+        assert!(error.2.is_none());
+        assert_eq!(error.3[0].unwrap().assigned, 2);
+        assert!(error.3[1].is_none());
+        let control = Control::default();
+        control
+            .lock()
+            .record_membership_failure(error.0, error.1, error.2, error.3);
+        let copied = crate::tool_process::copy_proof_details(&with_control_proof(
+            &control,
+            PortcoveError::state("inert API failure after partial"),
+        ));
+        assert!(!copied.contains_key("process_tree_membership_assigned"));
+        let observations: serde_json::Value =
+            serde_json::from_str(&copied["process_tree_membership_attempts"]).unwrap();
+        assert_eq!(observations[0]["assigned"], 2);
+        assert!(observations[1].is_null());
+    }
+
+    #[test]
+    fn membership_snapshot_partial_then_header_error_preserves_observation_without_counts() {
+        let mut queries = 0;
+        let error = collect_membership_snapshot(|| {
+            queries += 1;
+            if queries == 1 {
+                parse_membership_snapshot(counts(2, 1), || panic!("partial ID read"))
+            } else {
+                require_membership_return_length(7, 4104)?;
+                panic!("short header was admitted")
+            }
+        })
+        .unwrap_err();
+        assert_eq!(queries, 2);
+        assert_eq!(error.0, "membership_length");
+        assert!(error.2.is_none());
+        assert_eq!(error.3[0].unwrap().returned_bytes, 24);
+        assert!(error.3[1].is_none());
+        let control = Control::default();
+        control
+            .lock()
+            .record_membership_failure(error.0, error.1, error.2, error.3);
+        let copied = crate::tool_process::copy_proof_details(&with_control_proof(
+            &control,
+            PortcoveError::state("inert header failure after partial"),
+        ));
+        assert!(!copied.contains_key("process_tree_membership_returned"));
+        let observations: serde_json::Value =
+            serde_json::from_str(&copied["process_tree_membership_attempts"]).unwrap();
+        assert_eq!(observations[0]["returned"], 1);
+        assert!(observations[1].is_null());
+    }
+
+    #[test]
+    fn membership_snapshot_bounded_malformed_and_overlimit_counts_refuse_immediately() {
+        for observed in [counts(1, 2), counts(513, 512), counts(513, 513)] {
+            let mut queries = 0;
+            let error = collect_membership_snapshot(|| {
+                queries += 1;
+                parse_membership_snapshot(observed, || panic!("invalid IDs must not escape"))
+            })
+            .unwrap_err();
+            assert_eq!(queries, 1);
+            assert_eq!(error.0, "membership_capacity");
+            assert_eq!(error.2.unwrap().assigned, observed.assigned);
+        }
+    }
 }
 
 fn system_directory() -> io::Result<PathBuf> {
@@ -1670,6 +2338,89 @@ fn system_module(mut file: File, base: usize) -> io::Result<Option<(usize, usize
 mod native_control_tests {
     use super::*;
     use crate::{ChildProcessClass, ChildProcessPolicy};
+
+    #[test]
+    fn routine_debug_notifications_stream_beyond_the_former_total_limit() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let working = tempfile::tempdir().unwrap();
+        let mut spec =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                .unwrap();
+        spec.args(["--owned-debug-notifications", "complete"])
+            .current_dir(working.path());
+        let mut quiesced = false;
+        let output = crate::tool_process::run_tool(
+            &mut spec,
+            &|| Ok(()),
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || {
+                    quiesced = true;
+                    Ok(())
+                }),
+            },
+        )
+        .unwrap();
+        assert!(output.status.success());
+        assert!(quiesced);
+        assert_eq!(
+            std::fs::read_to_string(working.path().join("debug-notifications-completed")).unwrap(),
+            "4097"
+        );
+        let proof = output.process_tree_proof;
+        assert_eq!(proof["process_tree_membership_complete"], "true");
+        assert_eq!(proof["process_tree_all_retained_signaled"], "true");
+        assert_eq!(proof["process_tree_active"], "0");
+        assert_eq!(proof["process_tree_root_exit"], "0");
+        assert!(!proof.contains_key("process_tree_first_failure"));
+    }
+
+    #[test]
+    fn routine_debug_notifications_remain_cancellable_after_the_former_total_limit() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let working = tempfile::tempdir().unwrap();
+        let mut spec =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                .unwrap();
+        spec.args(["--owned-debug-notifications", "wait"])
+            .current_dir(working.path());
+        let ready = working.path().join("debug-notifications-ready");
+        let mut quiesced = false;
+        let outcome = crate::tool_process::run_tool(
+            &mut spec,
+            &|| {
+                if ready.is_file() {
+                    Err(PortcoveError::new(
+                        crate::ErrorCode::Cancelled,
+                        "owned notification cancellation",
+                    ))
+                } else {
+                    Ok(())
+                }
+            },
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || {
+                    quiesced = true;
+                    Ok(())
+                }),
+            },
+        );
+        let error = match outcome {
+            Err(error) => error,
+            Ok(_) => panic!("owned notification cancellation accepted"),
+        };
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert!(quiesced);
+        assert_eq!(std::fs::read_to_string(ready).unwrap(), "4097");
+        assert_eq!(error.details["process_tree_membership_complete"], "true");
+        assert_eq!(error.details["process_tree_all_retained_signaled"], "true");
+        assert_eq!(error.details["process_tree_active"], "0");
+        assert_eq!(error.details["process_tree_deadline_exhausted"], "false");
+        assert!(!error.details.contains_key("process_tree_first_failure"));
+    }
 
     #[test]
     fn root_signaling_between_samples_retains_positive_exit_proof() {
@@ -2798,10 +3549,9 @@ mod proof_tests {
             membership_snapshot(windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE).unwrap_err();
         assert_eq!(failure.0, "membership_query");
         assert!(failure.1.is_some());
-        let mut proof = Proof {
-            first_failure: Some(failure),
-            ..Default::default()
-        };
+        assert!(failure.2.is_none());
+        let mut proof = Proof::default();
+        proof.record_membership_failure(failure.0, failure.1, failure.2, failure.3);
         proof.finish(true, Instant::now());
         assert!(!proof.quiesced);
         assert!(proof.accounting.is_none());

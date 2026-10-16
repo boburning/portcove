@@ -79,7 +79,7 @@ impl RemovalOperation {
             LifecyclePhase::PayloadPublished => RemovalPhase::Quarantined,
             LifecyclePhase::MetadataCommitted => RemovalPhase::Committed,
             LifecyclePhase::CleanupPending => RemovalPhase::CleanupPending,
-            LifecyclePhase::Prepared => {
+            LifecyclePhase::Prepared | LifecyclePhase::StagedPreparing => {
                 return Err(PortcoveError::state(
                     "removal journal has an incompatible phase",
                 ));

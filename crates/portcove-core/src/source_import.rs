@@ -170,6 +170,11 @@ impl SourceImportOperation {
             ));
         }
         let phase = match operation.phase {
+            LifecyclePhase::StagedPreparing => {
+                return Err(PortcoveError::state(
+                    "staged PS1 intent cannot authorize source import",
+                ));
+            }
             LifecyclePhase::Preparing => ImportPhase::Copying,
             LifecyclePhase::Prepared => ImportPhase::ReadyToPublish,
             LifecyclePhase::PayloadPublished => ImportPhase::Published,

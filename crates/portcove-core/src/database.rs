@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 36;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 45;
 
 struct Migration {
     version: i64,
@@ -240,7 +240,249 @@ const MIGRATIONS: &[Migration] = &[
         apply: crate::curated_acquisition::migrate,
         verify: verify_migration_36,
     },
+    Migration {
+        version: 37,
+        name: "lifecycle-owned managed PS1 generation witnesses",
+        apply: migration_37,
+        verify: verify_migration_37,
+    },
+    Migration {
+        version: 38,
+        name: "lifecycle-owned managed PS1 configuration witnesses",
+        apply: migration_38,
+        verify: verify_migration_38,
+    },
+    Migration {
+        version: 39,
+        name: "lifecycle-owned managed PS1 compile checkpoints",
+        apply: migration_39,
+        verify: verify_migration_39,
+    },
+    Migration {
+        version: 40,
+        name: "retained managed PS1 compile history",
+        apply: migration_40,
+        verify: verify_migration_40,
+    },
+    Migration {
+        version: 41,
+        name: "lifecycle-owned managed PS1 acquired input checkpoints",
+        apply: migration_41,
+        verify: verify_migration_41,
+    },
+    Migration {
+        version: 42,
+        name: "lifecycle-owned managed PS1 normalized input checkpoints",
+        apply: migration_42,
+        verify: verify_migration_42,
+    },
+    Migration {
+        version: 43,
+        name: "provisional managed PS1 materialization custody",
+        apply: migration_43,
+        verify: verify_migration_43,
+    },
+    Migration {
+        version: 44,
+        name: "provisional managed PS1 generation custody",
+        apply: migration_44,
+        verify: verify_migration_44,
+    },
+    Migration {
+        version: 45,
+        name: "retained managed PS1 generation attempts",
+        apply: migration_45,
+        verify: verify_migration_45,
+    },
 ];
+
+fn migration_45(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "ALTER TABLE managed_psx_normalized_inputs ADD COLUMN generation_attempt_history_sha256
+            TEXT NOT NULL DEFAULT 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+            CHECK(length(generation_attempt_history_sha256)=64);
+         CREATE TABLE managed_psx_generation_attempts (
+            operation_id TEXT NOT NULL REFERENCES lifecycle_operations(id) ON DELETE CASCADE,
+            attempt INTEGER NOT NULL CHECK(attempt BETWEEN 1 AND 32),
+            receipt_json TEXT NOT NULL CHECK(length(CAST(receipt_json AS BLOB)) BETWEEN 1 AND 65536),
+            receipt_sha256 TEXT NOT NULL CHECK(length(receipt_sha256)=64),
+            PRIMARY KEY(operation_id,attempt)
+         );",
+    )?;
+    verify_migration_45(transaction)
+}
+
+fn verify_migration_45(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "managed_psx_normalized_inputs",
+        &["generation_attempt_history_sha256"],
+    )?;
+    require_columns(
+        connection,
+        "managed_psx_generation_attempts",
+        &["operation_id", "attempt", "receipt_json", "receipt_sha256"],
+    )
+}
+
+fn migration_44(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE managed_psx_pending_generation (
+            operation_id TEXT PRIMARY KEY NOT NULL REFERENCES managed_psx_normalized_inputs(operation_id) ON DELETE CASCADE,
+            witness_json TEXT NOT NULL CHECK(length(CAST(witness_json AS BLOB)) BETWEEN 1 AND 67108864),
+            witness_sha256 TEXT NOT NULL CHECK(length(witness_sha256)=64)
+         );",
+    )?;
+    verify_migration_44(transaction)
+}
+
+fn verify_migration_44(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "managed_psx_pending_generation",
+        &["operation_id", "witness_json", "witness_sha256"],
+    )
+}
+
+fn migration_43(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE managed_psx_materialized_inputs (
+            operation_id TEXT PRIMARY KEY NOT NULL REFERENCES managed_psx_bootstrap(operation_id) ON DELETE CASCADE,
+            witness_json TEXT NOT NULL CHECK(length(CAST(witness_json AS BLOB)) BETWEEN 1 AND 67108864),
+            witness_sha256 TEXT NOT NULL CHECK(length(witness_sha256)=64)
+         );",
+    )?;
+    verify_migration_43(transaction)
+}
+
+fn verify_migration_43(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "managed_psx_materialized_inputs",
+        &["operation_id", "witness_json", "witness_sha256"],
+    )
+}
+
+fn migration_42(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE managed_psx_normalized_inputs (
+            operation_id TEXT PRIMARY KEY NOT NULL REFERENCES managed_psx_bootstrap(operation_id) ON DELETE CASCADE,
+            witness_json TEXT NOT NULL CHECK(length(CAST(witness_json AS BLOB)) BETWEEN 1 AND 67108864),
+            witness_sha256 TEXT NOT NULL CHECK(length(witness_sha256)=64)
+         );",
+    )?;
+    verify_migration_42(transaction)
+}
+
+fn verify_migration_42(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "managed_psx_normalized_inputs",
+        &["operation_id", "witness_json", "witness_sha256"],
+    )
+}
+
+fn migration_41(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE managed_psx_bootstrap (
+            operation_id TEXT PRIMARY KEY NOT NULL REFERENCES lifecycle_operations(id) ON DELETE CASCADE,
+            witness_json TEXT NOT NULL CHECK(length(CAST(witness_json AS BLOB)) BETWEEN 1 AND 67108864),
+            witness_sha256 TEXT NOT NULL CHECK(length(witness_sha256)=64)
+         );",
+    )?;
+    verify_migration_41(transaction)
+}
+
+fn verify_migration_41(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "managed_psx_bootstrap",
+        &["operation_id", "witness_json", "witness_sha256"],
+    )
+}
+
+fn migration_40(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE managed_psx_compile_history (
+            operation_id TEXT NOT NULL REFERENCES managed_psx_compilation(operation_id) ON DELETE CASCADE,
+            completed_batches INTEGER NOT NULL CHECK(completed_batches BETWEEN 1 AND 10000),
+            witness_json TEXT NOT NULL CHECK(length(CAST(witness_json AS BLOB)) BETWEEN 1 AND 67108864),
+            witness_sha256 TEXT NOT NULL CHECK(length(witness_sha256)=64),
+            PRIMARY KEY(operation_id,completed_batches)
+         );",
+    )?;
+    verify_migration_40(transaction)
+}
+
+fn verify_migration_40(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "managed_psx_compile_history",
+        &[
+            "operation_id",
+            "completed_batches",
+            "witness_json",
+            "witness_sha256",
+        ],
+    )
+}
+
+fn migration_39(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE managed_psx_compilation (
+            operation_id TEXT PRIMARY KEY NOT NULL REFERENCES managed_psx_configuration(operation_id) ON DELETE CASCADE,
+            witness_json TEXT NOT NULL CHECK(length(CAST(witness_json AS BLOB)) BETWEEN 1 AND 67108864),
+            witness_sha256 TEXT NOT NULL CHECK(length(witness_sha256)=64)
+         );",
+    )?;
+    verify_migration_39(transaction)
+}
+
+fn verify_migration_39(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "managed_psx_compilation",
+        &["operation_id", "witness_json", "witness_sha256"],
+    )
+}
+
+fn migration_38(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE managed_psx_configuration (
+            operation_id TEXT PRIMARY KEY NOT NULL REFERENCES managed_psx_generation(operation_id) ON DELETE CASCADE,
+            witness_json TEXT NOT NULL CHECK(length(CAST(witness_json AS BLOB)) BETWEEN 1 AND 67108864),
+            witness_sha256 TEXT NOT NULL CHECK(length(witness_sha256)=64)
+         );",
+    )?;
+    verify_migration_38(transaction)
+}
+
+fn verify_migration_38(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "managed_psx_configuration",
+        &["operation_id", "witness_json", "witness_sha256"],
+    )
+}
+
+fn migration_37(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE managed_psx_generation (
+            operation_id TEXT PRIMARY KEY NOT NULL REFERENCES lifecycle_operations(id) ON DELETE CASCADE,
+            witness_json TEXT NOT NULL CHECK(length(CAST(witness_json AS BLOB)) BETWEEN 1 AND 67108864),
+            witness_sha256 TEXT NOT NULL CHECK(length(witness_sha256)=64)
+         );",
+    )?;
+    verify_migration_37(transaction)
+}
+
+fn verify_migration_37(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "managed_psx_generation",
+        &["operation_id", "witness_json", "witness_sha256"],
+    )
+}
 
 fn verify_migration_36(connection: &Connection) -> Result<()> {
     require_columns(
@@ -1781,6 +2023,15 @@ mod tests {
         schema_33: 33,
         schema_34: 34,
         schema_35: 35,
+        schema_36: 36,
+        schema_37: 37,
+        schema_38: 38,
+        schema_39: 39,
+        schema_40: 40,
+        schema_41: 41,
+        schema_42: 42,
+        schema_43: 43,
+        schema_44: 44,
     }
 
     #[test]
@@ -1882,7 +2133,7 @@ mod tests {
         );
         assert_eq!(
             recorded_versions(&connection).unwrap(),
-            (1..=36).collect::<Vec<_>>()
+            (1..=CURRENT_SCHEMA_VERSION).collect::<Vec<_>>()
         );
         verify_migration_34(&connection).unwrap();
         verify_migration_35(&connection).unwrap();

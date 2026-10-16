@@ -11,6 +11,11 @@ pub(crate) fn recover_published_install(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
+    if operation.phase == LifecyclePhase::StagedPreparing {
+        return Err(PortcoveError::conflict(
+            "staged PS1 intent is retained outside publication recovery",
+        ));
+    }
     // Recovery holds the journal owner's lock, not a lock inferred from its payload.
     // Verify that authority before publishing, registering, or cleaning any tree.
     if let Some(install) = &operation.install

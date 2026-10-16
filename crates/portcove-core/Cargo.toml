@@ -43,6 +43,7 @@ tempfile.workspace = true
 thiserror.workspace = true
 time.workspace = true
 tokio.workspace = true
+toml = "=1.1.6"
 tough.workspace = true
 tracing.workspace = true
 unicode-normalization.workspace = true
