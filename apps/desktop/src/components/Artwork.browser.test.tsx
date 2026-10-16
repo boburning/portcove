@@ -370,12 +370,31 @@ describe("local artwork controls", () => {
   it.each(["port", "library", "close"])(
     "ignores a dispatched mutation completion after a %s change",
     async (kind) => {
+      let showArtwork!: () => void;
+      vi.stubGlobal(
+        "IntersectionObserver",
+        class {
+          constructor(private readonly callback: IntersectionObserverCallback) {}
+          observe(target: Element) {
+            showArtwork = () =>
+              this.callback(
+                [{ target, isIntersecting: true } as IntersectionObserverEntry],
+                this as unknown as IntersectionObserver,
+              );
+          }
+          disconnect() {}
+        },
+      );
       let finish!: (value: ArtworkState) => void;
       const change = vi
         .spyOn(desktopApi, "importArtwork")
         .mockReturnValue(new Promise((resolve) => (finish = resolve)));
       vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
       await render();
+      // Settle the independent lazy-image read before holding the mutation.
+      // Otherwise visibility can queue a legitimate read behind that mutation.
+      await act(async () => showArtwork());
+      await expect.poll(() => container.querySelector(".artwork-image")?.textContent).toBe("SF");
       await open();
       await click("cover", "Choose local image");
       expect(change).toHaveBeenCalledTimes(1);
@@ -386,6 +405,7 @@ describe("local artwork controls", () => {
           details.dispatchEvent(new Event("toggle"));
         });
       } else await render(kind === "port" ? "another" : "sample", kind === "library" ? 8 : 7);
+      await expect.poll(() => container.querySelector('[aria-label="Cover image"]')).toBeNull();
       const reads = vi.mocked(desktopApi.artwork).mock.calls.length;
       await act(async () => finish(artworkState("sample", "cover", 1, true)));
       expect(vi.mocked(desktopApi.artwork).mock.calls.length).toBe(reads);
