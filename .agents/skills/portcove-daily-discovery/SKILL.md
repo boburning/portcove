@@ -4,7 +4,6 @@ description: Run Portcove's bounded daily native-port investigation and canonica
 metadata:
   provenance: self-improving-skills
   created_at: 2026-10-16T16:06:49.824559+00:00
-
 ---
 
 Read [the daily investigation contract](../../../docs/DAILY-PORT-DISCOVERY.md).
