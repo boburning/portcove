@@ -24,6 +24,11 @@ mkdirSync(evidence, { recursive: true });
 const steps = [];
 const source = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
 const env = { ...process.env, CI: "true", VP_GIT_HOOKS: "0" };
+const inheritedPath = Object.entries(env).find(([key]) => key.toLowerCase() === "path")?.[1] ?? "";
+for (const key of Object.keys(env)) if (key.toLowerCase() === "path") delete env[key];
+// Deliberately exercise Windows' usual Path-only environment, including when a
+// prepared parent shell happens to expose the uppercase spelling instead.
+env[process.platform === "win32" ? "Path" : "PATH"] = inheritedPath;
 delete env.NODE_PATH;
 delete env.PORTCOVE_CI_METRICS_DIR;
 // The source's job store is not the fixture's installation or evidence owner.
@@ -177,7 +182,11 @@ try {
       process.platform === "win32" ? "@exit /b 97\r\n" : "#!/bin/sh\nexit 97\n",
       { mode: 0o755 },
     );
-  const runtime = { ...env, PATH: `${canaries}${path.delimiter}${env.PATH ?? ""}` };
+  const runtime = { ...env };
+  const runtimePath =
+    Object.entries(runtime).find(([key]) => key.toLowerCase() === "path")?.[1] ?? "";
+  for (const key of Object.keys(runtime)) if (key.toLowerCase() === "path") delete runtime[key];
+  runtime.PATH = `${canaries}${path.delimiter}${runtimePath}`;
   assert.equal(
     run(
       "repository-contracts",
@@ -220,7 +229,18 @@ try {
 } finally {
   writeFileSync(
     path.join(evidence, "result.json"),
-    JSON.stringify({ source, fixture, overlays, passed, steps }, null, 2) + "\n",
+    JSON.stringify(
+      {
+        source,
+        fixture,
+        overlays,
+        input_path_keys: Object.keys(env).filter((key) => key.toLowerCase() === "path"),
+        passed,
+        steps,
+      },
+      null,
+      2,
+    ) + "\n",
   );
   if (passed) {
     assert.equal(path.dirname(fixture), path.resolve(os.tmpdir()));
