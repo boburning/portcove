@@ -46,6 +46,14 @@ filter = 'package(portcove-core) & test(/^definition_repository::tests::publishe
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 success-output = "immediate"
 
+# The Intel published-adoption revocation fixture completed its second real
+# recovery reopen at 28.36s before the 30s cutoff during final preservation.
+# Keep both reopens and every assertion with finite, exact-case headroom.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_adoption_published_revocation_preserves_evidence$/)'
+slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
+
 # These CLI contracts compare free-space snapshots across child processes.
 # Preserve their existing mutual exclusion across nextest's process boundary.
 [test-groups]
