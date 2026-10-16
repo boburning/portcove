@@ -31,7 +31,7 @@ USER vp
 RUN rustup component add rustfmt clippy rust-analyzer && cargo fetch --locked --target x86_64-unknown-linux-gnu
 RUN pnpm list --recursive --depth Infinity --json > /portcove/installed-npm-packages.json
 RUN node -e "const {execFileSync}=require('node:child_process'); require('node:fs').writeFileSync('/portcove/tool-versions.json', JSON.stringify(Object.fromEntries(['node','pnpm','vp','rustc','cargo','pwsh'].map(command => [command,execFileSync(command,['--version'],{encoding:'utf8'}).trim()]))));"
-COPY --chown=vp:vp container-entry.mjs container-source.mjs /portcove/
+COPY --chown=vp:vp container-entry.mjs container-source.mjs container-build-policy.mjs /portcove/
 RUN node /portcove/container-source.mjs "$SOURCE_COMMIT" "$SOURCE_TREE"
 ARG WORKSPACE_OWNER
 ARG PREPARATION

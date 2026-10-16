@@ -19,7 +19,7 @@ import {
   builtPackage,
   desktopFormats,
   validatePackageMetadata,
-} from "/workspace/scripts/container-build-policy.mjs";
+} from "./container-build-policy.mjs";
 
 const root = "/workspace";
 const output = path.join(root, "work/container-results");

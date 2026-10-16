@@ -48,7 +48,7 @@ export function validatePackageMetadata(format, metadata, version) {
       values[0].toLowerCase() !== "portcove" ||
       values[1] !== numeric ||
       values[3] !== "x86_64" ||
-      (prerelease && !values[2].includes(prerelease.replaceAll("-", "_")))
+      values[2] !== (prerelease ? `0.${prerelease.replaceAll("-", "_")}` : "1")
     )
       throw new Error("rpm package identity differs from selected source");
   } else throw new Error("Metadata inspection requires deb or rpm");

@@ -46,6 +46,7 @@ export function createContainerHost(profile) {
     builder ? "scripts/container-build-entry.mjs" : "scripts/container-entry.mjs",
   );
   const guard = path.join(root, "scripts/container-source.mjs");
+  const policy = builder ? path.join(root, "scripts/container-build-policy.mjs") : null;
   const GiB = 1024 ** 3;
   const budgets = Object.freeze({
     timeout_ms: (builder ? 90 : 30) * 60_000,
@@ -821,6 +822,7 @@ export function createContainerHost(profile) {
       recipe_sha256: hash(readFileSync(recipe)),
       entry_sha256: hash(readFileSync(entry)),
       guard_sha256: hash(readFileSync(guard)),
+      ...(builder ? { policy_sha256: hash(readFileSync(policy)) } : {}),
     };
     const stateFile = path.join(directory, "host.json");
     const save = () => record(stateFile, state);
@@ -869,6 +871,7 @@ export function createContainerHost(profile) {
           recipe: hash(text),
           entry: hash(readFileSync(entry)),
           guard: hash(readFileSync(guard)),
+          ...(builder ? { policy: hash(readFileSync(policy)) } : {}),
           platform: "linux/amd64",
           workspace,
         }),
@@ -933,9 +936,11 @@ export function createContainerHost(profile) {
         copyFileSync(recipe, path.join(directory, "Dockerfile"));
         copyFileSync(entry, path.join(directory, "container-entry.mjs"));
         copyFileSync(guard, path.join(directory, "container-source.mjs"));
+        if (builder) copyFileSync(policy, path.join(directory, "container-build-policy.mjs"));
         writeFileSync(
           path.join(directory, ".dockerignore"),
-          "**\n!Dockerfile\n!source.bundle\n!container-entry.mjs\n!container-source.mjs\n",
+          "**\n!Dockerfile\n!source.bundle\n!container-entry.mjs\n!container-source.mjs\n" +
+            (builder ? "!container-build-policy.mjs\n" : ""),
         );
         if (size(stageRoot) > budgets.staging_bytes)
           throw new Error("Owned staging exceeds its 10 GiB budget");

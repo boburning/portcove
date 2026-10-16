@@ -99,4 +99,9 @@ test("package identities reject another version or architecture", () => {
     () => validatePackageMetadata("rpm", "Portcove\n0.1.0\n1\nx86_64", "0.1.0-alpha.2"),
     /identity/u,
   );
+  for (const release of ["0.alpha.20", "0.not-alpha.2-unrelated", "0.alpha.2.extra"])
+    assert.throws(
+      () => validatePackageMetadata("rpm", `Portcove\n0.1.0\n${release}\nx86_64`, "0.1.0-alpha.2"),
+      /identity/u,
+    );
 });
