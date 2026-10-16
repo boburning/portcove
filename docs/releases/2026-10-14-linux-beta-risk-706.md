@@ -585,3 +585,53 @@ maintained qualification, and the integrated ordinary Linux package observation
 remain required. Original scanner output and failing raw status are preserved;
 only an otherwise eligible exact existing disposition may account for GLib.
 No minimum, release identity, signing or publication authority follows.
+
+## Delivered dependency batch reassessment — October 16, 2026
+
+Normal integration candidate `d0ea1a21d51ca9d59dea9b62012e8491a1bac4b2` consumes actual guarded deliveries
+[#2020](https://github.com/boburning/portcove/pull/2020),
+[#2023](https://github.com/boburning/portcove/pull/2023),
+[#2024](https://github.com/boburning/portcove/pull/2024) and
+[#2025](https://github.com/boburning/portcove/pull/2025), through main
+`f9e0ab353a7413879118a98c1fa16b88bac0cbad`. The last source/delivered
+tree is exactly `1aecbdc902c92eb96f5ceef29d10cab96f244d43`.
+Actual production resolutions change SHA-2 0.11.0 to 0.11.1 and Tokio 1.53.2
+to 1.53.3; localization changes to i18next 26.4.5/react-i18next 17.0.17.
+The independently reviewed Windows Job repair preserves terminal active-count
+zero, exact retained lifetime/accounting equality and existing deadlines;
+successful partial live PID lists are supplemental observations. It is
+cfg-excluded from Linux. Its actual Windows process tests remain separately
+attributed; native-helper cleanup is not that Core proof.
+
+The 192-input conservative inventory changes only Cargo.toml and the existing
+Windows implementation, process tests and host-tool fixture. All 238 selected
+#706 dependency/generator rows remain byte-identical. This selected graph does
+not inventory the full changed production graph: supplemental locked metadata
+and the actual Desktop Linux normal/build Cargo tree retain Tokio/SHA-2
+identities, edges and features. Tokio has no io-uring/test-util feature;
+SHA-2 enables alloc/default/oid. No tokio_unstable or experimental Rust flag
+was introduced. Compiler minima remain within pinned Rust 1.98.1.
+
+Four old/new lock-checksummed Tokio/SHA-2 archives, 1,183 published file
+identities and 16 manifest/changelog/VCS text records were independently
+verified. Examined changes cover stable I/O/waker/semaphore/scheduler/macros,
+separately gated io_uring work, and hash compression/state/backend corrections.
+No affected GLib API reference or new constructor path was found in this
+bounded delta. The preceding unchanged-source assessment remains scoped;
+universal unreachability, generated/linked-code safety and remediation are
+not established. GLib 0.18.5 remains vulnerable and its alert stays open.
+
+New lock SHA256 is `3f2466745f85e1de3b5d5928ed2a73a9b2a6c26a17e76d681a7348d0bb0bcc64`;
+input digest `0aad0a51cceec25375d5ad784c1f0291f065fb6d6f614b90756ac606b5d86340`;
+selected dependency digest stays `e2d7f9ca74f1562ae9ec32ad3314ab7d53ebb49960cebee7ebf12254506fa59a`.
+Only reconfirmedHead and inputsSha256 change. Original assessment, approval,
+owner, advisory/version, policy, scope, expiry and null publication identity
+remain unchanged; this is reassessment, not renewal or broader acceptance.
+
+Current-head CI, complete fresh audit with raw findings/status and exact
+separate disposition, maintained full qualification, integrated Windows
+ordinary/installed and Linux ordinary/updater observations remain required.
+Design assets must be compared completely and affected fixtures refreshed.
+Prior origin/queued-IPC and human observations retain original source and
+environment limits. No release identity, signing/publication, minimum change,
+remediation claim or waiver follows from these source findings.
