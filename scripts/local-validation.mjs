@@ -213,6 +213,16 @@ const selectionContractTests = [
 
 const explicitNodeTests = new Map([
   ...[
+    "scripts/container-host.mjs",
+    "scripts/container-build.mjs",
+    "scripts/container-build-entry.mjs",
+    "scripts/container-build-policy.mjs",
+    "tools/containers/build/Dockerfile",
+  ].map((file) => [
+    file,
+    ["scripts/container-browser.test.mjs", "scripts/container-build.test.mjs"],
+  ]),
+  ...[
     "scripts/container-browser.mjs",
     "scripts/container-entry.mjs",
     "scripts/container-source.mjs",

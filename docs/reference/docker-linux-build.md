@@ -1,0 +1,98 @@
+# Optional Windows-driven Linux build container
+
+[#2007](https://github.com/boburning/portcove/issues/2007) owns this optional
+Ubuntu 22.04 x86-64 build and unsigned-package route. Native Windows development
+remains primary. [The browser adapter](docker-browser-tooling.md) describes shared
+Windows Docker Desktop / WSL 2 admission, exact-commit source transfer,
+publication/recovery and bounded cleanup. Both thin adapters use
+`scripts/container-host.mjs`; their images, labels, staging and exports are separate.
+The builder does not inherit the browser runtime or install browser binaries.
+
+## Commands
+
+Start the already configured Docker Desktop WSL 2 Linux engine explicitly. This
+route never installs Docker, enables Windows features, reboots, changes global
+resources or relocates data. The T480 is excluded. Use the repository-selected
+Node and a normal frozen workspace installation; global vp/Corepack are optional.
+
+```powershell
+just container-build-doctor
+just container-build --commit <full-40-character-commit> --mode check
+just container-build --commit <commit> --mode package
+just container-build-export --run <run-UUID>
+just container-build-clean
+just container-build-clean --older-than-hours 72 --apply
+```
+
+Without Just, use `node scripts/container-build.mjs doctor|run|export|clean`
+with the same arguments. `check` is the default; packaging requires explicit
+`--mode package`. There is no arbitrary shell-command mode. Dirty current work
+is refused unless explicitly excluded with `--exclude-dirty`; exclusion is
+recorded and never represented as tested. Local unpushed commits work without
+pushing, committing dirty work or synchronizing another development tree.
+
+## Preparation and fresh execution
+
+The recipe pins Ubuntu 22.04, the Vite+ tool stage and Rust tool stage by digest.
+Rust and Vite+ versions must match the selected source pins. Copied tools must
+actually execute against Ubuntu's glibc during preparation. PowerShell's official
+Linux archive has a paired version and SHA256; preparation checks it. Renovate
+discovers image pins and PowerShell releases. A PowerShell version-only proposal
+must update its verified archive hash and requalify canonical packaging; a failed
+checksum blocks the proposal. Rust images stay in the existing Rust-toolchain
+group; Vite+ images stay in the coordinated Vite+ group. Existing frozen-input,
+install-script, release-age and security policies retain their owners.
+
+Preparation installs the complete frozen workspace and fetches locked Linux Cargo
+inputs. `install-linux-desktop-prerequisites.sh --include-rpm` owns native libraries;
+headless packaging does not request WebDriver or native GUI prerequisites.
+Installed apt/npm packages and actual Node, pnpm, Vite+, Rust, Cargo and Linux
+PowerShell versions are exported. Mutable apt inputs are observed; preparation
+is not represented as reproducible or offline.
+
+Every task starts in a new container from its prepared image, with no prior target,
+dist or release-assets output. Setup/download reuse does not skip commands.
+`check` executes guarded `cargo check --locked --offline --workspace --all-targets`
+and the canonical frontend build with `--fresh`. `package` executes the guarded
+locked/offline release CLI build, Linux PowerShell `package-cli.ps1` and
+`smoke-test-cli-archive.ps1`, then guarded Tauri builds separately for AppImage,
+deb and rpm with `--ci --no-sign`. Tauri's configuration disables updater artifacts.
+No signing environment or publication command is supplied. Per-format inspection
+and byte/hash inventories are separate from build exit codes. A missing/failed
+format stays failed; existing files cannot turn it into success. Compile/archive
+inspection establishes no installed, GUI, minimum-platform, updater, security,
+signing or publication acceptance.
+
+## Resource and evidence boundaries
+
+The task runs as UID/GID 1000 without sudo, mounts, host home/game libraries,
+Docker socket, devices, extra capabilities, host networking or published ports.
+All capabilities are dropped and no-new-privileges is required. A private bridge
+permits Tauri-owned package-tool downloads; Cargo execution remains offline.
+It exposes no service or host credential. This trusted build environment is not
+an arbitrary-executable sandbox guarantee.
+
+The builder uses four CPUs, 6 GiB RAM/no extra swap, 1 GiB shared memory and 1024
+PIDs, matching browser limits. Preparation is bounded to 60 minutes and the task
+to 90 minutes (`--timeout-ms` may tighten it). Browser deadlines stay at 30 minutes.
+Existing physical Windows volume and Linux free-space admission apply. Source
+bundles are capped at 256 MiB, command output at 16 MiB, task logs at 100 MiB and
+exported evidence at 1 GiB. Shared admission/retention budgets remain 10 GiB for
+staging/exports/individual images, 40 GiB for owned images/build cache and 80 GiB
+for global images. These are observed limits, not a Docker writable-layer quota.
+
+Results bind selected commit/tree, driver/shared-host/wrapper hashes, all immutable
+bases, built image, actual OS/architecture/tools, command arguments/exits and
+artifact bytes/SHA256. Export failure retains owned container/staging evidence
+for explicit recovery. Published records are immutable; later success cannot
+erase failure. Cleanup is dry-run by default, scoped to this workspace's
+`build-v1` ownership and bounded age. It preserves active/failing/unpublished runs
+and foreign resources and never prunes machine-wide caches. Browser `browser-v1`
+evidence and cleanup remain separate.
+
+## Qualification record
+
+Implementation and actual per-format qualification are tracked on #2007. Until
+execution evidence is recorded, the recipe and unit controls alone establish no
+working builder or package support. Setup/warm execution measurements, precise
+unsupported formats and native-Windows checks belong to that record.

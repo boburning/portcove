@@ -518,6 +518,7 @@ export function createContainerHost(profile) {
       host.Privileged ||
       host.CapAdd?.length ||
       host.NetworkMode !== (builder ? "bridge" : "none") ||
+      (builder && (Object.keys(host.PortBindings ?? {}).length || host.PublishAllPorts === true)) ||
       host.PidMode ||
       host.IpcMode === "host" ||
       host.Devices?.length ||
@@ -875,7 +876,8 @@ export function createContainerHost(profile) {
       const tag = `${prefix}:${preparation}`;
       state.preparation = preparation;
       state.base = base[1];
-      if (builder) state.bases = [...text.matchAll(/^FROM ([^\s]+) /gmu)].map((match) => match[1]);
+      if (builder)
+        state.bases = [...text.matchAll(/^FROM ([^\s]+)(?:\s|$)/gmu)].map((match) => match[1]);
       state.tag = tag;
       const usage = await imageUsage();
       if (usage.bytes > budgets.images_bytes)

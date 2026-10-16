@@ -14,6 +14,12 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { assertCommittedWorkspace } from "./container-source.mjs";
+import {
+  assertFreshBuildOutputs,
+  builtPackage,
+  desktopFormats,
+  validatePackageMetadata,
+} from "/workspace/scripts/container-build-policy.mjs";
 
 const root = "/workspace";
 const output = path.join(root, "work/container-results");
@@ -202,9 +208,7 @@ try {
   report.os_release = readFileSync("/etc/os-release", "utf8");
   if (!/^VERSION_ID="22.04"$/mu.test(report.os_release))
     throw new Error("Builder requires Ubuntu 22.04");
-  for (const directory of ["target", "release-assets", "apps/desktop/dist", "work/target"])
-    if (existsSync(path.join(root, directory)))
-      throw new Error(`Stale generated output refuses execution: ${directory}`);
+  assertFreshBuildOutputs(root);
   const required = async (args, phase, executable, cwd) => {
     const result = await execute(args, phase, executable, cwd);
     if (result.code !== 0 || interrupted) throw new Error(`${phase} failed (${result.code})`);
@@ -250,8 +254,9 @@ try {
       "cli-smoke",
       "pwsh",
     );
+    await required(["apps/desktop/scripts/build-frontend.mjs", "--fresh"], "frontend-build");
     report.formats = {};
-    for (const format of ["appimage", "deb", "rpm"]) {
+    for (const format of desktopFormats) {
       if (interrupted) break;
       const phase = await execute(
         [
@@ -270,14 +275,59 @@ try {
         `desktop-${format}`,
       );
       report.formats[format] = {
-        status: phase.code === 0 ? "built" : "failed",
+        status: "failed",
         code: phase.code,
         signal: phase.signal,
       };
+      try {
+        const artifact = builtPackage(
+          path.join(root, "target/release/bundle", format),
+          format,
+          phase,
+        );
+        report.formats[format].artifact = path.relative(root, artifact);
+        if (format === "appimage") {
+          const inspection = path.join(root, "work/appimage-inspection");
+          mkdirSync(inspection);
+          await required(["--appimage-extract"], "inspect-appimage", artifact, inspection);
+          const binary = path.join(inspection, "squashfs-root/usr/bin/portcove-desktop");
+          if (!existsSync(binary))
+            throw new Error("AppImage lacks the selected desktop executable");
+          await required(["--brief", binary], "inspect-appimage-elf", "file");
+          if (!report.phases.at(-1).output_prefix.includes("x86-64"))
+            throw new Error("AppImage desktop executable is not x86-64");
+        } else {
+          const args =
+            format === "deb"
+              ? ["--show", "--showformat=${Package}\\n${Version}\\n${Architecture}\\n", artifact]
+              : [
+                  "-qp",
+                  "--queryformat",
+                  "%{NAME}\\n%{VERSION}\\n%{RELEASE}\\n%{ARCH}\\n",
+                  artifact,
+                ];
+          await required(args, `inspect-${format}`, format === "deb" ? "dpkg-deb" : "rpm");
+          report.formats[format].metadata = validatePackageMetadata(
+            format,
+            report.phases.at(-1).output_prefix,
+            version,
+          );
+          await required(
+            format === "deb" ? ["--contents", artifact] : ["-qpl", artifact],
+            `inspect-${format}-contents`,
+            format === "deb" ? "dpkg-deb" : "rpm",
+          );
+          if (!report.phases.at(-1).output_prefix.includes("usr/bin/portcove-desktop"))
+            throw new Error(`${format} lacks the selected desktop executable`);
+        }
+        report.formats[format].status = "validated";
+      } catch (error) {
+        report.formats[format].error = error.message;
+      }
     }
     if (
       Object.keys(report.formats).length !== 3 ||
-      Object.values(report.formats).some((f) => f.status !== "built")
+      Object.values(report.formats).some((f) => f.status !== "validated")
     )
       throw new Error("One or more desktop formats did not build; see individual command logs");
   }
