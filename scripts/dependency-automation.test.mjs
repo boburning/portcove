@@ -116,7 +116,14 @@ test("Renovate is the sole conservative routine update authority", async () => {
   assert.notEqual(renovate.vulnerabilityAlerts?.enabled, false);
   assert.equal(renovate.vulnerabilityAlerts?.prConcurrentLimit, undefined);
   assert.equal(renovate.vulnerabilityAlerts?.branchConcurrentLimit, undefined);
-  for (const manager of ["cargo", "npm", "github-actions", "rust-toolchain", "custom.regex"])
+  for (const manager of [
+    "cargo",
+    "npm",
+    "github-actions",
+    "rust-toolchain",
+    "custom.regex",
+    "dockerfile",
+  ])
     assert(renovate.enabledManagers.includes(manager));
   assert(renovate.packageRules.some((rule) => rule.pinDigests === true));
   const managedFiles = renovate.customManagers.flatMap((manager) => manager.managerFilePatterns);

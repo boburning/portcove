@@ -49,6 +49,28 @@ export async function probeVitePlusRules(engine, root, output) {
       selected.some((dep) => (dep.packageName ?? dep.depName) === name),
       `Missing extracted ${name}`,
     );
+  const { extractPackageFile: extractDockerfile } = await mod(
+    "modules/manager/dockerfile/extract.js",
+  );
+  const dockerfile = "tools/containers/browser/Dockerfile";
+  const docker = extractDockerfile(
+    readFileSync(path.join(root, dockerfile), "utf8"),
+    dockerfile,
+    resolved.config,
+  );
+  const base = docker?.deps.find((dep) => dep.depName === "ghcr.io/voidzero-dev/vite-plus");
+  assert(base && !base.skipReason, "Dockerfile extractor must discover the actual base pin");
+  assert.equal(
+    base.currentValue,
+    selected.find((dep) => dep.packageName === "vite-plus").currentValue,
+  );
+  assert.match(base.currentDigest, /^sha256:[a-f0-9]{64}$/u);
+  selected.push({
+    ...base,
+    packageName: base.packageName ?? base.depName,
+    manager: "dockerfile",
+    packageFile: dockerfile,
+  });
   const effective = [];
   for (const dep of selected) {
     const rule = await applyPackageRules({ ...resolved.config, ...dep }, "pre-lookup");
@@ -57,10 +79,12 @@ export async function probeVitePlusRules(engine, root, output) {
     assert.equal(rule.internalChecksFilter, "strict");
     assert.equal(rule.automerge, false);
     const name = dep.packageName ?? dep.depName;
-    if (name === "vite-plus") {
-      assert.equal(rule.enabled, true);
+    if (["vite-plus", "ghcr.io/voidzero-dev/vite-plus"].includes(name)) {
+      if (name === "vite-plus") assert.equal(rule.enabled, true);
+      else assert.notEqual(rule.enabled, false);
       assert.equal(rule.groupName, "vite-plus");
       assert.deepEqual(rule.schedule, ["at any time"]);
+      if (dep.manager === "dockerfile") assert.equal(rule.pinDigests, true);
     } else if (
       ["@voidzero-dev/vite-plus-core", "vitest", "@vitest/browser-playwright"].includes(name)
     )
@@ -98,6 +122,8 @@ export async function probeVitePlusRules(engine, root, output) {
       depType: dep.depType,
       currentValue: dep.currentValue,
       lockedVersion: dep.lockedVersion,
+      currentDigest: dep.currentDigest,
+      manager: dep.manager,
       enabled: rule.enabled ?? true,
       groupName: rule.groupName,
       minimumReleaseAge: rule.minimumReleaseAge,
@@ -112,6 +138,7 @@ export async function probeVitePlusRules(engine, root, output) {
   }
   const files = [
     "modules/manager/npm/extract/index.js",
+    "modules/manager/dockerfile/extract.js",
     "util/package-rules/index.js",
     "workers/repository/init/vulnerability.js",
     "config/utils.js",
@@ -122,6 +149,16 @@ export async function probeVitePlusRules(engine, root, output) {
     configSha256: createHash("sha256")
       .update(readFileSync(path.join(root, "renovate.json")))
       .digest("hex"),
+    declarationSha256: Object.fromEntries(
+      ["package.json", "apps/desktop/package.json", "pnpm-workspace.yaml", dockerfile].map(
+        (file) => [
+          file,
+          createHash("sha256")
+            .update(readFileSync(path.join(root, file)))
+            .digest("hex"),
+        ],
+      ),
+    ),
     engineSources: Object.fromEntries(
       files.map((file) => [
         file,

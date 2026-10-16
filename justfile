@@ -71,6 +71,19 @@ playnite-contract-check *args:
 handoff-check *args:
     node scripts/handoff-evidence.mjs check {{args}}
 
+# Optional Windows Docker Desktop / WSL 2 browser tooling (#2006).
+container-doctor:
+    node scripts/container-browser.mjs doctor
+
+container-browser *args:
+    node scripts/container-browser.mjs run {{args}}
+
+container-export *args:
+    node scripts/container-browser.mjs export {{args}}
+
+container-clean *args:
+    node scripts/container-browser.mjs clean {{args}}
+
 clean-build:
     node scripts/dev-storage.mjs clean
 
