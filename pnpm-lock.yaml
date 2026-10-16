@@ -265,8 +265,8 @@ importers:
         specifier: 1.64.1
         version: 1.64.1
       selenium-webdriver:
-        specifier: 4.49.0
-        version: 4.49.0
+        specifier: 4.51.0
+        version: 4.51.0
       semver:
         specifier: 7.8.5
         version: 7.8.5
@@ -2051,8 +2051,8 @@ packages:
   jsonc-parser@3.3.1:
     resolution: {integrity: sha512-HUgH65KyejrUFPvHFPbqOY0rsFip3Bo5wb4ngvdi1EpCYWUQDC5V+Y7mZws+DLkr4M//zQJoanu1SP+87Dv1oQ==}
 
-  jszip@3.10.1:
-    resolution: {integrity: sha512-xXDvecyTpGLrqFrvkrUSoxxfJI5AH7U8zxxtVclpsUtMCq4JQ290LY8AW5c7Ggnr/Y/oK+bQMbqK2qmtk3pN4g==}
+  jszip@3.10.2:
+    resolution: {integrity: sha512-3l+rb15IOWtUhU0H5MFqES/T6Kh7abYwjosBey/vD6hDt8zoEffkSC5Ws5SGtgVw3gBx2NEbhTeSW1+kWkpyTQ==}
 
   keyv@5.6.0:
     resolution: {integrity: sha512-CYDD3SOtsHtyXeEORYRx2qBtpDJFjRTGXUtmNEMGyzYOKj1TE3tycdlho7kA1Ufx9OYWZzg52QFBGALTirzDSw==}
@@ -2511,8 +2511,8 @@ packages:
   scheduler@0.28.0:
     resolution: {integrity: sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw==}
 
-  selenium-webdriver@4.49.0:
-    resolution: {integrity: sha512-16XqeOEMj+4+p+pzLLyvNWmF5jCY05EKIl3e1anZBgv4+zq7PUTtiNjKtQhMpwosZ0wIMKDFAQ2xdyogOHD4DA==}
+  selenium-webdriver@4.51.0:
+    resolution: {integrity: sha512-2FY/x+THHk9uWj+WLBib0r+53D1G0pidox796H5AfbRHhJdPc7CVQPNJi31ip1Tb9duBYRw0zX0wJovnbwSDHg==}
     engines: {node: '>= 22.0.0'}
 
   semver@7.8.5:
@@ -4170,7 +4170,7 @@ snapshots:
 
   jsonc-parser@3.3.1: {}
 
-  jszip@3.10.1:
+  jszip@3.10.2:
     dependencies:
       lie: 3.3.0
       pako: 1.0.11
@@ -4559,10 +4559,10 @@ snapshots:
 
   scheduler@0.28.0: {}
 
-  selenium-webdriver@4.49.0:
+  selenium-webdriver@4.51.0:
     dependencies:
       '@bazel/runfiles': 6.5.0
-      jszip: 3.10.1
+      jszip: 3.10.2
       tmp: 0.2.7
       ws: 8.22.0
     transitivePeerDependencies:
