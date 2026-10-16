@@ -139,6 +139,10 @@ jobs:
     needs: classify
     if: needs.classify.outputs.mode == 'prose'
     runs-on: ubuntu-latest
+    env:
+      PORTCOVE_PROSE_FILES: ${{ needs.classify.outputs.files_json }}
+      PORTCOVE_MERGE_BASE: ${{ needs.classify.outputs.merge_base }}
+      PORTCOVE_HEAD_SHA: ${{ needs.classify.outputs.head }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -146,11 +150,18 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
+      - name: Inspect validated prose prerequisites
+        id: prose-prerequisites
+        run: node scripts/check-ci-prose.mjs --prerequisites >> "$GITHUB_OUTPUT"
+      - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+        if: steps.prose-prerequisites.outputs.frontend_dependencies == 'true'
+        with:
+          version-file: pnpm-workspace.yaml
+          node-version-file: .node-version
+          cache: true
+          run-install: |
+            args: [--filter, portcove-repository, --frozen-lockfile, --ignore-scripts]
       - name: Check allowlisted prose and repository documentation contracts
-        env:
-          PORTCOVE_PROSE_FILES: ${{ needs.classify.outputs.files_json }}
-          PORTCOVE_MERGE_BASE: ${{ needs.classify.outputs.merge_base }}
-          PORTCOVE_HEAD_SHA: ${{ needs.classify.outputs.head }}
         run: |
           node --test --test-timeout=30000 scripts/repository-settings.test.mjs scripts/repository-skills.test.mjs
           node scripts/check-ci-prose.mjs
@@ -385,6 +396,17 @@ jobs:
         env:
           PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
         run: node scripts/ci-baseline.mjs contracts
+      - name: Exercise clean prose setup and execution
+        if: contains(needs.classify.outputs.files_json, 'scripts/check-ci-prose') || contains(needs.classify.outputs.files_json, 'scripts/viteplus-cli.mjs') || contains(needs.classify.outputs.files_json, '.github/workflows/ci.yml')
+        run: node scripts/check-ci-prose.integration.mjs
+      - name: Retain failed clean prose diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: prose-execution-${{ github.job }}-${{ github.run_attempt }}
+          path: work/prose-ci-integration/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Record dependency cache observation
         if: always()
         continue-on-error: true
@@ -959,6 +981,16 @@ jobs:
           package_json_file: package.json
       - run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
       - uses: ./.github/actions/setup-rust
+      - name: Exercise clean prose setup and execution
+        run: node scripts/check-ci-prose.integration.mjs
+      - name: Retain failed clean prose diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: prose-execution-${{ github.job }}-${{ github.run_attempt }}
+          path: work/prose-ci-integration/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Verify repository and release contracts
         run: |
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs

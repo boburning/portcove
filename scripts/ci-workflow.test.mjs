@@ -461,7 +461,24 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(rustQualityGate, /PORTCOVE_ALWAYS_RESULTS: '\{"provenance"/);
   assert.match(proseChecks, /^ {4}if: needs\.classify\.outputs\.mode == 'prose'$/m);
   assert.match(proseChecks, /actions\/setup-node@/);
-  assert.doesNotMatch(proseChecks, /setup-vp@|pnpm|frozen-lockfile/);
+  const prerequisites = proseChecks.indexOf("node scripts/check-ci-prose.mjs --prerequisites");
+  const install = proseChecks.indexOf("uses: voidzero-dev/setup-vp@");
+  const checks = proseChecks.indexOf("node --test --test-timeout=30000");
+  assert.ok(prerequisites >= 0 && install > prerequisites && checks > install);
+  assert.match(
+    proseChecks,
+    /if: steps\.prose-prerequisites\.outputs\.frontend_dependencies == 'true'/u,
+  );
+  assert.match(
+    proseChecks,
+    /args: \[--filter, portcove-repository, --frozen-lockfile, --ignore-scripts\]/u,
+  );
+  assert.doesNotMatch(
+    proseChecks,
+    /browser:bootstrap|setup-rust|playwright install|continue-on-error/u,
+  );
+  assert.match(fastCatalog, /run: node scripts\/check-ci-prose\.integration\.mjs/u);
+  assert.match(fastCatalog, /path: work\/prose-ci-integration\//u);
   assert.match(proseChecks, /scripts\/repository-settings\.test\.mjs/);
   assert.match(proseChecks, /scripts\/repository-skills\.test\.mjs/);
   assert.match(proseChecks, /node scripts\/check-ci-prose\.mjs/);
