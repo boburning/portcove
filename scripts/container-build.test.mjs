@@ -157,17 +157,38 @@ test("package identities reject another version or architecture", () => {
     /identity/u,
   );
   assert.equal(
-    validatePackageMetadata("rpm", "Portcove\n0.1.0\n0.alpha.2\nx86_64", "0.1.0-alpha.2")
+    validatePackageMetadata("rpm", "portcove\n0.1.0-alpha.2\n1\nx86_64", "0.1.0-alpha.2")
       .architecture,
     "x86_64",
   );
-  assert.throws(
-    () => validatePackageMetadata("rpm", "Portcove\n0.1.0\n1\nx86_64", "0.1.0-alpha.2"),
-    /identity/u,
+  assert.equal(
+    validatePackageMetadata("rpm", "portcove\n0.1.0\n1\nx86_64", "0.1.0").version,
+    "0.1.0",
   );
-  for (const release of ["0.alpha.20", "0.not-alpha.2-unrelated", "0.alpha.2.extra"])
+  for (const metadata of [
+    "portcove\n0.1.0\n0.alpha.2\nx86_64",
+    "portcove\n0.1.0\n1\nx86_64",
+    "portcove\n0.1.0-alpha.20\n1\nx86_64",
+    "portcove\n0.1.0-alpha.2.extra\n1\nx86_64",
+    "Portcove\n0.1.0-alpha.2\n1\nx86_64",
+    "portcove-desktop\n0.1.0-alpha.2\n1\nx86_64",
+    "portcove\n0.1.0-alpha.2\n1\naarch64",
+  ])
+    assert.throws(() => validatePackageMetadata("rpm", metadata, "0.1.0-alpha.2"), /identity/u);
+  for (const release of [
+    "0.alpha.2",
+    "0.alpha.20",
+    "0.not-alpha.2-unrelated",
+    "0.alpha.2.extra",
+    "2",
+  ])
     assert.throws(
-      () => validatePackageMetadata("rpm", `Portcove\n0.1.0\n${release}\nx86_64`, "0.1.0-alpha.2"),
+      () =>
+        validatePackageMetadata(
+          "rpm",
+          `portcove\n0.1.0-alpha.2\n${release}\nx86_64`,
+          "0.1.0-alpha.2",
+        ),
       /identity/u,
     );
 });

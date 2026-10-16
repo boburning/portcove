@@ -78,14 +78,13 @@ export function validatePackageMetadata(format, metadata, version) {
     )
       throw new Error("deb package identity differs from selected source");
   } else if (format === "rpm") {
-    // RPM stores the prerelease in Release, independently of its numeric Version.
-    const [numeric, prerelease] = version.split("-");
+    // Pinned Tauri 2.12.2 preserves the complete version; this source uses default Release 1.
     if (
       values.length !== 4 ||
-      values[0].toLowerCase() !== "portcove" ||
-      values[1] !== numeric ||
-      values[3] !== "x86_64" ||
-      values[2] !== (prerelease ? `0.${prerelease.replaceAll("-", "_")}` : "1")
+      values[0] !== "portcove" ||
+      values[1] !== version ||
+      values[2] !== "1" ||
+      values[3] !== "x86_64"
     )
       throw new Error("rpm package identity differs from selected source");
   } else throw new Error("Metadata inspection requires deb or rpm");
