@@ -10,6 +10,7 @@
     "dockerfile"
   ],
   "labels": ["dependencies"],
+  "prBodyColumns": ["Package", "Type", "Update", "Change", "Pending", "Age", "Confidence"],
   "automerge": false,
   "minimumReleaseAge": "1 day",
   "minimumReleaseAgeBehaviour": "timestamp-required",

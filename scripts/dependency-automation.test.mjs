@@ -110,6 +110,8 @@ test("Renovate is the sole conservative routine update authority", async () => {
   assert.equal(renovate.prHourlyLimit, 0);
   assert.equal(renovate.commitHourlyLimit, 0);
   assert.equal(renovate.rebaseWhen, "conflicted");
+  for (const column of ["Package", "Type", "Update", "Change"])
+    assert(renovate.prBodyColumns.includes(column), `Required classifier column: ${column}`);
   assert.equal(renovate.prCreation, "immediate");
   assert.equal(renovate.updateNotScheduled, true);
   assert.equal(renovate.timezone, "America/New_York");
