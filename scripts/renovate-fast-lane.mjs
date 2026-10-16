@@ -361,9 +361,8 @@ export function metadataPlan(manager) {
     return [
       {
         id: "pnpm-lockfile",
-        executable: "corepack",
+        executable: "pnpm",
         args: [
-          "pnpm",
           "--dir",
           "apps/desktop",
           "install",

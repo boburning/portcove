@@ -1,10 +1,108 @@
 # Vite+ modernization: decisions and evidence
 
-Owner: [#2001](https://github.com/boburning/portcove/issues/2001). Candidate baseline:
+Initial migration: [#2001](https://github.com/boburning/portcove/issues/2001). Candidate baseline:
 `7c45fcf11597967ed657a1ede8ea524d64502e2a`, inspected October 15, 2026.
 This is an implementation record, not a second planning authority.
 
-## Selected release and source review
+Further consolidation is owned by [#2004](https://github.com/boburning/portcove/issues/2004),
+starting at `34e433feaf5e5db4817cdc692c13dac1b715d5d4`. Earlier measurements below
+retain their original source and conditions.
+
+| Responsibility                 | Current owner and change                                                                                                                            | Validation and final disposition                                                                                                                                                                                                                                                                                               |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Maintained TOML                | Bundled Oxfmt; removed Taplo, its configuration/launcher and separate command chains                                                                | Eleven pre-removal files preserve parsed meaning and idempotence; malformed input rejects. Ten maintained TOMLs remain. Native formatter configuration owns exclusions.                                                                                                                                                        |
+| Installed operations           | Package-declared local `vp` executable, launched with its declared interpreter or native executable                                                 | Real ordinary/cache builds run with only Node on PATH, without Corepack/global vp/pnpm, and exclude signing sentinels from emitted files/maps. Pinned pnpm remains a provisioning prerequisite; Corepack is an optional provider.                                                                                              |
+| Static copy and utility policy | Bundled Oxlint plugin and RuleTester replace the custom parser, traversal, discovery and CLI diagnostics                                            | Accessible attributes, cooked templates, entities, code exclusions and named technical disclosures retain positive/negative controls. Direct `oxc-parser` and its update rule are removed.                                                                                                                                     |
+| Theme policy                   | Oxlint source patterns, Stylelint CSS rules, deterministic token/reference/contrast tests, actual browser outcomes, current emitted-CSS build guard | Missing aliases, cycles, weak contrast, raw colors and gradients reject. Browser controls cover semantic focus, applied contrast, no-blur scrims, forced colors, disabled/pending behavior and bounded RTL dialogs. No arbitrary stale dist file can stand in for current-build CSS.                                           |
+| DOM and pure tests             | Node owns pure/SSR cases; Browser Mode owns DOM; native harnesses retain OS/IPC acceptance                                                          | All 69 prior jsdom suites and the direct JSDOM completion-focus fixture are reconciled. Standard React renderer/cleanup and renderHook replace ordinary root fixtures; explicit roots remain for controlled lifetimes, remounts and same-turn races. No jsdom packages remain in the clean dependency graph.                   |
+| Production/test configuration  | App production config; root test projects in `scripts/frontend-tests.ts`                                                                            | Fresh-process production metadata does not initialize providers, traces or browser environment. Native tsconfig paths replace the alias. Default reporters are extended. Failed traces and screenshots retain unique owned namespaces under `work/bt`.                                                                         |
+| Frontend orchestration         | One Vite Task graph: static, content/schema, Node, browser and build; full verification composes static/runtime groups                              | Package, just, local and CI consumers delegate. Audit executes the static/runtime nodes once each. Source policy runs before expensive feedback; unsupported partial exact-file matches fail.                                                                                                                                  |
+| Execute/restore caching        | Vite Task owns the production bundle; specialized native/output code observes provenance only                                                       | Actual source/lock/environment/add/delete probes execute; reporter-only edits replay. Tampered/missing output restores correct bytes; failed source never becomes a success hit. Local/audit UI receipts cannot skip frontend execution. Native SDK completeness remains unknown, so Cargo/native acceptance still executes.   |
+| Dependencies and maintenance   | One pinned coordinated Vite+ catalog; native pnpm lock generation and real Fallow consumers                                                         | Taplo, oxc-parser, jsdom, its types and esbuild are absent; direct TypeScript is removed. Required transitive TypeScript 7.0.2 remains through the existing graph, including Fallow's optional semantic sidecar. SWC remains for i18next tooling. No new processing engines or homemade lock/YAML/semver parser is introduced. |
+| Specialized/inapplicable tools | Rust/native, CSS, localization and schema tools keep their distinct jobs                                                                            | No JavaScript library artifact calls for tsdown/pack, no new app calls for create/scaffolding, and no deployment calls for Docker. No remote task-result service or personal shell/runtime migration is required.                                                                                                              |
+
+Oxfmt package-manifest sorting is enabled. Import-declaration sorting remains disabled:
+the pinned formatter's `sortSideEffects: false` preserves bare imports' positions but
+can move value imports across them, changing evaluation order. Tailwind sorting
+also remains disabled after testing actual `cn` and `cva` composition: sorting
+`cn("p-4 p-2")` to `cn("p-2 p-4")` changes the winning padding, and
+`cn("px-4 p-2")` gains a different horizontal result after sorting. The same
+merge occurs for classes returned by variants or passed through component
+`className`. These are measured semantic exceptions, not an unimplemented sorter.
+
+Normal checks preserve strict/exact-optional/indexed-access typing for production,
+tests and configuration. Pnpm's non-strict 1440-minute policy and Renovate's strict
+one-day/timestamp-required policy remain distinct; security retains its null-age
+override. Vite+, the core alias, Vitest and browser provider upgrade together.
+
+The browser migration exposed real focus behavior: a controlled select's internal
+collection fallback could issue an unintended second preference write; it now
+requires an actual interaction while preserving closed-trigger typeahead. Shared
+return-focus ownership respects moved focus, pending state, close completion and
+unmount. The explicit solid forced-colors dialog outline survives `cn` merging.
+
+Final source review, hosted exact-head results, clean-install acceptance and native
+refresh receipts are recorded on #2004 and its delivery PR. Earlier #2001/#2002
+observations below remain historical and cannot approve this candidate.
+
+The React renderer owns render/rerender/unmount act scopes. Deliberate external
+promise, event and timer batches use a small test-only adapter around public
+`React.act`, scoped to React's documented act-environment flag and restored in
+`finally`. The renderer's public package exports no standalone act function.
+Renderer operations stay outside this adapter; no global act-mode override,
+private package import or console suppression is used.
+
+Historical always-capture PNG calls had no pixel comparison or behavioral
+assertion. Supported failure screenshots and retained traces now own browser
+diagnostics; theme, focus, bounds, overflow and accessibility assertions remain.
+Original failed captures and native visual evidence remain preserved.
+
+## Consolidation measurements
+
+Source-bound Windows observations compare the prior migration's equivalent
+frontend inputs with the consolidation. They are individual observations, not
+a general speed claim. Warm two-entry development startup was roughly one second;
+192 identical pure cases took 3.81/3.66 seconds. Equivalent 121 DOM cases took
+7.70 seconds in jsdom with two workers and 10.03 seconds in real Chromium with
+four workers. The latter performs different work. Integrated checking took
+5.47/6.48 seconds while its formatter/type scope expanded. Uncached builds and
+cold setup had unequal cache histories and substantial variance.
+
+Worker/pool/parallelism trials and upstream test doctor did not justify changing
+the bounded two Node/four browser workers, default forks or isolation. Global
+isolation removal remains rejected. Eager application imports showed no measured
+loading bottleneck warranting new chunks or lazy boundaries. Production JavaScript
+grew 0.69 kB (0.25 kB gzip); CSS fell 1.20 kB (0.10 kB gzip). The chunk warning
+remains visible. Native first paint was not measured.
+
+Actual ordinary cache entrypoints observed baseline/candidate replay at
+0.251/0.257 seconds. Candidate explicitly fresh and subsequent miss observations
+were 82.07/6.49 seconds with different cache histories; replayed build output is
+not fresh execution. A sibling worktree's output digest remained unchanged.
+Incomplete probes, failed runs and outliers remain retained on the owning lane.
+
+The frozen registry graph fell from 581 to 493 distinct name/version records:
+89 removals and one focused React integration addition. Windows physically
+present reachable packages fell from 385 to 340: 46 removals and one addition.
+Optional platform records and physical packages are separate inventories.
+Required transitive TypeScript remains. Complete reports and delivery evidence
+belong to #2004 and PR #2005.
+
+## Repository rollback
+
+Revert the consolidation's delivered commit(s) in a new owned branch based on
+current main, review the resulting PR, install its restored frozen lock, and run
+the canonical frontend graph plus affected native/hosted qualification. Use the
+repository's guarded delivery route; a merge commit needs its correct mainline
+parent, while a squash commit is an ordinary revert. Preserve later unrelated
+commits and resolve conflicts explicitly. Do not reset main, force-push, delete
+worktrees or rewrite history. Git reverses source, manifests and lock together;
+normal pinned installation and Vite Task input tracking then select the matching
+tools/outputs. Retain failure traces, qualification artifacts, caches and recovery
+material. This is a source/tooling rollback and grants no authority to alter game
+libraries, saves, preferences, credentials, signing material or installed updates.
+
+## Historical initial migration: selected release and source review
 
 [Vite+ 1.2.0](https://github.com/voidzero-dev/vite-plus/releases/tag/v1.2.0)
 coordinates Vite 8.3.4, Rolldown 1.2.13, Vitest 5.0.4, Oxlint 1.88.0,
@@ -33,7 +131,7 @@ those primary sources. Integration decisions also consulted current official
 [pnpm workspaces](https://pnpm.io/workspaces) and
 [Tauri's Vite integration](https://v2.tauri.app/start/frontend/vite/).
 
-## Recommendation, applicability, change and validation
+## Historical initial migration: applicability and validation
 
 | Recommendation / capability                                                    | Portcove decision                                                                                                                                                | Evidence or exception                                                                                                                                                                                                                                                                                                                                         |
 | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -65,7 +163,7 @@ those primary sources. Integration decisions also consulted current official
 | tsdown / `vp pack`                                                             | Inapplicable                                                                                                                                                     | Portcove ships Rust/Tauri and C# outputs, with no distributable JS library/CLI or SDK to package                                                                                                                                                                                                                                                              |
 | Generators / scaffolding                                                       | No additional local generator is applicable                                                                                                                      | Repeated UI primitives already use the configured shadcn Base UI/TSX system (apps/desktop/components.json). Feature hooks, boundary modules, pure tests, jsdom tests and browser fixtures have materially different owners/lifecycles; no stable repeated whole-feature/test skeleton warrants another generator. Retain the schema-owned transport generator |
 
-## Measurements and limits
+## Historical initial migration: measurements and limits
 
 All local measurements use the same Windows host and Node 24.21.0. Initial
 baseline installation into the isolated checkout took 37.5 seconds. The migration
@@ -111,7 +209,7 @@ official Renovate 44.156.3 strict validator accepts the updated configuration.
 A prefetched Windows frozen offline install succeeds; this does not promise
 installation on an unprepared offline machine.
 
-## Expanded owner scope, October 15
+## Historical expanded scope for #2001, October 15
 
 The owner superseded the earlier publication-age hold and narrow strictness
 exception. Historical age failures and earlier review remain historical; they
@@ -145,6 +243,7 @@ scaffolding's actual component/test/feature patterns were reassessed above. Thes
 are final dispositions, not deferred migration work.
 
 Expanded Windows integrated typing and 1,567 unit tests passed during development.
-Whole-candidate review, negative controls, platform/native refresh and exact-head
-CI/delivery evidence belong on #2001/#2002 when executed; earlier measurements
-above remain observations of their recorded source, not new expanded benchmarks.
+The initial migration was delivered through #2002 and completed #2001. Its review,
+native and exact-head CI receipts remain bound to that delivered source. Current
+consolidation evidence belongs to #2004; these historical measurements are not
+new consolidation benchmarks.

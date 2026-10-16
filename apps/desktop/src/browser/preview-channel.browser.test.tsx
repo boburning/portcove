@@ -84,7 +84,6 @@ it.each(["light", "dark"])(
     const selector = page.getByRole("combobox");
     await userEvent.click(selector);
     await expect.element(page.getByRole("option", { name: "Preview", exact: true })).toBeVisible();
-    await page.screenshot({ path: `../../../../work/preview1726/${theme}.png` });
     await userEvent.keyboard("{Escape}");
     await expect.element(selector).toHaveFocus();
     await userEvent.click(selector);

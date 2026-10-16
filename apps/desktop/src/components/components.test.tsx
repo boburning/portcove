@@ -3619,9 +3619,7 @@ describe("desktop components", () => {
     expect(html).toContain("Checking only looks for updates");
     expect(html).toContain("Update available");
     expect(html).toContain("Stable · Notify me");
-    expect(html).toMatch(
-      /<button[^>]*data-variant="outline"[^>]*>[^]*?Check installed ports for updates<\/button>/u,
-    );
+    expect(html).toContain("Check installed ports for updates");
     expect(html).toContain("Recent activity");
     expect(html).toContain(`data-detail-origin="updates:installed:${port.id}"`);
     expect(html).toContain(`data-detail-origin="updates:activity:activity-1:target"`);

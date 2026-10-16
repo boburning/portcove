@@ -16,13 +16,13 @@ sides and file modes. A missing historical/first-push base uses the entire basel
 unavailable, unsafe or incomplete discovery blocks. Safe unknown paths select
 the entire Windows baseline, never an empty package selection or an automatic audit.
 
-| Context           | Ordinary required coverage                                                                                                    |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| rust              | Windows workspace test-target compilation (`--locked --workspace --all-targets`), then affected maintained test families      |
-| frontend          | Build/typecheck and import-related unit tests; full unit fallback for shared/configuration/uncertain or empty graph selection |
-| rust-quality      | Repository/TOML formatting, Rust formatting for Rust inputs, and full frontend/tooling lint for affected inputs               |
-| catalog           | Relevant cheap schema, repository and tooling contract tests                                                                  |
-| dependency-review | Relevant dependency diff, with the existing high-severity rejection policy                                                    |
+| Context           | Ordinary required coverage                                                                                                               |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| rust              | Windows workspace test-target compilation (`--locked --workspace --all-targets`), then affected maintained test families                 |
+| frontend          | Content/schema, build and import-related Node/browser tests; full project fallback for shared/configuration/uncertain or empty selection |
+| rust-quality      | Repository/TOML formatting, Rust formatting for Rust inputs, and full frontend/tooling lint for affected inputs                          |
+| catalog           | Relevant cheap schema, repository and tooling contract tests                                                                             |
+| dependency-review | Relevant dependency diff, with the existing high-severity rejection policy                                                               |
 
 Affected native helper, frontend prerequisite, dependency receipt, PowerShell and
 CI routing changes also require `windows-helper-contracts` under the existing
@@ -34,11 +34,13 @@ unknown-path broad fallback includes it. A failed or missing selected producer
 fails `catalog`. Exhaustive qualification retains its Windows coverage.
 
 Linted JavaScript/TypeScript/CSS inputs, their lint configuration and dependency
-or toolchain inputs select one full `corepack pnpm lint` stage. Both rename sides
+or toolchain inputs select one full `frontend:static` task (bundle compatibility,
+formatting, lint/type checking and Stylelint). Both rename sides
 and deletions count; safe unknown-impact fallback also selects it. The existing
 quality producer owns hosted execution, including tooling-only changes, while
 the optional local baseline runs the same obligation. Prose-only, Rust-only and
-unrelated assets do not select lint. Pre-commit remains formatting/syntax/copy
+unrelated assets do not install frontend dependencies. Maintained TOML and normative
+documentation changes retain formatter coverage. Pre-commit remains formatting/syntax/source-policy
 feedback. Exhaustive qualification retains full lint independently.
 
 Rust execution reuses `.config/rust-test-impact.json`. Every group is package
@@ -67,11 +69,16 @@ changes and root dependencies separately. Preserve nextest's two slots,
 heavyweight reservations, default 30-second test budgets and process/resource/storage guards.
 The historical [October 15 #706 timing calibration](https://github.com/boburning/portcove/issues/706#issuecomment-6190196270)
 and [exact cancellation-latch addendum](https://github.com/boburning/portcove/issues/706#issuecomment-6191752545)
-record three ten-second whole-install-to-copy latches on Intel macOS:
+originally record three ten-second whole-install-to-copy latches on Intel macOS:
 `curated_cache_retention_revocation_during_copy_refuses_publication`,
 `curated_cache_retention_withdrawal_during_copy_refuses_publication` and
 `curated_cache_retention_cancellation_preserves_partial_after_worker_exit`.
-That calibration also records a 45-second nextest budget on
+The [#2004 two-case continuation](https://github.com/boburning/portcove/issues/706#issuecomment-6205805576)
+adds only `curated_cache_policy_loss_during_copy_refuses_publication_and_preserves_bytes`
+and `curated_cache_restore_revocation_during_copy_preserves_cached_bytes` to that
+Intel macOS ten-second branch, preserving the whole-install timer origin and
+thirty-second overall budgets.
+The original calibration also records a 45-second nextest budget on
 `x86_64-apple-darwin` for
 `curated_rollback_withdrawal_permits_exact_retained_target`, alongside the existing
 exact managed-artifact lifecycle override. Every assertion, actual partial-copy
@@ -204,7 +211,7 @@ Explicit audits run named independent stages and retain conservative, integrity-
 
 ## Formatting contract
 
-Repository-pinned Oxfmt owns supported JS/TS/config/docs files; Cargo fmt owns Rust and Taplo owns TOML. Formatting stays in ordinary CI. Analyzer baselines and exhaustive scan details are conditional [format/analyzer operations](reference/quality-operations.md#formatting-contract). Fix causes; do not add suppressions to manufacture a pass.
+Repository-pinned Oxfmt owns supported JS/TS/config/docs and maintained TOML files; Cargo fmt owns Rust. The workspace formatter configuration owns exclusions for generated files and historical evidence. Formatting stays in ordinary CI. Analyzer baselines and exhaustive scan details are conditional [format/analyzer operations](reference/quality-operations.md#formatting-contract). Fix causes; do not add suppressions to manufacture a pass.
 
 ## Tool and Rust version authority
 
@@ -373,7 +380,7 @@ and rollback scope justify it.
 
 Validate configuration with the official pinned client used for the current
 resolved-rule receipt:
-`corepack pnpm --package=renovate@44.156.3 dlx --allow-build=re2 renovate-config-validator --strict renovate.json`.
+`pnpm --package=renovate@44.156.3 dlx --allow-build=re2 renovate-config-validator --strict renovate.json`.
 Schema validation supplements the repository's rule/extraction/classifier tests;
 it does not prove effective inherited grouping or hosted proposal uptake. Inspect
 resolved presets and rule precedence with the matching official engine, then read

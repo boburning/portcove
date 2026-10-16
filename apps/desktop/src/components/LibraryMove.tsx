@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { reloadWorkspace } from "../reload-workspace";
 import { join } from "@tauri-apps/api/path";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
@@ -36,7 +37,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
   const [transferAttempted, setTransferAttempted] = useState(false);
   const dismiss = () => {
     if (!busy) {
-      if (transferAttempted) window.location.reload();
+      if (transferAttempted) reloadWorkspace();
       else close();
     }
   };
@@ -139,7 +140,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
                   void run("Copying and verifying your library…", async () => {
                     setTransferAttempted(true);
                     await desktopApi.moveLibrary(plan.destination_root, plan.plan_sha256);
-                    window.location.reload();
+                    reloadWorkspace();
                   });
                 }}
               >
@@ -181,7 +182,7 @@ export function LibraryMoveRecovery({
     onBusyChange?.(true);
     try {
       await desktopApi.recoverLibraryMove(source, abort);
-      window.location.reload();
+      reloadWorkspace();
     } catch (value) {
       setError(errorText(value));
     } finally {

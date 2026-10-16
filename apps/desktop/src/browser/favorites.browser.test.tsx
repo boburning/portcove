@@ -136,7 +136,6 @@ it.each(["dark", "light"])(
         page.getByRole("button", { name: "Favorite Corrected independent name", exact: true }),
       )
       .toHaveAttribute("aria-pressed", "true");
-    await page.screenshot({ path: `../../../../work/favorites1552/${theme}.png` });
   },
 );
 

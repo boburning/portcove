@@ -6,7 +6,7 @@ import { resolvePhysicalPath } from "./dev-storage.mjs";
 
 /** One invocation owns one namespace; previous failures never share its names. */
 export function createBrowserTraceRun(root: string, requestedNamespace?: string) {
-  const traceRoot = path.resolve(root, "work/browser-traces");
+  const traceRoot = path.resolve(root, "work/bt");
   const physicalRoot = resolvePhysicalPath(root);
   const physicalTraceRoot = resolvePhysicalPath(traceRoot);
   const relative = path.relative(physicalRoot, physicalTraceRoot);

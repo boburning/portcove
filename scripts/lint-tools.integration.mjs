@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -114,6 +114,15 @@ async function oxlintFixture() {
       'import { expect, it, vi } from "vite-plus/test";\nvi.mock("./module", () => ({ named: 1 }));\nit("accepts contextual messages", () => {\n  expect(1, "fixture context").toBe(1);\n});\n',
     );
     expectSuccess("Oxlint Vitest policy", runOxlint(fixture));
+    for (const [source, diagnostic] of [
+      ['export const message = "Source profile";', /portcove\(player-copy\)/u],
+      ['export const view = <p aria-label="&#86;erified">file(s)</p>;', /portcove\(player-copy\)/u],
+      ['export const broken = <p title="broken', /Unterminated|Expected/iu],
+      ["let value; let value; export {value};", /already.*declared|redeclar/iu],
+    ]) {
+      await writeFile(fixture, source);
+      expectFailure("Oxlint copy/parser policy", runOxlint(fixture), diagnostic);
+    }
     for (const [rule, diagnostic, source] of [
       [
         "floating promises",
@@ -203,6 +212,40 @@ async function oxfmtFixture() {
   } finally {
     await rm(fixture, { force: true });
   }
+  for (const directory of ["", ".config", "apps/desktop", "crates/portcove-core"]) {
+    const toml = path.join(root, directory, `.format-oxfmt-${nonce}.toml`);
+    const args = [command[0], "fmt", "--check", toml];
+    try {
+      await writeFile(toml, '[probe]\nvalue = "owned"\n');
+      const valid = run(process.execPath, args);
+      await writeFile(toml, '[probe]\nvalue="owned"\n');
+      expectFixture("Oxfmt TOML formatting", valid, run(process.execPath, args));
+      await writeFile(toml, "[probe\nvalue = [");
+      expectFixture("Oxfmt TOML syntax", valid, run(process.execPath, args));
+    } finally {
+      await rm(toml, { force: true });
+    }
+  }
+  for (const relative of [
+    "scripts/.format-oxfmt.generated.json",
+    "docs/archive/.format-oxfmt.json",
+  ]) {
+    const ignored = path.join(root, relative.replace(".format-oxfmt", `.format-oxfmt-${nonce}`));
+    try {
+      await writeFile(ignored, "{ malformed generated or historical input");
+      const result = run(process.execPath, [
+        command[0],
+        "fmt",
+        "--check",
+        "--no-error-on-unmatched-pattern",
+        ignored,
+      ]);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(await readFile(ignored, "utf8"), "{ malformed generated or historical input");
+    } finally {
+      await rm(ignored, { force: true });
+    }
+  }
 }
 
 async function stylelintFixture() {
@@ -217,10 +260,21 @@ async function stylelintFixture() {
     fixture,
   ];
   try {
-    await writeFile(fixture, "a { color: #fff; }\n");
+    await writeFile(fixture, "a { color: var(--color-text); }\n");
     const valid = run(process.execPath, args);
     await writeFile(fixture, "a { not-a-property: red; }\n");
     expectFixture("Stylelint", valid, run(process.execPath, args));
+    for (const [label, source] of [
+      ["semantic component color", "a { color: #fff; }\n"],
+      ["raw primitive color", "a { color: var(--n64-red-500); }\n"],
+      [
+        "component gradient",
+        "a { background: linear-gradient(var(--color-bg),var(--color-bg-elevated)); }\n",
+      ],
+    ]) {
+      await writeFile(fixture, source);
+      expectFixture(label, valid, run(process.execPath, args));
+    }
   } finally {
     await rm(fixture, { force: true });
   }

@@ -223,6 +223,13 @@ afterEach(() => {
   localStorage.clear();
 });
 const button = (name: string) => page.getByRole("button", { name, exact: true });
+async function closeFilters() {
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: /^Filters \(\d+\)$/, exact: true }))
+    .toHaveFocus();
+}
 it.each(["dark", "light"])(
   "retains independent Library constraints, self-excluding counts and return context in %s",
   async (theme) => {
@@ -232,9 +239,9 @@ it.each(["dark", "light"])(
     await userEvent.click(button("Ready (2)"));
     await userEvent.click(button("Filters (0)"));
     await userEvent.click(button("Linux (1)"));
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
-    expect(document.activeElement?.textContent).toContain("Filters (1)");
+    await expect.element(button("Filters (1)")).toHaveFocus();
     await expect.element(button("Ready (1)")).toHaveAttribute("aria-pressed", "true");
     await expect.element(button("Needs attention (1)")).toHaveAttribute("aria-pressed", "false");
     await userEvent.click(button("Needs attention (1)"));
@@ -242,7 +249,7 @@ it.each(["dark", "light"])(
     await userEvent.click(button("Filters (1)"));
     await expect.element(button("Windows (1)")).toBeEnabled();
     await userEvent.click(button("Preview (1)"));
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     await userEvent.click(button("Ready (1)"));
     await expect.element(button("Remove Preview filter")).toBeInTheDocument();
     await userEvent.click(button("View details for Linux game"));
@@ -269,13 +276,14 @@ it.each(["dark", "light"])(
     await expect.element(button("Ready (0)")).toBeEnabled();
     await userEvent.click(button("Filters (2)"));
     await expect.element(button("Linux (0)")).toBeEnabled();
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     const chip = document.querySelector<HTMLButtonElement>(
       'button[aria-label="Remove Linux filter"]',
     )!;
     chip.focus();
+    await expect.element(button("Remove Linux filter")).toHaveFocus();
     await userEvent.keyboard("{Enter}");
-    expect(document.activeElement?.textContent).toContain("Filters (1)");
+    await expect.element(button("Filters (1)")).toHaveFocus();
     await userEvent.click(
       page
         .getByRole("group", { name: "Library filters", exact: true })
@@ -290,12 +298,12 @@ it("distinguishes missing snapshot and Favorites from known empty while preservi
   flushSync(() => root.render(<Fixture />));
   await userEvent.click(button("Filters (0)"));
   await userEvent.click(button("Linux (2)"));
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   await userEvent.click(button("Toggle snapshot"));
   await expect.element(button("Ready (unavailable)")).toBeEnabled();
   await userEvent.click(button("Filters (1)"));
   await expect.element(button("Linux (unavailable)")).toHaveAttribute("aria-pressed", "true");
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   await userEvent.click(button("Toggle snapshot"));
   await userEvent.click(button("Favorites (2)"));
   await userEvent.click(button("Toggle favorite facts"));
@@ -307,7 +315,7 @@ it("distinguishes missing snapshot and Favorites from known empty while preservi
   await userEvent.click(button("Filters (1)"));
   await expect.element(button("Linux (0)")).toHaveAttribute("aria-pressed", "true");
   await userEvent.click(button("Reset library filters"));
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   expect(invoke).not.toHaveBeenCalled();
 });
 it("holds unknown migrated readiness and query separately until correction", async () => {
@@ -334,7 +342,7 @@ it("holds unknown migrated readiness and query separately until correction", asy
   await expect.element(button("Linux (unavailable)")).toBeDisabled();
   await userEvent.click(button("Reset library filters"));
   await expect.element(button("Linux (2)")).toBeEnabled();
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   expect(invoke).not.toHaveBeenCalled();
 });
 
@@ -342,7 +350,7 @@ it("retains Library narrowing and readiness counts for membership without relaxi
   flushSync(() => root.render(<Fixture />));
   await userEvent.click(button("Filters (0)"));
   await userEvent.click(button("Not in my library (0)"));
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   await expect.element(button("Ready (0)")).toBeEnabled();
   await expect
     .element(
@@ -351,13 +359,13 @@ it("retains Library narrowing and readiness counts for membership without relaxi
     .toBeInTheDocument();
   await userEvent.click(button("Filters (1)"));
   await userEvent.click(button("In my library (3)"));
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   await expect.element(button("Ready (2)")).toBeEnabled();
   await userEvent.click(button("Ready (2)"));
   await userEvent.click(button("Filters (2)"));
   await expect.element(button("In my library (2)")).toBeEnabled();
   await userEvent.click(button("Not in my library (0)"));
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   await userEvent.click(button("Toggle snapshot"));
   await expect.element(button("Ready (unavailable)")).toBeEnabled();
   await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
@@ -373,7 +381,7 @@ it("retains specific attention with independent Library readiness, zero counts a
   await userEvent.click(button("Filters (0)"));
   await userEvent.click(button("Missing game files (1)"));
   await expect.element(button("Finish setup (0)")).toBeEnabled();
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   await expect.element(button("Ready (0)")).toBeEnabled();
   await expect.element(button("Needs attention (1)")).toBeEnabled();
   await userEvent.click(button("Ready (0)"));
@@ -384,7 +392,7 @@ it("retains specific attention with independent Library readiness, zero counts a
     .toBeInTheDocument();
   await userEvent.click(button("Filters (1)"));
   await expect.element(button("Missing game files (0)")).toHaveAttribute("aria-pressed", "true");
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   await userEvent.click(button("Needs attention (1)"));
   await userEvent.click(button("View details for Both game"));
   await userEvent.click(button("Back to library"));
@@ -394,8 +402,9 @@ it("retains specific attention with independent Library readiness, zero counts a
   document
     .querySelector<HTMLButtonElement>('button[aria-label="Remove Missing game files filter"]')!
     .focus();
+  await expect.element(button("Remove Missing game files filter")).toHaveFocus();
   await userEvent.keyboard("{Enter}");
-  expect(document.activeElement?.textContent).toContain("Filters (0)");
+  await expect.element(button("Filters (0)")).toHaveFocus();
   await userEvent.click(button("Toggle snapshot"));
   await expect.element(button("Needs attention (1)")).toHaveAttribute("aria-pressed", "true");
   expect(invoke).not.toHaveBeenCalled();
@@ -407,7 +416,7 @@ it("keeps playable plus matching staged updates independent from attention with 
   await userEvent.click(button("Filters (0)"));
   await userEvent.click(button("Matching update staged (1)"));
   await expect.element(button("Available at last check (1)")).toBeEnabled();
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   await expect.element(button("Ready (1)")).toHaveAttribute("aria-pressed", "true");
   await expect.element(button("Needs attention (0)")).toBeEnabled();
   await userEvent.click(button("View details for Windows game"));
@@ -415,7 +424,7 @@ it("keeps playable plus matching staged updates independent from attention with 
   await userEvent.click(button("Filters (1)"));
   await userEvent.click(button("Available at last check (1)"));
   await userEvent.click(button("Missing game files (0)"));
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   await expect.element(button("Ready (0)")).toHaveAttribute("aria-pressed", "true");
   await expect
     .element(

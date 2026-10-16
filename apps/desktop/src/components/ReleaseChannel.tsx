@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { PortStatus, ReleaseChannel } from "../types";
 import { errorText, releaseChannelPresentation } from "../view-model";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { useSelectReturnFocus } from "./use-select-return-focus";
 
 export function ReleaseChannelControl({
   channels,
@@ -19,8 +20,10 @@ export function ReleaseChannelControl({
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
   const [open, setOpen] = useState(false);
+  const [popupClosed, setPopupClosed] = useState(true);
   const labelId = useId();
-  const trigger = useRef<HTMLButtonElement>(null);
+  const triggerId = useId();
+  const requestReturnFocus = useSelectReturnFocus(triggerId, pending || busy, popupClosed);
   const request = useRef(0);
   const savedChannel = releaseChannelPresentation(selected);
   const offeredKnown =
@@ -36,6 +39,7 @@ export function ReleaseChannelControl({
     if (!recognized || !channels.includes(channel) || channel === selected || pending || busy)
       return;
     const current = ++request.current;
+    requestReturnFocus();
     setPending(true);
     setMessage(undefined);
     try {
@@ -62,9 +66,6 @@ export function ReleaseChannelControl({
     } finally {
       if (current === request.current) {
         setPending(false);
-        window.requestAnimationFrame(() => {
-          if (current === request.current) trigger.current?.focus();
-        });
       }
     }
   };
@@ -101,7 +102,9 @@ export function ReleaseChannelControl({
                 eventDetails.event.stopImmediatePropagation();
               }
               setOpen(nextOpen);
+              setPopupClosed(false);
             }}
+            onOpenChangeComplete={(nextOpen) => setPopupClosed(!nextOpen)}
             value={selected}
             disabled={busy || pending}
             onValueChange={(value) => {
@@ -109,7 +112,7 @@ export function ReleaseChannelControl({
             }}
           >
             <SelectTrigger
-              ref={trigger}
+              id={triggerId}
               data-focusable
               aria-labelledby={labelId}
               className="w-full"

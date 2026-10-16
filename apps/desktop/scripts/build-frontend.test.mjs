@@ -1,12 +1,85 @@
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
-import { URL } from "node:url";
+import { mkdtemp, writeFile, rm, mkdir, symlink } from "node:fs/promises";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { fileURLToPath, URL } from "node:url";
 import process from "node:process";
 import { runInNewContext } from "node:vm";
 import { build } from "vite";
 
-import { expect, it } from "vite-plus/test";
+import { expect, it, vi } from "vite-plus/test";
 import config from "../vite.config.ts";
 import { frontendEnvironment, buildFrontend } from "./build-frontend.mjs";
+import { vitePlusCommand } from "../../../scripts/viteplus-cli.mjs";
+
+async function installedCliFixture(directory) {
+  await writeFile(path.join(directory, "package.json"), '{"type":"module"}');
+  const installed = path.join(directory, "node_modules/vite-plus");
+  await mkdir(path.join(installed, "bin"), { recursive: true });
+  await writeFile(
+    path.join(installed, "package.json"),
+    JSON.stringify({
+      name: "vite-plus",
+      version: "1.2.0",
+      type: "module",
+      exports: { "./package.json": "./package.json" },
+      bin: { vp: "bin/vp" },
+    }),
+  );
+  await writeFile(path.join(installed, "bin/vp"), "#!/usr/bin/env node\nprocess.exit(0);\n");
+}
+
+it.each([false, true])(
+  "refuses an output link before invoking the child (dangling=%s)",
+  async (dangling) => {
+    const fixture = await mkdtemp(new URL("../../../work/frontend-link-", import.meta.url));
+    const outside = await mkdtemp(new URL("../../../work/frontend-outside-", import.meta.url));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await installedCliFixture(fixture);
+      await writeFile(path.join(outside, "keep.txt"), "outside data");
+      await symlink(
+        dangling ? path.join(outside, "missing") : outside,
+        path.join(fixture, "dist"),
+        process.platform === "win32" ? "junction" : "dir",
+      );
+      const run = vi.fn();
+      expect(buildFrontend(process.env, run, false, fixture)).toBe(1);
+      expect(run).not.toHaveBeenCalled();
+      expect(log).toHaveBeenCalledWith(expect.stringContaining("ordinary owned directory"));
+      expect(await readFile(path.join(outside, "keep.txt"), "utf8")).toBe("outside data");
+      expect(existsSync(path.join(outside, "missing"))).toBe(false);
+    } finally {
+      log.mockRestore();
+      await rm(fixture, { recursive: true, force: true });
+      await rm(outside, { recursive: true, force: true });
+    }
+  },
+);
+
+it("preserves a failing child's exit and newly emitted partial output", async () => {
+  const fixture = await mkdtemp(new URL("../../../work/frontend-failure-", import.meta.url));
+  try {
+    await installedCliFixture(fixture);
+    await mkdir(path.join(fixture, "dist"));
+    await writeFile(path.join(fixture, "dist/stale.txt"), "old output");
+    const status = buildFrontend(
+      process.env,
+      () => {
+        expect(existsSync(path.join(fixture, "dist"))).toBe(false);
+        mkdirSync(path.join(fixture, "dist"));
+        writeFileSync(path.join(fixture, "dist/partial.txt"), "failed build evidence");
+        return { status: 23 };
+      },
+      false,
+      fixture,
+    );
+    expect(status).toBe(23);
+    expect(await readFile(path.join(fixture, "dist/partial.txt"), "utf8")).toBe(
+      "failed build evidence",
+    );
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
 
 it("removes signing inputs before frontend children while preserving native inputs", () => {
   const environment = {
@@ -40,10 +113,11 @@ it("excludes signing sentinels from direct and whole-object frontend access and 
     process.env[names[2]] = "public-1279";
     await writeFile(
       entry,
-      "globalThis.probe = { direct: import.meta.env.TAURI_SIGNING_PRIVATE_KEY, password: import.meta.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD, all: import.meta.env };",
+      `import ${JSON.stringify(fileURLToPath(new URL("../src/styles.css", import.meta.url)))};\nglobalThis.probe = { direct: import.meta.env.TAURI_SIGNING_PRIVATE_KEY, password: import.meta.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD, all: import.meta.env };`,
     );
     const result = await build({
       ...config,
+      root: fileURLToPath(new URL("../", import.meta.url)),
       configFile: false,
       logLevel: "silent",
       build: {
@@ -73,13 +147,73 @@ it("excludes signing sentinels from direct and whole-object frontend access and 
     }
   }
 });
+
+it("rejects an emitted application build with no current CSS", async () => {
+  const fixture = await mkdtemp(new URL("../../../work/css-output-probe-", import.meta.url));
+  try {
+    const entry = path.join(fixture, "entry.js");
+    await writeFile(entry, "globalThis.cssOutputProbe = true;");
+    await expect(
+      build({
+        ...config,
+        root: fileURLToPath(new URL("../", import.meta.url)),
+        configFile: false,
+        logLevel: "silent",
+        build: {
+          ...config.build,
+          write: false,
+          lib: { entry, formats: ["iife"], name: "CssOutputProbe" },
+        },
+      }),
+    ).rejects.toThrow("production CSS output is empty");
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
+
+it("uses resolved public environment for the explicit compatibility fixture boundary", async () => {
+  const fixture = await mkdtemp(new URL("../../../work/design-env-probe-", import.meta.url));
+  const previous = process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE;
+  delete process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE;
+  try {
+    const entry = path.join(fixture, "entry.js");
+    await writeFile(
+      entry,
+      `import ${JSON.stringify(fileURLToPath(new URL("../src/styles.css", import.meta.url)))};\nimport ${JSON.stringify(fileURLToPath(new URL("../src/design-compatibility/design-compatibility.css", import.meta.url)))};\nglobalThis.designProbe = true;`,
+    );
+    const buildProbe = () =>
+      build({
+        ...config,
+        root: fileURLToPath(new URL("../", import.meta.url)),
+        envDir: fixture,
+        configFile: false,
+        logLevel: "silent",
+        build: {
+          ...config.build,
+          write: false,
+          lib: { entry, formats: ["iife"], name: "DesignProbe" },
+        },
+      });
+    await expect(buildProbe()).rejects.toThrow("Design compatibility fixture cannot ship");
+    await writeFile(
+      path.join(fixture, ".env.production"),
+      "VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE=1\n",
+    );
+    await expect(buildProbe()).resolves.toBeDefined();
+    expect(process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE).toBeUndefined();
+  } finally {
+    if (previous === undefined) delete process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE;
+    else process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE = previous;
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 
 it.each([false, true])(
-  "build entrypoints strip signing inputs before the toolchain (cached=%s)",
-  async (cached) => {
+  "build entrypoints strip signing inputs before the toolchain (fresh=%s)",
+  async (fresh) => {
     const nativeConfig = JSON.parse(
       await readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
     );
@@ -92,12 +226,15 @@ it.each([false, true])(
     );
     expect(rootPackage.scripts.build).toBe("node apps/desktop/scripts/build-frontend.mjs");
     expect(appPackage.scripts.build).toBe("node scripts/build-frontend.mjs");
-    expect(rootPackage.scripts["build:cached"]).toBe(`${rootPackage.scripts.build} --cached`);
-    expect(appPackage.scripts["build:cached"]).toBe(`${appPackage.scripts.build} --cached`);
+    expect(rootPackage.scripts["build:cached"]).toBeUndefined();
+    expect(appPackage.scripts["build:cached"]).toBeUndefined();
     const fixture = await mkdtemp(new URL("../../../work/frontend-child-", import.meta.url));
     const child = path.join(fixture, "observe.mjs");
     const marker = path.join(fixture, "observed.json");
     try {
+      await installedCliFixture(fixture);
+      await mkdir(path.join(fixture, "dist"));
+      await writeFile(path.join(fixture, "dist/stale.txt"), "stale generated output");
       await writeFile(
         child,
         `import {writeFileSync} from "node:fs";writeFileSync(${JSON.stringify(marker)},JSON.stringify({signing:process.env.TAURI_SIGNING_PRIVATE_KEY??null,native:process.env.TAURI_ENV_PLATFORM,args:process.argv.slice(2)}));`,
@@ -110,7 +247,9 @@ it.each([false, true])(
           TAURI_ENV_PLATFORM: "windows",
         },
         (command, args, options) => {
-          expect(command).toBe("corepack");
+          expect(command).toBe(process.execPath);
+          expect(options.cwd).toBe(fixture);
+          expect(existsSync(path.join(fixture, "dist"))).toBe(false);
           childResult = spawnSync(process.execPath, [child, ...args], {
             ...options,
             stdio: "pipe",
@@ -120,7 +259,8 @@ it.each([false, true])(
           });
           return childResult;
         },
-        cached,
+        fresh,
+        fixture,
       );
       const result = childResult;
       expect(status).toBe(0);
@@ -129,7 +269,12 @@ it.each([false, true])(
       expect(JSON.parse(await readFile(marker, "utf8"))).toEqual({
         signing: null,
         native: "windows",
-        args: ["pnpm", "exec", "vp", ...(cached ? ["run", "bundle:cached"] : ["build"])],
+        args: [
+          ...vitePlusCommand(fixture).args,
+          "run",
+          ...(fresh ? ["--no-cache"] : []),
+          "frontend:bundle",
+        ],
       });
     } finally {
       await rm(fixture, { recursive: true, force: true });

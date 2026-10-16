@@ -59,7 +59,7 @@ test("comparison retains command logs and separates JS/CSS bytes with unique fai
   const { parent, roots } = fixture();
   try {
     const runner = (command, args, { cwd }) => {
-      assert.equal(command, "corepack");
+      assert.equal(command, "pnpm");
       if (args.includes("build")) {
         const dir = path.join(cwd, "apps/desktop/dist/assets");
         mkdirSync(dir, { recursive: true });

@@ -40,7 +40,7 @@ it("registers scenario exclusion on production builds", async () => {
   const plugins = (await Promise.all(config.plugins)).flat(Infinity);
   const plugin = plugins.find((candidate) => candidate.name === "exclude-development-scenarios");
   expect(plugin.apply).toBe("build");
-  expect(typeof plugin.generateBundle).toBe("function");
+  expect(plugin.generateBundle).toMatchObject({ order: "post", handler: expect.any(Function) });
 });
 
 it("keeps Tailwind Preflight out of ordinary legacy screens", async () => {

@@ -544,6 +544,8 @@ test("pnpm uses the configured store instead of the workspace YAML default", (t)
 
 test("direct just recipes initialize a fresh checkout and preserve storage overrides", (t) => {
   const root = workspace(t);
+  for (const name of ["run-viteplus.mjs", "viteplus-cli.mjs"])
+    copyFileSync(new URL(`./${name}`, import.meta.url), path.join(root, "scripts", name));
   copyFileSync(new URL("../justfile", import.meta.url), path.join(root, "justfile"));
   mkdirSync(path.join(root, "apps/desktop"), { recursive: true });
   writeFileSync(
@@ -565,6 +567,22 @@ test("direct just recipes initialize a fresh checkout and preserve storage overr
   writeFileSync(
     path.join(root, "probe.mjs"),
     "import fs from 'node:fs'; import os from 'node:os'; if (!fs.existsSync(os.tmpdir())) process.exit(3); fs.writeFileSync('result.json', JSON.stringify({temp: os.tmpdir(), store: process.env.pnpm_config_store_dir}));",
+  );
+  const installed = path.join(root, "node_modules/vite-plus");
+  mkdirSync(path.join(installed, "bin"), { recursive: true });
+  writeFileSync(
+    path.join(installed, "package.json"),
+    JSON.stringify({
+      name: "vite-plus",
+      version: "1.2.0",
+      type: "module",
+      exports: { "./package.json": "./package.json" },
+      bin: { vp: "bin/vp" },
+    }),
+  );
+  writeFileSync(
+    path.join(installed, "bin/vp"),
+    '#!/usr/bin/env node\nimport assert from "node:assert/strict"; assert.deepEqual(process.argv.slice(2),["run","frontend:build"]); await import("../../../probe.mjs");\n',
   );
   const result = spawnCommand("just", ["ui-build"], {
     cwd: root,
@@ -805,7 +823,7 @@ test(
       `
 $ErrorActionPreference = "Stop"
 $previousTemp = $env:TEMP
-function corepack { $global:LASTEXITCODE = 0 }
+function pnpm { if ($args[0] -eq '--version') { '12.11.2' }; $global:LASTEXITCODE = 0 }
 function just {
     if ($env:TEMP -ne (Join-Path $PSScriptRoot "scratch")) { throw "Wrong temporary path" }
     if ($env:pnpm_config_store_dir -ne (Join-Path $PSScriptRoot "store")) { throw "Wrong pnpm store" }

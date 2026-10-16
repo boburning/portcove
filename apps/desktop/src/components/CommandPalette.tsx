@@ -57,6 +57,7 @@ function OpenCommandPalette({
         palette.current &&
         (!(focused instanceof HTMLElement) ||
           !palette.current.contains(focused) ||
+          focused === palette.current ||
           (focused instanceof HTMLButtonElement && focused.disabled))
       )
         searchInput.current?.focus();
@@ -81,6 +82,10 @@ function OpenCommandPalette({
     >
       <DialogContent
         ref={palette}
+        onFocus={(event) => {
+          // Base UI moves focus to the popup when its focused option vanishes.
+          if (event.target === event.currentTarget) searchInput.current?.focus();
+        }}
         initialFocus={searchInput}
         showCloseButton={false}
         className="command-palette top-[12vh] w-[min(40rem,calc(100vw-var(--space-12)))] max-w-none -translate-y-0 gap-0 p-0 sm:max-w-none"

@@ -1,16 +1,14 @@
 import assert from "node:assert/strict";
 import { assertOwnedSelectedSetupPath } from "./desktop-source-dialog-test.mjs";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as scheduleRealTime } from "node:timers";
 import { setTimeout as waitRealTime } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { runInNewContext } from "node:vm";
 import { gunzipSync } from "node:zlib";
-import { afterAll, beforeAll, describe, test, vi } from "vite-plus/test";
-import { JSDOM } from "jsdom";
+import { test, vi } from "vite-plus/test";
 import {
   createInstallFixture,
   INSTALL_FIXTURE_PORT_ID,
@@ -19,11 +17,9 @@ import {
 import { installScenarios } from "./desktop-install-test.mjs";
 import {
   assertCompletionCoreParity,
-  observeCompletionReturnFocus,
   retainCompletionReport,
   selectedSetupCompletionScenario,
 } from "./desktop-selected-setup-completion-test.mjs";
-import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { run as runLifecycleCommand } from "../../../integrations/playnite/lifecycle-check.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
@@ -36,70 +32,6 @@ test("owned fixture path checks accept Core's extended spelling and reject a dif
   if (process.platform !== "win32")
     assert.throws(() => assertOwnedSelectedSetupPath(`${expected.toUpperCase()}`, expected));
 });
-
-for (const [focus, selector, expected, mutate] of [
-  ["origin", "article", { tag: "ARTICLE", id: "", origin: true }],
-  ["continue", "#continue", { tag: "BUTTON", id: "continue", origin: false }],
-  ["outside", "#outside", false],
-  ["body", "body", false],
-  ["disabled", "#disabled", false],
-  [
-    "hidden",
-    "article",
-    false,
-    (origin) => {
-      origin.hidden = true;
-    },
-  ],
-  ["inert", "article", false, (origin) => origin.setAttribute("inert", "")],
-  [
-    "hidden-continuation",
-    "article",
-    false,
-    (_origin, document) => {
-      document.querySelector("section").hidden = true;
-    },
-  ],
-  ["missing", "article", false, (_origin, document) => document.querySelector("section").remove()],
-  ["missing-origin", "article", false, (origin) => origin.removeAttribute("data-detail-origin")],
-  ["detached", "article", false, (origin) => origin.remove()],
-  ["detail", "#detail", false],
-]) {
-  test(`completion return focus follows the stable setup origin: ${focus}`, () => {
-    const dom = new JSDOM(`<!doctype html>
-      <button id="outside">Settings</button>
-      <div data-detail-workspace><button id="detail">Play</button></div>
-      <article data-detail-origin="game-file-libraries-setup" tabindex="-1">
-        <section aria-label="Continue to a game"><button id="continue">Open details</button></section>
-        <button id="disabled" aria-disabled="true">Unavailable</button>
-      </article>`);
-    const document = dom.window.document;
-    const origin = document.querySelector("article");
-    for (const element of document.querySelectorAll("*")) {
-      element.getClientRects = () => [{ width: 100, height: 20 }];
-    }
-    document.querySelector(selector).focus();
-    mutate?.(origin, document);
-    vi.stubGlobal("document", document);
-    vi.stubGlobal("getComputedStyle", dom.window.getComputedStyle.bind(dom.window));
-    try {
-      const observed = observeCompletionReturnFocus();
-      assert.deepEqual(observed, expected);
-      assert.deepEqual(
-        structuredClone(
-          runInNewContext(`(${observeCompletionReturnFocus.toString()})()`, {
-            document,
-            getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-          }),
-        ),
-        observed,
-      );
-    } finally {
-      vi.unstubAllGlobals();
-      dom.window.close();
-    }
-  });
-}
 
 for (const mismatch of [null, "updated_at", "sha256", "missing", "empty", "extra"]) {
   test(`completion parity uses current full source records: ${mismatch ?? "matching"}`, async () => {
@@ -255,85 +187,6 @@ test("completion fixture refuses missing tool inputs and mixed discovery selecti
   const registered = [];
   await selectedSetupCompletionScenario({ scenario: async (id) => registered.push(id) });
   assert.deepEqual(registered, ["native-selected-setup-completion"]);
-});
-
-describe("owned Windows probe fixture", () => {
-  // Compiler preparation has its own existing 30-second child budget; it must
-  // not consume Vitest's five-second per-behavior assertion budget.
-  let probeOutput;
-  let probeTool;
-  beforeAll(async () => {
-    if (process.platform !== "win32") return;
-    probeOutput = await mkdtemp(path.join(tmpdir(), "portcove-probe-compiler-"));
-    probeTool = path.join(probeOutput, "probe.exe");
-    const compiled = spawnCommand(
-      "rustc",
-      [
-        "--edition=2024",
-        "--crate-name",
-        "portcove_probe_mode_contract",
-        path.join(root, "crates/portcove-core/src/testdata/host_tool_probe.rs.txt"),
-        "-o",
-        probeTool,
-      ],
-      { encoding: "utf8", windowsHide: true, timeout: 30_000 },
-    );
-    assert.equal(compiled.error, undefined);
-    assert.equal(compiled.status, 0, compiled.stderr);
-  }, 30_000);
-  afterAll(async () => {
-    if (probeOutput) await rm(probeOutput, { recursive: true, force: true });
-  });
-
-  test.runIf(process.platform === "win32")(
-    "Windows owned probe explicit mode works in empty isolated cwd and preserves the legacy mode route",
-    async () => {
-      const output = await mkdtemp(path.join(tmpdir(), "portcove-probe-mode-"));
-      try {
-        const tool = probeTool;
-        for (const [name, args, legacy, succeeds, marker] of [
-          ["explicit", ["--owned-fixture-mode", "success"], null, true, true],
-          ["default", [], null, true, false],
-          ["legacy", [], "success", true, true],
-          ["missing-marker", ["--owned-fixture-mode", "missing-marker"], null, true, false],
-          ["failure", ["--owned-fixture-mode", "failure"], null, false, true],
-          ["missing-mode", ["--owned-fixture-mode"], null, false, false],
-          ["unsupported", ["--owned-fixture-mode", "invented"], null, false, false],
-          [
-            "duplicate",
-            ["--owned-fixture-mode", "success", "--owned-fixture-mode", "success"],
-            null,
-            false,
-            false,
-          ],
-        ]) {
-          const cwd = path.join(output, name);
-          await mkdir(cwd);
-          if (legacy) await writeFile(path.join(cwd, "owned-setup-mode"), legacy);
-          const result = spawnCommand(tool, ["--owned-preparation", ...args], {
-            cwd,
-            env: { ...process.env, SHIP_HOME: cwd },
-            encoding: "utf8",
-            windowsHide: true,
-            timeout: 5_000,
-          });
-          assert.equal(result.error, undefined, name);
-          assert.equal(result.status === 0, succeeds, `${name}: ${result.stderr}`);
-          if (marker)
-            assert.equal(
-              await readFile(path.join(cwd, "data/out/jak1/iso/0COMMON.TXT"), "utf8"),
-              "owned validated output",
-            );
-          else
-            await assert.rejects(readFile(path.join(cwd, "data/out/jak1/iso/0COMMON.TXT")), {
-              code: "ENOENT",
-            });
-        }
-      } finally {
-        await rm(output, { recursive: true, force: true });
-      }
-    },
-  );
 });
 
 test("completion report retains the original error across artifact and fallback-log failures", async () => {
