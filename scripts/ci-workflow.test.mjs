@@ -41,6 +41,21 @@ test("selected full Fallow runs once before browser work and retains successful 
     assert.ok((await readFile(new URL(`../apps/desktop/src/${name}`, import.meta.url))).length > 0);
 });
 
+test("manual Fallow assistance is isolated from exhaustive audit and retains originals", async () => {
+  const deep = await readFile(
+    new URL("../.github/workflows/deep-quality.yml", import.meta.url),
+    "utf8",
+  );
+  const selected = deep.split("  fallow_analysis:")[1].split("  audit:")[0];
+  assert.match(selected, /if: inputs.operation == 'fallow'/);
+  assert.match(selected, /fetch-depth: 0/);
+  assert.match(selected, /node scripts\/run-fallow\.mjs review "\$COMPARISON_BASE"/);
+  assert.match(selected, /if: always\(\)/);
+  assert.match(selected, /path: work\/fallow-reports\//);
+  assert.doesNotMatch(selected, /setup-rust|browser:bootstrap|just audit/);
+  assert.match(deep, /if: inputs.operation != 'local-check' && inputs.operation != 'fallow'/);
+});
+
 test("native frontend harness retains the qualified Linux target and a failing namespace preflight", () => {
   const block = workflow.split("  frontend_full:")[1].split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0];
   assert.match(block, /runs-on: ubuntu-22\.04/u);
@@ -1879,7 +1894,7 @@ test("manual deep workflow preserves fresh default with explicit bounded audit r
   assert.match(deep, /^name: Deep audit$/m);
   assert.match(deep, /^ {2}audit:\r?$/m);
   assert.match(deep, /just audit --fresh/);
-  assert.match(deep, /default: audit\r?\n {8}options: \[audit, audit-reuse, local-check\]/);
+  assert.match(deep, /default: audit\r?\n {8}options: \[audit, audit-reuse, local-check, fallow\]/);
   assert.doesNotMatch(deep, /GH_TOKEN: \$\{\{ github.token \}\}/);
   assert.match(deep, /if: always\(\) && inputs.operation != 'audit-reuse'/);
   assert.doesNotMatch(deep, /actions: read|actions: write|contents: write/);

@@ -272,6 +272,10 @@ for omitted groups or full context; use `fallow report --from` where the pinned
 version supports the desired presentation, rather than repeating analysis.
 Hosted analysis publishes a job summary and retains the reports as an artifact
 on successful and failed runs under the workflow's bounded retention policy.
+For selective hosted assistance, dispatch the existing **Deep audit** workflow
+with `operation=fallow`, the desired `fallow_scope`, and the actual
+`comparison_base` for review. This provisions no Rust or browser runtime and
+adds no ordinary PR check; `desktop` retains its full gate policy.
 Execution failure, code findings and evidence-retention failure remain distinct;
 a secondary formatting failure must preserve the original analyzer result.
 
