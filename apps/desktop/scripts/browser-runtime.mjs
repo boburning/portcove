@@ -57,7 +57,7 @@ if (process.argv[2] === "bootstrap") {
   } finally {
     await browser?.close();
   }
-  const traceRoot = path.join(root, "work", "browser-traces");
+  const traceRoot = path.join(root, "work", "bt");
   mkdirSync(traceRoot, { recursive: true });
   const traceRun = mkdtempSync(path.join(traceRoot, "run-"));
   if (path.dirname(resolvePhysicalPath(traceRun)) !== resolvePhysicalPath(traceRoot)) {
@@ -69,6 +69,8 @@ if (process.argv[2] === "bootstrap") {
     [
       path.join(root, "node_modules", "vite-plus", "bin", "vp"),
       "test",
+      "--config",
+      path.join(root, "vite.config.ts"),
       "--project",
       "browser",
       "src/browser/failure-probe.browser.test.tsx",

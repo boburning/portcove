@@ -1,54 +1,5 @@
-import { defineConfig, type TestProjectConfiguration, type TestUserConfig } from "vite-plus";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
-import { playwright } from "vite-plus/test/browser-playwright";
-import { createBrowserTraceRun } from "./scripts/browser-traces.ts";
-
-const traceRun = createBrowserTraceRun(
-  fileURLToPath(new URL(".", import.meta.url)),
-  process.env.PORTCOVE_BROWSER_TRACE_DIR,
-);
-export const testReporters = ["default", traceRun.reporter] satisfies NonNullable<
-  TestUserConfig["reporters"]
->;
-
-process.env.PLAYWRIGHT_BROWSERS_PATH ??= fileURLToPath(
-  new URL("./work/browser-cache", import.meta.url),
-);
-
-// Each project loads the app's plugins from its config; root metadata never instantiates them.
-export const desktopProjects = [
-  {
-    extends: fileURLToPath(new URL("./apps/desktop/vite.config.ts", import.meta.url)),
-    root: fileURLToPath(new URL("./apps/desktop", import.meta.url)),
-    test: {
-      name: "unit",
-      include: ["src/**/*.test.{ts,tsx,js}", "scripts/**/*.test.{js,mjs}"],
-      exclude: ["src/browser/**"],
-      maxWorkers: 2,
-    },
-  },
-  {
-    extends: fileURLToPath(new URL("./apps/desktop/vite.config.ts", import.meta.url)),
-    root: fileURLToPath(new URL("./apps/desktop", import.meta.url)),
-    test: {
-      name: "browser",
-      include: ["src/browser/**/*.browser.test.tsx"],
-      browser: {
-        enabled: true,
-        headless: true,
-        provider: playwright(),
-        instances: [{ browser: "chromium" }],
-        trace: {
-          mode: "retain-on-failure",
-          tracesDir: traceRun.directory,
-        },
-        screenshotFailures: true,
-        screenshotDirectory: path.join(traceRun.directory, "screenshots"),
-      },
-    },
-  },
-] satisfies TestProjectConfiguration[];
+import { defineConfig } from "vite-plus";
+import { desktopProjects, testReporters } from "./scripts/frontend-tests.ts";
 
 export default defineConfig({
   defaultPackage: "./apps/desktop",
@@ -84,7 +35,6 @@ export default defineConfig({
       "crates/**/tests/fixtures/**",
       "docs/archive/**",
       "docs/releases/[0-9]*.md",
-      "**/*.toml",
       "Cargo.lock",
     ],
   },
@@ -158,6 +108,17 @@ export default defineConfig({
       "work/**",
     ],
     overrides: [
+      {
+        files: ["apps/desktop/src/**/*.{ts,tsx}"],
+        excludeFiles: [
+          "**/*.test.{ts,tsx}",
+          "**/*.d.ts",
+          "**/test-fixtures.ts",
+          "**/browser/**",
+          "**/dev-scenarios/**",
+        ],
+        rules: { "portcove/player-copy": "error", "portcove/theme-utilities": "error" },
+      },
       {
         files: ["**/*.mjs", "**/*.cjs", "**/*.config.{ts,mts}", "vite.config.ts"],
         env: {
@@ -235,6 +196,7 @@ export default defineConfig({
       },
     ],
     jsPlugins: [
+      "./apps/desktop/scripts/copy-lint-plugin.mjs",
       {
         name: "vite-plus",
         specifier: "vite-plus/oxlint-plugin",
@@ -245,12 +207,46 @@ export default defineConfig({
   staged: { "*": "vp check --fix" },
   run: {
     tasks: {
-      "verify:frontend": {
-        command:
-          "vp run check && vp -C apps/desktop run check:content && vp -C apps/desktop test --project unit && vp -C apps/desktop run build",
+      "frontend:static": {
+        command: [
+          "node apps/desktop/scripts/browser-package-compatibility.mjs",
+          "vp check",
+          "vp -C apps/desktop run lint:style",
+        ],
+        cache: false,
+      },
+      "frontend:content": {
+        command: [
+          "node apps/desktop/scripts/generate-transport-types.mjs",
+          "node scripts/check-transport-contract.mjs --ipc-only",
+          "vp -C apps/desktop run i18n:check",
+        ],
+        cache: false,
+      },
+      "frontend:unit": { command: "vp test --project unit", cache: false },
+      "frontend:browser": {
+        command: "vp test --project browser --project browser-forced-colors",
+        cache: false,
+      },
+      "frontend:build": { command: "node apps/desktop/scripts/build-frontend.mjs", cache: false },
+      "frontend:runtime": {
+        command: [
+          "vp run frontend:content",
+          "vp run frontend:unit",
+          "vp run frontend:browser",
+          "vp run frontend:build",
+        ],
+        cache: false,
+      },
+      "frontend:verify": {
+        command: ["vp run frontend:static", "vp run frontend:runtime"],
         cache: false,
       },
       "test:native": { command: "vp -C apps/desktop run test:desktop", cache: false },
+      "native:tools": {
+        command: "node --test --test-timeout=30000 apps/desktop/scripts/*.native.test.mjs",
+        cache: false,
+      },
     },
   },
 });

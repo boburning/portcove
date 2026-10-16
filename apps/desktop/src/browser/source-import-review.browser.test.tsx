@@ -147,7 +147,6 @@ it.each(["light", "dark"])(
         expect(box.left).toBeGreaterThanOrEqual(bounds.left - 1);
         expect(box.right).toBeLessThanOrEqual(bounds.right + 1);
       }
-      await page.screenshot({ path: `../../../../work/source-review204/${theme}-${mode}.png` });
       expect(apply).toHaveBeenCalledTimes(previousApplications);
       await userEvent.click(page.getByRole("button", { name: "Cancel review", exact: true }));
       await expect.element(trigger).toHaveFocus();

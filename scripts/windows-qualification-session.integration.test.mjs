@@ -422,7 +422,7 @@ writeFileSync(path.join(output, "normal-package-boundary-cleanup.json"), JSON.st
       manifestPath,
       JSON.stringify({
         revision,
-        build_command: ["corepack", "pnpm", "tauri", "build", "--bundles", "nsis"],
+        build_command: ["pnpm", "tauri", "build", "--bundles", "nsis"],
         qualification_features: [],
         configuration,
         installer: { path: item.installer, sha256: sha256(item.installer) },

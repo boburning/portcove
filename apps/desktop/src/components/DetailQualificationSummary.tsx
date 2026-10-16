@@ -88,7 +88,7 @@ export function DetailQualificationSummary({
         return (
           <section
             key={role}
-            aria-label={`Recorded ${role === "game" ? "game-file" : "BIOS"} checks`}
+            aria-label={`${technical ? "Technical recorded" : "Recorded"} ${role === "game" ? "game-file" : "BIOS"} checks`}
           >
             <h3 className="text-sm font-medium">
               {role === "game" ? "Game-file" : "BIOS"} recorded observations

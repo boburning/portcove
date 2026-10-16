@@ -1267,7 +1267,7 @@ test("hosted execution binds actual Git source, default base, controller and fin
 test("hosted binding rejects frontend validation helper and test-policy changes", async (t) => {
   const f = hostedFixture(t);
   for (const name of [
-    "apps/desktop/scripts/check-copy.mjs",
+    "apps/desktop/scripts/copy-lint-plugin.mjs",
     "vite.config.ts",
     "scripts/browser-traces.ts",
     "scripts/dev-storage.d.mts",
@@ -1355,8 +1355,8 @@ test("manual local-check transport preserves the audit and has no mutable execut
     local,
     /hosted-local-check controller[\s\S]*path: source[\s\S]*hosted-local-check prepare[\s\S]*bootstrap-quality-tools\.sh[\s\S]*hosted-local-check run/,
   );
-  // Preflight observes Corepack's contained exact-version cache, never PATH pnpm.
-  // Standalone action-setup installation cannot prepare that provider.
+  // This workflow chooses Corepack only for frozen provisioning. Operations
+  // subsequently resolve the installed local Vite+ CLI independently.
   assert.match(
     local,
     /working-directory: source\n        run: corepack pnpm install --frozen-lockfile/u,

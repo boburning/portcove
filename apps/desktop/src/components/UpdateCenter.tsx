@@ -35,7 +35,7 @@ import type {
 } from "../types";
 import { EmptyState, Icon } from "./ui";
 import { Button } from "./ui/button";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { UpdateBatchRead } from "../features/port-updates/use-update-center";
 import type { ActivitySettingsTarget } from "../features/app-shell/focus-settings-target";
 
@@ -393,12 +393,16 @@ function UpdateCheckControl({
   checkAll: () => void | Promise<void>;
 }) {
   const pendingCheck = useRef<typeof checkAll | undefined>(undefined);
+  const labelId = useId();
   return (
     <div className="update-buttons flex items-center gap-2">
       <Button
         data-focusable
         variant="outline"
         disabled={Boolean(busy) || status === "pending" || !hasInstalled}
+        focusableWhenDisabled={status === "pending" || busy === "check installed"}
+        aria-busy={status === "pending" || busy === "check installed"}
+        aria-labelledby={labelId}
         onClick={() => {
           if (pendingCheck.current === checkAll) return;
           pendingCheck.current = checkAll;
@@ -408,11 +412,13 @@ function UpdateCheckControl({
         }}
       >
         <Icon glyph={RefreshCw} />
-        {busy === "check installed" || status === "pending"
-          ? "Checking installed ports…"
-          : status === "failed" || status === "cancelled"
-            ? "Retry update check"
-            : "Check installed ports for updates"}
+        <span id={labelId}>
+          {busy === "check installed" || status === "pending"
+            ? "Checking installed ports…"
+            : status === "failed" || status === "cancelled"
+              ? "Retry update check"
+              : "Check installed ports for updates"}
+        </span>
       </Button>
     </div>
   );

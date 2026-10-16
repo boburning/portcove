@@ -24,17 +24,20 @@ export function PreliminarySourceSelections({
   disabled,
   onReview,
   renderActions,
+  headingLevel = 3,
 }: {
   selections?: Inspection[] | undefined;
   profiles: SourceProfile[];
   disabled: boolean;
   onReview: (candidate: Pick<SourceRecord, "profile_id" | "path">) => void;
   renderActions?: (candidate: SourceRecord) => ReactNode;
+  headingLevel?: 3 | 4;
 }) {
   if (selections.length === 0) return null;
+  const Heading = headingLevel === 4 ? "h4" : "h3";
   return (
     <section aria-label="Preliminary game-file selections">
-      <h4>Preliminary selections</h4>
+      <Heading>Preliminary selections</Heading>
       <p>
         These files are not exact matches. Validation has not run, and compatibility is not
         confirmed. Review a selection before deciding whether to save its location.

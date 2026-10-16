@@ -38,9 +38,9 @@ const allReusableDomains = [
 ];
 
 export const AUDIT_STAGES = Object.freeze([
-  { id: "format", recipe: "fmt-frontend-check", domain: "format", reusable: true },
+  { id: "frontend-static", recipe: "ui-static", domain: "format", reusable: false },
   { id: "rust", recipe: "check-rust", domain: "rust", reusable: true },
-  { id: "ui", recipe: "ui-check", domain: "ui", reusable: true },
+  { id: "ui", recipe: "ui-runtime", domain: "ui", reusable: false },
   { id: "script-lint", recipe: "script-lint", domain: "lint", reusable: true },
   {
     id: "repository-tooling",
@@ -107,7 +107,7 @@ const transitionPaths = new Set([
   "docs/DEVELOPMENT-STORAGE.md",
 ]);
 export const TRANSITION_AUDIT_STAGE_IDS = Object.freeze([
-  "format",
+  "frontend-static",
   "script-lint",
   "repository-tooling",
   "development-tools",
@@ -413,7 +413,6 @@ export function domainsForPath(input) {
       ".gitignore",
       ".git-blame-ignore-revs",
       "pyproject.toml",
-      "taplo.toml",
       "LICENSE-APACHE",
       "LICENSE-MIT",
       "SECURITY.md",
@@ -624,7 +623,7 @@ export function auditRuntime(root = projectRoot) {
     aqua: commandVersion("aqua", ["--version"], root),
     powershell: commandVersion("pwsh", ["--version"], root),
     packageManager,
-    packageManagerVersion: commandVersion("corepack", [packageManager, "--version"], root),
+    packageManagerVersion: commandVersion("pnpm", ["--version"], root),
     environment: Object.fromEntries(
       environmentWhitelist.map((name) => [name, process.env[name] ?? null]),
     ),

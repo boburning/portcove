@@ -8,6 +8,7 @@
 /.codex-remote-attachments/
 /work/
 /apps/desktop/.vitest/
+/.vitest/
 /outputs/
 /release-assets/
 *.log

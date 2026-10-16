@@ -273,7 +273,11 @@ try {
     $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = Join-Path $guiState "candidate-startup-stage.json"
     Remove-Item Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT -ErrorAction SilentlyContinue
     $guiEvidence = Join-Path (Split-Path -Parent $EvidencePath) "renderer-qualification"
-    & corepack pnpm --dir apps/desktop test:macos-installed-update --app $guiExecutable --output $guiEvidence --staging $guiState --candidate-sha $expectedExecutableHash --candidate-archive-sha $candidate --candidate-version $CandidateVersion --helper-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS --relaunch-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS --stage-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE --library-marker $guiLibraryMarker
+    $packageRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+    $pinnedPnpm = (Get-Content (Join-Path $packageRoot "package.json") -Raw | ConvertFrom-Json).packageManager
+    $actualPnpm = (& pnpm --version | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or "pnpm@$actualPnpm" -ne $pinnedPnpm) { throw "Provide the exact repository $pinnedPnpm on PATH" }
+    & pnpm --dir apps/desktop test:macos-installed-update --app $guiExecutable --output $guiEvidence --staging $guiState --candidate-sha $expectedExecutableHash --candidate-archive-sha $candidate --candidate-version $CandidateVersion --helper-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS --relaunch-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS --stage-marker $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE --library-marker $guiLibraryMarker
     if ($LASTEXITCODE -ne 0) { throw "Installed macOS renderer restart qualification failed" }
     & /usr/bin/codesign --verify --deep --strict $guiApp
     if ($LASTEXITCODE -ne 0) { throw "The GUI-updated bundle signature failed verification" }

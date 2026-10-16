@@ -24,9 +24,8 @@ import { acquireNativeSessionLock } from "./native-session-lock.mjs";
 import { cachedDesktopDrivers, readToolPins } from "./tool-cache.mjs";
 import { frontendCommandPlan, probeFrontendCommand } from "./frontend-command-preflight.mjs";
 import {
-  checkFrontendBuildReuse,
   createFrontendBuildIdentity,
-  recordFrontendBuild,
+  observeFrontendBuild,
   createVerificationBuildIdentity,
 } from "./desktop-build-cache.mjs";
 
@@ -124,7 +123,7 @@ function workspacePackageStatus() {
     return {
       ready: false,
       selenium: null,
-      remediation: `node scripts/dev-storage.mjs run -- corepack ${readToolPins().packageManager} install --frozen-lockfile`,
+      remediation: `node scripts/dev-storage.mjs run -- pnpm install --frozen-lockfile`,
     };
   }
 }
@@ -263,33 +262,15 @@ async function executePhase({ id, command, args, cwd, environment, log, timings 
   if (result.status !== 0) throw new Error(`${id} failed with exit code ${result.status}`);
 }
 
-async function recordReusePhase({ log, timings, details }) {
-  const stamp = new Date().toISOString();
-  const timing = {
-    phase: "frontend-build",
-    started_at: stamp,
-    finished_at: stamp,
-    duration_ms: 0,
-    status: 0,
-    reuse: details,
-  };
-  timings.push(timing);
-  console.log(
-    `desktop-verify: frontend-build reused ${details.output_files} exact files (${details.output_fingerprint})`,
-  );
-  await appendFile(log, `${JSON.stringify(timing)}\n`);
-}
-
 export async function acquireDesktopVerifySession({
   runDirectory,
   environment,
-  packageManager,
   selection,
   timings,
   probe = probeFrontendCommand,
   acquire = acquireNativeSessionLock,
 }) {
-  const receipt = probe({ cwd: path.join(root, "apps", "desktop"), environment, packageManager });
+  const receipt = probe({ cwd: path.join(root, "apps", "desktop"), environment });
   await writeFile(
     path.join(runDirectory, "frontend-command-preflight.json"),
     `${JSON.stringify(receipt, null, 2)}\n`,
@@ -307,7 +288,7 @@ export async function acquireDesktopVerifySession({
     profile: selection.profile,
     scenarios: selection.selected_scenarios,
   });
-  return { lock, packageManagerVersion: receipt.observed_version };
+  return { lock, vitePlusVersion: receipt.observed_version };
 }
 
 async function runVerification(options, selection) {
@@ -326,7 +307,6 @@ async function runVerification(options, selection) {
   const frontendCommand = frontendCommandPlan({
     cwd: path.join(root, "apps", "desktop"),
     environment,
-    packageManager: pins.packageManager,
   });
   const plan = buildDesktopVerifyPlan({
     selection,
@@ -354,7 +334,7 @@ async function runVerification(options, selection) {
       );
       console.log(`Drivers: ${drivers ? "ready" : `missing; remedy ${plan.drivers.remediation}`}`);
       console.log(
-        `Frontend pnpm command file: ${frontendCommand.command_file ?? "unavailable"}; version not observed (plan only)`,
+        `Frontend local Vite+ command file: ${frontendCommand.command_file ?? "unavailable"}; version not observed (plan only)`,
       );
     }
     return;
@@ -380,7 +360,6 @@ async function runVerification(options, selection) {
     const prerequisite = await acquireDesktopVerifySession({
       runDirectory,
       environment,
-      packageManager: pins.packageManager,
       selection,
       timings,
     });
@@ -423,43 +402,21 @@ async function runVerification(options, selection) {
     const frontendIdentity = await createFrontendBuildIdentity({
       root,
       packageManager: pins.packageManager,
-      packageManagerVersion: prerequisite.packageManagerVersion,
+      vitePlusVersion: prerequisite.vitePlusVersion,
       environment,
     });
-    const frontendStamp = path.join(
-      paths.temporary_directory,
-      "desktop-build-cache",
-      `frontend-v1-${process.platform}-${process.arch}.json`,
-    );
-    await mkdir(path.dirname(frontendStamp), { recursive: true });
-    let frontendReuse = await checkFrontendBuildReuse({
+    await phase("frontend-build", process.execPath, ["apps/desktop/scripts/build-frontend.mjs"]);
+    const frontendObservation = await observeFrontendBuild({
       identity: frontendIdentity,
       outputDirectory: paths.frontend_output,
-      stampPath: frontendStamp,
     });
-    if (frontendReuse.reused) {
-      await recordReusePhase({ log, timings, details: frontendReuse });
-    } else {
-      console.log(`desktop-verify: frontend-build cannot reuse (${frontendReuse.reason})`);
-      await phase("frontend-build", "corepack", [
-        pins.packageManager,
-        "--dir",
-        "apps/desktop",
-        "build",
-      ]);
-      frontendReuse = await recordFrontendBuild({
-        identity: frontendIdentity,
-        outputDirectory: paths.frontend_output,
-        stampPath: frontendStamp,
-      });
-      timings.at(-1).reuse = frontendReuse;
-    }
+    timings.at(-1).frontend_observation = frontendObservation;
     const desktopFeatures = ["tauri/custom-protocol", ...plan.qualification_features];
     const buildIdentity = ["win32", "linux"].includes(process.platform)
       ? await createVerificationBuildIdentity({
           root,
           frontendIdentity,
-          frontendOutputFingerprint: frontendReuse.output_fingerprint,
+          frontendOutputFingerprint: frontendObservation.output_fingerprint,
           features: desktopFeatures,
           cliFeatures: plan.cli_features,
           environment,
@@ -521,7 +478,7 @@ async function runVerification(options, selection) {
           restart_cycles: options.restartCycles,
           reload_cycles: options.reloadCycles,
           source_state: source,
-          build_reuse: frontendReuse,
+          frontend_build: frontendObservation,
           verification_build: {
             build_input_fingerprint: buildIdentity.fingerprint,
             inventory_complete: buildIdentity.inventory_complete,

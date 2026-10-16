@@ -35,7 +35,14 @@ if $want_frontend; then
   node_pin="$(tr -d '\r\n' < .node-version)"
   [[ "$(node --version)" == "v$node_pin" ]] || { printf 'Node %s is required for frontend setup.\n' "$node_pin" >&2; exit 1; }
   package_spec="$(node -p 'JSON.parse(require("node:fs").readFileSync("package.json","utf8")).packageManager')"
-  corepack "$package_spec" install --frozen-lockfile
+  if command -v pnpm >/dev/null 2>&1 && [[ "$(pnpm --version)" == "${package_spec#pnpm@}" ]]; then
+    pnpm install --frozen-lockfile
+  elif command -v corepack >/dev/null 2>&1; then
+    corepack "$package_spec" install --frozen-lockfile
+  else
+    printf 'Provide %s on PATH; Corepack is an optional provisioning provider.\n' "$package_spec" >&2
+    exit 1
+  fi
 fi
 if $want_rust && [[ "$profile" != standard ]]; then
   rust_pin="$(node -e 'console.log(JSON.parse(process.argv[1]).pins.rust)' "$capability_plan")"

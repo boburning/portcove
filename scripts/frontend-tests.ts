@@ -1,0 +1,79 @@
+import { configDefaults, type TestProjectConfiguration, type TestUserConfig } from "vite-plus";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import process from "node:process";
+import { URL } from "node:url";
+import { playwright } from "vite-plus/test/browser-playwright";
+import { createBrowserTraceRun } from "./browser-traces.ts";
+
+const traceRun = createBrowserTraceRun(
+  fileURLToPath(new URL("../", import.meta.url)),
+  process.env.PORTCOVE_BROWSER_TRACE_DIR,
+);
+export const testReporters = [...configDefaults.reporters, traceRun.reporter] satisfies NonNullable<
+  TestUserConfig["reporters"]
+>;
+
+process.env.PLAYWRIGHT_BROWSERS_PATH ??= fileURLToPath(
+  new URL("../work/browser-cache", import.meta.url),
+);
+
+// Each project loads the app's plugins from its config; root metadata never instantiates them.
+const browserProject = {
+  extends: fileURLToPath(new URL("../apps/desktop/vite.config.ts", import.meta.url)),
+  root: fileURLToPath(new URL("../apps/desktop", import.meta.url)),
+  server: { port: 0, strictPort: false },
+  optimizeDeps: {
+    include: ["react-dom/client", "axe-core"],
+    exclude: ["vitest-browser-react", "vitest-browser-react/pure"],
+  },
+  test: {
+    name: "browser",
+    maxWorkers: 4,
+    sequence: { groupOrder: 1 },
+    setupFiles: ["test/browser-setup.mjs"],
+    include: ["src/**/*.browser.test.{ts,tsx}"],
+    exclude: ["src/browser/forced-colors.browser.test.tsx"],
+    browser: {
+      enabled: true,
+      headless: true,
+      provider: playwright(),
+      instances: [{ browser: "chromium" }],
+      trace: {
+        mode: "retain-on-failure",
+        tracesDir: traceRun.directory,
+      },
+      screenshotFailures: true,
+      screenshotDirectory: path.join(traceRun.directory, "screenshots"),
+    },
+  },
+} satisfies TestProjectConfiguration;
+
+export const desktopProjects = [
+  {
+    extends: fileURLToPath(new URL("../apps/desktop/vite.config.ts", import.meta.url)),
+    root: fileURLToPath(new URL("../apps/desktop", import.meta.url)),
+    test: {
+      name: "unit",
+      include: ["src/**/*.test.{ts,tsx,js}", "scripts/**/*.test.{js,mjs}"],
+      exclude: ["src/browser/**", "src/**/*.browser.test.{ts,tsx}", "scripts/**/*.native.test.mjs"],
+      maxWorkers: 2,
+      sequence: { groupOrder: 0 },
+    },
+  },
+  browserProject,
+  {
+    ...browserProject,
+    test: {
+      ...browserProject.test,
+      name: "browser-forced-colors",
+      include: ["src/browser/forced-colors.browser.test.tsx"],
+      exclude: [],
+      browser: {
+        ...browserProject.test.browser,
+        instances: [{ browser: "chromium" }],
+        provider: playwright({ contextOptions: { forcedColors: "active" } }),
+      },
+    },
+  },
+] satisfies TestProjectConfiguration[];

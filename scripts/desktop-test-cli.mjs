@@ -6,7 +6,6 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
-import { readToolPins } from "./tool-cache.mjs";
 
 const args = process.argv.slice(2);
 if (args.includes("--current-installed") || args.includes("--verify-installed-admission")) {
@@ -144,7 +143,7 @@ if (args.includes("--current-installed") || args.includes("--verify-installed-ad
     createRequire(path.join(root, "apps", "desktop", "package.json")).resolve("selenium-webdriver");
   } catch {
     throw new Error(
-      `selenium-webdriver is unavailable; run node scripts/dev-storage.mjs run -- corepack ${readToolPins().packageManager} install --frozen-lockfile`,
+      `selenium-webdriver is unavailable; run node scripts/dev-storage.mjs run -- pnpm install --frozen-lockfile`,
     );
   }
   if (!["win32", "linux"].includes(process.platform)) {

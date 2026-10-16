@@ -1,106 +1,87 @@
-import { describe, expect, it } from "vite-plus/test";
-import { explicitCopyFiles, inspectCopy, isProductionCopyPath } from "./check-copy.mjs";
-
-describe("desktop static-copy safeguards", () => {
-  it("rejects empty, unknown, excluded and out-of-tree explicit requests", () => {
-    for (const args of [
-      [],
-      ["--files"],
-      ["--other"],
-      ["--files", "../outside.tsx"],
-      ["--files", "apps/desktop/src/thing.test.tsx"],
-    ])
-      expect(() => explicitCopyFiles(args, process.cwd())).toThrow(
-        /copy|files|path|source|unknown/iu,
-      );
-    expect(isProductionCopyPath("apps/desktop/src/test-fixtures.ts")).toBe(false);
-    expect(isProductionCopyPath("apps/desktop/src/types.d.ts")).toBe(false);
-    expect(isProductionCopyPath("apps/desktop/src/components/Hello.tsx")).toBe(true);
-  });
-  it.each([
-    "adapter",
-    "materialization",
-    "Qualification pending",
-    "persistent data",
-    "source profile",
-    "Source profiles",
-  ])("flags internal terminology in visible copy: %s", (text) => {
-    expect(inspectCopy(`const view = <p>${text}</p>;`)).toEqual([
-      expect.objectContaining({ rule: "internal-terminology", line: 1 }),
-    ]);
-  });
-  it.each(["file(s)", "match(es)"])(
-    "flags parenthetical plurals in interpolated messages: %s",
-    (text) => {
-      expect(inspectCopy("const message = `Found ${count} " + text + "`;")[0].rule).toBe(
-        "parenthetical-plural",
-      );
-    },
-  );
-  it("checks visible and accessible attributes and standalone message literals", () => {
-    const findings = inspectCopy(
-      'const label = "Source profile"; const view = <button title="Materialization" aria-label="Verified">Check source</button>;',
-    );
-    expect(findings.map((item) => item.rule)).toEqual([
+import { describe, it } from "vite-plus/test";
+import { RuleTester } from "vite-plus/lint/plugins-dev";
+import plugin from "./copy-lint-plugin.mjs";
+const { "player-copy": playerCopy, "theme-utilities": themeUtilities } = plugin.rules;
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
+const tester = new RuleTester();
+const code = (text) => ({ filename: "fixture.tsx", code: text });
+const invalid = (text, ...messages) => ({
+  ...code(text),
+  errors: messages.map((messageId) => ({ messageId })),
+});
+tester.run("player-copy", playerCopy, {
+  valid: [
+    code(
+      'import adapter from "adapter"; type Field = "qualification"; const data = { "source profile": value }; const ok = state === "qualification"; const member = port.qualification; const computed = port["source profile"]; const view = <p className="qualification" id="adapter" data-state="verified">Exact match</p>; // materialization',
+    ),
+    code(
+      "const view = <details><summary>Technical details</summary><p>Qualification</p></details>",
+    ),
+    code(
+      "const view = <details><summary>Full identity and evidence</summary><p>Qualification</p></details>",
+    ),
+    code("const view = <p>Verified local release</p>"),
+  ],
+  invalid: [
+    ...[
+      "adapter",
+      "materialization",
+      "Qualification pending",
+      "persistent data",
+      "Source profiles",
+    ].map((text) => invalid(`const view = <p>${text}</p>`, "internal-terminology")),
+    invalid("const message = `Found ${count} file(s)`", "parenthetical-plural"),
+    invalid("const message = `Found ${count} match(es)`", "parenthetical-plural"),
+    invalid(
+      'const label = "Source profile"; const view = <button title="Materialization" aria-label="Verified">Check source</button>',
       "internal-terminology",
       "internal-terminology",
       "generic-verified",
-    ]);
-  });
-  it("distinguishes specific checks from a generic verified label", () => {
-    expect(
-      inspectCopy(
-        "const view = <><span>Verified</span><span>Verified local release</span><span>Exact match</span></>;",
-      ).map((item) => item.rule),
-    ).toEqual(["generic-verified"]);
-  });
-  it("allows code, type names, imports, identifiers and non-copy attributes", () => {
-    expect(
-      inspectCopy(
-        'import adapter from "adapter"; type Field = "qualification"; const data = { "source profile": value }; const ok = state === "qualification"; const member = port.qualification; const optional = port?.qualification; const computed = port["source profile"]; const view = <p className="qualification" id="adapter" data-state="verified">Exact match</p>; // materialization',
-      ),
-    ).toEqual([]);
-  });
-  it("permits a named technical disclosure without exempting the rest of a component", () => {
-    expect(
-      inspectCopy(
-        "const view = <><details><summary>Technical details</summary><p>Qualification</p></details><p>Qualification</p></>;",
-      ),
-    ).toEqual([expect.objectContaining({ rule: "internal-terminology" })]);
-  });
-  it("does not exempt ordinary disclosures or decoded visible entities", () => {
-    expect(
-      inspectCopy(
-        'const view = <details><summary>Advanced controls</summary><p title="&#86;erified">&#86;erified</p></details>;',
-      ),
-    ).toEqual([
-      expect.objectContaining({ rule: "generic-verified" }),
-      expect.objectContaining({ rule: "generic-verified" }),
-    ]);
-  });
-  it("checks concatenated copy while leaving machine comparisons alone", () => {
-    expect(
-      inspectCopy('const message = "source profile" + id; const same = state === "qualification";'),
-    ).toEqual([expect.objectContaining({ rule: "internal-terminology" })]);
-  });
-  it("uses cooked template text and preserves source locations", () => {
-    expect(
-      inspectCopy("const π = 1;\r\nconst message = `Verifi\\u0065d`;", "location.tsx"),
-    ).toEqual([
-      expect.objectContaining({
-        file: "location.tsx",
-        line: 2,
-        column: 17,
-        rule: "generic-verified",
-      }),
-    ]);
-  });
-  it("fails closed on syntax and semantic parser diagnostics", () => {
-    expect(() => inspectCopy('const view = <p title="broken', "syntax.tsx")).toThrow(
-      /syntax\.tsx:1:23: Unterminated string/u,
-    );
-    expect(() => inspectCopy("let value; let value;", "semantic.ts")).toThrow(
-      /semantic\.ts:1:5: Identifier `value` has already been declared/u,
-    );
-  });
+    ),
+    invalid(
+      "const view = <><details><summary>Technical details</summary><p>Qualification</p></details><p>Qualification</p></>",
+      "internal-terminology",
+    ),
+    invalid(
+      'const view = <details><summary>Advanced controls</summary><p title="&#86;erified">&#86;erified</p></details>',
+      "generic-verified",
+      "generic-verified",
+    ),
+    invalid(
+      'const message = "source profile" + id; const same = state === "qualification"',
+      "internal-terminology",
+    ),
+    {
+      ...code("const π = 1;\r\nconst message = `Verifi\\u0065d`;"),
+      errors: [{ messageId: "generic-verified", line: 2, column: 16 }],
+    },
+  ],
+});
+
+tester.run("theme-utilities", themeUtilities, {
+  valid: [
+    {
+      filename: "apps/desktop/src/components/ui/button.tsx",
+      code: 'const classes = "text-[length:var(--text-sm)] bg-pc-danger-surface";',
+    },
+  ],
+  invalid: [
+    {
+      filename: "apps/desktop/src/Card.tsx",
+      code: 'const classes = "text-[var(--text-sm)]";',
+      errors: [{ messageId: "ambiguous" }],
+    },
+    {
+      filename: "apps/desktop/src/components/ui/button.tsx",
+      code: 'const classes = "bg-[#000]";',
+      errors: [{ messageId: "raw" }],
+    },
+    {
+      filename: "apps/desktop/src/components/ui/dialog.tsx",
+      code: "const view = <div className={`pe-${size}`} />;",
+      errors: [{ messageId: "dynamic" }],
+    },
+  ],
 });
