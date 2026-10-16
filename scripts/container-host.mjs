@@ -940,7 +940,7 @@ export function createContainerHost(profile) {
           ["-c", "pack.threads=2", "bundle", "create", bundle, "refs/heads/container-selected"],
           {
             cwd: snapshot,
-            timeout: setupTimeout(300_000),
+            timeout: setupTimeout(builder ? 600_000 : 300_000),
             signal: abort.signal,
           },
         );

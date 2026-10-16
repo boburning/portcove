@@ -1,3 +1,4 @@
+import { annotateNextest, hasNextestEquivalence } from "./nextest-equivalence.mjs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
@@ -21,6 +22,7 @@ import {
   buildValidationPlan,
   validateValidationPlan,
   validationOwnershipForPath,
+  ordinaryOwnershipForPath,
 } from "./validation-plan.mjs";
 import {
   auditRuntime,
@@ -509,6 +511,14 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   const file = normalizePath(input);
   if (isRepositoryLintInput(file)) selection.repositoryLint = true;
   const extension = path.posix.extname(file).toLowerCase();
+  if (extension === ".sh") {
+    selection.shellLint = true;
+    if (options.includeFileChecks ?? true) selection.shellFiles.add(file);
+  }
+  if (extension === ".py") {
+    selection.pythonLint = true;
+    if (options.includeFileChecks ?? true) selection.pythonFiles.add(file);
+  }
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
   if (
@@ -568,7 +578,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     file === "Cargo.lock" ||
     file === "rust-toolchain.toml" ||
     file === "deny.toml" ||
-    file === ".config/nextest.toml"
+    (file === ".config/nextest.toml" && !options.nextestUnchanged)
   ) {
     selection.workspaceRust = true;
     if (file !== "Cargo.lock" || options.isDeletion) selection.workspaceRustTests = true;
@@ -734,6 +744,11 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     recognized = true;
   }
 
+  if (file === ".config/nextest.toml" && options.nextestUnchanged) {
+    recognized = true;
+    addNodeTest(selection, "scripts/nextest-equivalence.test.mjs");
+  }
+
   if (file.startsWith(".vite-hooks/") || file === "vite.config.ts") {
     selection.scopes.add("tooling");
     addNodeTest(selection, "scripts/precommit-check.test.mjs");
@@ -883,12 +898,19 @@ export function classifyChanges(changes, options = {}) {
     fallow: false,
     playnite: false,
     transport: false,
+    shellFiles: new Set(),
+    pythonFiles: new Set(),
     rustChanges: [],
   };
   for (const change of changes) {
     classifyOnePath(selection, change.path, fileExists, {
       includeFileChecks: change.status !== "D",
       isDeletion: change.status === "D",
+      nextestUnchanged: hasNextestEquivalence({
+        ...change,
+        oldPath: change.previousPath ?? change.path,
+        newPath: change.path,
+      }),
     });
     if (change.previousPath)
       classifyOnePath(selection, change.previousPath, fileExists, {
@@ -905,6 +927,15 @@ export function classifyChanges(changes, options = {}) {
         previousPath: change.path,
         packageName: previousPackage,
       });
+  }
+  for (const change of changes) {
+    for (const file of [change.path, change.previousPath].filter(Boolean)) {
+      const owned = ordinaryOwnershipForPath(file);
+      if (owned.groups.includes("frontend") && !selection.ui) {
+        selection.ui = true;
+        selection.uiFullTests = true;
+      }
+    }
   }
   return selection;
 }
@@ -967,7 +998,11 @@ export function buildPlan(selection, context = {}) {
     selection.repositoryLint || broad || validation?.fallback || validation?.changes.length === 0;
   if (fullStatic)
     commands.push(
-      frontendTask("repository-lint", "integrated repository static checks", "frontend:static"),
+      frontendTask(
+        "repository-lint",
+        "integrated repository static checks",
+        selection.ui || broad ? "frontend:static" : "repository:static",
+      ),
     );
   const files = sorted(selection.oxfmtFiles).filter((file) =>
     existsSync(path.join(projectRoot, file)),
@@ -982,6 +1017,32 @@ export function buildPlan(selection, context = {}) {
         ...(broad || files.includes("vite.config.ts")
           ? []
           : files.map((file) => path.join(projectRoot, file))),
+      ]),
+    );
+  if (selection.actionsLint)
+    commands.push(
+      command("actionlint", "workflow and embedded shell contracts", process.execPath, [
+        "scripts/run-actionlint.mjs",
+      ]),
+    );
+  if (selection.shellLint && selection.shellFiles.size)
+    commands.push(
+      command("shell-lint", "owned shell script lint", "aqua", [
+        "exec",
+        "--",
+        "shellcheck",
+        "--severity=warning",
+        ...sorted(selection.shellFiles),
+      ]),
+    );
+  if (selection.pythonLint && selection.pythonFiles.size)
+    commands.push(
+      command("python-lint", "owned Python script lint", "aqua", [
+        "exec",
+        "--",
+        "ruff",
+        "check",
+        ...sorted(selection.pythonFiles),
       ]),
     );
   if (selection.rustfmt || broad)
@@ -1112,7 +1173,15 @@ export function readChangeContext(base = "origin/main") {
     baseSha,
     headSha,
     mergeBase,
-    changes: [...tracked, ...untracked],
+    changes: annotateNextest(
+      [...tracked, ...untracked].map((c) => ({
+        ...c,
+        oldPath: c.previousPath ?? c.path,
+        newPath: c.path,
+      })),
+      (file) => git(["show", `${mergeBase}:${file}`]),
+      (file) => readFileSync(path.join(projectRoot, file), "utf8"),
+    ),
   };
 }
 
@@ -1258,7 +1327,7 @@ export function inspectPreChangeAudit(
       .filter(Boolean)
       .some((name) => validationOwnershipForPath(name).areas.includes("policy")),
   );
-  if (!policy) return null;
+  if (!policy || !validationPlan.qualification_required) return null;
   const changes = context.changes.map((change) => ({
     status: change.status,
     oldPath: change.previousPath ?? change.path,
@@ -1615,7 +1684,10 @@ export function storageScopeForPlan(plan) {
       rust = true;
     else if (id.startsWith("ui-") || ["oxfmt", "oxlint", "repository-lint", "fallow"].includes(id))
       frontend = true;
-    else if (id !== "diff-check" && id !== "node-tests" && !id.startsWith("node-syntax:"))
+    else if (
+      !["diff-check", "node-tests", "actionlint", "shell-lint", "python-lint"].includes(id) &&
+      !id.startsWith("node-syntax:")
+    )
       return "all";
   }
   return rust && frontend ? "all" : rust ? "rust" : frontend ? "frontend" : "tooling";
@@ -1708,6 +1780,7 @@ export async function main(argv = process.argv.slice(2), options = {}) {
         newMode: change.newMode,
         oldPath: change.previousPath ?? change.path,
         newPath: change.path,
+        ...(change.nextest_equivalence ? { nextest_equivalence: change.nextest_equivalence } : {}),
       })),
       eventName: "pull_request",
       base: context.baseSha,

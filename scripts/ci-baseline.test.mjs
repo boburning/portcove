@@ -16,13 +16,14 @@ import {
   baselineBootstrapTests,
   baselineTestEnvironment,
   baselineSelection,
+  baselineRequiresPython,
 } from "./ci-baseline.mjs";
 const make = (files) =>
   buildValidationPlan({
     changes: files.map((file) => ({
       status: "M",
-      oldMode: "100644",
-      newMode: "100644",
+      oldMode: file.endsWith(".sh") ? "100755" : "100644",
+      newMode: file.endsWith(".sh") ? "100755" : "100644",
       oldPath: file,
       newPath: file,
     })),
@@ -54,7 +55,11 @@ test("local and hosted lint use one full stage for relevant inputs, including re
     assert.equal(hosted.length, 1, file);
     assert.equal(hosted[0].id, "repository-lint");
     assert.equal(hosted[0].executable, process.execPath);
-    assert.deepEqual(hosted[0].args, ["scripts/run-viteplus.mjs", "run", "frontend:static"]);
+    assert.deepEqual(hosted[0].args, [
+      "scripts/run-viteplus.mjs",
+      "run",
+      file.startsWith("scripts/") ? "repository:static" : "frontend:static",
+    ]);
     assert.equal(path.resolve(hosted[0].cwd), process.cwd());
     assert.deepEqual(
       hosted,
@@ -258,4 +263,9 @@ test("ordinary selected checking retains CSS correctness", () => {
     "run",
     "frontend:static",
   ]);
+});
+
+test("Python is provisioned for the effective TOML positive contracts, not ordinary prose", () => {
+  assert.equal(baselineRequiresPython(make(["scripts/nextest-equivalence.mjs"])), true);
+  assert.equal(baselineRequiresPython(make(["docs/QUALITY.md"])), false);
 });

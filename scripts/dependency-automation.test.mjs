@@ -107,8 +107,8 @@ test("Renovate is the sole conservative routine update authority", async () => {
   assert.equal(renovate.internalChecksFilter, "strict");
   assert.equal(renovate.prConcurrentLimit, 2);
   assert.equal(renovate.branchConcurrentLimit, 2);
-  assert.equal(renovate.prHourlyLimit, 2);
-  assert.equal(renovate.commitHourlyLimit, 4);
+  assert.equal(renovate.prHourlyLimit, 0);
+  assert.equal(renovate.commitHourlyLimit, 0);
   assert.equal(renovate.rebaseWhen, "conflicted");
   assert.equal(renovate.prCreation, "immediate");
   assert.equal(renovate.updateNotScheduled, true);
@@ -272,7 +272,6 @@ test("deployed Cargo replay separates selected lock updates from security and fu
 test("Renovate batches development tools and suppresses only the Aqua registry authority", async () => {
   const renovate = JSON.parse(await read("renovate.json"));
   const aqua = await read("aqua.yaml");
-  const quality = await read("docs/QUALITY.md");
   const toolingSchedule = ["* * * * 1,4"];
 
   const npmCadence = renovate.packageRules.find(
@@ -328,15 +327,8 @@ test("Renovate batches development tools and suppresses only the Aqua registry a
     false,
   );
   assert.notEqual(renovate.vulnerabilityAlerts?.enabled, false);
-  assert.match(quality, /Routine updates retain the\s+one-day age policy\./u);
-  assert.match(
-    quality,
-    /vulnerability-alert pull requests bypass the\s+ordinary schedule, queue limits, and minimum release age/u,
-  );
-  assert.match(
-    quality,
-    /they still retain applicable checksums, protected\s+CI, review and authorized guarded merge/u,
-  );
+  // Configuration assertions above own effective schedule, age and alert policy;
+  // prose may move between the daily contract and operation reference.
 });
 
 test("the RPM prerelease hold excludes only the affected npm CLI version", async () => {

@@ -412,7 +412,7 @@ identity to the actual execution. Required checks, independent review and
 current-target reconciliation remain separate merge obligations. A later source
 or relevant target change does not inherit this receipt automatically.
 
-Changes to this controller require the protected pre-change qualification and
+Changes to this controller require the applicable qualification under [QUALITY](QUALITY.md#required-hosted-baseline) and
 independent review. The new dependency profile cannot qualify its own authority
 changes or replace required literal locked commands with a broader audit claim.
 
@@ -1623,7 +1623,7 @@ is a workflow input. Binding format1 names source/controller/base/merge-base/aut
 complete inventory SHA-256, hosted-plan digest, and complete baseline/selected
 obligation inventories. Generate the candidate-root structured inventory with
 `just local-check --preflight --json`; prerequisite observations are not execution.
-Review the baseline obligations independently under the preserved pre-change policy.
+Review the baseline obligations independently under the current [QUALITY policy](QUALITY.md#required-hosted-baseline).
 
 `bootstrap` runs `just local-check --fresh` and `just audit --fresh` in separate jobs;
 `selected` runs fresh selected validation, `compiled` runs the complete maintained

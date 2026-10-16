@@ -16,8 +16,8 @@
   "internalChecksFilter": "strict",
   "prConcurrentLimit": 2,
   "branchConcurrentLimit": 2,
-  "prHourlyLimit": 2,
-  "commitHourlyLimit": 4,
+  "prHourlyLimit": 0,
+  "commitHourlyLimit": 0,
   "rangeStrategy": "bump",
   "rebaseWhen": "conflicted",
   "lockFileMaintenance": {

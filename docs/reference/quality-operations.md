@@ -3,7 +3,7 @@
 Read only the operation needed. [QUALITY](../QUALITY.md#required-hosted-baseline) owns
 current selection. In retained details, platform-wide, browser, analyzer and installed
 requirements refer to explicit exhaustive qualification or named acceptance; they do
-not expand ordinary PR CI. The cutover still satisfies its pre-change policy once.
+not expand ordinary PR CI. The completed #1682 cutover is historical evidence.
 
 ## Staged audit receipts
 
@@ -12,8 +12,8 @@ Upstream health's protected accounting policy is
 conditions and exact provider-reported pin assessments retain degraded/unknown
 availability and unverified bytes. They are monitoring dispositions, never
 catalog maintenance, successor, installation or artifact authority. Changes to
-this policy or its metadata helpers select full monitoring and the applicable
-pre-change protected transition; the candidate cannot authorize its own accounting
+this policy or its metadata helpers select full monitoring and applicable review
+and hosted checks under QUALITY; the candidate cannot authorize its own accounting
 or waive a failed run. New, changed or insufficient facts fail closed under
 [UPSTREAM-OBSERVATIONS.md](../UPSTREAM-OBSERVATIONS.md).
 
@@ -30,8 +30,7 @@ Windows-qualification stages. It continues independent stages after a failure
 and returns one aggregate failure so a late problem does not hide remaining
 results. `just audit --plan` reports each run/reuse decision without executing a
 stage or creating receipt storage. `just audit --fresh` ignores prior success and
-runs every applicable stage; release preflight and validation-contract acceptance
-use this mode.
+runs every applicable stage; release preflight uses this mode; ordinary validation-policy changes follow QUALITY.
 
 Successful deterministic-stage receipts live under ignored
 `work/validation-receipts`. Their fingerprints cover the complete conservative
@@ -57,13 +56,13 @@ applicable lint environment even when file bytes are unchanged.
 
 Representative hosted selection after explicit ownership routing:
 
-| Candidate                                                          | Selected hosted behavior                                               |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| Informational docs or issue template                               | prose where allowlisted, otherwise focused repository groups           |
-| Frontend presentation                                              | frontend and Rust-quality fast groups                                  |
-| Focused core Rust                                                  | Rust and Rust-quality fast groups                                      |
-| Ordinary tooling repair                                            | explicit groups, or all-fast primary-host fallback when safely unknown |
-| Selector, workflow, updater-trust, signing or authorization policy | exhaustive protected qualification on all maintained platforms         |
+| Candidate                                                          | Selected hosted behavior                                                        |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Informational docs or issue template                               | formatting, links and relevant cheap contracts                                  |
+| Frontend presentation                                              | frontend and Rust-quality fast groups                                           |
+| Focused core Rust                                                  | Rust and Rust-quality fast groups                                               |
+| Ordinary tooling repair                                            | explicit groups, or all-fast primary-host fallback when safely unknown          |
+| Selector, workflow, updater-trust, signing or authorization policy | ordinary affected contracts; explicit qualification when acceptance requires it |
 
 Renames and deletions classify both identities, mixed changes union their owners,
 and incomplete discovery authorizes no plan. Words such as `design`, `channel`, or
@@ -95,11 +94,9 @@ cases without installing frontend dependencies. Both rename/delete sides and
 the actual probe, quoting and launch inputs select Windows proof; a Linux skip
 does not supply it. This exact test ownership does not narrow fixture, scenario
 or Playnite lifecycle implementations.
-Selected local checks run the existing Fallow gate for frontend source, script
-and test changes. Both hosted frontend lanes also run that same gate; the fast
-lane checks it before build/test and browser preparation. Its settings and final
-qualification obligation remain unchanged. This retains early feedback on
-analyzed fixtures without adding an unrelated Rust or native local suite.
+Fallow runs in explicit exhaustive UI checks and qualification. Ordinary local
+and hosted checks select integrated lint/type checks, build and runtime tests;
+analyzer invocation does not create a merge prerequisite.
 
 Every completed audit writes a current-head run receipt listing the fingerprint,
 originating head, duration, rationale, and fresh/reused/failed result for every
@@ -289,13 +286,15 @@ optional deep tools remain outside required PR CI.
 
 Required CI cancels an older in-progress run when a newer commit reaches the same branch or pull request. This keeps obsolete Windows builds from occupying the queue while preserving a complete run for the newest commit.
 
-Routine Renovate traffic is bounded to two concurrent branches and pull requests,
-two new pull requests per hour, and four branch updates or rebases per hour.
+Routine Renovate traffic is bounded to two concurrent branches and pull requests.
+Hourly PR and commit caps are disabled (`prHourlyLimit: 0` and
+`commitHourlyLimit: 0`), so eligible proposals and conflict repairs can replenish
+available slots without waiting for the next hour. This does not change the
+hosted Renovate service's execution cadence, release-age filtering or review gates.
 Security vulnerability alerts retain Renovate's documented bypass of those
 ordinary queue limits, while GitHub vulnerability alerts and Dependabot security
-updates remain independent. Revert the four top-level limits in `renovate.json`
-if dependency freshness suffers; do not compensate by weakening CI or enabling
-broad automerge.
+updates remain independent. Adjust throughput through the top-level limits in
+`renovate.json`; do not compensate by weakening CI or enabling broad automerge.
 
 Linux desktop build prerequisites are installed through `scripts/install-linux-desktop-prerequisites.sh` in required CI, deep-quality, release, and updater-rehearsal workflows. The installer skips package-network work when the exact prerequisite set is already present, isolates resolution to Ubuntu sources, and gives APT three bounded fetch retries with explicit connection and package-lock timeouts. It first tries the runner-configured mirror under separate two-minute update and three-minute install deadlines, then applies the established archive mirror fallback with four-minute update and five-minute install deadlines. Narrow options add the updater rehearsal's `rpm` or AppImage runtime tools, or the on-demand native-compatibility workflow's WebKitWebDriver/Xvfb tools; unknown arguments fail before package work. Each calling step has a fifteen-minute outer limit and fails if both mirror attempts are exhausted. These retries cover external package retrieval only; repository tests retain zero retries, and a failed validation is never converted into a passing result.
 The helper never opens an interactive privilege prompt: root runs directly, while
@@ -317,7 +316,7 @@ by the workflow, result-gate, validation-plan, and qualification-coverage tests.
 
 A lockfile or toolchain change is expected to pay each lane's cold-build cost once. [Run 33832768415](https://github.com/boburning/portcove/actions/runs/33832768415) established the initial 7m45s cold baseline and exposed the shared-key race. After isolating the non-core jobs, [run 33833781499](https://github.com/boburning/portcove/actions/runs/33833781499) passed in 6m49s while populating both new lane-specific caches.
 
-Frontend pull requests use the required GitHub dependency-review check to block newly introduced high-severity vulnerabilities. GitHub vulnerability alerts and automated Dependabot security fixes remain active independently of routine Renovate updates. The frontend build lane therefore does not make a second live request to npm's advisory endpoint on every commit, including pnpm's install-time audit; those duplicate requests added no change-specific coverage and could hold all otherwise-passing checks open for repeated network timeouts. Frozen lockfile installation, production build, tests, Fallow, and the pnpm/`just` development-storage integration cases remain required. The Windows and Linux Rust lanes retain every platform-relevant development-storage test while delegating only those two tool-integration cases to the prepared frontend lane.
+Frontend pull requests use the required GitHub dependency-review check to block newly introduced high-severity vulnerabilities. GitHub vulnerability alerts and automated Dependabot security fixes remain active independently of routine Renovate updates. The frontend build lane therefore does not make a second live request to npm's advisory endpoint on every commit, including pnpm's install-time audit; those duplicate requests added no change-specific coverage and could hold all otherwise-passing checks open for repeated network timeouts. Ordinary selection retains frozen lockfile installation, production build and runtime tests for frontend inputs. Fallow and pnpm/`just` development-storage integration cases run in explicit qualification or when their contracts change. The Windows and Linux Rust lanes retain every platform-relevant development-storage test while delegating only those two tool-integration cases to the prepared frontend lane.
 
 The manually triggered `.github/workflows/deep-quality.yml` workflow provides a reproducible Ubuntu 24.04 environment for a fresh deterministic audit. It is deliberately not a required pull-request status check. Start it when a fresh hosted audit is useful:
 
@@ -466,7 +465,7 @@ not substitute for that repair. Do not require prolonged optimization merely to
 defend an inherited number. Preserve coherent scenarios and full-catalog coverage
 where required. Independently review the exact override and evidence, retain
 slow warnings and finite termination, and satisfy normal selected validation,
-protected pre-change qualification and exact-head hosted gates. A permitted
+applicable review and exact-head hosted gates under QUALITY. A permitted
 diagnostic budget experiment is not its own final policy-transition qualification.
 Node, qualification-harness, command/supervisor and CI safeguards may be calibrated
 under the same authorization; application network and other product deadlines
@@ -715,3 +714,107 @@ Use `node scripts/cleanup-intel-artifacts.mjs` for a read-only inventory and add
 `--apply` only for the authorized scoped cleanup. A restarted attempt or changed
 artifact identity stops deletion. Failed or ambiguous deletion responses require
 readback; the tool never retries an uncertain mutation.
+
+## Bounded dependency delivery
+
+[QUALITY](../QUALITY.md#bounded-dependency-delivery) owns when review and validation are required.
+The deployed helper owns eligibility; these commands describe its use.
+
+Start one authorized maintenance cycle with
+`just renovate-check --queue [--json]`. It reads the complete current proposal
+inventory, exact source heads, target interactions, required checks and run
+identities. The selected row is a recommendation: confirm existing ownership and
+actual writer activity and source-owner release before overlapping work. No
+coordinator grant or acknowledgment is required for independent delivery.
+The command does not retry, approve, rebase or merge proposals, assign ownership
+or maintain another queue. Refresh
+after every delivered outcome. No unattended execution is implied.
+
+Use four delivery paths:
+
+- **Routine fast lane:** run `just renovate-check --pr <number> --head <sha>`.
+  Only `merge-ready` permits the existing #878 exception: exact-head hosted
+  compilation/lint/tests plus locked metadata and dependency-policy validation,
+  followed by concise delivering-agent upstream/diff review and guarded merge.
+  This does not require a duplicate broad local aggregate or separate review.
+- **Controlled maintenance:** compatibility groups, pre-1.0 inputs, tools,
+  Actions, lockfile maintenance, sensitive boundaries and repaired proposals use
+  the ordinary diff-selected hosted plan (local feedback stays optional) and independent non-writing
+  review. Signing/trust, credential storage/transport, extraction and persistent
+  database inputs require behavior-specific evidence regardless of labels or
+  a small version increment. Inspect enabled features, transitive changes,
+  install/build behavior and relevant compiler/runtime requirements. Browser
+  provider updates include the real browser stage; native/updater changes retain
+  their distinct acceptance. Pure formatter updates do not imply installed-updater
+  qualification.
+- **Planned migrations:** major proposals require selective Dependency Dashboard
+  intake. The authorized runner can approve an owned finite migration within
+  existing authority. Ordinary proposals do not need that approval. Priority
+  orders eligible intake; it cannot evict occupied slots. Preserve finite owners,
+  blocker/resume conditions and failed evidence rather than closing failures to
+  free the queue.
+- **Urgent remediation:** security-intent metadata selects prompt advisory
+  assessment, not an automatic vulnerability finding. Confirm the applicable
+  advisory, locked graph and exposed function. Necessary fixes proceed separately
+  from elective upgrades, without the ordinary release-age or intake delay; review,
+  signatures, required checks and affected native/installed behavior remain.
+
+Frontend resolution uses pnpm 12.11.2's native `minimumReleaseAge: 1440`
+and `minimumReleaseAgeStrict: false`. It prefers eligible versions within a
+requested range, but can install a younger version when none qualifies. Renovate
+filters routine proposals with `minimumReleaseAge: "1 day"`,
+`minimumReleaseAgeBehaviour: "timestamp-required"` and
+`internalChecksFilter: "strict"`. This is not a universal 24-hour installed-age
+guarantee, including for frozen lockfiles or newly resolved transitives. Keep
+native missing-timestamp handling; do not recreate the retired custom age gate.
+
+The dependency-review lanes still execute the pinned dependency-review action
+with high-severity failure propagation. Advisory/license policy, vulnerability
+alerts, frozen lockfiles, registry artifact integrity and restricted install
+scripts retain their existing responsibilities. The old three-day audit,
+age-only artifacts and delivery consumer are removed. Historical failures and
+eligibility times remain evidence of the superseded policy, not resume gates.
+The independent lock inventory remains a source/integrity input to build
+comparison; it supplies no publication-age verdict.
+
+Vite+ releases are discovered automatically by Renovate. The primary proposal
+selects a target; it must be completed through the supported migrator from
+verified pre-upgrade inputs before ordinary checks can pass. Bundled aliases,
+Vitest and browser providers do not take independent ordinary upgrades. Security
+alerts remain enabled and take the same coordinated compatibility review. See
+[the completion procedure](../DEVELOPMENT-TOOLS.md#coordinated-upgrades-and-rollback).
+
+The fast-lane whole-lock comparison permits only the claimed direct version and
+registry integrity transition. Unknown syntax, other resolution changes, source,
+feature or package metadata changes require controlled review. Missing or ambiguous
+release-age evidence also requires a specific reviewed resolution; do not relax
+timestamp requirements globally. A repaired proposal cannot regain bot-only
+eligibility by changing labels. Convenience batches may be separated when an
+independent member blocks; compatibility families must remain coherent.
+
+Pending CI retains the actual run, attempt, exact source head and one absolute
+execution deadline for `pr-watch`. Collect failures once and repair their cause
+before retrying. Neither a queue refresh nor an unrelated target advance justifies
+mass rebasing or repeating valid evidence. Lockfile resolution is package-manager
+driven: the direct-update cooldown does not prove the age of every newly resolved
+transitive dependency. Cargo and frontend lockfile maintenance are controlled
+units; separate them only through supported Renovate behavior when qualification
+and rollback scope justify it.
+
+Validate configuration with the official pinned client used for the current
+resolved-rule receipt:
+`pnpm --package=renovate@44.156.3 dlx --allow-build=re2 renovate-config-validator --strict renovate.json`.
+Schema validation supplements the repository's rule/extraction/classifier tests;
+it does not prove effective inherited grouping or hosted proposal uptake. Inspect
+resolved presets and rule precedence with the matching official engine, then read
+back actual hosted proposals after delivery. The validator pin is a validation
+client, not a new runtime dependency or tool manager. Deliberately excluded Aqua
+registry and rusqlite authorities retain their existing reviewed resume conditions.
+Renovate proposes repository dependency changes; it cannot accept game releases,
+successor repositories, catalog artifacts or changed trust policy.
+
+Renovate is the sole routine dependency-version update authority. GitHub
+vulnerability alerts and automated Dependabot security fixes remain enabled
+independently; the absence of `.github/dependabot.yml` retires scheduled
+Dependabot version-update jobs without disabling those repository security
+capabilities.

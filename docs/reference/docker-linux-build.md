@@ -78,6 +78,8 @@ an arbitrary-executable sandbox guarantee.
 The builder uses four CPUs, 6 GiB RAM/no extra swap, 1 GiB shared memory and 1024
 PIDs, matching browser limits. Preparation is bounded to 90 minutes and the task
 to 90 minutes (`--timeout-ms` may tighten it). Browser deadlines stay at 30 minutes.
+Builder source-bundle export has a ten-minute safeguard, clipped to the remaining
+preparation budget; the browser source-bundle safeguard stays at five minutes.
 Existing physical Windows volume and Linux free-space admission apply. Source
 bundles are capped at 256 MiB, command output at 16 MiB, task logs at 100 MiB and
 exported evidence at 1 GiB. Shared admission/retention budgets remain 10 GiB for
