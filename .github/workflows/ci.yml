@@ -291,6 +291,18 @@ jobs:
           PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
         working-directory: .
         run: node scripts/ci-baseline.mjs frontend
+      - name: Retain failed affected browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-traces-fast-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/bt/**/*.trace.zip
+            .vitest/attachments/failure-screenshots/**/*.png
+            apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: warn
       - name: Record dependency cache observation
         if: always()
         continue-on-error: true
@@ -899,9 +911,10 @@ jobs:
         with:
           name: browser-traces-full-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            work/bt
-            .vitest/attachments
-            apps/desktop/.vitest/attachments
+            work/bt/**/*.trace.zip
+            .vitest/attachments/failure-screenshots/**/*.png
+            apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
+          include-hidden-files: true
           retention-days: 7
           if-no-files-found: warn
       - name: Test application release records
@@ -1050,8 +1063,17 @@ jobs:
           pnpm --version
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec vp toolchain
-      - run: pnpm check
-      - run: pnpm test --project unit
       - run: pnpm --dir apps/desktop browser:bootstrap
-      - run: pnpm test --project browser
-      - run: pnpm build
+      - run: pnpm verify:frontend
+      - name: Retain failed contributor browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-traces-contributor-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/bt/**/*.trace.zip
+            .vitest/attachments/failure-screenshots/**/*.png
+            apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: warn

@@ -1599,8 +1599,30 @@ test("full frontend qualification provisions browser artifacts before compositio
   assert.match(full, /browser-traces-full/);
   assert.match(full, /work\/bt/);
   assert.doesNotMatch(full, /work\/browser-traces/);
-  const fast = workflow.split("  fast_frontend:")[1].split("  fast_catalog:")[0];
+  const jobBoundary = /\n {2}[a-zA-Z][a-zA-Z_-]*:/u;
+  const fast = workflow.split("  fast_frontend:")[1].split(jobBoundary)[0];
   assert.match(fast, /browser-runtime.mjs bootstrap/);
+  const contributor = workflow.split("  frontend_portability:")[1].split(jobBoundary)[0];
+  const contributorProvision = contributor.indexOf("pnpm --dir apps/desktop browser:bootstrap");
+  assert.ok(contributorProvision >= 0);
+  assert.ok(contributor.indexOf("pnpm verify:frontend") > contributorProvision);
+  assert.equal(contributor.match(/run: pnpm verify:frontend/g)?.length, 1);
+  assert.doesNotMatch(contributor, /run: pnpm (?:test|check|build)\b/);
+  for (const [name, block] of [
+    ["full", full],
+    ["fast", fast],
+    ["contributor", contributor],
+  ]) {
+    const uploadIndex = block.indexOf(`name: browser-traces-${name}-`);
+    assert.ok(uploadIndex >= 0, `${name} must preserve failed browser evidence`);
+    const upload = block.slice(uploadIndex);
+    assert.match(block, /if: failure\(\)\r?\n +uses: actions\/upload-artifact@/);
+    assert.match(upload, /work\/bt\/\*\*\/\*\.trace\.zip/);
+    assert.match(upload, /\.vitest\/attachments\/failure-screenshots\/\*\*\/\*\.png/);
+    assert.match(upload, /include-hidden-files: true/);
+    assert.match(upload, /retention-days: 7/);
+    assert.doesNotMatch(upload, /^ +work\/bt\r?$/m);
+  }
 });
 
 test("frontend tools resolve through the pinned Vite+ bundle", async () => {
