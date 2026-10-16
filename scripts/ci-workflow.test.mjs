@@ -635,6 +635,11 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
   );
   assert.equal(rehearsal.match(/ref: \$\{\{ env\.PORTCOVE_SOURCE_COMMIT \}\}/g)?.length, 3);
   assert.match(rehearsal, /pnpm tauri build --bundles deb,rpm --ci/);
+  assert.match(rehearsal, /pnpm\/setup@[a-f0-9]{40}/);
+  assert.match(rehearsal, /install: false\s+node-version-file: \.node-version\s+cache: true/);
+  assert.doesNotMatch(rehearsal, /pnpm\/action-setup|actions\/setup-node/);
+  assert.match(rehearsal, /Verify pinned frontend runtime and store[\s\S]*pnpm store path/);
+  assert.match(rehearsal, /pnpm install --frozen-lockfile/);
   assert.match(rehearsal, /actions\/download-artifact@/);
   assert.match(rehearsal, /test-linux-package-ownership\.sh deb/);
   assert.match(rehearsal, /test-linux-package-ownership\.sh rpm/);

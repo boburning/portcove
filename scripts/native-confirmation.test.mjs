@@ -140,22 +140,20 @@ foreach($entry in @(@($ast,'Get-PickerFieldEvidence'),@($other,'Get-NativePicker
  . ([scriptblock]::Create($fn.Extent.Text))
 }
 Write-ProjectionPhase 'functions-ready'
-Add-Type -TypeDefinition @'
-using System;
-public static class PortcoveNativeWindows {
- public class Observation { public IntPtr handle=new IntPtr(9); public int control_id=1152,parent_id=0; public string parent_class="other"; }
- public static int calls=0; public static bool fail=false;
- public static int actions=0;
- public static IntPtr GetFolderActionButton(IntPtr handle,int process,string action,string title){
-  if(handle.ToInt32()!=7 || process!=42 || action!="Cancel" || (title!="Select Folder" && title!="Choose game-file folder"))throw new Exception("wrong native action context");
-  actions++;return new IntPtr(20);
+class PortcoveNativeWindows {
+ static [int]$calls=0
+ static [bool]$fail=$false
+ static [int]$actions=0
+ static [IntPtr] GetFolderActionButton([IntPtr]$handle,[int]$process,[string]$action,[string]$title){
+  if($handle.ToInt32() -ne 7 -or $process -ne 42 -or $action -cne 'Cancel' -or $title -cnotin @('Select Folder','Choose game-file folder')){throw 'wrong native action context'}
+  [PortcoveNativeWindows]::actions++;return [IntPtr]20
  }
- public static Observation[] InspectEdits(IntPtr handle,int process,string title){
-  if(handle.ToInt32()!=7 || process!=42 || title!="Select Folder")throw new Exception("wrong explicit observation context");
-  calls++;if(fail)throw new Exception("secondary diagnostic failure");return new[]{new Observation()};
+ static [object[]] InspectEdits([IntPtr]$handle,[int]$process,[string]$title){
+  if($handle.ToInt32() -ne 7 -or $process -ne 42 -or $title -cne 'Select Folder'){throw 'wrong explicit observation context'}
+  [PortcoveNativeWindows]::calls++;if([PortcoveNativeWindows]::fail){throw 'secondary diagnostic failure'}
+  return @([pscustomobject]@{handle=[IntPtr]9;control_id=1152;parent_id=0;parent_class='other'})
  }
 }
-'@
 Write-ProjectionPhase 'stub-ready'
 function Get-NativePickerElement($handle){
  if($handle.ToInt32() -ne 9){throw 'wrong edit'}
