@@ -55,7 +55,8 @@ test("package member inspection requires the exact regular executable", () => {
   assertPackageExecutable("rpm", rpm);
   const link = deb.replace("-rwxr-xr-x", "lrwxrwxrwx") + " -> /tmp/other";
   const directory = deb.replace("-rwxr-xr-x", "drwxr-xr-x") + "/";
-  for (const other of [link, directory])
+  const hardlink = deb.replace("-rwxr-xr-x", "hrwxr-xr-x") + " link to ./other";
+  for (const other of [link, directory, hardlink, "invalid record ./usr/bin/portcove-desktop"])
     for (const listing of [`${deb}\n${other}`, `${other}\n${deb}`])
       assert.throws(() => assertPackageExecutable("deb", listing), /regular executable/u);
   for (const listing of [

@@ -9,14 +9,19 @@ export function assertPackageExecutable(format, listing) {
     .flatMap((line) => {
       if (format === "deb") {
         const match =
-          /^([-dl][rwxstST-]{9})\s+\S+\s+\d+\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?\s+(.+)$/u.exec(
-            line,
-          );
+          /^(\S{10})\s+\S+\s+\d+\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?\s+(.+)$/u.exec(line);
+        if (!match && line.includes("usr/bin/portcove-desktop"))
+          throw new Error("Unparsed package record at selected regular executable path");
         return match
           ? [
               {
-                path: match[1][0] === "l" ? match[2].split(" -> ")[0] : match[2],
-                regular: match[1][0] === "-" && /[xs]/u.test(match[1][3]),
+                path:
+                  match[1][0] === "l"
+                    ? match[2].split(" -> ")[0]
+                    : match[1][0] === "h"
+                      ? match[2].split(" link to ")[0]
+                      : match[2],
+                regular: /^-[rwxstST-]{9}$/u.test(match[1]) && /[xs]/u.test(match[1][3]),
               },
             ]
           : [];
