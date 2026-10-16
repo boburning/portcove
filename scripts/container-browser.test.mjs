@@ -10,6 +10,7 @@ import {
   validateEngine,
   validateDesktop,
   diskFromSettings,
+  resolvedSettingsLog,
   linuxStorage,
   cacheBytes,
   selectedSource,
@@ -61,6 +62,28 @@ const settings = {
   "vm.hypervisor.windows": "wsl2",
   "vm.resources.wslDataFolder": "<HOME>\\AppData\\Local\\Docker\\wsl",
 };
+test("resolved settings survive one bounded backend log rotation", () => {
+  mkdirSync(path.join(root, "work"), { recursive: true });
+  const fixture = mkdtempSync(path.join(root, "work/container-settings-"));
+  try {
+    writeFileSync(path.join(fixture, "com.docker.backend.exe.log"), "new process log\n");
+    writeFileSync(
+      path.join(fixture, "com.docker.backend.exe.log.20261016-093408.450"),
+      liveSettings(settings),
+    );
+    assert.equal(
+      diskFromSettings(resolvedSettingsLog(fixture), 0, "C:\\Users\\fixture").folder,
+      "C:\\Users\\fixture\\AppData\\Local\\Docker\\wsl",
+    );
+    assert.throws(
+      () => diskFromSettings(resolvedSettingsLog(fixture), Date.now(), "C:\\Users\\fixture"),
+      /predate/u,
+    );
+  } finally {
+    assert.equal(path.dirname(fixture), path.join(root, "work"));
+    rmSync(fixture, { recursive: true });
+  }
+});
 test("disk discovery binds resolved settings and refuses missing or stale authority", () => {
   const result = diskFromSettings(
     liveSettings(settings),

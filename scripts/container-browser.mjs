@@ -179,6 +179,17 @@ function tail(file, limit = 2 * 1024 ** 2) {
   if (statSync(file).size > limit) throw new Error(`Docker settings log exceeds ${limit} bytes`);
   return readFileSync(file, "utf8");
 }
+export function resolvedSettingsLog(directory) {
+  const current = "com.docker.backend.exe.log";
+  const rotated = readdirSync(directory)
+    .filter((name) => /^com\.docker\.backend\.exe\.log\.\d{8}-\d{6}\.\d+$/u.test(name))
+    .sort()
+    .at(-1);
+  return [rotated, current]
+    .filter(Boolean)
+    .map((name) => tail(path.join(directory, name)))
+    .join("\n");
+}
 function size(directory) {
   if (!existsSync(directory)) return 0;
   let total = 0;
@@ -290,7 +301,7 @@ export async function doctor({ networkRequired = true } = {}) {
   const local = path.join(process.env.LOCALAPPDATA, "Docker");
   const settings = path.join(process.env.APPDATA, "Docker/settings-store.json");
   const disk = diskFromSettings(
-    tail(path.join(local, "log/host/com.docker.backend.exe.log")),
+    resolvedSettingsLog(path.join(local, "log/host")),
     statSync(settings).mtimeMs,
     os.homedir(),
   );
