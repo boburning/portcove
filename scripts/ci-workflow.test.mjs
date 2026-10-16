@@ -1667,7 +1667,7 @@ test("Linux Rust quality keeps its platform-specific and policy gates without pn
   assert.match(rustQuality, /runs-on: ubuntu-latest/);
   assert.match(rustQuality, /AQUA_ENFORCE_CHECKSUM: "true"/);
   assert.match(rustQuality, /AQUA_ENFORCE_REQUIRE_CHECKSUM: "true"/);
-  assert.match(rustQuality, /aquaproj\/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e/);
+  assert.match(rustQuality, /aquaproj\/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329/);
   assert.match(rustQuality, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/);
   assert.match(rustQuality, /enable_aqua_install: "false"/);
   assert.doesNotMatch(
@@ -1889,12 +1889,12 @@ test("release and deep preflights require a fresh audit", async () => {
   );
   assert.match(release, /just audit --fresh/);
   assert.match(release, /id: aqua-version/);
-  assert.match(release, /aquaproj\/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e/);
+  assert.match(release, /aquaproj\/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329/);
   assert.match(release, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/);
   assert.match(release, /enable_aqua_install: "false"/);
   assert.match(deep, /just audit --fresh/);
   assert.match(deep, /id: aqua-version/);
-  assert.match(deep, /aquaproj\/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e/);
+  assert.match(deep, /aquaproj\/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329/);
   assert.match(deep, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/);
   assert.match(deep, /enable_aqua_install: "false"/);
   assert.match(localPreflight, /just audit --fresh/);
@@ -2620,7 +2620,7 @@ test("deep audit evidence retains audit status without privilege changes", async
   assert.match(deep, /node scripts\/audit-evidence.mjs/);
   assert.match(deep, /if: always\(\) && steps.fresh-audit.outputs.capture_available == 'true'/);
   assert.match(deep, /if: always\(\) && steps.audit-evidence.outputs.available == 'true'/);
-  assert.match(deep, /uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a/);
+  assert.match(deep, /uses: actions\/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9/);
   assert.match(
     deep,
     /name: audit-evidence-\$\{\{ github.run_id \}\}-\$\{\{ github.run_attempt \}\}/,
