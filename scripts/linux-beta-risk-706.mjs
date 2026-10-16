@@ -11,6 +11,14 @@ export const approval706 =
   "https://github.com/boburning/portcove/issues/706#issuecomment-6182222682";
 export const expiry706 = "2026-11-15T04:59:00.000Z";
 export const target706 = "x86_64-unknown-linux-gnu";
+const nativePaths = [
+  "Cargo.toml",
+  "Cargo.lock",
+  "rust-toolchain.toml",
+  ".cargo",
+  "apps/desktop/src-tauri",
+  "crates/portcove-core",
+];
 const approvalPath = ".github/linux-beta-risk-706.json";
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const sha = /^[a-f0-9]{40}$/u;
@@ -36,22 +44,7 @@ export function candidate706(cwd = root, execute = command) {
   const head = execute("git", ["rev-parse", "HEAD"], cwd);
   if (!sha.test(head)) throw new Error("#706 candidate lacks exact source identity");
   if (
-    execute(
-      "git",
-      [
-        "status",
-        "--porcelain=v1",
-        "--untracked-files=all",
-        "--",
-        "Cargo.toml",
-        "Cargo.lock",
-        "rust-toolchain.toml",
-        ".cargo",
-        "apps/desktop/src-tauri",
-        "crates/portcove-core",
-      ],
-      cwd,
-    )
+    execute("git", ["status", "--porcelain=v1", "--untracked-files=all", "--", ...nativePaths], cwd)
   )
     throw new Error("#706 candidate must have clean tracked native inputs");
   if (
@@ -70,18 +63,7 @@ export function candidate706(cwd = root, execute = command) {
   if (!sha.test(approval.reconfirmedHead)) throw new Error("#706 source review baseline missing");
   const productionChanges = execute(
     "git",
-    [
-      "diff",
-      "--name-only",
-      approval.reconfirmedHead,
-      "HEAD",
-      "--",
-      "Cargo.toml",
-      "rust-toolchain.toml",
-      ".cargo",
-      "apps/desktop/src-tauri",
-      "crates/portcove-core",
-    ],
+    ["diff", "--name-only", approval.reconfirmedHead, "HEAD", "--", ...nativePaths],
     cwd,
   );
   const metadata = JSON.parse(
@@ -130,11 +112,6 @@ export function candidate706(cwd = root, execute = command) {
   return {
     head,
     lockSha256: hash(readFileSync(path.join(cwd, "Cargo.lock"))),
-    lockUnchanged:
-      readFileSync(path.join(cwd, "Cargo.lock"), "utf8").replaceAll("\r\n", "\n").trim() ===
-      execute("git", ["show", `${approval.reconfirmedHead}:Cargo.lock`], cwd)
-        .replaceAll("\r\n", "\n")
-        .trim(),
     target: target706,
     features: ["default", "tauri/custom-protocol"],
     productionChanges,
@@ -181,23 +158,16 @@ export function decide706({
     JSON.stringify(candidate.features) !== '["default","tauri/custom-protocol"]' ||
     candidate.productionChanges !== "" ||
     candidate.reviewedHead !== approval.reconfirmedHead ||
-    !sha.test(candidate.reviewedHead) ||
-    candidate.lockUnchanged !== true
+    !sha.test(candidate.reviewedHead)
   )
     throw new Error("#706 candidate inputs changed: reassessment required");
+  const policy = developmentSecurity(scan, scan?.executionConfig);
   if (
-    !scan ||
     scan.head !== candidate.head ||
     scan.lockSha256 !== candidate.lockSha256 ||
-    scan.complete !== true ||
-    scan.signal !== null ||
-    scan.error !== null ||
-    scan.exitCode !== 1 ||
-    scan.unsoundAll !== true ||
+    policy.scanPassed ||
     scan.configSha256 !== approval.policySha256 ||
     !sha256.test(approval.policySha256) ||
-    scan.toolVersion !== "cargo-deny 0.20.2" ||
-    scan.scope !== "workspace-default-all-targets-all-checks" ||
     !Number.isFinite(Date.parse(scan.completedAt)) ||
     Date.parse(scan.completedAt) > Date.parse(now) ||
     Date.parse(now) - Date.parse(scan.completedAt) > 15 * 60 * 1000
@@ -287,14 +257,11 @@ export function decisionInputs706(
   candidate = candidate706(cwd),
 ) {
   const approval = JSON.parse(readFileSync(path.join(cwd, approvalPath), "utf8"));
-  const releases = new GitHubApiClient().paginateRest(
-    "repos/boburning/portcove/releases?per_page=100",
-    {
-      identity: (r) => r.id,
-      label: "#706 publication inventory",
-    },
-  );
   const api = new GitHubApiClient();
+  const releases = api.paginateRest("repos/boburning/portcove/releases?per_page=100", {
+    identity: (r) => r.id,
+    label: "#706 publication inventory",
+  });
   for (const release of releases)
     if (!release.draft && Date.parse(release.published_at) >= Date.parse(approval.approvedAt))
       release.assets = api.paginateRest(

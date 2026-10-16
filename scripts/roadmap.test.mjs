@@ -5129,7 +5129,6 @@ test("Roadmap command help is available without the GitHub executable or operati
       features: ["default", "tauri/custom-protocol"],
       productionChanges: "",
       reviewedHead: policy.reconfirmedHead,
-      lockUnchanged: true,
     };
     const diagnostic = {
       type: "diagnostic",
@@ -5162,6 +5161,9 @@ test("Roadmap command help is available without the GitHub executable or operati
           exitCode: 1,
           unsoundAll: true,
           configSha256: policy.policySha256,
+          sourceConfigSha256: policy.policySha256,
+          sourceConfig: readFileSync(new URL("../deny.toml", import.meta.url), "utf8"),
+          executionConfig: readFileSync(new URL("../deny.toml", import.meta.url), "utf8"),
           toolVersion: "cargo-deny 0.20.2",
           scope: "workspace-default-all-targets-all-checks",
           stdout: "",

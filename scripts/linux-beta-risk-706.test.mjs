@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -11,7 +11,13 @@ import {
   candidate706,
 } from "./linux-beta-risk-706.mjs";
 
+import { createHash } from "node:crypto";
 import { parseDependencyScan } from "./dependency-security.mjs";
+
+const scannerPolicy = readFileSync(new URL("../deny.toml", import.meta.url), "utf8");
+const policyHash = createHash("sha256")
+  .update(scannerPolicy.replaceAll("\r\n", "\n"))
+  .digest("hex");
 
 const candidate = {
   head: "a".repeat(40),
@@ -20,7 +26,6 @@ const candidate = {
   features: ["default", "tauri/custom-protocol"],
   productionChanges: "",
   reviewedHead: "c".repeat(40),
-  lockUnchanged: true,
 };
 const approval = {
   approvalUrl: approval706,
@@ -32,7 +37,7 @@ const approval = {
   package: "glib",
   version: "0.18.5",
   reconfirmedHead: candidate.reviewedHead,
-  policySha256: "e".repeat(64),
+  policySha256: policyHash,
   firstPublicationTag: "v0.1.0-beta.1",
 };
 const summary = {
@@ -66,6 +71,9 @@ function input() {
       exitCode: 1,
       unsoundAll: true,
       configSha256: approval.policySha256,
+      sourceConfigSha256: approval.policySha256,
+      sourceConfig: scannerPolicy,
+      executionConfig: scannerPolicy,
       toolVersion: "cargo-deny 0.20.2",
       scope: "workspace-default-all-targets-all-checks",
       stdout: "",
@@ -128,7 +136,7 @@ test("absent, expired, premature and out-of-scope approval cannot authorize a re
 });
 
 test("source/dependency drift requires reassessment; unrelated source head changes do not", () => {
-  for (const field of ["productionChanges", "lockUnchanged"]) {
+  for (const field of ["productionChanges", "reviewedHead"]) {
     const value = input();
     value.candidate[field] = "e".repeat(64);
     assert.throws(() => decide706(value), /reassessment/);
@@ -141,6 +149,12 @@ test("source/dependency drift requires reassessment; unrelated source head chang
 
 test("execution failure, wrong candidate, green/incomplete coverage and extra errors block", () => {
   for (const mutate of [
+    (x) => {
+      x.scan.completedAt = "2000-01-01T00:00:00Z";
+    },
+    (x) => {
+      x.scan.completedAt = null;
+    },
     (x) => {
       x.scan.complete = false;
     },
@@ -287,7 +301,7 @@ test("release source review compares the exact candidate against a named reviewe
   const before = candidate706(dir, execute);
   changes = "crates/portcove-core/src/lib.rs";
   const after = candidate706(dir, execute);
-  assert.equal(after.lockUnchanged, before.lockUnchanged);
+  assert.deepEqual(after.native, before.native);
   assert.equal(after.productionChanges, changes);
   assert.equal(after.reviewedHead, approval.reconfirmedHead);
 });
