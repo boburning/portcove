@@ -17,12 +17,9 @@ import { acquireOwnedProcessLock } from "./process-lock.mjs";
 import { validateGitHubBody } from "./github-body.mjs";
 import { captureCheckoutContext, checkContextualDoctor } from "./checkout-context.mjs";
 import { summarizeReport, retainReportSummary } from "./report-summary.mjs";
-import {
-  decide706,
-  decisionInputs706,
-  scan706,
-  validateApproval706,
-} from "./linux-beta-risk-706.mjs";
+import { decide706, decisionInputs706, validateApproval706 } from "./linux-beta-risk-706.mjs";
+
+import { scanDependencies } from "./dependency-security.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
@@ -3502,10 +3499,11 @@ export function analyzeReleaseReadiness(
   const relevantUnclassified = targeted.filter((item) => !fieldValue(item, "Release commitment"));
   let approvedPlanning706 = false;
   try {
-    validateApproval706(risk706Approval, now);
+    // Planning identity is stable after expiry; only the actual release evaluator checks time.
+    validateApproval706(risk706Approval, risk706Approval?.approvedAt);
     approvedPlanning706 = release === "Public beta" && !candidateIssues;
   } catch {
-    /* Missing/expired approval retains the ordinary safety rules. */
+    /* Missing or altered canonical record retains the ordinary safety rules. */
   }
   const scopedRemediation706 = targeted.filter(
     (item) =>
@@ -5879,7 +5877,7 @@ async function main(argv) {
       if (parsed.options["--linux-beta-706"]) {
         if (release !== "Public beta")
           throw new Error("#706 covers only ordinary Linux Public beta");
-        const { scan, output } = scan706(projectRoot);
+        const { scan, output } = scanDependencies(projectRoot);
         risk706Output = output;
         risk706Evidence = decisionInputs706(projectRoot, scan, undefined, "release");
       }

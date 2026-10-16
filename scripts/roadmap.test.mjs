@@ -5127,8 +5127,9 @@ test("Roadmap command help is available without the GitHub executable or operati
       lockSha256: "b".repeat(64),
       target: "x86_64-unknown-linux-gnu",
       features: ["default", "tauri/custom-protocol"],
-      inputsSha256: policy.inputsSha256,
-      dependenciesSha256: policy.dependenciesSha256,
+      productionChanges: "",
+      reviewedHead: policy.reconfirmedHead,
+      lockUnchanged: true,
     };
     const diagnostic = {
       type: "diagnostic",
@@ -5154,6 +5155,7 @@ test("Roadmap command help is available without the GitHub executable or operati
         scan: {
           head: candidate.head,
           lockSha256: candidate.lockSha256,
+          completedAt: now,
           complete: true,
           signal: null,
           error: null,
@@ -5186,7 +5188,20 @@ test("Roadmap command help is available without the GitHub executable or operati
     assert.equal(result.pendingRiskDispositions.length, 2);
     assert.equal(result.ready, false);
     assert.match(renderReadinessSummary(result), /Pending:.*actual candidate/);
-    for (const options of [{ now, risk706Approval: null }, { now: "2026-11-15T04:59:00.000Z" }]) {
+    const expired = analyzeReleaseReadiness(items(), "Public beta", {
+      now: "2026-11-15T04:59:00.000Z",
+    });
+    assert.equal(expired.safetyConflicts.length, 0);
+    assert.equal(expired.ready, false);
+    assert.equal(expired.pendingRiskDispositions.length, 2);
+    const expiredRelease = evidence();
+    expiredRelease.now = "2026-11-15T04:59:00.000Z";
+    assert.throws(
+      () => analyzeReleaseReadiness(items(), "Public beta", expiredRelease),
+      /not valid/,
+    );
+
+    for (const options of [{ now, risk706Approval: null }]) {
       assert.equal(
         analyzeReleaseReadiness(items(), "Public beta", options).safetyConflicts.length,
         2,
@@ -5206,7 +5221,7 @@ test("Roadmap command help is available without the GitHub executable or operati
         e.scan.complete = false;
       },
       (e) => {
-        e.candidate.inputsSha256 = "f".repeat(64);
+        e.candidate.productionChanges = "crates/portcove-core/src/lib.rs";
       },
       (e) => {
         e.purpose = "qualification";

@@ -1649,3 +1649,11 @@ explicit committed revision into a prepared Linux browser environment under
 [#2006](https://github.com/boburning/portcove/issues/2006). Its doctor, source
 selection, fresh commands, budgets and recoverable exports are separate from
 native Windows development. The Linux builder remains gated under #2007.
+
+### Development dependency security
+
+Use `just security` for the development regression decision and `just deny` for
+raw scanner status. `just audit` includes the scanner and development decision;
+no special risk flag is required. The known GLib error stays visible and remains
+a raw failed scan. Release expiry, tags, inventories and native source review
+belong exclusively to Linux release authorization; see [QUALITY](QUALITY.md).

@@ -911,3 +911,16 @@ remain outside the baseline. Record exact unsupported paths and recovery limits.
 ## Optional signed catalog publication
 
 `scripts/sign-catalog.mjs` signs an explicit catalog file using an existing Ed25519 PKCS#8 private key file and writes a new envelope without overwriting an existing output. This is offline publisher tooling, not a production key generator or hosted release workflow. The consumer trusts no publisher by default. Configure custody, recovery, rotation, a strictly increasing catalog sequence, and an independently verifiable public-key distribution channel before publishing a production feed. A catalog signature is neither an application code signature nor desktop updater authorization. Exact invocation and verification steps are in [SIGNED-CATALOG.md](SIGNED-CATALOG.md).
+
+## GLib development policy and Linux release authorization
+
+Development security-policy success does not authorize a Linux artifact. Before
+an affected Linux release, run `just audit --fresh --profile release`; final
+asset assembly and read-only pre-upload authorization independently enforce the
+same #706 decision. The publisher retains no source execution authority and
+checks decision freshness/expiry before each mutation. The first publication tag
+must be bound through the existing reviewed approval record. A changed native
+production/build graph requires focused source review; there is no routine Rust
+source fingerprint to maintain. See the [current procedure and dated approval](releases/2026-10-14-linux-beta-risk-706.md).
+Ordinary Windows preflight remains independent of Linux authorization. No
+publication, approval renewal, advisory dismissal or remediation is implied.
