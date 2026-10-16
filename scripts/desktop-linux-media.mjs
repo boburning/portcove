@@ -453,7 +453,6 @@ async function run() {
       PULSE_SOURCE: sourceName,
       PORTCOVE_QUALIFICATION_MEDIA_CONFIG: configFile,
       PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: lock.owner.token,
-      PORTCOVE_RETAINED_EVIDENCE_DIR: path.join(output, "retained-inputs"),
     };
     const launch = async (name, program, args) => {
       const owned = await launchLinuxNativeSession(program, args, environment);

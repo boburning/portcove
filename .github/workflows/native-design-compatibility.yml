@@ -149,6 +149,8 @@ jobs:
     if: ${{ inputs.operation == 'linux-package-boundary' && inputs.runner == 'ubuntu-22.04' && !inputs.edge_driver_proof }}
     runs-on: ubuntu-22.04
     timeout-minutes: 45
+    env:
+      PORTCOVE_RETAINED_EVIDENCE_DIR: ${{ runner.temp }}/pcv-package2-retained-inputs
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -201,7 +203,7 @@ jobs:
             work/linux-packaged-security/private-x11-*/outer-join.json
             work/linux-packaged-security/private-x11-*/failed-outer-join.json
             work/linux-packaged-security/private-x11-*/xdg_cache_home/external-browser-profile/network.json
-            work/linux-packaged-security/retained-inputs/**
+            ${{ runner.temp }}/pcv-package2-retained-inputs/**
             !work/linux-packaged-security/native/webview/**
             !**/private-authority
             !**/auth.cookie

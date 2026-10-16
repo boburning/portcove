@@ -55,10 +55,20 @@ const nativeCompatibilityRunner = await readFile(
   "utf8",
 );
 
-test("ordinary Linux package operation is fixed and isolated from fixture builds and broader dispatch", () => {
+test("ordinary Linux package operation is fixed and isolated from fixture builds and broader dispatch", async () => {
   const sections = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
   const block = sections.find((section) => section.startsWith("linux_package_boundary:\n"));
   assert.ok(block);
+  assert.match(
+    block,
+    /PORTCOVE_RETAINED_EVIDENCE_DIR: \$\{\{ runner\.temp \}\}\/pcv-package2-retained-inputs/u,
+  );
+  assert.match(block, /\$\{\{ runner\.temp \}\}\/pcv-package2-retained-inputs\/\*\*/u);
+  const mediaAdapter = await readFile(
+    new URL("./desktop-linux-media.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(mediaAdapter, /PORTCOVE_RETAINED_EVIDENCE_DIR\s*:/u);
   assert.match(
     block,
     /if: \$\{\{ inputs\.operation == 'linux-package-boundary' && inputs\.runner == 'ubuntu-22\.04' && !inputs\.edge_driver_proof \}\}/u,
