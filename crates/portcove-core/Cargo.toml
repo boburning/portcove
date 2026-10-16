@@ -58,7 +58,7 @@ windows-sys.workspace = true
 same-file.workspace = true
 
 [dev-dependencies]
-aws-lc-rs = "1.18.1"
+aws-lc-rs = "1.18.2"
 jiff = "0.2.38"
 proptest = { version = "=1.12.0", default-features = false, features = ["std"] }
 filetime.workspace = true
