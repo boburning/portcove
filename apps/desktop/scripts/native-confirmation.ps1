@@ -143,7 +143,9 @@ Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Write-ObservationProgress 'automation-assemblies-ready'
 . (Join-Path $PSScriptRoot 'native-process-tree.ps1')
-if ($ObservePicker) { . (Join-Path $PSScriptRoot 'native-window-discovery.ps1') }
+if ($ObservePicker) {
+    . (Join-Path $PSScriptRoot 'native-window-discovery.ps1')
+}
 Write-ObservationProgress 'owned-process-tree-start'
 $tree = Get-OwnedNativeProcessTree $DriverProcessId $ApplicationPath
 Write-ObservationProgress 'owned-process-tree-ready'
