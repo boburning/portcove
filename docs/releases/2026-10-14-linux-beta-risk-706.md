@@ -342,3 +342,16 @@ each request still performs its live acquisition-resolution and installer checks
 All actual metadata reads, refusals, installs, corruption/capacity checks and
 preservation assertions remain. Eight affected Windows cases passed before the
 copy-latch continuation; Intel completion remains a separate hosted obligation.
+
+The final conservative-input reconfirmation at
+`432d122573289f67cf2ef65e6cce7565ac4f236d` accounts for the immutable test
+qualification reuse and the explicitly approved two-case Intel calibration.
+Exactly the same test-only Rust file differs from `2b88684c`; substituting its
+previous Git preimage reconstructs the preceding `fcb3a6fa` digest exactly.
+The new input digest is
+`7503ce74813293718abb92b2214d405ecdaf773e1c6b732b2fcd0467e21694cb`.
+Input names, complete native dependency/code-generator inventory, features,
+Cargo lock and build-environment entry remain identical. Fifteen affected
+Windows installer/copy-worker cases passed with their original platform limits.
+Only the protected record's head/input digest change; Intel completion and
+all required current-head gates remain separate obligations.

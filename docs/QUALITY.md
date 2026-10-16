@@ -78,7 +78,7 @@ adds only `curated_cache_policy_loss_during_copy_refuses_publication_and_preserv
 and `curated_cache_restore_revocation_during_copy_preserves_cached_bytes` to that
 Intel macOS ten-second branch, preserving the whole-install timer origin and
 thirty-second overall budgets.
-The same approval permits a 45-second nextest budget only on
+The original calibration permits a 45-second nextest budget only on
 `x86_64-apple-darwin` for
 `curated_rollback_withdrawal_permits_exact_retained_target`, alongside the existing
 exact managed-artifact lifecycle override. Every assertion, actual partial-copy
