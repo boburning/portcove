@@ -638,11 +638,16 @@ async function verifyLongTitleCatalogDetail(theme) {
   await browser.wait(
     () =>
       browser.executeScript(() => {
-        const initials = document.querySelector(".detail-cover.artwork-image > span")?.textContent;
-        return Boolean(initials && initials !== "PC");
+        const cover = document.querySelector(".detail-cover.artwork-image");
+        const image = cover?.querySelector("img");
+        const initials = cover?.querySelector(":scope > span")?.textContent;
+        return Boolean(
+          (image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0) ||
+          (initials && initials !== "PC"),
+        );
       }),
     15_000,
-    "Long-title cover fallback did not settle before visual capture",
+    "Long-title cover image or fallback did not settle before visual capture",
   );
   for (const size of [
     { width: 960, height: 640 },

@@ -26,6 +26,10 @@ test("native frontend harness retains the qualified Linux target and a failing n
   );
   assert.match(block, /scripts\/desktop-linux-native-session\.test\.mjs/u);
   assert.doesNotMatch(block, /continue-on-error:|sysctl\s+-|apparmor_parser\s/u);
+  assert.match(
+    block,
+    /- name: Test native compiler and shell integrations\n\s+working-directory: \.\n\s+run: node scripts\/run-viteplus\.mjs run native:tools/u,
+  );
 });
 test("dependency lanes run actual security review without a custom age audit", () => {
   for (const name of ["fast_dependency_review", "dependency_review_full"]) {
@@ -406,6 +410,50 @@ const fastDependencyReview = jobSection("fast_dependency_review", "dependency_re
 const dependencyReview = jobSection("dependency_review_full", "dependency-review");
 const dependencyReviewGate = jobSection("dependency-review");
 
+test("Windows diagnostics serialize file workers without changing coverage or deadlines", () => {
+  const command = windowsStorage
+    .match(/- name: Test development diagnostics and evidence\r?\n\s+run: ([^\r\n]+)/u)?.[1]
+    .trim()
+    .split(/\s+/u);
+  assert.ok(command);
+  assert.deepEqual(command.slice(0, 9), [
+    "node",
+    "scripts/dev-storage.mjs",
+    "run",
+    "--",
+    "node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=30000",
+    "--test-reporter=./scripts/test-duration-reporter.mjs",
+  ]);
+  assert.deepEqual(command.slice(9), [
+    "scripts/desktop-scenarios.test.mjs",
+    "scripts/desktop-execution-plan.test.mjs",
+    "scripts/desktop-linux-native-session.test.mjs",
+    "scripts/desktop-linux-stop.test.mjs",
+    "scripts/desktop-verify.test.mjs",
+    "scripts/dev-doctor.test.mjs",
+    "scripts/development-capabilities.test.mjs",
+    "scripts/development-cli-help.test.mjs",
+    "scripts/development-evidence.test.mjs",
+    "scripts/handoff-evidence.test.mjs",
+    "scripts/native-confirmation.test.mjs",
+    "scripts/native-helper-dependencies.test.mjs",
+    "scripts/frontend-command-preflight.test.mjs",
+    "scripts/windows-helper-checks.test.mjs",
+    "scripts/heavy-rust-test-lock.test.mjs",
+    "scripts/local-validation.test.mjs",
+    "scripts/native-session-lock.test.mjs",
+    "scripts/native-session.test.mjs",
+    "scripts/run-rust-tests.test.mjs",
+    "scripts/rust-support-cache.test.mjs",
+    "scripts/rust-test-impact.test.mjs",
+    "scripts/rust-test-tree-supervisor.test.mjs",
+    "scripts/tool-cache.test.mjs",
+  ]);
+});
+
 test("every Node test file is included in required CI and the local quality workflow", async () => {
   const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
   const localQualitySurface = `${recipes}\n${windowsQualificationRunner}`;
@@ -484,7 +532,25 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   );
   assert.match(rustQualityGate, /PORTCOVE_ALWAYS_RESULTS: '\{"provenance"/);
   assert.match(proseChecks, /^ {4}if: needs\.classify\.outputs\.mode == 'prose'$/m);
-  assert.match(proseChecks, /args: \[--frozen-lockfile\]/);
+  assert.match(proseChecks, /actions\/setup-node@/);
+  const prerequisites = proseChecks.indexOf("node scripts/check-ci-prose.mjs --prerequisites");
+  const install = proseChecks.indexOf("uses: voidzero-dev/setup-vp@");
+  const checks = proseChecks.indexOf("node --test --test-timeout=30000");
+  assert.ok(prerequisites >= 0 && install > prerequisites && checks > install);
+  assert.match(
+    proseChecks,
+    /if: steps\.prose-prerequisites\.outputs\.frontend_dependencies == 'true'/u,
+  );
+  assert.match(
+    proseChecks,
+    /args: \[--filter, portcove-repository, --frozen-lockfile, --ignore-scripts\]/u,
+  );
+  assert.doesNotMatch(
+    proseChecks,
+    /browser:bootstrap|setup-rust|playwright install|continue-on-error/u,
+  );
+  assert.match(fastCatalog, /run: node scripts\/check-ci-prose\.integration\.mjs/u);
+  assert.match(fastCatalog, /path: work\/prose-ci-integration\//u);
   assert.match(proseChecks, /scripts\/repository-settings\.test\.mjs/);
   assert.match(proseChecks, /scripts\/repository-skills\.test\.mjs/);
   assert.match(proseChecks, /node scripts\/check-ci-prose\.mjs/);
@@ -505,9 +571,18 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(fastRust, /rust-test-impact\.mjs --workspace-run/);
   assert.equal(fastPlatform, "");
   assert.match(fastRustQuality, /voidzero-dev\/setup-vp@/);
-  assert.match(fastRustQuality, /args: \[--frozen-lockfile\]/);
-  assert.match(desktopPackage.scripts["format:check"], /vp fmt --check/);
-  assert.match(fastRustQuality, /format:check/);
+  assert.match(fastRustQuality, /frontend_workspace == 'true'/);
+  assert.match(fastRustQuality, /\[--frozen-lockfile\]/);
+  assert.match(
+    fastRustQuality,
+    /\[--filter, portcove-repository, --frozen-lockfile, --ignore-scripts\]/,
+  );
+  assert.match(
+    fastCatalog,
+    /args: \[--filter, portcove-repository, --frozen-lockfile, --ignore-scripts\]/,
+  );
+  assert.equal(desktopPackage.scripts["format:check"], "vp -C ../.. fmt --check");
+  assert.match(fastRustQuality, /frontend_tools == 'true'/);
   assert.match(fastRust, /key: fast-rust-tests-/);
   assert.doesNotMatch(fastRustQuality, /cargo clippy|rust-cache/);
   assert.match(fastDependencyReview, /actions\/dependency-review-action@/);
@@ -517,7 +592,8 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
 
 test("ordinary formatting and lint have one quality owner; deep analyzers stay in qualification", () => {
   const formatting = workflow.split("  fast_rust_quality:")[1].split("  fast_frontend:")[0];
-  assert.match(formatting, /format:check/);
+  assert.match(formatting, /frontend_tools == 'true'/);
+  assert.doesNotMatch(formatting, /format:check/);
   assert.match(formatting, /cargo fmt/);
   assert.match(formatting, /node scripts\/ci-baseline\.mjs lint/);
   assert.match(formatting, /PORTCOVE_PLAN_JSON:/);
@@ -663,6 +739,11 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
   );
   assert.equal(rehearsal.match(/ref: \$\{\{ env\.PORTCOVE_SOURCE_COMMIT \}\}/g)?.length, 3);
   assert.match(rehearsal, /pnpm tauri build --bundles deb,rpm --ci/);
+  assert.match(rehearsal, /pnpm\/setup@[a-f0-9]{40}/);
+  assert.match(rehearsal, /install: false\s+node-version-file: \.node-version\s+cache: true/);
+  assert.doesNotMatch(rehearsal, /pnpm\/action-setup|actions\/setup-node/);
+  assert.match(rehearsal, /Verify pinned frontend runtime and store[\s\S]*pnpm store path/);
+  assert.match(rehearsal, /pnpm install --frozen-lockfile/);
   assert.match(rehearsal, /actions\/download-artifact@/);
   assert.match(rehearsal, /test-linux-package-ownership\.sh deb/);
   assert.match(rehearsal, /test-linux-package-ownership\.sh rpm/);
@@ -1586,17 +1667,15 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(frontend, /args: \[--frozen-lockfile\]/);
   assert.match(frontend, /Install pinned recipe runner/);
   const install = frontend.indexOf("args: [--frozen-lockfile]");
-  const formatting = frontend.indexOf("pnpm --dir apps/desktop format:check");
-  const lint = frontend.indexOf("pnpm check");
-  const build = frontend.indexOf("pnpm build");
-  assert.ok(install >= 0 && formatting > install && lint > formatting && build > lint);
+  const verify = frontend.indexOf("node scripts/run-viteplus.mjs run frontend:verify");
+  assert.ok(install >= 0 && verify > install);
+  assert.equal(frontend.match(/run frontend:verify/g)?.length, 1);
   assert.match(frontend, /lint-tools\.integration\.mjs oxfmt oxlint stylelint/);
   assert.match(
     frontend,
     /--test-name-pattern "pnpm uses\|direct just recipes" scripts\/dev-storage\.test\.mjs/,
   );
-  assert.match(frontend, /pnpm build/);
-  assert.match(frontend, /pnpm test/);
+  assert.doesNotMatch(frontend, /run: pnpm (?:build|test|check)\b/);
   assert.match(frontend, /run-fallow\.mjs/);
   assert.doesNotMatch(frontend, /pnpm audit/);
   assert.doesNotMatch(frontend, /continue-on-error/);
@@ -1606,14 +1685,48 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(dependencyReview, /fail-on-severity: high/);
 });
 
-test("full frontend qualification provisions browser artifacts before composition", () => {
+test("full frontend qualification provisions browser artifacts before composition", async () => {
   const full = workflow.split("  frontend_full:")[1].split("  frontend:")[0];
   const provision = full.indexOf("pnpm browser:bootstrap"),
-    run = full.indexOf("pnpm test:browser");
+    run = full.indexOf("run frontend:verify");
   assert.ok(provision >= 0 && run > provision);
   assert.match(full, /browser-traces-full/);
-  const fast = workflow.split("  fast_frontend:")[1].split("  fast_catalog:")[0];
-  assert.doesNotMatch(fast, /browser:bootstrap|test:browser/);
+  assert.match(full, /work\/bt/);
+  assert.doesNotMatch(full, /work\/browser-traces/);
+  const jobBoundary = /\n {2}[a-zA-Z][a-zA-Z_-]*:/u;
+  const fast = workflow.split("  fast_frontend:")[1].split(jobBoundary)[0];
+  assert.match(fast, /browser-runtime.mjs bootstrap/);
+  const contributor = workflow.split("  frontend_portability:")[1].split(jobBoundary)[0];
+  const contributorProvision = contributor.indexOf("pnpm --dir apps/desktop browser:bootstrap");
+  assert.ok(contributorProvision >= 0);
+  assert.ok(contributor.indexOf("pnpm verify:frontend") > contributorProvision);
+  assert.equal(contributor.match(/run: pnpm verify:frontend/g)?.length, 1);
+  assert.doesNotMatch(contributor, /run: pnpm (?:test|check|build)\b/);
+  const deep = await readFile(
+    new URL("../.github/workflows/deep-quality.yml", import.meta.url),
+    "utf8",
+  );
+  const audit = deep.split("  audit:")[1].split("  local_check:")[0];
+  const install = audit.indexOf("run: pnpm install --frozen-lockfile");
+  const auditBrowser = audit.indexOf("run: pnpm --dir apps/desktop browser:bootstrap");
+  const auditGates = audit.indexOf("name: Run deterministic gates and structural audit");
+  assert.ok(install >= 0 && auditBrowser > install && auditGates > auditBrowser);
+  assert.equal(audit.match(/run: pnpm --dir apps\/desktop browser:bootstrap/g)?.length, 1);
+  for (const [name, block] of [
+    ["full", full],
+    ["fast", fast],
+    ["contributor", contributor],
+  ]) {
+    const uploadIndex = block.indexOf(`name: browser-traces-${name}-`);
+    assert.ok(uploadIndex >= 0, `${name} must preserve failed browser evidence`);
+    const upload = block.slice(uploadIndex);
+    assert.match(block, /if: failure\(\)\r?\n +uses: actions\/upload-artifact@/);
+    assert.match(upload, /work\/bt\/\*\*\/\*\.trace\.zip/);
+    assert.match(upload, /\.vitest\/attachments\/failure-screenshots\/\*\*\/\*\.png/);
+    assert.match(upload, /include-hidden-files: true/);
+    assert.match(upload, /retention-days: 7/);
+    assert.doesNotMatch(upload, /^ +work\/bt\r?$/m);
+  }
 });
 
 test("frontend tools resolve through the pinned Vite+ bundle", async () => {
@@ -1621,8 +1734,12 @@ test("frontend tools resolve through the pinned Vite+ bundle", async () => {
   assert.equal(manifest.devDependencies["vite-plus"], "catalog:");
   for (const superseded of ["oxfmt", "oxlint", "oxlint-tsgolint", "husky", "lint-staged"])
     assert.equal(manifest.devDependencies[superseded], undefined);
-  assert.match(manifest.scripts.check, /browser-package-compatibility.mjs && vp check/);
-  assert.match(manifest.scripts.check, /run lint:style/);
+  assert.equal(manifest.scripts.check, "vp run frontend:static");
+  const configuration = await readFile(new URL("../vite.config.ts", import.meta.url), "utf8");
+  assert.match(configuration, /browser-package-compatibility.mjs/);
+  assert.match(configuration, /vp -C apps\/desktop run lint:style/);
+  assert.match(configuration, /generate-transport-types.mjs/);
+  assert.match(configuration, /check-transport-contract.mjs --ipc-only/);
   assert.equal(manifest.scripts.build, "node apps/desktop/scripts/build-frontend.mjs");
 });
 
@@ -1685,7 +1802,7 @@ test("validation recipes separate routine, release, and packaged Windows contrac
   assert.match(catalog, /release-package-policy\.test\.mjs/);
   assert.match(windowsStorage, /run-windows-qualification\.ps1/);
   const ui = recipes.match(/^check-ui: (.+)$/m)?.[1] ?? "";
-  assert.match(ui, /fmt-frontend-check ui-check ui-lint-contracts/);
+  assert.equal(ui, "ui-check ui-lint-contracts");
   const auditUi = recipes.match(/^ui-check: (.+)$/m)?.[1] ?? "";
   assert.doesNotMatch(auditUi, /fmt-frontend-check/);
   const recipeBody = (name) =>
@@ -2290,12 +2407,25 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
     .split("[[profile.default.overrides]]")
     .slice(1)
     .filter((override) => /success-output/.test(override));
-  assert.equal(outputOverrides.length, 1);
+  assert.equal(outputOverrides.length, 2);
   assert.deepEqual(outputOverrides[0].trim().split(/\r?\n/).slice(0, 2), [
     "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'",
     'success-output = "immediate"',
   ]);
-  assert.doesNotMatch(outputOverrides[0], /retries|threads-required|priority/);
+  const publicationOutput = outputOverrides[1]
+    .split(/\r?\n(?=\[)/, 1)[0]
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+  assert.deepEqual(publicationOutput, [
+    "platform = 'x86_64-apple-darwin'",
+    "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_permitted_artifact_commits_once$/)'",
+    'slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }',
+    'success-output = "immediate"',
+  ]);
+  for (const override of outputOverrides) {
+    assert.doesNotMatch(override, /retries|threads-required|priority/);
+  }
   assert.doesNotMatch(config.split("[[profile.default.overrides]]")[0], /success-output/);
   const repository = await readFile(
     new URL("../crates/portcove-core/src/definition_repository.rs", import.meta.url),
@@ -2346,52 +2476,49 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
     config,
     /filter = 'package\(portcove-core\) & test\(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes\)'\r?\nthreads-required = 2/,
   );
-  const lifecycleFilter = outputOverrides[0].trim().split(/\r?\n/)[0];
-  const intelRollbackBudget = [
-    "platform = 'x86_64-apple-darwin'",
-    "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)'",
-    'slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }',
-  ].join("\n");
-  function assertTimeoutOverrides(source) {
+  function assertFiniteHarnessBudgets(source) {
     const [defaults, ...overrides] = source.split("[[profile.default.overrides]]");
-    assert.match(
-      defaults,
-      /^slow-timeout = \{ period = "5s", terminate-after = 6, grace-period = "0s" \}$/m,
-    );
-    const budgets = overrides.filter((override) => /^slow-timeout = /m.test(override));
-    assert.equal(budgets.length, 2);
-    assert.equal(budgets[0].trim().split(/\r?\n/)[0], lifecycleFilter);
-    assert.match(
-      budgets[0],
-      /^slow-timeout = \{ period = "5s", terminate-after = 9, grace-period = "0s" \}$/m,
-    );
-    assert.equal(budgets[1].trim().split(/\r?\n/).slice(0, 3).join("\n"), intelRollbackBudget);
-    for (const override of overrides) {
-      assert.doesNotMatch(override, /retries/);
-      if (!budgets.includes(override)) assert.doesNotMatch(override, /slow-timeout/);
+    assert.match(defaults, /^slow-timeout = /m);
+    const units = { ms: 1, s: 1000, m: 60000, h: 3600000 };
+    for (const block of [defaults, ...overrides]) {
+      for (const line of block.split(/\r?\n/)) {
+        if (/^retries\s*=/.test(line)) assert.match(line, /^retries\s*=\s*0$/);
+        if (!/^slow-timeout\s*=/.test(line)) continue;
+        const budget = line.match(
+          /^slow-timeout = \{ period = "([0-9]+)(ms|s|m|h)", terminate-after = ([0-9]+), grace-period = "([0-9]+)(ms|s|m|h)" \}$/,
+        );
+        assert.ok(
+          budget,
+          "harness budgets must retain finite warning, termination and cleanup limits",
+        );
+        const period = Number(budget[1]) * units[budget[2]];
+        const count = Number(budget[3]);
+        const grace = Number(budget[4]) * units[budget[5]];
+        assert.ok(period > 0 && Number.isSafeInteger(count) && count > 0);
+        assert.ok(Number.isFinite(period * count + grace));
+        if (block !== defaults) assert.match(block, /^filter = '.+'$/m);
+      }
     }
   }
-  assertTimeoutOverrides(config);
-  for (const changed of [
+  assertFiniteHarnessBudgets(config);
+  // Calibration can exceed recorded exceptions without a new approval ceiling.
+  for (const calibrated of [
     config.replace("terminate-after = 9", "terminate-after = 18"),
-    config.replace("terminate-after = 6", "terminate-after = 9"),
-    config.replace("platform = 'x86_64-apple-darwin'", "platform = 'aarch64-apple-darwin'"),
-    config.replace("platform = 'x86_64-apple-darwin'\n", ""),
-    config.replace(
-      intelRollbackBudget,
-      intelRollbackBudget.replace("terminate-after = 9", "terminate-after = 18"),
-    ),
-    config.replace(intelRollbackBudget.split("\n")[1], "filter = 'package(portcove-core)'"),
-    config.replace(lifecycleFilter, "filter = 'package(portcove-core)'"),
-    config.replace(
-      'terminate-after = 9, grace-period = "0s"',
-      'terminate-after = 9, grace-period = "1s"',
-    ),
     config +
-      '\n[[profile.default.overrides]]\nfilter = \'package(portcove-cli)\'\nslow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }\n',
+      "\n[[profile.default.overrides]]\nplatform = 'aarch64-apple-darwin'\nfilter = 'package(portcove-core) & test(database::tests::)'\nslow-timeout = { period = \"5s\", terminate-after = 240, grace-period = \"2s\" }\n",
+  ]) {
+    assertFiniteHarnessBudgets(calibrated);
+  }
+  for (const changed of [
+    config.replace('period = "5s"', 'period = "0s"'),
+    config.replace("terminate-after = 9", "terminate-after = 0"),
+    config.replace("terminate-after = 9", 'terminate-after = "never"'),
+    config.replace("terminate-after = 9", "terminate-after = 1e309"),
+    config +
+      '\n[[profile.default.overrides]]\nslow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }\n',
     config + "\n[[profile.default.overrides]]\nfilter = 'package(portcove-cli)'\nretries = 1\n",
   ]) {
-    assert.throws(() => assertTimeoutOverrides(changed));
+    assert.throws(() => assertFiniteHarnessBudgets(changed));
   }
   assert.match(rustTests, /cargo nextest run --locked @Arguments/);
   assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);

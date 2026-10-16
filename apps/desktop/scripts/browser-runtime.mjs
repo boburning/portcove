@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolvePhysicalPath, spawnCommand } from "../../../scripts/dev-storage.mjs";
+import { vitePlusCommand } from "../../../scripts/viteplus-cli.mjs";
 
 const desktop = fileURLToPath(new URL("../", import.meta.url));
 const root = path.resolve(desktop, "../..");
@@ -57,18 +58,21 @@ if (process.argv[2] === "bootstrap") {
   } finally {
     await browser?.close();
   }
-  const traceRoot = path.join(root, "work", "browser-traces");
+  const traceRoot = path.join(root, "work", "bt");
   mkdirSync(traceRoot, { recursive: true });
   const traceRun = mkdtempSync(path.join(traceRoot, "run-"));
   if (path.dirname(resolvePhysicalPath(traceRun)) !== resolvePhysicalPath(traceRoot)) {
     throw new Error(`Browser trace run resolves outside the trace root: ${traceRun}`);
   }
   process.env.PORTCOVE_BROWSER_TRACE_DIR = traceRun;
+  const cli = vitePlusCommand(root);
   const result = spawnCommand(
-    process.execPath,
+    cli.command,
     [
-      path.join(root, "node_modules", "vite-plus", "bin", "vp"),
+      ...cli.args,
       "test",
+      "--config",
+      path.join(root, "vite.config.ts"),
       "--project",
       "browser",
       "src/browser/failure-probe.browser.test.tsx",

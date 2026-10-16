@@ -24,7 +24,7 @@ scope. Capacity, physical-path and machine-policy checks run independently of
 successful test receipts. See [development storage](../DEVELOPMENT-STORAGE.md#bootstrap-and-preflight)
 for portable defaults and the private strict Windows profile.
 
-`just audit` executes named formatting, Rust, UI, script-lint, repository-tooling, Roadmap,
+`just audit` executes the canonical frontend static group, Rust, the frontend runtime group, script-lint, repository-tooling, Roadmap,
 development-tool, dependency-policy, rscheck, release-unit, and applicable
 Windows-qualification stages. It continues independent stages after a failure
 and returns one aggregate failure so a late problem does not hide remaining
@@ -42,11 +42,12 @@ content-identical unrelated rebase can therefore retain a stage, while a relevan
 edit, tool/environment drift, missing input, or receipt-integrity failure forces a
 rerun. Unresolved or partially staged paths are refused because one execution
 cannot validate two different candidate contents. Failed, interrupted, or incomplete stages never create a reusable receipt.
-Dependency/advisory policy and packaged Windows qualification always rerun because
+Frontend static/runtime tasks always execute; Vite Task alone decides production
+bundle execution/restoration. Dependency/advisory policy and packaged Windows qualification always rerun because
 their external or machine state can change.
 
 `just local-check` stores compatible command-stage receipts below the same root.
-It may preserve a proven Rust or UI obligation after an unrelated tooling repair
+It may preserve a proven Rust or other non-frontend obligation after an unrelated tooling repair
 while rerunning the changed tooling obligation. It cannot compose incomplete,
 failed, interrupted, policy-stale, or stateful evidence into a pass, and it never
 replaces current-head required CI.
@@ -85,12 +86,15 @@ authority. Its changed native interactions still require the ordinary isolated
 native scenario. This exact entry grants no ownership to another harness, its
 Core/Tauri implementation, or a renamed or mixed authority input.
 
-The reviewed `apps/desktop/scripts/desktop-install-fixture.test.mjs` assertion
-file also belongs to frontend validation: both frontend lanes discover its
-Vitest cases. Its Windows-only process-tree case still requires actual Windows
-execution when changed; a Linux skip does not supply that evidence. This exact
-test ownership does not narrow its fixture, scenario or Playnite lifecycle
-implementations, which retain their existing conservative/native selection.
+The pure `apps/desktop/scripts/desktop-install-fixture.test.mjs` assertions
+belong to frontend Node validation. Compiler-backed probe and shell roundtrips
+live in `*.native.test.mjs` and run through Node directly. The canonical
+`native:tools` task retains their explicit local route. Existing affected Windows
+helper and full Windows qualification lanes provision pinned Rust and run these
+cases without installing frontend dependencies. Both rename/delete sides and
+the actual probe, quoting and launch inputs select Windows proof; a Linux skip
+does not supply it. This exact test ownership does not narrow fixture, scenario
+or Playnite lifecycle implementations.
 Selected local checks run the existing Fallow gate for frontend source, script
 and test changes. Both hosted frontend lanes also run that same gate; the fast
 lane checks it before build/test and browser preparation. Its settings and final
@@ -106,17 +110,18 @@ or any protected authority.
 ## Formatting contract
 
 `just fmt` is the canonical write command and `just fmt-check` is its no-write
-counterpart. Cargo formats Rust, Oxfmt formats active JavaScript, TypeScript,
-CSS, HTML, hand-maintained JSON and YAML, and active Markdown, and Taplo formats
-TOML. Oxfmt uses a configured 100-column width, sorts package manifests, and
+counterpart. Cargo formats Rust; Vite+'s bundled Oxfmt formats active JavaScript,
+TypeScript, CSS, HTML, hand-maintained JSON and YAML, active Markdown and maintained
+TOML, including root manifests, hidden configuration, app and crate files.
+Oxfmt uses a configured 100-column width, sorts package manifests, and
 deliberately leaves import order unchanged. Import order can carry side effects,
 and normalizing the existing tree would add unrelated churn without a product or
-quality benefit. Oxfmt and Taplo are exact development dependencies installed by
-the existing pnpm workflow. Recommended VS Code extensions and format-on-save
-settings use those same repository-local tools. The Oxfmt wrapper rejects an
-empty repository-owned inventory before invoking the formatter; the TOML wrapper
-enumerates repository-owned files before passing their contents to Taplo so
-checks cover the same files on Windows and Unix hosts.
+quality benefit. The formatter version follows the exact coordinated Vite+ bundle.
+Recommended VS Code formatting uses Oxc for these supported formats; the TOML
+extension remains useful for schema completion and validation. The workspace
+`fmt` block owns discovery/exclusions for local, staged and hosted checks.
+Diff selection chooses candidate extensions and lets Oxfmt apply that policy;
+it does not maintain a competing generated/history exclusion list.
 
 Generated files, catalogs, fixtures, dependency lockfiles, archived documents,
 and dated release evidence are outside the bulk-format boundary so a formatter
@@ -206,14 +211,7 @@ The Playnite C# projects intentionally rely on the SDK compiler analyzers and se
 separate Roslyn analyzer package or repository-wide `.editorconfig`; any compiler
 warning exposed by that required build must be fixed rather than suppressed.
 
-The UI test command also runs `apps/desktop/scripts/check-copy.mjs`. It parses
-production TypeScript/TSX with the exact-pinned development-only Oxc parser and
-walks only declared AST visitor keys. Parser and semantic diagnostics fail
-closed before partial syntax trees are inspected. The checker rejects internal
-terminology, parenthetical plurals and an unqualified “Verified” label in static
-copy. This includes decoded JSX text and attributes, cooked template values,
-accessible labels and message literals. There is no violation baseline or
-suppression-comment mechanism.
+The bundled Oxlint `portcove/player-copy` rule checks production static copy, including accessible attributes and cooked strings. Its bundled RuleTester cases cover encoded text and the narrowly named technical disclosures; Oxlint owns parsing, diagnostics and source discovery.
 
 The check deliberately excludes non-runtime declarations/tests, imports, property
 names, machine-value comparisons and non-copy JSX attributes. A lexical `details`
@@ -445,18 +443,21 @@ The exact managed ordinary-release publisher lifecycle has a forty-five-second
 harness budget to retain its complete authenticated catalog, artifact and correction
 sequence across observed Intel phase variability. Its anchored filter retains
 five-second warnings, zero retries and grace, and the existing two-slot reservation.
-The default remains thirty seconds; the contract rejects other budget overrides.
+The current default remains thirty seconds. These recorded values are not
+ceilings: [standing owner authorization](../QUALITY.md#autonomous-test-timeout-calibration)
+permits justified finite harness calibration without another approval.
 
-Do not hide failures with larger timeouts. Preserve the original failure and
+Preserve the original failure and
 identify the firing deadline: per-test harness, product assertion, whole command
 or job, admission queue, or observation window. A live process whose observer
 stopped still needs supported observation and cleanup before another invocation.
-Use a bounded, hypothesis-driven diagnostic with unchanged assertions, fixture,
-concurrency and retries. Around ninety seconds is an initial heavyweight-test
-experiment, not a permanent default. Retain total and phase timings, actual
-platform and meaningful warm/cold or resource conditions; obtain a matched
-confirmation when necessary. Another platform or one extended-budget pass does
-not resolve the original platform's failure or supply merge clearance.
+Use a bounded diagnostic with unchanged product assertions and zero retries;
+calibrate a test-only setup or synchronization wait when it is the actual limit.
+Choose finite headroom appropriate to the workload, coordinating nested command,
+supervisor and CI limits with cleanup. A short rationale and relevant validation
+suffice for a straightforward adjustment. Retain useful phase/platform and cold/
+warm observations where available. Another platform or one extended-budget pass
+does not establish a causal repair or supply merge clearance.
 
 Select the smallest causal repair or an evidence-supported narrow budget
 correction with room for supported-platform variability. Fix identified deadlocks,
@@ -467,7 +468,9 @@ where required. Independently review the exact override and evidence, retain
 slow warnings and finite termination, and satisfy normal selected validation,
 protected pre-change qualification and exact-head hosted gates. A permitted
 diagnostic budget experiment is not its own final policy-transition qualification.
-Do not automatically enlarge Node, network, CI-job or other test budgets.
+Node, qualification-harness, command/supervisor and CI safeguards may be calibrated
+under the same authorization; application network and other product deadlines
+remain unchanged. No historical number is a new permission ceiling.
 Pure unit tests should normally finish well below the diagnostic threshold.
 A timeout or failed assertion still fails the lane.
 Nextest prints individual elapsed times. Documentation tests still run separately
@@ -493,6 +496,13 @@ individual results above five seconds without failing on elapsed time alone.
 Synchronous work cannot be interrupted by Node's event-loop timeout; measured
 latency still appears in the report and CI job timeouts bound a stuck process.
 Suite aggregate durations are not individual test durations.
+
+The Windows development-diagnostics step runs its existing 23 Node test files
+with `--test-concurrency=1`, retaining file process isolation. The step has one
+active file worker; tests retain responsibility for child-process closure. Its inventory,
+30-second test timeout, internal child deadlines and assertions remain unchanged.
+The local parallel/serial comparison passed both arms and did not establish the
+cause of hosted timeouts; each changed candidate still requires hosted qualification.
 
 Windows qualification session integration tests remain a separate required step;
 they exercise compiled processes and installer lifecycle behavior using their
@@ -627,7 +637,7 @@ from required serialized response fields.
 Maintained application TS/TSX, typed tests and fixtures share `tsconfig.base.json`:
 `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess` are true.
 Browser and Node configuration projects retain distinct libraries/runtime globals.
-The ordinary integrated `corepack pnpm check` enforces the policy; there is no
+The ordinary integrated `pnpm check` enforces the policy; there is no
 narrow orchestration project or second compiler invocation.
 
 Omit absent fields in transport/options and state updates when key presence has

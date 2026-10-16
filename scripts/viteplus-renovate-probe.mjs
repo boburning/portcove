@@ -40,7 +40,6 @@ export async function probeVitePlusRules(engine, root, output) {
     "vitest",
     "@vitest/browser-playwright",
     "playwright",
-    "oxc-parser",
   ];
   const selected = deps
     .filter((dep) => names.includes(dep.packageName ?? dep.depName) && !dep.skipReason)

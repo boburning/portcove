@@ -10,7 +10,7 @@ import { PortBrowser } from "../components/PortBrowser";
 import { useFavorites } from "../features/favorites/use-favorites";
 import { portDefinition } from "../test-fixtures";
 import type { Filter, View } from "../view-model";
-import "../styles.css";
+import "../styles/index.css";
 const api = vi.hoisted(() => ({ favoritePorts: vi.fn(), setPortFavorite: vi.fn() }));
 vi.mock("../api", () => ({ desktopApi: api }));
 const one = { ...portDefinition(), id: "one-port", name: "One independent port" };
@@ -136,7 +136,6 @@ it.each(["dark", "light"])(
         page.getByRole("button", { name: "Favorite Corrected independent name", exact: true }),
       )
       .toHaveAttribute("aria-pressed", "true");
-    await page.screenshot({ path: `../../../../work/favorites1552/${theme}.png` });
   },
 );
 

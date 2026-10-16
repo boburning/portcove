@@ -27,6 +27,8 @@ $candidateProductionEligible = $transition.candidate_production_eligible
 $fixtureVersions = @($predecessorVersion, $candidateVersion)
 $pnpmSpec = (Get-Content (Join-Path $root "package.json") -Raw | ConvertFrom-Json).packageManager
 if ($pnpmSpec -notmatch '^pnpm@\d+\.\d+\.\d+$') { throw "Repository packageManager must pin an exact pnpm version" }
+$installedPnpm = (& pnpm --version | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or "pnpm@$installedPnpm" -ne $pnpmSpec) { throw "Provide the exact repository $pnpmSpec on PATH" }
 function Invoke-Checked([string]$Program, [string[]]$Arguments) {
     & $Program @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Program failed with exit code $LASTEXITCODE" }
@@ -108,7 +110,7 @@ function Invoke-PackagedPayloadConsumer([string]$Stage, [string]$CandidateVersio
     $wrongSignature = Join-Path $wrongSignatureRoot $candidateInventory.updater.signature.filename
     New-Item -ItemType Directory -Path $wrongPrivateRoot, $wrongSignatureRoot | Out-Null
     Copy-Item -LiteralPath $candidate -Destination $wrongCandidate
-    Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--password", $script:wrongPassword, "--write-keys", $wrongPrivateKey) | Out-Null
+    Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--password", $script:wrongPassword, "--write-keys", $wrongPrivateKey) | Out-Null
     $wrongPublicKey = "$wrongPrivateKey.pub"
     $savedSigningPrivateKey = $env:TAURI_SIGNING_PRIVATE_KEY
     $savedSigningPrivateKeyPath = $env:TAURI_SIGNING_PRIVATE_KEY_PATH
@@ -117,7 +119,7 @@ function Invoke-PackagedPayloadConsumer([string]$Stage, [string]$CandidateVersio
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue
         Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
-        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "sign", "--private-key-path", $wrongPrivateKey, "--password", $script:wrongPassword, $wrongCandidate) | Out-Null
+        Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "signer", "sign", "--private-key-path", $wrongPrivateKey, "--password", $script:wrongPassword, $wrongCandidate) | Out-Null
     } finally {
         $env:TAURI_SIGNING_PRIVATE_KEY = $savedSigningPrivateKey
         $env:TAURI_SIGNING_PRIVATE_KEY_PATH = $savedSigningPrivateKeyPath
@@ -203,7 +205,7 @@ try {
     [IO.File]::WriteAllText($env:PORTCOVE_PREFERENCES, '{"format_version":1,"library_root":null,"qualification_marker":"updater-package-rehearsal"}')
     $preferencesHash = (Get-FileHash -LiteralPath $env:PORTCOVE_PREFERENCES -Algorithm SHA256).Hash
     # Suppress signer output: only the disposable public key belongs in evidence.
-    Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--write-keys", $privateKey) | Out-Null
+    Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--write-keys", $privateKey) | Out-Null
     $env:TAURI_SIGNING_PRIVATE_KEY = $privateKey
     $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""
     $configuration = Get-Content (Join-Path $root "release/tauri.updater.conf.json") -Raw | ConvertFrom-Json -AsHashtable
@@ -233,7 +235,7 @@ try {
         $cliName = (& node scripts/release-package-policy.mjs --platform $PlatformLabel --interface cli --version $version | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw "Cannot select packaged CLI" }
         & (Join-Path $PSScriptRoot "smoke-test-cli-archive.ps1") -ArchivePath (Join-Path $cliRoot $cliName) -PlatformLabel $PlatformLabel -Version $version
-        $tauriArguments = @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", $bundles, "--config", $configPath, "--ci")
+        $tauriArguments = @("--dir", "apps/desktop", "tauri", "build", "--bundles", $bundles, "--config", $configPath, "--ci")
         if ($IsLinux -or $IsWindows -or $IsMacOS) { $tauriArguments += @("--features", "application-update-qualification") }
         if ($IsMacOS -and $version -eq $candidateVersion) {
             # Preserve the native cause if the second DMG build fails on a hosted runner.
@@ -241,7 +243,7 @@ try {
             Invoke-Checked "hdiutil" @("info")
             $tauriArguments += "--verbose"
         }
-        Invoke-Checked "corepack" $tauriArguments
+        Invoke-Checked "pnpm" $tauriArguments
         $stage = Join-Path $runRoot "$version-$PlatformLabel"
         Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "stage", "--output", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
         Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "verify", "--input", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
@@ -375,7 +377,7 @@ try {
         $nativeCompatibility = Get-Content (Join-Path $root "apps/desktop/src-tauri/tauri.native-compatibility.conf.json") -Raw | ConvertFrom-Json -AsHashtable
         $configuration.app = @{ security = @{ capabilities = $nativeCompatibility.app.security.capabilities } }
         $configuration | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding utf8
-        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", "nsis", "--config", $configPath, "--ci", "--features", "application-update-qualification,native-compatibility-qualification")
+        Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "build", "--bundles", "nsis", "--config", $configPath, "--ci", "--features", "application-update-qualification,native-compatibility-qualification")
         $predecessor = Join-Path $bundleRoot "nsis/Portcove_$($predecessorVersion)_x64-setup.exe"
         Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
         Remove-Item -LiteralPath $tufConfigPath -Force
@@ -438,13 +440,13 @@ try {
         $wrongPayloadPrivateKey = Join-Path $wrongPayloadRoot "wrong-disposable.key"
         $wrongPayloadCandidate = Join-Path $wrongPayloadRoot $candidateName
         Copy-Item -LiteralPath $candidate -Destination $wrongPayloadCandidate
-        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--write-keys", $wrongPayloadPrivateKey) | Out-Null
+        Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "signer", "generate", "--ci", "--write-keys", $wrongPayloadPrivateKey) | Out-Null
         $wrongPayloadPublicKey = Join-Path $runRoot "wrong-disposable.key.pub"
         Copy-Item -LiteralPath "$wrongPayloadPrivateKey.pub" -Destination $wrongPayloadPublicKey
         $savedSigningPrivateKey = $env:TAURI_SIGNING_PRIVATE_KEY
         try {
             Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
-            Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "signer", "sign", "--private-key-path", $wrongPayloadPrivateKey, "--password", "", $wrongPayloadCandidate)
+            Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "signer", "sign", "--private-key-path", $wrongPayloadPrivateKey, "--password", "", $wrongPayloadCandidate)
         } finally {
             $env:TAURI_SIGNING_PRIVATE_KEY = $savedSigningPrivateKey
         }
@@ -552,7 +554,7 @@ try {
         $targetsDirectory = (Resolve-Path -LiteralPath (Join-Path $positiveRepository "targets")).Path
         $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadataDirectory.TrimEnd('/') + '/')).AbsoluteUri
         $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targetsDirectory.TrimEnd('/') + '/')).AbsoluteUri
-        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", "appimage", "--config", $configPath, "--ci", "--features", "application-update-qualification")
+        Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "build", "--bundles", "appimage", "--config", $configPath, "--ci", "--features", "application-update-qualification")
         $predecessor = Join-Path $bundleRoot "appimage/Portcove_$($predecessorVersion)_amd64.AppImage"
         if ([IO.File]::Exists($privateKey)) { Remove-Item -LiteralPath $privateKey -Force }
         Remove-Item -LiteralPath (Join-Path $fixtureRoot "private") -Recurse -Force
@@ -726,7 +728,7 @@ try {
         $nativeCompatibility = Get-Content (Join-Path $root "apps/desktop/src-tauri/tauri.native-compatibility.conf.json") -Raw | ConvertFrom-Json -AsHashtable
         $configuration.app = @{ security = @{ capabilities = $nativeCompatibility.app.security.capabilities } }
         $configuration | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding utf8
-        Invoke-Checked "corepack" @($pnpmSpec, "--dir", "apps/desktop", "tauri", "build", "--bundles", "app", "--config", $configPath, "--ci", "--features", "application-update-qualification,native-compatibility-qualification")
+        Invoke-Checked "pnpm" @("--dir", "apps/desktop", "tauri", "build", "--bundles", "app", "--config", $configPath, "--ci", "--features", "application-update-qualification,native-compatibility-qualification")
         $qualifiedBundleName = "qualified-$predecessorVersion-bundles"
         Move-RehearsalInput $bundleRoot $qualifiedBundleName
         $qualifiedApp = Join-Path $runRoot "$qualifiedBundleName/macos/Portcove.app"

@@ -74,6 +74,12 @@
       "schedule": ["at any time"]
     },
     {
+      "description": "Exclude CLI 2.12.3 RPM prerelease regression until requalified under #2014",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["@tauri-apps/cli"],
+      "allowedVersions": "!/^2\\.12\\.3$/"
+    },
+    {
       "description": "Qualify Tailwind and its Vite integration together",
       "matchPackageNames": ["tailwindcss", "@tailwindcss/vite"],
       "groupName": "tailwind",
@@ -130,12 +136,6 @@
       "matchPackageNames": ["@voidzero-dev/vite-plus-core", "vitest", "/^@vitest\\//", "vite"],
       "enabled": false,
       "matchJsonata": ["$not($exists(isVulnerabilityAlert)) or isVulnerabilityAlert != true"]
-    },
-    {
-      "description": "Directly consumed Oxc parser is independent of the bundled linter/formatter",
-      "matchPackageNames": ["oxc-parser"],
-      "groupName": "oxc-parser",
-      "schedule": ["* * * * 1,4"]
     },
     {
       "description": "Discover Vite+ releases automatically; complete the coordinated migrator graph before delivery",

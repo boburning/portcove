@@ -22,7 +22,8 @@ test("Rust Node and pnpm authorities are exact and workflow consumers do not cop
   assert.match(node, /^\d+\.\d+\.\d+$/u);
   assert.match(repositoryPackage.packageManager, /^pnpm@\d+\.\d+\.\d+$/u);
   assert.doesNotMatch(justfile, /\{\{storage\}\}\s+pnpm\b/u);
-  assert.match(justfile, /\{\{storage\}\}\s+corepack pnpm\b/u);
+  assert.doesNotMatch(justfile, /\bcorepack\b/u);
+  assert.match(justfile, /node scripts\/run-viteplus\.mjs/u);
 
   const workflowDirectory = path.join(root, ".github", "workflows");
   const workflowNames = (await readdir(workflowDirectory)).filter((name) => name.endsWith(".yml"));
@@ -47,7 +48,7 @@ test("the root owns the only pnpm workspace lock and repository tool dependencie
   assert.ok(Object.keys(repositoryPackage.devDependencies).length > 0);
   assert.ok(Object.keys(desktopPackage.devDependencies).length > 0);
   assert.deepEqual(Object.keys(repositoryPackage.devDependencies).sort(), [
-    "@taplo/cli",
+    "@types/node",
     "fallow",
     "vite-plus",
     "yaml",
@@ -56,8 +57,10 @@ test("the root owns the only pnpm workspace lock and repository tool dependencie
     Object.keys(repositoryPackage.devDependencies).filter((name) =>
       Object.hasOwn(desktopPackage.devDependencies, name),
     ),
-    [],
+    ["vite-plus", "yaml"],
   );
+  assert.equal(desktopPackage.devDependencies["vite-plus"], "catalog:");
+  assert.equal(desktopPackage.devDependencies.yaml, repositoryPackage.devDependencies.yaml);
   assert.equal(Object.hasOwn(desktopPackage, "packageManager"), false);
   assert.match(workspace, /^packages:\r?\n  - apps\/desktop$/mu);
   assert.match(workspace, /^storeDir: work\/pnpm-store$/mu);
@@ -148,7 +151,7 @@ test("pnpm prefers one-day releases without turning the preference into a strict
   assert.equal(workspace.minimumReleaseAge, 1440);
   assert.equal(workspace.minimumReleaseAgeStrict, false);
   assert.equal(workspace.minimumReleaseAgeExclude, undefined);
-  assert.deepEqual(workspace.allowBuilds, { "@swc/core": true, esbuild: true });
+  assert.deepEqual(workspace.allowBuilds, { "@swc/core": true });
   const config = JSON.parse(await read("renovate.json"));
   const primary = config.packageRules.find((rule) => rule.groupName === "vite-plus");
   assert.equal(primary.enabled, true);
@@ -329,6 +332,24 @@ test("Renovate batches development tools and suppresses only the Aqua registry a
   );
 });
 
+test("the RPM prerelease hold excludes only the affected npm CLI version", async () => {
+  const config = JSON.parse(await read("renovate.json"));
+  const holds = config.packageRules.filter((rule) => rule.allowedVersions);
+  const hold = holds.find((rule) => rule.matchPackageNames?.includes("@tauri-apps/cli"));
+  assert.ok(hold);
+  assert.deepEqual(hold.matchManagers, ["npm"]);
+  assert.deepEqual(hold.matchPackageNames, ["@tauri-apps/cli"]);
+  assert.equal(hold.allowedVersions, "!/^2\\.12\\.3$/");
+  assert.match(hold.description, /#2014/);
+  assert.equal(hold.enabled, undefined);
+  assert.equal(hold.groupName, undefined);
+  const excluded = new RegExp(hold.allowedVersions.slice(2, -1), "u");
+  assert.equal(excluded.test("2.12.3"), true);
+  for (const version of ["2.12.1", "2.12.2", "2.12.4", "2.12.30", "2.13.0", "3.0.0"]) {
+    assert.equal(excluded.test(version), false, version);
+  }
+});
+
 test("every Renovate custom manager matches its committed authority", async () => {
   const renovate = JSON.parse(await read("renovate.json"));
   const authorities = [
@@ -377,7 +398,6 @@ test("compatibility families override inherited groups without coupling unrelate
       "@tauri-apps/cli",
       "@tauri-apps/plugin-dialog",
     ],
-    "oxc-parser": ["oxc-parser"],
     tailwind: ["tailwindcss", "@tailwindcss/vite"],
     stylelint: ["stylelint", "stylelint-config-recommended"],
   };

@@ -13,7 +13,7 @@ import { useGameFileFilterContext } from "../features/browsing/use-game-file-fil
 import { portDefinition } from "../test-fixtures";
 import type { GameFileQueryRefreshRequest, GameFileQuerySnapshot, PortStatus } from "../types";
 import { filterPorts, summarizeLibrary } from "../view-model";
-import "../styles.css";
+import "../styles/index.css";
 
 vi.mock("../api", () => ({
   desktopApi: { libraryIdentity: vi.fn(), refreshGameFileQuery: vi.fn(), cancelOperation: vi.fn() },
@@ -167,6 +167,13 @@ afterEach(() => {
   delete document.documentElement.dataset.theme;
 });
 const button = (name: string) => page.getByRole("button", { name, exact: true });
+async function closeFilters() {
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: /^Filters \(\d+\)$/, exact: true }))
+    .toHaveFocus();
+}
 const noAdditionalChecks = () => {
   expect(desktopApi.libraryIdentity).toHaveBeenCalledTimes(1);
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
@@ -194,7 +201,7 @@ it.each(["dark", "light"])(
     ])
       await expect.element(button(`${label} (1)`)).toBeEnabled();
     await userEvent.click(button("Compatible complete files available (1)"));
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
     await expect.element(button("Filters (1)")).toHaveFocus();
     const card = page.getByRole("button", { name: /^Complete game\./ });
@@ -214,7 +221,7 @@ it.each(["dark", "light"])(
     await userEvent.fill(page.getByRole("textbox", { name: "Search catalog" }), "no match");
     await userEvent.click(button("Filters (1)"));
     await expect.element(button("Compatible complete files available (0)")).toBeEnabled();
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     noAdditionalChecks();
     expect(document.body.textContent).not.toContain("/private-game-files");
   },
@@ -225,7 +232,7 @@ it("retains unavailable choices across library invalidation, persistence and iso
   await userEvent.click(button("Filters (0)"));
   await userEvent.click(button("Check game-file filters"));
   await userEvent.click(button("Needs checking (1)"));
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   await userEvent.click(page.getByRole("button", { name: /^Checking game\./ }));
   await expect
     .element(page.getByRole("region", { name: "Catalog game-file observation" }))
@@ -241,7 +248,7 @@ it("retains unavailable choices across library invalidation, persistence and iso
   await expect.element(button("Remove Needs checking filter")).toBeInTheDocument();
   await userEvent.click(button("Filters (1)"));
   await expect.element(button("Needs checking (unavailable)")).toBeDisabled();
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   await userEvent.click(button("Switch library"));
   await expect.element(button("Filters (0)")).toBeInTheDocument();
   await userEvent.click(button("Switch library"));
@@ -254,6 +261,7 @@ it("retains unavailable choices across library invalidation, persistence and iso
   document
     .querySelector<HTMLButtonElement>('button[aria-label="Remove Needs checking filter"]')!
     .focus();
+  await expect.element(button("Remove Needs checking filter")).toHaveFocus();
   await userEvent.keyboard("{Enter}");
   await expect.element(button("Filters (0)")).toHaveFocus();
 });

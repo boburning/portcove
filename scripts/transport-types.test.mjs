@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { vitePlusCommand } from "./viteplus-cli.mjs";
 import {
   combineTransportSchemas,
   renderTransportTypes,
@@ -12,7 +12,6 @@ import {
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const desktop = path.join(root, "apps", "desktop");
-const require = createRequire(path.join(desktop, "package.json"));
 
 test("schema composition rejects conflicting definitions and external references", async () => {
   const first = { type: "object", $defs: { Value: { type: "string" } } };
@@ -41,6 +40,10 @@ test("one batched frontend compiler invocation rejects every maintained transpor
     const fixture = path.join(temporary, "fixture.ts");
     const config = path.join(temporary, "tsconfig.json");
     fs.writeFileSync(
+      path.join(temporary, "vite.config.mjs"),
+      "export default { lint: { ignorePatterns: [] } };\n",
+    );
+    fs.writeFileSync(
       config,
       JSON.stringify({
         compilerOptions: {
@@ -65,20 +68,35 @@ const nullable: PortStatus = { ...status, active: null };
 const valid: InstallRecord = { ...install, artifact: { ...install.artifact, size: 2 } };
 const libraryChanged: DesktopEventPayloads["portcove://library-changed"] = null;
 `;
-    const packagePath = require.resolve("typescript/package.json");
-    const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
-    const compiler = path.resolve(path.dirname(packagePath), packageJson.bin.tsc);
+    const compiler = vitePlusCommand(root);
     let compilerInvocations = 0;
     function compile(source) {
       compilerInvocations += 1;
       fs.writeFileSync(fixture, source);
-      const result = spawnSync(process.execPath, [compiler, "--project", config], {
-        cwd: root,
-        encoding: "utf8",
-        timeout: 20_000,
-        maxBuffer: 1024 * 1024,
-        windowsHide: true,
-      });
+      const result = spawnSync(
+        compiler.command,
+        [
+          ...compiler.args,
+          "lint",
+          "--type-aware",
+          "--type-check",
+          "--tsconfig",
+          config,
+          "--no-ignore",
+          "-A",
+          "all",
+          "--format",
+          "unix",
+          fixture,
+        ],
+        {
+          cwd: temporary,
+          encoding: "utf8",
+          timeout: 20_000,
+          maxBuffer: 1024 * 1024,
+          windowsHide: true,
+        },
+      );
       assert.ifError(result.error);
       return result;
     }
@@ -144,7 +162,7 @@ const libraryChanged: DesktopEventPayloads["portcove://library-changed"] = null;
     for (const [index, fixtureCase] of cases.entries()) {
       assert.match(
         invalid.stdout,
-        new RegExp(`fixture\\.ts\\(${failureLine + index},\\d+\\): error TS\\d+`),
+        new RegExp(`fixture\\.ts:${failureLine + index}:\\d+:.*TS\\d+`),
         `Compiler did not reject ${fixtureCase.name}`,
       );
     }

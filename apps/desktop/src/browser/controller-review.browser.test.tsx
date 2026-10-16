@@ -6,7 +6,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "../components/ui/dialog";
 import { useGamepadNavigation } from "../gamepad";
-import "../styles.css";
+import "../styles/index.css";
 
 const back = vi.fn();
 let pressed: number[] = [];

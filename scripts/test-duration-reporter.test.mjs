@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { isSlowTest } from "./test-duration-reporter.mjs";
-import { checkVitestDurations, completeRelatedUiCoverage } from "./check-vitest-durations.mjs";
 
 function event(duration, type = "test") {
   return {
@@ -40,61 +42,28 @@ test("a synchronous slow result is reported without failing a correct test", () 
   assert.match(result.stdout, /Slow tests to investigate/);
 });
 
-test("UI timing reports slow tests and rejects missing or incomplete measurements", () => {
-  const report = (duration) => ({
-    success: true,
-    numPassedTests: 1,
-    testResults: [
-      {
-        assertionResults: [{ status: "passed", fullName: "fixture", duration }],
-      },
-    ],
-  });
-  assert.deepEqual(checkVitestDurations(report(5_000)), {
-    count: 1,
-    longest: 5_000,
-    slow: [],
-  });
-  assert.deepEqual(checkVitestDurations(report(5_001)).slow, [
-    { name: "fixture", duration: 5_001 },
-  ]);
-  assert.throws(() => checkVitestDurations(report(undefined)), /Missing duration/);
-  assert.throws(() => checkVitestDurations({ ...report(1), numPassedTests: 2 }), /Incomplete/);
-  assert.throws(() => checkVitestDurations({ ...report(1), success: false }), /successful run/);
-  const empty = { success: true, numPassedTests: 0, testResults: [] };
-  assert.throws(() => checkVitestDurations(empty), /Incomplete/);
-  assert.deepEqual(checkVitestDurations(empty, { allowEmpty: true }), {
-    count: 0,
-    longest: 0,
-    slow: [],
-  });
-});
-
-test("related frontend completion executes one full fallback and propagates failure before a receipt", () => {
-  const empty = { success: true, numTotalTests: 0, numPassedTests: 0, testResults: [] };
-  let calls = 0;
-  completeRelatedUiCoverage(empty, (command, args, options) => {
-    calls++;
-    assert.equal(command, "corepack");
-    assert.deepEqual(args, ["pnpm", "test"]);
-    assert.match(options.cwd, /apps[\\/]desktop/);
-    return { status: 0 };
-  });
-  assert.equal(calls, 1);
-  assert.throws(() => completeRelatedUiCoverage(empty, () => ({ status: 7 })), /fallback failed/);
-  assert.throws(
-    () => completeRelatedUiCoverage({ ...empty, numTotalTests: undefined }, () => assert.fail()),
-    /Incomplete frontend/,
+test("an abnormal worker exit retains bounded status and remains a failed run", (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-worker-reporter-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const fixture = path.join(root, "exiting.test.mjs");
+  writeFileSync(fixture, "process.exit(7);\n");
+  const reporter = new URL("./test-duration-reporter.mjs", import.meta.url).href;
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  const result = spawnSync(
+    process.execPath,
+    ["--test", "--test-timeout=30000", `--test-reporter=${reporter}`, fixture],
+    { encoding: "utf8", windowsHide: true, timeout: 3_000, env },
   );
-  const nonempty = {
-    success: true,
-    numTotalTests: 1,
-    numPassedTests: 1,
-    testResults: [
-      { assertionResults: [{ status: "passed", duration: 1, fullName: "related fixture" }] },
-    ],
-  };
-  completeRelatedUiCoverage(nonempty, () =>
-    assert.fail("nonempty selection must not execute the full suite"),
-  );
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(result.signal, null);
+  const prefix = "Worker process failure: ";
+  const diagnostic = result.stdout.split("\n").find((line) => line.startsWith(prefix));
+  assert.ok(diagnostic, result.stdout);
+  assert.deepEqual(JSON.parse(diagnostic.slice(prefix.length)), {
+    exitCode: 7,
+    signal: null,
+    failureType: "testCodeFailure",
+    code: "ERR_TEST_FAILURE",
+  });
 });

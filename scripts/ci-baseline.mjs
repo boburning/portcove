@@ -94,22 +94,21 @@ export function baselineFrontendPlan(plan, options) {
   selection.uiFullTests ||= Boolean(plan.fallback) || !selection.uiRelatedFiles.size;
   return buildPlan(selection, { validationPlan: plan }).filter((entry) =>
     [
-      "ui-copy",
-      "ui-transport-types",
-      "ui-ipc-exposure",
+      "ui-content",
       "ui-check",
       "ui-build",
       "ui-tests",
+      "ui-browser-tests",
       "ui-related-tests",
-      "ui-related-durations",
     ].includes(entry.id),
   );
 }
 
 export function baselineLintPlan(plan, options) {
   if (!plan.groups.includes("rust-quality")) throw new Error("Plan omitted repository quality");
-  return buildPlan(baselineSelection(plan, options), { validationPlan: plan }).filter(
-    (entry) => entry.id === "repository-lint",
+  const selection = baselineSelection(plan, options);
+  return buildPlan(selection, { validationPlan: plan }).filter((entry) =>
+    ["repository-lint", "oxfmt"].includes(entry.id),
   );
 }
 

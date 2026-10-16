@@ -9,11 +9,16 @@ copyright and Apache-2.0/MIT SPDX notices are retained. They are test fixtures,
 not a shipped runtime or a replacement transport. The text suffix prevents
 automatic formatting or accidental runtime imports from changing their bytes.
 
+On 2026-10-16 all three files were reverified byte-for-byte against the
+Cargo.lock-pinned `tauri 2.12.4` archive and its installed registry source. The
+archive SHA-256 matches Cargo.lock; fixture bytes and existing hash pins remain
+unchanged. The installed API's `core.js` and tslib hashes also remain unchanged.
+
 `desktop-owned-ipc-probe-check.mjs` verifies their SHA-256 identities and the
 Cargo lock version before evaluating them. It supplies only inert platform/key
 template values and wires the actual runtime's `postMessage` into `ipc`.
-The current verifier requires `tauri 2.12.3` in Cargo.lock.
-The installed `@tauri-apps/api 2.12.3` module supplies the real `invoke` and
+The current verifier requires `tauri 2.12.4` in Cargo.lock.
+The installed `@tauri-apps/api 2.12.4` module supplies the real `invoke` and
 `Channel`; its source hash and package version are independently pinned too.
 An upgrade must deliberately reconcile these fixtures and assertions.
 

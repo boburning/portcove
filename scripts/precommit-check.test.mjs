@@ -6,9 +6,10 @@ import { tmpdir } from "node:os";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { configureHooks } from "./hooks-install.mjs";
+import { vitePlusCommand } from "./viteplus-cli.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const vp = path.join(root, "node_modules/vite-plus/bin/vp");
+const vp = vitePlusCommand(root);
 const base = path.join(tmpdir(), "portcove-vite-hooks");
 mkdirSync(base, { recursive: true });
 const env = {
@@ -30,7 +31,7 @@ function run(cwd, executable, args, ok = true) {
   return result;
 }
 const git = (cwd, ...args) => run(cwd, "git", args).stdout;
-const cli = (cwd, ...args) => run(cwd, process.execPath, [vp, ...args]);
+const cli = (cwd, ...args) => run(cwd, vp.command, [...vp.args, ...args]);
 function fixture() {
   const cwd = mkdtempSync(path.join(base, "staged-"));
   git(cwd, "init", "-q");
@@ -39,7 +40,7 @@ function fixture() {
   writeFileSync(path.join(cwd, "package.json"), '{"private":true,"type":"module"}\n');
   writeFileSync(
     path.join(cwd, "vite.config.ts"),
-    'export default { staged: { "*.js": "vp fmt" } };\n',
+    'export default { fmt: {}, staged: { "*.js": "vp fmt --config vite.config.ts --ignore-path .gitignore" } };\n',
   );
   writeFileSync(path.join(cwd, "sample.js"), "export const value = 1;\n");
   writeFileSync(path.join(cwd, ".gitignore"), ".vite-hooks/_/\n");
@@ -76,7 +77,7 @@ test("a failed staged command restores the index and working changes", () => {
   writeFileSync(path.join(cwd, "sample.js"), "export const value={x:1}\n// unstaged work\n");
   const before = git(cwd, "diff");
   const index = git(cwd, "show", ":sample.js");
-  const result = run(cwd, process.execPath, [vp, "staged"], false);
+  const result = run(cwd, vp.command, [...vp.args, "staged"], false);
   assert.notEqual(result.status, 0);
   assert.equal(git(cwd, "diff"), before);
   assert.equal(git(cwd, "show", ":sample.js"), index);
@@ -114,7 +115,7 @@ test(
     const cwd = fixture();
     writeFileSync(
       path.join(cwd, "vite.config.ts"),
-      'export default { staged: { "*.js": ["vp fmt", "node slow.mjs"] } };\n',
+      'export default { fmt: {}, staged: { "*.js": ["vp fmt --config vite.config.ts --ignore-path .gitignore", "node slow.mjs"] } };\n',
     );
     writeFileSync(
       path.join(cwd, "slow.mjs"),
@@ -125,7 +126,7 @@ test(
     writeFileSync(path.join(cwd, "sample.js"), "export const value={x:1}\n// unstaged work\n");
     const before = git(cwd, "diff");
     const index = git(cwd, "show", ":sample.js");
-    const child = spawn(process.execPath, [vp, "staged"], {
+    const child = spawn(vp.command, [...vp.args, "staged"], {
       cwd,
       env,
       detached: true,

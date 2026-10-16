@@ -1963,12 +1963,20 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     });
     // Owner-approved #706 calibration (issuecomments 6190196270/6191752545): preserve the
     // whole-install starting point and every actual partial-copy assertion.
+    // #2004 adds exactly PolicyLoss/ArtifactRevocationRestore (issuecomment 6205805576).
+    // The final integrated Intel run also missed setup for the two restore
+    // variants below. Calibrate only their setup wait under QUALITY's standing
+    // authority; retain the actual partial-copy barrier and worker drain.
     let latch_timeout = if cfg!(all(target_os = "macos", target_arch = "x86_64"))
         && matches!(
             intervention,
             CacheIntervention::CancelRetain
+                | CacheIntervention::CancelRestore
                 | CacheIntervention::ArtifactRevocationRetain
                 | CacheIntervention::ArtifactWithdrawalRetain
+                | CacheIntervention::PolicyLoss
+                | CacheIntervention::ArtifactRevocationRestore
+                | CacheIntervention::ArtifactWithdrawalRestore
         ) {
         Duration::from_secs(10)
     } else {
@@ -1983,12 +1991,25 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
         }
     })
     .await;
+    println!(
+        "curated cache latch resolved: {:?}; reached={}",
+        clock.elapsed(),
+        reached.is_ok()
+    );
+    println!(
+        "curated cache policy intervention begin: {:?}",
+        clock.elapsed()
+    );
     let disposition = match withdrawal {
         Some((admission, candidate)) => library
             .apply_definition_publisher_policy(&admission, candidate.as_ref())
             .map(|changed| assert!(changed)),
         None => service.request_cancellation(&operation_id).map(|_| ()),
     };
+    println!(
+        "curated cache policy intervention complete: {:?}",
+        clock.elapsed()
+    );
     tokio::time::sleep(Duration::from_millis(75)).await;
     let result_finished = install.is_finished();
     let worker_finished = finished.load(Ordering::SeqCst);
@@ -2086,6 +2107,28 @@ async fn curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_
 #[tokio::test]
 async fn curated_cache_reuse_refuses_corruption_and_preserves_capacity_evidence() {
     curated_installer_fixture(true, None).await;
+}
+
+#[tokio::test]
+async fn curated_install_refuses_stale_resolution_before_requesting_artifact_bytes() {
+    curated_installer_boundary_fixture(
+        false,
+        None,
+        None,
+        Some(CuratedInstallRefusal::StaleResolution),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn curated_install_refuses_changed_artifact_bytes_before_publication() {
+    curated_installer_boundary_fixture(
+        false,
+        None,
+        None,
+        Some(CuratedInstallRefusal::ChangedBytes),
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -2425,6 +2468,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         // in preservation expectations, as in the retained-expiry launch control.
         fs::write(delivered[1].path.join(".portcove-launched"), b"1").unwrap();
     }
+    phase("retained baseline begin");
     let trees: Vec<_> = delivered
         .iter()
         .map(|install| crate::library_transfer::reviewed_tree(&install.path).unwrap())
@@ -2433,6 +2477,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
     fs::create_dir_all(user.join("saves")).unwrap();
     fs::write(user.join("saves/progress.bin"), b"owned retained progress").unwrap();
     let user_tree = crate::library_transfer::reviewed_tree(&user).unwrap();
+    phase("retained baseline complete");
     if operation == RetainedCuratedOperation::AdoptionRefusal {
         let source = probe_directory.path().join("unmanaged-owned-source");
         crate::service::copy_tree(&delivered[1].path, &source).unwrap();
@@ -2639,12 +2684,13 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             .into_eligible()
             .unwrap();
         library.select_definition_candidate(eligible).unwrap();
-        let current_catalog = library.load_catalog().unwrap().0;
+        // Observe the unchanged selected catalog once. Launch assessments are
+        // read from durable state by each status call; they do not replace the
+        // selected catalog. Actual launch attempts below still reopen service.
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let current_catalog = service.catalog();
         phase("launch transition admission");
-        let without_baseline = PortcoveService::new(library.clone())
-            .unwrap()
-            .status(ID)
-            .unwrap();
+        let without_baseline = service.status(ID).unwrap();
         assert!(!without_baseline.readiness.unwrap().launchable);
         let baseline_refusal = without_baseline
             .definition_operations
@@ -2660,7 +2706,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             crate::DefinitionEligibilityReason::CuratedArtifactRevoked
         );
         phase("launch without-baseline status");
-        let fresh_scope = policy::acquisition_scope(&library, &current_catalog, ID)
+        let fresh_scope = policy::acquisition_scope(&library, current_catalog, ID)
             .unwrap()
             .unwrap();
         let baseline =
@@ -2675,7 +2721,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             )
             .unwrap();
         let bundle = crate::test_fixture::indexed_catalog_bundle_at_revision(
-            &current_catalog,
+            current_catalog,
             ID,
             current_catalog
                 .definition_selection(ID)
@@ -2697,7 +2743,6 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             .apply_definition_launch_assessment(&accepted)
             .unwrap();
         phase("launch baseline admitted");
-        let service = PortcoveService::new(library.clone()).unwrap();
         let projected = service.status(ID).unwrap();
         let expected_reason = if status == "revoked" {
             crate::DefinitionEligibilityReason::CuratedArtifactRevoked
@@ -2838,6 +2883,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         );
         let staging = library.staging_dir().join(&journal.id);
         let payload = staging.join("payload");
+        phase("publication payload preparation begin");
         crate::service::copy_tree(&delivered[1].path, &payload).unwrap();
         let original = &delivered[1];
         let install_id = uuid::Uuid::new_v4().to_string();
@@ -2870,6 +2916,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         };
         assert!(installer.verify(&private).unwrap().valid);
         let private_tree = crate::library_transfer::reviewed_tree(&payload).unwrap();
+        phase("publication payload preparation complete");
         let already_published = matches!(
             operation,
             RetainedCuratedOperation::PublicationRecoveryPublished
@@ -2888,6 +2935,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         journal.activate = true;
         let store = OperationStore::new(library.clone());
         store.put(&mut journal).unwrap();
+        phase("publication journal persisted");
         if status != "available" {
             let affected = &artifacts[1].0;
             let transitions = serde_json::json!({"future_acceptance_lost":false,"artifacts":[{"asset_id":affected.asset_id,"sha256":affected.sha256,"status":status}]});
@@ -2910,8 +2958,11 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             .unwrap()
             .require_current()
             .unwrap();
-        for _ in 0..2 {
+        phase("publication current scope ready");
+        for attempt in 0..2 {
+            phase(&format!("publication reopen begin {attempt}"));
             let _reopened = PortcoveService::new(library.clone()).unwrap();
+            phase(&format!("publication reopen complete {attempt}"));
             let after = library.status(ID, ReleaseChannel::Stable).unwrap();
             if status == "available" && !unsupported_adoption {
                 assert_eq!(after.active.unwrap().id, published.id);
@@ -2971,6 +3022,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
                 crate::library_transfer::reviewed_tree(&user).unwrap(),
                 user_tree
             );
+            phase(&format!("publication preservation complete {attempt}"));
         }
         assert_eq!(count(&library, "curated_artifact_admissions"), 2);
         assert_eq!(
@@ -3132,7 +3184,13 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
 }
 
 async fn curated_installer_fixture(cache_controls: bool, artifact_status: Option<&str>) {
-    curated_installer_boundary_fixture(cache_controls, artifact_status, None).await;
+    curated_installer_boundary_fixture(cache_controls, artifact_status, None, None).await;
+}
+
+#[derive(Clone, Copy)]
+enum CuratedInstallRefusal {
+    StaleResolution,
+    ChangedBytes,
 }
 
 macro_rules! curated_install_boundary_cases {
@@ -3140,7 +3198,7 @@ macro_rules! curated_install_boundary_cases {
         #[tokio::test]
         async fn $name() {
             curated_installer_boundary_fixture(false, Some($status),
-                Some(crate::operation::LifecycleFaultPoint::$point)).await;
+                Some(crate::operation::LifecycleFaultPoint::$point), None).await;
         }
     )*};
 }
@@ -3155,6 +3213,7 @@ async fn curated_installer_boundary_fixture(
     cache_controls: bool,
     artifact_status: Option<&str>,
     boundary: Option<crate::operation::LifecycleFaultPoint>,
+    refusal: Option<CuratedInstallRefusal>,
 ) {
     use crate::ReleaseProvider;
     use std::io::{Cursor, Write};
@@ -3223,6 +3282,7 @@ async fn curated_installer_boundary_fixture(
     release[0]["assets"][0]["browser_download_url"] = format!("{}{path}", server.origin).into();
     let tag = serde_json::json!({"ref":"refs/tags/v1", "object":{"type":"commit","sha":record.commit_sha1}});
     for iteration in 0..2 {
+        phase(&format!("iteration {iteration} begin"));
         let before = server.requests.lock().unwrap().len();
         server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
         server.json(release.clone());
@@ -3246,6 +3306,9 @@ async fn curated_installer_boundary_fixture(
         );
         if iteration == 0 {
             let installer = crate::Installer::new(library.clone()).unwrap();
+            let qualification =
+                crate::InstallQualification::from_catalog(&catalog, ID, record.platform).unwrap();
+            phase("immutable install qualification captured");
             let request =
                 |resolution: crate::ScopedResolvedRelease, _suffix: &str| crate::InstallRequest {
                     port_id: ID.into(),
@@ -3253,19 +3316,14 @@ async fn curated_installer_boundary_fixture(
                     output_root: library.versions_dir().join(ID),
                     activate: false,
                     managed: None,
-                    qualification: crate::InstallQualification::from_catalog(
-                        &catalog,
-                        ID,
-                        record.platform,
-                    )
-                    .unwrap()
-                    .with_acquisition_resolution(resolution)
-                    .unwrap(),
+                    qualification: qualification
+                        .clone()
+                        .with_acquisition_resolution(resolution)
+                        .unwrap(),
                 };
-            // Metadata substitution, changed bytes and interrupted cache
-            // population are qualified by the dedicated acquisition/cache
-            // controls. Artifact-hold cases need one actual admitted install.
-            if artifact_status.is_none() {
+            // Each independent refusal owns an actual installer attempt. Do not
+            // repeat these controls before unrelated identity/cache lifecycles.
+            if let Some(CuratedInstallRefusal::StaleResolution) = refusal {
                 let mut moved_tag = tag.clone();
                 moved_tag["object"]["sha"] = "d".repeat(40).into();
                 server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
@@ -3288,6 +3346,10 @@ async fn curated_installer_boundary_fixture(
                     "a stale resolution must refuse before requesting artifact bytes"
                 );
                 assert_eq!(count(&library, "installs"), 0);
+                assert!(server.responses.lock().unwrap().is_empty());
+                return;
+            }
+            if let Some(CuratedInstallRefusal::ChangedBytes) = refusal {
                 let mut changed_bytes = bytes.clone();
                 changed_bytes[0] ^= 1;
                 server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
@@ -3305,6 +3367,12 @@ async fn curated_installer_boundary_fixture(
                 assert_eq!(refused.code, crate::ErrorCode::Verification);
                 assert!(refused.message.contains("SHA-256"));
                 assert_eq!(count(&library, "installs"), 0);
+                assert!(server.responses.lock().unwrap().is_empty());
+                return;
+            }
+            // Cache reuse must follow the real interrupted installer that
+            // populated verified bytes; a preseeded file cannot replace it.
+            if cache_controls {
                 server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
                 server.json(release.clone());
                 server.json(tag.clone());
@@ -3345,12 +3413,12 @@ async fn curated_installer_boundary_fixture(
             server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
             server.json(release.clone());
             server.json(tag.clone());
-            if artifact_status.is_some() {
+            if !cache_controls {
                 server.bytes(&bytes);
             }
             // Cache controls queue no artifact response: installation refreshes
             // metadata and reuses only reverified immutable cached bytes.
-            // Artifact-hold controls acquire their one actual payload here.
+            // Other controls acquire their actual admitted payload here.
             if let Some(point) = boundary {
                 use crate::operation::{LifecyclePhase, OperationStore};
                 let status = artifact_status.unwrap();
@@ -3458,7 +3526,7 @@ async fn curated_installer_boundary_fixture(
             assert_eq!(count(&library, "installs"), 1);
             assert_eq!(
                 server.requests.lock().unwrap().len(),
-                before + if artifact_status.is_some() { 4 } else { 3 }
+                before + if cache_controls { 3 } else { 4 }
             );
             phase("actual install verified");
             if let Some(status) = artifact_status {
@@ -3551,6 +3619,7 @@ async fn curated_installer_boundary_fixture(
             if !cache_controls {
                 continue;
             }
+            phase("cache lock refusal begin");
             let guard = library.try_lock_curated_cache().unwrap();
             let blocked = library.root().join("busy-cache-copy.zip");
             assert!(
@@ -3565,6 +3634,7 @@ async fn curated_installer_boundary_fixture(
             );
             assert!(!blocked.exists());
             drop(guard);
+            phase("cache lock refusal complete");
             let cached = library
                 .downloads_dir()
                 .join("curated-v1")
@@ -3572,6 +3642,7 @@ async fn curated_installer_boundary_fixture(
             let mut corrupted = bytes.clone();
             corrupted[0] ^= 1;
             std::fs::write(&cached, &corrupted).unwrap();
+            phase("corrupted cache restore begin");
             let refusal = crate::curated_cache::CacheWorker::new(
                 &scope,
                 &resolved.release.asset,
@@ -3586,7 +3657,11 @@ async fn curated_installer_boundary_fixture(
                 corrupted,
                 "failed cache evidence must remain"
             );
+            phase("corrupted cache restore complete");
+            phase("installed verification after corruption begin");
             assert!(installer.verify(&installed).unwrap().valid);
+            phase("installed verification after corruption complete");
+            phase("capacity fixture creation begin");
             let root = library.downloads_dir().join("curated-v1");
             std::fs::rename(
                 &root,
@@ -3597,8 +3672,10 @@ async fn curated_installer_boundary_fixture(
             for number in 0..256 {
                 std::fs::write(root.join(format!("{number:064x}.asset")), []).unwrap();
             }
+            phase("capacity fixture creation complete");
             let original = library.root().join("capacity-source.zip");
             std::fs::write(&original, &bytes).unwrap();
+            phase("capacity retention refusal begin");
             assert!(
                 !crate::curated_cache::CacheWorker::new(
                     &scope,
@@ -3614,7 +3691,9 @@ async fn curated_installer_boundary_fixture(
                 256,
                 "a full cache must not evict evidence"
             );
+            phase("capacity retention refusal complete");
         }
+        phase(&format!("iteration {iteration} complete"));
     }
     if cache_controls {
         assert!(server.responses.lock().unwrap().is_empty());

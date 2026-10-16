@@ -1,0 +1,49 @@
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { resolveUiSelection, reconcileUiSelection } from "./ui-test-selection.mjs";
+const root = fileURLToPath(new URL("../", import.meta.url));
+const mode = process.argv[2];
+if (!["exact", "related"].includes(mode))
+  throw new Error("Usage: run-ui-tests.mjs exact|related <literal files>...");
+// Validate the entire request before importing/initializing the runner.
+const files = resolveUiSelection(process.argv.slice(3), path.join(root, "apps/desktop"), mode);
+const { createVitest } = await import("vite-plus/test/node");
+const runner = await createVitest({
+  root,
+  config: path.join(root, "vite.config.ts"),
+  watch: false,
+  run: true,
+  ...(mode === "related" ? { related: files } : {}),
+});
+const key = (file) =>
+  process.platform === "win32" ? path.resolve(file).toLowerCase() : path.resolve(file);
+try {
+  await runner.standalone();
+  let specifications;
+  if (mode === "exact") {
+    const expected = new Set(files.map(key));
+    specifications = (await runner.globTestSpecifications()).filter((specification) =>
+      expected.has(key(specification.moduleId)),
+    );
+    const discovered = specifications.map((specification) => key(specification.moduleId));
+    if (discovered.length !== expected.size || new Set(discovered).size !== expected.size)
+      throw new Error("Requested UI files have missing or duplicate project specifications");
+  } else {
+    specifications = await runner.getRelevantTestSpecifications();
+    if (!specifications.length) {
+      console.log("No related tests matched; running both maintained frontend projects.");
+      specifications = await runner.globTestSpecifications();
+    }
+  }
+  const expectedFiles =
+    mode === "exact" ? files : specifications.map((specification) => specification.moduleId);
+  const coverage = reconcileUiSelection(
+    await runner.runTestSpecifications(specifications),
+    expectedFiles,
+  );
+  console.log(
+    `UI files: requested ${coverage.requested_files.length}, discovered ${coverage.discovered_files.length}, executed ${coverage.executed_files.length}; passed ${coverage.passed}, skipped ${coverage.skipped}`,
+  );
+} finally {
+  await runner.close();
+}

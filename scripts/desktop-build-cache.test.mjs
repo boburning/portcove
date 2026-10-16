@@ -5,18 +5,14 @@ import path from "node:path";
 import test from "node:test";
 
 import {
-  checkFrontendBuildReuse,
   createFrontendBuildIdentity,
-  recordFrontendBuild,
+  observeFrontendBuild,
   createVerificationBuildIdentity,
-  qualificationBindingFingerprint,
 } from "./desktop-build-cache.mjs";
 
 const inputFiles = [
   ".node-version",
   "package.json",
-  "vite.config.ts",
-  "tsconfig.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   "apps/desktop/index.html",
@@ -25,9 +21,10 @@ const inputFiles = [
   "tsconfig.base.json",
   "apps/desktop/vite.config.ts",
   "apps/desktop/scripts/build-frontend.mjs",
+  "apps/desktop/scripts/production-css.mjs",
+  "scripts/viteplus-cli.mjs",
   "scripts/dev-storage.mjs",
   "scripts/dev-storage.d.mts",
-  "scripts/browser-traces.ts",
   "scripts/tool-cache.mjs",
 ];
 
@@ -51,7 +48,7 @@ const identity = (root, overrides = {}) =>
   createFrontendBuildIdentity({
     root,
     packageManager: "pnpm@12.4.1",
-    packageManagerVersion: "12.4.1",
+    vitePlusVersion: "1.2.0",
     environment: { VITE_CHANNEL: "test" },
     platform: "win32",
     architecture: "x64",
@@ -105,67 +102,22 @@ test("profile build provenance excludes documentation/harness changes and never 
   );
 });
 
-test("unchanged products do not authorize scenario reuse after effective runtime/fixture/criteria changes", () => {
-  const binding = {
-    productArtifacts: ["product"],
-    harnessInputs: ["harness"],
-    runtimeConditions: { display: "private-X11" },
-    fixtureIdentities: ["fixture"],
-    initialState: "empty",
-    selectedRequirements: ["review"],
-    selectedScenarios: ["journey"],
-    acceptanceCriteria: ["visible"],
-  };
-  const original = qualificationBindingFingerprint(binding);
-  for (const field of [
-    "productArtifacts",
-    "harnessInputs",
-    "runtimeConditions",
-    "fixtureIdentities",
-    "initialState",
-    "selectedRequirements",
-    "selectedScenarios",
-    "acceptanceCriteria",
-  ])
-    assert.notEqual(qualificationBindingFingerprint({ ...binding, [field]: "changed" }), original);
-  assert.throws(
-    () => qualificationBindingFingerprint({ ...binding, fixtureIdentities: null }),
-    /incomplete/,
-  );
-});
-
-test("reuses only exact frontend inputs, toolchain, environment, and output bytes", async (t) => {
+test("frontend output observations bind bytes without granting reuse or fresh acceptance", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
-  await mkdir(path.dirname(state.stampPath), { recursive: true });
   const first = await identity(state.root);
-  assert.equal(
-    (await checkFrontendBuildReuse({ identity: first, ...state })).reason,
-    "missing-cache-record",
+  const observed = await observeFrontendBuild({ identity: first, ...state });
+  assert.equal(observed.execution_owner, "vite-task");
+  assert.equal(observed.output_files, 2);
+  assert.equal(observed.input_fingerprint, first.fingerprint);
+  assert.equal(Object.hasOwn(observed, "reused"), false);
+  await writeFile(path.join(state.outputDirectory, "assets/app.js"), "tampered");
+  assert.notEqual(
+    (await observeFrontendBuild({ identity: first, ...state })).output_fingerprint,
+    observed.output_fingerprint,
   );
-  const recorded = await recordFrontendBuild({ identity: first, ...state });
-  assert.equal(recorded.reused, false);
-  assert.deepEqual(await checkFrontendBuildReuse({ identity: first, ...state }), {
-    reused: true,
-    reason: "exact-inputs-and-outputs-match",
-    input_fingerprint: recorded.input_fingerprint,
-    output_fingerprint: recorded.output_fingerprint,
-    output_files: 2,
-  });
-
-  await writeFile(path.join(state.outputDirectory, "assets/app.js"), "tampered\n");
-  assert.equal(
-    (await checkFrontendBuildReuse({ identity: first, ...state })).reason,
-    "frontend-output-changed",
-  );
-  await writeFile(path.join(state.outputDirectory, "assets/app.js"), "bundle\n");
-  const changedEnvironment = await identity(state.root, {
-    environment: { VITE_CHANNEL: "production" },
-  });
-  assert.equal(
-    (await checkFrontendBuildReuse({ identity: changedEnvironment, ...state })).reason,
-    "frontend-inputs-changed",
-  );
+  await rm(state.outputDirectory, { recursive: true });
+  await assert.rejects(observeFrontendBuild({ identity: first, ...state }), /ENOENT/u);
 });
 
 test("input changes and linked inputs fail closed", async (t) => {
@@ -182,12 +134,10 @@ test("input changes and linked inputs fail closed", async (t) => {
   await assert.rejects(identity(state.root), /refuses linked input/u);
 });
 
-test("assertion-only desktop scripts preserve exact frontend reuse", async (t) => {
+test("assertion-only desktop scripts preserve frontend product observations", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
-  await mkdir(path.dirname(state.stampPath), { recursive: true });
   const first = await identity(state.root);
-  await recordFrontendBuild({ identity: first, ...state });
 
   await writeFile(
     path.join(state.root, "apps/desktop/scripts/desktop-workspace-refresh-test.mjs"),
@@ -197,10 +147,8 @@ test("assertion-only desktop scripts preserve exact frontend reuse", async (t) =
   await writeFile(path.join(state.root, "README.md"), "Documentation-only change\n");
   assert.equal((await identity(state.root)).fingerprint, first.fingerprint);
   assert.equal(afterAssertionEdit.fingerprint, first.fingerprint);
-  assert.equal(
-    (await checkFrontendBuildReuse({ identity: afterAssertionEdit, ...state })).reused,
-    true,
-  );
+  await writeFile(path.join(state.root, "scripts/browser-traces.ts"), "reporting changed");
+  assert.equal((await identity(state.root)).fingerprint, first.fingerprint);
 });
 
 for (const frontendInput of [
@@ -210,21 +158,17 @@ for (const frontendInput of [
   "apps/desktop/vite.config.ts",
   "apps/desktop/package.json",
   "apps/desktop/scripts/build-frontend.mjs",
+  "apps/desktop/scripts/production-css.mjs",
   "scripts/dev-storage.mjs",
   "scripts/tool-cache.mjs",
 ]) {
-  test(`changing ${frontendInput} invalidates frontend reuse`, async (t) => {
+  test(`changing ${frontendInput} changes the frontend observation`, async (t) => {
     const state = await fixture();
     t.after(() => rm(state.root, { recursive: true, force: true }));
-    await mkdir(path.dirname(state.stampPath), { recursive: true });
     const first = await identity(state.root);
-    await recordFrontendBuild({ identity: first, ...state });
 
     await writeFile(path.join(state.root, frontendInput), `changed ${frontendInput}\n`);
-    assert.equal(
-      (await checkFrontendBuildReuse({ identity: await identity(state.root), ...state })).reason,
-      "frontend-inputs-changed",
-    );
+    assert.notEqual((await identity(state.root)).fingerprint, first.fingerprint);
   });
 }
 
@@ -234,17 +178,12 @@ for (const viteEnvironmentFile of [
   ".env.production",
   ".env.production.local",
 ]) {
-  test(`Vite ${viteEnvironmentFile} presence invalidates frontend reuse`, async (t) => {
+  test(`Vite ${viteEnvironmentFile} presence changes the frontend observation`, async (t) => {
     const state = await fixture();
     t.after(() => rm(state.root, { recursive: true, force: true }));
-    await mkdir(path.dirname(state.stampPath), { recursive: true });
     const first = await identity(state.root);
-    await recordFrontendBuild({ identity: first, ...state });
 
     await writeFile(path.join(state.root, "apps/desktop", viteEnvironmentFile), "VITE_NEW=1\n");
-    assert.equal(
-      (await checkFrontendBuildReuse({ identity: await identity(state.root), ...state })).reason,
-      "frontend-inputs-changed",
-    );
+    assert.notEqual((await identity(state.root)).fingerprint, first.fingerprint);
   });
 }

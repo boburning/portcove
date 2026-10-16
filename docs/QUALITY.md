@@ -16,13 +16,13 @@ sides and file modes. A missing historical/first-push base uses the entire basel
 unavailable, unsafe or incomplete discovery blocks. Safe unknown paths select
 the entire Windows baseline, never an empty package selection or an automatic audit.
 
-| Context           | Ordinary required coverage                                                                                                    |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| rust              | Windows workspace test-target compilation (`--locked --workspace --all-targets`), then affected maintained test families      |
-| frontend          | Build/typecheck and import-related unit tests; full unit fallback for shared/configuration/uncertain or empty graph selection |
-| rust-quality      | Repository/TOML formatting, Rust formatting for Rust inputs, and full frontend/tooling lint for affected inputs               |
-| catalog           | Relevant cheap schema, repository and tooling contract tests                                                                  |
-| dependency-review | Relevant dependency diff, with the existing high-severity rejection policy                                                    |
+| Context           | Ordinary required coverage                                                                                                               |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| rust              | Windows workspace test-target compilation (`--locked --workspace --all-targets`), then affected maintained test families                 |
+| frontend          | Content/schema, build and import-related Node/browser tests; full project fallback for shared/configuration/uncertain or empty selection |
+| rust-quality      | Repository/TOML formatting, Rust formatting for Rust inputs, and full frontend/tooling lint for affected inputs                          |
+| catalog           | Relevant cheap schema, repository and tooling contract tests                                                                             |
+| dependency-review | Relevant dependency diff, with the existing high-severity rejection policy                                                               |
 
 Affected native helper, frontend prerequisite, dependency receipt, PowerShell and
 CI routing changes also require `windows-helper-contracts` under the existing
@@ -34,11 +34,16 @@ unknown-path broad fallback includes it. A failed or missing selected producer
 fails `catalog`. Exhaustive qualification retains its Windows coverage.
 
 Linted JavaScript/TypeScript/CSS inputs, their lint configuration and dependency
-or toolchain inputs select one full `corepack pnpm lint` stage. Both rename sides
+or toolchain inputs select one full `frontend:static` task (bundle compatibility,
+formatting, lint/type checking and Stylelint). Both rename sides
 and deletions count; safe unknown-impact fallback also selects it. The existing
 quality producer owns hosted execution, including tooling-only changes, while
-the optional local baseline runs the same obligation. Prose-only, Rust-only and
-unrelated assets do not select lint. Pre-commit remains formatting/syntax/copy
+the optional local baseline runs the same obligation. Existing allowlisted prose
+uses the frozen root-workspace dependency setup for the real formatter and its
+configuration. Deleted-only prose keeps the Node/Git documentation checks without
+installing formatter dependencies. Neither route provisions browsers or native
+tools. Rust-only and unrelated assets do not install frontend dependencies. Maintained TOML and normative
+documentation changes retain formatter coverage. Pre-commit remains formatting/syntax/source-policy
 feedback. Exhaustive qualification retains full lint independently.
 
 Rust execution reuses `.config/rust-test-impact.json`. Every group is package
@@ -65,22 +70,31 @@ Warm focused PR required CI targets five minutes. This is a measurement goal,
 not a timeout or permission to omit coverage. Report cold builds, broad/unmapped
 changes and root dependencies separately. Preserve nextest's two slots,
 heavyweight reservations, default 30-second test budgets and process/resource/storage guards.
-The owner's [October 15 #706 timing calibration](https://github.com/boburning/portcove/issues/706#issuecomment-6190196270)
+The historical [October 15 #706 timing calibration](https://github.com/boburning/portcove/issues/706#issuecomment-6190196270)
 and [exact cancellation-latch addendum](https://github.com/boburning/portcove/issues/706#issuecomment-6191752545)
-permit only three ten-second whole-install-to-copy latches on Intel macOS:
+originally record three ten-second whole-install-to-copy latches on Intel macOS:
 `curated_cache_retention_revocation_during_copy_refuses_publication`,
 `curated_cache_retention_withdrawal_during_copy_refuses_publication` and
 `curated_cache_retention_cancellation_preserves_partial_after_worker_exit`.
-The same approval permits a 45-second nextest budget only on
+The [#2004 two-case continuation](https://github.com/boburning/portcove/issues/706#issuecomment-6205805576)
+adds only `curated_cache_policy_loss_during_copy_refuses_publication_and_preserves_bytes`
+and `curated_cache_restore_revocation_during_copy_preserves_cached_bytes` to that
+Intel macOS ten-second branch, preserving the whole-install timer origin and
+thirty-second overall budgets.
+The original calibration also records a 45-second nextest budget on
 `x86_64-apple-darwin` for
 `curated_rollback_withdrawal_permits_exact_retained_target`, alongside the existing
 exact managed-artifact lifecycle override. Every assertion, actual partial-copy
 observation, restart/rollback, trust/persistence check, resource reservation and
 zero-retry rule remains. Other cases and targets retain their existing limits.
-Only Deep audit's outer `audit` job receives 45 minutes; `local_check` stays at
+Deep audit's outer `audit` job received 45 minutes; `local_check` stayed at
 30 minutes. All required independent stages must finish with complete evidence;
 these finite calibrations do not accept a failed test or an incomplete audit.
 Retain the original failures and independently review and qualify the final head.
+These are retained calibration records, not ceilings or a requirement for fresh
+owner permission. Future harness-only adjustments follow the standing
+[timeout authorization](#autonomous-test-timeout-calibration); #706 security-risk
+acceptance and other protected authority remain separate and unchanged.
 Use the [CI timing diagnostics](DEVELOPMENT-TOOLS.md#ci-timing-diagnostics) to
 assess the next three genuine warm focused hosted runs; instrumentation alone
 does not establish the target or add another gate.
@@ -200,7 +214,7 @@ Explicit audits run named independent stages and retain conservative, integrity-
 
 ## Formatting contract
 
-Repository-pinned Oxfmt owns supported JS/TS/config/docs files; Cargo fmt owns Rust and Taplo owns TOML. Formatting stays in ordinary CI. Analyzer baselines and exhaustive scan details are conditional [format/analyzer operations](reference/quality-operations.md#formatting-contract). Fix causes; do not add suppressions to manufacture a pass.
+Repository-pinned Oxfmt owns supported JS/TS/config/docs and maintained TOML files; Cargo fmt owns Rust. The workspace formatter configuration owns exclusions for generated files and historical evidence. Formatting stays in ordinary CI. Analyzer baselines and exhaustive scan details are conditional [format/analyzer operations](reference/quality-operations.md#formatting-contract). Fix causes; do not add suppressions to manufacture a pass.
 
 ## Tool and Rust version authority
 
@@ -244,6 +258,11 @@ Vitest and installed `@vitest/*` providers move together. Vite, Oxc, Tailwind an
 Stylelint have separate compatibility groups, so unrelated families do not block
 each other. React includes React DOM and their declarations; Tauri combines the
 selected JavaScript and Rust framework inputs without requiring equal versions.
+The exact npm CLI 2.12.3 exclusion is tracked by [#2014](https://github.com/boburning/portcove/issues/2014):
+its newer RPM builder rejects Portcove's canonical prerelease version. Keep the
+qualified CLI 2.12.2 while updating compatible runtime/API/dialog inputs; other
+CLI versions remain eligible for their own qualification. Do not strip the
+prerelease, disable RPM checks or infer the deferred NSIS fixes are installed.
 Aqua itself and the three Aqua-managed quality tools form one
 qualification group. The standard Aqua registry ref remains an extracted,
 visible authority but is disabled as an independent update: change it in the
@@ -369,7 +388,7 @@ and rollback scope justify it.
 
 Validate configuration with the official pinned client used for the current
 resolved-rule receipt:
-`corepack pnpm --package=renovate@44.156.3 dlx --allow-build=re2 renovate-config-validator --strict renovate.json`.
+`pnpm --package=renovate@44.156.3 dlx --allow-build=re2 renovate-config-validator --strict renovate.json`.
 Schema validation supplements the repository's rule/extraction/classifier tests;
 it does not prove effective inherited grouping or hosted proposal uptake. Inspect
 resolved presets and rule precedence with the matching official engine, then read
@@ -472,7 +491,47 @@ The pinned tool remains available through the optional deep bootstrap and
 
 ## Test latency and reliability
 
-Keep nextest two-slot execution, slow diagnostics, finite 30-second test termination, zero retries, heavy-test/process guards, UI isolation and Node duration reporting. Never increase budgets or preempt another worker to hide a failure. Native/installer integration uses existing distinct deadlines when selected. Diagnose the smallest discriminating reproduction and rerun invalidated obligations. See [latency and resource operations](reference/quality-operations.md#test-latency-and-reliability) for lock ownership, inventories, platform transfers and transport fixtures.
+Keep nextest two-slot execution, slow diagnostics, finite termination (currently
+30 seconds by default), zero retries, heavy-test/process guards, UI isolation and
+Node duration reporting. Calibrate harness budgets under the standing authority
+below; preserve failures and other workers. Native/installer integration retains
+its distinct product deadlines. See [latency and resource operations](reference/quality-operations.md#test-latency-and-reliability)
+for lock ownership, inventories, platform transfers and transport fixtures.
+
+## Autonomous test-timeout calibration
+
+Standing owner authorization permits agents to diagnose, increase and persist
+necessary finite test/validation harness limits without case-by-case approval.
+This includes runner timeouts, test-only setup/synchronization waits, qualification
+budgets and outer command, supervisor or CI-stage limits that are execution
+safeguards. Bounded diagnostic runs with higher limits are authorized too.
+Earlier owner-approved exceptions are historical evidence, not future permission
+gates. No universal numeric ceiling creates a new owner-approval requirement.
+
+Identify the limit that actually fired. Use available logs, phase timings and
+workload to distinguish an inadequate execution budget from a hang, deadlock,
+broken fixture or performance regression. A fixture wait to reach a phase is a
+harness limit; an assertion that the application responds within a specified
+time is a product requirement. Change the narrowest appropriate case, family,
+platform, command or stage with reasonable finite headroom. Coordinate nested
+limits so outer wrappers allow legitimate bounded work and required cleanup to
+finish. Fix a demonstrated defect rather than hiding it behind more time.
+
+Keep the justification proportionate: a brief old/new limit, rationale and
+appropriate validation normally suffice; exhaustive investigation is not a
+prerequisite. Preserve original failure evidence, assertions, required coverage,
+finite hang detection, cleanup and zero retries. Product cancellation, shutdown,
+locking, network and other behavioral deadlines remain unchanged. A later pass
+establishes completion under the revised budget, not a repaired performance or
+concurrency problem by itself.
+
+Update configuration-contract tests where needed without weakening application
+behavior tests. Use the existing independent review, required CI and guarded
+delivery process, record old/new limits and results in the ordinary summary,
+then continue the original task without owner reapproval. Ask only for separately
+ungranted authority such as changing product requirements, paid usage or bypassing
+security/merge protections; needing more test execution time alone is not such
+a reason.
 
 ## Routine merge freshness
 

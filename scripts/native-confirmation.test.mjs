@@ -140,22 +140,20 @@ foreach($entry in @(@($ast,'Get-PickerFieldEvidence'),@($other,'Get-NativePicker
  . ([scriptblock]::Create($fn.Extent.Text))
 }
 Write-ProjectionPhase 'functions-ready'
-Add-Type -TypeDefinition @'
-using System;
-public static class PortcoveNativeWindows {
- public class Observation { public IntPtr handle=new IntPtr(9); public int control_id=1152,parent_id=0; public string parent_class="other"; }
- public static int calls=0; public static bool fail=false;
- public static int actions=0;
- public static IntPtr GetFolderActionButton(IntPtr handle,int process,string action,string title){
-  if(handle.ToInt32()!=7 || process!=42 || action!="Cancel" || (title!="Select Folder" && title!="Choose game-file folder"))throw new Exception("wrong native action context");
-  actions++;return new IntPtr(20);
+class PortcoveNativeWindows {
+ static [int]$calls=0
+ static [bool]$fail=$false
+ static [int]$actions=0
+ static [IntPtr] GetFolderActionButton([IntPtr]$handle,[int]$process,[string]$action,[string]$title){
+  if($handle.ToInt32() -ne 7 -or $process -ne 42 -or $action -cne 'Cancel' -or $title -cnotin @('Select Folder','Choose game-file folder')){throw 'wrong native action context'}
+  [PortcoveNativeWindows]::actions++;return [IntPtr]20
  }
- public static Observation[] InspectEdits(IntPtr handle,int process,string title){
-  if(handle.ToInt32()!=7 || process!=42 || title!="Select Folder")throw new Exception("wrong explicit observation context");
-  calls++;if(fail)throw new Exception("secondary diagnostic failure");return new[]{new Observation()};
+ static [object[]] InspectEdits([IntPtr]$handle,[int]$process,[string]$title){
+  if($handle.ToInt32() -ne 7 -or $process -ne 42 -or $title -cne 'Select Folder'){throw 'wrong explicit observation context'}
+  [PortcoveNativeWindows]::calls++;if([PortcoveNativeWindows]::fail){throw 'secondary diagnostic failure'}
+  return @([pscustomobject]@{handle=[IntPtr]9;control_id=1152;parent_id=0;parent_class='other'})
  }
 }
-'@
 Write-ProjectionPhase 'stub-ready'
 function Get-NativePickerElement($handle){
  if($handle.ToInt32() -ne 9){throw 'wrong edit'}
@@ -672,9 +670,15 @@ test(
       script,
       `
 $ErrorActionPreference = 'Stop'
+$selectionClock=[Diagnostics.Stopwatch]::StartNew()
+function Write-SelectionPhase([string]$Phase){
+ [Console]::Error.WriteLine(('portcove-selection-phase:{0};elapsed_ms={1}' -f $Phase,$selectionClock.ElapsedMilliseconds))
+}
+Write-SelectionPhase 'entered'
 $source = [IO.File]::ReadAllText('${helper.replaceAll("'", "''")}')
 $code = [regex]::Match($source, "(?s)Add-Type -TypeDefinition @'\\r?\\n(.*?)\\r?\\n'@").Groups[1].Value
 if (-not $code) { throw 'production algorithm absent' }
+Write-SelectionPhase 'source-ready'
 # Replace only the five OS boundaries; compile the production Matches/Find bodies.
 $pattern = '(?m)^    \\[DllImport[^\\r\\n]+private static extern[^\\r\\n]+;'
 if ([regex]::Matches($code, $pattern).Count -ne 15) { throw 'OS boundary inventory changed' }
@@ -733,9 +737,17 @@ $boundary = @'
 '@
 $insertion = $code.IndexOf('    public static bool Matches')
 $code = $code.Insert($insertion, $boundary + [Environment]::NewLine)
-Add-Type -TypeDefinition $code
+Write-SelectionPhase 'compile-begin'
+# Restrict compiler metadata to this algorithm's paired PowerShell reference pack.
+$references = @(
+    (Join-Path $PSHOME 'ref/System.Runtime.dll')
+    (Join-Path $PSHOME 'ref/System.Collections.dll')
+)
+Add-Type -TypeDefinition $code -ReferencedAssemblies $references
+Write-SelectionPhase 'compile-end'
 $handles = @([PortcoveNativeWindows]::Find(42, 'Choose Portcove library') | ForEach-Object { $_.ToInt32() } | Sort-Object)
 if (($handles -join ',') -cne '2,5') { throw 'PID/title/child filtering or deduplication changed' }
+Write-SelectionPhase 'enumeration-ready'
 [PortcoveNativeWindows]::pickerTitle = $true
 $raw = @([PortcoveNativeWindows]::Find(42, 'Select Folder'))
 if ($raw.Count -ne 3) { throw 'same-title dialog/edit/button oracle changed' }
@@ -751,6 +763,7 @@ foreach ($case in @('foreign','disabled','root-class','root-disabled','field-cla
 [PortcoveNativeWindows]::fieldCase = 'valid'; [PortcoveNativeWindows]::pickerTitle = $false
 $edits = @([PortcoveNativeWindows]::InspectEdits([IntPtr]2, 42, 'Choose Portcove library'))
 if ($edits.Count -ne 1 -or $edits[0].handle.ToInt32() -ne 5 -or $edits[0].control_id -ne 1152 -or $edits[0].parent_id -ne 1148 -or $edits[0].parent_class -cne 'ComboBox') { throw 'Owned structural edit inspection changed' }
+Write-SelectionPhase 'shape-controls-ready'
 foreach ($case in @('valid', 'foreign', 'root-class', 'field-class', 'field-id', 'parent', 'replacement', 'absent', 'disabled', 'readonly', 'root-disabled', 'late-root-disabled', 'late-foreign', 'late-disabled', 'late-readonly', 'timeout')) {
     [PortcoveNativeWindows]::fieldCase = $case; [PortcoveNativeWindows]::sends = 0; [PortcoveNativeWindows]::itemCalls = 0
     $rejected = $false
@@ -759,6 +772,7 @@ foreach ($case in @('valid', 'foreign', 'root-class', 'field-class', 'field-id',
     if ([PortcoveNativeWindows]::sends -ne $expectedSends -or $rejected -ne ($case -ne 'valid')) { throw "Native text boundary failed $case" }
     if ($case -eq 'valid' -and [PortcoveNativeWindows]::sentText -cne 'owned-fixture') { throw 'Native text value changed' }
 }
+Write-SelectionPhase 'text-controls-ready'
 [PortcoveNativeWindows]::fieldCase = 'valid'
 foreach ($case in @('valid', 'button-foreign', 'late-button-foreign', 'button-class', 'button-id', 'button-parent', 'button-caption', 'button-disabled', 'button-replacement', 'background', 'late-background', 'root-class', 'root-disabled', 'read-timeout', 'click-timeout')) {
     [PortcoveNativeWindows]::fieldCase = $case; [PortcoveNativeWindows]::clicks = 0; [PortcoveNativeWindows]::reads = 0
@@ -767,6 +781,7 @@ foreach ($case in @('valid', 'button-foreign', 'late-button-foreign', 'button-cl
     $expectedClicks = if ($case -in @('valid', 'click-timeout')) { 1 } else { 0 }
     if ([PortcoveNativeWindows]::clicks -ne $expectedClicks -or $rejected -ne ($case -ne 'valid')) { throw "Native click boundary failed $case" }
 }
+Write-SelectionPhase 'button-controls-ready'
 [PortcoveNativeWindows]::pickerTitle = $true
 foreach ($case in @('valid','button-foreign','late-button-foreign','button-class','button-id','button-parent','button-caption','button-disabled','cancel-foreign','late-cancel-foreign','cancel-class','cancel-id','cancel-parent','cancel-caption','cancel-disabled','cancel-replacement','cancel-absent','cancel-read-timeout','cancel-click-timeout','background','late-background','root-class','root-disabled','read-timeout','click-timeout')) {
     [PortcoveNativeWindows]::fieldCase = $case; [PortcoveNativeWindows]::clicks = 0; [PortcoveNativeWindows]::reads = 0; [PortcoveNativeWindows]::itemCalls = 0
@@ -775,6 +790,7 @@ foreach ($case in @('valid','button-foreign','late-button-foreign','button-class
     $expectedClicks = if ($case -in @('valid','click-timeout','cancel-click-timeout')) { 1 } else { 0 }
     if ([PortcoveNativeWindows]::clicks -ne $expectedClicks -or $rejected -ne ($case -ne 'valid')) { throw "Native cancel boundary failed $case" }
 }
+Write-SelectionPhase 'cancel-controls-ready'
 [PortcoveNativeWindows]::pickerTitle = $false
 [PortcoveNativeWindows]::fieldCase = 'valid'
 [PortcoveNativeWindows]::disappeared = $true
@@ -782,20 +798,34 @@ if ([PortcoveNativeWindows]::Matches([IntPtr]2, 42, 'Choose Portcove library')) 
 if ([PortcoveNativeWindows]::IsOwnedWindow([IntPtr]2,42)) { throw 'closed native handle retained' }
 [PortcoveNativeWindows]::disappeared = $false
 if (-not [PortcoveNativeWindows]::IsOwnedWindow([IntPtr]2,42) -or [PortcoveNativeWindows]::IsOwnedWindow([IntPtr]3,42)) { throw 'native closure ownership changed' }
+Write-SelectionPhase 'closure-controls-ready'
 foreach ($case in @('overflow', 'failed')) {
     if ($case -eq 'overflow') { [PortcoveNativeWindows]::overflow = $true } else { [PortcoveNativeWindows]::overflow = $false; [PortcoveNativeWindows]::failed = $true }
     $rejected = $false
     try { [PortcoveNativeWindows]::Find(42, 'Choose Portcove library') } catch { $rejected = $true }
     if (-not $rejected) { throw "incomplete $case enumeration accepted" }
 }
+Write-SelectionPhase 'complete'
 'hwnd-contract-passed'
 `,
     );
+    const started = performance.now();
     const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
       encoding: "utf8",
       windowsHide: true,
       timeout: 15_000,
     });
+    t.diagnostic(
+      JSON.stringify({
+        observation: "instrumented HWND selection invocation; not original-cause proof",
+        elapsed_ms: performance.now() - started,
+        timeout_ms: 15000,
+        status: result.status,
+        signal: result.signal,
+        error: result.error?.code ?? null,
+        phases: result.stderr?.slice(0, 2048),
+      }),
+    );
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /hwnd-contract-passed/);
   },

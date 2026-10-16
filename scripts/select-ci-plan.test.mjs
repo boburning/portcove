@@ -15,6 +15,43 @@ import {
 import { buildValidationPlan } from "./validation-plan.mjs";
 
 const sha = (character) => character.repeat(40);
+test("frontend tooling provisioning follows selected inputs and skips pure Rust and allowlisted prose", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "portcove-tool-provision-"));
+  try {
+    for (const [file, expected, workspace] of [
+      ["crates/portcove-core/src/lib.rs", false, false],
+      ["docs/README.md", false, false],
+      ["Cargo.toml", true, false],
+      ["scripts/report-summary.mjs", true, true],
+      ["apps/desktop/src/styles/index.css", true, true],
+    ]) {
+      const plan = buildValidationPlan({
+        changes: [
+          { status: "M", oldMode: "100644", newMode: "100644", oldPath: file, newPath: file },
+        ],
+        eventName: "pull_request",
+        base: sha("a"),
+        mergeBase: sha("a"),
+        head: sha("b"),
+        checkout: sha("b"),
+      });
+      const output = path.join(directory, `${expected}-${path.basename(file)}.txt`);
+      await writeGithubOutputs(output, plan);
+      assert.match(
+        await readFile(output, "utf8"),
+        new RegExp(`^frontend_tools=${expected}$`, "m"),
+        file,
+      );
+      assert.match(
+        await readFile(output, "utf8"),
+        new RegExp(`^frontend_workspace=${workspace}$`, "m"),
+        file,
+      );
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 const raw = (...records) => Buffer.from(`${records.join("\0")}\0`);
 const modified = (file, modes = ["100644", "100644"]) =>
   `:${modes[0]} ${modes[1]} ${sha("1").slice(0, 7)} ${sha("2").slice(0, 7)} M\0${file}`;

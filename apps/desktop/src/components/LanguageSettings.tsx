@@ -1,4 +1,6 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { SettingsRow } from "./ui/patterns";
+import { useId, useState } from "react";
+import { useSelectReturnFocus } from "./use-select-return-focus";
 import { localeOptions, useLocalization } from "../localization";
 import { ChoiceSelect } from "./ChoiceSelect";
 
@@ -6,48 +8,8 @@ export function LanguageSettings() {
   const localization = useLocalization();
   const { choice, locale, saving, saved, error } = localization;
   const triggerId = useId();
-  const restoreFocusAfterSave = useRef(false);
-  const selectionPopup = useRef<Element | null>(null);
   const [popupClosed, setPopupClosed] = useState(true);
-  useEffect(() => {
-    const cancelOnMovedFocus = (event: FocusEvent) => {
-      const target = event.target;
-      if (
-        target instanceof Element &&
-        target !== document.body &&
-        target.id !== triggerId &&
-        !selectionPopup.current?.contains(target)
-      ) {
-        restoreFocusAfterSave.current = false;
-      }
-    };
-    document.addEventListener("focusin", cancelOnMovedFocus);
-    return () => {
-      restoreFocusAfterSave.current = false;
-      document.removeEventListener("focusin", cancelOnMovedFocus);
-    };
-  }, [triggerId]);
-  useEffect(() => {
-    if (saving || !popupClosed || !restoreFocusAfterSave.current) return;
-    const trigger = document.getElementById(triggerId);
-    if (!(trigger instanceof HTMLButtonElement)) return;
-    const restore = () => {
-      if (!restoreFocusAfterSave.current || !trigger.isConnected || trigger.disabled) return;
-      if (
-        document.activeElement === document.body ||
-        (document.activeElement && selectionPopup.current?.contains(document.activeElement))
-      )
-        trigger.focus();
-      restoreFocusAfterSave.current = false;
-      observer.disconnect();
-    };
-    // Select synchronizes disabled through its store after the parent commit.
-    // Keep the intent until the actual button is ready, rather than consuming it early.
-    const observer = new MutationObserver(restore);
-    observer.observe(trigger, { attributes: true, attributeFilter: ["disabled"] });
-    restore();
-    return () => observer.disconnect();
-  }, [saving, popupClosed, triggerId]);
+  const requestReturnFocus = useSelectReturnFocus(triggerId, saving, popupClosed);
   const options = [
     ...localeOptions.map((option) => ({
       value: option.value,
@@ -62,8 +24,10 @@ export function LanguageSettings() {
   );
 
   return (
-    <article className="settings-row language-card" data-focus-group>
-      <p className="eyebrow">{localization.t("language.eyebrow")}</p>
+    <SettingsRow className="language-card" data-focus-group>
+      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+        {localization.t("language.eyebrow")}
+      </p>
       <h2>{localization.t("language.title")}</h2>
       <p>{localization.t("language.description")}</p>
       <ChoiceSelect
@@ -75,9 +39,7 @@ export function LanguageSettings() {
         onOpenChange={() => setPopupClosed(false)}
         onOpenChangeComplete={(open) => setPopupClosed(!open)}
         onChange={(nextChoice) => {
-          selectionPopup.current =
-            document.activeElement?.closest('[data-slot="select-content"]') ?? null;
-          restoreFocusAfterSave.current = true;
+          requestReturnFocus();
           void localization.select(nextChoice);
         }}
       />
@@ -101,6 +63,6 @@ export function LanguageSettings() {
                   ? localization.t("language.saved")
                   : ""}
       </p>
-    </article>
+    </SettingsRow>
   );
 }

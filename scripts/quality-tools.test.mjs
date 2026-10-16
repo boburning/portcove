@@ -236,6 +236,60 @@ test("EdgeDriver callers share a signature-first version boundary", async () => 
 });
 
 test(
+  "bootstrap refresh preserves an existing provider shim and its argument forwarding",
+  { skip: process.platform !== "win32" },
+  () => {
+    const source = fileURLToPath(new URL("./bootstrap-quality-tools.ps1", import.meta.url));
+    const command = String.raw`
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_SHIM_FIXTURE_SOURCE, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw ($errors | Out-String) }
+$definition = @($ast.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Write-CommandShim'}, $true))
+if ($definition.Count -ne 1) { throw 'Expected one production shim writer' }
+. ([scriptblock]::Create($definition[0].Extent.Text))
+$temporary = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+$fixture = [IO.Path]::GetFullPath((Join-Path $temporary ('portcove-bootstrap-shim-' + [guid]::NewGuid())))
+if (-not $fixture.StartsWith($temporary, [StringComparison]::OrdinalIgnoreCase)) { throw 'Fixture escaped temporary root' }
+$shimDirectory = Join-Path $fixture 'bin'
+try {
+  Write-CommandShim 'pnpm' $env:PORTCOVE_SHIM_FIXTURE_NODE @('-e','process.stdout.write(JSON.stringify(process.argv.slice(1)))','--','prefix value')
+  $shim = Join-Path $shimDirectory 'pnpm.cmd'
+  $before = [IO.File]::ReadAllText($shim)
+  $first = & $shim '--version' 'literal space'
+  if ($LASTEXITCODE -ne 0 -or $first -cne '["prefix value","--version","literal space"]') { throw 'Initial argument forwarding failed' }
+  Write-CommandShim 'pnpm' $shim
+  if ([IO.File]::ReadAllText($shim) -cne $before) { throw 'Existing provider was overwritten during refresh' }
+  $second = & $shim '--version' 'literal space'
+  if ($LASTEXITCODE -ne 0 -or $second -cne $first) { throw 'Refreshed argument forwarding failed' }
+  $rejected = $false
+  try { Write-CommandShim 'pnpm' $shim @('different prefix') } catch { $rejected = $true }
+  if (-not $rejected -or [IO.File]::ReadAllText($shim) -cne $before) { throw 'Self-wrapping prefix was not refused without mutation' }
+  $missing = Join-Path $shimDirectory 'missing.cmd'
+  $rejected = $false
+  try { Write-CommandShim 'missing' $missing } catch { $rejected = $true }
+  if (-not $rejected -or (Test-Path -LiteralPath $missing)) { throw 'Missing self-target was not refused' }
+  'provider-refresh-passed'
+} finally {
+  if (Test-Path -LiteralPath $fixture) { Remove-Item -LiteralPath $fixture -Recurse -Force }
+}
+`;
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", command], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 5_000,
+      env: {
+        ...process.env,
+        PORTCOVE_SHIM_FIXTURE_SOURCE: source,
+        PORTCOVE_SHIM_FIXTURE_NODE: process.execPath,
+      },
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /provider-refresh-passed/u);
+  },
+);
+
+test(
   "cached and downloaded EdgeDriver rejection never reaches the executable probe",
   { skip: process.platform !== "win32", timeout: 20_000 },
   () => {

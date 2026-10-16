@@ -7,7 +7,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import catalog from "../../../../crates/portcove-core/catalog/catalog.json";
 import { SourceDiscoveryButton } from "../components/SourceDiscovery";
 import { sourceProfile } from "../test-fixtures";
-import "../styles.css";
+import "../styles/index.css";
 
 vi.mock("../api", () => ({ desktopApi: {} }));
 let root: Root;
@@ -82,9 +82,6 @@ it.each(layouts)(
       expect(text.scrollWidth).toBeLessThanOrEqual(text.clientWidth + 1);
       expect(text.scrollHeight).toBeLessThanOrEqual(text.clientHeight + 1);
     }
-    await page.screenshot({
-      path: `../../../../work/select917/options-${theme}-${width}-${fontSize}.png`,
-    });
     await userEvent.keyboard("{Escape}");
     await expect.element(page.getByRole("dialog")).toBeVisible();
     await expect.element(trigger).toHaveFocus();
@@ -117,9 +114,6 @@ it.each(layouts)(
     expect(selected.getBoundingClientRect().right).toBeLessThanOrEqual(
       triggerElement.getBoundingClientRect().right,
     );
-    await page.screenshot({
-      path: `../../../../work/select917/selected-${theme}-${width}-${fontSize}.png`,
-    });
     await userEvent.keyboard("{Escape}");
     await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
     await expect.element(opener).toHaveFocus();

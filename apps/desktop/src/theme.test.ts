@@ -68,6 +68,7 @@ describe("theme preferences", () => {
       documentElement,
       querySelector: vi.fn(() => meta),
     });
+    vi.stubGlobal("getComputedStyle", () => ({ getPropertyValue: () => "#123456" }));
     applyWebTheme("light");
     expect(documentElement.dataset.theme).toBe("light");
     expect(documentElement.style.colorScheme).toBe("light");
@@ -80,7 +81,7 @@ describe("theme preferences", () => {
       "--portcove-theme-invalidation",
       "light",
     );
-    expect(meta.setAttribute).toHaveBeenCalledWith("content", "#f5f3ee");
+    expect(meta.setAttribute).toHaveBeenCalledWith("content", "#123456");
 
     documentElement.style.setProperty.mockClear();
     applyWebTheme("dark");

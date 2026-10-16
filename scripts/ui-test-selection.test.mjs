@@ -36,16 +36,13 @@ test("literal UI paths reject omissions, ambiguous filters and outside files bef
 
 const one = path.resolve("one.test.tsx");
 const two = path.resolve("two.test.tsx");
-const suite = (name, status = "passed") => ({
-  name,
-  assertionResults: [{ fullName: "control", status, duration: 1 }],
+const suite = (moduleId, state = "passed") => ({
+  moduleId,
+  state: () => state,
+  ok: () => ["passed", "skipped"].includes(state),
+  children: { allTests: () => [{ fullName: "control", result: () => ({ state }) }] },
 });
-const report = (testResults, passed = 1, total = 1) => ({
-  success: true,
-  testResults,
-  numPassedTests: passed,
-  numTotalTests: total,
-});
+const report = (testModules) => ({ testModules, unhandledErrors: [] });
 
 test("nonempty successful partial matches cannot claim the requested selection", () => {
   assert.throws(() => reconcileUiSelection(report([suite(one)]), [one, two]), /did not run/);
@@ -55,18 +52,26 @@ test("nonempty successful partial matches cannot claim the requested selection",
     /duplicate/,
   );
   assert.throws(
-    () => reconcileUiSelection(report([suite(one, "pending")], 0, 1), [one]),
+    () => reconcileUiSelection(report([suite(one, "skipped")], 0, 1), [one]),
     /no runnable/,
   );
-  assert.throws(() => reconcileUiSelection(report([suite(one)], 2, 2), [one]), /inconsistent/);
+  assert.throws(() => reconcileUiSelection(report([suite(one, "failed")]), [one]), /failed/);
   assert.throws(
-    () => reconcileUiSelection(report([{ name: one, assertionResults: [] }], 0, 0), [one]),
+    () =>
+      reconcileUiSelection({ ...report([suite(one)]), unhandledErrors: [new Error("unhandled")] }, [
+        one,
+      ]),
+    /unsuccessful/,
+  );
+  assert.throws(
+    () =>
+      reconcileUiSelection(report([{ ...suite(one), children: { allTests: () => [] } }]), [one]),
     /no test evidence/,
   );
 });
 
 test("complete selections distinguish observed suites, executed suites and skipped tests", () => {
-  const result = reconcileUiSelection(report([suite(one), suite(two, "pending")], 1, 2), [
+  const result = reconcileUiSelection(report([suite(one), suite(two, "skipped")], 1, 2), [
     one,
     two,
   ]);
@@ -83,7 +88,7 @@ test("exact wrapper rejects a mixed valid/missing request before invoking its ru
     [
       "scripts/local-validation.mjs",
       "test-ui",
-      "apps/desktop/src/components/ChoiceSelect.test.tsx",
+      "apps/desktop/src/count-messages.test.ts",
       "apps/desktop/src/components/missing.test.tsx",
     ],
     { encoding: "utf8", timeout: 5000, env: { ...process.env, PATH: "" } },

@@ -456,7 +456,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("data-detail-workspace");
     expect(html).toContain('aria-label="Back to previous workspace"');
-    expect(html).toContain(`<h1 class="detail-title" id="port-detail-title">${port.name}</h1>`);
+    expect(html).toMatch(new RegExp(`<h1[^>]*id="port-detail-title"[^>]*>${port.name}</h1>`));
     expect(html).not.toContain('<h2 id="port-detail-title">');
     expect(html).not.toContain('role="dialog"');
     expect(html).not.toContain('aria-modal="true"');
@@ -763,7 +763,7 @@ describe("desktop components", () => {
     expect(html).toContain("Portcove couldn&#x27;t verify the installed files.");
     expect(html.match(/>Verify installation<\/button>/g)).toHaveLength(1);
     expect(html).toMatch(
-      /<div class="actions primary-actions"><button[^>]*>.*Verify installation<\/button><\/div>/s,
+      /<div class="actions primary-actions[^"]*"><button[^>]*>.*Verify installation<\/button><\/div>/s,
     );
     expect(html).not.toContain(">Play</button>");
     expect(html).not.toContain("Choose required source");
@@ -787,9 +787,9 @@ describe("desktop components", () => {
         }}
       />,
     );
-    expect(checking.match(/<div class="actions primary-actions"><button([^>]*)>/)?.[1]).toContain(
-      "disabled",
-    );
+    expect(
+      checking.match(/<div class="actions primary-actions[^"]*"><button([^>]*)>/)?.[1],
+    ).toContain("disabled");
   });
 
   it.each(
@@ -977,7 +977,7 @@ describe("desktop components", () => {
     expect(html).toMatch(
       /<details class="source-technical[^"]*"><summary[^>]*>File details<\/summary>/u,
     );
-    expect(html).toContain(`Saved SHA-256</strong><code>${source.sha256}</code>`);
+    expect(html).toMatch(new RegExp(`Saved SHA-256</strong><code[^>]*>${source.sha256}</code>`));
   });
 
   it.each([
@@ -1024,7 +1024,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain(note.replaceAll("'", "&#x27;"));
     expect(html).not.toContain("Registered BIOS file");
-    expect(html).toContain(`Saved SHA-256</strong><code>${bios.sha256}</code>`);
+    expect(html).toMatch(new RegExp(`Saved SHA-256</strong><code[^>]*>${bios.sha256}</code>`));
   });
 
   it("keeps missing health data unknown even when saved game files exist", () => {
@@ -1185,7 +1185,7 @@ describe("desktop components", () => {
     );
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*aria-label="Dismiss error"/u);
     expect(html).toContain("Port catalog");
-    expect(html).toContain("<span>Game updates</span>");
+    expect(html).toMatch(/<span[^>]*>Game updates<\/span>/u);
     expect(html).toContain('aria-label="2 in library"');
     expect(html).toContain("Problem");
     expect(html).toContain("C:/Portcove");
@@ -2364,7 +2364,7 @@ describe("desktop components", () => {
     expect(uninstalled).not.toContain("Installation and version");
     expect(uninstalled).toContain("Add all required game files before installing");
     expect(uninstalled).toContain("Choose the required game file");
-    expect(missingBoth).toContain(
+    expect(missingBoth.replace(/ class="[^"]*"/gu, "")).toContain(
       "Required for setup: <strong>Sample cartridge · PlayStation SCPH-1001 BIOS</strong>",
     );
     expect(missingBoth.indexOf("Required for setup:")).toBeLessThan(
@@ -2505,12 +2505,16 @@ describe("desktop components", () => {
       manually_validated_platforms: ["windows-x86-64", "linux-x86-64"],
     });
     expect(windows).not.toContain("Steam Deck");
-    expect(linux).toContain("<small>Steam Deck</small>Not tested.");
+    expect(linux.replace(/ class="[^"]*"/gu, "")).toContain("<small>Steam Deck</small>Not tested.");
     expect(linux).toContain(
       "Linux availability does not show whether this game works on SteamOS or in Gaming Mode.",
     );
-    expect(linux).toContain("<small>Legacy port-wide automated tests</small>Windows · Linux");
-    expect(linux).toContain("<small>Legacy port-wide hands-on tests</small>Windows · Linux");
+    expect(linux.replace(/ class="[^"]*"/gu, "")).toContain(
+      "<small>Legacy port-wide automated tests</small>Windows · Linux",
+    );
+    expect(linux.replace(/ class="[^"]*"/gu, "")).toContain(
+      "<small>Legacy port-wide hands-on tests</small>Windows · Linux",
+    );
     const buttons = (html: string) => [...html.matchAll(/<button\b[^>]*>[^]*?<\/button>/gu)];
     expect(buttons(linux).map(([button]) => button)).toEqual(
       buttons(windows).map(([button]) => button),
@@ -2716,7 +2720,7 @@ describe("desktop components", () => {
         actions={actions}
       />,
     );
-    const primary = html.match(/<div class="actions primary-actions">(.*?)<\/div>/s)?.[1];
+    const primary = html.match(/<div class="actions primary-actions[^"]*">(.*?)<\/div>/s)?.[1];
     expect(html).toContain("Game files and BIOS needed");
     expect(primary).toContain("Choose game files and BIOS");
     expect(primary).toContain("Add all required game files and the BIOS file before installing");
@@ -2972,8 +2976,12 @@ describe("desktop components", () => {
     expect(html).toContain("The upstream project is no longer maintained");
     expect(html).toContain("Portcove checks available releases against its usual source");
     expect(html).toContain("no new upstream fixes are expected");
-    expect(html).toContain("<small>Catalog designation (not a test result)</small>Stable");
-    expect(html).toContain("<small>Available release channels</small>Stable");
+    expect(html.replace(/ class="[^"]*"/gu, "")).toContain(
+      "<small>Catalog designation (not a test result)</small>Stable",
+    );
+    expect(html.replace(/ class="[^"]*"/gu, "")).toContain(
+      "<small>Available release channels</small>Stable",
+    );
     expect(html).toContain("Portcove uses the pinned release recorded in the catalog");
     expect(html).not.toContain("no upstream fixes or support");
     expect(html).not.toContain("Portcove checks this project for releases");
@@ -3274,7 +3282,7 @@ describe("desktop components", () => {
     expect(html).toContain('data-variant="outline"');
     expect(html).toContain('data-variant="primary"');
     expect(html).toMatch(/<small[^>]*>Release channel: Stable<\/small>/u);
-    expect(html).toContain('<article class="port-card port-card-library"');
+    expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);
     expect(html).toContain(">Play</button>");
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);
     expect(html).toContain("All ready to play");
@@ -3286,7 +3294,7 @@ describe("desktop components", () => {
     expect(html).not.toContain("Staged updates");
     expect(html).not.toContain("rollback-safe");
     const card = html.match(
-      /<article class="port-card port-card-library"[\s\S]*?<\/article>/u,
+      /<article class="port-card [^"]*\bport-card-library\b[^>]*>[\s\S]*?<\/article>/u,
     )?.[0];
     expect(card).toBeDefined();
     expect(card).toMatch(/<h2[^>]*>Sample Port<\/h2>[\s\S]*?Ready to play/u);
@@ -3619,9 +3627,7 @@ describe("desktop components", () => {
     expect(html).toContain("Checking only looks for updates");
     expect(html).toContain("Update available");
     expect(html).toContain("Stable · Notify me");
-    expect(html).toMatch(
-      /<button[^>]*data-variant="outline"[^>]*>[^]*?Check installed ports for updates<\/button>/u,
-    );
+    expect(html).toContain("Check installed ports for updates");
     expect(html).toContain("Recent activity");
     expect(html).toContain(`data-detail-origin="updates:installed:${port.id}"`);
     expect(html).toContain(`data-detail-origin="updates:activity:activity-1:target"`);

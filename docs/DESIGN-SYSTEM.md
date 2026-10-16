@@ -8,7 +8,7 @@ The React/Vite/Tauri desktop is migrating incrementally under [#917](https://git
 
 `apps/desktop/components.json` records Base UI, Base Nova (`style: base-nova`), React Server Components off, Lucide, the Tailwind entry, and the app-local aliases. The initial checked-in controls are Button, Dialog, and Select. They exist to prove the difficult installation-review nesting; they do not authorize broad screen migration by themselves. Portcove retained the generated internal implementations but removed the unused generated helper and unused public exports after static analysis; future regeneration must preserve that deliberately smaller maintained surface.
 
-The foundation was generated and reviewed with these exact direct inputs:
+The following table preserves the initial generation inputs. Current runtime inputs are Base UI 1.9.0, cn 0.4.0 and Tailwind 4.3.3 under Vite+ 1.2.0. The finite [CSS architecture cutover](reference/css-architecture.md) uses Preflight, explicit layers and Base UI transitions; tw-animate-css is removed. The wider #917 acceptance remains open.
 
 | Input                             | Version | License    | Demonstrated purpose                                              |
 | --------------------------------- | ------- | ---------- | ----------------------------------------------------------------- |
@@ -23,7 +23,7 @@ The foundation was generated and reviewed with these exact direct inputs:
 
 The production build from base `52e81bd` emitted 560,643 bytes of JavaScript and 76,142 bytes of CSS. The same build after the foundation emitted 560,908 bytes of JavaScript, 111,551 bytes of CSS, and 76,416 bytes of local font files: a measured 112,094-byte raw asset increase excluding source maps (about 82,990 bytes using Vite's gzip figures for CSS/JavaScript and the already-compressed font files). This measurement is a bundle effect, not a performance claim.
 
-For an upstream component update, invoke the exact CLI on demand with `pnpm dlx shadcn@4.21.0`, inspect `shadcn view` and `shadcn add <component> --dry-run`, compare the generated source with the app-owned file, and apply only reviewed changes. The app vendors only the generated `data-open`, `data-closed`, and `data-disabled` variants it uses, so ordinary installs and production builds do not carry the CLI dependency graph. Never overwrite Portcove token mappings or behavior fixes wholesale. Dependency upgrades and copied-component updates remain separate review decisions.
+For an upstream component update, invoke the exact CLI on demand with `pnpm dlx shadcn@4.21.0`, inspect `shadcn view` and `shadcn add <component> --dry-run`, compare the generated source with the app-owned file, and apply only reviewed changes. Ordinary builds do not carry the CLI dependency graph. Adapt generated output to native Base UI starting/ending and state attributes, the shared outline/motion conventions, and the CSS entry at `src/styles/index.css`; do not restore copied animation helpers or reset overrides. Never overwrite Portcove token mappings or behavior fixes wholesale. Dependency upgrades and copied-component updates remain separate review decisions.
 
 ## Compatibility and qualification boundary
 
@@ -32,7 +32,7 @@ The dependency requirement, Portcove support promise, and observed environment a
 | Platform            | Upstream dependency requirement                                                                                       | Portcove Public beta baseline                                  | Executable evidence owner                                                                                                                           |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Windows x64         | Tailwind/Base UI need a Chromium-family engine at least Chrome/Edge 111                                               | Unchanged while #993 establishes an explicit WebView2/OS floor | Run `native-design-system-compatibility` in the actual Tauri app and record the exact WebView2 runtime; a current runtime pass is not minimum proof |
-| Linux x64           | Tauri runtime 2.12.1 with Wry 0.57.0 enables WebKitGTK 2.40+; Tailwind does not publish a WebKitGTK minimum guarantee | Unchanged while #993 proves an explicit Linux/WebKitGTK floor  | Use the existing Linux Tauri/WebKitWebDriver harness on the exact environment                                                                       |
+| Linux x64           | Tauri runtime 2.12.2 with Wry 0.57.0 enables WebKitGTK 2.40+; Tailwind does not publish a WebKitGTK minimum guarantee | Unchanged while #993 proves an explicit Linux/WebKitGTK floor  | Use the existing Linux Tauri/WebKitWebDriver harness on the exact environment                                                                       |
 | Steam Deck          | Must satisfy the proven Linux engine requirement in the actual SteamOS runtime                                        | Unqualified at initial beta; follow-up required before 1.0     | #51/#217 run the retained fixture on actual Deck and record SteamOS/WebKitGTK identity; #993 beta closure does not wait for this device proof       |
 | macOS Intel         | Tailwind/Base UI require Safari/WebKit 16.4-era features                                                              | Unqualified initial beta; qualify before 1.0 during beta       | #45/#226 use the existing qualification route on an exact Intel WKWebView host                                                                      |
 | macOS Apple silicon | Tailwind/Base UI require Safari/WebKit 16.4-era features                                                              | Unqualified initial beta; qualify before 1.0 during beta       | #45/#226 use the existing qualification route on an exact Apple-silicon WKWebView host                                                              |
@@ -42,15 +42,22 @@ Windows/Linux native/minimum proof required by #917. Keep practical macOS CI/bui
 health; full Intel/Apple Silicon native/package qualification belongs to #45/#226
 during beta before 1.0, without holding the initial Windows/Linux foundation.
 
-The [versioned runtime manifest](https://github.com/tauri-apps/tauri/blob/tauri-runtime-wry-v2.12.1/crates/tauri-runtime-wry/Cargo.toml)
+The [versioned runtime manifest](https://github.com/tauri-apps/tauri/blob/tauri-runtime-wry-v2.12.2/crates/tauri-runtime-wry/Cargo.toml)
 selects Wry 0.57.0's `linux-body` feature and WebKitGTK `v2_40`; the
 [versioned Wry manifest](https://github.com/tauri-apps/wry/blob/wry-v0.57.0/Cargo.toml)
 maps that feature to `webkit2gtk/v2_40`. This dependency requirement does not
 establish Portcove's supported distro or selected design system's proven engine floor.
 
+The compatible baseline delivered by [#1972](https://github.com/boburning/portcove/pull/1972)
+uses Tauri/API 2.12.4, runtime/runtime-wry 2.12.2, build/codegen/macros 2.7.3
+and dialog 2.8.3. It includes the upstream IPC/asset empty-path panic repair.
+CLI 2.12.1 remains qualified; [#2014](https://github.com/boburning/portcove/issues/2014)
+owns CLI 2.12.3's canonical prerelease RPM regression. These pairings do not change
+build targets, operating-system minima or publication qualification.
+
 ## Foundations
 
-- CSS custom properties in `apps/desktop/src/styles.css` are the canonical runtime token authority. Tailwind exposes approved aliases and variants rather than maintaining a second independently valued theme. Components consume semantic roles, never raw palette primitives or arbitrary utility colors. Legacy unlayered rules are temporary migration inputs, not hidden final authority: each converted control or journey establishes styling in its real owner, verifies the result, removes the competing rule, and records any retained exception with an owner and removal condition.
+- CSS custom properties in `apps/desktop/src/styles/tokens.css` are the canonical runtime token authority. Tailwind exposes approved aliases and variants rather than maintaining a second independently valued theme. Components consume semantic roles, never raw palette primitives or arbitrary utility colors. The standard theme/base/components/utilities cascade and Tailwind Preflight replace the old global stylesheet. Shared controls own appearance; actual shared row/notice patterns and local artwork geometry replace broad feature selectors. A legacy layer or override sheet is not a final destination.
 - The migration checks official shadcn/ui component source into Portcove; it then becomes Portcove-owned control code. Initialization explicitly selects Base UI and the compact Nova style, records React/Vite rather than Next.js assumptions, keeps React Server Components disabled, retains Lucide, and uses semantic CSS variables. Nova is initial density and composition scaffolding, not the visual acceptance target: the reference compositions must deliberately establish Portcove typography, spacing, radii, surfaces, and artwork hierarchy. Exact compatible stable versions and generated configuration are verified at implementation time instead of relying on CLI defaults.
 - Tailwind utilities and variants are the primary component styling approach. Limited custom CSS remains appropriate for specialized artwork, layout, input, or native-integration behavior where it is clearer than utilities. CSS Modules may survive only for justified specialized ownership; they are no longer the default migration destination.
 - `html[data-theme]` is the runtime theme marker and activates Tailwind `dark:` variants. `html[lang]`, `html[dir]`, and Base UI's `DirectionProvider` are now driven together by the [desktop localization owner](LOCALIZATION.md), including for portaled controls. New layout rules use logical properties and mixed-direction technical values keep an explicit direction.

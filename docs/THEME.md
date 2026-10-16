@@ -1,157 +1,123 @@
-# N64-inspired theme system
+# Portcove theme and CSS ownership
 
-Portcove's default theme borrows its structure from Nintendo 64-era industrial hardware and its punctuation from late-1990s Nintendo color. It is not a replica console UI: charcoal plastic, graphite panels, controller gray, and warm white carry the interface, while softened red, blue, green, and yellow communicate specific roles.
+Portcove keeps its graphite dark and warm controller-gray light identity, with
+red, blue, green and yellow families carrying explicit meaning. Illustration
+remains owned by [BRAND-ASSETS](BRAND-ASSETS.md); this CSS cutover does not change
+the mascot or product navigation. [#2009](https://github.com/boburning/portcove/issues/2009)
+is the finite architecture delivery under the continuing #917 design-system owner.
 
-The approved identity direction uses those original palette families in expressive 2D crab and wordmark illustration; the currently shipped V2 rasters remain in use until standalone production artwork is approved and integrated. [BRAND-ASSETS.md](BRAND-ASSETS.md) owns that transition. Illustration does not redefine the semantic UI tokens or turn the functional desktop into a decorative scene.
+## One authority and cascade
 
-## Token layers
+`apps/desktop/src/styles/index.css` assembles Tailwind Preflight, offline Geist,
+tokens, document defaults and shared motion. The standard order is `theme, base,
+components, utilities`. Runtime variables live in the theme layer on `:root` and
+`:root[data-theme="light"]`. Document defaults and the minimal focus fallback
+belong to base. Specialized CSS belongs to components; utilities can deliberately
+adjust a component. Normal unlayered product CSS and a permanent legacy layer are
+not part of this architecture.
 
-`apps/desktop/src/styles.css` has four token layers:
+`styles/tokens.css` is the single runtime token authority:
 
-1. `--n64-*-50` through `--n64-*-950` are palette primitives. The provided 100, 300, 500, and 700 stops remain fixed. Components must not reference these primitives.
-2. `--color-*` aliases describe interface intent. Components consume these aliases exclusively, so a theme decision changes in one place instead of becoming a component exception.
-3. Typography, spacing, radius, motion, shadow, control, icon, and layout tokens define reusable product foundations.
-4. Component selectors consume semantic and foundation tokens. A component-only token is appropriate only when a reusable component has a stable need that no semantic alias expresses.
+1. Palette primitives describe the graphite/warm-neutral and color families.
+2. Semantic roles describe surfaces, content, interaction, signature actions,
+   selection, focus, destructive intent, statuses and artwork.
+3. `@theme inline` exposes these roles to Tailwind without independently valued
+   theme aliases resolving on the wrong ancestor.
 
-Dark is the default hardware-like graphite theme. Light uses warm controller-plastic gray and off-white surfaces with graphite text; it is a first-class semantic remap, not an inverted afterthought. System preference follows `prefers-color-scheme`, while explicit Dark and Light choices persist locally.
+The `pc-` utility namespace identifies Portcove semantics. Primary consistently
+means signature red; interactive and selection are blue. Shared action foreground
+is intentionally usable by filled primary and destructive treatments. Components
+consume semantic roles, never palette primitives. Keep shared type, control,
+radius, elevation and motion decisions in CSS. One-off artwork/layout geometry
+may be local; it does not automatically earn another public token.
 
-The automated theme contract fails if a component introduces a raw hex/RGB/HSL color, references an N64 primitive directly, adds a gradient, removes a required semantic alias, changes a fixed primitive, or drops a reviewed foreground/background pair below its WCAG threshold. It also inventories the checked-in Button, Dialog, Select, and runtime owner, rejects dynamic or raw-color utility fragments, and checks required selectors in available production CSS. A source-only run reports that narrower coverage when no production build exists; `just local-check` builds first and therefore exercises both.
+Palette values, reset choices, exact class strings and historical token names
+are editable design decisions. Preserve identity, accessible contrast and domain
+meaning while changing them. No separately maintained JSON/TypeScript token
+registry or immutable numeric palette test is required.
 
-Run it directly with:
+## Semantic roles and interaction
 
-```powershell
-corepack pnpm --dir apps/desktop test:theme
-```
+| Role                        | Treatment and meaning                                                          |
+| --------------------------- | ------------------------------------------------------------------------------ |
+| Background/surfaces/content | Graphite or warm light neutrals; readable primary, secondary and muted content |
+| Ordinary action             | Neutral default Button                                                         |
+| Primary action              | Explicit signature-red Play, Install or Apply                                  |
+| Selection                   | Blue state, distinct from hover/highlight and focus                            |
+| Keyboard/controller focus   | One gold outline; forced colors retain system-visible geometry                 |
+| Destructive/failure         | Red semantics with clear wording and confirmation where required               |
+| Success                     | Green healthy/completed/connected facts                                        |
+| Warning                     | Gold attention, setup or available-update facts                                |
+| Information                 | Blue informational/staged/running facts                                        |
+| Unknown/disabled            | Neutral; never inferred success                                                |
+| Artwork                     | Separate surfaces suitable for letterboxing and fallback lettering             |
 
-It also runs as part of the desktop test suite.
+Stable game-port channels are green, Preview (`beta`) blue and Rolling attention
+gold. A channel does not establish support, readiness, qualification or upstream
+health. Current/completed application updates are green, availability gold,
+verified/staged blue, and failure/recovery red. Source support, informational,
+unreviewed and incompatible facts remain separate labeled states. Core owns
+those facts; controls do not invent eligibility or storage thresholds.
 
-## Approved styling architecture
+Shared Button, Input, Dialog and Select own ordinary colors, borders, typography,
+minimum dimensions, focus, disabled/invalid states and motion. Button text can
+wrap above the 30/36/42 px minimum scale. Pending actions remain inert. Features
+choose an intent and arrange the control; repeated ordinary restyling belongs at
+the shared owner. `controlClassName` preserves Base UI's state-dependent callbacks
+alongside ordinary class composition, refs, event handlers and render props.
 
-[#917](https://github.com/boburning/portcove/issues/917) owns the finite Public
-beta migration from the current global stylesheet and bespoke controls to the
-checked-in shadcn 4.21.0 Base Nova source using Base UI 1.8.0, Tailwind 4.3.3,
-semantic CSS variables, and a custom Portcove theme. React/Vite/Tauri and Lucide
-remain in place. `components.json` records the generated aliases and direction-ready
-configuration; [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) records exact versions and the
-bounded regeneration procedure. That foundation is installed and several journeys
-are migrating; legacy stylesheet rules and controls remain shipped behavior only
-where their owners have not yet converted them. Nova is a compact starting scaffold
-rather than the finished Portcove look; reference compositions deliberately establish
-Portcove typography, spacing, radii, depth, surface, and artwork decisions.
+Selected Select items retain an indicator and semantic selection treatment;
+highlighting uses its own state treatment. Focus uses an outline independently of
+selection or invalid/destructive borders. The base focus fallback handles other
+focusable elements without adding a second ring to shared controls.
 
-CSS custom properties in `styles.css` are the canonical runtime authority for
-semantic colors, dark/light mappings, typography foundations, spacing, radii,
-controls, icons, focus, resets, shared motion, and cross-component layout.
-Tailwind exposes approved aliases and variants rather than maintaining a second
-theme. Tailwind utilities and approved component variants are the normal
-feature-facing styling mechanism. Limited custom CSS remains valid for specialized
-layout, artwork, interaction, and native boundaries where it materially improves
-clarity. Do not translate official components into CSS Modules, keep competing
-global/module/utility versions of the same rule, or add Sass, CSS-in-JS, another
-framework, or a custom component registry.
+## Theme, direction, first paint and motion
 
-Runtime theme selection uses the root `data-theme` contract. Tailwind dark
-variants, checked-in controls, and portaled content must respond to that same
-marker rather than an unrelated `.dark` class. Migrated controls own their
-ordinary styling directly; an unlayered legacy override must not be the hidden
-reason a checked-in component looks correct. Convert one owner, verify it, remove
-the competing rule, and document only real temporary exceptions with a removal
-condition.
+The one runtime marker is `html[data-theme]`; Tailwind dark variants and portals
+use it. A small self-hosted blocking bootstrap chooses the saved/system marker
+before rendering, including blocked-storage fallback. Theme-color metadata reads
+the resolved CSS background rather than another TypeScript color table. Offline
+Geist and script-aware system fallbacks remain bundled. The existing WebKit
+repaint invalidation and native theme synchronization remain in place; CSS
+compiler targets do not certify native first paint or window chrome.
 
-The foundation starts with the smallest useful semantic vocabulary: surfaces,
-text, borders, selection, focus, labeled statuses, typography, spacing, radii,
-and motion. Add a role only when a real screen demonstrates that the existing
-vocabulary cannot express it without bypassing semantics. Do not mechanically
-translate every legacy value into a permanent token.
+Document `dir` and Base UI DirectionProvider stay coordinated through the
+localization owner. Use logical spacing/alignment; paths and other technical
+values retain their own bidi isolation rather than indiscriminate mirroring.
+The isolated application root sits below a small shared floating level. Base UI
+owns focus containment, dismissal and mount/unmount; nested portals use their DOM
+order without treating descendant counts as modal depth.
 
-Geist is the bundled, offline default interface typeface. Technical content uses
-an intentional monospace stack, and script fallbacks are coordinated with the
-internationalization owner. Do not maintain a parallel TypeScript or JSON token
-authority. A DTCG-compatible interchange format is conditional on a demonstrated
-second consumer and review of the then-current community specification; it is not
-a present requirement or a W3C Recommendation.
+Floating controls use Base UI `data-starting-style`/`data-ending-style`
+transitions. Reduced motion removes the effective transition; a nonzero computed
+duration with `transition-property:none` does not animate. Progress retains its
+status text without decorative movement. Business logic never waits on a
+stylesheet animation. `tw-animate-css` and cross-framework state aliases are
+retired.
 
-`check-theme.mjs` reads the semantic CSS authority, checked-in control source, and
-available production CSS. It retains raw-color, primitive-token, dark/light,
-focus-versus-selection, declared-token, contrast, discoverability, and required
-production-variant protection. Third-party directives and variables receive
-narrow handling rather than a blanket exemption. Advisory checks for unused
-tokens, duplicated ownership, or arbitrary geometry must allow justified
-exceptions rather than turning taste into a brittle parser.
+## Composition and validation
 
-## Semantic hierarchy
+Settings rows and notices are real reusable patterns. Grid/flex and size container
+queries respond to available component space; viewport queries own shell changes.
+Artwork fitting/lettering has a local layered CSS Module beside Artwork.tsx.
+Do not recreate a global feature stylesheet through imported fragments.
 
-| Role        | Color family                                    | Uses                                                                          |
-| ----------- | ----------------------------------------------- | ----------------------------------------------------------------------------- |
-| Neutral     | charcoal, graphite, controller gray, warm white | app background, panels, typography, borders, disabled states                  |
-| Interactive | cobalt blue                                     | navigation selection, filters, links, staged/running state, controls, loading |
-| Signature   | Nintendo-like red                               | Portcove mark, page punctuation, primary play/install/apply actions           |
-| Highlight   | golden yellow                                   | focus rings, update badges, counters, setup/warning state                     |
-| Success     | emerald green                                   | connected, verified, installed/current, completed, healthy state              |
+Vite+ 1.2.0 owns the toolchain. Tailwind 4.3.3 generates utilities with optimization
+disabled; Vite performs full Lightning CSS transformation and minification.
+Processing CSS, minifier CSS and JavaScript targets explicitly match Chrome 111
+and Safari 16.4. Production scan exclusions are independent of module tree shaking.
+[The decision record](reference/css-architecture.md) explains the upstream basis,
+measurements, evidence boundaries and rollback.
 
-Ordinary buttons are neutral. Signature red is explicit primary emphasis for
-Play, Install, or Apply. Destructive actions use separate semantics, wording,
-placement, and confirmation even when they share a red palette family. Focus is
-gold and remains distinct from selection and destructive intent in combined
-states. Release metadata is quieter than operational readiness; generic controls
-never infer qualification or eligibility from a label or color.
+Oxfmt owns formatting and supported class sorting against the actual stylesheet.
+Stylelint owns CSS correctness, semantic-color policy and ordinary important
+prohibition. The existing Oxlint plugin owns its focused source rules. Deterministic
+tests check references/theme completeness/contrast, Browser Mode checks actual
+controls, and the build guard inspects CSS from that build. Native Windows/Linux
+observations and #993's minimum/platform qualification remain separate. No source
+check opportunistically treats stale dist output as a current build.
 
-Release channels and other product states use these same semantic families
-without collapsing distinct facts:
-
-| Fact or state                                                                     | Semantic treatment |
-| --------------------------------------------------------------------------------- | ------------------ |
-| Stable channel; healthy, verified, complete, current                              | green              |
-| Preview channel (`beta`); informational, selected, loading, staged or in progress | blue               |
-| Rolling channel; attention, setup, available update or caution                    | gold/yellow        |
-| Genuine failure, incompatibility, destructive action or required recovery         | red                |
-| Unknown, not evaluated, neutral, inactive or disabled                             | gray               |
-
-Release channel, Portcove support tier, readiness, qualification, update state,
-and upstream status remain separate labeled contracts even when their colors
-currently resolve to the same family. Stable does not imply fully qualified.
-Rolling is attention, not danger. A retired upstream uses restrained attention
-unless a separate known failure exists.
-
-Application-update availability is gold; a downloaded, verified or staged
-candidate awaiting installation is blue; current/completed is green; failure or
-required recovery is red. Supported or verified source state is green,
-informational is blue, recognized-but-not-listed or unreviewed-for-release is
-gold, known incompatible is red, and unevaluated is gray. Ordinary backup
-warnings use the warning family while failed or required recovery uses danger.
-Storage changes color only when an existing domain contract provides meaningful,
-actionable thresholds; presentation must not invent thresholds for decoration.
-
-Dedicated aliases such as `--color-channel-stable-*`,
-`--color-channel-beta-*`, and `--color-channel-rolling-*` may initially resolve
-to the shared success, interactive, and warning families. Components still use
-semantic aliases only, never raw `--n64-*` primitives or literal colors.
-
-Red is intentionally not the general interaction color. Yellow is intentionally sparse. Status text uses lighter tonal stops on dark surfaces while filled controls use darker stops when warm-white text needs at least 4.5:1 contrast.
-
-## Interaction states
-
-- Standard controls move through neutral raised, hover, and pressed surfaces; selected controls use the blue scale.
-- Primary calls to action use accessible red 700/600/800 surfaces for default, hover, and active states.
-- The shared Button's `default` variant is deliberately neutral. `primary` is an explicit signature action, `selected` is blue state, and `destructive` communicates risk without replacing the shared gold focus ring.
-- Keyboard and controller focus uses a three-pixel yellow ring with offset, remaining distinct from blue selection.
-- Success, warning, danger, and loading each have explicit foreground, surface, subtle, and border roles where needed.
-- Disabled controls use neutral tokens and retain their shape without implying availability.
-- Reduced-motion preference removes interactive and progress transitions.
-- Forced-colors behavior preserves useful system outlines, borders, and color adaptation; focus cannot depend on box shadow alone.
-
-The shared 30/36/42 pixel control scale exceeds WCAG 2.2's 24-by-24 CSS pixel
-minimum target size. Icon controls use the same assigned dimensions; compact
-placement must not shrink their interactive box below that scale.
-
-The runtime theme authority is `html[data-theme]`; Tailwind's `dark:` variant is
-bound to that marker rather than a parallel `.dark` class. The document `dir`
-attribute and Base UI `DirectionProvider` are the shared direction authority so
-portaled Dialog and Select content inherit the same direction. Portcove currently
-starts in `ltr`; locale selection and translated copy remain owned by #203/#1027.
-Bundled Geist Variable leads the offline UI stack, with script-aware system
-fallbacks and the intentional technical monospace stack retained in tokens.
-
-Depth is limited to small highlights, shadows, inset pressed states, and simple geometric card art. Gradients, neon glow, copyrighted assets, and generic pixel-retro styling are deliberately excluded.
-
-The wider component, typography, copy, vocabulary, navigation, and review contracts live in [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md).
+Use the canonical root `pnpm check`, `pnpm test`, `pnpm test:browser` and `pnpm build`
+routes; focused tests use the existing exact-file runner. Never regenerate copied
+controls over these theme, state, accessibility and composition decisions without
+review. [DESIGN-SYSTEM](DESIGN-SYSTEM.md) retains the wider product acceptance.

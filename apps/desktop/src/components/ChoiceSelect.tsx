@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 export function ChoiceSelect<T extends string>({
@@ -26,6 +26,7 @@ export function ChoiceSelect<T extends string>({
   const open = controlledOpen ?? internalOpen;
   const labelId = useId();
   const valueId = useId();
+  const typeahead = useRef<{ value: T; options: typeof options } | null>(null);
   const selected = options.find((option) => option.value === value);
 
   return (
@@ -42,7 +43,22 @@ export function ChoiceSelect<T extends string>({
       onOpenChangeComplete={onOpenChangeComplete}
       value={value}
       disabled={disabled}
-      onValueChange={(nextValue) => {
+      onValueChange={(nextValue, details) => {
+        // Base UI 1.9 can emit a synthetic fallback while its item collection
+        // catches up with a controlled value/options commit. That is not a
+        // preference change. Closed-trigger typeahead uses the same reason,
+        // so retain its character-key interaction against the original controlled
+        // collection. A held key must not authorize a later collection fallback.
+        const interaction = typeahead.current;
+        if (
+          details.reason === "none" &&
+          details.event.type === "base-ui" &&
+          (!interaction || interaction.value !== value || interaction.options !== options)
+        ) {
+          details.cancel();
+          return;
+        }
+        typeahead.current = null;
         if (
           nextValue &&
           nextValue !== value &&
@@ -52,6 +68,28 @@ export function ChoiceSelect<T extends string>({
       }}
     >
       <SelectTrigger
+        onKeyDownCapture={(event) => {
+          typeahead.current =
+            !open &&
+            !disabled &&
+            event.currentTarget === document.activeElement &&
+            event.key.length === 1 &&
+            !event.ctrlKey &&
+            !event.altKey &&
+            !event.metaKey &&
+            !event.nativeEvent.isComposing
+              ? { value, options }
+              : null;
+        }}
+        onKeyUpCapture={() => {
+          typeahead.current = null;
+        }}
+        onBlur={() => {
+          typeahead.current = null;
+        }}
+        onPointerDownCapture={() => {
+          typeahead.current = null;
+        }}
         id={triggerId}
         data-focusable
         aria-labelledby={`${labelId} ${valueId}`}
@@ -60,7 +98,7 @@ export function ChoiceSelect<T extends string>({
         <span id={labelId} className="text-pc-secondary-foreground">
           {label}
         </span>
-        <SelectValue id={valueId} className="justify-end text-right font-semibold">
+        <SelectValue id={valueId} className="justify-end text-end font-semibold">
           {selected?.label ?? "Unavailable"}
         </SelectValue>
       </SelectTrigger>

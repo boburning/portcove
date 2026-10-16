@@ -73,6 +73,15 @@ on the owning issue/PR. Freeze source while final checks run.
 | CLI/integrations                  | [CLI](docs/CLI.md); [integration author](docs/INTEGRATION-AUTHOR.md)                                           |
 | Storage/cleanup                   | [Development storage](docs/DEVELOPMENT-STORAGE.md)                                                             |
 
+## Test-timeout calibration
+
+Standing owner authorization permits agents to diagnose, increase and persist
+finite test/validation harness budgets without case-by-case approval, including
+fixture synchronization and outer command/supervisor/CI limits. Follow
+[timeout calibration](docs/QUALITY.md#autonomous-test-timeout-calibration) to
+distinguish harness waits from product deadlines, preserve failures/assertions
+and cleanup, validate the change and continue the original task.
+
 ## Frontend workflow
 
 Use the repository-pinned Vite+ CLI through the package scripts or `pnpm exec vp`.

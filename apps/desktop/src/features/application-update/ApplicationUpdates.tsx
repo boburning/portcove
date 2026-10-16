@@ -1,3 +1,4 @@
+import { SettingsRow } from "../../components/ui/patterns";
 import { useEffect, useRef, useState, type SetStateAction } from "react";
 import { desktopApi } from "../../api";
 import { LatestRequestGeneration } from "../../shared/concurrency-state";
@@ -28,7 +29,7 @@ const updateSurfaceClass = "rounded-pc-md border border-pc-border bg-[var(--colo
 const updateStatusItemClass = `application-update-status-item grid gap-1 ${updateSurfaceClass}`;
 const updateMutedCopyClass = "text-xs leading-[var(--leading-relaxed)] text-pc-muted-foreground";
 const updateDisclosureClass =
-  "application-update-disclosure rounded-pc-md border border-pc-border bg-[var(--color-bg-subtle)] p-3 text-xs";
+  "application-update-disclosure text-[var(--color-text-secondary)] rounded-pc-md border border-pc-border bg-[var(--color-bg-subtle)] p-3 text-xs";
 const updateChoiceClass = "application-update-choice grid gap-2";
 const updateChoiceButtonClass = "grid h-auto min-h-12 place-items-center gap-0.5 py-1";
 
@@ -226,7 +227,7 @@ function ApplicationUpdateRecoveryItems({
     const copy = recoveryCopy[recovery.area];
     return (
       <div
-        className="application-update-recovery flex items-start justify-between gap-3 rounded-pc-md border border-[var(--color-danger-border)] bg-pc-danger-subtle p-3 max-[65rem]:flex-col"
+        className="application-update-recovery flex items-start justify-between gap-3 rounded-pc-md border border-[var(--color-danger-border)] bg-pc-danger-subtle p-3 text-pc-danger-foreground max-[65rem]:flex-col"
         role="alert"
         key={recovery.area}
       >
@@ -888,20 +889,22 @@ export function ApplicationUpdateSettings({
   }, [unavailable]);
 
   return (
-    <article
-      className="settings-row application-update-settings grid min-h-0 gap-5"
+    <SettingsRow
+      className="application-update-settings grid min-h-0 gap-5"
       data-focus-group
       aria-labelledby="application-update-settings-title"
       aria-busy={Boolean(busy)}
     >
       <div className="application-update-heading flex items-start justify-between gap-4 max-[65rem]:flex-col">
         <div>
-          <p className="eyebrow">APPLICATION UPDATES</p>
+          <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-text-secondary)]">
+            APPLICATION UPDATES
+          </p>
           <h2 id="application-update-settings-title" ref={headingRef} tabIndex={-1}>
             Choose how Portcove updates
           </h2>
         </div>
-        <p className="rounded-pc-md bg-[var(--color-bg-subtle)] px-3 py-2 text-xs text-[var(--color-text-secondary)] whitespace-nowrap max-[65rem]:whitespace-normal">
+        <p className="rounded-pc-md bg-[var(--color-bg-subtle)] px-3 py-2 text-xs whitespace-nowrap text-[var(--color-text-secondary)] max-[65rem]:whitespace-normal">
           Current version <strong>{currentVersion}</strong>
         </p>
       </div>
@@ -943,7 +946,11 @@ export function ApplicationUpdateSettings({
             <h3 id="application-channel-label" className="text-sm">
               Channel
             </h3>
-            <div className="segmented" role="group" aria-label="Application update channel">
+            <div
+              className="segmented grid [grid-auto-columns:1fr] [grid-auto-flow:column] rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-[3px]"
+              role="group"
+              aria-label="Application update channel"
+            >
               {(["preview", "stable"] as const).map((channel) => (
                 <Button
                   key={channel}
@@ -969,7 +976,11 @@ export function ApplicationUpdateSettings({
             <h3 id="application-mode-label" className="text-sm">
               Update mode
             </h3>
-            <div className="segmented" role="group" aria-label="Application update mode">
+            <div
+              className="segmented grid [grid-auto-columns:1fr] [grid-auto-flow:column] rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-[3px]"
+              role="group"
+              aria-label="Application update mode"
+            >
               {(
                 [
                   ["automatic", "Automatic"],
@@ -1099,6 +1110,6 @@ export function ApplicationUpdateSettings({
       {(error || preferencesState?.failure !== undefined) && (
         <p role="alert">{error ?? errorText(preferencesState?.failure)}</p>
       )}
-    </article>
+    </SettingsRow>
   );
 }

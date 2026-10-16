@@ -3,6 +3,9 @@ param([string]$Tag)
 $ErrorActionPreference = "Stop"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $desktopRoot = Join-Path $projectRoot "apps\desktop"
+$pnpmSpec = (Get-Content (Join-Path $projectRoot "package.json") -Raw | ConvertFrom-Json).packageManager
+$installedPnpm = (& pnpm --version | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or "pnpm@$installedPnpm" -ne $pnpmSpec) { throw "Provide the exact repository $pnpmSpec on PATH" }
 $metadataScript = Join-Path $PSScriptRoot "check-release-metadata.mjs"
 $metadataTest = Join-Path $PSScriptRoot "check-release-metadata.test.mjs"
 $storageScript = Join-Path $PSScriptRoot "dev-storage.mjs"
@@ -43,9 +46,9 @@ try {
 
     Push-Location $projectRoot
     try {
-        corepack pnpm install --frozen-lockfile
+        pnpm install --frozen-lockfile
         if ($LASTEXITCODE -ne 0) { throw "Frontend dependency check failed with exit code $LASTEXITCODE" }
-        corepack pnpm audit --prod --audit-level high
+        pnpm audit --prod --audit-level high
         if ($LASTEXITCODE -ne 0) { throw "Frontend production dependency audit failed with exit code $LASTEXITCODE" }
     }
     finally {
@@ -62,7 +65,7 @@ try {
 
     Push-Location $desktopRoot
     try {
-        corepack pnpm tauri build --bundles nsis
+        pnpm tauri build --bundles nsis
         if ($LASTEXITCODE -ne 0) { throw "Tauri bundle build failed with exit code $LASTEXITCODE" }
     }
     finally {

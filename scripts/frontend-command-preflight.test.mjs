@@ -5,36 +5,68 @@ import path from "node:path";
 import test from "node:test";
 import { frontendCommandPlan, probeFrontendCommand } from "./frontend-command-preflight.mjs";
 import { acquireDesktopVerifySession } from "./desktop-verify.mjs";
+import { vitePlusCommand } from "./viteplus-cli.mjs";
 
-const options = {
-  cwd: path.resolve("apps/desktop"),
-  packageManager: "pnpm@12.8.1",
-  environment: {
-    PATH: "private-path",
-    TAURI_SIGNING_PRIVATE_KEY: "excluded",
-    tauri_signing_password: "excluded",
-    RETAINED: "yes",
-  },
-};
-test("frontend probe uses the build command, cwd, filtered environment and finite budgets", () => {
+async function fixture(t, native = false) {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), "pcv installed cli "));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const directory = path.join(cwd, "node_modules/vite-plus");
+  await mkdir(path.join(directory, "bin"), { recursive: true });
+  await writeFile(
+    path.join(directory, "package.json"),
+    JSON.stringify({
+      name: "vite-plus",
+      version: "1.2.0",
+      type: "module",
+      exports: { "./package.json": "./package.json" },
+      bin: { vp: native ? "bin/vp.cmd" : "bin/vp" },
+    }),
+  );
+  const executable = path.join(directory, "bin", native ? "vp.cmd" : "vp");
+  await writeFile(
+    executable,
+    native
+      ? '@echo off\r\nif defined TAURI_SIGNING_PRIVATE_KEY exit /b 3\r\nif not "%CD%"=="%EXPECTED_CWD%" exit /b 4\r\necho vp v1.2.0\r\n'
+      : '#!/usr/bin/env node\nif(process.env.TAURI_SIGNING_PRIVATE_KEY)process.exit(3);console.log("vp v1.2.0");\n',
+  );
+  return {
+    cwd,
+    executable,
+    environment: {
+      PATH: cwd,
+      SystemRoot: process.env.SystemRoot,
+      EXPECTED_CWD: cwd,
+      TAURI_SIGNING_PRIVATE_KEY: "excluded",
+      tauri_signing_password: "excluded",
+      RETAINED: "yes",
+    },
+  };
+}
+
+test("frontend probe uses the same declared installed executable as build, with finite budgets", async (t) => {
+  const input = await fixture(t);
+  const cli = vitePlusCommand(input.cwd);
   const receipt = probeFrontendCommand({
-    ...options,
+    ...input,
     run(command, args, config) {
-      assert.equal(command, "pnpm");
-      assert.deepEqual(args, ["--version"]);
-      assert.equal(config.cwd, options.cwd);
-      assert.deepEqual(config.env, { PATH: "private-path", RETAINED: "yes" });
+      assert.equal(command, process.execPath);
+      assert.equal(command, cli.command);
+      assert.deepEqual(args, [...cli.args, "--version"]);
+      assert.equal(config.cwd, input.cwd);
+      assert.equal(config.env.TAURI_SIGNING_PRIVATE_KEY, undefined);
+      assert.equal(config.env.tauri_signing_password, undefined);
+      assert.equal(config.env.RETAINED, "yes");
       assert.equal(config.timeout, 10_000);
       assert.equal(config.maxBuffer, 16 * 1024);
-      return { status: 0, stdout: "12.8.1\r\n", stderr: "" };
+      return { status: 0, stdout: "vp v1.2.0\r\n\nTools:\n  vite v8.3.4\n", stderr: "" };
     },
   });
   assert.equal(receipt.ready, true);
-  assert.equal(receipt.observed_version, "12.8.1");
+  assert.equal(receipt.observed_version, "1.2.0");
 });
-test("preflight failure receipt precedes lease acquisition for every rejected observation", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-prerequisite-"));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+
+test("preflight failures are retained before any native lease acquisition", async (t) => {
+  const input = await fixture(t);
   const cases = [
     () => {
       throw Object.assign(new Error("missing"), { code: "ENOENT" });
@@ -45,22 +77,22 @@ test("preflight failure receipt precedes lease acquisition for every rejected ob
     () => {
       throw Object.assign(new Error("buffer"), { code: "ENOBUFS", stdout: "x".repeat(40_000) });
     },
-    () => ({ status: 0, stdout: "11.0.0", stderr: "" }),
-    () => ({ status: 1, stdout: "12.8.1", stderr: "failed" }),
-    () => ({ status: 0, stdout: "12.8.1", stderr: "💾".repeat(20_000) }),
+    () => ({ status: 0, stdout: "vp v1.1.0", stderr: "" }),
+    () => ({ status: 1, stdout: "vp v1.2.0", stderr: "failed" }),
+    () => ({ status: 0, stdout: "vp v1.2.0", stderr: "💾".repeat(20_000) }),
+    () => ({ status: 0, stdout: "unexpected wrapper output\nvp v1.2.0", stderr: "" }),
   ];
   for (const [index, run] of cases.entries()) {
-    const runDirectory = path.join(directory, String(index));
+    const runDirectory = path.join(input.cwd, String(index));
     await mkdir(runDirectory);
     await assert.rejects(
       acquireDesktopVerifySession({
         runDirectory,
-        environment: options.environment,
-        packageManager: options.packageManager,
+        environment: input.environment,
         selection: { selected_scenarios: [] },
         timings: [],
-        probe: (input) => probeFrontendCommand({ ...input, run }),
-        acquire: () => assert.fail("Prerequisite failure acquired a lease"),
+        probe: () => probeFrontendCommand({ ...input, run }),
+        acquire: () => assert.fail("Prerequisite failure acquired lease"),
       }),
       /prerequisite failed/,
     );
@@ -73,17 +105,17 @@ test("preflight failure receipt precedes lease acquisition for every rejected ob
     assert(Buffer.byteLength(receipt.stderr) <= 16 * 1024);
   }
 });
-test("successful preflight is retained before acquiring the session", async (t) => {
-  const runDirectory = await mkdtemp(path.join(os.tmpdir(), "pcv-ready-"));
-  t.after(() => rm(runDirectory, { recursive: true, force: true }));
+
+test("successful installed-CLI preflight is retained before session acquisition", async (t) => {
+  const input = await fixture(t);
+  const runDirectory = path.join(input.cwd, "ready");
+  await mkdir(runDirectory);
   const result = await acquireDesktopVerifySession({
     runDirectory,
-    environment: options.environment,
-    packageManager: options.packageManager,
+    environment: input.environment,
     selection: { selected_scenarios: [] },
     timings: [],
-    probe: (input) =>
-      probeFrontendCommand({ ...input, run: () => ({ status: 0, stdout: "12.8.1", stderr: "" }) }),
+    probe: () => probeFrontendCommand(input),
     acquire: async () => {
       assert.equal(
         JSON.parse(
@@ -95,35 +127,40 @@ test("successful preflight is retained before acquiring the session", async (t) 
     },
   });
   assert.equal(result.lock, "owned-lock");
-  assert.equal(result.packageManagerVersion, "12.8.1");
+  assert.equal(result.vitePlusVersion, "1.2.0");
 });
+
+test("installed Node CLI runs with no package manager, Corepack or global vp on PATH", async (t) => {
+  const input = await fixture(t);
+  const plan = frontendCommandPlan(input);
+  assert.equal(plan.file_available, true);
+  assert.equal(plan.execution, "not-run");
+  assert.equal(plan.observed_version, null);
+  assert.equal(probeFrontendCommand(input).ready, true);
+  await rm(input.executable);
+  const missing = probeFrontendCommand(input);
+  assert.equal(missing.ready, false);
+  assert.equal(missing.execution, "not-run");
+});
+
 test(
-  "actual Windows batch shim in a spaced PATH works without Corepack or cached tool state",
+  "declared native batch executable is not incorrectly launched as JavaScript",
   { skip: process.platform !== "win32" },
   async (t) => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "pcv pnpm shim "));
-    t.after(() => rm(directory, { recursive: true, force: true }));
-    await writeFile(
-      path.join(directory, "pnpm.cmd"),
-      '@echo off\r\nif defined TAURI_SIGNING_PRIVATE_KEY exit /b 3\r\nif not "%CD%"=="%EXPECTED_CWD%" exit /b 4\r\necho 12.8.1\r\n',
-    );
-    const input = {
-      ...options,
-      cwd: directory,
-      environment: {
-        PATH: directory,
-        PATHEXT: ".EXE;.CMD;.BAT",
-        TAURI_SIGNING_PRIVATE_KEY: "excluded",
-        EXPECTED_CWD: directory,
-        SystemRoot: process.env.SystemRoot,
-      },
-    };
-    const plan = frontendCommandPlan(input);
-    assert.equal(plan.file_available, true);
-    assert.equal(plan.execution, "not-run");
-    assert.equal(plan.observed_version, null);
+    const input = await fixture(t, true);
+    const cli = vitePlusCommand(input.cwd);
+    assert.equal(cli.command, input.executable);
+    assert.deepEqual(cli.args, []);
     assert.equal(probeFrontendCommand(input).ready, true);
-    await rm(path.join(directory, "pnpm.cmd"));
-    assert.equal(probeFrontendCommand(input).ready, false);
   },
 );
+
+test("missing installation refuses PATH fallback and declared escaping executables", async (t) => {
+  const input = await fixture(t);
+  const file = path.join(input.cwd, "node_modules/vite-plus/package.json");
+  const manifest = JSON.parse(await readFile(file, "utf8"));
+  manifest.bin.vp = "../../../foreign-vp";
+  await writeFile(file, JSON.stringify(manifest));
+  assert.throws(() => vitePlusCommand(input.cwd), /escapes/);
+  assert.equal(probeFrontendCommand(input).ready, false);
+});
