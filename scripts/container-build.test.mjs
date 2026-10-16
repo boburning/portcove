@@ -17,6 +17,17 @@ import {
   command,
 } from "./container-build.mjs";
 import { createContainerHost } from "./container-host.mjs";
+test("missing package tools preserve the failed executable and arguments", async () => {
+  const missing = path.join(os.tmpdir(), "portcove-missing-tool-parent-does-not-exist", "rpm");
+  assert(!existsSync(missing));
+  await assert.rejects(command(missing, ["-qp", "literal package;name.rpm"]), (error) => {
+    assert.match(error.message, /ENOENT/u);
+    assert.equal(error.result.command, missing);
+    assert.deepEqual(error.result.args, ["-qp", "literal package;name.rpm"]);
+    assert.notEqual(error.result.status, 0);
+    return true;
+  });
+});
 test("canonical APT helper rejects invalid explicit deadlines before installation", async () => {
   const git = await command("git", ["--exec-path"]);
   const bash =
@@ -42,6 +53,11 @@ test("package member inspection requires the exact regular executable", () => {
   const rpm = "/usr/bin/portcove-desktop 123 1700000000 abcd 0100755 root root 0 0 0 X";
   assertPackageExecutable("deb", deb);
   assertPackageExecutable("rpm", rpm);
+  const link = deb.replace("-rwxr-xr-x", "lrwxrwxrwx") + " -> /tmp/other";
+  const directory = deb.replace("-rwxr-xr-x", "drwxr-xr-x") + "/";
+  for (const other of [link, directory])
+    for (const listing of [`${deb}\n${other}`, `${other}\n${deb}`])
+      assert.throws(() => assertPackageExecutable("deb", listing), /regular executable/u);
   for (const listing of [
     deb.replace("desktop", "desktop-old"),
     deb.replace("-rwx", "drwx"),

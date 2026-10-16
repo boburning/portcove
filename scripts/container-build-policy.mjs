@@ -13,7 +13,12 @@ export function assertPackageExecutable(format, listing) {
             line,
           );
         return match
-          ? [{ path: match[2], regular: match[1][0] === "-" && /[xs]/u.test(match[1][3]) }]
+          ? [
+              {
+                path: match[1][0] === "l" ? match[2].split(" -> ")[0] : match[2],
+                regular: match[1][0] === "-" && /[xs]/u.test(match[1][3]),
+              },
+            ]
           : [];
       }
       if (format !== "rpm") throw new Error("Executable inspection requires deb or rpm");
@@ -22,7 +27,9 @@ export function assertPackageExecutable(format, listing) {
       return [{ path: fields[0], regular: (mode & 0o170000) === 0o100000 && (mode & 0o111) !== 0 }];
     })
     .filter(
-      (item) => item.path.replace(/^\.\//u, "").replace(/^\//u, "") === "usr/bin/portcove-desktop",
+      (item) =>
+        item.path.replace(/^\.\//u, "").replace(/^\//u, "").replace(/\/+$/u, "") ===
+        "usr/bin/portcove-desktop",
     );
   if (matches.length !== 1 || !matches[0].regular)
     throw new Error(`${format} lacks exactly one regular executable usr/bin/portcove-desktop`);

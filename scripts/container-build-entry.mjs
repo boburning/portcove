@@ -138,7 +138,7 @@ function capture(directory, target, suffix) {
 }
 async function execute(args, phase, executable = process.execPath, cwd = root) {
   let prefix = "";
-  const result = await new Promise((resolve, reject) => {
+  const result = await new Promise((resolve) => {
     child = spawn(executable, args, {
       cwd,
       env: { ...process.env, CARGO_NET_OFFLINE: "true", CARGO_BUILD_JOBS: "2" },
@@ -160,7 +160,7 @@ async function execute(args, phase, executable = process.execPath, cwd = root) {
         if (prefix.length < 64 * 1024)
           prefix += data.toString("utf8").slice(0, 64 * 1024 - prefix.length);
       });
-    child.on("error", reject);
+    child.on("error", (error) => resolve({ code: null, signal: null, error: error.message }));
     child.on("close", (code, signal) => {
       clearTimeout(force);
       force = undefined;
