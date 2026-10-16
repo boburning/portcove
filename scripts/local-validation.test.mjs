@@ -911,6 +911,17 @@ test("the exact Fallow boundary configuration selects the complete UI suite", ()
   }
 });
 
+test("advisory tooling configuration selects scope contracts without exhaustive analysis", () => {
+  for (const status of ["M", "A", "D"]) {
+    const { selection, plan } = planFor([{ status, path: ".fallow-tooling.json" }]);
+    assert.deepEqual([...selection.unknown], []);
+    assert.ok(selection.nodeTests.has("scripts/fallow-scope.test.mjs"));
+    assert.ok(selection.nodeTests.has("scripts/run-fallow.test.mjs"));
+    assert.ok(!ids(plan).includes("fallow"));
+    assert.equal(selection.ui, false);
+  }
+});
+
 test("command-identical obligations execute once while retaining every selection reason", () => {
   const duplicate = {
     id: "second-lint",

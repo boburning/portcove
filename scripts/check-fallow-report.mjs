@@ -24,7 +24,7 @@ function metric(value, field, maximum = Number.MAX_SAFE_INTEGER, integer = true)
 
 // Validate the wire contract before using the published types. A type assertion
 // alone cannot make parsed JSON trustworthy. Version changes require review.
-export function validateFallowReport(value) {
+function validateFallowReport(value) {
   const report = object(value, "report");
   if (report.kind !== "combined" || report.schema_version !== 13 || report.version !== "3.33.1")
     throw new Error(

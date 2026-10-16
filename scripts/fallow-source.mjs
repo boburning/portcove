@@ -17,7 +17,7 @@ export function fallowSource(root, base) {
   const inputs = git("ls-files", "-z", "--cached", "--others", "--exclude-standard")
     .split("\0")
     .filter((name) =>
-      /\.(?:[cm]?[jt]sx?|css|scss|less|json|ya?ml|html)$|(?:^|\/)(?:justfile|pnpm-lock\.yaml)$/u.test(
+      /\.(?:[cm]?[jt]sx?|css|scss|less|jsonc?|json5|toml|ya?ml|html|vue|svelte|astro)$|(?:^|\/)(?:justfile|pnpm-lock\.yaml)$/u.test(
         name,
       ),
     );

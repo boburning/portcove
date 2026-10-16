@@ -366,6 +366,7 @@ function classifyPath(file) {
     );
     match(
       file.startsWith("scripts/") ||
+        file === ".fallow-tooling.json" ||
         file.startsWith(".vite-hooks/") ||
         file === "lint-staged.config.mjs" ||
         file.startsWith("integrations/") ||
@@ -583,6 +584,7 @@ function classifyAuditPath(file) {
         "prettier.config.mjs",
         "pyproject.toml",
         "apps/desktop/.fallowrc.json",
+        ".fallow-tooling.json",
         "apps/desktop/eslint.config.mjs",
         "apps/desktop/stylelint.config.mjs",
       ].includes(file) ||

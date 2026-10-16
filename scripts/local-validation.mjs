@@ -214,6 +214,7 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map([
+  [".fallow-tooling.json", ["scripts/fallow-scope.test.mjs", "scripts/run-fallow.test.mjs"]],
   ...[
     "scripts/container-browser.mjs",
     "scripts/container-entry.mjs",
