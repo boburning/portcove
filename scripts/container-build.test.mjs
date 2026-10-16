@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -9,8 +9,34 @@ import {
   builtPackage,
   validatePackageMetadata,
 } from "./container-build-policy.mjs";
-import { runtimeArguments, validateRuntime, budgets, browser } from "./container-build.mjs";
+import {
+  runtimeArguments,
+  validateRuntime,
+  budgets,
+  browser,
+  command,
+} from "./container-build.mjs";
 import { createContainerHost } from "./container-host.mjs";
+test("canonical APT helper rejects invalid explicit deadlines before installation", async () => {
+  const git = await command("git", ["--exec-path"]);
+  const bash =
+    process.platform === "win32"
+      ? path.resolve(git.stdout.trim(), "../../../bin/bash.exe")
+      : "bash";
+  if (process.platform === "win32") assert(existsSync(bash));
+  for (const value of ["0", "179", "1801", "unbounded", "1.5", "999999999999999999"])
+    await assert.rejects(
+      command(bash, [
+        "scripts/install-linux-desktop-prerequisites.sh",
+        `--install-timeout-seconds=${value}`,
+      ]),
+      (error) => {
+        assert.equal(error.result.status, 2);
+        assert.match(error.result.stderr, /180\.\.1800 seconds/u);
+        return true;
+      },
+    );
+});
 test("package member inspection requires the exact regular executable", () => {
   const deb = "-rwxr-xr-x root/root 123 2026-10-16 00:00 ./usr/bin/portcove-desktop";
   const rpm = "/usr/bin/portcove-desktop 123 1700000000 abcd 0100755 root root 0 0 0 X";

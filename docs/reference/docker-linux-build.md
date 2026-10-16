@@ -45,7 +45,10 @@ install-script, release-age and security policies retain their owners.
 
 Preparation installs the complete frozen workspace and fetches locked Linux Cargo
 inputs. `install-linux-desktop-prerequisites.sh --include-rpm` owns native libraries;
-headless packaging does not request WebDriver or native GUI prerequisites.
+headless packaging does not request WebDriver or native GUI prerequisites. The
+builder selects `--install-timeout-seconds=1200` for cold package unpacking inside
+the finite preparation budget. Existing hosted callers retain their 3/5-minute
+installation defaults; package coverage and existing mirror handling are unchanged.
 Installed apt/npm packages and actual Node, pnpm, Vite+, Rust, Cargo and Linux
 PowerShell versions are exported. Mutable apt inputs are observed; preparation
 is not represented as reproducible or offline.

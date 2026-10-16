@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -71,6 +71,45 @@ export async function probeVitePlusRules(engine, root, output) {
     manager: "dockerfile",
     packageFile: dockerfile,
   });
+  const builderFile = "tools/containers/build/Dockerfile";
+  if (existsSync(path.join(root, builderFile))) {
+    const text = readFileSync(path.join(root, builderFile), "utf8");
+    const builderDeps = extractDockerfile(text, builderFile, resolved.config)?.deps ?? [];
+    for (const name of ["ghcr.io/voidzero-dev/vite-plus", "rust", "ubuntu"]) {
+      const dep = builderDeps.find((item) => item.depName === name);
+      assert(dep && !dep.skipReason, `Builder extractor omitted ${name}`);
+      assert.match(dep.currentDigest, /^sha256:[a-f0-9]{64}$/u);
+      if (name === "ubuntu") assert.equal(dep.currentValue, "22.04");
+      if (name === "ghcr.io/voidzero-dev/vite-plus")
+        assert.equal(dep.currentValue, base.currentValue);
+      if (name === "rust")
+        assert.equal(
+          dep.currentValue,
+          `${/channel\s*=\s*"([^"]+)"/u.exec(readFileSync(path.join(root, "rust-toolchain.toml"), "utf8"))[1]}-slim-bookworm`,
+        );
+      selected.push({
+        ...dep,
+        packageName: dep.packageName ?? dep.depName,
+        manager: "dockerfile",
+        packageFile: builderFile,
+      });
+    }
+    const { extractPackageFile: extractRegex } = await mod("modules/manager/custom/regex/index.js");
+    const manager = resolved.config.customManagers.find(
+      (item) => item.depNameTemplate === "PowerShell/PowerShell",
+    );
+    assert(manager, "PowerShell update authority missing");
+    const powershell = extractRegex(text, builderFile, manager)?.deps;
+    assert.equal(powershell?.length, 1);
+    assert.equal(powershell[0].currentValue, /^ARG POWERSHELL_VERSION=(.+)$/mu.exec(text)[1]);
+    assert.match(text, /^ARG POWERSHELL_SHA256=[a-f0-9]{64}$/mu);
+    selected.push({
+      ...powershell[0],
+      packageName: "PowerShell/PowerShell",
+      manager: "custom.regex",
+      packageFile: builderFile,
+    });
+  }
   const effective = [];
   for (const dep of selected) {
     const rule = await applyPackageRules({ ...resolved.config, ...dep }, "pre-lookup");
@@ -85,7 +124,8 @@ export async function probeVitePlusRules(engine, root, output) {
       assert.equal(rule.groupName, "vite-plus");
       assert.deepEqual(rule.schedule, ["at any time"]);
       if (dep.manager === "dockerfile") assert.equal(rule.pinDigests, true);
-    } else if (
+    } else if (name === "rust") assert.equal(rule.groupName, "rust-toolchain");
+    else if (
       ["@voidzero-dev/vite-plus-core", "vitest", "@vitest/browser-playwright"].includes(name)
     )
       assert.equal(
@@ -139,6 +179,7 @@ export async function probeVitePlusRules(engine, root, output) {
   const files = [
     "modules/manager/npm/extract/index.js",
     "modules/manager/dockerfile/extract.js",
+    ...(existsSync(path.join(root, builderFile)) ? ["modules/manager/custom/regex/index.js"] : []),
     "util/package-rules/index.js",
     "workers/repository/init/vulnerability.js",
     "config/utils.js",
@@ -150,14 +191,18 @@ export async function probeVitePlusRules(engine, root, output) {
       .update(readFileSync(path.join(root, "renovate.json")))
       .digest("hex"),
     declarationSha256: Object.fromEntries(
-      ["package.json", "apps/desktop/package.json", "pnpm-workspace.yaml", dockerfile].map(
-        (file) => [
-          file,
-          createHash("sha256")
-            .update(readFileSync(path.join(root, file)))
-            .digest("hex"),
-        ],
-      ),
+      [
+        "package.json",
+        "apps/desktop/package.json",
+        "pnpm-workspace.yaml",
+        dockerfile,
+        ...(existsSync(path.join(root, builderFile)) ? [builderFile, "rust-toolchain.toml"] : []),
+      ].map((file) => [
+        file,
+        createHash("sha256")
+          .update(readFileSync(path.join(root, file)))
+          .digest("hex"),
+      ]),
     ),
     engineSources: Object.fromEntries(
       files.map((file) => [

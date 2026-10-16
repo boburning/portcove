@@ -281,10 +281,15 @@ export function createContainerHost(profile) {
             ["https://archive.ubuntu.com/ubuntu/dists/jammy/Release", [200]],
             ["https://static.rust-lang.org/dist/channel-rust-stable.toml", [200]],
             ["https://index.crates.io/config.json", [200]],
+            ["https://registry-1.docker.io/v2/", [200, 401], "GET"],
           ]
         : [["https://cdn.playwright.dev/", [400]]]),
-      ["https://deb.debian.org/debian/dists/bookworm/Release", [200]],
-      ["https://security.debian.org/debian-security/dists/bookworm-security/Release", [200]],
+      ...(builder
+        ? []
+        : [
+            ["https://deb.debian.org/debian/dists/bookworm/Release", [200]],
+            ["https://security.debian.org/debian-security/dists/bookworm-security/Release", [200]],
+          ]),
     ];
     const observations = await Promise.all(
       endpoints.map(async ([url, allowed, method = "HEAD"]) => {
