@@ -449,3 +449,31 @@ All 192 input names, resolved native dependency/code-generator inventory,
 features, Cargo lock and build environment remain identical. The protected
 record changes only `reconfirmedHead` and `inputsSha256`; no advisory, scope,
 expiry, scanner outcome, publication or timing authority changes.
+
+## October 16 Package 2 final-toolchain integration
+
+The normal integration candidate `4ee4f5043887d32237da3478b1ec70d1ef85fd39` consumes delivered
+#2005 (merge `d74bae3fa6e3ad1058702fc0779689acf5f4505d`) and #2010
+(merge `9a9ca222d28df8ffd089f551c2f0393fc60e1a53`). It preserves their production build/task ownership,
+picker preflight, split installer refusals, immutable qualification reuse and
+exact owner-approved timing branches. Superseded Corepack/task and projection
+fixture repairs are removed; no new limit or exception is introduced.
+
+The 192-entry native-input inventory differs from the delivered target only in
+`crates/portcove-core/src/definition_publisher_policy_tests.rs`: existing test-only elapsed-phase diagnostics
+are composed around the surviving operations. Its module remains cfg(test);
+no production GLib API, constructor or affected call path changes. Substituting
+that one file's delivered Git preimage reconstructs the preceding
+`ecdc7f34e22409da462ce4cbba6505083ec4270e9fbb527cd589905cf8e7a3d2` digest exactly.
+The composed digest is `e7b4862dd177411eb7fadceedfc2173ee18fac1e21bf930140a6e5538e8f3ce6`.
+
+The complete 237-entry native dependency/code-generator inventory, features,
+Cargo lock and build-environment entry remain unchanged, with dependency digest
+`80bab63cf9f86838b1517c42767894bdc5151e09dafd41e22bbf97e220a365f2`. Scanner policy remains
+`7cbe77e7ef591e476797956f7bf3e79a0fc659a646505f079580c16d51499525`. Only the record's
+reconfirmed head/input digest changes. The original finding, failed raw scans,
+approval owner/scope/expiry and unallocated publication identity remain intact.
+This is bounded unchanged-production-risk reconfirmation, not remediation,
+universal unreachability, publication authority or passing final qualification.
+Independent final-source review, current-head checks and complete maintained
+audit/qualification admission remain required.
