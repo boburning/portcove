@@ -698,7 +698,7 @@ it("waits for current degraded inventory rather than a pending or failed read no
     },
   };
   const { waitForDegradedInventory, degradedInventorySelector } =
-    await import("../../../scripts/desktop-backup-inventory-observer.mjs");
+    await import("../../../scripts/desktop-backup-inventory-observer.mts");
   const current = (count: number) =>
     waitForDegradedInventory(
       {
@@ -775,7 +775,7 @@ it("waits for current degraded inventory rather than a pending or failed read no
 });
 
 it("routes the actual native backup selector to visible owned controls without opening unrelated disclosures or consenting", async () => {
-  const { default: native } = await import("../../../scripts/desktop-backup-review-test.mjs?raw");
+  const { default: native } = await import("../../../scripts/desktop-backup-review-test.mts?raw");
   const selector = native.match(/^const backupSectionSelector = '([^']+)';$/mu)?.[1];
   expect(selector).toBeDefined();
   expect(native).not.toContain('By.css("summary.advanced-summary")');

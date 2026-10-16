@@ -31,7 +31,7 @@ const browserProject = {
     name: "browser",
     maxWorkers: 4,
     sequence: { groupOrder: 1 },
-    setupFiles: ["test/browser-setup.mjs"],
+    setupFiles: ["test/browser-setup.mts"],
     include: ["src/**/*.browser.test.{ts,tsx}"],
     exclude: ["src/browser/forced-colors.browser.test.tsx"],
     browser: {
@@ -55,8 +55,8 @@ export const desktopProjects = [
     root: fileURLToPath(new URL("../apps/desktop", import.meta.url)),
     test: {
       name: "unit",
-      include: ["src/**/*.test.{ts,tsx,js}", "scripts/**/*.test.{js,mjs}"],
-      exclude: ["src/browser/**", "src/**/*.browser.test.{ts,tsx}", "scripts/**/*.native.test.mjs"],
+      include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.{ts,mts}"],
+      exclude: ["src/browser/**", "src/**/*.browser.test.{ts,tsx}", "scripts/**/*.native.test.mts"],
       maxWorkers: 2,
       sequence: { groupOrder: 0 },
     },

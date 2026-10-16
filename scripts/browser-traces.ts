@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import type { Reporter } from "vite-plus/test/node";
-import { resolvePhysicalPath } from "./dev-storage.mjs";
+import { resolvePhysicalPath } from "./dev-storage.mts";
 
 /** One invocation owns one namespace; previous failures never share its names. */
 export function createBrowserTraceRun(root: string, requestedNamespace?: string) {

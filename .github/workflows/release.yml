@@ -27,11 +27,11 @@ jobs:
           node-version-file: .node-version
       - name: Verify release identity and workflow contracts
         run: |
-          node --test scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-result-gate.test.mjs scripts/linux-beta-risk-706.test.mjs scripts/dependency-security.test.mjs scripts/desktop-input-observation.test.mjs scripts/release-workflow.test.mjs
-          node scripts/check-release-metadata.mjs
+          node --test scripts/check-release-metadata.test.mts scripts/release-package-policy.test.mts scripts/write-release-checksums.test.mts scripts/reconcile-release-assets.test.mts scripts/finalize-release-assets.test.mts scripts/generate-release-downloads.test.mts scripts/release-result-gate.test.mts scripts/linux-beta-risk-706.test.mts scripts/dependency-security.test.mts scripts/desktop-input-observation.test.mts scripts/release-workflow.test.mts
+          node scripts/check-release-metadata.mts
       - name: Verify release tag matches metadata
         if: github.event_name == 'push'
-        run: node scripts/check-release-metadata.mjs --tag "${{ github.ref_name }}"
+        run: node scripts/check-release-metadata.mts --tag "${{ github.ref_name }}"
 
   qualification:
     needs: identity
@@ -67,7 +67,7 @@ jobs:
           enable_aqua_install: "false"
       - name: Read quality tool contract
         id: quality-pins
-        run: node scripts/quality-tools.mjs --github-output >> "$GITHUB_OUTPUT"
+        run: node scripts/quality-tools.mts --github-output >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install repository quality tools
@@ -83,7 +83,7 @@ jobs:
           PORTCOVE_PLAN_JSON: ${{ needs.qualification.outputs.plan_json }}
           PORTCOVE_PLAN_DIGEST: ${{ needs.qualification.outputs.plan_digest }}
           PORTCOVE_EXPECTED_CHECKOUT: ${{ github.sha }}
-        run: node scripts/validation-plan.mjs
+        run: node scripts/validation-plan.mts
       - name: Record exact workflow, checkout, toolchain, and build configuration
         env:
           PORTCOVE_HEAD_SHA: ${{ github.sha }}
@@ -92,7 +92,7 @@ jobs:
           PORTCOVE_CALLER: release
         run: |
           mkdir -p work/workflow-provenance
-          node scripts/workflow-provenance.mjs \
+          node scripts/workflow-provenance.mts \
             --workflow release.yml \
             --caller-workflow release.yml \
             --mode release \
@@ -120,11 +120,11 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Verify active catalog upstreams
-        run: node scripts/check-catalog-repositories.mjs
+        run: node scripts/check-catalog-repositories.mts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Verify direct PS1 upstream ownership
-        run: node scripts/check-retcomm-upstreams.mjs
+        run: node scripts/check-retcomm-upstreams.mts
 
   build:
     needs: [identity, validate]
@@ -191,8 +191,8 @@ jobs:
       - name: Smoke-test packaged CLI
         shell: pwsh
         run: |
-          $version = (& node scripts/check-release-metadata.mjs --print-version | Out-String).Trim()
-          $archive = (& node scripts/release-package-policy.mjs --platform "${{ matrix.label }}" --interface cli --version $version | Out-String).Trim()
+          $version = (& node scripts/check-release-metadata.mts --print-version | Out-String).Trim()
+          $archive = (& node scripts/release-package-policy.mts --platform "${{ matrix.label }}" --interface cli --version $version | Out-String).Trim()
           ./scripts/smoke-test-cli-archive.ps1 -ArchivePath "release-assets/$archive" -PlatformLabel "${{ matrix.label }}" -Version $version
       - name: Build desktop bundles
         shell: pwsh
@@ -212,7 +212,7 @@ jobs:
           RELEASE_TARGET: ${{ matrix.target }}
         run: |
           $targetRoot = if ([string]::IsNullOrWhiteSpace($env:RELEASE_TARGET)) { "target" } else { "target/$env:RELEASE_TARGET" }
-          node scripts/write-release-checksums.mjs --label "${{ matrix.label }}" --stage-dir release-upload --target-root $targetRoot --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}" --revision "${{ github.sha }}"
+          node scripts/write-release-checksums.mts --label "${{ matrix.label }}" --stage-dir release-upload --target-root $targetRoot --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}" --revision "${{ github.sha }}"
       - name: Upload transient platform artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -255,8 +255,8 @@ jobs:
       - name: Smoke-test packaged Intel CLI under translation
         shell: pwsh
         run: |
-          $version = (& node scripts/check-release-metadata.mjs --print-version | Out-String).Trim()
-          $archive = (& node scripts/release-package-policy.mjs --platform macos-x86_64 --interface cli --version $version | Out-String).Trim()
+          $version = (& node scripts/check-release-metadata.mts --print-version | Out-String).Trim()
+          $archive = (& node scripts/release-package-policy.mts --platform macos-x86_64 --interface cli --version $version | Out-String).Trim()
           ./scripts/smoke-test-cli-archive.ps1 -ArchivePath "release-assets/$archive" -PlatformLabel macos-x86_64 -Version $version
       - name: Build Intel desktop bundle
         shell: pwsh
@@ -264,7 +264,7 @@ jobs:
         run: pnpm tauri build --bundles dmg --target x86_64-apple-darwin
       - name: Stage checksummed Intel release payload
         shell: pwsh
-        run: node scripts/write-release-checksums.mjs --label macos-x86_64 --stage-dir release-upload --target-root target/x86_64-apple-darwin --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}" --revision "${{ github.sha }}"
+        run: node scripts/write-release-checksums.mts --label macos-x86_64 --stage-dir release-upload --target-root target/x86_64-apple-darwin --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}" --revision "${{ github.sha }}"
       - name: Upload transient Intel platform artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -294,13 +294,13 @@ jobs:
       - name: Smoke-test Intel CLI on Intel hardware
         shell: pwsh
         run: |
-          $version = (& node scripts/check-release-metadata.mjs --print-version | Out-String).Trim()
-          $archive = (& node scripts/release-package-policy.mjs --platform macos-x86_64 --interface cli --version $version | Out-String).Trim()
+          $version = (& node scripts/check-release-metadata.mts --print-version | Out-String).Trim()
+          $archive = (& node scripts/release-package-policy.mts --platform macos-x86_64 --interface cli --version $version | Out-String).Trim()
           ./scripts/smoke-test-cli-archive.ps1 -ArchivePath "release-upload/$archive" -PlatformLabel macos-x86_64 -Version $version
       - name: Verify and launch Intel DMG on Intel hardware
         shell: pwsh
         run: |
-          $version = (& node scripts/check-release-metadata.mjs --print-version | Out-String).Trim()
+          $version = (& node scripts/check-release-metadata.mts --print-version | Out-String).Trim()
           $dmg = Get-ChildItem -LiteralPath release-upload -Filter "*.dmg" -File
           if (@($dmg).Count -ne 1) { throw "Expected exactly one Intel DMG" }
           ./scripts/verify-macos-release.ps1 -DmgPath $dmg.FullName -Version $version -Architecture x86_64
@@ -322,7 +322,7 @@ jobs:
         env:
           PORTCOVE_RELEASE_RESULTS: >-
             {"identity":"${{ needs.identity.result }}","qualification":"${{ needs.qualification.result }}","validate":"${{ needs.validate.result }}","build":"${{ needs.build.result }}","build_intel":"${{ needs.build_intel.result }}","verify_intel":"${{ needs.verify_intel.result }}"}
-        run: node scripts/release-result-gate.mjs
+        run: node scripts/release-result-gate.mts
 
   assemble:
     needs: release_gate
@@ -341,7 +341,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - name: Read pinned assembly scanner
         id: assembly-pins
-        run: node scripts/quality-tools.mjs --github-output >> "$GITHUB_OUTPUT"
+        run: node scripts/quality-tools.mts --github-output >> "$GITHUB_OUTPUT"
       - uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.assembly-pins.outputs.required_prebuilt }}
@@ -353,10 +353,10 @@ jobs:
           merge-multiple: false
       - name: Reconcile aggregate release assets
         run: |
-          version="$(node scripts/check-release-metadata.mjs --print-version)"
+          version="$(node scripts/check-release-metadata.mts --print-version)"
           tag="v$version"
           if [[ "${{ github.event_name }}" == "push" ]]; then tag="${{ github.ref_name }}"; fi
-          node scripts/reconcile-release-assets.mjs \
+          node scripts/reconcile-release-assets.mts \
             --input release-matrix \
             --output release-assets-aggregate \
             --version "$version" \
@@ -376,7 +376,7 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
       - name: Bind the SBOM into the final checksum manifest
-        run: node scripts/finalize-release-assets.mjs --assets release-assets-aggregate --inventory release-metadata/release-inventory.json --sbom-subject-checksums release-attestation/sbom-subject-checksums.txt
+        run: node scripts/finalize-release-assets.mts --assets release-assets-aggregate --inventory release-metadata/release-inventory.json --sbom-subject-checksums release-attestation/sbom-subject-checksums.txt
       - name: Prepare immutable draft metadata without write permission
         if: github.event_name == 'push'
         env:
@@ -394,7 +394,7 @@ jobs:
             printf '' > release-metadata/reviewed-release-body.md
             existing_draft=false
           fi
-          node scripts/generate-release-downloads.mjs \
+          node scripts/generate-release-downloads.mts \
             --inventory release-metadata/release-inventory.json \
             --body release-metadata/reviewed-release-body.md \
             --output release-metadata/generated-release-body.md
@@ -502,7 +502,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - name: Read pinned security scanner
         id: security-pins
-        run: node scripts/quality-tools.mjs --github-output >> "$GITHUB_OUTPUT"
+        run: node scripts/quality-tools.mts --github-output >> "$GITHUB_OUTPUT"
       - uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.security-pins.outputs.required_prebuilt }}
@@ -510,7 +510,7 @@ jobs:
         id: authorization
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/linux-beta-risk-706.mjs check
+        run: node scripts/linux-beta-risk-706.mts check
 
   publish:
     if: github.event_name == 'push'

@@ -1,0 +1,346 @@
+import { executeBrowserScript } from "./browser-script.mts";
+import assert from "node:assert/strict";
+import { writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import path from "node:path";
+import {
+  beginEmbeddedEvidence,
+  startEmbeddedInstalledSession,
+} from "./desktop-windows-embedded-session.mts";
+
+import {
+  assertMainWebviewAccess,
+  assertMainWebviewContainment,
+} from "./desktop-main-webview-boundary.mts";
+
+const { values, report } = await beginEmbeddedEvidence(
+  "qualification-only-native-webview-boundary",
+);
+report.observations = {};
+const requests = [];
+const server = createServer((request, response) => {
+  requests.push(request.url);
+  response.setHeader("Content-Type", "text/html");
+  response.end(
+    "<!doctype html><title>Owned untrusted origin fixture</title><h1>Owned untrusted content</h1>",
+  );
+});
+await new Promise((resolve, reject) => {
+  server.once("error", reject);
+  server.listen(0, "127.0.0.1", resolve);
+});
+const fixtureUrl = `http://127.0.0.1:${server.address().port}/untrusted`;
+process.env.PORTCOVE_WEBVIEW_BOUNDARY_FIXTURE_URL = fixtureUrl;
+process.env.PORTCOVE_LIBRARY = path.join(values.output, "library");
+process.env.PORTCOVE_PREFERENCES = path.join(values.output, "preferences.json");
+let session;
+async function invoke(browser, command, arguments_ = {}, options = {}) {
+  return browser.executeAsyncScript(
+    (command_, arguments__, options_, done) => {
+      if (typeof window.__TAURI_INTERNALS__?.invoke !== "function") {
+        done({ unavailable: true });
+        return;
+      }
+      window.__TAURI_INTERNALS__.invoke(command_, arguments__, options_).then(
+        (value) => done({ ok: true, value }),
+        (error) => done({ ok: false, error: String(error) }),
+      );
+    },
+    command,
+    arguments_,
+    options,
+  );
+}
+try {
+  session = await startEmbeddedInstalledSession(values.app, values.output);
+  const browser = await session.connect();
+  await browser.manage().setTimeouts({ script: 10_000, pageLoad: 10_000 });
+  report.executable = { path: values.app, ...session.identity };
+  report.listener = session.listener;
+  await browser.switchTo().window("main");
+  const initialUrl = await browser.getCurrentUrl();
+  await assertMainWebviewAccess({
+    browser,
+    invoke: (command, args, options) => invoke(browser, command, args, options),
+    library: process.env.PORTCOVE_LIBRARY,
+    observations: report.observations,
+  });
+  report.observations.createdFixtures = await invoke(browser, "create_boundary_windows");
+  assert.equal(report.observations.createdFixtures.ok, true);
+  await browser.switchTo().window("boundary-secondary");
+  const secondary = await invoke(browser, "get_bootstrap_status");
+  report.observations.secondary = secondary;
+  assert.equal(secondary.ok, false);
+  assert.match(secondary.error, /only to the main window/);
+  report.observations.secondaryMutation = await invoke(browser, "set_locale_preference", {
+    locale: null,
+  });
+  assert.equal(report.observations.secondaryMutation.ok, false);
+  assert.match(report.observations.secondaryMutation.error, /only to the main window/);
+  report.observations.secondaryDialog = await invoke(browser, "plugin:dialog|open", {
+    options: {},
+  });
+  assert.equal(report.observations.secondaryDialog.ok, false);
+  await browser.switchTo().window("boundary-remote");
+  report.observations.remoteUrl = await browser.getCurrentUrl();
+  const remote = await invoke(browser, "get_bootstrap_status");
+  report.observations.remote = remote;
+  assert.equal(remote.ok, false);
+  report.observations.remoteMutation = await invoke(browser, "set_locale_preference", {
+    locale: null,
+  });
+  assert.equal(report.observations.remoteMutation.ok, false);
+  await browser.switchTo().window("main");
+  await assertMainWebviewContainment({
+    browser,
+    invoke: (command, args, options) => invoke(browser, command, args, options),
+    library: process.env.PORTCOVE_LIBRARY,
+    observations: report.observations,
+    fixtureUrl,
+    initialUrl,
+  });
+  // Hold only the owner's real IPC fetch transport. Rust still queues the real
+  // payload; foreign and unknown requests reach Tauri's unmodified fetch handler.
+  const armOwner = async () => {
+    await browser.switchTo().window("boundary-secondary");
+    return executeBrowserScript(browser, () => {
+      window.__boundaryDelivery = null;
+      window.__boundaryHeld = null;
+      const originalFetch = window.fetch;
+      window.fetch = (input, options) => {
+        const id = new Headers(options?.headers).get("Tauri-Channel-Id");
+        if (id !== null && window.__boundaryHeld === null) {
+          window.__boundaryHeld = { id, input: String(input) };
+          return new Promise((resolve, reject) => {
+            window.__boundaryRelease = () => {
+              window.fetch = originalFetch;
+              originalFetch(input, options).then(resolve, reject);
+            };
+          });
+        }
+        return originalFetch(input, options);
+      };
+      return window.__TAURI_INTERNALS__.transformCallback((value) => {
+        if (value.message) window.__boundaryDelivery = value.message;
+      });
+    });
+  };
+  const queueOwner = async (callback) => {
+    await browser.switchTo().window("main");
+    const queued = await invoke(browser, "queue_boundary_reply", {
+      callback: `__CHANNEL__:${callback}`,
+    });
+    assert.equal(queued.ok, true);
+    await browser.switchTo().window("boundary-secondary");
+    await browser.wait(
+      () => executeBrowserScript(browser, () => window.__boundaryHeld !== null),
+      10_000,
+      "real queued fetch was not intercepted",
+    );
+    return executeBrowserScript(browser, () => window.__boundaryHeld);
+  };
+  const fetchQueued = (id) =>
+    invoke(browser, "plugin:__TAURI_CHANNEL__|fetch", null, {
+      headers: { "Tauri-Channel-Id": String(id) },
+    });
+  await browser.switchTo().window("boundary-secondary");
+  const secondaryFixtureControl = await invoke(browser, "recreate_boundary_owner");
+  assert.equal(secondaryFixtureControl.ok, false);
+  assert.match(secondaryFixtureControl.error, /only to the main window/);
+  await browser.switchTo().window("boundary-remote");
+  const remoteFixtureControl = await invoke(browser, "recreate_boundary_owner");
+  assert.equal(remoteFixtureControl.ok, false);
+  const held = await queueOwner(await armOwner());
+  const unknownId = Number(held.id) === 4294967295 ? 4294967294 : 4294967295;
+  await browser.switchTo().window("main");
+  const foreign = await fetchQueued(held.id);
+  const unknown = await fetchQueued(unknownId);
+  assert.equal(foreign.ok, false);
+  assert.deepEqual(foreign, unknown);
+  await browser.switchTo().window("boundary-remote");
+  const remoteForeign = await fetchQueued(held.id);
+  const remoteUnknown = await fetchQueued(unknownId);
+  assert.equal(remoteForeign.ok, false);
+  assert.deepEqual(remoteForeign, remoteUnknown);
+  await browser.switchTo().window("boundary-secondary");
+  await executeBrowserScript(browser, () => window.__boundaryRelease());
+  await browser.wait(
+    () => executeBrowserScript(browser, () => window.__boundaryDelivery !== null),
+    10_000,
+    "owner did not receive its preserved queued payload",
+  );
+  const delivered = await executeBrowserScript(browser, () => ({
+    length: window.__boundaryDelivery.length,
+    exact: window.__boundaryDelivery === `PORTCOVE_SYNTHETIC_QUEUE:${"Q".repeat(65536)}`,
+  }));
+  assert.equal(delivered.exact, true);
+  const consumed = await fetchQueued(held.id);
+  assert.equal(consumed.ok, false);
+  report.observations.queuedReplies = {
+    secondaryFixtureControl,
+    remoteFixtureControl,
+    held,
+    foreign,
+    unknown,
+    remoteForeign,
+    remoteUnknown,
+    delivered,
+    consumed,
+  };
+  // Recreate the same label, before queuing any new reply. A stale entry would
+  // otherwise be addressable by that replacement webview under this patch.
+  const abandoned = await queueOwner(await armOwner());
+  await browser.close();
+  await browser.switchTo().window("main");
+  const recreated = await invoke(browser, "recreate_boundary_owner");
+  assert.equal(recreated.ok, true);
+  await browser.switchTo().window("boundary-secondary");
+  // Pinned Windows driver registers async completion once per label and
+  // cannot reinstall it after same-label recreation. Preserve a discriminator.
+  try {
+    report.observations.recreatedAsyncControl = await browser.executeAsyncScript((done) =>
+      done("ready"),
+    );
+  } catch (error) {
+    if (error.name !== "ScriptTimeoutError") throw error;
+    report.observations.recreatedAsyncControl = { error: error.name };
+  }
+  await executeBrowserScript(
+    browser,
+    (id) => {
+      window.__boundaryDisposedResult = null;
+      window.__TAURI_INTERNALS__
+        .invoke("plugin:__TAURI_CHANNEL__|fetch", null, {
+          headers: { "Tauri-Channel-Id": String(id) },
+        })
+        .then(
+          (value) => {
+            window.__boundaryDisposedResult = { ok: true, value };
+          },
+          (error) => {
+            window.__boundaryDisposedResult = { ok: false, error: String(error) };
+          },
+        );
+    },
+    abandoned.id,
+  );
+  await browser.wait(
+    () => executeBrowserScript(browser, () => window.__boundaryDisposedResult !== null),
+    10_000,
+    "recreated owner did not settle its actual queued fetch",
+  );
+  const disposed = await executeBrowserScript(browser, () => window.__boundaryDisposedResult);
+  assert.equal(disposed.ok, false);
+  assert.deepEqual(disposed, consumed);
+  Object.assign(report.observations.queuedReplies, { abandoned, recreated, disposed });
+  await browser.switchTo().window("main");
+  report.observations.returnedMain = await invoke(browser, "get_bootstrap_status");
+  assert.equal(report.observations.returnedMain.ok, true);
+  assert.equal(requests.includes("/untrusted/popup"), false);
+  await writeFile(
+    path.join(values.output, "returned-main.png"),
+    await browser.takeScreenshot(),
+    "base64",
+  );
+  const armedMainNavigation = await invoke(browser, "arm_boundary_main_navigation");
+  assert.equal(armedMainNavigation.ok, true);
+  await browser.get(fixtureUrl);
+  assert.equal(await browser.getWindowHandle(), "main");
+  assert.equal(await browser.getCurrentUrl(), fixtureUrl);
+  // A navigation replaces the driver's async completion callback. Poll the
+  // actual IPC promise through synchronous evaluation, as with label recreation.
+  const invokeNavigated = async (command, args = {}) => {
+    await executeBrowserScript(
+      browser,
+      (command_, args_) => {
+        window.__boundaryOriginReply = null;
+        if (typeof window.__TAURI_INTERNALS__?.invoke !== "function") {
+          window.__boundaryOriginReply = { unavailable: true };
+          return;
+        }
+        window.__TAURI_INTERNALS__.invoke(command_, args_).then(
+          (value) => {
+            window.__boundaryOriginReply = { ok: true, value };
+          },
+          (error) => {
+            window.__boundaryOriginReply = { ok: false, error: String(error) };
+          },
+        );
+      },
+      command,
+      args,
+    );
+    await browser.wait(
+      () => executeBrowserScript(browser, () => window.__boundaryOriginReply !== null),
+      10_000,
+      `navigated context did not settle ${command}`,
+    );
+    return executeBrowserScript(browser, () => window.__boundaryOriginReply);
+  };
+  const sameLabelRemote = {
+    label: await browser.getWindowHandle(),
+    url: await browser.getCurrentUrl(),
+    armedMainNavigation,
+  };
+  report.observations.sameLabelRemote = sameLabelRemote;
+  for (const [name, command, args] of [
+    ["custom", "get_bootstrap_status", {}],
+    ["mutation", "set_locale_preference", { locale: null }],
+    ["dialog", "plugin:dialog|open", { options: {} }],
+    ["qualification", "arm_boundary_main_navigation", {}],
+  ]) {
+    const refusal = await invokeNavigated(command, args);
+    sameLabelRemote[name] = refusal;
+    assert.equal(refusal.ok, false, `${command} must reach and fail the actual IPC boundary`);
+    assert.match(
+      refusal.error,
+      /not allowed/i,
+      `${command} must fail upstream ACL, not the main-label guard`,
+    );
+  }
+  await browser.get(initialUrl);
+  sameLabelRemote.returnedMain = await invokeNavigated("get_bootstrap_status");
+  assert.equal(sameLabelRemote.returnedMain.ok, true);
+  const approvedExternalLink = {
+    url: "https://github.com/boburning/portcove",
+    beforeUrl: await browser.getCurrentUrl(),
+    beforeWindows: await browser.getAllWindowHandles(),
+    browserDestination: "requires separate system-browser observation",
+  };
+  report.observations.approvedExternalLink = approvedExternalLink;
+  approvedExternalLink.result = await invokeNavigated("open_external_url", {
+    url: approvedExternalLink.url,
+  });
+  assert.equal(approvedExternalLink.result.ok, true);
+  approvedExternalLink.afterUrl = await browser.getCurrentUrl();
+  approvedExternalLink.afterWindows = await browser.getAllWindowHandles();
+  assert.equal(approvedExternalLink.afterUrl, initialUrl);
+  assert.deepEqual(
+    approvedExternalLink.afterWindows.toSorted(),
+    approvedExternalLink.beforeWindows.toSorted(),
+    "approved external links preserve the complete window inventory",
+  );
+  report.outcome = "passed";
+} catch (error) {
+  report.failure = String(error.stack ?? error);
+  process.exitCode = 1;
+} finally {
+  if (session) {
+    try {
+      if (session.browser) await session.browser.quit();
+      report.cleanup = await session.close();
+    } catch (error) {
+      report.outcome = "failed";
+      report.cleanupFailure = String(error.stack ?? error);
+      process.exitCode = 1;
+    }
+  }
+  await new Promise((resolve) => server.close(resolve));
+  report.fixtureRequests = requests;
+  report.interpretation =
+    "Instrumented Windows native boundary observations; not installed-release, physical-device, normal-user prompt or complete issue acceptance.";
+  await writeFile(
+    path.join(values.output, "evidence.json"),
+    `${JSON.stringify(report, null, 2)}\n`,
+  );
+}

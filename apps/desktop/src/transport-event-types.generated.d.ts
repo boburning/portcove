@@ -1,5 +1,5 @@
 // Generated from Rust event schemas. Do not edit.
-// Regenerate: node apps/desktop/scripts/generate-transport-types.mjs --write
+// Regenerate: node apps/desktop/scripts/generate-transport-types.mts --write
 
 export type ApplicationChannel = "preview" | "stable";
 export type ApplicationUpdateCheckResultKind =

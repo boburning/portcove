@@ -282,8 +282,8 @@ first; ordinary checks do not install tools. These commands use the existing
 guarded Rust runner and compile the selected CLI from that checkout:
 
 ```powershell
-node scripts/run-rust-tests.mjs --locked -p portcove-cli --test machine_contract -E 'test(preparation_plan_reports_missing_inputs_without_starting_work)'
-node scripts/run-rust-tests.mjs --locked -p portcove-core --lib -E 'test(runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes) | test(package_checksum_refusal_preserves_active_install_and_user_data) | test(cancellation_before_prepared_cleans_private_data) | test(cancellation_after_prepared_finishes_publication) | test(interrupted_requested_preparation_is_discarded_without_touching_user_data)'
+node scripts/run-rust-tests.mts --locked -p portcove-cli --test machine_contract -E 'test(preparation_plan_reports_missing_inputs_without_starting_work)'
+node scripts/run-rust-tests.mts --locked -p portcove-core --lib -E 'test(runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes) | test(package_checksum_refusal_preserves_active_install_and_user_data) | test(cancellation_before_prepared_cleans_private_data) | test(cancellation_after_prepared_finishes_publication) | test(interrupted_requested_preparation_is_discarded_without_touching_user_data)'
 ```
 
 The CLI case reads the public preparation plan, structured blocking reasons,

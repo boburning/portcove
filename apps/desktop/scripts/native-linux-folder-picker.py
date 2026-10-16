@@ -25,7 +25,7 @@ class OwnedLaunch:
         try:
             self.command = Path(f"/proc/{pid}/cmdline").read_bytes()
             arguments = self.command.decode("utf-8").split("\0")
-            init = str(Path(__file__).with_name("native-linux-init.mjs").resolve(strict=True))
+            init = str(Path(__file__).with_name("native-linux-init.mts").resolve(strict=True))
             if str(Path(f"/proc/{pid}/exe").resolve(strict=True)) != str(Path("/usr/bin/unshare").resolve(strict=True)) or init not in arguments or arguments[arguments.index(init) + 1] != nonce:
                 raise RuntimeError("Captured private namespace launch is required")
             self.check()

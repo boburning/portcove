@@ -5,7 +5,7 @@ entrypoint and canonical QUALITY/CONTRIBUTION contracts own current routing;
 old blanket document-load and local-check wording below does not add a gate.
 
 Resolve the current checkout root with `git rev-parse --show-toplevel` before using
-paths below. Read [PROJECT-GOVERNANCE.md](../../../../docs/PROJECT-GOVERNANCE.md) and inspect current commands in [roadmap.mjs](../../../../scripts/roadmap.mjs). GitHub Projects is the live authority; never create a local backlog mirror.
+paths below. Read [PROJECT-GOVERNANCE.md](../../../../docs/PROJECT-GOVERNANCE.md) and inspect current commands in [roadmap.mts](../../../../scripts/roadmap.mts). GitHub Projects is the live authority; never create a local backlog mirror.
 
 Read every page of the relevant inventory and require unique counts to match totals. An API failure, stalled cursor, changing total or incomplete dependency read invalidates the result. REST may recover issue reads but does not establish Project fields it did not return.
 
@@ -19,7 +19,7 @@ block independent delivery. Preserve old records, commits, unresolved evidence
 and pauses without fabricating ACKs or inactivity. Missing task/Project reads
 remain a named coverage limitation.
 
-Compare validated `--consumed-file` baselines before repeating work; unchanged specification and operational text may be suppressed before model output only with valid raw observation/scoped baseline binding. Raw hash and edited timestamp changes are both detected. Exact `--consumed-comment` and `--reservation-comment` references are evidence, not grants. Optional `--coordination-pr` binds only the owning evidence PR. Explicit `node scripts/roadmap.mjs history --issue <number> [--coordination-pr <number>] --json` is the bounded recent50-record historical route, with uncovered latest/absence UNKNOWN. Legacy #793 references remain exact/read-only; do not enumerate its archive.
+Compare validated `--consumed-file` baselines before repeating work; unchanged specification and operational text may be suppressed before model output only with valid raw observation/scoped baseline binding. Raw hash and edited timestamp changes are both detected. Exact `--consumed-comment` and `--reservation-comment` references are evidence, not grants. Optional `--coordination-pr` binds only the owning evidence PR. Explicit `node scripts/roadmap.mts history --issue <number> [--coordination-pr <number>] --json` is the bounded recent50-record historical route, with uncovered latest/absence UNKNOWN. Legacy #793 references remain exact/read-only; do not enumerate its archive.
 
 Ordinary pickup needs no coordinator acknowledgment or offer/return ritual.
 Coordinator planners refuse in single-runner mode; preserve the historical

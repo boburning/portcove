@@ -13,7 +13,7 @@ on:
       - rust-toolchain.toml
       - .node-version
       - scripts/install-linux-desktop-prerequisites.sh
-      - scripts/package-ownership-selection.mjs
+      - scripts/package-ownership-selection.mts
       - apps/desktop/src-tauri/Cargo.toml
       - apps/desktop/src-tauri/src/application_update.rs
       - apps/desktop/src-tauri/src/application_update_commands.rs
@@ -54,7 +54,7 @@ jobs:
         env:
           PORTCOVE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PORTCOVE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: node scripts/package-ownership-selection.mjs
+        run: node scripts/package-ownership-selection.mts
 
   build:
     needs: select

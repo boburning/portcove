@@ -161,15 +161,15 @@ Development storage defaults are portable: a checkout may use the Windows system
 Run the desktop app from the repository root:
 
 ```powershell
-node scripts/dev-storage.mjs preflight
-node scripts/dev-storage.mjs run -- pnpm install --frozen-lockfile
-node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop desktop:dev
+node scripts/dev-storage.mts preflight
+node scripts/dev-storage.mts run -- pnpm install --frozen-lockfile
+node scripts/dev-storage.mts run -- pnpm --dir apps/desktop desktop:dev
 ```
 
 Build the CLI:
 
 ```powershell
-node scripts/dev-storage.mjs run -- cargo build -p portcove-cli --release
+node scripts/dev-storage.mts run -- cargo build -p portcove-cli --release
 ```
 
 This package-selecting Cargo build compiles `portcove-cli` and `portcove-core`;

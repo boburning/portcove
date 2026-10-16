@@ -464,7 +464,7 @@
       "args": ["--help"],
       "expected": {
         "status": 0,
-        "stdout": "usage: container-browser.mjs doctor | run --commit <40-hex> [--exclude-dirty] [--mode suite|probe|exact] [--timeout-ms <100..1800000>] [--files <literal desktop test files>...] | export --run <UUID> | clean [--apply] [--older-than-hours <0..8760>]\n",
+        "stdout": "usage: container-browser.mts doctor | run --commit <40-hex> [--exclude-dirty] [--mode suite|probe|exact] [--timeout-ms <100..1800000>] [--files <literal desktop test files>...] | export --run <UUID> | clean [--apply] [--older-than-hours <0..8760>]\n",
         "stderr": ""
       }
     },

@@ -1,61 +1,61 @@
 set windows-shell := ["pwsh.exe", "-NoLogo", "-NoProfile", "-Command"]
 
-storage := "node scripts/dev-storage.mjs run --"
+storage := "node scripts/dev-storage.mts run --"
 
 # The no-argument developer loop is the complete diff-selected local plan.
 default: local-check
 
 preflight:
-    node scripts/dev-storage.mjs preflight
+    node scripts/dev-storage.mts preflight
 
 doctor *args:
-    node scripts/dev-doctor.mjs {{args}}
+    node scripts/dev-doctor.mts {{args}}
 
 # Passive snapshots of existing validation guards; never resource admission.
 resource-status *args:
-    node scripts/resource-status.mjs {{args}}
+    node scripts/resource-status.mts {{args}}
 
 # Advisory pull request metadata check; requires GitHub authentication.
 pr-check *args:
-    node scripts/pr-conventions.mjs --pr {{args}}
+    node scripts/pr-conventions.mts --pr {{args}}
 
 # One-shot, fail-closed classification and metadata validation for routine Renovate PRs.
 renovate-check *args:
-    {{storage}} node scripts/pr-delivery.mjs renovate-check {{args}}
+    {{storage}} node scripts/pr-delivery.mts renovate-check {{args}}
 
 # Exact-head REST observation and guarded normal merge for a qualified pull request.
 pr-watch *args:
-    node scripts/pr-delivery.mjs watch {{args}}
+    node scripts/pr-delivery.mts watch {{args}}
 
 pr-merge-rest *args:
-    node scripts/pr-delivery.mjs merge {{args}}
+    node scripts/pr-delivery.mts merge {{args}}
 
 development-tools:
-    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/container-browser.test.mjs scripts/container-build.test.mjs scripts/checked-git.test.mjs scripts/resource-status.test.mjs scripts/report-summary.test.mjs scripts/ci-metrics.test.mjs scripts/checkout-context.test.mjs scripts/github-body.test.mjs scripts/audit.test.mjs scripts/audit-evidence.test.mjs scripts/audit-archive.test.mjs scripts/audit-reuse.test.mjs scripts/desktop-build-cache.test.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-linux-native-session.test.mjs scripts/desktop-linux-stop.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-capabilities.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/handoff-evidence.test.mjs scripts/native-confirmation.test.mjs scripts/native-helper-dependencies.test.mjs scripts/frontend-command-preflight.test.mjs scripts/windows-helper-checks.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/precommit-check.test.mjs scripts/run-oxlint.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/process-lock.test.mjs scripts/renovate-fast-lane.test.mjs scripts/repository-skills.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
+    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/container-browser.test.mts scripts/container-build.test.mts scripts/checked-git.test.mts scripts/resource-status.test.mts scripts/report-summary.test.mts scripts/ci-metrics.test.mts scripts/checkout-context.test.mts scripts/github-body.test.mts scripts/audit.test.mts scripts/audit-evidence.test.mts scripts/audit-archive.test.mts scripts/audit-reuse.test.mts scripts/desktop-build-cache.test.mts scripts/desktop-scenarios.test.mts scripts/desktop-execution-plan.test.mts scripts/desktop-linux-native-session.test.mts scripts/desktop-linux-stop.test.mts scripts/desktop-verify.test.mts scripts/dev-doctor.test.mts scripts/development-capabilities.test.mts scripts/development-cli-help.test.mts scripts/development-evidence.test.mts scripts/handoff-evidence.test.mts scripts/native-confirmation.test.mts scripts/native-helper-dependencies.test.mts scripts/frontend-command-preflight.test.mts scripts/windows-helper-checks.test.mts scripts/heavy-rust-test-lock.test.mts scripts/local-validation.test.mts scripts/precommit-check.test.mts scripts/run-oxlint.test.mts scripts/native-session-lock.test.mts scripts/native-session.test.mts scripts/process-lock.test.mts scripts/renovate-fast-lane.test.mts scripts/repository-skills.test.mts scripts/run-rust-tests.test.mts scripts/rust-support-cache.test.mts scripts/rust-test-impact.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/tool-cache.test.mts
 
 # Complete selected local loop; required hosted CI runs its separately selected plan.
 local-check *args:
-    {{storage}} node scripts/local-validation.mjs check {{args}}
+    {{storage}} node scripts/local-validation.mts check {{args}}
 
 test-rust *args:
-    {{storage}} node scripts/local-validation.mjs test-rust {{args}}
+    {{storage}} node scripts/local-validation.mts test-rust {{args}}
 
 test-ui-related *args:
-    {{storage}} node scripts/local-validation.mjs test-ui-related {{args}}
+    {{storage}} node scripts/local-validation.mts test-ui-related {{args}}
 
 # Literal test files, reconciled against the executed Vitest report.
 test-ui *args:
-    {{storage}} node scripts/local-validation.mjs test-ui {{args}}
+    {{storage}} node scripts/local-validation.mts test-ui {{args}}
 
 test-node *args:
-    {{storage}} node scripts/local-validation.mjs test-node {{args}}
+    {{storage}} node scripts/local-validation.mts test-node {{args}}
 
 desktop-test *args:
-    {{storage}} node scripts/desktop-test-cli.mjs {{args}}
+    {{storage}} node scripts/desktop-test-cli.mts {{args}}
 
 # Build, isolate, select, and retain native desktop verification evidence.
 desktop-verify *args:
-    {{storage}} node scripts/desktop-verify.mjs {{args}}
+    {{storage}} node scripts/desktop-verify.mts {{args}}
 
 # Windows external-reference client; requires Visual Studio Build Tools.
 playnite-check *args:
@@ -63,133 +63,133 @@ playnite-check *args:
 
 # Optional early feedback; these do not replace hosted or installed acceptance.
 cli-help-check:
-    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo test --locked -p portcove-cli --test machine_contract installation_and_external_help_explain_review_binding_and_file_ownership -- --exact
+    {{storage}} node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-cli --test machine_contract installation_and_external_help_explain_review_binding_and_file_ownership -- --exact
 
 playnite-contract-check *args:
     {{storage}} pwsh -NoProfile -File integrations/playnite/check.ps1 -ContractsOnly {{args}}
 
 handoff-check *args:
-    node scripts/handoff-evidence.mjs check {{args}}
+    node scripts/handoff-evidence.mts check {{args}}
 
 # Optional Windows Docker Desktop / WSL 2 browser tooling (#2006).
 container-doctor:
-    node scripts/container-browser.mjs doctor
+    node scripts/container-browser.mts doctor
 
 container-browser *args:
-    node scripts/container-browser.mjs run {{args}}
+    node scripts/container-browser.mts run {{args}}
 
 container-export *args:
-    node scripts/container-browser.mjs export {{args}}
+    node scripts/container-browser.mts export {{args}}
 
 container-clean *args:
-    node scripts/container-browser.mjs clean {{args}}
+    node scripts/container-browser.mts clean {{args}}
 
 # Optional Ubuntu 22.04 checks/unsigned packages (#2007).
 container-build-doctor:
-    node scripts/container-build.mjs doctor
+    node scripts/container-build.mts doctor
 
 container-build *args:
-    node scripts/container-build.mjs run {{args}}
+    node scripts/container-build.mts run {{args}}
 
 container-build-export *args:
-    node scripts/container-build.mjs export {{args}}
+    node scripts/container-build.mts export {{args}}
 
 container-build-clean *args:
-    node scripts/container-build.mjs clean {{args}}
+    node scripts/container-build.mts clean {{args}}
 
 clean-build:
-    node scripts/dev-storage.mjs clean
+    node scripts/dev-storage.mts clean
 
 # Explicit storage recovery; ordinary validation preserves incremental reuse.
 prune-incremental:
-    node scripts/dev-storage.mjs prune-incremental
+    node scripts/dev-storage.mts prune-incremental
 
 # Repository formatting
 fmt:
     {{storage}} cargo fmt --all
-    {{storage}} node scripts/run-viteplus.mjs fmt
+    {{storage}} node scripts/run-viteplus.mts fmt
 
 fmt-check:
     {{storage}} cargo fmt --all -- --check
-    {{storage}} node scripts/run-viteplus.mjs fmt --check
+    {{storage}} node scripts/run-viteplus.mts fmt --check
 
 # Rust fast loop
 rustfmt-check:
     {{storage}} cargo fmt --all -- --check
 
 rust-check:
-    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo check --workspace --all-targets
+    {{storage}} node scripts/run-rust-tests.mts --guard-command cargo check --workspace --all-targets
 
 clippy:
-    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo clippy --workspace --all-targets -- -D warnings
+    {{storage}} node scripts/run-rust-tests.mts --guard-command cargo clippy --workspace --all-targets -- -D warnings
 
 rust-test:
-    {{storage}} node scripts/run-rust-tests.mjs --locked --workspace
-    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo test --locked --workspace --exclude portcove-desktop --doc
-    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo test --locked -p portcove-desktop --doc
+    {{storage}} node scripts/run-rust-tests.mts --locked --workspace
+    {{storage}} node scripts/run-rust-tests.mts --guard-command cargo test --locked --workspace --exclude portcove-desktop --doc
+    {{storage}} node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-desktop --doc
 
 shear:
     {{storage}} cargo shear --deny-warnings
 
 architecture:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-rust-architecture.test.mjs
-    {{storage}} node scripts/check-rust-architecture.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/check-rust-architecture.test.mts
+    {{storage}} node scripts/check-rust-architecture.mts
 
 process-policy:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-child-process-policy.test.mjs
-    {{storage}} node scripts/check-child-process-policy.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/check-child-process-policy.test.mts
+    {{storage}} node scripts/check-child-process-policy.mts
 
 transport-contract:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-transport-contract.test.mjs
-    {{storage}} node scripts/check-transport-contract.mjs
-    {{storage}} node --test scripts/check-transport-contract.integration.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/check-transport-contract.test.mts
+    {{storage}} node scripts/check-transport-contract.mts
+    {{storage}} node --test scripts/check-transport-contract.integration.test.mts
 
 check-rust: rustfmt-check clippy rust-test shear architecture process-policy transport-contract
 
 # Frontend fast loop
 ui-transport:
-    {{storage}} node apps/desktop/scripts/generate-transport-types.mjs
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/transport-types.test.mjs
+    {{storage}} node apps/desktop/scripts/generate-transport-types.mts
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/transport-types.test.mts
 
 ui-build:
-    {{storage}} node scripts/run-viteplus.mjs run frontend:build
+    {{storage}} node scripts/run-viteplus.mts run frontend:build
 
 ui-test:
-    {{storage}} node scripts/run-viteplus.mjs run frontend:unit
+    {{storage}} node scripts/run-viteplus.mts run frontend:unit
 
 fallow:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs scripts/run-fallow.test.mjs scripts/fallow-summary.test.mjs scripts/fallow-scope.test.mjs scripts/fallow-source.test.mjs
-    {{storage}} node scripts/run-fallow.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/check-fallow-report.test.mts scripts/run-fallow.test.mts scripts/fallow-summary.test.mts scripts/fallow-scope.test.mts scripts/fallow-source.test.mts
+    {{storage}} node scripts/run-fallow.mts
 
 # Selective advisory assistance; never an ordinary local/PR stage.
 fallow-tooling:
-    {{storage}} node scripts/run-fallow.mjs tooling
+    {{storage}} node scripts/run-fallow.mts tooling
 
 fallow-review base reuse="":
-    {{storage}} node scripts/run-fallow.mjs review {{quote(base)}} {{quote(reuse)}}
+    {{storage}} node scripts/run-fallow.mts review {{quote(base)}} {{quote(reuse)}}
 
 fallow-css:
-    {{storage}} node scripts/run-fallow.mjs css
+    {{storage}} node scripts/run-fallow.mts css
 
 oxlint:
-    {{storage}} node scripts/run-viteplus.mjs lint
+    {{storage}} node scripts/run-viteplus.mts lint
 
 stylelint:
-    {{storage}} node scripts/run-viteplus.mjs -C apps/desktop run lint:style
+    {{storage}} node scripts/run-viteplus.mts -C apps/desktop run lint:style
 
 ui-lint-contracts:
-    {{storage}} node scripts/lint-tools.integration.mjs oxfmt oxlint stylelint
+    {{storage}} node scripts/lint-tools.integration.mts oxfmt oxlint stylelint
 
 ui-check:
-    {{storage}} node scripts/run-fallow.mjs
-    {{storage}} node scripts/run-viteplus.mjs run frontend:verify
+    {{storage}} node scripts/run-fallow.mts
+    {{storage}} node scripts/run-viteplus.mts run frontend:verify
 
 ui-static:
-    {{storage}} node scripts/run-viteplus.mjs run frontend:static
+    {{storage}} node scripts/run-viteplus.mts run frontend:static
 
 ui-runtime:
-    {{storage}} node scripts/run-viteplus.mjs -C apps/desktop run browser:bootstrap
-    {{storage}} node scripts/run-viteplus.mjs run frontend:runtime
+    {{storage}} node scripts/run-viteplus.mts -C apps/desktop run browser:bootstrap
+    {{storage}} node scripts/run-viteplus.mts run frontend:runtime
 
 check-ui: ui-check ui-lint-contracts
 
@@ -201,37 +201,37 @@ shell-lint:
     {{storage}} aqua exec -- shellcheck --severity=warning scripts/bootstrap-quality-tools.sh scripts/install-linux-desktop-prerequisites.sh scripts/test-linux-package-ownership.sh
 
 actions-lint:
-    {{storage}} node scripts/run-actionlint.mjs
+    {{storage}} node scripts/run-actionlint.mts
 
 powershell-lint:
-    {{storage}} node scripts/run-powershell-lint.mjs
+    {{storage}} node scripts/run-powershell-lint.mts
 
 script-lint-contracts:
-    {{storage}} node scripts/lint-tools.integration.mjs ruff shellcheck actionlint psscriptanalyzer
+    {{storage}} node scripts/lint-tools.integration.mts ruff shellcheck actionlint psscriptanalyzer
 
 script-lint: python-lint shell-lint actions-lint powershell-lint script-lint-contracts
 
 # Offline drift check and publisher-verified repair for Aqua package checksums.
 aqua-integrity-check:
-    {{storage}} node scripts/aqua-integrity.mjs --check
+    {{storage}} node scripts/aqua-integrity.mts --check
 
 aqua-integrity-update:
-    {{storage}} node scripts/aqua-integrity.mjs --update
+    {{storage}} node scripts/aqua-integrity.mts --update
 
 # Generic repository automation and governance contracts.
 repository-tools:
-    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/check-document-links.test.mjs scripts/nextest-equivalence.test.mjs scripts/ordinary-git-routing.test.mjs scripts/package-ownership-selection.test.mjs scripts/postmerge-ci.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/ci-baseline.test.mjs scripts/qualification-coverage.test.mjs scripts/release-result-gate.test.mjs scripts/linux-beta-risk-706.test.mjs scripts/dependency-security.test.mjs scripts/desktop-input-observation.test.mjs scripts/test-duration-reporter.test.mjs scripts/ui-test-selection.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/pnpm-lock-inventory.test.mjs scripts/frontend-build-compare.test.mjs scripts/renovate-engine-probe.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/dev-storage.test.mjs scripts/generate-catalog.test.mjs scripts/catalog-proposal-costs.test.mjs scripts/migrate-catalog-schema2.test.mjs
-    {{storage}} node scripts/qualification-coverage.mjs
-    {{storage}} node scripts/check-retcomm-upstreams.mjs --offline
-    {{storage}} node scripts/quality-tools.mjs --validate
-    {{storage}} node scripts/aqua-integrity.mjs --check
-    {{storage}} node scripts/repository-settings.mjs --validate
+    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/upstream-observer.test.mts
+    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/ci-workflow.test.mts scripts/ci-health.test.mts scripts/workflow-provenance.test.mts scripts/check-document-links.test.mts scripts/nextest-equivalence.test.mts scripts/ordinary-git-routing.test.mts scripts/package-ownership-selection.test.mts scripts/postmerge-ci.test.mts scripts/validation-plan.test.mts scripts/select-ci-plan.test.mts scripts/ci-result-gate.test.mts scripts/ci-baseline.test.mts scripts/qualification-coverage.test.mts scripts/release-result-gate.test.mts scripts/linux-beta-risk-706.test.mts scripts/dependency-security.test.mts scripts/desktop-input-observation.test.mts scripts/test-duration-reporter.test.mts scripts/ui-test-selection.test.mts scripts/quality-tools.test.mts scripts/dependency-automation.test.mts scripts/pnpm-lock-inventory.test.mts scripts/frontend-build-compare.test.mts scripts/renovate-engine-probe.test.mts scripts/repository-settings.test.mts scripts/pr-conventions.test.mts scripts/pr-delivery.test.mts scripts/github-api.test.mts scripts/cleanup-intel-artifacts.test.mts scripts/dev-storage.test.mts scripts/generate-catalog.test.mts scripts/catalog-proposal-costs.test.mts scripts/migrate-catalog-schema2.test.mts
+    {{storage}} node scripts/qualification-coverage.mts
+    {{storage}} node scripts/check-retcomm-upstreams.mts --offline
+    {{storage}} node scripts/quality-tools.mts --validate
+    {{storage}} node scripts/aqua-integrity.mts --check
+    {{storage}} node scripts/repository-settings.mts --validate
 
 # Deterministic release metadata, packaging, updater, and qualification unit contracts.
 release-check:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/select-release-channel.test.mjs scripts/controller-canary.test.mjs scripts/release-coordinator.test.mjs scripts/release-run-evidence.test.mjs scripts/reconstruct-application-update-records.test.mjs scripts/release-workflow.test.mjs scripts/windows-qualification-session.test.mjs
-    {{storage}} node scripts/check-release-metadata.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/check-release-metadata.test.mts scripts/release-package-policy.test.mts scripts/write-release-checksums.test.mts scripts/updater-artifact-inventory.test.mts scripts/reconcile-release-assets.test.mts scripts/finalize-release-assets.test.mts scripts/generate-release-downloads.test.mts scripts/select-release-channel.test.mts scripts/controller-canary.test.mts scripts/release-coordinator.test.mts scripts/release-run-evidence.test.mts scripts/reconstruct-application-update-records.test.mts scripts/release-workflow.test.mts scripts/windows-qualification-session.test.mts
+    {{storage}} node scripts/check-release-metadata.mts
 
 # Stateful packaged-session qualification. Never reused by the audit orchestrator.
 windows-qualification-check:
@@ -240,49 +240,49 @@ windows-qualification-check:
 
 # Offline roadmap schema and governance checks. Live Project access is explicit.
 roadmap-check:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/roadmap.test.mjs scripts/source-provenance-audit.test.mjs scripts/discovery-checkpoint.test.mjs scripts/discovery-intake.test.mjs
-    {{storage}} node scripts/roadmap.mjs check
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/roadmap.test.mts scripts/source-provenance-audit.test.mts scripts/discovery-checkpoint.test.mts scripts/discovery-intake.test.mts
+    {{storage}} node scripts/roadmap.mts check
 
 roadmap-doctor:
-    node scripts/roadmap.mjs doctor
+    node scripts/roadmap.mts doctor
 
 roadmap-next *args:
-    node scripts/roadmap.mjs next {{args}}
+    node scripts/roadmap.mts next {{args}}
 
 # Derived live task context; consumption writes plan by default.
 roadmap-context *args:
-    node scripts/roadmap.mjs context {{args}}
+    node scripts/roadmap.mts context {{args}}
 
 roadmap-acknowledge *args:
-    node scripts/roadmap.mjs acknowledge {{args}}
+    node scripts/roadmap.mts acknowledge {{args}}
 
 roadmap-bootstrap:
-    node scripts/roadmap.mjs bootstrap
+    node scripts/roadmap.mts bootstrap
 
 # Standard repository check. Packaged release qualification is intentionally separate.
 check: check-rust check-ui script-lint repository-tools roadmap-check development-tools
 
 # Development regression policy; preserves the raw scanner result separately
 security:
-    {{storage}} node scripts/dependency-security.mjs
+    {{storage}} node scripts/dependency-security.mts
 
 # Raw dependency scanner (known GLib finding exits 1)
 deny:
-    {{storage}} node scripts/dependency-security.mjs scan
+    {{storage}} node scripts/dependency-security.mts scan
 
 cycles:
     -{{storage}} cargo modules dependencies -p portcove-core --lib --acyclic
 
 rscheck:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/run-rscheck.test.mjs
-    {{storage}} node scripts/run-rscheck.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/run-rscheck.test.mts
+    {{storage}} node scripts/run-rscheck.mts
 
 audit *args:
-    {{storage}} node scripts/audit.mjs {{args}}
+    {{storage}} node scripts/audit.mts {{args}}
 
 mutants:
     {{storage}} cargo mutants --package portcove-core
 
 # Read-only hosted CI history; kept outside required offline checks.
 ci-health:
-    node scripts/ci-health.mjs
+    node scripts/ci-health.mts
