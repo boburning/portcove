@@ -29,6 +29,14 @@ platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)'
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 
+# The Intel run reached the second real retained launch at 28.2s before the
+# default 30s cutoff. Keep both reopen/launch attempts and all preservation
+# assertions; 45s gives this exact lifecycle case finite execution headroom.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_retained_launch_withdrawal_supervises_exact_owned_child_after_reopen$/)'
+slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
+
 # These CLI contracts compare free-space snapshots across child processes.
 # Preserve their existing mutual exclusion across nextest's process boundary.
 [test-groups]
