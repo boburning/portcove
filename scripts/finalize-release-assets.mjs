@@ -74,6 +74,21 @@ export async function finalizeReleaseAssets(assetRoot, inventoryFile, options = 
   ) {
     throw new Error("release inventory identity is incomplete");
   }
+  if (
+    inventory.packages.some((entry) =>
+      /(?:\.AppImage$|amd64\.deb$|x86_64\.rpm$)/iu.test(entry.filename),
+    )
+  ) {
+    const { authorizeLinuxRelease } = await import("./linux-beta-risk-706.mjs");
+    const decision = authorizeLinuxRelease(projectRoot, inventory.tag);
+    if (
+      !inventory.workflow_producers?.some(
+        (producer) =>
+          producer.platform_label === "linux-x86_64" && producer.revision === decision.candidate,
+      )
+    )
+      throw new Error("Linux release assets lack exact authorized source provenance");
+  }
   const entries = await readdir(assets, { withFileTypes: true });
   if (entries.some((entry) => !entry.isFile()))
     throw new Error("release aggregate must contain ordinary files only");

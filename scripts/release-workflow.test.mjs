@@ -49,7 +49,7 @@ const intelSection = job("verify_intel", "release_gate");
 const gateSection = job("release_gate", "assemble");
 const assembleSection = job("assemble", "rehearse");
 const rehearseSection = job("rehearse", "attest");
-const attestSection = job("attest", "publish");
+const attestSection = job("attest", "authorize_publication");
 const publishSection = job("publish", "cleanup");
 const cleanupSection = job("cleanup");
 
@@ -267,7 +267,7 @@ test("tag releases attest exact final bytes and the SBOM before draft mutation",
     /subject-checksums: release-assets-aggregate\/SHA256SUMS\.txt/,
   );
   assert.match(attestSection, /sbom-path: release-assets-aggregate\/Portcove-SBOM\.spdx\.json/);
-  assert.match(publishSection, /^ {4}needs: \[assemble, attest\]$/m);
+  assert.match(publishSection, /^ {4}needs: \[assemble, attest, authorize_publication\]$/m);
 });
 
 test("publisher mutates drafts only from precomputed metadata and attested assets", () => {
@@ -477,6 +477,8 @@ test(
       ...process.env,
       GH_TOKEN: "controlled-fixture-only",
       RELEASE_TAG: "v0.3.0-fixture",
+      LINUX_AUTHORIZED_AT: new Date().toISOString(),
+      LINUX_RISK_EXPIRES_AT: "2099-01-01T00:00:00Z",
       FAKE_GH_STATE: stateRoot,
       PATH: `${bin}${path.delimiter}${process.env.PATH}`,
     };
@@ -615,6 +617,17 @@ test(
       };
     };
 
+    for (const rejected of [
+      { LINUX_AUTHORIZED_AT: "" },
+      { LINUX_AUTHORIZED_AT: "2000-01-01T00:00:00Z" },
+      { LINUX_AUTHORIZED_AT: "2099-01-01T00:00:00Z" },
+      { LINUX_RISK_EXPIRES_AT: "corrupted" },
+      { LINUX_RISK_EXPIRES_AT: "2000-01-01T00:00:00Z" },
+    ]) {
+      const before = await readState();
+      assert.notEqual(runPublisher(rejected).status, 0);
+      assert.deepEqual(await readState(), before);
+    }
     const first = runPublisher();
     await writeFile(
       path.join(evidence, "first-publisher.json"),

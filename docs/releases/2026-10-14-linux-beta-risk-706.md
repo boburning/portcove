@@ -1,3 +1,60 @@
+# Current operation after the October 16 development/release separation
+
+The owner authorized ordinary development to continue with the precise unresolved
+GLib finding independently of Linux release acceptance. This changes development
+policy; it does not renew, broaden or consume the dated release approval below.
+
+- `just deny` is the raw scanner, including `unsound = "all"`; exit 1 remains 1.
+- `just security` and ordinary CI classify the complete actual scan against the
+  single development baseline. The scan can FAIL while development policy PASSes.
+  Both facts and the outstanding #706 remediation are explicit. Release
+  authorization is not evaluated. No release inventory, tag, approval expiry or
+  native-source comparison runs during development.
+- Plain `just audit` applies the same development policy after every independent
+  stage executes. Other failures block. Raw failed stages/aggregate receipts stay
+  failed and diagnostic-only; no passing scanner receipt is synthesized.
+- `just audit --fresh --profile release` performs Linux release authorization.
+  Final Linux desktop asset assembly rechecks the actual candidate, and a separate
+  read-only job rechecks before upload. The isolated publisher refuses authorization
+  older than fifteen minutes and rechecks expiry before every remote mutation.
+
+The original owner, advisory, registry GLib 0.18.5, Linux x86-64/default plus
+`tauri/custom-protocol` scope, expiration, first-publication tag and one-release
+restriction remain unchanged. The first tag remains unallocated. No affected
+Linux release is currently authorized by a development-policy pass. #706 and #49
+remain open, and the GitHub security alert remains undismissed.
+
+The broad native-source fingerprint and its routine protected updates are retired.
+The previous current fingerprint was
+`25c75284f87d4175f1c7358d8cf65a3430b6d940186622abe42b17657c44f158`.
+The prior dependency fingerprint was `4e56c5fb5572bcfd8846b2ded5d05c5bafc42962222c661172fde19a2ce72b11`.
+The existing `reconfirmedHead` now names the source and lock review baseline.
+The publicly reachable #1993 merge `06796f48f3d80db4b650f5b998d1cbe1fe4190b3`
+replaces its source commit `cb5bda2546695aaadba3f66f86f1d35f31f05553`;
+the complete native/build/lock comparison between those commits is empty.
+This preserves the assessed inputs rather than admitting subsequent dependency changes. At the first
+actual release, compare the exact source against that commit, review relevant
+production changes and reuse unaffected evidence. The tool fails closed on an
+unreviewed native/build diff or changed lockfile. Cargo metadata records the actual
+Linux production/build graph and features; the custom ancestor/code-generator
+fingerprint algorithm is retired. Dependency changes are reviewed through the
+actual locked diff and production metadata, with unchanged evidence reused.
+A focused review may establish that a test/UI/unrelated functionality edit has no
+credible exposure effect; advance the named reviewed commit through the normal
+reviewed change, without regenerating source hashes. A filename list is only a
+review prompt, never proof of safety. Relevant crashes, new impact/exploitation
+evidence, an available compatible fix, new enabled features and uncertain
+production reachability require reassessment before release reliance. Detected
+unsafe production paths remain substantive security regressions under ordinary
+review and security checks.
+
+## Preserved original assessment, approval and implementation history
+
+The following dated record is retained verbatim. Its former qualification flag,
+source fingerprint and development release-inventory procedure are superseded by
+the current operation above. Its approval terms and actual remediation criteria
+remain active.
+
 # Ordinary Linux beta: scoped GLib risk acceptance
 
 The canonical [#706 approval](https://github.com/boburning/portcove/issues/706#issuecomment-6182222682)

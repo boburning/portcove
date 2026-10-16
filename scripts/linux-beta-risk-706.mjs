@@ -1,7 +1,7 @@
 // One owner-approved disposition, not a general advisory exception mechanism.
-import { createHash, randomUUID } from "node:crypto";
-import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GitHubApiClient } from "./github-api.mjs";
@@ -11,34 +11,24 @@ export const approval706 =
   "https://github.com/boburning/portcove/issues/706#issuecomment-6182222682";
 export const expiry706 = "2026-11-15T04:59:00.000Z";
 export const target706 = "x86_64-unknown-linux-gnu";
+const nativePaths = [
+  "Cargo.toml",
+  "Cargo.lock",
+  "rust-toolchain.toml",
+  ".cargo",
+  "apps/desktop/src-tauri",
+  "crates/portcove-core",
+];
 const approvalPath = ".github/linux-beta-risk-706.json";
 const hash = (value) => createHash("sha256").update(value).digest("hex");
-const digest = (value) => hash(JSON.stringify(value));
 const sha = /^[a-f0-9]{40}$/u;
 const sha256 = /^[a-f0-9]{64}$/u;
-const groups = ["advisories", "bans", "licenses", "sources"];
-const canonicalText = (value) => value.replaceAll("\r\n", "\n");
-
-// Recognize a retained qualification decision for diagnostics, not fresh release eligibility.
-export function recordsAcceptedQualification706(payload, source) {
-  return (
-    payload?.success === false &&
-    payload.originalExitCode === 1 &&
-    payload.policyDecision?.disposition === "accepted-risk" &&
-    payload.policyDecision.approvalUrl === approval706 &&
-    payload.policyDecision.candidate === source &&
-    payload.policyDecision.purpose === "qualification" &&
-    payload.policyDecision.scanPassed === false &&
-    payload.policyDecision.scanExitCode === 1 &&
-    Array.isArray(payload.stages) &&
-    payload.stages.filter((stage) => stage?.status === "failed").length === 1 &&
-    payload.stages.every(
-      (stage) =>
-        stage?.status === "passed" ||
-        (stage?.id === "dependency-policy" && stage.status === "failed" && stage.exitCode === 1),
-    )
-  );
-}
+import {
+  parseDependencyScan,
+  knownFinding706,
+  scanDependencies,
+  developmentSecurity,
+} from "./dependency-security.mjs";
 
 function command(commandName, args, cwd) {
   return execFileSync(commandName, args, {
@@ -54,78 +44,28 @@ export function candidate706(cwd = root, execute = command) {
   const head = execute("git", ["rev-parse", "HEAD"], cwd);
   if (!sha.test(head)) throw new Error("#706 candidate lacks exact source identity");
   if (
-    execute(
-      "git",
-      [
-        "diff",
-        "HEAD",
-        "--name-only",
-        "--",
-        "Cargo.toml",
-        "Cargo.lock",
-        "rust-toolchain.toml",
-        ".cargo",
-        "apps/desktop/src-tauri",
-        "crates/portcove-core",
-      ],
-      cwd,
-    )
+    execute("git", ["status", "--porcelain=v1", "--untracked-files=all", "--", ...nativePaths], cwd)
   )
     throw new Error("#706 candidate must have clean tracked native inputs");
+  if (
+    [
+      "RUSTFLAGS",
+      "CARGO_ENCODED_RUSTFLAGS",
+      "CARGO_BUILD_RUSTFLAGS",
+      "RUSTC_BOOTSTRAP",
+      "RUSTC_WRAPPER",
+    ].some((name) => process.env[name])
+  )
+    throw new Error("#706 production build environment requires reassessment");
   if (process.env.GITHUB_SHA && process.env.GITHUB_SHA !== head)
     throw new Error("#706 checkout does not match the workflow candidate");
-  const files = execute(
+  const approval = JSON.parse(readFileSync(path.join(cwd, approvalPath), "utf8"));
+  if (!sha.test(approval.reconfirmedHead)) throw new Error("#706 source review baseline missing");
+  const productionChanges = execute(
     "git",
-    [
-      "ls-files",
-      "--cached",
-      "--others",
-      "--exclude-standard",
-      "-z",
-      "--",
-      "apps/desktop/src-tauri/src",
-      "apps/desktop/src-tauri/build.rs",
-      "apps/desktop/src-tauri/Cargo.toml",
-      "apps/desktop/src-tauri/capabilities",
-      "crates/portcove-core/src",
-      "crates/portcove-core/Cargo.toml",
-      "crates/portcove-core/build.rs",
-      "rust-toolchain.toml",
-      ".cargo",
-      "Cargo.toml",
-    ],
+    ["diff", "--name-only", approval.reconfirmedHead, "HEAD", "--", ...nativePaths],
     cwd,
-  )
-    .split("\0")
-    .filter(Boolean)
-    .sort();
-  const inputs = files.map((name) => {
-    const bytes = readFileSync(path.join(cwd, name));
-    let text = canonicalText(bytes.toString("utf8"));
-    if (name === "Cargo.toml")
-      text = text.replace(
-        /(\[workspace\.package\][\s\S]*?\nversion\s*=\s*)"[^"]+"/u,
-        '$1"release-version"',
-      );
-    return [name, hash(/\.(?:rs|json|toml|txt|sql)$/u.test(name) ? text : bytes)];
-  });
-  const config = JSON.parse(
-    readFileSync(path.join(cwd, "apps/desktop/src-tauri/tauri.conf.json"), "utf8"),
   );
-  delete config.version; // A release version bump does not change iterator reachability.
-  inputs.push(["apps/desktop/src-tauri/tauri.conf.json (except version)", digest(config)]);
-  inputs.push([
-    "native-build-environment",
-    digest(
-      [
-        "RUSTFLAGS",
-        "CARGO_ENCODED_RUSTFLAGS",
-        "CARGO_BUILD_RUSTFLAGS",
-        "RUSTC_BOOTSTRAP",
-        "RUSTC_WRAPPER",
-      ].map((name) => [name, process.env[name] ?? null]),
-    ),
-  ]);
   const metadata = JSON.parse(
     execute(
       "cargo",
@@ -144,109 +84,40 @@ export function candidate706(cwd = root, execute = command) {
   );
   const packages = new Map(metadata.packages.map((p) => [p.id, p]));
   const nodes = new Map(metadata.resolve.nodes.map((n) => [n.id, n]));
-  const selected = new Set(
-    metadata.packages.filter((p) => p.name === "glib" && p.version === "0.18.5").map((p) => p.id),
-  );
-  // Every normal-edge ancestor can import the affected Rust type, including re-exports.
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const n of nodes.values())
-      if (
-        !selected.has(n.id) &&
-        n.deps.some((d) => selected.has(d.pkg) && d.dep_kinds.some((k) => k.kind === null))
-      ) {
-        selected.add(n.id);
-        changed = true;
-      }
-  }
-  // Pin code generators and their dependency closure as well as the runtime family.
-  const todo = metadata.packages
-    .filter((p) =>
-      /^(glib-macros|gtk3-macros|tauri-macros|tauri-codegen|tauri-build)$/u.test(p.name),
-    )
-    .map((p) => p.id);
-  const visited = new Set();
-  while (todo.length) {
-    const id = todo.pop();
-    if (visited.has(id)) continue;
-    visited.add(id);
+  const desktop = metadata.packages.find((p) => p.name === "portcove-desktop");
+  if (!desktop || nodes.get(desktop.id)?.features.length !== 0)
+    throw new Error("#706 does not cover Desktop qualification features");
+  // Follow the actual Linux production/build graph, excluding dev-only edges.
+  const selected = new Set();
+  const pending = [desktop.id];
+  while (pending.length) {
+    const id = pending.pop();
+    if (selected.has(id)) continue;
     selected.add(id);
-    todo.push(
-      ...nodes
-        .get(id)
-        .deps.filter((d) => d.dep_kinds.some((k) => k.kind !== "dev"))
-        .map((d) => d.pkg),
+    const node = nodes.get(id);
+    if (!node || !packages.has(id)) throw new Error("incomplete Linux dependency graph");
+    pending.push(
+      ...node.deps.filter((d) => d.dep_kinds.some((k) => k.kind !== "dev")).map((d) => d.pkg),
     );
   }
-  const lock = readFileSync(path.join(cwd, "Cargo.lock"));
-  const checksums = new Map(
-    lock
-      .toString()
-      .split("[[package]]")
-      .slice(1)
-      .map((block) => [
-        `${block.match(/name = "([^"]+)"/u)?.[1]}@${block.match(/version = "([^"]+)"/u)?.[1]}`,
-        block.match(/checksum = "([^"]+)"/u)?.[1] ?? null,
-      ]),
-  );
-  const identity = (id) => {
-    const p = packages.get(id);
-    return p.source ? `${p.name}@${p.version}:${p.source}` : `${p.name}@workspace`;
-  };
   const native = [...selected]
     .map((id) => {
-      const p = packages.get(id),
-        n = nodes.get(id);
+      const p = packages.get(id);
       return {
-        id: identity(id),
-        checksum: p.source ? checksums.get(`${p.name}@${p.version}`) : null,
-        features: n.features.toSorted(),
-        dependencies: n.deps
-          .filter((d) => selected.has(d.pkg))
-          .map((d) => identity(d.pkg))
-          .toSorted(),
+        id: `${p.name}@${p.version}:${p.source ?? "workspace"}`,
+        features: nodes.get(id).features.toSorted(),
       };
     })
     .sort((a, b) => a.id.localeCompare(b.id, "en"));
-  const desktop = metadata.packages.find((p) => p.name === "portcove-desktop");
-  const features = nodes.get(desktop.id).features.toSorted();
-  if (features.length) throw new Error("#706 does not cover Desktop qualification features");
   return {
     head,
-    lockSha256: hash(lock),
+    lockSha256: hash(readFileSync(path.join(cwd, "Cargo.lock"))),
     target: target706,
     features: ["default", "tauri/custom-protocol"],
-    inputsSha256: digest(inputs),
-    dependenciesSha256: digest(native),
-    inputs,
+    productionChanges,
+    reviewedHead: approval.reconfirmedHead,
     native,
   };
-}
-
-export function parseScan706(stdout, stderr) {
-  const lines = `${stdout}\n${stderr}`.split(/\r?\n/u).filter((line) => line.trim());
-  const diagnostics = [];
-  let summary;
-  for (const line of lines) {
-    const entry = JSON.parse(line);
-    if (entry.type === "diagnostic") {
-      if (!["error", "warning", "note", "help"].includes(entry.fields?.severity))
-        throw new Error("unknown cargo-deny diagnostic severity");
-      diagnostics.push(entry.fields);
-    } else if (entry.type === "summary" && !summary) summary = entry.fields;
-    else throw new Error("unexpected or duplicate cargo-deny output");
-  }
-  if (!summary || Object.keys(summary).sort().join() !== groups.toSorted().join())
-    throw new Error("incomplete cargo-deny check coverage");
-  for (const group of groups)
-    for (const key of ["errors", "warnings", "notes", "helps"])
-      if (!Number.isSafeInteger(summary[group]?.[key]) || summary[group][key] < 0)
-        throw new Error("incomplete cargo-deny summary");
-  const errors = diagnostics.filter((d) => d.severity === "error");
-  if (errors.length !== groups.reduce((n, group) => n + summary[group].errors, 0))
-    throw new Error("cargo-deny diagnostic/summary mismatch");
-  return { errors, summary, diagnostics };
 }
 
 export function validateApproval706(approval, now = new Date().toISOString()) {
@@ -275,7 +146,7 @@ export function decide706({
   candidate,
   scan,
   releases,
-  purpose = "qualification",
+  purpose = "release",
   publicationTag = null,
   now = new Date().toISOString(),
 }) {
@@ -285,39 +156,27 @@ export function decide706({
     !sha256.test(candidate?.lockSha256) ||
     candidate.target !== target706 ||
     JSON.stringify(candidate.features) !== '["default","tauri/custom-protocol"]' ||
-    candidate.inputsSha256 !== approval.inputsSha256 ||
-    candidate.dependenciesSha256 !== approval.dependenciesSha256 ||
-    !sha256.test(candidate.inputsSha256) ||
-    !sha256.test(candidate.dependenciesSha256)
+    candidate.productionChanges !== "" ||
+    candidate.reviewedHead !== approval.reconfirmedHead ||
+    !sha.test(candidate.reviewedHead)
   )
     throw new Error("#706 candidate inputs changed: reassessment required");
+  const policy = developmentSecurity(scan, scan?.executionConfig);
   if (
-    !scan ||
     scan.head !== candidate.head ||
     scan.lockSha256 !== candidate.lockSha256 ||
-    scan.complete !== true ||
-    scan.signal !== null ||
-    scan.error !== null ||
-    scan.exitCode !== 1 ||
-    scan.unsoundAll !== true ||
+    policy.scanPassed ||
     scan.configSha256 !== approval.policySha256 ||
     !sha256.test(approval.policySha256) ||
-    scan.toolVersion !== "cargo-deny 0.20.2" ||
-    scan.scope !== "workspace-default-all-targets-all-checks"
+    !Number.isFinite(Date.parse(scan.completedAt)) ||
+    Date.parse(scan.completedAt) > Date.parse(now) ||
+    Date.parse(now) - Date.parse(scan.completedAt) > 15 * 60 * 1000
   )
     throw new Error(
       "#706 requires a complete exact-candidate failed scan with full unsoundness coverage",
     );
-  const { errors, summary, diagnostics } = parseScan706(scan.stdout, scan.stderr);
-  if (
-    errors.length !== 1 ||
-    errors[0].code !== "unsound" ||
-    errors[0].advisory?.id !== "RUSTSEC-2024-0429" ||
-    errors[0].advisory?.package !== "glib" ||
-    !errors[0].labels?.some(
-      (label) => label.span === "glib 0.18.5 registry+https://github.com/rust-lang/crates.io-index",
-    )
-  )
+  const { errors, summary, diagnostics } = parseDependencyScan(scan.stdout, scan.stderr);
+  if (errors.length !== 1 || !knownFinding706(errors[0]))
     throw new Error("#706 does not accept an additional or different finding");
   if (
     diagnostics.some(
@@ -364,14 +223,12 @@ export function decide706({
   );
   if (published.some((r) => r.tag_name !== approval.firstPublicationTag) || published.length > 1)
     throw new Error("#706 expires before publication of the second ordinary Linux beta");
-  if (!["qualification", "release"].includes(purpose))
-    throw new Error("unknown #706 decision purpose");
+  if (purpose !== "release") throw new Error("unknown #706 decision purpose");
   // A reviewed first tag is durable budget identity even if a release is later deleted.
   // It is intentionally unallocated until the actual first candidate is reconfirmed.
   if (
-    purpose === "release" &&
-    (!/^v\d+\.\d+\.\d+-(?:alpha|beta)\.\d+$/u.test(approval.firstPublicationTag ?? "") ||
-      publicationTag !== approval.firstPublicationTag)
+    !/^v\d+\.\d+\.\d+-(?:alpha|beta)\.\d+$/u.test(approval.firstPublicationTag ?? "") ||
+    publicationTag !== approval.firstPublicationTag
   )
     throw new Error("#706 first publication tag is not bound to this candidate");
   return {
@@ -391,80 +248,20 @@ export function decide706({
   };
 }
 
-export function scan706(cwd = root, filename = process.env.PORTCOVE_706_SCAN_RECEIPT) {
-  const output = filename ?? path.join(cwd, "work", "linux-beta-risk-706", `${randomUUID()}.json`);
-  mkdirSync(path.dirname(output), { recursive: true });
-  const head = command("git", ["rev-parse", "HEAD"], cwd);
-  const lockSha256 = hash(readFileSync(path.join(cwd, "Cargo.lock")));
-  const policy = readFileSync(path.join(cwd, "deny.toml"), "utf8");
-  // Execute all maintained checks, broadening only the already approved unsoundness
-  // coverage when #1993's declarative candidate is not yet delivered. No ignore or
-  // severity change; keep both original and execution configuration bytes.
-  const strictPolicy = /^unsound\s*=\s*"all"\s*$/mu.test(policy)
-    ? canonicalText(policy)
-    : canonicalText(policy).replace(/(^ignore[ \t]*=[ \t]*\[\][ \t]*$)/mu, '$1\nunsound = "all"');
-  const policyPath = `${output}.deny.toml`;
-  writeFileSync(policyPath, strictPolicy, { flag: "wx" });
-  const toolVersion = command("cargo", ["deny", "--version"], cwd);
-  const run = spawnSync(
-    "cargo",
-    [
-      "deny",
-      "--format",
-      "json",
-      "--config",
-      policyPath,
-      "check",
-      "--hide-inclusion-graph",
-      "-W",
-      "unmaintained",
-    ],
-    {
-      cwd,
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 120_000,
-      maxBuffer: 32 * 1024 * 1024,
-    },
-  );
-  const scan = {
-    head,
-    lockSha256,
-    scope: "workspace-default-all-targets-all-checks",
-    unsoundAll: /^\[advisories\]\r?\n(?:(?!^\[)[\s\S])*?^unsound\s*=\s*"all"\s*$/mu.test(
-      strictPolicy,
-    ),
-    configSha256: hash(strictPolicy),
-    sourceConfigSha256: hash(canonicalText(policy)),
-    sourceConfig: policy,
-    executionConfig: strictPolicy,
-    toolVersion,
-    completedAt: new Date().toISOString(),
-    exitCode: run.status,
-    signal: run.signal,
-    error: run.error ? String(run.error.message) : null,
-    complete: !run.error && run.signal === null && [0, 1].includes(run.status),
-    stdout: run.stdout ?? "",
-    stderr: run.stderr ?? "",
-  };
-  // Raw streams and status are retained before a separate decision is attempted.
-  writeFileSync(output, `${JSON.stringify(scan, null, 2)}\n`, { flag: "wx" });
-  process.stdout.write(scan.stdout);
-  process.stderr.write(scan.stderr);
-  console.log(`[dependency-policy] original cargo-deny exit ${scan.exitCode}; evidence ${output}`);
-  return { scan, output };
-}
-
-export function decisionInputs706(cwd, scan, now, purpose = "qualification") {
+export function decisionInputs706(
+  cwd,
+  scan,
+  now,
+  purpose = "release",
+  publicationTag = process.env.GITHUB_REF_NAME,
+  candidate = candidate706(cwd),
+) {
   const approval = JSON.parse(readFileSync(path.join(cwd, approvalPath), "utf8"));
-  const releases = new GitHubApiClient().paginateRest(
-    "repos/boburning/portcove/releases?per_page=100",
-    {
-      identity: (r) => r.id,
-      label: "#706 publication inventory",
-    },
-  );
   const api = new GitHubApiClient();
+  const releases = api.paginateRest("repos/boburning/portcove/releases?per_page=100", {
+    identity: (r) => r.id,
+    label: "#706 publication inventory",
+  });
   for (const release of releases)
     if (!release.draft && Date.parse(release.published_at) >= Date.parse(approval.approvedAt))
       release.assets = api.paginateRest(
@@ -476,52 +273,59 @@ export function decisionInputs706(cwd, scan, now, purpose = "qualification") {
       );
   return {
     approval,
-    candidate: candidate706(cwd),
+    candidate,
     scan,
     releases,
     now,
     purpose,
-    publicationTag: purpose === "release" ? process.env.GITHUB_REF_NAME : null,
+    publicationTag,
   };
 }
 
-export function disposition706(cwd, scan, now, purpose = "qualification") {
-  return decide706(decisionInputs706(cwd, scan, now, purpose));
+// Fresh, fail-closed check at distribution boundaries; a development decision is never an input.
+export function releaseSecurity(cwd, scan, publicationTag = process.env.GITHUB_REF_NAME) {
+  const development = developmentSecurity(scan, readFileSync(path.join(cwd, "deny.toml"), "utf8"));
+  const candidate = candidate706(cwd);
+  const age = Date.now() - Date.parse(scan.completedAt);
+  if (
+    scan.head !== candidate.head ||
+    scan.lockSha256 !== candidate.lockSha256 ||
+    !Number.isFinite(age) ||
+    age < 0 ||
+    age > 15 * 60 * 1000
+  )
+    throw new Error("Linux release requires fresh exact-candidate scanner evidence");
+  if (development.scanPassed) {
+    if (candidate.native.some((p) => p.id.startsWith("glib@0.18.5:")))
+      throw new Error("Affected Linux release lacks the expected full-scope advisory evidence");
+    return { disposition: "clean-scan", candidate: candidate.head, publicationTag };
+  }
+  return decide706(decisionInputs706(cwd, scan, undefined, "release", publicationTag, candidate));
 }
 
-export function validateScan706(scan, approval) {
-  if (
-    !scan?.complete ||
-    scan.signal !== null ||
-    scan.error !== null ||
-    scan.unsoundAll !== true ||
-    scan.configSha256 !== approval?.policySha256 ||
-    scan.toolVersion !== "cargo-deny 0.20.2"
-  )
-    throw new Error("incomplete or changed dependency-policy execution");
-  const parsed = parseScan706(scan.stdout, scan.stderr);
-  if ((scan.exitCode === 0) !== (parsed.errors.length === 0))
-    throw new Error("scan exit/diagnostics mismatch");
-  return parsed;
+export function authorizeLinuxRelease(cwd = root, publicationTag = process.env.GITHUB_REF_NAME) {
+  const { scan, output } = scanDependencies(cwd);
+  const decision = releaseSecurity(cwd, scan, publicationTag);
+  writeFileSync(`${output}.release.json`, `${JSON.stringify(decision, null, 2)}\n`, { flag: "wx" });
+  return decision;
 }
 
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   try {
     const [mode] = process.argv.slice(2);
     if (mode === "candidate") console.log(JSON.stringify(candidate706(), null, 2));
-    else if (["scan", "check"].includes(mode)) {
-      const { scan, output } = scan706();
-      if (mode === "check") {
-        validateScan706(scan, JSON.parse(readFileSync(path.join(root, approvalPath), "utf8")));
-      }
-      if (mode === "check" && scan.exitCode === 1) {
-        const decision = disposition706(root, scan);
-        writeFileSync(`${output}.decision.json`, `${JSON.stringify(decision, null, 2)}\n`, {
-          flag: "wx",
-        });
-        console.log(JSON.stringify(decision));
-      } else process.exitCode = scan.exitCode ?? 1;
-    } else throw new Error("usage: linux-beta-risk-706.mjs scan|check|candidate");
+    else if (mode === "check") {
+      const decision = authorizeLinuxRelease();
+      console.log(JSON.stringify(decision));
+      if (process.env.GITHUB_OUTPUT)
+        appendFileSync(
+          process.env.GITHUB_OUTPUT,
+          `expires_at=${decision.expiresAt ?? ""}\nauthorized_at=${new Date().toISOString()}\n`,
+        );
+    } else
+      throw new Error(
+        "usage: linux-beta-risk-706.mjs check|candidate (Linux release authorization)",
+      );
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

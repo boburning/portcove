@@ -109,14 +109,13 @@ jobs:
         env:
           PORTCOVE_AUDIT_CAPTURE: "1"
           AUDIT_OPERATION: ${{ inputs.operation }}
-          GH_TOKEN: ${{ github.token }}
         run: |
           node scripts/deep-audit-summary.mjs --start || echo "Audit summary initialization unavailable"
           set +e
           if [[ "$AUDIT_OPERATION" == "audit-reuse" ]]; then
-            just audit --linux-beta-706
+            just audit
           else
-            just audit --fresh --linux-beta-706
+            just audit --fresh
           fi
           audit_status=$?
           echo "exit_code=$audit_status" >> "$GITHUB_OUTPUT"
