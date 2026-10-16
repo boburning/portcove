@@ -267,6 +267,12 @@ test("qualification cannot allocate a publication and the second tag is always r
 });
 
 test("release source review compares the exact candidate against a named reviewed commit", (t) => {
+  const inheritedSha = process.env.GITHUB_SHA;
+  process.env.GITHUB_SHA = candidate.head;
+  t.after(() => {
+    if (inheritedSha === undefined) delete process.env.GITHUB_SHA;
+    else process.env.GITHUB_SHA = inheritedSha;
+  });
   const dir = mkdtempSync(path.join(os.tmpdir(), "portcove-706-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(path.join(dir, ".github"));
@@ -299,6 +305,9 @@ test("release source review compares the exact candidate against a named reviewe
     return changes;
   };
   const before = candidate706(dir, execute);
+  process.env.GITHUB_SHA = "f".repeat(40);
+  assert.throws(() => candidate706(dir, execute), /workflow candidate/);
+  process.env.GITHUB_SHA = candidate.head;
   changes = "crates/portcove-core/src/lib.rs";
   const after = candidate706(dir, execute);
   assert.deepEqual(after.native, before.native);
