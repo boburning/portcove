@@ -49,11 +49,11 @@
     "@tauri-apps/plugin-dialog": "2.8.3",
     "class-variance-authority": "0.7.1",
     "cn": "0.4.0",
-    "i18next": "26.4.5",
+    "i18next": "26.4.6",
     "lucide-react": "^1.55.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-i18next": "17.0.17"
+    "react-i18next": "17.0.18"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
