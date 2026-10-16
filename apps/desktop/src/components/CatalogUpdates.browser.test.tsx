@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it, vi } from "vite-plus/test";
+import { userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type { CatalogStatus, CatalogUpdatePlan } from "../types";
@@ -95,7 +96,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
       item.textContent?.includes(label),
     )!;
   const click = async (label: string) => {
-    await act(async () => button(label).click());
+    await act(async () => userEvent.click(button(label)));
   };
   try {
     await act(async () =>
@@ -126,9 +127,10 @@ it("requires explicit review, invalidates changed candidates and uses core prove
       '[data-slot="select-content"][data-open]',
     );
     expect(openPopup).not.toBeNull();
-    await act(async () => {
-      openPopup?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    });
+    await expect
+      .poll(() => document.activeElement?.closest('[data-slot="select-content"]'))
+      .toBe(openPopup);
+    await act(async () => userEvent.keyboard("{Escape}"));
     expect(document.body.querySelector('[aria-labelledby="catalog-update-title"]')).not.toBeNull();
     await expect
       .poll(() => document.activeElement)
