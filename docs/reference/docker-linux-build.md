@@ -80,6 +80,8 @@ PIDs, matching browser limits. Preparation is bounded to 90 minutes and the task
 to 90 minutes (`--timeout-ms` may tighten it). Browser deadlines stay at 30 minutes.
 Builder source-bundle export has a ten-minute safeguard, clipped to the remaining
 preparation budget; the browser source-bundle safeguard stays at five minutes.
+Both adapters allow two minutes for each read-only daemon storage query, clipped
+to remaining preparation time and covered by the existing cancellation signal.
 Existing physical Windows volume and Linux free-space admission apply. Source
 bundles are capped at 256 MiB, command output at 16 MiB, task logs at 100 MiB and
 exported evidence at 1 GiB. Shared admission/retention budgets remain 10 GiB for

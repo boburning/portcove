@@ -131,8 +131,8 @@ repository-wide format commits are listed in `.git-blame-ignore-revs`.
 Deterministic failures block: rustfmt, Cargo compilation, Clippy, tests,
 type-aware Oxlint, Oxfmt, Stylelint, Ruff, ShellCheck, actionlint,
 PSScriptAnalyzer, cargo-shear, cargo-deny security/license/source policy, the
-Cargo-metadata architecture checker, Fallow, and rscheck's absolute-path rule
-outside reviewed exceptions.
+Cargo-metadata architecture checker, the retained whole-Desktop Fallow policy
+when selected, and rscheck's absolute-path rule outside reviewed exceptions.
 
 Oxlint uses one root configuration for the desktop TypeScript/TSX and the
 repository's JavaScript modules. Its explicit plugin list includes ESLint,
@@ -221,6 +221,96 @@ proof of all rendered wording or of translation quality.
 
 Structural heuristics advise: dependency duplication, unmaintained transitive dependencies, complexity, responsibility splits, god objects, duplicate logic, dead public APIs, semantic duplication, and mutation survivors. Do not refactor simply to make an advisory number green.
 
+## Fallow scopes and policy
+
+The repository pins Fallow 3.33.1. Use the maintained wrappers so reports retain
+their source identity and Portcove's enforcement mapping. Ordinary fast PR CI
+and default focused local checks do not run an exhaustive Fallow scan.
+
+| Command                   | Use and scope                                                                                   | Enforcement                                                                                                     |
+| ------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `just fallow`             | Whole Desktop JS/TS graph; also selected by explicit full frontend qualification and deep audit | Validated `check.total_issues` must be zero, including warning findings; critical-complexity count must be zero |
+| `just fallow-tooling`     | Investigate maintained repository JS/TS, especially root scripts and their consumers            | Advisory; historical tooling findings do not block Desktop qualification                                        |
+| `just fallow-review BASE` | Review a meaningful JS/TS branch change against its real comparison base                        | Advisory changed-code audit and review brief, with inherited context                                            |
+| `just fallow-css`         | Substantial styling changes or design-system maintenance                                        | Advisory dedicated CSS analysis                                                                                 |
+
+The full gate retains dead-code, dependency, circular-dependency and configured
+architecture checks. Its zero total includes warning findings; replacing that
+decision with a native error-only verdict would weaken existing protection.
+Critical complexity remains the complexity blocker. Aggregate duplication above
+the former 2% ceiling does not fail: use group identities, locations and shared
+responsibility to decide whether a refactor helps. Do not impose a substitute
+percentage or treat a new advisory category as a blocking check.
+
+[PR #1097](https://github.com/boburning/portcove/pull/1097) records a candidate
+crossing the old duplication threshold and a repair before delivery. That is
+evidence of workflow friction; it does not establish that the repaired code was
+harmful or that every duplicate should remain. Judge the actual responsibilities.
+
+The Desktop configuration retains the shared-to-feature prohibition, including
+type-only imports, re-exports and literal dynamic imports. Its causal fixtures
+exercise allowed shared/shared and feature/shared imports too. Unclassified
+legacy/root modules remain explicit coverage limits; feature-to-feature imports
+are not generally prohibited. The tooling graph models maintained executable
+entry points and follows helper imports; generated inputs, fixtures and dynamic
+consumers still require checking before accepting an unused-code candidate.
+Fallow does not analyze Rust, PowerShell or native application behavior.
+
+The root graph explicitly includes catalog generators executed by test runners,
+Docker's copied entry script, and other dynamically launched tools. Its sole
+unresolved-import exception is `/theme-bootstrap.js`: Vite serves the verified
+`apps/desktop/public/theme-bootstrap.js` at that URL, while repository-root
+resolution cannot model the app's public root. The scope test verifies that file
+and the dynamic tooling entry points remain included.
+
+Every wrapper invocation retains original analyzer output, stderr and source,
+scope, version and comparison metadata below ignored `work/fallow-reports`.
+Local source identity includes dirty content; a commit SHA alone does not identify
+an uncommitted candidate. The bounded summary lists concrete findings and
+refactoring targets from the report already produced. Inspect the retained JSON
+for omitted groups or full context; use `fallow report --from` where the pinned
+version supports the desired presentation, rather than repeating analysis.
+Hosted analysis publishes a job summary and retains the reports as an artifact
+on successful and failed runs under the workflow's bounded retention policy.
+For selective hosted assistance, dispatch the existing **Deep audit** workflow
+with `operation=fallow`, the desired `fallow_scope`, and the actual
+`comparison_base` for review. This provisions no Rust or browser runtime and
+adds no ordinary PR check; `desktop` retains its full gate policy.
+Execution failure, code findings and evidence-retention failure remain distinct;
+a secondary formatting failure must preserve the original analyzer result.
+
+For a review of a branch, pass its actual target ref to `just fallow-review BASE`.
+The comparison uses the merge-base and complete relevant diff, including dirty
+content, both rename identities and deletions; the last commit alone is usually
+the wrong scope. Introduced findings direct review and inherited findings supply
+context. Reuse a candidate's retained report only while relevant content,
+configuration, base and tool version match. Refresh invalidated analysis.
+To reuse an unchanged brief, run `just fallow-review BASE REPORT_DIRECTORY`;
+the wrapper checks input identity and retained stream hashes before reuse.
+`fallow review` always exits zero: its brief is assistance, not a passing gate or
+the independent reviewer. A native walkthrough/judgment response, if used, also
+requires its structured validation result to be read.
+
+CSS analysis supplies token-drift, duplicate-declaration, selector-complexity and
+unused-style candidates where supported. Verify them against runtime semantic
+variables, Tailwind theme exposure/generated utilities, conditional component
+classes, CSS Modules and Base UI state-dependent styling. Incomplete static
+consumer discovery is not deletion proof. Stylelint, Oxlint, browser behavior,
+accessibility checks and visual review retain their separate responsibilities.
+The dedicated route runs `health --css --report-only`, so CSS candidates remain
+visible without native health thresholds becoming an additional quality gate.
+
+Use targeted type-aware analysis when exact symbol identity, re-exports, class
+contracts or affected consumers matter. First verify that the optional companion
+is available and compatible with the pinned release; do not assume plugin skill
+text or upstream main describes the installed binary. Everyday scans stay
+syntax-based and inexpensive. Keep native caches enabled per checkout/project,
+set `PORTCOVE_FALLOW_THREADS` to bound parser threads (default 2) within existing
+resource controls, and reuse
+supported audit base caches. Do not share one absolute cache across worktrees.
+The selected full scan runs once, before expensive runtime work as soon as its
+actual generated-input prerequisites are ready.
+
 pnpm 12's default one-day minimum release age remains active without dependency
 exceptions. Portcove pins pnpm exactly in the root `packageManager` field,
 derives workflow setup from that authority, and requires frozen installation.
@@ -291,6 +381,12 @@ Hourly PR and commit caps are disabled (`prHourlyLimit: 0` and
 `commitHourlyLimit: 0`), so eligible proposals and conflict repairs can replenish
 available slots without waiting for the next hour. This does not change the
 hosted Renovate service's execution cadence, release-age filtering or review gates.
+Ordinary dependency proposals, including development tools and compatibility
+groups, are eligible at any time after their release-age checks; they no longer
+wait for Monday or Thursday. Lockfile maintenance retains its Monday-before-6am
+window in America/New_York, and major migrations retain selective dashboard
+approval. An empty open-PR queue does not mean no updates exist: inspect the
+dashboard's release-age, schedule and approval holds as well.
 Security vulnerability alerts retain Renovate's documented bypass of those
 ordinary queue limits, while GitHub vulnerability alerts and Dependabot security
 updates remain independent. Adjust throughput through the top-level limits in

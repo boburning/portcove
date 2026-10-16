@@ -269,10 +269,10 @@ test("deployed Cargo replay separates selected lock updates from security and fu
   assert.equal(boundaries.fullLockfileMaintenance.universalTransitiveAgeGuarantee, false);
 });
 
-test("Renovate batches development tools and suppresses only the Aqua registry authority", async () => {
+test("Renovate admits development tools continuously and suppresses only the Aqua registry authority", async () => {
   const renovate = JSON.parse(await read("renovate.json"));
   const aqua = await read("aqua.yaml");
-  const toolingSchedule = ["* * * * 1,4"];
+  const toolingSchedule = ["at any time"];
 
   const npmCadence = renovate.packageRules.find(
     (rule) =>
@@ -457,13 +457,11 @@ test("selective migration intake and security overrides preserve immediate contr
   assert.equal(
     config.schedule,
     undefined,
-    "ordinary runtime candidates remain continuously eligible",
+    "ordinary dependency candidates remain continuously eligible",
   );
   assert.deepEqual(config.lockFileMaintenance.schedule, ["before 6am on monday"]);
-  for (const rule of config.packageRules.filter(
-    (rule) => rule.schedule && !["react", "tauri", "vite-plus"].includes(rule.groupName),
-  ))
-    assert.deepEqual(rule.schedule, ["* * * * 1,4"]);
+  for (const rule of config.packageRules.filter((rule) => rule.schedule))
+    assert.deepEqual(rule.schedule, ["at any time"]);
 });
 
 test("custom extraction records every exact identity once across supported whitespace and line endings", async () => {

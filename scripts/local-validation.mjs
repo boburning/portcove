@@ -214,6 +214,7 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map([
+  [".fallow-tooling.json", ["scripts/fallow-scope.test.mjs", "scripts/run-fallow.test.mjs"]],
   ...[
     "scripts/container-host.mjs",
     "scripts/container-build.mjs",
@@ -609,13 +610,11 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       if (options.isDeletion || !/\.(?:[cm]?[jt]sx?|css)$/u.test(file))
         selection.uiFullTests = true;
       else selection.uiRelatedFiles.add(file);
-      selection.fallow = true;
     } else {
       selection.uiFullTests = true;
     }
     if (extension === ".css") selection.stylelint = true;
     if (file === "apps/desktop/.fallowrc.json") {
-      selection.fallow = true;
       addNodeTest(selection, "scripts/check-fallow-report.test.mjs");
     }
   }
@@ -641,7 +640,6 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     selection.scopes.add("ui");
     recognized = true;
     if (["package.json", "pnpm-lock.yaml"].includes(file)) {
-      selection.fallow = true;
       addNodeTest(selection, "scripts/check-fallow-report.test.mjs");
     }
   }
@@ -895,7 +893,6 @@ export function classifyChanges(changes, options = {}) {
     powershellLint: false,
     shellLint: false,
     pythonLint: false,
-    fallow: false,
     playnite: false,
     transport: false,
     shellFiles: new Set(),
@@ -1540,7 +1537,6 @@ function localStageDomains(entry) {
   if (["transport-export", "transport-policy"].includes(entry.id))
     return ["repository", "rust", "ui"];
   if (entry.id === "playnite-contract") return ["repository"];
-  if (entry.id === "fallow") return ["ui"];
   if (entry.id === "node-tests") {
     const domains = new Set();
     for (const file of entry.args.filter((argument) => argument.endsWith(".test.mjs"))) {
@@ -1682,7 +1678,7 @@ export function storageScopeForPlan(plan) {
   for (const { id } of plan) {
     if (["rustfmt", "dependency-policy", "test-rust"].includes(id) || id.startsWith("rust-"))
       rust = true;
-    else if (id.startsWith("ui-") || ["oxfmt", "oxlint", "repository-lint", "fallow"].includes(id))
+    else if (id.startsWith("ui-") || ["oxfmt", "oxlint", "repository-lint"].includes(id))
       frontend = true;
     else if (
       !["diff-check", "node-tests", "actionlint", "shell-lint", "python-lint"].includes(id) &&

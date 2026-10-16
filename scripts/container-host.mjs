@@ -913,8 +913,12 @@ export function createContainerHost(profile) {
       };
       let image = usage.images.find((candidate) => candidate.RepoTags?.includes(tag));
       if (!image) {
-        const diskUsage = (await docker(["system", "df", "--format", "json"], { timeout: 30_000 }))
-          .stdout;
+        const diskUsage = (
+          await docker(["system", "df", "--format", "json"], {
+            timeout: setupTimeout(120_000),
+            signal: abort.signal,
+          })
+        ).stdout;
         const cache = cacheBytes(diskUsage);
         state.global_images_before_bytes = cacheBytes(diskUsage, "Images");
         if (
@@ -996,7 +1000,12 @@ export function createContainerHost(profile) {
         state.image_inspection = image;
         save();
         state.build_cache_after_bytes = cacheBytes(
-          (await docker(["system", "df", "--format", "json"], { timeout: 30_000 })).stdout,
+          (
+            await docker(["system", "df", "--format", "json"], {
+              timeout: setupTimeout(120_000),
+              signal: abort.signal,
+            })
+          ).stdout,
         );
         if (state.build_cache_after_bytes > budgets.build_cache_bytes)
           throw new Error(

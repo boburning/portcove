@@ -57,7 +57,8 @@ accept REST and `gh` job IDs and never claim complete pagination. Delivery watch
 retains its existing observations under ignored `work/pr-delivery`; inspect those
 snapshots instead of issuing duplicate status queries. Fetch logs for the identified
 failed job rather than an entire multi-job workflow. Fallow retains
-original analyzer bytes below `work/fallow-reports`. Selected static gates run
+original analyzer bytes, stderr and source/scope/version metadata below
+`work/fallow-reports`; inspect these before requesting another scan. Selected static gates run
 before compilation and tests; complete selected and hosted obligations remain.
 
 ## Focused validation and bounded delivery reads
@@ -515,9 +516,10 @@ checksum before tool installation. These commands do not grant Renovate arbitrar
 post-upgrade execution or replace Aqua's install-time checksum and attestation
 verification.
 
-Routine non-security development-tool proposals use Renovate's weekly tooling
-window. Aqua and its managed Ruff, actionlint, and ShellCheck pins are proposed as
-one qualification group. Renovate does not independently advance the standard
+Routine non-security development-tool proposals are eligible throughout the week
+after the existing release-age check, within the two concurrent queue slots.
+Aqua and its managed Ruff, actionlint, and ShellCheck pins are proposed as one
+qualification group. Renovate does not independently advance the standard
 registry ref: if an actual tool update is unavailable in the pinned registry, or
 a compatibility, integrity, or security repair requires a registry change,
 advance that ref in the same reviewed change and run the integrity updater above.
@@ -546,6 +548,18 @@ Python, shell, workflow, and PowerShell lint as a group. Individual formatter
 and linter recipes scan maintained source without rerunning their tool-fixture
 self-tests. The exhaustive `check-ui` and `script-lint` aggregates retain those
 self-tests through one batched fixture invocation per group.
+
+Use `just fallow` for explicit whole-Desktop qualification, `just fallow-tooling`
+to investigate maintained repository JS/TS, `just fallow-review BASE` for a
+meaningful branch review, or `just fallow-css` for substantial styling work.
+The latter three routes are advisory. The review route uses the real merge-base
+and complete relevant candidate diff, including dirty content, renames and
+deletions; pass the intended target ref rather than assuming the previous commit.
+Share an eligible retained candidate report with the independent reviewer, and
+refresh it after relevant content, configuration, base or tool-version changes.
+Ordinary fast CI and default focused local feedback remain free of exhaustive
+Fallow work. [Fallow operations](reference/quality-operations.md#fallow-scopes-and-policy)
+owns the enforcement mapping, evidence inspection and analysis limits.
 
 ## Validation tiers and resumable audits
 
