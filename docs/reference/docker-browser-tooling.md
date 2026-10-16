@@ -140,3 +140,11 @@ route. Digest discovery is distinct from actual Windows execution.
 Windows cold/warm, deliberate failure, interruption/export recovery, cleanup and
 native-with-Docker-stopped results are recorded on #2006 when demonstrated.
 Unit fixtures and an image build alone do not close that acceptance.
+
+The published `host.json` is the snapshot taken before publication;
+`publication.json` records the completed hashed inventory. Retained failures
+remain separate from subsequent successful runs. Source/driver revisions,
+exact image/tool identities, cold setup and fresh execution timings belong in
+the owning issue's completion evidence. A controlled Node signal-handler
+injection demonstrates that handler and actual container teardown; it does not
+claim a physical Windows console signal or native application acceptance.
