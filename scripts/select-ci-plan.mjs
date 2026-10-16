@@ -193,7 +193,7 @@ export async function writeGithubOutputs(outputPath, plan, reuse = null) {
   const { classifyChanges: classifyLocalChanges } = await import("./local-validation.mjs");
   const selection = classifyLocalChanges(
     plan.changes.flatMap((change) => [
-      { path: change.newPath, status: change.status, previousPath: change.oldPath },
+      { ...change, path: change.newPath, status: change.status, previousPath: change.oldPath },
     ]),
   );
   const fields = {

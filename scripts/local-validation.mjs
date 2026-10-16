@@ -1770,6 +1770,7 @@ export async function main(argv = process.argv.slice(2), options = {}) {
         newMode: change.newMode,
         oldPath: change.previousPath ?? change.path,
         newPath: change.path,
+        ...(change.nextest_equivalence ? { nextest_equivalence: change.nextest_equivalence } : {}),
       })),
       eventName: "pull_request",
       base: context.baseSha,

@@ -1,3 +1,4 @@
+import { main } from "./local-validation.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { compareNextest, annotateNextest } from "./nextest-equivalence.mjs";
@@ -64,4 +65,41 @@ test("effective nextest comparison handles TOML syntax and keeps semantic change
     },
   });
   assert.ok(broad.groups.includes("rust"));
+});
+
+test("local command preserves effective-config proof through its hosted-plan conversion", async () => {
+  const proof = compareNextest(
+    "[profile.default]\nretries=0",
+    "# comment\n[profile.default]\nretries=0",
+  );
+  assert.ok(proof);
+  const messages = [];
+  const original = console.log;
+  try {
+    console.log = (message) => messages.push(String(message));
+    await main(["check", "--plan"], {
+      readContext: () => ({
+        base: "origin/main",
+        baseSha: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        headSha: "b".repeat(40),
+        changes: [
+          {
+            status: "M",
+            path: ".config/nextest.toml",
+            oldMode: "100644",
+            newMode: "100644",
+            nextest_equivalence: proof,
+          },
+        ],
+      }),
+    });
+  } finally {
+    console.log = original;
+  }
+  assert.ok(messages.some((line) => line === "Validation groups: catalog, rust-quality"));
+  assert.equal(
+    messages.some((line) => line.startsWith("- rust-workspace-tests:")),
+    false,
+  );
 });
