@@ -38,8 +38,11 @@ or toolchain inputs select one full `frontend:static` task (bundle compatibility
 formatting, lint/type checking and Stylelint). Both rename sides
 and deletions count; safe unknown-impact fallback also selects it. The existing
 quality producer owns hosted execution, including tooling-only changes, while
-the optional local baseline runs the same obligation. Prose-only, Rust-only and
-unrelated assets do not install frontend dependencies. Maintained TOML and normative
+the optional local baseline runs the same obligation. Existing allowlisted prose
+uses the frozen root-workspace dependency setup for the real formatter and its
+configuration. Deleted-only prose keeps the Node/Git documentation checks without
+installing formatter dependencies. Neither route provisions browsers or native
+tools. Rust-only and unrelated assets do not install frontend dependencies. Maintained TOML and normative
 documentation changes retain formatter coverage. Pre-commit remains formatting/syntax/source-policy
 feedback. Exhaustive qualification retains full lint independently.
 

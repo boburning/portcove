@@ -4,6 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { proseOnlyAllowlist } from "./select-ci-plan.mjs";
+import { vitePlusCommand } from "./viteplus-cli.mjs";
+import { spawnCommand } from "./dev-storage.mjs";
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const fullSha = /^[a-f0-9]{40}$/u;
@@ -29,6 +31,9 @@ function requiredFiles() {
   return [...new Set(files)].sort();
 }
 
+if (process.argv.length > 3 || (process.argv[2] && process.argv[2] !== "--prerequisites"))
+  throw new Error("Usage: check-ci-prose.mjs [--prerequisites]");
+
 const mergeBase = requiredSha("PORTCOVE_MERGE_BASE");
 const head = requiredSha("PORTCOVE_HEAD_SHA");
 const files = requiredFiles();
@@ -37,15 +42,31 @@ const existing = files.filter((file) => {
   const target = path.join(projectRoot, file);
   return existsSync(target) && statSync(target).isFile();
 });
-if (existing.length > 0)
-  execFileSync(process.execPath, ["node_modules/vite-plus/bin/vp", "fmt", "--check", ...existing], {
+if (process.argv[2] === "--prerequisites") {
+  console.log(`frontend_dependencies=${existing.length > 0}`);
+} else {
+  if (existing.length > 0) {
+    let cli;
+    try {
+      cli = vitePlusCommand(projectRoot);
+    } catch (error) {
+      throw new Error(
+        "Prose formatting requires the pinned workspace dependencies; run pnpm install --frozen-lockfile.",
+        { cause: error },
+      );
+    }
+    const result = spawnCommand(cli.command, [...cli.args, "fmt", "--check", ...existing], {
+      cwd: projectRoot,
+      stdio: "inherit",
+      windowsHide: true,
+    });
+    if (result.status !== 0) process.exit(result.status ?? 1);
+  }
+  execFileSync(process.execPath, ["scripts/roadmap.mjs", "check"], {
     cwd: projectRoot,
     stdio: "inherit",
   });
-execFileSync(process.execPath, ["scripts/roadmap.mjs", "check"], {
-  cwd: projectRoot,
-  stdio: "inherit",
-});
-console.log(
-  `Validated ${files.length} allowlisted prose path(s); ${existing.length} remain in the head tree.`,
-);
+  console.log(
+    `Validated ${files.length} allowlisted prose path(s); ${existing.length} remain in the head tree.`,
+  );
+}
