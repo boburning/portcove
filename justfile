@@ -230,7 +230,7 @@ windows-qualification-check:
 
 # Offline roadmap schema and governance checks. Live Project access is explicit.
 roadmap-check:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/roadmap.test.mjs scripts/source-provenance-audit.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/roadmap.test.mjs scripts/source-provenance-audit.test.mjs scripts/discovery-checkpoint.test.mjs scripts/discovery-intake.test.mjs
     {{storage}} node scripts/roadmap.mjs check
 
 roadmap-doctor:
