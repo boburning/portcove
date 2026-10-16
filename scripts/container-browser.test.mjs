@@ -378,8 +378,21 @@ test(
         assert(Number.isInteger(descendant) && descendant > 0);
         assert.throws(() => process.kill(descendant, 0), { code: "ESRCH" });
         assert.match(error.message, /exceeded 1500 ms/u);
+        assert.equal(error.result.termination.status, 0);
+        assert.equal(error.result.termination.signal, null);
         return true;
       },
     );
   },
 );
+
+test("already-cancelled setup never launches a child", async () => {
+  const abort = new AbortController();
+  abort.abort();
+  await assert.rejects(command("does-not-exist-control", [], { signal: abort.signal }), (error) => {
+    assert.equal(error.result.interruption, "already-aborted");
+    assert.equal(error.result.status, null);
+    assert.match(error.message, /before launch/u);
+    return true;
+  });
+});

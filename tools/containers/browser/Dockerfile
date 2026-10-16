@@ -20,7 +20,7 @@ RUN node apps/desktop/scripts/browser-package-compatibility.mjs
 USER root
 # Use the installed, lockfile-selected Playwright package's own library list.
 RUN node apps/desktop/node_modules/playwright/cli.js install-deps chromium
-RUN apt-get purge -y sudo && rm -rf /var/lib/apt/lists/* /etc/sudoers.d
+RUN SUDO_FORCE_REMOVE=yes apt-get purge -y sudo && rm -rf /var/lib/apt/lists/* /etc/sudoers.d
 RUN dpkg-query -W > /portcove/installed-system-packages.txt
 USER vp
 RUN node apps/desktop/scripts/browser-runtime.mjs bootstrap

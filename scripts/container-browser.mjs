@@ -57,6 +57,23 @@ export const budgets = Object.freeze({
 
 export function command(commandName, args, { cwd = root, timeout = 15_000, signal } = {}) {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(
+        Object.assign(new Error(`${commandName} interrupted before launch`), {
+          result: {
+            command: commandName,
+            args,
+            cwd,
+            status: null,
+            signal: null,
+            stdout: "",
+            stderr: "",
+            interruption: "already-aborted",
+          },
+        }),
+      );
+      return;
+    }
     const child = spawn(commandName, args, {
       cwd,
       env: process.env,
@@ -68,12 +85,15 @@ export function command(commandName, args, { cwd = root, timeout = 15_000, signa
     let problem;
     let force;
     let exited = false;
+    let stopping = false;
+    let termination;
     child.on("exit", () => {
       exited = true;
     });
     const stop = (reason) => {
       problem ??= reason;
-      if (exited) return;
+      if (exited || stopping) return;
+      stopping = true;
       if (process.platform === "win32" && child.pid) {
         // Git and Docker's Windows launchers own companion processes. Stop the
         // still-owned live tree before its parent disappears and loses custody.
@@ -82,8 +102,14 @@ export function command(commandName, args, { cwd = root, timeout = 15_000, signa
           timeout: 10_000,
           encoding: "utf8",
         });
-        if (drained.error || drained.status !== 0)
-          problem.drain_error = drained.error?.message ?? drained.stderr;
+        termination = {
+          pid: child.pid,
+          status: drained.status,
+          signal: drained.signal,
+          error: drained.error?.message,
+          stdout: drained.stdout?.slice(-8192),
+          stderr: drained.stderr?.slice(-8192),
+        };
       }
       child.kill();
       force ??= setTimeout(() => child.kill("SIGKILL"), 1000);
@@ -115,13 +141,17 @@ export function command(commandName, args, { cwd = root, timeout = 15_000, signa
         cwd,
         status,
         signal: childSignal,
+        termination,
         stdout: Buffer.concat(chunks[0]).toString("utf8"),
         stderr: Buffer.concat(chunks[1]).toString("utf8"),
       };
       if (problem || status !== 0)
         reject(
           Object.assign(
-            problem ?? new Error(`${commandName} failed (${status}): ${result.stderr.trim()}`),
+            problem ??
+              new Error(
+                `${commandName} failed (${status}): ${Buffer.from(result.stderr.trim()).subarray(-8192).toString("utf8")}`,
+              ),
             { result },
           ),
         );
@@ -831,6 +861,7 @@ export async function browser({
       const snapshot = path.join(directory, "snapshot");
       await command("git", ["clone", "--shared", "--no-checkout", root, snapshot], {
         timeout: setupTimeout(60_000),
+        signal: abort.signal,
       });
       await git(["update-ref", "refs/heads/container-selected", commit], snapshot);
       const bundle = path.join(directory, "source.bundle");
@@ -840,6 +871,7 @@ export async function browser({
         {
           cwd: snapshot,
           timeout: setupTimeout(300_000),
+          signal: abort.signal,
         },
       );
       if (statSync(bundle).size > budgets.bundle_bytes)
