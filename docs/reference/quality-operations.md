@@ -826,9 +826,9 @@ The command does not retry, approve, rebase or merge proposals, assign ownership
 or maintain another queue. Refresh
 after every delivered outcome. No unattended execution is implied.
 
-Repository configuration explicitly retains the PR table's Package, Type,
-Update and Change columns so hosted presentation defaults cannot omit classifier
-inputs. Missing update-type metadata still requires controlled maintenance;
+A final npm package rule retains the PR table's Package, Type, Update and Change
+columns after inherited confidence presentation rules. A top-level column setting
+alone does not override those inherited package rules. Missing update-type metadata still requires controlled maintenance;
 neither a title nor a confidence badge supplies it. Column configuration is not
 proof of hosted uptake or a completed operational fast-lane canary.
 

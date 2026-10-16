@@ -10,7 +10,6 @@
     "dockerfile"
   ],
   "labels": ["dependencies"],
-  "prBodyColumns": ["Package", "Type", "Update", "Change", "Pending", "Age", "Confidence"],
   "automerge": false,
   "minimumReleaseAge": "1 day",
   "minimumReleaseAgeBehaviour": "timestamp-required",
@@ -173,6 +172,11 @@
       "prBodyNotes": [
         "Update the paired POWERSHELL_SHA256 from the official release asset digest and requalify Ubuntu 22.04 execution. A version-only proposal must fail preparation and is not merge-ready."
       ]
+    },
+    {
+      "description": "Retain npm update metadata after inherited confidence presentation rules",
+      "matchManagers": ["npm"],
+      "prBodyColumns": ["Package", "Type", "Update", "Change", "Pending", "Age", "Confidence"]
     }
   ],
   "customManagers": [
