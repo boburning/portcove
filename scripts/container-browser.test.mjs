@@ -10,7 +10,6 @@ import {
   validateEngine,
   validateDesktop,
   diskFromSettings,
-  resolvedSettingsLog,
   linuxStorage,
   cacheBytes,
   selectedSource,
@@ -56,62 +55,23 @@ test("host admission requires the actual local Desktop WSL 2 Linux x86-64 engine
       /local Docker Desktop/u,
     );
 });
-const liveSettings = (settings, date = "2026-10-16T12:26:14.539703600Z") =>
-  `[${date}][backend.ipc] GET /app/settings/gui (1ms): ${JSON.stringify({ settings })}\n`;
-const settings = {
-  "vm.hypervisor.windows": "wsl2",
-  "vm.resources.wslDataFolder": "<HOME>\\AppData\\Local\\Docker\\wsl",
-};
-test("resolved settings survive one bounded backend log rotation", () => {
-  mkdirSync(path.join(root, "work"), { recursive: true });
-  const fixture = mkdtempSync(path.join(root, "work/container-settings-"));
-  try {
-    writeFileSync(path.join(fixture, "com.docker.backend.exe.log"), "new process log\n");
-    writeFileSync(
-      path.join(fixture, "com.docker.backend.exe.log.20261016-093408.450"),
-      liveSettings(settings),
-    );
-    assert.equal(
-      diskFromSettings(resolvedSettingsLog(fixture), 0, "C:\\Users\\fixture").folder,
-      "C:\\Users\\fixture\\AppData\\Local\\Docker\\wsl",
-    );
-    assert.throws(
-      () => diskFromSettings(resolvedSettingsLog(fixture), Date.now(), "C:\\Users\\fixture"),
-      /predate/u,
-    );
-  } finally {
-    assert.equal(path.dirname(fixture), path.join(root, "work"));
-    rmSync(fixture, { recursive: true });
-  }
-});
-test("disk discovery binds resolved settings and refuses missing or stale authority", () => {
-  const result = diskFromSettings(
-    liveSettings(settings),
-    Date.parse("2026-10-16T12:00:00Z"),
-    "C:\\Users\\fixture",
-  );
+test("disk discovery uses resolved settings and refuses unknown backend/folder authority", () => {
+  const settings = {
+    "vm.hypervisor.windows": "wsl2",
+    "vm.resources.wslDataFolder": "<HOME>\\AppData\\Local\\Docker\\wsl",
+  };
   assert.equal(
-    result.vhd,
+    diskFromSettings(settings, "C:\\Users\\fixture").vhd,
     "C:\\Users\\fixture\\AppData\\Local\\Docker\\wsl\\disk\\docker_data.vhdx",
-  );
-  assert.throws(() => diskFromSettings("unrelated", 0, "C:\\Users\\fixture"), /Cannot establish/u);
-  assert.throws(
-    () =>
-      diskFromSettings(
-        liveSettings(settings),
-        Date.parse("2026-10-16T13:00:00Z"),
-        "C:\\Users\\fixture",
-      ),
-    /predate/u,
   );
   for (const patch of [
     { "vm.hypervisor.windows": "hyper-v" },
     { "vm.resources.wslDataFolder": "relative" },
     { "vm.resources.wslDataFolder": "<UNKNOWN>\\disk" },
+    { "vm.resources.wslDataFolder": undefined },
   ])
-    assert.throws(() =>
-      diskFromSettings(liveSettings({ ...settings, ...patch }), 0, "C:\\Users\\fixture"),
-    );
+    assert.throws(() => diskFromSettings({ ...settings, ...patch }, "C:\\Users\\fixture"));
+  assert.throws(() => diskFromSettings({}, "C:\\Users\\fixture"));
 });
 test("Linux capacity uses exactly one actual Docker disk row and retains rejected observations", () => {
   const valid =

@@ -15,6 +15,7 @@ import {
   rmSync,
 } from "node:fs";
 import os from "node:os";
+import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { minimumFreeGiB, preflight, resolvePhysicalPath } from "./dev-storage.mjs";
@@ -144,51 +145,54 @@ export function validateDesktop(status) {
     );
 }
 
-// Use the running Desktop backend's resolved settings, rather than guessing a
-// default disk or accepting an unrelated user-supplied path as backing evidence.
-export function diskFromSettings(log, settingsModified, home) {
-  for (const line of log.split("\n").reverse()) {
-    if (!line.includes("GET /app/settings/gui") || !line.includes("): {")) continue;
-    const timestamp = /^\[([^\]]+)\]/u.exec(line)?.[1];
-    if (!(Date.parse(timestamp) >= settingsModified))
-      throw new Error(
-        "Docker resolved settings predate its saved configuration; refresh Desktop settings before retrying",
-      );
-    const current = JSON.parse(line.slice(line.indexOf("): {") + 3)).settings;
-    if (current?.["vm.hypervisor.windows"] !== "wsl2")
-      throw new Error("Docker Desktop is not configured for WSL 2");
-    let folder = current["vm.resources.wslDataFolder"];
-    if (typeof folder !== "string") throw new Error("Docker did not report its WSL data folder");
-    folder = folder.replace(/^<HOME>/u, home);
-    if (!path.win32.isAbsolute(folder) || folder.includes("<"))
-      throw new Error("Unknown Docker WSL data-folder form");
-    return {
-      settings_at: timestamp,
-      folder,
-      vhd: path.win32.join(folder, "disk/docker_data.vhdx"),
-    };
-  }
-  throw new Error(
-    "Cannot establish Docker's active WSL disk from resolved settings; open Desktop Settings to refresh the read-only record",
-  );
+// Query the same read-only resolved-settings endpoint used by Desktop's UI.
+// Saved overrides omit defaults; log rotation and startup writes are not authority.
+export function diskFromSettings(current, home) {
+  if (current?.["vm.hypervisor.windows"] !== "wsl2")
+    throw new Error("Docker Desktop is not configured for WSL 2");
+  let folder = current["vm.resources.wslDataFolder"];
+  if (typeof folder !== "string") throw new Error("Docker did not report its WSL data folder");
+  folder = folder.replace(/^<HOME>/u, home);
+  if (!path.win32.isAbsolute(folder) || folder.includes("<"))
+    throw new Error("Unknown Docker WSL data-folder form");
+  return {
+    observed_at: new Date().toISOString(),
+    folder,
+    vhd: path.win32.join(folder, "disk/docker_data.vhdx"),
+  };
 }
-
-function tail(file, limit = 2 * 1024 ** 2) {
-  // Backend logs rotate at about 1 MiB. Refuse unexpectedly large input rather
-  // than loading a growing diagnostic archive into the preflight.
-  if (statSync(file).size > limit) throw new Error(`Docker settings log exceeds ${limit} bytes`);
-  return readFileSync(file, "utf8");
-}
-export function resolvedSettingsLog(directory) {
-  const current = "com.docker.backend.exe.log";
-  const rotated = readdirSync(directory)
-    .filter((name) => /^com\.docker\.backend\.exe\.log\.\d{8}-\d{6}\.\d+$/u.test(name))
-    .sort()
-    .at(-1);
-  return [rotated, current]
-    .filter(Boolean)
-    .map((name) => tail(path.join(directory, name)))
-    .join("\n");
+async function desktopSettings() {
+  return new Promise((resolve, reject) => {
+    const request = http.get(
+      { socketPath: "\\\\.\\pipe\\dockerBackendApiServer", path: "/app/settings/gui" },
+      (response) => {
+        const chunks = [];
+        let bytes = 0;
+        response.on("data", (data) => {
+          bytes += data.length;
+          if (bytes > 2 * 1024 ** 2)
+            request.destroy(new Error("Desktop settings response exceeds 2 MiB"));
+          else chunks.push(data);
+        });
+        response.on("error", reject);
+        response.on("end", () => {
+          try {
+            if (response.statusCode !== 200)
+              throw new Error("Desktop resolved settings request failed: " + response.statusCode);
+            resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")).settings);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+    );
+    const timer = setTimeout(
+      () => request.destroy(new Error("Desktop resolved settings request exceeded 10 seconds")),
+      10_000,
+    );
+    request.on("error", reject);
+    request.on("close", () => clearTimeout(timer));
+  });
 }
 function size(directory) {
   if (!existsSync(directory)) return 0;
@@ -298,13 +302,7 @@ export async function doctor({ networkRequired = true } = {}) {
     throw new Error(
       "Docker info is stale or its clock is unknown; do not admit work from Resource Saver's cached API response",
     );
-  const local = path.join(process.env.LOCALAPPDATA, "Docker");
-  const settings = path.join(process.env.APPDATA, "Docker/settings-store.json");
-  const disk = diskFromSettings(
-    resolvedSettingsLog(path.join(local, "log/host")),
-    statSync(settings).mtimeMs,
-    os.homedir(),
-  );
+  const disk = diskFromSettings(await desktopSettings(), os.homedir());
   const physical = realpathSync.native(disk.vhd);
   if (!lstatSync(physical).isFile())
     throw new Error("Docker's resolved virtual disk is not a regular file");

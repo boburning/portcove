@@ -40,14 +40,18 @@ and tree into Linux storage; Windows dependencies and browser binaries stay out.
 
 The doctor verifies the local `desktop-linux` named-pipe context, actual Desktop
 engine/WSL 2 kernel/architecture, Windows storage and Linux data-filesystem
-capacity. The running backend's resolved settings identify its WSL data folder.
+capacity. A bounded, read-only GET to Desktop's local backend named pipe
+(`/app/settings/gui`) obtains the running backend's resolved WSL data folder.
+This version-dependent Desktop endpoint must remain available; unknown responses
+fail closed. Saved override files and rotated logs do not supply defaults or
+fresh authority.
 Desktop state and a fresh engine timestamp are required: Resource Saver can
 leave the API serving cached info after its Linux engine stops. Exit that mode
 explicitly in Desktop; starting an already-running UI may not resume it. The
 doctor does not wake the engine or launch a WSL distribution while it is stopped.
 The VHD's physical Windows path, including junction targets, is checked with
-the existing machine storage policy. An unknown/stale settings record fails
-closed with instructions to refresh Desktop Settings. A Linux pathname never
+the existing machine storage policy. An unknown settings response fails
+closed. A Linux pathname never
 substitutes for this Windows backing-volume check.
 
 Network probes establish HTTPS reachability of GHCR, npm, Node, Playwright and
