@@ -6,11 +6,14 @@
     "scripts/container-entry.{mjs,mts}",
     "scripts/rust-test-tree-supervisor.{mjs,mts}",
     "scripts/viteplus-renovate-probe.{mjs,mts}",
+    "scripts/generate-catalog.{mjs,mts}",
+    "scripts/migrate-catalog-schema2.{mjs,mts}",
     "apps/desktop/i18next.invalid.config.{ts,mts}",
     "apps/desktop/src/i18next-contract.test-d.ts",
     "apps/desktop/src/i18next.d.ts",
     "apps/desktop/src/dev-scenarios/entry.{ts,tsx}",
     "apps/desktop/test/browser-setup.{mjs,mts}",
+    "apps/desktop/public/theme-bootstrap.{js,ts}",
     "apps/desktop/scripts/*.native.test.{mjs,mts}",
     "apps/desktop/scripts/browser-package-compatibility.{mjs,mts}",
     "apps/desktop/scripts/copy-lint-plugin.{mjs,mts}",
@@ -29,6 +32,7 @@
     "scripts/upstream-observer.{mjs,mts}",
     "scripts/viteplus-cli.{mjs,mts}"
   ],
+  "ignoreUnresolvedImports": ["/theme-bootstrap.js"],
   "ignorePatterns": [
     "target/**",
     "work/**",

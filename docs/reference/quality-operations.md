@@ -256,6 +256,13 @@ entry points and follows helper imports; generated inputs, fixtures and dynamic
 consumers still require checking before accepting an unused-code candidate.
 Fallow does not analyze Rust, PowerShell or native application behavior.
 
+The root graph explicitly includes catalog generators executed by test runners,
+Docker's copied entry script, and other dynamically launched tools. Its sole
+unresolved-import exception is `/theme-bootstrap.js`: Vite serves the verified
+`apps/desktop/public/theme-bootstrap.js` at that URL, while repository-root
+resolution cannot model the app's public root. The scope test verifies that file
+and the dynamic tooling entry points remain included.
+
 Every wrapper invocation retains original analyzer output, stderr and source,
 scope, version and comparison metadata below ignored `work/fallow-reports`.
 Local source identity includes dirty content; a commit SHA alone does not identify
@@ -274,6 +281,8 @@ content, both rename identities and deletions; the last commit alone is usually
 the wrong scope. Introduced findings direct review and inherited findings supply
 context. Reuse a candidate's retained report only while relevant content,
 configuration, base and tool version match. Refresh invalidated analysis.
+To reuse an unchanged brief, run `just fallow-review BASE REPORT_DIRECTORY`;
+the wrapper checks input identity and retained stream hashes before reuse.
 `fallow review` always exits zero: its brief is assistance, not a passing gate or
 the independent reviewer. A native walkthrough/judgment response, if used, also
 requires its structured validation result to be read.
