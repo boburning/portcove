@@ -767,8 +767,16 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
   assert.match(installer, /privilege=\(sudo -n\)/);
   assert.match(installer, /"\$\{privilege\[@\]\}" timeout --kill-after=10s "\$deadline" env/);
   assert.doesNotMatch(installer, /timeout[^\n]*"\$\{privilege\[@\]\}"/);
-  assert.match(installer, /install_from_current_mirror "the runner-configured mirror" 2m 3m/);
-  assert.match(installer, /install_from_current_mirror "the archive mirror fallback" 4m 5m/);
+  assert.match(installer, /install_deadline=3m/);
+  assert.match(installer, /fallback_install_deadline=5m/);
+  assert.match(
+    installer,
+    /install_from_current_mirror "the runner-configured mirror" 2m "\$install_deadline"/,
+  );
+  assert.match(
+    installer,
+    /install_from_current_mirror "the archive mirror fallback" 4m "\$fallback_install_deadline"/,
+  );
   assert.ok(
     installer.indexOf('"the runner-configured mirror"') <
       installer.indexOf("archive.ubuntu.com/ubuntu"),

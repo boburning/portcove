@@ -359,6 +359,7 @@ test("every Renovate custom manager matches its committed authority", async () =
     "aqua.yaml",
     ".config/powershell-resources.psd1",
     ".github/workflows/release.yml",
+    "tools/containers/build/Dockerfile",
   ];
 
   for (const [index, manager] of renovate.customManagers.entries()) {

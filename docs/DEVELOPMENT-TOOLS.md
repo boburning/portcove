@@ -1713,13 +1713,17 @@ verify run/attempt/job/source, recover with the existing codec and inspect real 
 See [hosted acceptance](NATIVE-HOSTED-ACCEPTANCE.md) for allocations, identity and
 composition requirements, honest platform/fixture limits and recovery commands.
 
-## Optional Windows Docker browser tooling
+## Optional Windows Docker tooling
 
 The optional [browser adapter](reference/docker-browser-tooling.md) stages an
-explicit committed revision into a prepared Linux browser environment under
-[#2006](https://github.com/boburning/portcove/issues/2006). Its doctor, source
-selection, fresh commands, budgets and recoverable exports are separate from
-native Windows development. The Linux builder remains gated under #2007.
+exact selected commit for browser tests. The separate optional
+[Linux builder](reference/docker-linux-build.md) uses the same owned Windows
+transport for Ubuntu 22.04 checks and explicit unsigned packaging. Both retain
+native Windows development as the primary route.
+
+[#2006](https://github.com/boburning/portcove/issues/2006) records delivered browser
+qualification. [#2007](https://github.com/boburning/portcove/issues/2007) separately
+owns builder and per-format packaging acceptance. Docker is optional for both.
 
 ### Development dependency security
 

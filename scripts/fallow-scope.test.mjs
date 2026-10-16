@@ -73,6 +73,8 @@ test("tooling graph includes maintained command entries without promoting helper
     "apps/desktop/public/theme-bootstrap",
     "scripts/fallow-summary.test",
     "scripts/container-entry",
+    "scripts/container-build-entry",
+    "scripts/container-build",
     "scripts/rust-test-tree-supervisor",
     "apps/desktop/src/main",
   ]) {

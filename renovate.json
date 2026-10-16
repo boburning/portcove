@@ -165,6 +165,13 @@
       "prBodyNotes": [
         "The browser image tag must match the source catalog Vite+ pin. Preserve a verified digest and run the coordinated compatibility controls plus actual Windows container qualification before delivery; a Dockerfile-only version bump is not merge-ready."
       ]
+    },
+    {
+      "description": "Coordinate Linux PowerShell proposals with the official archive SHA256 and actual canonical package/smoke execution",
+      "matchPackageNames": ["PowerShell/PowerShell"],
+      "prBodyNotes": [
+        "Update the paired POWERSHELL_SHA256 from the official release asset digest and requalify Ubuntu 22.04 execution. A version-only proposal must fail preparation and is not merge-ready."
+      ]
     }
   ],
   "customManagers": [
@@ -241,6 +248,14 @@
       "depNameTemplate": "anchore/syft",
       "datasourceTemplate": "github-releases",
       "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^tools/containers/build/Dockerfile$/"],
+      "matchStrings": ["ARG POWERSHELL_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "PowerShell/PowerShell",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
     }
   ],
   "timezone": "America/New_York",

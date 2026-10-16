@@ -7,6 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   command,
+  budgets,
   validateEngine,
   validateDesktop,
   diskFromSettings,
@@ -21,8 +22,68 @@ import {
 } from "./container-browser.mjs";
 import { preflight, isWindowsSystemDrivePath } from "./dev-storage.mjs";
 import { assertCommittedWorkspace } from "./container-source.mjs";
+import { browserReceiptContract } from "./testdata/browser-receipt-oracle.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+
+test("browser adapter retains its independently reviewed pre-extraction contract", async () => {
+  const oracle = JSON.parse(
+    readFileSync(new URL("./testdata/container-browser-runtime-oracle.json", import.meta.url)),
+  );
+  assert.equal(oracle.format_version, 1);
+  const receipts = JSON.parse(
+    readFileSync(new URL("./testdata/container-browser-receipt-oracle.json", import.meta.url)),
+  );
+  assert.equal(receipts.baseline_commit, oracle.baseline_commit);
+  assert.deepEqual(
+    receipts.cases.map(({ name }) => name),
+    ["success", "probe", "timeout", "recovered"],
+  );
+  for (const { input, expected, provenance } of receipts.cases) {
+    assert.deepEqual(browserReceiptContract(input.host, input.result, input.publication), expected);
+    assert.equal(input.host.run, provenance.run);
+    assert.equal(input.host.driver.host_sha256, oracle.source_sha256);
+    const wrong = structuredClone(input.host);
+    wrong.container_inspection.Config.Labels["io.portcove.tool"] = "foreign";
+    assert.throws(() => browserReceiptContract(wrong, input.result, input.publication));
+  }
+  assert.deepEqual(budgets, oracle.budgets);
+  for (const { input, expected } of oracle.runtime) {
+    const actual = runtimeArguments(input).map((argument) =>
+      /^io\.portcove\.workspace=[a-f0-9]{64}$/u.test(argument)
+        ? "io.portcove.workspace=<physical-workspace-hash>"
+        : argument,
+    );
+    assert.deepEqual(actual, expected);
+  }
+  for (const { name, input, expected } of oracle.runtimeValidation) {
+    let actual;
+    try {
+      validateRuntime(input);
+      actual = { accepted: true };
+    } catch (error) {
+      actual = { accepted: false, error: error.message };
+    }
+    assert.deepEqual(actual, expected, name);
+  }
+  for (const { args, expected } of oracle.cli) {
+    let result;
+    try {
+      result = await command(process.execPath, ["scripts/container-browser.mjs", ...args]);
+    } catch (error) {
+      assert(error.result);
+      result = error.result;
+    }
+    assert.deepEqual(
+      {
+        status: result.status,
+        stdout: result.stdout.replaceAll("\r\n", "\n"),
+        stderr: result.stderr.replaceAll("\r\n", "\n"),
+      },
+      expected,
+    );
+  }
+});
 const info = {
   OSType: "linux",
   OperatingSystem: "Docker Desktop",

@@ -92,8 +92,10 @@ back before start. The runtime has a private network namespace, four CPUs,
 6 GiB memory without extra swap, 1 GiB shared memory and 1024 PIDs. Trusted
 development tasks remain trusted code; this is not an arbitrary-code sandbox.
 
-Preparation and task execution each have a finite 30-minute budget. A caller
-may lower execution with `--timeout-ms` (100 through 1800000). Interrupt/timeout
+Preparation and task execution each have a finite 30-minute budget. Read-only
+daemon storage queries have a two-minute limit within remaining preparation time
+and retain cancellation. A caller may lower execution with `--timeout-ms` (100
+through 1800000). Interrupt/timeout
 handling stops only the verified owned container, attempts export and retains
 causal status separately from the container exit. Abrupt host loss can leave
 an inspectable labelled resource for later export.

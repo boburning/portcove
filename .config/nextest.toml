@@ -57,6 +57,115 @@ platform = 'x86_64-unknown-linux-gnu'
 filter = 'package(portcove-cli) & test(/^preparation_contract::reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup$/)'
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 
+# CI 38946153693/a1 retained nine Intel timeouts while authenticated fixtures
+# were still progressing through required installs, reopens and preservation.
+# Give only those exact cases finite headroom; preserve every lifecycle step,
+# product deadline, two-slot reservation and the zero-retry rule.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_activation_recovery_revocation_retains_interrupted_journal$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_activation_recovery_withdrawal_permits_local_commit$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_reuse_refuses_corruption_and_preserves_capacity_evidence$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_launch_boundary_shared_revocation_refuses_before_child_with_valid_baseline$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_published_revocation_preserves_payload$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_retained_launch_revocation_prevents_child_start_after_reopen$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_revocation_preserves_unaffected_active_and_recovery_evidence$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_status_revocation_holds_exact_current_and_retained_operations$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+# CI 38953206413/a1 passed the preceding calibrations but exposed six other
+# Intel lifecycles at the unchanged 30s cutoff. Preserve their real operations,
+# reopens and final preservation; phase diagnostics retain unfinished work.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_activation_revocation_preserves_staged_target_and_active_version$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_adoption_prepared_refuses_unsupported_grant$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_adoption_prepared_withdrawal_preserves_adoption_refusal$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_adoption_published_withdrawal_preserves_adoption_refusal$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_install_published_withdrawal_preserves_owned_payload$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+# Three retention fixtures started installation after 12.7-14.6s of setup and
+# missed the 10s copy latch with final_copy=None. Their exact Intel latch trial
+# is now 15s; allow 45s overall so intervention, drain and preservation can finish.
+# An actual incomplete copy remains mandatory; no retry or product limit changes.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_retention_cancellation_preserves_partial_after_worker_exit$/)'
+slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_retention_revocation_during_copy_refuses_publication$/)'
+slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_retention_withdrawal_during_copy_refuses_publication$/)'
+slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
+
+# CI 38960471195/a1 reached the second actual reopen at 29.128s in this
+# unchanged 30s sibling of the published-withdrawal case. Keep both reopens,
+# phase diagnostics and preservation assertions with exact Intel headroom.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_install_published_revocation_preserves_owned_payload$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
 # These CLI contracts compare free-space snapshots across child processes.
 # Preserve their existing mutual exclusion across nextest's process boundary.
 [test-groups]

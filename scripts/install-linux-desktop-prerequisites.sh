@@ -8,6 +8,8 @@ packages=(
   patchelf
 )
 fuse_package=libfuse2
+install_deadline=3m
+fallback_install_deadline=5m
 if [[ -f /etc/os-release ]]; then
   # Ubuntu 24.04 renamed the FUSE 2 runtime package for its time64 transition.
   source /etc/os-release
@@ -20,8 +22,17 @@ for option in "$@"; do
     --include-rpm) packages+=(rpm) ;;
     --include-appimage-runtime) packages+=("$fuse_package" xvfb dbus-x11 at-spi2-core util-linux) ;;
     --include-webdriver) packages+=(webkit2gtk-driver xvfb dbus-x11) ;;
+    --install-timeout-seconds=*)
+      seconds=${option#*=}
+      if [[ ! $seconds =~ ^[0-9]{3,4}$ ]] || (( 10#$seconds < 180 || 10#$seconds > 3600 )); then
+        echo "Install timeout must be an integer of 180..3600 seconds." >&2
+        exit 2
+      fi
+      install_deadline=$((10#$seconds))s
+      fallback_install_deadline=$install_deadline
+      ;;
     *)
-      echo "usage: $0 [--include-rpm] [--include-appimage-runtime] [--include-webdriver]" >&2
+      echo "usage: $0 [--include-rpm] [--include-appimage-runtime] [--include-webdriver] [--install-timeout-seconds=180..3600]" >&2
       exit 2
       ;;
   esac
@@ -91,6 +102,7 @@ install_from_current_mirror() {
   local update_deadline=$2
   local install_deadline=$3
   echo "Trying Linux desktop prerequisites from $label."
+  echo "APT deadlines: update=$update_deadline, install=$install_deadline (plus 10-second kill grace)."
   if ! run_apt "$update_deadline" update; then
     echo "Ubuntu package index failed from $label." >&2
     return 1
@@ -104,7 +116,7 @@ install_from_current_mirror() {
   fi
 }
 
-if install_from_current_mirror "the runner-configured mirror" 2m 3m; then
+if install_from_current_mirror "the runner-configured mirror" 2m "$install_deadline"; then
   exit 0
 fi
 
@@ -118,7 +130,7 @@ for source in /etc/apt/sources.list /etc/apt/apt-mirrors.txt; do
     "${privilege[@]}" sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
   fi
 done
-if install_from_current_mirror "the archive mirror fallback" 4m 5m; then
+if install_from_current_mirror "the archive mirror fallback" 4m "$fallback_install_deadline"; then
   exit 0
 fi
 
