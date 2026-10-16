@@ -54,6 +54,14 @@ platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_adoption_published_revocation_preserves_evidence$/)'
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 
+# The Linux preparation fixture began interrupted-launch recovery at 28.93s
+# before the 30s cutoff. Preserve the full recovery and final assertions with
+# finite headroom for this exact case; product and child deadlines are unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-cli) & test(/^preparation_contract::reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup$/)'
+slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
+
 # These CLI contracts compare free-space snapshots across child processes.
 # Preserve their existing mutual exclusion across nextest's process boundary.
 [test-groups]
