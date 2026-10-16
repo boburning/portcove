@@ -54,6 +54,10 @@ test("manual Fallow assistance is isolated from exhaustive audit and retains ori
   assert.match(selected, /path: work\/fallow-reports\//);
   assert.doesNotMatch(selected, /setup-rust|browser:bootstrap|just audit/);
   assert.match(deep, /if: inputs.operation != 'local-check' && inputs.operation != 'fallow'/);
+  assert.match(
+    deep,
+    /inputs.operation == 'fallow' && format\('fallow-\{0\}', github.run_id\) \|\| format\('deep-quality-\{0\}', github.ref\)/,
+  );
 });
 
 test("native frontend harness retains the qualified Linux target and a failing namespace preflight", () => {

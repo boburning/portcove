@@ -43,7 +43,8 @@ env:
   pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
 
 concurrency:
-  group: deep-quality-${{ github.ref }}
+  # Advisory requests do not supersede an audit/local-check or one another.
+  group: ${{ inputs.operation == 'fallow' && format('fallow-{0}', github.run_id) || format('deep-quality-{0}', github.ref) }}
   cancel-in-progress: true
 
 jobs:
