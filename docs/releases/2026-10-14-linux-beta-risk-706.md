@@ -477,3 +477,41 @@ This is bounded unchanged-production-risk reconfirmation, not remediation,
 universal unreachability, publication authority or passing final qualification.
 Independent final-source review, current-head checks and complete maintained
 audit/qualification admission remain required.
+
+## Delivered framework reassessment — October 16, 2026
+
+Candidate `b83a805221b7c2edbdfba1ba622a6f7cacf9f55b` normally consumes
+[#1972](https://github.com/boburning/portcove/pull/1972) and
+[#2016](https://github.com/boburning/portcove/pull/2016), delivered through
+`88845323c34e93ccf291eda53572728dddeda546`. The lock SHA256 is
+`bef9a28c344f28b26e4d2315edd8bd47a42a0bb922fd8eb043f33a6147ccf416`.
+Tauri/API 2.12.4, runtime/runtime-wry 2.12.2, build/codegen/macros 2.7.3,
+utils 2.10.2, dialog 2.8.3 and transitive FS 2.7.1 replace the preceding
+family. The generator closure adds static_vcruntime 3.0.0. GLib 0.18.5,
+GTK 0.18.2, GIO 0.18.4, Wry 0.57.0, Tao 0.37.1 and their relevant features
+remain unchanged. Ordinary Desktop still uses defaults plus custom-protocol,
+without qualification features; no plugin or permission is newly enabled.
+
+The bounded material-source refresh examined 1,606 Rust/build files across
+32 relevant application, ancestor and generator packages. All 1,426 examined
+published files matched lock-checksummed archives; 180 local files were hashed.
+Independent review also verified the 30 published archives and 60 manifests.
+The review covers the ten changed/one removed files in the prior ancestor scope,
+three changed/added tauri-utils files and the new MSVC runtime-linking module.
+Path handling, FS/ACL generation and runtime linking introduce no found
+production constructor consumer of VariantStrIter. The prior constructor/trait
+analysis is retained: the iterator needs an instance from array_iter_str;
+VariantIter and Vec<T>::FromVariant use separate paths. This is bounded source
+evidence, not complete generated/linked-code proof, runtime safety or remediation.
+
+The independently verified 192-entry input digest is
+`7f0ba1d9f92a3d16601038f3819b74efe212c67c0dfeaa8b9c9cf234d59f5fe5`;
+the 238-entry native dependency/generator digest is
+`4e56c5fb5572bcfd8846b2ded5d05c5bafc42962222c661172fde19a2ce72b11`.
+Only reconfirmedHead and these two fingerprints change in the protected record.
+Approval, accountable owner, advisory/version, policy, expiry and unallocated
+publication identity remain unchanged. Original scans and failures remain intact.
+The owning PR retains the independent source review and exact artifacts. Fresh
+current-head checks, complete scan/audit, maintained qualification and affected
+native/package/updater observations remain required before admission. The
+existing approval does not cover additional findings or unrelated failures.

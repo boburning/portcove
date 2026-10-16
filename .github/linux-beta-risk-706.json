@@ -8,9 +8,9 @@
   "approvedAt": "2026-10-15T01:21:44.000Z",
   "expiresAt": "2026-11-15T04:59:00.000Z",
   "assessmentHead": "3b25e32d9eb776790790b128f18d8d6ea4e37e52",
-  "reconfirmedHead": "4ee4f5043887d32237da3478b1ec70d1ef85fd39",
-  "inputsSha256": "e7b4862dd177411eb7fadceedfc2173ee18fac1e21bf930140a6e5538e8f3ce6",
-  "dependenciesSha256": "80bab63cf9f86838b1517c42767894bdc5151e09dafd41e22bbf97e220a365f2",
+  "reconfirmedHead": "b83a805221b7c2edbdfba1ba622a6f7cacf9f55b",
+  "inputsSha256": "7f0ba1d9f92a3d16601038f3819b74efe212c67c0dfeaa8b9c9cf234d59f5fe5",
+  "dependenciesSha256": "4e56c5fb5572bcfd8846b2ded5d05c5bafc42962222c661172fde19a2ce72b11",
   "firstPublicationTag": null,
   "policySha256": "7cbe77e7ef591e476797956f7bf3e79a0fc659a646505f079580c16d51499525"
 }
