@@ -25,6 +25,7 @@ for (const [name, command, args] of [
   ["roadmap", process.execPath, ["scripts/roadmap.mjs", "--help"]],
   ["pull request delivery", process.execPath, ["scripts/pr-delivery.mjs", "--help"]],
   ["handoff evidence", process.execPath, ["scripts/handoff-evidence.mjs", "--help"]],
+  ["optional container browser", process.execPath, ["scripts/container-browser.mjs", "--help"]],
 ]) {
   test(`${name} help is available without provisioning`, () => {
     const result = run(command, args);

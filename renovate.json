@@ -1,7 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":dependencyDashboard"],
-  "enabledManagers": ["cargo", "npm", "github-actions", "rust-toolchain", "custom.regex"],
+  "enabledManagers": [
+    "cargo",
+    "npm",
+    "github-actions",
+    "rust-toolchain",
+    "custom.regex",
+    "dockerfile"
+  ],
   "labels": ["dependencies"],
   "automerge": false,
   "minimumReleaseAge": "1 day",
@@ -146,6 +153,17 @@
       "schedule": ["at any time"],
       "prBodyNotes": [
         "This proposal selects a Vite+ target only. Before merge, use the verified pre-upgrade inputs and supported target migrator to update the complete toolchain, including catalogs, aliases, overrides and the browser provider. Follow docs/DEVELOPMENT-TOOLS.md#coordinated-upgrades-and-rollback. A primary-only bump is not merge-ready."
+      ]
+    },
+    {
+      "description": "Keep the optional browser image paired with the selected Vite+ release and immutable base identity",
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["ghcr.io/voidzero-dev/vite-plus"],
+      "groupName": "vite-plus",
+      "pinDigests": true,
+      "schedule": ["at any time"],
+      "prBodyNotes": [
+        "The browser image tag must match the source catalog Vite+ pin. Preserve a verified digest and run the coordinated compatibility controls plus actual Windows container qualification before delivery; a Dockerfile-only version bump is not merge-ready."
       ]
     }
   ],

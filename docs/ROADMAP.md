@@ -309,6 +309,11 @@ container evidence:
 2. [Separate Linux build and unsigned packaging #2007](https://github.com/boburning/portcove/issues/2007),
    blocked by #2006's implemented and demonstrated shared adapter.
 
+The [optional browser adapter](reference/docker-browser-tooling.md) provides the
+Windows host commands, committed-source selection, retained evidence and scoped
+cleanup contract. #2006 owns its actual execution evidence. The separate builder
+keeps #2007's scheduling and packaging scope.
+
 The Project placement is **Public beta / Planned**, not Required: target useful
 delivery before beta where capacity permits, without blocking any existing
 Required beta outcome. Only the builder depends on the browser outcome; no
