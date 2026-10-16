@@ -1,3 +1,4 @@
+import { SettingsRow } from "./ui/patterns";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickGameFileFolder } from "../file-picker";
@@ -142,14 +143,14 @@ function CandidateAction({
     );
     return (
       <div className="source-candidate-actions flex min-w-0 flex-wrap justify-end gap-2 max-[55rem]:justify-start">
-        <span className="basis-full text-right text-pc-muted-foreground max-[55rem]:text-left">
+        <span className="basis-full text-end text-pc-muted-foreground max-[55rem]:text-start">
           {status}
         </span>
         {registrationConfirmed &&
           !workspaceRefreshFailed &&
           matchingPorts.map((port) => (
             <span
-              className="basis-full text-right text-pc-muted-foreground max-[55rem]:text-left"
+              className="basis-full text-end text-pc-muted-foreground max-[55rem]:text-start"
               key={`${port.id}-readiness`}
             >
               {port.name}: {portSetupLabel(statuses.get(port.id))}
@@ -160,7 +161,7 @@ function CandidateAction({
             <Button
               key={port.id}
               data-focusable
-              className="source-candidate-action h-auto min-h-(--control-height-md) max-w-full whitespace-normal text-center [overflow-wrap:anywhere]"
+              className="source-candidate-action h-auto min-h-(--control-height-md) max-w-full text-center [overflow-wrap:anywhere] whitespace-normal"
               variant="outline"
               disabled={busy || stale || !registrationConfirmed}
               onClick={() => onOpenPort(port.id, setupReturnOrigin)}
@@ -171,7 +172,7 @@ function CandidateAction({
         <Button
           data-focusable
           data-candidate-review
-          className="source-candidate-action h-auto min-h-(--control-height-md) max-w-full whitespace-normal text-center [overflow-wrap:anywhere]"
+          className="source-candidate-action h-auto min-h-(--control-height-md) max-w-full text-center [overflow-wrap:anywhere] whitespace-normal"
           variant="outline"
           disabled={busy || stale}
           onClick={review}
@@ -229,7 +230,7 @@ function ContinueToGame({
           Retry refresh
         </Button>
       )}
-      <div className="actions">
+      <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
         {matchingPorts.map((port) => (
           <Button
             key={port.id}
@@ -442,7 +443,7 @@ function CompletedScan({
         <p key={`${issue.path}:${index}`}>
           {issue.message}{" "}
           {issue.path && (
-            <code className="whitespace-normal [overflow-wrap:anywhere]">{issue.path}</code>
+            <code className="[overflow-wrap:anywhere] whitespace-normal">{issue.path}</code>
           )}
         </p>
       ))}
@@ -488,7 +489,7 @@ function SavedRootRows({
                 : "Unavailable — reconnect or relink this folder"}
             </span>
           </div>
-          <div className="actions">
+          <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
             <Button
               data-focusable
               variant="outline"
@@ -879,8 +880,13 @@ export function GameFileLibraries({
       }
     });
   const renderHeading = () => (
-    <div className="settings-title">
-      <h2 ref={heading} id="game-file-libraries-heading" tabIndex={-1}>
+    <div className="settings-title flex items-center justify-between gap-[12px]">
+      <h2
+        className="m-0 flex items-center gap-2"
+        ref={heading}
+        id="game-file-libraries-heading"
+        tabIndex={-1}
+      >
         Game-file libraries
       </h2>
       <Button
@@ -901,7 +907,7 @@ export function GameFileLibraries({
     </div>
   );
   const renderScanActions = () => (
-    <div className="actions">
+    <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
       <Button
         data-focusable
         variant="outline"
@@ -999,8 +1005,8 @@ export function GameFileLibraries({
     />
   );
   return (
-    <article
-      className="settings-row source-health col-span-full min-h-0"
+    <SettingsRow
+      className="source-health col-span-full min-h-0"
       data-focus-group
       data-detail-origin={setupReturnOrigin}
       aria-labelledby="game-file-libraries-heading"
@@ -1012,7 +1018,9 @@ export function GameFileLibraries({
         }
       }}
     >
-      <p className="eyebrow">SAVED FOLDERS</p>
+      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+        SAVED FOLDERS
+      </p>
       {renderHeading()}
       <p>
         Choose folders on this PC, a mounted network share, or a removable drive. Portcove searches
@@ -1046,6 +1054,6 @@ export function GameFileLibraries({
       {renderSetupReviews()}
       {renderSourceReview()}
       {renderContinue()}
-    </article>
+    </SettingsRow>
   );
 }

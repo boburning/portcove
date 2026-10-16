@@ -13,7 +13,7 @@ import { portDefinition, portStatus } from "../test-fixtures";
 import { filterPorts, summarizeLibrary } from "../view-model";
 import type { PortStatus } from "../types";
 import { browsingContextFixture } from "./browsing-context-fixture";
-import "../styles.css";
+import "../styles/index.css";
 const invoke = vi.hoisted(() => vi.fn(async () => null));
 vi.mock("../api", () => ({ desktopApi: new Proxy({}, { get: () => invoke }) }));
 const ports = [

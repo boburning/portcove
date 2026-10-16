@@ -8,7 +8,7 @@ import { SourceImportReview, sourceImportModePresentation } from "../components/
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../components/ui/dialog";
 import type { SourceImportMode, SourceImportPlan } from "../types";
-import "../styles.css";
+import "../styles/index.css";
 
 vi.mock("../api", () => ({ desktopApi: {} }));
 const containsText = (value: string) => new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));

@@ -13,7 +13,7 @@ import { useGameFileFilterContext } from "../features/browsing/use-game-file-fil
 import { portDefinition } from "../test-fixtures";
 import type { GameFileQueryRefreshRequest, GameFileQuerySnapshot, PortStatus } from "../types";
 import { filterPorts, summarizeLibrary } from "../view-model";
-import "../styles.css";
+import "../styles/index.css";
 
 vi.mock("../api", () => ({
   desktopApi: { libraryIdentity: vi.fn(), refreshGameFileQuery: vi.fn(), cancelOperation: vi.fn() },

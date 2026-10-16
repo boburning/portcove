@@ -7,7 +7,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { PortBrowser } from "../components/PortBrowser";
 import { portDefinition, portStatus } from "../test-fixtures";
 import type { PortStatus } from "../types";
-import "../styles.css";
+import "../styles/index.css";
 const invoke = vi.hoisted(() => vi.fn(async () => null));
 vi.mock("../api", () => ({ desktopApi: new Proxy({}, { get: () => invoke }) }));
 const externalUnavailable = {

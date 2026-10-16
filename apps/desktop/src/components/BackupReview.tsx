@@ -50,7 +50,7 @@ export function BackupReviewDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="backup-review-description"
         finalFocus={finalFocus}
       >
@@ -129,11 +129,15 @@ function BackupReviewDetails({ review }: { review: BackupReview }) {
       <dl>
         <div>
           <dt>Selected snapshot</dt>
-          <dd>{backup.path}</dd>
+          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
+            {backup.path}
+          </dd>
         </div>
         <div>
           <dt>Saved-data folder</dt>
-          <dd>{dataPath}</dd>
+          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
+            {dataPath}
+          </dd>
         </div>
       </dl>
       {action === "restore" ? (

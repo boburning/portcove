@@ -3,14 +3,17 @@
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { cn } from "cn";
+import { controlClassName, floatingMotion } from "./control-style";
 
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 
 const overlayClassName =
-  "fixed inset-0 isolate z-50 bg-pc-scrim duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0";
-const popupClassName =
-  "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-xl bg-pc-surface p-4 text-sm text-pc-foreground ring-1 ring-pc-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 forced-colors:outline-solid forced-colors:outline-1";
+  "fixed inset-0 z-(--layer-floating) bg-pc-scrim transition-opacity duration-(--duration-slow) ease-(--ease-standard) data-starting-style:opacity-0 data-ending-style:opacity-0 motion-reduce:transition-none";
+const popupClassName = cn(
+  "fixed top-1/2 left-1/2 z-(--layer-floating) grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-pc-lg border border-pc-border bg-pc-surface p-4 text-sm text-pc-foreground shadow-(--shadow-floating) outline-none sm:max-w-sm forced-colors:outline-1 forced-colors:outline-solid",
+  floatingMotion,
+);
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -32,7 +35,7 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
   return (
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
-      className={cn(overlayClassName, className)}
+      className={controlClassName(overlayClassName, className)}
       {...props}
     />
   );
@@ -55,7 +58,7 @@ function DialogContent({
       {showCloseButton && (
         <DialogPrimitive.Close
           data-slot="dialog-close"
-          render={<Button variant="ghost" className="absolute top-2 end-2" size="icon-sm" />}
+          render={<Button variant="ghost" className="absolute end-2 top-2" size="icon-sm" />}
         >
           <XIcon />
           <span className="sr-only">Close</span>
@@ -63,7 +66,7 @@ function DialogContent({
       )}
     </>
   );
-  const resolvedClassName = cn(popupClassName, className);
+  const resolvedClassName = controlClassName(popupClassName, className);
   if (!portaled)
     return (
       <>
@@ -72,7 +75,7 @@ function DialogContent({
           role="dialog"
           data-slot="dialog-content"
           data-portcove-focus-scope=""
-          className={resolvedClassName}
+          className={typeof resolvedClassName === "string" ? resolvedClassName : popupClassName}
           {...(props as React.ComponentProps<"div">)}
         >
           {content}
@@ -113,7 +116,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col gap-2 rounded-b-xl border-t bg-pc-surface-muted/50 p-4 sm:flex-row sm:justify-end",
+        "-mx-4 -mb-4 flex flex-col gap-2 rounded-b-pc-lg border-t border-pc-border bg-pc-surface-muted/50 p-4 sm:flex-row sm:justify-end",
         className,
       )}
       {...props}
@@ -130,7 +133,10 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("font-pc-heading text-base leading-none font-medium", className)}
+      className={controlClassName(
+        "m-0 pe-8 font-pc-heading text-lg leading-tight font-medium",
+        className,
+      )}
       {...props}
     />
   );
@@ -140,8 +146,8 @@ function DialogDescription({ className, ...props }: DialogPrimitive.Description.
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn(
-        "text-sm text-pc-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-pc-foreground",
+      className={controlClassName(
+        "m-0 text-sm text-pc-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-pc-foreground",
         className,
       )}
       {...props}

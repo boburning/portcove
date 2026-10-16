@@ -211,7 +211,7 @@ function PreparationCleanupDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="preparation-cleanup-description"
       >
         <DialogTitle id="preparation-cleanup-title" className="mb-2 text-xl">
@@ -286,7 +286,7 @@ function PreparationCleanupDetails({ preview }: { preview: PreparationCleanupPre
       className="preparation-cleanup-details"
       aria-label="Cleanup changes and preserved data"
     >
-      <p>
+      <p className="[overflow-wrap:anywhere]">
         <strong>{preview.port_id}</strong> · {preview.retained.files.length} files ·{" "}
         {formatBytes(preview.retained.total_bytes)}
       </p>
@@ -295,35 +295,47 @@ function PreparationCleanupDetails({ preview }: { preview: PreparationCleanupPre
           <dt>
             {entries.length ? "Setup working folder to delete" : "Recorded setup path to clear"}
           </dt>
-          <dd>{preview.retained_path}</dd>
+          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
+            {preview.retained_path}
+          </dd>
         </div>
         <div>
           <dt>Original installation preserved</dt>
-          <dd>{preview.original_install_path}</dd>
+          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
+            {preview.original_install_path}
+          </dd>
         </div>
         <div>
           <dt>Registered source preserved</dt>
-          <dd>{preview.source_path}</dd>
+          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
+            {preview.source_path}
+          </dd>
         </div>
         <div>
           <dt>Saved data preserved</dt>
-          <dd>{preview.persistent_data_path}</dd>
+          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
+            {preview.persistent_data_path}
+          </dd>
         </div>
         <div>
           <dt>Backups preserved</dt>
-          <dd>{preview.backup_path}</dd>
+          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
+            {preview.backup_path}
+          </dd>
         </div>
         <div>
           <dt>Logs preserved</dt>
-          <dd>{preview.logs_path}</dd>
+          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
+            {preview.logs_path}
+          </dd>
         </div>
       </dl>
-      <p>
+      <p className="[overflow-wrap:anywhere]">
         {entries.length
           ? "This deletes only the recorded setup working folder and its recovery journal. The deleted files cannot be recovered. If cleanup is interrupted, Portcove keeps the accepted cleanup in its journal and retries it when the library reopens."
           : "No setup working files were found. Cleanup clears the recorded setup path if it exists and its stale recovery journal."}
       </p>
-      <p>
+      <p className="[overflow-wrap:anywhere]">
         {entries.length
           ? "Portcove must confirm that setup and any programs it started have stopped before deleting these files."
           : "Portcove must confirm that setup and any programs it started have stopped before clearing this record."}
@@ -331,15 +343,18 @@ function PreparationCleanupDetails({ preview }: { preview: PreparationCleanupPre
       <details>
         <summary data-focusable>Affected entries ({entries.length})</summary>
         {entries.length ? (
-          <ul className="cleanup-entry-list">
+          <ul className="cleanup-entry-list m-[var(--space-2)_0_0] max-h-[12rem] overflow-auto ps-5">
             {entries.map((entry, index) => (
-              <li key={`${entry.kind}:${entry.path}:${index}`}>
+              <li
+                className="m-[var(--space-1)_0] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]"
+                key={`${entry.kind}:${entry.path}:${index}`}
+              >
                 <span>{entry.kind}</span> <code>{entry.path}</code>
               </li>
             ))}
           </ul>
         ) : (
-          <p>No retained private entries were found.</p>
+          <p className="[overflow-wrap:anywhere]">No retained private entries were found.</p>
         )}
       </details>
     </section>

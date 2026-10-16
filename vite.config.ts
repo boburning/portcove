@@ -7,6 +7,10 @@ export default defineConfig({
     printWidth: 100,
     sortImports: false,
     sortPackageJson: true,
+    sortTailwindcss: {
+      stylesheet: "./apps/desktop/src/styles/index.css",
+      functions: ["cn", "cva"],
+    },
     ignorePatterns: [
       "apps/desktop/node_modules/**",
       "apps/desktop/dist/**",

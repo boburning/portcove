@@ -184,6 +184,15 @@ Node tests, both browser projects and an ordinary production build, once each.
 Package/just/local/audit/CI consumers delegate to this graph. Audit invokes its
 static/runtime groups separately for independent failure accounting.
 
+CSS starts at `apps/desktop/src/styles/index.css`: Tailwind Preflight and the
+standard cascade layers, one CSS token authority, utility-based shared controls,
+and narrowly owned artwork CSS. Oxfmt class sorting reads that entry. Tailwind
+generates utilities; Vite's full Lightning CSS transformer owns general processing
+and minification. Production source exclusions also apply to test/scenario class
+names, independently of JavaScript imports. See [the CSS decision record](reference/css-architecture.md)
+and [theme contract](THEME.md) before changing this pipeline. Build output checks
+consume the current build; cache restoration supplies no new visual/native evidence.
+
 `pnpm test:native-tools` runs the separate Node compiler/shell integration
 suites. They require Rust for the Windows probe and PowerShell 7 on Windows (or
 the platform shell elsewhere). These integration checks retain qualification

@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { useRef, useState } from "react";
 import { ChevronDown, ChevronUp, RotateCcw, Trash2 } from "lucide-react";
 import type { BackupInventory, BackupProblem, BackupRecord } from "../types";
@@ -52,13 +53,16 @@ export function BackupHistory({
   const renderReadStatus = () =>
     readState &&
     readState.status !== "idle" && (
-      <div className="backup-inventory-notice" role="status">
+      <div
+        className="backup-inventory-notice rounded-pc-md border border-[var(--color-warning-border,_var(--color-border))] bg-[var(--color-warning-surface,_var(--color-bg-subtle))] p-[12px] [&.recovery_required]:border-[var(--color-danger-border,_var(--color-border))]"
+        role="status"
+      >
         {readState.status === "pending" && (
           <>
             <strong>
               {readState.hasInventory ? "Refreshing backup history" : "Loading backup history"}
             </strong>
-            <p>
+            <p className="m-[4px_0_8px] text-[var(--color-text-muted)]">
               {readState.hasInventory
                 ? "Showing the last loaded backup list while the current list is checked."
                 : "The backup list has not been loaded yet."}
@@ -68,7 +72,7 @@ export function BackupHistory({
         {readState.status === "failed" && (
           <>
             <strong>Backup history could not be loaded</strong>
-            <p>
+            <p className="m-[4px_0_8px] text-[var(--color-text-muted)]">
               {readState.hasInventory
                 ? "Showing the last loaded backup list. It may have changed since it was read."
                 : "The backup list is unknown. Retry to read it again."}
@@ -98,13 +102,19 @@ export function BackupHistory({
     );
   const renderInventoryNotice = () =>
     (state !== "healthy" || problems.length > 0) && (
-      <div className={`backup-inventory-notice ${state}`} role="status">
+      <div
+        className={cn(
+          `backup-inventory-notice rounded-pc-md border border-[var(--color-warning-border,_var(--color-border))] bg-[var(--color-warning-surface,_var(--color-bg-subtle))] p-[12px] ${state}`,
+          "[&.recovery_required]:border-[var(--color-danger-border,_var(--color-border))]",
+        )}
+        role="status"
+      >
         <strong>
           {state === "recovery_required"
             ? "Backup recovery required"
             : "Some backups need attention"}
         </strong>
-        <p>
+        <p className="m-[4px_0_8px] text-[var(--color-text-muted)]">
           {problems.length > 0
             ? `${problems.length} backup ${problems.length === 1 ? "entry is" : "entries are"} unavailable. `
             : "The backup inventory could not be fully checked. "}
@@ -129,15 +139,17 @@ export function BackupHistory({
           </div>
         )}
         <details>
-          <summary data-focusable>Technical details</summary>
+          <summary className="cursor-pointer" data-focusable>
+            Technical details
+          </summary>
           {problems.map((problem) => (
             <div
-              className="backup-problem"
+              className="backup-problem mt-[10px] grid gap-[3px]"
               key={`${problem.operation_id ?? "entry"}-${problem.path}`}
             >
               <strong>{problemLabel(problem.kind)}</strong>
-              <span>{problem.message}</span>
-              <small>{problem.path}</small>
+              <span className="[overflow-wrap:anywhere]">{problem.message}</span>
+              <small className="[overflow-wrap:anywhere]">{problem.path}</small>
             </div>
           ))}
         </details>
@@ -200,12 +212,18 @@ export function BackupHistory({
       />
     );
   return (
-    <div ref={history} className="backup-history" data-backup-read-state={readState?.status}>
-      <div className="backup-heading">
+    <div
+      ref={history}
+      className="backup-history mt-[18px] grid gap-[7px] pt-[18px] [border-top:1px_solid_var(--color-border)]"
+      data-backup-read-state={readState?.status}
+    >
+      <div className="backup-heading flex items-center justify-between gap-[12px]">
         <span ref={heading} role="heading" aria-level={3} tabIndex={-1}>
           Backups
         </span>
-        <small>{backupSummary(backups.length, problems.length, state, readState)}</small>
+        <small className="text-[length:var(--text-2xs)] text-[var(--color-text-muted)]">
+          {backupSummary(backups.length, problems.length, state, readState)}
+        </small>
       </div>
       <p>Backups include saves and settings managed by Portcove.</p>
       {renderReadStatus()}
@@ -214,10 +232,16 @@ export function BackupHistory({
       {visible.map((backup, index) => {
         const createdLabel = new Date(backup.created_at * 1000).toLocaleString();
         return (
-          <div className="backup-row" key={backup.id} data-backup-id={backup.id}>
-            <span>
-              <strong>{createdLabel}</strong>
-              <small>
+          <div
+            className="backup-row rounded-pc-md border border-[var(--color-transparent)] bg-[var(--color-bg-subtle)] p-[10px] hover:border-[var(--color-border)] hover:bg-[var(--color-bg-subtle-hover)]"
+            key={backup.id}
+            data-backup-id={backup.id}
+          >
+            <span className="min-w-0">
+              <strong className="overflow-hidden text-[length:var(--text-xs)] text-ellipsis whitespace-nowrap">
+                {createdLabel}
+              </strong>
+              <small className="mt-[3px] text-[length:var(--text-2xs)] text-[var(--color-text-muted)]">
                 {backup.file_count} {backup.file_count === 1 ? "file" : "files"} ·{" "}
                 {formatBytes(backup.size)}
               </small>
@@ -229,9 +253,11 @@ export function BackupHistory({
               >
                 Technical details
               </summary>
-              <small className="backup-checksum">SHA-256 {backup.sha256}</small>
+              <small className="backup-checksum mt-[3px] font-mono text-[length:var(--text-2xs)] [overflow-wrap:anywhere] text-[var(--color-text-muted)]">
+                SHA-256 {backup.sha256}
+              </small>
             </details>
-            <span className="backup-actions">
+            <span className="backup-actions flex flex-none gap-[6px]">
               <Button
                 data-focusable
                 data-backup-action="restore"

@@ -33,7 +33,7 @@ const plugins = lazyPlugins(async (): Promise<PluginOption[]> => {
   ]);
   return [
     react(),
-    tailwindcss(),
+    tailwindcss({ optimize: false }),
     {
       name: "exclude-development-scenarios",
       apply: "build",
@@ -79,8 +79,18 @@ export default defineConfig({
   // Only explicitly public frontend inputs are exposed. Tauri target/debug
   // variables remain available to native tooling without exposing signing inputs.
   envPrefix: "VITE_",
+  css: {
+    transformer: "lightningcss",
+    devSourcemap: true,
+    lightningcss: { targets: { chrome: 111 << 16, safari: (16 << 16) | (4 << 8) } },
+  },
   // Transforms match the selected CSS stack; native OS/WebView qualification remains separate.
-  build: { target: ["chrome111", "safari16.4"], sourcemap: true },
+  build: {
+    target: ["chrome111", "safari16.4"],
+    cssTarget: ["chrome111", "safari16.4"],
+    cssMinify: "lightningcss",
+    sourcemap: true,
+  },
   run: {
     tasks: {
       "frontend:bundle": {

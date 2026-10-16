@@ -10,7 +10,7 @@ import { portDefinition, portStatus } from "../test-fixtures";
 import type { PortStatus, ReleaseChannel } from "../types";
 import { filterPorts, summarizeLibrary, type Filter } from "../view-model";
 import type { CatalogQuery } from "../features/browsing/catalog-query";
-import "../styles.css";
+import "../styles/index.css";
 
 vi.mock("../api", () => ({ desktopApi: {} }));
 const ports = [

@@ -7,7 +7,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import catalog from "../../../../crates/portcove-core/catalog/catalog.json";
 import { SourceDiscoveryButton } from "../components/SourceDiscovery";
 import { sourceProfile } from "../test-fixtures";
-import "../styles.css";
+import "../styles/index.css";
 
 vi.mock("../api", () => ({ desktopApi: {} }));
 let root: Root;
