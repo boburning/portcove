@@ -4,7 +4,14 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { report } from "./fallow-test-fixture.mjs";
-import { fallowArguments, formatFallowFailure, runFallow } from "./run-fallow.mjs";
+import {
+  fallowArguments,
+  formatFallowFailure,
+  runFallow as runFallowCommand,
+} from "./run-fallow.mjs";
+
+// Unit fixtures never publish into the enclosing Actions job's real summary.
+const runFallow = (options) => runFallowCommand({ jobSummary: null, ...options });
 
 test("Fallow child and parse failures retain raw streams with bounded diagnostics", () => {
   const evidenceDirectory = mkdtempSync(path.join(os.tmpdir(), "fallow-error-"));
@@ -54,6 +61,7 @@ test("selective routes preserve explicit full-branch review and bounded parser w
 test("successful high duplication retains actionable results and supports exact-input reuse", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-reuse-"));
   let calls = 0;
+  let formats = 0;
   const identity = () => ({ head: "fixture", source_sha256: "content", dirty: true });
   const value = report({ duplication: 17 });
   value.dupes.clone_groups = [
@@ -67,11 +75,22 @@ test("successful high duplication retains actionable results and supports exact-
     },
   ];
   try {
-    const spawn = () => {
+    const jobSummary = path.join(directory, "summary.md");
+    const spawn = (_command, args) => {
+      if (args.includes("report")) {
+        formats++;
+        assert.ok(args.includes("--from"), "formatting must consume retained evidence");
+        return { status: 0, stdout: "Saved Fallow report\n", stderr: "" };
+      }
       calls++;
       return { status: 0, stdout: JSON.stringify(value), stderr: "retained warning" };
     };
-    const first = runFallow({ evidenceDirectory: path.join(directory, "first"), identity, spawn });
+    const first = runFallow({
+      evidenceDirectory: path.join(directory, "first"),
+      identity,
+      spawn,
+      jobSummary,
+    });
     assert.equal(first.exitCode, 0);
     assert.match(first.text, /17%/);
     assert.match(first.text, /dup:example/);
@@ -82,9 +101,12 @@ test("successful high duplication retains actionable results and supports exact-
       reuse: first.evidenceDirectory,
       identity,
       spawn,
+      jobSummary,
     });
     assert.equal(second.exitCode, 0);
     assert.equal(calls, 1);
+    assert.equal(formats, 2, "reuse may format saved evidence without analyzing again");
+    assert.match(readFileSync(jobSummary, "utf8"), /Saved Fallow report/);
     assert.throws(
       () =>
         runFallow({
