@@ -297,6 +297,76 @@ Focused owned Windows/Linux fixtures, privacy canaries, exact CLI/operation outc
 controls and separate review provide evidence. No owner playtest, proprietary game
 data, paid Actions or owner-operated Mac requirement is introduced.
 
+## Optional Docker development tooling
+
+Owner decision, 2026-10-15: two finite development-speed outcomes are authorized
+for the existing Windows development PC and local runner. Browser tooling comes first; Linux build and
+unsigned packaging starts only after the shared host preflight, committed-source
+isolation, orchestration, result export and cleanup have actual Windows-to-Linux
+container evidence:
+
+1. [Optional Windows-driven Docker browser testing #2006](https://github.com/boburning/portcove/issues/2006).
+2. [Separate Linux build and unsigned packaging #2007](https://github.com/boburning/portcove/issues/2007),
+   blocked by #2006's implemented and demonstrated shared adapter.
+
+The Project placement is **Public beta / Planned**, not Required: target useful
+delivery before beta where capacity permits, without blocking any existing
+Required beta outcome. Only the builder depends on the browser outcome; no
+reverse beta-release dependency or new parent/epic is authorized.
+
+Docker Desktop with the WSL 2 Linux-container backend is optional developer
+tooling, not application deployment, mandatory contributor setup, another runner
+or a native Linux desktop qualification host. The ThinkPad T480 is unconfigured
+and excluded from all work, evidence and prerequisites. Native Windows builds,
+development and platform tests remain usable with Docker stopped. There is no
+ordinary CI migration, paid infrastructure/Actions requirement, signing,
+publication, security-acceptance, platform-qualification or release-gate change.
+
+The [completed Vite+ modernization record](reference/viteplus-modernization.md)
+classified Docker/packaging as inapplicable within that completed migration.
+That retained historical disposition does not prohibit these newly
+authorized optional build/test environments, and does not reopen
+[#2001](https://github.com/boburning/portcove/issues/2001).
+Follow-up [#2004](https://github.com/boburning/portcove/issues/2004) owns Vite+ task,
+browser and bootstrap consolidation; container implementation must consume its
+actually delivered commands and pins without taking over that work.
+[#1036](https://github.com/boburning/portcove/issues/1036) retains browser coverage;
+[#1615](https://github.com/boburning/portcove/issues/1615) retains separate portable
+capability work. None gains a Docker prerequisite.
+
+Both outcomes stage an explicitly selected committed revision, including unpushed
+commits, into isolated Linux storage and record requested/executed commit and
+tree. Dirty current work must be refused or explicitly excluded by a deliberate
+committed-selection request; no silent omission, automatic commit/stash/reset/
+push/branch switch or v1 dirty synchronization. Keep Linux dependencies, browser
+cache, Cargo output and scratch separate from native Windows state. Reuse existing
+storage, guarded-command, browser-bootstrap/trace, build and package helpers.
+Validate Docker virtual-disk backing Windows volume as well as container/export
+capacity; Linux paths do not bypass the maintainer's storage policy. No automatic
+host-feature, reboot, Docker-data relocation or global-resource-setting changes.
+
+Browser tooling uses a compatible pinned Vite+ image, all frozen installation
+inputs and the repository's contained browser runtime/failure probe; Rust and
+packaging dependencies stay out absent an actual browser requirement. The separate
+builder revalidates the supported release baseline (Ubuntu 22.04 x86-64 at
+inspection), reuses the Linux prerequisite installer and existing Linux PowerShell
+CLI packaging/smoke helpers, and reports AppImage, deb and rpm independently.
+Compilation/package evidence is not native installed-application qualification.
+
+Cache preparation/downloads, never fresh acceptance. Warm commands actually rerun
+tests/builds and export causal status, logs/traces, source/environment identity
+and artifact hashes; preserve owned resources if export fails. Bound runtime and
+storage, use non-root tasks/minimal mounts and environment, and retain inspectable
+labels/dry-run cleanup protecting active runs and failure evidence. No host home,
+game library, signing credentials, Docker socket, broad privilege/capabilities,
+host networking, privileged FUSE, machine-wide prune or sandbox guarantee.
+Maintain image pins through verified existing dependency extraction/coordination;
+record local image ID/base pin and mutable installed-package identities. No
+unproven offline, reproducibility or speedup claim. Candidate commands
+`container-doctor`, `container-browser` and `container-clean` are **planned names**,
+not available tooling. Each issue requires separate review, real Windows-host
+integration, cold/warm/failure/interruption evidence and unchanged native commands.
+
 ## Later independent directions
 
 - [Remembered goals #965](https://github.com/boburning/portcove/issues/965) and
