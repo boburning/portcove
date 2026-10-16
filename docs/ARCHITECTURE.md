@@ -2329,6 +2329,9 @@ resumes the exact creation-returned primary thread. It captures descendant
 creation handles before continuing debug events, independently of caller
 checkpoints. One PID-and-creation-time store combines those handles with bounded
 Job observations for descendants that start their own debugger. Cleanup proof
+uses valid returned PIDs from successful partial live snapshots as supplemental
+observations; partial snapshots never establish complete lifetime coverage.
+Malformed counts and either count above the 512-member bound remain failures. It
 requires positive retained-handle waits, zero active members and equality between
 the Job's lifetime count and retained identities, within one two-second closure
 deadline. Missing coverage, API failure or expiry preserves failure. Startup

@@ -138,6 +138,9 @@ fn main() {
             if args.get(2).is_some_and(|arg| arg == "wait" || arg == "observed-wait") {
                 thread::sleep(Duration::from_secs(8));
             }
+            if observed {
+                fs::write("leader-exiting", b"exiting").unwrap();
+            }
         }
         Some("--setup-unobserved-child" | "--setup-unobserved-image" | "--setup-console-image") => {
             #[cfg(windows)]
