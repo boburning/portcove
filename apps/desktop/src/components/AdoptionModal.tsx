@@ -61,7 +61,7 @@ export function AdoptionModal({
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(500px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(500px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="adopt-description"
       >
         <Button
@@ -75,10 +75,12 @@ export function AdoptionModal({
         >
           <Icon glyph={X} />
         </Button>
-        <span className="mb-4 grid size-11 place-items-center rounded-lg border border-pc-primary bg-pc-accent text-pc-accent-foreground">
+        <span className="mb-4 grid size-11 place-items-center rounded-lg border border-pc-interactive bg-pc-selection text-pc-selection-foreground">
           <Icon glyph={FolderInput} size="lg" />
         </span>
-        <p className="eyebrow">COPY EXISTING INSTALLATION</p>
+        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+          COPY EXISTING INSTALLATION
+        </p>
         <DialogTitle ref={titleRef} tabIndex={-1} id="adopt-title" className="mb-2 text-xl">
           Add an existing installation to Portcove
         </DialogTitle>
@@ -86,7 +88,7 @@ export function AdoptionModal({
           Copy this installation and any supported saved data into Portcove. The original folder
           will stay unchanged. Review the detected port and destination before copying.
         </DialogDescription>
-        <p className="inline-assurance">
+        <p className="inline-assurance mb-5 flex items-center gap-2 text-[length:var(--text-xs)] text-[var(--color-success-text)]">
           <Icon glyph={ShieldCheck} /> Review first, then confirm before copying.
         </p>
         <NavigationHints />
@@ -116,14 +118,14 @@ export function AdoptionModal({
         </div>
         {preview && (
           <section
-            className="adoption-plan adoption-review"
+            className="adoption-plan adoption-review m-[var(--space-4)_0] max-h-[none] overflow-visible rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-4 [overflow-wrap:anywhere]"
             aria-label="Existing installation copy plan"
           >
             <p
               ref={portIdentityRef}
               id="adopt-port-identity"
               tabIndex={preview.selected_port_id ? -1 : undefined}
-              className="rounded-sm focus:outline-2 focus:outline-offset-2 focus:outline-pc-ring"
+              className="m-[0_0_var(--space-2)] rounded-sm text-[var(--color-text-secondary)] focus:outline-2 focus:outline-offset-2 focus:outline-pc-ring"
             >
               <strong>
                 {portIdentity?.kind === "selected"
@@ -143,18 +145,18 @@ export function AdoptionModal({
             </p>
             {portIdentity?.kind === "ambiguous" && (
               <>
-                <p>
+                <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
                   This folder matches more than one supported port. Choose the correct game to
                   review its destination and saved-data changes before copying.
                 </p>
-                <ul aria-label="Detected ports">
+                <ul className="ps-5" aria-label="Detected ports">
                   {portIdentity.ports.map((port) => (
                     <li key={port.id}>
                       <Button
                         data-focusable
                         variant="outline"
                         type="button"
-                        className="h-auto min-h-(--control-height-md) w-full min-w-0 max-w-full justify-start whitespace-normal break-words py-2 text-left"
+                        className="h-auto min-h-(--control-height-md) w-full max-w-full min-w-0 justify-start py-2 text-start break-words whitespace-normal"
                         disabled={Boolean(busy) || applying}
                         onClick={() => {
                           pendingCandidate.current = { path, id: port.id };
@@ -169,7 +171,7 @@ export function AdoptionModal({
                 </ul>
               </>
             )}
-            <p>
+            <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
               {preview.copy_plan.files.length.toLocaleString()}{" "}
               {preview.copy_plan.files.length === 1 ? "file" : "files"} ·{" "}
               {formatBytes(preview.copy_plan.total_bytes)}{" "}
@@ -179,12 +181,12 @@ export function AdoptionModal({
             </p>
             {preview.copy_plan.skipped_entries.length > 0 && (
               <details>
-                <summary>
+                <summary className="cursor-pointer text-[var(--color-warning-text)]">
                   {preview.copy_plan.skipped_entries.length} unsupported{" "}
                   {preview.copy_plan.skipped_entries.length === 1 ? "item" : "items"} will remain
                   only in the original folder
                 </summary>
-                <ul>
+                <ul className="ps-5">
                   {preview.copy_plan.skipped_entries.map((entry) => (
                     <li key={entry.relative_path}>
                       <code>{entry.relative_path}</code> — {entry.reason}
@@ -193,19 +195,19 @@ export function AdoptionModal({
                 </ul>
               </details>
             )}
-            <p>
+            <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
               <strong>Original folder:</strong> {preview.source}
             </p>
             {preview.destination && <AdoptionConsequences destination={preview.destination} />}
-            <p>
+            <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
               The original folder, saved file locations, existing backups and other games remain
               unchanged.
             </p>
-            <p>
+            <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
               There is no single undo action. Removing the managed copy later does not restore
               overwritten saved files. Create a backup first if you need those files.
             </p>
-            <p>
+            <p className="m-[0_0_var(--space-2)] mb-0 text-[var(--color-text-secondary)]">
               Stop the game before copying. Once copying starts, this dialog cannot cancel it. If
               interrupted, recovery may finish a verified copy; check the library and saved data
               before retrying.
@@ -320,7 +322,11 @@ function AdoptionConsequences({
         {destination.current_user_data_files === 1 ? "file" : "files"}.
       </p>
       {destination.imported_user_data_paths.length > 0 ? (
-        <div id="adopt-save-warning" className="adoption-save-warning" role="note">
+        <div
+          id="adopt-save-warning"
+          className="adoption-save-warning m-[var(--space-2)_0] rounded-pc-md border border-[var(--color-warning-border)] bg-[var(--color-warning-subtle)] p-3 text-[var(--color-warning-text)]"
+          role="note"
+        >
           <strong>Saved-file replacement — no backup before copying</strong>
           <p>
             Matching saved files in Portcove will be replaced. Portcove does not create a backup

@@ -75,7 +75,7 @@ export function RemovalReviewDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="removal-review-description"
       >
         <DialogTitle id="removal-review-title" className="mb-2 text-xl">
@@ -87,7 +87,7 @@ export function RemovalReviewDialog({
         {pending === "review" && <p role="status">Checking installed versions…</p>}
         {preview && (
           <section className="removal-review-details" aria-label="Files removed and data preserved">
-            <p>
+            <p className="[overflow-wrap:anywhere]">
               <strong>
                 Files inside these {preview.managed_paths.length} installation{" "}
                 {preview.managed_paths.length === 1 ? "folder" : "folders"} will be deleted,
@@ -96,26 +96,28 @@ export function RemovalReviewDialog({
             </p>
             <ul>
               {preview.managed_paths.map((path) => (
-                <li key={path}>{path}</li>
+                <li className="[overflow-wrap:anywhere]" key={path}>
+                  {path}
+                </li>
               ))}
             </ul>
-            <p>
+            <p className="[overflow-wrap:anywhere]">
               This game's saved release-channel and update-policy settings will also be removed.
             </p>
-            <p>
+            <p className="[overflow-wrap:anywhere]">
               <strong>Saved data will be preserved at:</strong>
             </p>
-            <p>{preview.persistent_data_path}</p>
-            <p>
+            <p className="[overflow-wrap:anywhere]">{preview.persistent_data_path}</p>
+            <p className="[overflow-wrap:anywhere]">
               Your saved data, backups, and game files are kept. Saved game-file locations and the
               original folders used for copied installations are also kept. Other games are
               unaffected.
             </p>
-            <p>
+            <p className="[overflow-wrap:anywhere]">
               The game must be stopped. To use this port again, reinstall it or copy an existing
               installation. Uninstall cannot be undone.
             </p>
-            <p>
+            <p className="[overflow-wrap:anywhere]">
               If interrupted, Portcove retains a recovery journal and checks removal when the
               library reopens. Review any recovery notice before another attempt; interrupted
               deletion may finish.

@@ -20,13 +20,15 @@ describe("Portcove app shell", () => {
     error.details = { path: "Z:\\Portcove" };
     error.presentation.technical_context = { path: "Z:\\Portcove" };
     const html = renderToStaticMarkup(<BootstrapRecovery error={error} />);
-    expect(html).toContain('<main class="bootstrap-state bootstrap-error">');
-    expect(html).toContain('<p role="alert">The configured library cannot be opened.</p>');
+    expect(html).toMatch(/<main class="bootstrap-state bootstrap-error(?: |")/u);
+    expect(html).toMatch(
+      /<p[^>]*role="alert"[^>]*>The configured library cannot be opened\.<\/p>/u,
+    );
     expect(html).toContain("Portcove couldn’t start");
     expect(html).toContain("The configured library cannot be opened.");
     expect(html).toContain("Z:\\Portcove");
     expect(html).toContain("View technical details");
-    expect(html).toContain("<dt>Path</dt>");
+    expect(html).toMatch(/<dt[^>]*>Path<\/dt>/u);
     expect(html).not.toContain("<dt>path</dt>");
     expect(html.indexOf("Z:\\Portcove")).toBeGreaterThan(html.indexOf("<details"));
     expect(html).toContain("If the current library is the cause");
@@ -45,8 +47,10 @@ describe("Portcove app shell", () => {
     error.presentation.technical_context = { future_field: "exact-value" };
     const html = renderToStaticMarkup(<BootstrapRecovery error={error} />);
 
-    expect(html).toContain('<summary data-focusable="true">View technical details</summary>');
-    expect(html).toContain("<dt><code>future_field</code></dt>");
+    expect(html).toMatch(
+      /<summary[^>]*data-focusable="true"[^>]*>View technical details<\/summary>/u,
+    );
+    expect(html).toMatch(/<dt[^>]*><code[^>]*>future_field<\/code><\/dt>/u);
     expect(html).toContain("exact-value");
     expect(html.indexOf("future_field")).toBeGreaterThan(html.indexOf("<details"));
   });

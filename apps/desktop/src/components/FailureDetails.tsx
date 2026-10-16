@@ -48,41 +48,57 @@ export function FailureDetails({
         </p>
       )}
       <details>
-        <summary data-focusable>View technical details</summary>
+        <summary className="cursor-pointer" data-focusable>
+          View technical details
+        </summary>
         {contextLabel ? (
-          <dl>
+          <dl className="grid gap-3 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-4">
             {code && (
               <div>
-                <dt>Error code</dt>
-                <dd>{code}</dd>
+                <dt className="text-xs text-pc-muted-foreground">Error code</dt>
+                <dd className="m-0 min-w-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]">
+                  {code}
+                </dd>
               </div>
             )}
             <div>
-              <dt>Outcome</dt>
-              <dd>{presentation.mutation_state}</dd>
+              <dt className="text-xs text-pc-muted-foreground">Outcome</dt>
+              <dd className="m-0 min-w-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]">
+                {presentation.mutation_state}
+              </dd>
             </div>
             {presentation.phase && (
               <div>
-                <dt>Phase</dt>
-                <dd>{presentation.phase}</dd>
+                <dt className="text-xs text-pc-muted-foreground">Phase</dt>
+                <dd className="m-0 min-w-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]">
+                  {presentation.phase}
+                </dd>
               </div>
             )}
             <div>
-              <dt>Message</dt>
-              <dd>{presentation.technical_message}</dd>
+              <dt className="text-xs text-pc-muted-foreground">Message</dt>
+              <dd className="m-0 min-w-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]">
+                {presentation.technical_message}
+              </dd>
             </div>
             {Object.entries(presentation.technical_context).map(([key, value]) => {
               const label = contextLabel(key);
               return (
                 <div key={key}>
-                  <dt>{label ?? <code>{key}</code>}</dt>
-                  <dd>{value}</dd>
+                  <dt className="text-xs text-pc-muted-foreground">
+                    {label ?? <code>{key}</code>}
+                  </dt>
+                  <dd className="m-0 min-w-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]">
+                    {value}
+                  </dd>
                 </div>
               );
             })}
           </dl>
         ) : (
-          <pre>{technical}</pre>
+          <pre className="text-[length:var(--text-xs)] [overflow-wrap:anywhere] whitespace-pre-wrap">
+            {technical}
+          </pre>
         )}
         <FailureDetailsCopy key={technical} technical={technical} />
       </details>

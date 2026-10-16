@@ -192,21 +192,24 @@ function RegisterExternalDialog({
         </DialogDescription>
         {pending === "review" && <p role="status">Checking runtime files…</p>}
         {preview && (
-          <div className="metadata" aria-label="External runtime review">
-            <span>
-              <small>Version</small>
+          <div
+            className="metadata grid grid-cols-[1fr_1fr] gap-[10px]"
+            aria-label="External runtime review"
+          >
+            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+              <small className="mb-[5px] block text-[var(--color-text-muted)]">Version</small>
               {preview.version}
             </span>
-            <span>
-              <small>Folder</small>
+            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+              <small className="mb-[5px] block text-[var(--color-text-muted)]">Folder</small>
               {preview.path}
             </span>
-            <span>
-              <small>Executable</small>
+            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+              <small className="mb-[5px] block text-[var(--color-text-muted)]">Executable</small>
               {preview.executable}
             </span>
-            <span>
-              <small>Checked files</small>
+            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+              <small className="mb-[5px] block text-[var(--color-text-muted)]">Checked files</small>
               {preview.immutable_file_count}
             </span>
           </div>

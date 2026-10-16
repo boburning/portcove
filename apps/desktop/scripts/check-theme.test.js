@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vite-plus/test";
 import { semanticReferenceFailures, themeTokenFailures } from "./theme-tokens.mjs";
 import { productionCssFailures } from "./production-css.mjs";
-const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+const css = readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
 describe("theme tokens", () => {
   it("preserves branding, required aliases and text/control contrast in both themes", () => {
     const result = themeTokenFailures(css);
@@ -37,11 +37,11 @@ describe("theme tokens", () => {
   });
   it("requires CSS emitted by the current build, including focus and destructive variants", () => {
     const emitted =
-      ".bg-pc-signature{}.bg-pc-scrim{}.active\\:bg-pc-signature-active{}.hover\\:bg-pc-danger-surface{}.text-pc-danger-strong{}.focus-visible\\:ring-pc-ring{}[data-theme=dark]{}";
+      ".bg-pc-primary{}.bg-pc-scrim{}.active\\:bg-pc-primary-active{}.hover\\:bg-pc-danger-surface{}.text-pc-danger-strong{}.focus-visible\\:outline-pc-ring{}[data-theme=dark]{}";
     expect(productionCssFailures(emitted)).toEqual([]);
     expect(productionCssFailures("")).not.toEqual([]);
-    expect(productionCssFailures(emitted.replace(".focus-visible\\:ring-pc-ring{}", ""))).toEqual([
-      "production CSS omits required selector .focus-visible\\:ring-pc-ring",
-    ]);
+    expect(
+      productionCssFailures(emitted.replace(".focus-visible\\:outline-pc-ring{}", "")),
+    ).toEqual(["production CSS omits required selector .focus-visible\\:outline-pc-ring"]);
   });
 });

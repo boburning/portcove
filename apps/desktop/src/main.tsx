@@ -6,7 +6,7 @@ import { AppErrorBoundary } from "./ErrorBoundary";
 import { desktopApi } from "./api";
 import { initializeTheme } from "./theme";
 import { initializeLocalization, LocalizationProvider } from "./localization";
-import "./styles.css";
+import "./styles/index.css";
 
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 document.documentElement.dir = "ltr";

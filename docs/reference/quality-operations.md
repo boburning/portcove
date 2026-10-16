@@ -443,18 +443,21 @@ The exact managed ordinary-release publisher lifecycle has a forty-five-second
 harness budget to retain its complete authenticated catalog, artifact and correction
 sequence across observed Intel phase variability. Its anchored filter retains
 five-second warnings, zero retries and grace, and the existing two-slot reservation.
-The default remains thirty seconds; the contract rejects other budget overrides.
+The current default remains thirty seconds. These recorded values are not
+ceilings: [standing owner authorization](../QUALITY.md#autonomous-test-timeout-calibration)
+permits justified finite harness calibration without another approval.
 
-Do not hide failures with larger timeouts. Preserve the original failure and
+Preserve the original failure and
 identify the firing deadline: per-test harness, product assertion, whole command
 or job, admission queue, or observation window. A live process whose observer
 stopped still needs supported observation and cleanup before another invocation.
-Use a bounded, hypothesis-driven diagnostic with unchanged assertions, fixture,
-concurrency and retries. Around ninety seconds is an initial heavyweight-test
-experiment, not a permanent default. Retain total and phase timings, actual
-platform and meaningful warm/cold or resource conditions; obtain a matched
-confirmation when necessary. Another platform or one extended-budget pass does
-not resolve the original platform's failure or supply merge clearance.
+Use a bounded diagnostic with unchanged product assertions and zero retries;
+calibrate a test-only setup or synchronization wait when it is the actual limit.
+Choose finite headroom appropriate to the workload, coordinating nested command,
+supervisor and CI limits with cleanup. A short rationale and relevant validation
+suffice for a straightforward adjustment. Retain useful phase/platform and cold/
+warm observations where available. Another platform or one extended-budget pass
+does not establish a causal repair or supply merge clearance.
 
 Select the smallest causal repair or an evidence-supported narrow budget
 correction with room for supported-platform variability. Fix identified deadlocks,
@@ -465,7 +468,9 @@ where required. Independently review the exact override and evidence, retain
 slow warnings and finite termination, and satisfy normal selected validation,
 protected pre-change qualification and exact-head hosted gates. A permitted
 diagnostic budget experiment is not its own final policy-transition qualification.
-Do not automatically enlarge Node, network, CI-job or other test budgets.
+Node, qualification-harness, command/supervisor and CI safeguards may be calibrated
+under the same authorization; application network and other product deadlines
+remain unchanged. No historical number is a new permission ceiling.
 Pure unit tests should normally finish well below the diagnostic threshold.
 A timeout or failed assertion still fails the lane.
 Nextest prints individual elapsed times. Documentation tests still run separately

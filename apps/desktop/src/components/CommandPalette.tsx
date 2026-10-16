@@ -1,3 +1,4 @@
+import { Button } from "./ui/button";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Search } from "lucide-react";
@@ -88,15 +89,16 @@ function OpenCommandPalette({
         }}
         initialFocus={searchInput}
         showCloseButton={false}
-        className="command-palette top-[12vh] w-[min(40rem,calc(100vw-var(--space-12)))] max-w-none -translate-y-0 gap-0 p-0 sm:max-w-none"
+        className="command-palette top-[12vh] w-[min(40rem,_calc(100vw_-_var(--space-12)))] max-w-none -translate-y-0 gap-0 overflow-hidden rounded-pc-lg border border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)] p-0 shadow-[var(--shadow-floating)] sm:max-w-none"
         aria-describedby={undefined}
       >
         <DialogTitle className="sr-only" id="command-palette-title">
           Portcove commands
         </DialogTitle>
-        <label className="palette-search">
+        <label className="palette-search grid min-h-[3.25rem] grid-cols-[auto_minmax(0,_1fr)_auto] items-center gap-3 bg-[var(--color-bg-inset)] p-[0_var(--space-4)] text-[var(--color-text-muted)] [border-bottom:1px_solid_var(--color-border)] focus-within:shadow-[inset_0_-2px_var(--color-focus)]">
           <Icon glyph={Search} />
           <input
+            className="min-h-[3.25rem] w-full border-0 bg-[var(--color-transparent)] p-0 text-[length:var(--text-md)] text-[var(--color-text)] [outline:0]"
             ref={searchInput}
             data-autofocus
             data-focusable
@@ -148,18 +150,21 @@ function OpenCommandPalette({
           <Shortcut>Esc</Shortcut>
         </label>
         <div
-          className="palette-results"
+          className="palette-results max-h-[min(27rem,_58vh)] overflow-auto p-2"
           id="command-palette-results"
           role={filtered.length ? "listbox" : undefined}
           aria-label={filtered.length ? "Available commands" : undefined}
         >
           {filtered.length === 0 ? (
-            <p className="palette-empty" role="status">
+            <p
+              className="palette-empty m-0 p-8 text-center text-[var(--color-text-muted)]"
+              role="status"
+            >
               {query.trim() ? `No command matches “${query}”.` : "No commands are available."}
             </p>
           ) : (
             filtered.map((command) => (
-              <button
+              <Button
                 id={`command-${command.id}`}
                 role="option"
                 aria-selected={activeId === command.id}
@@ -167,7 +172,8 @@ function OpenCommandPalette({
                 key={command.id}
                 ref={activeId === command.id ? activeCommand : undefined}
                 onFocus={() => setSelectedId(command.id)}
-                className={activeId === command.id ? "palette-command active" : "palette-command"}
+                variant={activeId === command.id ? "selected" : "ghost"}
+                className="palette-command grid w-full grid-cols-[auto_minmax(0,1fr)_auto] justify-start gap-3 px-3 py-2 text-start font-normal"
                 disabled={command.disabled}
                 onKeyDown={(event) => {
                   if (
@@ -179,20 +185,22 @@ function OpenCommandPalette({
                 onMouseEnter={() => setSelectedId(command.id)}
                 onClick={() => run(command)}
               >
-                <span className="palette-command-icon">
+                <span className="palette-command-icon grid h-[2rem] w-[2rem] [place-items:center] rounded-pc-sm bg-[var(--color-bg-raised)] text-[var(--color-interactive-text)]">
                   <Icon glyph={command.icon} />
                 </span>
                 <span>
-                  <strong>{command.label}</strong>
-                  <small>{command.description}</small>
+                  <strong className="block text-[length:var(--text-sm)]">{command.label}</strong>
+                  <small className="mt-[0.15rem] block text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
+                    {command.description}
+                  </small>
                 </span>
                 {command.shortcut && <Shortcut>{command.shortcut}</Shortcut>}
-              </button>
+              </Button>
             ))
           )}
         </div>
-        <footer className="palette-footer">
-          <NavigationHints />
+        <footer className="palette-footer flex items-center gap-4 p-[var(--space-2)_var(--space-4)] text-[length:var(--text-2xs)] text-[var(--color-text-muted)] [border-top:1px_solid_var(--color-border)]">
+          <NavigationHints className="mt-0 w-full" />
         </footer>
       </DialogContent>
     </Dialog>
