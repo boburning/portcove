@@ -300,3 +300,19 @@ This reconfirmation changes no advisory, severity, scanner policy, acceptance
 scope, expiry or publication identity. PR #2005 must still obtain separate
 review and complete exact-head protected qualification; failed scans and earlier
 qualification attempts remain retained with their original outcomes.
+
+The subsequent bounded test-only reassessment at
+`2b88684c1c1169eb9b6b300533fee6ffc4dcd310` changes exactly one further fingerprint
+entry: `crates/portcove-core/src/definition_publisher_policy_tests.rs`. Its fixture
+reuses one observation service around live launch-assessment updates, removing
+two redundant selected-catalog loads. Both actual launch attempts still reopen
+independently, and every assertion, timeout and reservation remains unchanged.
+Four affected Windows launch/status cases passed; current-head Intel macOS
+qualification remains separately required. Replacing this one entry with its
+`fd5e8b4` Git preimage reproduces the preceding conservative digest exactly.
+The resulting input digest is
+`fcb3a6fa61fabc22d15abc1e97d8976c7d0071082744106fbe9c6b0a551f9d28`.
+The full resolved native inventory, Cargo lock, feature set and build-environment
+entry match the preceding candidate. Production source and APIs are unchanged.
+Only `reconfirmedHead` and `inputsSha256` change in the protected record; the
+original finding, failed scans, expiry, scope and publication hold remain intact.
