@@ -1,0 +1,50 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  "entry": [
+    "scripts/*.test.{js,mjs,ts,mts}",
+    "integrations/playnite/*.test.{mjs,mts}",
+    "scripts/container-entry.{mjs,mts}",
+    "scripts/rust-test-tree-supervisor.{mjs,mts}",
+    "scripts/viteplus-renovate-probe.{mjs,mts}",
+    "apps/desktop/i18next.invalid.config.{ts,mts}",
+    "apps/desktop/src/i18next-contract.test-d.ts",
+    "apps/desktop/src/i18next.d.ts",
+    "apps/desktop/src/dev-scenarios/entry.{ts,tsx}",
+    "apps/desktop/test/browser-setup.{mjs,mts}",
+    "apps/desktop/scripts/*.native.test.{mjs,mts}",
+    "apps/desktop/scripts/browser-package-compatibility.{mjs,mts}",
+    "apps/desktop/scripts/copy-lint-plugin.{mjs,mts}",
+    "scripts/aqua-integrity.{mjs,mts}",
+    "scripts/audit.{mjs,mts}",
+    "scripts/ci-health.{mjs,mts}",
+    "scripts/container-browser.{mjs,mts}",
+    "scripts/desktop-test-cli.{mjs,mts}",
+    "scripts/desktop-verify.{mjs,mts}",
+    "scripts/dev-doctor.{mjs,mts}",
+    "scripts/handoff-evidence.{mjs,mts}",
+    "scripts/local-validation.{mjs,mts}",
+    "scripts/pr-delivery.{mjs,mts}",
+    "scripts/resource-status.{mjs,mts}",
+    "scripts/test-duration-reporter.{mjs,mts}",
+    "scripts/upstream-observer.{mjs,mts}",
+    "scripts/viteplus-cli.{mjs,mts}"
+  ],
+  "ignorePatterns": [
+    "target/**",
+    "work/**",
+    "outputs/**",
+    "release-assets/**",
+    ".codex-remote-attachments/**",
+    "apps/desktop/dist/**",
+    "apps/desktop/src-tauri/gen/**",
+    "**/*.generated.*",
+    "crates/**/tests/fixtures/**"
+  ],
+  "boundaries": {
+    "zones": [
+      { "name": "shared", "patterns": ["apps/desktop/src/shared/**"] },
+      { "name": "features", "patterns": ["apps/desktop/src/features/**"] }
+    ],
+    "rules": [{ "from": "shared", "allow": ["shared"], "allowTypeOnly": [] }]
+  }
+}

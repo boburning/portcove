@@ -79,6 +79,15 @@ merge gate. Their full execution recipes live in
 [quality operations](reference/quality-operations.md). A command name in that
 runbook describes how to execute it, not when it becomes mandatory.
 
+When whole-Desktop Fallow qualification is selected, its validated report blocks
+on check findings (including warnings), established boundary violations and
+critical complexity. Aggregate duplication percentage is advisory under #1105;
+duplicate groups remain review evidence. The repository-tooling, changed-code
+review and dedicated CSS routes are advisory and do not expand that gate.
+Malformed, incompatible or incomplete analyzer evidence cannot establish a pass.
+See [Fallow operations](reference/quality-operations.md#fallow-scopes-and-policy)
+for commands, scope and retained reports.
+
 ## Setup
 
 Provision tools required by selected commands. Formatting prose does not require

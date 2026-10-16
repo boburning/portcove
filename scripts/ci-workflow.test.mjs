@@ -17,6 +17,30 @@ import { renderDeepAuditSummary } from "./deep-audit-summary.mjs";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
 
+test("selected full Fallow runs once before browser work and retains successful evidence", async () => {
+  const full = workflow.split("  frontend_full:")[1].split("  frontend:")[0];
+  assert.equal(full.match(/run: node scripts\/run-fallow\.mjs/g)?.length, 1);
+  assert.ok(full.indexOf("run-fallow.mjs") < full.indexOf("pnpm browser:bootstrap"));
+  assert.match(full, /name: Retain original Fallow reports\n +if: always\(\)/);
+  assert.match(full, /path: work\/fallow-reports\//);
+  assert.match(full, /name: fallow-full-.*\n +path: work\/fallow-reports\/\n +retention-days: 7/);
+  const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
+  const check = recipes.split("\nui-check:")[1].split(/\n\S/)[0];
+  assert.equal(check.match(/run-fallow\.mjs/g)?.length, 1);
+  assert.ok(check.indexOf("run-fallow.mjs") < check.indexOf("frontend:verify"));
+  const runtime = recipes.split("\nui-runtime:")[1].split(/\n\S/)[0];
+  assert.doesNotMatch(runtime, /run-fallow/);
+  assert.equal(AUDIT_STAGES.filter((stage) => stage.recipe === "fallow").length, 1);
+  // The graph's generated transport inputs ship in Git; tests/builds are not
+  // prerequisites of static analysis in a fresh checkout.
+  for (const name of [
+    "transport-types.generated.d.ts",
+    "transport-input-types.generated.d.ts",
+    "transport-schemas.generated.json",
+  ])
+    assert.ok((await readFile(new URL(`../apps/desktop/src/${name}`, import.meta.url))).length > 0);
+});
+
 test("native frontend harness retains the qualified Linux target and a failing namespace preflight", () => {
   const block = workflow.split("  frontend_full:")[1].split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0];
   assert.match(block, /runs-on: ubuntu-22\.04/u);
@@ -1693,10 +1717,15 @@ test("full frontend qualification provisions browser artifacts before compositio
   );
   const audit = deep.split("  audit:")[1].split("  local_check:")[0];
   const install = audit.indexOf("run: pnpm install --frozen-lockfile");
-  const auditBrowser = audit.indexOf("run: pnpm --dir apps/desktop browser:bootstrap");
   const auditGates = audit.indexOf("name: Run deterministic gates and structural audit");
-  assert.ok(install >= 0 && auditBrowser > install && auditGates > auditBrowser);
-  assert.equal(audit.match(/run: pnpm --dir apps\/desktop browser:bootstrap/g)?.length, 1);
+  assert.ok(install >= 0 && auditGates > install);
+  // Deep audit starts Fallow before runtime/browser provisioning. The runtime
+  // recipe owns browser prerequisites, so this does not select a second scan.
+  assert.doesNotMatch(audit, /run: pnpm --dir apps\/desktop browser:bootstrap/);
+  const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
+  const runtime = recipes.split("\nui-runtime:")[1].split(/\n\S/)[0];
+  assert.ok(runtime.indexOf("run browser:bootstrap") < runtime.indexOf("run frontend:runtime"));
+  assert.equal(AUDIT_STAGES[0].id, "fallow");
   for (const [name, block] of [
     ["full", full],
     ["fast", fast],
@@ -2618,7 +2647,10 @@ test("complete fresh success publishes bounded identities and stage results only
 test("failed full audit retains actual stage failure and exit status", () => {
   const payload = fixture();
   payload.success = false;
-  Object.assign(payload.stages[1], { status: "failed", exitCode: 2 });
+  Object.assign(
+    payload.stages.find((stage) => stage.id === "rust"),
+    { status: "failed", exitCode: 2 },
+  );
   const text = renderDeepAuditSummary(
     receiptEnvelope(payload),
     {
