@@ -2362,12 +2362,25 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
     .split("[[profile.default.overrides]]")
     .slice(1)
     .filter((override) => /success-output/.test(override));
-  assert.equal(outputOverrides.length, 1);
+  assert.equal(outputOverrides.length, 2);
   assert.deepEqual(outputOverrides[0].trim().split(/\r?\n/).slice(0, 2), [
     "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'",
     'success-output = "immediate"',
   ]);
-  assert.doesNotMatch(outputOverrides[0], /retries|threads-required|priority/);
+  const publicationOutput = outputOverrides[1]
+    .split(/\r?\n(?=\[)/, 1)[0]
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+  assert.deepEqual(publicationOutput, [
+    "platform = 'x86_64-apple-darwin'",
+    "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_permitted_artifact_commits_once$/)'",
+    'slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }',
+    'success-output = "immediate"',
+  ]);
+  for (const override of outputOverrides) {
+    assert.doesNotMatch(override, /retries|threads-required|priority/);
+  }
   assert.doesNotMatch(config.split("[[profile.default.overrides]]")[0], /success-output/);
   const repository = await readFile(
     new URL("../crates/portcove-core/src/definition_repository.rs", import.meta.url),
