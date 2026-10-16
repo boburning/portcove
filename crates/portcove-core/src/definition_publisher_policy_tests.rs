@@ -1967,7 +1967,14 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // The final integrated Intel run also missed setup for the two restore
     // variants below. Calibrate only their setup wait under QUALITY's standing
     // authority; retain the actual partial-copy barrier and worker drain.
+    // CI 38946153693/a1: PolicyLoss reached its first actual copy about 10.05s
+    // after installer start, just beyond the 10s wait. Keep the same whole-install
+    // origin, partial-copy barrier, worker drain and overall 30s test safeguard.
     let latch_timeout = if cfg!(all(target_os = "macos", target_arch = "x86_64"))
+        && matches!(intervention, CacheIntervention::PolicyLoss)
+    {
+        Duration::from_secs(15)
+    } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))
         && matches!(
             intervention,
             CacheIntervention::CancelRetain
@@ -1977,7 +1984,8 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
                 | CacheIntervention::PolicyLoss
                 | CacheIntervention::ArtifactRevocationRestore
                 | CacheIntervention::ArtifactWithdrawalRestore
-        ) {
+        )
+    {
         Duration::from_secs(10)
     } else {
         Duration::from_secs(5)

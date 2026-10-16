@@ -95,7 +95,26 @@ evidence and cleanup remain separate.
 
 ## Qualification record
 
-Implementation and actual per-format qualification are tracked on #2007. Until
-execution evidence is recorded, the recipe and unit controls alone establish no
-working builder or package support. Setup/warm execution measurements, precise
-unsupported formats and native-Windows checks belong to that record.
+The [October 16 execution record](https://github.com/boburning/portcove/issues/2007#issuecomment-6222586029)
+binds actual Windows-host runs to source `78ce12f61d932b8fb22a1894c7d2aa54ce18c13d`
+and Ubuntu 22.04 x86-64 image
+`sha256:60e25133774e7dedd9dfb52fa9638dfadc94e76dfe0c079774fda093baa6a3ff`.
+Guarded checks and fresh frontend execution passed. Actual Linux PowerShell
+CLI packaging/smoke and separate AppImage, deb and rpm construction/inspection
+passed; the record includes every product's bytes and SHA256. Independent review
+verified all published files. These source-bound observations do not qualify a
+later source revision or establish installed/native GUI or release acceptance.
+
+That check run prepared the environment in 480,012 ms and executed freshly in
+197,440 ms. The subsequent package run reused preparation (0 ms) and executed
+freshly in 902,175 ms. The observed image size was 4,916,058,768 bytes; package
+publication contained 139,241,434 bytes. Docker's physical backing VHD file on E:
+was 43,586,158,592 bytes after packaging, distinct from image size or per-run
+physical allocation. Earlier cold preparation failures remain retained. These
+measurements promise no speedup, offline preparation or reproducibility.
+
+Timeout, controlled Node signal-handler injection and export-collision recovery
+preserved causal interruption and stopped the owned containers. Recovery success
+did not turn either failed task into a pass; signal-handler injection does not
+claim a physical Windows signal. #2007 owns current implementation acceptance,
+native-Windows controls, exact-head checks and delivery status.
