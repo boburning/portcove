@@ -101,6 +101,8 @@ jobs:
       - name: Verify exact audit-tool versions
         run: ./scripts/bootstrap-quality-tools.sh
       - run: pnpm install --frozen-lockfile
+      - name: Provision the pinned browser before runtime audit
+        run: pnpm --dir apps/desktop browser:bootstrap
       - name: Run deterministic gates and structural audit
         id: fresh-audit
         shell: bash

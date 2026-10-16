@@ -1640,7 +1640,7 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(dependencyReview, /fail-on-severity: high/);
 });
 
-test("full frontend qualification provisions browser artifacts before composition", () => {
+test("full frontend qualification provisions browser artifacts before composition", async () => {
   const full = workflow.split("  frontend_full:")[1].split("  frontend:")[0];
   const provision = full.indexOf("pnpm browser:bootstrap"),
     run = full.indexOf("run frontend:verify");
@@ -1657,6 +1657,16 @@ test("full frontend qualification provisions browser artifacts before compositio
   assert.ok(contributor.indexOf("pnpm verify:frontend") > contributorProvision);
   assert.equal(contributor.match(/run: pnpm verify:frontend/g)?.length, 1);
   assert.doesNotMatch(contributor, /run: pnpm (?:test|check|build)\b/);
+  const deep = await readFile(
+    new URL("../.github/workflows/deep-quality.yml", import.meta.url),
+    "utf8",
+  );
+  const audit = deep.split("  audit:")[1].split("  local_check:")[0];
+  const install = audit.indexOf("run: pnpm install --frozen-lockfile");
+  const auditBrowser = audit.indexOf("run: pnpm --dir apps/desktop browser:bootstrap");
+  const auditGates = audit.indexOf("name: Run deterministic gates and structural audit");
+  assert.ok(install >= 0 && auditBrowser > install && auditGates > auditBrowser);
+  assert.equal(audit.match(/run: pnpm --dir apps\/desktop browser:bootstrap/g)?.length, 1);
   for (const [name, block] of [
     ["full", full],
     ["fast", fast],
