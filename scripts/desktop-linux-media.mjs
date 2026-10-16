@@ -19,6 +19,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fileIdentity } from "./development-evidence.mjs";
 import { acquireNativeSessionLock } from "./native-session-lock.mjs";
+import { toolCachePaths } from "./tool-cache.mjs";
 import { launchLinuxNativeSession } from "../apps/desktop/scripts/desktop-linux-native-session.mjs";
 
 const script = fileURLToPath(import.meta.url);
@@ -453,6 +454,7 @@ async function run() {
       PULSE_SOURCE: sourceName,
       PORTCOVE_QUALIFICATION_MEDIA_CONFIG: configFile,
       PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: lock.owner.token,
+      PORTCOVE_SHARED_TOOL_CACHE: toolCachePaths().sharedRoot,
     };
     const launch = async (name, program, args) => {
       const owned = await launchLinuxNativeSession(program, args, environment);
