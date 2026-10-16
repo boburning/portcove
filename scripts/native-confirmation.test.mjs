@@ -140,26 +140,18 @@ foreach($entry in @(@($ast,'Get-PickerFieldEvidence'),@($other,'Get-NativePicker
  . ([scriptblock]::Create($fn.Extent.Text))
 }
 Write-ProjectionPhase 'functions-ready'
-class PortcoveObservation {
- [IntPtr]$handle=[IntPtr]::new(9)
- [int]$control_id=1152
- [int]$parent_id=0
- [string]$parent_class='other'
-}
 class PortcoveNativeWindows {
  static [int]$calls=0
  static [bool]$fail=$false
  static [int]$actions=0
  static [IntPtr] GetFolderActionButton([IntPtr]$handle,[int]$process,[string]$action,[string]$title){
-  if($handle.ToInt32() -ne 7 -or $process -ne 42 -or $action -cne 'Cancel' -or ($title -cne 'Select Folder' -and $title -cne 'Choose game-file folder')){throw 'wrong native action context'}
-  [PortcoveNativeWindows]::actions++
-  return [IntPtr]::new(20)
+  if($handle.ToInt32() -ne 7 -or $process -ne 42 -or $action -cne 'Cancel' -or $title -cnotin @('Select Folder','Choose game-file folder')){throw 'wrong native action context'}
+  [PortcoveNativeWindows]::actions++;return [IntPtr]20
  }
- static [PortcoveObservation[]] InspectEdits([IntPtr]$handle,[int]$process,[string]$title){
+ static [object[]] InspectEdits([IntPtr]$handle,[int]$process,[string]$title){
   if($handle.ToInt32() -ne 7 -or $process -ne 42 -or $title -cne 'Select Folder'){throw 'wrong explicit observation context'}
-  [PortcoveNativeWindows]::calls++
-  if([PortcoveNativeWindows]::fail){throw 'secondary diagnostic failure'}
-  return [PortcoveObservation[]]@([PortcoveObservation]::new())
+  [PortcoveNativeWindows]::calls++;if([PortcoveNativeWindows]::fail){throw 'secondary diagnostic failure'}
+  return @([pscustomobject]@{handle=[IntPtr]9;control_id=1152;parent_id=0;parent_class='other'})
  }
 }
 Write-ProjectionPhase 'stub-ready'
