@@ -2,9 +2,6 @@ FROM ghcr.io/voidzero-dev/vite-plus:1.2.0@sha256:72da2a35e67d6d73fb5110466ee2174
 
 ARG SOURCE_COMMIT
 ARG SOURCE_TREE
-ARG WORKSPACE_OWNER
-ARG PREPARATION
-LABEL io.portcove.tool="browser-v1" io.portcove.workspace=$WORKSPACE_OWNER io.portcove.preparation=$PREPARATION io.portcove.source=$SOURCE_COMMIT io.portcove.tree=$SOURCE_TREE
 ENV CI=true VP_GIT_HOOKS=0
 USER root
 RUN mkdir /workspace /portcove && chown vp:vp /workspace /portcove
@@ -27,4 +24,7 @@ RUN pnpm list --recursive --depth Infinity --json > /portcove/installed-npm-pack
 RUN node -e "const {execFileSync}=require('node:child_process'); require('node:fs').writeFileSync('/portcove/tool-versions.json', JSON.stringify(Object.fromEntries(['node','pnpm','vp'].map(command => [command,execFileSync(command,['--version'],{encoding:'utf8'}).trim()]))));"
 COPY --chown=vp:vp container-entry.mjs container-source.mjs /portcove/
 RUN node /portcove/container-source.mjs "$SOURCE_COMMIT" "$SOURCE_TREE"
+ARG WORKSPACE_OWNER
+ARG PREPARATION
+LABEL io.portcove.tool="browser-v1" io.portcove.workspace=$WORKSPACE_OWNER io.portcove.preparation=$PREPARATION io.portcove.source=$SOURCE_COMMIT io.portcove.tree=$SOURCE_TREE
 ENTRYPOINT ["node", "/portcove/container-entry.mjs"]

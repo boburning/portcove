@@ -947,9 +947,12 @@ export async function browser({
     state.preparation_ms = Date.now() - preparing;
     save();
     const name = `portcove-browser-${run}`;
+    state.container_name = name;
+    save();
     state.container = (
       await docker(
         runtimeArguments({ name, run, image: image.Id, commit, tree: source.tree, mode, files }),
+        { timeout: setupTimeout(120_000), signal: abort.signal },
       )
     ).stdout.trim();
     save();
@@ -957,10 +960,17 @@ export async function browser({
     validateRuntime(state.runtime_inspection);
     save();
     const started = Date.now();
-    await docker(["start", state.container]);
     try {
+      await docker(["start", state.container], {
+        timeout: Math.min(timeout, 60_000),
+        signal: abort.signal,
+      });
+      const remaining = timeout - (Date.now() - started);
+      if (remaining <= 0) throw new Error("Container startup exhausted the execution deadline");
       state.container_exit = Number(
-        (await docker(["wait", state.container], { timeout, signal: abort.signal })).stdout.trim(),
+        (
+          await docker(["wait", state.container], { timeout: remaining, signal: abort.signal })
+        ).stdout.trim(),
       );
       if (
         !Number.isInteger(state.container_exit) ||
@@ -971,8 +981,10 @@ export async function browser({
     } catch (error) {
       state.interruption = interrupted ?? "timeout-or-wait-failure";
       state.wait_error = error.message;
-      await inspectContainer(state.container, run);
-      await docker(["stop", "--time", "10", state.container], { timeout: 20_000 });
+      state.wait_failure = error.result;
+      const current = await inspectContainer(state.container, run);
+      if (current.State.Running)
+        await docker(["stop", "--time", "10", state.container], { timeout: 20_000 });
       state.container_exit = (await inspectContainer(state.container, run)).State.ExitCode;
     }
     state.runtime_ms = Date.now() - started;
@@ -981,12 +993,24 @@ export async function browser({
       : state.container_exit === 0
         ? "passed"
         : "failed";
+    state.causal_exit = state.interruption ? 124 : state.container_exit;
     save();
     state.storage_after = await doctor({ networkRequired: false });
     await exportRun(state, directory);
     save();
     return { ...state, exit_code: state.interruption ? 124 : state.container_exit };
   } catch (error) {
+    // A timed-out client may have completed creation on the daemon. Read back
+    // the exact previously recorded name; never repeat that mutation blindly.
+    if (state.container_name && !state.container) {
+      try {
+        const existing = await inspectContainer(state.container_name, run);
+        state.container = existing.Id;
+        state.creation_readback = existing;
+      } catch (readback) {
+        state.creation_readback_error = readback.message;
+      }
+    }
     saveFailure(state, error, directory, save);
     throw Object.assign(
       new Error(
@@ -1183,5 +1207,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         observation: error.observation,
       }),
     );
-    process.exitCode = 1;
+    process.exitCode = error.state?.causal_exit || 1;
   });
