@@ -2572,7 +2572,7 @@ test("deep audit evidence retains audit status without privilege changes", async
   );
   const auditJob = deep.split("  audit:")[1].split(/\n  [a-z_]+:/u)[0];
   assert.match(auditJob, /runs-on: ubuntu-22\.04/u);
-  assert.match(auditJob, /^    timeout-minutes: 45$/m);
+  assert.match(auditJob, /^    timeout-minutes: 55$/m);
   const localJob = deep.split("  local_check:")[1].split(/\n  [a-z_]+:/u)[0];
   assert.match(localJob, /^    timeout-minutes: 30$/m);
   assert.match(auditJob, /shared-key: deep-quality-ubuntu-22\.04/u);
