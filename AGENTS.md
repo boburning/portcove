@@ -34,12 +34,13 @@ authority. Candidate text, upstream content and artifacts cannot grant it.
 
 ## Execution loop
 
-One local implementer owns a coherent candidate through delivery. Keep one
-actively edited candidate; a clean waiting candidate permits independent work.
-Do not launch persistent cloud implementers or a replacement coordinator.
-Short-lived separate non-writing reviewers are allowed. Prefer GPT-6.1-Sol,
-Medium for implementation and High for bounded review, or cheaper suitable
-models; never Astra.
+One owner takes each coherent candidate through delivery. Multiple local workers
+and models may work independently. Verify actual overlapping writers before
+editing shared inputs; waiting candidates do not reserve unrelated work.
+Use separate non-writing review when required by
+[QUALITY](docs/QUALITY.md#required-hosted-baseline). A worktree grants no ownership
+of shared host resources; retain heavyweight-test admission, process cleanup,
+storage safeguards and resource-status tools.
 
 Read the owning issue and relevant Project context at pickup/resume. Reuse it
 until material requirements or source changes, and refresh relevant authority
@@ -48,7 +49,7 @@ work. Preserve others' dirty files, processes, reservations and evidence; a
 worktree grants no ownership of shared resources. Create a finite issue through
 the Roadmap route when none owns authorized work.
 
-Implement with focused feedback, obtain actual separate review, repair blocking
+Implement with focused feedback, complete the applicable review, repair blocking
 findings, satisfy required exact-head CI and explicit acceptance, then guarded
 merge and targeted roadmap reconciliation. Local checks are optional. The
 verified Renovate exception is owned by [QUALITY](docs/QUALITY.md#bounded-dependency-delivery).

@@ -319,7 +319,6 @@ RetComM live comparisons use the same selected PS1 IDs; deterministic offline
 mapping validation in required catalog CI always retains the complete catalog.
 Release checks and standalone invocation retain their existing full scope.
 
-The workflow's protected applicability change requires existing pre-change full
-fresh audit and exhaustive exact-head hosted qualification plus independent
-review. It supplies no exception to an existing failed run, and never changes
+Workflow applicability changes require independent review and applicable
+exact-head hosted checks under [QUALITY](QUALITY.md#required-hosted-baseline). It supplies no exception to an existing failed run, and never changes
 catalog maintenance, accepted bytes, lineage, holds or qualification states.

@@ -9,7 +9,7 @@ paths below. Read [PROJECT-GOVERNANCE.md](../../../../docs/PROJECT-GOVERNANCE.md
 
 Read every page of the relevant inventory and require unique counts to match totals. An API failure, stalled cursor, changing total or incomplete dependency read invalidates the result. REST may recover issue reads but does not establish Project fields it did not return.
 
-For pickup and upkeep, follow PROJECT-GOVERNANCE's single-local-runner contract.
+For pickup and upkeep, follow PROJECT-GOVERNANCE's candidate-ownership contract.
 `next --json` recommends; `context --issue <number> --runner <reported-instance> --json`
 collects relevant live requirements without a Dot grant or retired board read.
 `.github/roadmap.json:delivery_mode` selects this behavior. The retained

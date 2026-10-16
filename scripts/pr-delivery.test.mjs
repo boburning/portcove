@@ -222,7 +222,7 @@ test("queue recommends only an actionable exact-head candidate and never supplie
   assert.equal(queue.candidates[0].runs[0].attempt, 1);
   assert.match(
     queue.selection_boundary,
-    /Single-local-runner delivery requires actual writer and source-ownership checks/,
+    /Candidate delivery requires actual writer and source-ownership checks/,
   );
   assert.throws(
     () =>
@@ -736,13 +736,13 @@ test("workflow attempt job inventory follows pagination and rejects incomplete t
   let incomplete = false;
   const client = new PullRequestDeliveryClient((args) => {
     const endpoint = args[2];
-    assert.match(endpoint, /actions\/runs\/42\/attempts\/1\/jobs/);
+    assert.match(endpoint, /actions\/runs\/42\/jobs\?filter=all/);
     if (endpoint.includes("page=2"))
       return included({ total_count: 5, jobs: workflowJobs().slice(1) });
     return included(
       { total_count: incomplete ? 6 : 5, jobs: workflowJobs().slice(0, 1) },
       {
-        link: '<https://api.github.com/repos/boburning/portcove/actions/runs/42/attempts/1/jobs?per_page=100&page=2>; rel="next"',
+        link: '<https://api.github.com/repos/boburning/portcove/actions/runs/42/jobs?filter=all&per_page=100&page=2>; rel="next"',
       },
     );
   });
@@ -1114,5 +1114,59 @@ test("all authored Renovate next-action branches preserve current execution auth
   assert.doesNotMatch(
     inspectRenovateQueue.toString(),
     /configured operational board|Accepted coordinator assignments|Confirm the accepted assignment/,
+  );
+});
+
+test("selective retry retains independent success but refuses newer authoritative executions", async () => {
+  const old = workflowJobs();
+  const rerun = {
+    ...old[0],
+    id: 100,
+    run_attempt: 2,
+    check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/100",
+  };
+  const state = checkState("success");
+  state.contexts[0].check_run_id = 100;
+  const client = {
+    workflowRun: () => workflow({ run_attempt: 2, status: "completed", conclusion: "success" }),
+    requiredCheckState: () => state,
+    workflowJobs: () => [...old, rerun],
+  };
+  await watchRequiredChecks(client, { ...watchOptions, attempt: 2 });
+  for (const newer of [
+    { ...rerun, conclusion: "failure" },
+    { ...rerun, status: "in_progress", conclusion: null },
+  ]) {
+    await assert.rejects(
+      watchRequiredChecks(
+        { ...client, workflowJobs: () => [...old, newer] },
+        { ...watchOptions, attempt: 2 },
+      ),
+    );
+    const stale = checkState("success");
+    await assert.rejects(
+      watchRequiredChecks(
+        { ...client, requiredCheckState: () => stale, workflowJobs: () => [...old, newer] },
+        { ...watchOptions, attempt: 2 },
+      ),
+    );
+  }
+  await assert.rejects(
+    watchRequiredChecks(
+      {
+        ...client,
+        workflowJobs: () => [
+          ...old,
+          rerun,
+          {
+            ...rerun,
+            id: 101,
+            check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/101",
+          },
+        ],
+      },
+      { ...watchOptions, attempt: 2 },
+    ),
+    /invalid or duplicate/,
   );
 });

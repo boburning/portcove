@@ -1,3 +1,4 @@
+import { annotateNextest, hasNextestEquivalence } from "./nextest-equivalence.mjs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
@@ -21,6 +22,7 @@ import {
   buildValidationPlan,
   validateValidationPlan,
   validationOwnershipForPath,
+  ordinaryOwnershipForPath,
 } from "./validation-plan.mjs";
 import {
   auditRuntime,
@@ -212,6 +214,7 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map([
+  [".fallow-tooling.json", ["scripts/fallow-scope.test.mjs", "scripts/run-fallow.test.mjs"]],
   ...[
     "scripts/container-browser.mjs",
     "scripts/container-entry.mjs",
@@ -499,6 +502,14 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   const file = normalizePath(input);
   if (isRepositoryLintInput(file)) selection.repositoryLint = true;
   const extension = path.posix.extname(file).toLowerCase();
+  if (extension === ".sh") {
+    selection.shellLint = true;
+    if (options.includeFileChecks ?? true) selection.shellFiles.add(file);
+  }
+  if (extension === ".py") {
+    selection.pythonLint = true;
+    if (options.includeFileChecks ?? true) selection.pythonFiles.add(file);
+  }
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
   if (
@@ -558,7 +569,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     file === "Cargo.lock" ||
     file === "rust-toolchain.toml" ||
     file === "deny.toml" ||
-    file === ".config/nextest.toml"
+    (file === ".config/nextest.toml" && !options.nextestUnchanged)
   ) {
     selection.workspaceRust = true;
     if (file !== "Cargo.lock" || options.isDeletion) selection.workspaceRustTests = true;
@@ -589,13 +600,11 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       if (options.isDeletion || !/\.(?:[cm]?[jt]sx?|css)$/u.test(file))
         selection.uiFullTests = true;
       else selection.uiRelatedFiles.add(file);
-      selection.fallow = true;
     } else {
       selection.uiFullTests = true;
     }
     if (extension === ".css") selection.stylelint = true;
     if (file === "apps/desktop/.fallowrc.json") {
-      selection.fallow = true;
       addNodeTest(selection, "scripts/check-fallow-report.test.mjs");
     }
   }
@@ -621,7 +630,6 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     selection.scopes.add("ui");
     recognized = true;
     if (["package.json", "pnpm-lock.yaml"].includes(file)) {
-      selection.fallow = true;
       addNodeTest(selection, "scripts/check-fallow-report.test.mjs");
     }
   }
@@ -722,6 +730,11 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     selection.scopes.add("tooling");
     addNodeTest(selection, testFile);
     recognized = true;
+  }
+
+  if (file === ".config/nextest.toml" && options.nextestUnchanged) {
+    recognized = true;
+    addNodeTest(selection, "scripts/nextest-equivalence.test.mjs");
   }
 
   if (file.startsWith(".vite-hooks/") || file === "vite.config.ts") {
@@ -870,15 +883,21 @@ export function classifyChanges(changes, options = {}) {
     powershellLint: false,
     shellLint: false,
     pythonLint: false,
-    fallow: false,
     playnite: false,
     transport: false,
+    shellFiles: new Set(),
+    pythonFiles: new Set(),
     rustChanges: [],
   };
   for (const change of changes) {
     classifyOnePath(selection, change.path, fileExists, {
       includeFileChecks: change.status !== "D",
       isDeletion: change.status === "D",
+      nextestUnchanged: hasNextestEquivalence({
+        ...change,
+        oldPath: change.previousPath ?? change.path,
+        newPath: change.path,
+      }),
     });
     if (change.previousPath)
       classifyOnePath(selection, change.previousPath, fileExists, {
@@ -895,6 +914,15 @@ export function classifyChanges(changes, options = {}) {
         previousPath: change.path,
         packageName: previousPackage,
       });
+  }
+  for (const change of changes) {
+    for (const file of [change.path, change.previousPath].filter(Boolean)) {
+      const owned = ordinaryOwnershipForPath(file);
+      if (owned.groups.includes("frontend") && !selection.ui) {
+        selection.ui = true;
+        selection.uiFullTests = true;
+      }
+    }
   }
   return selection;
 }
@@ -957,7 +985,11 @@ export function buildPlan(selection, context = {}) {
     selection.repositoryLint || broad || validation?.fallback || validation?.changes.length === 0;
   if (fullStatic)
     commands.push(
-      frontendTask("repository-lint", "integrated repository static checks", "frontend:static"),
+      frontendTask(
+        "repository-lint",
+        "integrated repository static checks",
+        selection.ui || broad ? "frontend:static" : "repository:static",
+      ),
     );
   const files = sorted(selection.oxfmtFiles).filter((file) =>
     existsSync(path.join(projectRoot, file)),
@@ -972,6 +1004,32 @@ export function buildPlan(selection, context = {}) {
         ...(broad || files.includes("vite.config.ts")
           ? []
           : files.map((file) => path.join(projectRoot, file))),
+      ]),
+    );
+  if (selection.actionsLint)
+    commands.push(
+      command("actionlint", "workflow and embedded shell contracts", process.execPath, [
+        "scripts/run-actionlint.mjs",
+      ]),
+    );
+  if (selection.shellLint && selection.shellFiles.size)
+    commands.push(
+      command("shell-lint", "owned shell script lint", "aqua", [
+        "exec",
+        "--",
+        "shellcheck",
+        "--severity=warning",
+        ...sorted(selection.shellFiles),
+      ]),
+    );
+  if (selection.pythonLint && selection.pythonFiles.size)
+    commands.push(
+      command("python-lint", "owned Python script lint", "aqua", [
+        "exec",
+        "--",
+        "ruff",
+        "check",
+        ...sorted(selection.pythonFiles),
       ]),
     );
   if (selection.rustfmt || broad)
@@ -1102,7 +1160,15 @@ export function readChangeContext(base = "origin/main") {
     baseSha,
     headSha,
     mergeBase,
-    changes: [...tracked, ...untracked],
+    changes: annotateNextest(
+      [...tracked, ...untracked].map((c) => ({
+        ...c,
+        oldPath: c.previousPath ?? c.path,
+        newPath: c.path,
+      })),
+      (file) => git(["show", `${mergeBase}:${file}`]),
+      (file) => readFileSync(path.join(projectRoot, file), "utf8"),
+    ),
   };
 }
 
@@ -1248,7 +1314,7 @@ export function inspectPreChangeAudit(
       .filter(Boolean)
       .some((name) => validationOwnershipForPath(name).areas.includes("policy")),
   );
-  if (!policy) return null;
+  if (!policy || !validationPlan.qualification_required) return null;
   const changes = context.changes.map((change) => ({
     status: change.status,
     oldPath: change.previousPath ?? change.path,
@@ -1461,7 +1527,6 @@ function localStageDomains(entry) {
   if (["transport-export", "transport-policy"].includes(entry.id))
     return ["repository", "rust", "ui"];
   if (entry.id === "playnite-contract") return ["repository"];
-  if (entry.id === "fallow") return ["ui"];
   if (entry.id === "node-tests") {
     const domains = new Set();
     for (const file of entry.args.filter((argument) => argument.endsWith(".test.mjs"))) {
@@ -1603,9 +1668,12 @@ export function storageScopeForPlan(plan) {
   for (const { id } of plan) {
     if (["rustfmt", "dependency-policy", "test-rust"].includes(id) || id.startsWith("rust-"))
       rust = true;
-    else if (id.startsWith("ui-") || ["oxfmt", "oxlint", "repository-lint", "fallow"].includes(id))
+    else if (id.startsWith("ui-") || ["oxfmt", "oxlint", "repository-lint"].includes(id))
       frontend = true;
-    else if (id !== "diff-check" && id !== "node-tests" && !id.startsWith("node-syntax:"))
+    else if (
+      !["diff-check", "node-tests", "actionlint", "shell-lint", "python-lint"].includes(id) &&
+      !id.startsWith("node-syntax:")
+    )
       return "all";
   }
   return rust && frontend ? "all" : rust ? "rust" : frontend ? "frontend" : "tooling";
@@ -1698,6 +1766,7 @@ export async function main(argv = process.argv.slice(2), options = {}) {
         newMode: change.newMode,
         oldPath: change.previousPath ?? change.path,
         newPath: change.path,
+        ...(change.nextest_equivalence ? { nextest_equivalence: change.nextest_equivalence } : {}),
       })),
       eventName: "pull_request",
       base: context.baseSha,

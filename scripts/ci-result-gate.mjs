@@ -1,3 +1,4 @@
+import { validatePostmergeReuse } from "./postmerge-ci.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -44,6 +45,7 @@ export function evaluateCiResults({
   targeted,
   qualification,
   always = {},
+  reuse = null,
 }) {
   if (classifier !== "success")
     throw resultFailure(`classifier result is ${classifier || "missing"}`, "classify", classifier);
@@ -61,6 +63,8 @@ export function evaluateCiResults({
         result,
       );
   const selected = plan.groups.includes(group);
+  if (reuse) validatePostmergeReuse(reuse, plan);
+  const reused = reuse?.groups.includes(group) ?? false;
   const targetsAffectedPlatform = group === "catalog" && windowsHelperChecksRequired(plan);
   if (targetsAffectedPlatform && targeted?.windows_helpers !== "success")
     throw resultFailure(
@@ -80,7 +84,7 @@ export function evaluateCiResults({
     if (prose !== "skipped")
       throw new Error(`prose lane was ${prose || "missing"}, expected skipped`);
     requireResults(qualification, "skipped", "fast");
-    requireResults(fast, selected ? "success" : "skipped", "fast");
+    requireResults(fast, selected && !reused ? "success" : "skipped", "fast");
     if (Object.keys(targeted ?? {}).length)
       requireResults(
         targeted,
@@ -97,7 +101,7 @@ export function evaluateCiResults({
   } else {
     throw new Error(`classifier mode is ${plan.mode || "missing"}`);
   }
-  return `Accepted ${plan.mode} plan ${plan.digest} for ${group}`;
+  return `Accepted ${plan.mode} plan ${plan.digest} for ${group}${reused ? `; reused CI ${reuse.run}/a${reuse.attempt} tree ${reuse.tree}` : "; executed current obligations"}`;
 }
 
 function main() {
@@ -114,6 +118,7 @@ function main() {
   console.log(
     evaluateCiResults({
       classifier: process.env.PORTCOVE_CLASSIFIER_RESULT,
+      reuse: JSON.parse(process.env.PORTCOVE_REUSE_JSON ?? "null"),
       plan,
       group: process.env.PORTCOVE_GROUP,
       prose: process.env.PORTCOVE_PROSE_RESULT,

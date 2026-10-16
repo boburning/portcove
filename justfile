@@ -145,8 +145,18 @@ ui-test:
     {{storage}} node scripts/run-viteplus.mjs run frontend:unit
 
 fallow:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs scripts/run-fallow.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs scripts/run-fallow.test.mjs scripts/fallow-summary.test.mjs scripts/fallow-scope.test.mjs scripts/fallow-source.test.mjs
     {{storage}} node scripts/run-fallow.mjs
+
+# Selective advisory assistance; never an ordinary local/PR stage.
+fallow-tooling:
+    {{storage}} node scripts/run-fallow.mjs tooling
+
+fallow-review base reuse="":
+    {{storage}} node scripts/run-fallow.mjs review {{quote(base)}} {{quote(reuse)}}
+
+fallow-css:
+    {{storage}} node scripts/run-fallow.mjs css
 
 oxlint:
     {{storage}} node scripts/run-viteplus.mjs lint
@@ -158,15 +168,15 @@ ui-lint-contracts:
     {{storage}} node scripts/lint-tools.integration.mjs oxfmt oxlint stylelint
 
 ui-check:
-    {{storage}} node scripts/run-viteplus.mjs run frontend:verify
     {{storage}} node scripts/run-fallow.mjs
+    {{storage}} node scripts/run-viteplus.mjs run frontend:verify
 
 ui-static:
     {{storage}} node scripts/run-viteplus.mjs run frontend:static
 
 ui-runtime:
+    {{storage}} node scripts/run-viteplus.mjs -C apps/desktop run browser:bootstrap
     {{storage}} node scripts/run-viteplus.mjs run frontend:runtime
-    {{storage}} node scripts/run-fallow.mjs
 
 check-ui: ui-check ui-lint-contracts
 
@@ -198,7 +208,7 @@ aqua-integrity-update:
 # Generic repository automation and governance contracts.
 repository-tools:
     {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/ci-baseline.test.mjs scripts/qualification-coverage.test.mjs scripts/release-result-gate.test.mjs scripts/linux-beta-risk-706.test.mjs scripts/dependency-security.test.mjs scripts/desktop-input-observation.test.mjs scripts/test-duration-reporter.test.mjs scripts/ui-test-selection.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/pnpm-lock-inventory.test.mjs scripts/frontend-build-compare.test.mjs scripts/renovate-engine-probe.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/dev-storage.test.mjs scripts/generate-catalog.test.mjs scripts/catalog-proposal-costs.test.mjs scripts/migrate-catalog-schema2.test.mjs
+    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/check-document-links.test.mjs scripts/nextest-equivalence.test.mjs scripts/ordinary-git-routing.test.mjs scripts/package-ownership-selection.test.mjs scripts/postmerge-ci.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/ci-baseline.test.mjs scripts/qualification-coverage.test.mjs scripts/release-result-gate.test.mjs scripts/linux-beta-risk-706.test.mjs scripts/dependency-security.test.mjs scripts/desktop-input-observation.test.mjs scripts/test-duration-reporter.test.mjs scripts/ui-test-selection.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/pnpm-lock-inventory.test.mjs scripts/frontend-build-compare.test.mjs scripts/renovate-engine-probe.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/dev-storage.test.mjs scripts/generate-catalog.test.mjs scripts/catalog-proposal-costs.test.mjs scripts/migrate-catalog-schema2.test.mjs
     {{storage}} node scripts/qualification-coverage.mjs
     {{storage}} node scripts/check-retcomm-upstreams.mjs --offline
     {{storage}} node scripts/quality-tools.mjs --validate

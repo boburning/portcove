@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { hasNextestEquivalence } from "./nextest-equivalence.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 
@@ -26,10 +27,35 @@ export const validationAreas = Object.freeze([
   "rust",
 ]);
 
-export const proseOnlyAllowlist = Object.freeze([
-  "docs/GUI-COMPETITIVE-REVIEW.md",
-  "docs/README.md",
-]);
+// Documentation selection is about consumers, not a list of approved prose pages.
+// Policy and executable examples retain their ordinary contract selection.
+export function isInformationalPath(file) {
+  return (
+    (/\.md$/u.test(file) &&
+      !protectedPolicyDocuments.has(file) &&
+      !file.startsWith(".agents/") &&
+      !file.startsWith("docs/agents/") &&
+      !releaseSecurityFiles.has(file)) ||
+    /^docs\/media\/.+\.(?:png|jpe?g|webp|gif|svg)$/u.test(file)
+  );
+}
+
+export function isSharedFrontendInput(file) {
+  return (
+    [
+      "vite.config.ts",
+      "tsconfig.json",
+      "tsconfig.base.json",
+      "pnpm-workspace.yaml",
+      ".node-version",
+      ".oxlintrc.json",
+      ".oxfmtrc.json",
+    ].includes(file) ||
+    /^apps\/desktop\/(?:vitest(?:\.browser)?\.config\.ts|i18next(?:\.invalid)?\.config\.ts|\.fallowrc\.json)$/u.test(
+      file,
+    )
+  );
+}
 
 export const qualificationPlatforms = Object.freeze([
   "linux-x86_64",
@@ -253,7 +279,8 @@ function classifyPath(file) {
   // Prose and captures are inert even when their topic names a platform or schema.
   if (!documentation) {
     match(
-      file.startsWith("apps/desktop/src/") ||
+      isSharedFrontendInput(file) ||
+        file.startsWith("apps/desktop/src/") ||
         [
           "scripts/browser-traces.ts",
           "scripts/viteplus-cli.mjs",
@@ -339,6 +366,7 @@ function classifyPath(file) {
     );
     match(
       file.startsWith("scripts/") ||
+        file === ".fallow-tooling.json" ||
         file.startsWith(".vite-hooks/") ||
         file === "lint-staged.config.mjs" ||
         file.startsWith("integrations/") ||
@@ -556,6 +584,7 @@ function classifyAuditPath(file) {
         "prettier.config.mjs",
         "pyproject.toml",
         "apps/desktop/.fallowrc.json",
+        ".fallow-tooling.json",
         "apps/desktop/eslint.config.mjs",
         "apps/desktop/stylelint.config.mjs",
       ].includes(file) ||
@@ -592,6 +621,10 @@ function classifyAuditPath(file) {
   };
 }
 
+export function ordinaryOwnershipForPath(input) {
+  return classifyPath(normalizedPath(input));
+}
+
 export function validationOwnershipForPath(input) {
   return classifyAuditPath(normalizedPath(input));
 }
@@ -615,14 +648,10 @@ export function digestValidationPlan(plan) {
 
 function isRegularValidationChange(change) {
   const status = String(change.status).charAt(0);
-  if (["A", "?"].includes(status))
-    return change.oldMode === "000000" && change.newMode === "100644";
-  if (status === "D") return change.oldMode === "100644" && change.newMode === "000000";
-  return (
-    ["M", "R"].includes(status) &&
-    ["100644", "100755"].includes(change.oldMode) &&
-    change.newMode === change.oldMode
-  );
+  const regular = (mode) => ["100644", "100755"].includes(mode);
+  if (["A", "?"].includes(status)) return change.oldMode === "000000" && regular(change.newMode);
+  if (status === "D") return regular(change.oldMode) && change.newMode === "000000";
+  return ["M", "R"].includes(status) && regular(change.oldMode) && regular(change.newMode);
 }
 
 export function buildValidationPlan({
@@ -691,11 +720,25 @@ export function buildValidationPlan({
     ...new Set(normalizedChanges.flatMap((change) => [change.oldPath, change.newPath])),
   ]
     .sort()
-    .map(classifyPath);
+    .map((file) => {
+      const owned = classifyPath(file);
+      if (
+        file === ".config/nextest.toml" &&
+        normalizedChanges
+          .filter((c) => c.oldPath === file || c.newPath === file)
+          .every(hasNextestEquivalence)
+      )
+        return {
+          ...owned,
+          areas: ["policy"],
+          groups: ["catalog", "rust-quality"],
+          reasons: ["effective-nextest-configuration-unchanged"],
+        };
+      return owned;
+    });
   const changedFiles = paths.map((entry) => entry.path);
-  const allProse = changedFiles.every((file) => proseOnlyAllowlist.includes(file));
+  const allProse = changedFiles.every(isInformationalPath);
   const regular = normalizedChanges.every(isRegularValidationChange);
-  const executable = normalizedChanges.some((change) => change.oldMode === "100755");
 
   if (!regular)
     return buildValidationPlan({
@@ -708,11 +751,9 @@ export function buildValidationPlan({
       discovery: "failed",
       blockedReason: "unsafe-file-type-or-change-status",
     });
-  const areas = [
-    ...new Set([...paths.flatMap((entry) => entry.areas), ...(executable ? ["policy"] : [])]),
-  ].sort();
+  const areas = [...new Set(paths.flatMap((entry) => entry.areas))].sort();
   const unknown = paths.filter((entry) => entry.unknown).map((entry) => entry.path);
-  const qualificationRequired = executable || paths.some((entry) => entry.qualificationRequired);
+  const qualificationRequired = paths.some((entry) => entry.qualificationRequired);
   const groups = qualificationRequired
     ? fastGroups
     : unknown.length
@@ -724,7 +765,7 @@ export function buildValidationPlan({
     : unknown.length || selectedPlatforms.length === 0
       ? ["primary-host"]
       : selectedPlatforms;
-  const mode = allProse && !executable ? "prose" : qualificationRequired ? "qualification" : "fast";
+  const mode = allProse ? "prose" : qualificationRequired ? "qualification" : "fast";
   const plan = {
     format_version: validationPlanVersion,
     mode,
@@ -738,13 +779,16 @@ export function buildValidationPlan({
             ? "high-risk-area-requires-qualification"
             : "area-routed-fast-validation",
     changed_files: changedFiles,
-    changes: normalizedChanges.map(({ status, oldMode, newMode, oldPath, newPath }) => ({
-      status,
-      oldMode: oldMode ?? null,
-      newMode: newMode ?? null,
-      oldPath,
-      newPath,
-    })),
+    changes: normalizedChanges.map(
+      ({ status, oldMode, newMode, oldPath, newPath, nextest_equivalence }) => ({
+        status,
+        oldMode: oldMode ?? null,
+        newMode: newMode ?? null,
+        oldPath,
+        newPath,
+        ...(nextest_equivalence ? { nextest_equivalence } : {}),
+      }),
+    ),
     areas,
     groups,
     platforms,
@@ -799,11 +843,6 @@ export function validateValidationPlan(plan) {
     if (!isRegularValidationChange(change))
       throw new Error("unsafe or missing validation file mode");
   }
-  if (
-    plan.changes.some((change) => change.oldMode === "100755") &&
-    (plan.mode !== "qualification" || !plan.qualification_required)
-  )
-    throw new Error("executable source changes require full qualification");
   if (JSON.stringify([...new Set(changePaths)].sort()) !== JSON.stringify(plan.changed_files))
     throw new Error("validation changes do not match changed files");
   const pathNames = [];
@@ -928,8 +967,7 @@ export function validateValidationPlan(plan) {
       throw new Error("routed validation plan does not match its path inventory");
     if (
       plan.paths.some((entry) => entry.qualificationRequired) ||
-      (plan.mode === "prose" &&
-        plan.changed_files.some((file) => !proseOnlyAllowlist.includes(file)))
+      (plan.mode === "prose" && plan.changed_files.some((file) => !isInformationalPath(file)))
     )
       throw new Error("routed validation mode does not match its path authority");
   }

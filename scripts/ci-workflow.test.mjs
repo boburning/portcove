@@ -17,6 +17,49 @@ import { renderDeepAuditSummary } from "./deep-audit-summary.mjs";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
 
+test("selected full Fallow runs once before browser work and retains successful evidence", async () => {
+  const full = workflow.split("  frontend_full:")[1].split("  frontend:")[0];
+  assert.equal(full.match(/run: node scripts\/run-fallow\.mjs/g)?.length, 1);
+  assert.ok(full.indexOf("run-fallow.mjs") < full.indexOf("pnpm browser:bootstrap"));
+  assert.match(full, /name: Retain original Fallow reports\n +if: always\(\)/);
+  assert.match(full, /path: work\/fallow-reports\//);
+  assert.match(full, /name: fallow-full-.*\n +path: work\/fallow-reports\/\n +retention-days: 7/);
+  const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
+  const check = recipes.split("\nui-check:")[1].split(/\n\S/)[0];
+  assert.equal(check.match(/run-fallow\.mjs/g)?.length, 1);
+  assert.ok(check.indexOf("run-fallow.mjs") < check.indexOf("frontend:verify"));
+  const runtime = recipes.split("\nui-runtime:")[1].split(/\n\S/)[0];
+  assert.doesNotMatch(runtime, /run-fallow/);
+  assert.equal(AUDIT_STAGES.filter((stage) => stage.recipe === "fallow").length, 1);
+  // The graph's generated transport inputs ship in Git; tests/builds are not
+  // prerequisites of static analysis in a fresh checkout.
+  for (const name of [
+    "transport-types.generated.d.ts",
+    "transport-input-types.generated.d.ts",
+    "transport-schemas.generated.json",
+  ])
+    assert.ok((await readFile(new URL(`../apps/desktop/src/${name}`, import.meta.url))).length > 0);
+});
+
+test("manual Fallow assistance is isolated from exhaustive audit and retains originals", async () => {
+  const deep = await readFile(
+    new URL("../.github/workflows/deep-quality.yml", import.meta.url),
+    "utf8",
+  );
+  const selected = deep.split("  fallow_analysis:")[1].split("  audit:")[0];
+  assert.match(selected, /if: inputs.operation == 'fallow'/);
+  assert.match(selected, /fetch-depth: 0/);
+  assert.match(selected, /node scripts\/run-fallow\.mjs review "\$COMPARISON_BASE"/);
+  assert.match(selected, /if: always\(\)/);
+  assert.match(selected, /path: work\/fallow-reports\//);
+  assert.doesNotMatch(selected, /setup-rust|browser:bootstrap|just audit/);
+  assert.match(deep, /if: inputs.operation != 'local-check' && inputs.operation != 'fallow'/);
+  assert.match(
+    deep,
+    /inputs.operation == 'fallow' && format\('fallow-\{0\}', github.run_id\) \|\| format\('deep-quality-\{0\}', github.ref\)/,
+  );
+});
+
 test("native frontend harness retains the qualified Linux target and a failing namespace preflight", () => {
   const block = workflow.split("  frontend_full:")[1].split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0];
   assert.match(block, /runs-on: ubuntu-22\.04/u);
@@ -983,157 +1026,167 @@ test("first reader observation ignores a sample finishing after close", async ()
   assert.equal(child.killedWith, undefined);
 });
 
-test("repository toolchain reader exports the declared components before installation", async (context) => {
-  const setup = await readFile(
-    new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
-    "utf8",
-  );
-  const body = setup.match(
-    /- name: Read repository toolchain[\s\S]*?run: \|\r?\n([\s\S]*?)(?= {4}- uses:)/,
-  )?.[1];
-  assert.ok(body);
-  const script = body.replace(/^ {8}/gm, "");
-  assert.doesNotMatch(script, /\$portcoveReaderClock\b/);
-  const phaseDiagnostic = (phase) =>
-    `[Console]::Error.WriteLine("portcove-reader-phase:${phase};elapsed_ms=$($portcoveReaderClock.ElapsedMilliseconds)")`;
-  let tracedScript = script;
-  for (const [line, phase] of [
-    ["$config = Get-Content rust-toolchain.toml -Raw", "read-config"],
-    ["$channel = $Matches[1]", "channel-parsed"],
-    ["$components = ConvertFrom-Json $Matches[1] -NoEnumerate", "parse-components"],
-    ['"channel=$channel" >> $env:GITHUB_OUTPUT', "write-output"],
-  ]) {
-    assert.equal(
-      script.split(line).length,
-      2,
-      `Reader phase must have one source anchor: ${phase}`,
+// Hosted first-reader evidence in PR #2038 spent 7.2s before stderr and then
+// waited in Get-Content at the old 10s deadline. Seven bounded invocations can
+// take 140s, so retain another 40s for diagnostics/cleanup; no retries or product
+// deadlines change. Preserve the original failure rather than calling this a
+// causal repair of host disk contention.
+test(
+  "repository toolchain reader exports the declared components before installation",
+  { timeout: 180_000 },
+  async (context) => {
+    const readerTimeoutMs = 20_000;
+    const setup = await readFile(
+      new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
+      "utf8",
     );
-    tracedScript = tracedScript.replace(
-      line,
-      `${phaseDiagnostic(phase)}\n${line}${phase === "read-config" ? `\n${phaseDiagnostic("config-read")}` : ""}`,
-    );
-  }
-  tracedScript =
-    "$portcoveReaderClock = [System.Diagnostics.Stopwatch]::StartNew()\n" +
-    `[Console]::Error.WriteLine("portcove-reader-phase:started;pwsh=$($PSVersionTable.PSVersion);elapsed_ms=$($portcoveReaderClock.ElapsedMilliseconds);utc=$([DateTime]::UtcNow.ToString('o'))")\n` +
-    tracedScript +
-    `\n${phaseDiagnostic("completed")}\n`;
-  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-toolchain-reader-"));
-  const output = path.join(directory, "github-output");
-  async function runReader(fixture, command = tracedScript) {
-    const startedAt = new Date().toISOString();
-    const started = performance.now();
-    const execute = fixture === "valid-1" ? observeFirstReader : spawnSync;
-    const result = await execute("pwsh", ["-NoProfile", "-NonInteractive", "-Command", command], {
-      cwd: directory,
-      env: { ...process.env, GITHUB_OUTPUT: output },
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 10_000,
-    });
-    const stream = (value) => ({
-      text: (value ?? "").slice(0, 8_192),
-      bytes: Buffer.byteLength(value ?? "", "utf8"),
-      truncated: (value ?? "").length > 8_192,
-    });
-    context.diagnostic(
-      JSON.stringify({
-        reader_fixture: fixture,
-        first_invocation_observation: result.observation ?? null,
-        observation_order: "reader-then-startup; startup is diagnostic-only",
-        node: process.version,
-        platform: process.platform,
-        architecture: process.arch,
-        os_release: os.release(),
-        runner_image: process.env.ImageOS ?? null,
-        runner_image_version: process.env.ImageVersion ?? null,
-        started_at: startedAt,
-        elapsed_ms: performance.now() - started,
-        timeout_ms: 10_000,
-        status: result.status,
-        signal: result.signal,
-        error: result.error
-          ? { code: result.error.code, errno: result.error.errno, message: result.error.message }
-          : null,
-        stdout: stream(result.stdout),
-        stderr: stream(result.stderr),
-      }),
-    );
-    return result;
-  }
-  try {
-    for (const [index, components] of [
-      ["clippy", "rustfmt", "rust-analyzer"],
-      ["rust-src", "rust-analyzer", "clippy", "rustfmt"],
-    ].entries()) {
-      await writeFile(
-        path.join(directory, "rust-toolchain.toml"),
-        `[toolchain]\nchannel = "1.98.1"\ncomponents = ${JSON.stringify(components)}\n`,
+    const body = setup.match(
+      /- name: Read repository toolchain[\s\S]*?run: \|\r?\n([\s\S]*?)(?= {4}- uses:)/,
+    )?.[1];
+    assert.ok(body);
+    const script = body.replace(/^ {8}/gm, "");
+    assert.doesNotMatch(script, /\$portcoveReaderClock\b/);
+    const phaseDiagnostic = (phase) =>
+      `[Console]::Error.WriteLine("portcove-reader-phase:${phase};elapsed_ms=$($portcoveReaderClock.ElapsedMilliseconds)")`;
+    let tracedScript = script;
+    for (const [line, phase] of [
+      ["$config = Get-Content rust-toolchain.toml -Raw", "read-config"],
+      ["$channel = $Matches[1]", "channel-parsed"],
+      ["$components = ConvertFrom-Json $Matches[1] -NoEnumerate", "parse-components"],
+      ['"channel=$channel" >> $env:GITHUB_OUTPUT', "write-output"],
+    ]) {
+      assert.equal(
+        script.split(line).length,
+        2,
+        `Reader phase must have one source anchor: ${phase}`,
       );
-      await writeFile(output, "");
-      const result = await runReader(`valid-${index + 1}`);
-      assert.ifError(result.error);
-      assert.equal(result.status, 0, result.stdout + result.stderr);
-      const phases = [
-        ...result.stderr.matchAll(
-          /portcove-reader-phase:([a-z-]+);(?:pwsh=[^;\r\n]+;)?elapsed_ms=(\d+)/g,
-        ),
-      ];
-      assert.deepEqual(
-        phases.map((phase) => phase[1]),
-        [
-          "started",
-          "read-config",
-          "config-read",
-          "channel-parsed",
-          "parse-components",
-          "write-output",
-          "completed",
-        ],
+      tracedScript = tracedScript.replace(
+        line,
+        `${phaseDiagnostic(phase)}\n${line}${phase === "read-config" ? `\n${phaseDiagnostic("config-read")}` : ""}`,
       );
-      assert.ok(
-        phases.every(
-          (phase, index) => index === 0 || Number(phase[2]) >= Number(phases[index - 1][2]),
-        ),
-      );
-      assert.match(result.stderr, /;utc=\d{4}-\d{2}-\d{2}T[^\r\n]+Z/);
-      assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/), [
-        "channel=1.98.1",
-        `components=${components.join(",")}`,
-      ]);
     }
-    for (const [index, declaration] of [
-      "",
-      'components = "clippy"',
-      'components = ["clippy", 7]',
-      'components = ["clippy", "rustfmt\\nextra=value"]',
-    ].entries()) {
-      await writeFile(
-        path.join(directory, "rust-toolchain.toml"),
-        `[toolchain]\nchannel = "1.98.1"\n${declaration}\n`,
+    tracedScript =
+      "$portcoveReaderClock = [System.Diagnostics.Stopwatch]::StartNew()\n" +
+      `[Console]::Error.WriteLine("portcove-reader-phase:started;pwsh=$($PSVersionTable.PSVersion);elapsed_ms=$($portcoveReaderClock.ElapsedMilliseconds);utc=$([DateTime]::UtcNow.ToString('o'))")\n` +
+      tracedScript +
+      `\n${phaseDiagnostic("completed")}\n`;
+    const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-toolchain-reader-"));
+    const output = path.join(directory, "github-output");
+    async function runReader(fixture, command = tracedScript) {
+      const startedAt = new Date().toISOString();
+      const started = performance.now();
+      const execute = fixture === "valid-1" ? observeFirstReader : spawnSync;
+      const result = await execute("pwsh", ["-NoProfile", "-NonInteractive", "-Command", command], {
+        cwd: directory,
+        env: { ...process.env, GITHUB_OUTPUT: output },
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: readerTimeoutMs,
+      });
+      const stream = (value) => ({
+        text: (value ?? "").slice(0, 8_192),
+        bytes: Buffer.byteLength(value ?? "", "utf8"),
+        truncated: (value ?? "").length > 8_192,
+      });
+      context.diagnostic(
+        JSON.stringify({
+          reader_fixture: fixture,
+          first_invocation_observation: result.observation ?? null,
+          observation_order: "reader-then-startup; startup is diagnostic-only",
+          node: process.version,
+          platform: process.platform,
+          architecture: process.arch,
+          os_release: os.release(),
+          runner_image: process.env.ImageOS ?? null,
+          runner_image_version: process.env.ImageVersion ?? null,
+          started_at: startedAt,
+          elapsed_ms: performance.now() - started,
+          timeout_ms: readerTimeoutMs,
+          status: result.status,
+          signal: result.signal,
+          error: result.error
+            ? { code: result.error.code, errno: result.error.errno, message: result.error.message }
+            : null,
+          stdout: stream(result.stdout),
+          stderr: stream(result.stderr),
+        }),
       );
-      await writeFile(output, "");
-      const result = await runReader(`invalid-${index + 1}`);
-      assert.ifError(result.error);
-      assert.notEqual(result.status, 0, declaration);
-      assert.equal(await readFile(output, "utf8"), "");
+      return result;
     }
-  } finally {
     try {
-      // Observe startup after the reader without warming its first invocation.
-      // This result cannot replace the reader verdict or explain an earlier timeout.
-      await runReader(
-        "startup-after-reader-diagnostic-only",
-        '[Console]::Error.WriteLine("portcove-startup-discriminator:entered"); ' +
-          "[PSCustomObject]@{version=$PSVersionTable.PSVersion.ToString();executable=[Environment]::ProcessPath} | ConvertTo-Json -Compress",
-      );
-    } catch {
-      // Best-effort diagnostics must preserve the original reader failure.
+      for (const [index, components] of [
+        ["clippy", "rustfmt", "rust-analyzer"],
+        ["rust-src", "rust-analyzer", "clippy", "rustfmt"],
+      ].entries()) {
+        await writeFile(
+          path.join(directory, "rust-toolchain.toml"),
+          `[toolchain]\nchannel = "1.98.1"\ncomponents = ${JSON.stringify(components)}\n`,
+        );
+        await writeFile(output, "");
+        const result = await runReader(`valid-${index + 1}`);
+        assert.ifError(result.error);
+        assert.equal(result.status, 0, result.stdout + result.stderr);
+        const phases = [
+          ...result.stderr.matchAll(
+            /portcove-reader-phase:([a-z-]+);(?:pwsh=[^;\r\n]+;)?elapsed_ms=(\d+)/g,
+          ),
+        ];
+        assert.deepEqual(
+          phases.map((phase) => phase[1]),
+          [
+            "started",
+            "read-config",
+            "config-read",
+            "channel-parsed",
+            "parse-components",
+            "write-output",
+            "completed",
+          ],
+        );
+        assert.ok(
+          phases.every(
+            (phase, index) => index === 0 || Number(phase[2]) >= Number(phases[index - 1][2]),
+          ),
+        );
+        assert.match(result.stderr, /;utc=\d{4}-\d{2}-\d{2}T[^\r\n]+Z/);
+        assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/), [
+          "channel=1.98.1",
+          `components=${components.join(",")}`,
+        ]);
+      }
+      for (const [index, declaration] of [
+        "",
+        'components = "clippy"',
+        'components = ["clippy", 7]',
+        'components = ["clippy", "rustfmt\\nextra=value"]',
+      ].entries()) {
+        await writeFile(
+          path.join(directory, "rust-toolchain.toml"),
+          `[toolchain]\nchannel = "1.98.1"\n${declaration}\n`,
+        );
+        await writeFile(output, "");
+        const result = await runReader(`invalid-${index + 1}`);
+        assert.ifError(result.error);
+        assert.notEqual(result.status, 0, declaration);
+        assert.equal(await readFile(output, "utf8"), "");
+      }
     } finally {
-      await rm(directory, { recursive: true, force: true });
+      try {
+        // Observe startup after the reader without warming its first invocation.
+        // This result cannot replace the reader verdict or explain an earlier timeout.
+        await runReader(
+          "startup-after-reader-diagnostic-only",
+          '[Console]::Error.WriteLine("portcove-startup-discriminator:entered"); ' +
+            "[PSCustomObject]@{version=$PSVersionTable.PSVersion.ToString();executable=[Environment]::ProcessPath} | ConvertTo-Json -Compress",
+        );
+      } catch {
+        // Best-effort diagnostics must preserve the original reader failure.
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
     }
-  }
-});
+  },
+);
 
 test("repository Rust setup provisions components before ordinary identity probes", async () => {
   const setup = await readFile(
@@ -1654,7 +1707,7 @@ test("Linux Rust quality keeps its platform-specific and policy gates without pn
   assert.match(rustQuality, /runs-on: ubuntu-latest/);
   assert.match(rustQuality, /AQUA_ENFORCE_CHECKSUM: "true"/);
   assert.match(rustQuality, /AQUA_ENFORCE_REQUIRE_CHECKSUM: "true"/);
-  assert.match(rustQuality, /aquaproj\/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e/);
+  assert.match(rustQuality, /aquaproj\/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329/);
   assert.match(rustQuality, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/);
   assert.match(rustQuality, /enable_aqua_install: "false"/);
   assert.doesNotMatch(
@@ -1733,10 +1786,15 @@ test("full frontend qualification provisions browser artifacts before compositio
   );
   const audit = deep.split("  audit:")[1].split("  local_check:")[0];
   const install = audit.indexOf("run: pnpm install --frozen-lockfile");
-  const auditBrowser = audit.indexOf("run: pnpm --dir apps/desktop browser:bootstrap");
   const auditGates = audit.indexOf("name: Run deterministic gates and structural audit");
-  assert.ok(install >= 0 && auditBrowser > install && auditGates > auditBrowser);
-  assert.equal(audit.match(/run: pnpm --dir apps\/desktop browser:bootstrap/g)?.length, 1);
+  assert.ok(install >= 0 && auditGates > install);
+  // Deep audit starts Fallow before runtime/browser provisioning. The runtime
+  // recipe owns browser prerequisites, so this does not select a second scan.
+  assert.doesNotMatch(audit, /run: pnpm --dir apps\/desktop browser:bootstrap/);
+  const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
+  const runtime = recipes.split("\nui-runtime:")[1].split(/\n\S/)[0];
+  assert.ok(runtime.indexOf("run browser:bootstrap") < runtime.indexOf("run frontend:runtime"));
+  assert.equal(AUDIT_STAGES[0].id, "fallow");
   for (const [name, block] of [
     ["full", full],
     ["fast", fast],
@@ -1871,12 +1929,12 @@ test("release and deep preflights require a fresh audit", async () => {
   );
   assert.match(release, /just audit --fresh/);
   assert.match(release, /id: aqua-version/);
-  assert.match(release, /aquaproj\/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e/);
+  assert.match(release, /aquaproj\/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329/);
   assert.match(release, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/);
   assert.match(release, /enable_aqua_install: "false"/);
   assert.match(deep, /just audit --fresh/);
   assert.match(deep, /id: aqua-version/);
-  assert.match(deep, /aquaproj\/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e/);
+  assert.match(deep, /aquaproj\/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329/);
   assert.match(deep, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/);
   assert.match(deep, /enable_aqua_install: "false"/);
   assert.match(localPreflight, /just audit --fresh/);
@@ -1890,7 +1948,7 @@ test("manual deep workflow preserves fresh default with explicit bounded audit r
   assert.match(deep, /^name: Deep audit$/m);
   assert.match(deep, /^ {2}audit:\r?$/m);
   assert.match(deep, /just audit --fresh/);
-  assert.match(deep, /default: audit\r?\n {8}options: \[audit, audit-reuse, local-check\]/);
+  assert.match(deep, /default: audit\r?\n {8}options: \[audit, audit-reuse, local-check, fallow\]/);
   assert.doesNotMatch(deep, /GH_TOKEN: \$\{\{ github.token \}\}/);
   assert.match(deep, /if: always\(\) && inputs.operation != 'audit-reuse'/);
   assert.doesNotMatch(deep, /actions: read|actions: write|contents: write/);
@@ -2602,7 +2660,7 @@ test("deep audit evidence retains audit status without privilege changes", async
   assert.match(deep, /node scripts\/audit-evidence.mjs/);
   assert.match(deep, /if: always\(\) && steps.fresh-audit.outputs.capture_available == 'true'/);
   assert.match(deep, /if: always\(\) && steps.audit-evidence.outputs.available == 'true'/);
-  assert.match(deep, /uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a/);
+  assert.match(deep, /uses: actions\/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9/);
   assert.match(
     deep,
     /name: audit-evidence-\$\{\{ github.run_id \}\}-\$\{\{ github.run_attempt \}\}/,
@@ -2658,7 +2716,10 @@ test("complete fresh success publishes bounded identities and stage results only
 test("failed full audit retains actual stage failure and exit status", () => {
   const payload = fixture();
   payload.success = false;
-  Object.assign(payload.stages[1], { status: "failed", exitCode: 2 });
+  Object.assign(
+    payload.stages.find((stage) => stage.id === "rust"),
+    { status: "failed", exitCode: 2 },
+  );
   const text = renderDeepAuditSummary(
     receiptEnvelope(payload),
     {

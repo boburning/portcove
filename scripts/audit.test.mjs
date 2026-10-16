@@ -261,6 +261,9 @@ test("candidate coverage constants cannot authorize their own reduced transition
   for (const filename of [
     "scripts/audit.mjs",
     "scripts/select-ci-plan.mjs",
+    "scripts/nextest-equivalence.mjs",
+    "scripts/postmerge-ci.mjs",
+    "scripts/workflow-provenance.mjs",
     "scripts/validation-plan.mjs",
     "scripts/windows-helper-checks.mjs",
     "scripts/native-helper-dependencies.mjs",

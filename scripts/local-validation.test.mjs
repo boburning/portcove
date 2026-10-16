@@ -504,28 +504,14 @@ test("preflight keeps policy qualification and Linux audit scope separate from s
           : args[0] === "branch"
             ? "feature/candidate"
             : "";
-  const hosted = inspectPreChangeAudit(context, validationPlan, base, base, {
-    inventory,
-    platform: "win32",
-    git: command(),
-  });
-  assert.equal(hosted.route, "hosted-deep-audit");
-  assert.equal(hosted.profile, "complete");
-  assert.ok(hosted.local_stages.some((stage) => stage.id === "windows-qualification"));
-  assert.ok(!hosted.stages.some((stage) => stage.id === "windows-qualification"));
-  assert.match(hosted.limit, /not equivalent to selected local-check/);
-  for (const input of [{ git: command("scripts/audit.mjs") }, { git: command("", " M source") }]) {
-    assert.equal(
-      inspectPreChangeAudit(context, validationPlan, base, base, { inventory, ...input }).route,
-      "local-prerequisites-unverified",
-    );
-  }
   assert.equal(
-    inspectPreChangeAudit(context, validationPlan, undefined, undefined, {
+    inspectPreChangeAudit(context, validationPlan, base, base, {
       inventory,
+      platform: "win32",
       git: command(),
-    }).route,
-    "local-prerequisites-unverified",
+    }),
+    null,
+    "ordinary policy changes do not add a fresh exhaustive audit prerequisite",
   );
 });
 const change = (path, options = {}) => ({ status: "M", path, ...options });
@@ -829,7 +815,6 @@ test("frontend configuration changes use the complete small UI suite", () => {
   for (const path of ["package.json", "pnpm-lock.yaml"]) {
     const { selection, plan } = planFor([path]);
     assert.equal(selection.uiFullTests, true, path);
-    assert.equal(selection.fallow, true, path);
     assert.ok(selection.nodeTests.has("scripts/check-fallow-report.test.mjs"), path);
     assert.ok(ids(plan).includes("ui-tests"), path);
     assert.ok(!ids(plan).includes("fallow"), path);
@@ -856,7 +841,6 @@ for (const manifest of ["package.json", "apps/desktop/package.json"]) {
     assert.ok(selection.nodeTests.has("scripts/local-validation.test.mjs"));
     assert.equal(selection.ui, true);
     assert.equal(selection.uiFullTests, true);
-    assert.equal(selection.fallow, manifest === "package.json");
     assert.equal(selection.browser, manifest === "apps/desktop/package.json");
     assert.ok(ids(plan).includes("ui-tests"));
     if (manifest === "package.json") {
@@ -920,11 +904,21 @@ test("the exact Fallow boundary configuration selects the complete UI suite", ()
   for (const status of ["M", "A", "D"]) {
     const { selection, plan } = planFor([{ status, path: "apps/desktop/.fallowrc.json" }]);
     assert.equal(selection.uiFullTests, true);
-    assert.equal(selection.fallow, true);
     assert.ok(ids(plan).includes("ui-tests"));
     assert.ok(!ids(plan).includes("fallow"));
     assert.ok(!ids(plan).includes("ui-related-tests"));
     assert.deepEqual([...selection.unknown], []);
+  }
+});
+
+test("advisory tooling configuration selects scope contracts without exhaustive analysis", () => {
+  for (const status of ["M", "A", "D"]) {
+    const { selection, plan } = planFor([{ status, path: ".fallow-tooling.json" }]);
+    assert.deepEqual([...selection.unknown], []);
+    assert.ok(selection.nodeTests.has("scripts/fallow-scope.test.mjs"));
+    assert.ok(selection.nodeTests.has("scripts/run-fallow.test.mjs"));
+    assert.ok(!ids(plan).includes("fallow"));
+    assert.equal(selection.ui, false);
   }
 });
 
@@ -1038,7 +1032,7 @@ test("workflow and justfile changes select exact contract tests and actionlint",
   assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mjs"));
   assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mjs"));
   assert.ok(selection.nodeTests.has("scripts/local-validation.test.mjs"));
-  assert.ok(!ids(plan).includes("actionlint"));
+  assert.ok(ids(plan).includes("actionlint"));
   const nodeTests = plan.find((entry) => entry.id === "node-tests");
   assert.ok(nodeTests.args.includes("--test-reporter=./scripts/test-duration-reporter.mjs"));
 });

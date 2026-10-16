@@ -37,7 +37,7 @@ actual supported automation interface and installed schedules, including the
 historical `portcove-weekly-port-discovery-and-candidate-recheck`. Never infer
 active scheduling from a saved prompt or old receipt. Preserve a suitable
 existing time; otherwise use configurable 09:00 America/New_York daily.
-Preserve approved model policy, never Astra or paid APIs. Use the existing
+Choose a suitable model within existing spending authority. Use the existing
 Codex subscription and supported scheduler only, with no new service, Actions
 schedule, broader credentials or spending. Test manually before enabling
 unattended writes. Verify identity, enabled state, local timezone/next run,

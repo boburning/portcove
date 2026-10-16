@@ -59,8 +59,8 @@ retain/recover required images leaves acceptance incomplete, never synthetic.
 Sources: [Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
 and [standard public runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 
-All existing pre-change validation policy, applicable selected checks, separate
-nonwriting review and exact-head hosted checks remain required for implementation.
+Applicable validation follows [QUALITY](QUALITY.md#required-hosted-baseline), including
+independent review for substantive native behavior and exact-head hosted checks.
 Native acceptance is a distinct obligation. This manual route supplies no policy
 waiver, merge authority, replacement release gate or permission change.
 

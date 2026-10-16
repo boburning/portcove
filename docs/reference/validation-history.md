@@ -323,3 +323,120 @@ Markdown hard-break spaces and final blank lines, so only those exact paths
 disable the corresponding `git diff --check` whitespace diagnostics. The
 exception preserves source fidelity and does not apply to other archives,
 documentation, or code.
+
+## October 16 quality contract consolidation
+
+The #1682 transition was delivered by #1683. Its one-time pre-change audit and
+platform qualification are consumed, not standing obligations for future policy changes.
+The following dated calibration and dependency discussion is preserved from the
+pre-simplification contract; current requirements are in [QUALITY](../QUALITY.md).
+
+The historical [October 15 #706 timing calibration](https://github.com/boburning/portcove/issues/706#issuecomment-6190196270)
+and [exact cancellation-latch addendum](https://github.com/boburning/portcove/issues/706#issuecomment-6191752545)
+originally record three ten-second whole-install-to-copy latches on Intel macOS:
+`curated_cache_retention_revocation_during_copy_refuses_publication`,
+`curated_cache_retention_withdrawal_during_copy_refuses_publication` and
+`curated_cache_retention_cancellation_preserves_partial_after_worker_exit`.
+The [#2004 two-case continuation](https://github.com/boburning/portcove/issues/706#issuecomment-6205805576)
+adds only `curated_cache_policy_loss_during_copy_refuses_publication_and_preserves_bytes`
+and `curated_cache_restore_revocation_during_copy_preserves_cached_bytes` to that
+Intel macOS ten-second branch, preserving the whole-install timer origin and
+thirty-second overall budgets.
+The original calibration also records a 45-second nextest budget on
+`x86_64-apple-darwin` for
+`curated_rollback_withdrawal_permits_exact_retained_target`, alongside the existing
+exact managed-artifact lifecycle override. Every assertion, actual partial-copy
+observation, restart/rollback, trust/persistence check, resource reservation and
+zero-retry rule remains. Other cases and targets retain their existing limits.
+Deep audit's outer `audit` job received 45 minutes; `local_check` stayed at
+30 minutes. All required independent stages must finish with complete evidence;
+these finite calibrations do not accept a failed test or an incomplete audit.
+Retain the original failures and independently review and qualify the final head.
+The [October 16 audit](https://github.com/boburning/portcove/actions/runs/38953995304)
+completed all ten stages and exported diagnostic-only evidence near the 45-minute
+outer limit, then was cancelled during post-job Rust-cache cleanup. The audit job
+now has 55 minutes for that measured workload and required cleanup; `local_check`
+stays at 30 minutes. Original raw failures, coverage, test/product deadlines and
+zero retries remain unchanged. Completion under this budget is not a performance fix.
+The [Windows helper failure](https://github.com/boburning/portcove/actions/runs/38961665198/job/117178258170)
+retains a separate 15-second HWND contract subprocess timeout at its C# compilation
+phase, before algorithm controls were observed. Only that test invocation now allows 25 seconds
+inside the unchanged 30-second test budget. Phase telemetry, all production HWND
+deadlines, assertions and zero retries remain; the original compilation delay is
+not retrospectively diagnosed or repaired by a later pass.
+These are retained calibration records, not ceilings or a requirement for fresh
+owner permission. Future harness-only adjustments follow the standing
+[timeout authorization](#autonomous-test-timeout-calibration); #706 security-risk
+acceptance and other protected authority remain separate and unchanged.
+Use the [CI timing diagnostics](../DEVELOPMENT-TOOLS.md#ci-timing-diagnostics) to
+assess the next three genuine warm focused hosted runs; instrumentation alone
+does not establish the target or add another gate.
+
+Current Tauri Linux dependencies transitively include the unmaintained GTK3 binding family; other transitive build paths include `proc-macro-error` and the `unic-*` family. `cargo deny check --hide-inclusion-graph -W unmaintained` reports those warnings and denies advisories within its configured coverage, while omitting repeated inclusion paths. There is no safe direct Portcove upgrade that removes the GTK3 set without changing Tauri's Linux webview architecture.
+
+The maintained `deny.toml` sets `unsound = "all"`, including indirect
+unsoundness. `just deny` runs the pinned scanner with all maintained workspace,
+advisory, bans, license and source checks and returns its original exit status.
+Raw output, status, tool/configuration identity and coverage are retained under
+`work/linux-beta-risk-706/`. No advisory is ignored or dismissed.
+
+`just security` answers the separate development question: are there new blocking
+findings? Only the exact registry `glib 0.18.5` / `RUSTSEC-2024-0429` unsoundness
+error is an existing unresolved baseline. Any additional or changed error,
+malformed/incomplete summary, missing warning/error diagnostics, wrong scope/tool/
+configuration, timeout or execution failure blocks. Configured warnings remain
+warnings. A policy pass explicitly reports the scanner failure, outstanding #706
+remediation, and Linux release authorization **not evaluated**. It is not a clean
+scanner result, risk acceptance or release authorization.
+
+Ordinary CI and `just audit` use this development decision. They require no
+release approval, expiration check, publication tag, native-source fingerprint,
+GitHub credentials or release inventory. Every other selected stage still runs
+and retains its own failure. Audit receipts preserve raw stage failure and a
+separate development-policy decision. These failed/diagnostic-only receipts
+cannot supply passing scanner evidence or successful audit reuse.
+
+Linux distribution separately uses `scripts/linux-beta-risk-706.mjs` through
+`just audit --fresh --profile release`, final asset assembly and the read-only
+pre-upload authorization job. Publication retains an isolated contents-write job;
+it refuses stale authorization or expiry before each release mutation. The exact
+advisory/version, x86-64 target/features, candidate/lock/build/dependency identity,
+complete fresh scan, owner, first-tag binding, one-release budget and complete
+release/asset inventory remain mandatory. Approval expires November 14, 2026,
+23:59 America/New_York (`2026-11-15T04:59:00Z`), or before the second applicable
+Linux beta publication. No automatic renewal or tag reallocation is allowed.
+
+Release source review uses a named reviewed commit and a real Git comparison,
+not a maintained hash of every Rust file. Native/build changes require focused
+review before release; names alone do not establish unchanged exposure. Update
+the source review baseline only after reviewing the actual diff, production
+reachability, dependency/features/code generation, current impact evidence and
+compatible-fix availability. Reuse unchanged evidence; uncertain material changes
+retain a Linux release obligation without blocking ordinary development. See the
+[current procedure and preserved history](../releases/2026-10-14-linux-beta-risk-706.md).
+#706 and #49 remain open for actual remediation and Linux qualification.
+
+GitHub also reports GHSA-wrw7-89jp-8q8g for Tauri's Linux-only `glib 0.18.5` graph. Dependabot confirms that `0.18.5` is the newest version compatible with Tauri's GTK3 stack while the advisory declares `0.20.0` as the first fixed release. Keep that alert open in its durable issue and live Project item; do not conceal it with a version-only dismissal, an unreviewed fork, or a broad advisory exception. Re-evaluate when Tauri adopts a compatible maintained GTK stack.
+
+### Dependency replay and policy provenance retained October 16
+
+#1973's owner authorizes `update-lockfile` only for Cargo/crate `serde_json`,
+without an update-type restriction. It selects compatible releases within the
+existing range before lookup; the global `bump` strategy and other dependencies
+remain unchanged. In-range proposals keep the manifest value and reach Cargo's
+precise-update path before `cargo update --workspace`. The deployed 44.156.3
+[replay fixture](../../scripts/fixtures/serde-json-renovate-44.156.3.json) records
+eligible 1.0.153 remaining locked while 1.0.154 was pending, with semver unchanged.
+
+The one-day timestamp-required age policy, disabled automerge, existing security
+overrides and major dashboard approval remain intact. Out-of-range proposals can
+still change a manifest and require a separate scope decision; this authorization
+does not approve them. Full lockfile maintenance uses Cargo's general update path
+and needs separate resolved-graph review. Neither the scoped rule nor the workspace follow-up
+establishes universal transitive-dependency age enforcement.
+
+Keep #1973 open after configuration delivery until a naturally occurring hosted
+proposal and generated artifact demonstrate the outcome. Local engine/Cargo replay
+is separate evidence; continue other development while waiting. The rejected
+patch-only and post-lookup candidates remain in the historical
+[October 14 evidence](../releases/2026-10-14-maintenance-tooling-evidence.md).

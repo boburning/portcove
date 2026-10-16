@@ -1,3 +1,6 @@
+import { renderBoundedSummary } from "./bounded-summary.mjs";
+import { summarizeFallow } from "./fallow-summary.mjs";
+export { renderBoundedSummary } from "./bounded-summary.mjs";
 import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
@@ -56,8 +59,15 @@ export function describeFailure(result, kind = "unknown") {
   }
 }
 
-export function commandFailure(message, result, directory, cause = result.error, kind = "unknown") {
-  const evidence = retainCommandEvidence(directory, result);
+export function commandFailure(
+  message,
+  result,
+  directory,
+  cause = result.error,
+  kind = "unknown",
+  retainedEvidence,
+) {
+  const evidence = retainedEvidence ?? retainCommandEvidence(directory, result);
   const failure = describeFailure(result, kind);
   const error = new Error(
     renderBoundedSummary(
@@ -78,34 +88,6 @@ export function commandFailure(message, result, directory, cause = result.error,
   error.failure = failure;
   error.exitCode = result.status;
   return error;
-}
-
-export function renderBoundedSummary(
-  title,
-  entries,
-  { reference = null, maximumBytes = 16 * 1024 } = {},
-) {
-  if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 256)
-    throw new RangeError("Summary limit must be at least 256 bytes");
-  const lines = [];
-  let bytes = 0;
-  const append = (line) => {
-    const size = Buffer.byteLength(line) + 1;
-    if (bytes + size > maximumBytes - 200) return false;
-    lines.push(line);
-    bytes += size;
-    return true;
-  };
-  append(String(title).slice(0, 128));
-  if (reference) append(`Raw evidence: ${reference}`);
-  let included = 0;
-  for (const entry of entries) {
-    if (!append(String(entry))) break;
-    included++;
-  }
-  const omitted = entries.length - included;
-  lines.push(`Findings: ${entries.length}; shown: ${included}; omitted: ${omitted}`);
-  return { text: lines.join("\n"), total: entries.length, omitted };
 }
 
 export function summarizeReport(kind, report, reference) {
@@ -228,17 +210,7 @@ export function summarizeReport(kind, report, reference) {
     );
   }
   if (kind === "fallow" && report.health?.summary) {
-    const entries = (report.health.findings ?? [])
-      .filter((entry) => entry.severity === "critical")
-      .map(
-        (entry) =>
-          `${entry.path}:${entry.line}: ${entry.name}; cyclomatic ${entry.cyclomatic}; cognitive ${entry.cognitive}`,
-      );
-    return renderBoundedSummary(
-      `Fallow: critical complexity ${report.health.summary.severity_critical_count}; dead-code/dependency ${report.check?.total_issues ?? "unknown"}; duplication ${report.dupes?.stats?.duplication_percentage ?? "unknown"}%`,
-      entries,
-      { reference },
-    );
+    return { text: summarizeFallow(report, reference) };
   }
   throw new Error(`Unsupported or malformed ${kind} report; no result claimed`);
 }

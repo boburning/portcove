@@ -7,7 +7,16 @@ on:
         description: Fixed validation operation
         type: choice
         default: audit
-        options: [audit, audit-reuse, local-check]
+        options: [audit, audit-reuse, local-check, fallow]
+      fallow_scope:
+        description: Selective Fallow scope (operation=fallow only)
+        type: choice
+        default: tooling
+        options: [desktop, tooling, review, css]
+      comparison_base:
+        description: Actual target ref for a Fallow review
+        type: string
+        default: origin/main
       source_sha:
         description: Reviewed source commit for local-check
         type: string
@@ -34,12 +43,48 @@ env:
   pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
 
 concurrency:
-  group: deep-quality-${{ github.ref }}
+  # Advisory requests do not supersede an audit/local-check or one another.
+  group: ${{ inputs.operation == 'fallow' && format('fallow-{0}', github.run_id) || format('deep-quality-{0}', github.ref) }}
   cancel-in-progress: true
 
 jobs:
+  fallow_analysis:
+    if: inputs.operation == 'fallow'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+        with:
+          version-file: pnpm-workspace.yaml
+          node-version-file: .node-version
+          cache: true
+          run-install: |
+            args: [--frozen-lockfile]
+      - name: Run selected Fallow analysis
+        env:
+          FALLOW_SCOPE: ${{ inputs.fallow_scope }}
+          COMPARISON_BASE: ${{ inputs.comparison_base }}
+          PORTCOVE_FALLOW_THREADS: "2"
+        run: |
+          if [ "$FALLOW_SCOPE" = review ]; then
+            node scripts/run-fallow.mjs review "$COMPARISON_BASE"
+          else
+            node scripts/run-fallow.mjs "$FALLOW_SCOPE"
+          fi
+      - name: Retain original Fallow reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fallow-selected-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/fallow-reports/
+          retention-days: 7
+          if-no-files-found: warn
+
   audit:
-    if: inputs.operation != 'local-check'
+    if: inputs.operation != 'local-check' && inputs.operation != 'fallow'
     # Match the maintained Linux native target for the actual namespace controls.
     runs-on: ubuntu-22.04
     timeout-minutes: 55
@@ -48,7 +93,7 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           package_json_file: package.json
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -94,15 +139,13 @@ jobs:
         shell: bash
         run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
       - name: Install pinned aqua
-        uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
+        uses: aquaproj/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329 # v4.1.0
         with:
           aqua_version: ${{ steps.aqua-version.outputs.version }}
           enable_aqua_install: "false"
       - name: Verify exact audit-tool versions
         run: ./scripts/bootstrap-quality-tools.sh
       - run: pnpm install --frozen-lockfile
-      - name: Provision the pinned browser before runtime audit
-        run: pnpm --dir apps/desktop browser:bootstrap
       - name: Run deterministic gates and structural audit
         id: fresh-audit
         shell: bash
@@ -121,9 +164,17 @@ jobs:
           echo "exit_code=$audit_status" >> "$GITHUB_OUTPUT"
           node scripts/deep-audit-summary.mjs --finish "$audit_status"
           exit "$audit_status"
+      - name: Retain original Fallow reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fallow-deep-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/fallow-reports/
+          retention-days: 7
+          if-no-files-found: warn
       - name: Preserve original dependency results and separate policy decision
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: linux-beta-risk-706-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -148,7 +199,7 @@ jobs:
           fi
       - name: Retain bounded audit evidence
         if: always() && steps.audit-evidence.outputs.available == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: audit-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: work/audit-bundles/${{ github.run_id }}-${{ github.run_attempt }}/
@@ -175,7 +226,7 @@ jobs:
           path: controller
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: controller/.node-version
           package-manager-cache: false
@@ -221,7 +272,7 @@ jobs:
         id: local-aqua
         working-directory: source
         run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
-      - uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
+      - uses: aquaproj/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329 # v4.1.0
         with:
           aqua_version: ${{ steps.local-aqua.outputs.version }}
           enable_aqua_install: "false"
