@@ -43,12 +43,12 @@ it("registers scenario exclusion on production builds", async () => {
   expect(plugin.generateBundle).toMatchObject({ order: "post", handler: expect.any(Function) });
 });
 
-it("keeps Tailwind Preflight out of ordinary legacy screens", async () => {
-  const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
-  expect(css).toContain('@import "tailwindcss/theme.css" layer(theme);');
-  expect(css).toContain('@import "tailwindcss/utilities.css" layer(utilities);');
-  expect(css).not.toMatch(/@import\s+["']tailwindcss["']/);
-  expect(css).not.toContain("tailwindcss/preflight.css");
+it("assembles one reset with explicit production discovery and layer order", async () => {
+  const css = await readFile(new URL("../styles/index.css", import.meta.url), "utf8");
+  expect(css).toContain("@layer theme, base, components, utilities;");
+  expect(css).toContain('@import "tailwindcss" source(none);');
+  expect(css).toContain('@source not "../browser";');
+  expect(css).not.toContain("legacy.css");
 });
 
 it("gives scenario themes their own semantic canvas", async () => {

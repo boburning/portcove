@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { useLayoutEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -21,6 +22,18 @@ import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
+const sourceToneClasses: Record<string, string> = {
+  success: "text-pc-success-foreground",
+  warning: "text-pc-warning-foreground",
+  danger: "text-pc-danger-foreground",
+  neutral: "text-pc-muted-foreground",
+  "contract-supported": "text-pc-success-foreground",
+  "contract-informational": "text-pc-info-foreground",
+  "contract-recognized_not_listed": "text-pc-warning-foreground",
+  "contract-unreviewed_for_release": "text-pc-warning-foreground",
+  "contract-known_incompatible": "text-pc-danger-foreground",
+  "contract-not_evaluated": "text-pc-muted-foreground",
+};
 export function SourceIdentityPanel({
   report,
   openEvidence,
@@ -49,27 +62,38 @@ export function SourceIdentityPanel({
   const problemToolId = report.problem?.tool_id;
   return (
     <section
-      className="source-identity mt-3 grid gap-3 rounded-pc-lg border border-pc-border bg-pc-surface p-4"
+      className="source-identity @container/source mt-3 grid gap-3 rounded-pc-lg border border-pc-border bg-pc-surface p-4"
       aria-label={`${checkLabel} for ${report.expected_identity?.label ?? report.profile_id}`}
     >
-      <p className="sr-only" role="status">
+      <p
+        className="sr-only m-0 leading-[var(--leading-relaxed)] text-[var(--color-text-muted)]"
+        role="status"
+      >
         {checkLabel} result: {state.label}. {report.summary}
       </p>
-      <div className="flex items-center justify-between gap-3 max-[760px]:flex-col max-[760px]:items-start">
+      <div className="flex items-center justify-between gap-3 @max-[30rem]/source:flex-col @max-[30rem]/source:items-start">
         <div className="grid gap-0.5">
           <small className="text-pc-muted-foreground">{checkLabel}</small>
           <strong>{report.expected_identity?.label ?? report.profile_id}</strong>
         </div>
         <span
-          className={`source-result inline-flex items-center gap-1 text-xs font-medium ${state.tone}`}
+          className={cn(
+            "source-result inline-flex items-center gap-1 text-xs font-medium",
+            sourceToneClasses[state.tone],
+          )}
         >
           <Icon glyph={state.icon} size="sm" />
           {state.label}
         </span>
       </div>
-      <p>{report.summary}</p>
+      <p className="m-0 leading-[var(--leading-relaxed)] text-[var(--color-text-muted)]">
+        {report.summary}
+      </p>
       {report.problem && (
-        <p className="source-problem" role="status">
+        <p
+          className="source-problem m-0 flex gap-2 leading-[var(--leading-relaxed)] text-[var(--color-text-muted)]"
+          role="status"
+        >
           <Icon glyph={AlertTriangle} size="sm" />
           {report.problem.message}
         </p>
@@ -84,23 +108,35 @@ export function SourceIdentityPanel({
           Review disc tool settings
         </Button>
       )}
-      <p className="source-next">
+      <p className="source-next m-0 leading-[var(--leading-relaxed)] text-[var(--color-text-muted)]">
         <strong>Next:</strong> {report.next_action}
       </p>
-      <dl className="source-identity-summary">
-        <div>
-          <dt>Selected</dt>
-          <dd>
-            <code>{inspection?.path ?? report.registered?.path ?? "No file location saved"}</code>
+      <dl className="source-identity-summary m-0 grid grid-cols-[repeat(2,_minmax(0,_1fr))] gap-2 @max-[30rem]/source:grid-cols-[1fr]">
+        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
+          <dt className="m-0 text-[length:var(--text-2xs)] tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
+            Selected
+          </dt>
+          <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
+            <code className="inline [overflow-wrap:anywhere] whitespace-normal">
+              {inspection?.path ?? report.registered?.path ?? "No file location saved"}
+            </code>
           </dd>
         </div>
-        <div>
-          <dt>Format</dt>
-          <dd>{identityKindLabel(report.expected_identity?.kind)}</dd>
+        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
+          <dt className="m-0 text-[length:var(--text-2xs)] tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
+            Format
+          </dt>
+          <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
+            {identityKindLabel(report.expected_identity?.kind)}
+          </dd>
         </div>
-        <div>
-          <dt>Edition</dt>
-          <dd>{variant ? variantLabel(variant) : classificationLabel(report)}</dd>
+        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
+          <dt className="m-0 text-[length:var(--text-2xs)] tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
+            Edition
+          </dt>
+          <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
+            {variant ? variantLabel(variant) : classificationLabel(report)}
+          </dd>
         </div>
       </dl>
       {report.applications.map((application) => (
@@ -118,11 +154,13 @@ export function SourceIdentityPanel({
         >
           Full identity and evidence
         </summary>
-        <div className="grid gap-4 [&_h4]:mb-2 [&_h4]:mt-3">
-          <dl className="source-identity-summary">
-            <div>
-              <dt>Admission</dt>
-              <dd>{admissionLabel(report)}</dd>
+        <div className="grid gap-4 [&_h4]:mt-3 [&_h4]:mb-2">
+          <dl className="source-identity-summary m-0 grid grid-cols-[repeat(2,_minmax(0,_1fr))] gap-2 @max-[30rem]/source:grid-cols-[1fr]">
+            <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
+              <dt className="m-0 text-[length:var(--text-2xs)] tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
+                Admission
+              </dt>
+              <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">{admissionLabel(report)}</dd>
             </div>
           </dl>
           <IdentityDigests report={report} />
@@ -130,10 +168,13 @@ export function SourceIdentityPanel({
           {report.evidence.length > 0 && (
             <section>
               <h4>Reviewed evidence</h4>
-              <ul className="source-evidence-list">
+              <ul className="source-evidence-list m-0 grid list-none gap-2 p-0">
                 {report.evidence.map((evidence) => (
-                  <li key={evidence.id}>
-                    <span>
+                  <li
+                    className="flex items-center justify-between gap-3 @max-[30rem]/source:flex-col @max-[30rem]/source:items-start"
+                    key={evidence.id}
+                  >
+                    <span className="grid gap-[2px]">
                       <strong>{evidence.authority}</strong>
                       <small>{evidence.claim}</small>
                     </span>
@@ -153,7 +194,7 @@ export function SourceIdentityPanel({
               </ul>
             </section>
           )}
-          <p className="source-boundary">
+          <p className="source-boundary m-0 rounded-pc-md bg-[var(--color-success-subtle)] p-3 leading-[var(--leading-relaxed)] text-[var(--color-text-muted)]">
             <strong>Read-only check.</strong> Portcove calculated these values locally. It did not
             modify, normalize, move, or upload the selected files.
           </p>
@@ -193,30 +234,35 @@ function ApplicationResult({
   );
   return (
     <section
-      className="source-application"
+      className="source-application grid gap-2 rounded-pc-md border border-[var(--color-border)] p-3"
       aria-label={`${application.port_name} ${application.role} requirement`}
     >
-      <div>
+      <div className="flex items-center justify-between gap-3 @max-[30rem]/source:flex-col @max-[30rem]/source:items-start">
         <strong>
           {application.port_name} · {application.role === "bios" ? "BIOS" : "Game file"}
         </strong>
         <span
-          className={`source-contract inline-flex items-center gap-1 text-xs font-medium contract-${application.contract_result.state}`}
+          className={cn(
+            "source-contract inline-flex items-center gap-1 text-xs font-medium",
+            sourceToneClasses[`contract-${application.contract_result.state}`],
+          )}
         >
           {result}
         </span>
       </div>
-      <dl>
-        <div>
+      <dl className="m-0 grid grid-cols-[repeat(2,_minmax(0,_1fr))] gap-2 @max-[30rem]/source:grid-cols-[1fr]">
+        <div className="flex min-w-0 items-center justify-between gap-3 rounded-pc-md bg-[var(--color-bg-inset)] p-2 @max-[30rem]/source:flex-col @max-[30rem]/source:items-start">
           <dt>Release applicability</dt>
           <dd>{applicability}</dd>
         </div>
       </dl>
       {selectedVariantId && selectedHandsOn.length === 0 && (
-        <p>No hands-on test is recorded for this edition and file format.</p>
+        <p className="text-[length:var(--text-xs)]">
+          No hands-on test is recorded for this edition and file format.
+        </p>
       )}
       {selectedHandsOn.length > 0 && (
-        <p>
+        <p className="text-[length:var(--text-xs)]">
           Hands-on results for this edition and file format:{" "}
           {selectedHandsOn.map((record) => evidenceOutcome(record.outcome)).join(", ")}.
         </p>
@@ -228,13 +274,15 @@ function ApplicationResult({
         >
           File details and test results
         </summary>
-        <small>{application.contract.authority_ref}</small>
-        <dl>
-          <div>
+        <small className="text-[var(--color-text-muted)]">
+          {application.contract.authority_ref}
+        </small>
+        <dl className="m-0 grid grid-cols-[repeat(2,_minmax(0,_1fr))] gap-2 @max-[30rem]/source:grid-cols-[1fr]">
+          <div className="flex min-w-0 items-center justify-between gap-3 rounded-pc-md bg-[var(--color-bg-inset)] p-2 @max-[30rem]/source:flex-col @max-[30rem]/source:items-start">
             <dt>Recorded automated results</dt>
             <dd>{evidenceDetails(exactAutomated, "No automated test recorded")}</dd>
           </div>
-          <div>
+          <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
             <dt>Recorded hands-on results</dt>
             <dd>{evidenceDetails(exactHandsOn, "No hands-on test recorded")}</dd>
           </div>
@@ -271,7 +319,10 @@ function IdentityDigests({ report }: { report: SourceInspectionReport }) {
       <h4>Expected identity</h4>
       {variants.length > 0 ? (
         variants.map((variant) => (
-          <div className="expected-variant" key={variant.id}>
+          <div
+            className="expected-variant mt-2 grid gap-2 rounded-pc-md bg-[var(--color-bg-inset)] p-3"
+            key={variant.id}
+          >
             <strong>{variantLabel(variant)}</strong>
             {variant.representations.map((representation) => (
               <ExpectedRepresentation key={representation.id} representation={representation} />
@@ -288,7 +339,7 @@ function IdentityDigests({ report }: { report: SourceInspectionReport }) {
 function ExpectedRepresentation({ representation }: { representation: SourceRepresentation }) {
   const groups = expectedGroups(representation);
   return (
-    <div className="expected-representation">
+    <div className="expected-representation mt-2 grid gap-2 ps-3 [border-left:2px_solid_var(--color-border)]">
       <span>
         {representationKindLabel(representation.kind)} ·{" "}
         {representation.extensions.length
@@ -323,7 +374,7 @@ function ExpectedDigestGroup({
   identities: DigestIdentity[];
 }) {
   return (
-    <div className="digest-group">
+    <div className="digest-group mt-2 grid gap-2">
       <small>{label}</small>
       {identities.length ? (
         identities.map((identity, index) => (
@@ -361,7 +412,10 @@ function ObservedComponent({
   return (
     <div className="observed-component">
       <span
-        className={`source-contract inline-flex items-center gap-1 text-xs font-medium ${result.tone}`}
+        className={cn(
+          "source-contract inline-flex items-center gap-1 text-xs font-medium",
+          sourceToneClasses[result.tone],
+        )}
       >
         {result.label}
       </span>
@@ -384,7 +438,7 @@ function DigestList({
   calculated?: boolean;
 }) {
   return (
-    <div className="digest-group">
+    <div className="digest-group mt-2 grid gap-2">
       <small>{label}</small>
       {digests.length ? (
         digests.map((digest, index) => (
@@ -421,11 +475,11 @@ function DigestValueContent({ label, scope, value }: DigestValueProps) {
   );
   if (!value)
     return (
-      <p className="digest-value missing">
-        <strong>
+      <p className="digest-value missing grid min-w-0 grid-cols-[minmax(0,_1fr)_auto] items-center gap-[3px_var(--space-2)] [&.missing]:grid-cols-[1fr] [&.missing]:rounded-pc-md [&.missing]:p-2 [&.missing]:[border:1px_dashed_var(--color-warning-border)]">
+        <strong className="text-[length:var(--text-xs)] font-medium">
           {label} · {digestScopeLabel(scope)}
         </strong>
-        <span>Missing from reviewed evidence</span>
+        <span className="text-[var(--color-warning-text)]">Missing from reviewed evidence</span>
       </p>
     );
   const copy = () => {
@@ -440,12 +494,15 @@ function DigestValueContent({ label, scope, value }: DigestValueProps) {
       });
   };
   return (
-    <div className="digest-value">
-      <strong>
+    <div className="digest-value grid min-w-0 grid-cols-[minmax(0,_1fr)_auto] items-center gap-[3px_var(--space-2)] [&.missing]:grid-cols-[1fr] [&.missing]:rounded-pc-md [&.missing]:p-2 [&.missing]:[border:1px_dashed_var(--color-warning-border)]">
+      <strong className="text-[length:var(--text-xs)] font-medium">
         {label} · {digestScopeLabel(scope)}
       </strong>
-      <code>{value}</code>
+      <code className="col-[1] block bg-[transparent] p-0 [overflow-wrap:anywhere] whitespace-normal text-[var(--color-text-muted)]">
+        {value}
+      </code>
       <Button
+        className="col-[2] row-span-2"
         data-focusable
         variant="ghost"
         size="icon-sm"
@@ -490,16 +547,16 @@ function Qualification({ report }: { report: SourceInspectionReport }) {
   return (
     <section>
       <h4>Test coverage</h4>
-      <dl className="qualification-grid">
-        <div>
+      <dl className="qualification-grid m-0 grid grid-cols-[repeat(2,_minmax(0,_1fr))] gap-2 @max-[30rem]/source:grid-cols-[1fr]">
+        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt>Legacy port-wide automated</dt>
           <dd>{platformList(legacyAutomated) || "Not recorded"}</dd>
         </div>
-        <div>
+        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt>Legacy port-wide hands-on</dt>
           <dd>{platformList(legacyHandsOn) || "Not recorded"}</dd>
         </div>
-        <div>
+        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt>Registration identity</dt>
           <dd>
             {report.legacy.registration_identity_not_recorded
@@ -507,7 +564,7 @@ function Qualification({ report }: { report: SourceInspectionReport }) {
               : "Structured observation recorded"}
           </dd>
         </div>
-        <div>
+        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt>Variant-unspecified records</dt>
           <dd>{report.legacy.variant_unspecified_records.length || "None"}</dd>
         </div>

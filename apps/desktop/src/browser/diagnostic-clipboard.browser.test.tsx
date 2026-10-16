@@ -11,7 +11,7 @@ import { FailureDetails } from "../components/FailureDetails";
 import { failureReport } from "../test-fixtures";
 import type { ActivityDiagnostic as Diagnostic } from "../types";
 import { failurePresentation } from "../view-model";
-import "../styles.css";
+import "../styles/index.css";
 
 vi.mock("../clipboard", () => ({ copyText: vi.fn() }));
 vi.mock("../api", () => ({ desktopApi: { activityDiagnostic: vi.fn() } }));

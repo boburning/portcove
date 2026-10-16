@@ -8,10 +8,6 @@ export type ResolvedTheme = Exclude<ThemePreference, "system">;
 export const THEME_STORAGE_KEY = "portcove.appearance.theme";
 
 const LIGHT_THEME_QUERY = "(prefers-color-scheme: light)";
-const THEME_COLORS: Record<ResolvedTheme, string> = {
-  dark: "#191a1d",
-  light: "#f5f3ee",
-};
 let themeApplicationGeneration = 0;
 
 function isThemePreference(value: string | null): value is ThemePreference {
@@ -77,7 +73,7 @@ export function applyWebTheme(theme: ResolvedTheme): void {
   );
   document
     .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
-    ?.setAttribute("content", THEME_COLORS[theme]);
+    ?.setAttribute("content", getComputedStyle(root).getPropertyValue("--color-bg").trim());
 }
 
 export async function syncNativeTheme(preference: ThemePreference): Promise<void> {

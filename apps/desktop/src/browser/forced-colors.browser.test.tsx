@@ -3,12 +3,47 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "../components/ui/dialog";
+import { ChoiceSelect } from "../components/ChoiceSelect";
 
 afterEach(async () => {
   await cleanup();
   document.documentElement.removeAttribute("data-theme");
 });
 for (const theme of ["dark", "light"]) {
+  it(`respects actual reduced motion for ${theme} controls and portaled popups`, async () => {
+    expect(matchMedia("(prefers-reduced-motion: reduce)").matches).toBe(true);
+    document.documentElement.dataset.theme = theme;
+    await render(
+      <Dialog open>
+        <DialogContent>
+          <DialogTitle>Review installation</DialogTitle>
+          <Button>Continue</Button>
+          <ChoiceSelect
+            label="Release"
+            value="stable"
+            onChange={() => {}}
+            options={[
+              { value: "stable", label: "Stable" },
+              { value: "beta", label: "Preview" },
+            ]}
+          />
+        </DialogContent>
+      </Dialog>,
+    );
+    await expect.element(page.getByRole("dialog")).toBeVisible();
+    for (const element of [
+      page.getByRole("dialog").element(),
+      page.getByRole("button", { name: "Continue", exact: true }).element(),
+    ])
+      expect(getComputedStyle(element).transitionProperty).toBe("none");
+    await page.getByRole("combobox", { name: "Release Stable" }).click();
+    await expect.element(page.getByRole("option", { name: "Preview", exact: true })).toBeVisible();
+    expect(
+      getComputedStyle(document.querySelector('[data-slot="select-content"]')!).transitionProperty,
+    ).toBe("none");
+    await userEvent.keyboard("{Escape}");
+    await expect.element(page.getByRole("combobox", { name: "Release Stable" })).toHaveFocus();
+  });
   it(`keeps ${theme} keyboard focus visible in actual forced colors`, async () => {
     expect(matchMedia("(forced-colors: active)").matches).toBe(true);
     document.documentElement.dataset.theme = theme;

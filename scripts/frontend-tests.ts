@@ -72,7 +72,9 @@ export const desktopProjects = [
       browser: {
         ...browserProject.test.browser,
         instances: [{ browser: "chromium" }],
-        provider: playwright({ contextOptions: { forcedColors: "active" } }),
+        provider: playwright({
+          contextOptions: { forcedColors: "active", reducedMotion: "reduce" },
+        }),
       },
     },
   },

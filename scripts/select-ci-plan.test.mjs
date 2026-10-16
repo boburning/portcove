@@ -23,7 +23,7 @@ test("frontend tooling provisioning follows selected inputs and skips pure Rust 
       ["docs/README.md", false, false],
       ["Cargo.toml", true, false],
       ["scripts/report-summary.mjs", true, true],
-      ["apps/desktop/src/styles.css", true, true],
+      ["apps/desktop/src/styles/index.css", true, true],
     ]) {
       const plan = buildValidationPlan({
         changes: [

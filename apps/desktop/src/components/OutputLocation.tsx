@@ -33,7 +33,7 @@ function OutputFact({ label, children }: { label: string; children: ReactNode })
   return (
     <div className="min-w-0">
       <dt className="text-[length:var(--text-2xs)] text-pc-muted-foreground uppercase">{label}</dt>
-      <dd className="m-0 mt-1 [overflow-wrap:anywhere] text-xs text-[var(--color-text-secondary)]">
+      <dd className="m-0 mt-1 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         {children}
       </dd>
     </div>
@@ -295,7 +295,9 @@ export function OutputLocationControl({
     >
       <div className="output-location-heading flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="eyebrow">STORAGE LOCATION</p>
+          <p className="eyebrow mb-1 text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+            STORAGE LOCATION
+          </p>
           <h3 id={`output-location-${portId}`} className="m-0 flex items-center gap-2 text-base">
             <Icon glyph={HardDrive} />
             Install folder
@@ -321,7 +323,10 @@ export function OutputLocationControl({
         Future installs use this folder by default. Existing versions will not move. Relocation is a
         separate reviewed action.
       </p>
-      <label htmlFor={`output-location-path-${portId}`} className="text-xs font-bold">
+      <label
+        htmlFor={`output-location-path-${portId}`}
+        className="text-xs font-bold text-[var(--color-text-secondary)]"
+      >
         Folder for future installs
       </label>
       <div className="flex items-stretch gap-2 [&_input]:min-w-0">
@@ -346,7 +351,7 @@ export function OutputLocationControl({
           Browse
         </Button>
       </div>
-      <small id={`output-location-note-${portId}`}>
+      <small className="leading-[var(--leading-normal)]" id={`output-location-note-${portId}`}>
         Portcove will check whether this folder can be used. Checking does not create or move files.
       </small>
       <div className="button-row">
@@ -597,7 +602,7 @@ function OutputLocationReview({
       <DialogContent
         finalFocus={finalFocus}
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="output-location-review-description"
       >
         <DialogTitle id="output-location-review-title" className="mb-2 text-xl">
@@ -718,7 +723,7 @@ function OutputRelocationReview({
     <DialogContent
       finalFocus={finalFocus}
       showCloseButton={false}
-      className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+      className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
       aria-describedby="output-relocation-review-description"
     >
       <DialogTitle id="output-relocation-review-title" className="mb-2 text-xl">
@@ -778,7 +783,7 @@ function OutputRelocationReview({
                   .join(" · ")}
               </span>
               <code
-                className="col-span-full [overflow-wrap:anywhere] text-[length:var(--text-2xs)] text-[var(--color-text-secondary)]"
+                className="col-span-full text-[length:var(--text-2xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]"
                 title={item.install.path}
               >
                 {item.install.path}

@@ -42,7 +42,8 @@ import type { ActivitySettingsTarget } from "../features/app-shell/focus-setting
 const initialActivityNowSeconds = Date.now() / 1000;
 const activityTargetButton =
   "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start overflow-hidden px-1 py-0 text-ellipsis text-xs font-normal text-pc-secondary-foreground no-underline hover:text-pc-interactive-foreground hover:no-underline";
-const activityDetailsClass = "activity-details col-[2/-1] min-w-0 text-xs";
+const activityDetailsClass =
+  "activity-details mt-[calc(var(--space-1)_*_-1)] col-[2/-1] min-w-0 text-xs";
 const activityTones: Record<string, { indicator: string; status: string }> = {
   succeeded: {
     indicator: "bg-pc-success-subtle text-pc-success-foreground",
@@ -53,7 +54,7 @@ const activityTones: Record<string, { indicator: string; status: string }> = {
     status: "text-pc-danger-foreground",
   },
   running: {
-    indicator: "bg-pc-accent text-pc-interactive-foreground motion-safe:[&_.icon]:animate-spin",
+    indicator: "bg-pc-selection text-pc-interactive-foreground motion-safe:[&_.icon]:animate-spin",
     status: "text-pc-interactive-foreground",
   },
   unfinished: {
@@ -67,7 +68,7 @@ const updateMarkTones: Record<UpdateTone, string> = {
   current: "bg-pc-success-subtle text-pc-success-foreground",
   failed: "bg-pc-danger-surface text-[var(--color-text-on-dark)]",
   muted: "bg-[var(--color-bg-subtle-hover)] text-[var(--color-text-secondary)]",
-  staged: "bg-pc-primary text-pc-primary-foreground",
+  staged: "bg-pc-interactive text-pc-action-foreground",
 };
 const updateStateTones: Record<UpdateTone, string> = {
   available: "bg-pc-warning-subtle text-pc-warning-foreground",
@@ -77,7 +78,7 @@ const updateStateTones: Record<UpdateTone, string> = {
   staged: "bg-[var(--color-interactive-subtle)] text-pc-interactive-foreground",
 };
 const updateRowClass =
-  "update-row grid w-full grid-cols-[42px_minmax(180px,1fr)_minmax(214px,284px)_90px] cursor-pointer items-center gap-3.5 rounded-pc-lg border border-pc-border bg-pc-surface p-3 text-left text-pc-foreground shadow-[var(--shadow-control)] transition-[color,background-color,border-color,box-shadow,transform] duration-(--duration-normal) ease-(--ease-standard) hover:border-pc-primary hover:bg-pc-secondary active:translate-y-px active:bg-pc-surface-muted active:shadow-[var(--shadow-pressed)] max-[65rem]:grid-cols-[2.625rem_minmax(11rem,1fr)_minmax(8rem,1fr)_5.625rem]";
+  "update-row grid w-full grid-cols-[42px_minmax(180px,1fr)_minmax(214px,284px)_90px] cursor-pointer items-center gap-3.5 rounded-pc-lg border border-pc-border bg-pc-surface p-3 text-start text-pc-foreground shadow-[var(--shadow-control)] transition-[color,background-color,border-color,box-shadow,transform] duration-(--duration-normal) ease-(--ease-standard) hover:border-pc-interactive hover:bg-pc-secondary active:translate-y-px active:bg-pc-surface-muted active:shadow-[var(--shadow-pressed)] max-[65rem]:grid-cols-[2.625rem_minmax(11rem,1fr)_minmax(8rem,1fr)_5.625rem]";
 const updateMarkClass = "grid size-[42px] place-items-center rounded-pc-md text-xs font-black";
 const updateStateClass =
   "justify-self-end rounded-full px-2 py-[5px] text-[length:var(--text-2xs)] font-extrabold tracking-[0.06em] uppercase";
@@ -272,7 +273,7 @@ export function UpdateCenter({
                       <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
                         Installed
                       </small>
-                      <span className="mt-[3px] block text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+                      <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
                         {status.active?.version}
                       </span>
                     </div>
@@ -280,7 +281,7 @@ export function UpdateCenter({
                       <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
                         {earlierBatch ? "Latest eligible at last check" : "Latest eligible"}
                       </small>
-                      <span className="mt-[3px] block text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+                      <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
                         {releaseLabel(effectiveCheck(port.id), outcome)}
                       </span>
                     </div>
@@ -343,7 +344,7 @@ export function UpdateCenter({
                       <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
                         Registered version
                       </small>
-                      <span className="mt-[3px] block text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+                      <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
                         {runtime.version}
                       </span>
                     </div>
@@ -500,7 +501,9 @@ function ActivityHistory({
     <section className="activity-history mt-7 border-t border-pc-border pt-6">
       <div className="activity-heading mb-3 flex items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">ACTIVITY HISTORY</p>
+          <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+            ACTIVITY HISTORY
+          </p>
           <h2 className="mb-0 text-lg">Recent activity</h2>
         </div>
         <small className="text-xs text-pc-muted-foreground">
@@ -519,7 +522,7 @@ function ActivityHistory({
         </small>
       </div>
       {activities.length === 0 ? (
-        <div className="activity-empty flex items-center gap-3 p-4 text-left text-xs text-pc-muted-foreground">
+        <div className="activity-empty flex items-center gap-3 p-4 text-start text-xs text-pc-muted-foreground">
           <span className="text-pc-interactive-foreground">
             <Icon glyph={History} />
           </span>
@@ -593,7 +596,7 @@ function ActivityRow({
         />
       </div>
       <span
-        className="activity-time whitespace-nowrap text-right text-[length:var(--text-2xs)] text-pc-muted-foreground max-[65rem]:hidden"
+        className="activity-time text-end text-[length:var(--text-2xs)] whitespace-nowrap text-pc-muted-foreground max-[65rem]:hidden"
         title={
           activity.finished_at ? `Finished ${formatActivityTime(activity.finished_at)}` : undefined
         }
@@ -601,7 +604,7 @@ function ActivityRow({
         {presentation.time}
       </span>
       <span
-        className={`activity-status justify-self-end whitespace-nowrap text-[length:var(--text-2xs)] font-extrabold tracking-[0.06em] uppercase max-[65rem]:whitespace-normal ${tone?.status ?? "text-pc-muted-foreground"}`}
+        className={`activity-status justify-self-end text-[length:var(--text-2xs)] font-extrabold tracking-[0.06em] whitespace-nowrap uppercase max-[65rem]:whitespace-normal ${tone?.status ?? "text-pc-muted-foreground"}`}
       >
         {presentation.label}
       </span>

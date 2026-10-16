@@ -1,5 +1,7 @@
 # Vite+ modernization: decisions and evidence
 
+The subsequent [CSS architecture cutover](css-architecture.md), owned by #2009 under #917, supersedes the earlier stylesheet/reset/animation and compiler arrangement. Preserve the dated modernization measurements below as evidence of their actual source.
+
 Initial migration: [#2001](https://github.com/boburning/portcove/issues/2001). Candidate baseline:
 `7c45fcf11597967ed657a1ede8ea524d64502e2a`, inspected October 15, 2026.
 This is an implementation record, not a second planning authority.

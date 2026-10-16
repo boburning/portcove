@@ -98,7 +98,7 @@ export function ChoiceSelect<T extends string>({
         <span id={labelId} className="text-pc-secondary-foreground">
           {label}
         </span>
-        <SelectValue id={valueId} className="justify-end text-right font-semibold">
+        <SelectValue id={valueId} className="justify-end text-end font-semibold">
           {selected?.label ?? "Unavailable"}
         </SelectValue>
       </SelectTrigger>

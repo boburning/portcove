@@ -29,13 +29,17 @@ export function DetailQualificationSummary({
   return (
     <>
       {!technical && (
-        <div className="metadata">
-          <span>
-            <small>Legacy port-wide automated tests</small>
+        <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
+          <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+            <small className="mb-[5px] block text-[var(--color-text-muted)]">
+              Legacy port-wide automated tests
+            </small>
             {legacyCoverage(port.platforms, port.automated_tested_platforms)}
           </span>
-          <span>
-            <small>Legacy port-wide hands-on tests</small>
+          <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+            <small className="mb-[5px] block text-[var(--color-text-muted)]">
+              Legacy port-wide hands-on tests
+            </small>
             {legacyCoverage(port.platforms, port.manually_validated_platforms)}
           </span>
         </div>
@@ -151,12 +155,12 @@ function RecordedObservation({
         {outcomeLabels[record.outcome] ?? "Outcome unknown"}
       </strong>
       <p>{record.method || "Method not recorded"}</p>
-      <dl className="qualification-grid">
-        <div>
+      <dl className="qualification-grid m-0 grid grid-cols-[repeat(2,_minmax(0,_1fr))] gap-2 max-[760px]:grid-cols-[1fr]">
+        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt>Recorded platform</dt>
           <dd>{platformLabel(record.scope.platform)}</dd>
         </div>
-        <div>
+        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt>Observed date (UTC)</dt>
           <dd>
             {Number.isNaN(observedAt.getTime())
@@ -164,7 +168,7 @@ function RecordedObservation({
               : observedAt.toISOString().slice(0, 10)}
           </dd>
         </div>
-        <div>
+        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt>Recorded edition and format</dt>
           <dd>
             {technical && identity
@@ -172,24 +176,24 @@ function RecordedObservation({
               : edition}
           </dd>
         </div>
-        <div>
+        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt>Recorded release</dt>
           <dd>{record.scope.upstream_ref || "Not recorded — scope unknown"}</dd>
         </div>
         {technical && (
-          <div>
+          <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
             <dt>Recorded contract</dt>
             <dd>{record.scope.contract_id || "Not recorded — scope unknown"}</dd>
           </div>
         )}
         {technical && (
-          <div>
+          <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
             <dt>Recorded check version</dt>
             <dd>{record.scope.check_version || "Not recorded — scope unknown"}</dd>
           </div>
         )}
         {technical && (
-          <div>
+          <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
             <dt>Recorded artifact SHA-256</dt>
             <dd>
               <code className="break-all">

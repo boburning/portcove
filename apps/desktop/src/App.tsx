@@ -1,3 +1,4 @@
+import { Notice } from "./components/ui/patterns";
 import { useFavorites } from "./features/favorites/use-favorites";
 import {
   useApplicationUpdateChoice,
@@ -169,10 +170,17 @@ export default function App() {
 
 function BootstrapLoading() {
   return (
-    <main className="bootstrap-state" aria-live="polite">
-      <p className="eyebrow">Portcove</p>
+    <main
+      className="bootstrap-state m-[0_auto] flex min-h-[100vh] w-[min(42rem,_calc(100%_-_2_*_var(--space-8)))] flex-col justify-center gap-4"
+      aria-live="polite"
+    >
+      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)] [&:not(.eyebrow)]:text-[var(--color-text-muted)]">
+        Portcove
+      </p>
       <h1>Opening your Portcove library</h1>
-      <p>Loading the catalog, recovery history, and release information.</p>
+      <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]">
+        Loading the catalog, recovery history, and release information.
+      </p>
     </main>
   );
 }
@@ -194,10 +202,14 @@ export function BootstrapRecovery({
   const canKeepOriginal = transferRecoveryCanKeepOriginal(error);
   const importRoot = transferRecoveryRoot(error, "import_destination");
   return (
-    <main className="bootstrap-state bootstrap-error">
-      <p className="eyebrow">Portcove could not start</p>
+    <main className="bootstrap-state bootstrap-error m-[0_auto] flex min-h-[100vh] w-[min(42rem,_calc(100%_-_2_*_var(--space-8)))] flex-col justify-center gap-4">
+      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)] [&:not(.eyebrow)]:text-[var(--color-text-muted)]">
+        Portcove could not start
+      </p>
       <h1>Portcove couldn’t start</h1>
-      <p role="alert">{errorText(error)}</p>
+      <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]" role="alert">
+        {errorText(error)}
+      </p>
       {error.presentation ? (
         <FailureDetails
           presentation={error.presentation}
@@ -207,15 +219,21 @@ export function BootstrapRecovery({
       ) : (
         <StartupTechnicalDetails error={error} />
       )}
-      <p>
+      <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]">
         Review the error details, then retry startup. If the current library is the cause, you can
         choose another library or return to the platform default.
       </p>
       <div className="button-row" aria-busy={recoveryPending}>
-        <Button type="button" variant="primary" onClick={() => window.location.reload()}>
+        <Button
+          className="[align-self:flex-start]"
+          type="button"
+          variant="primary"
+          onClick={() => window.location.reload()}
+        >
           Retry startup
         </Button>
         <Button
+          className="[align-self:flex-start]"
           type="button"
           variant="outline"
           disabled={recoveryPending}
@@ -226,6 +244,7 @@ export function BootstrapRecovery({
           Choose library
         </Button>
         <Button
+          className="[align-self:flex-start]"
           type="button"
           variant="outline"
           disabled={recoveryPending}
@@ -236,7 +255,11 @@ export function BootstrapRecovery({
           Use platform default
         </Button>
       </div>
-      {actionError && <p role="alert">{actionError}</p>}
+      {actionError && (
+        <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]" role="alert">
+          {actionError}
+        </p>
+      )}
       {recoveryRoot && (
         <LibraryMoveRecovery source={recoveryRoot} canKeepOriginal={canKeepOriginal} />
       )}
@@ -249,17 +272,21 @@ function StartupTechnicalDetails({ error }: { error: StartupFailure }) {
   return (
     <details>
       <summary data-focusable>Technical details</summary>
-      <dl>
+      <dl className="grid gap-3 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-4">
         <div>
-          <dt>Error code</dt>
-          <dd>{error.code}</dd>
+          <dt className="text-xs text-pc-muted-foreground">Error code</dt>
+          <dd className="m-0 min-w-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]">
+            {error.code}
+          </dd>
         </div>
         {Object.entries(error.details).map(([key, value]) => {
           const label = startupDetailLabel(key);
           return (
             <div key={key}>
-              <dt>{label ?? <code>{key}</code>}</dt>
-              <dd>{value}</dd>
+              <dt className="text-xs text-pc-muted-foreground">{label ?? <code>{key}</code>}</dt>
+              <dd className="m-0 min-w-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]">
+                {value}
+              </dd>
             </div>
           );
         })}
@@ -553,8 +580,8 @@ function Workspace({
     );
   const renderPreferenceFailure = () =>
     preferenceFailure && (
-      <section className="error-banner" role="alert">
-        <div>
+      <Notice intent="danger" className="" role="alert">
+        <div data-slot="notice-body">
           <strong>Browsing choices are not saved</strong>
           <p>
             {preferenceFailure === "read"
@@ -572,7 +599,7 @@ function Workspace({
             {preferenceFailure === "read" ? "Save current browsing choices" : "Retry saving"}
           </Button>
         </div>
-      </section>
+      </Notice>
     );
   const renderWorkspaceView = () =>
     model.port ? (
@@ -638,7 +665,7 @@ function Workspace({
     );
   return (
     <ArtworkProvider generation={bootstrap.generation} catalog={data.catalog}>
-      <div className="app-shell">
+      <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)] max-[75rem]:grid-cols-[var(--layout-sidebar-compact)_minmax(0,_1fr)]">
         <Sidebar
           view={ui.view}
           setView={setPrimaryView}
@@ -651,7 +678,12 @@ function Workspace({
           activities={data.activities}
           onAdopt={() => ui.setAdoptOpen(true)}
         />
-        <main ref={workspace} data-focus-region="workspace" tabIndex={-1}>
+        <main
+          className="w-full max-w-(--layout-content-max) overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
+          ref={workspace}
+          data-focus-region="workspace"
+          tabIndex={-1}
+        >
           {renderPageHeader()}
           <StatusLayer
             error={operations.error}

@@ -72,10 +72,12 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="move-library-description"
       >
-        <p className="eyebrow">LIBRARY STORAGE</p>
+        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+          LIBRARY STORAGE
+        </p>
         <DialogTitle id="move-library-title" className="mb-2 text-xl">
           Move your library
         </DialogTitle>
@@ -199,7 +201,7 @@ export function LibraryMoveRecovery({
         <p>The new copy is already activated, so recovery can only resume the move.</p>
       )}
       <p>Neither option deletes the copied files.</p>
-      <div className="actions">
+      <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
         <Button
           data-focusable
           variant="primary"
@@ -272,24 +274,27 @@ export function LibraryCopySummary({
   label: string;
 }) {
   return (
-    <section className="adoption-plan adoption-review" aria-label={label}>
-      <p>
+    <section
+      className="adoption-plan adoption-review m-[var(--space-4)_0] max-h-[none] overflow-visible rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-4 [overflow-wrap:anywhere]"
+      aria-label={label}
+    >
+      <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
         From <code>{source}</code>
         <br />
         To <code>{plan.destination_root}</code>
       </p>
-      <p>
+      <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
         {formatBytes(plan.required_bytes)} required, including working space.{" "}
         {formatBytes(plan.available_bytes)} available.
       </p>
       <h3>Included installations</h3>
       {plan.metadata.application_versions.length > 0 ? (
         <>
-          <p>
+          <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
             Current, previous, and saved-for-later versions keep their identities. These
             installation paths are relative to the library folder.
           </p>
-          <ul>
+          <ul className="ps-5">
             {plan.metadata.application_versions.map((install) => (
               <li key={install.id}>
                 <strong>{install.port_id}</strong> · {install.version}
@@ -300,10 +305,12 @@ export function LibraryCopySummary({
           </ul>
         </>
       ) : (
-        <p>No installed versions are recorded in this plan.</p>
+        <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
+          No installed versions are recorded in this plan.
+        </p>
       )}
       <h3>Copied folders and files</h3>
-      <p>
+      <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
         Open a folder to inspect the recorded paths. Each folder is copied from the source location
         to the same relative path at the destination.
       </p>
@@ -311,7 +318,7 @@ export function LibraryCopySummary({
         <LibraryCopyTree key={tree.relative_path} tree={tree} />
       ))}
       <h3>Saved file locations</h3>
-      <p>
+      <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
         {formatCountMessage(plan.metadata.source_references.length, {
           zero: "No saved file locations are included.",
           one: "1 saved file location will stay unchanged.",
@@ -321,8 +328,10 @@ export function LibraryCopySummary({
       </p>
       {plan.metadata.source_references.length > 0 && (
         <details>
-          <summary data-focusable>Saved game-file locations</summary>
-          <ul>
+          <summary className="cursor-pointer text-[var(--color-warning-text)]" data-focusable>
+            Saved game-file locations
+          </summary>
+          <ul className="ps-5">
             {plan.metadata.source_references.map((reference) => (
               <li key={reference.profile_id}>
                 {reference.profile_id}
@@ -333,16 +342,16 @@ export function LibraryCopySummary({
           </ul>
         </details>
       )}
-      <p>
+      <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
         Copying Portcove game-file folder contents does not redirect these saved locations. Keep the
         original game files available until you explicitly add another location.
       </p>
-      <p>
+      <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
         Original game files, saves, backups and artwork remain in place. Later saves and settings
         belong to the library you use; changes are not synchronized between the two locations. There
         is no single undo action that merges later changes back into the original.
       </p>
-      <p>
+      <p className="m-[0_0_var(--space-2)] mb-0 text-[var(--color-text-secondary)]">
         Once copying starts, this dialog cannot cancel it. If interrupted, use the recorded move or
         import recovery before another transfer. Keep both locations until the result is confirmed.
       </p>

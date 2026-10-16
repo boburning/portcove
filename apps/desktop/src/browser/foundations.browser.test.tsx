@@ -47,17 +47,15 @@ function controlFailures(button: Element) {
   const contrast =
     (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
   const focus = rgba(style.getPropertyValue("--color-focus"));
-  const ring = rgba(style.getPropertyValue("--tw-ring-color"));
+  const outline = rgba(style.outlineColor);
   return [
     ...(contrast >= 4.5 ? [] : ["control text contrast"]),
-    ...(JSON.stringify(rgba(style.borderColor)) === JSON.stringify(focus)
+    ...(JSON.stringify(outline) === JSON.stringify(focus) ? [] : ["semantic focus color"]),
+    ...(style.outlineStyle !== "none" &&
+    Number.parseFloat(style.outlineWidth) >= 3 &&
+    Number.parseFloat(style.outlineOffset) >= 3
       ? []
-      : ["semantic focus border"]),
-    ...(ring.slice(0, 3).every((channel, index) => Math.abs(channel - focus[index]!) <= 1) &&
-    ring[3]! >= 120 &&
-    style.boxShadow !== "none"
-      ? []
-      : ["semantic focus ring"]),
+      : ["visible focus geometry"]),
   ];
 }
 function overlayFailures(overlay: Element) {
@@ -83,8 +81,8 @@ for (const theme of ["dark", "light"] as const) {
     await render(
       <>
         <Button variant="primary">Play</Button>
-        <button className="palette-command">Command</button>
-        <button className="port-card port-card-selectable">Port</button>
+        <Button variant="ghost">Neutral</Button>
+        <Button variant="selected">Selected</Button>
       </>,
     );
     await document.fonts.ready;
@@ -100,9 +98,9 @@ for (const theme of ["dark", "light"] as const) {
     for (const property of ["color", "background-color", "border-color", "box-shadow", "transform"])
       expect(transitions).toContain(property);
     for (const [name, token] of [
-      ["Play", "--color-accent-active"],
-      ["Command", "--color-bg-active"],
-      ["Port", "--color-bg-hover"],
+      ["Play", "--color-primary-active"],
+      ["Neutral", "--color-bg-active"],
+      ["Selected", "--color-interactive-active"],
     ] as const) {
       const action = page.getByRole("button", { name, exact: true });
       await userEvent.tab();
@@ -153,10 +151,10 @@ for (const theme of ["dark", "light"] as const) {
     await expect.element(page.getByRole("button", { name: "Remove", exact: true })).toHaveFocus();
     await expect.poll(() => controlFailures(remove)).toEqual([]);
     remove.style.transition = "none";
-    remove.style.borderColor = "red";
-    remove.style.setProperty("--tw-ring-color", "red");
-    expect(controlFailures(remove)).toContain("semantic focus border");
-    expect(controlFailures(remove)).toContain("semantic focus ring");
+    remove.style.outlineColor = "red";
+    remove.style.outlineWidth = "0px";
+    expect(controlFailures(remove)).toContain("semantic focus color");
+    expect(controlFailures(remove)).toContain("visible focus geometry");
     remove.style.color = getComputedStyle(remove).backgroundColor;
     expect(controlFailures(remove)).toContain("control text contrast");
     remove.removeAttribute("style");

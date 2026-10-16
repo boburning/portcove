@@ -5,7 +5,7 @@ import {
   stopInteractiveScenarios,
 } from "../dev-scenarios/interactive/entry";
 import { recoveryKey } from "../dev-scenarios/interactive/transport";
-import "../styles.css";
+import "../styles/index.css";
 beforeEach(async () => {
   localStorage.clear();
   await page.viewport(1280, 800);

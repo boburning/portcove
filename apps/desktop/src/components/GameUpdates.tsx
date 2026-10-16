@@ -221,7 +221,7 @@ export function GameUpdateControl({
           <DialogContent
             showCloseButton={false}
             finalFocus={reviewButton}
-            className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+            className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
             aria-describedby="game-update-review-description"
           >
             <DialogTitle id="game-update-review-title" className="mb-2 text-xl">
@@ -321,20 +321,20 @@ function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
   const label = gameUpdateActionLabel(plan);
   if (!installPlanActionLabel(plan.plan.action))
     return (
-      <div className="install-plan">
-        <p role="alert">
+      <div className="install-plan mt-[16px] grid grid-cols-[1fr_auto] [align-items:end] gap-[18px] rounded-pc-lg border border-[var(--color-interactive-border)] bg-[var(--color-interactive-subtle)] p-[14px]">
+        <p className="mb-[5px]" role="alert">
           This version of Portcove cannot display this update plan. Review it again, or update
           Portcove if this continues.
         </p>
       </div>
     );
   return (
-    <div className="install-plan">
-      <p>
-        <strong>{plan.plan.release.version}</strong> ·{" "}
-        {releaseChannelPresentation(plan.plan.channel).label}
+    <div className="install-plan mt-[16px] grid grid-cols-[1fr_auto] [align-items:end] gap-[18px] rounded-pc-lg border border-[var(--color-interactive-border)] bg-[var(--color-interactive-subtle)] p-[14px]">
+      <p className="mb-[5px]">
+        <strong className="block text-[length:var(--text-sm)]">{plan.plan.release.version}</strong>{" "}
+        · {releaseChannelPresentation(plan.plan.channel).label}
       </p>
-      <p>
+      <p className="mb-[5px]">
         {plan.plan.action === "download"
           ? `${formatBytes(plan.plan.download_bytes)} to download`
           : plan.plan.action === "blocked_unverified"
@@ -342,14 +342,18 @@ function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
             : "No download; use the verified local release."}
       </p>
       {label && (
-        <p>
+        <p className="mb-[5px]">
           {plan.activate
             ? "The verified update becomes active and the current version remains available for rollback."
             : "This keeps the verified update for later. Your current version stays unchanged."}{" "}
           Saved update settings are unchanged.
         </p>
       )}
-      {!label ? <p role="status">{gameUpdateHoldReason(plan)}</p> : null}
+      {!label ? (
+        <p className="mb-[5px]" role="status">
+          {gameUpdateHoldReason(plan)}
+        </p>
+      ) : null}
     </div>
   );
 }

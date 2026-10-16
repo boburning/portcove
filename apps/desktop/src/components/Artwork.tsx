@@ -1,3 +1,5 @@
+import { cn } from "cn";
+import styles from "./Artwork.module.css";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useArtwork, useArtworkVisibility } from "../artwork";
 import { pickArtworkPath } from "../file-picker";
@@ -19,27 +21,45 @@ export function ArtworkImage({
   const { display } = useArtwork(port.id, slot, visible);
   const image = display.image;
   const fallback = display.state?.generated_fallback;
-  const presentation = image
-    ? " artwork-image-resolved"
-    : fallback
-      ? ` palette-${fallback.palette_index}`
-      : "";
+  const palettes = [
+    "[--art-color:var(--color-art-neutral)]",
+    "[--art-color:var(--color-art-yellow)]",
+    "[--art-color:var(--color-art-blue)]",
+    "[--art-color:var(--color-art-indigo)]",
+    "[--art-color:var(--color-art-green)]",
+    "[--art-color:var(--color-art-red)]",
+  ];
   return (
     <div
       ref={element}
-      className={`artwork-image ${className}${presentation}`}
+      className={cn(
+        "artwork-image",
+        styles.image,
+        className,
+        image ? "bg-transparent" : palettes[fallback?.palette_index ?? 0],
+      )}
       data-artwork-source={image ? display.state?.resolved_source.kind : "generated_fallback"}
       aria-hidden="true"
     >
       {image ? (
-        <img src={image} alt="" decoding="async" onError={display.onImageError} />
+        <img
+          className={styles.asset}
+          src={image}
+          alt=""
+          decoding="async"
+          onError={display.onImageError}
+        />
       ) : (
-        <span>{fallback?.initials ?? "PC"}</span>
+        <span className={styles.initials}>{fallback?.initials ?? "PC"}</span>
       )}
       {display.stale ? (
-        <small className="artwork-image-note">Previously loaded artwork</small>
+        <small className="artwork-image-note absolute inset-x-0 bottom-0 bg-pc-scrim p-2 text-[length:var(--text-2xs)] leading-tight text-[var(--color-art-text)]">
+          Previously loaded artwork
+        </small>
       ) : display.error || display.state?.availability === "unavailable" ? (
-        <small className="artwork-image-note">Image unavailable</small>
+        <small className="artwork-image-note absolute inset-x-0 bottom-0 bg-pc-scrim p-2 text-[length:var(--text-2xs)] leading-tight text-[var(--color-art-text)]">
+          Image unavailable
+        </small>
       ) : null}
     </div>
   );
@@ -49,10 +69,14 @@ export function DetailArtwork({ port }: { port: PortDefinition }) {
   const { display } = useArtwork(port.id, "detail");
   if (!display.state?.selection) return null;
   return (
-    <div className="detail-artwork">
-      <ArtworkImage port={port} slot="detail" className="wide-artwork" />
+    <div className="detail-artwork my-5">
+      <ArtworkImage
+        port={port}
+        slot="detail"
+        className="wide-artwork aspect-video w-full rounded-pc-md"
+      />
       {(display.state.reason || display.error) && (
-        <p className="artwork-notice">
+        <p className="artwork-notice text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
           {display.state.reason ??
             "The selected image cannot be displayed. Your choice is retained."}
         </p>
@@ -64,10 +88,15 @@ export function DetailArtwork({ port }: { port: PortDefinition }) {
 export function ArtworkControls({ port }: { port: PortDefinition }) {
   const [open, setOpen] = useState(false);
   return (
-    <details className="artwork-controls" onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary data-focusable>Change artwork</summary>
+    <details
+      className="artwork-controls m-[var(--space-5)_var(--space-6)]"
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary className="cursor-pointer py-3" data-focusable>
+        Change artwork
+      </summary>
       {open && (
-        <div className="artwork-slots">
+        <div className="artwork-slots grid gap-5">
           <ArtworkSlotControl key={`${port.id}:cover`} port={port} slot="cover" />
           <ArtworkSlotControl key={`${port.id}:detail`} port={port} slot="detail" />
         </div>
@@ -166,14 +195,18 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
 
   const label = slot === "cover" ? "Cover image" : "Detail image";
   return (
-    <section className="artwork-slot" aria-label={label} aria-busy={pending}>
-      <h3>{label}</h3>
+    <section
+      className="artwork-slot min-w-0 rounded-pc-md border border-[var(--color-border)] p-4"
+      aria-label={label}
+      aria-busy={pending}
+    >
+      <h3 className="m-0">{label}</h3>
       <p>
         {slot === "cover"
           ? "Portrait cover · other shapes are letterboxed."
           : "Optional wide image for this game's details."}
       </p>
-      <div className="artwork-actions">
+      <div className="artwork-actions flex flex-wrap gap-3">
         <Button
           ref={pickerButton}
           data-focusable
@@ -203,10 +236,14 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
           Refresh artwork
         </Button>
       </div>
-      <p className="artwork-notice">
+      <p className="artwork-notice text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
         Static PNG or JPEG, up to 16 MiB. Portcove keeps a local copy.
       </p>
-      {display.state?.reason && <p className="artwork-notice">{display.state.reason}</p>}
+      {display.state?.reason && (
+        <p className="artwork-notice text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
+          {display.state.reason}
+        </p>
+      )}
       <p role="status">
         {pending ? "Updating artwork…" : (message ?? (display.loading ? "Loading artwork…" : ""))}
       </p>
@@ -215,7 +252,9 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
       )}
       {(error || display.error) && <p role="alert">{error ?? display.error}</p>}
       <details className="artwork-source">
-        <summary data-focusable>View source / author information</summary>
+        <summary className="cursor-pointer py-3" data-focusable>
+          View source / author information
+        </summary>
         <ArtworkSource
           state={display.state}
           renderedSource={
