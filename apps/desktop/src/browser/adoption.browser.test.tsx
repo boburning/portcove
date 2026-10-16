@@ -5,7 +5,8 @@ import { flushSync } from "react-dom";
 import { afterEach, beforeEach, expect, it } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { AdoptionModal } from "../components/AdoptionModal";
-import { Dialog, DialogContent, DialogTitle } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "../components/ui/dialog";
+import { Button } from "../components/ui/button";
 import { useAdoptionPlanning } from "../features/installation/use-installation-planning";
 import type { Perform } from "../features/operations/use-operation-state";
 import { portDefinition } from "../test-fixtures";
@@ -86,7 +87,6 @@ function deferred<T>() {
 }
 
 let changeGeneration: (generation: number) => void;
-let openNestedReview: () => void;
 let changeOpen: (open: boolean) => void;
 function assertTransportConsumed() {
   expect(expected, "unconsumed Tauri transport expectations").toHaveLength(0);
@@ -99,9 +99,7 @@ function ExistingInstallReview() {
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
   const [generation, setGeneration] = useState(1);
-  const [nestedOpen, setNestedOpen] = useState(false);
   changeGeneration = setGeneration;
-  openNestedReview = () => setNestedOpen(true);
   changeOpen = setOpen;
   const perform: Perform = async (name, task) => {
     setBusy(name);
@@ -141,24 +139,17 @@ function ExistingInstallReview() {
           ports={[port]}
         />
       )}
-      {open && nestedOpen && (
-        <Dialog open onOpenChange={(next) => setNestedOpen(next)}>
-          <DialogContent aria-describedby={undefined}>
-            <DialogTitle>Safety review details</DialogTitle>
-            <p>The original installation remains outside the managed library.</p>
-          </DialogContent>
-        </Dialog>
-      )}
     </DirectionProvider>
   );
 }
 
 function NestedPortalReview() {
-  const [outerOpen, setOuterOpen] = useState(true);
+  const [outerOpen, setOuterOpen] = useState(false);
   const [innerOpen, setInnerOpen] = useState(false);
   return (
     <DirectionProvider direction="ltr">
       <Dialog open={outerOpen} onOpenChange={setOuterOpen}>
+        <DialogTrigger render={<Button />}>Open copy review shell</DialogTrigger>
         <DialogContent aria-describedby={undefined}>
           <DialogTitle>Copy review shell</DialogTitle>
           <button type="button" onClick={() => setInnerOpen(true)}>
@@ -250,24 +241,12 @@ it("dismisses the top portaled review with Escape and leaves the original trigge
   expect(calls).toHaveLength(0);
 });
 
-it("dismisses the top shared portal before the underlying copy review", async () => {
-  await openReview();
-  flushSync(() => openNestedReview());
-  await expect.element(page.getByRole("dialog", { name: "Safety review details" })).toBeVisible();
-  await userEvent.keyboard("{Escape}");
-  await expect
-    .element(page.getByRole("dialog", { name: "Safety review details" }))
-    .not.toBeInTheDocument();
-  await expect
-    .element(page.getByRole("dialog", { name: "Add an existing installation to Portcove" }))
-    .toBeVisible();
-  await userEvent.keyboard("{Escape}");
-  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
-  expect(calls).toHaveLength(0);
-});
-
-it("opens a nested dialog through browser interaction and dismisses its portal first", async () => {
+// Base UI derives nesting from Dialog context, not sibling portal DOM order.
+it.each(["dark", "light"])("dismisses actual nested portals in order in %s", async (theme) => {
+  document.documentElement.dataset.theme = theme;
   flushSync(() => root.render(<NestedPortalReview />));
+  const outerTrigger = page.getByRole("button", { name: "Open copy review shell", exact: true });
+  await outerTrigger.click();
   await page.getByRole("button", { name: "Open nested safety details" }).click();
   await expect.element(page.getByRole("dialog", { name: "Nested safety details" })).toBeVisible();
   await userEvent.keyboard("{Escape}");
@@ -280,6 +259,7 @@ it("opens a nested dialog through browser interaction and dismisses its portal f
     .toHaveFocus();
   await userEvent.keyboard("{Escape}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  await expect.element(outerTrigger).toHaveFocus();
   expect(calls).toHaveLength(0);
 });
 
