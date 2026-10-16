@@ -863,6 +863,14 @@ export function createContainerHost(profile) {
             "Selected Rust pin differs from the immutable builder toolchain; coordinate the upgrade",
           );
       }
+      const bootstrap = builder
+        ? (
+            await command("git", [
+              "show",
+              `${commit}:scripts/install-linux-desktop-prerequisites.sh`,
+            ])
+          ).stdout
+        : null;
       const preparation = hash(
         JSON.stringify({
           commit: source.commit,
@@ -872,6 +880,7 @@ export function createContainerHost(profile) {
           entry: hash(readFileSync(entry)),
           guard: hash(readFileSync(guard)),
           ...(builder ? { policy: hash(readFileSync(policy)) } : {}),
+          ...(builder ? { bootstrap: hash(bootstrap) } : {}),
           platform: "linux/amd64",
           workspace,
         }),
@@ -881,6 +890,7 @@ export function createContainerHost(profile) {
       state.base = base[1];
       if (builder)
         state.bases = [...text.matchAll(/^FROM ([^\s]+)(?:\s|$)/gmu)].map((match) => match[1]);
+      if (builder) state.selected_bootstrap_sha256 = hash(bootstrap);
       state.tag = tag;
       const usage = await imageUsage();
       if (usage.bytes > budgets.images_bytes)
@@ -937,10 +947,11 @@ export function createContainerHost(profile) {
         copyFileSync(entry, path.join(directory, "container-entry.mjs"));
         copyFileSync(guard, path.join(directory, "container-source.mjs"));
         if (builder) copyFileSync(policy, path.join(directory, "container-build-policy.mjs"));
+        if (builder) writeFileSync(path.join(directory, "linux-prerequisites.sh"), bootstrap);
         writeFileSync(
           path.join(directory, ".dockerignore"),
           "**\n!Dockerfile\n!source.bundle\n!container-entry.mjs\n!container-source.mjs\n" +
-            (builder ? "!container-build-policy.mjs\n" : ""),
+            (builder ? "!container-build-policy.mjs\n!linux-prerequisites.sh\n" : ""),
         );
         if (size(stageRoot) > budgets.staging_bytes)
           throw new Error("Owned staging exceeds its 10 GiB budget");
