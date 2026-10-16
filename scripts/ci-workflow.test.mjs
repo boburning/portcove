@@ -456,6 +456,19 @@ test("application release records run after the maintained SemVer dependency is 
   assert.ok(!catalog.includes("scripts/reconstruct-application-update-records.test.mjs"));
 });
 
+test("selected release-policy contracts install their desktop-owned dependency before fast contract execution", () => {
+  const block = workflow.split("  fast_catalog:")[1].split(/\n  [a-z_]+:/u)[0];
+  const setup = block.indexOf(
+    "corepack pnpm --filter portcove-desktop-ui install --frozen-lockfile --ignore-scripts",
+  );
+  const execution = block.indexOf("run: node scripts/ci-baseline.mjs contracts");
+  assert.ok(setup >= 0 && execution > setup);
+  assert.match(
+    block,
+    /if: contains\(fromJSON\(needs\.classify\.outputs\.plan_json\)\.areas, 'release-security'\)/u,
+  );
+});
+
 test("full repository contracts run the bounded release evidence collector controls", () => {
   assert.match(
     catalog,
