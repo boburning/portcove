@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { deflateRawSync } from "node:zlib";
 import { AUDIT_STAGES, hostedAuditIdentity, receiptEnvelope, validateReceipt } from "./audit.mjs";
-import { recordsAcceptedQualification706 } from "./linux-beta-risk-706.mjs";
+import { recordsDevelopmentPolicy } from "./dependency-security.mjs";
 
 export const AUDIT_BUNDLE_LIMITS = Object.freeze({
   files: 64,
@@ -79,7 +79,7 @@ export function buildAuditBundle({ identity, binding, capture, aggregate, receip
       (result.success
         ? binding.exitCode === "0"
         : binding.exitCode !== "0" ||
-          (binding.exitCode === "0" && recordsAcceptedQualification706(result, identity.source))),
+          (binding.exitCode === "0" && recordsDevelopmentPolicy(result, identity.source))),
     "complete execution report",
   );
   requireValid(Object.keys(input.stageInputs).length === expected.length, "input stage inventory");

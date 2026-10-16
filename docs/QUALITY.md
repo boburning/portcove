@@ -406,55 +406,47 @@ capabilities.
 
 Current Tauri Linux dependencies transitively include the unmaintained GTK3 binding family; other transitive build paths include `proc-macro-error` and the `unic-*` family. `cargo deny check --hide-inclusion-graph -W unmaintained` reports those warnings and denies advisories within its configured coverage, while omitting repeated inclusion paths. There is no safe direct Portcove upgrade that removes the GTK3 set without changing Tauri's Linux webview architecture.
 
-The pinned `cargo-deny 0.20.2` defaults informational `unsound` coverage to
-[`workspace`](https://github.com/EmbarkStudios/cargo-deny/blob/0.20.2/src/advisories/cfg.rs).
-Its [dependency predicate](https://github.com/EmbarkStudios/cargo-deny/blob/0.20.2/src/advisories.rs#L119-L124)
-selects direct dependencies of workspace members; it does not cover every indirect
-dependency. Our empty advisory ignore list adds no exclusions but does not widen
-that default. `-D unsound` changes severity, not dependency coverage. A successful
-`just deny`, dependency-policy audit stage or hosted scan using this configuration
-therefore does not establish clearance of indirect unsoundness.
+The maintained `deny.toml` sets `unsound = "all"`, including indirect
+unsoundness. `just deny` runs the pinned scanner with all maintained workspace,
+advisory, bans, license and source checks and returns its original exit status.
+Raw output, status, tool/configuration identity and coverage are retained under
+`work/linux-beta-risk-706/`. No advisory is ignored or dismissed.
 
-[#706](https://github.com/boburning/portcove/issues/706) retains the executed
-October 1 discriminator: with the same pinned tool, locked graph, workspace,
-Linux target and offline database revision, the default configuration exited 0;
-adding only `unsound = "all"` under `[advisories]` exited 1 and reported
-[RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429.html).
-The same unmaintained warnings remained. This historical reproduction establishes
-the coverage gap, not a fresh database scan or complete cross-platform clearance.
+`just security` answers the separate development question: are there new blocking
+findings? Only the exact registry `glib 0.18.5` / `RUSTSEC-2024-0429` unsoundness
+error is an existing unresolved baseline. Any additional or changed error,
+malformed/incomplete summary, missing warning/error diagnostics, wrong scope/tool/
+configuration, timeout or execution failure blocks. Configured warnings remain
+warnings. A policy pass explicitly reports the scanner failure, outstanding #706
+remediation, and Linux release authorization **not evaluated**. It is not a clean
+scanner result, risk acceptance or release authorization.
 
-The recommended indirect-unsoundness scanner treatment is `unsound = "all"`.
-Before activating it in maintained validation, the separately reviewed protected
-change must preserve the known failing GLib result, record member/target/database
-coverage and an adverse control, and account explicitly for the Required Linux
-release finding. Preserve scanner scope, severity, full output and original exit
-status; a separate policy decision never makes a failed scan or audit pass.
-Only the owner's [dated #706 approval](https://github.com/boburning/portcove/issues/706#issuecomment-6182222682)
-may give this exact finding an `accepted-risk` disposition for the declared
-ordinary Linux x86-64 beta scope, including during its protected transition.
-All required audit and qualification stages still execute. Additional findings,
-execution failures, incomplete evidence and unrelated required failures block.
-The existing nonblocking duplicate and proc-macro-error unmaintained warnings
-retain their configured treatment; this acceptance does not waive another advisory.
+Ordinary CI and `just audit` use this development decision. They require no
+release approval, expiration check, publication tag, native-source fingerprint,
+GitHub credentials or release inventory. Every other selected stage still runs
+and retains its own failure. Audit receipts preserve raw stage failure and a
+separate development-policy decision. These failed/diagnostic-only receipts
+cannot supply passing scanner evidence or successful audit reuse.
 
-`scripts/linux-beta-risk-706.mjs` matches the canonical advisory, registry GLib
-0.18.5, candidate native-source and resolved dependency/code-generation inputs,
-production features, complete scan and fixed approval. It expires at
-2026-11-15T04:59:00Z (November 14, 23:59 New York), with no automatic renewal.
-The release path additionally requires the first publication tag to be bound in
-the protected approval record when that actual candidate is reconfirmed. Only
-that tag can rely on this acceptance, even if its GitHub release is later deleted;
-the second ordinary Linux beta requires remediation or a new owner decision.
-Material relevant changes require reassessment; unrelated changes reuse valid
-evidence. Relevant crashes, new exploitation/impact evidence and a compatible fix
-also require reassessment before reliance. See the [exact scope and procedure](releases/2026-10-14-linux-beta-risk-706.md).
+Linux distribution separately uses `scripts/linux-beta-risk-706.mjs` through
+`just audit --fresh --profile release`, final asset assembly and the read-only
+pre-upload authorization job. Publication retains an isolated contents-write job;
+it refuses stale authorization or expiry before each release mutation. The exact
+advisory/version, x86-64 target/features, candidate/lock/build/dependency identity,
+complete fresh scan, owner, first-tag binding, one-release budget and complete
+release/asset inventory remain mandatory. Approval expires November 14, 2026,
+23:59 America/New_York (`2026-11-15T04:59:00Z`), or before the second applicable
+Linux beta publication. No automatic renewal or tag reallocation is allowed.
 
-Coverage correction (#1993), the separate release decision and actual remediation
-remain distinct. #1993 retains independent review and protected qualification;
-the valid reviewed acceptance path can account for this known finding without
-requiring a GLib fix first. This approval does not itself merge or activate it.
-There is no ignore, advisory dismissal, severity reduction, generic nonzero-exit
-waiver or permission to claim the defect fixed. #706 and #49 stay open.
+Release source review uses a named reviewed commit and a real Git comparison,
+not a maintained hash of every Rust file. Native/build changes require focused
+review before release; names alone do not establish unchanged exposure. Update
+the source review baseline only after reviewing the actual diff, production
+reachability, dependency/features/code generation, current impact evidence and
+compatible-fix availability. Reuse unchanged evidence; uncertain material changes
+retain a Linux release obligation without blocking ordinary development. See the
+[current procedure and preserved history](releases/2026-10-14-linux-beta-risk-706.md).
+#706 and #49 remain open for actual remediation and Linux qualification.
 
 GitHub also reports GHSA-wrw7-89jp-8q8g for Tauri's Linux-only `glib 0.18.5` graph. Dependabot confirms that `0.18.5` is the newest version compatible with Tauri's GTK3 stack while the advisory declares `0.20.0` as the first fixed release. Keep that alert open in its durable issue and live Project item; do not conceal it with a version-only dismissal, an unreviewed fork, or a broad advisory exception. Re-evaluate when Tauri adopts a compatible maintained GTK stack.
 
