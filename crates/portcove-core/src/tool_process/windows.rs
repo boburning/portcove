@@ -45,10 +45,10 @@ use windows_sys::Win32::{
         JobObjects::{
             AssignProcessToJobObject, CreateJobObjectW, IsProcessInJob,
             JOB_OBJECT_LIMIT_JOB_MEMORY, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
-            JOBOBJECT_BASIC_ACCOUNTING_INFORMATION, JOBOBJECT_BASIC_PROCESS_ID_LIST,
-            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectBasicAccountingInformation,
-            JobObjectBasicProcessIdList, JobObjectExtendedLimitInformation,
-            QueryInformationJobObject, SetInformationJobObject, TerminateJobObject,
+            JOBOBJECT_BASIC_ACCOUNTING_INFORMATION, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+            JobObjectBasicAccountingInformation, JobObjectBasicProcessIdList,
+            JobObjectExtendedLimitInformation, QueryInformationJobObject, SetInformationJobObject,
+            TerminateJobObject,
         },
         Pipes::CreatePipe,
         SystemInformation::{
@@ -1573,13 +1573,44 @@ impl Controller {
     }
 }
 
+// JOBOBJECT_BASIC_PROCESS_ID_LIST with fixed, bounded trailing storage.
+#[repr(C)]
+struct JobProcessIds {
+    assigned: u32,
+    returned: u32,
+    ids: [usize; MEMBER_LIMIT],
+}
+
+impl JobProcessIds {
+    fn observed_ids(&self) -> Result<Vec<u32>, (&'static str, Option<u32>)> {
+        if self.assigned as usize > MEMBER_LIMIT || self.returned as usize > MEMBER_LIMIT {
+            return Err(("membership_capacity", None));
+        }
+        if self.returned > self.assigned {
+            return Err(("membership_counts", None));
+        }
+        // A successful query can return fewer PIDs while nested jobs change.
+        // Windows guarantees these returned entries are valid observations;
+        // they are not a complete lifetime inventory. Terminal Job accounting
+        // must still equal the exact retained identities before closure succeeds.
+        self.ids[..self.returned as usize]
+            .iter()
+            .map(|&pid| u32::try_from(pid).map_err(|_| ("member_id_range", None)))
+            .collect()
+    }
+}
+
 fn membership_snapshot(job: HANDLE) -> Result<Vec<u32>, (&'static str, Option<u32>)> {
-    let mut buffer = [0_usize; MEMBER_LIMIT + 1];
+    let mut buffer = JobProcessIds {
+        assigned: 0,
+        returned: 0,
+        ids: [0; MEMBER_LIMIT],
+    };
     if unsafe {
         QueryInformationJobObject(
             job,
             JobObjectBasicProcessIdList,
-            buffer.as_mut_ptr().cast(),
+            (&raw mut buffer).cast(),
             std::mem::size_of_val(&buffer) as u32,
             std::ptr::null_mut(),
         )
@@ -1587,21 +1618,7 @@ fn membership_snapshot(job: HANDLE) -> Result<Vec<u32>, (&'static str, Option<u3
     {
         return Err(("membership_query", Some(unsafe { GetLastError() })));
     }
-    let list = unsafe { &*buffer.as_ptr().cast::<JOBOBJECT_BASIC_PROCESS_ID_LIST>() };
-    if list.NumberOfAssignedProcesses != list.NumberOfProcessIdsInList
-        || list.NumberOfProcessIdsInList as usize > MEMBER_LIMIT
-    {
-        return Err(("membership_capacity", None));
-    }
-    let ids = unsafe {
-        std::slice::from_raw_parts(
-            list.ProcessIdList.as_ptr(),
-            list.NumberOfProcessIdsInList as usize,
-        )
-    };
-    ids.iter()
-        .map(|&pid| u32::try_from(pid).map_err(|_| ("member_id_range", None)))
-        .collect()
+    buffer.observed_ids()
 }
 
 fn system_directory() -> io::Result<PathBuf> {
@@ -2790,6 +2807,46 @@ mod proof_tests {
             serde_json::from_str(&copied["process_tree_identities"]).unwrap();
         assert_eq!(identities[0]["created_filetime"], created.to_string());
         assert_eq!(identities[0]["pid"], 42);
+    }
+
+    #[test]
+    fn successful_partial_job_snapshot_retains_only_returned_ids() {
+        assert_eq!(
+            std::mem::offset_of!(JobProcessIds, ids),
+            std::mem::offset_of!(
+                windows_sys::Win32::System::JobObjects::JOBOBJECT_BASIC_PROCESS_ID_LIST,
+                ProcessIdList
+            ),
+        );
+        let mut snapshot = JobProcessIds {
+            assigned: 2,
+            returned: 1,
+            ids: [0; MEMBER_LIMIT],
+        };
+        snapshot.ids[0] = 42;
+        snapshot.ids[1] = usize::MAX;
+        assert_eq!(snapshot.observed_ids().unwrap(), vec![42]);
+        snapshot.returned = 0;
+        assert!(snapshot.observed_ids().unwrap().is_empty());
+        snapshot.returned = 2;
+        assert_eq!(snapshot.observed_ids().unwrap_err().0, "member_id_range");
+    }
+
+    #[test]
+    fn malformed_or_oversized_job_snapshots_are_refused() {
+        for (assigned, returned, reason) in [
+            (1, 2, "membership_counts"),
+            (513, 1, "membership_capacity"),
+            (513, 513, "membership_capacity"),
+            (2, 513, "membership_capacity"),
+        ] {
+            let snapshot = JobProcessIds {
+                assigned,
+                returned,
+                ids: [0; MEMBER_LIMIT],
+            };
+            assert_eq!(snapshot.observed_ids().unwrap_err().0, reason);
+        }
     }
 
     #[test]
