@@ -968,11 +968,9 @@ function parseArguments(argv) {
   let fresh = false;
   let planOnly = false;
   let profile = "complete";
-  let risk706 = false;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--fresh") fresh = true;
-    else if (argument === "--linux-beta-706") risk706 = true;
     else if (argument === "--plan") planOnly = true;
     else if (argument === "--profile") {
       profile = argv[++index];
@@ -983,18 +981,13 @@ function parseArguments(argv) {
   }
   if (fresh && planOnly) throw new Error("--fresh and --plan cannot be combined");
   if (profile !== "transition") auditStagesForProfile(profile);
-  return { help: false, fresh, planOnly, profile, risk706 };
+  return { help: false, fresh, planOnly, profile };
 }
 
 export async function main(argv = process.argv.slice(2)) {
   const options = parseArguments(argv);
   if (options.help) {
-    console.log(
-      "usage: audit.mjs [--plan|--fresh] [--profile complete|release|transition] [--linux-beta-706]",
-    );
-    console.log(
-      "  --linux-beta-706  retain raw audit failure; evaluate only the explicit owner-approved #706 disposition",
-    );
+    console.log("usage: audit.mjs [--plan|--fresh] [--profile complete|release|transition]");
     console.log("  --plan   report stage execution/reuse without running or writing receipts");
     console.log("  --fresh  ignore receipts and execute every applicable stage");
     console.log("  --profile release  delegate source/platform coverage to qualification");
@@ -1070,12 +1063,19 @@ export async function main(argv = process.argv.slice(2)) {
     captureHosted: process.env.PORTCOVE_AUDIT_CAPTURE === "1",
     scan706Path,
   });
-  if (options.risk706) {
-    const { validateScan706 } = await import("./linux-beta-risk-706.mjs");
-    validateScan706(
-      JSON.parse(readFileSync(scan706Path, "utf8")),
-      JSON.parse(readFileSync(path.join(projectRoot, ".github/linux-beta-risk-706.json"), "utf8")),
-    );
+  const { developmentSecurity, describeDevelopmentSecurity } =
+    await import("./dependency-security.mjs");
+  const scan = JSON.parse(readFileSync(scan706Path, "utf8"));
+  const decision = developmentSecurity(
+    scan,
+    readFileSync(path.join(projectRoot, "deny.toml"), "utf8"),
+  );
+  if (scan.head !== plan.head) throw new Error("dependency scan source mismatch");
+  console.log(describeDevelopmentSecurity(decision));
+  if (options.profile === "release") {
+    const { releaseSecurity } = await import("./linux-beta-risk-706.mjs");
+    const releaseDecision = releaseSecurity(projectRoot, scan);
+    writeJsonAtomic(`${scan706Path}.release.json`, releaseDecision);
   }
   if (process.env.PORTCOVE_AUDIT_CAPTURE === "1" && process.env.GITHUB_OUTPUT) {
     try {
@@ -1090,15 +1090,7 @@ export async function main(argv = process.argv.slice(2)) {
     const failed = result.results
       .filter((entry) => entry.status === "failed")
       .map((entry) => entry.id);
-    if (options.risk706 && failed.length === 1 && failed[0] === "dependency-policy") {
-      const { disposition706 } = await import("./linux-beta-risk-706.mjs");
-      const scan = JSON.parse(readFileSync(scan706Path, "utf8"));
-      const decision = disposition706(
-        projectRoot,
-        scan,
-        undefined,
-        options.profile === "release" ? "release" : "qualification",
-      );
+    if (failed.length === 1 && failed[0] === "dependency-policy" && decision.policyPassed) {
       writeJsonAtomic(`${scan706Path}.decision.json`, decision);
       writeJsonAtomic(
         path.join(
@@ -1109,20 +1101,11 @@ export async function main(argv = process.argv.slice(2)) {
         receiptEnvelope({ ...result.report, policyDecision: decision }),
       );
       console.log(
-        `Audit FAILED; separate #706 ${decision.purpose} decision: ${decision.disposition}. Original scan exit ${scan.exitCode}; ${scan706Path}`,
+        `Audit raw result FAILED; ${describeDevelopmentSecurity(decision)} Original scan exit ${scan.exitCode}; ${scan706Path}`,
       );
       return;
     }
     throw new Error(`audit failed after all independent stages completed: ${failed.join(", ")}`);
-  }
-  if (options.risk706 && options.profile === "release") {
-    // A passing direct-only scan is not clearance of an affected indirect GLib.
-    const { candidate706 } = await import("./linux-beta-risk-706.mjs");
-    const candidate = candidate706(projectRoot);
-    if (candidate.native.some((p) => p.id.startsWith("glib@0.18.5:")))
-      throw new Error(
-        "Affected Linux release requires complete all-scope #706 evidence; a green incomplete scan is insufficient",
-      );
   }
   console.log(
     selection.profile === "complete"

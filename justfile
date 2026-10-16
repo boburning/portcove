@@ -211,7 +211,7 @@ aqua-integrity-update:
 # Generic repository automation and governance contracts.
 repository-tools:
     {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/ci-baseline.test.mjs scripts/qualification-coverage.test.mjs scripts/release-result-gate.test.mjs scripts/linux-beta-risk-706.test.mjs scripts/desktop-input-observation.test.mjs scripts/test-duration-reporter.test.mjs scripts/ui-test-selection.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/pnpm-lock-inventory.test.mjs scripts/frontend-build-compare.test.mjs scripts/renovate-engine-probe.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/dev-storage.test.mjs scripts/generate-catalog.test.mjs scripts/catalog-proposal-costs.test.mjs scripts/migrate-catalog-schema2.test.mjs
+    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/ci-baseline.test.mjs scripts/qualification-coverage.test.mjs scripts/release-result-gate.test.mjs scripts/linux-beta-risk-706.test.mjs scripts/dependency-security.test.mjs scripts/desktop-input-observation.test.mjs scripts/test-duration-reporter.test.mjs scripts/ui-test-selection.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/pnpm-lock-inventory.test.mjs scripts/frontend-build-compare.test.mjs scripts/renovate-engine-probe.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/dev-storage.test.mjs scripts/generate-catalog.test.mjs scripts/catalog-proposal-costs.test.mjs scripts/migrate-catalog-schema2.test.mjs
     {{storage}} node scripts/qualification-coverage.mjs
     {{storage}} node scripts/check-retcomm-upstreams.mjs --offline
     {{storage}} node scripts/quality-tools.mjs --validate
@@ -252,9 +252,13 @@ roadmap-bootstrap:
 # Standard repository check. Packaged release qualification is intentionally separate.
 check: check-rust check-ui script-lint repository-tools roadmap-check development-tools
 
-# Deeper deterministic and structural audit
+# Development regression policy; preserves the raw scanner result separately
+security:
+    {{storage}} node scripts/dependency-security.mjs
+
+# Raw dependency scanner (known GLib finding exits 1)
 deny:
-    {{storage}} node scripts/linux-beta-risk-706.mjs scan
+    {{storage}} node scripts/dependency-security.mjs scan
 
 cycles:
     -{{storage}} cargo modules dependencies -p portcove-core --lib --acyclic

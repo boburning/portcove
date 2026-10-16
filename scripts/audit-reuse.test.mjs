@@ -167,10 +167,12 @@ test("approved #706 audit failure exports diagnostics but cannot be admitted as 
     },
   );
   payload.policyDecision = {
-    disposition: "accepted-risk",
-    approvalUrl: "https://github.com/boburning/portcove/issues/706#issuecomment-6182222682",
+    disposition: "development-baseline",
     candidate: f.source,
-    purpose: "qualification",
+    purpose: "development",
+    policyPassed: true,
+    knownFinding: "RUSTSEC-2024-0429",
+    releaseAuthorization: "not-evaluated",
     scanPassed: false,
     scanExitCode: 1,
   };
@@ -207,7 +209,7 @@ test("approved #706 audit failure exports diagnostics but cannot be admitted as 
   );
   for (const mutate of [
     (p) => delete p.policyDecision,
-    (p) => (p.policyDecision.approvalUrl = "https://example.invalid/unapproved"),
+    (p) => (p.policyDecision.policyPassed = false),
     (p) => (p.policyDecision.candidate = "b".repeat(40)),
     (p) => (p.policyDecision.purpose = "release"),
     (p) => (p.policyDecision.scanPassed = true),

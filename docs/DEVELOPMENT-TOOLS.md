@@ -1653,3 +1653,11 @@ native Windows development as the primary route.
 [#2006](https://github.com/boburning/portcove/issues/2006) records delivered browser
 qualification. [#2007](https://github.com/boburning/portcove/issues/2007) separately
 owns builder and per-format packaging acceptance. Docker is optional for both.
+
+### Development dependency security
+
+Use `just security` for the development regression decision and `just deny` for
+raw scanner status. `just audit` includes the scanner and development decision;
+no special risk flag is required. The known GLib error stays visible and remains
+a raw failed scan. Release expiry, tags, inventories and native source review
+belong exclusively to Linux release authorization; see [QUALITY](QUALITY.md).

@@ -7,6 +7,24 @@ import test from "node:test";
 
 import { finalizeReleaseAssets, releaseSbomName } from "./finalize-release-assets.mjs";
 
+test("direct Linux desktop finalization cannot bypass missing release evidence", async (t) => {
+  const item = await fixture(t);
+  const inventory = JSON.parse(await readFile(item.inventoryPath, "utf8"));
+  inventory.packages[0].filename = "Portcove_1.2.3_amd64.AppImage";
+  await writeFile(item.inventoryPath, JSON.stringify(inventory));
+  const before = await readFile(path.join(item.assets, "SHA256SUMS.txt"));
+  // This isolated fixture has no candidate repository/scanner. Authorization must
+  // execute and fail before final assets are modified, regardless of CLI callers.
+  await assert.rejects(
+    finalizeReleaseAssets(item.assets, item.inventoryPath, {
+      projectRoot: item.root,
+      sbomSubjectChecksums: item.sbomSubjectChecksums,
+    }),
+    /git|candidate|Cargo|ENOENT/u,
+  );
+  assert.deepEqual(await readFile(path.join(item.assets, "SHA256SUMS.txt")), before);
+});
+
 function sha256(contents) {
   return createHash("sha256").update(contents).digest("hex");
 }
