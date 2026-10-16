@@ -212,6 +212,12 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map([
+  ...[
+    "scripts/container-browser.mjs",
+    "scripts/container-entry.mjs",
+    "scripts/container-source.mjs",
+    "tools/containers/browser/Dockerfile",
+  ].map((file) => [file, ["scripts/container-browser.test.mjs"]]),
   ...[...Object.keys(nativeHelperDependencies), nativeHelperRegistryPath].map((file) => [
     file,
     [

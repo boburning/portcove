@@ -1640,3 +1640,11 @@ Use the supported decoded GitHub job-log connector to retrieve retained byte rec
 verify run/attempt/job/source, recover with the existing codec and inspect real PNGs.
 See [hosted acceptance](NATIVE-HOSTED-ACCEPTANCE.md) for allocations, identity and
 composition requirements, honest platform/fixture limits and recovery commands.
+
+## Optional Windows Docker browser tooling
+
+The optional [browser adapter](reference/docker-browser-tooling.md) stages an
+explicit committed revision into a prepared Linux browser environment under
+[#2006](https://github.com/boburning/portcove/issues/2006). Its doctor, source
+selection, fresh commands, budgets and recoverable exports are separate from
+native Windows development. The Linux builder remains gated under #2007.
