@@ -26,6 +26,10 @@ test("native frontend harness retains the qualified Linux target and a failing n
   );
   assert.match(block, /scripts\/desktop-linux-native-session\.test\.mjs/u);
   assert.doesNotMatch(block, /continue-on-error:|sysctl\s+-|apparmor_parser\s/u);
+  assert.match(
+    block,
+    /- name: Test native compiler and shell integrations\n\s+working-directory: \.\n\s+run: node scripts\/run-viteplus\.mjs run native:tools/u,
+  );
 });
 test("dependency lanes run actual security review without a custom age audit", () => {
   for (const name of ["fast_dependency_review", "dependency_review_full"]) {
@@ -500,7 +504,8 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   );
   assert.match(rustQualityGate, /PORTCOVE_ALWAYS_RESULTS: '\{"provenance"/);
   assert.match(proseChecks, /^ {4}if: needs\.classify\.outputs\.mode == 'prose'$/m);
-  assert.match(proseChecks, /args: \[--frozen-lockfile\]/);
+  assert.match(proseChecks, /actions\/setup-node@/);
+  assert.doesNotMatch(proseChecks, /setup-vp@|pnpm|frozen-lockfile/);
   assert.match(proseChecks, /scripts\/repository-settings\.test\.mjs/);
   assert.match(proseChecks, /scripts\/repository-skills\.test\.mjs/);
   assert.match(proseChecks, /node scripts\/check-ci-prose\.mjs/);
@@ -521,9 +526,18 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(fastRust, /rust-test-impact\.mjs --workspace-run/);
   assert.equal(fastPlatform, "");
   assert.match(fastRustQuality, /voidzero-dev\/setup-vp@/);
-  assert.match(fastRustQuality, /args: \[--frozen-lockfile\]/);
-  assert.match(desktopPackage.scripts["format:check"], /vp fmt --check/);
-  assert.match(fastRustQuality, /format:check/);
+  assert.match(fastRustQuality, /frontend_workspace == 'true'/);
+  assert.match(fastRustQuality, /\[--frozen-lockfile\]/);
+  assert.match(
+    fastRustQuality,
+    /\[--filter, portcove-repository, --frozen-lockfile, --ignore-scripts\]/,
+  );
+  assert.match(
+    fastCatalog,
+    /args: \[--filter, portcove-repository, --frozen-lockfile, --ignore-scripts\]/,
+  );
+  assert.equal(desktopPackage.scripts["format:check"], "vp -C ../.. fmt --check");
+  assert.match(fastRustQuality, /frontend_tools == 'true'/);
   assert.match(fastRust, /key: fast-rust-tests-/);
   assert.doesNotMatch(fastRustQuality, /cargo clippy|rust-cache/);
   assert.match(fastDependencyReview, /actions\/dependency-review-action@/);
@@ -533,7 +547,8 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
 
 test("ordinary formatting and lint have one quality owner; deep analyzers stay in qualification", () => {
   const formatting = workflow.split("  fast_rust_quality:")[1].split("  fast_frontend:")[0];
-  assert.match(formatting, /format:check/);
+  assert.match(formatting, /frontend_tools == 'true'/);
+  assert.doesNotMatch(formatting, /format:check/);
   assert.match(formatting, /cargo fmt/);
   assert.match(formatting, /node scripts\/ci-baseline\.mjs lint/);
   assert.match(formatting, /PORTCOVE_PLAN_JSON:/);
@@ -1602,17 +1617,15 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(frontend, /args: \[--frozen-lockfile\]/);
   assert.match(frontend, /Install pinned recipe runner/);
   const install = frontend.indexOf("args: [--frozen-lockfile]");
-  const formatting = frontend.indexOf("pnpm --dir apps/desktop format:check");
-  const lint = frontend.indexOf("pnpm check");
-  const build = frontend.indexOf("pnpm build");
-  assert.ok(install >= 0 && formatting > install && lint > formatting && build > lint);
+  const verify = frontend.indexOf("node scripts/run-viteplus.mjs run frontend:verify");
+  assert.ok(install >= 0 && verify > install);
+  assert.equal(frontend.match(/run frontend:verify/g)?.length, 1);
   assert.match(frontend, /lint-tools\.integration\.mjs oxfmt oxlint stylelint/);
   assert.match(
     frontend,
     /--test-name-pattern "pnpm uses\|direct just recipes" scripts\/dev-storage\.test\.mjs/,
   );
-  assert.match(frontend, /pnpm build/);
-  assert.match(frontend, /pnpm test/);
+  assert.doesNotMatch(frontend, /run: pnpm (?:build|test|check)\b/);
   assert.match(frontend, /run-fallow\.mjs/);
   assert.doesNotMatch(frontend, /pnpm audit/);
   assert.doesNotMatch(frontend, /continue-on-error/);
@@ -1622,21 +1635,38 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(dependencyReview, /fail-on-severity: high/);
 });
 
-test("full frontend and audit provision browser artifacts before combined tests", async () => {
+test("full frontend qualification provisions browser artifacts before composition", () => {
   const full = workflow.split("  frontend_full:")[1].split("  frontend:")[0];
   const provision = full.indexOf("pnpm browser:bootstrap"),
-    combined = full.search(/- run: pnpm test\r?\n/u),
-    run = full.indexOf("pnpm test:browser");
-  assert.ok(provision >= 0 && combined > provision && run > combined);
+    run = full.indexOf("run frontend:verify");
+  assert.ok(provision >= 0 && run > provision);
   assert.match(full, /browser-traces-full/);
-  const fast = workflow.split("  fast_frontend:")[1].split("  fast_catalog:")[0];
-  assert.doesNotMatch(fast, /browser:bootstrap|test:browser/);
-  const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
-  const auditTests = recipes.match(/^ui-test:\r?\n([\s\S]*?)(?=^\S)/mu)?.[1] ?? "";
-  assert.match(
-    auditTests,
-    /corepack pnpm --dir apps\/desktop browser:bootstrap\r?\n[^\n]*corepack pnpm test\r?\n/u,
-  );
+  assert.match(full, /work\/bt/);
+  assert.doesNotMatch(full, /work\/browser-traces/);
+  const jobBoundary = /\n {2}[a-zA-Z][a-zA-Z_-]*:/u;
+  const fast = workflow.split("  fast_frontend:")[1].split(jobBoundary)[0];
+  assert.match(fast, /browser-runtime.mjs bootstrap/);
+  const contributor = workflow.split("  frontend_portability:")[1].split(jobBoundary)[0];
+  const contributorProvision = contributor.indexOf("pnpm --dir apps/desktop browser:bootstrap");
+  assert.ok(contributorProvision >= 0);
+  assert.ok(contributor.indexOf("pnpm verify:frontend") > contributorProvision);
+  assert.equal(contributor.match(/run: pnpm verify:frontend/g)?.length, 1);
+  assert.doesNotMatch(contributor, /run: pnpm (?:test|check|build)\b/);
+  for (const [name, block] of [
+    ["full", full],
+    ["fast", fast],
+    ["contributor", contributor],
+  ]) {
+    const uploadIndex = block.indexOf(`name: browser-traces-${name}-`);
+    assert.ok(uploadIndex >= 0, `${name} must preserve failed browser evidence`);
+    const upload = block.slice(uploadIndex);
+    assert.match(block, /if: failure\(\)\r?\n +uses: actions\/upload-artifact@/);
+    assert.match(upload, /work\/bt\/\*\*\/\*\.trace\.zip/);
+    assert.match(upload, /\.vitest\/attachments\/failure-screenshots\/\*\*\/\*\.png/);
+    assert.match(upload, /include-hidden-files: true/);
+    assert.match(upload, /retention-days: 7/);
+    assert.doesNotMatch(upload, /^ +work\/bt\r?$/m);
+  }
 });
 
 test("frontend tools resolve through the pinned Vite+ bundle", async () => {
@@ -1644,8 +1674,12 @@ test("frontend tools resolve through the pinned Vite+ bundle", async () => {
   assert.equal(manifest.devDependencies["vite-plus"], "catalog:");
   for (const superseded of ["oxfmt", "oxlint", "oxlint-tsgolint", "husky", "lint-staged"])
     assert.equal(manifest.devDependencies[superseded], undefined);
-  assert.match(manifest.scripts.check, /browser-package-compatibility.mjs && vp check/);
-  assert.match(manifest.scripts.check, /run lint:style/);
+  assert.equal(manifest.scripts.check, "vp run frontend:static");
+  const configuration = await readFile(new URL("../vite.config.ts", import.meta.url), "utf8");
+  assert.match(configuration, /browser-package-compatibility.mjs/);
+  assert.match(configuration, /vp -C apps\/desktop run lint:style/);
+  assert.match(configuration, /generate-transport-types.mjs/);
+  assert.match(configuration, /check-transport-contract.mjs --ipc-only/);
   assert.equal(manifest.scripts.build, "node apps/desktop/scripts/build-frontend.mjs");
 });
 
@@ -1708,7 +1742,7 @@ test("validation recipes separate routine, release, and packaged Windows contrac
   assert.match(catalog, /release-package-policy\.test\.mjs/);
   assert.match(windowsStorage, /run-windows-qualification\.ps1/);
   const ui = recipes.match(/^check-ui: (.+)$/m)?.[1] ?? "";
-  assert.match(ui, /fmt-frontend-check ui-check ui-lint-contracts/);
+  assert.equal(ui, "ui-check ui-lint-contracts");
   const auditUi = recipes.match(/^ui-check: (.+)$/m)?.[1] ?? "";
   assert.doesNotMatch(auditUi, /fmt-frontend-check/);
   const recipeBody = (name) =>

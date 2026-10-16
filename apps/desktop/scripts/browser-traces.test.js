@@ -59,13 +59,13 @@ describe("browser trace invocation custody", () => {
   });
   it("honors a probe's owned outer namespace without taking ownership of siblings", () => {
     const root = fixture();
-    const parent = path.join(root, "work/browser-traces/run-probe");
+    const parent = path.join(root, "work/bt/run-probe");
     const run = createBrowserTraceRun(root, parent);
     expect(path.dirname(run.directory)).toBe(parent);
     expect(() => createBrowserTraceRun(root, fixture())).toThrow("owned run");
-    expect(() =>
-      createBrowserTraceRun(root, path.join(root, "work/browser-traces/foreign")),
-    ).toThrow("owned run");
+    expect(() => createBrowserTraceRun(root, path.join(root, "work/bt/foreign"))).toThrow(
+      "owned run",
+    );
   });
   it("refuses cleanup after a directory is replaced by a link to another scope", async () => {
     const run = createBrowserTraceRun(fixture());

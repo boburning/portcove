@@ -47,7 +47,7 @@ function Get-PickerFieldEvidence($Children, [int]$FolderMatches = -1, $PickerWin
 function Get-NativeFailureEvidence([Management.Automation.ErrorRecord]$Record) {
     # Only fixed identifiers and numeric locations/codes leave the helper.
     # Exception messages, source lines, target objects and full paths are private.
-    $stages = @('setup', 'automation-assemblies-start', 'automation-assemblies-ready',
+    $stages = @('setup', 'picker-preflight', 'automation-assemblies-start', 'automation-assemblies-ready',
         'owned-process-tree-start', 'owned-process-tree-ready', 'exact-root-discovery-start',
         'exact-root-discovery-ready', 'owned-root-discovery-start', 'owned-root-discovery-ready',
         'nested-discovery-start', 'nested-discovery-ready', 'candidate-descendants-start',
@@ -110,11 +110,6 @@ function Write-ObservationProgress([string]$Stage) {
         [IO.File]::AppendAllText($progressPath, "$record`n")
     }
 }
-Write-ObservationProgress 'automation-assemblies-start'
-Add-Type -AssemblyName UIAutomationClient
-Add-Type -AssemblyName UIAutomationTypes
-Write-ObservationProgress 'automation-assemblies-ready'
-. (Join-Path $PSScriptRoot 'native-process-tree.ps1')
 function Assert-CapturedPickerDriver([string]$DriverPath, [string]$DriverStartedFiletime) {
     $capturedDriver = [Diagnostics.Process]::GetProcessById($DriverProcessId)
     if ($capturedDriver.StartTime.ToUniversalTime().ToFileTimeUtc().ToString() -ne $DriverStartedFiletime -or
@@ -123,7 +118,7 @@ function Assert-CapturedPickerDriver([string]$DriverPath, [string]$DriverStarted
     }
 }
 if ($ObservePicker) {
-    . (Join-Path $PSScriptRoot 'native-window-discovery.ps1')
+    Write-ObservationProgress 'picker-preflight'
     if (-not [IO.Path]::IsPathFullyQualified($ObservationPath) -or [IO.File]::Exists($ObservationPath) -or
         -not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($ObservationPath))) { throw 'Picker observation requires a fresh owned output file.' }
     Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
@@ -142,6 +137,14 @@ if ($ObservePicker) {
             throw 'Prepared runtime input requires the exact regular owned fixture directory.'
         }
     }
+}
+Write-ObservationProgress 'automation-assemblies-start'
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+Write-ObservationProgress 'automation-assemblies-ready'
+. (Join-Path $PSScriptRoot 'native-process-tree.ps1')
+if ($ObservePicker) {
+    . (Join-Path $PSScriptRoot 'native-window-discovery.ps1')
 }
 Write-ObservationProgress 'owned-process-tree-start'
 $tree = Get-OwnedNativeProcessTree $DriverProcessId $ApplicationPath

@@ -239,7 +239,7 @@ test("successful main producer imports exact original receipts with retained inp
     const result = importAuditReceipts(f.bundle.files, f.proof, f.currentPlan, {
       workflowDigest: f.proof.workflowDigest,
     });
-    assert.equal(result.imported.length, 9);
+    assert.equal(result.imported.length, 7);
     const receipt = JSON.parse(
       readFileSync(
         path.join(
@@ -467,14 +467,14 @@ test("API discovery imports a real digest-bound ZIP and replanning reuses determ
       workflowDigest: f.proof.workflowDigest,
     });
     assert.equal(result.status, "imported");
-    assert.equal(result.imported.length, 9);
+    assert.equal(result.imported.length, 7);
     assert.equal(result.downloads, 1);
     const plan = planAudit({
       inventory: f.currentPlan.inventory,
       runtime: f.currentPlan.runtime,
       receiptRoot: root,
     });
-    assert.equal(plan.stages.filter((s) => s.action === "reuse").length, 9);
+    assert.equal(plan.stages.filter((s) => s.action === "reuse").length, 7);
     assert.ok(plan.stages.filter((s) => !s.reusable).every((s) => s.action === "run"));
     const fresh = planAudit({
       inventory: f.currentPlan.inventory,

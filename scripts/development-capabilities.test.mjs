@@ -141,13 +141,13 @@ if(command==="node") {
 }
 log([command,...args]);
 const manifest=JSON.parse(readFileSync(".github/quality-tools.json","utf8"));
-if(command==="corepack") process.exit(process.cwd()===process.env.PCV_TEST_PROJECT?0:94);
+if(command==="pnpm") {if(args[0]==="--version")console.log(JSON.parse(readFileSync("package.json","utf8")).packageManager.split("@")[1]);process.exit(process.cwd()===process.env.PCV_TEST_PROJECT?0:94)}
 if(command==="rustc") {if(process.env.PCV_TEST_MISSING_RUST)process.exit(1);console.log("rustc "+manifest.rust.channel+" (fixture)");process.exit(0)}
 if(command==="cargo") {console.log(args[0]==="nextest"?"cargo-nextest "+manifest.tools.find(t=>t.id==="cargo-nextest").version:"fixture component");process.exit(0)}
 process.exit(73);
 `,
   );
-  for (const command of ["node", "corepack", "rustc", "cargo", "rustup", "aqua"]) {
+  for (const command of ["node", "pnpm", "rustc", "cargo", "rustup", "aqua"]) {
     const name = path.join(bin, command + (process.platform === "win32" ? ".cmd" : ""));
     const text =
       process.platform === "win32"
@@ -201,13 +201,10 @@ test(
     const calls = fixture.calls();
     assert.deepEqual(
       calls.map((call) => call[0]),
-      ["corepack", "doctor"],
+      ["pnpm", "pnpm", "doctor"],
     );
-    assert.deepEqual(calls[0].slice(-3), [
-      JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).packageManager,
-      "install",
-      "--frozen-lockfile",
-    ]);
+    assert.deepEqual(calls[0].slice(1), ["--version"]);
+    assert.deepEqual(calls[1].slice(1), ["install", "--frozen-lockfile"]);
     assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
   },
 );
@@ -229,7 +226,7 @@ test(
     );
     assert.equal(failed.status, 73, failed.stderr);
     assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
-    assert.ok(!fixture.calls().some((call) => ["aqua", "corepack"].includes(call[0])));
+    assert.ok(!fixture.calls().some((call) => ["aqua", "pnpm"].includes(call[0])));
   },
 );
 
@@ -254,7 +251,7 @@ test(
     assert.equal(result.stderr, "");
     assert.deepEqual(
       fixture.calls().map((call) => call[0]),
-      ["corepack", "doctor"],
+      ["pnpm", "pnpm", "doctor"],
     );
     assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
   },

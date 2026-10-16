@@ -562,8 +562,10 @@ test("formatting and transport inputs invalidate every stage that actually reads
     for (const stage of AUDIT_STAGES.filter((entry) => entry.reusable))
       assert.ok(file(gitInput, "config").domains.includes(stage.domain));
 
-  const formatStage = AUDIT_STAGES.find((stage) => stage.id === "format");
+  const formatStage = AUDIT_STAGES.find((stage) => stage.id === "frontend-static");
   const uiStage = AUDIT_STAGES.find((stage) => stage.id === "ui");
+  assert.equal(formatStage.reusable, false);
+  assert.equal(uiStage.reusable, false);
   const before = inventory("before", [documentation]);
   const after = inventory("after", [file("docs/README.md", "changed docs")]);
   assert.notEqual(

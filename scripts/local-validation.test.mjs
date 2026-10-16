@@ -36,11 +36,39 @@ import {
   readDoctestPackages,
   main,
 } from "./local-validation.mjs";
-import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
 import { resolveUiSelection } from "./ui-test-selection.mjs";
 
 const allFilesExist = () => true;
+
+test("removed, renamed-away and non-code frontend inputs retain complete execution", () => {
+  for (const change of [
+    { status: "D", path: "apps/desktop/src/components/removed.tsx" },
+    {
+      status: "R100",
+      path: "apps/desktop/src/components/renamed.tsx",
+      previousPath: "apps/desktop/src/components/old.tsx",
+    },
+    {
+      status: "R100",
+      path: "apps/desktop/src/components/new.browser.test.tsx",
+      previousPath: "apps/desktop/src/components/old.browser.test.tsx",
+    },
+    { status: "M", path: "apps/desktop/src/image.png" },
+  ]) {
+    const selection = classifyChanges([change], { fileExists: allFilesExist });
+    assert.equal(selection.uiFullTests, true, change.path);
+    assert.ok(
+      !selection.uiRelatedFiles.has(
+        change.previousPath ?? (change.status === "D" ? change.path : ""),
+      ),
+    );
+    const plan = buildPlan(selection);
+    assert.ok(plan.some(({ id }) => id === "ui-tests"));
+    assert.ok(plan.some(({ id }) => id === "ui-browser-tests"));
+    assert.ok(!plan.some(({ id }) => id === "ui-related-tests"));
+  }
+});
 
 test("shared browser trace runtime selects full frontend tests and build", () => {
   const selection = classifyChanges([{ status: "M", path: "scripts/browser-traces.ts" }], {
@@ -51,19 +79,19 @@ test("shared browser trace runtime selects full frontend tests and build", () =>
   const plan = buildPlan(selection);
   assert.ok(plan.some((entry) => entry.id === "ui-build"));
   const tests = plan.find((entry) => entry.id === "ui-tests");
-  assert.ok(tests.args.includes("test:after-copy"));
+  assert.ok(tests.args.includes("frontend:unit"));
   assert.ok(!tests.args.includes("--related"));
 });
 
-test("source copy fails before expensive stages while preserving valid selected obligations", () => {
+test("integrated source lint fails before expensive stages while preserving valid selected obligations", () => {
   const selection = classifyChanges([{ status: "M", path: "apps/desktop/tsconfig.json" }], {
     fileExists: allFilesExist,
   });
   const plan = buildPlan(selection);
   const ids = plan.map((entry) => entry.id);
-  assert.ok(ids.indexOf("ui-copy") < ids.indexOf("ui-build"));
-  assert.ok(ids.indexOf("ui-copy") < ids.indexOf("ui-tests"));
-  assert.ok(ids.includes("ui-transport-types") && ids.includes("ui-ipc-exposure"));
+  assert.ok(ids.indexOf("repository-lint") < ids.indexOf("ui-build"));
+  assert.ok(ids.indexOf("repository-lint") < ids.indexOf("ui-tests"));
+  assert.ok(ids.includes("ui-content"));
   const started = [];
   assert.throws(
     () =>
@@ -71,10 +99,10 @@ test("source copy fails before expensive stages while preserving valid selected 
         spawn: (_executable, args) => {
           const entry = plan.find((item) => item.args === args);
           started.push(entry.id);
-          return { status: entry.id === "ui-copy" ? 1 : 0 };
+          return { status: entry.id === "repository-lint" ? 1 : 0 };
         },
       }),
-    /ui-copy failed/,
+    /repository-lint failed/,
   );
   assert.ok(!started.includes("ui-build") && !started.includes("ui-tests"));
   const successful = [];
@@ -85,7 +113,7 @@ test("source copy fails before expensive stages while preserving valid selected 
     },
   });
   assert.deepEqual(successful, ids);
-  assert.ok(plan.find((entry) => entry.id === "ui-tests").args.includes("test:after-copy"));
+  assert.ok(plan.find((entry) => entry.id === "ui-tests").args.includes("frontend:unit"));
 });
 
 test("hook entrypoints have explicit ownership and executable integration coverage", () => {
@@ -669,20 +697,20 @@ test("documentation targets run the dynamic link contract", () => {
   assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
 });
 
-test("archived documents retain documentation checks without an excluded formatter target", () => {
+test("archived documents retain checks while native formatting owns their exclusions", () => {
   for (const status of ["A", "M"]) {
     const { selection, plan } = planFor([{ status, path: "docs/archive/2026-09-25-audit.md" }]);
-    assert.deepEqual([...selection.oxfmtFiles], []);
+    assert.deepEqual([...selection.oxfmtFiles], ["docs/archive/2026-09-25-audit.md"]);
     assert.deepEqual([...selection.nodeTests], ["scripts/repository-skills.test.mjs"]);
     assert.deepEqual(ids(plan), ["diff-check", "node-tests"]);
   }
 });
 
-test("active and archived Markdown changes format only the active document", () => {
+test("format selection delegates exclusions to the formatter configuration", () => {
   const active = "docs/ARCHITECTURE.md";
   assert.deepEqual([...planFor([active]).selection.oxfmtFiles], [active]);
   const { selection, plan } = planFor([active, "docs/archive/2026-09-25-audit.md"]);
-  assert.deepEqual([...selection.oxfmtFiles], [active]);
+  assert.deepEqual([...selection.oxfmtFiles], [active, "docs/archive/2026-09-25-audit.md"]);
   const formatter = plan.find((entry) => entry.id === "oxfmt");
   assert.ok(formatter);
   assert.ok(formatter.args.some((argument) => argument.endsWith("ARCHITECTURE.md")));
@@ -691,19 +719,17 @@ test("active and archived Markdown changes format only the active document", () 
   );
 });
 
-test("formatter exclusions cover numbered release evidence and generated or fixture files", () => {
-  const excluded = [
-    "docs/releases/2026.md",
-    "docs/releases/0.1.0-alpha.2-release-notes.md",
-    "crates/portcove-core/catalog/catalog.json",
-    "crates/portcove-core/tests/fixtures/legacy.json",
-    "scripts/example.generated.json",
+test("root, hidden, app and crate TOML share the ordinary formatter route", () => {
+  const files = [
+    "Cargo.toml",
+    ".config/nextest.toml",
+    "apps/desktop/src-tauri/Cargo.toml",
+    "crates/portcove-core/Cargo.toml",
   ];
-  for (const file of excluded) assert.equal(isExcludedOxfmtPath(file), true, file);
-  const selection = classifyChanges(excluded.map(change), { fileExists: allFilesExist });
-  assert.deepEqual([...selection.oxfmtFiles], []);
-  assert.equal(isExcludedOxfmtPath("docs/ARCHITECTURE.md"), false);
-  assert.equal(isExcludedOxfmtPath("docs/releases/README.md"), false);
+  const { selection, plan } = planFor(files);
+  assert.deepEqual([...selection.oxfmtFiles].sort(), files.sort());
+  assert.ok(ids(plan).includes("oxfmt"));
+  assert.ok(!ids(plan).includes("toml-format"));
 });
 
 test("archive renames and deletions keep active formatter ownership precise", () => {
@@ -714,7 +740,7 @@ test("archive renames and deletions keep active formatter ownership precise", ()
   const toArchive = planFor([
     { status: "R100", previousPath: "docs/old.md", path: "docs/archive/new.md" },
   ]);
-  assert.deepEqual([...toArchive.selection.oxfmtFiles], []);
+  assert.deepEqual([...toArchive.selection.oxfmtFiles], ["docs/archive/new.md"]);
   assert.deepEqual(ids(toArchive.plan), ["diff-check", "node-tests"]);
   const deletion = planFor([{ status: "D", path: "docs/archive/old.md" }]);
   assert.deepEqual([...deletion.selection.oxfmtFiles], []);
@@ -780,14 +806,11 @@ test("UI sources build and run import-related units in optional feedback", () =>
   assert.deepEqual(ids(plan), [
     "diff-check",
     "repository-lint",
-    "ui-copy",
-    "ui-transport-types",
-    "ui-ipc-exposure",
+    "ui-content",
     "ui-build",
     "ui-related-tests",
-    "ui-related-durations",
   ]);
-  assert.equal(plan.find((entry) => entry.id === "ui-build").executable, "corepack");
+  assert.equal(plan.find((entry) => entry.id === "ui-build").executable, process.execPath);
 });
 
 test("related UI commands preserve validated absolute source paths", () => {
@@ -799,7 +822,7 @@ test("related UI commands preserve validated absolute source paths", () => {
   const plan = buildPlan(selection);
   const related = plan.find((entry) => entry.id === "ui-related-tests");
   assert.ok(related);
-  assert.deepEqual(related.args.slice(6, 6 + files.length), files);
+  assert.deepEqual(related.args.slice(2), files);
 });
 
 test("frontend configuration changes use the complete small UI suite", () => {
@@ -812,7 +835,7 @@ test("frontend configuration changes use the complete small UI suite", () => {
     assert.ok(!ids(plan).includes("fallow"), path);
     assert.ok(!ids(plan).includes("ui-related-tests"), path);
     assert.ok(!ids(plan).includes("ui-theme-copy"), path);
-    assert.equal(ids(plan).filter((id) => id === "ui-copy").length, 1, path);
+    assert.ok(!ids(plan).includes("ui-copy"), "Oxlint owns source copy policy");
   }
   const { selection } = planFor(["package.json"]);
   assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mjs"));
@@ -820,8 +843,8 @@ test("frontend configuration changes use the complete small UI suite", () => {
     readFileSync(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
   ).scripts;
   const aggregateCommands = scripts["check:content"].split(/\s*&&\s*/u);
-  assert.ok(aggregateCommands.includes("node scripts/check-theme.mjs"));
-  assert.ok(aggregateCommands.includes("node scripts/check-copy.mjs"));
+  assert.ok(!aggregateCommands.some((command) => command.includes("check-theme.mjs")));
+  assert.ok(!aggregateCommands.some((command) => command.includes("check-copy.mjs")));
 });
 
 for (const manifest of ["package.json", "apps/desktop/package.json"]) {
@@ -841,7 +864,7 @@ for (const manifest of ["package.json", "apps/desktop/package.json"]) {
       assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mjs"));
       assert.ok(!ids(plan).includes("fallow"));
     } else {
-      assert.ok(!ids(plan).includes("ui-browser-tests"));
+      assert.ok(ids(plan).includes("ui-browser-tests"));
     }
   });
 }
@@ -858,7 +881,7 @@ test("manifest consumers coalesce in mixed plans without widening lock-only cont
   const node = plan.find((entry) => entry.id === "node-tests");
   assert.equal(node.args.filter((arg) => arg === "scripts/ci-workflow.test.mjs").length, 1);
   assert.ok(ids(plan).includes("ui-tests"));
-  assert.ok(!ids(plan).includes("ui-browser-tests"));
+  assert.ok(ids(plan).includes("ui-browser-tests"));
   assert.ok(!ids(plan).includes("fallow"));
   for (const lock of ["pnpm-lock.yaml", "apps/desktop/pnpm-lock.yaml"]) {
     const selected = planFor([lock]);
@@ -1147,7 +1170,7 @@ test("retired root TOML policy remains owned without a file-specific tombstone",
     fileExists: () => false,
   });
   assert.deepEqual([...selection.unknown], []);
-  assert.equal(selection.toml, true);
+  assert.deepEqual([...selection.oxfmtFiles], []);
   assert.deepEqual([...selection.nodeTests].sort(), [
     "scripts/local-validation.test.mjs",
     "scripts/validation-plan.test.mjs",
@@ -1624,10 +1647,10 @@ test("optional frontend baseline retains full lint, build and related units with
   assert.ok(p.some((entry) => entry.id === "ui-related-tests"));
   assert.deepEqual(
     p.filter((entry) => entry.id === "repository-lint").map((entry) => entry.args),
-    [["pnpm", "check"]],
+    [["scripts/run-viteplus.mjs", "run", "frontend:static"]],
   );
   assert.ok(!p.some((entry) => /browser|fallow|theme/.test(entry.id)));
-  assert.equal(p.filter((entry) => entry.id === "ui-copy").length, 1);
+  assert.equal(p.filter((entry) => entry.id === "repository-lint").length, 1);
 });
 
 test("lint follows source/configuration ownership on both rename sides without forcing UI work", () => {
@@ -1718,8 +1741,8 @@ test("live transport stages invalidate receipts when comparator and consumer inp
       input,
     );
     assert.notEqual(
-      fingerprintLocalStage({ ...stage, id: "ui-ipc-exposure" }, inventory, receiptRuntime),
-      fingerprintLocalStage({ ...stage, id: "ui-ipc-exposure" }, changed, receiptRuntime),
+      fingerprintLocalStage({ ...stage, id: "ui-content" }, inventory, receiptRuntime),
+      fingerprintLocalStage({ ...stage, id: "ui-content" }, changed, receiptRuntime),
       input,
     );
   }

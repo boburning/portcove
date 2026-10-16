@@ -89,9 +89,9 @@ The source and controller use separate clean checkouts without persisted checkou
 credentials. Existing pins, audit/recipe authority, resource guards, and test-tree
 containment remain unchanged. Setup is explicit in the hosted workflow, never
 implicit in ordinary checks. Selected setup installs frozen dependencies through
-Corepack using the source package-manager pin, populating the provider cache
-observed by preflight and used by the retained selected recipes. A separately
-installed pnpm executable alone does not establish that cache prerequisite.
+the pinned pnpm provider (Corepack is optional during provisioning). Preflight
+observes the installed package-declared Vite+ executable used by selected recipes;
+a pnpm executable alone does not establish that dependencies are installed.
 Preserve the actual preflight report before rejecting an identity, plan or
 prerequisite mismatch; retention does not turn a rejected plan into acceptance. The full audit is not selected validation, and neither
 is a substitute for required exact-head CI or native acceptance. The preserved

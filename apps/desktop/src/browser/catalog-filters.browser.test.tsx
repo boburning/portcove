@@ -233,6 +233,13 @@ afterEach(() => {
   localStorage.clear();
 });
 const roleButton = (name: string) => page.getByRole("button", { name, exact: true });
+async function closeFilters() {
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: /^Filters \(\d+\)$/, exact: true }))
+    .toHaveFocus();
+}
 it("keeps host, setup method and membership on one context through details and return without IPC", async () => {
   await page.viewport(1100, 900);
   flushSync(() => root.render(<Fixture />));
@@ -242,7 +249,7 @@ it("keeps host, setup method and membership on one context through details and r
   await expect.element(roleButton("Linux (0)")).toBeEnabled();
   await expect.element(roleButton("Portable upstream package (0)")).toBeEnabled();
   await userEvent.click(roleButton("Portable upstream package (0)"));
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   await expect
     .element(page.getByText("No ports match these filters", { exact: true }))
     .toBeInTheDocument();
@@ -251,7 +258,7 @@ it("keeps host, setup method and membership on one context through details and r
     .element(roleButton("Portable upstream package (0)"))
     .toHaveAttribute("aria-pressed", "true");
   await userEvent.click(roleButton("Original disc referenced at launch (1)"));
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   expect(document.querySelectorAll('[data-detail-origin^="catalog:card:"]')).toHaveLength(1);
   await userEvent.click(page.getByRole("button", { name: /^Windows game\./ }));
   const region = page.getByRole("region", { name: "Matching browsing contexts" });
@@ -279,9 +286,8 @@ it.each(["dark", "light"])(
     await expect.element(roleButton("Linux (2)")).toBeEnabled();
     await userEvent.click(roleButton("Linux (2)"));
     await userEvent.click(roleButton("Linux (2)"));
-    await userEvent.keyboard("{Escape}");
-    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
-    expect(document.activeElement?.textContent).toContain("Filters (2)");
+    await closeFilters();
+    await expect.element(roleButton("Filters (2)")).toHaveFocus();
     await expect.element(roleButton("Remove Windows filter")).toBeInTheDocument();
     await expect.element(roleButton("Remove Preview filter")).toBeInTheDocument();
     await userEvent.click(page.getByRole("button", { name: /^Both game\./ }));
@@ -300,13 +306,15 @@ it.each(["dark", "light"])(
     await expect.element(roleButton("Windows (0)")).toBeEnabled();
     await userEvent.click(roleButton("Windows (0)"));
     await expect.element(roleButton("Preview (0)")).toBeEnabled();
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
+    await expect.element(roleButton("Filters (1)")).toHaveFocus();
     const chip = document.querySelector<HTMLButtonElement>(
       'button[aria-label="Remove Preview filter"]',
     )!;
     chip.focus();
+    await expect.element(roleButton("Remove Preview filter")).toHaveFocus();
     await userEvent.keyboard("{Enter}");
-    expect(document.activeElement?.textContent).toContain("Filters (0)");
+    await expect.element(roleButton("Filters (0)")).toHaveFocus();
     expect(invoke).not.toHaveBeenCalled();
   },
 );
@@ -330,7 +338,7 @@ it("retains unsupported persisted intent until explicit reset", async () => {
   });
   await userEvent.click(roleButton("Reset catalog filters"));
   await expect.element(roleButton("Windows (2)")).toBeEnabled();
-  await userEvent.keyboard("{Escape}");
+  await closeFilters();
   await expect.element(roleButton("Filters (0)")).toBeInTheDocument();
 });
 
@@ -345,7 +353,7 @@ it.each(["dark", "light"])(
     await expect.element(roleButton("Preview (0)")).toBeEnabled();
     await userEvent.click(roleButton("Stable (2)"));
     await expect.element(roleButton("Linux (0)")).toBeEnabled();
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     expect(document.querySelectorAll('[data-detail-origin^="catalog:card:"]')).toHaveLength(2);
     await userEvent.click(page.getByRole("button", { name: /^Both game\./ }));
     await userEvent.click(roleButton("Back to catalog"));
@@ -359,7 +367,7 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Filters (0)"));
     await expect.element(roleButton("In my library (0)")).toBeEnabled();
     await userEvent.click(roleButton("Not in my library (3)"));
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     expect(document.querySelectorAll('[data-detail-origin^="catalog:card:"]')).toHaveLength(3);
     await userEvent.click(roleButton("Switch library"));
     await expect.element(roleButton("Filters (2)")).toBeInTheDocument();
@@ -369,12 +377,13 @@ it.each(["dark", "light"])(
       'button[aria-label="Remove In my library filter"]',
     )!;
     chip.focus();
+    await expect.element(roleButton("Remove In my library filter")).toHaveFocus();
     await userEvent.keyboard("{Enter}");
-    expect(document.activeElement?.textContent).toContain("Filters (1)");
+    await expect.element(roleButton("Filters (1)")).toHaveFocus();
     await userEvent.click(roleButton("Toggle membership snapshot"));
     await userEvent.click(roleButton("Filters (1)"));
     await userEvent.click(roleButton("Reset catalog filters"));
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     expect(invoke).not.toHaveBeenCalled();
   },
 );
@@ -392,7 +401,7 @@ it.each(["dark", "light"])(
     await expect.element(roleButton("Preview (0)")).toBeEnabled();
     await userEvent.click(roleButton("Stable (2)"));
     await expect.element(roleButton("Finish setup (1)")).toHaveAttribute("aria-pressed", "true");
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     await userEvent.click(page.getByRole("button", { name: /^Both game\./ }));
     await userEvent.click(roleButton("Back to catalog"));
     await expect.element(roleButton("Remove Missing BIOS filter")).toBeInTheDocument();
@@ -404,24 +413,25 @@ it.each(["dark", "light"])(
     await expect.element(roleButton("Filters (0)")).toBeInTheDocument();
     await userEvent.click(roleButton("Filters (0)"));
     await expect.element(roleButton("Missing BIOS (0)")).toBeEnabled();
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     await userEvent.click(roleButton("Switch library"));
     await userEvent.click(roleButton("Toggle membership snapshot"));
     await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
     await userEvent.click(roleButton("Filters (3)"));
     await expect.element(roleButton("Missing BIOS (unavailable)")).toBeDisabled();
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     document
       .querySelector<HTMLButtonElement>('button[aria-label="Remove Missing BIOS filter"]')!
       .focus();
+    await expect.element(roleButton("Remove Missing BIOS filter")).toHaveFocus();
     await userEvent.keyboard("{Enter}");
-    expect(document.activeElement?.textContent).toContain("Filters (2)");
+    await expect.element(roleButton("Filters (2)")).toHaveFocus();
     await userEvent.click(roleButton("Remove Finish setup filter"));
     await userEvent.click(roleButton("Toggle membership snapshot"));
     await expect.element(roleButton("Remove Stable filter")).toBeInTheDocument();
     await userEvent.click(roleButton("Filters (1)"));
     await userEvent.click(roleButton("Reset catalog filters"));
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     expect(invoke).not.toHaveBeenCalled();
   },
 );
@@ -435,7 +445,7 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Filters (0)"));
     await userEvent.click(roleButton("Matching update staged (1)"));
     await expect.element(roleButton("Available at last check (0)")).toBeEnabled();
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     await userEvent.click(page.getByRole("button", { name: /^Windows game\./ }));
     await userEvent.click(roleButton("Back to catalog"));
     await expect.element(roleButton("Remove Matching update staged filter")).toBeInTheDocument();
@@ -446,7 +456,7 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Switch library"));
     await userEvent.click(roleButton("Filters (0)"));
     await expect.element(roleButton("Matching update staged (0)")).toBeEnabled();
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     await userEvent.click(roleButton("Switch library"));
     await userEvent.click(roleButton("Toggle candidate download"));
     await expect
@@ -457,7 +467,7 @@ it.each(["dark", "light"])(
       .element(roleButton("Matching update staged (0)"))
       .toHaveAttribute("aria-pressed", "true");
     await userEvent.click(roleButton("Available at last check (1)"));
-    await userEvent.keyboard("{Escape}");
+    await closeFilters();
     await userEvent.click(roleButton("Toggle membership snapshot"));
     await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
     document
@@ -465,8 +475,9 @@ it.each(["dark", "light"])(
         'button[aria-label="Remove Matching update staged filter"]',
       )!
       .focus();
+    await expect.element(roleButton("Remove Matching update staged filter")).toHaveFocus();
     await userEvent.keyboard("{Enter}");
-    expect(document.activeElement?.textContent).toContain("Filters (1)");
+    await expect.element(roleButton("Filters (1)")).toHaveFocus();
     await userEvent.click(roleButton("Remove Available at last check filter"));
     await userEvent.click(roleButton("Toggle membership snapshot"));
     await expect.element(roleButton("Filters (0)")).toBeInTheDocument();

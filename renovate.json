@@ -132,12 +132,6 @@
       "matchJsonata": ["$not($exists(isVulnerabilityAlert)) or isVulnerabilityAlert != true"]
     },
     {
-      "description": "Directly consumed Oxc parser is independent of the bundled linter/formatter",
-      "matchPackageNames": ["oxc-parser"],
-      "groupName": "oxc-parser",
-      "schedule": ["* * * * 1,4"]
-    },
-    {
       "description": "Discover Vite+ releases automatically; complete the coordinated migrator graph before delivery",
       "matchManagers": ["npm"],
       "matchPackageNames": ["vite-plus"],

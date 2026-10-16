@@ -171,11 +171,11 @@ export function compareBuilds({
       const build = { root: input.root, head: input.head, commands: [] };
       report.builds.push(build);
       for (const args of [
-        ["pnpm", "--version"],
-        ["pnpm", "install", "--frozen-lockfile"],
-        ["pnpm", "--dir", "apps/desktop", "build"],
+        ["--version"],
+        ["install", "--frozen-lockfile"],
+        ["--dir", "apps/desktop", "build", "--fresh"],
       ]) {
-        const result = runner("corepack", args, {
+        const result = runner("pnpm", args, {
           cwd: input.root,
           env: frontendEnvironment(process.env),
           encoding: "utf8",
@@ -183,14 +183,14 @@ export function compareBuilds({
           maxBuffer: 16 * 1024 * 1024,
         });
         build.commands.push({
-          executable: "corepack",
+          executable: "pnpm",
           args,
           status: result.status,
           evidence: retainCommandEvidence(directory, result),
         });
         save();
         if (result.error || result.status !== 0)
-          throw new Error(`Comparison command failed: corepack ${args.join(" ")}`);
+          throw new Error(`Comparison command failed: pnpm ${args.join(" ")}`);
         if (args.includes("--version")) {
           build.pnpm = String(result.stdout).trim();
           if (`pnpm@${build.pnpm}` !== input.manager)

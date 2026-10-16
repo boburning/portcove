@@ -94,10 +94,10 @@ test("capture failure does not replace audit execution or its primary failure", 
       },
       execute: (stage) => {
         calls.push(stage.id);
-        return { status: stage.id === "format" ? 7 : 0 };
+        return { status: stage.id === "frontend-static" ? 7 : 0 };
       },
     });
-    assert.deepEqual(calls, ["format", "rust"]);
+    assert.deepEqual(calls, ["frontend-static", "rust"]);
     assert.equal(result.captureAvailable, false);
     assert.equal(result.success, false);
     assert.equal(result.results[0].exitCode, 7);
@@ -243,16 +243,14 @@ test("wrong attempt, stale capture, incomplete aggregate and substituted inputs 
 test("expanded input excess is rejected before compression", () => {
   const f = fixture();
   f.capture = JSON.parse(JSON.stringify(f.capture));
-  f.capture.payload.stageInputs.format.runtime.environment.EXTRA = "x".repeat(
+  f.capture.payload.stageInputs["frontend-static"].runtime.environment.EXTRA = "x".repeat(
     AUDIT_BUNDLE_LIMITS.expandedBytes,
   );
   f.capture = receiptEnvelope(f.capture.payload);
   f.aggregate.payload.stages[0].fingerprint = receiptEnvelope(
-    f.capture.payload.stageInputs.format,
+    f.capture.payload.stageInputs["frontend-static"],
   ).integrity;
   f.aggregate = receiptEnvelope(f.aggregate.payload);
   f.binding.receiptIntegrity = f.aggregate.integrity;
-  f.receipts.format.payload.fingerprint = f.aggregate.payload.stages[0].fingerprint;
-  f.receipts.format = receiptEnvelope(f.receipts.format.payload);
   assert.throws(() => buildAuditBundle(f), /expanded byte limit/);
 });

@@ -1,64 +1,53 @@
-import { statSync } from "node:fs";
-import path from "node:path";
 import { spawnCommand } from "./dev-storage.mjs";
+import { vitePlusCommand } from "./viteplus-cli.mjs";
 import { frontendEnvironment } from "../apps/desktop/scripts/build-frontend.mjs";
 
 export const frontendProbeTimeoutMs = 10_000;
 export const frontendProbeOutputBytes = 16 * 1024;
 
-// File availability is a plan observation, not successful execution or a version proof.
-export function frontendCommandPlan({
-  cwd,
-  environment,
-  packageManager,
-  platform = process.platform,
-}) {
-  const env = frontendEnvironment(environment);
-  const searchPath = Object.entries(env).find(([key]) => key.toLowerCase() === "path")?.[1] ?? "";
-  const names = platform === "win32" ? ["pnpm.exe", "pnpm.cmd", "pnpm.bat"] : ["pnpm"];
-  const directories = [cwd, ...searchPath.split(platform === "win32" ? ";" : ":")];
-  const candidates = directories.flatMap((directory) =>
-    names.map((name) => path.resolve(directory.replace(/^"|"$/gu, ""), name)),
-  );
-  const commandFile =
-    candidates.find((candidate) => {
-      try {
-        return statSync(candidate).isFile();
-      } catch {
-        return false;
-      }
-    }) ?? null;
+// File availability is a plan observation, never successful execution/version proof.
+export function frontendCommandPlan({ cwd }) {
+  let cli;
+  let error;
+  try {
+    cli = vitePlusCommand(cwd);
+  } catch (failure) {
+    error = failure;
+  }
   return {
-    command: "pnpm",
-    args: ["--version"],
+    command: cli?.command ?? null,
+    args: cli ? [...cli.args, "--version"] : [],
     cwd,
-    expected_version: packageManager.split("@").at(-1),
-    command_file: commandFile,
-    file_available: Boolean(commandFile),
+    expected_version: cli?.version ?? null,
+    command_file: cli?.executable ?? null,
+    file_available: Boolean(cli),
     observed_version: null,
     execution: "not-run",
     timeout_ms: frontendProbeTimeoutMs,
     output_limit_bytes: frontendProbeOutputBytes,
+    ...(error ? { resolution_error: error.message } : {}),
   };
 }
 
-export function probeFrontendCommand({ cwd, environment, packageManager, run = spawnCommand }) {
-  const plan = frontendCommandPlan({ cwd, environment, packageManager });
+export function probeFrontendCommand({ cwd, environment, run = spawnCommand }) {
+  const plan = frontendCommandPlan({ cwd });
   const started = new Date();
   let result;
   let failure;
-  try {
-    result = run("pnpm", ["--version"], {
-      cwd,
-      env: frontendEnvironment(environment),
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: frontendProbeTimeoutMs,
-      maxBuffer: frontendProbeOutputBytes,
-    });
-    if (result.error) throw result.error;
-  } catch (error) {
-    failure = error;
+  if (plan.file_available) {
+    try {
+      result = run(plan.command, plan.args, {
+        cwd,
+        env: frontendEnvironment(environment),
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: frontendProbeTimeoutMs,
+        maxBuffer: frontendProbeOutputBytes,
+      });
+      if (result.error) throw result.error;
+    } catch (error) {
+      failure = error;
+    }
   }
   const bounded = (value) => {
     let text = String(value ?? "");
@@ -68,8 +57,11 @@ export function probeFrontendCommand({ cwd, environment, packageManager, run = s
   };
   const stdout = bounded(result?.stdout ?? failure?.stdout);
   const stderr = bounded(result?.stderr ?? failure?.stderr);
-  const version = stdout.trim();
+  const version = /^vp v(\d+\.\d+\.\d+(?:-[\w.-]+)?)$/u.exec(
+    stdout.split(/\r?\n/u)[0]?.trim() ?? "",
+  )?.[1];
   const ready =
+    plan.file_available &&
     !failure &&
     result?.status === 0 &&
     version === plan.expected_version &&
@@ -77,7 +69,7 @@ export function probeFrontendCommand({ cwd, environment, packageManager, run = s
     Buffer.byteLength(String(result.stderr ?? ""), "utf8") <= frontendProbeOutputBytes;
   return {
     ...plan,
-    execution: "observed",
+    execution: plan.file_available ? "observed" : "not-run",
     started_at: started.toISOString(),
     finished_at: new Date().toISOString(),
     ready,
@@ -87,7 +79,7 @@ export function probeFrontendCommand({ cwd, environment, packageManager, run = s
     stdout,
     stderr,
     message: ready
-      ? "Pinned frontend command ready"
-      : `Frontend pnpm prerequisite failed (${failure?.code ?? result?.status ?? "unknown"}); expected ${plan.expected_version}. Repair the pnpm command in the frontend PATH, then rerun.`,
+      ? "Installed frontend Vite+ command ready"
+      : `Frontend Vite+ prerequisite failed (${failure?.code ?? result?.status ?? plan.resolution_error ?? "unknown"}); run pnpm install --frozen-lockfile, then rerun.`,
   };
 }

@@ -53,8 +53,8 @@ test("local and hosted lint use one full stage for relevant inputs, including re
     const hosted = baselineLintPlan(plan);
     assert.equal(hosted.length, 1, file);
     assert.equal(hosted[0].id, "repository-lint");
-    assert.equal(hosted[0].executable, "corepack");
-    assert.deepEqual(hosted[0].args, ["pnpm", "check"]);
+    assert.equal(hosted[0].executable, process.execPath);
+    assert.deepEqual(hosted[0].args, ["scripts/run-viteplus.mjs", "run", "frontend:static"]);
     assert.equal(path.resolve(hosted[0].cwd), process.cwd());
     assert.deepEqual(
       hosted,
@@ -63,8 +63,9 @@ test("local and hosted lint use one full stage for relevant inputs, including re
       ),
     );
   }
+  for (const file of ["docs/QUALITY.md", "Cargo.toml"])
+    assert.equal(baselineLintPlan(make([file]))[0].id, "oxfmt", file);
   for (const file of [
-    "docs/QUALITY.md",
     "crates/portcove-core/src/lib.rs",
     "apps/desktop/public/logo.png",
     "apps/desktop/src/artwork.png",
@@ -128,6 +129,11 @@ test("first pushes and missing historical bases retain full lint without changed
     assert.deepEqual(baselineLintPlan(plan), local);
   }
 });
+test("unknown ownership executes the canonical static group exactly once", () => {
+  const plan = make(["unknown/input.bin"]);
+  const commands = buildPlan(baselineSelection(plan), { validationPlan: plan });
+  assert.equal(commands.filter((entry) => entry.args.includes("frontend:static")).length, 1);
+});
 test("Playnite and handoff repairs select their cheap regressions in ordinary CI", () => {
   const tests = baselineContractTests(
     make(["integrations/playnite/check.ps1", "scripts/handoff-evidence.mjs"]),
@@ -180,14 +186,13 @@ test("release run evidence contracts are selected for implementation and test ch
 test("shared and unknown frontend inputs use full units; sources use the related graph", () => {
   const related = baselineFrontendPlan(make(["apps/desktop/src/App.tsx"]));
   assert.ok(
-    related.findIndex((entry) => entry.id === "ui-copy") <
+    related.findIndex((entry) => entry.id === "ui-content") <
       related.findIndex((entry) => entry.id === "ui-build"),
   );
   assert.ok(related.some((entry) => entry.id === "ui-related-tests"));
-  assert.deepEqual(related.find((entry) => entry.id === "ui-related-durations").args, [
-    "scripts/check-vitest-durations.mjs",
-    "work/ui-related-tests.json",
-    "--full-suite-on-empty",
+  assert.deepEqual(related.find((entry) => entry.id === "ui-related-tests").args.slice(0, 2), [
+    "scripts/run-ui-tests.mjs",
+    "related",
   ]);
   for (const p of [make(["apps/desktop/tsconfig.json"]), make(["unknown/new-input.bin"])]) {
     const full = baselineFrontendPlan(p);
@@ -243,6 +248,14 @@ test("fixture subprocess timings cannot contaminate the hosted batch report", (t
 
 test("ordinary selected checking retains CSS correctness", () => {
   const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-  assert.match(manifest.scripts.check, /vp -C apps\/desktop run lint:style/);
-  assert.deepEqual(baselineLintPlan(make(["apps/desktop/src/app.css"]))[0].args, ["pnpm", "check"]);
+  assert.equal(manifest.scripts.check, "vp run frontend:static");
+  assert.match(
+    readFileSync(new URL("../vite.config.ts", import.meta.url), "utf8"),
+    /vp -C apps\/desktop run lint:style/u,
+  );
+  assert.deepEqual(baselineLintPlan(make(["apps/desktop/src/app.css"]))[0].args, [
+    "scripts/run-viteplus.mjs",
+    "run",
+    "frontend:static",
+  ]);
 });

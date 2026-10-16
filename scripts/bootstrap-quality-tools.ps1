@@ -46,7 +46,15 @@ if ($CapabilityProfile -ne "standard") {
 }
 function Install-SelectedFrontend {
     if ((& node --version) -ne "v$requiredNodeVersion") { throw "Node $requiredNodeVersion is required for frontend setup" }
-    & corepack ([string]$toolPaths.pins.packageManager) install --frozen-lockfile
+    $pnpmVersion = ([string]$toolPaths.pins.packageManager).Split('@')[1]
+    $providedPnpm = Get-Command pnpm -ErrorAction SilentlyContinue
+    if ($providedPnpm -and ((& pnpm --version) -eq $pnpmVersion)) {
+        & pnpm install --frozen-lockfile
+    } elseif (Get-Command corepack -ErrorAction SilentlyContinue) {
+        & corepack ([string]$toolPaths.pins.packageManager) install --frozen-lockfile
+    } else {
+        throw "Provide pnpm $pnpmVersion on PATH; Corepack is an optional provisioning provider"
+    }
     if ($LASTEXITCODE -ne 0) { throw "Requested frontend dependency provisioning failed" }
     & node (Join-Path $PSScriptRoot "hooks-install.mjs")
     if ($LASTEXITCODE -ne 0) { throw "Explicit development hook setup failed; existing hooks were preserved" }
@@ -449,13 +457,20 @@ $node = Get-Command node.exe -ErrorAction SilentlyContinue
 if (-not $node -or -not (Test-ReportedVersion $node.Source @("--version") $requiredNodeVersion)) {
     throw "Node $requiredNodeVersion is required before bootstrapping checkout shims"
 }
-$corepack = Get-Command corepack.cmd -ErrorAction SilentlyContinue
-if (-not $corepack) { throw "Node's Corepack shim is unavailable; install the repository-pinned Node version" }
 $resolvedNode = Resolve-StableCommandPath $node.Source
-$resolvedCorepack = Resolve-StableCommandPath $corepack.Source
+$resolvedCorepack = $null
+$providedPnpm = Get-Command pnpm -ErrorAction SilentlyContinue
 Write-CommandShim "node" $resolvedNode
-Write-CommandShim "corepack" $resolvedCorepack
-Write-CommandShim "pnpm" $resolvedCorepack @($pnpmSpec)
+if ($providedPnpm -and (Test-ReportedVersion $providedPnpm.Source @("--version") ($pnpmSpec.Split('@')[1]))) {
+    $resolvedPnpm = Resolve-StableCommandPath $providedPnpm.Source
+    Write-CommandShim "pnpm" $resolvedPnpm
+} else {
+    $corepack = Get-Command corepack.cmd -ErrorAction SilentlyContinue
+    if (-not $corepack) { throw "Provide $pnpmSpec on PATH; Corepack is optional" }
+    $resolvedCorepack = Resolve-StableCommandPath $corepack.Source
+    Write-CommandShim "corepack" $resolvedCorepack
+    Write-CommandShim "pnpm" $resolvedCorepack @($pnpmSpec)
+}
 }
 
 $oldPath = $env:PATH

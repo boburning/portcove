@@ -681,14 +681,12 @@ test(
         helper,
         `
 $ErrorActionPreference = 'Stop'
-[Console]::Error.WriteLine('picker refusal fixture: wrapper entered')
 $owned = [Diagnostics.Process]::GetCurrentProcess()
 $image = $owned.MainModule.FileName
 $expectedImage = ${kind === "wrong-image" ? "'C:\\not-the-owned-driver.exe'" : "$image"}
 $filetime = ${kind === "stale-time" ? "'1'" : "$owned.StartTime.ToUniversalTime().ToFileTimeUtc().ToString()"}
-[Console]::Error.WriteLine('picker refusal fixture: self identity read')
+function Add-Type { throw 'Rejected picker input must not initialize UI automation.' }
 try {
-    [Console]::Error.WriteLine('picker refusal fixture: invoking target')
     & '${script}' -DriverProcessId $PID -ApplicationPath $image -ObservePicker -ExpectedDriverPath $expectedImage -ExpectedDriverStartedFiletime $filetime -ObservationPath (Join-Path $PSScriptRoot '${kind}.json') ${extra}
     exit 0
 } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }
@@ -701,17 +699,20 @@ try {
         windowsHide: true,
         timeout: 15_000,
       });
-      const diagnostic = JSON.stringify({
-        kind,
-        elapsedMs: performance.now() - started,
-        status: result.status,
-        signal: result.signal,
-        error: result.error?.message,
-        stdout: result.stdout?.slice(0, 2048),
-        stderr: result.stderr?.slice(0, 2048),
-      });
-      assert.equal(result.error, undefined, diagnostic);
-      assert.equal(result.status, 1, diagnostic);
+      const phase = result.stderr?.match(/^PORTCOVE_NATIVE_FAILURE (.+)$/mu)?.[1];
+      const stage = phase ? JSON.parse(phase).stage : null;
+      t.diagnostic(
+        JSON.stringify({
+          case: kind,
+          elapsed_ms: Math.round(performance.now() - started),
+          status: result.status,
+          signal: result.signal,
+          error_code: result.error?.code ?? null,
+          phase: stage,
+        }),
+      );
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, 1, result.stderr);
       assert.match(
         result.stderr,
         kind === "directory-input"
@@ -719,8 +720,8 @@ try {
           : kind === "outside-prepared"
             ? /Picker input is not an admitted owned fixture directory/
             : /Captured picker driver identity changed/,
-        diagnostic,
       );
+      if (kind !== "directory-input") assert.equal(stage, "picker-preflight");
       await assert.rejects(stat(path.join(output, `${kind}.json`)), /ENOENT/);
     }
   },
@@ -1502,7 +1503,7 @@ test("ordinary package boundary is isolated and rejects stale or substituted evi
   );
   const manifest = {
     revision: "b".repeat(40),
-    build_command: ["corepack", "pnpm", "tauri", "build", "--bundles", "nsis"],
+    build_command: ["pnpm", "tauri", "build", "--bundles", "nsis"],
     qualification_features: [],
     configuration,
     installer,

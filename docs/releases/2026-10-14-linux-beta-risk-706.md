@@ -340,3 +340,112 @@ not qualify this integrated frontend/build stack. Fresh exact-head ordinary
 checks, complete audit and maintained qualification, final independent review
 and guarded delivery remain required. GLib remediation and minimum-environment
 acceptance remain outstanding; this reconfirmation supplies neither.
+
+## Vite+ consolidation input reconfirmation
+
+The bounded reassessment at `fd5e8b499ed764f6edb398fcf79064992b14b459`
+accounts for exactly two fingerprinted-file changes since `3f370fd7`:
+Oxfmt's meaning-preserving Cargo workspace array formatting, and #2002's
+already-delivered Tauri frontend build command (`pnpm build` to
+`node scripts/build-frontend.mjs`). The launcher reaches the declared installed
+Vite+ executable, preserves signing isolation and production fixture exclusion,
+and does not change native GLib iteration or code generation. No Rust source,
+native manifest, toolchain, `.cargo` input or Cargo lock changes occur in that
+range. Replacing those two fingerprint entries with the approved preimages
+reproduces the previous input digest exactly.
+
+The reconfirmed conservative input digest is
+`eec15b842f4f8bf6474e99fd6448715f9b3843a63a963d9fc76569d46b6b3fb1`.
+The resolved dependency/code-generator digest remains
+`80bab63cf9f86838b1517c42767894bdc5151e09dafd41e22bbf97e220a365f2`;
+native build-environment overrides remain unset. Reuse of the unchanged bounded
+application-risk evidence follows the existing approval's reassessment procedure.
+This reconfirmation changes no advisory, severity, scanner policy, acceptance
+scope, expiry or publication identity. PR #2005 must still obtain separate
+review and complete exact-head protected qualification; failed scans and earlier
+qualification attempts remain retained with their original outcomes.
+
+The subsequent bounded test-only reassessment at
+`2b88684c1c1169eb9b6b300533fee6ffc4dcd310` changes exactly one further fingerprint
+entry: `crates/portcove-core/src/definition_publisher_policy_tests.rs`. Its fixture
+reuses one observation service around live launch-assessment updates, removing
+two redundant selected-catalog loads. Both actual launch attempts still reopen
+independently, and every assertion, timeout and reservation remains unchanged.
+Four affected Windows launch/status cases passed; current-head Intel macOS
+qualification remains separately required. Replacing this one entry with its
+`fd5e8b4` Git preimage reproduces the preceding conservative digest exactly.
+The resulting input digest is
+`fcb3a6fa61fabc22d15abc1e97d8976c7d0071082744106fbe9c6b0a551f9d28`.
+The full resolved native inventory, Cargo lock, feature set and build-environment
+entry match the preceding candidate. Production source and APIs are unchanged.
+Only `reconfirmedHead` and `inputsSha256` change in the protected record; the
+original finding, failed scans, expiry, scope and publication hold remain intact.
+
+## October 15 consolidation timing continuation
+
+The owner [approved exactly two further Intel copy-latch cases](https://github.com/boburning/portcove/issues/706#issuecomment-6205805576)
+during #2004 delivery: `PolicyLoss` and `ArtifactRevocationRestore`. Their
+whole-install-to-copy latch joins the existing Intel macOS ten-second branch.
+Other cases and platforms retain their existing limits. Timer origin, every
+actual partial/incomplete-copy, intervention, unfinished-worker, drain, journal,
+byte-preservation and cleanup assertion, the thirty-second whole-test budget,
+two-slot reservation and zero retries remain unchanged. The complete embedded
+catalog and authenticated selected-definition binding remain in the fixture.
+
+Run `38830800384`, attempt 1, retains both failures at five seconds: PolicyLoss
+first reached the actual 64 KiB copy 5.756 seconds after installer start;
+ArtifactRevocationRestore timed out without reaching the copy latch. A later
+refusal does not establish intervention during copying. Ten seconds remains a
+bounded trial requiring successful affected tests, independent review and full
+current-head qualification. This timing authority changes no advisory, expiry,
+scanner outcome, product deadline or publication hold.
+
+The two separate whole-test installer failures receive no time extension. Their
+unchanged catalog/platform qualification is captured once and cloned per request;
+each request still performs its live acquisition-resolution and installer checks.
+All actual metadata reads, refusals, installs, corruption/capacity checks and
+preservation assertions remain. Eight affected Windows cases passed before the
+copy-latch continuation; Intel completion remains a separate hosted obligation.
+
+The final conservative-input reconfirmation at
+`432d122573289f67cf2ef65e6cce7565ac4f236d` accounts for the immutable test
+qualification reuse and the explicitly approved two-case Intel calibration.
+Exactly the same test-only Rust file differs from `2b88684c`; substituting its
+previous Git preimage reconstructs the preceding `fcb3a6fa` digest exactly.
+The new input digest is
+`7503ce74813293718abb92b2214d405ecdaf773e1c6b732b2fcd0467e21694cb`.
+Input names, complete native dependency/code-generator inventory, features,
+Cargo lock and build-environment entry remain identical. Fifteen affected
+Windows installer/copy-worker cases passed with their original platform limits.
+Only the protected record's head/input digest change; Intel completion and
+all required current-head gates remain separate obligations.
+
+## October 16 installer contract separation
+
+Run `38835270649`, attempt 1, retains an Intel cache-lifecycle timeout at
+30.020 seconds. Its phase diagnostics reached immutable qualification at 4.813
+seconds and completed the preliminary refusal sequence at 26.483 seconds.
+The approved PolicyLoss copy-latch case passed; that does not qualify the
+separate whole-test failure or permit another timing extension.
+
+The repair at `bbe5759ce5a735599d2dce1e4bdabcddaf235a41` gives stale-resolution
+and changed-artifact-byte refusals their own named, real Installer tests.
+Both controls previously ran identically before each of two unrelated lifecycle
+tests. Their original refusal, request-count and zero-install assertions remain,
+with explicit empty-response-queue checks. The cache lifecycle still performs
+the actual interrupted installer, subsequent verified cache hit without an
+artifact response, corruption, lock and capacity-preservation checks together.
+The admitted-scope lifecycle downloads its actual payload, checks four requests
+instead of the cache hit's three, then retains both live metadata resolutions
+and every identity, repin and incomplete-history refusal. Complete authenticated
+catalog setup, all causal sequences, thirty-second per-test limits, two-slot
+reservation and zero retries remain. Ten affected Windows cases passed; Intel
+and complete exact-head hosted qualification remain separate obligations.
+
+Only the same test-only Rust fingerprint entry changes. Substitution of its
+`432d1225` Git preimage reconstructs `7503ce74` exactly. The new input digest is
+`ecdc7f34e22409da462ce4cbba6505083ec4270e9fbb527cd589905cf8e7a3d2`.
+All 192 input names, resolved native dependency/code-generator inventory,
+features, Cargo lock and build environment remain identical. The protected
+record changes only `reconfirmedHead` and `inputsSha256`; no advisory, scope,
+expiry, scanner outcome, publication or timing authority changes.

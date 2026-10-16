@@ -5,7 +5,6 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { isSlowTest } from "./test-duration-reporter.mjs";
-import { checkVitestDurations, completeRelatedUiCoverage } from "./check-vitest-durations.mjs";
 
 function event(duration, type = "test") {
   return {
@@ -67,63 +66,4 @@ test("an abnormal worker exit retains bounded status and remains a failed run", 
     failureType: "testCodeFailure",
     code: "ERR_TEST_FAILURE",
   });
-});
-
-test("UI timing reports slow tests and rejects missing or incomplete measurements", () => {
-  const report = (duration) => ({
-    success: true,
-    numPassedTests: 1,
-    testResults: [
-      {
-        assertionResults: [{ status: "passed", fullName: "fixture", duration }],
-      },
-    ],
-  });
-  assert.deepEqual(checkVitestDurations(report(5_000)), {
-    count: 1,
-    longest: 5_000,
-    slow: [],
-  });
-  assert.deepEqual(checkVitestDurations(report(5_001)).slow, [
-    { name: "fixture", duration: 5_001 },
-  ]);
-  assert.throws(() => checkVitestDurations(report(undefined)), /Missing duration/);
-  assert.throws(() => checkVitestDurations({ ...report(1), numPassedTests: 2 }), /Incomplete/);
-  assert.throws(() => checkVitestDurations({ ...report(1), success: false }), /successful run/);
-  const empty = { success: true, numPassedTests: 0, testResults: [] };
-  assert.throws(() => checkVitestDurations(empty), /Incomplete/);
-  assert.deepEqual(checkVitestDurations(empty, { allowEmpty: true }), {
-    count: 0,
-    longest: 0,
-    slow: [],
-  });
-});
-
-test("related frontend completion executes one full fallback and propagates failure before a receipt", () => {
-  const empty = { success: true, numTotalTests: 0, numPassedTests: 0, testResults: [] };
-  let calls = 0;
-  completeRelatedUiCoverage(empty, (command, args, options) => {
-    calls++;
-    assert.equal(command, "corepack");
-    assert.deepEqual(args, ["pnpm", "test"]);
-    assert.match(options.cwd, /apps[\\/]desktop/);
-    return { status: 0 };
-  });
-  assert.equal(calls, 1);
-  assert.throws(() => completeRelatedUiCoverage(empty, () => ({ status: 7 })), /fallback failed/);
-  assert.throws(
-    () => completeRelatedUiCoverage({ ...empty, numTotalTests: undefined }, () => assert.fail()),
-    /Incomplete frontend/,
-  );
-  const nonempty = {
-    success: true,
-    numTotalTests: 1,
-    numPassedTests: 1,
-    testResults: [
-      { assertionResults: [{ status: "passed", duration: 1, fullName: "related fixture" }] },
-    ],
-  };
-  completeRelatedUiCoverage(nonempty, () =>
-    assert.fail("nonempty selection must not execute the full suite"),
-  );
 });

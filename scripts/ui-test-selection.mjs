@@ -32,43 +32,42 @@ export function resolveUiSelection(files, desktopRoot, kind = "exact") {
   return [...selected.values()].sort();
 }
 
-export function reconcileUiSelection(report, files) {
-  if (report.success !== true || !Array.isArray(report.testResults))
-    throw new Error("UI report is unsuccessful or incomplete");
+/** Reconcile actual public Vitest results; collection alone grants no execution coverage. */
+export function reconcileUiSelection({ testModules, unhandledErrors }, files) {
+  if (!Array.isArray(testModules) || !Array.isArray(unhandledErrors) || unhandledErrors.length)
+    throw new Error("UI run is unsuccessful or incomplete");
   const expected = new Set(files.map((file) => identity(path.resolve(file))));
   if (!expected.size) throw new Error("UI selection is empty");
-  const discovered = new Set();
-  let passed = 0;
-  let skipped = 0;
-  const executed = [];
-  for (const suite of report.testResults) {
-    if (
-      typeof suite.name !== "string" ||
-      !Array.isArray(suite.assertionResults) ||
-      !suite.assertionResults.length
-    )
-      throw new Error("UI suite has no test evidence");
-    const key = identity(path.resolve(suite.name));
+  const discovered = new Set(),
+    executed = [];
+  let passed = 0,
+    skipped = 0;
+  for (const module of testModules) {
+    const key = identity(path.resolve(module.moduleId));
     if (!expected.has(key) || discovered.has(key))
-      throw new Error(`Unexpected or duplicate UI suite: ${suite.name}`);
+      throw new Error(`Unexpected or duplicate UI suite: ${module.moduleId}`);
     discovered.add(key);
+    if (!["passed", "skipped"].includes(module.state()) || !module.ok())
+      throw new Error(`UI suite failed: ${module.moduleId}`);
+    const tests = [...module.children.allTests()];
+    if (!tests.length) throw new Error("UI suite has no test evidence");
     let ran = false;
-    for (const test of suite.assertionResults) {
-      if (test.status === "passed") {
+    for (const test of tests) {
+      const state = test.result().state;
+      if (state === "passed") {
         passed++;
         ran = true;
-      } else if (["pending", "skipped", "todo"].includes(test.status)) skipped++;
-      else throw new Error(`UI test is not successful: ${test.fullName ?? suite.name}`);
+      } else if (state === "skipped") skipped++;
+      else throw new Error(`UI test did not finish successfully: ${test.fullName}`);
     }
-    if (ran) executed.push(suite.name);
+    if (ran) executed.push(module.moduleId);
   }
   const missing = files.filter((file) => !discovered.has(identity(path.resolve(file))));
   if (missing.length) throw new Error(`Requested UI suites did not run: ${missing.join(", ")}`);
-  if (!passed || passed !== report.numPassedTests || passed + skipped !== report.numTotalTests)
-    throw new Error("UI selection has no runnable tests or inconsistent counts");
+  if (!passed) throw new Error("UI selection has no runnable tests");
   return {
     requested_files: files,
-    discovered_files: report.testResults.map((suite) => suite.name),
+    discovered_files: testModules.map((module) => module.moduleId),
     executed_files: executed,
     passed,
     skipped,
