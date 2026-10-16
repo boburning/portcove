@@ -841,6 +841,24 @@ the extracted DEB payload; it supplies no system installation, updater or
 claimed-minimum evidence. Windows current-installed NSIS acceptance keeps its
 separate existing route.
 
+Only this standalone Linux packaged case uses WebKit's nonautomation `WebPage`
+inspector transport. WebKitGTK 2.50.4's automation session can grant media before
+the application's normal permission callback, so a WebDriver media result cannot
+qualify that refusal. The maintained native namespace launches the ordinary
+executable directly with a loopback-only `WEBKIT_INSPECTOR_HTTP_SERVER` child
+environment; `TAURI_WEBVIEW_AUTOMATION` and the legacy inspector variable are
+absent. No production feature, CSP or permission override is added. Other native
+scenarios keep their existing driver routes.
+
+Before executing the unchanged boundary assertions, the observer requires the
+listener's live PID/generation, executable digest and owned namespace ancestry,
+one advertised page target, the actual local main document and
+`navigator.webdriver === false`. WebKit `Runtime.awaitPromise` preserves the
+ten-second script deadline and callback failure; expired replies cannot satisfy
+a later operation. The final listener recheck and ordinary native namespace join
+remain distinct evidence. Inspector discovery or evaluation failure is a failed
+prerequisite, never a permission refusal or a package pass.
+
 The existing manual `native-design-compatibility.yml` workflow also offers the
 fixed `linux-package-boundary` operation on standard `ubuntu-22.04` only. After
 review and ordinary candidate CI, it prepares the distribution's matching

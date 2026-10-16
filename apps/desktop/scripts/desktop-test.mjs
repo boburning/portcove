@@ -41,6 +41,10 @@ import {
 } from "./desktop-main-webview-boundary.mjs";
 import { OwnedNativeSession, nativeSessionScript } from "./desktop-owned-native-session.mjs";
 import { launchLinuxNativeSession } from "./desktop-linux-native-session.mjs";
+import {
+  connectLinuxInspector,
+  linuxInspectorEnvironment,
+} from "./desktop-linux-webkit-inspector.mjs";
 import { observeStartupNetwork } from "./desktop-startup-network-diagnostic.mjs";
 import {
   prepareLibrarySwitchRecoveryFixture,
@@ -211,6 +215,9 @@ let driver;
 let browser;
 let driverLog = "";
 let startupAttempt = 0;
+const linuxPackagedInspector =
+  process.platform === "linux" &&
+  selection.selected_scenarios.includes("native-linux-packaged-webview-boundary");
 let historyInventory;
 const linuxSelectedSession =
   process.platform === "linux" &&
@@ -971,6 +978,18 @@ async function scenario(name, action) {
 
 async function connectObservedDriver() {
   await admission.verify(custody?.inputs ?? []);
+  if (linuxPackagedInspector) {
+    const evidence = path.join(output, "linux-webkit-inspector.json");
+    artifacts.push(evidence);
+    browser = await connectLinuxInspector({
+      port,
+      launch: linuxLaunch,
+      app: values.app,
+      expectedSha256: inputs[0].sha256,
+      evidence,
+    });
+    return;
+  }
   const finishObservation =
     process.platform === "win32"
       ? await observeStartup({
@@ -1009,6 +1028,19 @@ async function connectObservedDriver() {
 
 async function connect() {
   await connectObservedDriver();
+  if (linuxPackagedInspector) {
+    await browser.wait(
+      () =>
+        browser.executeScript(
+          () =>
+            document.querySelector('nav[aria-label="Primary navigation"]') !== null &&
+            document.querySelector(".loading-state") === null,
+        ),
+      30_000,
+    );
+    connectedLaunches++;
+    return;
+  }
   await browser.manage().setTimeouts({ script: 15_000 });
   const initialRecovery =
     (bootstrapRecoverySession || preferencesRecoverySession) && connectedLaunches === 0;
@@ -1319,9 +1351,11 @@ async function startDriver(childEnvironment = {}) {
     linuxStop = undefined;
     linuxLaunchCount++;
     linuxLaunch = await launchLinuxNativeSession(
-      values.driver,
-      arguments_,
-      driverEnvironment(childEnvironment),
+      linuxPackagedInspector ? values.app : values.driver,
+      linuxPackagedInspector ? [] : arguments_,
+      linuxPackagedInspector
+        ? linuxInspectorEnvironment(driverEnvironment(childEnvironment), port)
+        : driverEnvironment(childEnvironment),
       { beforeLaunch: admission.assertReady },
     );
     driver = linuxLaunch.child;
@@ -1343,6 +1377,7 @@ async function startDriver(childEnvironment = {}) {
       driverLog = (driverLog + chunk).slice(-1024 * 1024);
     });
   if (linuxSelectedSession) await linuxLaunch.ready();
+  if (linuxPackagedInspector) return;
   await captureSelectedDriverLaunch(launchStarted);
   if (historySession) historyInventory = await captureHistoryDriver(driver.pid, values.driver);
   for (let attempt = 0; attempt < 40; attempt++) {
@@ -1627,7 +1662,7 @@ try {
     const declaration = runnerMetadata.acceptance_bindings;
     const retainedRoot = retainedEvidenceRoot(output);
     const fixtures = packetFixtureIdentities;
-    const capabilities = await browser.getCapabilities();
+    const capabilities = linuxPackagedInspector ? null : await browser.getCapabilities();
     const nodeIdentity = await fileIdentity(process.execPath, { signal: admission.signal });
     let privateDisplay;
     if (process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT) {
@@ -1644,11 +1679,13 @@ try {
       node: process.version,
       node_executable: nodeIdentity,
       operating_system: os.release(),
-      browser: {
-        name: capabilities.get("browserName") ?? null,
-        version: capabilities.get("browserVersion") ?? null,
-        platform: capabilities.get("platformName") ?? null,
-      },
+      browser: linuxPackagedInspector
+        ? browser.observedRuntime
+        : {
+            name: capabilities.get("browserName") ?? null,
+            version: capabilities.get("browserVersion") ?? null,
+            platform: capabilities.get("platformName") ?? null,
+          },
       ...(privateDisplay ? { private_display: privateDisplay.retained } : {}),
       display_route: process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT
         ? "private-authenticated-virtual-X11"
@@ -1813,6 +1850,7 @@ try {
       externalBrowser,
     });
     assertOwnedBoundaryRequests(requests);
+    artifacts.push(await browser.verifyOwnedListener());
   });
   await scenario("native-linux-webview-origin-boundary", async () => {
     await linuxOriginBoundaryScenario({
@@ -3466,7 +3504,11 @@ try {
       setupChecks,
       artifacts,
       inputs,
-      method: selection.profile ? `native-desktop-${selection.profile}` : "native-desktop-focused",
+      method: linuxPackagedInspector
+        ? "native-linux-ordinary-package-webkit-inspector"
+        : selection.profile
+          ? `native-desktop-${selection.profile}`
+          : "native-desktop-focused",
       context: {
         ...runnerMetadata,
         ...(acceptancePreflight ? { acceptance_preflight: acceptancePreflight.identity } : {}),

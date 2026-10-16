@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
+import "../apps/desktop/scripts/desktop-main-webview-boundary.native.test.mjs";
 import {
   copyFile,
   mkdtemp,
@@ -422,9 +423,7 @@ import {
   verifyNormalPackageEvidence,
   assertOwnedBoundaryRequests,
   normalPackageBoundaryScenario,
-  assertLocalMainUrl,
   verifyLinuxPackageEvidence,
-  chromeObserverEndpoint,
   assertMainWebviewContainment,
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
 
@@ -507,42 +506,6 @@ test("failed permission command retains bounded redacted progress without accept
   });
   assert.deepEqual(await run("read-error"), { status: "unavailable", reason: "read-error" });
   assert.deepEqual(await run("deadline"), { status: "unavailable", reason: "deadline" });
-});
-
-test("external browser observation uses only the owned Chrome loopback endpoint", () => {
-  const id = "12345678-1234-1234-1234-123456789abc";
-  assert.equal(
-    chromeObserverEndpoint(`45123\n/devtools/browser/${id}\n`),
-    `ws://127.0.0.1:45123/devtools/browser/${id}`,
-  );
-  for (const input of [
-    `0\n/devtools/browser/${id}`,
-    `65536\n/devtools/browser/${id}`,
-    `45123\nws://external.invalid/devtools/browser/${id}`,
-    `45123\n/devtools/page/${id}`,
-    `45123\n/devtools/browser/${id}\n\nignored-extra`,
-  ])
-    assert.throws(() => chromeObserverEndpoint(input));
-});
-
-test("local native boundary identity does not treat opaque URL origins as equal", () => {
-  assertLocalMainUrl("tauri://localhost/", "linux");
-  assertLocalMainUrl("http://tauri.localhost/", "win32");
-  for (const url of [
-    "tauri://untrusted/",
-    "file:///tmp/index.html",
-    "http://tauri.localhost/",
-    "tauri://user@localhost/",
-    "tauri://localhost:8443/",
-  ])
-    assert.throws(() => assertLocalMainUrl(url, "linux"), url);
-  for (const url of [
-    "https://tauri.localhost/",
-    "tauri://localhost/",
-    "http://tauri.localhost:8443/",
-  ])
-    assert.throws(() => assertLocalMainUrl(url, "win32"), url);
-  assert.throws(() => assertLocalMainUrl("tauri://localhost/", "darwin"));
 });
 
 test("Linux packaged boundary refuses substituted payload, producer and qualification evidence", async (t) => {
