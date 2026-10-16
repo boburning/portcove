@@ -32,7 +32,7 @@ The dependency requirement, Portcove support promise, and observed environment a
 | Platform            | Upstream dependency requirement                                                                                       | Portcove Public beta baseline                                  | Executable evidence owner                                                                                                                           |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Windows x64         | Tailwind/Base UI need a Chromium-family engine at least Chrome/Edge 111                                               | Unchanged while #993 establishes an explicit WebView2/OS floor | Run `native-design-system-compatibility` in the actual Tauri app and record the exact WebView2 runtime; a current runtime pass is not minimum proof |
-| Linux x64           | Tauri runtime 2.12.1 with Wry 0.57.0 enables WebKitGTK 2.40+; Tailwind does not publish a WebKitGTK minimum guarantee | Unchanged while #993 proves an explicit Linux/WebKitGTK floor  | Use the existing Linux Tauri/WebKitWebDriver harness on the exact environment                                                                       |
+| Linux x64           | Tauri runtime 2.12.2 with Wry 0.57.0 enables WebKitGTK 2.40+; Tailwind does not publish a WebKitGTK minimum guarantee | Unchanged while #993 proves an explicit Linux/WebKitGTK floor  | Use the existing Linux Tauri/WebKitWebDriver harness on the exact environment                                                                       |
 | Steam Deck          | Must satisfy the proven Linux engine requirement in the actual SteamOS runtime                                        | Unqualified at initial beta; follow-up required before 1.0     | #51/#217 run the retained fixture on actual Deck and record SteamOS/WebKitGTK identity; #993 beta closure does not wait for this device proof       |
 | macOS Intel         | Tailwind/Base UI require Safari/WebKit 16.4-era features                                                              | Unqualified initial beta; qualify before 1.0 during beta       | #45/#226 use the existing qualification route on an exact Intel WKWebView host                                                                      |
 | macOS Apple silicon | Tailwind/Base UI require Safari/WebKit 16.4-era features                                                              | Unqualified initial beta; qualify before 1.0 during beta       | #45/#226 use the existing qualification route on an exact Apple-silicon WKWebView host                                                              |
@@ -42,11 +42,18 @@ Windows/Linux native/minimum proof required by #917. Keep practical macOS CI/bui
 health; full Intel/Apple Silicon native/package qualification belongs to #45/#226
 during beta before 1.0, without holding the initial Windows/Linux foundation.
 
-The [versioned runtime manifest](https://github.com/tauri-apps/tauri/blob/tauri-runtime-wry-v2.12.1/crates/tauri-runtime-wry/Cargo.toml)
+The [versioned runtime manifest](https://github.com/tauri-apps/tauri/blob/tauri-runtime-wry-v2.12.2/crates/tauri-runtime-wry/Cargo.toml)
 selects Wry 0.57.0's `linux-body` feature and WebKitGTK `v2_40`; the
 [versioned Wry manifest](https://github.com/tauri-apps/wry/blob/wry-v0.57.0/Cargo.toml)
 maps that feature to `webkit2gtk/v2_40`. This dependency requirement does not
 establish Portcove's supported distro or selected design system's proven engine floor.
+
+The compatible baseline delivered by [#1972](https://github.com/boburning/portcove/pull/1972)
+uses Tauri/API 2.12.4, runtime/runtime-wry 2.12.2, build/codegen/macros 2.7.3
+and dialog 2.8.3. It includes the upstream IPC/asset empty-path panic repair.
+CLI 2.12.1 remains qualified; [#2014](https://github.com/boburning/portcove/issues/2014)
+owns CLI 2.12.3's canonical prerelease RPM regression. These pairings do not change
+build targets, operating-system minima or publication qualification.
 
 ## Foundations
 

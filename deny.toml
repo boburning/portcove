@@ -1,5 +1,6 @@
 [advisories]
 ignore = []
+unsound = "all"
 
 [licenses]
 allow = [

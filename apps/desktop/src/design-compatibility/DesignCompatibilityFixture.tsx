@@ -30,7 +30,7 @@ export function DesignCompatibilityFixture() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectOpen, setSelectOpen] = useState(false);
   const selectOpenRef = useRef(false);
-  const selectDismissal = useRef(false);
+  const selectDismissal = useRef<Event | null>(null);
   const [channel, setChannel] = useState("stable");
   const [reduceMotion, setReduceMotion] = useState(false);
 
@@ -118,10 +118,10 @@ export function DesignCompatibilityFixture() {
           onOpenChange={(open, eventDetails) => {
             const nestedEscape =
               eventDetails.reason === "escape-key" &&
-              (selectOpenRef.current || selectDismissal.current);
+              (selectOpenRef.current || selectDismissal.current === eventDetails.event);
             if (!open && nestedEscape) {
               selectOpenRef.current = false;
-              selectDismissal.current = false;
+              selectDismissal.current = eventDetails.event;
               setSelectOpen(false);
               eventDetails.cancel();
               requestAnimationFrame(() =>
@@ -130,7 +130,7 @@ export function DesignCompatibilityFixture() {
               return;
             }
             selectOpenRef.current = false;
-            selectDismissal.current = false;
+            selectDismissal.current = null;
             setDialogOpen(open);
           }}
         >
@@ -151,23 +151,16 @@ export function DesignCompatibilityFixture() {
               <Select
                 open={selectOpen}
                 onOpenChange={(open, eventDetails) => {
-                  if (open) {
-                    selectOpenRef.current = true;
+                  if (!open && eventDetails.reason === "escape-key" && selectOpenRef.current) {
+                    eventDetails.event.stopPropagation();
+                    eventDetails.event.stopImmediatePropagation();
+                    selectDismissal.current = eventDetails.event;
+                  } else {
+                    selectDismissal.current = null;
                   }
-                  if (!open) {
-                    if (eventDetails.reason === "escape-key" && selectOpenRef.current) {
-                      eventDetails.event.stopPropagation();
-                      eventDetails.event.stopImmediatePropagation();
-                      selectDismissal.current = true;
-                    }
-                  }
+                  // Only the originating Escape belongs to this dismissal, not later keys during exit.
+                  selectOpenRef.current = open;
                   setSelectOpen(open);
-                }}
-                onOpenChangeComplete={(open) => {
-                  if (!open) {
-                    selectOpenRef.current = false;
-                    selectDismissal.current = false;
-                  }
                 }}
                 value={channel}
                 onValueChange={(value) => setChannel(value ?? "stable")}

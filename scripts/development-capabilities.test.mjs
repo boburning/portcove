@@ -108,6 +108,8 @@ function bootstrapFixture(t) {
     "scripts/bootstrap-quality-tools.sh",
     "scripts/bootstrap-quality-tools.ps1",
     "scripts/hooks-install.mjs",
+    "scripts/viteplus-cli.mjs",
+    "scripts/dev-storage.mjs",
     "scripts/checked-git.mjs",
     "scripts/report-summary.mjs",
     ".node-version",

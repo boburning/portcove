@@ -10,9 +10,59 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "../components
 import { ChoiceSelect } from "../components/ChoiceSelect";
 import { StatusLayer } from "../components/Chrome";
 import { Notice } from "../components/ui/patterns";
+import { DesignCompatibilityFixture } from "../design-compatibility/DesignCompatibilityFixture";
 
 // The current-build guard rejects this if test source discovery leaks into shipping CSS.
 const discoverySentinel = <span className="w-[12345px]" />;
+
+it("lets a distinct Escape close the fixture dialog while its nested select is still exiting", async () => {
+  const style = document.createElement("style");
+  style.textContent = '[data-slot="select-content"] { transition: opacity 2s linear !important; }';
+  const paused: Animation[] = [];
+  let popup: HTMLElement | null = null;
+  const pauseClosing = (event: TransitionEvent) => {
+    if (
+      event.target !== popup ||
+      event.propertyName !== "opacity" ||
+      !popup?.hasAttribute("data-ending-style")
+    )
+      return;
+    for (const animation of popup.getAnimations()) {
+      animation.pause();
+      paused.push(animation);
+    }
+  };
+  document.addEventListener("transitionrun", pauseClosing);
+  try {
+    await render(<DesignCompatibilityFixture />);
+    const opener = page.getByRole("button", { name: "Review install", exact: true });
+    await opener.click();
+    const trigger = page.getByRole("combobox", { name: "Release channel", exact: true });
+    await trigger.click();
+    popup = document.querySelector<HTMLElement>('[data-slot="select-content"]')!;
+    await expect.poll(() => getComputedStyle(popup!).opacity).toBe("1");
+    document.head.appendChild(style);
+    expect(getComputedStyle(popup).transitionProperty).toBe("opacity");
+    await userEvent.keyboard("{Escape}");
+    await expect.poll(() => paused.length).toBeGreaterThan(0);
+    const fixture = document.querySelector<HTMLElement>(".design-compatibility-fixture")!;
+    expect(fixture.dataset.selectOpen).toBe("false");
+    expect(fixture.dataset.dialogOpen).toBe("true");
+    expect(popup.isConnected).toBe(true);
+    expect(popup.hasAttribute("data-ending-style")).toBe(true);
+    expect(paused.every((animation) => animation.playState === "paused")).toBe(true);
+    // Isolate a distinct key event while completion is pending; this does not claim natural focus return.
+    trigger.element().focus();
+    await expect.element(trigger).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    await expect.poll(() => fixture.dataset.dialogOpen).toBe("false");
+    await expect.element(opener).toHaveFocus();
+  } finally {
+    document.removeEventListener("transitionrun", pauseClosing);
+    for (const animation of paused) animation.cancel();
+    style.remove();
+  }
+});
 
 it("keeps measured progress stationary and reserves the sweep for unknown progress", async () => {
   const screen = await render(

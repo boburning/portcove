@@ -382,6 +382,50 @@ const fastDependencyReview = jobSection("fast_dependency_review", "dependency_re
 const dependencyReview = jobSection("dependency_review_full", "dependency-review");
 const dependencyReviewGate = jobSection("dependency-review");
 
+test("Windows diagnostics serialize file workers without changing coverage or deadlines", () => {
+  const command = windowsStorage
+    .match(/- name: Test development diagnostics and evidence\r?\n\s+run: ([^\r\n]+)/u)?.[1]
+    .trim()
+    .split(/\s+/u);
+  assert.ok(command);
+  assert.deepEqual(command.slice(0, 9), [
+    "node",
+    "scripts/dev-storage.mjs",
+    "run",
+    "--",
+    "node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=30000",
+    "--test-reporter=./scripts/test-duration-reporter.mjs",
+  ]);
+  assert.deepEqual(command.slice(9), [
+    "scripts/desktop-scenarios.test.mjs",
+    "scripts/desktop-execution-plan.test.mjs",
+    "scripts/desktop-linux-native-session.test.mjs",
+    "scripts/desktop-linux-stop.test.mjs",
+    "scripts/desktop-verify.test.mjs",
+    "scripts/dev-doctor.test.mjs",
+    "scripts/development-capabilities.test.mjs",
+    "scripts/development-cli-help.test.mjs",
+    "scripts/development-evidence.test.mjs",
+    "scripts/handoff-evidence.test.mjs",
+    "scripts/native-confirmation.test.mjs",
+    "scripts/native-helper-dependencies.test.mjs",
+    "scripts/frontend-command-preflight.test.mjs",
+    "scripts/windows-helper-checks.test.mjs",
+    "scripts/heavy-rust-test-lock.test.mjs",
+    "scripts/local-validation.test.mjs",
+    "scripts/native-session-lock.test.mjs",
+    "scripts/native-session.test.mjs",
+    "scripts/run-rust-tests.test.mjs",
+    "scripts/rust-support-cache.test.mjs",
+    "scripts/rust-test-impact.test.mjs",
+    "scripts/rust-test-tree-supervisor.test.mjs",
+    "scripts/tool-cache.test.mjs",
+  ]);
+});
+
 test("every Node test file is included in required CI and the local quality workflow", async () => {
   const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
   const localQualitySurface = `${recipes}\n${windowsQualificationRunner}`;
@@ -1613,7 +1657,7 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(dependencyReview, /fail-on-severity: high/);
 });
 
-test("full frontend qualification provisions browser artifacts before composition", () => {
+test("full frontend qualification provisions browser artifacts before composition", async () => {
   const full = workflow.split("  frontend_full:")[1].split("  frontend:")[0];
   const provision = full.indexOf("pnpm browser:bootstrap"),
     run = full.indexOf("run frontend:verify");
@@ -1630,6 +1674,16 @@ test("full frontend qualification provisions browser artifacts before compositio
   assert.ok(contributor.indexOf("pnpm verify:frontend") > contributorProvision);
   assert.equal(contributor.match(/run: pnpm verify:frontend/g)?.length, 1);
   assert.doesNotMatch(contributor, /run: pnpm (?:test|check|build)\b/);
+  const deep = await readFile(
+    new URL("../.github/workflows/deep-quality.yml", import.meta.url),
+    "utf8",
+  );
+  const audit = deep.split("  audit:")[1].split("  local_check:")[0];
+  const install = audit.indexOf("run: pnpm install --frozen-lockfile");
+  const auditBrowser = audit.indexOf("run: pnpm --dir apps/desktop browser:bootstrap");
+  const auditGates = audit.indexOf("name: Run deterministic gates and structural audit");
+  assert.ok(install >= 0 && auditBrowser > install && auditGates > auditBrowser);
+  assert.equal(audit.match(/run: pnpm --dir apps\/desktop browser:bootstrap/g)?.length, 1);
   for (const [name, block] of [
     ["full", full],
     ["fast", fast],
@@ -2325,12 +2379,25 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
     .split("[[profile.default.overrides]]")
     .slice(1)
     .filter((override) => /success-output/.test(override));
-  assert.equal(outputOverrides.length, 1);
+  assert.equal(outputOverrides.length, 2);
   assert.deepEqual(outputOverrides[0].trim().split(/\r?\n/).slice(0, 2), [
     "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'",
     'success-output = "immediate"',
   ]);
-  assert.doesNotMatch(outputOverrides[0], /retries|threads-required|priority/);
+  const publicationOutput = outputOverrides[1]
+    .split(/\r?\n(?=\[)/, 1)[0]
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+  assert.deepEqual(publicationOutput, [
+    "platform = 'x86_64-apple-darwin'",
+    "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_permitted_artifact_commits_once$/)'",
+    'slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }',
+    'success-output = "immediate"',
+  ]);
+  for (const override of outputOverrides) {
+    assert.doesNotMatch(override, /retries|threads-required|priority/);
+  }
   assert.doesNotMatch(config.split("[[profile.default.overrides]]")[0], /success-output/);
   const repository = await readFile(
     new URL("../crates/portcove-core/src/definition_repository.rs", import.meta.url),

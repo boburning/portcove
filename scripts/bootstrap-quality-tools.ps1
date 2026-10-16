@@ -117,10 +117,17 @@ function Write-CommandShim([string]$Name, [string]$Executable, [string[]]$Prefix
     if (@($Executable, $Prefix) | Where-Object { $_ -match '["&|<>^%!\r\n]' }) {
         throw "Refusing unsafe command-shim content for $Name"
     }
+    $destination = Join-Path $shimDirectory "$Name.cmd"
+    if ([IO.Path]::GetFullPath($Executable) -eq [IO.Path]::GetFullPath($destination)) {
+        if ($Prefix.Count -or -not (Test-Path -LiteralPath $destination -PathType Leaf)) {
+            throw "Refusing a self-referencing command shim for $Name"
+        }
+        return
+    }
     New-Item -ItemType Directory -Force -Path $shimDirectory | Out-Null
     $prefixText = if ($Prefix.Count) { " " + (($Prefix | ForEach-Object { '"' + $_ + '"' }) -join " ") } else { "" }
     $call = if ([IO.Path]::GetExtension($Executable) -in @(".cmd", ".bat")) { "call " } else { "" }
-    Set-Content -LiteralPath (Join-Path $shimDirectory "$Name.cmd") -Value "@echo off`r`n$call`"$Executable`"$prefixText %*`r`n" -NoNewline -Encoding ascii
+    Set-Content -LiteralPath $destination -Value "@echo off`r`n$call`"$Executable`"$prefixText %*`r`n" -NoNewline -Encoding ascii
 }
 
 function Invoke-VerifiedDownload([string]$Uri, [string]$ExpectedSha256, [string]$Destination) {

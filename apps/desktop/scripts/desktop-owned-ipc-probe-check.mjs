@@ -25,9 +25,9 @@ async function transport() {
   const api = new URL("../node_modules/@tauri-apps/api/", import.meta.url);
   assert.match(
     await readFile(new URL("../../../Cargo.lock", import.meta.url), "utf8"),
-    /name = "tauri"\nversion = "2\.12\.3"/,
+    /name = "tauri"\nversion = "2\.12\.4"/,
   );
-  assert.equal(JSON.parse(await readFile(new URL("package.json", api), "utf8")).version, "2.12.3");
+  assert.equal(JSON.parse(await readFile(new URL("package.json", api), "utf8")).version, "2.12.4");
   const clientSource = await readFile(new URL("core.js", api), "utf8");
   assert.equal(
     createHash("sha256").update(clientSource).digest("hex"),

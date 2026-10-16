@@ -277,6 +277,70 @@ accidental requirement that GLib first be fixed. Actual graph remediation,
 undismissed alert resolution and affected Linux qualification remain issue-closure
 criteria. Later #215/#217/#535 Deck qualification remains unchanged.
 
+## Package 2 scanner follow-up reconfirmation
+
+The native-source delta in `40e850fcb38d01233535734825b3ebf28401fbf0` adds only
+test diagnostics above the delivered baseline. The Core delta adds elapsed phase output to
+existing publisher-policy fixtures; the entire module is included through
+`definition_repository.rs`'s `#[cfg(test)]` module. The Windows delta adds wrapper
+stderr markers and bounded failure context to the existing picker-refusal test.
+It changes no native helper, production call path, assertion, fixture input,
+permission, timeout, retry, resource reservation, dependency, enabled feature or
+code generator. Separate non-writing review cleared both deltas. No GLib API or
+affected iterator constructor is introduced.
+
+The conservative native-input fingerprint changes to
+`d934c863b768d00961fd23ee169f19c7ae8c336227813af3e08481d22427f902` for
+those tracked test bytes. The resolved dependency/code-generation fingerprint
+`80bab63cf9f86838b1517c42767894bdc5151e09dafd41e22bbf97e220a365f2`,
+lock SHA256 `4307115323c5f4c9edb97ca8c1877f21f9a85ef27292b366d012d4013669837c`
+and scanner policy remain unchanged. Reuse the existing bounded production
+application-risk analysis under the same owner approval, scope, expiry and
+unallocated publication identity. This reconfirmation is not remediation,
+universal unreachability, runtime safety or passing qualification evidence.
+
+The prior scanner-only source38 audit and both failed qualification attempts
+remain original-source evidence on PR #1993. Its single fresh-Intel comparison
+reproduced the policy-loss copy latch and cache-reuse cutoff failures; no further
+unchanged rerun followed. Diagnostic source983 retains all existing limits. The
+changed observation and this conservative binding refresh do not authorize a new
+timing exception or accept any failed/incomplete required stage. Final exact-head
+review, complete protected qualification and normal guarded delivery remain due.
+
+## Delivered frontend toolchain reconfirmation
+
+The package 2 candidate consumes independently delivered [#2002](https://github.com/boburning/portcove/pull/2002),
+source `2b39b06fc92a6bbd6961d434d5d15be60863b6c5`, merge
+`34e433feaf5e5db4817cdc692c13dac1b715d5d4`. Its Vite+ 1.2.0 and coordinated
+Vitest/provider 5.0.4 replace the previous frontend build tooling. The integrated
+reconfirmation source is `34cb48c1dc2cf5e3e8461acd64bdf0e712bb9d22`.
+
+All 192 normalized native inputs were compared independently. Only Tauri's
+`beforeBuildCommand` changes: `pnpm build` becomes
+`node scripts/build-frontend.mjs`, invoking the delivered wrapper and Vite+ build.
+Production Rust source, Cargo manifests/lock, native features, native generator
+dependency closure and assessed GLib call paths are unchanged. The additional
+Node test reporter retains four bounded worker-exit fields. It removes no existing
+test or assertion and changes no execution deadline, worker isolation or native
+input. Its added real exit7 control preserves the failed outer run. It does not explain the
+earlier hosted worker failure.
+
+Actual integrated recomputation gives native-input fingerprint
+`888c31cd0294b4ed8752ac410896bc620e2d76ab289aac7cf999a3be8f8064ad`.
+The resolved dependency/code-generation fingerprint remains
+`80bab63cf9f86838b1517c42767894bdc5151e09dafd41e22bbf97e220a365f2`,
+and lock SHA256 remains
+`4307115323c5f4c9edb97ca8c1877f21f9a85ef27292b366d012d4013669837c`.
+Separate non-writing review cleared this bounded reconfirmation under the
+existing approval. Owner, advisory/version, scope, expiry, scanner policy and
+unallocated publication identity remain unchanged.
+
+Source746's audit and failed qualification remain historical evidence. They do
+not qualify this integrated frontend/build stack. Fresh exact-head ordinary
+checks, complete audit and maintained qualification, final independent review
+and guarded delivery remain required. GLib remediation and minimum-environment
+acceptance remain outstanding; this reconfirmation supplies neither.
+
 ## Vite+ consolidation input reconfirmation
 
 The bounded reassessment at `fd5e8b499ed764f6edb398fcf79064992b14b459`
@@ -385,3 +449,97 @@ All 192 input names, resolved native dependency/code-generator inventory,
 features, Cargo lock and build environment remain identical. The protected
 record changes only `reconfirmedHead` and `inputsSha256`; no advisory, scope,
 expiry, scanner outcome, publication or timing authority changes.
+
+## October 16 Package 2 final-toolchain integration
+
+The normal integration candidate `4ee4f5043887d32237da3478b1ec70d1ef85fd39` consumes delivered
+#2005 (merge `d74bae3fa6e3ad1058702fc0779689acf5f4505d`) and #2010
+(merge `9a9ca222d28df8ffd089f551c2f0393fc60e1a53`). It preserves their production build/task ownership,
+picker preflight, split installer refusals, immutable qualification reuse and
+exact owner-approved timing branches. Superseded Corepack/task and projection
+fixture repairs are removed; no new limit or exception is introduced.
+
+The 192-entry native-input inventory differs from the delivered target only in
+`crates/portcove-core/src/definition_publisher_policy_tests.rs`: existing test-only elapsed-phase diagnostics
+are composed around the surviving operations. Its module remains cfg(test);
+no production GLib API, constructor or affected call path changes. Substituting
+that one file's delivered Git preimage reconstructs the preceding
+`ecdc7f34e22409da462ce4cbba6505083ec4270e9fbb527cd589905cf8e7a3d2` digest exactly.
+The composed digest is `e7b4862dd177411eb7fadceedfc2173ee18fac1e21bf930140a6e5538e8f3ce6`.
+
+The complete 237-entry native dependency/code-generator inventory, features,
+Cargo lock and build-environment entry remain unchanged, with dependency digest
+`80bab63cf9f86838b1517c42767894bdc5151e09dafd41e22bbf97e220a365f2`. Scanner policy remains
+`7cbe77e7ef591e476797956f7bf3e79a0fc659a646505f079580c16d51499525`. Only the record's
+reconfirmed head/input digest changes. The original finding, failed raw scans,
+approval owner/scope/expiry and unallocated publication identity remain intact.
+This is bounded unchanged-production-risk reconfirmation, not remediation,
+universal unreachability, publication authority or passing final qualification.
+Independent final-source review, current-head checks and complete maintained
+audit/qualification admission remain required.
+
+## Delivered framework reassessment — October 16, 2026
+
+Candidate `b83a805221b7c2edbdfba1ba622a6f7cacf9f55b` normally consumes
+[#1972](https://github.com/boburning/portcove/pull/1972) and
+[#2016](https://github.com/boburning/portcove/pull/2016), delivered through
+`88845323c34e93ccf291eda53572728dddeda546`. The lock SHA256 is
+`bef9a28c344f28b26e4d2315edd8bd47a42a0bb922fd8eb043f33a6147ccf416`.
+Tauri/API 2.12.4, runtime/runtime-wry 2.12.2, build/codegen/macros 2.7.3,
+utils 2.10.2, dialog 2.8.3 and transitive FS 2.7.1 replace the preceding
+family. The generator closure adds static_vcruntime 3.0.0. GLib 0.18.5,
+GTK 0.18.2, GIO 0.18.4, Wry 0.57.0, Tao 0.37.1 and their relevant features
+remain unchanged. Ordinary Desktop still uses defaults plus custom-protocol,
+without qualification features; no plugin or permission is newly enabled.
+
+The bounded material-source refresh examined 1,606 Rust/build files across
+32 relevant application, ancestor and generator packages. All 1,426 examined
+published files matched lock-checksummed archives; 180 local files were hashed.
+Independent review also verified the 30 published archives and 60 manifests.
+The review covers the ten changed/one removed files in the prior ancestor scope,
+three changed/added tauri-utils files and the new MSVC runtime-linking module.
+Path handling, FS/ACL generation and runtime linking introduce no found
+production constructor consumer of VariantStrIter. The prior constructor/trait
+analysis is retained: the iterator needs an instance from array_iter_str;
+VariantIter and Vec<T>::FromVariant use separate paths. This is bounded source
+evidence, not complete generated/linked-code proof, runtime safety or remediation.
+
+The independently verified 192-entry input digest is
+`7f0ba1d9f92a3d16601038f3819b74efe212c67c0dfeaa8b9c9cf234d59f5fe5`;
+the 238-entry native dependency/generator digest is
+`4e56c5fb5572bcfd8846b2ded5d05c5bafc42962222c661172fde19a2ce72b11`.
+Only reconfirmedHead and these two fingerprints change in the protected record.
+Approval, accountable owner, advisory/version, policy, expiry and unallocated
+publication identity remain unchanged. Original scans and failures remain intact.
+The owning PR retains the independent source review and exact artifacts. Fresh
+current-head checks, complete scan/audit, maintained qualification and affected
+native/package/updater observations remain required before admission. The
+existing approval does not cover additional findings or unrelated failures.
+
+## Test-only fixture reconfirmation — October 16, 2026
+
+Candidate `cb5bda2546695aaadba3f66f86f1d35f31f05553` changes only two Intel fixture setup waits
+from five to ten seconds, adds phase diagnostics and calibrates one exact
+Intel publication-recovery test from thirty to forty-five seconds. Both real
+reopens, all partial-copy, worker-drain, refusal and preservation assertions,
+zero retries and product deadlines remain unchanged. Original failures from
+[qualification 38875841715](https://github.com/boburning/portcove/actions/runs/38875841715)
+remain retained; the prior trace does not establish a deadlock or causal repair.
+
+The changed Rust fixture is loaded only through definition_repository's
+`#[cfg(test)]` module and its publisher_policy_tests submodule. Conservative
+input hashing still changes the 192-entry digest from
+`7f0ba1d9f92a3d16601038f3819b74efe212c67c0dfeaa8b9c9cf234d59f5fe5` to
+`25c75284f87d4175f1c7358d8cf65a3430b6d940186622abe42b17657c44f158`; the only changed input is
+`crates/portcove-core/src/definition_publisher_policy_tests.rs`.
+The full 238-entry dependency/feature/generator inventory and lock digest
+remain byte-identical to the preceding material reassessment. No production
+constructor, trait implementation, generator, permission or feature changes.
+The bounded production-risk analysis and its limitations therefore remain
+applicable; GLib remains unsound and unremediated.
+
+Only reconfirmedHead and inputsSha256 change in the protected record. Original
+assessment, approval owner/scope/expiry, advisory, policy and null publication
+tag remain unchanged. Separate actual-source review, current-head checks,
+fresh complete audit and maintained qualification remain required. This does
+not admit another finding, waive qualification or authorize publication.

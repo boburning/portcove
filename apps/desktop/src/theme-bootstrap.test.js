@@ -1,5 +1,6 @@
 import { it, expect } from "vite-plus/test";
 import { readFileSync } from "node:fs";
+import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
 it.each([
   ["dark", true, "dark"],
