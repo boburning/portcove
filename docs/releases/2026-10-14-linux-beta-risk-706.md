@@ -355,3 +355,33 @@ Cargo lock and build-environment entry remain identical. Fifteen affected
 Windows installer/copy-worker cases passed with their original platform limits.
 Only the protected record's head/input digest change; Intel completion and
 all required current-head gates remain separate obligations.
+
+## October 16 installer contract separation
+
+Run `38835270649`, attempt 1, retains an Intel cache-lifecycle timeout at
+30.020 seconds. Its phase diagnostics reached immutable qualification at 4.813
+seconds and completed the preliminary refusal sequence at 26.483 seconds.
+The approved PolicyLoss copy-latch case passed; that does not qualify the
+separate whole-test failure or permit another timing extension.
+
+The repair at `bbe5759ce5a735599d2dce1e4bdabcddaf235a41` gives stale-resolution
+and changed-artifact-byte refusals their own named, real Installer tests.
+Both controls previously ran identically before each of two unrelated lifecycle
+tests. Their original refusal, request-count and zero-install assertions remain,
+with explicit empty-response-queue checks. The cache lifecycle still performs
+the actual interrupted installer, subsequent verified cache hit without an
+artifact response, corruption, lock and capacity-preservation checks together.
+The admitted-scope lifecycle downloads its actual payload, checks four requests
+instead of the cache hit's three, then retains both live metadata resolutions
+and every identity, repin and incomplete-history refusal. Complete authenticated
+catalog setup, all causal sequences, thirty-second per-test limits, two-slot
+reservation and zero retries remain. Ten affected Windows cases passed; Intel
+and complete exact-head hosted qualification remain separate obligations.
+
+Only the same test-only Rust fingerprint entry changes. Substitution of its
+`432d1225` Git preimage reconstructs `7503ce74` exactly. The new input digest is
+`ecdc7f34e22409da462ce4cbba6505083ec4270e9fbb527cd589905cf8e7a3d2`.
+All 192 input names, resolved native dependency/code-generator inventory,
+features, Cargo lock and build environment remain identical. The protected
+record changes only `reconfirmedHead` and `inputsSha256`; no advisory, scope,
+expiry, scanner outcome, publication or timing authority changes.
