@@ -2092,6 +2092,28 @@ async fn curated_cache_reuse_refuses_corruption_and_preserves_capacity_evidence(
 }
 
 #[tokio::test]
+async fn curated_install_refuses_stale_resolution_before_requesting_artifact_bytes() {
+    curated_installer_boundary_fixture(
+        false,
+        None,
+        None,
+        Some(CuratedInstallRefusal::StaleResolution),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn curated_install_refuses_changed_artifact_bytes_before_publication() {
+    curated_installer_boundary_fixture(
+        false,
+        None,
+        None,
+        Some(CuratedInstallRefusal::ChangedBytes),
+    )
+    .await;
+}
+
+#[tokio::test]
 async fn curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition() {
     curated_installer_fixture(false, Some("distribution_withdrawn")).await;
 }
@@ -3135,7 +3157,13 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
 }
 
 async fn curated_installer_fixture(cache_controls: bool, artifact_status: Option<&str>) {
-    curated_installer_boundary_fixture(cache_controls, artifact_status, None).await;
+    curated_installer_boundary_fixture(cache_controls, artifact_status, None, None).await;
+}
+
+#[derive(Clone, Copy)]
+enum CuratedInstallRefusal {
+    StaleResolution,
+    ChangedBytes,
 }
 
 macro_rules! curated_install_boundary_cases {
@@ -3143,7 +3171,7 @@ macro_rules! curated_install_boundary_cases {
         #[tokio::test]
         async fn $name() {
             curated_installer_boundary_fixture(false, Some($status),
-                Some(crate::operation::LifecycleFaultPoint::$point)).await;
+                Some(crate::operation::LifecycleFaultPoint::$point), None).await;
         }
     )*};
 }
@@ -3158,6 +3186,7 @@ async fn curated_installer_boundary_fixture(
     cache_controls: bool,
     artifact_status: Option<&str>,
     boundary: Option<crate::operation::LifecycleFaultPoint>,
+    refusal: Option<CuratedInstallRefusal>,
 ) {
     use crate::ReleaseProvider;
     use std::io::{Cursor, Write};
@@ -3264,10 +3293,9 @@ async fn curated_installer_boundary_fixture(
                         .with_acquisition_resolution(resolution)
                         .unwrap(),
                 };
-            // Metadata substitution, changed bytes and interrupted cache
-            // population are qualified by the dedicated acquisition/cache
-            // controls. Artifact-hold cases need one actual admitted install.
-            if artifact_status.is_none() {
+            // Each independent refusal owns an actual installer attempt. Do not
+            // repeat these controls before unrelated identity/cache lifecycles.
+            if let Some(CuratedInstallRefusal::StaleResolution) = refusal {
                 let mut moved_tag = tag.clone();
                 moved_tag["object"]["sha"] = "d".repeat(40).into();
                 server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
@@ -3290,6 +3318,10 @@ async fn curated_installer_boundary_fixture(
                     "a stale resolution must refuse before requesting artifact bytes"
                 );
                 assert_eq!(count(&library, "installs"), 0);
+                assert!(server.responses.lock().unwrap().is_empty());
+                return;
+            }
+            if let Some(CuratedInstallRefusal::ChangedBytes) = refusal {
                 let mut changed_bytes = bytes.clone();
                 changed_bytes[0] ^= 1;
                 server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
@@ -3307,6 +3339,12 @@ async fn curated_installer_boundary_fixture(
                 assert_eq!(refused.code, crate::ErrorCode::Verification);
                 assert!(refused.message.contains("SHA-256"));
                 assert_eq!(count(&library, "installs"), 0);
+                assert!(server.responses.lock().unwrap().is_empty());
+                return;
+            }
+            // Cache reuse must follow the real interrupted installer that
+            // populated verified bytes; a preseeded file cannot replace it.
+            if cache_controls {
                 server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
                 server.json(release.clone());
                 server.json(tag.clone());
@@ -3347,12 +3385,12 @@ async fn curated_installer_boundary_fixture(
             server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
             server.json(release.clone());
             server.json(tag.clone());
-            if artifact_status.is_some() {
+            if !cache_controls {
                 server.bytes(&bytes);
             }
             // Cache controls queue no artifact response: installation refreshes
             // metadata and reuses only reverified immutable cached bytes.
-            // Artifact-hold controls acquire their one actual payload here.
+            // Other controls acquire their actual admitted payload here.
             if let Some(point) = boundary {
                 use crate::operation::{LifecyclePhase, OperationStore};
                 let status = artifact_status.unwrap();
@@ -3460,7 +3498,7 @@ async fn curated_installer_boundary_fixture(
             assert_eq!(count(&library, "installs"), 1);
             assert_eq!(
                 server.requests.lock().unwrap().len(),
-                before + if artifact_status.is_some() { 4 } else { 3 }
+                before + if cache_controls { 3 } else { 4 }
             );
             phase("actual install verified");
             if let Some(status) = artifact_status {
