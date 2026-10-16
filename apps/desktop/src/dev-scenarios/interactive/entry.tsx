@@ -33,6 +33,7 @@ export function startInteractiveScenarios() {
   limitation.textContent =
     "Interactive renderer fixtures using the actual App and desktopApi. No Core execution, native IPC, game files, or production service. Unsupported actions are refused. During preparation: Alt+Shift+Enter completes the fixture; Alt+Shift+F injects failure.";
   const controls = document.createElement("div");
+  controls.className = "scenario-fixture-actions";
   const refusal = document.createElement("p");
   refusal.setAttribute("role", "alert");
   const reset = document.createElement("button");
@@ -44,6 +45,7 @@ export function startInteractiveScenarios() {
   const fail = document.createElement("button");
   fail.type = "button";
   fail.textContent = "Fail fixture preparation";
+  for (const button of [reset, complete, fail]) button.className = "scenario-fixture-control";
   controls.append(reset, complete, fail, refusal);
   limitation.after(controls);
   let root: Root | undefined;

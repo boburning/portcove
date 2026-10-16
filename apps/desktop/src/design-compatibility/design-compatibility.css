@@ -1,6 +1,8 @@
 @reference "../styles/tokens.css";
 @reference "../styles/variants.css";
-@tailwind utilities source(none);
+@layer utilities {
+  @tailwind utilities source(none);
+}
 @source "./";
 
 @layer components {

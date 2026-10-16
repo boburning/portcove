@@ -71,6 +71,55 @@ afterEach(async () => {
   document.documentElement.removeAttribute("dir");
 });
 
+it("reverses a closing dialog when controlled application state reopens it", async () => {
+  const interrupted: string[] = [];
+  let armed = true;
+  function Review() {
+    const [open, setOpen] = useState(false);
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger render={<Button />}>Review again</DialogTrigger>
+        <DialogContent
+          onTransitionRun={(event) => {
+            if (!open && armed && event.nativeEvent.propertyName === "opacity") {
+              armed = false;
+              interrupted.push(getComputedStyle(event.currentTarget).opacity);
+              setOpen(true);
+            }
+          }}
+        >
+          <DialogTitle>Interrupted review</DialogTitle>
+          <Button onClick={() => setOpen(false)}>Close and reopen</Button>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+  await render(<Review />);
+  const trigger = page.getByRole("button", { name: "Review again", exact: true });
+  await trigger.click();
+  await expect.element(page.getByRole("dialog", { name: "Interrupted review" })).toBeVisible();
+  await expect
+    .poll(
+      () =>
+        getComputedStyle(page.getByRole("dialog", { name: "Interrupted review" }).element())
+          .opacity,
+    )
+    .toBe("1");
+  const motionStyle = getComputedStyle(
+    page.getByRole("dialog", { name: "Interrupted review" }).element(),
+  );
+  expect(motionStyle.transitionProperty).toContain("opacity");
+  expect(Number.parseFloat(motionStyle.transitionDuration)).toBeGreaterThan(0);
+  await page.getByRole("button", { name: "Close and reopen", exact: true }).click();
+  await expect.poll(() => interrupted.length).toBe(1);
+  expect(Number(interrupted[0])).toBeGreaterThan(0);
+  const popup = page.getByRole("dialog", { name: "Interrupted review" });
+  await expect.element(popup).toBeVisible();
+  await expect.poll(() => getComputedStyle(popup.element()).opacity).toBe("1");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(trigger).toHaveFocus();
+});
+
 it("preserves Base UI class callbacks, render composition, refs and inert pending actions", async () => {
   const activate = vi.fn();
   const ref = createRef<HTMLButtonElement>();
