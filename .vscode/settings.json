@@ -14,7 +14,7 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.oxc": "explicit"
   },
-  "vitest.vitestCommandLine": "node node_modules/vite-plus/bin/vp test",
+  "vitest.vitestCommandLine": "node scripts/run-viteplus.mjs test",
   "[javascript][javascriptreact][typescript][typescriptreact][json][jsonc][css][html][markdown][yaml][toml]": {
     "editor.defaultFormatter": "oxc.oxc-vscode",
     "editor.formatOnSave": true

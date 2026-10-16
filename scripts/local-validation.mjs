@@ -954,7 +954,7 @@ export function buildPlan(selection, context = {}) {
   if (!fullStatic && files.length)
     commands.push(
       command("oxfmt", "supported-file formatting", process.execPath, [
-        "node_modules/vite-plus/bin/vp",
+        "scripts/run-viteplus.mjs",
         "fmt",
         "--check",
         ...(broad || files.includes("vite.config.ts") ? [] : ["--no-error-on-unmatched-pattern"]),

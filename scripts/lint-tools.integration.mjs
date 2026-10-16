@@ -5,6 +5,7 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { runAqua } from "./tool-cache.mjs";
+import { vitePlusCommand } from "./viteplus-cli.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const desktop = path.join(root, "apps", "desktop");
@@ -79,7 +80,7 @@ async function oxlintFixture() {
   const javascriptFixture = path.join(root, "scripts", `.lint-oxlint-${nonce}.mjs`);
   const viteDirectory = path.join(desktop, `.lint-oxlint-vite-${nonce}`);
   const viteFixture = path.join(viteDirectory, "vite.config.ts");
-  const runner = path.join(root, "node_modules", "vite-plus", "bin", "vp");
+  const runner = vitePlusCommand(root);
   let childInvocations = 0;
   function assertFixtureTarget(target) {
     assert.ok(target, "Oxlint fixture child requires an explicit target");
@@ -94,11 +95,11 @@ async function oxlintFixture() {
   }
   function runOxlint(target) {
     assertFixtureTarget(target);
-    return run(process.execPath, [runner, "lint", target]);
+    return run(runner.command, [...runner.args, "lint", target]);
   }
   function runOxlintAsync(target) {
     assertFixtureTarget(target);
-    return runAsync(process.execPath, [runner, "lint", target]);
+    return runAsync(runner.command, [...runner.args, "lint", target]);
   }
   try {
     await mkdir(directory);
@@ -198,30 +199,26 @@ async function oxlintFixture() {
 
 async function oxfmtFixture() {
   const fixture = path.join(root, "scripts", `.format-oxfmt-${nonce}.mjs`);
-  const command = [
-    path.join(root, "node_modules", "vite-plus", "bin", "vp"),
-    "fmt",
-    "--check",
-    fixture,
-  ];
+  const cli = vitePlusCommand(root);
+  const command = [...cli.args, "fmt", "--check", fixture];
   try {
     await writeFile(fixture, "const answer = 42;\nconsole.log(answer);\n");
-    const valid = run(process.execPath, command);
+    const valid = run(cli.command, command);
     await writeFile(fixture, "const answer={value:42};console.log(answer.value)\n");
-    expectFixture("Oxfmt", valid, run(process.execPath, command));
+    expectFixture("Oxfmt", valid, run(cli.command, command));
   } finally {
     await rm(fixture, { force: true });
   }
   for (const directory of ["", ".config", "apps/desktop", "crates/portcove-core"]) {
     const toml = path.join(root, directory, `.format-oxfmt-${nonce}.toml`);
-    const args = [command[0], "fmt", "--check", toml];
+    const args = [...cli.args, "fmt", "--check", toml];
     try {
       await writeFile(toml, '[probe]\nvalue = "owned"\n');
-      const valid = run(process.execPath, args);
+      const valid = run(cli.command, args);
       await writeFile(toml, '[probe]\nvalue="owned"\n');
-      expectFixture("Oxfmt TOML formatting", valid, run(process.execPath, args));
+      expectFixture("Oxfmt TOML formatting", valid, run(cli.command, args));
       await writeFile(toml, "[probe\nvalue = [");
-      expectFixture("Oxfmt TOML syntax", valid, run(process.execPath, args));
+      expectFixture("Oxfmt TOML syntax", valid, run(cli.command, args));
     } finally {
       await rm(toml, { force: true });
     }
