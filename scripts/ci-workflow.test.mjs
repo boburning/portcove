@@ -459,7 +459,7 @@ test("application release records run after the maintained SemVer dependency is 
 test("selected release-policy contracts install their desktop-owned dependency before fast contract execution", () => {
   const block = workflow.split("  fast_catalog:")[1].split(/\n  [a-z_]+:/u)[0];
   const setup = block.indexOf(
-    "corepack pnpm --filter portcove-desktop-ui install --frozen-lockfile --ignore-scripts",
+    "pnpm --filter portcove-desktop-ui install --frozen-lockfile --ignore-scripts",
   );
   const execution = block.indexOf("run: node scripts/ci-baseline.mjs contracts");
   assert.ok(setup >= 0 && execution > setup);

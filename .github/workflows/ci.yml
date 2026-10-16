@@ -393,7 +393,7 @@ jobs:
             args: [--filter, portcove-repository, --frozen-lockfile, --ignore-scripts]
       - name: Install selected release-policy test dependencies
         if: contains(fromJSON(needs.classify.outputs.plan_json).areas, 'release-security')
-        run: corepack pnpm --filter portcove-desktop-ui install --frozen-lockfile --ignore-scripts
+        run: pnpm --filter portcove-desktop-ui install --frozen-lockfile --ignore-scripts
       - uses: ./.github/actions/setup-rust
       - name: Check relevant cheap repository contracts
         env:
