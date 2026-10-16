@@ -225,13 +225,13 @@ function bodyFindings(pull, config) {
       findings.push(
         finding(
           "review-pending",
-          "a ready pull request should replace pending review text with the distinct review result.",
+          "a ready pull request should replace pending review text with the applicable review result.",
         ),
       );
     }
     if (review && !/\breview(?:ed)?\b/i.test(review)) {
       findings.push(
-        finding("review-result", "Review and risk should state the distinct review result."),
+        finding("review-result", "Review and risk should state the applicable review result."),
       );
     }
     const reviewedHead =

@@ -1,6 +1,6 @@
 # Coordination and inventory checks
 
-The single-local-runner contract retires ordinary board reads and coordinator
+The candidate-ownership contract retires ordinary board reads and coordinator
 planners. The parser and designated-writer rules below apply only to historical
 coordinated-mode records, not current task selection or delivery authority.
 

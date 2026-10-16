@@ -8,6 +8,12 @@ on:
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
+      - Cargo.lock
+      - Cargo.toml
+      - rust-toolchain.toml
+      - .node-version
+      - scripts/install-linux-desktop-prerequisites.sh
+      - scripts/package-ownership-selection.mjs
       - apps/desktop/src-tauri/Cargo.toml
       - apps/desktop/src-tauri/src/application_update.rs
       - apps/desktop/src-tauri/src/application_update_commands.rs
@@ -29,7 +35,30 @@ env:
   PORTCOVE_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
+  select:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      needed: ${{ steps.selection.outputs.needed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+        with:
+          version-file: pnpm-workspace.yaml
+          node-version-file: .node-version
+          run-install: |
+            args: [--filter, portcove-repository, --frozen-lockfile, --ignore-scripts]
+      - id: selection
+        env:
+          PORTCOVE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PORTCOVE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/package-ownership-selection.mjs
+
   build:
+    needs: select
+    if: needs.select.outputs.needed == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     steps:

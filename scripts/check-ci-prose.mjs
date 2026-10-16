@@ -1,9 +1,10 @@
+import { checkDocumentLinks } from "./check-document-links.mjs";
 import { execFileSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { proseOnlyAllowlist } from "./select-ci-plan.mjs";
+import { isInformationalPath } from "./validation-plan.mjs";
 import { vitePlusCommand } from "./viteplus-cli.mjs";
 import { spawnCommand } from "./dev-storage.mjs";
 
@@ -25,9 +26,8 @@ function requiredFiles() {
   }
   if (!Array.isArray(files) || files.length === 0 || files.some((file) => typeof file !== "string"))
     throw new Error("prose file plan must be a non-empty string array");
-  const allowed = new Set(proseOnlyAllowlist);
-  if (files.some((file) => !allowed.has(file)))
-    throw new Error("prose file plan left the allowlist");
+  if (files.some((file) => !isInformationalPath(file)))
+    throw new Error("prose file plan includes a machine-consumed or policy path");
   return [...new Set(files)].sort();
 }
 
@@ -42,10 +42,12 @@ const existing = files.filter((file) => {
   const target = path.join(projectRoot, file);
   return existsSync(target) && statSync(target).isFile();
 });
+const formatted = existing.filter((file) => file.endsWith(".md"));
 if (process.argv[2] === "--prerequisites") {
-  console.log(`frontend_dependencies=${existing.length > 0}`);
+  console.log(`frontend_dependencies=${formatted.length > 0}`);
 } else {
-  if (existing.length > 0) {
+  checkDocumentLinks(projectRoot, files);
+  if (formatted.length > 0) {
     let cli;
     try {
       cli = vitePlusCommand(projectRoot);
@@ -55,7 +57,7 @@ if (process.argv[2] === "--prerequisites") {
         { cause: error },
       );
     }
-    const result = spawnCommand(cli.command, [...cli.args, "fmt", "--check", ...existing], {
+    const result = spawnCommand(cli.command, [...cli.args, "fmt", "--check", ...formatted], {
       cwd: projectRoot,
       stdio: "inherit",
       windowsHide: true,
@@ -67,6 +69,6 @@ if (process.argv[2] === "--prerequisites") {
     stdio: "inherit",
   });
   console.log(
-    `Validated ${files.length} allowlisted prose path(s); ${existing.length} remain in the head tree.`,
+    `Validated ${files.length} informational path(s); ${existing.length} remain in the head tree.`,
   );
 }

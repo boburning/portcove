@@ -224,14 +224,17 @@ export function selectWorkspaceRustImpact(plan, map = readRustTestImpactMap()) {
     !plan.changes.length ||
     plan.changed_files.some(
       (file) =>
-        [
+        ([
           "Cargo.toml",
           "Cargo.lock",
           "rust-toolchain.toml",
           "deny.toml",
           ".config/nextest.toml",
           ".config/rust-test-impact.json",
-        ].includes(file) ||
+        ].includes(file) &&
+          !plan.paths
+            .find((entry) => entry.path === file)
+            ?.reasons.includes("effective-nextest-configuration-unchanged")) ||
         (plan.paths.find((entry) => entry.path === file)?.areas.includes("dependency") &&
           ![...rustPackagePrefixes.keys()].some((prefix) => file.startsWith(prefix))),
     );

@@ -32,6 +32,7 @@ export function baselineSelection(plan, options = {}) {
       ...(change.oldPath !== change.newPath ? { previousPath: change.oldPath } : {}),
       oldMode: change.oldMode,
       newMode: change.newMode,
+      nextest_equivalence: change.nextest_equivalence,
     })),
     options,
   );
@@ -44,11 +45,24 @@ export function baselineContractTests(plan, options) {
     "scripts/validation-plan.test.mjs",
     "scripts/select-ci-plan.test.mjs",
     "scripts/ci-result-gate.test.mjs",
-    "scripts/qualification-coverage.test.mjs",
     "scripts/ci-baseline.test.mjs",
-    "scripts/rust-test-impact.test.mjs",
   ])
     tests.add(file);
+  if (
+    plan.fallback ||
+    plan.changes.some((c) =>
+      [c.oldPath, c.newPath].some((f) =>
+        /(?:validation-plan|select-ci-plan|ci-baseline|ci-result-gate|qualification-coverage|rust-test-impact|ci\.yml)/u.test(
+          f,
+        ),
+      ),
+    )
+  )
+    for (const file of [
+      "scripts/qualification-coverage.test.mjs",
+      "scripts/rust-test-impact.test.mjs",
+    ])
+      tests.add(file);
   // Stateful packaged and live compiler/export contracts retain full qualification ownership.
   for (const file of [
     "scripts/windows-qualification-session.integration.test.mjs",
@@ -67,6 +81,20 @@ export function baselineContractTests(plan, options) {
       tests.add(file);
   }
   return [...tests].sort();
+}
+
+// Tests that actually invoke native compiler/runner fixture controls.
+export function baselineRequiresRust(plan) {
+  if (plan.mode === "qualification") return true;
+  if (plan.mode === "blocked" || plan.mode === "prose") return false;
+  return baselineContractTests(plan).some((file) =>
+    [
+      "scripts/run-rust-tests.test.mjs",
+      "scripts/rust-support-cache.test.mjs",
+      "scripts/rust-test-tree-supervisor.test.mjs",
+      "scripts/development-capabilities.test.mjs",
+    ].includes(file),
+  );
 }
 
 // Run the cheap production checkers against the actual checkout when their
@@ -108,7 +136,7 @@ export function baselineLintPlan(plan, options) {
   if (!plan.groups.includes("rust-quality")) throw new Error("Plan omitted repository quality");
   const selection = baselineSelection(plan, options);
   return buildPlan(selection, { validationPlan: plan }).filter((entry) =>
-    ["repository-lint", "oxfmt"].includes(entry.id),
+    ["repository-lint", "oxfmt", "actionlint", "shell-lint", "python-lint"].includes(entry.id),
   );
 }
 

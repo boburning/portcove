@@ -211,6 +211,7 @@ export default defineConfig({
   staged: { "*": "vp check --fix" },
   run: {
     tasks: {
+      "repository:static": { command: "vp check", cache: false },
       "frontend:static": {
         command: [
           "node apps/desktop/scripts/browser-package-compatibility.mjs",

@@ -205,9 +205,9 @@ export class PullRequestDeliveryClient {
     return runs;
   }
 
-  workflowJobs(run, attempt) {
+  workflowJobs(run, _attempt) {
     return this.paginatedConnection(
-      `repos/${repository}/actions/runs/${run}/attempts/${attempt}/jobs?per_page=100`,
+      `repos/${repository}/actions/runs/${run}/jobs?filter=all&per_page=100`,
       "jobs",
       (job) => (Number.isSafeInteger(job?.id) ? String(job.id) : null),
     );
@@ -664,6 +664,8 @@ export async function watchRequiredChecks(
           );
         }
         const checks = new Map();
+        const latestJobs = new Map();
+        const executions = new Set();
         for (const job of jobs) {
           const match =
             /^https:\/\/api\.github\.com\/repos\/boburning\/portcove\/check-runs\/([1-9]\d*)$/u.exec(
@@ -672,10 +674,13 @@ export async function watchRequiredChecks(
           const checkId = Number(match?.[1]);
           if (
             job.run_id !== run ||
-            job.run_attempt !== attempt ||
+            !Number.isSafeInteger(job.run_attempt) ||
+            job.run_attempt < 1 ||
+            job.run_attempt > attempt ||
             job.head_sha !== head ||
             !Number.isSafeInteger(checkId) ||
-            checks.has(checkId)
+            checks.has(checkId) ||
+            executions.has(`${job.name}:${job.run_attempt}`)
           )
             throw deliveryOutcomeError(
               "failed",
@@ -683,12 +688,16 @@ export async function watchRequiredChecks(
               evidence(),
             );
           checks.set(checkId, job);
+          executions.add(`${job.name}:${job.run_attempt}`);
+          if (!latestJobs.has(job.name) || latestJobs.get(job.name).run_attempt < job.run_attempt)
+            latestJobs.set(job.name, job);
         }
         for (const context of state.contexts) {
           const job = checks.get(context.check_run_id);
           if (
             context.source !== "check-run" ||
             !job ||
+            latestJobs.get(context.context) !== job ||
             job.name !== context.context ||
             job.status !== "completed" ||
             job.conclusion !== "success"
@@ -849,7 +858,7 @@ export function inspectRenovateQueue(client, config, contexts, inspectBase = ins
     candidates,
     selected: candidates.find(({ actionable }) => actionable)?.number ?? null,
     selection_boundary:
-      "Recommendation only. Single-local-runner delivery requires actual writer and source-ownership checks; this command neither approves, rebases, retries nor merges. Refresh after each delivered candidate.",
+      "Recommendation only. Candidate delivery requires actual writer and source-ownership checks; this command neither approves, rebases, retries nor merges. Refresh after each delivered candidate.",
   };
 }
 

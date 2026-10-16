@@ -1,3 +1,5 @@
+import { discoverPostmergeReuse } from "./postmerge-ci.mjs";
+import { annotateNextest } from "./nextest-equivalence.mjs";
 import { execFileSync } from "node:child_process";
 import { appendFile } from "node:fs/promises";
 import path from "node:path";
@@ -11,7 +13,7 @@ import {
   buildValidationPlan,
   digestValidationPlan,
   fastGroups,
-  proseOnlyAllowlist,
+  isInformationalPath,
   qualificationPlatforms,
   validateValidationPlan,
 } from "./validation-plan.mjs";
@@ -19,7 +21,6 @@ import {
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
 const fullSha = /^[a-f0-9]{40}$/u;
-const regularFileMode = "100644";
 const platformRunners = Object.freeze({
   "linux-x86_64": "ubuntu-22.04",
   "macos-aarch64": "macos-15",
@@ -27,7 +28,7 @@ const platformRunners = Object.freeze({
   "windows-x86_64": "windows-latest",
 });
 
-export { proseOnlyAllowlist };
+export { isInformationalPath };
 
 export function fastPlatformMatrix(plan) {
   if (!plan || !Array.isArray(plan.platforms)) throw new Error("validation platforms are missing");
@@ -73,31 +74,13 @@ export function parseRawDiff(buffer) {
   return changes;
 }
 
-function isRegularChange(change) {
-  if (change.status === "A")
-    return change.oldMode === "000000" && change.newMode === regularFileMode;
-  if (change.status === "D")
-    return change.oldMode === regularFileMode && change.newMode === "000000";
-  return change.oldMode === regularFileMode && change.newMode === regularFileMode;
-}
-
 export function classifyChanges(changes) {
-  if (!Array.isArray(changes) || changes.length === 0)
-    return { mode: "blocked", reason: "unexplained-empty-change-set", files: [] };
-  const allowed = new Set(proseOnlyAllowlist);
-  const files = [...new Set(changes.flatMap((change) => [change.oldPath, change.newPath]))].sort();
-  for (const change of changes) {
-    if (!["A", "D", "M", "R"].includes(change.status)) {
-      return { mode: "qualification", reason: `unsupported-change-status:${change.status}`, files };
-    }
-    if (!isRegularChange(change)) {
-      return { mode: "qualification", reason: "file-type-or-mode-change", files };
-    }
-    if (!allowed.has(change.oldPath) || !allowed.has(change.newPath)) {
-      return { mode: "fast", reason: "path-not-in-prose-allowlist", files };
-    }
-  }
-  return { mode: "prose", reason: "reviewed-informational-prose-only", files };
+  const plan = buildValidationPlan({
+    changes,
+    eventName: "pull_request",
+    checkout: "a".repeat(40),
+  });
+  return { mode: plan.mode, reason: plan.reason, files: plan.changed_files };
 }
 
 function checkedSha(value, label) {
@@ -161,7 +144,11 @@ export function discoverCiPlan(
       encoding: "buffer",
       maxBuffer: 16 * 1024 * 1024,
     });
-    const changes = parseRawDiff(raw);
+    const changes = annotateNextest(
+      parseRawDiff(raw),
+      (file) => String(runGit(["show", `${mergeBase}:${file}`], { encoding: "utf8" })),
+      (file) => String(runGit(["show", `${head}:${file}`], { encoding: "utf8" })),
+    );
     const plan = buildValidationPlan({ changes, eventName, base, mergeBase, head, checkout });
     if (plan.mode === "prose" && !proseOnlyEnabled) {
       const replacement = {
@@ -201,7 +188,7 @@ export function discoverCiPlan(
   }
 }
 
-export async function writeGithubOutputs(outputPath, plan) {
+export async function writeGithubOutputs(outputPath, plan, reuse = null) {
   if (!outputPath) throw new Error("GITHUB_OUTPUT is required");
   const { classifyChanges: classifyLocalChanges } = await import("./local-validation.mjs");
   const selection = classifyLocalChanges(
@@ -210,6 +197,10 @@ export async function writeGithubOutputs(outputPath, plan) {
     ]),
   );
   const fields = {
+    script_tools: String(selection.actionsLint || selection.shellLint || selection.pythonLint),
+    reuse_json: JSON.stringify(reuse),
+    reused_groups: JSON.stringify(reuse?.groups ?? []),
+    contract_rust: String((await import("./ci-baseline.mjs")).baselineRequiresRust(plan)),
     mode: plan.mode,
     frontend_workspace: String(
       plan.mode !== "prose" &&
@@ -260,7 +251,16 @@ async function main() {
     forceQualification: process.env.PORTCOVE_FORCE_QUALIFICATION === "true",
   });
   validateValidationPlan(plan);
-  await writeGithubOutputs(process.env.GITHUB_OUTPUT, plan);
+  const reuse = discoverPostmergeReuse(plan, {
+    event: process.env.GITHUB_EVENT_NAME,
+    discoverPlan: discoverCiPlan,
+  });
+  await writeGithubOutputs(process.env.GITHUB_OUTPUT, plan, reuse);
+  console.log(
+    reuse
+      ? `Reusing tested composition from CI ${reuse.run}/a${reuse.attempt}, tree ${reuse.tree}`
+      : "Executing selected ordinary obligations freshly.",
+  );
   console.log(JSON.stringify(plan, null, 2));
   if (plan.mode === "blocked") throw new Error(`CI plan is blocked: ${plan.reason}`);
 }
