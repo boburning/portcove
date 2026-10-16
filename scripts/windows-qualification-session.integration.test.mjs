@@ -108,6 +108,109 @@ function runPowerShell(args, options = {}) {
   });
 }
 
+test(
+  "uninstaller image observation settles only the same retained identity within its deadline",
+  {
+    skip: process.platform !== "win32",
+  },
+  () => {
+    const temporary = mkdtempSync(path.join(os.tmpdir(), "portcove-child-image-observer-"));
+    try {
+      const fixture = path.join(temporary, "observer.ps1");
+      writeFileSync(
+        fixture,
+        String.raw`
+param([string]$Source)
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $parseErrors = $null
+$ast = [Management.Automation.Language.Parser]::ParseFile($Source, [ref]$tokens, [ref]$parseErrors)
+if ($parseErrors.Count) { throw 'Production PowerShell source did not parse' }
+$functions = @($ast.FindAll({ param($node)
+    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Read-UninstallerChildImage'
+}, $false))
+if ($functions.Count -ne 1) { throw 'Expected one production image observer' }
+. ([scriptblock]::Create($functions[0].Extent.Text))
+$script:created = [DateTime]::UtcNow
+$script:observations = 0
+$script:queries = 0
+function Get-CimInstance($ClassName, $Filter, $OperationTimeoutSec) {
+    if ($ClassName -ne 'Win32_Process' -or $Filter -ne 'ProcessId = 700' -or $OperationTimeoutSec -ne 1) { throw 'Unexpected process query' }
+    $script:queries++
+    if ($script:mode -eq 'late_cim') { Start-Sleep -Milliseconds 1700 }
+    $item = [pscustomobject]@{ ProcessId = 700; ParentProcessId = 600; CreationDate = $script:created; ExecutablePath = 'C:\owned\child.exe' }
+    switch ($script:mode) {
+        'wrong_pid' { $item.ProcessId = 701 }
+        'wrong_parent' { $item.ParentProcessId = 601 }
+        'wrong_creation' { $item.CreationDate = $script:created.AddTicks(1) }
+        { $_ -in @('persistent','cim_pending') } { $item.ExecutablePath = $null }
+        'ambiguous' { return @($item, $item) }
+    }
+    $item
+}
+$reports = foreach ($mode in @('settled','exited','persistent','cim_pending','wrong_pid','wrong_parent','wrong_creation','ambiguous','expired','near_expiry','late_cim')) {
+    $script:mode = $mode; $script:observations = 0; $script:queries = 0
+    $child = [pscustomobject]@{ ProcessId = 700; ParentProcessId = 600; CreationDate = $script:created; ExecutablePath = $null }
+    $retained = [pscustomobject]@{ Id = 700 }
+    $retained | Add-Member ScriptMethod Refresh { $script:observations++ }
+    $retained | Add-Member ScriptMethod WaitForExit { param($milliseconds)
+        if ($milliseconds -ne 0) { throw 'Observer must not wait or reset the operation deadline' }
+        return ($script:mode -eq 'exited' -and $script:observations -gt 1)
+    }
+    $retained | Add-Member ScriptProperty Path {
+        if ($script:mode -eq 'late_cim') { return 'C:\owned\child.exe' }
+        if ($script:mode -in @('settled','cim_pending') -and $script:observations -gt 1) { return 'C:\owned\child.exe' }
+        return $null
+    }
+    $deadline = switch ($mode) {
+        'expired' { [DateTime]::UtcNow.AddMilliseconds(-1) }
+        'near_expiry' { [DateTime]::UtcNow.AddMilliseconds(500) }
+        'late_cim' { [DateTime]::UtcNow.AddMilliseconds(1500) }
+        default { [DateTime]::UtcNow.AddSeconds(5) }
+    }
+    $clock = [Diagnostics.Stopwatch]::StartNew()
+    try {
+        $result = Read-UninstallerChildImage $retained $child $deadline
+        [pscustomobject]@{ mode = $mode; exited = $result.exited; path = $result.path; cim_path = $result.child.ExecutablePath; error = $null; observations = $script:observations; queries = $script:queries; milliseconds = $clock.ElapsedMilliseconds }
+    } catch {
+        [pscustomobject]@{ mode = $mode; exited = $null; path = $null; error = $_.Exception.Message; observations = $script:observations; queries = $script:queries; milliseconds = $clock.ElapsedMilliseconds }
+    }
+}
+ConvertTo-Json -InputObject @($reports) -Compress
+`,
+      );
+      const result = spawnSync(
+        "pwsh.exe",
+        ["-NoLogo", "-NoProfile", "-File", fixture, "-Source", installerLifecycleTool],
+        { encoding: "utf8", windowsHide: true, timeout: 15_000 },
+      );
+      assert.equal(result.status, 0, result.stderr);
+      const reports = JSON.parse(result.stdout);
+      assert.equal(reports.length, 11);
+      const byMode = Object.fromEntries(reports.map((report) => [report.mode, report]));
+      assert.equal(byMode.settled.path, "C:\\owned\\child.exe");
+      assert.equal(byMode.settled.exited, false);
+      assert.ok(byMode.settled.observations >= 2);
+      assert.equal(byMode.exited.exited, true);
+      assert.equal(byMode.cim_pending.exited, false);
+      assert.equal(byMode.cim_pending.cim_path, null);
+      for (const mode of ["persistent", "expired", "near_expiry", "late_cim"]) {
+        assert.equal(byMode[mode].exited, false);
+        assert.equal(byMode[mode].path, null);
+        assert.equal(byMode[mode].error, null);
+      }
+      assert.equal(byMode.expired.queries, 0);
+      assert.equal(byMode.near_expiry.queries, 0);
+      assert.equal(byMode.late_cim.queries, 1);
+      for (const mode of ["wrong_pid", "wrong_parent", "wrong_creation", "ambiguous"]) {
+        assert.match(byMode[mode].error, /process identity (?:changed|is ambiguous)/);
+        assert.equal(byMode[mode].path, null);
+      }
+    } finally {
+      rmSync(temporary, { recursive: true, force: true });
+    }
+  },
+);
+
 let compiledFixtureRoot;
 after(() => {
   if (compiledFixtureRoot) rmSync(compiledFixtureRoot, { recursive: true, force: true });

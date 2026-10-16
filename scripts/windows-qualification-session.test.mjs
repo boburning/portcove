@@ -98,11 +98,25 @@ test("installer lifecycle waits for managed files and uninstall registration to 
     source,
     /Wait-JournaledUninstallerChild \$launch\.run \$AllowedRelocationRoot \$deadline/,
   );
-  assert.match(source, /if \(\$process\.HasExited\) \{ continue \}/);
+  const childWait = source.indexOf("function Wait-JournaledUninstallerChild");
+  const childWaitEnd = source.indexOf("\nfunction ", childWait + 1);
+  assert.ok(childWait >= 0 && childWaitEnd > childWait);
+  const childWaitSource = source.slice(childWait, childWaitEnd);
+  assert.match(
+    childWaitSource,
+    /\$initialHasExited = \$process\.HasExited\s+if \(\$initialHasExited\) \{ continue \}/,
+  );
+  assert.match(
+    childWaitSource,
+    /\$observation = Read-UninstallerChildImage \$process \$child \$Deadline\s+if \(\$observation\.exited\) \{ continue \}/,
+  );
+  assert.match(
+    childWaitSource,
+    /if \(\[string\]::IsNullOrWhiteSpace\(\$observedPath\) -or\s+\[string\]::IsNullOrWhiteSpace\(\[string\]\$child\.ExecutablePath\)\) \{[\s\S]*?\$refusalHasExited = \$process\.HasExited\s+if \(\$refusalHasExited\) \{ continue \}[\s\S]*?throw "Uninstaller child executable image path could not be observed"/,
+  );
   assert.match(source, /Uninstaller child executable image path could not be observed/);
   assert.match(source, /\$ProcessIdentityClockToleranceMilliseconds = 1000/);
   assert.match(source, /Windows may reuse its[\s\S]*PID/);
-  const childWait = source.indexOf("function Wait-JournaledUninstallerChild");
   const ownershipFilter = source.indexOf("$cimPath = [string]$child.ExecutablePath", childWait);
   const identityCheck = source.indexOf(
     "Owned uninstaller child process identity changed before observation",

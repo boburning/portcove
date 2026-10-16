@@ -552,6 +552,48 @@ function Complete-JournaledProcess($Run, $Process, [string]$Status) {
     if ($evidence) { Write-InstallerEvidence $evidence.phase }
 }
 
+function Read-UninstallerChildImage($Process, $Child, [DateTime]$Deadline) {
+    # Re-observe only this retained process. Image providers can briefly return
+    # no path while a short-lived self-copy is starting or exiting. This is an
+    # observation window inside the existing operation deadline, not a relaunch.
+    $imageDeadline = [DateTime]::UtcNow.AddSeconds(2)
+    if ($Deadline -lt $imageDeadline) { $imageDeadline = $Deadline }
+    $current = $Child
+    $observedPath = $null
+    do {
+        $Process.Refresh()
+        if ($Process.WaitForExit(0)) {
+            return [pscustomobject]@{ exited = $true; path = $null; child = $current }
+        }
+        try { $observedPath = $Process.Path } catch {
+            if ($Process.WaitForExit(0)) {
+                return [pscustomobject]@{ exited = $true; path = $null; child = $current }
+            }
+            throw
+        }
+        if ([DateTime]::UtcNow -ge $imageDeadline) { $observedPath = $null; break }
+        if (-not [string]::IsNullOrWhiteSpace($observedPath) -and
+            -not [string]::IsNullOrWhiteSpace([string]$current.ExecutablePath)) { break }
+        if ([DateTime]::UtcNow -ge $imageDeadline) { break }
+        Start-Sleep -Milliseconds 25
+        # CIM's timeout is expressed in whole seconds. Never start a query
+        # without its full budget, and never admit a result returned too late.
+        if (($imageDeadline - [DateTime]::UtcNow).TotalSeconds -lt 1) { $observedPath = $null; break }
+        $fresh = @(Get-CimInstance Win32_Process -Filter "ProcessId = $($Process.Id)" -OperationTimeoutSec 1)
+        if ([DateTime]::UtcNow -ge $imageDeadline) { $observedPath = $null; break }
+        if ($fresh.Count -gt 1) { throw "Uninstaller child process identity is ambiguous during image observation" }
+        if ($fresh.Count -eq 1) {
+            if ([int]$fresh[0].ProcessId -ne [int]$Child.ProcessId -or
+                [int]$fresh[0].ParentProcessId -ne [int]$Child.ParentProcessId -or
+                $fresh[0].CreationDate.ToUniversalTime() -ne $Child.CreationDate.ToUniversalTime()) {
+                throw "Uninstaller child process identity changed during image observation"
+            }
+            $current = $fresh[0]
+        }
+    } while ([DateTime]::UtcNow -lt $imageDeadline)
+    [pscustomobject]@{ exited = $false; path = $observedPath; child = $current }
+}
+
 function Wait-JournaledUninstallerChild($ParentRun, [string]$TemporaryRoot, [DateTime]$Deadline) {
     # NSIS's initial process starts an exact temporary self-copy and exits.
     # Its launcher's exit code does not establish completion of that child.
@@ -565,13 +607,12 @@ function Wait-JournaledUninstallerChild($ParentRun, [string]$TemporaryRoot, [Dat
             $initialHasExited = $process.HasExited
             if ($initialHasExited) { continue }
             $started = $process.StartTime.ToUniversalTime()
-            try {
-                $observedPath = $process.Path
-            } catch {
-                if ($process.HasExited) { continue }
-                throw
-            }
-            if ([string]::IsNullOrWhiteSpace($observedPath)) {
+            $observation = Read-UninstallerChildImage $process $child $Deadline
+            if ($observation.exited) { continue }
+            $observedPath = $observation.path
+            $child = $observation.child
+            if ([string]::IsNullOrWhiteSpace($observedPath) -or
+                [string]::IsNullOrWhiteSpace([string]$child.ExecutablePath)) {
                 # A short-lived cleanup child can exit between the HasExited
                 # observation above and reading its executable image. Treat it
                 # like a child that was already gone when this scan began.

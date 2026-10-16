@@ -31,7 +31,7 @@ pr-merge-rest *args:
     node scripts/pr-delivery.mjs merge {{args}}
 
 development-tools:
-    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/container-browser.test.mjs scripts/checked-git.test.mjs scripts/resource-status.test.mjs scripts/report-summary.test.mjs scripts/ci-metrics.test.mjs scripts/checkout-context.test.mjs scripts/github-body.test.mjs scripts/audit.test.mjs scripts/audit-evidence.test.mjs scripts/audit-archive.test.mjs scripts/audit-reuse.test.mjs scripts/desktop-build-cache.test.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-linux-native-session.test.mjs scripts/desktop-linux-stop.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-capabilities.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/handoff-evidence.test.mjs scripts/native-confirmation.test.mjs scripts/native-helper-dependencies.test.mjs scripts/frontend-command-preflight.test.mjs scripts/windows-helper-checks.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/precommit-check.test.mjs scripts/run-oxlint.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/process-lock.test.mjs scripts/renovate-fast-lane.test.mjs scripts/repository-skills.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
+    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/container-browser.test.mjs scripts/container-build.test.mjs scripts/checked-git.test.mjs scripts/resource-status.test.mjs scripts/report-summary.test.mjs scripts/ci-metrics.test.mjs scripts/checkout-context.test.mjs scripts/github-body.test.mjs scripts/audit.test.mjs scripts/audit-evidence.test.mjs scripts/audit-archive.test.mjs scripts/audit-reuse.test.mjs scripts/desktop-build-cache.test.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-linux-native-session.test.mjs scripts/desktop-linux-stop.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-capabilities.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/handoff-evidence.test.mjs scripts/native-confirmation.test.mjs scripts/native-helper-dependencies.test.mjs scripts/frontend-command-preflight.test.mjs scripts/windows-helper-checks.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/precommit-check.test.mjs scripts/run-oxlint.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/process-lock.test.mjs scripts/renovate-fast-lane.test.mjs scripts/repository-skills.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
 
 # Complete selected local loop; required hosted CI runs its separately selected plan.
 local-check *args:
@@ -83,6 +83,19 @@ container-export *args:
 
 container-clean *args:
     node scripts/container-browser.mjs clean {{args}}
+
+# Optional Ubuntu 22.04 checks/unsigned packages (#2007).
+container-build-doctor:
+    node scripts/container-build.mjs doctor
+
+container-build *args:
+    node scripts/container-build.mjs run {{args}}
+
+container-build-export *args:
+    node scripts/container-build.mjs export {{args}}
+
+container-build-clean *args:
+    node scripts/container-build.mjs clean {{args}}
 
 clean-build:
     node scripts/dev-storage.mjs clean
