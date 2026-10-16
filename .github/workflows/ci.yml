@@ -86,7 +86,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
       - name: Select the fail-closed CI plan
@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
       - name: Record exact workflow, checkout, toolchain, and build configuration
@@ -140,7 +140,7 @@ jobs:
             --observed-toolchains node \
             --output work/workflow-provenance/workflow-provenance.json
       - name: Upload attempt-specific workflow provenance
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: workflow-provenance-${{ inputs.provenance_scope || 'ci' }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: work/workflow-provenance/workflow-provenance.json
@@ -160,7 +160,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
       - name: Inspect validated prose prerequisites
@@ -189,7 +189,7 @@ jobs:
       PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
       - uses: ./.github/actions/setup-rust
@@ -234,7 +234,7 @@ jobs:
       - name: Retain diagnostic timings
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-timings-${{ github.job }}-${{ github.run_attempt }}
           path: work/ci-metrics/*.json
@@ -259,7 +259,7 @@ jobs:
           cache: true
           run-install: |
             args: ${{ needs.classify.outputs.frontend_workspace == 'true' && '[--frozen-lockfile]' || '[--filter, portcove-repository, --frozen-lockfile, --ignore-scripts]' }}
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: needs.classify.outputs.frontend_tools != 'true'
         with:
           node-version-file: .node-version
@@ -272,7 +272,7 @@ jobs:
         if: needs.classify.outputs.script_tools == 'true'
         id: aqua-version
         run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
-      - uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
+      - uses: aquaproj/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329 # v4.1.0
         if: needs.classify.outputs.script_tools == 'true'
         with:
           aqua_version: ${{ steps.aqua-version.outputs.version }}
@@ -287,7 +287,7 @@ jobs:
       - name: Retain diagnostic timings
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-timings-${{ github.job }}-${{ github.run_attempt }}
           path: work/ci-metrics/*.json
@@ -326,7 +326,7 @@ jobs:
         run: node scripts/ci-baseline.mjs frontend
       - name: Retain failed affected browser diagnostics
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: browser-traces-fast-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -354,7 +354,7 @@ jobs:
       - name: Retain diagnostic timings
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-timings-${{ github.job }}-${{ github.run_attempt }}
           path: work/ci-metrics/*.json
@@ -369,7 +369,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
       - uses: ./.github/actions/setup-rust
@@ -431,7 +431,7 @@ jobs:
         run: node scripts/check-ci-prose.integration.mjs
       - name: Retain failed clean prose diagnostics
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: prose-execution-${{ github.job }}-${{ github.run_attempt }}
           path: work/prose-ci-integration/
@@ -453,7 +453,7 @@ jobs:
       - name: Retain diagnostic timings
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-timings-${{ github.job }}-${{ github.run_attempt }}
           path: work/ci-metrics/*.json
@@ -581,7 +581,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
       - uses: ./.github/actions/setup-rust
@@ -686,7 +686,7 @@ jobs:
       - name: Cross-compile the full Intel test workspace
         run: cargo nextest archive --locked --workspace --target x86_64-apple-darwin --archive-file intel-tests.tar.zst
       - name: Upload this attempt's Intel test binaries
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: intel-rust-tests-${{ github.run_attempt }}
           path: intel-tests.tar.zst
@@ -721,7 +721,7 @@ jobs:
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Download this attempt's Intel test binaries
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: intel-rust-tests-${{ github.run_attempt }}
           path: work/intel-tests
@@ -830,7 +830,7 @@ jobs:
         shell: bash
         run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
       - name: Install pinned aqua
-        uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
+        uses: aquaproj/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329 # v4.1.0
         with:
           aqua_version: ${{ steps.aqua-version.outputs.version }}
           enable_aqua_install: "false"
@@ -863,7 +863,7 @@ jobs:
         run: node scripts/dependency-security.mjs
       - name: Preserve original dependency results and separate disposition
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: linux-beta-risk-706-${{ github.run_id }}-${{ github.run_attempt }}
           path: work/linux-beta-risk-706/
@@ -929,7 +929,7 @@ jobs:
         run: node scripts/run-fallow.mjs
       - name: Retain original Fallow reports
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fallow-full-${{ github.run_id }}-${{ github.run_attempt }}
           path: work/fallow-reports/
@@ -969,7 +969,7 @@ jobs:
         run: node scripts/run-viteplus.mjs run frontend:verify
       - name: Retain failed browser traces
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: browser-traces-full-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -1011,7 +1011,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -1023,7 +1023,7 @@ jobs:
         run: node scripts/check-ci-prose.integration.mjs
       - name: Retain failed clean prose diagnostics
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: prose-execution-${{ github.job }}-${{ github.run_attempt }}
           path: work/prose-ci-integration/
@@ -1122,7 +1122,7 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           package_json_file: package.json
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
       - name: Verify the contributor route has no global Vite+
@@ -1140,7 +1140,7 @@ jobs:
       - run: pnpm verify:frontend
       - name: Retain failed contributor browser diagnostics
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: browser-traces-contributor-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
