@@ -682,6 +682,7 @@ paths. General architecture, authority, review, and safety obligations remain in
 | `portcove-port-qualification`   | New-port investigation, catalog admission, or lifecycle requalification    | Ordinary product UI work; add `portcove-roadmap` when intake or live Project fields also change |
 | `portcove-release-validation`   | Release, package, updater, signing, or protected release-policy validation | Permission to publish, sign, change keys, or widen authority                                    |
 | `portcove-roadmap`              | Issue intake, dependency, live Project, or readiness reconciliation        | Product implementation without planning mutations                                               |
+| `portcove-daily-discovery`      | Daily incremental native-port research and neutral canonical intake        | Port implementation, catalog admission, release planning or gameplay qualification              |
 
 The reusable Windows diagnostics skill is installed in the user's Codex skill
 directory and can be used outside Portcove. Keep a repository skill focused:

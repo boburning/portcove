@@ -4963,7 +4963,7 @@ export class RoadmapClient {
     return item;
   }
 
-  createPortIssue({ title, upstream, catalogId, portKey }) {
+  createPortIssue({ title, upstream, catalogId, portKey, onIssueCreated = () => {} }) {
     const issueTitle = `[Port] ${title}`;
     const issues = this.repositoryIssues();
     const duplicates = findPortIssueDuplicates(issues, {
@@ -4986,6 +4986,8 @@ export class RoadmapClient {
     }).body;
     if (!issue?.node_id || !issue?.html_url)
       throw new Error("GitHub did not return the created issue identity");
+    // Retain canonical identity before a separately fallible Project mutation.
+    onIssueCreated(issue);
     const item = this.ensureIssueItem(issue.node_id);
     this.setItemFields(item.id, {
       ...neutralPortFields,
@@ -4998,10 +5000,28 @@ export class RoadmapClient {
     if (!canonicalPortTitlePrefix.test(issue.title ?? "")) {
       throw new Error(`issue #${number} title must begin with the canonical [Port] prefix`);
     }
-    const form = parsePortIssueForm(issue.body);
     const ids = portCatalogMarkers(issue.body);
     if (ids.length > 1) throw new Error(`issue #${number} claims multiple catalog IDs`);
     const catalogId = ids[0] ?? null;
+    let form;
+    if (/^###\s+(?:Direct upstream URL|Durable game or target key)\s*$/imu.test(issue.body)) {
+      form = parsePortIssueForm(issue.body);
+    } else {
+      // Direct capture emits reviewed canonical markers rather than public-form sections.
+      const upstreams = portUpstreamMarkers(issue.body);
+      const keys = portKeyMarkers(issue.body);
+      if (
+        !/<!--\s*portcove-port\s*-->/u.test(issue.body) ||
+        upstreams.length !== 1 ||
+        keys.length > 1 ||
+        (!keys.length && !catalogId)
+      )
+        throw new Error("captured port recovery requires one canonical upstream and port identity");
+      form = parsePortIssueForm(
+        `### Direct upstream URL\n\n${upstreams[0]}\n\n### Durable game or target key\n\n${keys[0] ?? catalogId}`,
+      );
+      if (!keys.length) form.portKey = null;
+    }
     if (catalogId && !(catalog?.ports ?? []).some((port) => port.id === catalogId)) {
       throw new Error(`issue #${number} claims unknown catalog ID ${catalogId}`);
     }
@@ -5513,6 +5533,24 @@ async function main(argv) {
         upstream: url,
         catalogId: parsed.options["--catalog-id"],
         portKey: parsed.options["--port-key"],
+        onIssueCreated: (issue) => {
+          const directory = path.join(projectRoot, "work", "roadmap-intake");
+          mkdirSync(directory, { recursive: true });
+          const receipt = path.join(directory, `${issue.number}-${randomUUID()}.json`);
+          writeFileSync(
+            receipt,
+            JSON.stringify({
+              issue: issue.html_url,
+              number: issue.number,
+              node_id: issue.node_id,
+              created_at: new Date().toISOString(),
+              phase: "issue-created-project-unconfirmed",
+              resume: `normalize-port --issue ${issue.number}`,
+            }),
+            { flag: "wx" },
+          );
+          console.log(`Canonical issue created: ${issue.html_url}; recovery receipt: ${receipt}`);
+        },
       });
       console.log(
         `Created durable port issue ${item.html_url} and added it to the Portcove Roadmap (${item.itemId}).`,

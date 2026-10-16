@@ -66,6 +66,7 @@ on the owning issue/PR. Freeze source while final checks run.
 | Docs/assets                       | [Required baseline](docs/QUALITY.md#required-hosted-baseline); owning contract and link tests                  |
 | PR/review/merge                   | [Contribution conventions](docs/CONTRIBUTION-CONVENTIONS.md#review-and-merge)                                  |
 | Intake/planning/readiness         | `portcove-roadmap`; [pickup](docs/PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep)               |
+| Daily port discovery              | `portcove-daily-discovery`; [investigation](docs/DAILY-PORT-DISCOVERY.md)                                      |
 | Explicit native acceptance        | `portcove-desktop-verification`                                                                                |
 | New/requalified port              | `portcove-port-qualification`                                                                                  |
 | Release/installer/updater/signing | `portcove-release-validation`                                                                                  |
