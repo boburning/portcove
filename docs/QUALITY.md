@@ -69,10 +69,15 @@ changes and root dependencies separately. Preserve nextest's two slots,
 heavyweight reservations, default 30-second test budgets and process/resource/storage guards.
 The owner's [October 15 #706 timing calibration](https://github.com/boburning/portcove/issues/706#issuecomment-6190196270)
 and [exact cancellation-latch addendum](https://github.com/boburning/portcove/issues/706#issuecomment-6191752545)
-permit only three ten-second whole-install-to-copy latches on Intel macOS:
+originally permit three ten-second whole-install-to-copy latches on Intel macOS:
 `curated_cache_retention_revocation_during_copy_refuses_publication`,
 `curated_cache_retention_withdrawal_during_copy_refuses_publication` and
 `curated_cache_retention_cancellation_preserves_partial_after_worker_exit`.
+The [#2004 two-case continuation](https://github.com/boburning/portcove/issues/706#issuecomment-6205805576)
+adds only `curated_cache_policy_loss_during_copy_refuses_publication_and_preserves_bytes`
+and `curated_cache_restore_revocation_during_copy_preserves_cached_bytes` to that
+Intel macOS ten-second branch, preserving the whole-install timer origin and
+thirty-second overall budgets.
 The same approval permits a 45-second nextest budget only on
 `x86_64-apple-darwin` for
 `curated_rollback_withdrawal_permits_exact_retained_target`, alongside the existing

@@ -1963,12 +1963,15 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     });
     // Owner-approved #706 calibration (issuecomments 6190196270/6191752545): preserve the
     // whole-install starting point and every actual partial-copy assertion.
+    // #2004 adds exactly PolicyLoss/ArtifactRevocationRestore (issuecomment 6205805576).
     let latch_timeout = if cfg!(all(target_os = "macos", target_arch = "x86_64"))
         && matches!(
             intervention,
             CacheIntervention::CancelRetain
                 | CacheIntervention::ArtifactRevocationRetain
                 | CacheIntervention::ArtifactWithdrawalRetain
+                | CacheIntervention::PolicyLoss
+                | CacheIntervention::ArtifactRevocationRestore
         ) {
         Duration::from_secs(10)
     } else {
@@ -3246,6 +3249,9 @@ async fn curated_installer_boundary_fixture(
         );
         if iteration == 0 {
             let installer = crate::Installer::new(library.clone()).unwrap();
+            let qualification =
+                crate::InstallQualification::from_catalog(&catalog, ID, record.platform).unwrap();
+            phase("immutable install qualification captured");
             let request =
                 |resolution: crate::ScopedResolvedRelease, _suffix: &str| crate::InstallRequest {
                     port_id: ID.into(),
@@ -3253,14 +3259,10 @@ async fn curated_installer_boundary_fixture(
                     output_root: library.versions_dir().join(ID),
                     activate: false,
                     managed: None,
-                    qualification: crate::InstallQualification::from_catalog(
-                        &catalog,
-                        ID,
-                        record.platform,
-                    )
-                    .unwrap()
-                    .with_acquisition_resolution(resolution)
-                    .unwrap(),
+                    qualification: qualification
+                        .clone()
+                        .with_acquisition_resolution(resolution)
+                        .unwrap(),
                 };
             // Metadata substitution, changed bytes and interrupted cache
             // population are qualified by the dedicated acquisition/cache

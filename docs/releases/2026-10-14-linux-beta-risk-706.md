@@ -316,3 +316,29 @@ The full resolved native inventory, Cargo lock, feature set and build-environmen
 entry match the preceding candidate. Production source and APIs are unchanged.
 Only `reconfirmedHead` and `inputsSha256` change in the protected record; the
 original finding, failed scans, expiry, scope and publication hold remain intact.
+
+## October 15 consolidation timing continuation
+
+The owner [approved exactly two further Intel copy-latch cases](https://github.com/boburning/portcove/issues/706#issuecomment-6205805576)
+during #2004 delivery: `PolicyLoss` and `ArtifactRevocationRestore`. Their
+whole-install-to-copy latch joins the existing Intel macOS ten-second branch.
+Other cases and platforms retain their existing limits. Timer origin, every
+actual partial/incomplete-copy, intervention, unfinished-worker, drain, journal,
+byte-preservation and cleanup assertion, the thirty-second whole-test budget,
+two-slot reservation and zero retries remain unchanged. The complete embedded
+catalog and authenticated selected-definition binding remain in the fixture.
+
+Run `38830800384`, attempt 1, retains both failures at five seconds: PolicyLoss
+first reached the actual 64 KiB copy 5.756 seconds after installer start;
+ArtifactRevocationRestore timed out without reaching the copy latch. A later
+refusal does not establish intervention during copying. Ten seconds remains a
+bounded trial requiring successful affected tests, independent review and full
+current-head qualification. This timing authority changes no advisory, expiry,
+scanner outcome, product deadline or publication hold.
+
+The two separate whole-test installer failures receive no time extension. Their
+unchanged catalog/platform qualification is captured once and cloned per request;
+each request still performs its live acquisition-resolution and installer checks.
+All actual metadata reads, refusals, installs, corruption/capacity checks and
+preservation assertions remain. Eight affected Windows cases passed before the
+copy-latch continuation; Intel completion remains a separate hosted obligation.
