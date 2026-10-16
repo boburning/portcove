@@ -13,7 +13,8 @@ COPY --chown=vp:vp container-entry.mjs /portcove/container-entry.mjs
 USER vp
 RUN git clone --branch container-selected /portcove/source.bundle /workspace
 WORKDIR /workspace
-RUN test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT" && test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"+# The complete committed tree includes every manifest, patch and lifecycle input.
+RUN test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT" && test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"
+# The complete committed tree includes every manifest, patch and lifecycle input.
 RUN vp install --frozen-lockfile
 RUN node apps/desktop/scripts/browser-package-compatibility.mjs
 USER root
