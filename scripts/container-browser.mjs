@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
   appendFileSync,
@@ -67,8 +67,24 @@ export function command(commandName, args, { cwd = root, timeout = 15_000, signa
     let bytes = 0;
     let problem;
     let force;
+    let exited = false;
+    child.on("exit", () => {
+      exited = true;
+    });
     const stop = (reason) => {
       problem ??= reason;
+      if (exited) return;
+      if (process.platform === "win32" && child.pid) {
+        // Git and Docker's Windows launchers own companion processes. Stop the
+        // still-owned live tree before its parent disappears and loses custody.
+        const drained = spawnSync("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], {
+          windowsHide: true,
+          timeout: 10_000,
+          encoding: "utf8",
+        });
+        if (drained.error || drained.status !== 0)
+          problem.drain_error = drained.error?.message ?? drained.stderr;
+      }
       child.kill();
       force ??= setTimeout(() => child.kill("SIGKILL"), 1000);
     };
@@ -790,6 +806,11 @@ export async function browser({
     if (usage.bytes > budgets.images_bytes)
       throw new Error("Owned image budget exhausted; inspect scoped cleanup");
     const preparing = Date.now();
+    const setupTimeout = (limit = budgets.setup_ms) => {
+      const remaining = budgets.setup_ms - (Date.now() - preparing);
+      if (remaining <= 0) throw new Error("Browser preparation exceeded its 30-minute budget");
+      return Math.min(limit, remaining);
+    };
     let image = usage.images.find((candidate) => candidate.RepoTags?.includes(tag));
     if (!image) {
       const diskUsage = (await docker(["system", "df", "--format", "json"], { timeout: 30_000 }))
@@ -809,14 +830,18 @@ export async function browser({
       console.error(`Preparing ${tag} from committed ${commit}`);
       const snapshot = path.join(directory, "snapshot");
       await command("git", ["clone", "--shared", "--no-checkout", root, snapshot], {
-        timeout: 60_000,
+        timeout: setupTimeout(60_000),
       });
       await git(["update-ref", "refs/heads/container-selected", commit], snapshot);
       const bundle = path.join(directory, "source.bundle");
-      await command("git", ["bundle", "create", bundle, "refs/heads/container-selected"], {
-        cwd: snapshot,
-        timeout: 120_000,
-      });
+      await command(
+        "git",
+        ["-c", "pack.threads=2", "bundle", "create", bundle, "refs/heads/container-selected"],
+        {
+          cwd: snapshot,
+          timeout: setupTimeout(300_000),
+        },
+      );
       if (statSync(bundle).size > budgets.bundle_bytes)
         throw new Error("Committed-source bundle exceeds 256 MiB");
       await git(["bundle", "verify", bundle], snapshot);
@@ -857,7 +882,7 @@ export async function browser({
           ].flatMap((key) => ["--build-arg", `${key}=`]),
           directory,
         ],
-        { timeout: budgets.setup_ms, signal: abort.signal },
+        { timeout: setupTimeout(), signal: abort.signal },
       );
       writeFileSync(path.join(directory, "build.log"), build.stdout + build.stderr);
       image = JSON.parse((await docker(["image", "inspect", tag])).stdout)[0];

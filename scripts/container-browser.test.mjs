@@ -354,3 +354,32 @@ test("a failing diagnostic sink does not replace the actual child failure", asyn
     rmSync(directory, { recursive: true });
   }
 });
+
+test(
+  "Windows timeout drains the owned launcher's actual descendant",
+  { skip: process.platform !== "win32" },
+  async () => {
+    await assert.rejects(
+      command(
+        process.execPath,
+        [
+          "-e",
+          `
+    const {spawn}=require('node:child_process');
+    const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});
+    console.log(child.pid);
+    setInterval(()=>{},1000);
+  `,
+        ],
+        { timeout: 1500 },
+      ),
+      (error) => {
+        const descendant = Number(error.result.stdout.trim());
+        assert(Number.isInteger(descendant) && descendant > 0);
+        assert.throws(() => process.kill(descendant, 0), { code: "ESRCH" });
+        assert.match(error.message, /exceeded 1500 ms/u);
+        return true;
+      },
+    );
+  },
+);
