@@ -6,7 +6,11 @@ import path from "node:path";
 // the selected committed tree, including no untracked discoverable test files.
 export function assertCommittedWorkspace(root, commit, tree) {
   const git = (...args) => {
-    const result = spawnSync("git", args, { cwd: root, encoding: "utf8", timeout: 10_000 });
+    const result = spawnSync("git", args, {
+      cwd: root,
+      encoding: "utf8",
+      timeout: args[0] === "status" ? 60_000 : 10_000,
+    });
     if (result.error || result.status !== 0) throw result.error ?? new Error(result.stderr);
     return result.stdout.trimEnd();
   };

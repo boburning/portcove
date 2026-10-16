@@ -9,7 +9,6 @@ ENV CI=true VP_GIT_HOOKS=0
 USER root
 RUN mkdir /workspace /portcove && chown vp:vp /workspace /portcove
 COPY --chown=vp:vp source.bundle /portcove/source.bundle
-COPY --chown=vp:vp container-entry.mjs /portcove/container-entry.mjs
 USER vp
 RUN git clone --branch container-selected /portcove/source.bundle /workspace
 WORKDIR /workspace
@@ -26,5 +25,6 @@ USER vp
 RUN node apps/desktop/scripts/browser-runtime.mjs bootstrap
 RUN pnpm list --recursive --depth Infinity --json > /portcove/installed-npm-packages.json
 RUN node -e "const {execFileSync}=require('node:child_process'); require('node:fs').writeFileSync('/portcove/tool-versions.json', JSON.stringify(Object.fromEntries(['node','pnpm','vp'].map(command => [command,execFileSync(command,['--version'],{encoding:'utf8'}).trim()]))));"
-RUN node scripts/container-source.mjs "$SOURCE_COMMIT" "$SOURCE_TREE"
+COPY --chown=vp:vp container-entry.mjs container-source.mjs /portcove/
+RUN node /portcove/container-source.mjs "$SOURCE_COMMIT" "$SOURCE_TREE"
 ENTRYPOINT ["node", "/portcove/container-entry.mjs"]

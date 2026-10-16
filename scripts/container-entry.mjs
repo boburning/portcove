@@ -13,7 +13,7 @@ import {
   appendFileSync,
 } from "node:fs";
 import path from "node:path";
-import { assertCommittedWorkspace } from "/workspace/scripts/container-source.mjs";
+import { assertCommittedWorkspace } from "./container-source.mjs";
 
 const root = "/workspace";
 const output = path.join(root, "work/container-results");

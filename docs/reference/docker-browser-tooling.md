@@ -73,7 +73,10 @@ canonical Chromium headless-shell bootstrap. No Rust or packaging toolchain is
 added. The upstream image's sudo facility is removed before task execution.
 
 Prepared images are specific to the source commit/tree, base, architecture,
-recipe/entry bytes and workspace owner. Reusing one avoids preparation; every
+recipe/entry/integrity-guard bytes and workspace owner. Adapter files enter
+after full-source dependency preparation; changing them cannot reuse test results
+and need not invalidate unchanged dependency layers. The selected source and
+the host driver's revision/hashes are recorded separately. Reusing an image avoids preparation; every
 requested test command executes again. Neither an image cache hit nor a task
 replay supplies acceptance. Image ID, actual tool versions, installed npm/system
 packages and observed Chromium version accompany results. Mutable Debian package

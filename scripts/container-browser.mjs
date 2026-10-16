@@ -36,6 +36,7 @@ const evidenceRoot = path.join(
 );
 const recipe = path.join(root, "tools/containers/browser/Dockerfile");
 const entry = path.join(root, "scripts/container-entry.mjs");
+const guard = path.join(root, "scripts/container-source.mjs");
 const GiB = 1024 ** 3;
 export const budgets = Object.freeze({
   timeout_ms: 30 * 60_000,
@@ -362,14 +363,11 @@ export async function doctor({ networkRequired = true } = {}) {
     minimumFreeGiB(),
   );
   await validateEvidenceStore(evidenceRoot);
-  const linux = await command("wsl.exe", [
-    "--distribution",
-    "docker-desktop",
-    "--exec",
-    "df",
-    "-Pk",
-    "/mnt/docker-desktop-disk",
-  ]);
+  const linux = await command(
+    "wsl.exe",
+    ["--distribution", "docker-desktop", "--exec", "df", "-Pk", "/mnt/docker-desktop-disk"],
+    { timeout: 60_000 },
+  );
   const linuxFree = linuxStorage(linux.stdout);
   const stagingBytes = size(stageRoot);
   const evidenceBytes = size(evidenceRoot);
@@ -794,6 +792,7 @@ export async function browser({
     host_sha256: hash(readFileSync(fileURLToPath(import.meta.url))),
     recipe_sha256: hash(readFileSync(recipe)),
     entry_sha256: hash(readFileSync(entry)),
+    guard_sha256: hash(readFileSync(guard)),
   };
   const stateFile = path.join(directory, "host.json");
   const save = () => record(stateFile, state);
@@ -824,6 +823,7 @@ export async function browser({
         base: base[1],
         recipe: hash(text),
         entry: hash(readFileSync(entry)),
+        guard: hash(readFileSync(guard)),
         platform: "linux/amd64",
         workspace,
       }),
@@ -880,9 +880,10 @@ export async function browser({
       state.bundle = { bytes: statSync(bundle).size, sha256: hash(readFileSync(bundle)) };
       copyFileSync(recipe, path.join(directory, "Dockerfile"));
       copyFileSync(entry, path.join(directory, "container-entry.mjs"));
+      copyFileSync(guard, path.join(directory, "container-source.mjs"));
       writeFileSync(
         path.join(directory, ".dockerignore"),
-        "**\n!Dockerfile\n!source.bundle\n!container-entry.mjs\n",
+        "**\n!Dockerfile\n!source.bundle\n!container-entry.mjs\n!container-source.mjs\n",
       );
       if (size(stageRoot) > budgets.staging_bytes)
         throw new Error("Owned staging exceeds its 10 GiB budget");
