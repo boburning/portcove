@@ -10,7 +10,7 @@ for (const locale of ["en", "ar-XB"]) {
   copyFileSync(join("src", "locales", locale, "settings.json"), join(localeRoot, "settings.json"));
 }
 const environment = { ...process.env, PORTCOVE_I18N_NEGATIVE_ROOT: temporaryRoot };
-const run = (command) =>
+const run = (command: "extract" | "lint") =>
   spawnSync(
     process.execPath,
     [

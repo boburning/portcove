@@ -1,21 +1,54 @@
-import { errorCode } from "./runtime-values.mts";
+import { errorCode, isRecord } from "./runtime-values.mts";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-export function isProcessAlive(pid) {
+export interface ProcessLockOwner {
+  format_version: 1;
+  pid: number;
+  token: string;
+  created_at: string;
+  workspace?: unknown;
+  command?: unknown;
+}
+export interface ProcessLockMetadata {
+  workspace?: string | null;
+  command?: string;
+  profile?: string | null;
+  scenarios?: readonly string[];
+}
+export interface ProcessLockOptions {
+  label?: string;
+  isProcessAlive?: (pid: number) => boolean;
+  inheritedToken?: string | undefined;
+}
+function isLockOwner(owner: unknown): owner is ProcessLockOwner {
+  return (
+    isRecord(owner) &&
+    owner.format_version === 1 &&
+    typeof owner.pid === "number" &&
+    Number.isInteger(owner.pid) &&
+    owner.pid > 0 &&
+    typeof owner.token === "string" &&
+    owner.token.length > 0 &&
+    typeof owner.created_at === "string" &&
+    !Number.isNaN(Date.parse(owner.created_at))
+  );
+}
+
+export function isProcessAlive(pid: number) {
   if (!Number.isInteger(pid) || pid < 1) return false;
   try {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    return error.code !== "ESRCH";
+    return errorCode(error) !== "ESRCH";
   }
 }
 
-async function readOwner(lockPath: string, label) {
+async function readOwner(lockPath: string, label: string) {
   const ownerPath = path.join(lockPath, "owner.json");
-  let owner;
+  let owner: unknown;
   try {
     owner = JSON.parse(await readFile(ownerPath, "utf8"));
   } catch (error) {
@@ -23,14 +56,7 @@ async function readOwner(lockPath: string, label) {
       cause: error,
     });
   }
-  if (
-    owner?.format_version !== 1 ||
-    !Number.isInteger(owner.pid) ||
-    owner.pid < 1 ||
-    typeof owner.token !== "string" ||
-    !owner.token ||
-    Number.isNaN(Date.parse(owner.created_at))
-  ) {
+  if (!isLockOwner(owner)) {
     throw new Error(`${label} lock has invalid owner metadata: ${ownerPath}`);
   }
   return owner;
@@ -38,12 +64,12 @@ async function readOwner(lockPath: string, label) {
 
 export const readProcessLockOwner = readOwner;
 
-async function releaseOwnedLock(lockPath, token, label) {
+async function releaseOwnedLock(lockPath: string, token: string, label: string) {
   let owner;
   try {
     owner = await readOwner(lockPath, label);
   } catch (error) {
-    if (error.cause?.code === "ENOENT") return;
+    if (isRecord(error) && errorCode(error.cause) === "ENOENT") return;
     throw error;
   }
   if (owner.token !== token)
@@ -53,7 +79,11 @@ async function releaseOwnedLock(lockPath, token, label) {
   await rm(released, { recursive: true });
 }
 
-export async function acquireOwnedProcessLock(lockPath: string, metadata = {}, options = {}) {
+export async function acquireOwnedProcessLock(
+  lockPath: string,
+  metadata: ProcessLockMetadata = {},
+  options: ProcessLockOptions = {},
+) {
   const resolved = path.resolve(lockPath);
   const label = options.label ?? "Process";
   const alive = options.isProcessAlive ?? isProcessAlive;
@@ -93,7 +123,7 @@ export async function acquireOwnedProcessLock(lockPath: string, metadata = {}, o
         release: () => releaseOwnedLock(resolved, token, label),
       };
     } catch (error) {
-      if (error.code !== "EEXIST") throw error;
+      if (errorCode(error) !== "EEXIST") throw error;
       const active = await readOwner(resolved, label);
       if (alive(active.pid)) {
         throw new Error(
@@ -105,7 +135,7 @@ export async function acquireOwnedProcessLock(lockPath: string, metadata = {}, o
       try {
         await rename(resolved, stalePath);
       } catch (renameError) {
-        if (["ENOENT", "EEXIST"].includes(errorCode(renameError))) continue;
+        if (["ENOENT", "EEXIST"].includes(errorCode(renameError) ?? "")) continue;
         throw renameError;
       }
       await rm(stalePath, { recursive: true });

@@ -44,6 +44,7 @@ export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
   [helper("desktop-native-confirmation.mts")]: Object.freeze(["../../../scripts/dev-storage.mts"]),
 });
 export const nativeHelperSharedSources = Object.freeze([
+  "scripts/runtime-values.mts",
   ...new Set(
     Object.values(nativeWrapperSharedImports)
       .flat()

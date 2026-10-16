@@ -1,3 +1,10 @@
+import { isRecord } from "./runtime-values.mts";
+import type {
+  SpawnSyncOptions,
+  SpawnSyncOptionsWithStringEncoding,
+  SpawnSyncOptionsWithBufferEncoding,
+  SpawnSyncReturns,
+} from "node:child_process";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -16,37 +23,95 @@ const pinFiles = [
   "package.json",
 ];
 
-function sha256(value) {
+export interface ToolCachePins {
+  aquaVersion: string;
+  aquaSemver: string;
+  packageManager: string;
+  bootstrap: {
+    schema_version: number;
+    aqua?: {
+      release_base?: string;
+      artifacts: Readonly<Record<string, { archive?: string; sha256: string }>>;
+    };
+    desktop?: { tauri_driver: string; edge_driver_base: string };
+  };
+  fingerprint: string;
+  aquaFingerprint: string;
+}
+export interface ToolCacheOptions {
+  projectRoot?: string;
+  environment?: NodeJS.ProcessEnv;
+  platform?: string;
+  architecture?: string;
+  pins?: ToolCachePins;
+}
+export type ToolCachePaths = ReturnType<typeof toolCachePaths>;
+export interface ToolEnvironmentOptions extends ToolCacheOptions {
+  paths?: ToolCachePaths;
+}
+export interface PinnedAquaOptions extends ToolEnvironmentOptions {
+  osArchitecture?: string;
+  probe?: (
+    command: string,
+    args: readonly string[],
+    options: SpawnSyncOptionsWithStringEncoding,
+  ) => { status: number | null; stdout?: string | null; error?: unknown };
+}
+
+function sha256(value: string | Uint8Array) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function sha256File(file) {
+function sha256File(file: string) {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
 }
 
-export function readToolPins(root = projectRoot) {
-  const bootstrap = JSON.parse(
+export function readToolPins(root = projectRoot): ToolCachePins {
+  const bootstrap: unknown = JSON.parse(
     readFileSync(path.join(root, ".config", "tool-bootstrap.json"), "utf8"),
   );
-  if (bootstrap.schema_version !== 1) throw new Error("tool bootstrap schema_version must be 1");
-  if (bootstrap.aqua?.release_base !== "https://github.com/aquaproj/aqua/releases/download")
+  if (!isRecord(bootstrap) || bootstrap.schema_version !== 1)
+    throw new Error("tool bootstrap schema_version must be 1");
+  if (
+    !isRecord(bootstrap.aqua) ||
+    bootstrap.aqua.release_base !== "https://github.com/aquaproj/aqua/releases/download"
+  )
     throw new Error("Aqua downloads must use the official release origin");
+  if (!isRecord(bootstrap.aqua.artifacts)) throw new Error("Aqua artifacts must be an object");
+  const artifacts: Record<string, { archive: string; sha256: string }> = {};
   for (const architecture of ["win32-x64", "win32-arm64"]) {
-    const artifact = bootstrap.aqua?.artifacts?.[architecture];
+    const artifact = bootstrap.aqua.artifacts[architecture];
+    if (
+      !isRecord(artifact) ||
+      typeof artifact.archive !== "string" ||
+      typeof artifact.sha256 !== "string"
+    )
+      throw new Error(`invalid Aqua artifact for ${architecture}`);
     if (!/^aqua_windows_(?:amd64|arm64)\.zip$/u.test(artifact?.archive ?? ""))
       throw new Error(`invalid Aqua archive for ${architecture}`);
     if (!/^[A-F0-9]{64}$/u.test(artifact?.sha256 ?? ""))
       throw new Error(`invalid Aqua SHA-256 for ${architecture}`);
+    artifacts[architecture] = { archive: artifact.archive, sha256: artifact.sha256 };
   }
-  if (!/^\d+\.\d+\.\d+$/u.test(bootstrap.desktop?.tauri_driver ?? ""))
+  if (
+    !isRecord(bootstrap.desktop) ||
+    typeof bootstrap.desktop.tauri_driver !== "string" ||
+    !/^\d+\.\d+\.\d+$/u.test(bootstrap.desktop.tauri_driver)
+  )
     throw new Error("tauri-driver must use an exact semantic version");
   if (bootstrap.desktop?.edge_driver_base !== "https://msedgedriver.microsoft.com")
     throw new Error("EdgeDriver downloads must use Microsoft's official origin");
   const aquaVersion = readFileSync(path.join(root, ".aqua-version"), "utf8").trim();
   if (!/^v\d+\.\d+\.\d+$/u.test(aquaVersion))
     throw new Error(".aqua-version must contain an exact v-prefixed semantic version");
-  const repositoryPackage = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
-  if (!/^pnpm@\d+\.\d+\.\d+$/u.test(repositoryPackage.packageManager ?? ""))
+  const repositoryPackage: unknown = JSON.parse(
+    readFileSync(path.join(root, "package.json"), "utf8"),
+  );
+  if (
+    !isRecord(repositoryPackage) ||
+    typeof repositoryPackage.packageManager !== "string" ||
+    !/^pnpm@\d+\.\d+\.\d+$/u.test(repositoryPackage.packageManager)
+  )
     throw new Error("repository packageManager must pin an exact pnpm version");
   const fingerprint = sha256(
     pinFiles.map((name: string) => `${name}\0${readFileSync(path.join(root, name))}`).join("\0"),
@@ -62,13 +127,20 @@ export function readToolPins(root = projectRoot) {
     aquaVersion,
     aquaSemver: aquaVersion.slice(1),
     packageManager: repositoryPackage.packageManager,
-    bootstrap,
+    bootstrap: {
+      schema_version: bootstrap.schema_version,
+      aqua: { release_base: bootstrap.aqua.release_base, artifacts },
+      desktop: {
+        tauri_driver: bootstrap.desktop.tauri_driver,
+        edge_driver_base: bootstrap.desktop.edge_driver_base,
+      },
+    },
     fingerprint,
     aquaFingerprint,
   };
 }
 
-function defaultSharedRoot(environment, platform) {
+function defaultSharedRoot(environment: NodeJS.ProcessEnv, platform: string) {
   if (platform === "win32") {
     const localAppData = environment.LOCALAPPDATA;
     if (!localAppData || !path.win32.isAbsolute(localAppData))
@@ -80,7 +152,7 @@ function defaultSharedRoot(environment, platform) {
   return path.join(os.homedir(), ".cache", "portcove");
 }
 
-export function toolCachePaths(options = {}) {
+export function toolCachePaths(options: ToolCacheOptions = {}) {
   const root = path.resolve(options.projectRoot ?? projectRoot);
   const environment = options.environment ?? process.env;
   const platform = options.platform ?? process.platform;
@@ -90,7 +162,11 @@ export function toolCachePaths(options = {}) {
     linux: new Set(["x64", "arm64"]),
     darwin: new Set(["x64", "arm64"]),
   };
-  if (!supportedArchitectures[platform]?.has(architecture))
+  if (
+    !Object.entries(supportedArchitectures).some(
+      ([name, architectures]) => name === platform && architectures.has(architecture),
+    )
+  )
     throw new Error(`unsupported tool-cache platform or architecture: ${platform}/${architecture}`);
   const pins = options.pins ?? readToolPins(root);
   const configured = environment.PORTCOVE_SHARED_TOOL_CACHE;
@@ -118,11 +194,14 @@ export function toolCachePaths(options = {}) {
   };
 }
 
-function pathKey(environment) {
+function pathKey(environment: NodeJS.ProcessEnv) {
   return Object.keys(environment).find((key: string) => key.toLowerCase() === "path") ?? "PATH";
 }
 
-export function checkoutToolEnvironment(baseEnvironment = process.env, options = {}) {
+export function checkoutToolEnvironment(
+  baseEnvironment: NodeJS.ProcessEnv = process.env,
+  options: ToolEnvironmentOptions = {},
+) {
   const paths = options.paths ?? toolCachePaths(options);
   const environment = { ...baseEnvironment };
   const key = pathKey(environment);
@@ -141,17 +220,18 @@ export function checkoutToolEnvironment(baseEnvironment = process.env, options =
   return environment;
 }
 
-export function readToolState(options = {}) {
+export function readToolState(options: ToolEnvironmentOptions = {}) {
   const paths = options.paths ?? toolCachePaths(options);
   if (!existsSync(paths.statePath)) return null;
-  let state;
+  let state: unknown;
   try {
     state = JSON.parse(readFileSync(paths.statePath, "utf8"));
   } catch {
     return null;
   }
   if (
-    state?.format_version !== 1 ||
+    !isRecord(state) ||
+    state.format_version !== 1 ||
     state?.pin_fingerprint !== paths.pins.fingerprint ||
     state?.shared_root !== paths.sharedRoot ||
     state?.shim_directory !== paths.shimDirectory ||
@@ -162,7 +242,7 @@ export function readToolState(options = {}) {
   return state;
 }
 
-let windowsOSArchitecture;
+let windowsOSArchitecture: string | undefined;
 
 function readWindowsOSArchitecture() {
   if (windowsOSArchitecture) return windowsOSArchitecture;
@@ -186,7 +266,7 @@ function readWindowsOSArchitecture() {
   return architecture;
 }
 
-export function pinnedAquaCommand(options = {}) {
+export function pinnedAquaCommand(options: PinnedAquaOptions = {}) {
   const platform = options.platform ?? process.platform;
   if (platform !== "win32") return "aqua";
   const paths = options.paths ?? toolCachePaths(options);
@@ -198,13 +278,17 @@ export function pinnedAquaCommand(options = {}) {
   const repair = "run ./scripts/bootstrap-quality-tools.ps1";
   if (!artifact || state?.aqua !== paths.aquaExecutable)
     throw new Error(`Pinned Aqua checkout state is unavailable; ${repair}`);
-  let receipt;
+  let receipt: unknown;
   try {
     receipt = JSON.parse(readFileSync(`${paths.aquaExecutable}.receipt.json`, "utf8"));
   } catch {
     throw new Error(`Pinned Aqua cache receipt is unavailable; ${repair}`);
   }
-  if (receipt.version !== paths.pins.aquaSemver || receipt.archive_sha256 !== artifact.sha256)
+  if (
+    !isRecord(receipt) ||
+    receipt.version !== paths.pins.aquaSemver ||
+    receipt.archive_sha256 !== artifact.sha256
+  )
     throw new Error(`Pinned Aqua cache receipt does not match checkout pins; ${repair}`);
   // Preserve the bootstrap's archive receipt + exact version cache boundary.
   // Do not fall back to PATH: Node may find an older .exe before our .cmd shim.
@@ -224,30 +308,52 @@ export function pinnedAquaCommand(options = {}) {
   return paths.aquaExecutable;
 }
 
-export function runAqua(arguments_, options = {}) {
+export function runAqua(
+  args: readonly string[],
+  options: SpawnSyncOptionsWithStringEncoding,
+): SpawnSyncReturns<string>;
+export function runAqua(
+  args: readonly string[],
+  options?: SpawnSyncOptionsWithBufferEncoding,
+): SpawnSyncReturns<Buffer>;
+export function runAqua(
+  args: readonly string[],
+  options: SpawnSyncOptions,
+): SpawnSyncReturns<string | Buffer>;
+export function runAqua(
+  arguments_: readonly string[],
+  options: SpawnSyncOptions = {},
+): SpawnSyncReturns<string | Buffer> {
   const paths = toolCachePaths({ environment: options.env ?? process.env });
   const env = checkoutToolEnvironment(options.env ?? process.env, { paths });
   const executable = pinnedAquaCommand({ paths, environment: env });
   return spawnSync(executable, arguments_, { ...options, env });
 }
 
-export function cachedDesktopDrivers(options = {}) {
+export function cachedDesktopDrivers(options: ToolEnvironmentOptions & { state?: unknown } = {}) {
   const state = options.state ?? readToolState(options);
-  if (!state?.desktop) return null;
+  if (!isRecord(state) || !isRecord(state.desktop)) return null;
+  const desktop = state.desktop;
+  if (
+    typeof desktop.tauri_driver !== "string" ||
+    typeof desktop.native_driver !== "string" ||
+    typeof desktop.tauri_driver_sha256 !== "string" ||
+    typeof desktop.native_driver_sha256 !== "string"
+  )
+    return null;
   const drivers = {
-    driver: state.desktop.tauri_driver,
-    nativeDriver: state.desktop.native_driver,
+    driver: desktop.tauri_driver,
+    nativeDriver: desktop.native_driver,
   };
   if (
     !path.isAbsolute(drivers.driver ?? "") ||
     !path.isAbsolute(drivers.nativeDriver ?? "") ||
     !existsSync(drivers.driver) ||
     !existsSync(drivers.nativeDriver) ||
-    !/^[a-f0-9]{64}$/iu.test(state.desktop.tauri_driver_sha256 ?? "") ||
-    !/^[a-f0-9]{64}$/iu.test(state.desktop.native_driver_sha256 ?? "") ||
-    sha256File(drivers.driver).toLowerCase() !== state.desktop.tauri_driver_sha256.toLowerCase() ||
-    sha256File(drivers.nativeDriver).toLowerCase() !==
-      state.desktop.native_driver_sha256.toLowerCase()
+    !/^[a-f0-9]{64}$/iu.test(desktop.tauri_driver_sha256 ?? "") ||
+    !/^[a-f0-9]{64}$/iu.test(desktop.native_driver_sha256 ?? "") ||
+    sha256File(drivers.driver).toLowerCase() !== desktop.tauri_driver_sha256.toLowerCase() ||
+    sha256File(drivers.nativeDriver).toLowerCase() !== desktop.native_driver_sha256.toLowerCase()
   ) {
     return null;
   }

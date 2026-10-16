@@ -3,7 +3,7 @@ import path from "node:path";
 import { resolveUiSelection, reconcileUiSelection } from "./ui-test-selection.mts";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const mode = process.argv[2];
-if (!["exact", "related"].includes(mode))
+if (mode !== "exact" && mode !== "related")
   throw new Error("Usage: run-ui-tests.mts exact|related <literal files>...");
 // Validate the entire request before importing/initializing the runner.
 const files = resolveUiSelection(process.argv.slice(3), path.join(root, "apps/desktop"), mode);

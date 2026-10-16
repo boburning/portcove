@@ -2819,7 +2819,7 @@
       "label": "local-recipe",
       "stage": {
         "id": "node-tests",
-        "recipe": "test-node scripts/audit.test.mts",
+        "recipe": "test-node scripts/audit.test.mjs",
         "domain": "repository",
         "reusable": true
       },

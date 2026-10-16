@@ -1,8 +1,27 @@
 import { readFileSync } from "node:fs";
+import { isRecord } from "./runtime-values.mts";
+
+export interface DesktopScenario {
+  id: string;
+  description: string;
+  runnable: boolean;
+  prerequisites: readonly string[];
+  dependencies: readonly string[];
+  host_resources: readonly string[];
+  source: string;
+  qualification_only?: boolean;
+  platforms?: readonly NodeJS.Platform[];
+  reason?: string;
+  cycle_option?: "restart-cycles" | "reload-cycles";
+}
 
 const nativeResources = ["native-desktop", "keyboard-pointer"];
 
-function scenario(id, description, options = {}) {
+function scenario(
+  id: string,
+  description: string,
+  options: Partial<Omit<DesktopScenario, "id" | "description">> = {},
+): Readonly<DesktopScenario> {
   return Object.freeze({
     id,
     description,
@@ -523,14 +542,20 @@ export const DESKTOP_PROFILES = Object.freeze({
 
 export const desktopScenarioById = new Map(DESKTOP_SCENARIOS.map((item) => [item.id, item]));
 
-function ordered(ids) {
+function requireDesktopScenario(id: string): Readonly<DesktopScenario> {
+  const item = desktopScenarioById.get(id);
+  if (!item) throw new Error(`Unknown desktop scenario: ${id}`);
+  return item;
+}
+
+function ordered(ids: Iterable<string>) {
   const selected = new Set(ids);
   return DESKTOP_SCENARIOS.filter((item) => selected.has(item.id)).map((item) => item.id);
 }
 
-function dependencyClosure(ids) {
-  const closure = new Set();
-  const visit = (id, chain = []) => {
+function dependencyClosure(ids: readonly string[]) {
+  const closure = new Set<string>();
+  const visit = (id: string, chain: readonly string[] = []): void => {
     if (chain.includes(id))
       throw new Error(`Desktop scenario dependency cycle: ${[...chain, id].join(" -> ")}`);
     const item = desktopScenarioById.get(id);
@@ -550,12 +575,21 @@ export function resolveDesktopSelection({
   reloadCycles = 0,
   defaultProfile = "smoke",
   platform = process.platform,
+}: {
+  profile?: string | null | undefined;
+  scenarios?: readonly string[];
+  reloadCycles?: number;
+  defaultProfile?: string;
+  platform?: NodeJS.Platform;
 } = {}) {
   if (profile && scenarios.length) throw new Error("--profile and --scenario cannot be combined");
   const selectedProfile = profile ?? (scenarios.length ? null : defaultProfile);
-  if (selectedProfile && !DESKTOP_PROFILES[selectedProfile])
+  const profileScenarios = selectedProfile
+    ? Object.entries(DESKTOP_PROFILES).find(([name]) => name === selectedProfile)?.[1]
+    : undefined;
+  if (selectedProfile && !profileScenarios)
     throw new Error(`Unknown desktop profile: ${selectedProfile}`);
-  const requested = selectedProfile ? [...DESKTOP_PROFILES[selectedProfile]] : [...scenarios];
+  const requested = profileScenarios ? [...profileScenarios] : [...scenarios];
   if (!requested.length) throw new Error("Desktop verification selected no scenarios");
   if (selectedProfile && reloadCycles > 0) requested.push("native-repeated-library-reload");
   if (!selectedProfile && reloadCycles > 0 && !requested.includes("native-repeated-library-reload"))
@@ -624,10 +658,10 @@ export function resolveDesktopSelection({
     uniqueRequested.length !== 1
   )
     throw new Error("native-closed-preparation-recovery requires one exact standalone scenario");
-  const nonRunnable = uniqueRequested.filter((id) => !desktopScenarioById.get(id).runnable);
+  const nonRunnable = uniqueRequested.filter((id) => !requireDesktopScenario(id).runnable);
   if (!selectedProfile && nonRunnable.length)
     throw new Error(`${nonRunnable.join(", ")} is an acceptance gap, not a runnable scenario`);
-  const selected = uniqueRequested.filter((id) => desktopScenarioById.get(id).runnable);
+  const selected = uniqueRequested.filter((id) => requireDesktopScenario(id).runnable);
   const dependencies = dependencyClosure(selected);
   const selectedSet = new Set(selected);
   const setup = ordered([...dependencies].filter((id) => !selectedSet.has(id)));
@@ -636,10 +670,10 @@ export function resolveDesktopSelection({
     (item) => !executed.has(item.id) && !nonRunnable.includes(item.id),
   ).map((item) => item.id);
   const prerequisites = [
-    ...new Set([...selected, ...setup].flatMap((id) => desktopScenarioById.get(id).prerequisites)),
+    ...new Set([...selected, ...setup].flatMap((id) => requireDesktopScenario(id).prerequisites)),
   ];
   const hostResources = [
-    ...new Set([...selected, ...setup].flatMap((id) => desktopScenarioById.get(id).host_resources)),
+    ...new Set([...selected, ...setup].flatMap((id) => requireDesktopScenario(id).host_resources)),
   ];
   return {
     profile: selectedProfile,
@@ -649,7 +683,7 @@ export function resolveDesktopSelection({
     excluded_scenarios: excluded,
     known_gaps: nonRunnable.map((id) => ({
       scenario: id,
-      reason: desktopScenarioById.get(id).reason,
+      reason: requireDesktopScenario(id).reason,
     })),
     prerequisites,
     host_resources: hostResources,
@@ -665,7 +699,11 @@ export function catalogReport() {
   }));
 }
 
-export function desktopHarnessDeadlineMs(selection) {
+export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
+
+export function desktopHarnessDeadlineMs(
+  selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
+) {
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;
   const ordinary = executed > 8 ? 10 * 60_000 : 3 * 60_000;
   const cacheConditions = selection.selected_scenarios.includes(
@@ -673,10 +711,15 @@ export function desktopHarnessDeadlineMs(selection) {
   );
   if (!cacheConditions && !selection.selected_scenarios.includes("native-default-cover-display"))
     return ordinary;
-  const catalog = JSON.parse(
+  const catalog: unknown = JSON.parse(
     readFileSync(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url), "utf8"),
   );
-  const covers = catalog.ports.filter((port) => port.presentation?.artwork).length;
+  if (!isRecord(catalog) || !Array.isArray(catalog.ports))
+    throw new Error("Invalid catalog port inventory");
+  const covers = catalog.ports.filter((port: unknown) => {
+    if (!isRecord(port)) throw new Error("Invalid catalog port entry");
+    return isRecord(port.presentation) && Boolean(port.presentation.artwork);
+  }).length;
   // Two themes per cover: existing card location (10s), image (15s), settling
   // (5s), and bounded navigation/capture allowance (10s). The detail subset
   // adds its existing waits. Individual deadlines and routine profiles stay fixed.

@@ -2,6 +2,7 @@ export function observeCompletionReturnFocus() {
   const origin = document.querySelector('[data-detail-origin="game-file-libraries-setup"]');
   const continuation = origin?.querySelector('[aria-label="Continue to a game"]');
   const control = document.activeElement;
+  if (!origin || !continuation || !control) return false;
   if (
     ![
       origin?.isConnected,
@@ -11,7 +12,7 @@ export function observeCompletionReturnFocus() {
     ].every(Boolean)
   )
     return false;
-  const available = (element) =>
+  const available = (element: Element) =>
     ![
       element.matches(":disabled, [aria-disabled=true]"),
       Boolean(element.closest("[hidden], [inert], [aria-hidden=true]")),

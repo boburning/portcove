@@ -1,6 +1,7 @@
 import {
   nativeHelperDependencies,
   nativeHelperRegistryPath,
+  nativeHelperSharedSources,
 } from "./native-helper-dependencies.mts";
 
 const nativeToolInputs = new Set([
@@ -16,7 +17,7 @@ const nativeToolInputs = new Set([
   ".github/workflows/ci.yml",
 ]);
 
-export function windowsNativeToolsRequired(plan) {
+export function windowsNativeToolsRequired(plan: HelperSelectionPlan) {
   return (
     plan.mode === "qualification" ||
     (plan.mode === "fast" &&
@@ -28,11 +29,20 @@ export function windowsNativeToolsRequired(plan) {
   );
 }
 
+interface HelperSelectionPlan {
+  mode: string;
+  fallback?: unknown;
+  changes: readonly { oldPath: string; newPath: string }[];
+}
+
 const helperPaths = new Set([
+  ...nativeHelperSharedSources,
+  "apps/desktop/scripts/browser-script.mts",
   ...nativeToolInputs,
   ...Object.keys(nativeHelperDependencies),
   "apps/desktop/scripts/desktop-test.mts",
   nativeHelperRegistryPath,
+  nativeHelperSharedSources,
   "scripts/native-helper-dependencies.test.mts",
   "scripts/frontend-command-preflight.mts",
   "scripts/viteplus-cli.mts",
@@ -73,7 +83,7 @@ const helperPaths = new Set([
 
 // The complete rename/delete sides come from the already validated CI plan.
 // Broad fallback includes this Windows proof without narrowing Rust selection.
-export function windowsHelperChecksRequired(plan) {
+export function windowsHelperChecksRequired(plan: HelperSelectionPlan) {
   return (
     plan.mode === "fast" &&
     (Boolean(plan.fallback) ||

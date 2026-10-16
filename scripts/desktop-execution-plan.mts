@@ -1,13 +1,15 @@
 import { parseArgs } from "node:util";
 import { desktopScenarioById, resolveDesktopSelection } from "./desktop-scenarios.mts";
 import { expandNativeHelperInputs } from "./native-helper-dependencies.mts";
+import type { ReceiptInput } from "./native-helper-dependencies.mts";
+import type { DesktopSelection } from "./desktop-scenarios.mts";
 
 const harnessUrl = new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url);
 const rootUrl = new URL("../", import.meta.url);
-function receiptSource(url) {
+function receiptSource(url: URL): Extract<ReceiptInput, { kind: "file" }> {
   return { kind: "file", path: decodeURIComponent(url.href.slice(rootUrl.href.length)) };
 }
-function freeze(value) {
+function freeze<Value>(value: Value): Readonly<Value> {
   if (value && typeof value === "object") {
     for (const child of Object.values(value)) freeze(child);
     Object.freeze(value);
@@ -17,8 +19,12 @@ function freeze(value) {
 
 /** Private planning facts; never execution, consent, or process authority. */
 export function planDesktopExecution(
-  selectionInput,
-  { platform = process.platform, prelaunchCustody = false, retainedMetadata = false } = {},
+  selectionInput: DesktopSelection,
+  {
+    platform = process.platform,
+    prelaunchCustody = false,
+    retainedMetadata = false,
+  }: { platform?: NodeJS.Platform; prelaunchCustody?: boolean; retainedMetadata?: boolean } = {},
 ) {
   const selection = structuredClone(selectionInput);
   const bootstrapRecoverySession = selection.selected_scenarios.includes(
@@ -104,7 +110,10 @@ export function planDesktopExecution(
                                     )
                                   ? "retained-contract-repair"
                                   : "backup-focus";
-  const inputs = ["app", "driver", "native-driver"].map((name) => ({ kind: "executable", name }));
+  const inputs: ReceiptInput[] = ["app", "driver", "native-driver"].map((name) => ({
+    kind: "executable",
+    name,
+  }));
   if (prelaunchCustody)
     for (const source of [
       "scripts/desktop-execution-plan.mts",
@@ -113,6 +122,8 @@ export function planDesktopExecution(
     ])
       inputs.push({ kind: "file", path: source });
   inputs.push({ kind: "file", path: "scripts/native-readiness.mts" });
+  inputs.push({ kind: "file", path: "scripts/runtime-values.mts" });
+  inputs.push({ kind: "file", path: "apps/desktop/scripts/browser-script.mts" });
   inputs.push({ kind: "file", path: "scripts/acceptance-packet.mts" });
   inputs.push(receiptSource(harnessUrl));
   if (selection.selected_scenarios.includes("native-linux-webview-origin-boundary"))
@@ -197,7 +208,7 @@ export function planDesktopExecution(
   inputs.push(receiptSource(new URL("../../../scripts/native-session-lock.mts", harnessUrl)));
 
   const executed = new Set([...selection.selected_scenarios, ...selection.setup_scenarios]);
-  const needs = (requirement) => selection.prerequisites.includes(requirement);
+  const needs = (requirement: string) => selection.prerequisites.includes(requirement);
   const preliminarySetupJourney = executed.has("native-preliminary-selected-setup");
   const preliminaryJourney =
     executed.has("native-preliminary-source-review") || preliminarySetupJourney;
@@ -259,7 +270,7 @@ export function planDesktopExecution(
             family: "preparation",
             members: roles.filter(
               ({ id }) =>
-                preparationSources.has(desktopScenarioById.get(id)?.source) &&
+                preparationSources.has(desktopScenarioById.get(id)?.source ?? "") &&
                 ![
                   "native-saved-folder-selected-setup",
                   "native-preliminary-source-review",
@@ -340,7 +351,9 @@ export function parseDesktopHarnessOptions(args = process.argv.slice(2)) {
   });
 }
 
-export function resolveDesktopHarnessSelection(values) {
+export function resolveDesktopHarnessSelection(
+  values: ReturnType<typeof parseDesktopHarnessOptions>["values"],
+) {
   const reloadCycles = Number(values["reload-cycles"]);
   const restartCycles = Number(values["restart-cycles"]);
   const port = Number(values.port);
@@ -350,7 +363,7 @@ export function resolveDesktopHarnessSelection(values) {
     throw new Error("--reload-cycles must be 0..25");
   if (!Number.isInteger(port) || port < 1024 || port > 65533)
     throw new Error("--port must be 1024..65533");
-  const focusedModes = ["artwork-only", "adoption-only", "accessibility-only"].filter(
+  const focusedModes = (["artwork-only", "adoption-only", "accessibility-only"] as const).filter(
     (name) => values[name],
   );
   if (focusedModes.length > 1) throw new Error("Choose only one focused desktop scenario mode");

@@ -103,6 +103,7 @@ function bootstrapFixture(t) {
   mkdirSync(bin, { recursive: true });
   for (const name of [
     "scripts/development-capabilities.mts",
+    "scripts/runtime-values.mts",
     "scripts/quality-tools.mts",
     "scripts/tool-cache.mts",
     "scripts/bootstrap-quality-tools.sh",

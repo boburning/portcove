@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
-import { runInNewContext } from "node:vm";
+import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
 
 const source = await readFile(
   new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),

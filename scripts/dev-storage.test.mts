@@ -202,6 +202,10 @@ function workspace(t) {
   const root = fixture(t);
   mkdirSync(path.join(root, "scripts"));
   copyFileSync(
+    new URL("./runtime-values.mts", import.meta.url),
+    path.join(root, "scripts/runtime-values.mts"),
+  );
+  copyFileSync(
     new URL("./dev-storage.mts", import.meta.url),
     path.join(root, "scripts/dev-storage.mts"),
   );
@@ -823,7 +827,7 @@ test(
       `
 $ErrorActionPreference = "Stop"
 $previousTemp = $env:TEMP
-function pnpm { if ($args[0] -eq '--version') { '12.11.2' }; $global:LASTEXITCODE = 0 }
+function pnpm { if ($args[0] -eq '--version') { (Get-Content -Raw (Join-Path $PSScriptRoot 'package.json') | ConvertFrom-Json).packageManager -replace '^pnpm@','' }; $global:LASTEXITCODE = 0 }
 function just {
     if ($env:TEMP -ne (Join-Path $PSScriptRoot "scratch")) { throw "Wrong temporary path" }
     if ($env:pnpm_config_store_dir -ne (Join-Path $PSScriptRoot "store")) { throw "Wrong pnpm store" }

@@ -1,4 +1,4 @@
-import { errorMessage } from "./runtime-values.mts";
+import { errorMessage, isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
@@ -10,12 +10,12 @@ export const canaryIdentity = Object.freeze({
   actorIds: Object.freeze(["43177418", "41898282"]),
 });
 
-function refuse(message) {
+function refuse(message: string): never {
   throw new Error(`controller canary refused: ${message}`);
 }
 
 /** Source admission only. GitHub must independently enforce environment reachability. */
-export function admitCanary(environment) {
+export function admitCanary(environment: NodeJS.ProcessEnv) {
   const ref = `refs/tags/${canaryIdentity.tag}`;
   if (environment.GITHUB_REPOSITORY !== canaryIdentity.repository) refuse("repository");
   if (environment.GITHUB_EVENT_NAME !== "workflow_dispatch") refuse("event");
@@ -26,22 +26,20 @@ export function admitCanary(environment) {
   )
     refuse("workflow execution identity");
   if (!/^[a-f0-9]{40}$/u.test(environment.GITHUB_SHA ?? "")) refuse("controller revision");
-  if (!canaryIdentity.actorIds.includes(environment.GITHUB_ACTOR_ID))
+  if (!canaryIdentity.actorIds.includes(environment.GITHUB_ACTOR_ID ?? ""))
     refuse("explicit dispatch actor inventory");
   if (!/^[1-9][0-9]{0,15}$/u.test(environment.GITHUB_RUN_ID ?? "")) refuse("run ID");
   if (environment.GITHUB_RUN_ATTEMPT !== "1") refuse("distinct attempt1 required");
   const raw = environment.CANARY_REQUEST ?? "";
   if (Buffer.byteLength(raw, "utf8") > 2048) refuse("request exceeds 2048 bytes");
-  let request;
+  let request: unknown;
   try {
     request = JSON.parse(raw);
   } catch {
     refuse("request JSON");
   }
   if (
-    request === null ||
-    Array.isArray(request) ||
-    typeof request !== "object" ||
+    !isRecord(request) ||
     Object.keys(request).sort().join(",") !== "nonce,operation,schema_version" ||
     request.schema_version !== 1 ||
     request.operation !== "probe-only" ||
@@ -65,7 +63,7 @@ export function admitCanary(environment) {
 }
 
 /** Reads only disposable canary material; never signing keys or candidate artifacts. */
-export function proveCanary(environment) {
+export function proveCanary(environment: NodeJS.ProcessEnv) {
   const admission = admitCanary(environment);
   const controller = environment.CANARY_EXPECTED_CONTROLLER_SHA;
   if (!/^[a-f0-9]{40}$/u.test(controller ?? "") || admission.controller_sha !== controller)
@@ -73,7 +71,8 @@ export function proveCanary(environment) {
   const expected = environment.CANARY_EXPECTED_SHA256;
   const canary = environment.PORTCOVE_CONTROLLER_CANARY;
   if (!/^[a-f0-9]{64}$/u.test(expected ?? "")) refuse("expected disposable canary digest");
-  if (!/^[a-f0-9]{64}$/u.test(canary ?? "")) refuse("32-byte disposable canary required");
+  if (typeof canary !== "string" || !/^[a-f0-9]{64}$/u.test(canary))
+    refuse("32-byte disposable canary required");
   const observed = createHash("sha256").update(canary, "utf8").digest("hex");
   if (observed !== expected) refuse("disposable canary identity");
   return {
@@ -87,7 +86,7 @@ export function proveCanary(environment) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const mode = process.argv[2];
-    if (process.argv.length !== 3 || !["admit", "prove"].includes(mode))
+    if (process.argv.length !== 3 || (mode !== "admit" && mode !== "prove"))
       refuse("requires admit or prove");
     console.log(
       JSON.stringify(mode === "admit" ? admitCanary(process.env) : proveCanary(process.env)),

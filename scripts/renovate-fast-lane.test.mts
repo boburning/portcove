@@ -505,6 +505,15 @@ test("current-base manifest workflow and policy interactions stay manual", () =>
     ".github/repository-ruleset.json",
     "scripts/renovate-fast-lane.mts",
     "scripts/pr-delivery.mts",
+    "scripts/ci-result-gate.mjs",
+    "scripts/ci-result-gate.mts",
+    "scripts/select-ci-plan.mjs",
+    "scripts/select-ci-plan.mts",
+    "scripts/validation-plan.mjs",
+    "scripts/validation-plan.mts",
+    "scripts/renovate-fast-lane.mjs",
+    "scripts/renovate-fast-lane.mts",
+    "scripts/pr-delivery.mjs",
   ]) {
     const result = classify({
       baseEvidence: { currentTarget: target, currentMergeBase: base, targetPaths: [targetPath] },

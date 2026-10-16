@@ -9,12 +9,12 @@ const allowed = new Set([
   "binding.json",
   ...AUDIT_STAGES.filter((s) => s.reusable).map((s) => `receipts/${s.id}.json`),
 ]);
-function check(condition, reason) {
+function check(condition: unknown, reason: string): asserts condition {
   if (!condition) throw new Error(`Audit ZIP rejected: ${reason}`);
 }
 
 export function parseAuditArchive(
-  archive,
+  archive: unknown,
   { inflate = inflateRawSync, clock = Date.now, deadline = Infinity } = {},
 ) {
   const active = () => check(clock() < deadline, "collection deadline");
@@ -57,7 +57,7 @@ export function parseAuditArchive(
     metadata = size + 22,
     names = new Set();
   const entries = [];
-  const extra = (offset, length) => {
+  const extra = (offset: number, length: number) => {
     check(length <= 1024 && offset + length <= archive.length, "extra field limit");
     metadata += length;
     check(metadata <= 65536, "metadata byte limit");
@@ -168,7 +168,7 @@ export function parseAuditArchive(
     boundary = entry.localEnd;
   }
   check(boundary === start, "unlisted payload");
-  const files = new Map();
+  const files = new Map<string, Buffer>();
   for (const entry of entries) {
     active();
     const compressed = archive.subarray(entry.data, entry.dataEnd);

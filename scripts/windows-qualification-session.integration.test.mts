@@ -415,6 +415,7 @@ test(
     );
     for (const name of [
       "desktop-test-cli.mts",
+      "runtime-values.mts",
       "native-session-lock.mts",
       "process-lock.mts",
       "development-evidence.mts",

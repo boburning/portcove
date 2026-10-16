@@ -4,9 +4,10 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { isSlowTest } from "./test-duration-reporter.mts";
+import type { TestEvent } from "node:test/reporters";
+import report, { isSlowTest } from "./test-duration-reporter.mts";
 
-function event(duration, type = "test") {
+function event(duration: number, type = "test") {
   return {
     type: "test:pass",
     data: { name: "fixture", details: { type, duration_ms: duration } },
@@ -36,7 +37,8 @@ test("a synchronous slow result is reported without failing a correct test", () 
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
     encoding: "utf8",
     windowsHide: true,
-    timeout: 3_000,
+    // Cold native TS import can exceed three seconds under the required suite.
+    timeout: 15_000,
   });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Slow tests to investigate/);
@@ -53,7 +55,7 @@ test("an abnormal worker exit retains bounded status and remains a failed run", 
   const result = spawnSync(
     process.execPath,
     ["--test", "--test-timeout=30000", `--test-reporter=${reporter}`, fixture],
-    { encoding: "utf8", windowsHide: true, timeout: 3_000, env },
+    { encoding: "utf8", windowsHide: true, timeout: 45_000, env },
   );
   assert.equal(result.status, 1, result.stderr);
   assert.equal(result.signal, null);
@@ -65,5 +67,16 @@ test("an abnormal worker exit retains bounded status and remains a failed run", 
     signal: null,
     failureType: "testCodeFailure",
     code: "ERR_TEST_FAILURE",
+  });
+});
+
+// Watch lifecycle events have no data object; they must not mask later results.
+test("reporter accepts a watch lifecycle event without test details", async () => {
+  async function* source(): AsyncGenerator<TestEvent> {
+    yield { type: "test:watch:drained", data: undefined };
+  }
+  await assert.doesNotReject(async () => {
+    for await (const chunk of report(source()))
+      assert(typeof chunk === "string" || Buffer.isBuffer(chunk));
   });
 });

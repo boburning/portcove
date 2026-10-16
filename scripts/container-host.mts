@@ -824,10 +824,11 @@ export function createContainerHost(profile) {
     state.driver = {
       commit: await git(["rev-parse", "HEAD"]),
       host_sha256: hash(readFileSync(fileURLToPath(import.meta.url))),
-      wrapper_sha256: hash(readFileSync(path.join(root, `scripts/${namespace}.mjs`))),
+      wrapper_sha256: hash(readFileSync(path.join(root, `scripts/${namespace}.mts`))),
       recipe_sha256: hash(readFileSync(recipe)),
       entry_sha256: hash(readFileSync(entry)),
       guard_sha256: hash(readFileSync(guard)),
+      runtime_values_sha256: hash(readFileSync(path.join(root, "scripts/runtime-values.mts"))),
       ...(builder ? { policy_sha256: hash(readFileSync(policy)) } : {}),
     };
     const stateFile = path.join(directory, "host.json");
@@ -956,11 +957,15 @@ export function createContainerHost(profile) {
         copyFileSync(recipe, path.join(directory, "Dockerfile"));
         copyFileSync(entry, path.join(directory, "container-entry.mts"));
         copyFileSync(guard, path.join(directory, "container-source.mts"));
+        copyFileSync(
+          path.join(root, "scripts/runtime-values.mts"),
+          path.join(directory, "runtime-values.mts"),
+        );
         if (builder) copyFileSync(policy, path.join(directory, "container-build-policy.mts"));
         if (builder) writeFileSync(path.join(directory, "linux-prerequisites.sh"), bootstrap);
         writeFileSync(
           path.join(directory, ".dockerignore"),
-          "**\n!Dockerfile\n!source.bundle\n!container-entry.mts\n!container-source.mts\n" +
+          "**\n!Dockerfile\n!source.bundle\n!container-entry.mts\n!container-source.mts\n!runtime-values.mts\n" +
             (builder ? "!container-build-policy.mts\n!linux-prerequisites.sh\n" : ""),
         );
         if (size(stageRoot) > budgets.staging_bytes)

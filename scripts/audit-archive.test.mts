@@ -10,25 +10,25 @@ test("bounded ZIP decodes regular allowlisted files with verified CRCs", () => {
     ["receipts/rust.json", "{}"],
   ]);
   const files = parseAuditArchive(bytes);
-  assert.equal(files.get("inputs.json").toString(), '{"original":true}');
+  assert.equal(files.get("inputs.json")?.toString(), '{"original":true}');
   assert.equal(files.size, 3);
 });
 
 test("metadata rejects huge counts, declared sizes, ZIP64 and multipart before inflation", () => {
   for (const mutate of [
-    (b) => {
+    (b: Buffer) => {
       b.writeUInt16LE(65535, b.length - 14);
       b.writeUInt16LE(65535, b.length - 12);
     },
-    (b) => {
+    (b: Buffer) => {
       const central = b.readUInt32LE(b.length - 6);
       b.writeUInt32LE(0xffffffff, central + 24);
     },
-    (b) => {
+    (b: Buffer) => {
       const central = b.readUInt32LE(b.length - 6);
       b.writeUInt16LE(45, central + 6);
     },
-    (b) => b.writeUInt16LE(1, b.length - 18),
+    (b: Buffer) => b.writeUInt16LE(1, b.length - 18),
   ]) {
     const bytes = archive([["inputs.json", "{}"]]);
     mutate(bytes);

@@ -3,9 +3,51 @@ import { createReadStream } from "node:fs";
 import { lstat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+export interface FileIdentity {
+  path: string;
+  bytes: number;
+  sha256: string;
+}
+export interface EvidenceCheck {
+  scenario: string;
+  outcome: "passed" | "failed" | "not-run";
+  message?: string;
+  reason?: string | undefined;
+}
+export interface EvidenceContext {
+  selected_scenarios?: readonly string[];
+  setup_scenarios?: readonly string[];
+  excluded_scenarios?: readonly string[];
+  profile?: string | null;
+  restart_cycles?: number;
+  reload_cycles?: number;
+  harness_deadline_ms?: number;
+  source_state?: { revision: string; clean: boolean | null };
+  known_gaps?: readonly { scenario: string; reason?: string | undefined }[];
+  // These payloads have their own validation owners. This serializer retains
+  // them without interpreting them as execution or acceptance authority.
+  execution_binding?: object | null;
+  acceptance_preflight?: FileIdentity;
+  phases?: readonly object[];
+}
+export interface EvidenceOptions {
+  revision: string;
+  executable: string;
+  checks: readonly EvidenceCheck[];
+  setupChecks?: readonly EvidenceCheck[];
+  artifacts?: readonly string[];
+  method: string;
+  inputs?: readonly FileIdentity[];
+  capturedExecutable?: FileIdentity;
+  context?: EvidenceContext;
+}
+
 export const EVIDENCE_READ_CHUNK_BYTES = 1024 * 1024;
 
-export async function fileIdentity(file: string, { maxBytes = Infinity, signal } = {}) {
+export async function fileIdentity(
+  file: string,
+  { maxBytes = Infinity, signal }: { maxBytes?: number; signal?: AbortSignal | undefined } = {},
+): Promise<FileIdentity> {
   const absolute = path.resolve(file);
   const stats = await lstat(absolute);
   if (!stats.isFile() || stats.isSymbolicLink())
@@ -25,7 +67,10 @@ export async function fileIdentity(file: string, { maxBytes = Infinity, signal }
   return { path: absolute, bytes, sha256: hash.digest("hex") };
 }
 
-export function evidenceOutcome(checks, setupChecks = []) {
+export function evidenceOutcome(
+  checks: readonly EvidenceCheck[],
+  setupChecks: readonly EvidenceCheck[] = [],
+) {
   const observed = [...setupChecks, ...checks];
   if (!observed.length) return "not-run";
   for (const check of observed) {
@@ -51,7 +96,7 @@ export async function writeEvidence(
     inputs = [],
     capturedExecutable,
     context = {},
-  },
+  }: EvidenceOptions,
 ) {
   if (!/^[a-f0-9]{40}$/u.test(revision) || !method)
     throw new Error("Evidence requires a full revision and explicit method");
@@ -82,8 +127,10 @@ export async function writeEvidence(
     phases: context.phases ?? [],
     known_gaps: context.known_gaps ?? [],
     qualification_complete:
-      outcome === "passed" && !(context.known_gaps?.length > 0) && selectedScenarios.length > 0,
-    artifacts: await Promise.all(artifacts.map(fileIdentity)),
+      outcome === "passed" &&
+      !(context.known_gaps && context.known_gaps.length > 0) &&
+      selectedScenarios.length > 0,
+    artifacts: await Promise.all(artifacts.map((file) => fileIdentity(file))),
     interpretation:
       "Execution observations only; no catalog qualification or human observation is inferred.",
   };

@@ -24,6 +24,7 @@
     { "path": "./scripts" },
     { "path": "./apps/desktop/scripts" },
     { "path": "./apps/desktop/test" },
-    { "path": "./integrations/playnite" }
+    { "path": "./integrations/playnite" },
+    { "path": "./apps/desktop/public" }
   ]
 }

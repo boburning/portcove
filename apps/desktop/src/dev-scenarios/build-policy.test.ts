@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { URL } from "node:url";
 
+import type { PluginOption, Plugin } from "vite-plus";
 import { expect, it } from "vite-plus/test";
 import config, { assertScenarioExclusion } from "../../vite.config";
 
@@ -37,8 +38,14 @@ it("rejects scenario modules and entrypoints from a production bundle", () => {
 });
 
 it("registers scenario exclusion on production builds", async () => {
-  const plugins = (await Promise.all(config.plugins)).flat(Infinity);
+  async function collectPlugins(options: PluginOption): Promise<Plugin[]> {
+    const value = await options;
+    if (!value) return [];
+    return Array.isArray(value) ? (await Promise.all(value.map(collectPlugins))).flat() : [value];
+  }
+  const plugins = await collectPlugins(config.plugins);
   const plugin = plugins.find((candidate) => candidate.name === "exclude-development-scenarios");
+  if (!plugin) throw new Error("Production scenario exclusion plugin was not registered");
   expect(plugin.apply).toBe("build");
   expect(plugin.generateBundle).toMatchObject({ order: "post", handler: expect.any(Function) });
 });

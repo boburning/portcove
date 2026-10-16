@@ -3,7 +3,7 @@ import {
   completeAcceptancePacket,
   reusableAcceptanceScenarios,
 } from "./acceptance-packet.mts";
-import { runInNewContext } from "node:vm";
+import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
 import {
   observeGamepadCapability,
   capabilityRequirement,

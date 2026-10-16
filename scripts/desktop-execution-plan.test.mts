@@ -10,7 +10,7 @@ import os from "node:os";
 import test from "node:test";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { runInNewContext } from "node:vm";
+import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
 import { fileIdentity } from "./development-evidence.mts";
 import { planDesktopExecution } from "./desktop-execution-plan.mts";
 import { resolveDesktopSelection, desktopHarnessDeadlineMs } from "./desktop-scenarios.mts";
@@ -151,11 +151,17 @@ test("execution planning preserves the independently reviewed pre-change oracle"
       input.kind === "executable" ? executableNames[input.name] : input.path,
     );
     for (const historical of row.initial_receipt_inputs)
-      assert(actualInputs.includes(historical), historical);
-    for (const added of actualInputs.filter((file) => !row.initial_receipt_inputs.includes(file)))
+      assert(actualInputs.includes(historical.replace(/\.mjs$/u, ".mts")), historical);
+    for (const added of actualInputs.filter(
+      (file) =>
+        !row.initial_receipt_inputs.some(
+          (historical) => historical.replace(/\.mjs$/u, ".mts") === file,
+        ),
+    ))
       assert(
         Object.hasOwn(nativeHelperDependencies, added) ||
           nativeHelperSharedSources.includes(added) ||
+          added === "apps/desktop/scripts/browser-script.mts" ||
           added === "scripts/native-readiness.mts" ||
           added === "scripts/acceptance-packet.mts" ||
           added === nativeHelperRegistryPath,

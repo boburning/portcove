@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
-function run(command, args) {
+function run(command: string, args: readonly string[]) {
   return spawnSync(command, args, {
     cwd: root,
     encoding: "utf8",
@@ -26,7 +26,7 @@ for (const [name, command, args] of [
   ["pull request delivery", process.execPath, ["scripts/pr-delivery.mts", "--help"]],
   ["handoff evidence", process.execPath, ["scripts/handoff-evidence.mts", "--help"]],
   ["optional container browser", process.execPath, ["scripts/container-browser.mts", "--help"]],
-]) {
+] satisfies [string, string, string[]][]) {
   test(`${name} help is available without provisioning`, () => {
     const result = run(command, args);
     assert.equal(result.status, 0, result.stderr);

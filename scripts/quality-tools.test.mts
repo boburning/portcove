@@ -31,6 +31,16 @@ test("quality manifest owns exact unique Rust pins and workflow outputs", () => 
   });
 });
 
+test("quality manifest rejects non-string executable arguments before execution", () => {
+  for (const command of [[42], ["cargo", false], [null]]) {
+    const invalid: unknown = {
+      ...manifest,
+      tools: [{ ...manifest.tools[0], command }, ...manifest.tools.slice(1)],
+    };
+    assert.throws(() => validateQualityManifest(invalid), /non-empty command array/);
+  }
+});
+
 test("stale consumer detection rejects copied current or divergent pins", () => {
   assert.deepEqual(
     findStaleConsumerPins(manifest, {

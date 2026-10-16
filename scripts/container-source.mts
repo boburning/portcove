@@ -4,8 +4,8 @@ import path from "node:path";
 
 // Generated ignored dependencies/caches are permitted; source inputs must remain
 // the selected committed tree, including no untracked discoverable test files.
-export function assertCommittedWorkspace(root, commit, tree) {
-  const git = (...args) => {
+export function assertCommittedWorkspace(root: string, commit: string, tree: string) {
+  const git = (...args: string[]) => {
     const result = spawnSync("git", args, {
       cwd: root,
       encoding: "utf8",
@@ -20,5 +20,8 @@ export function assertCommittedWorkspace(root, commit, tree) {
   if (changes) throw new Error(`Prepared source differs from committed bytes:\n${changes}`);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  assertCommittedWorkspace(process.cwd(), process.argv[2], process.argv[3]);
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const [commit, tree] = process.argv.slice(2);
+  if (!commit || !tree) throw new Error("Expected commit and tree identities");
+  assertCommittedWorkspace(process.cwd(), commit, tree);
+}

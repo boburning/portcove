@@ -48,8 +48,8 @@ const sharedPolicyPaths = [
   /^renovate\.json$/u,
   /^\.github\/(?:actions|workflows)\//u,
   /^\.github\/(?:qualification-coverage|repository-ruleset)\.json$/u,
-  /^scripts\/(?:ci-result-gate|select-ci-plan|validation-plan)\.mjs$/u,
-  /^scripts\/(?:pr-delivery|renovate-fast-lane)\.mjs$/u,
+  /^scripts\/(?:ci-result-gate|select-ci-plan|validation-plan)\.(?:mjs|mts)$/u,
+  /^scripts\/(?:pr-delivery|renovate-fast-lane)\.(?:mjs|mts)$/u,
 ];
 
 function unique(values, label) {

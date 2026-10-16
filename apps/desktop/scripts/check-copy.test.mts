@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { describe, it } from "vite-plus/test";
 import { RuleTester } from "vite-plus/lint/plugins-dev";
 import plugin from "./copy-lint-plugin.mts";
@@ -6,8 +7,9 @@ RuleTester.describe = describe;
 RuleTester.it = it;
 RuleTester.itOnly = it.only;
 const tester = new RuleTester();
-const code = (text) => ({ filename: "fixture.tsx", code: text });
-const invalid = (text, ...messages) => ({
+assert(playerCopy && themeUtilities, "Both repository lint rules must be registered");
+const code = (text: string) => ({ filename: "fixture.tsx", code: text });
+const invalid = (text: string, ...messages: string[]) => ({
   ...code(text),
   errors: messages.map((messageId) => ({ messageId })),
 });

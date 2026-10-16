@@ -147,8 +147,8 @@ track while retaining the source marker, and proved that the next preparation
 detected and transactionally replaced the changed track. The focused repair
 evidence passed:
 
-- `node scripts/migrate-catalog-schema2.mts --check`;
-- `node --test scripts/migrate-catalog-schema2.test.mts` (1 passed);
+- `node scripts/migrate-catalog-schema2.mjs --check`;
+- `node --test scripts/migrate-catalog-schema2.test.mjs` (1 passed);
 - `cargo test -p portcove-core adapter::source_conversion_tests -- --nocapture`
   (2 passed, including exact generated-track drift and rematerialization);
 - `cargo test -p portcove-core catalog::tests -- --nocapture` (86 passed).

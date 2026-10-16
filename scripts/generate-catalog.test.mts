@@ -81,12 +81,12 @@ function proposalDecoderFixture(
     writeFileSync(path, JSON.stringify(input));
   }
   const helper = join(fixture.scratch, "scripts", "inspect-igdb-artwork.mts");
-  copyFileSync(helper, join(fixture.scratch, "scripts", "real-artwork.mjs"));
+  copyFileSync(helper, join(fixture.scratch, "scripts", "real-artwork.mts"));
   writeFileSync(
     helper,
     `
-    export { readArtworkJson, readArtworkInput } from './real-artwork.mjs';
-    import { createCoreImageValidator as actualValidator } from './real-artwork.mjs';
+    export { readArtworkJson, readArtworkInput } from './real-artwork.mts';
+    import { createCoreImageValidator as actualValidator } from './real-artwork.mts';
     import { appendFileSync, readFileSync } from 'node:fs';
     import { createHash } from 'node:crypto';
     export function createCoreImageValidator(cli, root) {

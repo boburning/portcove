@@ -1,7 +1,8 @@
+import type { WebDriver } from "selenium-webdriver";
 import { By, until } from "selenium-webdriver";
 
 /** Drive the installed application's ordinary controls up to a verified staged candidate. */
-export async function driveInstalledUpdateToRestart(browser, actions) {
+export async function driveInstalledUpdateToRestart(browser: WebDriver, actions: string[]) {
   await browser.manage().setTimeouts({ script: 15_000 });
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 30_000);
   actions.push("installed-gui-opened");

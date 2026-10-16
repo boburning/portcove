@@ -44,7 +44,7 @@ async function fixture() {
   return { root, outputDirectory, stampPath: path.join(root, "work/frontend.json") };
 }
 
-const identity = (root, overrides = {}) =>
+const identity = (root: string, overrides = {}) =>
   createFrontendBuildIdentity({
     root,
     packageManager: "pnpm@12.4.1",

@@ -70,7 +70,7 @@ const libraryChanged: DesktopEventPayloads["portcove://library-changed"] = null;
 `;
     const compiler = vitePlusCommand(root);
     let compilerInvocations = 0;
-    function compile(source) {
+    function compile(source: string) {
       compilerInvocations += 1;
       fs.writeFileSync(fixture, source);
       const result = spawnSync(

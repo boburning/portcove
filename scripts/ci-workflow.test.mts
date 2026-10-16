@@ -407,7 +407,7 @@ test("native design compatibility remains explicit, isolated, and non-publishing
   );
   assert.equal(
     desktopPackage.scripts["lint:style"],
-    'stylelint --config stylelint.config.mts --max-warnings 0 "src/**/*.css"',
+    'stylelint --config stylelint.config.mjs --max-warnings 0 "src/**/*.css"',
   );
 });
 
@@ -2008,6 +2008,10 @@ test("offline RetComM validation rejects bad mappings without loading upstream d
     });
     const checker = join(root, "scripts/check-retcomm-upstreams.mts");
     await copyFile(new URL("./check-retcomm-upstreams.mts", import.meta.url), checker);
+    await copyFile(
+      new URL("./runtime-values.mts", import.meta.url),
+      path.join(root, "scripts/runtime-values.mts"),
+    );
     const preload = join(root, "deny-network.mjs");
     await writeFile(preload, 'globalThis.fetch = () => { throw new Error("NETWORK_FORBIDDEN"); };');
     const port = {
@@ -2179,6 +2183,10 @@ test("RetComM remote manifests fall back only after 404 and retain access failur
     await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
     const checker = path.join(root, "scripts/check-retcomm-upstreams.mts");
     await copyFile(new URL("./check-retcomm-upstreams.mts", import.meta.url), checker);
+    await copyFile(
+      new URL("./runtime-values.mts", import.meta.url),
+      path.join(root, "scripts/runtime-values.mts"),
+    );
     const independent = JSON.parse(
       await readFile(
         new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
@@ -2341,6 +2349,10 @@ test("RetComM scoped live reads exclude unrelated manifests without narrowing of
     await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
     const checker = path.join(root, "scripts/check-retcomm-upstreams.mts");
     await copyFile(new URL("./check-retcomm-upstreams.mts", import.meta.url), checker);
+    await copyFile(
+      new URL("./runtime-values.mts", import.meta.url),
+      path.join(root, "scripts/runtime-values.mts"),
+    );
     await writeFile(
       path.join(root, "crates/portcove-core/catalog/catalog.json"),
       JSON.stringify({
@@ -2398,6 +2410,10 @@ test("RetComM local manifests preserve platform precedence and refuse malformed 
     await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
     const checker = path.join(root, "scripts/check-retcomm-upstreams.mts");
     await copyFile(new URL("./check-retcomm-upstreams.mts", import.meta.url), checker);
+    await copyFile(
+      new URL("./runtime-values.mts", import.meta.url),
+      path.join(root, "scripts/runtime-values.mts"),
+    );
     await writeFile(
       path.join(root, "crates/portcove-core/catalog/catalog.json"),
       JSON.stringify({

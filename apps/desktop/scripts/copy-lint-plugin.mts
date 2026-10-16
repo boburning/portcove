@@ -1,4 +1,6 @@
+import type { ESTree } from "vite-plus/lint/plugins";
 import { definePlugin, defineRule } from "vite-plus/lint/plugins";
+type Node = ESTree.Node;
 
 const copyAttributes = new Set([
   "title",
@@ -42,19 +44,31 @@ const jsxEntities = new Map([
 function decodeJsxEntities(value: string) {
   return value.replace(
     /&(?:#(?<decimal>\d+)|#x(?<hex>[\dA-F]+)|(?<named>[A-Z]+));/giu,
-    (...args) => {
-      const groups = args.at(-1);
-      if (groups.decimal) return String.fromCodePoint(Number.parseInt(groups.decimal, 10));
-      if (groups.hex) return String.fromCodePoint(Number.parseInt(groups.hex, 16));
-      return jsxEntities.get(groups.named.toLowerCase()) ?? args[0];
+    (
+      match: string,
+      decimal: string | undefined,
+      hex: string | undefined,
+      named: string | undefined,
+    ) => {
+      if (decimal) return String.fromCodePoint(Number.parseInt(decimal, 10));
+      if (hex) return String.fromCodePoint(Number.parseInt(hex, 16));
+      return jsxEntities.get(named?.toLowerCase() ?? "") ?? match;
     },
   );
 }
 
-function technicalDisclosure(node) {
-  if (node.type !== "JSXElement" || node.openingElement.name.name !== "details") return false;
+function technicalDisclosure(node: Node) {
+  if (
+    node.type !== "JSXElement" ||
+    node.openingElement.name.type !== "JSXIdentifier" ||
+    node.openingElement.name.name !== "details"
+  )
+    return false;
   const summary = node.children.find(
-    (child) => child.type === "JSXElement" && child.openingElement.name.name === "summary",
+    (child): child is ESTree.JSXElement =>
+      child.type === "JSXElement" &&
+      child.openingElement.name.type === "JSXIdentifier" &&
+      child.openingElement.name.name === "summary",
   );
   const label =
     summary?.children
@@ -64,27 +78,33 @@ function technicalDisclosure(node) {
   return /^(?:view )?technical details$|^full identity and evidence$/iu.test(label.trim());
 }
 
-function codeLiteral(node, parent) {
+function codeLiteral(node: Node, parent: Node | null | undefined) {
   if (!parent) return false;
-  if (parent.key === node && !parent.computed) return true;
-  if (parent.source === node) return true;
+  if ("key" in parent && parent.key === node && !("computed" in parent && parent.computed))
+    return true;
+  if ("source" in parent && parent.source === node) return true;
   if (["TSLiteralType", "SwitchCase"].includes(parent.type)) return true;
   if (parent.type === "BinaryExpression")
     return ["===", "!==", "==", "!="].includes(parent.operator);
   return (
     ["MemberExpression", "OptionalMemberExpression"].includes(parent.type) &&
+    "property" in parent &&
     parent.property === node
   );
 }
 
-function excludedContext(node, ancestors) {
+function excludedContext(node: Node, ancestors: readonly Node[]) {
   if (codeLiteral(node, ancestors.at(-1))) return true;
   const attribute = ancestors.findLast((ancestor) => ancestor.type === "JSXAttribute");
-  if (attribute && !copyAttributes.has(attribute.name.name)) return true;
+  if (
+    attribute &&
+    (attribute.name.type !== "JSXIdentifier" || !copyAttributes.has(attribute.name.name))
+  )
+    return true;
   return ancestors.some(technicalDisclosure);
 }
 
-function staticText(node, parent) {
+function staticText(node: Node, parent: Node | null | undefined) {
   if (node.type === "TemplateElement") return node.value.cooked;
   if (node.type === "JSXText") return decodeJsxEntities(node.value);
   if (node.type !== "Literal" || typeof node.value !== "string") return undefined;
@@ -98,8 +118,13 @@ const playerCopy = defineRule({
     messages: Object.fromEntries(rules.map((rule) => [rule.id, rule.message])),
   },
   create(context) {
-    function inspect(node) {
-      const ancestors = context.sourceCode.getAncestors(node);
+    function inspect(node: Node) {
+      // The pinned getAncestors declaration uses an unbound global Node.
+      // Follow the same parent chain as its implementation with ESTree types.
+      const ancestors: Node[] = [];
+      for (let ancestor = node.parent; ancestor !== null; ancestor = ancestor.parent)
+        ancestors.push(ancestor);
+      ancestors.reverse();
       const text = staticText(node, ancestors.at(-1));
       if (typeof text !== "string" || excludedContext(node, ancestors)) return;
       for (const rule of rules)
@@ -122,7 +147,7 @@ const themeUtilities = defineRule({
     const sharedControl = /[/\\]components[/\\]ui[/\\](?:button|dialog|select)\.tsx$/u.test(
       context.filename,
     );
-    function inspect(node) {
+    function inspect(node: Node) {
       const text = staticText(node, node.parent);
       if (typeof text !== "string") return;
       if (/text-\[var\(--text-[a-z0-9-]+\)\]/u.test(text))

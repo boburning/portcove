@@ -556,7 +556,7 @@ test("execution planning helper and baseline changes select their preservation c
       assert.deepEqual([...selection.unknown], []);
       assert(
         selection.nodeTests.has(
-          file.endsWith(".test.mjs") && status === "D"
+          file.endsWith(".test.mts") && status === "D"
             ? "scripts/desktop-scenarios.test.mts"
             : "scripts/desktop-execution-plan.test.mts",
         ),
@@ -1652,6 +1652,13 @@ test("optional frontend baseline retains full lint, build and related units with
 test("lint follows source/configuration ownership on both rename sides without forcing UI work", () => {
   for (const change of [
     { status: "M", path: "scripts/tool.mjs" },
+    { status: "M", path: "scripts/tool.mts" },
+    { status: "M", path: "scripts/tsconfig.json" },
+    { status: "M", path: "integrations/playnite/package.mts" },
+    { status: "M", path: "integrations/playnite/tsconfig.json" },
+    { status: "M", path: "apps/desktop/test/setup.ts" },
+    { status: "M", path: "apps/desktop/public/theme-bootstrap.js" },
+    { status: "R100", path: "docs/moved.md", previousPath: "scripts/tool.mts" },
     { status: "D", path: "scripts/deleted.mjs" },
     { status: "R100", path: "docs/moved.md", previousPath: "scripts/tool.mjs" },
     { status: "M", path: "apps/desktop/src/App.tsx" },

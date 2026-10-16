@@ -13,7 +13,7 @@ const policy = readFileSync(path.join(desktop, ".fallowrc.json"), "utf8");
 const binary = path.join(workspace, "node_modules/fallow/bin/fallow");
 
 function inspect(
-  sharedSource,
+  sharedSource: string,
   featureSource = "export const value = 2; export type FeatureState = { value: number };\n",
 ) {
   const root = mkdtempSync(path.join(tmpdir(), "portcove-boundary-"));

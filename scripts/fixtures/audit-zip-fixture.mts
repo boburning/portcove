@@ -1,6 +1,12 @@
 import { crc32, deflateRawSync } from "node:zlib";
 
-export function createAuditZip(entries) {
+export function createAuditZip(
+  entries: readonly (readonly [
+    name: string,
+    raw: string | Uint8Array,
+    options?: { method?: number; attributes?: number },
+  ])[],
+) {
   const local = [];
   const central = [];
   let offset = 0;

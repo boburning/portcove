@@ -36,7 +36,7 @@ describe("Vite configuration boundaries", () => {
     );
     expect(
       metadataPlugins.some(
-        (name) => name.startsWith("vite:react") || name.startsWith("@tailwindcss/"),
+        (name: string) => name.startsWith("vite:react") || name.startsWith("@tailwindcss/"),
       ),
     ).toBe(false);
     const { assertScenarioExclusion } = await import("../vite.config.ts");

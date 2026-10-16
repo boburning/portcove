@@ -47,7 +47,7 @@ export function buildFrontend(
     return result.status ?? 1;
   } catch (error) {
     console.error(`Frontend build failed: ${errorMessage(error)}`);
-    if (["MODULE_NOT_FOUND", "ENOENT"].includes(errorCode(error)))
+    if (["MODULE_NOT_FOUND", "ENOENT"].includes(errorCode(error) ?? ""))
       console.error(
         "Install the declared local tools with pnpm install --frozen-lockfile from the repository root.",
       );

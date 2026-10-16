@@ -78,7 +78,10 @@ test("browser adapter retains its independently reviewed pre-extraction contract
     assert.deepEqual(
       {
         status: result.status,
-        stdout: result.stdout.replaceAll("\r\n", "\n"),
+        // The immutable oracle records the historical command spelling.
+        stdout: result.stdout
+          .replaceAll("\r\n", "\n")
+          .replaceAll("container-browser.mts", "container-browser.mjs"),
         stderr: result.stderr.replaceAll("\r\n", "\n"),
       },
       expected,

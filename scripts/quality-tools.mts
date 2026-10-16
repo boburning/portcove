@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -14,23 +15,43 @@ const governedConsumers = [
   "scripts/bootstrap-quality-tools.sh",
 ];
 
-function semver(value, label) {
+export interface QualityTool {
+  id: string;
+  crate: string;
+  version: string;
+  command: [string, ...string[]];
+  tier: "required" | "deep";
+  ci_install: "prebuilt" | "cached" | "local" | "source";
+}
+export interface QualityManifest {
+  schema_version: 1;
+  rust: { channel: string; components: ["clippy", "rustfmt"] };
+  tools: QualityTool[];
+}
+
+function semver(value: unknown, label: string): asserts value is string {
   if (typeof value !== "string" || !/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(value)) {
     throw new Error(`${label} must be an exact semantic version`);
   }
 }
 
-export function validateQualityManifest(manifest) {
-  if (manifest.schema_version !== 1) throw new Error("quality manifest schema_version must be 1");
-  semver(manifest.rust?.channel, "Rust channel");
+export function validateQualityManifest(manifest: unknown): asserts manifest is QualityManifest {
+  if (!isRecord(manifest) || manifest.schema_version !== 1)
+    throw new Error("quality manifest schema_version must be 1");
+  if (!isRecord(manifest.rust)) throw new Error("quality manifest requires Rust configuration");
+  semver(manifest.rust.channel, "Rust channel");
   if (JSON.stringify(manifest.rust.components) !== JSON.stringify(["clippy", "rustfmt"])) {
     throw new Error("Rust components must be exactly clippy and rustfmt");
   }
-  const ids = new Set();
-  const crates = new Set();
-  for (const tool of manifest.tools ?? []) {
-    if (!tool.id || ids.has(tool.id)) throw new Error(`duplicate or missing tool id: ${tool.id}`);
-    if (!tool.crate || crates.has(tool.crate))
+  const ids = new Set<string>();
+  const crates = new Set<string>();
+  if (!Array.isArray(manifest.tools)) throw new Error("quality manifest tools must be an array");
+  const tools: readonly unknown[] = manifest.tools;
+  for (const tool of tools) {
+    if (!isRecord(tool)) throw new Error("quality manifest tool must be an object");
+    if (typeof tool.id !== "string" || !tool.id || ids.has(tool.id))
+      throw new Error(`duplicate or missing tool id: ${tool.id}`);
+    if (typeof tool.crate !== "string" || !tool.crate || crates.has(tool.crate))
       throw new Error(`duplicate or missing crate: ${tool.crate}`);
     ids.add(tool.id);
     crates.add(tool.crate);
@@ -38,13 +59,18 @@ export function validateQualityManifest(manifest) {
     if (
       !Array.isArray(tool.command) ||
       !tool.command.length ||
-      tool.command.some((value) => !value)
+      tool.command.some((value: unknown) => typeof value !== "string" || !value)
     ) {
       throw new Error(`${tool.id} must define a non-empty command array`);
     }
-    if (!["required", "deep"].includes(tool.tier))
+    if (tool.tier !== "required" && tool.tier !== "deep")
       throw new Error(`${tool.id} has an invalid tier`);
-    if (!["prebuilt", "cached", "local", "source"].includes(tool.ci_install)) {
+    if (
+      tool.ci_install !== "prebuilt" &&
+      tool.ci_install !== "cached" &&
+      tool.ci_install !== "local" &&
+      tool.ci_install !== "source"
+    ) {
       throw new Error(`${tool.id} has an invalid ci_install strategy`);
     }
   }
@@ -61,7 +87,10 @@ export function validateQualityManifest(manifest) {
   }
 }
 
-export function findStaleConsumerPins(manifest, consumers) {
+export function findStaleConsumerPins(
+  manifest: QualityManifest,
+  consumers: Readonly<Record<string, string>>,
+) {
   const findings = [];
   for (const [name, contents] of Object.entries(consumers)) {
     for (const tool of manifest.tools) {
@@ -85,9 +114,8 @@ export function findStaleConsumerPins(manifest, consumers) {
   return [...new Set(findings)];
 }
 
-export function githubOutputs(manifest) {
-  const byId = Object.fromEntries(manifest.tools.map((tool) => [tool.id, tool]));
-  const spec = (tool) => `${tool.crate}@${tool.version}`;
+export function githubOutputs(manifest: QualityManifest) {
+  const spec = (tool: QualityTool) => `${tool.crate}@${tool.version}`;
   return {
     required_prebuilt: manifest.tools
       .filter((tool) => tool.tier === "required" && tool.ci_install === "prebuilt")
@@ -97,17 +125,17 @@ export function githubOutputs(manifest) {
       .filter((tool) => tool.tier === "required")
       .map(spec)
       .join(","),
-    rscheck_spec: spec(byId["rscheck-cli"]),
+    rscheck_spec: spec(toolById(manifest, "rscheck-cli")),
   };
 }
 
 export async function loadQualityManifest() {
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  const manifest: unknown = JSON.parse(await readFile(manifestPath, "utf8"));
   validateQualityManifest(manifest);
   return manifest;
 }
 
-async function validateConsumers(manifest) {
+async function validateConsumers(manifest: QualityManifest) {
   const entries = await Promise.all(
     governedConsumers.map(async (name: string) => [
       name,
@@ -129,13 +157,13 @@ async function validateConsumers(manifest) {
     throw new Error("workspace MSRV drifted from the pinned Rust channel");
 }
 
-function toolById(manifest, id) {
+function toolById(manifest: QualityManifest, id: string) {
   const tool = manifest.tools.find((candidate) => candidate.id === id);
   if (!tool) throw new Error(`unknown quality tool: ${id}`);
   return tool;
 }
 
-function verifyTool(manifest, tool) {
+function verifyTool(tool: QualityTool) {
   const command = tool.command;
   const result = spawnSync(command[0], command.slice(1), {
     encoding: "utf8",
@@ -151,7 +179,7 @@ function verifyTool(manifest, tool) {
   return output.trim();
 }
 
-async function main(argv) {
+async function main(argv: string[]) {
   const manifest = await loadQualityManifest();
   const mode = argv[0] ?? "--validate";
   if (mode === "--validate" && argv.length === 1) {
@@ -166,18 +194,19 @@ async function main(argv) {
   }
   if (mode === "--specs" && argv.length === 2) {
     const tier = argv[1];
-    if (!["required", "deep"].includes(tier)) throw new Error("--specs expects required or deep");
+    if (!["required", "deep"].includes(tier ?? ""))
+      throw new Error("--specs expects required or deep");
     for (const tool of manifest.tools.filter((candidate) => candidate.tier === tier)) {
       console.log(`${tool.crate}|${tool.version}|${tool.command.join(" ")}`);
     }
     return;
   }
   if (mode === "--version" && argv.length === 2) {
-    console.log(toolById(manifest, argv[1]).version);
+    console.log(toolById(manifest, argv[1] ?? "").version);
     return;
   }
   if (mode === "--verify" && argv.length === 2) {
-    console.log(verifyTool(manifest, toolById(manifest, argv[1])));
+    console.log(verifyTool(toolById(manifest, argv[1] ?? "")));
     return;
   }
   throw new Error(

@@ -1,11 +1,12 @@
+import { errorCode } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 import { readFileSync, lstatSync } from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
 // Include dirty and untracked inputs: HEAD alone does not identify a candidate.
-export function fallowSource(root: string, base) {
-  const git = (...args) =>
+export function fallowSource(root: string, base?: string) {
+  const git = (...args: string[]) =>
     execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
   const head = git("rev-parse", "HEAD").trim();
   const target = base
@@ -28,7 +29,7 @@ export function fallowSource(root: string, base) {
       if (!lstatSync(file).isFile()) throw new Error(`Nonregular Fallow source: ${name}`);
       hash.update(readFileSync(file));
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (errorCode(error) !== "ENOENT") throw error;
       hash.update("<deleted>");
     }
     hash.update("\0");

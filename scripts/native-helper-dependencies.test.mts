@@ -220,6 +220,8 @@ test("native parser accepts erasable types and rejects runtime transformations w
     assert.throws(() => checkNodeSource(file), { code: "ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX" });
     await writeFile(file, "const value: = 'invalid';");
     assert.throws(() => checkNodeSource(file), { code: "ERR_INVALID_TYPESCRIPT_SYNTAX" });
+    await writeFile(file, "const duplicate = 1; const duplicate = 2;");
+    assert.throws(() => checkNodeSource(file), /already been declared/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

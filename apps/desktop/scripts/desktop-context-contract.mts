@@ -1,6 +1,6 @@
 // Kept free of browser and driver dependencies so repository-tool tests can
 // reject incomplete scenario wiring on hosts that do not install Selenium.
-export function assertSteamEntryContext(context) {
+export function assertSteamEntryContext(context: unknown) {
   for (const member of [
     "browser",
     "invoke",
@@ -12,7 +12,8 @@ export function assertSteamEntryContext(context) {
     "open",
     "confirmNative",
   ]) {
-    const value = context?.[member];
+    const value =
+      context !== null && typeof context === "object" ? Reflect.get(context, member) : undefined;
     const valid =
       member === "output"
         ? typeof value === "string"

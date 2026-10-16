@@ -1,3 +1,4 @@
+import type { ProcessLockMetadata, ProcessLockOptions } from "./process-lock.mts";
 import path from "node:path";
 import { acquireOwnedProcessLock, isProcessAlive } from "./process-lock.mts";
 import { toolCachePaths } from "./tool-cache.mts";
@@ -6,7 +7,10 @@ export function nativeSessionLockPath() {
   return path.join(toolCachePaths().sharedRoot, "locks", "native-desktop");
 }
 
-export async function acquireNativeSessionLock(metadata = {}, options = {}) {
+export async function acquireNativeSessionLock(
+  metadata: ProcessLockMetadata = {},
+  options: ProcessLockOptions & { lockPath?: string } = {},
+) {
   const lockPath = path.resolve(options.lockPath ?? nativeSessionLockPath());
   const inheritedToken = options.inheritedToken ?? process.env.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN;
   return acquireOwnedProcessLock(

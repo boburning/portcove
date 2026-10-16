@@ -13,7 +13,7 @@ import {
 } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { runInNewContext } from "node:vm";
+import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
 import { ownedFixtureCommand } from "../apps/desktop/scripts/desktop-scenario-state.mts";
 import {
   isUntrustworthyProbeError,
@@ -315,7 +315,17 @@ test("history procfs disappearance retains narrow errors and live identities", a
 test("history fixture helpers import without installed desktop packages", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-history-import-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const module = path.join(root, "history.mjs");
+  const module = path.join(root, "apps/desktop/scripts/history.mts");
+  await mkdir(path.dirname(module), { recursive: true });
+  await mkdir(path.join(root, "scripts"));
+  await copyFile(
+    new URL("./runtime-values.mts", import.meta.url),
+    path.join(root, "scripts/runtime-values.mts"),
+  );
+  await copyFile(
+    new URL("../apps/desktop/scripts/browser-script.mts", import.meta.url),
+    path.join(root, "apps/desktop/scripts/browser-script.mts"),
+  );
   await copyFile(
     new URL("../apps/desktop/scripts/desktop-qualification-history-test.mts", import.meta.url),
     module,

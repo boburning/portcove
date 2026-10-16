@@ -1,8 +1,12 @@
 import stylelint from "stylelint";
+import type { RuleBase } from "stylelint";
 const ruleName = "portcove/semantic-colors";
-export default stylelint.createPlugin(ruleName, () => (root, result) => {
+const rule: RuleBase<boolean, unknown> = () => (root, result) => {
   root.walkDecls((declaration) => {
-    const selector = declaration.parent.type === "rule" ? declaration.parent.selector : "";
+    const selector =
+      declaration.parent?.type === "rule" && "selector" in declaration.parent
+        ? declaration.parent.selector
+        : "";
     const file = root.source?.input.file?.replaceAll("\\", "/") ?? "";
     if (
       file.endsWith("/styles/tokens.css") &&
@@ -20,4 +24,11 @@ export default stylelint.createPlugin(ruleName, () => (root, result) => {
         message: "Component colors must reference semantic aliases",
       });
   });
-});
+};
+export default stylelint.createPlugin(
+  ruleName,
+  Object.assign(rule, {
+    ruleName,
+    messages: { rejected: "Component colors must reference semantic aliases" },
+  }),
+);

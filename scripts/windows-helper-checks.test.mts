@@ -55,6 +55,8 @@ test("Windows helper selection includes rename/delete sides and policy inputs wi
   for (const file of [
     "apps/desktop/scripts/native-window-discovery.ps1",
     "apps/desktop/scripts/desktop-native-confirmation.mts",
+    "apps/desktop/scripts/browser-script.mts",
+    "scripts/runtime-values.mts",
     "apps/desktop/scripts/desktop-test.mts",
     "scripts/frontend-command-preflight.mts",
     "scripts/viteplus-cli.mts",
@@ -134,7 +136,7 @@ test("workflow runs bounded Windows controls and pinned lint under the existing 
   );
   assert.match(
     job,
-    /node --test --test-timeout=30000 apps\/desktop\/scripts\/\*\.native\.test\.mjs/,
+    /node --test --test-timeout=30000 apps\/desktop\/scripts\/\*\.native\.test\.mts/,
   );
   const catalog = workflow.split("\n  catalog:\n")[1].split("\n  fast_dependency_review:")[0];
   assert.match(

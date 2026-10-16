@@ -1275,7 +1275,12 @@ test("hosted binding rejects frontend validation helper and test-policy changes"
     "scripts/dev-storage.d.mts",
     "tsconfig.json",
     "apps/desktop/vite.config.ts",
-    "apps/desktop/stylelint.config.mts",
+    "apps/desktop/stylelint.config.mjs",
+    "apps/desktop/scripts/stylelint-config.mts",
+    "scripts/tsconfig.json",
+    "integrations/playnite/tsconfig.json",
+    "apps/desktop/test/tsconfig.json",
+    "apps/desktop/public/tsconfig.json",
     "tsconfig.base.json",
     "apps/desktop/i18next.config.ts",
     "apps/desktop/i18next.invalid.config.ts",
@@ -1348,7 +1353,10 @@ test("manual local-check transport preserves the audit and has no mutable execut
   );
   const local = workflow.split("\n  local_check:\n")[1];
   assert.ok(local);
-  assert.match(workflow, /default: audit\n {8}options: \[audit, audit-reuse, local-check\]/);
+  assert.match(
+    workflow,
+    /default: audit\n {8}options: \[audit, audit-reuse, local-check, fallow\]/,
+  );
   assert.match(workflow, /contents: read/);
   assert.match(workflow, /just audit --fresh/);
   assert.match(local, /runs-on: ubuntu-24\.04/);

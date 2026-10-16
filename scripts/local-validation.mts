@@ -45,9 +45,12 @@ import {
   isHostedLocalCheckScriptAuthority,
 } from "./workflow-provenance.mts";
 
-export function isRepositoryLintInput(file) {
+export function isRepositoryLintInput(file: string) {
   return (
-    /^(?:scripts|apps\/desktop\/(?:scripts|src))\/.*\.(?:[cm]?[jt]sx?)$/u.test(file) ||
+    /^(?:scripts|integrations\/playnite|apps\/desktop\/(?:scripts|src|test|public))\/.*\.(?:[cm]?[jt]sx?)$/u.test(
+      file,
+    ) ||
+    /^(?:scripts|integrations\/playnite)\/(?:.*\/)?tsconfig[^/]*\.json$/u.test(file) ||
     /^apps\/desktop\/src\/.*\.css$/u.test(file) ||
     /^apps\/desktop\/(?:vite\.config\.ts|(?:.*\/)?tsconfig[^/]*\.json|stylelint\.config\.[cm]?[jt]s)$/u.test(
       file,

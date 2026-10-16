@@ -45,7 +45,7 @@ shortcut locations, source cleanliness, desktop doctor and actual native process
 
 ## Actual observations
 
-The maintained `desktop-test-cli.mts --current-installed` route installed silently
+The maintained `desktop-test-cli.mjs --current-installed` route installed silently
 to the owned custom destination and verified exactly one HKCU registration at the
 expected version and exact installed bytes. The ordinary installed window was
 responsive, accepted a normal close, and exited zero through its retained launch

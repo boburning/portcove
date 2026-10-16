@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { runInNewContext } from "node:vm";
+import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
 import { fileIdentity } from "./development-evidence.mts";
 import { retainEvidenceInput, verifyConsumedInputs } from "./retained-evidence.mts";
 

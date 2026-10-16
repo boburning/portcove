@@ -11,14 +11,15 @@ const requiredJobs = [
   "verify_intel",
 ];
 
-export function evaluateReleaseResults(results) {
+export function evaluateReleaseResults(results: unknown) {
   if (!results || typeof results !== "object" || Array.isArray(results)) {
     throw new Error("release result gate requires a job-result object");
   }
   for (const name of requiredJobs) {
     if (!(name in results)) throw new Error(`release result gate is missing ${name}`);
-    if (results[name] !== "success") {
-      throw new Error(`release result gate requires ${name}=success, received ${results[name]}`);
+    const result: unknown = Reflect.get(results, name);
+    if (result !== "success") {
+      throw new Error(`release result gate requires ${name}=success, received ${result}`);
     }
   }
   return true;

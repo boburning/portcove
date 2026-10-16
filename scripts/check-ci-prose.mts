@@ -11,14 +11,15 @@ import { spawnCommand } from "./dev-storage.mts";
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const fullSha = /^[a-f0-9]{40}$/u;
 
-function requiredSha(name) {
+function requiredSha(name: string) {
   const value = process.env[name];
-  if (!fullSha.test(value ?? "")) throw new Error(`${name} must be a full Git SHA`);
+  if (typeof value !== "string" || !fullSha.test(value))
+    throw new Error(`${name} must be a full Git SHA`);
   return value;
 }
 
 function requiredFiles() {
-  let files;
+  let files: unknown;
   try {
     files = JSON.parse(process.env.PORTCOVE_PROSE_FILES ?? "");
   } catch {
@@ -28,7 +29,7 @@ function requiredFiles() {
     throw new Error("prose file plan must be a non-empty string array");
   if (files.some((file) => !isInformationalPath(file)))
     throw new Error("prose file plan includes a machine-consumed or policy path");
-  return [...new Set(files)].sort();
+  return [...new Set(files.filter((file): file is string => typeof file === "string"))].sort();
 }
 
 if (process.argv.length > 3 || (process.argv[2] && process.argv[2] !== "--prerequisites"))

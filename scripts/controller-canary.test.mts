@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { admitCanary, canaryIdentity, proveCanary } from "./controller-canary.mts";
 
 const canary = "a5".repeat(32);
-const context = () => ({
+const context = (): NodeJS.ProcessEnv => ({
   GITHUB_REPOSITORY: canaryIdentity.repository,
   GITHUB_EVENT_NAME: "workflow_dispatch",
   GITHUB_REF: `refs/tags/${canaryIdentity.tag}`,
