@@ -38,6 +38,7 @@ const allReusableDomains = [
 ];
 
 export const AUDIT_STAGES = Object.freeze([
+  { id: "fallow", recipe: "fallow", domain: "ui", reusable: false },
   { id: "frontend-static", recipe: "ui-static", domain: "format", reusable: false },
   { id: "rust", recipe: "check-rust", domain: "rust", reusable: true },
   { id: "ui", recipe: "ui-runtime", domain: "ui", reusable: false },

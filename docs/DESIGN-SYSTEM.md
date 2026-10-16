@@ -413,7 +413,26 @@ broad fragile pixel-perfect suite is required.
 
 ## Review gates
 
-Run the focused frontend tests, applicable theme/style contracts, production build, and Fallow before accepting a design-system change. The style gates must cover the actual Tailwind CSS and JSX utility sources, reject raw status colors and direct primitive consumption, preserve dark/light, focus/selection, contrast, reduced-motion, and production-variant coverage, and handle third-party directives narrowly rather than with blanket exemptions. Fallow should remain free of dead files, unused dependencies, duplication, circular dependencies, unused theme tokens, and above-threshold functions. Acceptance records intentional reference changes and verifies that each migrated surface has one remaining control/style owner.
+Run the focused frontend tests, applicable theme/style contracts and production
+build before accepting a design-system change. The style gates must cover the
+actual Tailwind CSS and JSX utility sources, reject raw status colors and direct
+primitive consumption, preserve dark/light, focus/selection, contrast,
+reduced-motion and production-variant coverage, and handle third-party directives
+narrowly rather than with blanket exemptions. Acceptance records intentional
+reference changes and verifies that each migrated surface has one remaining
+control/style owner.
+
+For substantial styling changes, use advisory `just fallow-css` to investigate
+token drift, duplicate declarations, selector complexity and unused-style
+candidates. Check static candidates against runtime semantic variables, Tailwind
+theme/utility generation, conditional classes, CSS Modules and Base UI states.
+Verify consumers before deleting styles; a score cannot establish appearance or
+interaction correctness. Use `just fallow-review BASE` when the change also needs
+JS/TS ownership or complexity review. Neither route adds a mandatory ordinary
+PR stage. When explicit whole-Desktop qualification is selected, Fallow retains
+its check-finding and critical-complexity protections; aggregate duplication is
+advisory under #1105, with duplicate groups available for responsibility review.
+See [the scope and policy mapping](reference/quality-operations.md#fallow-scopes-and-policy).
 
 The three early finished reference compositions are Library, the game-details workspace, and a complex installation-review dialog with nested selection and errors. Their real-component scenarios cover empty, loading, long-title, missing-artwork, disabled, error, interrupted, and narrow-layout states. Completion requires both themes, current minimum/default/large sizes, 1280×800 where relevant, supported scaling, long text, keyboard/mouse/controller behavior, nested overlays, focus return, async changes, navigation during work, reduced motion, and capability parity. Browser fixtures and screenshots do not replace native or intrinsically human evidence.
 

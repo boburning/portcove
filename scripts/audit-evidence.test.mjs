@@ -82,7 +82,7 @@ test("capture failure does not replace audit execution or its primary failure", 
     const plan = planAudit({
       inventory: entry.inventory,
       runtime: entry.runtime,
-      stages: AUDIT_STAGES.slice(0, 2),
+      stages: AUDIT_STAGES.filter((stage) => ["frontend-static", "rust"].includes(stage.id)),
       fresh: true,
       receiptRoot: path.join(root, "receipts"),
     });
@@ -198,8 +198,8 @@ test("failed audit is diagnostic only and never exports failed or stale stage re
   const f = fixture();
   const payload = f.aggregate.payload;
   payload.success = false;
-  payload.stages[1].status = "failed";
-  payload.stages[1].exitCode = 1;
+  payload.stages.find((stage) => stage.id === "rust").status = "failed";
+  payload.stages.find((stage) => stage.id === "rust").exitCode = 1;
   f.aggregate = receiptEnvelope(payload);
   f.binding.exitCode = "1";
   f.binding.receiptIntegrity = f.aggregate.integrity;
@@ -247,9 +247,8 @@ test("expanded input excess is rejected before compression", () => {
     AUDIT_BUNDLE_LIMITS.expandedBytes,
   );
   f.capture = receiptEnvelope(f.capture.payload);
-  f.aggregate.payload.stages[0].fingerprint = receiptEnvelope(
-    f.capture.payload.stageInputs["frontend-static"],
-  ).integrity;
+  f.aggregate.payload.stages.find((stage) => stage.id === "frontend-static").fingerprint =
+    receiptEnvelope(f.capture.payload.stageInputs["frontend-static"]).integrity;
   f.aggregate = receiptEnvelope(f.aggregate.payload);
   f.binding.receiptIntegrity = f.aggregate.integrity;
   assert.throws(() => buildAuditBundle(f), /expanded byte limit/);

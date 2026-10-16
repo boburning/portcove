@@ -145,8 +145,18 @@ ui-test:
     {{storage}} node scripts/run-viteplus.mjs run frontend:unit
 
 fallow:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs scripts/run-fallow.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs scripts/run-fallow.test.mjs scripts/fallow-summary.test.mjs scripts/fallow-scope.test.mjs scripts/fallow-source.test.mjs
     {{storage}} node scripts/run-fallow.mjs
+
+# Selective advisory assistance; never an ordinary local/PR stage.
+fallow-tooling:
+    {{storage}} node scripts/run-fallow.mjs tooling
+
+fallow-review base reuse="":
+    {{storage}} node scripts/run-fallow.mjs review {{quote(base)}} {{quote(reuse)}}
+
+fallow-css:
+    {{storage}} node scripts/run-fallow.mjs css
 
 oxlint:
     {{storage}} node scripts/run-viteplus.mjs lint
@@ -158,15 +168,15 @@ ui-lint-contracts:
     {{storage}} node scripts/lint-tools.integration.mjs oxfmt oxlint stylelint
 
 ui-check:
-    {{storage}} node scripts/run-viteplus.mjs run frontend:verify
     {{storage}} node scripts/run-fallow.mjs
+    {{storage}} node scripts/run-viteplus.mjs run frontend:verify
 
 ui-static:
     {{storage}} node scripts/run-viteplus.mjs run frontend:static
 
 ui-runtime:
+    {{storage}} node scripts/run-viteplus.mjs -C apps/desktop run browser:bootstrap
     {{storage}} node scripts/run-viteplus.mjs run frontend:runtime
-    {{storage}} node scripts/run-fallow.mjs
 
 check-ui: ui-check ui-lint-contracts
 
