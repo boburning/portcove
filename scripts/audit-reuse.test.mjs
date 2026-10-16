@@ -153,7 +153,7 @@ function fixture() {
   return { bundle, proof, currentPlan, source, workflowBytes };
 }
 
-test("approved #706 audit failure exports diagnostics but cannot be admitted as passed evidence", () => {
+test("diagnostic aggregate retains failure while admitting only completed deterministic successes", () => {
   const f = fixture();
   const read = (name) => JSON.parse(f.bundle.files.get(name).toString("utf8"));
   const payload = read("audit.json").payload;
@@ -194,10 +194,12 @@ test("approved #706 audit failure exports diagnostics but cannot be admitted as 
   assert.equal(JSON.parse(bundle.files.get("audit.json")).payload.originalExitCode, 1);
   assert.equal(JSON.parse(bundle.files.get("binding.json")).exitCode, "0");
   assert.equal(bundle.files.has("receipts/dependency-policy.json"), false);
-  assert.throws(
-    () => validateAuditProducer(bundle.files, f.proof, { workflowDigest: f.proof.workflowDigest }),
-    /changed-contract-or-attempt/,
-  );
+  const admitted = validateAuditProducer(bundle.files, f.proof, {
+    workflowDigest: f.proof.workflowDigest,
+  });
+  assert.equal(admitted.aggregate.payload.success, false);
+  assert.ok(admitted.receipts.rust);
+  assert.equal(admitted.receipts["dependency-policy"], undefined);
   const tampered = new Map(bundle.files);
   tampered.set(
     "manifest.json",
@@ -205,7 +207,7 @@ test("approved #706 audit failure exports diagnostics but cannot be admitted as 
   );
   assert.throws(
     () => validateAuditProducer(tampered, f.proof, { workflowDigest: f.proof.workflowDigest }),
-    /incomplete-bundle/,
+    /incomplete-bundle|unsupported-bundle-shape/,
   );
   for (const mutate of [
     (p) => delete p.policyDecision,
@@ -276,10 +278,10 @@ test("fork, unmerged, failed, wrong attempt, expired and changed contract produc
       f.proof.ancestry.merge_base_commit.sha = "e".repeat(40);
     },
     (f) => {
-      f.proof.run.conclusion = "failure";
+      f.proof.run.conclusion = "cancelled";
     },
     (f) => {
-      f.proof.job.conclusion = "failure";
+      f.proof.job.conclusion = "timed_out";
     },
     (f) => {
       f.proof.run.run_attempt = 3;
@@ -578,5 +580,52 @@ test("truncated collections, changed readback and unsafe ZIP fail without publis
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  }
+});
+
+test("completed raw failed producer imports passed deterministic stages and preserves failed reusable stage", () => {
+  const f = fixture();
+  const read = (name) => JSON.parse(f.bundle.files.get(name));
+  const payload = read("audit.json").payload;
+  payload.success = false;
+  Object.assign(
+    payload.stages.find((s) => s.id === "rscheck"),
+    { status: "failed", exitCode: 1 },
+  );
+  const aggregate = receiptEnvelope(payload);
+  const receipts = Object.fromEntries(
+    [...f.bundle.files]
+      .filter(([name]) => name.startsWith("receipts/") && name !== "receipts/rscheck.json")
+      .map(([name, bytes]) => [name.slice(9, -5), JSON.parse(bytes)]),
+  );
+  const bundle = buildAuditBundle({
+    identity: f.bundle.manifest.identity,
+    binding: { ...read("binding.json"), exitCode: "1", receiptIntegrity: aggregate.integrity },
+    capture: read("inputs.json"),
+    aggregate,
+    receipts,
+  });
+  f.proof.run.conclusion = "failure";
+  f.proof.job.conclusion = "failure";
+  const root = mkdtempSync(path.join(os.tmpdir(), "audit-failed-stage-"));
+  try {
+    f.currentPlan.receiptRoot = root;
+    const result = importAuditReceipts(bundle.files, f.proof, f.currentPlan, {
+      workflowDigest: f.proof.workflowDigest,
+    });
+    assert.ok(result.imported.includes("rust"));
+    assert.equal(result.imported.includes("rscheck"), false);
+    const admitted = validateAuditProducer(bundle.files, f.proof, {
+      workflowDigest: f.proof.workflowDigest,
+    });
+    assert.equal(admitted.aggregate.payload.success, false);
+    assert.equal(
+      admitted.aggregate.payload.stages.find((s) => s.id === "rscheck").status,
+      "failed",
+    );
+    assert.equal(bundle.files.has("receipts/rscheck.json"), false);
+    assert.ok(result.provenance);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });

@@ -1,8 +1,4 @@
-# Every Rust unit/integration test has its own process and timing record.
-# Five seconds flags a slow test for investigation; thirty seconds detects hangs.
-# Filesystem and process lifecycle coverage stays intact. Failures are not retried.
-# Defaults and recorded overrides are finite safeguards, not approval ceilings.
-# Standing harness calibration authority: docs/QUALITY.md#autonomous-test-timeout-calibration.
+# Runner and finite harness calibration contract: docs/QUALITY.md#autonomous-test-timeout-calibration.
 [profile.default]
 slow-timeout = { period = "5s", terminate-after = 6, grace-period = "0s" }
 retries = 0
@@ -22,7 +18,6 @@ success-output = "immediate"
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 
 # Historical #706 calibration (issuecomment-6190196270), exact Intel case only.
-# Future justified harness calibration needs no fresh owner approval; see QUALITY.
 # Preserve both real rollback/restart/preservation attempts and all assertions.
 [[profile.default.overrides]]
 platform = 'x86_64-apple-darwin'

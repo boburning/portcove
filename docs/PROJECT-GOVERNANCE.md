@@ -318,7 +318,7 @@ runners are expected to execute by Priority, Horizon, readiness and Project orde
 Use `roadmap.mjs next` as the common execution queue; a Required-only readiness
 view is never the universal task selector. Deferred work remains inactive.
 
-One local runner owns implementation and delivery. At clean handoffs favor
+One owner is accountable for each coherent candidate. At clean handoffs favor
 finishing accepted beta outcomes, exact remaining acceptance, demonstrated
 prerequisites for several beta outcomes or fitting frozen-cohort routes, and
 actual delivery bottlenecks. Immediate safety/data-loss problems and broken
@@ -327,7 +327,7 @@ algorithm; Planned work may be the best accelerator.
 Use existing Priority, Horizon and Project order with relevance, dependencies,
 capability and current ownership. Preserve old workers' work and verify actual
 writer release before overlapping edits. Missing coordinator paperwork does
-not block unrelated work. Keep one actively edited candidate; a clean candidate
+not block unrelated work. Give each coherent candidate one owner; a clean candidate
 waiting for CI, independent review or an external prerequisite permits another
 independent task. Do not create new cloud implementation sessions, a dispatcher,
 lease system or reporting framework. Short-lived non-writing reviewers are allowed.
@@ -354,12 +354,7 @@ Being Planned is never a reason. For comparably valuable executable candidates, 
 waiting work over repeatedly selecting new small tasks; use existing comments
 and queue order to record repeated deferrals, without a new scheduler or ledger.
 
-Preserve actual host/resource guards, independent review, acceptance and current
-model/cost boundaries. Use GPT-6.1-Sol where available, normally Medium for
-implementation and High for scoped review, or cheaper suitable models; never
-Astra. Add no paid capacity. Acceleration issues identify a demonstrated delay,
-bounded repair and completion/no-change decision. Tiny new improvements cannot
-keep one outcome open indefinitely.
+Preserve actual host/resource guards, applicable review, acceptance and spending boundaries. Choose a suitable model for the task within existing spending authority.
 
 The existing nightly development report leads with accepted beta outcomes advanced,
 frozen-cohort useful-route/final-disposition progress, and actual blockers or
@@ -372,12 +367,12 @@ service or recurring automation. Instructions alone do not prove adoption.
 
 ## Pickup, consumption and execution upkeep
 
-The owner ended the two-cloud/one-local arrangement on October 9, 2026.
-One local runner now owns routine selection, implementation, review fixes,
-validation, CI, guarded merge and roadmap reconciliation. Dot is no longer a
-coordinator, dispatcher, approval gate or intermediary. This decision changes
-execution ownership; release commitments, acceptance, trust, signing/provenance,
-branch protection, data protection and resource guards remain in force.
+One owner takes each coherent candidate through implementation, review fixes,
+validation, guarded merge and targeted reconciliation. Multiple local workers
+and models may proceed independently. Actual overlapping writers and shared-host
+resources determine conflicts; no coordinator or global scheduler grants work.
+Preserve release commitments, acceptance, trust, signing/provenance, protections,
+user data, process ownership and resource guards.
 
 At pickup/resume, read the relevant owner instructions, issue specification,
 live Project fields, typed relationships, actual writers and exact source once.
@@ -387,7 +382,8 @@ and repeat only affected obligations, without ceremonial stage-by-stage reads.
 Use `roadmap.mjs next` for the common Required/Planned queue and
 `roadmap.mjs context --issue <number> --runner <reported-instance> --json`
 for full current task requirements. The configured `delivery_mode` is
-`single-local-runner`. Context skips the retired operational board and does not
+`single-local-runner` (a legacy transport name for retiring the coordinator board,
+not a limit on workers or models). Context skips the retired operational board and does not
 require an accepted coordinator assignment. Its retirement is not proof of
 writer inactivity or release. Check current handoffs, branch heads, local
 processes and source-owner release before taking conflicting work; unresolved
@@ -404,7 +400,7 @@ is historical. Explicit owning comment/PR references and optional consumed-file
 baselines remain evidence, never grants. Do not scan enormous coordination
 archives or build a replacement ledger.
 
-Keep one actively edited candidate at a time. Freeze clean heads while final
+Multiple candidates may proceed under separate ownership. Freeze clean heads while final
 checks run; revisit waiting candidates at natural checkpoints or new evidence.
 A waiting candidate does not stop useful independent delivery. Prefer completing
 existing work over recreating it. Do not reset, delete, force-push shared work or

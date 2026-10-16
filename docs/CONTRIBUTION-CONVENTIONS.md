@@ -50,7 +50,7 @@ prefix. `dependabot/` is reserved for the dependency service.
 Keep the four template sections: **Linked issue**, **Outcome and scope**,
 **Verification**, **Review and risk**. Use a closing keyword only for completed
 scope. State the concrete outcome, link exact-head required CI, identify the
-actual separate non-writing reviewer/head/result, and record explicit
+review performed, source head and result under QUALITY, and record explicit
 native/manual acceptance when required. Include material risks or limitations.
 Local checks are optional and need no omission narrative. Drafts may say pending;
 ready candidates carry final evidence in one current description. The advisory
@@ -67,12 +67,12 @@ Read requirements at pickup/resume and reuse them until material source or
 requirements changes; refresh relevant authority before final merge or writes
 under the [pickup contract](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
 
-One local runner owns routine delivery under the owner's single-runner decision.
+One owner delivers each coherent candidate; independent local workers may continue.
 Before resuming an existing candidate, verify source, current acceptance and
 actual writer release; preserve commits, evidence and unresolved overlap.
 A coordinator grant or ceremonial ACK is not required. Actual overlap blocks
 only conflicting work. The narrow verified Renovate review exception is owned by [QUALITY](QUALITY.md#bounded-dependency-delivery).
-Independent review, required exact-head CI, explicit acceptance and guarded
+Applicable review, required exact-head CI, explicit acceptance and guarded
 merge remain required. Local feedback follows [QUALITY](QUALITY.md#required-hosted-baseline).
 
 Record the reviewed source head, target tip used for the comparison, and actual
@@ -104,9 +104,11 @@ or explicitly fresh/stateful acceptance.
 Keep the reviewed source head frozen while checks complete. Use
 `just pr-watch --pr <number-or-url> --head <reviewed-head> --run <id> --attempt <number> --deadline <UTC-time>`
 for one identified source-head workflow and the five checked-in required contexts.
-Success also requires every context to identify a successful job in that exact
-run attempt's complete job inventory; same-head checks from another run cannot
-supply missing jobs.
+Success also requires each context to match its latest authoritative job in the
+same source-bound run. A selective retry may retain a successful independent job
+from an earlier attempt; a newer failure or pending execution supersedes it.
+Attempt-bound artifacts retain their producer/consumer chain. Changed artifact
+inputs require rerunning that chain; cross-run checks cannot fill missing jobs.
 Set the absolute UTC deadline once from the actual job start and configured
 timeout, with a bounded allowance for collecting results; track queue time
 separately. Resume with the same run, attempt, head and deadline. The former

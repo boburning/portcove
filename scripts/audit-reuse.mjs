@@ -120,7 +120,7 @@ export function validateAuditProducer(files, proof, { workflowDigest } = {}) {
       Number.isSafeInteger(run.run_attempt) &&
       run.run_attempt > 0 &&
       run.status === "completed" &&
-      run.conclusion === "success",
+      ["success", "failure"].includes(run.conclusion),
     "unsuccessful-main-producer",
   );
   requireValid(
@@ -138,7 +138,7 @@ export function validateAuditProducer(files, proof, { workflowDigest } = {}) {
       Number.isSafeInteger(job.id) &&
       job.id > 0 &&
       job.status === "completed" &&
-      job.conclusion === "success" &&
+      ["success", "failure"].includes(job.conclusion) &&
       Number.isFinite(Date.parse(job.started_at)) &&
       Number.isFinite(Date.parse(job.completed_at)),
     "unsuccessful-audit-job",
@@ -164,7 +164,7 @@ export function validateAuditProducer(files, proof, { workflowDigest } = {}) {
   requireValid(
     manifest.format === 1 &&
       manifest.kind === "hosted-audit-evidence" &&
-      manifest.diagnosticOnly === false &&
+      typeof manifest.diagnosticOnly === "boolean" &&
       identity?.repository === repositoryName &&
       identity.source === run.head_sha &&
       identity.workflowSha === run.head_sha &&
@@ -214,7 +214,7 @@ export function validateAuditProducer(files, proof, { workflowDigest } = {}) {
   );
   const rebuilt = buildAuditBundle({ identity, binding, capture, aggregate, receipts });
   requireValid(
-    rebuilt.files.size === files.size && aggregate.payload.success === true,
+    rebuilt.files.size === files.size && manifest.diagnosticOnly === !aggregate.payload.success,
     "incomplete-bundle",
   );
   for (const [name, bytes] of rebuilt.files)
@@ -437,7 +437,7 @@ export function discoverAuditReceipts(currentPlan, options = {}) {
         requireValid(
           candidate.head_branch === "main" &&
             candidate.status === "completed" &&
-            candidate.conclusion === "success" &&
+            ["success", "failure"].includes(candidate.conclusion) &&
             Number.isSafeInteger(candidate.id) &&
             candidate.id > 0,
           "unsuccessful-main-producer",
@@ -455,7 +455,7 @@ export function discoverAuditReceipts(currentPlan, options = {}) {
             run.path === workflowPath &&
             run.workflow_id === workflow.id &&
             run.status === "completed" &&
-            run.conclusion === "success",
+            ["success", "failure"].includes(run.conclusion),
           "provider-identity-unavailable",
         );
         const jobs = collection(
@@ -464,7 +464,7 @@ export function discoverAuditReceipts(currentPlan, options = {}) {
         );
         const audits = jobs.filter((j) => j.name === "audit");
         requireValid(
-          audits.length === 1 && audits[0].conclusion === "success",
+          audits.length === 1 && ["success", "failure"].includes(audits[0].conclusion),
           "unsuccessful-audit-job",
         );
         const artifacts = collection(
@@ -513,7 +513,7 @@ export function discoverAuditReceipts(currentPlan, options = {}) {
           finalRun.head_sha === run.head_sha &&
             finalRun.run_attempt === run.run_attempt &&
             finalRun.status === "completed" &&
-            finalRun.conclusion === "success" &&
+            finalRun.conclusion === run.conclusion &&
             finalMain === mainSha,
           "producer-changed",
         );

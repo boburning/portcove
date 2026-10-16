@@ -12,4 +12,4 @@
 
 ## Review and risk
 
-<!-- Actual separate reviewer, reviewed head and result; material risks/limitations. -->
+<!-- Review performed, reviewed head and result under QUALITY; material risks/limitations. -->

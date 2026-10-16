@@ -9,7 +9,7 @@ import {
   discoverCiPlan,
   fastPlatformMatrix,
   parseRawDiff,
-  proseOnlyAllowlist,
+  isInformationalPath,
   writeGithubOutputs,
 } from "./select-ci-plan.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
@@ -56,25 +56,11 @@ const raw = (...records) => Buffer.from(`${records.join("\0")}\0`);
 const modified = (file, modes = ["100644", "100644"]) =>
   `:${modes[0]} ${modes[1]} ${sha("1").slice(0, 7)} ${sha("2").slice(0, 7)} M\0${file}`;
 
-test("the prose allowlist is exact and excludes every normative documentation family", () => {
-  assert.deepEqual(proseOnlyAllowlist, ["docs/GUI-COMPETITIVE-REVIEW.md", "docs/README.md"]);
-  for (const protectedPath of [
-    "AGENTS.md",
-    "README.md",
-    "SECURITY.md",
-    "docs/ARCHITECTURE.md",
-    "docs/CLI.md",
-    "docs/DELIVERY.md",
-    "docs/PROJECT-GOVERNANCE.md",
-    "docs/QUALITY.md",
-    "docs/RELEASING.md",
-    "docs/REPOSITORY-SETTINGS.md",
-    "docs/UPDATER-TRUST.md",
-    "docs/archive/evidence.md",
-    "docs/releases/notes.md",
-  ]) {
-    assert.equal(proseOnlyAllowlist.includes(protectedPath), false, protectedPath);
-  }
+test("informational selection is a category, while policy retains affected contracts", () => {
+  for (const file of ["docs/new-guide.md", "docs/media/capture.png"])
+    assert.ok(isInformationalPath(file));
+  for (const file of ["AGENTS.md", "docs/QUALITY.md", ".agents/skills/example/SKILL.md"])
+    assert.equal(isInformationalPath(file), false);
 });
 
 test("parses NUL-delimited additions deletions and both sides of renames", () => {
@@ -118,9 +104,10 @@ test("mixed paths route fast while mode, symlink, and unusual statuses require q
     raw(`:100644 100644 1111111 2222222 T`, "docs/README.md"),
   ];
   assert.equal(classifyChanges(parseRawDiff(cases[0])).mode, "fast");
-  assert.equal(classifyChanges(parseRawDiff(cases[1])).mode, "fast");
-  for (const index of [2, 3, 5])
-    assert.equal(classifyChanges(parseRawDiff(cases[index])).mode, "qualification");
+  assert.equal(classifyChanges(parseRawDiff(cases[1])).mode, "prose");
+  assert.equal(classifyChanges(parseRawDiff(cases[2])).mode, "prose");
+  for (const index of [3, 5])
+    assert.equal(classifyChanges(parseRawDiff(cases[index])).mode, "blocked");
   assert.equal(classifyChanges(parseRawDiff(cases[4])).mode, "fast");
 });
 
@@ -388,4 +375,20 @@ test("missing historical push base falls back to the whole baseline; current hea
     (args) => (args[0] === "diff" ? Buffer.from("truncated") : Buffer.alloc(0)),
   ])
     assert.equal(discoverCiPlan(options, runner).mode, "blocked");
+});
+
+test("explicit qualification emits tool prerequisites without invoking ordinary-only selection", async () => {
+  const plan = discoverCiPlan({
+    eventName: "workflow_call",
+    checkoutSha: sha("a"),
+    forceQualification: true,
+  });
+  const directory = await mkdtemp(path.join(tmpdir(), "qualification-output-"));
+  try {
+    const file = path.join(directory, "output");
+    await writeGithubOutputs(file, plan);
+    assert.match(await readFile(file, "utf8"), /^contract_rust=true$/mu);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

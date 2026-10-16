@@ -53,9 +53,18 @@ concurrency:
 
 jobs:
   classify:
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     name: classify-ci-plan
     runs-on: ubuntu-latest
     outputs:
+      script_tools: ${{ steps.plan.outputs.script_tools }}
+      reuse_json: ${{ steps.plan.outputs.reuse_json }}
+      reused_groups: ${{ steps.plan.outputs.reused_groups }}
+      contract_python: ${{ steps.plan.outputs.contract_python }}
+      contract_rust: ${{ steps.plan.outputs.contract_rust }}
       mode: ${{ steps.plan.outputs.mode }}
       reason: ${{ steps.plan.outputs.reason }}
       files_json: ${{ steps.plan.outputs.files_json }}
@@ -77,13 +86,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
       - name: Select the fail-closed CI plan
         id: plan
         env:
+          GH_TOKEN: ${{ github.token }}
           PORTCOVE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           PORTCOVE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           PORTCOVE_PROSE_POLICY_ACTIVATED: "true"
-          # Full qualification is explicit (nightly, manual, release and this cutover).
+          # Full qualification is explicit (nightly, manual, release).
           PORTCOVE_FAST_VALIDATION_ACTIVATED: "true"
           PORTCOVE_FORCE_QUALIFICATION: ${{ inputs.force_qualification || false }}
         run: node scripts/select-ci-plan.mjs
@@ -231,7 +244,7 @@ jobs:
   fast_rust_quality:
     name: fast-rust-quality (linux-x86_64)
     needs: classify
-    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust-quality')
+    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust-quality') && !contains(fromJSON(needs.classify.outputs.reused_groups), 'rust-quality')
     runs-on: ubuntu-22.04
     env:
       PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
@@ -255,6 +268,15 @@ jobs:
       - name: Check Rust formatting
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         run: cargo fmt --all -- --check
+      - name: Read pinned script tool manager
+        if: needs.classify.outputs.script_tools == 'true'
+        id: aqua-version
+        run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
+      - uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
+        if: needs.classify.outputs.script_tools == 'true'
+        with:
+          aqua_version: ${{ steps.aqua-version.outputs.version }}
+          enable_aqua_install: "false"
       - name: Lint affected repository inputs
         run: node scripts/ci-baseline.mjs lint
       - name: Summarize diagnostic timings
@@ -275,7 +297,7 @@ jobs:
   fast_frontend:
     name: fast-frontend (linux-x86_64)
     needs: classify
-    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'frontend')
+    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'frontend') && !contains(fromJSON(needs.classify.outputs.reused_groups), 'frontend')
     runs-on: ubuntu-22.04
     env:
       PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
@@ -395,6 +417,11 @@ jobs:
         if: contains(fromJSON(needs.classify.outputs.plan_json).areas, 'release-security')
         run: pnpm --filter portcove-desktop-ui install --frozen-lockfile --ignore-scripts
       - uses: ./.github/actions/setup-rust
+        if: needs.classify.outputs.contract_rust == 'true'
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        if: needs.classify.outputs.contract_python == 'true'
+        with:
+          python-version: "3.12"
       - name: Check relevant cheap repository contracts
         env:
           PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
@@ -867,6 +894,7 @@ jobs:
         env:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
           PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_REUSE_JSON: ${{ needs.classify.outputs.reuse_json }}
           PORTCOVE_GROUP: rust-quality
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_ALWAYS_RESULTS: '{"provenance":"${{ needs.provenance.result }}"}'
@@ -960,6 +988,7 @@ jobs:
         env:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
           PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_REUSE_JSON: ${{ needs.classify.outputs.reuse_json }}
           PORTCOVE_GROUP: frontend
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_frontend":"${{ needs.fast_frontend.result }}"}'
@@ -992,10 +1021,13 @@ jobs:
           path: work/prose-ci-integration/
           if-no-files-found: ignore
           retention-days: 7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
       - name: Verify repository and release contracts
         run: |
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs scripts/discovery-checkpoint.test.mjs scripts/discovery-intake.test.mjs
-          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/container-browser.test.mjs scripts/checked-git.test.mjs scripts/resource-status.test.mjs scripts/report-summary.test.mjs scripts/ci-metrics.test.mjs scripts/checkout-context.test.mjs scripts/github-body.test.mjs scripts/audit.test.mjs scripts/audit-evidence.test.mjs scripts/audit-archive.test.mjs scripts/audit-reuse.test.mjs scripts/check-release-metadata.test.mjs scripts/desktop-build-cache.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/release-result-gate.test.mjs scripts/linux-beta-risk-706.test.mjs scripts/dependency-security.test.mjs scripts/desktop-input-observation.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/ci-baseline.test.mjs scripts/rust-test-impact.test.mjs scripts/qualification-coverage.test.mjs scripts/test-duration-reporter.test.mjs scripts/ui-test-selection.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/pnpm-lock-inventory.test.mjs scripts/frontend-build-compare.test.mjs scripts/renovate-engine-probe.test.mjs scripts/repository-settings.test.mjs scripts/repository-skills.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/renovate-fast-lane.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/process-lock.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/run-fallow.test.mjs scripts/generate-catalog.test.mjs scripts/catalog-proposal-costs.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
+          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/container-browser.test.mjs scripts/checked-git.test.mjs scripts/resource-status.test.mjs scripts/report-summary.test.mjs scripts/ci-metrics.test.mjs scripts/checkout-context.test.mjs scripts/github-body.test.mjs scripts/audit.test.mjs scripts/audit-evidence.test.mjs scripts/audit-archive.test.mjs scripts/audit-reuse.test.mjs scripts/check-release-metadata.test.mjs scripts/desktop-build-cache.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/release-result-gate.test.mjs scripts/linux-beta-risk-706.test.mjs scripts/dependency-security.test.mjs scripts/desktop-input-observation.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/check-document-links.test.mjs scripts/nextest-equivalence.test.mjs scripts/ordinary-git-routing.test.mjs scripts/package-ownership-selection.test.mjs scripts/postmerge-ci.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/ci-baseline.test.mjs scripts/rust-test-impact.test.mjs scripts/qualification-coverage.test.mjs scripts/test-duration-reporter.test.mjs scripts/ui-test-selection.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/pnpm-lock-inventory.test.mjs scripts/frontend-build-compare.test.mjs scripts/renovate-engine-probe.test.mjs scripts/repository-settings.test.mjs scripts/repository-skills.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/renovate-fast-lane.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/process-lock.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/run-fallow.test.mjs scripts/generate-catalog.test.mjs scripts/catalog-proposal-costs.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
           node scripts/check-release-metadata.mjs
           node scripts/quality-tools.mjs --validate
           node scripts/qualification-coverage.mjs

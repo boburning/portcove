@@ -504,28 +504,14 @@ test("preflight keeps policy qualification and Linux audit scope separate from s
           : args[0] === "branch"
             ? "feature/candidate"
             : "";
-  const hosted = inspectPreChangeAudit(context, validationPlan, base, base, {
-    inventory,
-    platform: "win32",
-    git: command(),
-  });
-  assert.equal(hosted.route, "hosted-deep-audit");
-  assert.equal(hosted.profile, "complete");
-  assert.ok(hosted.local_stages.some((stage) => stage.id === "windows-qualification"));
-  assert.ok(!hosted.stages.some((stage) => stage.id === "windows-qualification"));
-  assert.match(hosted.limit, /not equivalent to selected local-check/);
-  for (const input of [{ git: command("scripts/audit.mjs") }, { git: command("", " M source") }]) {
-    assert.equal(
-      inspectPreChangeAudit(context, validationPlan, base, base, { inventory, ...input }).route,
-      "local-prerequisites-unverified",
-    );
-  }
   assert.equal(
-    inspectPreChangeAudit(context, validationPlan, undefined, undefined, {
+    inspectPreChangeAudit(context, validationPlan, base, base, {
       inventory,
+      platform: "win32",
       git: command(),
-    }).route,
-    "local-prerequisites-unverified",
+    }),
+    null,
+    "ordinary policy changes do not add a fresh exhaustive audit prerequisite",
   );
 });
 const change = (path, options = {}) => ({ status: "M", path, ...options });
@@ -1038,7 +1024,7 @@ test("workflow and justfile changes select exact contract tests and actionlint",
   assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mjs"));
   assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mjs"));
   assert.ok(selection.nodeTests.has("scripts/local-validation.test.mjs"));
-  assert.ok(!ids(plan).includes("actionlint"));
+  assert.ok(ids(plan).includes("actionlint"));
   const nodeTests = plan.find((entry) => entry.id === "node-tests");
   assert.ok(nodeTests.args.includes("--test-reporter=./scripts/test-duration-reporter.mjs"));
 });

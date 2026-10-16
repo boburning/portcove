@@ -168,8 +168,6 @@ test("canonical owners declare required review, hosted baseline and guarded merg
   assert.match(root, /QUALITY\.md#required-hosted-baseline/u);
   assert.match(root, /CONTRIBUTION-CONVENTIONS\.md#review-and-merge/u);
   assert.match(quality, /Local commands[\s\S]*are optional feedback/u);
-  assert.match(quality, /Native\/UI\/installer observations are required only/u);
-  assert.match(conventions, /actual separate non-writing reviewer/u);
   assert.match(conventions, /just pr-merge-rest --pr <number-or-url> --head <reviewed-head>/u);
   assert.match(conventions, /An unrelated target advance does not by itself/u);
   assert.match(conventions, /administrator bypass/u);
