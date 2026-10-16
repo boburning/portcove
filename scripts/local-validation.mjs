@@ -304,7 +304,12 @@ const explicitNodeTests = new Map([
   ["scripts/pr-delivery.mjs", ["scripts/repository-skills.test.mjs"]],
   ["scripts/package-local.ps1", ["scripts/repository-skills.test.mjs"]],
   ["scripts/release-preflight.ps1", ["scripts/repository-skills.test.mjs"]],
-  ["scripts/roadmap.mjs", ["scripts/repository-skills.test.mjs"]],
+  [
+    "scripts/roadmap.mjs",
+    ["scripts/repository-skills.test.mjs", "scripts/discovery-intake.test.mjs"],
+  ],
+  ["scripts/upstream-observer.mjs", ["scripts/discovery-checkpoint.test.mjs"]],
+  ["scripts/observe-configured-upstream.mjs", ["scripts/discovery-checkpoint.test.mjs"]],
   ["scripts/test-windows-installer.ps1", ["scripts/repository-skills.test.mjs"]],
   ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mjs"]],
   [

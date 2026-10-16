@@ -22,12 +22,12 @@ fn post_exit_error_preserves_final_process_proof_and_original_failure() {
 #[cfg(windows)]
 #[track_caller]
 fn wait_nested_file(path: &Path) {
-    wait_nested_file_in_mode(path, None);
+    wait_nested_file_in_mode(path, None).unwrap();
 }
 
 #[cfg(windows)]
 #[track_caller]
-fn wait_nested_file_in_mode(path: &Path, mode: Option<&str>) {
+fn wait_nested_file_in_mode(path: &Path, mode: Option<&str>) -> Result<()> {
     let started = Instant::now();
     let deadline = started + Duration::from_secs(5);
     while !path.is_file() {
@@ -38,6 +38,9 @@ fn wait_nested_file_in_mode(path: &Path, mode: Option<&str>) {
                 "spawn-child",
                 "child-finished",
                 "descendant-observed",
+                "leader-exiting",
+                "inner-quiesced",
+                "inner-returned",
                 "inner-result.pending",
                 "inner-result.json",
                 "allow-worker-exit",
@@ -46,15 +49,16 @@ fn wait_nested_file_in_mode(path: &Path, mode: Option<&str>) {
                 let observed = path.parent().map(|parent| parent.join(marker).try_exists());
                 (marker, observed)
             });
-            panic!(
+            return Err(PortcoveError::state(format!(
                 "nested handshake did not complete: path={}, caller={}, mode={mode:?}, elapsed={:?}, markers={markers:?}",
                 path.display(),
                 std::panic::Location::caller(),
                 started.elapsed(),
-            );
+            )));
         }
         std::thread::sleep(Duration::from_millis(10));
     }
+    Ok(())
 }
 
 #[cfg(windows)]
@@ -114,10 +118,12 @@ fn nested_supervision_fixture_child() {
             diagnostics: None,
             quiesced: Some(&mut || {
                 inner_quiesced = true;
+                fs::write(working.join("inner-quiesced"), b"quiesced")?;
                 Ok(())
             }),
         },
     );
+    fs::write(working.join("inner-returned"), b"returned").unwrap();
     let details = result.as_ref().err().map(copy_proof_details);
     let proof = result
         .as_ref()
@@ -183,7 +189,7 @@ fn nested_windows_supervisors_report_exact_child_lifetime_coverage() {
                         wait_nested_file_in_mode(
                             &working.path().join("inner-result.json"),
                             Some(if short { "short" } else { "held" }),
-                        );
+                        )?;
                         fs::write(
                             working.path().join("allow-worker-exit"),
                             b"joined inner worker",
@@ -200,6 +206,11 @@ fn nested_windows_supervisors_report_exact_child_lifetime_coverage() {
                     Ok(())
                 }),
             },
+        );
+        assert!(
+            working.path().join("inner-result.json").is_file(),
+            "nested result missing after controlled cleanup: {:?}",
+            result.as_ref().err(),
         );
         let inner: serde_json::Value =
             serde_json::from_slice(&fs::read(working.path().join("inner-result.json")).unwrap())
