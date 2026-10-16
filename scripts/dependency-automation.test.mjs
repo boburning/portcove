@@ -107,8 +107,8 @@ test("Renovate is the sole conservative routine update authority", async () => {
   assert.equal(renovate.internalChecksFilter, "strict");
   assert.equal(renovate.prConcurrentLimit, 2);
   assert.equal(renovate.branchConcurrentLimit, 2);
-  assert.equal(renovate.prHourlyLimit, 2);
-  assert.equal(renovate.commitHourlyLimit, 4);
+  assert.equal(renovate.prHourlyLimit, 0);
+  assert.equal(renovate.commitHourlyLimit, 0);
   assert.equal(renovate.rebaseWhen, "conflicted");
   assert.equal(renovate.prCreation, "immediate");
   assert.equal(renovate.updateNotScheduled, true);

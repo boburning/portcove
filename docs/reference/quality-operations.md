@@ -289,13 +289,15 @@ optional deep tools remain outside required PR CI.
 
 Required CI cancels an older in-progress run when a newer commit reaches the same branch or pull request. This keeps obsolete Windows builds from occupying the queue while preserving a complete run for the newest commit.
 
-Routine Renovate traffic is bounded to two concurrent branches and pull requests,
-two new pull requests per hour, and four branch updates or rebases per hour.
+Routine Renovate traffic is bounded to two concurrent branches and pull requests.
+Hourly PR and commit caps are disabled (`prHourlyLimit: 0` and
+`commitHourlyLimit: 0`), so eligible proposals and conflict repairs can replenish
+available slots without waiting for the next hour. This does not change the
+hosted Renovate service's execution cadence, release-age filtering or review gates.
 Security vulnerability alerts retain Renovate's documented bypass of those
 ordinary queue limits, while GitHub vulnerability alerts and Dependabot security
-updates remain independent. Revert the four top-level limits in `renovate.json`
-if dependency freshness suffers; do not compensate by weakening CI or enabling
-broad automerge.
+updates remain independent. Adjust throughput through the top-level limits in
+`renovate.json`; do not compensate by weakening CI or enabling broad automerge.
 
 Linux desktop build prerequisites are installed through `scripts/install-linux-desktop-prerequisites.sh` in required CI, deep-quality, release, and updater-rehearsal workflows. The installer skips package-network work when the exact prerequisite set is already present, isolates resolution to Ubuntu sources, and gives APT three bounded fetch retries with explicit connection and package-lock timeouts. It first tries the runner-configured mirror under separate two-minute update and three-minute install deadlines, then applies the established archive mirror fallback with four-minute update and five-minute install deadlines. Narrow options add the updater rehearsal's `rpm` or AppImage runtime tools, or the on-demand native-compatibility workflow's WebKitWebDriver/Xvfb tools; unknown arguments fail before package work. Each calling step has a fifteen-minute outer limit and fails if both mirror attempts are exhausted. These retries cover external package retrieval only; repository tests retain zero retries, and a failed validation is never converted into a passing result.
 The helper never opens an interactive privilege prompt: root runs directly, while
