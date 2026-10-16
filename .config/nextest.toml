@@ -163,6 +163,14 @@ platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_retention_withdrawal_during_copy_refuses_publication$/)'
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 
+# CI 38960471195/a1 reached the second actual reopen at 29.128s in this
+# unchanged 30s sibling of the published-withdrawal case. Keep both reopens,
+# phase diagnostics and preservation assertions with exact Intel headroom.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_install_published_revocation_preserves_owned_payload$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
 # These CLI contracts compare free-space snapshots across child processes.
 # Preserve their existing mutual exclusion across nextest's process boundary.
 [test-groups]
