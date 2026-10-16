@@ -251,6 +251,11 @@ Vitest and installed `@vitest/*` providers move together. Vite, Oxc, Tailwind an
 Stylelint have separate compatibility groups, so unrelated families do not block
 each other. React includes React DOM and their declarations; Tauri combines the
 selected JavaScript and Rust framework inputs without requiring equal versions.
+The exact npm CLI 2.12.3 exclusion is tracked by [#2014](https://github.com/boburning/portcove/issues/2014):
+its newer RPM builder rejects Portcove's canonical prerelease version. Keep the
+qualified CLI 2.12.1 while updating compatible runtime/API/dialog inputs; other
+CLI versions remain eligible for their own qualification. Do not strip the
+prerelease, disable RPM checks or infer the deferred NSIS fixes are installed.
 Aqua itself and the three Aqua-managed quality tools form one
 qualification group. The standard Aqua registry ref remains an extracted,
 visible authority but is disabled as an independent update: change it in the
