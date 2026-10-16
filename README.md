@@ -151,7 +151,7 @@ Each entry records its upstream project, platforms, release channels, required l
 
 Requirements:
 
-- Rust 1.98.1
+- Rust 1.99.1
 - Node.js 24.21.0
 - pnpm 12.8.1
 - the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)
