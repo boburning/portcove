@@ -1944,22 +1944,25 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     );
     let mut observed_phase = None;
     let install = tokio::spawn(async move {
-        (
-            activity,
-            installer
-                .install(request, &operation, |event| {
-                    if let crate::OperationEventKind::Progress { phase, .. } = event.event
-                        && observed_phase.as_ref() != Some(&phase)
-                    {
-                        println!(
-                            "curated cache installer phase {phase}: {:?}",
-                            clock.elapsed()
-                        );
-                        observed_phase = Some(phase);
-                    }
-                })
-                .await,
-        )
+        println!(
+            "curated cache installer task entered: {:?}",
+            clock.elapsed()
+        );
+        let result = installer
+            .install(request, &operation, |event| {
+                if let crate::OperationEventKind::Progress { phase, .. } = event.event
+                    && observed_phase.as_ref() != Some(&phase)
+                {
+                    println!(
+                        "curated cache installer phase {phase}: {:?}",
+                        clock.elapsed()
+                    );
+                    observed_phase = Some(phase);
+                }
+            })
+            .await;
+        println!("curated cache installer completed: {:?}", clock.elapsed());
+        (activity, result)
     });
     // Owner-approved #706 calibration (issuecomments 6190196270/6191752545): preserve the
     // whole-install starting point and every actual partial-copy assertion.
@@ -1970,18 +1973,22 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // CI 38946153693/a1: PolicyLoss reached its first actual copy about 10.05s
     // after installer start, just beyond the 10s wait. Keep the same whole-install
     // origin, partial-copy barrier, worker drain and overall 30s test safeguard.
+    // CI 38953206413/a1: three retention fixtures missed their 10s latch before
+    // any copy was observed. Trial 15s with exact 45s whole-case safeguards so
+    // intervention and drain retain finite headroom after 12.7-14.6s of setup.
     let latch_timeout = if cfg!(all(target_os = "macos", target_arch = "x86_64"))
-        && matches!(intervention, CacheIntervention::PolicyLoss)
-    {
+        && matches!(
+            intervention,
+            CacheIntervention::PolicyLoss
+                | CacheIntervention::CancelRetain
+                | CacheIntervention::ArtifactRevocationRetain
+                | CacheIntervention::ArtifactWithdrawalRetain
+        ) {
         Duration::from_secs(15)
     } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))
         && matches!(
             intervention,
-            CacheIntervention::CancelRetain
-                | CacheIntervention::CancelRestore
-                | CacheIntervention::ArtifactRevocationRetain
-                | CacheIntervention::ArtifactWithdrawalRetain
-                | CacheIntervention::PolicyLoss
+            CacheIntervention::CancelRestore
                 | CacheIntervention::ArtifactRevocationRestore
                 | CacheIntervention::ArtifactWithdrawalRestore
         )
@@ -2000,9 +2007,10 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     })
     .await;
     println!(
-        "curated cache latch resolved: {:?}; reached={}",
+        "curated cache latch resolved: {:?}; reached={}; requests={}",
         clock.elapsed(),
-        reached.is_ok()
+        reached.is_ok(),
+        server.requests.lock().unwrap().len()
     );
     println!(
         "curated cache policy intervention begin: {:?}",
@@ -3432,6 +3440,7 @@ async fn curated_installer_boundary_fixture(
                 let status = artifact_status.unwrap();
                 let transitions = serde_json::json!({"future_acceptance_lost":false,
                     "artifacts":[{"asset_id":record.asset_id,"sha256":record.sha256,"status":status}]});
+                phase("boundary transition publication begin");
                 let (candidate, admission) = publish_curated_transition(
                     &fixture,
                     &key,
@@ -3441,6 +3450,7 @@ async fn curated_installer_boundary_fixture(
                     Some(transitions),
                 )
                 .await;
+                phase("boundary transition publication complete");
                 let interventions = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
                 let guarded = crate::Installer::with_faults(
                     library.clone(),
@@ -3454,14 +3464,26 @@ async fn curated_installer_boundary_fixture(
                     }),
                 )
                 .unwrap();
+                let mut observed_install_phase = None;
+                phase("boundary install begin");
                 let refusal = guarded
                     .install(
                         request(resolved.clone(), ""),
                         &crate::operation::OperationCoordinator::new("install", None),
-                        |_| {},
+                        |event| {
+                            if let crate::OperationEventKind::Progress {
+                                phase: progress, ..
+                            } = event.event
+                                && observed_install_phase.as_ref() != Some(&progress)
+                            {
+                                phase(&format!("boundary install progress {progress}"));
+                                observed_install_phase = Some(progress);
+                            }
+                        },
                     )
                     .await
                     .unwrap_err();
+                phase("boundary install complete");
                 assert_eq!(refusal.code, crate::ErrorCode::Conflict);
                 assert_eq!(interventions.load(std::sync::atomic::Ordering::SeqCst), 1);
                 assert_eq!(server.requests.lock().unwrap().len(), before + 4);
@@ -3494,9 +3516,11 @@ async fn curated_installer_boundary_fixture(
                     .join("curated-v1")
                     .join(format!("{}.asset", record.sha256));
                 assert_eq!(fs::read(&cached).unwrap(), bytes);
-                for _ in 0..2 {
+                for attempt in 0..2 {
+                    phase(&format!("boundary reopen begin {attempt}"));
                     let reopened = crate::PortcoveService::new(library.clone()).unwrap();
                     drop(reopened);
+                    phase(&format!("boundary reopen complete {attempt}"));
                     let held = OperationStore::new(library.clone()).all().unwrap();
                     assert_eq!(held.len(), 1);
                     assert_eq!(held[0].id, journal.id);
@@ -3517,19 +3541,32 @@ async fn curated_installer_boundary_fixture(
                     assert_eq!(payload.exists(), !published);
                     assert!(staging.exists());
                     assert_eq!(fs::read(&cached).unwrap(), bytes);
+                    phase(&format!("boundary preservation complete {attempt}"));
                 }
                 assert_eq!(count(&library, "curated_artifact_admissions"), 1);
                 assert_eq!(count(&library, "curated_transition_receipts"), 1);
                 return;
             }
+            let mut observed_install_phase = None;
+            phase("actual install begin");
             let installed = installer
                 .install(
                     request(resolved.clone(), ""),
                     &crate::operation::OperationCoordinator::new("install", None),
-                    |_| {},
+                    |event| {
+                        if let crate::OperationEventKind::Progress {
+                            phase: progress, ..
+                        } = event.event
+                            && observed_install_phase.as_ref() != Some(&progress)
+                        {
+                            phase(&format!("actual install progress {progress}"));
+                            observed_install_phase = Some(progress);
+                        }
+                    },
                 )
                 .await
                 .unwrap();
+            phase("actual install complete; verification begin");
             assert!(installer.verify(&installed).unwrap().valid);
             assert_eq!(count(&library, "installs"), 1);
             assert_eq!(
@@ -3549,6 +3586,7 @@ async fn curated_installer_boundary_fixture(
                 assert_eq!(fs::read(&cached).unwrap(), bytes);
                 let transitions = serde_json::json!({"future_acceptance_lost":false, "artifacts":[
                     {"asset_id":record.asset_id,"sha256":record.sha256,"status":status}]});
+                phase("installed transition publication begin");
                 let (candidate, admission) = publish_curated_transition(
                     &fixture,
                     &key,
@@ -3558,15 +3596,18 @@ async fn curated_installer_boundary_fixture(
                     Some(transitions),
                 )
                 .await;
+                phase("installed transition publication complete; application begin");
                 library
                     .apply_definition_publisher_policy(&admission, Some(&candidate))
                     .unwrap();
+                phase("installed transition applied; critical verification begin");
                 let critical = installer.verify_critical(&installed, &qualification);
                 if status == "revoked" {
                     assert!(critical.unwrap_err().message.contains("revoked"));
                 } else {
                     assert_eq!(critical.unwrap(), installed.path.join(executable));
                 }
+                phase("critical verification complete; fresh scope begin");
                 // Reassess and select the new exact policy. These acquisition
                 // refusals must not be explained by an obsolete in-memory scope.
                 let eligible = library
@@ -3581,6 +3622,7 @@ async fn curated_installer_boundary_fixture(
                     .unwrap();
                 current_scope.fixture_origin = Some(server.origin.clone());
                 current_scope.require_current().unwrap();
+                phase("fresh scope complete; acquisition refusal begin");
                 let before = server.requests.lock().unwrap().len();
                 let refusal = provider
                     .resolve_scoped(
@@ -3596,6 +3638,7 @@ async fn curated_installer_boundary_fixture(
                 } else {
                     "distribution"
                 }));
+                phase("fresh acquisition refused; cache refusal begin");
                 assert_eq!(server.requests.lock().unwrap().len(), before);
                 let destination = library.root().join("held-cache-copy.zip");
                 let refusal = crate::curated_cache::CacheWorker::new(
@@ -3606,6 +3649,7 @@ async fn curated_installer_boundary_fixture(
                 .restore(&destination)
                 .await
                 .unwrap_err();
+                phase("cache refused; final preservation begin");
                 assert!(refusal.message.contains(if status == "revoked" {
                     "revoked"
                 } else {
@@ -3622,6 +3666,7 @@ async fn curated_installer_boundary_fixture(
                 assert_eq!(count(&library, "curated_artifact_admissions"), 1);
                 assert_eq!(count(&library, "curated_transition_receipts"), 1);
                 assert!(server.responses.lock().unwrap().is_empty());
+                phase("installed final preservation complete");
                 return;
             }
             if !cache_controls {
