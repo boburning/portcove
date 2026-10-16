@@ -17,7 +17,10 @@ const developmentTools = await readFile(
 const rootGuidance = await readFile(new URL("../AGENTS.md", import.meta.url), "utf8");
 
 function frontmatter(source, label) {
-  const match = /^---\r?\nname: ([^\r\n]+)\r?\ndescription: ([^\r\n]+)\r?\n---\r?\n/u.exec(source);
+  const match =
+    /^---\r?\nname: ([^\r\n]+)\r?\ndescription: ([^\r\n]+)\r?\n(?:metadata:\r?\n(?:[ \t]+[^\r\n]*\r?\n|\r?\n)*)?---\r?\n/u.exec(
+      source,
+    );
   assert.ok(match, `${label} must start with exact name and description frontmatter`);
   return { name: match[1].trim(), description: match[2].trim() };
 }
@@ -125,8 +128,15 @@ test("repository skills have discoverable triggers, checkout anchoring, and vali
 
     assert.equal(metadata.name, directory.name, `${directory.name} frontmatter name must match`);
     assert.ok(metadata.description.length > 0, `${directory.name} must have a description`);
+    const anchoring =
+      directory.name === "portcove-daily-discovery"
+        ? source +
+          (await readFile(new URL("../docs/DAILY-PORT-DISCOVERY.md", import.meta.url), "utf8"))
+        : source;
+    if (directory.name === "portcove-daily-discovery")
+      assert.ok(source.includes("../../../docs/DAILY-PORT-DISCOVERY.md"));
     assert.match(
-      source,
+      anchoring,
       /git rev-parse --show-toplevel/u,
       `${directory.name} must resolve the active checkout root`,
     );
@@ -172,11 +182,15 @@ test("active instruction entrypoints have valid local links and anchors", async 
     entry.isDirectory(),
   );
   files.push(...skillDirectories.map((entry) => new URL(`${entry.name}/SKILL.md`, skillsRoot)));
-  files.push(
-    ...skillDirectories.map(
-      (entry) => new URL(`${entry.name}/references/operation-notes.md`, skillsRoot),
-    ),
-  );
+  for (const entry of skillDirectories) {
+    const directory = new URL(`${entry.name}/`, skillsRoot);
+    files.push(
+      ...(await readdir(directory, { recursive: true }))
+        .filter((name) => name.endsWith(".md") && name !== "SKILL.md")
+        .map((name) => new URL(name.replaceAll("\\", "/"), directory)),
+    );
+  }
+  files.push(new URL("../docs/DAILY-PORT-DISCOVERY.md", import.meta.url));
   const referenceRoot = new URL("../docs/reference/", import.meta.url);
   files.push(
     ...(await readdir(referenceRoot))
