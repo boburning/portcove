@@ -149,8 +149,6 @@ jobs:
     if: ${{ inputs.operation == 'linux-package-boundary' && inputs.runner == 'ubuntu-22.04' && !inputs.edge_driver_proof }}
     runs-on: ubuntu-22.04
     timeout-minutes: 45
-    env:
-      PORTCOVE_RETAINED_EVIDENCE_DIR: ${{ runner.temp }}/pcv-package2-retained-inputs
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -182,6 +180,8 @@ jobs:
         run: node scripts/run-rust-tests.mjs --guard-command node scripts/desktop-linux-media.mjs --build
       - name: Run the unchanged shipping boundary with synthetic media readiness
         timeout-minutes: 10
+        env:
+          PORTCOVE_RETAINED_EVIDENCE_DIR: ${{ runner.temp }}/pcv-package2-retained-inputs
         run: node scripts/run-rust-tests.mjs --guard-command node scripts/desktop-linux-media.mjs --run
       - name: Remove only this operation's quiescent media fixture
         if: always()

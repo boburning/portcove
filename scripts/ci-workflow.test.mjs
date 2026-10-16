@@ -61,8 +61,9 @@ test("ordinary Linux package operation is fixed and isolated from fixture builds
   assert.ok(block);
   assert.match(
     block,
-    /PORTCOVE_RETAINED_EVIDENCE_DIR: \$\{\{ runner\.temp \}\}\/pcv-package2-retained-inputs/u,
+    /- name: Run the unchanged shipping boundary with synthetic media readiness\n        timeout-minutes: 10\n        env:\n          PORTCOVE_RETAINED_EVIDENCE_DIR: \$\{\{ runner\.temp \}\}\/pcv-package2-retained-inputs\n        run: node scripts\/run-rust-tests\.mjs --guard-command node scripts\/desktop-linux-media\.mjs --run/u,
   );
+  assert.doesNotMatch(block.split("    steps:")[0], /\$\{\{ runner\./u);
   assert.match(block, /\$\{\{ runner\.temp \}\}\/pcv-package2-retained-inputs\/\*\*/u);
   const mediaAdapter = await readFile(
     new URL("./desktop-linux-media.mjs", import.meta.url),
