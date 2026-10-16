@@ -7,7 +7,7 @@ import { desktopApi } from "../api";
 import { ArtworkProvider } from "../artwork";
 import { ArtworkControls, ArtworkImage } from "../components/Artwork";
 import { artworkState, portDefinition } from "../test-fixtures";
-import "../styles.css";
+import "../styles/index.css";
 
 vi.mock("../api", () => ({
   desktopApi: {

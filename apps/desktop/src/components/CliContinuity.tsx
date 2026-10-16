@@ -60,7 +60,10 @@ export function CliContinuity({
       : "Copy setup command";
   if (!context)
     return (
-      <section className="cli-continuity" aria-label={title}>
+      <section
+        className="cli-continuity mt-5 grid gap-2 rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-3"
+        aria-label={title}
+      >
         <strong>{title}</strong>
         {error ? (
           <>
@@ -83,7 +86,10 @@ export function CliContinuity({
     command = primaryCliCommand(context, port, status, channel, sourcePath, biosPath);
   } catch {
     return (
-      <section className="cli-continuity" aria-label={title}>
+      <section
+        className="cli-continuity mt-5 grid gap-2 rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-3"
+        aria-label={title}
+      >
         <strong>{title}</strong>
         <p role="alert">
           Remove invalid characters from the selected paths before copying a command.
@@ -92,8 +98,11 @@ export function CliContinuity({
     );
   }
   return (
-    <section className="cli-continuity" aria-label={title}>
-      <div>
+    <section
+      className="cli-continuity mt-5 grid gap-2 rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-3"
+      aria-label={title}
+    >
+      <div className="grid gap-1 [overflow-wrap:anywhere]">
         <strong>{title}</strong>
         <span>
           Uses this library: <code>{context.library_root}</code>
@@ -174,8 +183,10 @@ function CopyField({ value, label }: { value: string; label: string }) {
   };
   return (
     <>
-      <div className="command-line">
-        <code>{value}</code>
+      <div className="command-line grid grid-cols-[minmax(0,_1fr)_auto] items-stretch gap-1">
+        <code className="min-w-0 rounded-pc-sm border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-[var(--space-2)_var(--space-3)] text-[length:var(--text-xs)] [overflow-wrap:anywhere] whitespace-pre-wrap text-[var(--color-interactive-text)]">
+          {value}
+        </code>
         <Button
           data-focusable
           variant="ghost"

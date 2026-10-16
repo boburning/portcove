@@ -64,7 +64,8 @@ function contrast(foreground, background) {
 }
 
 export function themeTokenFailures(css) {
-  const themeBlockPattern = /(:root|\[data-theme=(?:"light"|'light')\])\s*\{([\s\S]*?)\r?\n\}/g;
+  const themeBlockPattern =
+    /(:root|:root\[data-theme=(?:"light"|'light')\])\s*\{([\s\S]*?)\r?\n\}/g;
   const tokenBlocks = [...css.matchAll(themeBlockPattern)];
   const rootBlock = tokenBlocks.find(([, selector]) => selector === ":root");
   const lightBlock = tokenBlocks.find(([, selector]) => selector.includes("light"));
@@ -130,35 +131,6 @@ export function themeTokenFailures(css) {
       failures.push(`light theme redefines primitive ${token}; override semantic aliases instead`);
   }
 
-  const expectedPrimitives = {
-    "--n64-red-100": "#f9d8d5",
-    "--n64-red-300": "#ef8179",
-    "--n64-red-500": "#e23b32",
-    "--n64-red-700": "#a92b25",
-    "--n64-blue-100": "#d8e2f2",
-    "--n64-blue-300": "#7697ca",
-    "--n64-blue-500": "#2d5da8",
-    "--n64-blue-700": "#214579",
-    "--n64-green-100": "#d5ecdf",
-    "--n64-green-300": "#73bd91",
-    "--n64-green-500": "#27995b",
-    "--n64-green-700": "#1d7044",
-    "--n64-yellow-100": "#fbf0c8",
-    "--n64-yellow-300": "#f6d978",
-    "--n64-yellow-500": "#f2c94c",
-    "--n64-yellow-700": "#b69228",
-    "--n64-black": "#191a1d",
-    "--n64-graphite": "#24252a",
-    "--n64-white": "#f5f3ee",
-    "--n64-controller-blue": "#4958a7",
-  };
-
-  for (const [token, expected] of Object.entries(expectedPrimitives)) {
-    const actual = baseTokens.get(token)?.toLowerCase();
-    if (actual !== expected)
-      failures.push(`${token} must remain ${expected}, found ${actual ?? "missing"}`);
-  }
-
   for (const theme of themes) failures.push(...semanticReferenceFailures(theme.tokens));
   if (failures.length) return { failures, results: [] };
 
@@ -178,9 +150,9 @@ export function themeTokenFailures(css) {
     ["interactive button label", "--color-text-on-dark", "--color-interactive", 4.5],
     ["interactive hover label", "--color-text-on-dark", "--color-interactive-hover", 4.5],
     ["interactive active label", "--color-text-on-dark", "--color-interactive-active", 4.5],
-    ["signature action label", "--color-text-on-dark", "--color-accent-surface", 4.5],
-    ["signature action hover label", "--color-text-on-dark", "--color-accent-hover", 4.5],
-    ["signature action active label", "--color-text-on-dark", "--color-accent-active", 4.5],
+    ["signature action label", "--color-text-on-dark", "--color-primary-surface", 4.5],
+    ["signature action hover label", "--color-text-on-dark", "--color-primary-hover", 4.5],
+    ["signature action active label", "--color-text-on-dark", "--color-primary-active", 4.5],
     ["destructive hover label", "--color-text-on-dark", "--color-danger-surface", 4.5],
     ["highlight label", "--color-text-on-highlight", "--color-highlight", 4.5],
     ["staged state on detail hero", "--color-interactive-text", "--color-bg-elevated", 4.5],

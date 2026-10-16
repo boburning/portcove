@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { CommandPalette, type PaletteCommand } from "../components/CommandPalette";
-import "../styles.css";
+import "../styles/index.css";
 
 let root: Root;
 let host: HTMLDivElement;

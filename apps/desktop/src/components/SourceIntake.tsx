@@ -246,10 +246,12 @@ function SourceIntakeSession({
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[min(90vh,58rem)] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        className="max-h-[min(90vh,58rem)] w-[min(760px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="source-intake-description"
       >
-        <p className="eyebrow">{copy.eyebrow}</p>
+        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+          {copy.eyebrow}
+        </p>
         <DialogTitle id="source-intake-title" className="mb-2 text-xl">
           {copy.title(request.portName)}
         </DialogTitle>
@@ -318,7 +320,7 @@ function SourceIntakeSession({
                     ? copy.addExplanation
                     : result.next_action}
                 </p>
-                <div className="actions">
+                <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
                   <Button
                     data-focusable
                     variant="primary"

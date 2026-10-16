@@ -493,6 +493,8 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   if (
     file.startsWith("apps/desktop/src/browser/") ||
     file.startsWith("apps/desktop/src/components/ui/") ||
+    file.startsWith("apps/desktop/src/styles/") ||
+    file.endsWith(".module.css") ||
     [
       "apps/desktop/scripts/browser-runtime.mjs",
       "apps/desktop/vitest.config.ts",
@@ -505,7 +507,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       "apps/desktop/src/features/installation/use-installation-planning.ts",
       "apps/desktop/src/shared/concurrency-state.ts",
       "apps/desktop/src/api.ts",
-      "apps/desktop/src/styles.css",
+      "apps/desktop/src/styles/index.css",
       "apps/desktop/src/test-fixtures.ts",
       "apps/desktop/src/view-model.ts",
     ].includes(file)

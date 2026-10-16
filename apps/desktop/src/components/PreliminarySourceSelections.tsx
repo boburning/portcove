@@ -54,7 +54,7 @@ export function PreliminarySourceSelections({
             key={`${selection.profile_id}:${selection.path}`}
           >
             <strong>{profile?.label ?? selection.profile_id}</strong>
-            <code className="block whitespace-normal [overflow-wrap:anywhere]">
+            <code className="block [overflow-wrap:anywhere] whitespace-normal">
               {selection.path}
             </code>
             <p>

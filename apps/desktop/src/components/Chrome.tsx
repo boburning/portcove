@@ -1,3 +1,5 @@
+import { cn } from "cn";
+import { Notice, SettingsRow } from "./ui/patterns";
 import { SourceRemovalControl } from "./SourceRemoval";
 import { desktopApi } from "../api";
 import {
@@ -109,11 +111,16 @@ export function Sidebar({
     shortcut: string;
   }>;
   return (
-    <aside className="sidebar" data-focus-region="sidebar">
-      <div className="brand">
+    <aside
+      className="sidebar flex flex-col bg-[var(--color-bg-elevated)] p-[var(--space-6)_var(--space-4)_var(--space-4)] shadow-[inset_-1px_0_var(--color-bg-subtle)] [border-inline-end:1px_solid_var(--color-border)] max-[65rem]:px-3"
+      data-focus-region="sidebar"
+    >
+      <div className="brand flex items-center gap-3 p-[0_var(--space-2)_var(--space-7)]">
         <BrandAvatar />
         <div>
-          <strong>Portcove</strong>
+          <strong className="block text-[length:var(--text-lg)] tracking-[-0.02em]">
+            Portcove
+          </strong>
         </div>
       </div>
       <nav aria-label="Primary navigation">
@@ -124,22 +131,29 @@ export function Sidebar({
             aria-current={view === item.view ? "page" : undefined}
             variant={view === item.view ? "selected" : "ghost"}
             size="lg"
-            className="nav-item"
+            className="group/nav nav-item grid h-auto min-h-[var(--control-height-lg)] w-full grid-cols-[var(--icon-lg)_minmax(0,_1fr)_auto_auto] items-center gap-2 p-[var(--space-2)_var(--space-3)] text-start whitespace-normal"
             onClick={() => setView(item.view)}
           >
             <Icon glyph={item.icon} />
-            <span>{item.label}</span>
+            <span className="[&:not(.icon)]:min-w-0 [&:not(.icon)]:[overflow-wrap:break-word]">
+              {item.label}
+            </span>
             {item.view === "library" && (
-              <b aria-label={`${installedCount} in library`}>{installedCount}</b>
+              <b
+                className="rounded-pc-md bg-[var(--color-warning-subtle)] p-[2px_7px] text-[length:var(--text-xs)] text-[var(--color-warning-text)]"
+                aria-label={`${installedCount} in library`}
+              >
+                {installedCount}
+              </b>
             )}
             {item.view === "updates" && (updateCount > 0 || activityState) && (
               <NavigationStatus updateCount={updateCount} activityState={activityState} />
             )}
-            <Shortcut>{commandShortcut(item.shortcut)}</Shortcut>
+            <Shortcut className="opacity-0">{commandShortcut(item.shortcut)}</Shortcut>
           </Button>
         ))}
       </nav>
-      <div className="sidebar-footer">
+      <div className="sidebar-footer mt-auto">
         <Button
           data-focusable
           variant="outline"
@@ -181,7 +195,10 @@ function NavigationStatus({
   const label = [activityLabel, updateLabel].filter(Boolean).join(", ");
   return (
     <b
-      className={`nav-status${activityState ? ` ${activityState}` : ""}`}
+      className={cn(
+        "nav-status inline-flex min-w-5 items-center justify-center gap-1 rounded-pc-md bg-pc-warning-subtle px-2 py-0.5 text-xs text-pc-warning-foreground",
+        activityState === "running" && "bg-pc-selection text-pc-selection-foreground",
+      )}
       aria-label={label}
       title={label}
     >
@@ -208,24 +225,36 @@ export function PageHeader({
 }) {
   const copy = pageCopy(view, portCount ?? 0);
   return (
-    <header>
+    <header className="mb-6 flex flex-wrap items-center justify-between gap-6">
       <div>
         <h1 tabIndex={-1}>{copy.title}</h1>
-        {copy.description && <p className="page-description">{copy.description}</p>}
+        {copy.description && (
+          <p className="page-description m-[7px_0_0] max-w-[620px] text-[length:var(--text-xs)] leading-[var(--leading-normal)] text-[var(--color-text-muted)]">
+            {copy.description}
+          </p>
+        )}
       </div>
-      <div className="header-tools" data-focus-group>
+      <div
+        className="header-tools flex items-center justify-end gap-2 max-[75rem]:ms-auto"
+        data-focus-group
+      >
         {(view === "library" || view === "catalog") && (
-          <label className="search" htmlFor="port-search">
+          <label
+            className="search flex h-[var(--control-height-lg)] min-h-[var(--control-height-lg)] w-[min(330px,_34vw)] items-center gap-2 rounded-pc-md border border-[var(--color-control-border)] bg-[var(--color-bg-elevated)] p-[0_var(--space-3)] text-[var(--color-text-muted)] shadow-[inset_0_1px_2px_var(--color-bg)] focus-within:[outline:3px_solid_var(--color-focus)] focus-within:[outline-offset:3px] max-[65rem]:w-[16rem]"
+            htmlFor="port-search"
+          >
             <Icon glyph={Search} />
             <span className="sr-only">Search ports</span>
             <input
+              className="h-full min-h-0 w-full border-0 bg-[var(--color-transparent)] p-[12px_2px] py-0 text-[var(--color-text)]"
               id="port-search"
+              style={{ outline: "none" }}
               data-focusable
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search ports"
             />
-            <Shortcut>/</Shortcut>
+            <Shortcut className="ms-auto">/</Shortcut>
           </label>
         )}
         <Button
@@ -233,13 +262,13 @@ export function PageHeader({
           data-detail-origin={`command-trigger:${view}`}
           variant="outline"
           size="lg"
-          className="command-trigger"
+          className="command-trigger h-[var(--control-height-lg)] min-h-[var(--control-height-lg)] bg-[var(--color-bg-elevated)] p-[0_var(--space-3)] whitespace-nowrap text-[var(--color-text-secondary)]"
           onClick={onOpenCommands}
           aria-label="Open command palette"
         >
           <Icon glyph={Command} />
-          <span>Commands</span>
-          <Shortcut>{commandShortcut("K")}</Shortcut>
+          <span className="max-[65rem]:hidden">Commands</span>
+          <Shortcut className="ms-1">{commandShortcut("K")}</Shortcut>
         </Button>
       </div>
     </header>
@@ -342,14 +371,15 @@ function ApplicationUpdateProductionTransitionBanner({
   dismiss?: (() => void) | undefined;
 }) {
   return (
-    <section
-      className="error-banner application-update-consent-notice"
+    <Notice
+      intent="info"
+      className=""
       role="status"
       aria-live="polite"
       aria-atomic="true"
       aria-busy={busy}
     >
-      <span className="error-icon">
+      <span className="error-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-danger-text)]">
         <Icon glyph={ShieldCheck} />
       </span>
       <div>
@@ -360,7 +390,7 @@ function ApplicationUpdateProductionTransitionBanner({
           test releases. Your update mode and pause setting stay unchanged.
         </p>
       </div>
-      <div className="error-actions">
+      <div className="error-actions flex gap-1">
         <Button data-focusable variant="primary" size="sm" disabled={busy} onClick={useStable}>
           Use Stable
         </Button>
@@ -371,7 +401,7 @@ function ApplicationUpdateProductionTransitionBanner({
           Not now
         </Button>
       </div>
-    </section>
+    </Notice>
   );
 }
 
@@ -383,13 +413,8 @@ function ApplicationUpdateChoiceBanner({
   dismiss?: (() => void) | undefined;
 }) {
   return (
-    <section
-      className="error-banner application-update-consent-notice"
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-    >
-      <span className="error-icon">
+    <Notice intent="info" className="" role="status" aria-live="polite" aria-atomic="true">
+      <span className="error-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-danger-text)]">
         <Icon glyph={Settings} />
       </span>
       <div>
@@ -400,7 +425,7 @@ function ApplicationUpdateChoiceBanner({
           before applying them.
         </p>
       </div>
-      <div className="error-actions">
+      <div className="error-actions flex gap-1">
         <Button data-focusable variant="primary" size="sm" onClick={review}>
           Review options
         </Button>
@@ -408,7 +433,7 @@ function ApplicationUpdateChoiceBanner({
           Not now
         </Button>
       </div>
-    </section>
+    </Notice>
   );
 }
 
@@ -425,13 +450,8 @@ function ApplicationUpdateNoticeBanner({
   if (!candidate) return null;
   const channel = candidate.channel === "preview" ? "Preview" : "Stable";
   return (
-    <section
-      className="error-banner application-update-notice"
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-    >
-      <span className="error-icon">
+    <Notice intent="success" className="" role="status" aria-live="polite" aria-atomic="true">
+      <span className="error-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-danger-text)]">
         <Icon glyph={Download} />
       </span>
       <div>
@@ -446,7 +466,7 @@ function ApplicationUpdateNoticeBanner({
             : `${channel} update found (${formatBytes(candidate.bytes)}). Review it in Settings before downloading.`}
         </p>
       </div>
-      <div className="error-actions">
+      <div className="error-actions flex gap-1">
         <Button data-focusable variant="primary" size="sm" onClick={review}>
           Review update
         </Button>
@@ -460,7 +480,7 @@ function ApplicationUpdateNoticeBanner({
           <Icon glyph={X} />
         </Button>
       </div>
-    </section>
+    </Notice>
   );
 }
 
@@ -494,12 +514,12 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
     </div>
   );
   return (
-    <section className="error-banner" role={neutral ? "status" : "alert"}>
-      <span className="error-icon">
+    <Notice intent="danger" className="" role={neutral ? "status" : "alert"}>
+      <span className="error-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-danger-text)]">
         <Icon glyph={neutral ? CircleMinus : AlertTriangle} />
       </span>
       {renderFailureDetails()}
-      <div className="error-actions">
+      <div className="error-actions flex gap-1">
         <Button
           data-focusable
           variant="ghost"
@@ -510,7 +530,7 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
           <Icon glyph={X} />
         </Button>
       </div>
-    </section>
+    </Notice>
   );
 }
 
@@ -523,7 +543,7 @@ function OperationProgress({
 }) {
   const { label, detail, range } = progressPresentation(operation, busy);
   return (
-    <div className="operation-bar mb-4 grid items-center gap-3 rounded-pc-md border border-pc-info bg-pc-info-subtle px-3 py-2 text-xs text-pc-muted-foreground">
+    <div className="operation-bar mb-4 grid grid-cols-[auto_minmax(8rem,_auto)_minmax(12rem,_1fr)] items-center gap-3 rounded-pc-md border border-pc-info bg-pc-info-subtle px-3 py-2 text-xs text-pc-muted-foreground">
       <span className="text-pc-info-foreground motion-safe:[&_.icon]:animate-spin">
         <Icon glyph={LoaderCircle} />
       </span>
@@ -548,7 +568,7 @@ function OperationProgress({
         aria-valuetext={detail}
       >
         <i
-          className="block h-full bg-pc-loading motion-safe:transition-[width] motion-safe:duration-300"
+          className="block h-full w-[32%] animate-pc-progress bg-pc-loading motion-safe:transition-[width] motion-safe:duration-300 motion-reduce:[animation:none] motion-reduce:animate-none"
           style={range ? { width: `${range.percent}%` } : undefined}
         />
       </div>
@@ -600,7 +620,7 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
   const StateIcon = connected ? CheckCircle2 : CircleUserRound;
   return (
     <>
-      <div className="settings-title">
+      <div className="settings-title flex items-center justify-between gap-[12px]">
         <h2 className="m-0 flex items-center gap-2">GitHub connection</h2>
         <span className={stateClass}>
           <Icon glyph={StateIcon} size="sm" />
@@ -633,7 +653,7 @@ function DeviceLogin({ login }: { login?: GithubDeviceLogin | undefined }) {
   if (!login) return null;
   return (
     <div className="flex items-center gap-3 rounded-pc-md border border-[var(--color-warning-border)] bg-pc-warning-subtle p-3">
-      <strong className="text-pc-warning-foreground tracking-[0.12em]">
+      <strong className="tracking-[0.12em] text-pc-warning-foreground">
         Enter {login.user_code}
       </strong>
       <span className="text-pc-muted-foreground">
@@ -700,7 +720,7 @@ function GithubActions({
 }) {
   const status = github?.status;
   return (
-    <div className="actions compact">
+    <div className="actions compact mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
       {!status?.authenticated &&
         status?.source !== "environment" &&
         status?.device_login_available && (
@@ -779,14 +799,16 @@ function GithubSettings({
   busy?: string | undefined;
 }) {
   return (
-    <article className="settings-row col-span-full" data-focus-group>
-      <p className="eyebrow">GITHUB</p>
+    <SettingsRow className="col-span-full" data-focus-group>
+      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+        GITHUB
+      </p>
       <GithubConnection status={github?.status} />
       {github?.status?.device_login_available && <DeviceLogin login={github.deviceLogin} />}
       <TokenEntry github={github} busy={!!busy} />
       <GithubActions github={github} busy={!!busy} />
       <GithubNotes status={github?.status} />
-    </article>
+    </SettingsRow>
   );
 }
 
@@ -857,7 +879,7 @@ function SourceRequirements({
         >
           <div className="min-w-0">
             <strong className="block">{requirement.profile.label}</strong>
-            <small className="mt-1 block overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-2xs)] text-pc-muted-foreground">
+            <small className="mt-1 block overflow-hidden text-[length:var(--text-2xs)] text-ellipsis whitespace-nowrap text-pc-muted-foreground">
               {requirement.requiredBy.map((use) => `${use.portName} · ${use.role}`).join("  /  ")}
             </small>
           </div>
@@ -941,10 +963,12 @@ function SourceHealth({
   const byProfile = new Map(outcomes.map((outcome) => [outcome.profile_id, outcome]));
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   return (
-    <article className="settings-row source-health col-span-full min-h-0" data-focus-group>
-      <p className="eyebrow">SAVED FILES</p>
-      <div className="settings-title">
-        <h2>Game files and BIOS</h2>
+    <SettingsRow className="source-health col-span-full min-h-0" data-focus-group>
+      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+        SAVED FILES
+      </p>
+      <div className="settings-title flex items-center justify-between gap-[12px]">
+        <h2 className="m-0 flex items-center gap-2">Game files and BIOS</h2>
         <Button
           data-focusable
           variant="outline"
@@ -997,7 +1021,7 @@ function SourceHealth({
         Portcove checks files locally and never uploads or changes them. When you choose a new
         location, Portcove confirms that the file is an exact match before saving the new path.
       </p>
-    </article>
+    </SettingsRow>
   );
 }
 
@@ -1090,7 +1114,7 @@ function SourceHealthRow({
             </summary>
             <small>
               Catalog profile ID:{" "}
-              <code className="source-profile-id mt-1 block bg-transparent p-0 text-pc-muted-foreground [overflow-wrap:anywhere]">
+              <code className="source-profile-id mt-1 block bg-transparent p-0 [overflow-wrap:anywhere] text-pc-muted-foreground">
                 {source.profile_id}
               </code>
             </small>
@@ -1170,7 +1194,11 @@ function SourceInspectionPresentation({
           <SourceIdentityPanel report={currentReport} openEvidence={openEvidence} />
         ) : (
           <p
-            className={read?.status === "pending" ? "source-inspection-loading" : undefined}
+            className={
+              read?.status === "pending"
+                ? "source-inspection-loading text-[var(--color-text-muted)]"
+                : undefined
+            }
             role="status"
           >
             {message}
@@ -1276,10 +1304,16 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
       ? `Following system · currently ${resolvedLabel}`
       : `Always ${resolvedLabel}`;
   return (
-    <article className="settings-row appearance-card" data-focus-group>
-      <p className="eyebrow">THEME</p>
+    <SettingsRow className="appearance-card" data-focus-group>
+      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+        THEME
+      </p>
       <h2>Color theme</h2>
-      <div className="segmented appearance-options" role="group" aria-label="Color theme">
+      <div
+        className="segmented appearance-options m-[18px_0] grid [grid-auto-columns:1fr] [grid-auto-flow:column] rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-[3px]"
+        role="group"
+        aria-label="Color theme"
+      >
         {options.map((option) => (
           <ThemeOption
             key={option}
@@ -1290,19 +1324,27 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
         ))}
       </div>
       <p>{status}.</p>
-    </article>
+    </SettingsRow>
   );
 }
 
 function AboutCard() {
   return (
-    <article className="settings-row about-card" data-focus-group>
-      <div className="about-art">
-        <BrandWordmark />
-        <BrandMascot decorative />
+    <SettingsRow
+      className="about-card grid min-h-0 grid-cols-1 items-center gap-6 @min-[40rem]/section:grid-cols-[minmax(11rem,0.45fr)_minmax(0,1fr)]"
+      data-focus-group
+    >
+      <div className="about-art grid min-w-0 grid-rows-[auto_minmax(0,1fr)] items-end gap-3 rounded-pc-lg border border-[var(--color-border-strong)] bg-[var(--color-brand-stage)] p-3 shadow-(--shadow-control)">
+        <BrandWordmark className="block max-w-[100%] bg-[var(--color-brand-stage)] object-contain" />
+        <BrandMascot
+          className="block max-w-[100%] bg-[var(--color-brand-stage)] object-contain"
+          decorative
+        />
       </div>
       <div className="self-center">
-        <p className="eyebrow">ABOUT &amp; CREDITS</p>
+        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+          ABOUT &amp; CREDITS
+        </p>
         <h2 className="mb-2 text-xl">About Portcove</h2>
         <p className="leading-relaxed text-pc-muted-foreground">
           Install, update, and play native game ports. Portcove keeps track of your library,
@@ -1313,7 +1355,7 @@ function AboutCard() {
             <dt className="text-[length:var(--text-2xs)] tracking-[0.06em] text-pc-muted-foreground uppercase">
               Version
             </dt>
-            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
               {desktopPackage.version}
             </dd>
           </div>
@@ -1321,7 +1363,7 @@ function AboutCard() {
             <dt className="text-[length:var(--text-2xs)] tracking-[0.06em] text-pc-muted-foreground uppercase">
               Built with
             </dt>
-            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
               Tauri 2 · Rust · React
             </dd>
           </div>
@@ -1329,19 +1371,19 @@ function AboutCard() {
             <dt className="text-[length:var(--text-2xs)] tracking-[0.06em] text-pc-muted-foreground uppercase">
               License
             </dt>
-            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
               MIT or Apache-2.0
             </dd>
           </div>
         </dl>
         <ExternalLink
-          className="button-link rounded-pc-md px-[13px] py-[9px]"
+          className="button-link inline-flex items-center rounded-pc-md px-[13px] py-[9px] text-[var(--color-text)] [text-decoration:none] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text)]"
           href="https://github.com/boburning/portcove"
         >
           Open project repository
         </ExternalLink>
       </div>
-    </article>
+    </SettingsRow>
   );
 }
 
@@ -1368,8 +1410,10 @@ function DiagnosticsCard({
     if (path) setBundlePath(path);
   };
   return (
-    <article className="settings-row diagnostics-card" data-focus-group>
-      <p className="eyebrow">DIAGNOSTICS</p>
+    <SettingsRow className="diagnostics-card" data-focus-group>
+      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+        DIAGNOSTICS
+      </p>
       <h2>
         <Icon glyph={ShieldCheck} />
         Create support bundle
@@ -1380,7 +1424,9 @@ function DiagnosticsCard({
         remain. Review the bundle before sharing it.
       </p>
       <details>
-        <summary>Examples of details that may remain</summary>
+        <summary className="[scroll-margin-block:var(--space-2)]">
+          Examples of details that may remain
+        </summary>
         <p>
           Port and tool identifiers, timestamps, and other system details can remain after sensitive
           values are redacted.
@@ -1423,7 +1469,7 @@ function DiagnosticsCard({
           Saved to <code className="[overflow-wrap:anywhere]">{bundlePath}</code>
         </p>
       )}
-    </article>
+    </SettingsRow>
   );
 }
 
@@ -1564,7 +1610,7 @@ export function SettingsView({
             data-focusable
             variant="outline"
             size="sm"
-            className="max-w-full whitespace-normal text-center"
+            className="max-w-full text-center whitespace-normal"
             onClick={() => jumpToSection(id)}
           >
             {label}
@@ -1694,8 +1740,10 @@ export function SettingsView({
           refresh={refreshDiagnostics}
           hasSnapshot={Boolean(doctor)}
         />
-        <article className="settings-row privacy-card">
-          <p className="eyebrow">PRIVACY</p>
+        <SettingsRow className="privacy-card">
+          <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+            PRIVACY
+          </p>
           <h2>Original game files stay local</h2>
           <p>
             Portcove checks game files locally and does not upload them or collect telemetry. Use
@@ -1703,7 +1751,7 @@ export function SettingsView({
             the consequences. A completed move removes the original after its verified copy is
             registered.
           </p>
-        </article>
+        </SettingsRow>
         <AboutCard />
       </SettingsSection>
     </section>
@@ -1728,13 +1776,19 @@ function SettingsSection({
   const headingId = `settings-${id}-heading`;
   return (
     <section
-      className="settings-section grid gap-[15px]"
+      className="settings-section @container/section grid gap-[15px]"
       data-settings-group={id}
       aria-labelledby={headingId}
     >
       <div className="settings-section-heading py-2">
-        <p className="eyebrow">{eyebrow}</p>
-        <h2 id={headingId} tabIndex={-1} className="mb-1 scroll-mt-3 text-[length:var(--text-xl)]">
+        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+          {eyebrow}
+        </p>
+        <h2
+          id={headingId}
+          tabIndex={-1}
+          className="mb-1 scroll-mt-3 text-[length:var(--text-xl)] focus:outline-3 focus:outline-offset-3 focus:outline-pc-ring focus:outline-solid"
+        >
           {title}
         </h2>
         <p className="settings-section-description m-0 max-w-[52rem] leading-[var(--leading-relaxed)] text-pc-muted-foreground">
@@ -1824,10 +1878,12 @@ export function LibrarySelectionCard({
           ? "Default library"
           : "Selection unavailable";
   return (
-    <article className="settings-row" data-focus-group>
-      <p className="eyebrow">WHOLE PORTCOVE LIBRARY</p>
+    <SettingsRow className="" data-focus-group>
+      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+        WHOLE PORTCOVE LIBRARY
+      </p>
       <h2>Library at startup</h2>
-      <code className="mb-[15px] block rounded-pc-md bg-[var(--color-bg-inset)] p-2.5 text-[var(--color-interactive-text)] [overflow-wrap:anywhere]">
+      <code className="mb-[15px] block rounded-pc-md bg-[var(--color-bg-inset)] p-2.5 [overflow-wrap:anywhere] text-[var(--color-interactive-text)]">
         {selection?.root ?? "Unavailable"}
       </code>
       <p>
@@ -1924,7 +1980,7 @@ export function LibrarySelectionCard({
           {presentation && <FailureDetails presentation={presentation} />}
         </div>
       )}
-    </article>
+    </SettingsRow>
   );
 }
 
@@ -1946,8 +2002,10 @@ function HostReadiness({
   failure?: unknown;
 }) {
   return (
-    <article className="settings-row col-span-full min-h-0">
-      <p className="eyebrow">HOST</p>
+    <SettingsRow className="col-span-full min-h-0">
+      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+        HOST
+      </p>
       <h2 className="flex items-center gap-2" id="disc-tools-heading" tabIndex={-1}>
         <Icon glyph={Wrench} />
         Disc tools
@@ -1962,7 +2020,7 @@ function HostReadiness({
             <code className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-pc-muted-foreground">
               {doctor.platform}
             </code>
-            <span className="text-right text-xs text-pc-muted-foreground">
+            <span className="text-end text-xs text-pc-muted-foreground">
               {doctor.catalog_port_count} ports · {doctor.installed_port_count} installed ·{" "}
               {doctor.registered_source_count} sources
             </span>
@@ -1993,7 +2051,7 @@ function HostReadiness({
         These optional tools are used only when Portcove must check, extract, or convert supported
         compressed disc formats.
       </p>
-    </article>
+    </SettingsRow>
   );
 }
 
@@ -2213,13 +2271,15 @@ function StorageCard({
     available >= 0 &&
     available <= total;
   return (
-    <article className="settings-row storage-card" data-focus-group>
-      <p className="eyebrow">CURRENT LIBRARY</p>
-      <h2>
+    <SettingsRow className="storage-card" data-focus-group>
+      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+        CURRENT LIBRARY
+      </p>
+      <h2 className="flex items-center gap-2">
         <Icon glyph={HardDrive} />
         Files and capacity
       </h2>
-      <code className="mb-[15px] block rounded-pc-md bg-[var(--color-bg-inset)] p-2.5 text-[var(--color-interactive-text)] [overflow-wrap:anywhere]">
+      <code className="mb-[15px] block rounded-pc-md bg-[var(--color-bg-inset)] p-2.5 [overflow-wrap:anywhere] text-[var(--color-interactive-text)]">
         {libraryRoot || "Loading…"}
       </code>
       {measurable ? (
@@ -2273,6 +2333,6 @@ function StorageCard({
       )}
       <LibraryMoveButton disabled={Boolean(busy)} />
       <LibraryImportButton disabled={Boolean(busy) || !libraryRoot} libraryRoot={libraryRoot} />
-    </article>
+    </SettingsRow>
   );
 }

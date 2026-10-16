@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
 import { BrowsingMatchDetails } from "../features/browsing/BrowsingMatchDetails";
 import type { CatalogQueryResult } from "../features/browsing/catalog-query";
@@ -340,7 +341,7 @@ export function DetailPanel(props: DetailPanelProps) {
   );
   return (
     <section
-      className="detail-panel relative w-full min-w-0"
+      className="detail-panel @container/detail relative w-full min-w-0 motion-reduce:[animation:none]"
       aria-labelledby="port-detail-title"
       data-detail-workspace
     >
@@ -378,31 +379,46 @@ function DetailHero({
   missingSourceLabels: string[];
 }) {
   return (
-    <div className="detail-hero flex min-h-[175px] items-end gap-5 overflow-hidden rounded-pc-lg border border-[var(--color-border-strong)] bg-pc-surface p-8 shadow-[var(--shadow-raised)]">
+    <div className="detail-hero flex min-h-[175px] items-end gap-5 overflow-hidden rounded-pc-lg border border-[var(--color-border-strong)] bg-pc-surface p-8 shadow-[var(--shadow-raised)] [@media((max-height:_43.75rem))]:min-h-[8.125rem]">
       <ArtworkImage
         port={port}
         className="detail-cover aspect-[2/3] w-24 flex-none rounded-pc-md bg-[var(--art-color)]"
       />
       <div className="min-w-0">
-        <p className="eyebrow">
+        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-text-secondary)]">
           {port.platforms.map((platform) => platformLabel(platform)).join(" · ")}
         </p>
-        <h1 className="detail-title" id="port-detail-title">
+        <h1
+          className="detail-title mb-0 text-[length:var(--text-2xl)] text-[var(--color-text)]"
+          id="port-detail-title"
+        >
           {port.name}
         </h1>
-        <span className={`hero-state ${state.tone}`}>
+        <span
+          className={cn(
+            `hero-state mt-[10px] inline-flex items-center gap-2 text-[length:var(--text-xs)] font-[750] text-[var(--color-text)] ${state.tone}`,
+            "[&.ready]:text-[var(--color-success-text-raised)] [&.setup]:text-[var(--color-warning-text)] [&.staged]:text-[var(--color-interactive-text)]",
+          )}
+        >
           <Icon glyph={state.icon} size="sm" />
           {state.title}
         </span>
-        {state.tone !== "ready" && <p className="hero-reason">{state.description}</p>}
+        {state.tone !== "ready" && (
+          <p className="hero-reason m-[var(--space-2)_0_0] max-w-[65ch] text-[length:var(--text-sm)] leading-[var(--leading-normal)] text-[var(--color-text-secondary)]">
+            {state.description}
+          </p>
+        )}
         {"updateAttention" in state && (
           <p className="mt-2 text-sm text-pc-muted-foreground" data-update-attention>
             {state.updateAttention}
           </p>
         )}
         {missingSourceLabels.length > 0 && (
-          <p className="hero-requirement">
-            Required for setup: <strong>{missingSourceLabels.join(" · ")}</strong>
+          <p className="hero-requirement m-[var(--space-2)_0_0] max-w-[65ch] text-[length:var(--text-xs)] leading-[var(--leading-normal)] text-[var(--color-text-secondary)]">
+            Required for setup:{" "}
+            <strong className="font-[600] [overflow-wrap:anywhere] text-[var(--color-text)]">
+              {missingSourceLabels.join(" · ")}
+            </strong>
           </p>
         )}
       </div>
@@ -485,7 +501,7 @@ function DetailBody({
     port.setup_output_paths.length,
   );
   return (
-    <div className="detail-body px-8 pt-7 pb-10">
+    <div className="detail-body px-8 pt-7 pb-10 [@media((max-height:_43.75rem))]:pt-5">
       <StatusActionsGroup
         installCancellations={installCancellations}
         port={port}
@@ -672,8 +688,8 @@ function StatusActionsGroup({
       <DetailGroup title="Status and actions">
         <RetiredNotice port={port} />
         <p role="status">{actionPresentation.reason}</p>
-        <div className="actions primary-actions">
-          <Button data-focusable className="wide" variant="primary" size="lg" disabled>
+        <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+          <Button data-focusable className="wide flex-1" variant="primary" size="lg" disabled>
             Installation unavailable
           </Button>
           {installPlan && (
@@ -716,7 +732,7 @@ function StatusActionsGroup({
 }
 
 const disclosureSummaryStyle =
-  "flex cursor-pointer list-none items-center justify-between gap-3 px-0.5 py-[15px] text-xs font-bold hover:text-[var(--color-interactive-text-strong)]";
+  "list-none [&::-webkit-details-marker]:hidden flex cursor-pointer list-none items-center justify-between gap-3 px-0.5 py-[15px] text-xs font-bold hover:text-[var(--color-interactive-text-strong)]";
 const disclosureMetaStyle =
   "ml-auto text-[length:var(--text-2xs)] font-medium text-pc-muted-foreground";
 const disclosureBodyStyle = "pt-0.5 pb-[22px]";
@@ -768,7 +784,7 @@ function RequirementsGroup({
         >
           Game-file requirements and setup
           <span className={`requirements-summary-meta ${disclosureMetaStyle}`}>File controls</span>
-          <Icon glyph={ChevronDown} />
+          <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />
         </summary>
         <div className={`requirements-body grid gap-4 ${disclosureBodyStyle}`}>
           <RequirementsSummary port={port} />
@@ -981,7 +997,7 @@ function FutureSetupDisclosure({
         className={`advanced-summary ${disclosureSummaryStyle}`}
       >
         {title}
-        <Icon glyph={ChevronDown} />
+        <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />
       </summary>
       <div className={`grid gap-4${deferred ? ` advanced-body ${disclosureBodyStyle}` : ""}`}>
         {deferred && <p>{description}</p>}
@@ -1027,7 +1043,7 @@ function InstallationVersionSummary({
     (status?.active ? "No current check" : "Version shown when you review installation.");
   return (
     <dl
-      className="installation-facts m-0 grid rounded-pc-md border border-pc-border bg-[var(--color-bg-subtle)] [&>div]:min-w-0 [&>div]:px-3 [&>div]:py-2.5 [&_dt]:text-xs [&_dt]:text-pc-muted-foreground [&_dd]:m-0 [&_dd]:mt-1 [&_dd]:[overflow-wrap:anywhere]"
+      className="installation-facts m-0 grid grid-cols-[repeat(auto-fit,_minmax(min(100%,_9.25rem),_1fr))] rounded-pc-md border border-pc-border bg-[var(--color-bg-subtle)] [&_dd]:m-0 [&_dd]:mt-1 [&_dd]:[overflow-wrap:anywhere] [&_dt]:text-xs [&_dt]:text-pc-muted-foreground [&>div]:min-w-0 [&>div]:px-3 [&>div]:py-2.5"
       aria-label="Installation and release versions"
     >
       <div>
@@ -1066,9 +1082,11 @@ function InstallationVersionSummary({
 
 function StorageSummary({ status }: { status?: PortStatus | undefined }) {
   return (
-    <div className="metadata">
-      <span>
-        <small>Saves and settings folder</small>
+    <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
+      <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+        <small className="mb-[5px] block text-[var(--color-text-muted)]">
+          Saves and settings folder
+        </small>
         {status?.user_data_root ?? "Created inside the selected library"}
       </span>
     </div>
@@ -1077,20 +1095,20 @@ function StorageSummary({ status }: { status?: PortStatus | undefined }) {
 
 function CompatibilitySummary({ port }: { port: PortDefinition }) {
   return (
-    <div className="metadata">
-      <span>
-        <small>Platforms</small>
+    <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
+      <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+        <small className="mb-[5px] block text-[var(--color-text-muted)]">Platforms</small>
         {port.platforms.map((value) => platformLabel(value)).join(" · ")}
       </span>
       {port.platforms.includes("linux-x86-64") && (
-        <span>
-          <small>Steam Deck</small>
+        <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+          <small className="mb-[5px] block text-[var(--color-text-muted)]">Steam Deck</small>
           Not tested. Linux availability does not show whether this game works on SteamOS or in
           Gaming Mode.
         </span>
       )}
-      <span>
-        <small>Installation method</small>
+      <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+        <small className="mb-[5px] block text-[var(--color-text-muted)]">Installation method</small>
         {installationMethodLabel(port)}
       </span>
     </div>
@@ -1100,25 +1118,29 @@ function CompatibilitySummary({ port }: { port: PortDefinition }) {
 function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
   return (
     <>
-      <div className="metadata">
-        <span>
-          <small>Upstream project</small>
+      <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
+        <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+          <small className="mb-[5px] block text-[var(--color-text-muted)]">Upstream project</small>
           {upstreamStatusPresentation[port.upstream_status]}
         </span>
-        <span>
-          <small>Catalog designation (not a test result)</small>
+        <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+          <small className="mb-[5px] block text-[var(--color-text-muted)]">
+            Catalog designation (not a test result)
+          </small>
           {supportTierPresentation[port.support_tier]}
         </span>
-        <span>
-          <small>Available release channels</small>
+        <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+          <small className="mb-[5px] block text-[var(--color-text-muted)]">
+            Available release channels
+          </small>
           {port.channels.map((channel) => releaseChannelPresentation(channel).label).join(" · ")}
         </span>
       </div>
-      <div className="upstream-link">
+      <div className="upstream-link m-[var(--space-4)_0] grid gap-1 text-[length:var(--text-xs)]">
         <ProjectLink href={port.project_url}>
           Open upstream project <Icon glyph={ExternalLink} size="sm" />
         </ProjectLink>
-        <span>
+        <span className="text-[var(--color-text-muted)]">
           {port.release.provider === "direct-manifest"
             ? port.upstream_status === "retired"
               ? "Portcove uses the pinned release recorded in the catalog."
@@ -1136,12 +1158,23 @@ function RequirementsSummary({ port }: { port: PortDefinition }) {
   if (!port.presentation)
     return <p>Structured requirement details are unavailable in this catalog.</p>;
   return (
-    <div className="metadata" role="group" aria-label="Required game files and verification">
+    <div
+      className="metadata grid grid-cols-[1fr_1fr] gap-[10px]"
+      role="group"
+      aria-label="Required game files and verification"
+    >
       {port.presentation.source_requirements.map((requirement) => (
-        <span key={requirement.role}>
-          <small>{requirement.role === "bios" ? "Required BIOS" : "Required game files"}</small>
+        <span
+          className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]"
+          key={requirement.role}
+        >
+          <small className="mb-[5px] block text-[var(--color-text-muted)]">
+            {requirement.role === "bios" ? "Required BIOS" : "Required game files"}
+          </small>
           {requirement.label}
-          <small>Check method: {sourceVerificationPresentation[requirement.verification]}</small>
+          <small className="mb-[5px] block text-[var(--color-text-muted)]">
+            Check method: {sourceVerificationPresentation[requirement.verification]}
+          </small>
         </span>
       ))}
     </div>
@@ -1150,9 +1183,9 @@ function RequirementsSummary({ port }: { port: PortDefinition }) {
 
 function SavesAndSettingsSummary({ port }: { port: PortDefinition }) {
   return (
-    <div className="metadata">
-      <span>
-        <small>Saved data handling</small>
+    <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
+      <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+        <small className="mb-[5px] block text-[var(--color-text-muted)]">Saved data handling</small>
         {port.presentation?.saves_and_settings === "portcove-managed"
           ? "Managed by Portcove for backup and restore"
           : port.presentation?.saves_and_settings === "external-user-owned"
@@ -1165,13 +1198,13 @@ function SavesAndSettingsSummary({ port }: { port: PortDefinition }) {
 
 function TrustStrip({ status }: { status?: PortStatus | undefined }) {
   return (
-    <div className="trust-strip">
-      <span>
+    <div className="trust-strip m-[13px_1px_22px] flex flex-wrap gap-[7px_12px] text-[length:var(--text-2xs)] text-[var(--color-text-muted)]">
+      <span className="inline-flex items-center gap-1">
         <Icon glyph={HardDrive} size="sm" />
         Game files stay local
       </span>
       {status?.previous && (
-        <span>
+        <span className="inline-flex items-center gap-1">
           <Icon glyph={RotateCcw} size="sm" />
           Previous version recorded · {status.previous.version}
         </span>
@@ -1259,7 +1292,11 @@ function SourceFields({ controls }: { controls: SourceControls }) {
 function SourceIntakeActions({ controls, busy }: { controls: SourceControls; busy: boolean }) {
   if (!controls.inspectSource || (!controls.sourceProfile && !controls.biosProfile)) return null;
   return (
-    <div className="source-intake-shortcuts" role="group" aria-label="Check game files">
+    <div
+      className="source-intake-shortcuts m-[var(--space-4)_0] flex flex-wrap gap-2"
+      role="group"
+      aria-label="Check game files"
+    >
       {controls.sourceProfile && (
         <Button
           data-focusable
@@ -1332,12 +1369,12 @@ function biosSourceField(controls: SourceControls) {
 function RetiredNotice({ port }: { port: PortDefinition }) {
   if (port.upstream_status !== "retired") return null;
   return (
-    <p className="retired-notice">
-      <Icon glyph={ArchiveX} />{" "}
-      <span>
-        <strong>Retired upstream</strong>The upstream project is no longer maintained. Portcove
-        checks available releases against its usual source and package requirements; no new upstream
-        fixes are expected.
+    <p className="retired-notice flex items-start gap-2 rounded-pc-md border border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)] p-[10px_12px] text-[var(--color-text-secondary)]">
+      <Icon className="mt-[0.1rem] flex-none" glyph={ArchiveX} />{" "}
+      <span className="block">
+        <strong className="mb-1 block text-[var(--color-text)]">Retired upstream</strong>The
+        upstream project is no longer maintained. Portcove checks available releases against its
+        usual source and package requirements; no new upstream fixes are expected.
       </span>
     </p>
   );
@@ -1385,13 +1422,18 @@ function TechnicalDetails({
         <span className={`advanced-summary-meta ${disclosureMetaStyle}`}>
           {includeManagement ? "Commands and maintenance" : "Recorded check identities"}
         </span>
-        <Icon glyph={ChevronDown} />
+        <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />
       </summary>
       <div className={`advanced-body ${disclosureBodyStyle}`}>
         {includeManagement && (
-          <div className="metadata">
-            <span title={persistentFiles}>
-              <small>Saved data patterns</small>
+          <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
+            <span
+              className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]"
+              title={persistentFiles}
+            >
+              <small className="mb-[5px] block text-[var(--color-text-muted)]">
+                Saved data patterns
+              </small>
               {persistentFiles || "No saved data paths declared"}
             </span>
           </div>
@@ -1427,7 +1469,7 @@ function TechnicalDetails({
           />
         )}
         {includeManagement && (
-          <div className="actions maintenance-actions">
+          <div className="actions maintenance-actions mt-[18px] flex flex-wrap gap-[8px] pt-[18px] [border-top:1px_solid_var(--color-border)] [&.compact]:mt-[14px]">
             <SteamEntryControl
               key={`steam:${port.id}:${libraryGeneration}`}
               port={port}
@@ -1557,9 +1599,11 @@ function SourceFileDetails({ source }: { source?: SourceRecord | undefined }) {
       >
         File details
       </summary>
-      <div className="digest-value">
-        <strong>Saved SHA-256</strong>
-        <code>{source.sha256 || "Not recorded"}</code>
+      <div className="digest-value grid min-w-0 grid-cols-[minmax(0,_1fr)_auto] items-center gap-[3px_var(--space-2)] [&.missing]:grid-cols-[1fr] [&.missing]:rounded-pc-md [&.missing]:p-2 [&.missing]:[border:1px_dashed_var(--color-warning-border)]">
+        <strong className="text-[length:var(--text-xs)] font-medium">Saved SHA-256</strong>
+        <code className="col-[1] block bg-[transparent] p-0 [overflow-wrap:anywhere] whitespace-normal text-[var(--color-text-muted)]">
+          {source.sha256 || "Not recorded"}
+        </code>
       </div>
     </details>
   );
@@ -1647,10 +1691,10 @@ function PrimaryActions({
 }) {
   if (invalidInstallation)
     return (
-      <div className="actions primary-actions">
+      <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
         <Button
           data-focusable
-          className="wide"
+          className="wide flex-1"
           variant="primary"
           size="lg"
           disabled={Boolean(busy)}
@@ -1673,7 +1717,7 @@ function PrimaryActions({
           </p>
         )}
         {stagedVersion && (
-          <div className="actions primary-actions">
+          <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
             <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />
           </div>
         )}
@@ -1732,10 +1776,10 @@ function InstalledPlayActions({
   actions: DetailActions;
 }) {
   return (
-    <div className="actions primary-actions">
+    <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
       <Button
         data-focusable
-        className="wide"
+        className="wide flex-1"
         variant="primary"
         size="lg"
         title={
@@ -1778,7 +1822,7 @@ function StagedActivation({
     <Button
       data-focusable
       className="staged-action"
-      variant="outline"
+      variant="selected"
       size="lg"
       disabled={Boolean(busy)}
       onClick={() => {
@@ -1865,11 +1909,16 @@ export function InstallAction({
   const action = plan ? installPlanActionLabel(plan.action) : undefined;
   return (
     <>
-      <div className={plan ? "hidden" : "actions primary-actions"}>
+      <div
+        className={cn(
+          plan ? "hidden" : "actions primary-actions mt-[16px] flex flex-wrap gap-[8px]",
+          "[&.compact]:mt-[14px]",
+        )}
+      >
         <Button
           ref={reviewButton}
           data-focusable
-          className={plan ? "hidden" : "wide"}
+          className={cn(plan ? "hidden" : "wide", "flex-1")}
           variant="primary"
           size="lg"
           disabled={Boolean(busy)}
@@ -1892,7 +1941,7 @@ export function InstallAction({
             showCloseButton={false}
             finalFocus={reviewButton}
             portaled={portaled}
-            className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+            className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
             aria-describedby="install-review-description"
           >
             <DialogTitle id="install-review-title" className="mb-2 text-xl">
@@ -1999,11 +2048,11 @@ function MissingInstallAction({
       ? "Add the required BIOS file before installing"
       : "Add all required game files before installing";
   return (
-    <div className="actions primary-actions">
+    <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
       <Button
         ref={buttonRef}
         data-focusable
-        className="wide"
+        className="wide flex-1"
         variant="primary"
         size="lg"
         title={title}
@@ -2026,20 +2075,26 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
       ? "Local copy needs checking"
       : "Local release already checked";
   return (
-    <div className="install-plan">
+    <div className="install-plan mt-[16px] grid grid-cols-1 [align-items:end] gap-[18px] rounded-pc-lg border border-[var(--color-interactive-border)] bg-[var(--color-interactive-subtle)] p-[14px] @min-[30rem]/detail:grid-cols-[1fr_auto]">
       <div>
-        <p className="eyebrow">INSTALL PLAN</p>
-        <strong>{plan.release.version}</strong>
-        <span>
+        <p className="eyebrow mb-[5px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+          INSTALL PLAN
+        </p>
+        <strong className="block text-[length:var(--text-sm)]">{plan.release.version}</strong>
+        <span className="mt-[4px] block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
           {releaseChannelPresentation(plan.channel).label} · {installPlanActionLabel(plan.action)}
         </span>
         {plan.bundled_runtime && (
-          <span>Required component included · {formatBytes(plan.bundled_runtime.asset.size)}</span>
+          <span className="mt-[4px] block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
+            Required component included · {formatBytes(plan.bundled_runtime.asset.size)}
+          </span>
         )}
       </div>
-      <div>
-        <strong>{download ? formatBytes(plan.download_bytes) : "No download"}</strong>
-        <span>
+      <div className="text-end">
+        <strong className="block text-[length:var(--text-sm)]">
+          {download ? formatBytes(plan.download_bytes) : "No download"}
+        </strong>
+        <span className="mt-[4px] block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
           {download
             ? libraryOutput
               ? `${formatBytes(plan.storage.volume_available_bytes)} available in library`
@@ -2048,9 +2103,11 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
         </span>
       </div>
       {download && (
-        <div className="install-plan-destination">
-          <strong>Install folder</strong>
-          <code>{plan.output_location.effective_output_directory}</code>
+        <div className="install-plan-destination col-span-full pt-[12px] [border-top:1px_solid_var(--color-interactive-border)]">
+          <strong className="block text-[length:var(--text-sm)]">Install folder</strong>
+          <code className="mt-[4px] block [overflow-wrap:anywhere] select-text">
+            {plan.output_location.effective_output_directory}
+          </code>
         </div>
       )}
     </div>
@@ -2129,7 +2186,7 @@ function MaintenanceActions({
 }) {
   const rollback = portActionPresentation(status, "rollback");
   return (
-    <div className="actions maintenance-actions">
+    <div className="actions maintenance-actions mt-[18px] flex flex-wrap gap-[8px] pt-[18px] [border-top:1px_solid_var(--color-border)] [&.compact]:mt-[14px]">
       {!verificationPrimary && (
         <Button
           data-focusable

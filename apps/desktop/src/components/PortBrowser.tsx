@@ -1,3 +1,5 @@
+import { cn } from "cn";
+import { Notice } from "./ui/patterns";
 import type { useFavorites } from "../features/favorites/use-favorites";
 import { useState, useRef, useEffect, useId, type Dispatch, type SetStateAction } from "react";
 import {
@@ -250,7 +252,7 @@ export function PortBrowser({
     steamBatch.ports.length >= 2 && <SteamBatchLibraryAction {...steamBatch} />;
   const renderFavoritesFailure = () =>
     favorites?.failure && (
-      <section className="error-banner mb-3" role="alert">
+      <Notice intent="danger" className="mb-3" role="alert">
         <div>
           <strong>
             {favorites.failure === "write"
@@ -271,7 +273,7 @@ export function PortBrowser({
             Retry favorites
           </Button>
         </div>
-      </section>
+      </Notice>
     );
   const renderFilters = () =>
     !firstUseEmpty && (
@@ -510,7 +512,10 @@ function BrowserResults({
       />
     );
   return (
-    <section className="port-grid" data-focus-group>
+    <section
+      className="port-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,21rem),1fr))] gap-3"
+      data-focus-group
+    >
       {ports.map((port) => (
         <PortCard
           favorites={favorites}
@@ -532,14 +537,18 @@ function BrowserResults({
 function LoadingState() {
   return (
     <section
-      className="loading-state flex min-h-[18.75rem] items-center justify-center gap-4 rounded-pc-lg border border-dashed border-[var(--color-border-strong)] bg-[var(--color-bg-subtle)] p-10 text-left text-pc-muted-foreground"
+      className="loading-state flex min-h-[18.75rem] items-center justify-center gap-4 rounded-pc-lg border border-dashed border-[var(--color-border-strong)] bg-[var(--color-bg-subtle)] p-10 text-start text-pc-muted-foreground"
       aria-live="polite"
     >
       <div className="grid w-48 shrink-0 justify-items-center gap-1">
-        <BrandWordmark className="h-18 w-48" />
+        <BrandWordmark className="block h-18 w-48 max-w-[100%] bg-[var(--color-brand-stage)] object-contain" />
         <span className="loading-mark relative grid size-12 place-items-center rounded-pc-lg border border-pc-border bg-pc-surface text-[var(--color-interactive-text)] shadow-[var(--shadow-control)]">
-          <BrandMotif />
-          <Icon glyph={LoaderCircle} size="lg" />
+          <BrandMotif className="absolute -bottom-1.5" />
+          <Icon
+            glyph={LoaderCircle}
+            className="animate-spin motion-reduce:animate-none"
+            size="lg"
+          />
         </span>
       </div>
       <div>
@@ -571,8 +580,8 @@ function BrowserEmptyState({
     return (
       <EmptyState
         visual={
-          <span className="empty-mascot-stage">
-            <BrandMascot decorative />
+          <span className="empty-mascot-stage grid h-40 w-52 place-items-center overflow-hidden rounded-pc-lg border border-[var(--color-border-strong)] bg-[var(--color-brand-stage)] shadow-(--shadow-raised)">
+            <BrandMascot className="size-full" decorative />
           </span>
         }
         eyebrow="EMPTY LIBRARY"
@@ -641,14 +650,19 @@ function ContinueCard({
   const launchable = status.readiness?.launchable === true;
   return (
     <section
-      className="continue-card mb-[13px] grid min-h-[92px] items-center gap-[17px] rounded-pc-lg border border-[var(--color-interactive-active)] bg-pc-surface p-3 shadow-[var(--shadow-raised)]"
+      className="continue-card mb-[13px] grid min-h-[92px] grid-cols-[72px_minmax(0,_1fr)_auto] items-center gap-[17px] rounded-pc-lg border border-[var(--color-interactive-active)] bg-pc-surface p-3 shadow-[var(--shadow-raised)] max-[65rem]:grid-cols-[4.25rem_minmax(0,_1fr)]"
       data-focus-group
       data-successful-launches={status.successful_launches}
       aria-label={`Continue ${port.name}`}
     >
-      <ArtworkImage port={port} className="continue-art" />
+      <ArtworkImage
+        port={port}
+        className="continue-art relative grid aspect-2/3 w-17 place-items-center overflow-hidden rounded-pc-lg bg-[var(--color-art-blue)]"
+      />
       <div>
-        <p className="eyebrow">CONTINUE</p>
+        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+          CONTINUE
+        </p>
         <h2 className="m-0 text-lg">{port.name}</h2>
         {(status.active || status.external_runtime) && (
           <p className="m-0 mt-[5px] text-xs text-pc-muted-foreground">
@@ -658,7 +672,7 @@ function ContinueCard({
           </p>
         )}
       </div>
-      <div className="continue-actions flex gap-2">
+      <div className="continue-actions flex gap-2 max-[65rem]:col-span-full max-[65rem]:justify-end">
         <Button
           data-focusable
           variant="outline"
@@ -760,7 +774,7 @@ function PortCard({
   const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
   const detailOrigin = `${view}:card:${port.id}`;
-  const className = `port-card ${view === "catalog" ? "port-card-selectable" : "port-card-library"}${dropEligible ? " source-drop-eligible" : ""}${dropTarget ? " source-drop-targeted" : ""}`;
+  const className = `port-card @container/card relative isolate grid min-h-52 min-w-0 grid-cols-[8rem_minmax(0,1fr)] overflow-hidden rounded-pc-lg border border-pc-border bg-pc-surface p-0 text-start text-pc-foreground shadow-(--shadow-control) transition-[transform,border-color,box-shadow,background-color] duration-(--duration-slow) ease-(--ease-emphasized) hover:-translate-y-px hover:border-[var(--color-interactive-border)] hover:bg-pc-secondary hover:shadow-(--shadow-raised) focus-within:-translate-y-px focus-within:border-[var(--color-interactive-border)] motion-reduce:transition-none ${view === "catalog" ? "port-card-selectable cursor-pointer" : "port-card-library"}${dropEligible ? " source-drop-eligible border-[var(--color-interactive-border)]" : ""}${dropTarget ? " source-drop-targeted outline-3 outline-solid outline-pc-ring outline-offset-2" : ""}`;
   const contents = (
     <PortCardContents
       {...{
@@ -807,7 +821,10 @@ function PortCard({
   if (view === "library")
     return (
       <article
-        className={className}
+        className={cn(
+          className,
+          "active:[transform:translateY(1px)] active:bg-[var(--color-bg-hover)] active:shadow-[var(--shadow-pressed)]",
+        )}
         aria-label={accessibleLabel}
         aria-describedby={input ? setupDescriptionId : undefined}
         data-source-drop-port-id={dropEligible ? port.id : undefined}
@@ -822,7 +839,10 @@ function PortCard({
       <button
         data-focusable
         data-detail-origin={detailOrigin}
-        className={`${className} h-full w-full`}
+        className={cn(
+          `${className} h-full w-full`,
+          "active:[transform:translateY(1px)] active:bg-[var(--color-bg-hover)] active:shadow-[var(--shadow-pressed)]",
+        )}
         aria-label={accessibleLabel}
         aria-describedby={setup || input ? setupDescriptionId : undefined}
         onClick={() => onSelect(port.id, detailOrigin)}
@@ -875,13 +895,21 @@ function PortCardContents({
       className={`flex items-center justify-between gap-2 ${view === "catalog" ? "mb-2.5" : ""}`}
     >
       <span
-        className={`readiness ${state.tone} inline-flex items-center gap-[6px] text-[length:var(--text-2xs)] font-[750] tracking-[0.025em] text-[var(--color-text-secondary)]`}
+        className={cn(
+          `readiness ${state.tone} inline-flex items-center gap-[6px] text-[length:var(--text-2xs)] font-[750] tracking-[0.025em] text-[var(--color-text-secondary)]`,
+          "[&.ready]:text-[var(--color-success-text-raised)] [&.setup]:text-[var(--color-warning-text)] [&.staged]:text-[var(--color-interactive-text-strong)]",
+        )}
       >
         <i className="size-[6px] rounded-full border border-current bg-current" />
         {state.label}
       </span>
       {view === "catalog" && channel && (
-        <span className={`badge ${channel.tone} ${cardBadgeClass}`}>
+        <span
+          className={cn(
+            `badge ${channel.tone} ${cardBadgeClass}`,
+            "[&.beta]:bg-[var(--color-warning-subtle)] [&.beta]:text-[var(--color-warning-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-interactive-subtle)] [&.rolling]:text-[var(--color-interactive-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
+          )}
+        >
           Release channel: {channel.label}
         </span>
       )}
@@ -891,11 +919,17 @@ function PortCardContents({
   return (
     <>
       {dropEligible && (
-        <span className="source-drop-target" aria-hidden="true">
+        <span
+          className="source-drop-target pointer-events-none absolute inset-3 z-1 grid place-items-center rounded-pc-md border-2 border-dashed border-[var(--color-interactive-border)] bg-pc-interactive/90 p-4 text-center text-sm font-bold text-pc-action-foreground"
+          aria-hidden="true"
+        >
           {dropTarget ? "Release to check" : "Drop to check for this game"}
         </span>
       )}
-      <ArtworkImage port={port} className="card-art" />
+      <ArtworkImage
+        port={port}
+        className="card-art relative aspect-2/3 w-full self-center overflow-hidden bg-[var(--color-art-neutral)]"
+      />
       <div
         className={`card-content flex min-w-0 flex-col p-4 ${view === "library" ? "gap-2" : ""}`}
       >
@@ -916,7 +950,7 @@ function PortCardContents({
             className="mt-2 space-y-1 text-xs text-[var(--color-text-secondary)]"
           >
             {setup.routes.map((route) => (
-              <p key={route.action} className="m-0">
+              <p key={route.action} className="m-0 mt-[9px]">
                 <strong>{route.route}: </strong>
                 {route.reason}
               </p>
@@ -929,7 +963,7 @@ function PortCardContents({
             className="mt-2 space-y-1 text-xs text-[var(--color-text-secondary)]"
           >
             {input.reasons.map((reason) => (
-              <p key={reason} className="m-0">
+              <p key={reason} className="m-0 mt-[9px]">
                 {reason}
               </p>
             ))}
@@ -943,19 +977,40 @@ function PortCardContents({
         {(status?.staged || updateAvailable || port.upstream_status === "retired") && (
           <div className="flex min-h-[18px] flex-wrap gap-[5px]">
             {status?.staged && (
-              <span className={`badge update ${cardBadgeClass}`}>Update downloaded</span>
+              <span
+                className={cn(
+                  `badge update ${cardBadgeClass}`,
+                  "[&.beta]:bg-[var(--color-warning-subtle)] [&.beta]:text-[var(--color-warning-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-interactive-subtle)] [&.rolling]:text-[var(--color-interactive-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
+                )}
+              >
+                Update downloaded
+              </span>
             )}
             {updateAvailable && (
-              <span className={`badge update ${cardBadgeClass}`}>Update available</span>
+              <span
+                className={cn(
+                  `badge update ${cardBadgeClass}`,
+                  "[&.beta]:bg-[var(--color-warning-subtle)] [&.beta]:text-[var(--color-warning-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-interactive-subtle)] [&.rolling]:text-[var(--color-interactive-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
+                )}
+              >
+                Update available
+              </span>
             )}
             {port.upstream_status === "retired" && (
-              <span className={`badge retired self-start ${cardBadgeClass}`}>Retired upstream</span>
+              <span
+                className={cn(
+                  `badge retired self-start ${cardBadgeClass}`,
+                  "[&.beta]:bg-[var(--color-warning-subtle)] [&.beta]:text-[var(--color-warning-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-interactive-subtle)] [&.rolling]:text-[var(--color-interactive-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
+                )}
+              >
+                Retired upstream
+              </span>
             )}
           </div>
         )}
         {view === "catalog" && (
           <>
-            <p className="mb-[11px] line-clamp-2 min-h-8 text-xs leading-[var(--leading-normal)] text-[var(--color-text-secondary)]">
+            <p className="mt-[9px] mb-[11px] line-clamp-2 min-h-8 text-xs leading-[var(--leading-normal)] text-[var(--color-text-secondary)]">
               {port.summary}
             </p>
             <div className="flex flex-wrap gap-[5px]">
@@ -1052,13 +1107,13 @@ function PortCardStatus({
                   className="min-w-48 rounded-lg bg-pc-surface p-1 text-pc-foreground shadow-md ring-1 ring-pc-foreground/10"
                 >
                   <Menu.Item
-                    className="cursor-default rounded-md px-3 py-2 text-sm outline-none focus:bg-pc-accent focus:text-pc-accent-foreground"
+                    className="cursor-default rounded-md px-3 py-2 text-sm outline-none focus:bg-pc-selection focus:text-pc-selection-foreground"
                     onClick={() => onSelect(port.id, overflowOrigin, "updates")}
                   >
                     Updates and activity
                   </Menu.Item>
                   <Menu.Item
-                    className="cursor-default rounded-md px-3 py-2 text-sm outline-none focus:bg-pc-accent focus:text-pc-accent-foreground"
+                    className="cursor-default rounded-md px-3 py-2 text-sm outline-none focus:bg-pc-selection focus:text-pc-selection-foreground"
                     onClick={() => onSelect(port.id, overflowOrigin, "saves")}
                   >
                     Saves and storage

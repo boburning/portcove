@@ -358,12 +358,12 @@ function DiscoveryResults({
           key={`${candidate.profile_id}:${candidate.path}`}
         >
           <div className="min-w-0">
-            <code className="mt-1 block overflow-hidden bg-transparent p-0 text-ellipsis whitespace-normal text-pc-muted-foreground [overflow-wrap:anywhere]">
+            <code className="mt-1 block overflow-hidden bg-transparent p-0 [overflow-wrap:anywhere] text-ellipsis whitespace-normal text-pc-muted-foreground">
               {candidate.path}
             </code>
             <span>{formatBytes(candidate.size)}</span>
           </div>
-          <div className="actions">
+          <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
             <Button
               data-focusable
               variant="outline"
@@ -411,7 +411,7 @@ function DiscoveryResults({
           {issue.path && (
             <>
               {" "}
-              <code className="whitespace-normal [overflow-wrap:anywhere]">{issue.path}</code>
+              <code className="[overflow-wrap:anywhere] whitespace-normal">{issue.path}</code>
             </>
           )}
         </p>
@@ -449,11 +449,11 @@ export function SourceImportReview({
       </p>
       <p>
         Selected location:{" "}
-        <code className="whitespace-normal [overflow-wrap:anywhere]">{plan.source.path}</code>
+        <code className="[overflow-wrap:anywhere] whitespace-normal">{plan.source.path}</code>
       </p>
       <p>
         {plan.mode === "use_current_location" ? "Saved file location" : "Portcove game-file folder"}
-        : <code className="whitespace-normal [overflow-wrap:anywhere]">{plan.destination}</code>
+        : <code className="[overflow-wrap:anywhere] whitespace-normal">{plan.destination}</code>
       </p>
       {presentation.known && (
         <>
@@ -469,14 +469,14 @@ export function SourceImportReview({
         <>
           <p>
             Currently saved location:{" "}
-            <code className="whitespace-normal [overflow-wrap:anywhere]">
+            <code className="[overflow-wrap:anywhere] whitespace-normal">
               {plan.existing_registration.path}
             </code>
           </p>
           <p>This updates the saved location after Portcove checks the expected files again.</p>
         </>
       )}
-      <div className="actions">
+      <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
         <Button data-focusable variant="outline" disabled={busy} onClick={onCancel}>
           Cancel review
         </Button>
@@ -545,10 +545,12 @@ function SourceDiscoveryDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="source-discovery-description"
       >
-        <p className="eyebrow">REQUIRED FILES</p>
+        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+          REQUIRED FILES
+        </p>
         <DialogTitle id="source-discovery-title" className="mb-2 text-xl">
           Find required files
         </DialogTitle>
@@ -585,7 +587,7 @@ function SourceDiscoveryDialog({
             }
           }}
         />
-        <div className="actions source-inbox-actions">
+        <div className="actions source-inbox-actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
           <Button
             data-focusable
             variant="outline"

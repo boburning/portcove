@@ -125,7 +125,7 @@ export function PreparationControl({
                 return reviewButton.current;
               return fallback?.isConnected ? fallback : false;
             }}
-            className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+            className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
             aria-describedby="preparation-review-description"
           >
             <DialogTitle id="preparation-review-title" className="mb-2 text-xl">
@@ -135,31 +135,38 @@ export function PreparationControl({
               Check the original files, installed version, space needed, and preserved data before
               starting setup.
             </DialogDescription>
-            <div className="preparation-plan" aria-label="Preparation plan">
-              <p>
+            <div
+              className="preparation-plan mt-[16px] rounded-pc-lg border border-[var(--color-interactive-border)] bg-[var(--color-interactive-subtle)] p-[14px] [overflow-wrap:anywhere]"
+              aria-label="Preparation plan"
+            >
+              <p className="m-0">
                 <strong>Installed version · {plan.inputs.install.version}</strong>
               </p>
-              <p>Selected game files: {plan.inputs.source.path}</p>
-              <p>
+              <p className="m-0">Selected game files: {plan.inputs.source.path}</p>
+              <p className="m-0">
                 Portcove needs at least{" "}
                 {formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)} of free space
                 before the game generates output. The final amount depends on the game.
               </p>
-              <p>
+              <p className="m-0">
                 Your original files and current installation remain unchanged. The verified result
                 becomes active, and your previous version remains available for rollback.
               </p>
-              <p>
+              <p className="m-0">
                 If preparation is cancelled or interrupted, check Recent activity for any unfinished
                 setup files kept for review. Starting again uses the selected original files without
                 erasing earlier unfinished work.
               </p>
-              <p>
+              <p className="m-0">
                 If setup opens a window, complete setup there, then choose its option to close
                 setup. Do not launch the game from that window. Portcove will verify and activate
                 the prepared result afterward.
               </p>
-              {pending === "prepare" && message && <p role="status">{message}</p>}
+              {pending === "prepare" && message && (
+                <p className="m-0" role="status">
+                  {message}
+                </p>
+              )}
               {operationId && (
                 <OperationCancellation
                   key={operationId}

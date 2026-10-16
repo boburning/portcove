@@ -10,7 +10,7 @@ import { useAdoptionPlanning } from "../features/installation/use-installation-p
 import type { Perform } from "../features/operations/use-operation-state";
 import { portDefinition } from "../test-fixtures";
 import type { AdoptionPreview, InstallRecord } from "../types";
-import "../styles.css";
+import "../styles/index.css";
 
 const port = { ...portDefinition(), id: "browser-port", name: "Browser Fixture Port" };
 const shortPortName = port.name;

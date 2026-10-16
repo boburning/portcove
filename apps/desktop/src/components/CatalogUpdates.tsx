@@ -1,3 +1,4 @@
+import { SettingsRow } from "./ui/patterns";
 import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickSignedCatalogPath } from "../file-picker";
@@ -26,8 +27,10 @@ export function CatalogSettings({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <article className="settings-row" data-focus-group>
-      <p className="eyebrow">CATALOG</p>
+    <SettingsRow className="" data-focus-group>
+      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+        CATALOG
+      </p>
       <h2>Catalog updates</h2>
       <CatalogOrigin provenance={provenance} />
       <p>
@@ -45,7 +48,7 @@ export function CatalogSettings({
         Manage catalog updates
       </Button>
       {open && <CatalogUpdatesDialog close={() => setOpen(false)} onChanged={onChanged} />}
-    </article>
+    </SettingsRow>
   );
 }
 
@@ -190,10 +193,12 @@ function CatalogUpdatesDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="catalog-update-dialog max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        className="catalog-update-dialog max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="catalog-update-description"
       >
-        <p className="eyebrow">CATALOG</p>
+        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+          CATALOG
+        </p>
         <DialogTitle id="catalog-update-title" className="mb-2 text-xl">
           Manage catalog updates
         </DialogTitle>
@@ -510,7 +515,7 @@ function catalogChangeSummary(count: number) {
 
 function CatalogSelection({ status, busy, run, changed }: CatalogActions) {
   return (
-    <div className="actions compact">
+    <div className="actions compact mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
       <Button
         data-focusable
         variant="outline"

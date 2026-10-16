@@ -7,16 +7,21 @@ export function productionCssFailures(builtCss) {
   expectSource(failures, builtCss.length > 0, "production CSS output is empty");
   expectSource(
     failures,
+    !builtCss.includes("12345px"),
+    "production CSS includes the test-only discovery sentinel",
+  );
+  expectSource(
+    failures,
     builtCss.includes("[data-theme=dark]"),
     "production CSS omits the data-theme dark variant",
   );
   for (const selector of [
-    ".bg-pc-signature",
+    ".bg-pc-primary",
     ".bg-pc-scrim",
-    ".active\\:bg-pc-signature-active",
+    ".active\\:bg-pc-primary-active",
     ".hover\\:bg-pc-danger-surface",
     ".text-pc-danger-strong",
-    ".focus-visible\\:ring-pc-ring",
+    ".focus-visible\\:outline-pc-ring",
   ]) {
     expectSource(
       failures,

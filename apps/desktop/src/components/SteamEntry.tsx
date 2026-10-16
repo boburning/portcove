@@ -133,7 +133,7 @@ export function SteamEntryDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="steam-entry-description"
       >
         <DialogTitle id="steam-entry-title" className="mb-2 text-xl">
@@ -299,7 +299,7 @@ export function SteamBatchEntryDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="steam-batch-description"
       >
         <DialogTitle id="steam-batch-title" className="mb-2 text-xl">
@@ -573,14 +573,14 @@ function SteamEntryResult({ result, batch }: { result: SteamEntryApplyResult; ba
       className="removal-review-details"
       aria-label={batch ? "Steam batch result" : "Steam shortcut result"}
     >
-      <p role="status">
+      <p className="[overflow-wrap:anywhere]" role="status">
         <strong>{message}</strong>
       </p>
-      <p>
+      <p className="[overflow-wrap:anywhere]">
         Shortcut file: <code>{result.shortcuts_path}</code>
       </p>
       {result.backup_path && (
-        <p>
+        <p className="[overflow-wrap:anywhere]">
           Backup: <code>{result.backup_path}</code>
         </p>
       )}
@@ -591,7 +591,7 @@ function SteamEntryResult({ result, batch }: { result: SteamEntryApplyResult; ba
 function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamBatchReview }) {
   return (
     <section className="removal-review-details" aria-label="Reviewed Steam shortcut change">
-      <p>
+      <p className="[overflow-wrap:anywhere]">
         <strong>
           {review.writes_required
             ? "Review the exact change before applying it."
@@ -629,32 +629,34 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
       <ul>
         {("selected_games" in review ? (review as SteamBatchReview).selected_games : []).map(
           (game) => (
-            <li key={game.port_id}>Selected: {game.display_name}</li>
+            <li className="[overflow-wrap:anywhere]" key={game.port_id}>
+              Selected: {game.display_name}
+            </li>
           ),
         )}
         {review.changes.map((change) => (
-          <li key={change.port_id}>
+          <li className="[overflow-wrap:anywhere]" key={change.port_id}>
             {change.display_name ?? change.port_id}: {steamChangeLabel(change.kind)}
           </li>
         ))}
       </ul>
       {review.steam_client_state === "running" && (
-        <p role="alert">
+        <p className="[overflow-wrap:anywhere]" role="alert">
           Close Steam, then choose Check again. Portcove will not close Steam for you.
         </p>
       )}
       {review.steam_client_state === "unknown" && (
-        <p role="alert">
+        <p className="[overflow-wrap:anywhere]" role="alert">
           Portcove could not determine whether Steam is running, so no change can be applied.
         </p>
       )}
       {review.steam_client_state === "closed" && review.writes_required && (
-        <p>
+        <p className="[overflow-wrap:anywhere]">
           Keep Steam closed until this finishes. The selected profile and shortcut are checked again
           before the change is made.
         </p>
       )}
-      <p>
+      <p className="[overflow-wrap:anywhere]">
         {"operation" in review && review.operation === "remove"
           ? "Remove affects only this Portcove-owned shortcut. It does not uninstall the game, delete saves, or remove unrelated Steam shortcuts and customization."
           : "Add / Repair affects only the selected Portcove-owned shortcuts. It does not uninstall games, delete saves, or remove unrelated Steam shortcuts and customization."}

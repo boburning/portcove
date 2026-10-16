@@ -105,7 +105,7 @@ export function SourceRemovalDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="source-removal-description"
       >
         <DialogTitle id="source-removal-title" className="mb-2 text-xl">
@@ -153,11 +153,11 @@ function SourceRemovalDetails({
   const name = (id: string) => ports.find((port) => port.id === id)?.name ?? id;
   return (
     <section className="source-removal-details" aria-label="Affected games and preserved files">
-      <p>
+      <p className="[overflow-wrap:anywhere]">
         <strong>Saved location to remove:</strong> {preview.source.profile_id}
       </p>
-      <p>{preview.source.path}</p>
-      <p>
+      <p className="[overflow-wrap:anywhere]">{preview.source.path}</p>
+      <p className="[overflow-wrap:anywhere]">
         Removing this location does not move or delete files at the path above, installed game
         versions, saves, backups, or other saved locations. Only this library's location is removed.
       </p>
@@ -165,21 +165,27 @@ function SourceRemovalDetails({
       {preview.installed_dependent_port_ids.length ? (
         <ul>
           {preview.installed_dependent_port_ids.map((id) => (
-            <li key={id}>{name(id)}</li>
+            <li className="[overflow-wrap:anywhere]" key={id}>
+              {name(id)}
+            </li>
           ))}
         </ul>
       ) : (
-        <p>No installed game currently depends on this location.</p>
+        <p className="[overflow-wrap:anywhere]">
+          No installed game currently depends on this location.
+        </p>
       )}
       <details>
         <summary>All catalog games using these files ({preview.dependent_port_ids.length})</summary>
         <ul>
           {preview.dependent_port_ids.map((id) => (
-            <li key={id}>{name(id)}</li>
+            <li className="[overflow-wrap:anywhere]" key={id}>
+              {name(id)}
+            </li>
           ))}
         </ul>
       </details>
-      <p>
+      <p className="[overflow-wrap:anywhere]">
         If interrupted, reopen Settings and check whether the location remains before trying again.
       </p>
     </section>

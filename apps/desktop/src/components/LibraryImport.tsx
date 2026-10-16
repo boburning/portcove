@@ -80,10 +80,12 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(860px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
+        className="max-h-[calc(100dvh-var(--space-8))] w-[min(860px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="import-library-description"
       >
-        <p className="eyebrow">RESTORE PORTCOVE LIBRARY</p>
+        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+          RESTORE PORTCOVE LIBRARY
+        </p>
         <DialogTitle id="import-library-title" className="mb-2 text-xl">
           Restore from a library copy
         </DialogTitle>

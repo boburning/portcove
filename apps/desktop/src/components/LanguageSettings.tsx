@@ -1,3 +1,4 @@
+import { SettingsRow } from "./ui/patterns";
 import { useId, useState } from "react";
 import { useSelectReturnFocus } from "./use-select-return-focus";
 import { localeOptions, useLocalization } from "../localization";
@@ -23,8 +24,10 @@ export function LanguageSettings() {
   );
 
   return (
-    <article className="settings-row language-card" data-focus-group>
-      <p className="eyebrow">{localization.t("language.eyebrow")}</p>
+    <SettingsRow className="language-card" data-focus-group>
+      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+        {localization.t("language.eyebrow")}
+      </p>
       <h2>{localization.t("language.title")}</h2>
       <p>{localization.t("language.description")}</p>
       <ChoiceSelect
@@ -60,6 +63,6 @@ export function LanguageSettings() {
                   ? localization.t("language.saved")
                   : ""}
       </p>
-    </article>
+    </SettingsRow>
   );
 }

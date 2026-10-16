@@ -1,3 +1,4 @@
+import { Notice } from "../../components/ui/patterns";
 import { useEffect, useRef } from "react";
 import { AlertTriangle } from "lucide-react";
 import { focusAndReveal, focusRegion } from "../../focus";
@@ -44,8 +45,8 @@ export function WorkspaceRefreshNotice({
       ? String(recoveryFailure.error.code)
       : undefined;
   const recoveryNotice = recoveryFailure && (
-    <section className="error-banner" role="alert" aria-busy={refreshing}>
-      <span className="error-icon">
+    <Notice intent="danger" className="" role="alert" aria-busy={refreshing}>
+      <span className="error-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-danger-text)]">
         <Icon glyph={AlertTriangle} />
       </span>
       <div>
@@ -72,13 +73,13 @@ export function WorkspaceRefreshNotice({
           Retry recovery
         </Button>
       </div>
-    </section>
+    </Notice>
   );
   if (!failure && recoveryFailure) return recoveryNotice;
   if (!failure)
     return (
-      <section className="error-banner" role="status" aria-busy={refreshing}>
-        <span className="error-icon">
+      <Notice intent="neutral" className="" role="status" aria-busy={refreshing}>
+        <span className="error-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-danger-text)]">
           <Icon glyph={AlertTriangle} />
         </span>
         <div>
@@ -96,7 +97,7 @@ export function WorkspaceRefreshNotice({
             {refreshing ? "Refreshing library…" : "Refresh now"}
           </Button>
         </div>
-      </section>
+      </Notice>
     );
   const { error } = failure;
   const presentation = failurePresentation(error);
@@ -109,8 +110,8 @@ export function WorkspaceRefreshNotice({
     typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
   return (
     <>
-      <section className="error-banner" role="alert" aria-busy={refreshing}>
-        <span className="error-icon">
+      <Notice intent="danger" className="" role="alert" aria-busy={refreshing}>
+        <span className="error-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-danger-text)]">
           <Icon glyph={AlertTriangle} />
         </span>
         <div>
@@ -150,7 +151,7 @@ export function WorkspaceRefreshNotice({
             {refreshing ? "Refreshing library…" : "Retry refresh"}
           </Button>
         </div>
-      </section>
+      </Notice>
       {recoveryNotice}
     </>
   );

@@ -10,6 +10,64 @@ import config from "../vite.config.ts";
 import { frontendEnvironment, buildFrontend } from "./build-frontend.mjs";
 import { vitePlusCommand } from "../../../scripts/viteplus-cli.mjs";
 
+it("processes imported CSS, nesting, utilities and local assets through the selected transformer", async () => {
+  const fixture = await mkdtemp(new URL("../../../work/css-pipeline-", import.meta.url));
+  const entry = path.join(fixture, "entry.js");
+  const stylesheet = path.join(fixture, "probe.css");
+  const options = {
+    ...config,
+    root: fixture,
+    configFile: false,
+    logLevel: "silent",
+    build: {
+      ...config.build,
+      write: false,
+      assetsInlineLimit: 0,
+      rolldownOptions: { input: path.join(fixture, "index.html") },
+    },
+  };
+  try {
+    await writeFile(
+      path.join(fixture, "pixel.svg"),
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>',
+    );
+    await writeFile(
+      stylesheet,
+      '@layer components { .pipeline-probe { & > span { background-image: url("./pixel.svg"); color: var(--color-text); } } }',
+    );
+    await writeFile(
+      entry,
+      `import ${JSON.stringify(fileURLToPath(new URL("../src/styles/index.css", import.meta.url)))};\nimport "./probe.css";\nglobalThis.pipeline = true;`,
+    );
+    await writeFile(
+      path.join(fixture, "index.html"),
+      '<script type="module" src="./entry.js"></script>',
+    );
+    const result = await build(options);
+    const output = Array.isArray(result) ? result.flatMap((item) => item.output) : result.output;
+    const css = output
+      .filter((item) => item.type === "asset" && item.fileName.endsWith(".css"))
+      .map((item) => String(item.source))
+      .join("\n");
+    expect(config.css.transformer).toBe("lightningcss");
+    expect(config.build.cssTarget).toEqual(["chrome111", "safari16.4"]);
+    expect(css).toContain(".pipeline-probe>span");
+    expect(css).not.toContain("& > span");
+    expect(css).not.toContain("12345px");
+    const asset = output.find((item) => item.type === "asset" && item.fileName.endsWith(".svg"));
+    expect(asset).toBeDefined();
+    expect(css).toContain(path.posix.basename(asset.fileName));
+    expect(output.some((item) => item.type === "asset" && item.fileName.endsWith(".woff2"))).toBe(
+      true,
+    );
+    expect(output.some((item) => item.fileName.endsWith(".map"))).toBe(true);
+    await writeFile(stylesheet, ".pipeline-probe { color: rgb( } broken");
+    await expect(build(options)).rejects.toThrow(/probe\.css|Unexpected|Invalid/);
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
+
 async function installedCliFixture(directory) {
   await writeFile(path.join(directory, "package.json"), '{"type":"module"}');
   const installed = path.join(directory, "node_modules/vite-plus");
@@ -113,7 +171,7 @@ it("excludes signing sentinels from direct and whole-object frontend access and 
     process.env[names[2]] = "public-1279";
     await writeFile(
       entry,
-      `import ${JSON.stringify(fileURLToPath(new URL("../src/styles.css", import.meta.url)))};\nglobalThis.probe = { direct: import.meta.env.TAURI_SIGNING_PRIVATE_KEY, password: import.meta.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD, all: import.meta.env };`,
+      `import ${JSON.stringify(fileURLToPath(new URL("../src/styles/index.css", import.meta.url)))};\nglobalThis.probe = { direct: import.meta.env.TAURI_SIGNING_PRIVATE_KEY, password: import.meta.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD, all: import.meta.env };`,
     );
     const result = await build({
       ...config,
@@ -179,7 +237,7 @@ it("uses resolved public environment for the explicit compatibility fixture boun
     const entry = path.join(fixture, "entry.js");
     await writeFile(
       entry,
-      `import ${JSON.stringify(fileURLToPath(new URL("../src/styles.css", import.meta.url)))};\nimport ${JSON.stringify(fileURLToPath(new URL("../src/design-compatibility/design-compatibility.css", import.meta.url)))};\nglobalThis.designProbe = true;`,
+      `import ${JSON.stringify(fileURLToPath(new URL("../src/styles/index.css", import.meta.url)))};\nimport ${JSON.stringify(fileURLToPath(new URL("../src/design-compatibility/design-compatibility.css", import.meta.url)))};\nglobalThis.designProbe = true;`,
     );
     const buildProbe = () =>
       build({

@@ -30,7 +30,7 @@ export function OperationCancellation({
   };
   if (state?.phase === "finishing") return <p role="status">Finishing safely…</p>;
   return (
-    <div className="operation-cancellation">
+    <div className="operation-cancellation my-3">
       <Button
         data-focusable
         variant="outline"
