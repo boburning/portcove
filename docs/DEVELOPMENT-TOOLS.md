@@ -515,9 +515,10 @@ checksum before tool installation. These commands do not grant Renovate arbitrar
 post-upgrade execution or replace Aqua's install-time checksum and attestation
 verification.
 
-Routine non-security development-tool proposals use Renovate's weekly tooling
-window. Aqua and its managed Ruff, actionlint, and ShellCheck pins are proposed as
-one qualification group. Renovate does not independently advance the standard
+Routine non-security development-tool proposals are eligible throughout the week
+after the existing release-age check, within the two concurrent queue slots.
+Aqua and its managed Ruff, actionlint, and ShellCheck pins are proposed as one
+qualification group. Renovate does not independently advance the standard
 registry ref: if an actual tool update is unavailable in the pinned registry, or
 a compatibility, integrity, or security repair requires a registry change,
 advance that ref in the same reviewed change and run the integrity updater above.

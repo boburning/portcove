@@ -291,6 +291,12 @@ Hourly PR and commit caps are disabled (`prHourlyLimit: 0` and
 `commitHourlyLimit: 0`), so eligible proposals and conflict repairs can replenish
 available slots without waiting for the next hour. This does not change the
 hosted Renovate service's execution cadence, release-age filtering or review gates.
+Ordinary dependency proposals, including development tools and compatibility
+groups, are eligible at any time after their release-age checks; they no longer
+wait for Monday or Thursday. Lockfile maintenance retains its Monday-before-6am
+window in America/New_York, and major migrations retain selective dashboard
+approval. An empty open-PR queue does not mean no updates exist: inspect the
+dashboard's release-age, schedule and approval holds as well.
 Security vulnerability alerts retain Renovate's documented bypass of those
 ordinary queue limits, while GitHub vulnerability alerts and Dependabot security
 updates remain independent. Adjust throughput through the top-level limits in
