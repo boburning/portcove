@@ -596,7 +596,7 @@ test("Linux packaged boundary refuses substituted payload, producer and qualific
   );
   const manifest = {
     revision: "a".repeat(40),
-    build_command: ["corepack", "pnpm", "tauri", "build", "--bundles", "deb"],
+    build_command: ["pnpm", "tauri", "build", "--bundles", "deb"],
     qualification_features: [],
     execution_context: "extracted-deb-payload",
     configuration,
@@ -873,7 +873,15 @@ test(
     const script = path
       .resolve("apps/desktop/scripts/native-confirmation.ps1")
       .replaceAll("'", "''");
-    for (const kind of ["stale-time", "wrong-image", "directory-input", "outside-prepared"]) {
+    await mkdir(path.join(output, "different-owner", "player-owned-runtime"), { recursive: true });
+    await mkdir(path.join(output, "unadmitted-name"));
+    for (const kind of [
+      "stale-time",
+      "wrong-image",
+      "directory-input",
+      "outside-prepared",
+      "unadmitted-name",
+    ]) {
       const helper = path.join(output, `${kind}.ps1`);
       const extra =
         kind === "directory-input"
@@ -881,8 +889,10 @@ test(
           : kind === "outside-prepared"
             ? // An admitted basename with the wrong parent reaches the path check,
               // rather than the earlier fixture-name refusal.
-              "-PreparedRuntimeDirectory (Join-Path (Split-Path $PSScriptRoot -Parent) 'player-owned-runtime')"
-            : "";
+              "-PreparedRuntimeDirectory (Join-Path (Join-Path $PSScriptRoot 'different-owner') 'player-owned-runtime')"
+            : kind === "unadmitted-name"
+              ? "-PreparedRuntimeDirectory (Join-Path $PSScriptRoot 'unadmitted-name')"
+              : "";
       await writeFile(
         helper,
         `
@@ -924,8 +934,10 @@ try {
         kind === "directory-input"
           ? /Parameter set cannot be resolved/
           : kind === "outside-prepared"
-            ? /Picker input is not an admitted owned fixture directory/
-            : /Captured picker driver identity changed/,
+            ? /Prepared runtime input requires the exact regular owned fixture directory/
+            : kind === "unadmitted-name"
+              ? /Picker input is not an admitted owned fixture directory/
+              : /Captured picker driver identity changed/,
       );
       if (kind !== "directory-input") assert.equal(stage, "picker-preflight");
       await assert.rejects(stat(path.join(output, `${kind}.json`)), /ENOENT/);

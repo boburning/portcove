@@ -218,12 +218,12 @@ async function build() {
       delete environment[name];
   const start = {
     revision: revision(),
-    build_command: ["corepack", "pnpm", "tauri", "build", "--bundles", "deb"],
+    build_command: ["pnpm", "tauri", "build", "--bundles", "deb"],
     qualification_features: [],
     started_at: new Date().toISOString(),
   };
   await save(path.join(output, "build-start.json"), start);
-  command("corepack", start.build_command.slice(1), {
+  command(start.build_command[0], start.build_command.slice(1), {
     cwd: path.join(root, "apps/desktop"),
     env: environment,
     timeout: 25 * 60_000,
