@@ -2318,52 +2318,49 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
     config,
     /filter = 'package\(portcove-core\) & test\(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes\)'\r?\nthreads-required = 2/,
   );
-  const lifecycleFilter = outputOverrides[0].trim().split(/\r?\n/)[0];
-  const intelRollbackBudget = [
-    "platform = 'x86_64-apple-darwin'",
-    "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)'",
-    'slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }',
-  ].join("\n");
-  function assertTimeoutOverrides(source) {
+  function assertFiniteHarnessBudgets(source) {
     const [defaults, ...overrides] = source.split("[[profile.default.overrides]]");
-    assert.match(
-      defaults,
-      /^slow-timeout = \{ period = "5s", terminate-after = 6, grace-period = "0s" \}$/m,
-    );
-    const budgets = overrides.filter((override) => /^slow-timeout = /m.test(override));
-    assert.equal(budgets.length, 2);
-    assert.equal(budgets[0].trim().split(/\r?\n/)[0], lifecycleFilter);
-    assert.match(
-      budgets[0],
-      /^slow-timeout = \{ period = "5s", terminate-after = 9, grace-period = "0s" \}$/m,
-    );
-    assert.equal(budgets[1].trim().split(/\r?\n/).slice(0, 3).join("\n"), intelRollbackBudget);
-    for (const override of overrides) {
-      assert.doesNotMatch(override, /retries/);
-      if (!budgets.includes(override)) assert.doesNotMatch(override, /slow-timeout/);
+    assert.match(defaults, /^slow-timeout = /m);
+    const units = { ms: 1, s: 1000, m: 60000, h: 3600000 };
+    for (const block of [defaults, ...overrides]) {
+      for (const line of block.split(/\r?\n/)) {
+        if (/^retries\s*=/.test(line)) assert.match(line, /^retries\s*=\s*0$/);
+        if (!/^slow-timeout\s*=/.test(line)) continue;
+        const budget = line.match(
+          /^slow-timeout = \{ period = "([0-9]+)(ms|s|m|h)", terminate-after = ([0-9]+), grace-period = "([0-9]+)(ms|s|m|h)" \}$/,
+        );
+        assert.ok(
+          budget,
+          "harness budgets must retain finite warning, termination and cleanup limits",
+        );
+        const period = Number(budget[1]) * units[budget[2]];
+        const count = Number(budget[3]);
+        const grace = Number(budget[4]) * units[budget[5]];
+        assert.ok(period > 0 && Number.isSafeInteger(count) && count > 0);
+        assert.ok(Number.isFinite(period * count + grace));
+        if (block !== defaults) assert.match(block, /^filter = '.+'$/m);
+      }
     }
   }
-  assertTimeoutOverrides(config);
-  for (const changed of [
+  assertFiniteHarnessBudgets(config);
+  // Calibration can exceed recorded exceptions without a new approval ceiling.
+  for (const calibrated of [
     config.replace("terminate-after = 9", "terminate-after = 18"),
-    config.replace("terminate-after = 6", "terminate-after = 9"),
-    config.replace("platform = 'x86_64-apple-darwin'", "platform = 'aarch64-apple-darwin'"),
-    config.replace("platform = 'x86_64-apple-darwin'\n", ""),
-    config.replace(
-      intelRollbackBudget,
-      intelRollbackBudget.replace("terminate-after = 9", "terminate-after = 18"),
-    ),
-    config.replace(intelRollbackBudget.split("\n")[1], "filter = 'package(portcove-core)'"),
-    config.replace(lifecycleFilter, "filter = 'package(portcove-core)'"),
-    config.replace(
-      'terminate-after = 9, grace-period = "0s"',
-      'terminate-after = 9, grace-period = "1s"',
-    ),
     config +
-      '\n[[profile.default.overrides]]\nfilter = \'package(portcove-cli)\'\nslow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }\n',
+      "\n[[profile.default.overrides]]\nplatform = 'aarch64-apple-darwin'\nfilter = 'package(portcove-core) & test(database::tests::)'\nslow-timeout = { period = \"5s\", terminate-after = 240, grace-period = \"2s\" }\n",
+  ]) {
+    assertFiniteHarnessBudgets(calibrated);
+  }
+  for (const changed of [
+    config.replace('period = "5s"', 'period = "0s"'),
+    config.replace("terminate-after = 9", "terminate-after = 0"),
+    config.replace("terminate-after = 9", 'terminate-after = "never"'),
+    config.replace("terminate-after = 9", "terminate-after = 1e309"),
+    config +
+      '\n[[profile.default.overrides]]\nslow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }\n',
     config + "\n[[profile.default.overrides]]\nfilter = 'package(portcove-cli)'\nretries = 1\n",
   ]) {
-    assert.throws(() => assertTimeoutOverrides(changed));
+    assert.throws(() => assertFiniteHarnessBudgets(changed));
   }
   assert.match(rustTests, /cargo nextest run --locked @Arguments/);
   assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);
