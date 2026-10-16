@@ -2,6 +2,31 @@
 import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 export const desktopFormats = Object.freeze(["appimage", "deb", "rpm"]);
+export function assertPackageExecutable(format, listing) {
+  const matches = listing
+    .trim()
+    .split(/\r?\n/u)
+    .flatMap((line) => {
+      if (format === "deb") {
+        const match =
+          /^([-dl][rwxstST-]{9})\s+\S+\s+\d+\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?\s+(.+)$/u.exec(
+            line,
+          );
+        return match
+          ? [{ path: match[2], regular: match[1][0] === "-" && /[xs]/u.test(match[1][3]) }]
+          : [];
+      }
+      if (format !== "rpm") throw new Error("Executable inspection requires deb or rpm");
+      const fields = line.trim().split(/\s+/u);
+      const mode = /^[0-7]+$/u.test(fields[4] ?? "") ? Number.parseInt(fields[4], 8) : 0;
+      return [{ path: fields[0], regular: (mode & 0o170000) === 0o100000 && (mode & 0o111) !== 0 }];
+    })
+    .filter(
+      (item) => item.path.replace(/^\.\//u, "").replace(/^\//u, "") === "usr/bin/portcove-desktop",
+    );
+  if (matches.length !== 1 || !matches[0].regular)
+    throw new Error(`${format} lacks exactly one regular executable usr/bin/portcove-desktop`);
+}
 export function assertFreshBuildOutputs(root) {
   for (const relative of ["target", "work/target", "release-assets", "apps/desktop/dist"])
     if (existsSync(path.join(root, relative)))

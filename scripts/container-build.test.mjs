@@ -5,11 +5,34 @@ import path from "node:path";
 import test from "node:test";
 import {
   assertFreshBuildOutputs,
+  assertPackageExecutable,
   builtPackage,
   validatePackageMetadata,
 } from "./container-build-policy.mjs";
 import { runtimeArguments, validateRuntime, budgets, browser } from "./container-build.mjs";
 import { createContainerHost } from "./container-host.mjs";
+test("package member inspection requires the exact regular executable", () => {
+  const deb = "-rwxr-xr-x root/root 123 2026-10-16 00:00 ./usr/bin/portcove-desktop";
+  const rpm = "/usr/bin/portcove-desktop 123 1700000000 abcd 0100755 root root 0 0 0 X";
+  assertPackageExecutable("deb", deb);
+  assertPackageExecutable("rpm", rpm);
+  for (const listing of [
+    deb.replace("desktop", "desktop-old"),
+    deb.replace("-rwx", "drwx"),
+    deb.replace("-rwx", "lrwx"),
+    deb.replace("-rwx", "-rw-"),
+    `${deb}\n${deb}`,
+  ])
+    assert.throws(() => assertPackageExecutable("deb", listing), /regular executable/u);
+  for (const listing of [
+    rpm.replace("desktop", "desktop-old"),
+    rpm.replace("0100755", "0040755"),
+    rpm.replace("0100755", "0120777"),
+    rpm.replace("0100755", "0100644"),
+    `${rpm}\n${rpm}`,
+  ])
+    assert.throws(() => assertPackageExecutable("rpm", listing), /regular executable/u);
+});
 test("builder modes are closed and isolated from browser resources", async () => {
   assert.throws(() => createContainerHost("arbitrary"), /Unknown/u);
   assert.equal(budgets.timeout_ms, 90 * 60000);

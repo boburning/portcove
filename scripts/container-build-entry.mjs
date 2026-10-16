@@ -16,6 +16,7 @@ import path from "node:path";
 import { assertCommittedWorkspace } from "./container-source.mjs";
 import {
   assertFreshBuildOutputs,
+  assertPackageExecutable,
   builtPackage,
   desktopFormats,
   validatePackageMetadata,
@@ -110,21 +111,21 @@ process.on("SIGTERM", () => stop("SIGTERM"));
 process.on("SIGINT", () => stop("SIGINT"));
 let bytes = 0;
 let exported = 0;
-function capture(directory, target) {
+function capture(directory, target, suffix) {
   if (!existsSync(directory)) return;
   for (const item of readdirSync(directory, { withFileTypes: true })) {
+    // AppDir/bundler intermediates remain recoverable in the owned container.
+    // Export only final package candidates, including failed candidates as evidence.
+    if (!item.name.endsWith(suffix)) continue;
     const source = path.join(directory, item.name);
     const destination = path.join(target, item.name);
     const details = lstatSync(source);
-    if (details.isSymbolicLink() || (!details.isDirectory() && !details.isFile()))
+    if (details.isSymbolicLink() || !details.isFile())
       throw new Error(`Evidence refuses non-regular entry: ${source}`);
-    if (details.isDirectory()) {
-      mkdirSync(destination, { recursive: true });
-      capture(source, destination);
-    } else {
+    {
       exported += details.size;
       if (exported > 1024 ** 3)
-        throw new Error("Browser evidence exceeds 1 GiB; retain container for recovery");
+        throw new Error("Builder evidence exceeds 1 GiB; retain container for recovery");
       mkdirSync(path.dirname(destination), { recursive: true });
       copyFileSync(source, destination);
       report.artifacts.push({
@@ -291,7 +292,11 @@ try {
           mkdirSync(inspection);
           await required(["--appimage-extract"], "inspect-appimage", artifact, inspection);
           const binary = path.join(inspection, "squashfs-root/usr/bin/portcove-desktop");
-          if (!existsSync(binary))
+          if (
+            !existsSync(binary) ||
+            !lstatSync(binary).isFile() ||
+            !(lstatSync(binary).mode & 0o111)
+          )
             throw new Error("AppImage lacks the selected desktop executable");
           await required(["--brief", binary], "inspect-appimage-elf", "file");
           if (!report.phases.at(-1).output_prefix.includes("x86-64"))
@@ -313,12 +318,11 @@ try {
             version,
           );
           await required(
-            format === "deb" ? ["--contents", artifact] : ["-qpl", artifact],
+            format === "deb" ? ["--contents", artifact] : ["-qp", "--dump", artifact],
             `inspect-${format}-contents`,
             format === "deb" ? "dpkg-deb" : "rpm",
           );
-          if (!report.phases.at(-1).output_prefix.includes("usr/bin/portcove-desktop"))
-            throw new Error(`${format} lacks the selected desktop executable`);
+          assertPackageExecutable(format, report.phases.at(-1).output_prefix);
         }
         report.formats[format].status = "validated";
       } catch (error) {
@@ -345,8 +349,13 @@ try {
 } finally {
   clearTimeout(force);
   try {
-    capture(path.join(root, "release-assets"), path.join(output, "artifacts/cli"));
-    capture(path.join(root, "target/release/bundle"), path.join(output, "artifacts/desktop"));
+    capture(path.join(root, "release-assets"), path.join(output, "artifacts/cli"), ".tar.gz");
+    for (const format of desktopFormats)
+      capture(
+        path.join(root, "target/release/bundle", format),
+        path.join(output, "artifacts/desktop", format),
+        format === "appimage" ? ".AppImage" : `.${format}`,
+      );
   } catch (error) {
     report.export_error = error.message;
     process.exitCode = 1;
