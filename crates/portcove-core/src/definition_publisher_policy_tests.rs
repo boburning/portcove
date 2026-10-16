@@ -1964,14 +1964,19 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // Owner-approved #706 calibration (issuecomments 6190196270/6191752545): preserve the
     // whole-install starting point and every actual partial-copy assertion.
     // #2004 adds exactly PolicyLoss/ArtifactRevocationRestore (issuecomment 6205805576).
+    // The final integrated Intel run also missed setup for the two restore
+    // variants below. Calibrate only their setup wait under QUALITY's standing
+    // authority; retain the actual partial-copy barrier and worker drain.
     let latch_timeout = if cfg!(all(target_os = "macos", target_arch = "x86_64"))
         && matches!(
             intervention,
             CacheIntervention::CancelRetain
+                | CacheIntervention::CancelRestore
                 | CacheIntervention::ArtifactRevocationRetain
                 | CacheIntervention::ArtifactWithdrawalRetain
                 | CacheIntervention::PolicyLoss
                 | CacheIntervention::ArtifactRevocationRestore
+                | CacheIntervention::ArtifactWithdrawalRestore
         ) {
         Duration::from_secs(10)
     } else {
@@ -2463,6 +2468,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         // in preservation expectations, as in the retained-expiry launch control.
         fs::write(delivered[1].path.join(".portcove-launched"), b"1").unwrap();
     }
+    phase("retained baseline begin");
     let trees: Vec<_> = delivered
         .iter()
         .map(|install| crate::library_transfer::reviewed_tree(&install.path).unwrap())
@@ -2471,6 +2477,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
     fs::create_dir_all(user.join("saves")).unwrap();
     fs::write(user.join("saves/progress.bin"), b"owned retained progress").unwrap();
     let user_tree = crate::library_transfer::reviewed_tree(&user).unwrap();
+    phase("retained baseline complete");
     if operation == RetainedCuratedOperation::AdoptionRefusal {
         let source = probe_directory.path().join("unmanaged-owned-source");
         crate::service::copy_tree(&delivered[1].path, &source).unwrap();
@@ -2876,6 +2883,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         );
         let staging = library.staging_dir().join(&journal.id);
         let payload = staging.join("payload");
+        phase("publication payload preparation begin");
         crate::service::copy_tree(&delivered[1].path, &payload).unwrap();
         let original = &delivered[1];
         let install_id = uuid::Uuid::new_v4().to_string();
@@ -2908,6 +2916,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         };
         assert!(installer.verify(&private).unwrap().valid);
         let private_tree = crate::library_transfer::reviewed_tree(&payload).unwrap();
+        phase("publication payload preparation complete");
         let already_published = matches!(
             operation,
             RetainedCuratedOperation::PublicationRecoveryPublished
@@ -2926,6 +2935,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         journal.activate = true;
         let store = OperationStore::new(library.clone());
         store.put(&mut journal).unwrap();
+        phase("publication journal persisted");
         if status != "available" {
             let affected = &artifacts[1].0;
             let transitions = serde_json::json!({"future_acceptance_lost":false,"artifacts":[{"asset_id":affected.asset_id,"sha256":affected.sha256,"status":status}]});
@@ -2948,8 +2958,11 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             .unwrap()
             .require_current()
             .unwrap();
-        for _ in 0..2 {
+        phase("publication current scope ready");
+        for attempt in 0..2 {
+            phase(&format!("publication reopen begin {attempt}"));
             let _reopened = PortcoveService::new(library.clone()).unwrap();
+            phase(&format!("publication reopen complete {attempt}"));
             let after = library.status(ID, ReleaseChannel::Stable).unwrap();
             if status == "available" && !unsupported_adoption {
                 assert_eq!(after.active.unwrap().id, published.id);
@@ -3009,6 +3022,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
                 crate::library_transfer::reviewed_tree(&user).unwrap(),
                 user_tree
             );
+            phase(&format!("publication preservation complete {attempt}"));
         }
         assert_eq!(count(&library, "curated_artifact_admissions"), 2);
         assert_eq!(

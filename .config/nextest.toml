@@ -37,6 +37,15 @@ platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_retained_launch_withdrawal_supervises_exact_owned_child_after_reopen$/)'
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 
+# The integrated Intel publication-recovery fixture reached install 1 before
+# the 30s cutoff. Preserve both real reopens and all tree/database assertions;
+# paired phase diagnostics and this exact 45s budget retain finite hang detection.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_permitted_artifact_commits_once$/)'
+slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
+success-output = "immediate"
+
 # These CLI contracts compare free-space snapshots across child processes.
 # Preserve their existing mutual exclusion across nextest's process boundary.
 [test-groups]
