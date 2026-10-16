@@ -1,6 +1,7 @@
+import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../../test-fixtures";
-import { act, StrictMode, useMemo } from "react";
+import { StrictMode, useMemo } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "../../api";
@@ -113,20 +114,20 @@ function UpdateFixture({ perform }: { perform: Parameters<typeof useUpdateCenter
 }
 
 async function render() {
+  await root.rerender(<Fixture />);
   await act(async () => {
-    await root.rerender(<Fixture />);
     await Promise.resolve();
     await Promise.resolve();
   });
 }
 
 async function renderStrict() {
+  await root.rerender(
+    <StrictMode>
+      <Fixture />
+    </StrictMode>,
+  );
   await act(async () => {
-    await root.rerender(
-      <StrictMode>
-        <Fixture />
-      </StrictMode>,
-    );
     await Promise.resolve();
     await Promise.resolve();
   });
@@ -424,8 +425,8 @@ describe("workspace refresh recovery", () => {
     await render();
     expect(desktopApi.workspaceSnapshot).toHaveBeenCalledWith(7);
 
+    await root.rerender(<Fixture generation={8} />);
     await act(async () => {
-      await root.rerender(<Fixture generation={8} />);
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -447,8 +448,8 @@ describe("workspace refresh recovery", () => {
     const before = { catalog: data.catalog, statuses: data.statuses, sources: data.sources };
     vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(structuredClone(snapshot));
 
+    await root.rerender(<Fixture generation={8} />);
     await act(async () => {
-      await root.rerender(<Fixture generation={8} />);
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -470,8 +471,8 @@ describe("workspace refresh recovery", () => {
     await render();
     expect(desktopApi.doctor).toHaveBeenCalledWith(7);
 
+    await root.rerender(<Fixture key="generation-8" generation={8} />);
     await act(async () => {
-      await root.rerender(<Fixture key="generation-8" generation={8} />);
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -491,8 +492,8 @@ describe("workspace refresh recovery", () => {
     await act(async () => Promise.resolve());
     expect(desktopApi.workspaceChanged).toHaveBeenCalledWith(7);
 
+    await root.rerender(<Fixture key="observer-generation-8" generation={8} />);
     await act(async () => {
-      await root.rerender(<Fixture key="observer-generation-8" generation={8} />);
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -712,17 +713,15 @@ describe("workspace refresh recovery", () => {
     "qualifies the available library snapshot (%s) on recovery failure",
     async (hasSnapshot) => {
       const retryRecovery = vi.fn().mockResolvedValue(undefined);
-      await act(async () => {
-        await root.rerender(
-          <WorkspaceRefreshNotice
-            recoveryFailure={{ error: new Error("unstructured recovery failure") }}
-            hasSnapshot={hasSnapshot}
-            refreshing={false}
-            retry={vi.fn().mockResolvedValue(undefined)}
-            retryRecovery={retryRecovery}
-          />,
-        );
-      });
+      await root.rerender(
+        <WorkspaceRefreshNotice
+          recoveryFailure={{ error: new Error("unstructured recovery failure") }}
+          hasSnapshot={hasSnapshot}
+          refreshing={false}
+          retry={vi.fn().mockResolvedValue(undefined)}
+          retryRecovery={retryRecovery}
+        />,
+      );
       expect(host.textContent).toContain(
         hasSnapshot
           ? "Showing the last loaded library information. It may be out of date."

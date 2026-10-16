@@ -1,5 +1,6 @@
+import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
-import { act, createElement } from "react";
+import { createElement } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
 import { SettingsView } from "../../components/Chrome";

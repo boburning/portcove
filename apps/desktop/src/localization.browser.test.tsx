@@ -1,6 +1,7 @@
+import { controlledAct as act } from "../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { userEvent } from "vite-plus/test/browser";
-import { act, useState } from "react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { LanguageSettings } from "./components/LanguageSettings";
 import {

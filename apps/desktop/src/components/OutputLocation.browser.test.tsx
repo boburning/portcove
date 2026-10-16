@@ -1,6 +1,7 @@
+import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../test-fixtures";
-import { act } from "react";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import type {
@@ -75,9 +76,7 @@ let root: RenderResult;
 let container: HTMLDivElement;
 
 async function render(children: React.ReactNode) {
-  await act(async () => {
-    await root.rerender(children);
-  });
+  await root.rerender(children);
 }
 
 function button(label: string, within: ParentNode = document.body) {

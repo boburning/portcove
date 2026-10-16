@@ -2639,12 +2639,13 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             .into_eligible()
             .unwrap();
         library.select_definition_candidate(eligible).unwrap();
-        let current_catalog = library.load_catalog().unwrap().0;
+        // Observe the unchanged selected catalog once. Launch assessments are
+        // read from durable state by each status call; they do not replace the
+        // selected catalog. Actual launch attempts below still reopen service.
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let current_catalog = service.catalog();
         phase("launch transition admission");
-        let without_baseline = PortcoveService::new(library.clone())
-            .unwrap()
-            .status(ID)
-            .unwrap();
+        let without_baseline = service.status(ID).unwrap();
         assert!(!without_baseline.readiness.unwrap().launchable);
         let baseline_refusal = without_baseline
             .definition_operations
@@ -2660,7 +2661,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             crate::DefinitionEligibilityReason::CuratedArtifactRevoked
         );
         phase("launch without-baseline status");
-        let fresh_scope = policy::acquisition_scope(&library, &current_catalog, ID)
+        let fresh_scope = policy::acquisition_scope(&library, current_catalog, ID)
             .unwrap()
             .unwrap();
         let baseline =
@@ -2675,7 +2676,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             )
             .unwrap();
         let bundle = crate::test_fixture::indexed_catalog_bundle_at_revision(
-            &current_catalog,
+            current_catalog,
             ID,
             current_catalog
                 .definition_selection(ID)
@@ -2697,7 +2698,6 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             .apply_definition_launch_assessment(&accepted)
             .unwrap();
         phase("launch baseline admitted");
-        let service = PortcoveService::new(library.clone()).unwrap();
         let projected = service.status(ID).unwrap();
         let expected_reason = if status == "revoked" {
             crate::DefinitionEligibilityReason::CuratedArtifactRevoked

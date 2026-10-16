@@ -1,5 +1,6 @@
+import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
-import { act, StrictMode } from "react";
+import { StrictMode } from "react";
 import { beforeEach, afterEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
 import { useFavorites } from "./use-favorites";

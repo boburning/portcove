@@ -45,6 +45,49 @@ Final source review, hosted exact-head results, clean-install acceptance and nat
 refresh receipts are recorded on #2004 and its delivery PR. Earlier #2001/#2002
 observations below remain historical and cannot approve this candidate.
 
+The React renderer owns render/rerender/unmount act scopes. Deliberate external
+promise, event and timer batches use a small test-only adapter around public
+`React.act`, scoped to React's documented act-environment flag and restored in
+`finally`. The renderer's public package exports no standalone act function.
+Renderer operations stay outside this adapter; no global act-mode override,
+private package import or console suppression is used.
+
+Historical always-capture PNG calls had no pixel comparison or behavioral
+assertion. Supported failure screenshots and retained traces now own browser
+diagnostics; theme, focus, bounds, overflow and accessibility assertions remain.
+Original failed captures and native visual evidence remain preserved.
+
+## Consolidation measurements
+
+Source-bound Windows observations compare the prior migration's equivalent
+frontend inputs with the consolidation. They are individual observations, not
+a general speed claim. Warm two-entry development startup was roughly one second;
+192 identical pure cases took 3.81/3.66 seconds. Equivalent 121 DOM cases took
+7.70 seconds in jsdom with two workers and 10.03 seconds in real Chromium with
+four workers. The latter performs different work. Integrated checking took
+5.47/6.48 seconds while its formatter/type scope expanded. Uncached builds and
+cold setup had unequal cache histories and substantial variance.
+
+Worker/pool/parallelism trials and upstream test doctor did not justify changing
+the bounded two Node/four browser workers, default forks or isolation. Global
+isolation removal remains rejected. Eager application imports showed no measured
+loading bottleneck warranting new chunks or lazy boundaries. Production JavaScript
+grew 0.69 kB (0.25 kB gzip); CSS fell 1.20 kB (0.10 kB gzip). The chunk warning
+remains visible. Native first paint was not measured.
+
+Actual ordinary cache entrypoints observed baseline/candidate replay at
+0.251/0.257 seconds. Candidate explicitly fresh and subsequent miss observations
+were 82.07/6.49 seconds with different cache histories; replayed build output is
+not fresh execution. A sibling worktree's output digest remained unchanged.
+Incomplete probes, failed runs and outliers remain retained on the owning lane.
+
+The frozen registry graph fell from 581 to 493 distinct name/version records:
+89 removals and one focused React integration addition. Windows physically
+present reachable packages fell from 385 to 340: 46 removals and one addition.
+Optional platform records and physical packages are separate inventories.
+Required transitive TypeScript remains. Complete reports and delivery evidence
+belong to #2004 and PR #2005.
+
 ## Repository rollback
 
 Revert the consolidation's delivered commit(s) in a new owned branch based on

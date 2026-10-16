@@ -1,6 +1,7 @@
+import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../test-fixtures";
-import { act, useState } from "react";
+import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import {
@@ -218,7 +219,7 @@ it("connects a registered preliminary selection to truthful port guidance and bo
         />
       </SetupReviewSelectionProvider>,
     );
-  await act(async () => render());
+  await render();
   await click("Refresh folders");
   expect(document.body.textContent).toContain("Found no exact matches");
   expect(document.body.textContent).toContain("Validation has not run");
@@ -231,7 +232,7 @@ it("connects a registered preliminary selection to truthful port guidance and bo
   await click("Review Preliminary port setup");
   expect(open).toHaveBeenCalledWith(port.id, "game-file-libraries-setup");
   expect(desktopApi.importSource).not.toHaveBeenCalled();
-  await act(async () => render([]));
+  await render([]);
   expect(button("Review Preliminary port setup").disabled).toBe(true);
   expect(button("Review preliminary selection").disabled).toBe(false);
 });
@@ -268,7 +269,7 @@ it("returns preliminary review cancellation to its opener or the heading when th
   };
   const render = (profiles = [profile]) =>
     root.rerender(<GameFileLibraries ports={[]} profiles={profiles} />);
-  await act(async () => render());
+  await render();
   await click("Refresh folders");
   await click("Review preliminary selection");
   expect(document.activeElement).toBe(button("Cancel review"));
@@ -276,7 +277,7 @@ it("returns preliminary review cancellation to its opener or the heading when th
   await click("Cancel review");
   expect(document.activeElement).toBe(button("Review preliminary selection"));
   await click("Review preliminary selection");
-  await act(async () => render([]));
+  await render([]);
   await click("Cancel review");
   expect(button("Review preliminary selection").disabled).toBe(true);
   expect(document.activeElement).toBe(document.getElementById("game-file-libraries-heading"));

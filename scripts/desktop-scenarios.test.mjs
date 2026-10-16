@@ -685,6 +685,7 @@ $owned = [Diagnostics.Process]::GetCurrentProcess()
 $image = $owned.MainModule.FileName
 $expectedImage = ${kind === "wrong-image" ? "'C:\\not-the-owned-driver.exe'" : "$image"}
 $filetime = ${kind === "stale-time" ? "'1'" : "$owned.StartTime.ToUniversalTime().ToFileTimeUtc().ToString()"}
+function Add-Type { throw 'Rejected picker input must not initialize UI automation.' }
 try {
     & '${script}' -DriverProcessId $PID -ApplicationPath $image -ObservePicker -ExpectedDriverPath $expectedImage -ExpectedDriverStartedFiletime $filetime -ObservationPath (Join-Path $PSScriptRoot '${kind}.json') ${extra}
     exit 0
@@ -692,11 +693,24 @@ try {
 `,
         { flag: "wx" },
       );
+      const started = performance.now();
       const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", helper], {
         encoding: "utf8",
         windowsHide: true,
         timeout: 15_000,
       });
+      const phase = result.stderr?.match(/^PORTCOVE_NATIVE_FAILURE (.+)$/mu)?.[1];
+      const stage = phase ? JSON.parse(phase).stage : null;
+      t.diagnostic(
+        JSON.stringify({
+          case: kind,
+          elapsed_ms: Math.round(performance.now() - started),
+          status: result.status,
+          signal: result.signal,
+          error_code: result.error?.code ?? null,
+          phase: stage,
+        }),
+      );
       assert.equal(result.error, undefined);
       assert.equal(result.status, 1, result.stderr);
       assert.match(
@@ -707,6 +721,7 @@ try {
             ? /Picker input is not an admitted owned fixture directory/
             : /Captured picker driver identity changed/,
       );
+      if (kind !== "directory-input") assert.equal(stage, "picker-preflight");
       await assert.rejects(stat(path.join(output, `${kind}.json`)), /ENOENT/);
     }
   },

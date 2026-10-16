@@ -1,4 +1,5 @@
-import { act } from "react";
+import { controlledAct as act } from "../../test/controlled-react-act";
+
 import { createRoot } from "react-dom/client";
 import { render, cleanup } from "vitest-browser-react";
 import axe from "axe-core";

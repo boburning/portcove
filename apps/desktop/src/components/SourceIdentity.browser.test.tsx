@@ -1,5 +1,6 @@
+import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
-import { act, useLayoutEffect } from "react";
+import { useLayoutEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { copyText } from "../clipboard";
 import type { SourceInspectionReport } from "../types";

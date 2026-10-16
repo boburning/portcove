@@ -1,5 +1,6 @@
+import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
-import { act, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { LibrarySelectionCard } from "./Chrome";
 import { desktopApi } from "../api";
@@ -121,16 +122,14 @@ describe("Storage locations", () => {
     const choose = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce("F:/Other Portcove");
     const switchLibrary = vi.fn().mockResolvedValue(undefined);
     const reset = vi.fn().mockResolvedValue(undefined);
-    await act(async () => {
-      await root.rerender(
-        <LibrarySelectionCard
-          selection={{ root: "E:/Portcove", source: "saved" }}
-          choose={choose}
-          switchLibrary={switchLibrary}
-          reset={reset}
-        />,
-      );
-    });
+    await root.rerender(
+      <LibrarySelectionCard
+        selection={{ root: "E:/Portcove", source: "saved" }}
+        choose={choose}
+        switchLibrary={switchLibrary}
+        reset={reset}
+      />,
+    );
 
     await click("Choose another library");
     expect(container.textContent).not.toContain("Switch libraries?");
@@ -159,16 +158,14 @@ describe("Storage locations", () => {
 
   it("uses a separately named review before selecting the platform default", async () => {
     const reset = vi.fn().mockResolvedValue(undefined);
-    await act(async () => {
-      await root.rerender(
-        <LibrarySelectionCard
-          selection={{ root: "E:/Portcove", source: "saved" }}
-          choose={vi.fn()}
-          switchLibrary={vi.fn()}
-          reset={reset}
-        />,
-      );
-    });
+    await root.rerender(
+      <LibrarySelectionCard
+        selection={{ root: "E:/Portcove", source: "saved" }}
+        choose={vi.fn()}
+        switchLibrary={vi.fn()}
+        reset={reset}
+      />,
+    );
 
     await click("Use default library");
     expect(desktopApi.defaultLibraryRoot).toHaveBeenCalledTimes(1);
@@ -210,16 +207,14 @@ describe("Storage locations", () => {
 
   it("dismisses a reset review with Escape and returns focus without changing selection", async () => {
     const reset = vi.fn();
-    await act(async () => {
-      await root.rerender(
-        <LibrarySelectionCard
-          selection={{ root: "E:/Portcove", source: "saved" }}
-          choose={vi.fn()}
-          switchLibrary={vi.fn()}
-          reset={reset}
-        />,
-      );
-    });
+    await root.rerender(
+      <LibrarySelectionCard
+        selection={{ root: "E:/Portcove", source: "saved" }}
+        choose={vi.fn()}
+        switchLibrary={vi.fn()}
+        reset={reset}
+      />,
+    );
     const trigger = button("Use default library");
     await click("Use default library");
     await act(async () => {
@@ -238,15 +233,13 @@ describe("Storage locations", () => {
       "this library was created by a newer Portcove database schema";
     error.presentation.technical_context = { library_schema_version: "999" };
     const switchLibrary = vi.fn().mockRejectedValue(error);
-    await act(async () => {
-      await root.rerender(
-        <LibrarySelectionCard
-          selection={{ root: "E:/Portcove", source: "saved" }}
-          choose={vi.fn().mockResolvedValue("F:/Other Portcove")}
-          switchLibrary={switchLibrary}
-        />,
-      );
-    });
+    await root.rerender(
+      <LibrarySelectionCard
+        selection={{ root: "E:/Portcove", source: "saved" }}
+        choose={vi.fn().mockResolvedValue("F:/Other Portcove")}
+        switchLibrary={switchLibrary}
+      />,
+    );
     const trigger = button("Choose another library");
     await click("Choose another library");
     await click("Switch library");
@@ -276,16 +269,14 @@ describe("Storage locations", () => {
       }),
     );
     const choose = vi.fn().mockResolvedValue("F:/Other Portcove");
-    await act(async () => {
-      await root.rerender(
-        <LibrarySelectionCard
-          selection={{ root: "E:/Portcove", source: "saved" }}
-          choose={choose}
-          switchLibrary={switchLibrary}
-          reset={vi.fn()}
-        />,
-      );
-    });
+    await root.rerender(
+      <LibrarySelectionCard
+        selection={{ root: "E:/Portcove", source: "saved" }}
+        choose={choose}
+        switchLibrary={switchLibrary}
+        reset={vi.fn()}
+      />,
+    );
     const trigger = button("Choose another library");
     await click("Choose another library");
     await click("Switch library");

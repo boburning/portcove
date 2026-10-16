@@ -1,7 +1,8 @@
+import { controlledAct as act } from "../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { ReleaseChannelControl } from "./components/ReleaseChannel";
 import { portStatus } from "./test-fixtures";
-import { act, useState } from "react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { ChoiceSelect } from "./components/ChoiceSelect";
 import { ExternalLink } from "./components/ExternalLink";

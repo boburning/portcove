@@ -301,10 +301,13 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Windows (0)"));
     await expect.element(roleButton("Preview (0)")).toBeEnabled();
     await userEvent.keyboard("{Escape}");
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+    await expect.element(roleButton("Filters (1)")).toHaveFocus();
     const chip = document.querySelector<HTMLButtonElement>(
       'button[aria-label="Remove Preview filter"]',
     )!;
     chip.focus();
+    await expect.element(roleButton("Remove Preview filter")).toHaveFocus();
     await userEvent.keyboard("{Enter}");
     await expect.poll(() => document.activeElement?.textContent).toContain("Filters (0)");
     expect(invoke).not.toHaveBeenCalled();

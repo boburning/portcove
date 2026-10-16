@@ -1,6 +1,7 @@
+import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../test-fixtures";
-import { act, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import type { PreparationPlan } from "../types";
@@ -196,9 +197,7 @@ it.each(["other:7", "sample:8"])(
     }
     await root.rerender(<SelectedRequirements owner="sample:7" />);
     await click("Review game preparation");
-    await act(async () => {
-      await root.rerender(<SelectedRequirements owner={nextOwner} />);
-    });
+    await root.rerender(<SelectedRequirements owner={nextOwner} />);
     const navigation = container.querySelector("button");
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     expect(document.activeElement?.outerHTML).toContain("Choose another game");
