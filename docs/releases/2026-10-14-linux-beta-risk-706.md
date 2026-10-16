@@ -515,3 +515,31 @@ The owning PR retains the independent source review and exact artifacts. Fresh
 current-head checks, complete scan/audit, maintained qualification and affected
 native/package/updater observations remain required before admission. The
 existing approval does not cover additional findings or unrelated failures.
+
+## Test-only fixture reconfirmation — October 16, 2026
+
+Candidate `cb5bda2546695aaadba3f66f86f1d35f31f05553` changes only two Intel fixture setup waits
+from five to ten seconds, adds phase diagnostics and calibrates one exact
+Intel publication-recovery test from thirty to forty-five seconds. Both real
+reopens, all partial-copy, worker-drain, refusal and preservation assertions,
+zero retries and product deadlines remain unchanged. Original failures from
+[qualification 38875841715](https://github.com/boburning/portcove/actions/runs/38875841715)
+remain retained; the prior trace does not establish a deadlock or causal repair.
+
+The changed Rust fixture is loaded only through definition_repository's
+`#[cfg(test)]` module and its publisher_policy_tests submodule. Conservative
+input hashing still changes the 192-entry digest from
+`7f0ba1d9f92a3d16601038f3819b74efe212c67c0dfeaa8b9c9cf234d59f5fe5` to
+`25c75284f87d4175f1c7358d8cf65a3430b6d940186622abe42b17657c44f158`; the only changed input is
+`crates/portcove-core/src/definition_publisher_policy_tests.rs`.
+The full 238-entry dependency/feature/generator inventory and lock digest
+remain byte-identical to the preceding material reassessment. No production
+constructor, trait implementation, generator, permission or feature changes.
+The bounded production-risk analysis and its limitations therefore remain
+applicable; GLib remains unsound and unremediated.
+
+Only reconfirmedHead and inputsSha256 change in the protected record. Original
+assessment, approval owner/scope/expiry, advisory, policy and null publication
+tag remain unchanged. Separate actual-source review, current-head checks,
+fresh complete audit and maintained qualification remain required. This does
+not admit another finding, waive qualification or authorize publication.
