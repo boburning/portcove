@@ -609,6 +609,16 @@
         "claim": "Exact v0.1.3 Linux x86-64 setup ZIP matches provider asset 600784963 size 27794465 and SHA256 d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/54ddfe971dfd79134f2593b00dbd9b78ae51536b/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "racewave46-1-0-0-source-contract",
+        "role": "upstream_support",
+        "authority": "DomazinUS/RaceWave46",
+        "authority_ref": "5c34f3711426978107707a8f06af9c2af4ee5401",
+        "reviewed_at": "2026-10-17",
+        "claim": "Packaged main.cpp matches this tag ignoring line endings and declares Wave Race 64 USA Rev 1 with XXH3 50D5B6046F0C8115, validated before direct launch. Release target/tag provenance ambiguity remains recorded separately.",
+        "immutable_url": "https://github.com/DomazinUS/RaceWave46/blob/5c34f3711426978107707a8f06af9c2af4ee5401/src/main.cpp",
+        "live_url": "https://github.com/DomazinUS/RaceWave46/blob/main/src/main.cpp"
       }
     ],
     "identities": [
@@ -8265,6 +8275,33 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "wave-race-64-racewave46-game-source",
+        "port_id": "wave-race-64-racewave46",
+        "role": "game",
+        "profile_id": "wave-race-64",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-rev-a"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "racewave46-1-0-0-source-contract"
+        ],
+        "authority_ref": "5c34f3711426978107707a8f06af9c2af4ee5401",
+        "reviewed_at": "2026-10-17",
+        "immutable_review_url": "https://github.com/DomazinUS/RaceWave46/blob/5c34f3711426978107707a8f06af9c2af4ee5401/src/main.cpp",
+        "live_review_url": "https://github.com/DomazinUS/RaceWave46/blob/main/src/main.cpp",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v1.0.0",
+            "artifact_sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
           }
         ],
         "aliases": [],
