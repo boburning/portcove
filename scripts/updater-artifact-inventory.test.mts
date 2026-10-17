@@ -1,3 +1,11 @@
+import type { TestContext } from "node:test";
+import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
+import type {
+  StageUpdaterOptions,
+  VerifyUpdaterOptions,
+  UpdaterInventory,
+} from "./updater-artifact-inventory.mts";
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -23,7 +31,11 @@ const policy = await loadPackagePolicy();
 const version = "0.3.0";
 const revision = "a".repeat(40);
 
-function runPowerShellScript(relativePath, args, options = {}) {
+function runPowerShellScript(
+  relativePath: string,
+  args: string[],
+  options: Omit<SpawnSyncOptionsWithStringEncoding, "encoding"> = {},
+) {
   return spawnSync(
     "pwsh",
     [
@@ -38,7 +50,7 @@ function runPowerShellScript(relativePath, args, options = {}) {
   );
 }
 
-async function fixture(t, label = "windows-x86_64") {
+async function fixture(t: TestContext, label = "windows-x86_64") {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-updater-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "release"));
@@ -62,7 +74,7 @@ async function fixture(t, label = "windows-x86_64") {
   const publicKey = path.join(root, "test-public.key");
   await writeFile(publicKey, "public key fixture");
   let verified = 0;
-  const options = {
+  const options: StageUpdaterOptions & VerifyUpdaterOptions = {
     projectRoot: root,
     label,
     revision,
@@ -84,7 +96,7 @@ async function fixture(t, label = "windows-x86_64") {
 }
 
 for (const label of releaseLabels(policy)) {
-  test(`stages and independently rechecks all required ${label} packages`, async (t) => {
+  void test(`stages and independently rechecks all required ${label} packages`, async (t) => {
     const f = await fixture(t, label);
     const staged = await stageUpdaterInventory(f.options);
     assert.deepEqual(await verifyUpdaterInventory(f.options), staged);
@@ -95,7 +107,7 @@ for (const label of releaseLabels(policy)) {
   });
 }
 
-test("missing signatures and failed verification never produce successful evidence", async (t) => {
+void test("missing signatures and failed verification never produce successful evidence", async (t) => {
   const f = await fixture(t);
   await rm(`${f.source}.sig`);
   await assert.rejects(stageUpdaterInventory(f.options), /ENOENT/);
@@ -107,10 +119,11 @@ test("missing signatures and failed verification never produce successful eviden
   await assert.rejects(readFile(path.join(f.options.output, "updater-inventory.json")), /ENOENT/);
 });
 
-test("changing any final package or the public key invalidates recorded evidence", async (t) => {
+void test("changing any final package or the public key invalidates recorded evidence", async (t) => {
   const f = await fixture(t);
   const inventory = await stageUpdaterInventory(f.options);
   const cli = inventory.packages.find((entry) => entry.id.startsWith("cli-"));
+  assert.ok(cli);
   const file = path.join(f.options.output, cli.filename);
   const original = await readFile(file);
   await writeFile(file, "changed companion");
@@ -120,12 +133,12 @@ test("changing any final package or the public key invalidates recorded evidence
   await assert.rejects(verifyUpdaterInventory(f.options), /public key mismatch/);
 });
 
-test("rejects duplicate packages, wrong target/version/revision and extra assets", async (t) => {
+void test("rejects duplicate packages, wrong target/version/revision and extra assets", async (t) => {
   const f = await fixture(t);
   const inventory = await stageUpdaterInventory(f.options);
   const manifest = path.join(f.options.output, "updater-inventory.json");
-  const mutations = [
-    (data) => data.packages.push(data.packages[0]),
+  const mutations: ((data: UpdaterInventory) => void)[] = [
+    (data) => data.packages.push(first(data.packages)),
     (data) => {
       data.updater.target = "darwin-aarch64";
     },
@@ -136,7 +149,7 @@ test("rejects duplicate packages, wrong target/version/revision and extra assets
       data.source_commit = "b".repeat(40);
     },
     (data) => {
-      data.packages[0].filename = "../outside";
+      first(data.packages).filename = "../outside";
     },
     (data) => {
       data.updater.signature.filename = "other.sig";
@@ -153,7 +166,7 @@ test("rejects duplicate packages, wrong target/version/revision and extra assets
   await assert.rejects(verifyUpdaterInventory(f.options), /staged files mismatch/);
 });
 
-test("rejects overlapping staging paths and version override inheritance", async (t) => {
+void test("rejects overlapping staging paths and version override inheritance", async (t) => {
   const f = await fixture(t);
   await assert.rejects(
     stageUpdaterInventory({
@@ -173,24 +186,28 @@ test("rejects overlapping staging paths and version override inheritance", async
   );
 });
 
-test("release-only overlay preserves ordinary secret-free builds and updater package baseline", async () => {
-  const base = JSON.parse(
-    await readFile(new URL("../apps/desktop/src-tauri/tauri.conf.json", import.meta.url)),
+void test("release-only overlay preserves ordinary secret-free builds and updater package baseline", async () => {
+  const base = object(
+    JSON.parse(
+      await readFile(new URL("../apps/desktop/src-tauri/tauri.conf.json", import.meta.url), "utf8"),
+    ),
   );
-  const overlay = JSON.parse(
-    await readFile(new URL("../release/tauri.updater.conf.json", import.meta.url)),
+  const overlay = object(
+    JSON.parse(
+      await readFile(new URL("../release/tauri.updater.conf.json", import.meta.url), "utf8"),
+    ),
   );
-  assert.equal(base.bundle.createUpdaterArtifacts, false);
-  assert.equal(overlay.bundle.createUpdaterArtifacts, true);
-  assert.equal(overlay.bundle.windows.nsis.installMode, "currentUser");
-  assert.equal(overlay.bundle.macOS.signingIdentity, "-");
-  assert.equal(overlay.plugins.updater.windows.installMode, "passive");
+  assert.equal(object(base.bundle).createUpdaterArtifacts, false);
+  assert.equal(object(overlay.bundle).createUpdaterArtifacts, true);
+  assert.equal(object(object(object(overlay.bundle).windows).nsis).installMode, "currentUser");
+  assert.equal(object(object(overlay.bundle).macOS).signingIdentity, "-");
+  assert.equal(object(object(object(overlay.plugins).updater).windows).installMode, "passive");
   assert.equal(overlay.identifier, undefined);
-  assert.equal(overlay.plugins.updater.endpoints, undefined);
-  assert.equal(overlay.plugins.updater.pubkey, undefined);
+  assert.equal(object(object(overlay.plugins).updater).endpoints, undefined);
+  assert.equal(object(object(overlay.plugins).updater).pubkey, undefined);
 });
 
-test("manual rehearsal retains the complete matrix without production credentials or publication", async () => {
+void test("manual rehearsal retains the complete matrix without production credentials or publication", async () => {
   const workflow = await readFile(
     new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
     "utf8",
@@ -206,19 +223,21 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(workflow, /default: legacy-skipped/);
   assert.match(workflow, /options: \[legacy-adjacent, legacy-skipped, preview-final\]/);
   assert.match(workflow, /-TransitionProfile '\$\{\{ inputs\.transition_profile \}\}'/);
-  const matrix = JSON.parse(workflow.match(/label:.*fromJSON\('([^']+)'\)/)[1]);
-  assert.deepEqual(matrix.all.toSorted(), releaseLabels(policy).toSorted());
+  const matrix = object(JSON.parse(text(workflow.match(/label:.*fromJSON\('([^']+)'\)/)?.[1])));
+  assert.deepEqual(strings(matrix.all).toSorted(), releaseLabels(policy).toSorted());
   for (const label of releaseLabels(policy)) assert.deepEqual(matrix[label], [label]);
   assert.match(workflow, /retention-days: 1/);
   assert.doesNotMatch(workflow, /updater-rehearsal\/\*\*|\.key\b/);
-  const retainedPaths = workflow
-    .match(
+  const retainedPaths = text(
+    workflow.match(
       /name: Retain bounded rehearsal evidence[\s\S]*?path: \|\r?\n([\s\S]*?)\s+if-no-files-found:/,
-    )[1]
+    )?.[1],
+  )
     .trim()
     .split(/\r?\n/)
     .map((entry: string) => entry.trim());
-  const retained = (file) => retainedPaths.some((pattern) => path.posix.matchesGlob(file, pattern));
+  const retained = (file: string) =>
+    retainedPaths.some((pattern) => path.posix.matchesGlob(file, pattern));
   for (const label of releaseLabels(policy)) {
     for (const version of ["0.1.0", "0.2.0", "0.3.0", "1.0.0-rc.2", "1.0.0"])
       assert.ok(
@@ -693,8 +712,18 @@ test("manual rehearsal retains the complete matrix without production credential
   assert.match(rehearsal, /Invoke-Checked "dbus-run-session"/);
 });
 
-test("packaged transition and evidence contracts execute exact profile semantics", () => {
-  const rehearsalCases = [
+void test("packaged transition and evidence contracts execute exact profile semantics", () => {
+  const rehearsalCases: {
+    profile: string;
+    platform?: string;
+    expected: {
+      profile: string;
+      platform: string;
+      predecessor_version: string;
+      candidate_version: string;
+      candidate_production_eligible: boolean;
+    };
+  }[] = [
     ...["windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-aarch64"].map((platform) => ({
       profile: "legacy-adjacent",
       platform,
@@ -798,7 +827,7 @@ test("packaged transition and evidence contracts execute exact profile semantics
   });
 });
 
-test(
+void test(
   "Windows installer signing-authority guard executes before any process spawn",
   { skip: process.platform !== "win32" },
   async (t) => {
@@ -809,9 +838,9 @@ test(
     const tufPrivateRoot = path.join(root, "tuf-private");
     await writeFile(privateKey, "disposable private key fixture");
     await mkdir(tufPrivateRoot);
-    const installer = path.join(process.env.SystemRoot, "System32", "where.exe");
+    const installer = path.join(text(process.env.SystemRoot), "System32", "where.exe");
 
-    const environment = (signingAuthorityPresent, pathOnly = false) => {
+    const environment = (signingAuthorityPresent: boolean, pathOnly = false) => {
       const env = { ...process.env };
       for (const name of Object.keys(env)) {
         if (
@@ -833,7 +862,17 @@ test(
 
     const runHarness = async (
       label: string,
-      { requireAbsent, signingAuthorityPresent, pathOnly = false, tufAuthorityPresent = false },
+      {
+        requireAbsent,
+        signingAuthorityPresent,
+        pathOnly = false,
+        tufAuthorityPresent = false,
+      }: {
+        requireAbsent: boolean;
+        signingAuthorityPresent: boolean;
+        pathOnly?: boolean;
+        tufAuthorityPresent?: boolean;
+      },
     ) => {
       const caseRoot = path.join(root, label);
       const evidencePath = path.join(caseRoot, "evidence.json");
@@ -861,7 +900,7 @@ test(
       const result = runPowerShellScript("./test-windows-installer.ps1", args, {
         env: environment(signingAuthorityPresent, pathOnly),
       });
-      return { result, evidence: JSON.parse(await readFile(evidencePath, "utf8")) };
+      return { result, evidence: object(JSON.parse(await readFile(evidencePath, "utf8"))) };
     };
 
     const rejected = await runHarness("rejected", {
@@ -908,7 +947,10 @@ test(
       tufAuthorityPresent: true,
     });
     assert.equal(tufRejected.result.status, 1);
-    assert.equal(tufRejected.evidence.private_signing_inputs_absent.tuf_private_root, false);
+    assert.equal(
+      object(tufRejected.evidence.private_signing_inputs_absent).tuf_private_root,
+      false,
+    );
     assert.deepEqual(tufRejected.evidence.process_runs, []);
 
     const accepted = await runHarness("accepted-positive-control", {
@@ -924,7 +966,7 @@ test(
       signing_private_key_path_environment: true,
       signing_password_environment: true,
     });
-    assert.equal(accepted.evidence.process_runs.length, 1);
+    assert.equal(array(accepted.evidence.process_runs).length, 1);
 
     const compatibility = await runHarness("omitted-switch-compatibility", {
       requireAbsent: false,
@@ -933,6 +975,27 @@ test(
     assert.equal(compatibility.result.status, 1);
     assert.doesNotMatch(compatibility.result.stderr, /signing authority/i);
     assert.equal("private_signing_inputs_absent" in compatibility.evidence, false);
-    assert.equal(compatibility.evidence.process_runs.length, 1);
+    assert.equal(array(compatibility.evidence.process_runs).length, 1);
   },
 );
+
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function array(value: unknown): unknown[] {
+  assert.ok(Array.isArray(value));
+  return value;
+}
+function text(value: unknown): string {
+  assert.ok(typeof value === "string");
+  return value;
+}
+function strings(value: unknown): string[] {
+  return array(value).map(text);
+}
+function first<T>(values: readonly T[]): T {
+  const value = values[0];
+  assert.ok(value !== undefined);
+  return value;
+}
