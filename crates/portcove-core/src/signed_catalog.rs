@@ -156,7 +156,8 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
     {
         return Err(PortcoveError::verification(
             "catalog sequence or validity interval is invalid, future-dated, or expired",
-        ));
+        )
+        .with_known_cause(crate::failure::KnownFailureCause::CatalogValidity));
     }
     let catalog = Catalog::from_json(&serde_json::to_string(&payload.catalog)?)?;
     validate_update_contract(&catalog, &Catalog::embedded()?)?;

@@ -116,6 +116,7 @@ pub(crate) fn unicode(path: &Path, role: &str) -> Result<String> {
         PortcoveError::unsupported(format!(
             "Portcove V1 requires {role} paths to be valid Unicode"
         ))
+        .with_known_cause(crate::failure::KnownFailureCause::UnicodePath)
         .detail("path_role", role)
     })
 }

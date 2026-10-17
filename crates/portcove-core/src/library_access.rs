@@ -55,6 +55,7 @@ impl LibraryLease {
                 PortcoveError::conflict(
                     "the library is in use by another Portcove operation or process",
                 )
+                .with_known_cause(crate::failure::KnownFailureCause::Busy)
                 .detail("library_root", root.display().to_string())
             } else {
                 error.into()
@@ -110,6 +111,7 @@ mod tests {
         let library = Library::open(&root).unwrap();
         let busy = ApplicationUpdateQuiescenceGuard::acquire(&root).unwrap_err();
         assert_eq!(busy.code, ErrorCode::Conflict);
+        assert_eq!(busy.presentation().presentation_key, "target_busy");
 
         drop(library);
         let canonical = fs::canonicalize(&root).unwrap();
