@@ -1,11 +1,70 @@
-import { errorMessage } from "./runtime-values.mts";
+import { errorMessage, isRecord } from "./runtime-values.mts";
 import { spawnSync } from "node:child_process";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
-export function assessRscheckReport(report) {
+interface RscheckFinding {
+  severity: string;
+  rule_id?: string;
+  message?: string;
+  primary?: { file?: string; start?: { line?: number | string } | null } | null;
+}
+function finding(value: unknown): RscheckFinding {
+  if (!isRecord(value) || typeof value.severity !== "string")
+    throw new TypeError("rscheck returned a finding without a text severity.");
+  for (const key of ["rule_id", "message"] as const)
+    if (value[key] !== undefined && typeof value[key] !== "string")
+      throw new TypeError(`rscheck returned a finding with invalid ${key}.`);
+  const primary = value.primary;
+  if (primary !== undefined && primary !== null) {
+    if (!isRecord(primary) || (primary.file !== undefined && typeof primary.file !== "string"))
+      throw new TypeError("rscheck returned an invalid finding location.");
+    if (primary.start !== undefined && primary.start !== null) {
+      if (
+        !isRecord(primary.start) ||
+        (primary.start.line !== undefined &&
+          typeof primary.start.line !== "number" &&
+          typeof primary.start.line !== "string")
+      )
+        throw new TypeError("rscheck returned an invalid finding line.");
+    }
+  }
+  // Preserve all scanner metadata while projecting only validated consumed fields.
+  return {
+    ...value,
+    severity: value.severity,
+    ...(typeof value.rule_id === "string" ? { rule_id: value.rule_id } : {}),
+    ...(typeof value.message === "string" ? { message: value.message } : {}),
+    ...(primary === null
+      ? { primary: null }
+      : isRecord(primary)
+        ? {
+            primary: {
+              ...primary,
+              ...(typeof primary.file === "string" ? { file: primary.file } : {}),
+              ...(primary.start === null
+                ? { start: null }
+                : isRecord(primary.start)
+                  ? {
+                      start: {
+                        ...primary.start,
+                        ...(typeof primary.start.line === "number" ||
+                        typeof primary.start.line === "string"
+                          ? { line: primary.start.line }
+                          : {}),
+                      },
+                    }
+                  : {}),
+            },
+          }
+        : {}),
+  };
+}
+export function assessRscheckReport<Finding extends Pick<RscheckFinding, "severity">>(report: {
+  findings?: readonly Finding[];
+}) {
   const findings = report.findings ?? [];
   return {
     denies: findings.filter((finding) => finding.severity === "deny"),
@@ -13,8 +72,8 @@ export function assessRscheckReport(report) {
   };
 }
 
-export function parseRscheckReport({ status, stdout }) {
-  let report;
+export function parseRscheckReport({ status, stdout }: { status: number | null; stdout: string }) {
+  let report: unknown;
   try {
     report = JSON.parse(stdout);
   } catch (error) {
@@ -22,15 +81,16 @@ export function parseRscheckReport({ status, stdout }) {
       throw new Error(`rscheck could not analyze the workspace (exit ${status ?? "unknown"}).`);
     throw new Error(`rscheck returned an invalid JSON report: ${errorMessage(error)}`);
   }
-  if (!report || !Array.isArray(report.findings)) {
+  if (!isRecord(report) || !Array.isArray(report.findings)) {
     if (status !== 0 && status !== 1)
       throw new Error(`rscheck could not analyze the workspace (exit ${status ?? "unknown"}).`);
     throw new Error("rscheck returned a JSON report without a findings array.");
   }
-  return report;
+  const rawFindings: unknown[] = report.findings;
+  return { ...report, findings: rawFindings.map(finding) };
 }
 
-function location(finding) {
+function location(finding: RscheckFinding) {
   const file = relative(repositoryRoot, finding.primary?.file ?? "unknown");
   const line = finding.primary?.start?.line ?? "?";
   return `${file}:${line}`;
