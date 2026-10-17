@@ -19,6 +19,7 @@ import path from "node:path";
 import test, { after } from "node:test";
 import { once } from "node:events";
 import { fileURLToPath } from "node:url";
+import { readProcessIdentity } from "./heavy-rust-test-lock.mjs";
 
 const script = fileURLToPath(new URL("./windows-qualification-session.ps1", import.meta.url));
 const reportTool = fileURLToPath(new URL("./qualification-report.mjs", import.meta.url));
@@ -417,6 +418,8 @@ test(
       "desktop-test-cli.mjs",
       "native-session-lock.mjs",
       "process-lock.mjs",
+      "heavy-rust-test-lock.mjs",
+      "resource-paths.mjs",
       "development-evidence.mjs",
     ]) {
       copyFileSync(
@@ -431,6 +434,13 @@ test(
     writeFileSync(
       path.join(repository, "scripts", "dev-storage.mjs"),
       'export {spawnSync as spawnCommand} from "node:child_process";',
+    );
+    // This existing isolated lifecycle fixture does not exercise capacity or
+    // containment. Real resource controls and the current-installed native run
+    // cover those boundaries; retain actual native ownership and creation checks.
+    writeFileSync(
+      path.join(repository, "scripts", "resource-command.mjs"),
+      'import assert from "node:assert/strict"; export const resourceEntrypoint=async(profile,action)=>{assert.equal(profile,"browser"); return await action();};',
     );
     // Controlled doctor refusal tests the fixed route's ordering, not real tools.
     writeFileSync(
@@ -525,12 +535,14 @@ writeFileSync(path.join(output, "normal-package-boundary-cleanup.json"), JSON.st
       manifestPath,
       JSON.stringify({
         revision,
-        build_command: ["pnpm", "tauri", "build", "--bundles", "nsis"],
+        build_command: ["pnpm", "--dir", "apps/desktop", "desktop:build", "--bundles", "nsis"],
         qualification_features: [],
         configuration,
         installer: { path: item.installer, sha256: sha256(item.installer) },
       }),
     );
+    const parentIdentity = readProcessIdentity(process.pid);
+    assert.ok(parentIdentity);
     for (const [name, environment, expectedError] of [
       ["success", {}, null],
       [
@@ -563,25 +575,41 @@ writeFileSync(path.join(output, "normal-package-boundary-cleanup.json"), JSON.st
     ]) {
       const caseRoot = path.join(item.root, name);
       mkdirSync(caseRoot);
+      const resourceRoot = path.join(caseRoot, ".portcove", "resources");
+      mkdirSync(resourceRoot, { recursive: true });
+      writeFileSync(
+        path.join(resourceRoot, "config.json"),
+        JSON.stringify({ legacyMode: "coordinated" }),
+      );
       const fixtureCache = path.join(item.root, "native-cache");
       const caseEnvironment = {
         ...process.env,
         ...environment,
+        HOME: caseRoot,
+        USERPROFILE: caseRoot,
         PORTCOVE_SHARED_TOOL_CACHE: fixtureCache,
       };
-      delete caseEnvironment.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN;
+      for (const variable of [
+        "PORTCOVE_NATIVE_SESSION_LOCK_TOKEN",
+        "PORTCOVE_RESOURCE_RESERVATION",
+        "PORTCOVE_HEAVY_RUST_LOCK_TOKEN",
+        "PORTCOVE_HEAVY_RUST_PROCESS_TOKEN",
+        "PORTCOVE_CONTAINER_GUEST",
+        "GITHUB_ACTIONS",
+      ])
+        delete caseEnvironment[variable];
+      let lockedOwner;
       if (name === "locked") {
         const lockDirectory = path.join(fixtureCache, "locks", "native-desktop");
         mkdirSync(lockDirectory, { recursive: true });
-        writeFileSync(
-          path.join(lockDirectory, "owner.json"),
-          JSON.stringify({
-            format_version: 1,
-            pid: process.pid,
-            token: "owned-test-fixture",
-            created_at: new Date().toISOString(),
-          }),
-        );
+        lockedOwner = JSON.stringify({
+          format_version: 1,
+          pid: process.pid,
+          process_identity: parentIdentity,
+          token: "owned-test-fixture",
+          created_at: new Date().toISOString(),
+        });
+        writeFileSync(path.join(lockDirectory, "owner.json"), lockedOwner);
       }
       const result = spawnSync(
         process.execPath,
@@ -619,6 +647,11 @@ writeFileSync(path.join(output, "normal-package-boundary-cleanup.json"), JSON.st
         assert.match(result.stderr, expectedError);
         assert.equal(existsSync(path.join(caseRoot, "lifecycle.json")), false);
         assert.equal(existsSync(path.join(caseRoot, "runs")), false);
+        if (name === "locked")
+          assert.equal(
+            readFileSync(path.join(fixtureCache, "locks", "native-desktop", "owner.json"), "utf8"),
+            lockedOwner,
+          );
         if (name === "preflight") {
           const doctor = JSON.parse(
             readFileSync(path.join(caseRoot, "lifecycle.json.native-doctor.json"), "utf8"),

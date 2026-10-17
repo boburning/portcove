@@ -115,6 +115,10 @@ export function planDesktopExecution(
   inputs.push({ kind: "file", path: "scripts/native-readiness.mjs" });
   inputs.push({ kind: "file", path: "scripts/acceptance-packet.mjs" });
   inputs.push(receiptSource(harnessUrl));
+  if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundary")) {
+    inputs.push(receiptSource(new URL("./desktop-main-webview-boundary.mjs", harnessUrl)));
+    inputs.push({ kind: "file", path: "scripts/desktop-linux-media.mjs" });
+  }
   if (selection.selected_scenarios.includes("native-linux-webview-origin-boundary"))
     inputs.push(receiptSource(new URL("desktop-main-webview-boundary.mjs", harnessUrl)));
   if (

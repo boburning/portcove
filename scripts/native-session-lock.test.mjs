@@ -3,12 +3,80 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
 import { acquireNativeSessionLock } from "./native-session-lock.mjs";
 
 async function fixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-native-lock-"));
   return { root, lockPath: path.join(root, "native-desktop") };
 }
+
+test("private XDG child preserves both host-wide and legacy native ownership", async () => {
+  const { root } = await fixture();
+  try {
+    const domain = path.join(root, ".portcove", "resources");
+    await mkdir(domain, { recursive: true });
+    await writeFile(
+      path.join(domain, "config.json"),
+      JSON.stringify({ legacyMode: "coordinated" }),
+    );
+    const moduleUrl = new URL("./native-session-lock.mjs", import.meta.url).href;
+    const childCode = `
+      import assert from "node:assert/strict";
+      import { readFile } from "node:fs/promises";
+      import path from "node:path";
+      const { acquireNativeSessionLock, nativeSessionLockPath, legacyNativeSessionLockPath } = await import(${JSON.stringify(moduleUrl)});
+      assert.equal(nativeSessionLockPath(), ${JSON.stringify(path.join(domain, "native-desktop"))});
+      const records = [nativeSessionLockPath(), legacyNativeSessionLockPath()].map(value => path.join(value, "owner.json"));
+      const before = await Promise.all(records.map(value => readFile(value, "utf8")));
+      const inherited = await acquireNativeSessionLock();
+      assert.equal(inherited.inherited, true);
+      assert.equal(inherited.host.inherited, true);
+      await inherited.release();
+      assert.deepEqual(await Promise.all(records.map(value => readFile(value, "utf8"))), before);
+      await assert.rejects(acquireNativeSessionLock({}, { inheritedToken: "wrong-token" }), /does not match/);
+    `;
+    const ownerCode = `
+      import assert from "node:assert/strict";
+      import { readFile } from "node:fs/promises";
+      import path from "node:path";
+      import { spawnSync } from "node:child_process";
+      const { acquireNativeSessionLock, nativeSessionLockPath, legacyNativeSessionLockPath } = await import(${JSON.stringify(moduleUrl)});
+      const owner = await acquireNativeSessionLock();
+      const records = [nativeSessionLockPath(), legacyNativeSessionLockPath()].map(value => path.join(value, "owner.json"));
+      try {
+        const before = await Promise.all(records.map(value => readFile(value, "utf8")));
+        const result = spawnSync(process.execPath, ["--input-type=module", "--eval", ${JSON.stringify(childCode)}], {
+          encoding: "utf8", timeout: 15000, windowsHide: true,
+          env: { ...process.env, XDG_CACHE_HOME: ${JSON.stringify(path.join(root, "private-xdg"))}, PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: owner.owner.token }
+        });
+        assert.equal(result.error, undefined);
+        assert.equal(result.status, 0, result.stderr);
+        assert.deepEqual(await Promise.all(records.map(value => readFile(value, "utf8"))), before);
+      } finally { await owner.release(); }
+      for (const record of records) await assert.rejects(readFile(record), { code: "ENOENT" });
+    `;
+    const result = spawnSync(process.execPath, ["--input-type=module", "--eval", ownerCode], {
+      encoding: "utf8",
+      timeout: 25_000,
+      windowsHide: true,
+      env: {
+        ...process.env,
+        HOME: root,
+        USERPROFILE: root,
+        XDG_CACHE_HOME: path.join(root, "outer-xdg"),
+        PORTCOVE_SHARED_TOOL_CACHE: path.join(root, "shared-cache"),
+        PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: undefined,
+        PORTCOVE_CONTAINER_GUEST: undefined,
+        GITHUB_ACTIONS: undefined,
+      },
+    });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("native lock blocks a live owner and reports its identity", async () => {
   const { root, lockPath } = await fixture();
