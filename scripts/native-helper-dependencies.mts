@@ -41,7 +41,10 @@ export const nativeHelperRegistryPath = "scripts/native-helper-dependencies.mts"
 // Shared repository launcher boundary, captured but not recursively classified as
 // a native helper graph. All other non-builtin imports must be declared helpers.
 export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
-  [helper("desktop-native-confirmation.mts")]: Object.freeze(["../../../scripts/dev-storage.mts"]),
+  [helper("desktop-native-confirmation.mts")]: Object.freeze([
+    "../../../scripts/dev-storage.mts",
+    "../../../scripts/runtime-values.mts",
+  ]),
 });
 export const nativeHelperSharedSources = Object.freeze([
   // Launcher and admission code is already loaded when prelaunch capture begins.
@@ -321,7 +324,7 @@ export async function captureDesktopReceiptInputs({
                 root: retainedRoot,
                 file: failedPath,
                 executable: input.kind === "executable",
-                signal,
+                ...(signal === undefined ? {} : { signal }),
               })),
               role: input.kind !== "file" ? input.name : input.path,
               kind: input.kind,

@@ -1,11 +1,12 @@
-import test from "node:test";
+import test, { type TestContext } from "node:test";
+import { errorCode, isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, copyFile, writeFile, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { spawnSync } from "node:child_process";
 
-test(
+void test(
   "actual library picker input paths refuse foreign controls and changed process/window identities",
   { skip: process.platform !== "win32" },
   async (t) => {
@@ -107,7 +108,7 @@ foreach ($script:case in @('valid', 'native-pane', 'native-late-driver', 'foreig
 
 const helper = path.resolve("apps/desktop/scripts/native-confirmation.ps1");
 
-test(
+void test(
   "actual observation field projection uses its explicit window and title without input",
   { skip: process.platform !== "win32" },
   async (t) => {
@@ -217,7 +218,7 @@ Write-ProjectionPhase 'negative-guards-ready'
         timeout_ms: 10000,
         status: result.status,
         signal: result.signal,
-        error: result.error?.code ?? null,
+        error: errorCode(result.error) ?? null,
         phases: result.stderr?.slice(0, 2048),
       }),
     );
@@ -225,7 +226,7 @@ Write-ProjectionPhase 'negative-guards-ready'
       result.status,
       0,
       JSON.stringify({
-        error: result.error?.code ?? null,
+        error: errorCode(result.error) ?? null,
         signal: result.signal,
         stdout: result.stdout?.slice(0, 2048),
         stderr: result.stderr?.slice(0, 2048),
@@ -235,7 +236,7 @@ Write-ProjectionPhase 'negative-guards-ready'
   },
 );
 
-test("bootstrap legacy Profile binding retains choices and default without acquiring tools", async (t) => {
+void test("bootstrap legacy Profile binding retains choices and default without acquiring tools", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "pcv-bootstrap-binding-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const bootstrap = path.resolve("scripts/bootstrap-quality-tools.ps1");
@@ -273,7 +274,7 @@ if ($source -notmatch '-Profile standard\\|frontend\\|core\\|daily\\|native-desk
   assert.match(result.stdout, /bootstrap-binding-preserved/);
 });
 
-test("captured picker driver keeps explicit image and birth identity checks at every call", async (t) => {
+void test("captured picker driver keeps explicit image and birth identity checks at every call", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "pcv-driver-contract-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const script = path.join(root, "identity.ps1");
@@ -313,7 +314,7 @@ foreach ($call in $calls) {
   assert.match(result.stdout, /identity-preserved/);
 });
 
-async function isolatedConsumer(t, fixture) {
+async function isolatedConsumer(t: TestContext, fixture: string) {
   const root = await mkdtemp(path.join(os.tmpdir(), "pcv-confirmation-contract-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const modulePath = "apps/desktop/scripts/desktop-native-confirmation.mts";
@@ -321,6 +322,7 @@ async function isolatedConsumer(t, fixture) {
   await mkdir(path.join(root, "scripts"));
   await mkdir(path.join(root, "output"));
   await copyFile(modulePath, path.join(root, modulePath));
+  await copyFile("scripts/runtime-values.mts", path.join(root, "scripts/runtime-values.mts"));
   await writeFile(
     path.join(root, "scripts/dev-storage.mts"),
     `export function spawnCommand(...args) { globalThis.calls.push(args); return globalThis.result; }`,
@@ -349,7 +351,7 @@ ${fixture}
   };
 }
 
-test(
+void test(
   "failed confirmation retains a redacted helper receipt before its original assertion",
   {
     skip: process.platform !== "win32",
@@ -369,11 +371,11 @@ assert.deepEqual(globalThis.calls[0][2], { encoding: 'utf8', windowsHide: true, 
     assert.equal(result.status, 0, result.stderr);
     const receipt = await readFile(path.join(root, "output/failed-helper-result.json"), "utf8");
     assert.doesNotMatch(receipt, /private|secret|original failure/);
-    assert.equal(JSON.parse(receipt).status, 1);
+    assert.equal(recordFromJson(receipt).status, 1);
   },
 );
 
-test("failure projection exists independently of screenshot capture", async () => {
+void test("failure projection exists independently of screenshot capture", async () => {
   const source = await readFile(helper, "utf8");
   assert.match(source, /function Get-NativeFailureEvidence/);
   assert.match(source, /trap\s*\{/);
@@ -384,7 +386,7 @@ test("failure projection exists independently of screenshot capture", async () =
   assert.ok(progress.indexOf("$script:lastNativeStage") < progress.indexOf("if ($progressPath)"));
 });
 
-async function isolatedPowerShell(t, fixture, { trap = false } = {}) {
+async function isolatedPowerShell(t: TestContext, fixture: string, { trap = false } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "pcv-confirmation-error-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const script = path.join(root, "native-confirmation.ps1");
@@ -411,7 +413,7 @@ $fixture = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer
   });
 }
 
-test("actual PowerShell projection retains stage and nested HRESULT without private details", async (t) => {
+void test("actual PowerShell projection retains stage and nested HRESULT without private details", async (t) => {
   const result = await isolatedPowerShell(
     t,
     `
@@ -425,7 +427,7 @@ Get-NativeFailureEvidence $record | ConvertTo-Json -Depth 5 -Compress
   );
   assert.equal(result.status, 0, result.stderr);
   assert.doesNotMatch(result.stdout, /secret|private/);
-  const record = JSON.parse(result.stdout);
+  const record = recordFromJson(result.stdout);
   assert.equal(record.stage, "candidate-descendants-start");
   assert.equal(record.location, null);
   assert.deepEqual(record.exceptions, [
@@ -434,7 +436,7 @@ Get-NativeFailureEvidence $record | ConvertTo-Json -Depth 5 -Compress
   ]);
 });
 
-test(
+void test(
   "picker field diagnostics distinguish absence, ambiguity and ownership without private text",
   { skip: process.platform !== "win32" },
   async (t) => {
@@ -457,7 +459,8 @@ $private = New-Field 'secret-name' 'secret-id' 42
     );
     assert.equal(result.status, 0, result.stderr);
     assert.doesNotMatch(result.stdout, /secret/);
-    const [absent, mixed, bounded] = JSON.parse(result.stdout);
+    const [absent, mixed, bounded] = recordsFromJson(result.stdout);
+    assert(absent && mixed && bounded);
     assert.equal(absent.edit_count, 0);
     assert.deepEqual(absent.samples, []);
     assert.equal(absent.total_count, 0);
@@ -468,12 +471,12 @@ $private = New-Field 'secret-name' 'secret-id' 42
       { name_kind: "other", automation_id: "other", owned: true, enabled: true },
     ]);
     assert.equal(bounded.edit_count, 33);
-    assert.equal(bounded.samples.length, 16);
+    assert.equal(arrayField(bounded, "samples").length, 16);
     assert.equal(bounded.truncated, true);
   },
 );
 
-test("projection bounds chains and treats absent or unknown details explicitly", async (t) => {
+void test("projection bounds chains and treats absent or unknown details explicitly", async (t) => {
   const result = await isolatedPowerShell(
     t,
     `
@@ -487,16 +490,17 @@ $record = [Management.Automation.ErrorRecord]::new($nested, 'id', [Management.Au
   );
   assert.equal(result.status, 0, result.stderr);
   assert.doesNotMatch(result.stdout, /secret/);
-  const [empty, bounded, absent] = JSON.parse(result.stdout);
+  const [empty, bounded, absent] = recordsFromJson(result.stdout);
+  assert(empty && bounded && absent);
   assert.equal(empty.stage, "unknown");
-  assert.equal(empty.exceptions.length, 1);
-  assert.equal(bounded.exceptions.length, 4);
+  assert.equal(arrayField(empty, "exceptions").length, 1);
+  assert.equal(arrayField(bounded, "exceptions").length, 4);
   assert.equal(bounded.exceptions_truncated, true);
   assert.deepEqual(absent.exceptions, []);
   assert.equal(absent.location, null);
 });
 
-test("actual trap preserves nonzero exit and original error despite diagnostic failure", async (t) => {
+void test("actual trap preserves nonzero exit and original error despite diagnostic failure", async (t) => {
   for (const captureFails of [false, true]) {
     const result = await isolatedPowerShell(
       t,
@@ -517,16 +521,23 @@ throw [InvalidOperationException]::new('original controlled failure')
       const line = result.stderr
         .split(/\r?\n/u)
         .find((value: string) => value.startsWith("PORTCOVE_NATIVE_FAILURE "));
-      const record = JSON.parse(line.slice("PORTCOVE_NATIVE_FAILURE ".length));
+      assert(line);
+      const record = recordFromJson(line.slice("PORTCOVE_NATIVE_FAILURE ".length));
       assert.equal(record.stage, "nested-discovery-start");
-      assert.ok(record.location.line > 0);
-      assert.ok(record.location.column > 0);
-      assert.equal(record.location.script, "other");
+      const location = record.location;
+      assert(
+        isRecord(location) &&
+          typeof location.line === "number" &&
+          typeof location.column === "number",
+      );
+      assert.ok(location.line > 0);
+      assert.ok(location.column > 0);
+      assert.equal(location.script, "other");
     }
   }
 });
 
-test(
+void test(
   "malformed, oversized and private diagnostic fields cannot leak through receipts",
   {
     skip: process.platform !== "win32",
@@ -536,7 +547,7 @@ test(
       t,
       `
 const payload = { format_version: 1, stage: 'nested-discovery-start', location: { script: 'native-confirmation.ps1', line: 250, column: 4, path: 'secret' }, exceptions: [{ type: 'System.Exception', hresult: '0x80131500', message: 'secret' }], exceptions_truncated: false, secret: 'private', picker_fields: { native_edits: [{ control_id: 1152, parent_id: 1148, parent_class: "other", uia_control_type: 0, owned: null, value_pattern: null }], folder_label_type: 50004, folder_descendant_owned_edits: 0, owned_labeled_folder_edits: 0, folder_matches: 1, total_count: 1, automation_element_count: 1, folder_label_count: 1, owned_folder_matches: 0, folder_name_matches: 0, file_name_matches: 0, empty_name_matches: 0, edit_count: 1, samples: [{ name_kind: 'folder', automation_id: '1152', owned: false, enabled: true, value: 'secret' }], truncated: false, path: 'secret' } };
-for (const [index, stderr] of ['PORTCOVE_NATIVE_FAILURE {bad', 'PORTCOVE_NATIVE_FAILURE ' + 'x'.repeat(5000), 'PORTCOVE_NATIVE_FAILURE ' + JSON.stringify(payload), 'PORTCOVE_NATIVE_FAILURE ' + JSON.stringify({ ...payload, stage: 'secret' })].entries()) {
+for (const [index, stderr] of ['PORTCOVE_NATIVE_FAILURE {bad', 'PORTCOVE_NATIVE_FAILURE ' + 'x'.repeat(5000), 'PORTCOVE_NATIVE_FAILURE ' + JSON.stringify(payload), 'PORTCOVE_NATIVE_FAILURE ' + JSON.stringify({ ...payload, stage: 'secret' }), 'PORTCOVE_NATIVE_FAILURE ' + JSON.stringify({...payload, exceptions: [{type: 'System.Exception', hresult: ['0x80131500']}]})].entries()) {
   globalThis.result = { status: 1, signal: null, stdout: 'private', stderr };
   await assert.rejects(nativeConfirmation({ application: 'owned', getDriverPid: () => 1, output, artifacts })('fixture', '__observe__', 'fixture', 'case-' + index), error => error.actual === 1);
   const receipt = await readFile(path.join(output, 'case-' + index + '-helper-result.json'), 'utf8');
@@ -550,7 +561,7 @@ for (const [index, stderr] of ['PORTCOVE_NATIVE_FAILURE {bad', 'PORTCOVE_NATIVE_
   },
 );
 
-test(
+void test(
   "receipt write failure stays secondary and existing evidence is never overwritten",
   {
     skip: process.platform !== "win32",
@@ -570,7 +581,7 @@ assert.equal(await readFile(path.join(output, 'existing-helper-result.json'), 'u
   },
 );
 
-test(
+void test(
   "successful child JSON and malformed-success behavior remain unchanged",
   {
     skip: process.platform !== "win32",
@@ -592,7 +603,7 @@ assert.equal(artifacts.length, 1);
   },
 );
 
-test(
+void test(
   "library picker discovery excludes unrelated providers and refuses changed identities",
   { skip: process.platform !== "win32" },
   async (t) => {
@@ -658,7 +669,7 @@ if (-not $rejected -or $script:lastStage -ne 'exact-root-discovery-ready') { thr
   },
 );
 
-test(
+void test(
   "actual HWND selection algorithm filters, deduplicates and bounds enumeration",
   { skip: process.platform !== "win32" },
   async (t) => {
@@ -822,7 +833,7 @@ Write-SelectionPhase 'complete'
         timeout_ms: 15000,
         status: result.status,
         signal: result.signal,
-        error: result.error?.code ?? null,
+        error: errorCode(result.error) ?? null,
         phases: result.stderr?.slice(0, 2048),
       }),
     );
@@ -831,7 +842,7 @@ Write-SelectionPhase 'complete'
   },
 );
 
-test(
+void test(
   "owned observation picker preflight binds exact fixture directories to their title",
   { skip: process.platform !== "win32" },
   async (t) => {
@@ -888,3 +899,21 @@ if(-not $rejected){throw 'Reparse fixture accepted'}
     assert.match(result.stdout, /picker-preflight-contract-passed/);
   },
 );
+
+function recordFromJson(contents: string) {
+  const value: unknown = JSON.parse(contents);
+  assert(isRecord(value));
+  return value;
+}
+function recordsFromJson(contents: string) {
+  const value: unknown = JSON.parse(contents);
+  assert(Array.isArray(value));
+  const records: unknown[] = value;
+  assert(records.every(isRecord));
+  return records;
+}
+function arrayField(record: Record<string, unknown>, key: string): unknown[] {
+  const value = record[key];
+  assert(Array.isArray(value));
+  return value;
+}

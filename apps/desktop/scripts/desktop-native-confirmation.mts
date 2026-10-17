@@ -1,3 +1,31 @@
+import type { SpawnSyncReturns, ChildProcess } from "node:child_process";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+interface EvidenceContext {
+  output: string;
+  artifacts: string[];
+}
+interface CapturedDriver {
+  pid: number;
+  path: string;
+  started_filetime: string;
+}
+interface LinuxPickerLaunch {
+  child: Pick<ChildProcess, "pid">;
+  receipt: { ready?: unknown; exit?: unknown; nonce: string; events: readonly { kind: string }[] };
+}
+export interface NativePickerContext extends EvidenceContext {
+  application: string;
+  getDriverIdentity?: () => CapturedDriver | undefined;
+  getLinuxLaunch?: () => LinuxPickerLaunch | undefined;
+  gameFilePicker?: boolean;
+}
+interface PickerInput {
+  output: string;
+  title: string;
+  button: string;
+  filePath?: string | undefined;
+  directoryPath?: string | undefined;
+}
 // UI automation is limited to one exact executable descended from this harness's driver.
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -6,16 +34,27 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
 
-async function retainPickerObservation(result, output: string, name, artifacts) {
+async function retainPickerObservation(
+  result: SpawnSyncReturns<string>,
+  output: string,
+  name: string,
+  artifacts: string[],
+) {
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  const observation = JSON.parse(result.stdout);
+  const observation: unknown = JSON.parse(result.stdout);
   const report = path.join(output, `${name}.json`);
   await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
   artifacts.push(report);
   return observation;
 }
 
-async function validatePickerInput({ output, title, button, filePath, directoryPath }) {
+async function validatePickerInput({
+  output,
+  title,
+  button,
+  filePath,
+  directoryPath,
+}: PickerInput) {
   assert.ok(!(filePath && directoryPath), "Choose only one native picker input");
   const pickerPath = filePath ?? directoryPath;
   if (pickerPath) {
@@ -35,7 +74,12 @@ async function validatePickerInput({ output, title, button, filePath, directoryP
   }
 }
 
-async function retainPickerResult({ output, artifacts }, name, before, result) {
+async function retainPickerResult(
+  { output, artifacts }: EvidenceContext,
+  name: string,
+  before: string,
+  result: SpawnSyncReturns<string>,
+) {
   for (const record of [before, `${before}.window-samples.jsonl`, `${before}.close-samples.json`])
     if (
       await stat(record).then(
@@ -66,13 +110,21 @@ async function retainPickerResult({ output, artifacts }, name, before, result) {
 }
 
 function ownedRuntimePicker(
-  { application, getDriverIdentity, output, artifacts, gameFilePicker = false },
-  select,
+  {
+    application,
+    getDriverIdentity,
+    output,
+    artifacts,
+    gameFilePicker = false,
+  }: NativePickerContext,
+  select: boolean,
 ) {
-  return async (name, directoryPath) => {
+  return async (name: string, directoryPath?: string) => {
     assert.equal(process.platform, "win32");
     assert.match(name, /^[a-z0-9-]+$/u);
     if (select) {
+      assert.equal(typeof directoryPath, "string");
+      assert(directoryPath !== undefined);
       if (gameFilePicker) {
         await validatePickerInput({
           output,
@@ -84,11 +136,13 @@ function ownedRuntimePicker(
       const directory = await lstat(directoryPath);
       assert.ok(directory.isDirectory() && !directory.isSymbolicLink());
     } else assert.equal(directoryPath, undefined, "Observation cannot supply directory input");
+    assert(getDriverIdentity, "Captured launch driver is required");
     const driver = getDriverIdentity();
     assert.ok(
-      driver?.pid > 0 && path.isAbsolute(driver.path),
+      driver && driver.pid > 0 && path.isAbsolute(driver.path),
       "Captured launch driver is required",
     );
+    assert(driver);
     assert.match(driver.started_filetime, /^[0-9]+$/u);
     const before = path.join(output, `${name}-before-cancel.json`);
     const result = spawnCommand(
@@ -109,7 +163,9 @@ function ownedRuntimePicker(
         application,
         "-ObservePicker",
         ...(gameFilePicker ? ["-ExpectedPickerTitle", "Choose game-file folder"] : []),
-        ...(select ? ["-PreparedRuntimeDirectory", directoryPath] : []),
+        ...(select && directoryPath !== undefined
+          ? ["-PreparedRuntimeDirectory", directoryPath]
+          : []),
       ],
       { encoding: "utf8", windowsHide: true, timeout: 15_000 },
     );
@@ -117,25 +173,30 @@ function ownedRuntimePicker(
   };
 }
 
-export function nativePickerObservation(options) {
+export function nativePickerObservation(options: NativePickerContext) {
   return ownedRuntimePicker(options, false);
 }
 
-export function nativePreparedRuntimePicker(options) {
+export function nativePreparedRuntimePicker(options: NativePickerContext) {
   return ownedRuntimePicker(options, true);
 }
 
-export function nativeGameFileFolderPicker(options) {
+export function nativeGameFileFolderPicker(options: NativePickerContext) {
   if (process.platform === "linux") return ownedLinuxGameFilePicker(options);
-  return (name, directoryPath) =>
+  return (name: string, directoryPath?: string) =>
     ownedRuntimePicker({ ...options, gameFilePicker: true }, Boolean(directoryPath))(
       name,
       directoryPath,
     );
 }
 
-function ownedLinuxGameFilePicker({ application, getLinuxLaunch, output, artifacts }) {
-  return async (name, directoryPath) => {
+function ownedLinuxGameFilePicker({
+  application,
+  getLinuxLaunch,
+  output,
+  artifacts,
+}: NativePickerContext) {
+  return async (name: string, directoryPath?: string) => {
     assert.match(name, /^[a-z0-9-]+$/u);
     if (directoryPath)
       await validatePickerInput({
@@ -144,14 +205,23 @@ function ownedLinuxGameFilePicker({ application, getLinuxLaunch, output, artifac
         button: "Select Folder",
         directoryPath,
       });
+    assert(getLinuxLaunch, "Captured Linux launch is required");
     const launch = getLinuxLaunch();
-    assert.ok(launch?.child.pid > 1 && launch.receipt.ready && !launch.receipt.exit);
+    assert.ok(
+      launch &&
+        launch.child.pid !== undefined &&
+        launch.child.pid > 1 &&
+        launch.receipt.ready &&
+        !launch.receipt.exit,
+    );
+    assert(launch && launch.child.pid !== undefined);
     assert.ok(launch.receipt.events.some((event) => event.kind === "driver-started"));
     const processState = await readFile(`/proc/${launch.child.pid}/stat`, "utf8");
     const started = processState
       .slice(processState.lastIndexOf(")") + 1)
       .trim()
       .split(/\s+/u)[19];
+    assert(started, "Launch process start identity is required");
     const sha256 = createHash("sha256")
       .update(await readFile(application))
       .digest("hex");
@@ -244,11 +314,21 @@ const failureTypes = [
   "other",
 ];
 
-function validFailureLocation(location) {
+interface FailureLocation {
+  script: string;
+  line: number;
+  column: number;
+}
+function validFailureLocation(location: unknown): location is FailureLocation | null {
   if (location === null) return true;
-  const integer = (number) => Number.isSafeInteger(number) && number >= 0 && number <= 1_000_000;
+  const integer = (number: unknown): number is number =>
+    typeof number === "number" &&
+    Number.isSafeInteger(number) &&
+    number >= 0 &&
+    number <= 1_000_000;
   return Boolean(
-    location &&
+    isRecord(location) &&
+    typeof location.script === "string" &&
     ["native-confirmation.ps1", "native-process-tree.ps1", "other"].includes(location.script) &&
     integer(location.line) &&
     location.line > 0 &&
@@ -256,19 +336,30 @@ function validFailureLocation(location) {
   );
 }
 
-function validFailureExceptions(exceptions) {
+interface FailureException {
+  type: string;
+  hresult: string;
+}
+function validFailureExceptions(exceptions: unknown): exceptions is FailureException[] {
   return (
     Array.isArray(exceptions) &&
     exceptions.length <= 4 &&
     exceptions.every(
-      (entry) => failureTypes.includes(entry?.type) && /^0x[0-9A-F]{8}$/u.test(entry?.hresult),
+      (entry: unknown) =>
+        isRecord(entry) &&
+        typeof entry.type === "string" &&
+        failureTypes.includes(entry.type) &&
+        typeof entry.hresult === "string" &&
+        /^0x[0-9A-F]{8}$/u.test(entry.hresult),
     )
   );
 }
 
-function projectFailureDiagnostic(value) {
+function projectFailureDiagnostic(value: unknown) {
   if (
-    value?.format_version !== 1 ||
+    !isRecord(value) ||
+    value.format_version !== 1 ||
+    typeof value.stage !== "string" ||
     !failureStages.includes(value.stage) ||
     !validFailureExceptions(value.exceptions) ||
     typeof value.exceptions_truncated !== "boolean" ||
@@ -291,62 +382,95 @@ function projectFailureDiagnostic(value) {
   };
 }
 
-function projectPickerFields(value) {
-  if (
-    !Array.isArray(value?.native_edits) ||
-    value.native_edits.length > 8 ||
-    !value.native_edits.every(
-      (entry) =>
-        Number.isSafeInteger(entry.control_id) &&
-        Number.isSafeInteger(entry.parent_id) &&
-        ["ComboBox", "ComboBoxEx32", "other"].includes(entry.parent_class) &&
-        Number.isSafeInteger(entry.uia_control_type) &&
-        (entry.uia_control_type === 0 ||
-          (entry.uia_control_type >= 50000 && entry.uia_control_type <= 50040)) &&
-        (entry.owned === null || typeof entry.owned === "boolean") &&
-        (entry.value_pattern === null || typeof entry.value_pattern === "boolean"),
-    )
-  )
-    return null;
-  const counters = [
-    "folder_label_type",
-    "folder_descendant_owned_edits",
-    "owned_labeled_folder_edits",
-    "folder_matches",
-    "total_count",
-    "automation_element_count",
-    "folder_label_count",
-    "owned_folder_matches",
-    "folder_name_matches",
-    "file_name_matches",
-    "empty_name_matches",
-  ];
-  if (
-    !Number.isSafeInteger(value?.edit_count) ||
-    value.edit_count < 0 ||
-    value.edit_count > 1_000_000 ||
-    !Array.isArray(value.samples) ||
-    value.samples.length !== Math.min(value.edit_count, 16) ||
-    value.truncated !== value.edit_count > 16 ||
-    !value.samples.every(
-      (entry) =>
-        ["folder", "file-name", "folder-name", "empty", "other"].includes(entry?.name_kind) &&
-        typeof entry.automation_id === "string" &&
-        /^(?:[0-9]{1,8}|other)$/u.test(entry.automation_id) &&
-        typeof entry.owned === "boolean" &&
-        typeof entry.enabled === "boolean",
-    )
-  )
-    return null;
-  if (
-    !counters.every(
-      (key) =>
-        Number.isSafeInteger(value[key]) &&
-        value[key] >= (key === "folder_matches" ? -1 : 0) &&
-        value[key] <= 1_000_000,
-    )
-  )
-    return null;
+interface NativeEdit {
+  control_id: number;
+  parent_id: number;
+  parent_class: string;
+  uia_control_type: number;
+  owned: boolean | null;
+  value_pattern: boolean | null;
+}
+interface PickerSample {
+  name_kind: string;
+  automation_id: string;
+  owned: boolean;
+  enabled: boolean;
+}
+const counters = [
+  "folder_label_type",
+  "folder_descendant_owned_edits",
+  "owned_labeled_folder_edits",
+  "folder_matches",
+  "total_count",
+  "automation_element_count",
+  "folder_label_count",
+  "owned_folder_matches",
+  "folder_name_matches",
+  "file_name_matches",
+  "empty_name_matches",
+] as const;
+type PickerCounters = { [Key in (typeof counters)[number]]: number };
+interface PickerFields extends PickerCounters {
+  edit_count: number;
+  truncated: boolean;
+  native_edits: NativeEdit[];
+  samples: PickerSample[];
+}
+function validNativeEdit(entry: unknown): entry is NativeEdit {
+  return (
+    isRecord(entry) &&
+    typeof entry.control_id === "number" &&
+    Number.isSafeInteger(entry.control_id) &&
+    typeof entry.parent_id === "number" &&
+    Number.isSafeInteger(entry.parent_id) &&
+    typeof entry.parent_class === "string" &&
+    ["ComboBox", "ComboBoxEx32", "other"].includes(entry.parent_class) &&
+    typeof entry.uia_control_type === "number" &&
+    Number.isSafeInteger(entry.uia_control_type) &&
+    (entry.uia_control_type === 0 ||
+      (entry.uia_control_type >= 50000 && entry.uia_control_type <= 50040)) &&
+    (entry.owned === null || typeof entry.owned === "boolean") &&
+    (entry.value_pattern === null || typeof entry.value_pattern === "boolean")
+  );
+}
+function validPickerSample(entry: unknown): entry is PickerSample {
+  return (
+    isRecord(entry) &&
+    typeof entry.name_kind === "string" &&
+    ["folder", "file-name", "folder-name", "empty", "other"].includes(entry.name_kind) &&
+    typeof entry.automation_id === "string" &&
+    /^(?:[0-9]{1,8}|other)$/u.test(entry.automation_id) &&
+    typeof entry.owned === "boolean" &&
+    typeof entry.enabled === "boolean"
+  );
+}
+function validPickerFields(value: unknown): value is PickerFields {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.native_edits) &&
+    value.native_edits.length <= 8 &&
+    value.native_edits.every(validNativeEdit) &&
+    typeof value.edit_count === "number" &&
+    Number.isSafeInteger(value.edit_count) &&
+    value.edit_count >= 0 &&
+    value.edit_count <= 1_000_000 &&
+    Array.isArray(value.samples) &&
+    value.samples.length === Math.min(value.edit_count, 16) &&
+    value.truncated === value.edit_count > 16 &&
+    value.samples.every(validPickerSample) &&
+    counters.every((key) => {
+      const count = value[key];
+      return (
+        typeof count === "number" &&
+        Number.isSafeInteger(count) &&
+        count >= (key === "folder_matches" ? -1 : 0) &&
+        count <= 1_000_000
+      );
+    })
+  );
+}
+function projectPickerFields(value: unknown) {
+  if (!validPickerFields(value)) return null;
   return {
     edit_count: value.edit_count,
     truncated: value.truncated,
@@ -381,7 +505,11 @@ function confirmationFailureDiagnostic(stderr: string) {
   }
 }
 
-async function retainConfirmationFailure({ output, artifacts }, name, result) {
+async function retainConfirmationFailure(
+  { output, artifacts }: EvidenceContext,
+  name: string,
+  result: SpawnSyncReturns<string>,
+) {
   try {
     // The helper emits only fixed identifiers and numeric fields. Do not retain
     // its ordinary stderr, which can contain window text or private paths.
@@ -407,14 +535,19 @@ async function retainConfirmationFailure({ output, artifacts }, name, result) {
   }
 }
 
-export function nativeConfirmation({ application, getDriverPid, output, artifacts }) {
+export function nativeConfirmation({
+  application,
+  getDriverPid,
+  output,
+  artifacts,
+}: EvidenceContext & { application: string; getDriverPid: () => number | undefined }) {
   return async (
-    title,
-    button,
-    expectedText,
-    name,
-    filePath,
-    directoryPath,
+    title: string,
+    button: string,
+    expectedText: string,
+    name: string,
+    filePath?: string,
+    directoryPath?: string,
     captureWindow = false,
   ) => {
     assert.equal(
