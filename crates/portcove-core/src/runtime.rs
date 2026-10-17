@@ -169,6 +169,7 @@ pub(crate) fn require_ready(
         return Err(PortcoveError::verification(
             "This installation needs its verified runtime. Update the port before launching.",
         )
+        .with_known_cause(crate::failure::KnownFailureCause::RequiredRuntimeUnverified)
         .detail("port_id", &port.id)
         .detail("install_id", &install.id));
     }

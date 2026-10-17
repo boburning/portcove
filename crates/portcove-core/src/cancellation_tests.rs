@@ -95,6 +95,48 @@ async fn pending_network_wait_is_cancelled_and_recorded_without_stealing_a_live_
 }
 
 #[test]
+fn unavailable_cancellation_reports_current_state_without_claiming_work_stopped() {
+    let (_temporary, service) = service();
+    let missing_id = uuid::Uuid::new_v4().to_string();
+    let assert_refusal = |id: &str| {
+        let before = serde_json::to_vec(&service.library().activities(100).unwrap()).unwrap();
+        let report = service.request_cancellation(id).unwrap_err().report();
+        assert_eq!(report.code, ErrorCode::Conflict);
+        assert_eq!(report.details.get("operation_id").unwrap(), id);
+        assert_eq!(
+            report.presentation.presentation_key,
+            "cancellation_unavailable"
+        );
+        assert_eq!(
+            report.presentation.mutation_state,
+            crate::MutationState::Unknown
+        );
+        assert!(
+            report
+                .presentation
+                .summary
+                .contains("current activity and result")
+        );
+        assert_eq!(
+            serde_json::to_vec(&service.library().activities(100).unwrap()).unwrap(),
+            before
+        );
+    };
+    assert_refusal(&missing_id);
+    let (activity, operation) = service
+        .begin_cancellable_activity(
+            ActivityOperation::Install,
+            ActivityTargetKind::Library,
+            None,
+        )
+        .unwrap();
+    operation.begin_publication().unwrap();
+    assert_refusal(&activity.id);
+    service.finish_activity(activity.clone(), Ok(())).unwrap();
+    assert_refusal(&activity.id);
+}
+
+#[test]
 fn host_cancellation_is_owner_scoped_and_also_stops_queued_work() {
     let (_temporary, first) = service();
     let second = PortcoveService::new(first.library().clone()).unwrap();

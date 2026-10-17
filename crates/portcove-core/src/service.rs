@@ -455,7 +455,7 @@ impl PortcoveService {
                 } else if private_preparation {
                     "review the current activity; this interrupted setup cannot resume, so review its unfinished work and current requirements before trying again"
                 } else {
-                    "retry the recorded idempotent recovery step"
+                    "restart Portcove to reconcile this unfinished operation; if it remains held, review recovery and doctor output before further changes"
                 }.into(),
                 }
             })
@@ -8434,6 +8434,13 @@ mod tests {
 
         let plan = service.repair_plan().unwrap();
 
+        let partial = plan
+            .items
+            .iter()
+            .find(|item| item.kind == RepairItemKind::PartialOperation)
+            .unwrap();
+        assert!(partial.proposed_action.contains("restart Portcove"));
+        assert!(partial.proposed_action.contains("doctor output"));
         assert!(
             plan.items
                 .iter()
