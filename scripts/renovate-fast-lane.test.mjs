@@ -130,6 +130,53 @@ test("parses current Renovate tables with and without dependency type columns", 
   assert.deepEqual(parseRenovateUpdates("not a Renovate body"), []);
 });
 
+test("parses Renovate package source annotations without changing dependency identity", () => {
+  // Observed in the natural i18next 26.4.7 proposal (#2057).
+  const proposal = `| Package | Type | Update | Change | Age | Confidence |
+|---|---|---|---|---|---|
+| [i18next](https://www.i18next.com) ([source](https://redirect.github.com/i18next/i18next)) | dependencies | patch | \`26.4.6\` → \`26.4.7\` | 1 day | high |`;
+  assert.deepEqual(parseRenovateUpdates(proposal), [
+    {
+      packageName: "i18next",
+      dependencyType: "dependencies",
+      updateType: "patch",
+      currentVersion: "26.4.6",
+      newVersion: "26.4.7",
+    },
+  ]);
+  for (const packageName of ["@scope/package", "reqwest", "react"]) {
+    const annotated = body({ packageName }).replace(
+      `](https://example.test/${packageName})`,
+      `](https://example.test/${packageName}) ([source](https://example.test/source))`,
+    );
+    assert.equal(parseRenovateUpdates(annotated)[0].packageName, packageName);
+    if (packageName !== "@scope/package") {
+      assert.equal(classify({ pull: { body: annotated } }).verdict, "manual-review-required");
+    }
+  }
+});
+
+test("package source annotation parsing preserves unsupported or ambiguous cells", () => {
+  const link = "[crc32fast](https://example.test/crc32fast)";
+  for (const suffix of [
+    " ([other](https://example.test/source))",
+    " ([source](https://example.test/source)) extra",
+    " ([source](https://example.test/source)) ([source](https://example.test/second))",
+    " [other](https://example.test/other)",
+    " ([source](https://example.test/source)",
+    " ([source]())",
+  ]) {
+    const cell = link + suffix;
+    assert.equal(parseRenovateUpdates(body().replace(link, cell))[0].packageName, cell);
+  }
+  const annotated = body().replace(link, `${link} ([source](https://example.test/source))`);
+  const row = annotated.split("\n").find((line) => line.startsWith("| [crc32fast]"));
+  assert.equal(
+    classify({ pull: { body: annotated.replace("\n\n---", `\n${row}\n\n---`) } }).verdict,
+    "manual-review-required",
+  );
+});
+
 test("fast lane requires the checked-in non-automerge release-age policy", () => {
   assert.deepEqual(fastLanePolicyErrors(config), []);
   for (const [key, value] of [
