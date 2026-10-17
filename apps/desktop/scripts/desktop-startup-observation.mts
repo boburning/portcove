@@ -1,3 +1,4 @@
+import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { access, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -5,7 +6,19 @@ import { fileURLToPath } from "node:url";
 
 // Observe only this harness's driver descendants. No application launch, probe,
 // policy change or process termination is performed by the PowerShell observer.
-export async function observeStartup({ driver, driverPath, profile, output, attempt }) {
+export async function observeStartup({
+  driver,
+  driverPath,
+  profile,
+  output,
+  attempt,
+}: {
+  driver: Pick<ChildProcess, "pid" | "exitCode" | "signalCode">;
+  driverPath: string;
+  profile: string;
+  output: string;
+  attempt: number;
+}) {
   const prefix = path.join(output, `session-startup-${attempt}`);
   const trace = `${prefix}.jsonl`;
   const stop = `${prefix}.stop`;
@@ -30,18 +43,21 @@ export async function observeStartup({ driver, driverPath, profile, output, atte
     { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
   );
   let diagnostics = "";
-  let ready;
-  const readiness = new Promise((resolve) => {
+  let ready!: () => void;
+  const readiness = new Promise<void>((resolve) => {
     ready = resolve;
   });
   for (const stream of [child.stdout, child.stderr])
-    stream.on("data", (chunk) => {
-      diagnostics = (diagnostics + chunk).slice(-64 * 1024);
+    stream.on("data", (chunk: Buffer) => {
+      diagnostics = (diagnostics + chunk.toString()).slice(-64 * 1024);
     });
-  child.stdout.on("data", (chunk) => {
-    if (String(chunk).includes("ready")) ready();
+  child.stdout.on("data", (chunk: Buffer) => {
+    if (chunk.toString().includes("ready")) ready();
   });
-  const completion = new Promise((resolve) => {
+  const completion = new Promise<
+    | { error: string; code?: never; signal?: never }
+    | { code: number | null; signal: NodeJS.Signals | null; error?: never }
+  >((resolve) => {
     child.on("error", (error) => {
       diagnostics += error.message;
       ready();

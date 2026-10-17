@@ -1,3 +1,28 @@
+import { isRecord } from "../../../scripts/runtime-values.mts";
+import type { TransportOutputs, LibraryIdentity } from "../src/transport-types.generated.d.ts";
+interface DiagnosticLibrary {
+  bootstrap: Pick<
+    TransportOutputs["desktop_bootstrap_status"],
+    "ready" | "error" | "generation" | "library_root"
+  >;
+  identity: Pick<LibraryIdentity, "id" | "root">;
+}
+interface StartupNetworkReport {
+  completed: boolean;
+  explicit_auth_calls: number;
+  scope: string;
+  limitations: string;
+  before_alert_count?: number;
+  after_alert_count?: number;
+  auth_status?: { ok: true } | { ok: false; code: string };
+  auth_duration_ms?: number;
+  library?: DiagnosticLibrary;
+  coverage_failure?: string;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value), "Native response coverage is missing");
+  return value;
+}
 import assert from "node:assert/strict";
 import path from "node:path";
 
@@ -16,14 +41,24 @@ const codes = new Set([
 ]);
 
 // Never retain success payloads, credentials, raw errors or extensible context.
-function startupNetworkReply(reply) {
+function startupNetworkReply(value: unknown): NonNullable<StartupNetworkReport["auth_status"]> {
+  const reply = object(value);
   assert.equal(typeof reply?.ok, "boolean", "Native response coverage is missing");
   if (reply.ok) return { ok: true };
-  return { ok: false, code: codes.has(reply.error?.code) ? reply.error.code : "unknown" };
+  const code = isRecord(reply.error) ? reply.error.code : undefined;
+  return { ok: false, code: typeof code === "string" && codes.has(code) ? code : "unknown" };
 }
 
-export async function observeStartupNetwork({ invoke, readAlerts }) {
-  const report = {
+export async function observeStartupNetwork({
+  invoke: invokeRaw,
+  readAlerts,
+}: {
+  invoke: (name: string, args?: Record<string, unknown>) => Promise<unknown>;
+  readAlerts: () => Promise<unknown>;
+}) {
+  const invoke = async (name: string, args?: Record<string, unknown>) =>
+    object(await invokeRaw(name, args));
+  const report: StartupNetworkReport = {
     completed: false,
     explicit_auth_calls: 0,
     scope: "Current read-only diagnostic; unchanged background startup requests remain distinct.",
@@ -34,25 +69,40 @@ export async function observeStartupNetwork({ invoke, readAlerts }) {
   async function libraryState() {
     const bootstrap = await invoke("get_bootstrap_status");
     assert.equal(bootstrap.ok, true);
-    assert.equal(bootstrap.value.ready, true);
-    assert.equal(bootstrap.value.error, null);
-    assert.ok(Number.isSafeInteger(bootstrap.value.generation) && bootstrap.value.generation > 0);
+    const bootstrapValue = object(bootstrap.value);
+    assert.equal(bootstrapValue.ready, true);
+    assert.equal(bootstrapValue.error, null);
+    const generation = bootstrapValue.generation;
+    assert.ok(typeof generation === "number" && Number.isSafeInteger(generation) && generation > 0);
     const identity = await invoke("get_library_identity", {
-      generation: bootstrap.value.generation,
+      generation,
     });
     assert.equal(identity.ok, true);
-    assert.ok(typeof identity.value?.id === "string" && identity.value.id.length > 0);
-    assert.equal(typeof identity.value.root, "string");
-    assert.equal(typeof bootstrap.value.library_root, "string");
+    const identityValue = object(identity.value);
+    const id = identityValue.id;
+    const root = identityValue.root;
+    const libraryRoot = bootstrapValue.library_root;
+    assert.ok(typeof id === "string" && id.length > 0);
+    assert.ok(typeof root === "string");
+    assert.ok(typeof libraryRoot === "string");
     assert.equal(
-      path.toNamespacedPath(path.resolve(identity.value.root)),
-      path.toNamespacedPath(path.resolve(bootstrap.value.library_root)),
+      path.toNamespacedPath(path.resolve(root)),
+      path.toNamespacedPath(path.resolve(libraryRoot)),
     );
-    return { bootstrap: bootstrap.value, identity: identity.value };
+    return {
+      bootstrap: {
+        ...bootstrapValue,
+        ready: true,
+        error: null,
+        generation,
+        library_root: libraryRoot,
+      },
+      identity: { ...identityValue, id, root },
+    };
   }
   async function alerts() {
     const count = await readAlerts();
-    assert.ok(Number.isSafeInteger(count) && count >= 0);
+    assert.ok(typeof count === "number" && Number.isSafeInteger(count) && count >= 0);
     return count;
   }
   try {
