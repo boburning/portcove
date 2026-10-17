@@ -9,7 +9,7 @@ const snapshot = () => ({
   configuration_sha256: "config",
   input_dirty: false,
 });
-test("guarded mismatches stop before network checks", async () => {
+void test("guarded mismatches stop before network checks", async () => {
   let calls = 0;
   const check = async () => {
     calls++;
@@ -32,7 +32,7 @@ test("guarded mismatches stop before network checks", async () => {
   );
   assert.equal(calls, 0);
 });
-test("head, catalog or configuration changes invalidate success", async () => {
+void test("head, catalog or configuration changes invalidate success", async () => {
   for (const change of [
     { head: "b".repeat(40) },
     { catalog_sha256: "new" },

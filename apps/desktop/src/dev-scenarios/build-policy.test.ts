@@ -47,7 +47,8 @@ it("registers scenario exclusion on production builds", async () => {
   const plugin = plugins.find((candidate) => candidate.name === "exclude-development-scenarios");
   if (!plugin) throw new Error("Production scenario exclusion plugin was not registered");
   expect(plugin.apply).toBe("build");
-  expect(plugin.generateBundle).toMatchObject({ order: "post", handler: expect.any(Function) });
+  const functionMatcher: unknown = expect.any(Function);
+  expect(plugin.generateBundle).toMatchObject({ order: "post", handler: functionMatcher });
 });
 
 it("assembles one reset with explicit production discovery and layer order", async () => {

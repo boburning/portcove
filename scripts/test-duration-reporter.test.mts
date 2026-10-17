@@ -14,7 +14,7 @@ function event(duration: number, type = "test") {
   };
 }
 
-test("individual slow tests are identified independently of suite duration", () => {
+void test("individual slow tests are identified independently of suite duration", () => {
   assert.equal(isSlowTest(event(5_000)), false);
   assert.equal(isSlowTest(event(5_001)), true);
   assert.equal(isSlowTest(event(50_000, "suite")), false);
@@ -29,7 +29,7 @@ test("individual slow tests are identified independently of suite duration", () 
   );
 });
 
-test("a synchronous slow result is reported without failing a correct test", () => {
+void test("a synchronous slow result is reported without failing a correct test", () => {
   const reporter = new URL("./test-duration-reporter.mts", import.meta.url).href;
   const script = `import report from ${JSON.stringify(reporter)};
     async function* source() { yield ${JSON.stringify(event(5_001))}; }
@@ -44,7 +44,7 @@ test("a synchronous slow result is reported without failing a correct test", () 
   assert.match(result.stdout, /Slow tests to investigate/);
 });
 
-test("an abnormal worker exit retains bounded status and remains a failed run", (t) => {
+void test("an abnormal worker exit retains bounded status and remains a failed run", (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "portcove-worker-reporter-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const fixture = path.join(root, "exiting.test.mjs");
@@ -71,7 +71,7 @@ test("an abnormal worker exit retains bounded status and remains a failed run", 
 });
 
 // Watch lifecycle events have no data object; they must not mask later results.
-test("reporter accepts a watch lifecycle event without test details", async () => {
+void test("reporter accepts a watch lifecycle event without test details", async () => {
   async function* source(): AsyncGenerator<TestEvent> {
     yield { type: "test:watch:drained", data: undefined };
   }

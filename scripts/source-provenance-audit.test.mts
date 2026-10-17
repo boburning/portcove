@@ -1375,9 +1375,19 @@ void test("live reference lookup bounds work before requesting any PR", () => {
 });
 
 void test("provenance rejects unchecked typed issue structures before reporting", () => {
-  for (const malformed of [{ id: null }, { type: null }, { __typename: null }, { fieldValues: 42 }, { fieldValues: [{ field: 42 }] }, { blockedBy: { nodes: [false] } }]) {
+  for (const malformed of [
+    { id: null },
+    { type: null },
+    { __typename: null },
+    { fieldValues: 42 },
+    { fieldValues: [{ field: 42 }] },
+    { blockedBy: { nodes: [false] } },
+  ]) {
     const input = fixture();
     const item = fixtureElement(input.projectItems, 0);
-    assert.throws(() => buildSourceProvenanceAudit({ ...input, projectItems: [{ ...item, ...malformed }] }), /issue/);
+    assert.throws(
+      () => buildSourceProvenanceAudit({ ...input, projectItems: [{ ...item, ...malformed }] }),
+      /issue/,
+    );
   }
 });

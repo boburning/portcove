@@ -54,7 +54,9 @@ export function reconcileUiSelection(
   { testModules, unhandledErrors }: UiRunObservation,
   files: readonly string[],
 ) {
-  if (!Array.isArray(testModules) || !Array.isArray(unhandledErrors) || unhandledErrors.length)
+  const rawModules: unknown = testModules;
+  const rawErrors: unknown = unhandledErrors;
+  if (!Array.isArray(rawModules) || !Array.isArray(rawErrors) || rawErrors.length)
     throw new Error("UI run is unsuccessful or incomplete");
   const expected = new Set(files.map((file: string) => identity(path.resolve(file))));
   if (!expected.size) throw new Error("UI selection is empty");

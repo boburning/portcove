@@ -156,10 +156,17 @@ type AuditSource = AuditCatalog["source_catalog"];
 function assertIssue(value: unknown): asserts value is RoadmapIssueItem {
   if (!isRecord(value)) throw new Error("issue inventory entry must be an object");
   for (const key of ["id", "type", "__typename"] as const)
-    if (value[key] !== undefined && typeof value[key] !== "string") throw new Error(`issue ${key} must be a string`);
+    if (value[key] !== undefined && typeof value[key] !== "string")
+      throw new Error(`issue ${key} must be a string`);
   for (const key of ["title", "body", "url", "state"] as const)
-    if (value[key] != null && typeof value[key] !== "string") throw new Error(`issue ${key} must be a string`);
-  if (value.number !== undefined && typeof value.number !== "number" && typeof value.number !== "string") throw new Error("issue number must be numeric");
+    if (value[key] != null && typeof value[key] !== "string")
+      throw new Error(`issue ${key} must be a string`);
+  if (
+    value.number !== undefined &&
+    typeof value.number !== "number" &&
+    typeof value.number !== "string"
+  )
+    throw new Error("issue number must be numeric");
   if (value.content != null) assertIssue(value.content);
   if (value.fieldValues !== undefined) {
     if (!Array.isArray(value.fieldValues)) throw new Error("issue fieldValues must be an array");
@@ -167,24 +174,32 @@ function assertIssue(value: unknown): asserts value is RoadmapIssueItem {
     for (const field of fields) {
       if (!isRecord(field)) throw new Error("issue field value must be an object");
       for (const key of ["field", "option"])
-        if (field[key] != null && !isRecord(field[key])) throw new Error("issue field metadata must be an object");
+        if (field[key] != null && !isRecord(field[key]))
+          throw new Error("issue field metadata must be an object");
     }
   }
   if (value.blockedBy != null) {
     const blockedBy: unknown = value.blockedBy;
     if (Array.isArray(blockedBy)) {
-      const dependencies: unknown[] = blockedBy; dependencies.forEach(assertIssue);
+      const dependencies: unknown[] = blockedBy;
+      dependencies.forEach(assertIssue);
     } else {
       if (!isRecord(blockedBy)) throw new Error("issue blockedBy must be a connection or array");
-      if (blockedBy.totalCount !== undefined && typeof blockedBy.totalCount !== "number") throw new Error("issue dependency total must be numeric");
+      if (blockedBy.totalCount !== undefined && typeof blockedBy.totalCount !== "number")
+        throw new Error("issue dependency total must be numeric");
       if (blockedBy.nodes !== undefined) {
-        if (!Array.isArray(blockedBy.nodes)) throw new Error("issue dependency nodes must be an array");
-        const dependencies: unknown[] = blockedBy.nodes; dependencies.forEach(assertIssue);
+        if (!Array.isArray(blockedBy.nodes))
+          throw new Error("issue dependency nodes must be an array");
+        const dependencies: unknown[] = blockedBy.nodes;
+        dependencies.forEach(assertIssue);
       }
     }
   }
 }
-function readIssue(value: unknown): RoadmapIssueItem { assertIssue(value); return value; }
+function readIssue(value: unknown): RoadmapIssueItem {
+  assertIssue(value);
+  return value;
+}
 function collection(value: unknown): RoadmapIssueItem[] {
   return rawArray(Array.isArray(value) ? value : object(value).items, "issue collection").map(
     readIssue,

@@ -5,7 +5,11 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 
 // Include dirty and untracked inputs: HEAD alone does not identify a candidate.
-export function fallowSource(root: string, base?: string, { includeAll = false }: {includeAll?: boolean} = {}) {
+export function fallowSource(
+  root: string,
+  base?: string,
+  { includeAll = false }: { includeAll?: boolean } = {},
+) {
   const git = (...args: string[]) =>
     execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
   const head = git("rev-parse", "HEAD").trim();

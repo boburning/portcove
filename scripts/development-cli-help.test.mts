@@ -27,14 +27,14 @@ for (const [name, command, args] of [
   ["handoff evidence", process.execPath, ["scripts/handoff-evidence.mts", "--help"]],
   ["optional container browser", process.execPath, ["scripts/container-browser.mts", "--help"]],
 ] satisfies [string, string, string[]][]) {
-  test(`${name} help is available without provisioning`, () => {
+  void test(`${name} help is available without provisioning`, () => {
     const result = run(command, args);
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /usage:/u);
   });
 }
 
-test(
+void test(
   "Windows bootstrap help exits before cache setup",
   { skip: process.platform !== "win32" },
   () => {
@@ -49,7 +49,7 @@ test(
   },
 );
 
-test(
+void test(
   "POSIX bootstrap help exits before cache setup",
   { skip: process.platform === "win32" },
   () => {
@@ -62,7 +62,7 @@ test(
   },
 );
 
-test("capability selection rejects an unknown profile before any setup", () => {
+void test("capability selection rejects an unknown profile before any setup", () => {
   const result = run(process.execPath, [
     "scripts/development-capabilities.mts",
     "--profile",

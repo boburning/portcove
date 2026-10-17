@@ -12,12 +12,12 @@ const success = {
   verify_intel: "success",
 };
 
-test("accepts only the complete successful release dependency set", () => {
+void test("accepts only the complete successful release dependency set", () => {
   assert.equal(evaluateReleaseResults(success), true);
 });
 
 for (const result of ["failure", "cancelled", "timed_out", "skipped"]) {
-  test(`rejects ${result} release dependencies`, () => {
+  void test(`rejects ${result} release dependencies`, () => {
     assert.throws(
       () => evaluateReleaseResults({ ...success, build: result }),
       new RegExp(`build=success, received ${result}`),
@@ -25,7 +25,7 @@ for (const result of ["failure", "cancelled", "timed_out", "skipped"]) {
   });
 }
 
-test("rejects missing and malformed release result sets", () => {
+void test("rejects missing and malformed release result sets", () => {
   const { verify_intel: _omitted, ...missing } = success;
   assert.throws(() => evaluateReleaseResults(missing), /missing verify_intel/);
   assert.throws(() => evaluateReleaseResults([]), /job-result object/);

@@ -27,9 +27,15 @@ function requiredFiles() {
   }
   if (!Array.isArray(files) || files.length === 0 || files.some((file) => typeof file !== "string"))
     throw new Error("prose file plan must be a non-empty string array");
-  if (files.some((file) => !isInformationalPath(file)))
+  const entries: unknown[] = files;
+  const textFiles = entries.map((file) => {
+    if (typeof file !== "string")
+      throw new Error("prose file plan must be a non-empty string array");
+    return file;
+  });
+  if (textFiles.some((file) => !isInformationalPath(file)))
     throw new Error("prose file plan includes a machine-consumed or policy path");
-  return [...new Set(files.filter((file): file is string => typeof file === "string"))].sort();
+  return [...new Set(textFiles)].sort();
 }
 
 if (process.argv.length > 3 || (process.argv[2] && process.argv[2] !== "--prerequisites"))

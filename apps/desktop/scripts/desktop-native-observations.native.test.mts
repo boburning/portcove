@@ -113,9 +113,10 @@ void test("installed update staging reads actual checked artifact bytes and reta
     JSON.stringify({ phase: "helper-refused", extra: { retained: true } }),
   );
   const failures: [unknown, string][] = [
-    ...[null, undefined, false, 0, ""].map(
-      (failure): [unknown, string] => [failure, String(failure)],
-    ),
+    ...[null, undefined, false, 0, ""].map((failure): [unknown, string] => [
+      failure,
+      String(failure),
+    ]),
     [{ stack: "owned non-Error stack" }, "owned non-Error stack"],
     [{ stack: 0 }, "0"],
   ];

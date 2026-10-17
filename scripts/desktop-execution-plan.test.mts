@@ -461,7 +461,8 @@ void test("qualified reviews and a running setup restart reject missing or forei
         path,
         savedLibraryRecoverySession: false,
         checks: [{ scenario, outcome }],
-        application: "/owned/app.exe", nativeDriverPath: "/owned/driver.exe",
+        application: "/owned/app.exe",
+        nativeDriverPath: "/owned/driver.exe",
       }),
     );
     const entries = [

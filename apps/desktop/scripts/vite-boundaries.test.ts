@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import process from "node:process";
 import { URL } from "node:url";
@@ -6,7 +7,7 @@ import { describe, expect, it } from "vite-plus/test";
 describe("Vite configuration boundaries", () => {
   it("loads production metadata without browser runtime or trace initialization", () => {
     const moduleUrl = new URL("../vite.config.ts", import.meta.url).href;
-    const result = JSON.parse(
+    const result: unknown = JSON.parse(
       execFileSync(
         process.execPath,
         [
@@ -23,7 +24,7 @@ describe("Vite configuration boundaries", () => {
     const moduleUrl = new URL("../vite.config.ts", import.meta.url).href;
     // The test runner already resolved its own config before this worker. A
     // fresh process exercises metadata resolution without that module cache.
-    const metadataPlugins = JSON.parse(
+    const rawMetadata: unknown = JSON.parse(
       execFileSync(
         process.execPath,
         [
@@ -34,6 +35,12 @@ describe("Vite configuration boundaries", () => {
         { env: { ...process.env, VP_RESOLVING_CONFIG_METADATA: "1" }, encoding: "utf8" },
       ),
     );
+    assert.ok(Array.isArray(rawMetadata));
+    const values: unknown[] = rawMetadata;
+    const metadataPlugins = values.map((name) => {
+      assert.ok(typeof name === "string");
+      return name;
+    });
     expect(
       metadataPlugins.some(
         (name: string) => name.startsWith("vite:react") || name.startsWith("@tailwindcss/"),

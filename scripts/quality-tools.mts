@@ -50,9 +50,9 @@ export function validateQualityManifest(manifest: unknown): asserts manifest is 
   for (const tool of tools) {
     if (!isRecord(tool)) throw new Error("quality manifest tool must be an object");
     if (typeof tool.id !== "string" || !tool.id || ids.has(tool.id))
-      throw new Error(`duplicate or missing tool id: ${tool.id}`);
+      throw new Error(`duplicate or missing tool id: ${String(tool.id)}`);
     if (typeof tool.crate !== "string" || !tool.crate || crates.has(tool.crate))
-      throw new Error(`duplicate or missing crate: ${tool.crate}`);
+      throw new Error(`duplicate or missing crate: ${String(tool.crate)}`);
     ids.add(tool.id);
     crates.add(tool.crate);
     semver(tool.version, `${tool.id} version`);
@@ -137,10 +137,9 @@ export async function loadQualityManifest() {
 
 async function validateConsumers(manifest: QualityManifest) {
   const entries = await Promise.all(
-    governedConsumers.map(async (name: string) => [
-      name,
-      await readFile(path.join(projectRoot, name), "utf8"),
-    ]),
+    governedConsumers.map(
+      async (name: string) => [name, await readFile(path.join(projectRoot, name), "utf8")] as const,
+    ),
   );
   const findings = findStaleConsumerPins(manifest, Object.fromEntries(entries));
   if (findings.length)

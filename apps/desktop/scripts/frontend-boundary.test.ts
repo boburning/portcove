@@ -1,3 +1,5 @@
+import assert from "node:assert/strict";
+import { isRecord } from "../../../scripts/runtime-values.mts";
 // @vitest-environment node
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -62,9 +64,18 @@ function inspect(
     );
     if (result.error) throw result.error;
     expect([0, 1]).toContain(result.status);
-    const report = JSON.parse(result.stdout);
-    expect(report.kind).toBe("dead-code");
-    return report;
+    const raw: unknown = JSON.parse(result.stdout);
+    assert.ok(isRecord(raw));
+    expect(raw.kind).toBe("dead-code");
+    assert.ok(Array.isArray(raw.boundary_violations));
+    const entries: unknown[] = raw.boundary_violations;
+    const boundary_violations = entries.map((value) => {
+      assert.ok(
+        isRecord(value) && typeof value.from_zone === "string" && typeof value.to_zone === "string",
+      );
+      return { ...value, from_zone: value.from_zone, to_zone: value.to_zone };
+    });
+    return { ...raw, boundary_violations };
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { checkDocumentLinks } from "./check-document-links.mts";
-test("new informational pages check local targets and anchors", () => {
+void test("new informational pages check local targets and anchors", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "portcove-links-"));
   try {
     writeFileSync(path.join(root, "target.md"), "# Working target\n");

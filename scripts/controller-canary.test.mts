@@ -24,7 +24,7 @@ const context = (): NodeJS.ProcessEnv => ({
   CANARY_EXPECTED_SHA256: createHash("sha256").update(canary).digest("hex"),
 });
 
-test("admission stays secret-free; proof binds the disposable material without returning it", () => {
+void test("admission stays secret-free; proof binds the disposable material without returning it", () => {
   const environment = context();
   delete environment.PORTCOVE_CONTROLLER_CANARY;
   delete environment.CANARY_EXPECTED_SHA256;
@@ -37,7 +37,7 @@ test("admission stays secret-free; proof binds the disposable material without r
   assert.match(receipt.qualification, /no signing or publication/);
 });
 
-test("wrong execution and invocation identities refuse before reading canary material", () => {
+void test("wrong execution and invocation identities refuse before reading canary material", () => {
   for (const change of [
     { GITHUB_REPOSITORY: "someone/portcove" },
     { GITHUB_EVENT_NAME: "pull_request" },
@@ -63,7 +63,7 @@ test("wrong execution and invocation identities refuse before reading canary mat
   }
 });
 
-test("bounded inert requests reject candidate commands, paths and extra authority", () => {
+void test("bounded inert requests reject candidate commands, paths and extra authority", () => {
   for (const raw of [
     "x".repeat(2049),
     "{",
@@ -85,7 +85,7 @@ test("bounded inert requests reject candidate commands, paths and extra authorit
     );
 });
 
-test("CLI failure does not echo request or canary; successful receipt contains only its digest", () => {
+void test("CLI failure does not echo request or canary; successful receipt contains only its digest", () => {
   const bad = spawnSync(process.execPath, ["scripts/controller-canary.mts", "prove"], {
     env: { ...process.env, ...context(), CANARY_REQUEST: '{"script":"SECRET_REQUEST"}' },
     encoding: "utf8",
@@ -99,6 +99,9 @@ test("CLI failure does not echo request or canary; successful receipt contains o
     encoding: "utf8",
   });
   assert.equal(good.status, 0, good.stderr);
-  assert.equal(JSON.parse(good.stdout).canary_sha256, context().CANARY_EXPECTED_SHA256);
+  const receipt: unknown = JSON.parse(good.stdout);
+  assert.ok(receipt !== null && typeof receipt === "object" && !Array.isArray(receipt));
+  const digest: unknown = Reflect.get(receipt, "canary_sha256");
+  assert.equal(digest, context().CANARY_EXPECTED_SHA256);
   assert.equal(good.stdout.includes(canary), false);
 });

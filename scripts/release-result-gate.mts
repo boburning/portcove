@@ -19,7 +19,7 @@ export function evaluateReleaseResults(results: unknown) {
     if (!(name in results)) throw new Error(`release result gate is missing ${name}`);
     const result: unknown = Reflect.get(results, name);
     if (result !== "success") {
-      throw new Error(`release result gate requires ${name}=success, received ${result}`);
+      throw new Error(`release result gate requires ${name}=success, received ${String(result)}`);
     }
   }
   return true;

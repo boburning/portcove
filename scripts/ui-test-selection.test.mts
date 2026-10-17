@@ -7,7 +7,7 @@ import test from "node:test";
 import { resolveUiSelection, reconcileUiSelection } from "./ui-test-selection.mts";
 import type { UiModuleObservation, UiRunObservation } from "./ui-test-selection.mts";
 
-test("literal UI paths reject omissions, ambiguous filters and outside files before execution", () => {
+void test("literal UI paths reject omissions, ambiguous filters and outside files before execution", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "ui-selection-"));
   try {
     mkdirSync(path.join(root, "src"));
@@ -51,7 +51,7 @@ const report = (testModules: UiModuleObservation[]): UiRunObservation => ({
   unhandledErrors: [],
 });
 
-test("nonempty successful partial matches cannot claim the requested selection", () => {
+void test("nonempty successful partial matches cannot claim the requested selection", () => {
   assert.throws(() => reconcileUiSelection(report([suite(one)]), [one, two]), /did not run/);
   assert.throws(() => reconcileUiSelection(report([suite(two)]), [one]), /Unexpected/);
   assert.throws(() => reconcileUiSelection(report([suite(one), suite(one)]), [one]), /duplicate/);
@@ -71,7 +71,7 @@ test("nonempty successful partial matches cannot claim the requested selection",
   );
 });
 
-test("complete selections distinguish observed suites, executed suites and skipped tests", () => {
+void test("complete selections distinguish observed suites, executed suites and skipped tests", () => {
   const result = reconcileUiSelection(report([suite(one), suite(two, "skipped")]), [one, two]);
   assert.deepEqual(result.requested_files, [one, two]);
   assert.deepEqual(result.discovered_files, [one, two]);
@@ -80,7 +80,7 @@ test("complete selections distinguish observed suites, executed suites and skipp
   assert.equal(result.skipped, 1);
 });
 
-test("exact wrapper rejects a mixed valid/missing request before invoking its runner", () => {
+void test("exact wrapper rejects a mixed valid/missing request before invoking its runner", () => {
   const result = spawnSync(
     process.execPath,
     [

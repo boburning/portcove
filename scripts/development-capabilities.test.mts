@@ -225,7 +225,7 @@ function isCommandCall(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((part: unknown) => typeof part === "string");
 }
 
-test(
+void test(
   "POSIX frontend setup selects only its supervisor compiler without Core components or Aqua",
   { skip: process.platform === "win32" },
   (t) => {

@@ -76,8 +76,8 @@ export async function checkContextualDoctor<Result, Context extends GuardedCheck
   expectedHead,
   report = () => {},
 }: {
-  capture(): Context;
-  check(): Result | Promise<Result>;
+  capture: () => Context;
+  check: () => Result | Promise<Result>;
   expectedHead?: string | undefined;
   report?: (context: Context) => void;
 }) {

@@ -114,12 +114,16 @@ export function readToolPins(root = projectRoot): ToolCachePins {
   )
     throw new Error("repository packageManager must pin an exact pnpm version");
   const fingerprint = sha256(
-    pinFiles.map((name: string) => `${name}\0${readFileSync(path.join(root, name))}`).join("\0"),
+    pinFiles
+      .map((name: string) => `${name}\0${readFileSync(path.join(root, name)).toString("utf8")}`)
+      .join("\0"),
   );
   const aquaFingerprint = sha256(
     [
       "portcove-aqua-cache-v1",
-      ...aquaPinFiles.map((name: string) => `${name}\0${readFileSync(path.join(root, name))}`),
+      ...aquaPinFiles.map(
+        (name: string) => `${name}\0${readFileSync(path.join(root, name)).toString("utf8")}`,
+      ),
       JSON.stringify({ schema_version: bootstrap.schema_version, aqua: bootstrap.aqua }),
     ].join("\0"),
   );

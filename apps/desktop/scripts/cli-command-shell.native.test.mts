@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { shellCommand } from "../src/cli-command.ts";
 
-test("passes shell-sensitive values as literal arguments to a harmless child process", () => {
+void test("passes shell-sensitive values as literal arguments to a harmless child process", () => {
   const shell = process.platform === "win32" ? "powershell" : "posix";
   const args = [
     "two words",

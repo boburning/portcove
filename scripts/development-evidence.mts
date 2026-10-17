@@ -54,11 +54,13 @@ export async function fileIdentity(
     throw new Error(`Evidence requires an ordinary file: ${absolute}`);
   const hash = createHash("sha256");
   let bytes = 0;
-  for await (const chunk of createReadStream(absolute, {
+  for await (const rawChunk of createReadStream(absolute, {
     signal,
     highWaterMark: EVIDENCE_READ_CHUNK_BYTES,
   })) {
-    bytes += chunk.length;
+    const chunk: unknown = rawChunk;
+    if (!(chunk instanceof Uint8Array)) throw new Error("Evidence stream yielded non-byte data");
+    bytes += chunk.byteLength;
     if (bytes > maxBytes || bytes > stats.size)
       throw new Error("Evidence input grew while being observed");
     hash.update(chunk);

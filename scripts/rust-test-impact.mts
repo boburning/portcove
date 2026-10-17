@@ -528,25 +528,25 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       throw new Error("Use the guarded Rust runner for impact unions");
     const { resourceEntrypoint } = await import("./resource-command.mts");
     process.exitCode = await resourceEntrypoint("rust", async () => {
-    if (process.argv[2] === "--workspace-run") {
-      const planFile = process.argv[3];
-      const planText =
-        process.env.PORTCOVE_PLAN_JSON ?? (planFile ? readFileSync(planFile, "utf8") : "");
-      const plan = validateValidationPlan(JSON.parse(planText));
-      const checkout = execFileSync("git", ["rev-parse", "HEAD"], {
-        cwd: projectRoot,
-        encoding: "utf8",
-      }).trim();
-      if (checkout !== plan.identities.checkout)
-        throw new Error("Rust impact plan checkout mismatch");
-      process.exitCode = runWorkspaceRustImpact(plan);
-    } else {
-      if (process.argv[2] !== "--run")
-        throw new Error("Use the guarded Rust runner for impact unions");
-      const packageName = process.argv[3];
-      if (!packageName) throw new Error("Rust impact union requires a package name");
-      process.exitCode = runRustImpactUnion(packageName, process.argv.slice(4));
-    }
+      if (process.argv[2] === "--workspace-run") {
+        const planFile = process.argv[3];
+        const planText =
+          process.env.PORTCOVE_PLAN_JSON ?? (planFile ? readFileSync(planFile, "utf8") : "");
+        const plan = validateValidationPlan(JSON.parse(planText));
+        const checkout = execFileSync("git", ["rev-parse", "HEAD"], {
+          cwd: projectRoot,
+          encoding: "utf8",
+        }).trim();
+        if (checkout !== plan.identities.checkout)
+          throw new Error("Rust impact plan checkout mismatch");
+        process.exitCode = runWorkspaceRustImpact(plan);
+      } else {
+        if (process.argv[2] !== "--run")
+          throw new Error("Use the guarded Rust runner for impact unions");
+        const packageName = process.argv[3];
+        if (!packageName) throw new Error("Rust impact union requires a package name");
+        process.exitCode = runRustImpactUnion(packageName, process.argv.slice(4));
+      }
       return process.exitCode ?? 0;
     });
   } catch (error) {

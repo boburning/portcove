@@ -277,9 +277,7 @@ function runtimeArgument(values: readonly unknown[], index: number): string {
   assert.ok(typeof value === "string");
   return value;
 }
-function assertCommandFailure(
-  error: unknown,
-): asserts error is Error & {
+function assertCommandFailure(error: unknown): asserts error is Error & {
   result: { command: string; args: string[]; status: number | null; stderr: string };
 } {
   assert.ok(error instanceof Error);

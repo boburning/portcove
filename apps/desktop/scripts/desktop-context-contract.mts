@@ -12,7 +12,7 @@ export function assertSteamEntryContext(context: unknown) {
     "open",
     "confirmNative",
   ]) {
-    const value =
+    const value: unknown =
       context !== null && typeof context === "object" ? Reflect.get(context, member) : undefined;
     const valid =
       member === "output"

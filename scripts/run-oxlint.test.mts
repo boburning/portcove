@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isRepositoryLintInput } from "./local-validation.mts";
 
-test("cross-language selection includes Vite+ inputs and actual script consumers", () => {
+void test("cross-language selection includes Vite+ inputs and actual script consumers", () => {
   for (const file of [
     "vite.config.ts",
     "tsconfig.json",
