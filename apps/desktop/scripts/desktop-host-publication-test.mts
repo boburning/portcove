@@ -8,6 +8,7 @@ import type { WebDriver } from "selenium-webdriver";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
+import { clickVisible, reviewControls } from "./desktop-review-controls.mts";
 import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { CapturedNativeProcess } from "./desktop-owned-native-session.mts";
@@ -495,19 +496,19 @@ export async function hostPublicationScenario(context: Context) {
       selectedImportRoot.library_root && samePath(selectedImportRoot.library_root, importRoot),
     );
     const importProbe = await arm("library_import_published", importRoot);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
-    await browser.findElement(button("Restore from a library copy")).click();
+    await reviewControls(browser).click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await reviewControls(browser).click(button("Restore from a library copy"));
     await browser.wait(until.elementLocated(By.id("import-metadata")), 15_000);
     await browser.findElement(By.id("import-metadata")).sendKeys(metadata);
     await browser.findElement(By.id("import-content")).sendKeys(destination);
-    await browser.findElement(button("Review restore")).click();
+    await reviewControls(browser).click(button("Review restore"));
     const importAction = await browser.wait(
       until.elementLocated(button("Restore this library")),
       15_000,
     );
     await browser.wait(until.elementIsEnabled(importAction), 15_000);
     await capture("library-import-reviewed-before-host-loss");
-    await importAction.click();
+    await clickVisible(browser, importAction);
     await confirmNative(
       "Confirm library restore",
       "Restore library",
