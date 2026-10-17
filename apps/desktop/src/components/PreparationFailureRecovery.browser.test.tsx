@@ -18,6 +18,7 @@ beforeEach(() => {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
+  refresh.mockClear();
   Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: vi.fn() });
 });
 afterEach(async () => {
@@ -29,7 +30,7 @@ const report = () => ({
   ...failureReport(),
   presentation: {
     ...failureReport().presentation,
-    recovery_actions: ["review_preparation", "view_technical_details"],
+    recovery_actions: ["review_preparation", "review_current_state", "view_technical_details"],
     recovery_target: { kind: "preparation", port_id: port.id },
   },
 });
@@ -85,6 +86,7 @@ function Workspace({ task }: { task: () => Promise<never> }) {
       <StatusLayer
         error={operations.error}
         clearError={() => operations.setError(undefined)}
+        reviewCurrentState={refresh}
         reviewPreparation={id ? () => navigation.open(id, "error:preparation-review") : undefined}
       />
       <section data-detail-workspace>
@@ -104,6 +106,13 @@ it("opens the reported game from another detail without repeating the failed mut
   await act(async () => root.render(<Workspace task={task} />));
   await act(async () => host.querySelector<HTMLButtonElement>("button")!.click());
   expect(host.querySelector("h1")?.textContent).toBe("other-port");
+  const read = [...host.querySelectorAll("button")].find(
+    (button) => button.textContent === "Review current state",
+  )!;
+  expect(refresh).toHaveBeenCalledOnce();
+  await act(async () => read.click());
+  expect(refresh).toHaveBeenCalledTimes(2);
+  expect(task).toHaveBeenCalledOnce();
   const review = host.querySelector<HTMLButtonElement>(
     '[data-detail-origin="error:preparation-review"]',
   )!;

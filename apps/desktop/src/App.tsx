@@ -690,6 +690,7 @@ function Workspace({
           <StatusLayer
             error={operations.error}
             clearError={() => operations.setError(undefined)}
+            reviewCurrentState={data.retryRefresh}
             reviewPreparation={
               preparationRecoveryPort(operations.error, data.catalog?.ports ?? [], data.statuses)
                 ? () => {

@@ -974,7 +974,8 @@ that workspace's error owner. This navigation repeats no mutation, restores no
 approval and grants no cleanup or resume authority; fresh detail/Core reviews
 retain their existing guards. CLI guidance preserves the originating library
 selection and identifies a read-only status command. Diagnostic strings never
-become a route.
+become a route. The direct notice's Review current state uses only the existing
+workspace readback retry, retaining the original failure and repeating no mutation.
 Not started, no requested changes, committed and recovery-required observations
 must be assigned where the operation owner has matching evidence. These states
 do not make blanket claims about diagnostic or lock-file bookkeeping.

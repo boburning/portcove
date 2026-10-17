@@ -1653,6 +1653,14 @@ export async function preparationScenarios({
         15_000,
       );
       const inventory = await activities();
+      const readOnlyReview = By.xpath(
+        '//div[contains(@class,"error-actions")]//button[normalize-space(.)="Review current state"]',
+      );
+      await browser.findElement(readOnlyReview).click();
+      assert.deepEqual(
+        (await activities()).map((item) => item.id).sort(),
+        inventory.map((item) => item.id).sort(),
+      );
       await browser.findElement(action).click();
       await browser.wait(
         async () => {
