@@ -1,3 +1,4 @@
+import { ActionReviewFailure } from "./ActionReviewFailure";
 import { useActionReview, type ReviewOutcome } from "../use-action-review";
 import { desktopApi } from "../api";
 import type { BackupAction, BackupRecord, BackupReview } from "../types";
@@ -64,7 +65,7 @@ export function BackupReviewDialog({
         </DialogDescription>
         {pending === "review" && <p role="status">Checking the backup and current saved data…</p>}
         {review && <BackupReviewDetails review={review} />}
-        {error && <p role="alert">{error}</p>}
+        <ActionReviewFailure error={error} />
         <DialogFooter className="mt-4">
           <Button
             data-autofocus

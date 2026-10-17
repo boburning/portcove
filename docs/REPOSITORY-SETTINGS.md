@@ -36,16 +36,16 @@ only removes the second-approver bottleneck.
 Validate the local artifacts without GitHub access:
 
 ```bash
-node scripts/repository-settings.mjs --validate
+node scripts/repository-settings.mts --validate
 ```
 
 An authenticated repository administrator can inspect the exact bounded delta,
 reconcile it, and then verify the live settings with:
 
 ```bash
-node scripts/repository-settings.mjs --plan
-node scripts/repository-settings.mjs --apply
-node scripts/repository-settings.mjs --check
+node scripts/repository-settings.mts --plan
+node scripts/repository-settings.mts --apply
+node scripts/repository-settings.mts --check
 ```
 
 The live modes fail closed when the stable ruleset is absent or any
@@ -103,7 +103,7 @@ required checks, and its PR-only bypass remain unchanged. No trial tag was used.
 See [GitHub's ruleset protections](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets).
 
 Re-read both settings before tagging and publication. The existing
-`repository-settings.mjs --check` covers the branch/private-reporting contract;
+`repository-settings.mts --check` covers the branch/private-reporting contract;
 it does not verify these release settings. Inspect the inherited-inclusive
 ruleset list and each applicable tag rule separately, preserving stronger rules.
 Do not add update/deletion bypasses or weaken branch rules to publish.

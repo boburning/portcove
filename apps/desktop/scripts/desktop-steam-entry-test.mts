@@ -1,0 +1,425 @@
+import { executeBrowserScript } from "./browser-script.mts";
+import { assertReviewFieldPresentation } from "./desktop-review-controls.mts";
+// Controlled native consumer proof for one explicit Steam profile. No Steam client is launched.
+import assert from "node:assert/strict";
+import path from "node:path";
+import { mkdir, stat, writeFile } from "node:fs/promises";
+import { By, Key, until } from "selenium-webdriver";
+import { fileIdentity } from "../../../scripts/development-evidence.mts";
+import { assertSteamEntryContext } from "./desktop-context-contract.mts";
+import {
+  assertDestructiveReviewAction,
+  assertPrimaryReviewAction,
+  captureAccessibilityReport,
+  openCatalogPortAfterRefresh,
+  reviewControls,
+} from "./desktop-review-controls.mts";
+
+import type { WebDriver, Locator } from "selenium-webdriver";
+import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
+import type { FixtureCommand } from "./desktop-scenario-state.mts";
+import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
+import type { PortDefinition } from "../src/transport-types.generated.d.ts";
+import { transportValue, transportValues } from "./transport-values.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+interface SteamEntryContext extends ScenarioContext {
+  invoke: ScenarioInvoke;
+  command: FixtureCommand;
+  seed: (portId: string, mode: "success") => Promise<{ port: PortDefinition }>;
+  open: (port: PortDefinition, waitForPreparation?: boolean) => Promise<unknown>;
+  confirmNative: ReturnType<typeof nativeConfirmation>;
+}
+function object(value: unknown) {
+  assert.ok(isRecord(value));
+  return value;
+}
+function success(value: unknown) {
+  const reply = object(value);
+  assert.equal(reply.ok, true);
+  return reply.value;
+}
+
+async function selectLocalProfile(
+  browser: WebDriver,
+  click: (locator: Locator) => Promise<unknown>,
+  profileId: string,
+  fieldId: string,
+) {
+  await click(By.xpath('//button[normalize-space(.)="Find local profiles"]'));
+  const choice = By.xpath(
+    `//div[@aria-label="Local Steam profiles"]//button[normalize-space(.)="${profileId}"]`,
+  );
+  await browser.wait(until.elementLocated(choice), 15_000);
+  await click(choice);
+  assert.equal(await browser.findElement(By.id(fieldId)).getAttribute("value"), profileId);
+}
+
+export async function steamEntryScenario(context: SteamEntryContext) {
+  assertSteamEntryContext(context);
+  const {
+    browser,
+    invoke: invokeRaw,
+    scenario,
+    output,
+    artifacts,
+    command,
+    open,
+    confirmNative,
+  } = context;
+  const invoke = async (name: string, args?: Record<string, unknown>) =>
+    object(await invokeRaw(name, args));
+  const generation = async () =>
+    transportValue("desktop_bootstrap_status", success(await invoke("get_bootstrap_status")))
+      .generation;
+  const status = (portId: string) => transportValue("status", command(["status", portId]));
+  const sources = () => transportValues("source", command(["source", "list"]));
+  const backups = (portId: string) =>
+    transportValue("backup_inventory", command(["backup", "list", portId]));
+  await scenario("native-reviewed-steam-entry-add-and-remove", async () => {
+    const { port } = await context.seed("opengoal-jak1", "success");
+    assert.ok(status(port.id).active, "setup must leave the fixture port installed");
+    const steamRoot = path.join(output, "controlled Steam ü");
+    const steamUserId = "12345";
+    const config = path.join(steamRoot, "userdata", steamUserId, "config");
+    const shortcuts = path.join(config, "shortcuts.vdf");
+    await mkdir(config, { recursive: true });
+    await open(port, false);
+    const { button, click } = reviewControls(browser);
+    await click(By.css("summary.advanced-summary"));
+    await click(button("Steam shortcut"));
+    const dialog = By.css('[aria-labelledby="steam-entry-title"]');
+    await browser.wait(until.elementLocated(dialog), 15_000);
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      async () => (await browser.findElements(dialog)).length === 0,
+      5_000,
+      "Steam entry dialog did not close after Escape",
+    );
+    const trigger = await browser.findElement(button("Steam shortcut"));
+    await browser.wait(
+      async () =>
+        executeBrowserScript(browser, "return document.activeElement === arguments[0];", trigger),
+      5_000,
+      "Steam entry trigger did not regain focus after Escape",
+    );
+    await click(button("Steam shortcut"));
+    await browser.wait(until.elementLocated(dialog), 15_000);
+    const installationField = await browser.findElement(By.id("steam-installation"));
+    const installationLabel = await browser.findElement(By.css('label[for="steam-installation"]'));
+    const fieldPresentation = await assertReviewFieldPresentation(
+      browser,
+      installationField,
+      installationLabel,
+      await browser.findElement(dialog),
+    );
+    await browser.findElement(By.id("steam-installation")).sendKeys(steamRoot);
+    await selectLocalProfile(browser, click, steamUserId, "steam-profile");
+    const profileScreenshot = path.join(output, "native-steam-profile-selection.png");
+    await writeFile(profileScreenshot, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(profileScreenshot);
+    const preview = await invoke("preview_steam_entry", {
+      request: { portId: port.id, steamRoot, steamUserId, operation: "add_or_repair" },
+      generation: await generation(),
+    });
+    assert.equal(preview.ok, true, JSON.stringify(preview));
+    const previewValue = transportValue("desktop_steam_entry_review", preview.value);
+    assert.equal(previewValue.plan_sha256.length, 64);
+    assert.ok(previewValue.cli_sha256 !== null);
+    assert.equal(previewValue.cli_sha256.length, 64);
+    assert.equal(previewValue.cli_product_version, "0.1.0-alpha.2");
+    assert.equal(previewValue.writes_required, true);
+    await click(button("Review shortcut setup"));
+    await browser.wait(until.elementLocated(button("Add or repair shortcut")), 15_000);
+    const addActionStyles = await assertPrimaryReviewAction(
+      browser,
+      await browser.findElement(button("Add or repair shortcut")),
+      await browser.findElement(button("Review current state again")),
+    );
+    const reviewed = await browser.findElement(dialog).getText();
+    assert.ok(reviewed.includes(shortcuts));
+    assert.ok(reviewed.includes("add"));
+    assert.ok(reviewed.includes("Keep Steam closed until this finishes"));
+    const accessibility = path.join(output, "steam-entry-review-accessibility.json");
+    await captureAccessibilityReport(browser, accessibility, artifacts);
+    await click(button("Add or repair shortcut"));
+    await confirmNative(
+      "Confirm Steam shortcut change",
+      "__observe__",
+      shortcuts,
+      "steam-entry-add-native-before-consent",
+    );
+    await confirmNative(
+      "Confirm Steam shortcut change",
+      "Cancel",
+      shortcuts,
+      "steam-entry-add-native-cancelled",
+    );
+    await browser.wait(until.elementLocated(button("Add or repair shortcut")), 15_000);
+    await assert.rejects(stat(shortcuts), { code: "ENOENT" });
+    await click(button("Add or repair shortcut"));
+    await confirmNative(
+      "Confirm Steam shortcut change",
+      "Add or repair shortcut",
+      shortcuts,
+      "steam-entry-add-native-confirmed",
+    );
+    await browser.wait(
+      until.elementLocated(
+        By.xpath('//p[@role="status" and contains(., "Steam shortcut updated.")]'),
+      ),
+      15_000,
+    );
+    const added = await fileIdentity(shortcuts);
+    const current = await invoke("preview_steam_entry", {
+      request: { portId: port.id, steamRoot, steamUserId, operation: "add_or_repair" },
+      generation: await generation(),
+    });
+    assert.equal(current.ok, true);
+    const currentValue = transportValue("desktop_steam_entry_review", current.value);
+    assert.equal(currentValue.writes_required, false);
+    await click(button("Close"));
+    const sourcesBeforeUninstall = sources();
+    const backupsBeforeUninstall = backups(port.id);
+    const savedDataRoot = transportValue("port_paths", command(["paths", port.id])).user_data_root;
+    const savedData = path.join(savedDataRoot, "owned-steam-removal-save.bin");
+    await mkdir(savedDataRoot, { recursive: true });
+    await writeFile(savedData, "owned save must survive game and shortcut removal", { flag: "wx" });
+    const savedDataBefore = await fileIdentity(savedData);
+    const removedInstall = command(["remove", port.id, "--yes"]);
+    const removedPaths = object(removedInstall).removed;
+    assert.ok(Array.isArray(removedPaths));
+    assert.ok(removedPaths.length > 0);
+    assert.equal(status(port.id).active, null);
+    assert.deepEqual(sources(), sourcesBeforeUninstall);
+    assert.deepEqual(backups(port.id), backupsBeforeUninstall);
+    assert.deepEqual(await fileIdentity(savedData), savedDataBefore);
+    assert.deepEqual(await fileIdentity(shortcuts), added);
+    await openCatalogPortAfterRefresh(browser, port, port.name);
+    await click(By.css("summary.advanced-summary"));
+    await click(button("Steam shortcut"));
+    assert.ok((await browser.findElement(dialog).getText()).includes("game is not installed here"));
+    await browser.findElement(By.id("steam-installation")).sendKeys(steamRoot);
+    await selectLocalProfile(browser, click, steamUserId, "steam-profile");
+    assert.equal(await browser.findElement(button("Review shortcut setup")).isEnabled(), false);
+    await click(button("Review shortcut removal"));
+    await browser.wait(until.elementLocated(button("Remove shortcut")), 15_000);
+    const removeActionStyles = await assertDestructiveReviewAction(
+      browser,
+      await browser.findElement(button("Remove shortcut")),
+      await browser.findElement(button("Review current state again")),
+    );
+    assert.ok((await browser.findElement(dialog).getText()).includes("remove"));
+    assert.ok(
+      (await browser.findElement(dialog).getText()).includes(
+        "selected profile and shortcut are checked",
+      ),
+    );
+    const screenshot = path.join(output, "native-steam-entry-remove-review.png");
+    await writeFile(screenshot, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(screenshot);
+    await click(button("Remove shortcut"));
+    await confirmNative(
+      "Confirm Steam shortcut change",
+      "Remove shortcut",
+      shortcuts,
+      "steam-entry-remove-native-confirmed",
+    );
+    await browser.wait(
+      until.elementLocated(
+        By.xpath('//p[@role="status" and contains(., "Steam shortcut removed.")]'),
+      ),
+      15_000,
+    );
+    const removed = await fileIdentity(shortcuts);
+    assert.notEqual(removed.sha256, added.sha256);
+    const absent = await invoke("preview_steam_entry", {
+      request: { portId: port.id, steamRoot, steamUserId, operation: "remove" },
+      generation: await generation(),
+    });
+    assert.equal(absent.ok, true);
+    const absentValue = transportValue("desktop_steam_entry_review", absent.value);
+    assert.equal(absentValue.writes_required, false);
+    assert.equal(status(port.id).active, null);
+    assert.deepEqual(sources(), sourcesBeforeUninstall);
+    assert.deepEqual(backups(port.id), backupsBeforeUninstall);
+    assert.deepEqual(await fileIdentity(savedData), savedDataBefore);
+    const report = path.join(output, "steam-entry-result.json");
+    await writeFile(
+      report,
+      `${JSON.stringify(
+        {
+          port_id: port.id,
+          steam_root: steamRoot,
+          steam_user_id: steamUserId,
+          shortcuts,
+          add_plan_sha256: previewValue.plan_sha256,
+          added,
+          removed,
+          native_add_cancelled_without_write: true,
+          exact_add_became_idempotent: true,
+          exact_owned_remove_became_idempotent: true,
+          uninstall_before_owned_remove: true,
+          original_sources_backups_and_saved_data_preserved: true,
+          escape_dismissed_and_restored_focus: true,
+          add_action_styles: addActionStyles,
+          remove_action_styles: removeActionStyles,
+          field_presentation: fieldPresentation,
+          steam_process_observation: "qualification-fixture-closed",
+          evidence:
+            "isolated local Steam tree through actual Tauri renderer and native confirmation with the compile-time qualification closed-process fixture; no actual closed Steam client, production profile, gameplay, or physical-platform claim",
+        },
+        null,
+        2,
+      )}\n`,
+      { flag: "wx" },
+    );
+    artifacts.push(report);
+  });
+  await scenario("native-reviewed-steam-batch-add", async () => {
+    // Remove uninstalls Jak I. A wider profile may have already seeded Jak II
+    // in a different preparation mode, so reuse its active install when present.
+    const first = status("opengoal-jak2").active
+      ? { port: transportValue("port", command(["catalog", "show", "opengoal-jak2"])) }
+      : await context.seed("opengoal-jak2", "success");
+    const second = await context.seed("opengoal-jak3", "success");
+    const steamRoot = path.join(output, "controlled batch Steam ü");
+    const steamUserId = "24680";
+    const shortcuts = path.join(steamRoot, "userdata", steamUserId, "config", "shortcuts.vdf");
+    await mkdir(path.dirname(shortcuts), { recursive: true });
+    const beforeSources = sources();
+    const beforeBackups = [first, second].map(({ port }) => backups(port.id));
+    await browser.navigate().refresh();
+    await browser.wait(
+      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+      15_000,
+    );
+    const { button, click } = reviewControls(browser);
+    await click(By.xpath('//nav//button[contains(., "Library")]'));
+    await click(button("Add selected games to Steam"));
+    const dialog = By.css('[aria-labelledby="steam-batch-title"]');
+    await browser.wait(until.elementLocated(dialog), 15_000);
+    const boxes = await browser.findElements(
+      By.css('[aria-labelledby="steam-batch-title"] input[type="checkbox"]'),
+    );
+    assert.ok(boxes.length >= 2, "fixture should offer both installed target games");
+    assert.equal(await browser.findElement(button("Review selected shortcuts")).isEnabled(), false);
+    const firstBox = await browser.findElement(
+      By.xpath(
+        `//div[@aria-labelledby="steam-batch-title"]//label[normalize-space(.)="${first.port.name}"]/input[@type="checkbox"]`,
+      ),
+    );
+    const secondBox = await browser.findElement(
+      By.xpath(
+        `//div[@aria-labelledby="steam-batch-title"]//label[normalize-space(.)="${second.port.name}"]/input[@type="checkbox"]`,
+      ),
+    );
+    await firstBox.click();
+    assert.equal(await browser.findElement(button("Review selected shortcuts")).isEnabled(), false);
+    await secondBox.click();
+    assert.equal(
+      (await Promise.all(boxes.map((box) => box.isSelected()))).filter(Boolean).length,
+      2,
+    );
+    await browser.findElement(By.id("steam-batch-installation")).sendKeys(steamRoot);
+    await selectLocalProfile(browser, click, steamUserId, "steam-batch-profile");
+    await click(button("Review selected shortcuts"));
+    await browser.wait(until.elementLocated(button("Add or repair selected shortcuts")), 15_000);
+    const reviewText = await browser.findElement(dialog).getText();
+    for (const { port } of [first, second]) assert.ok(reviewText.includes(port.name));
+    assert.ok(reviewText.includes(shortcuts));
+    const screenshot = path.join(output, "native-steam-batch-add-review.png");
+    await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+    artifacts.push(screenshot);
+    const selectedGeneration = await generation();
+    const request = {
+      portIds: [first.port.id, second.port.id],
+      steamRoot,
+      steamUserId,
+    };
+    const preview = await invoke("preview_steam_batch_add", {
+      request,
+      generation: selectedGeneration,
+    });
+    assert.equal(preview.ok, true, JSON.stringify(preview));
+    const previewValue = transportValue("desktop_steam_batch_review", preview.value);
+    assert.deepEqual(
+      previewValue.selected_games.map((game) => game.port_id),
+      request.portIds,
+    );
+    assert.equal(previewValue.changes.length, 2);
+    assert.equal(previewValue.writes_required, true);
+    const changedSelection = await invoke("apply_steam_batch_add", {
+      request: { ...request, portIds: [...request.portIds].reverse() },
+      expectedReviewSha256: previewValue.review_sha256,
+      generation: selectedGeneration,
+    });
+    assert.equal(changedSelection.ok, false, "a changed batch selection must not open consent");
+    await assert.rejects(stat(shortcuts), { code: "ENOENT" });
+    await click(button("Add or repair selected shortcuts"));
+    await confirmNative(
+      "Confirm Steam shortcut change",
+      "Cancel",
+      shortcuts,
+      "steam-batch-native-cancelled",
+    );
+    await assert.rejects(stat(shortcuts), { code: "ENOENT" });
+    await click(button("Add or repair selected shortcuts"));
+    await confirmNative(
+      "Confirm Steam shortcut change",
+      "Add or repair selected shortcuts",
+      shortcuts,
+      "steam-batch-native-confirmed",
+    );
+    await browser.wait(
+      until.elementLocated(
+        By.xpath('//p[@role="status" and contains(., "Selected Steam shortcuts updated.")]'),
+      ),
+      15_000,
+    );
+    const written = await fileIdentity(shortcuts);
+    const repeated = await invoke("preview_steam_batch_add", {
+      request,
+      generation: selectedGeneration,
+    });
+    assert.equal(repeated.ok, true, JSON.stringify(repeated));
+    const repeatedValue = transportValue("desktop_steam_batch_review", repeated.value);
+    assert.equal(repeatedValue.writes_required, false);
+    assert.deepEqual(sources(), beforeSources);
+    assert.deepEqual(
+      [first, second].map(({ port }) => backups(port.id)),
+      beforeBackups,
+    );
+    for (const { port } of [first, second]) assert.ok(status(port.id).active);
+    const report = path.join(output, "steam-batch-result.json");
+    await writeFile(
+      report,
+      `${JSON.stringify(
+        {
+          selected_port_ids: request.portIds,
+          steam_root: steamRoot,
+          steam_user_id: steamUserId,
+          shortcuts,
+          review_sha256: previewValue.review_sha256,
+          writer_plan_sha256: previewValue.writer_plan_sha256,
+          written,
+          changed_selection_rejected: true,
+          native_cancel_preserved_original: true,
+          repeat_review_idempotent: true,
+          sources_backups_installs_preserved: true,
+          evidence:
+            "isolated actual Tauri and native consent with compile-time closed-process fixture; no production Steam or physical platform claim",
+        },
+        null,
+        2,
+      )}\n`,
+      { flag: "wx" },
+    );
+    artifacts.push(report);
+  });
+}

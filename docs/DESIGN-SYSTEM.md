@@ -441,7 +441,7 @@ previews in `dev-scenarios/entry.ts` render inert component markup for shape and
 copy; they do not exercise interaction, focus, controller input, IPC or packaged
 behavior. Interactive browser tests such as `browser/adoption.browser.test.tsx`
 exercise real React controls with mocked transport, not Core installation or
-persistence. Native scenarios registered in `scripts/desktop-scenarios.mjs`
+persistence. Native scenarios registered in `scripts/desktop-scenarios.mts`
 require their guarded execution and retained receipt: registration alone is not
 a pass. A selected-setup Tauri/Core fixture can establish its observed review,
 cancel, result and return sequence only for the recorded source, platform and

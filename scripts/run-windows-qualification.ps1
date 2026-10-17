@@ -35,7 +35,7 @@ try {
 
     Push-Location $repositoryRoot
     try {
-        & node --test scripts/windows-qualification-session.integration.test.mjs
+        & node --test scripts/windows-qualification-session.integration.test.mts
         $exitCode = $LASTEXITCODE
     }
     finally {

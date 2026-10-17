@@ -1602,6 +1602,14 @@ internal static class ContractTests
             "client consumes external and managed actions with exact signed-definition reasons");
         Check(PortActions.Summary(status).Contains("review required"),
             "client presents external registration removal as awaiting review");
+        Check(PortActions.CanReviewRemoval(legacy, false) && PortActions.CanReviewRemoval(legacy, true),
+            "supported older whole status projection still reaches a fresh removal review");
+        Check(PortActions.CanReviewRemoval(status, true) && !PortActions.CanReviewRemoval(status, false),
+            "removal selection consumes the matching external versus managed assessment");
+        var missingRemoval = Json.Parse(@"{""port_actions"":[{""action"":""launch"",""availability"":""allowed"",""reason"":""available""}]}");
+        Check(!PortActions.CanReviewRemoval(missingRemoval, true), "partial current projection cannot open removal");
+        var wrongRemoval = Json.Parse(@"{""port_actions"":[{""action"":""remove_external"",""availability"":""allowed"",""reason"":""available""}]}");
+        Check(!PortActions.CanReviewRemoval(wrongRemoval, true), "removal still requires the explicit review-required tuple");
         Check(PortActionDecision.Read(Json.Parse(Json.Print(new
         {
             action = "register_external", availability = "not_offered", reason = "already_registered"

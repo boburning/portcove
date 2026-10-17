@@ -23,7 +23,7 @@ In particular, suffix-free 0.x publication is blocked by the required release
 classification implementation: the current suffix-only workflow would classify
 it incorrectly. Do not invoke it for a suffix-free beta.
 
-For a routine preview, `roadmap.mjs candidate-scope --issues <issue,issue,...>`
+For a routine preview, `roadmap.mts candidate-scope --issues <issue,issue,...>`
 checks the frozen implementation scope without waiting for unrelated milestone
 capabilities. It grants no publication authority and replaces none of the gates
 below. Declaring Public beta or 1.0 also requires the corresponding cumulative
@@ -171,7 +171,7 @@ exact commit, package hash, installed executable hash and mode, package name, na
 platform, and displayed guidance. This is focused ownership evidence; it does not
 repeat the AppImage update lifecycle or establish broader distro qualification.
 
-`scripts/updater-artifact-inventory.mjs stage` selects the complete existing package
+`scripts/updater-artifact-inventory.mts stage` selects the complete existing package
 matrix, copies final distributed bytes into a new directory, hashes them, verifies
 the updater signature, records the SHA-256 of the decoded canonical Minisign public-key
 file, and writes `updater-inventory.json` last. The outer Tauri base64 wrapper is an
@@ -190,12 +190,12 @@ Only verification accepts `--version` to check a historical fixture explicitly.
 Inventories are evidence, not trust roots or executable feeds. Altered/rebuilt
 packages require new verification and cannot inherit previous package evidence.
 
-`scripts/reconstruct-application-update-records.mjs` is the offline bridge from
+`scripts/reconstruct-application-update-records.mts` is the offline bridge from
 those verified inventories to the application record schema. It accepts a bounded
 source descriptor, a separate reviewed eligibility map and an output directory:
 
 ```powershell
-node scripts/reconstruct-application-update-records.mjs `
+node scripts/reconstruct-application-update-records.mts `
   --input work/update-record-inputs.json `
   --eligibility work/update-eligibility.json `
   --output work/update-records
@@ -331,7 +331,7 @@ The release version must match in exactly three places:
 
 After changing them, run Cargo once so the workspace package entries in `Cargo.lock` are refreshed (including the unpublished release verification tool). A release tag is always the exact version with a `v` prefix, such as `v0.1.0` or `v0.2.0-beta.1`.
 
-`scripts/check-release-metadata.mjs` verifies those versions, the tag, package manager pin, repository/license metadata, Tauri identity, and the required master/runtime/platform brand assets. It also requires one created local `main` Tauri window, scopes the default capability to that window, and uses Cargo's metadata graph to keep the declared qualification-only features out of both the transitive default Desktop feature set and always-enabled dependency features. The production Vite build independently rejects development scenarios and test fixtures from emitted assets. Local packaging derives its default version from that check and rejects an explicit mismatch.
+`scripts/check-release-metadata.mts` verifies those versions, the tag, package manager pin, repository/license metadata, Tauri identity, and the required master/runtime/platform brand assets. It also requires one created local `main` Tauri window, scopes the default capability to that window, and uses Cargo's metadata graph to keep the declared qualification-only features out of both the transitive default Desktop feature set and always-enabled dependency features. The production Vite build independently rejects development scenarios and test fixtures from emitted assets. Local packaging derives its default version from that check and rejects an explicit mismatch.
 
 The offline `pnpm --dir apps/desktop release:policy` utility accepts `classify`,
 `select` or `propose` followed by one JSON input file. It shares the existing Node
@@ -377,7 +377,7 @@ coordinator, refresh the complete published inventory, and validate input
 authority; separate clones do not constitute a global allocator. The tool neither
 pushes refs nor chooses credentials. Never delete a receipt to recycle a version.
 
-`node scripts/release-coordinator.mjs INPUT.json` is the deterministic decision
+`node scripts/release-coordinator.mts INPUT.json` is the deterministic decision
 boundary in front of that preparation operation. It requires a complete fresh
 canonically ordered publication inventory, exact candidate commit/tree, matching reviewed
 classification and accumulated-change digest, exact base revision, controller
@@ -406,7 +406,7 @@ Pages/feed permissions remain disabled pending #534. The checked-in fixture test
 are nonproduction evidence, not proof that a subscription task or production
 credential path is active.
 
-`node scripts/release-run-evidence.mjs REQUEST.json` collects bounded read-only
+`node scripts/release-run-evidence.mts REQUEST.json` collects bounded read-only
 API evidence for an exact completed current `Release` run and attempt. The
 request contains only schema version `1`, numeric `repository_id`, `run_id` and
 `attempt`, and independently reviewed `revision`, `tree` and `workflow_sha256`
@@ -417,7 +417,7 @@ attempt, missing page, inconsistent total, duplicate identity or exhausted
 bound refuses the receipt. Bounds are 1,600 records per inventory, 40 GET
 requests, 120 seconds and 2 MiB per API reply.
 
-`node scripts/release-run-evidence.mjs REQUEST.json ARTIFACT_ID RETAINED_FILE`
+`node scripts/release-run-evidence.mts REQUEST.json ARTIFACT_ID RETAINED_FILE`
 also compares an already retained opaque file with that artifact's current
 provider digest and exact byte count. Missing, expired or undigested artifacts
 refuse before file I/O. One regular-file handle streams at most 512 MiB using a
@@ -500,7 +500,7 @@ a way to make a failed build disappear.
 The builders derive the version from checked Cargo/Desktop/Tauri metadata,
 package the CLI, extract that final archive, verify the executable name and
 native architecture, run `--version`, and exercise a machine command against an
-isolated temporary library. `write-release-checksums.mjs` then accepts exactly
+isolated temporary library. `write-release-checksums.mts` then accepts exactly
 the policy's platform outputs and creates an internal platform manifest. The
 cross-platform reconciler independently requires the complete policy matrix,
 recomputes every hash, rejects unsafe paths, missing/unexpected/case-colliding
@@ -547,7 +547,7 @@ absence of a live child never replaces the final cleanup and preservation checks
 Prepare a reproducible hands-on session for an existing qualification library with:
 
 ```text
-node scripts/qualification-report.mjs --cli <portcove.exe> --library <qualification-library> --output <new-report-directory>
+node scripts/qualification-report.mts --cli <portcove.exe> --library <qualification-library> --output <new-report-directory>
 ```
 
 The report captures versioned core diagnostics, catalog, sources, status, activity, capacity, and backup listings, plus the exact CLI hash. Its checklist leaves gameplay, audio, controller, and save/load observations unassessed. Keep these local reports private because source references contain local paths; they never contain source file contents or account credentials. The tool does not edit catalog qualification flags.
@@ -558,7 +558,7 @@ that checkout; ignored `target`, `work`, or `outputs` directories are suitable.
 The predecessor version and installer digest are mandatory:
 
 ```powershell
-node scripts/write-windows-qualification-build.mjs `
+node scripts/write-windows-qualification-build.mts `
   --repository <absolute-clean-candidate-checkout> `
   --installer <candidate-setup.exe> --cli <candidate-portcove.exe> `
   --desktop <raw-candidate-portcove-desktop.exe> `
@@ -638,7 +638,7 @@ qualification state. Then generate a new immutable snapshot under
 `docs/releases/`:
 
 ```powershell
-node scripts/roadmap.mjs snapshot --release "Alpha 1" --output docs/releases/0.1.0-alpha.1-readiness.md
+node scripts/roadmap.mts snapshot --release "Alpha 1" --output docs/releases/0.1.0-alpha.1-readiness.md
 ```
 
 Legacy snapshots retain historical cumulative stages. New Public beta snapshots
@@ -651,7 +651,7 @@ unclassified, or Project-missing dependencies as conflicts. Parentage and
 related-work links do not block a release. Relevant unclassified work and known
 shipped-scope safety conflicts prevent a falsely green result, while unrelated
 unscheduled intake does not. Only Project `Status = Done` counts as complete.
-Use `roadmap.mjs readiness --release <stage>` for a live derived preview. The
+Use `roadmap.mts readiness --release <stage>` for a live derived preview. The
 generator reports closed/not-planned issues whose Project status disagrees and
 accepts evidence links only from the explicit Completion evidence section,
 implementation pull requests/checks, or qualification and rehearsal records.
@@ -848,7 +848,7 @@ Then use `gh release verify-asset <tag> <asset>` and `gh attestation verify
 release/tag, exact commit/run, API size/digest, attestation result, and HTTP result.
 Historical manifests stay untouched.
 
-`scripts/select-release-channel.mjs --channel preview|stable --input releases.json`
+`scripts/select-release-channel.mts --channel preview|stable --input releases.json`
 selects the highest eligible SemVer from a complete published release inventory.
 It excludes drafts, keeps public 0.x in Preview, and requires separate production
 eligibility for Stable. Preview also includes eligible final releases. Optional
@@ -910,7 +910,7 @@ remain outside the baseline. Record exact unsupported paths and recovery limits.
 
 ## Optional signed catalog publication
 
-`scripts/sign-catalog.mjs` signs an explicit catalog file using an existing Ed25519 PKCS#8 private key file and writes a new envelope without overwriting an existing output. This is offline publisher tooling, not a production key generator or hosted release workflow. The consumer trusts no publisher by default. Configure custody, recovery, rotation, a strictly increasing catalog sequence, and an independently verifiable public-key distribution channel before publishing a production feed. A catalog signature is neither an application code signature nor desktop updater authorization. Exact invocation and verification steps are in [SIGNED-CATALOG.md](SIGNED-CATALOG.md).
+`scripts/sign-catalog.mts` signs an explicit catalog file using an existing Ed25519 PKCS#8 private key file and writes a new envelope without overwriting an existing output. This is offline publisher tooling, not a production key generator or hosted release workflow. The consumer trusts no publisher by default. Configure custody, recovery, rotation, a strictly increasing catalog sequence, and an independently verifiable public-key distribution channel before publishing a production feed. A catalog signature is neither an application code signature nor desktop updater authorization. Exact invocation and verification steps are in [SIGNED-CATALOG.md](SIGNED-CATALOG.md).
 
 ## GLib development policy and Linux release authorization
 

@@ -92,7 +92,7 @@ function Set-FixtureVersion([string]$Version) {
         $data.version = $Version
         [IO.File]::WriteAllText((Join-Path $root $relative), ($data | ConvertTo-Json -Depth 30))
     }
-    Invoke-Checked "node" @("scripts/check-release-metadata.mjs")
+    Invoke-Checked "node" @("scripts/check-release-metadata.mts")
 }
 
 function Invoke-PackagedPayloadConsumer([string]$Stage, [string]$CandidateVersion, [string]$TufPrivateRootPath = "") {
@@ -232,7 +232,7 @@ try {
             $verifier = Join-Path $cliTargetRoot "release/portcove-release-tools.exe"
         }
         & (Join-Path $PSScriptRoot "package-cli.ps1") -PlatformLabel $PlatformLabel -TargetRoot $cliTargetRoot
-        $cliName = (& node scripts/release-package-policy.mjs --platform $PlatformLabel --interface cli --version $version | Out-String).Trim()
+        $cliName = (& node scripts/release-package-policy.mts --platform $PlatformLabel --interface cli --version $version | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw "Cannot select packaged CLI" }
         & (Join-Path $PSScriptRoot "smoke-test-cli-archive.ps1") -ArchivePath (Join-Path $cliRoot $cliName) -PlatformLabel $PlatformLabel -Version $version
         $tauriArguments = @("--dir", "apps/desktop", "tauri", "build", "--bundles", $bundles, "--config", $configPath, "--ci")
@@ -245,8 +245,8 @@ try {
         }
         Invoke-Checked "pnpm" $tauriArguments
         $stage = Join-Path $runRoot "$version-$PlatformLabel"
-        Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "stage", "--output", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
-        Invoke-Checked "node" @("scripts/updater-artifact-inventory.mjs", "verify", "--input", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
+        Invoke-Checked "node" @("scripts/updater-artifact-inventory.mts", "stage", "--output", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
+        Invoke-Checked "node" @("scripts/updater-artifact-inventory.mts", "verify", "--input", $stage, "--label", $PlatformLabel, "--public-key", $publicKey, "--verifier", $verifier, "--revision", $revision)
         $native = [ordered]@{ source_commit = $revision; version = $version; platform = $PlatformLabel; signing = "disposable test key" }
         $native.os_version = [Runtime.InteropServices.RuntimeInformation]::OSDescription
         $native.process_architecture = [Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString()
@@ -357,7 +357,7 @@ try {
         }
         $eligibility | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $eligibilityPath -Encoding utf8
         $records = Join-Path $fixtureRoot "records"
-        Invoke-Checked "node" @("scripts/reconstruct-application-update-records.mjs", "--input", $descriptorPath, "--eligibility", $eligibilityPath, "--output", $records)
+        Invoke-Checked "node" @("scripts/reconstruct-application-update-records.mts", "--input", $descriptorPath, "--eligibility", $eligibilityPath, "--output", $records)
         $tufConfigPath = Join-Path $fixtureRoot "build-tuf.json"
         $tufConfig = Get-Content -LiteralPath $tufConfigPath -Raw | ConvertFrom-Json -AsHashtable
         $tufConfig.reconstructed_records = "records"
@@ -469,7 +469,7 @@ try {
         }
 
         $records = Join-Path $fixtureRoot "records"
-        Invoke-Checked "node" @("scripts/reconstruct-application-update-records.mjs", "--input", $descriptorPath, "--eligibility", $eligibilityPath, "--output", $records)
+        Invoke-Checked "node" @("scripts/reconstruct-application-update-records.mts", "--input", $descriptorPath, "--eligibility", $eligibilityPath, "--output", $records)
         $missingRecords = Join-Path $fixtureRoot "records-missing-payload-signature"
         $wrongRecords = Join-Path $fixtureRoot "records-wrong-payload-signature"
         foreach ($recordVariant in @(
@@ -630,7 +630,7 @@ try {
             $env:PORTCOVE_PREFERENCES = Join-Path $rendererRoot "host-preferences.json"
             $rendererArguments = @(
                 "-a", "dbus-run-session", "--", "node",
-                (Join-Path $root "apps/desktop/scripts/desktop-appimage-update-test.mjs"),
+                (Join-Path $root "apps/desktop/scripts/desktop-appimage-update-test.mts"),
                 "--app", $rendererStable,
                 "--driver", (Get-Command tauri-driver -ErrorAction Stop).Source,
                 "--native-driver", (Get-Command WebKitWebDriver -ErrorAction Stop).Source,
@@ -711,7 +711,7 @@ try {
         }
         $eligibility | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $eligibilityPath -Encoding utf8
         $records = Join-Path $fixtureRoot "records"
-        Invoke-Checked "node" @("scripts/reconstruct-application-update-records.mjs", "--input", $descriptorPath, "--eligibility", $eligibilityPath, "--output", $records)
+        Invoke-Checked "node" @("scripts/reconstruct-application-update-records.mts", "--input", $descriptorPath, "--eligibility", $eligibilityPath, "--output", $records)
         $tufConfigPath = Join-Path $fixtureRoot "build-tuf.json"
         Invoke-Checked "cargo" @("run", "--locked", "--quiet", "-p", "portcove-release-tools", "--", "build-tuf", $tufConfigPath)
 
