@@ -5,10 +5,10 @@ on:
     paths:
       - "crates/portcove-core/catalog/**"
       - "scripts/retcomm-psx-upstreams.json"
-      - "scripts/check-catalog-repositories.mjs"
-      - "scripts/check-retcomm-upstreams.mjs"
-      - "scripts/upstream-health-plan.mjs"
-      - "scripts/upstream-observer.mjs"
+      - "scripts/check-catalog-repositories.mts"
+      - "scripts/check-retcomm-upstreams.mts"
+      - "scripts/upstream-health-plan.mts"
+      - "scripts/upstream-observer.mts"
       - ".github/upstream-health-accounting.json"
       - ".node-version"
       - ".github/workflows/upstream-health.yml"
@@ -17,10 +17,10 @@ on:
     paths:
       - "crates/portcove-core/catalog/**"
       - "scripts/retcomm-psx-upstreams.json"
-      - "scripts/check-catalog-repositories.mjs"
-      - "scripts/check-retcomm-upstreams.mjs"
-      - "scripts/upstream-health-plan.mjs"
-      - "scripts/upstream-observer.mjs"
+      - "scripts/check-catalog-repositories.mts"
+      - "scripts/check-retcomm-upstreams.mts"
+      - "scripts/upstream-health-plan.mts"
+      - "scripts/upstream-observer.mts"
       - ".github/upstream-health-accounting.json"
       - ".node-version"
       - ".github/workflows/upstream-health.yml"
@@ -48,20 +48,20 @@ jobs:
           node-version-file: .node-version
       - name: Select exact upstream health obligations
         id: scope
-        run: node scripts/upstream-health-plan.mjs
+        run: node scripts/upstream-health-plan.mts
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       - name: Check catalog locations within the selected scope
         run: |
           case "$HEALTH_MODE" in
-            full) node scripts/check-catalog-repositories.mjs ;;
+            full) node scripts/check-catalog-repositories.mts ;;
             affected)
               test -n "$HEALTH_PORT_IDS"
-              node scripts/check-catalog-repositories.mjs --port-ids="$HEALTH_PORT_IDS" ;;
+              node scripts/check-catalog-repositories.mts --port-ids="$HEALTH_PORT_IDS" ;;
             none)
               test -z "$HEALTH_PORT_IDS"
-              node scripts/check-catalog-repositories.mjs --port-ids= ;;
+              node scripts/check-catalog-repositories.mts --port-ids= ;;
             *) echo 'Missing or invalid upstream health scope' >&2; exit 1 ;;
           esac
         env:
@@ -72,10 +72,10 @@ jobs:
         if: ${{ !cancelled() && steps.scope.outcome == 'success' && steps.scope.outputs.retcomm == 'true' }}
         run: |
           case "$HEALTH_MODE" in
-            full) node scripts/check-retcomm-upstreams.mjs ;;
+            full) node scripts/check-retcomm-upstreams.mts ;;
             affected)
               test -n "$RETCOMM_PORT_IDS"
-              node scripts/check-retcomm-upstreams.mjs --port-ids="$RETCOMM_PORT_IDS" ;;
+              node scripts/check-retcomm-upstreams.mts --port-ids="$RETCOMM_PORT_IDS" ;;
             *) echo 'Missing or invalid RetComM health scope' >&2; exit 1 ;;
           esac
         env:

@@ -5,7 +5,7 @@ description: Perform Portcove issue intake, dependency and live GitHub Project r
 
 Resolve the checkout with `git rev-parse --show-toplevel`. GitHub Projects owns
 live planning. Read the relevant [governance section](../../../docs/PROJECT-GOVERNANCE.md),
-not the entire handbook. Use the current `roadmap.mjs --help` for flags.
+not the entire handbook. Use the current `roadmap.mts --help` for flags.
 
 Pickup/resume: `context --issue <number> --runner <identity> --json` reads relevant
 requirements. Reuse until material requirements/source changes and the final

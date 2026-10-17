@@ -108,4 +108,4 @@ runs:
     - name: Prepare native host-tool fixture
       if: inputs.test-fixtures == 'true'
       shell: pwsh
-      run: node scripts/run-rust-tests.mjs --prepare-only
+      run: node scripts/run-rust-tests.mts --prepare-only

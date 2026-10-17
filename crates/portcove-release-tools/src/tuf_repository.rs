@@ -1,7 +1,7 @@
 //! Offline construction of the authenticated application-update repository.
 //!
 //! This boundary consumes the deterministic record tree produced by
-//! `reconstruct-application-update-records.mjs`, adds the separately controlled
+//! `reconstruct-application-update-records.mts`, adds the separately controlled
 //! payload-key registry, and signs TUF metadata with distinct role keys. It has
 //! no network, publication, credential-provisioning, or runtime-update authority.
 

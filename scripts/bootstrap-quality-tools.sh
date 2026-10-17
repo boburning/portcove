@@ -21,7 +21,7 @@ want_rust=true
 want_aqua=true
 capability_plan=""
 if [[ "$profile" != standard ]]; then
-  capability_plan="$(node scripts/development-capabilities.mjs --profile "$profile")"
+  capability_plan="$(node scripts/development-capabilities.mts --profile "$profile")"
   plan_flag() { node -e 'const p=JSON.parse(process.argv[1]); process.exit(p.setup[process.argv[2]] ? 0 : 1)' "$capability_plan" "$1"; }
   plan_flag frontend && want_frontend=true
   if $include_deep; then printf '%s\n' 'Selective profiles cannot be combined with --include-deep' >&2; exit 2; fi
@@ -36,9 +36,9 @@ fi
 # guarded setup never auto-installs the compiler needed by its own supervisor.
 if [[ "${GITHUB_ACTIONS:-}" != true && "${PORTCOVE_CONTAINER_GUEST:-}" != 1 ]]; then
   if [[ -z "${PORTCOVE_RESOURCE_RESERVATION:-}" ]]; then
-    exec node scripts/resource-command.mjs rust --bootstrap -- "$BASH" "$project_root/scripts/bootstrap-quality-tools.sh" "${bootstrap_args[@]}"
+    exec node scripts/resource-command.mts rust --bootstrap -- "$BASH" "$project_root/scripts/bootstrap-quality-tools.sh" "${bootstrap_args[@]}"
   fi
-  node scripts/resource-command.mjs verify-bootstrap
+  node scripts/resource-command.mts verify-bootstrap
 fi
 if $want_frontend; then
   node_pin="$(tr -d '\r\n' < .node-version)"
@@ -85,7 +85,7 @@ if [[ "$aqua_version" != "${required_aqua#v}" ]]; then
   exit 1
 fi
 
-tool_paths="$(node scripts/tool-cache.mjs --paths)"
+tool_paths="$(node scripts/tool-cache.mts --paths)"
 AQUA_ROOT_DIR="$(node -e 'const fs=require("node:fs"); console.log(JSON.parse(fs.readFileSync(0,"utf8")).aquaRoot)' <<<"$tool_paths")"
 export AQUA_ROOT_DIR
 export AQUA_ENFORCE_CHECKSUM=true
@@ -97,13 +97,13 @@ fi
 
 required_tools=()
 if [[ "$profile" == standard ]]; then
-  while IFS= read -r tool; do required_tools+=("$tool"); done < <(node scripts/quality-tools.mjs --specs required)
+  while IFS= read -r tool; do required_tools+=("$tool"); done < <(node scripts/quality-tools.mts --specs required)
 else
   while IFS= read -r tool; do required_tools+=("$tool"); done < <(node -e 'for(const t of JSON.parse(process.argv[1]).setup.cargo_tools) console.log([t.crate,t.version,t.command.join(" ")].join("|"))' "$capability_plan")
 fi
 optional_tools=()
 if $include_deep; then
-  while IFS= read -r tool; do optional_tools+=("$tool"); done < <(node scripts/quality-tools.mjs --specs deep)
+  while IFS= read -r tool; do optional_tools+=("$tool"); done < <(node scripts/quality-tools.mts --specs deep)
 fi
 
 reported_version() {
@@ -162,7 +162,7 @@ if $include_deep; then
 fi
 
 if [[ "$profile" != standard ]]; then
-  node scripts/dev-doctor.mjs --profile "$profile"
+  node scripts/dev-doctor.mts --profile "$profile"
 fi
 printf 'Requested pinned Portcove tools are ready (%s).\n' "$profile"
 if [[ ${#optional_failures[@]} -gt 0 ]]; then
