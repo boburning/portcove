@@ -84,7 +84,7 @@ void test("slice3 Windows recovery binds fixed sources and scenarios without bil
     }),
     [
       {
-        source: "26a5ec0cea46d9a089dcf2148ed78e65ae0da88e",
+        source: "a41931ce514f1969bee91bba5e34282e6312e502",
         scenario: "native-host-publication-recovery",
       },
     ],
