@@ -1,4 +1,5 @@
-import { errorMessage } from "./runtime-values.mts";
+import type { BinaryLike } from "node:crypto";
+import { errorMessage, isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync, mkdirSync, cpSync, realpathSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
@@ -7,61 +8,164 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { Writable } from "node:stream";
 import { renderBoundedSummary } from "./report-summary.mts";
 
-const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+interface ProbeOptions {
+  engine: string;
+  workspace: string;
+  configFile: string;
+  observedAt: string;
+  evidenceRoot: string;
+}
+interface ProbeDependency extends Record<string, unknown> {
+  depName: string;
+  currentValue: string;
+  lockedVersion: string;
+}
+interface ReleaseObservation {
+  version: string;
+  releaseTimestamp: string;
+}
+interface ProbeReport {
+  schemaVersion: number;
+  engine: { version: string; sources: Record<string, string> };
+  observedAt: string;
+  observationKind: string;
+  inputs: { manifestSha256: string; lockSha256: string; configSha256: string };
+  state: "running" | "complete" | "failed";
+  extraction?: ReturnType<typeof normalizeExtraction>;
+  preLookup?: {
+    depName: string;
+    rangeStrategy: unknown;
+    minimumReleaseAge: unknown;
+    minimumReleaseAgeBehaviour: unknown;
+    internalChecksFilter: unknown;
+    automerge: unknown;
+  }[];
+  selection?: {
+    releases: ReleaseObservation[];
+    selection: Record<string, unknown>;
+    update: Record<string, unknown>;
+  };
+  syntheticBoundaries?: {
+    unknownTimestampPending: unknown;
+    minor: Record<string, unknown>;
+    majorApproval: unknown;
+    negativeControls: Record<string, unknown>[];
+    security: { minimumReleaseAge: unknown; automerge: unknown; selected: string };
+  };
+  artifact?: {
+    locked: string;
+    nearby: string | undefined;
+    commands: string[];
+    manifestUnchanged: boolean;
+    otherLockEntriesUnchanged: boolean;
+    afterLockSha256: string;
+  };
+  fullLockfileMaintenance?: {
+    locked: string | undefined;
+    nearby: string | undefined;
+    commands: string[];
+    universalTransitiveAgeGuarantee: boolean;
+  };
+  failure?: string;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value), "Expected engine object");
+  return value;
+}
+function text(value: unknown): string {
+  assert.ok(typeof value === "string", "Expected engine text");
+  return value;
+}
+function array(value: unknown): unknown[] {
+  assert.ok(Array.isArray(value), "Expected engine collection");
+  return value;
+}
+function required<Value>(value: Value | undefined): Value {
+  assert.ok(value !== undefined);
+  return value;
+}
+// Pinned deployed Renovate internals are loaded by file URL, outside this project's dependency graph.
+// Check export callability and keep results unknown until their consumed contract is validated.
+function callable(value: unknown, receiver?: object) {
+  assert.ok(typeof value === "function", "Expected callable pinned engine export");
+  return (...args: unknown[]): unknown => {
+    const result: unknown = Reflect.apply(value, receiver, args);
+    return result;
+  };
+}
+function dependency(value: unknown): ProbeDependency {
+  const raw = object(value);
+  return {
+    ...raw,
+    depName: text(raw.depName),
+    currentValue: text(raw.currentValue),
+    lockedVersion: text(raw.lockedVersion),
+  };
+}
+const hash = (bytes: BinaryLike) => createHash("sha256").update(bytes).digest("hex");
 const fixturePath = fileURLToPath(
   new URL("./fixtures/serde-json-renovate-44.156.3.json", import.meta.url),
 );
 
-export function freezeProbeClock(observedAt) {
+export function freezeProbeClock(observedAt: string) {
   const OriginalDate = globalThis.Date,
     now = OriginalDate.parse(observedAt);
   assert.ok(Number.isFinite(now), "Invalid probe clock");
-  globalThis.Date = class extends OriginalDate {
-    constructor(...args) {
-      super(...(args.length ? args : [now]));
-    }
-    static now() {
-      return now;
-    }
-  };
+  globalThis.Date = new Proxy(OriginalDate, {
+    apply() {
+      return new OriginalDate(now).toString();
+    },
+    construct(target, args, newTarget) {
+      const date: unknown = Reflect.construct(target, args.length ? args : [now], newTarget);
+      assert.ok(date instanceof OriginalDate);
+      return date;
+    },
+    get(target, key, receiver) {
+      if (key === "now") return () => now;
+      const value: unknown = Reflect.get(target, key, receiver);
+      return value;
+    },
+  });
   return () => {
     globalThis.Date = OriginalDate;
   };
 }
 
-export function validateEngine(engine: string, fixture) {
-  const version = JSON.parse(readFileSync(path.join(engine, "package.json"), "utf8")).version;
+export function validateEngine(engine: string, fixture: unknown) {
+  const expected = object(object(fixture).engine);
+  const raw: unknown = JSON.parse(readFileSync(path.join(engine, "package.json"), "utf8"));
+  const version = text(object(raw).version);
   assert.equal(
     version,
-    fixture.engine.version,
+    expected.version,
     "Engine version mismatch: fresh deployed-engine capture and adapter review required",
   );
+  const expectedSources = object(expected.sources);
   const sources = Object.fromEntries(
-    Object.keys(fixture.engine.sources).map((source: string) => [
+    Object.keys(expectedSources).map((source) => [
       source,
       hash(readFileSync(path.join(engine, "dist", source))),
     ]),
   );
-  assert.deepEqual(
-    sources,
-    fixture.engine.sources,
-    "Engine source mismatch: fresh capture required",
-  );
+  assert.deepEqual(sources, expectedSources, "Engine source mismatch: fresh capture required");
   return { version, sources };
 }
 
-export function normalizeExtraction(extraction) {
-  assert.ok(Array.isArray(extraction?.deps), "Extractor must return deps");
-  const deps = extraction.deps.filter((dep) => ["serde_json", "semver"].includes(dep.depName));
+export function normalizeExtraction(extraction: unknown) {
+  const raw = object(extraction);
+  assert.ok(Array.isArray(raw.deps), "Extractor must return deps");
+  const entries: unknown[] = raw.deps;
+  const deps = entries
+    .map(object)
+    .filter((dep) => ["serde_json", "semver"].some((name) => name === dep.depName));
   assert.equal(deps.length, 2, "Expected serde_json and nearby semver control");
   assert.equal(new Set(deps.map((dep) => dep.depName)).size, 2, "Duplicate extracted identities");
-  return deps.map((dep) => {
+  return deps.map((raw) => {
+    const dep = dependency(raw);
     assert.equal(dep.datasource, "crate");
-    assert.equal(typeof dep.currentValue, "string");
-    assert.equal(typeof dep.lockedVersion, "string");
     return {
       ...dep,
-      packageName: dep.packageName ?? dep.depName,
+      packageName: text(dep.packageName ?? dep.depName),
       manager: "cargo",
       packageFile: "Cargo.toml",
       versioning: "cargo",
@@ -70,23 +174,35 @@ export function normalizeExtraction(extraction) {
   });
 }
 
-export function validatePresetResult(result) {
+/** Renovate exports a class with static methods; its receiver is part of the contract. */
+export function validateGlobalConfig(value: unknown) {
   assert.ok(
-    result?.config && typeof result.config === "object",
-    "Preset result must contain config",
+    value !== null && (typeof value === "object" || typeof value === "function"),
+    "GlobalConfig export required",
   );
+  const set: unknown = Reflect.get(value, "set");
+  const get: unknown = Reflect.get(value, "get");
+  return { set: callable(set, value), get: callable(get, value) };
+}
+
+export function validatePresetResult(value: unknown) {
+  const result = object(value);
+  assert.ok(isRecord(result.config), "Preset result must contain config");
   assert.ok(result.visitedPresets, "Preset result must retain visitedPresets");
   return result.config;
 }
-
-export function validateLookupResult(result) {
-  assert.equal(result?.res?.ok, true, "Lookup must return a successful Result");
-  assert.ok(Array.isArray(result.res.val?.updates), "Lookup Result must contain updates");
-  return result.res.val.updates;
+export function validateLookupResult(value: unknown) {
+  const result = isRecord(value) ? value : {};
+  const res = isRecord(result.res) ? result.res : {};
+  assert.equal(res.ok, true, "Lookup must return a successful Result");
+  const val = isRecord(res.val) ? res.val : {};
+  assert.ok(Array.isArray(val.updates), "Lookup Result must contain updates");
+  const updates: unknown[] = val.updates;
+  return updates.map(object);
 }
-
-export function validateCommandRecords(records) {
+export function validateCommandRecords(records: readonly unknown[]) {
   const commands = records
+    .map(object)
     .filter((record) => record.msg === "Executing command")
     .map((record) => {
       const command = record.command ?? record.cmd;
@@ -99,33 +215,31 @@ export function validateCommandRecords(records) {
   assert.ok(commands.length > 0, "Artifact command records missing");
   return commands;
 }
-
-export function validateArtifactResult(artifacts) {
-  assert.ok(
-    artifacts?.length && artifacts.every((item) => !item.artifactError),
-    "Artifact failure",
-  );
+export function validateArtifactResult(value: unknown) {
+  const artifacts = array(value).map(object);
+  assert.ok(artifacts.length && artifacts.every((item) => !item.artifactError), "Artifact failure");
   const additions = artifacts.filter(
-    (item) => item.file?.type === "addition" && item.file.path === "Cargo.lock",
+    (item) =>
+      isRecord(item.file) && item.file.type === "addition" && item.file.path === "Cargo.lock",
   );
   assert.equal(additions.length, 1, "Exactly one Cargo lock addition required");
-  const contents = additions[0].file.contents;
+  const contents = object(required(additions[0]).file).contents;
   assert.ok(
     typeof contents === "string" || Buffer.isBuffer(contents),
     "Unsupported artifact content shape",
   );
   return Buffer.isBuffer(contents) ? contents.toString("utf8") : contents;
 }
-
-export function probeFailureSummary(error) {
-  return renderBoundedSummary(
-    "Renovate probe failed",
-    [String(error.message ?? error).slice(0, 2000)],
-    { reference: error.reportReference ?? null },
-  ).text;
+export function probeFailureSummary(error: unknown) {
+  const message = isRecord(error) ? (error.message ?? error) : error;
+  const reference =
+    isRecord(error) && typeof error.reportReference === "string" ? error.reportReference : null;
+  return renderBoundedSummary("Renovate probe failed", [String(message).slice(0, 2000)], {
+    reference,
+  }).text;
 }
 
-const locked = (text: string, name) =>
+const locked = (text: string, name: string) =>
   text.match(new RegExp(`name = "${name}"\\r?\\nversion = "([^"]+)"`))?.[1];
 const otherEntries = (text: string) =>
   text
@@ -133,8 +247,14 @@ const otherEntries = (text: string) =>
     .filter((block) => !/^name = "serde_json"$/mu.test(block))
     .join("");
 
-export async function runEngineProbe({ engine, workspace, configFile, observedAt, evidenceRoot }) {
-  const fixture = JSON.parse(readFileSync(fixturePath, "utf8"));
+export async function runEngineProbe({
+  engine,
+  workspace,
+  configFile,
+  observedAt,
+  evidenceRoot,
+}: ProbeOptions) {
+  const fixture: unknown = JSON.parse(readFileSync(fixturePath, "utf8"));
   const engineIdentity = validateEngine(engine, fixture);
   assert.ok(Number.isFinite(Date.parse(observedAt)), "Explicit valid observation time required");
   const source = realpathSync(workspace),
@@ -157,8 +277,9 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
   const manifest = readFileSync(path.join(localDir, "Cargo.toml"), "utf8"),
     before = readFileSync(path.join(localDir, "Cargo.lock"), "utf8");
   const configBytes = readFileSync(configFile, "utf8"),
-    config = JSON.parse(configBytes);
-  const report = {
+    configValue: unknown = JSON.parse(configBytes);
+  const config = object(configValue);
+  const report: ProbeReport = {
     schemaVersion: 1,
     engine: engineIdentity,
     observedAt,
@@ -174,28 +295,40 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
   const reportPath = path.join(directory, "report.json");
   const save = () => writeFileSync(reportPath, JSON.stringify(report, null, 2));
   save();
-  const mod = (source: string) => import(pathToFileURL(path.join(engine, "dist", source)));
-  let restoreClock = () => {},
-    loggerStream;
+  const mod = async (source: string) => {
+    const value: unknown = await import(pathToFileURL(path.join(engine, "dist", source)).href);
+    return object(value);
+  };
+  const load = async (source: string, name: string) => callable((await mod(source))[name]);
+  let restoreClock = () => {};
+  let loggerStream: Writable | undefined;
   try {
     process.env.LOG_LEVEL = "fatal";
-    const { init, addStream } = await mod("logger/index.js");
+    const init = await load("logger/index.js", "init"),
+      addStream = await load("logger/index.js", "addStream");
     await init();
-    const records = [];
+    const records: unknown[] = [];
     let pending = "";
     loggerStream = new Writable({
-      write(chunk, encoding, done) {
+      write(
+        chunk: Buffer | string,
+        _encoding: BufferEncoding,
+        done: (error?: Error | null) => void,
+      ) {
         writeFileSync(path.join(directory, "execution.jsonl"), chunk, { flag: "a" });
         pending += chunk.toString();
         const lines = pending.split("\n");
-        pending = lines.pop();
-        for (const line of lines.filter(Boolean)) records.push(JSON.parse(line));
+        pending = lines.pop() ?? "";
+        for (const line of lines.filter(Boolean)) {
+          const record: unknown = JSON.parse(line);
+          records.push(record);
+        }
         done();
       },
     });
     addStream({ name: "portcove-probe", level: "debug", stream: loggerStream });
-    const { GlobalConfig } = await mod("config/global.js");
-    const { setUserEnv } = await mod("util/env.js");
+    const GlobalConfig = validateGlobalConfig((await mod("config/global.js")).GlobalConfig);
+    const setUserEnv = await load("util/env.js", "setUserEnv");
     const names = ["PATH", "USERPROFILE", "CARGO_HOME", "RUSTUP_HOME", "TEMP", "TMP", "SYSTEMROOT"];
     GlobalConfig.set({
       localDir: localDir.replaceAll("\\", "/"),
@@ -212,23 +345,33 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
         names.filter((key) => process.env[key]).map((key) => [key, process.env[key]]),
       ),
     );
-    const { resolveConfigPresets } = await mod("config/presets/index.js"),
-      { applyPackageRules } = await mod("util/package-rules/index.js"),
-      { extractPackageFile } = await mod("modules/manager/cargo/extract.js"),
-      { lookupUpdates } = await mod("workers/repository/process/lookup/index.js"),
-      { filterInternalChecks, resolveUpdateTypeConfig } = await mod(
+    const resolveConfigPresets = await load("config/presets/index.js", "resolveConfigPresets"),
+      applyPackageRules = await load("util/package-rules/index.js", "applyPackageRules"),
+      extractPackageFile = await load("modules/manager/cargo/extract.js", "extractPackageFile"),
+      lookupUpdates = await load("workers/repository/process/lookup/index.js", "lookupUpdates"),
+      filterInternalChecks = await load(
         "workers/repository/process/lookup/filter-checks.js",
+        "filterInternalChecks",
       ),
-      { generateUpdate } = await mod("workers/repository/process/lookup/generate.js"),
-      { get } = await mod("modules/versioning/index.js");
+      resolveUpdateTypeConfig = await load(
+        "workers/repository/process/lookup/filter-checks.js",
+        "resolveUpdateTypeConfig",
+      ),
+      generateUpdate = await load(
+        "workers/repository/process/lookup/generate.js",
+        "generateUpdate",
+      ),
+      get = await load("modules/versioning/index.js", "get");
     const deps = normalizeExtraction(await extractPackageFile(manifest, "Cargo.toml", {}));
     report.extraction = deps;
     const resolved = validatePresetResult(await resolveConfigPresets(config));
     const effective = await Promise.all(
-      deps.map((dep) => applyPackageRules({ ...resolved, ...dep }, "pre-lookup")),
+      deps.map(async (dep) =>
+        dependency(await applyPackageRules({ ...resolved, ...dep }, "pre-lookup")),
+      ),
     );
-    const serde = effective.find((dep) => dep.depName === "serde_json"),
-      control = effective.find((dep) => dep.depName === "semver");
+    const serde = required(effective.find((dep) => dep.depName === "serde_json")),
+      control = required(effective.find((dep) => dep.depName === "semver"));
     assert.equal(serde.rangeStrategy, "update-lockfile");
     assert.equal(control.rangeStrategy, "bump");
     for (const dep of effective) {
@@ -251,27 +394,46 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
       signal: AbortSignal.timeout(20000),
     });
     assert.ok(response.ok, "Crates registry unavailable");
-    const registry = await response.json();
+    const registry: unknown = await response.json();
     writeFileSync(path.join(directory, "registry.json"), JSON.stringify(registry));
-    const api = get("cargo"),
-      releases = registry.versions
-        .filter(
-          (v) =>
-            !v.yanked &&
-            api.matches(v.num, serde.currentValue) &&
-            api.isGreaterThan(v.num, serde.lockedVersion),
-        )
-        .map((v) => ({ version: v.num, releaseTimestamp: v.created_at }))
-        .sort((a, b) => api.sortVersions(a.version, b.version));
+    const rawApi = object(get("cargo"));
+    const booleanMethod =
+      (name: string) =>
+      (...args: string[]) => {
+        const result = callable(rawApi[name], rawApi)(...args);
+        assert.ok(typeof result === "boolean");
+        return result;
+      };
+    const api = {
+      ...rawApi,
+      matches: booleanMethod("matches"),
+      isGreaterThan: booleanMethod("isGreaterThan"),
+      sortVersions: (left: string, right: string) => {
+        const result = callable(rawApi.sortVersions, rawApi)(left, right);
+        assert.ok(typeof result === "number");
+        return result;
+      },
+    };
+    const releases = array(object(registry).versions)
+      .map(object)
+      .filter(
+        (v) =>
+          !v.yanked &&
+          api.matches(text(v.num), serde.currentValue) &&
+          api.isGreaterThan(text(v.num), serde.lockedVersion),
+      )
+      .map((v) => ({ version: text(v.num), releaseTimestamp: text(v.created_at) }))
+      .sort((a, b) => api.sortVersions(a.version, b.version));
     restoreClock = freezeProbeClock(observedAt);
-    const selection = await filterInternalChecks(serde, api, "latest", structuredClone(releases));
+    const selection = object(
+      await filterInternalChecks(serde, rawApi, "latest", structuredClone(releases)),
+    );
     assert.ok(
       selection.release && !selection.pendingChecks,
       "Selected release must satisfy strict age checks",
     );
-    const newer = releases.filter((release) =>
-      api.isGreaterThan(release.version, selection.release.version),
-    );
+    const selectedVersion = text(object(selection.release).version);
+    const newer = releases.filter((release) => api.isGreaterThan(release.version, selectedVersion));
     assert.ok(
       newer.some((release) => Date.parse(release.releaseTimestamp) + 3 * 86400000 > Date.now()),
       "Probe needs a newer ineligible compatible release",
@@ -279,49 +441,54 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
     const lookup = await lookupUpdates(serde);
     writeFileSync(path.join(directory, "lookup.json"), JSON.stringify(lookup));
     const updates = validateLookupResult(lookup),
-      update = updates.find((item) => item.newVersion === selection.release.version);
+      update = updates.find((item) => item.newVersion === selectedVersion);
     assert.ok(update && !update.pendingChecks, "Eligible generated lookup update missing");
     assert.equal(update.newValue, serde.currentValue);
     assert.equal(update.isLockfileUpdate, true);
     report.selection = { releases, selection, update };
-    const unknown = await filterInternalChecks(serde, api, "latest", [{ version: "1.0.999" }]);
+    const unknown = object(
+      await filterInternalChecks(serde, rawApi, "latest", [{ version: "1.0.999" }]),
+    );
     assert.equal(unknown.pendingChecks, true);
-    const minor = await generateUpdate(
-      serde,
-      serde.currentValue,
-      api,
-      serde.rangeStrategy,
-      serde.lockedVersion,
-      "minor",
-      { version: "1.1.0", releaseTimestamp: "2026-01-01T00:00:00Z" },
-      [serde.lockedVersion, "1.1.0"],
+    const minor = object(
+      await generateUpdate(
+        serde,
+        serde.currentValue,
+        rawApi,
+        serde.rangeStrategy,
+        serde.lockedVersion,
+        "minor",
+        { version: "1.1.0", releaseTimestamp: "2026-01-01T00:00:00Z" },
+        [serde.lockedVersion, "1.1.0"],
+      ),
     );
     assert.equal(minor.newValue, serde.currentValue);
     assert.equal(minor.isLockfileUpdate, true);
-    const major = await resolveUpdateTypeConfig(serde, "major");
+    const major = object(await resolveUpdateTypeConfig(serde, "major"));
     assert.equal(major.dependencyDashboardApproval, true);
-    const security = await applyPackageRules(
-      {
-        ...resolved,
-        ...deps.find((d) => d.depName === "serde_json"),
-        isVulnerabilityAlert: true,
-        force: { ...config.vulnerabilityAlerts },
-      },
-      "security",
+    const security = dependency(
+      await applyPackageRules(
+        {
+          ...resolved,
+          ...deps.find((d) => d.depName === "serde_json"),
+          isVulnerabilityAlert: true,
+          force: {
+            ...(config.vulnerabilityAlerts == null ? {} : object(config.vulnerabilityAlerts)),
+          },
+        },
+        "security",
+      ),
     );
     assert.equal(security.minimumReleaseAge, null);
     assert.equal(security.automerge, false);
     assert.equal(
-      (await resolveUpdateTypeConfig(security, "major")).dependencyDashboardApproval,
+      object(await resolveUpdateTypeConfig(security, "major")).dependencyDashboardApproval,
       false,
     );
-    const securitySelection = await filterInternalChecks(
-      security,
-      api,
-      "latest",
-      structuredClone(releases),
+    const securitySelection = object(
+      await filterInternalChecks(security, rawApi, "latest", structuredClone(releases)),
     );
-    assert.ok(api.isGreaterThan(securitySelection.release.version, selection.release.version));
+    assert.ok(api.isGreaterThan(text(object(securitySelection.release).version), selectedVersion));
     const negativeControls = [];
     for (const override of [
       { manager: "npm" },
@@ -329,9 +496,11 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
       { packageName: "semver", depName: "semver" },
       { packageName: "serde_json_extra", depName: "serde_json_extra" },
     ]) {
-      const effectiveControl = await applyPackageRules(
-        { ...resolved, ...deps.find((d) => d.depName === "serde_json"), ...override },
-        "pre-lookup",
+      const effectiveControl = object(
+        await applyPackageRules(
+          { ...resolved, ...deps.find((d) => d.depName === "serde_json"), ...override },
+          "pre-lookup",
+        ),
       );
       assert.equal(effectiveControl.rangeStrategy, "bump");
       negativeControls.push({ ...override, rangeStrategy: effectiveControl.rangeStrategy });
@@ -344,12 +513,12 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
       security: {
         minimumReleaseAge: security.minimumReleaseAge,
         automerge: security.automerge,
-        selected: securitySelection.release.version,
+        selected: text(object(securitySelection.release).version),
       },
     };
     save();
     restoreClock();
-    const { updateArtifacts } = await mod("modules/manager/cargo/artifacts.js");
+    const updateArtifacts = await load("modules/manager/cargo/artifacts.js", "updateArtifacts");
     const artifacts = await updateArtifacts({
       packageFileName: "Cargo.toml",
       updatedDeps: [{ ...serde, ...update }],
@@ -366,7 +535,7 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
     assert.equal(readFileSync(path.join(localDir, "Cargo.toml"), "utf8"), manifest);
     const commands = validateCommandRecords(records);
     assert.ok(
-      commands.some((command) => command.includes(`--precise ${update.newVersion}`)),
+      commands.some((command) => command.includes(`--precise ${text(update.newVersion)}`)),
       "Selected precise artifact command missing",
     );
     assert.ok(
@@ -374,7 +543,7 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
       "Workspace artifact command missing",
     );
     report.artifact = {
-      locked: update.newVersion,
+      locked: text(update.newVersion),
       nearby: locked(after, "semver"),
       commands,
       manifestUnchanged: true,
@@ -388,7 +557,10 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
       filter: (file: string) => !path.relative(localDir, file).split(path.sep).includes("target"),
     });
     writeFileSync(path.join(maintenanceDir, "Cargo.lock"), before);
-    GlobalConfig.set({ ...GlobalConfig.get(), localDir: maintenanceDir.replaceAll("\\", "/") });
+    GlobalConfig.set({
+      ...object(GlobalConfig.get()),
+      localDir: maintenanceDir.replaceAll("\\", "/"),
+    });
     const start = records.length;
     const maintenance = await updateArtifacts({
       packageFileName: "Cargo.toml",
@@ -397,7 +569,8 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
       config: { constraints: { rust: "1.98.0" }, isLockFileMaintenance: true },
     });
     writeFileSync(path.join(directory, "maintenance-artifacts.json"), JSON.stringify(maintenance));
-    assert.ok(maintenance?.length && maintenance.every((item) => !item.artifactError));
+    const maintenanceEntries = array(maintenance).map(object);
+    assert.ok(maintenanceEntries.length && maintenanceEntries.every((item) => !item.artifactError));
     const maintenanceLock = readFileSync(path.join(maintenanceDir, "Cargo.lock"), "utf8"),
       maintenanceCommands = validateCommandRecords(records.slice(start));
     assert.ok(
@@ -407,7 +580,7 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
       "Full maintenance must use the general artifact path",
     );
     assert.ok(
-      api.isGreaterThan(locked(maintenanceLock, "serde_json"), update.newVersion),
+      api.isGreaterThan(required(locked(maintenanceLock, "serde_json")), text(update.newVersion)),
       "Maintenance boundary needs the newer compatible artifact",
     );
     report.fullLockfileMaintenance = {
@@ -420,12 +593,17 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
   } catch (error) {
     report.state = "failed";
     report.failure = errorMessage(error);
-    error.reportReference = reportPath;
+    try {
+      if (isRecord(error)) error.reportReference = reportPath;
+    } catch {
+      // Evidence metadata is best effort; it must never replace the primary failure.
+    }
     throw error;
   } finally {
     restoreClock();
     save();
-    if (loggerStream) await new Promise((resolve) => loggerStream.end(resolve));
+    const stream = loggerStream;
+    if (stream) await new Promise<void>((resolve) => stream.end(resolve));
   }
   return { report, reference: reportPath };
 }
@@ -439,17 +617,18 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         `Usage: renovate-engine-probe.mts ${flags.map((flag) => `${flag} VALUE`).join(" ")}`,
       );
     const { report, reference } = await runEngineProbe({
-      engine: args[1],
-      workspace: args[3],
-      configFile: args[5],
-      observedAt: args[7],
-      evidenceRoot: args[9],
+      engine: required(args[1]),
+      workspace: required(args[3]),
+      configFile: required(args[5]),
+      observedAt: required(args[7]),
+      evidenceRoot: required(args[9]),
     });
+    const artifact = required(report.artifact);
     console.log(
       renderBoundedSummary(
         `Renovate ${report.engine.version} probe complete`,
         [
-          `Selected and locked ${report.artifact.locked}; nearby ${report.artifact.nearby} unchanged`,
+          `Selected and locked ${artifact.locked}; nearby ${artifact.nearby} unchanged`,
           "Local replay only; naturally occurring hosted proposal/readback still required",
         ],
         { reference },
