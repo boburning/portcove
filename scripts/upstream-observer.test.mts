@@ -1,3 +1,13 @@
+import fadePin from "./fixtures/upstream-health-fade-to-black.json" with { type: "json" };
+import pinCases from "./fixtures/upstream-health-pins.json" with { type: "json" };
+import { isRecord } from "./runtime-values.mts";
+import accountingCases from "./fixtures/upstream-health-accounting-cases.json" with { type: "json" };
+import type { ObserverRequestOptions } from "./upstream-observer.mts";
+import type {
+  HealthOptions,
+  HealthFetch,
+  HealthRequestOptions,
+} from "./check-catalog-repositories.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -20,29 +30,24 @@ import {
 } from "./check-catalog-repositories.mts";
 import { discoverUpstreamHealthScope, selectUpstreamHealthScope } from "./upstream-health-plan.mts";
 
-const config = JSON.parse(
-  await readFile(new URL("../release/upstream-observer.json", import.meta.url), "utf8"),
+const config = validateObserverConfig(
+  JSON.parse(await readFile(new URL("../release/upstream-observer.json", import.meta.url), "utf8")),
 );
 
-const accountingCases = JSON.parse(
-  await readFile(
-    new URL("./fixtures/upstream-health-accounting-cases.json", import.meta.url),
-    "utf8",
-  ),
-);
-const { reviewedAccounting } = accountingCases;
+const reviewedAccounting = validateHealthAccountingPolicy(accountingCases.reviewedAccounting);
 
-test("the compiled CLI fixture uses the same canonical facts digest", async () => {
-  const fixture = JSON.parse(
+void test("the compiled CLI fixture uses the same canonical facts digest", async () => {
+  const fixture: unknown = JSON.parse(
     await readFile(
       new URL("../crates/portcove-cli/tests/fixtures/upstream-observation.json", import.meta.url),
       "utf8",
     ),
   );
+  assert.ok(isRecord(fixture));
   assert.equal(observationHash(fixture.facts), fixture.facts_sha256);
 });
 
-test("scheduled observation keeps the configured cadence, read-only authority and bounded recovery cache", async () => {
+void test("scheduled observation keeps the configured cadence, read-only authority and bounded recovery cache", async () => {
   const workflow = await readFile(
     new URL("../.github/workflows/configured-upstream-observer.yml", import.meta.url),
     "utf8",
@@ -85,8 +90,42 @@ const asset = (id = 2, contents = "redistributable fixture one") => ({
   updated_at: time,
 });
 
-function fixture(overrides = {}) {
-  const replies = new Map([
+interface FixtureReply {
+  body: unknown;
+  link?: string;
+}
+class FixtureReplies extends Map<string, FixtureReply> {
+  override get(key: string): FixtureReply {
+    return requiredFixture(super.get(key));
+  }
+}
+interface FixtureOverrides {
+  intercept?: (
+    url: string,
+    options: ObserverRequestOptions,
+    count: number,
+    replies: FixtureReplies,
+  ) => Response | null | void | Promise<Response | null | void>;
+}
+function requiredFixture<T>(value: T | null | undefined): T {
+  assert.ok(value !== undefined && value !== null, "missing expected fixture");
+  return value;
+}
+function objectFixture(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function incrementFixtureId(value: unknown) {
+  const object = objectFixture(value);
+  assert.ok(typeof object.id === "number");
+  object.id++;
+}
+function arrayFixture(value: unknown): unknown[] {
+  assert.ok(Array.isArray(value));
+  return value;
+}
+function fixture(overrides: FixtureOverrides = {}) {
+  const replies = new FixtureReplies([
     [
       root,
       {
@@ -100,8 +139,8 @@ function fixture(overrides = {}) {
     [`${root}/releases?per_page=100&page=1`, { body: [release()] }],
     [`${root}/releases/1/assets?per_page=100&page=1`, { body: [asset()] }],
   ]);
-  const requests = [];
-  const fetch = async (url, options) => {
+  const requests: { url: string; options: ObserverRequestOptions }[] = [];
+  const fetch = async (url: string, options: ObserverRequestOptions) => {
     requests.push({ url, options });
     if (overrides.intercept) {
       const intercepted = await overrides.intercept(url, options, requests.length, replies);
@@ -122,14 +161,17 @@ function fixture(overrides = {}) {
   return { replies, requests, fetch };
 }
 
-test("records exact release and asset facts, conditional cache and changed fixture artifacts", async () => {
+void test("records exact release and asset facts, conditional cache and changed fixture artifacts", async () => {
   const server = fixture();
   const first = await observeUpstream(config, {
     fetch: server.fetch,
     token: "fixture-token",
   });
   assert.equal(first.observation.authority, "provider-observation-only");
-  assert.equal(first.observation.facts.releases[0].assets[0].id, 2);
+  assert.equal(
+    requiredFixture(requiredFixture(first.observation.facts.releases[0]).assets[0]).id,
+    2,
+  );
   assert.equal(first.observation.consumed.requests, 6);
   assert.equal(first.observation.consumed.conditional_hits, 3);
   assert.ok(
@@ -154,17 +196,23 @@ test("records exact release and asset facts, conditional cache and changed fixtu
     cache: second.cache,
   });
   assert.notEqual(replaced.observation.facts_sha256, first.observation.facts_sha256);
-  assert.equal(replaced.observation.facts.releases[0].assets[0].id, 2);
+  assert.equal(
+    requiredFixture(requiredFixture(replaced.observation.facts.releases[0]).assets[0]).id,
+    2,
+  );
   server.replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body = [asset(3)];
   const changed = await observeUpstream(config, {
     fetch: server.fetch,
     cache: replaced.cache,
   });
-  assert.equal(changed.observation.facts.releases[0].assets[0].id, 3);
+  assert.equal(
+    requiredFixture(requiredFixture(changed.observation.facts.releases[0]).assets[0]).id,
+    3,
+  );
   assert.notEqual(changed.observation.facts_sha256, replaced.observation.facts_sha256);
 });
 
-test("traverses complete asset pagination and rejects partial, repeated or escaped pages", async () => {
+void test("traverses complete asset pagination and rejects partial, repeated or escaped pages", async () => {
   const server = fixture();
   const page = `${root}/releases/1/assets?per_page=100&page=1`;
   const next = `${root}/releases/1/assets?per_page=100&page=2`;
@@ -174,11 +222,11 @@ test("traverses complete asset pagination and rejects partial, repeated or escap
   });
   server.replies.set(next, { body: [asset(101)] });
   const complete = await observeUpstream(config, { fetch: server.fetch });
-  assert.equal(complete.observation.facts.releases[0].assets.length, 101);
+  assert.equal(requiredFixture(complete.observation.facts.releases[0]).assets.length, 101);
   server.replies.get(next).body = [asset(1)];
   await assert.rejects(
     observeUpstream(config, { fetch: server.fetch }),
-    (error) => error.rule === "pagination",
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "pagination",
   );
   server.replies.get(page).body = [asset(1)];
   await assert.rejects(
@@ -193,7 +241,7 @@ test("traverses complete asset pagination and rejects partial, repeated or escap
   );
 });
 
-test("partial reads and concurrent collection changes never advance the previous cache", async () => {
+void test("partial reads and concurrent collection changes never advance the previous cache", async () => {
   const baseline = await observeUpstream(config, { fetch: fixture().fetch });
   const original = structuredClone(baseline.cache);
   const partial = fixture({
@@ -205,39 +253,46 @@ test("partial reads and concurrent collection changes never advance the previous
       cache: baseline.cache,
       sleep: async () => {},
     }),
-    (error) => error.rule === "provider-status",
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "provider-status",
   );
   assert.deepEqual(baseline.cache, original);
   const changing = fixture({
     intercept: (_url, _options, count, replies) => {
-      if (count === 4) replies.get(root).body.archived = true;
+      if (count === 4) objectFixture(replies.get(root).body).archived = true;
     },
   });
   await assert.rejects(
     observeUpstream(config, { fetch: changing.fetch }),
-    (error) => error.rule === "concurrent-change",
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "concurrent-change",
   );
 });
 
-test("unrelated GitHub counters do not invalidate exact observed release facts", async () => {
+void test("unrelated GitHub counters do not invalidate exact observed release facts", async () => {
   const baseline = await observeUpstream(config, { fetch: fixture().fetch });
   const changing = fixture({
     intercept: (_url, _options, count, replies) => {
       if (count === 4) {
-        replies.get(root).body.stargazers_count = 123;
-        replies.get(`${root}/releases?per_page=100&page=1`).body[0].body =
-          "untrusted release prose changed";
-        replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body[0].download_count = 456;
+        objectFixture(replies.get(root).body).stargazers_count = 123;
+        objectFixture(
+          requiredFixture(
+            arrayFixture(replies.get(`${root}/releases?per_page=100&page=1`).body)[0],
+          ),
+        ).body = "untrusted release prose changed";
+        objectFixture(
+          requiredFixture(
+            arrayFixture(replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body)[0],
+          ),
+        ).download_count = 456;
       }
     },
   });
   const result = await observeUpstream(config, { fetch: changing.fetch });
   assert.equal(result.observation.facts_sha256, baseline.observation.facts_sha256);
-  assert.equal(result.cache.pages[root].body.stargazers_count, 123);
+  assert.equal(objectFixture(requiredFixture(result.cache.pages[root]).body).stargazers_count, 123);
   const changedAsset = fixture({
     intercept: (_url, _options, count, replies) => {
       if (count === 4)
-        replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body[0] = asset(
+        arrayFixture(replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body)[0] = asset(
           2,
           "changed artifact bytes",
         );
@@ -245,11 +300,11 @@ test("unrelated GitHub counters do not invalidate exact observed release facts",
   });
   await assert.rejects(
     observeUpstream(config, { fetch: changedAsset.fetch }),
-    (error) => error.rule === "concurrent-change",
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "concurrent-change",
   );
 });
 
-test("rate limits defer to provider clocks and transport retries stay bounded", async () => {
+void test("rate limits defer to provider clocks and transport retries stay bounded", async () => {
   const limited = fixture({
     intercept: () => new Response(null, { status: 429, headers: { "retry-after": "120" } }),
   });
@@ -264,7 +319,7 @@ test("rate limits defer to provider clocks and transport retries stay bounded", 
       error.retryAt === "2026-09-09T12:02:00.000Z",
   );
   assert.equal(limited.requests.length, 1);
-  const delays = [];
+  const delays: number[] = [];
   const broken = fixture({
     intercept: () => {
       throw new Error("untrusted transport detail");
@@ -275,41 +330,48 @@ test("rate limits defer to provider clocks and transport retries stay bounded", 
       fetch: broken.fetch,
       sleep: async (ms) => delays.push(ms),
     }),
-    (error) => error.rule === "transport" && !error.message.includes("untrusted"),
+    (error: unknown) =>
+      error instanceof ObservationFailure &&
+      error.rule === "transport" &&
+      !error.message.includes("untrusted"),
   );
   assert.equal(broken.requests.length, 3);
   assert.deepEqual(delays, [250, 500]);
 });
 
-test("budgets, malformed metadata, cache corruption and repository drift fail closed", async () => {
+void test("budgets, malformed metadata, cache corruption and repository drift fail closed", async () => {
   await assert.rejects(
     observeUpstream(
       { ...config, budget: { ...config.budget, requests: 2 } },
       { fetch: fixture().fetch },
     ),
-    (error) => error.rule === "budget",
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "budget",
   );
   await assert.rejects(
     observeUpstream(
       { ...config, budget: { ...config.budget, response_bytes: 1 } },
       { fetch: fixture().fetch },
     ),
-    (error) => error.rule === "budget",
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "budget",
   );
   const malformed = fixture();
-  malformed.replies.get(root).body.id++;
+  incrementFixtureId(malformed.replies.get(root).body);
   await assert.rejects(
     observeUpstream(config, { fetch: malformed.fetch }),
-    (error) => error.rule === "repository-identity",
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "repository-identity",
   );
-  malformed.replies.get(root).body.id = config.repository_id;
-  malformed.replies.get(`${root}/releases?per_page=100&page=1`).body[0].prerelease = "false";
+  objectFixture(malformed.replies.get(root).body).id = config.repository_id;
+  objectFixture(
+    requiredFixture(
+      arrayFixture(malformed.replies.get(`${root}/releases?per_page=100&page=1`).body)[0],
+    ),
+  ).prerelease = "false";
   await assert.rejects(observeUpstream(config, { fetch: malformed.fetch }), /explicit booleans/);
   const baseline = await observeUpstream(config, { fetch: fixture().fetch });
-  baseline.cache.pages[root].body.id++;
+  incrementFixtureId(requiredFixture(baseline.cache.pages[root]).body);
   await assert.rejects(
     observeUpstream(config, { fetch: fixture().fetch, cache: baseline.cache }),
-    (error) => error.rule === "invalid-cache",
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "invalid-cache",
   );
   assert.throws(
     () => validateObserverConfig({ ...config, arbitrary_scope: true }),
@@ -317,7 +379,7 @@ test("budgets, malformed metadata, cache corruption and repository drift fail cl
   );
 });
 
-test("false prerelease flags and prerelease-only repositories remain observations for shared core policy", async () => {
+void test("false prerelease flags and prerelease-only repositories remain observations for shared core policy", async () => {
   const server = fixture();
   server.replies.get(`${root}/releases?per_page=100&page=1`).body = [
     release(1, { tag_name: "1.1-rc5", prerelease: false }),
@@ -326,17 +388,21 @@ test("false prerelease flags and prerelease-only repositories remain observation
   value.browser_download_url = value.browser_download_url.replace("v1.0.0", "1.1-rc5");
   server.replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body = [value];
   const result = await observeUpstream(config, { fetch: server.fetch });
-  assert.equal(result.observation.facts.releases[0].prerelease, false);
-  assert.equal(result.observation.facts.releases[0].tag_name, "1.1-rc5");
+  assert.equal(requiredFixture(result.observation.facts.releases[0]).prerelease, false);
+  assert.equal(requiredFixture(result.observation.facts.releases[0]).tag_name, "1.1-rc5");
   assert.equal(Object.hasOwn(result.observation, "eligible"), false);
-  server.replies.get(`${root}/releases?per_page=100&page=1`).body[0].prerelease = true;
+  objectFixture(
+    requiredFixture(
+      arrayFixture(server.replies.get(`${root}/releases?per_page=100&page=1`).body)[0],
+    ),
+  ).prerelease = true;
   assert.equal(
     (await observeUpstream(config, { fetch: server.fetch })).observation.facts.releases.length,
     1,
   );
 });
 
-const project = async (observation) => ({
+const project = async (observation: { facts_sha256: string }) => ({
   format: 1,
   port_id: config.port_id,
   repository_id: config.repository_id,
@@ -344,7 +410,25 @@ const project = async (observation) => ({
   projections: [],
 });
 
-test("one checkpoint coordinator owns writes and interrupted locks are never stolen", async (t) => {
+void test("malformed retained checkpoint fields fail before observing or projecting", async () => {
+  const initial = await advanceObservation(config, null, { fetch: fixture().fetch, project });
+  for (const patch of [{ first_complete_at: 42 }, { last_complete: false }, { exception: 0 }]) {
+    await assert.rejects(
+      advanceObservation(
+        config,
+        { ...initial.checkpoint, ...patch },
+        {
+          fetch: async () => assert.fail("malformed checkpoint reached provider"),
+          project: () => assert.fail("malformed checkpoint reached Core projection"),
+        },
+      ),
+      (error: unknown) =>
+        error instanceof ObservationFailure && error.rule === "invalid-checkpoint",
+    );
+  }
+});
+
+void test("one checkpoint coordinator owns writes and interrupted locks are never stolen", async (t) => {
   await mkdir(fileURLToPath(new URL("../work", import.meta.url)), {
     recursive: true,
   });
@@ -374,7 +458,7 @@ test("one checkpoint coordinator owns writes and interrupted locks are never sto
   assert.equal(await readFile(state, "utf8"), "preserved snapshot");
 });
 
-test("checkpoints preserve the last complete snapshot, deduplicate failures and expose stale unmonitored scope", async () => {
+void test("checkpoints preserve the last complete snapshot, deduplicate failures and expose stale unmonitored scope", async () => {
   let clock = Date.parse(time);
   const options = {
     fetch: fixture().fetch,
@@ -402,14 +486,20 @@ test("checkpoints preserve the last complete snapshot, deduplicate failures and 
   assert.equal(failed.notify_exception, true);
   assert.deepEqual(first.checkpoint, original);
   assert.deepEqual(failed.checkpoint.last_complete, first.checkpoint.last_complete);
-  assert.equal(failed.report.fallback.facts_sha256, first.report.observation.facts_sha256);
+  assert.equal(
+    requiredFixture(failed.report.fallback).facts_sha256,
+    requiredFixture(first.report.observation).facts_sha256,
+  );
   const repeated = await advanceObservation(config, failed.checkpoint, {
     ...options,
     fetch: broken.fetch,
   });
   assert.equal(repeated.notify_exception, false);
-  assert.equal(repeated.report.exception.occurrences, 2);
-  assert.equal(repeated.report.exception.first_seen, failed.report.exception.first_seen);
+  assert.equal(requiredFixture(repeated.report.exception).occurrences, 2);
+  assert.equal(
+    requiredFixture(repeated.report.exception).first_seen,
+    requiredFixture(failed.report.exception).first_seen,
+  );
   const recovered = await advanceObservation(config, repeated.checkpoint, options);
   assert.equal(recovered.report.stale, false);
   assert.equal(recovered.report.transition, "unchanged");
@@ -417,7 +507,7 @@ test("checkpoints preserve the last complete snapshot, deduplicate failures and 
   assert.equal(recovered.checkpoint.completed_runs, 2);
 });
 
-test("deferred checkpoints honor retry clocks without requests and mismatched core output cannot advance", async () => {
+void test("deferred checkpoints honor retry clocks without requests and mismatched core output cannot advance", async () => {
   let clock = Date.parse(time);
   const limited = fixture({
     intercept: () => new Response(null, { status: 429, headers: { "retry-after": "120" } }),
@@ -437,20 +527,20 @@ test("deferred checkpoints honor retry clocks without requests and mismatched co
   const mismatch = await advanceObservation(config, good.checkpoint, {
     ...options,
     fetch: fixture().fetch,
-    project: async (observation) => ({
+    project: async (observation: { facts_sha256: string }) => ({
       ...(await project(observation)),
       facts_sha256: "wrong",
     }),
   });
-  assert.equal(mismatch.report.exception.rule, "core-binding");
+  assert.equal(requiredFixture(mismatch.report.exception).rule, "core-binding");
   assert.equal(
-    mismatch.report.failed_policy_input.facts_sha256,
-    observationHash(mismatch.report.failed_policy_input.facts),
+    requiredFixture(mismatch.report.failed_policy_input).facts_sha256,
+    observationHash(requiredFixture(mismatch.report.failed_policy_input).facts),
   );
   assert.deepEqual(mismatch.checkpoint.last_complete, good.checkpoint.last_complete);
   await assert.rejects(
     advanceObservation(config, { ...good.checkpoint, config_sha256: "wrong" }, options),
-    (error) => error.rule === "invalid-checkpoint",
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "invalid-checkpoint",
   );
 });
 
@@ -461,7 +551,25 @@ const healthPin = {
   size: 42,
   sha256: "a".repeat(64),
 };
-const healthCatalog = (pin = healthPin) => ({
+interface HealthTestPort {
+  id: string;
+  project_url?: string;
+  upstream_status?: string;
+  release: { provider?: string; repository?: string; direct?: Record<string, typeof healthPin> };
+}
+interface HealthTestCatalog {
+  source_catalog: {
+    qualification: {
+      scope: { port_id: string; artifact_sha256: string; upstream_ref: string };
+      kind: string;
+      outcome: string;
+      evidence_ids: string[];
+      method?: string;
+    }[];
+  };
+  ports: HealthTestPort[];
+}
+const healthCatalog = (pin = healthPin): HealthTestCatalog => ({
   source_catalog: {
     qualification: [
       {
@@ -481,7 +589,7 @@ const healthCatalog = (pin = healthPin) => ({
   ],
 });
 const healthTime = Date.parse("2026-10-08T12:00:00Z");
-const healthFetch = async (url, _options) =>
+const healthFetch: HealthFetch = async (url, _options) =>
   url.includes("/releases/tags/")
     ? new Response(
         JSON.stringify({ id: 3, tag_name: "v0", assets: [{ digest: `sha256:${"b".repeat(64)}` }] }),
@@ -493,8 +601,8 @@ const healthFetch = async (url, _options) =>
           headers: { "content-type": "application/json" },
         });
 
-test("direct provider preserves original upstream and scopes HEAD separately from exact accepted bytes", async () => {
-  const calls = [];
+void test("direct provider preserves original upstream and scopes HEAD separately from exact accepted bytes", async () => {
+  const calls: { url: string; options: HealthRequestOptions }[] = [];
   const report = await collectRepositoryHealth(healthCatalog(), {
     now: () => healthTime,
     githubToken: "private-token",
@@ -513,22 +621,28 @@ test("direct provider preserves original upstream and scopes HEAD separately fro
   assert.equal(calls.length, 3);
   assert.equal(report.coverage.monitored_ports, 1);
   assert.equal(report.outcome, "complete");
-  const [health] = report.port_health;
+  const health = requiredFixture(report.port_health[0]);
   assert.equal(health.original_upstream.status, "reachable");
   assert.equal(health.lineage.status, "unresolved");
   assert.equal(health.lineage.successor_selected, false);
   assert.equal(health.accepted_artifact_obtainability.status, "unknown");
-  assert.equal(health.accepted_artifact_obtainability.identities[0].sha256, healthPin.sha256);
+  assert.equal(
+    requiredFixture(health.accepted_artifact_obtainability.identities[0]).sha256,
+    healthPin.sha256,
+  );
   assert.equal(health.preservation.status, "unknown");
   assert.equal(health.applicable_holds.status, "unknown");
-  assert.equal(health.qualification.records[0].scope.artifact_sha256, "b".repeat(64));
+  assert.equal(
+    requiredFixture(health.qualification.records[0]).scope.artifact_sha256,
+    "b".repeat(64),
+  );
   assert.equal(health.qualification.inherited, false);
   assert.match(renderRepositoryHealth(report), /direct-manifest ports included/);
   assert.match(renderRepositoryHealth(report), /Accepted bytes remain unverified/);
   assert.doesNotMatch(JSON.stringify(report), /private-token|private-gitlab/);
 });
 
-test("direct endpoint corruption, unavailable headers and redirects remain unknown rather than verified artifacts", async () => {
+void test("direct endpoint corruption, unavailable headers and redirects remain unknown rather than verified artifacts", async () => {
   for (const headers of [{}, { "content-length": "41" }, { "content-length": "42junk" }]) {
     const report = await collectRepositoryHealth(healthCatalog(), {
       now: () => healthTime,
@@ -536,20 +650,23 @@ test("direct endpoint corruption, unavailable headers and redirects remain unkno
         url === healthPin.url ? new Response(null, { headers }) : healthFetch(url, options),
     });
     assert.equal(report.outcome, "incomplete");
-    assert.equal(report.observations[0].reason, "invalid-metadata");
-    assert.equal(report.port_health[0].accepted_artifact_obtainability.status, "unknown");
+    assert.equal(requiredFixture(report.observations[0]).reason, "invalid-metadata");
+    assert.equal(
+      requiredFixture(report.port_health[0]).accepted_artifact_obtainability.status,
+      "unknown",
+    );
   }
   const report = await collectRepositoryHealth(healthCatalog(), {
     now: () => healthTime,
     fetch: async (url, options) =>
       url === healthPin.url ? new Response(null, { status: 302 }) : healthFetch(url, options),
   });
-  assert.equal(report.observations[0].reason, "provider-redirect");
+  assert.equal(requiredFixture(report.observations[0]).reason, "provider-redirect");
 });
 
-test("redirects remain distinct unknown HTTP facts without following or retaining their destinations", async () => {
+void test("redirects remain distinct unknown HTTP facts without following or retaining their destinations", async () => {
   for (const status of [301, 302, 303, 307, 308]) {
-    const calls = [];
+    const calls: { url: string; options: HealthRequestOptions }[] = [];
     let cancelled = 0;
     const secret = "private-signed-location-and-response";
     const report = await collectRepositoryHealth(healthCatalog(), {
@@ -575,7 +692,7 @@ test("redirects remain distinct unknown HTTP facts without following or retainin
     assert.equal(calls.length, 3);
     assert.equal(cancelled, 3);
     assert.ok(calls.every(({ url }) => !url.startsWith("https://untrusted.example/")));
-    const direct = calls.find(({ url }) => url === healthPin.url);
+    const direct = requiredFixture(calls.find(({ url }) => url === healthPin.url));
     assert.equal(direct.options.method, "HEAD");
     assert.equal(direct.options.headers.Authorization, undefined);
     assert.equal(report.outcome, "incomplete");
@@ -586,10 +703,10 @@ test("redirects remain distinct unknown HTTP facts without following or retainin
       assert.equal(observation.reason, "provider-redirect");
       assert.equal(observation.http_status, status);
       assert.equal(observation.accounted_for, false);
-      assert.match(observation.resume_condition, /no redirect was followed/);
+      assert.match(requiredFixture(observation.resume_condition), /no redirect was followed/);
     }
     assert.ok(
-      report.port_health[0].canonical_incidents.every(
+      requiredFixture(report.port_health[0]).canonical_incidents.every(
         (incident) => incident.rule === "provider-redirect" && !incident.accounted_for,
       ),
     );
@@ -599,19 +716,19 @@ test("redirects remain distinct unknown HTTP facts without following or retainin
   }
 });
 
-test("transport failures and nonredirect provider statuses do not become redirect observations", async () => {
+void test("transport failures and nonredirect provider statuses do not become redirect observations", async () => {
   const input = { ports: [{ id: "original", release: { repository: "owner/original" } }] };
   for (const [status, reason] of [
     [404, "inaccessible-or-missing"],
     [503, "provider-error"],
     [304, "provider-status"],
-  ]) {
+  ] as const) {
     const report = await collectRepositoryHealth(input, {
       fetch: async () => new Response(null, { status }),
     });
     assert.equal(report.outcome, "incomplete");
-    assert.equal(report.observations[0].reason, reason);
-    assert.equal(report.observations[0].http_status, status);
+    assert.equal(requiredFixture(report.observations[0]).reason, reason);
+    assert.equal(requiredFixture(report.observations[0]).http_status, status);
   }
   const transport = await collectRepositoryHealth(input, {
     fetch: async () => {
@@ -619,12 +736,12 @@ test("transport failures and nonredirect provider statuses do not become redirec
     },
   });
   assert.equal(transport.outcome, "incomplete");
-  assert.equal(transport.observations[0].reason, "transport");
-  assert.equal(transport.observations[0].http_status, null);
+  assert.equal(requiredFixture(transport.observations[0]).reason, "transport");
+  assert.equal(requiredFixture(transport.observations[0]).http_status, null);
   assert.ok(!JSON.stringify(transport).includes("private-network-details"));
 });
 
-test("partial direct inventory never becomes an empty or healthy collection", async () => {
+void test("partial direct inventory never becomes an empty or healthy collection", async () => {
   for (const bad of [
     { ...healthPin, sha256: "bad" },
     { ...healthPin, url: "https://127.0.0.1/secret" },
@@ -644,8 +761,8 @@ test("partial direct inventory never becomes an empty or healthy collection", as
   }
 });
 
-test("incident identity is stable across observation times while changed rules create distinct conditions", async () => {
-  const collect = (time, status) =>
+void test("incident identity is stable across observation times while changed rules create distinct conditions", async () => {
+  const collect = (time: number, status: number) =>
     collectRepositoryHealth(healthCatalog(), {
       now: () => time,
       fetch: async (url, options) =>
@@ -654,18 +771,22 @@ test("incident identity is stable across observation times while changed rules c
   const first = await collect(healthTime, 404);
   const repeated = await collect(healthTime + 60_000, 404);
   const changed = await collect(healthTime + 60_000, 401);
-  const incident = (report) => report.port_health[0].canonical_incidents[0];
+  const incident = (report: Awaited<ReturnType<typeof collectRepositoryHealth>>) =>
+    requiredFixture(requiredFixture(report.port_health[0]).canonical_incidents[0]);
   assert.equal(incident(first).key, incident(repeated).key);
   assert.notEqual(incident(first).observed_at, incident(repeated).observed_at);
   assert.notEqual(incident(first).key, incident(changed).key);
-  assert.match(incident(first).resume_condition, /404 does not establish deletion or succession/);
-  assert.equal(first.port_health[0].lineage.successor_selected, false);
+  assert.match(
+    requiredFixture(incident(first).resume_condition),
+    /404 does not establish deletion or succession/,
+  );
+  assert.equal(requiredFixture(first.port_health[0]).lineage.successor_selected, false);
 });
 
-test("non-hosted original project remains monitored after a provider change", async () => {
+void test("non-hosted original project remains monitored after a provider change", async () => {
   const input = healthCatalog();
-  input.ports[0].project_url = "https://original.example.com/";
-  const calls = [];
+  requiredFixture(input.ports[0]).project_url = "https://original.example.com/";
+  const calls: string[] = [];
   const report = await collectRepositoryHealth(input, {
     now: () => healthTime,
     githubToken: "private-token",
@@ -679,21 +800,21 @@ test("non-hosted original project remains monitored after a provider change", as
     },
   });
   assert.deepEqual(calls, [healthPin.url, "https://original.example.com/"]);
-  assert.equal(report.port_health[0].original_upstream.status, "reachable");
-  assert.equal(report.port_health[0].lineage.status, "unresolved");
+  assert.equal(requiredFixture(report.port_health[0]).original_upstream.status, "reachable");
+  assert.equal(requiredFixture(report.port_health[0]).lineage.status, "unresolved");
 });
 
-test("rate limits defer only the affected direct origin and preserve other acquisition locations", async () => {
+void test("rate limits defer only the affected direct origin and preserve other acquisition locations", async () => {
   const input = healthCatalog();
-  input.ports[0].release.direct.linux = {
+  requiredFixture(requiredFixture(input.ports[0]).release.direct).linux = {
     ...healthPin,
     url: "https://downloads.example.com/linux.zip",
   };
-  input.ports[0].release.direct.macos = {
+  requiredFixture(requiredFixture(input.ports[0]).release.direct).macos = {
     ...healthPin,
     url: "https://other.example.com/package.zip",
   };
-  const calls = [];
+  const calls: string[] = [];
   const report = await collectRepositoryHealth(input, {
     now: () => healthTime,
     fetch: async (url: string, options) => {
@@ -706,27 +827,39 @@ test("rate limits defer only the affected direct origin and preserve other acqui
     },
   });
   assert.equal(calls.length, 4);
-  assert.equal(report.observations[1].attempted, false);
-  assert.equal(report.observations[1].retry_at, new Date(healthTime + 120_000).toISOString());
-  assert.equal(report.observations[2].status, "reachable");
-  assert.equal(report.port_health[0].accepted_artifact_obtainability.locations.length, 5);
+  assert.equal(requiredFixture(report.observations[1]).attempted, false);
+  assert.equal(
+    requiredFixture(report.observations[1]).retry_at,
+    new Date(healthTime + 120_000).toISOString(),
+  );
+  assert.equal(requiredFixture(report.observations[2]).status, "reachable");
+  assert.equal(
+    requiredFixture(report.port_health[0]).accepted_artifact_obtainability.locations.length,
+    5,
+  );
 });
 
-test("contradictory immutable pins at one location stay prominent without selecting an authority", async () => {
+void test("contradictory immutable pins at one location stay prominent without selecting an authority", async () => {
   const input = healthCatalog();
-  input.ports[0].release.direct.linux = { ...healthPin, sha256: "c".repeat(64) };
+  requiredFixture(requiredFixture(input.ports[0]).release.direct).linux = {
+    ...healthPin,
+    sha256: "c".repeat(64),
+  };
   const report = await collectRepositoryHealth(input, {
     now: () => healthTime,
     fetch: healthFetch,
   });
-  assert.equal(report.observations[0].reason, "identity-mismatch");
-  assert.equal(report.observations[0].attempted, false);
+  assert.equal(requiredFixture(report.observations[0]).reason, "identity-mismatch");
+  assert.equal(requiredFixture(report.observations[0]).attempted, false);
   assert.equal(report.outcome, "incomplete");
-  assert.equal(report.port_health[0].accepted_artifact_obtainability.identities.length, 2);
-  assert.equal(report.port_health[0].applicable_holds.status, "unknown");
+  assert.equal(
+    requiredFixture(report.port_health[0]).accepted_artifact_obtainability.identities.length,
+    2,
+  );
+  assert.equal(requiredFixture(report.port_health[0]).applicable_holds.status, "unknown");
 });
 
-test("retained Star Fox failure is an unresolved availability condition with no historical qualification transfer", async () => {
+void test("retained Star Fox failure is an unresolved availability condition with no historical qualification transfer", async () => {
   // Exact failure text and immutable run identity retained in #247's early slice.
   // HTTP fixture reconstructs that recorded failure; it is not a new live probe.
   const incident = {
@@ -737,18 +870,18 @@ test("retained Star Fox failure is an unresolved availability condition with no 
     port_issue: 124,
     lineage_issue: 139,
   };
-  const repository = incident.stderr.split(": ")[0];
+  const repository = requiredFixture(incident.stderr.split(": ")[0]);
   const report = await collectRepositoryHealth(
     {
       ports: [{ id: "star-fox-enhanced", release: { repository } }],
     },
     { now: () => healthTime, fetch: async () => new Response(null, { status: 404 }) },
   );
-  const [health] = report.port_health;
+  const health = requiredFixture(report.port_health[0]);
   assert.equal(report.outcome, "incomplete");
   assert.equal(health.original_upstream.status, "unknown");
-  assert.equal(health.canonical_incidents[0].http_status, 404);
-  assert.equal(health.canonical_incidents[0].rule, "inaccessible-or-missing");
+  assert.equal(requiredFixture(health.canonical_incidents[0]).http_status, 404);
+  assert.equal(requiredFixture(health.canonical_incidents[0]).rule, "inaccessible-or-missing");
   assert.equal(health.lineage.owner_issue, incident.lineage_issue);
   assert.equal(health.lineage.status, "unresolved");
   assert.equal(health.lineage.successor_selected, false);
@@ -756,7 +889,7 @@ test("retained Star Fox failure is an unresolved availability condition with no 
   assert.equal(health.qualification.inherited, false);
 });
 
-test("hosted relocation keeps original upstream distinct from the current acquisition repository", async () => {
+void test("hosted relocation keeps original upstream distinct from the current acquisition repository", async () => {
   const input = {
     ports: [
       {
@@ -766,7 +899,7 @@ test("hosted relocation keeps original upstream distinct from the current acquis
       },
     ],
   };
-  const calls = [];
+  const calls: string[] = [];
   const report = await collectRepositoryHealth(input, {
     now: () => healthTime,
     fetch: async (url: string) => {
@@ -782,14 +915,18 @@ test("hosted relocation keeps original upstream distinct from the current acquis
     "https://api.github.com/repos/successor/project",
     "https://api.github.com/repos/original/project",
   ]);
-  assert.equal(report.port_health[0].original_upstream.status, "unknown");
-  assert.equal(report.port_health[0].original_upstream.locations[0].repository, "original/project");
-  assert.equal(report.port_health[0].lineage.successor_selected, false);
+  assert.equal(requiredFixture(report.port_health[0]).original_upstream.status, "unknown");
+  assert.equal(
+    requiredFixture(requiredFixture(report.port_health[0]).original_upstream.locations[0])
+      .repository,
+    "original/project",
+  );
+  assert.equal(requiredFixture(report.port_health[0]).lineage.successor_selected, false);
 });
 
-test("shared acquisition request retains each port's exact artifact scope", async () => {
+void test("shared acquisition request retains each port's exact artifact scope", async () => {
   const input = healthCatalog();
-  input.ports.push({ ...structuredClone(input.ports[0]), id: "other-port" });
+  input.ports.push({ ...structuredClone(requiredFixture(input.ports[0])), id: "other-port" });
   const report = await collectRepositoryHealth(input, {
     now: () => healthTime,
     fetch: healthFetch,
@@ -803,37 +940,43 @@ test("shared acquisition request retains each port's exact artifact scope", asyn
   }
 });
 
-test("reviewed catalog maintenance accounts for a known original outage without acquiring successor authority", async () => {
+void test("reviewed catalog maintenance accounts for a known original outage without acquiring successor authority", async () => {
   const input = healthCatalog();
   input.source_catalog.qualification = [];
-  input.ports[0].upstream_status = "retired";
+  requiredFixture(input.ports[0]).upstream_status = "retired";
   const options = {
     now: () => healthTime,
-    fetch: async (url, opts) =>
+    fetch: async (url: string, opts: HealthRequestOptions) =>
       url.includes("api.github.com") ? new Response(null, { status: 404 }) : healthFetch(url, opts),
   };
   const known = await collectRepositoryHealth(input, options);
   assert.equal(known.outcome, "complete");
   assert.equal(known.degradation, true);
-  assert.equal(known.observations[1].classification, "catalog-declared-unavailable-original");
-  assert.equal(known.port_health[0].accepted_artifact_obtainability.status, "unknown");
-  assert.equal(known.port_health[0].preservation.status, "unknown");
-  assert.equal(known.port_health[0].applicable_holds.status, "unknown");
-  assert.equal(known.port_health[0].lineage.successor_selected, false);
-  delete input.ports[0].upstream_status;
+  assert.equal(
+    requiredFixture(known.observations[1]).classification,
+    "catalog-declared-unavailable-original",
+  );
+  assert.equal(
+    requiredFixture(known.port_health[0]).accepted_artifact_obtainability.status,
+    "unknown",
+  );
+  assert.equal(requiredFixture(known.port_health[0]).preservation.status, "unknown");
+  assert.equal(requiredFixture(known.port_health[0]).applicable_holds.status, "unknown");
+  assert.equal(requiredFixture(known.port_health[0]).lineage.successor_selected, false);
+  delete requiredFixture(input.ports[0]).upstream_status;
   assert.equal((await collectRepositoryHealth(input, options)).outcome, "incomplete");
-  input.ports[0].upstream_status = "retired";
+  requiredFixture(input.ports[0]).upstream_status = "retired";
   const artifactMissing = await collectRepositoryHealth(input, {
     now: () => healthTime,
     fetch: async () => new Response(null, { status: 404 }),
   });
   assert.equal(artifactMissing.outcome, "incomplete");
-  assert.equal(artifactMissing.observations[0].accounted_for, false);
+  assert.equal(requiredFixture(artifactMissing.observations[0]).accounted_for, false);
 });
 
-test("recent report comparison deduplicates unchanged conditions, exposes recovery and rejects stale scope", async () => {
+void test("recent report comparison deduplicates unchanged conditions, exposes recovery and rejects stale scope", async () => {
   const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
-  const collect = (time, previousReport, status) =>
+  const collect = (time: number, previousReport: unknown, status: number) =>
     collectRepositoryHealth(input, {
       now: () => time,
       previousReport,
@@ -847,13 +990,18 @@ test("recent report comparison deduplicates unchanged conditions, exposes recove
   const first = await collect(healthTime, null, 404);
   const repeated = await collect(healthTime + 1000, first, 404);
   assert.equal(repeated.material_changes.length, 0);
-  assert.equal(repeated.port_health[0].canonical_incidents[0].occurrences, 2);
   assert.equal(
-    repeated.port_health[0].canonical_incidents[0].first_seen,
-    first.port_health[0].canonical_incidents[0].first_seen,
+    requiredFixture(requiredFixture(repeated.port_health[0]).canonical_incidents[0]).occurrences,
+    2,
+  );
+  assert.equal(
+    requiredFixture(requiredFixture(repeated.port_health[0]).canonical_incidents[0]).first_seen,
+    requiredFixture(requiredFixture(first.port_health[0]).canonical_incidents[0]).first_seen,
   );
   const recovered = await collect(healthTime + 2000, repeated, 200);
-  assert.deepEqual(recovered.resolved_incidents, [first.port_health[0].canonical_incidents[0].key]);
+  assert.deepEqual(recovered.resolved_incidents, [
+    requiredFixture(requiredFixture(first.port_health[0]).canonical_incidents[0]).key,
+  ]);
   const stale = await collect(healthTime + 25 * 3600_000, first, 404);
   assert.match(stale.previous_report, /stale/);
   assert.equal(stale.material_changes.length, 1);
@@ -862,7 +1010,7 @@ test("recent report comparison deduplicates unchanged conditions, exposes recove
   assert.equal((await collect(healthTime + 1000, altered, 404)).material_changes.length, 1);
 });
 
-test("repository-name reuse is a changed unknown condition, never continuity or inherited qualification", async () => {
+void test("repository-name reuse is a changed unknown condition, never continuity or inherited qualification", async () => {
   const input = {
     ports: [
       {
@@ -872,7 +1020,7 @@ test("repository-name reuse is a changed unknown condition, never continuity or 
       },
     ],
   };
-  const collect = (id, previousReport = null) =>
+  const collect = (id: number, previousReport: unknown = null) =>
     collectRepositoryHealth(input, {
       now: () => healthTime,
       previousReport,
@@ -883,15 +1031,15 @@ test("repository-name reuse is a changed unknown condition, never continuity or 
     });
   const prior = await collect(1);
   const replaced = await collect(2, prior);
-  assert.equal(replaced.observations[0].reason, "identity-mismatch");
+  assert.equal(requiredFixture(replaced.observations[0]).reason, "identity-mismatch");
   assert.equal(replaced.outcome, "incomplete");
-  assert.equal(replaced.port_health[0].lineage.status, "unresolved");
-  assert.equal(replaced.port_health[0].qualification.inherited, false);
+  assert.equal(requiredFixture(replaced.port_health[0]).lineage.status, "unresolved");
+  assert.equal(requiredFixture(replaced.port_health[0]).qualification.inherited, false);
 });
 
-test("historical release digests are observed at exact tags and partial or conflicting asset pages remain unknown", async () => {
+void test("historical release digests are observed at exact tags and partial or conflicting asset pages remain unknown", async () => {
   const input = healthCatalog();
-  const paths = [];
+  const paths: string[] = [];
   const complete = await collectRepositoryHealth(input, {
     now: () => healthTime,
     fetch: async (url, options) => {
@@ -900,7 +1048,10 @@ test("historical release digests are observed at exact tags and partial or confl
     },
   });
   assert.ok(paths.includes("https://api.github.com/repos/original/project/releases/tags/v0"));
-  assert.equal(complete.port_health[0].accepted_artifact_obtainability.status, "unknown");
+  assert.equal(
+    requiredFixture(complete.port_health[0]).accepted_artifact_obtainability.status,
+    "unknown",
+  );
   for (const assets of [
     [],
     [{ digest: `sha256:${"c".repeat(64)}` }],
@@ -916,15 +1067,16 @@ test("historical release digests are observed at exact tags and partial or confl
           : healthFetch(url, options),
     });
     assert.equal(report.outcome, "incomplete");
-    assert.equal(report.observations.at(-1).status, "unknown");
+    assert.equal(requiredFixture(report.observations.at(-1)).status, "unknown");
     assert.equal(
-      report.port_health[0].qualification.records[0].scope.artifact_sha256,
+      requiredFixture(requiredFixture(report.port_health[0]).qualification.records[0]).scope
+        .artifact_sha256,
       "b".repeat(64),
     );
   }
 });
 
-test("prior provider backoff is honored without using a previous failure as healthy evidence", async () => {
+void test("prior provider backoff is honored without using a previous failure as healthy evidence", async () => {
   const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
   const first = await collectRepositoryHealth(input, {
     now: () => healthTime,
@@ -935,16 +1087,16 @@ test("prior provider backoff is honored without using a previous failure as heal
     previousReport: first,
     fetch: async () => assert.fail("backoff must not request"),
   });
-  assert.equal(deferred.observations[0].attempted, false);
-  assert.equal(deferred.observations[0].reason, "rate-limit");
+  assert.equal(requiredFixture(deferred.observations[0]).attempted, false);
+  assert.equal(requiredFixture(deferred.observations[0]).reason, "rate-limit");
   assert.equal(deferred.outcome, "incomplete");
 });
 
-test("known artifact, authority and distribution failures retain exact reported scope without creating or clearing holds", async () => {
+void test("known artifact, authority and distribution failures retain exact reported scope without creating or clearing holds", async () => {
   for (const rule of ["artifact-integrity", "publisher-authority", "distribution-authority"]) {
     const input = healthCatalog();
-    input.source_catalog.qualification[0].outcome = "failed";
-    input.source_catalog.qualification[0].method = rule;
+    requiredFixture(input.source_catalog.qualification[0]).outcome = "failed";
+    requiredFixture(input.source_catalog.qualification[0]).method = rule;
     input.ports.push({
       id: "unaffected",
       project_url: "https://github.com/original/project",
@@ -954,20 +1106,25 @@ test("known artifact, authority and distribution failures retain exact reported 
       now: () => healthTime,
       fetch: healthFetch,
     });
-    assert.equal(report.port_health[0].applicable_holds.reported_failures[0].method, rule);
     assert.equal(
-      report.port_health[0].applicable_holds.reported_failures[0].scope.artifact_sha256,
+      requiredFixture(requiredFixture(report.port_health[0]).applicable_holds.reported_failures[0])
+        .method,
+      rule,
+    );
+    assert.equal(
+      requiredFixture(requiredFixture(report.port_health[0]).applicable_holds.reported_failures[0])
+        .scope.artifact_sha256,
       "b".repeat(64),
     );
-    assert.equal(report.port_health[0].applicable_holds.status, "unknown");
-    assert.deepEqual(report.port_health[1].applicable_holds.reported_failures, []);
-    assert.equal(report.port_health[1].qualification.inherited, false);
+    assert.equal(requiredFixture(report.port_health[0]).applicable_holds.status, "unknown");
+    assert.deepEqual(requiredFixture(report.port_health[1]).applicable_holds.reported_failures, []);
+    assert.equal(requiredFixture(report.port_health[1]).qualification.inherited, false);
   }
 });
 
-test("repository identity baseline survives replacement, outage and aged snapshots", async () => {
+void test("repository identity baseline survives replacement, outage and aged snapshots", async () => {
   const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
-  const collect = (id, previousReport, time = healthTime) =>
+  const collect = (id: number | null, previousReport: unknown = null, time = healthTime) =>
     collectRepositoryHealth(input, {
       now: () => time,
       previousReport,
@@ -981,19 +1138,19 @@ test("repository identity baseline survives replacement, outage and aged snapsho
   const original = await collect(1);
   for (const intervening of [await collect(2, original), await collect(null, original), original]) {
     const report = await collect(2, intervening, healthTime + 25 * 3600_000);
-    assert.equal(report.observations[0].baseline_repository_id, 1);
-    assert.equal(report.observations[0].observed_repository_id, 2);
-    assert.equal(report.observations[0].reason, "identity-mismatch");
+    assert.equal(requiredFixture(report.observations[0]).baseline_repository_id, 1);
+    assert.equal(requiredFixture(report.observations[0]).observed_repository_id, 2);
+    assert.equal(requiredFixture(report.observations[0]).reason, "identity-mismatch");
     assert.equal(report.outcome, "incomplete");
     assert.deepEqual(report.resolved_incidents, []);
   }
   const replacement = await collect(2, original);
   const repeated = await collect(2, replacement);
-  assert.equal(repeated.observations[0].reason, "identity-mismatch");
+  assert.equal(requiredFixture(repeated.observations[0]).reason, "identity-mismatch");
   assert.equal(repeated.material_changes.length, 0);
 });
 
-test("changed material retains condition history and provider-specific recovery", async () => {
+void test("changed material retains condition history and provider-specific recovery", async () => {
   const input = {
     ports: [
       {
@@ -1003,7 +1160,7 @@ test("changed material retains condition history and provider-specific recovery"
       },
     ],
   };
-  const collect = (status, previousReport, time) =>
+  const collect = (status: number, previousReport: unknown, time: number) =>
     collectRepositoryHealth(input, {
       now: () => time,
       previousReport,
@@ -1019,8 +1176,8 @@ test("changed material retains condition history and provider-specific recovery"
     });
   const first = await collect(503, null, healthTime);
   const changed = await collect(502, first, healthTime + 1000);
-  const before = first.port_health[0].canonical_incidents[0];
-  const after = changed.port_health[0].canonical_incidents[0];
+  const before = requiredFixture(requiredFixture(first.port_health[0]).canonical_incidents[0]);
+  const after = requiredFixture(requiredFixture(changed.port_health[0]).canonical_incidents[0]);
   assert.equal(after.first_seen, before.first_seen);
   assert.equal(after.occurrences, 2);
   assert.equal(after.notify, true);
@@ -1032,7 +1189,7 @@ test("changed material retains condition history and provider-specific recovery"
   assert.equal(repeated.material_changes.length, 0);
 });
 
-test("rate-limit fallback defers repeated runs while preserving comparison and incident history", async () => {
+void test("rate-limit fallback defers repeated runs while preserving comparison and incident history", async () => {
   const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
   for (const headers of [{}, { "retry-after": "120" }]) {
     const first = await collectRepositoryHealth(input, {
@@ -1046,28 +1203,56 @@ test("rate-limit fallback defers repeated runs while preserving comparison and i
         previousReport: prior,
         fetch: async () => assert.fail("backoff must not request"),
       });
-      assert.equal(report.observations[0].attempted, false);
-      assert.equal(report.observations[0].http_status, null);
-      assert.equal(report.observations[0].comparison_http_status, 429);
+      assert.equal(requiredFixture(report.observations[0]).attempted, false);
+      assert.equal(requiredFixture(report.observations[0]).http_status, null);
+      assert.equal(requiredFixture(report.observations[0]).comparison_http_status, 429);
       assert.equal(report.material_changes.length, 0);
-      const incident = report.port_health[0].canonical_incidents[0];
-      assert.equal(incident.first_seen, first.port_health[0].canonical_incidents[0].first_seen);
+      const incident = requiredFixture(
+        requiredFixture(report.port_health[0]).canonical_incidents[0],
+      );
+      assert.equal(
+        incident.first_seen,
+        requiredFixture(requiredFixture(first.port_health[0]).canonical_incidents[0]).first_seen,
+      );
       assert.equal(incident.occurrences, elapsed / 1000 + 1);
       assert.equal(incident.notify, false);
       prior = report;
     }
-    assert.ok(Date.parse(first.observations[0].retry_at) >= healthTime + 60_000);
+    assert.ok(
+      Date.parse(requiredFixture(requiredFixture(first.observations[0]).retry_at)) >=
+        healthTime + 60_000,
+    );
   }
 });
 
-const healthScopePort = (id, repository = `owner/${id}`) => ({
+interface HealthScopeFixture {
+  id: string;
+  summary: string;
+  platforms: string[];
+  adapter: string;
+  project_url?: string;
+  upstream_status?: string;
+  source_profile?: string;
+  release: {
+    repository: string;
+    provider?: string;
+    sha256?: string;
+    direct?: Record<string, typeof healthPin>;
+  };
+}
+const healthScopePort = (id: string, repository = `owner/${id}`): HealthScopeFixture => ({
   id,
   summary: "A native port.",
   platforms: ["windows-x86-64"],
   release: { repository },
   adapter: "owned",
 });
-const healthScopeCatalog = (...ports) => ({ schema_version: 2, ports });
+const healthScopeCatalog = <T,>(
+  ...ports: T[]
+): { schema_version: number; ports: T[]; source_catalog?: unknown } => ({
+  schema_version: 2,
+  ports,
+});
 const change = (file = "crates/portcove-core/catalog/catalog.json", extra = {}) => ({
   oldPath: file,
   newPath: file,
@@ -1076,12 +1261,12 @@ const change = (file = "crates/portcove-core/catalog/catalog.json", extra = {}) 
   newMode: "100644",
   ...extra,
 });
-const copy = (value) => structuredClone(value);
+const copy = <T,>(value: T): T => structuredClone(value);
 
-test("summary-only selection makes no requests and does not claim global health", async () => {
+void test("summary-only selection makes no requests and does not claim global health", async () => {
   const base = healthScopeCatalog(healthScopePort("game"), healthScopePort("unavailable"));
   const head = copy(base);
-  head.ports[0].summary = "Shorter title description.";
+  requiredFixture(head.ports[0]).summary = "Shorter title description.";
   const scope = await selectUpstreamHealthScope(base, head, [change()]);
   assert.equal(scope.mode, "none");
   assert.deepEqual(scope.port_ids, []);
@@ -1096,34 +1281,34 @@ test("summary-only selection makes no requests and does not claim global health"
   assert.equal(report.coverage.attempted_repositories, 0);
 });
 
-test("semantic port contracts select affected obligations and their unknowns still block", async () => {
+void test("semantic port contracts select affected obligations and their unknowns still block", async () => {
   const base = healthScopeCatalog(healthScopePort("game"), healthScopePort("unavailable"));
   for (const update of [
-    (p) => {
+    (p: HealthScopeFixture) => {
       p.release.repository = "owner/new-location";
     },
-    (p) => {
+    (p: HealthScopeFixture) => {
       p.release.sha256 = "a".repeat(64);
     },
-    (p) => {
+    (p: HealthScopeFixture) => {
       p.upstream_status = "retired";
     },
-    (p) => {
+    (p: HealthScopeFixture) => {
       p.platforms.push("linux-x86-64");
     },
-    (p) => {
+    (p: HealthScopeFixture) => {
       p.source_profile = "changed-source";
     },
-    (p) => {
+    (p: HealthScopeFixture) => {
       p.adapter = "psx-recomp-managed";
     },
   ]) {
     const head = copy(base);
-    update(head.ports[0]);
+    update(requiredFixture(head.ports[0]));
     const scope = await selectUpstreamHealthScope(base, head, [change()]);
     assert.equal(scope.mode, "affected");
     assert.deepEqual(scope.port_ids, ["game"]);
-    const calls = [];
+    const calls: string[] = [];
     const report = await collectRepositoryHealth(head, {
       portIds: scope.port_ids,
       fetch: async (url) => {
@@ -1132,17 +1317,17 @@ test("semantic port contracts select affected obligations and their unknowns sti
       },
     });
     assert.equal(report.outcome, "incomplete");
-    assert.equal(report.observations[0].reason, "provider-error");
+    assert.equal(requiredFixture(report.observations[0]).reason, "provider-error");
     assert.ok(calls.every((url: string) => !url.endsWith("/unavailable")));
     assert.deepEqual(report.scope.unassessed_port_ids, ["unavailable"]);
     assert.deepEqual(
       scope.retcomm_port_ids,
-      head.ports[0].adapter === "psx-recomp-managed" ? ["game"] : [],
+      requiredFixture(head.ports[0]).adapter === "psx-recomp-managed" ? ["game"] : [],
     );
   }
 });
 
-test("shared endpoints retain unselected maintenance and identity obligations", async () => {
+void test("shared endpoints retain unselected maintenance and identity obligations", async () => {
   const input = healthScopeCatalog(
     {
       ...healthScopePort("retired", "owner/shared"),
@@ -1159,21 +1344,21 @@ test("shared endpoints retain unselected maintenance and identity obligations", 
     fetch: async () => new Response(null, { status: 404 }),
   });
   assert.equal(report.coverage.repositories, 1);
-  assert.deepEqual(report.observations[0].port_ids, ["retired", "active"]);
-  assert.equal(report.observations[0].accounted_for, false);
+  assert.deepEqual(requiredFixture(report.observations[0]).port_ids, ["retired", "active"]);
+  assert.equal(requiredFixture(report.observations[0]).accounted_for, false);
   assert.equal(report.outcome, "incomplete");
 });
 
-test("additions select the new port; removals and root/history changes retain full scope", async () => {
+void test("additions select the new port; removals and root/history changes retain full scope", async () => {
   const base = healthScopeCatalog(healthScopePort("old"));
   const head = healthScopeCatalog(healthScopePort("old"), healthScopePort("new"));
   assert.deepEqual((await selectUpstreamHealthScope(base, head, [change()])).port_ids, ["new"]);
   assert.equal((await selectUpstreamHealthScope(head, base, [change()])).mode, "full");
   for (const update of [
-    (c) => {
+    (c: ReturnType<typeof healthScopeCatalog>) => {
       c.schema_version++;
     },
-    (c) => {
+    (c: ReturnType<typeof healthScopeCatalog>) => {
       c.source_catalog = {
         qualification: [
           { scope: { port_id: "old", artifact_sha256: "a".repeat(64), upstream_ref: "v1" } },
@@ -1187,7 +1372,7 @@ test("additions select the new port; removals and root/history changes retain fu
   }
 });
 
-test("tools, workflows, policy, mixed changes and uncertain inventories cannot narrow monitoring", async () => {
+void test("tools, workflows, policy, mixed changes and uncertain inventories cannot narrow monitoring", async () => {
   const input = healthScopeCatalog(healthScopePort("old"));
   for (const changes of [
     [],
@@ -1218,20 +1403,20 @@ test("tools, workflows, policy, mixed changes and uncertain inventories cannot n
   );
 });
 
-test("exact Git discovery binds base, merge base, head and checkout; drift and missing refs fail closed", async () => {
+void test("exact Git discovery binds base, merge base, head and checkout; drift and missing refs fail closed", async () => {
   const baseSha = "a".repeat(40),
     headSha = "b".repeat(40),
     checkoutSha = "c".repeat(40);
   const base = healthScopeCatalog(healthScopePort("old"));
   const head = copy(base);
-  head.ports[0].summary = "New copy.";
+  requiredFixture(head.ports[0]).summary = "New copy.";
   const tree = "d".repeat(40);
   let drift = false;
-  const git = (args) => {
+  const git = (args: string[]) => {
     if (args[0] === "rev-parse") {
-      const value = args.at(-1).split("^")[0];
+      const value = requiredFixture(requiredFixture(args.at(-1)).split("^")[0]);
       return Buffer.from(
-        args.at(-1).endsWith("^{commit}")
+        requiredFixture(args.at(-1)).endsWith("^{commit}")
           ? value
           : drift && value === checkoutSha
             ? "e".repeat(40)
@@ -1244,13 +1429,16 @@ test("exact Git discovery binds base, merge base, head and checkout; drift and m
         `:100644 100644 ${baseSha} ${headSha} M\0crates/portcove-core/catalog/catalog.json\0`,
       );
     if (args[0] === "show")
-      return Buffer.from(JSON.stringify(args[1].startsWith(baseSha) ? base : head));
-    assert.fail(args);
+      return Buffer.from(
+        JSON.stringify(requiredFixture(args[1]).startsWith(baseSha) ? base : head),
+      );
+    assert.fail(JSON.stringify(args));
   };
   const context = { event: "pull_request", baseSha, headSha, checkoutSha };
   const discover = () => discoverUpstreamHealthScope(context, git, () => JSON.stringify(head));
   const scope = await discover();
   assert.equal(scope.mode, "none");
+  assert.ok("identities" in scope);
   assert.equal(scope.identities.head, headSha);
   assert.equal(scope.identities.merge_base, baseSha);
   assert.equal(scope.identities.checkout_tree, tree);
@@ -1285,31 +1473,37 @@ test("exact Git discovery binds base, merge base, head and checkout; drift and m
 
 // Generic monitoring tests use retained independent cases, not a changing live
 // catalog/pin inventory. Explicit negative-policy cases still override this.
-function collectRepositoryHealth(catalog, options = {}) {
+function collectRepositoryHealth(catalog: unknown, options: HealthOptions = {}) {
   return collectRepositoryHealthWithPolicy(catalog, { reviewedAccounting, ...options });
 }
 
-test("live monitoring policy retains valid explicit port contract bindings", async () => {
-  const policy = JSON.parse(
-    await readFile(new URL("../.github/upstream-health-accounting.json", import.meta.url), "utf8"),
+void test("live monitoring policy retains valid explicit port contract bindings", async () => {
+  const policy = validateHealthAccountingPolicy(
+    JSON.parse(
+      await readFile(
+        new URL("../.github/upstream-health-accounting.json", import.meta.url),
+        "utf8",
+      ),
+    ),
   );
-  const catalog = JSON.parse(
+  const catalog: unknown = JSON.parse(
     await readFile(
       new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
       "utf8",
     ),
   );
-  validateHealthAccountingPolicy(policy);
+  assert.ok(isRecord(catalog) && Array.isArray(catalog.ports));
+  const ports: unknown[] = catalog.ports;
   for (const rule of [...policy.pins, ...policy.original_conditions]) {
-    const port = catalog.ports.find(({ id }) => id === rule.port_id);
-    assert.ok(port, rule.port_id);
+    const port = requiredFixture(
+      ports.find((value) => isRecord(value) && value.id === rule.port_id),
+    );
+    assert.ok(isRecord(port), rule.port_id);
     const { summary: _summary, ...contract } = port;
     assert.equal(observationHash(contract), rule.port_contract_sha256, rule.port_id);
   }
 });
-const pinMetadata = JSON.parse(
-  await readFile(new URL("./fixtures/upstream-health-pins.json", import.meta.url), "utf8"),
-).pins;
+const pinMetadata = pinCases.pins;
 // Independently retained complete public provider metadata; no accepted-byte claim.
 pinMetadata.push({
   repository: {
@@ -1958,14 +2152,7 @@ pinMetadata.push({
     },
   ],
 });
-pinMetadata.push(
-  JSON.parse(
-    await readFile(
-      new URL("./fixtures/upstream-health-fade-to-black.json", import.meta.url),
-      "utf8",
-    ),
-  ),
-);
+pinMetadata.push(fadePin);
 const currentHealthCatalog = accountingCases.catalog;
 const accountingCatalog = () => ({
   ports: structuredClone(
@@ -1977,10 +2164,20 @@ const accountingCatalog = () => ({
   ),
 });
 
-function accountingFetch(calls, mutate = (_url, response) => response) {
+interface AccountingReply {
+  status?: number;
+  data: unknown;
+  headers?: Record<string, string>;
+}
+type HealthCall = { url: string; options: HealthRequestOptions };
+function accountingFetch(
+  calls: HealthCall[],
+  mutate: (url: string, response: AccountingReply) => AccountingReply = (_url, response) =>
+    response,
+): HealthFetch {
   return async (url, options) => {
     calls.push({ url, options });
-    let response;
+    let response: AccountingReply | undefined;
     const pin = reviewedAccounting.pins.find((rule) => rule.url === url);
     const condition = reviewedAccounting.original_conditions.find(
       (rule) => url === `https://api.github.com/repos/${rule.repository}`,
@@ -2004,8 +2201,8 @@ function accountingFetch(calls, mutate = (_url, response) => response) {
       };
     else {
       for (let i = 0; i < reviewedAccounting.pins.length; i++) {
-        const rule = reviewedAccounting.pins[i],
-          fixture = pinMetadata[i],
+        const rule = requiredFixture(reviewedAccounting.pins[i]),
+          fixture = requiredFixture(pinMetadata[i]),
           prefix = `https://api.github.com/repos/${rule.repository}`;
         if (url === prefix) response = { data: structuredClone(fixture.repository) };
         else if (url === `${prefix}/releases/tags/${encodeURIComponent(rule.tag)}`)
@@ -2023,8 +2220,8 @@ function accountingFetch(calls, mutate = (_url, response) => response) {
   };
 }
 
-test("reviewed exact metadata and original conditions remain degraded without granting bytes or lineage", async () => {
-  const calls = [],
+void test("reviewed exact metadata and original conditions remain degraded without granting bytes or lineage", async () => {
+  const calls: { url: string; options: HealthRequestOptions }[] = [],
     catalog = accountingCatalog();
   const report = await collectRepositoryHealth(catalog, {
     fetch: accountingFetch(calls),
@@ -2052,9 +2249,10 @@ test("reviewed exact metadata and original conditions remain degraded without gr
     assert.equal(record.http_status, 302);
     assert.equal(record.status, "unknown");
     assert.equal(record.reason, "provider-redirect");
-    assert.equal(record.pin_assessment.status, "provider-reported-pin-present");
-    assert.equal(record.pin_assessment.destination_availability, "unknown");
-    assert.equal(record.pin_assessment.accepted_bytes, "unverified");
+    assert.ok(record.pin_assessment?.status === "provider-reported-pin-present");
+    assert.equal(requiredFixture(record.pin_assessment).status, "provider-reported-pin-present");
+    assert.equal(requiredFixture(record.pin_assessment).destination_availability, "unknown");
+    assert.equal(requiredFixture(record.pin_assessment).accepted_bytes, "unverified");
   }
   for (const port of report.port_health) {
     assert.equal(port.lineage.status, "unresolved");
@@ -2074,7 +2272,7 @@ test("reviewed exact metadata and original conditions remain degraded without gr
   assert.equal(original, JSON.stringify(catalog));
 });
 
-test("fixed mixed inventory retains every location and pin check with eight fewer actual requests", async () => {
+void test("fixed mixed inventory retains every location and pin check with eight fewer actual requests", async () => {
   for (const expanded of [false, true]) {
     const catalog = structuredClone(currentHealthCatalog);
     if (expanded)
@@ -2083,8 +2281,8 @@ test("fixed mixed inventory retains every location and pin check with eight fewe
           id: "extra-shared-original",
           release: {
             provider: "github",
-            repository: reviewedAccounting.pins.find(
-              (pin) => pin.port_id === "alexbeav-ape-escape-recomp",
+            repository: requiredFixture(
+              reviewedAccounting.pins.find((pin) => pin.port_id === "alexbeav-ape-escape-recomp"),
             ).repository,
           },
         },
@@ -2093,7 +2291,7 @@ test("fixed mixed inventory retains every location and pin check with eight fewe
           release: { provider: "github", repository: `fixture/expanded-${i}` },
         })),
       );
-    const calls = [];
+    const calls: { url: string; options: HealthRequestOptions }[] = [];
     const inventory = await collectRepositoryHealth(catalog, {
       fetch: async () => {
         throw new Error("offline inventory only");
@@ -2120,9 +2318,20 @@ test("fixed mixed inventory retains every location and pin check with eight fewe
         calls.push({ url, options });
         if (options.method === "HEAD") {
           const artifact = catalog.ports
-            .flatMap((port) => Object.values(port.release?.direct ?? {}))
-            .find((artifact) => artifact.url === url);
-          return new Response(null, { headers: { "content-length": String(artifact?.size ?? 0) } });
+            .flatMap((port) => {
+              const release: unknown = port.release;
+              return isRecord(release) && isRecord(release.direct)
+                ? Object.values(release.direct)
+                : [];
+            })
+            .find((artifact) => isRecord(artifact) && artifact.url === url);
+          return new Response(null, {
+            headers: {
+              "content-length": String(
+                isRecord(artifact) && typeof artifact.size === "number" ? artifact.size : 0,
+              ),
+            },
+          });
         }
         const record = inventory.observations.find((record) => {
           const base =
@@ -2190,10 +2399,10 @@ test("fixed mixed inventory retains every location and pin check with eight fewe
       );
   }
 });
-test("repository reuse retains all obligations across the former cap and near the fixed ceiling", async () => {
-  const pin = reviewedAccounting.pins[0];
+void test("repository reuse retains all obligations across the former cap and near the fixed ceiling", async () => {
+  const pin = requiredFixture(reviewedAccounting.pins[0]);
   const prefix = `https://api.github.com/repos/${pin.repository}`;
-  const ordinaryPort = (id) => ({
+  const ordinaryPort = (id: string) => ({
     id,
     release: { provider: "github", repository: `fixture/${id}` },
   });
@@ -2202,7 +2411,7 @@ test("repository reuse retains all obligations across the former cap and near th
     [124, false],
     [124, true],
     [251, false],
-  ]) {
+  ] as const) {
     const catalog = {
       ports: [
         ...Array.from({ length: ordinaryCount }, (_, i) => ordinaryPort(`capacity-${i}`)),
@@ -2210,7 +2419,7 @@ test("repository reuse retains all obligations across the former cap and near th
         ...(nextLive ? [ordinaryPort("next-live")] : []),
       ],
     };
-    const calls = [];
+    const calls: { url: string; options: HealthRequestOptions }[] = [];
     const fixed = accountingFetch(calls);
     const report = await collectRepositoryHealth(catalog, {
       now: () => 0,
@@ -2233,10 +2442,15 @@ test("repository reuse retains all obligations across the former cap and near th
     assert.equal(calls.length, ordinaryCount + 4 + Number(nextLive));
     assert.equal(calls.filter((call) => call.url === prefix).length, 1);
     assert.equal(
-      report.observations.find((record) => record.repository === pin.url).pin_assessment.status,
+      requiredFixture(
+        requiredFixture(report.observations.find((record) => record.repository === pin.url))
+          .pin_assessment,
+      ).status,
       "provider-reported-pin-present",
     );
-    const original = report.observations.find((record) => record.repository === pin.repository);
+    const original = requiredFixture(
+      report.observations.find((record) => record.repository === pin.repository),
+    );
     assert.equal(original.attempted, false);
     assert.equal(original.metadata_reused, true);
     assert.equal(original.reason, null);
@@ -2244,8 +2458,8 @@ test("repository reuse retains all obligations across the former cap and near th
     assert.equal(original.accounted_for, true);
     assert.equal(report.outcome, "complete");
     if (nextLive) {
-      const refused = report.observations.find(
-        (record) => record.repository === "fixture/next-live",
+      const refused = requiredFixture(
+        report.observations.find((record) => record.repository === "fixture/next-live"),
       );
       assert.equal(refused.attempted, true);
       assert.equal(refused.metadata_reused, false);
@@ -2255,12 +2469,12 @@ test("repository reuse retains all obligations across the former cap and near th
   }
 });
 
-test("repository reuse stays in one collection and failed or partial reads are never cached", async () => {
+void test("repository reuse stays in one collection and failed or partial reads are never cached", async () => {
   const catalog = accountingCatalog();
   const first = await collectRepositoryHealth(catalog, { fetch: accountingFetch([]) });
-  const prefix = `https://api.github.com/repos/${reviewedAccounting.pins[0].repository}`;
+  const prefix = `https://api.github.com/repos/${requiredFixture(reviewedAccounting.pins[0]).repository}`;
   for (const status of [301, 401, 404, 503]) {
-    const calls = [];
+    const calls: { url: string; options: HealthRequestOptions }[] = [];
     const report = await collectRepositoryHealth(catalog, {
       previousReport: first,
       fetch: accountingFetch(calls, (url, response) =>
@@ -2270,14 +2484,21 @@ test("repository reuse stays in one collection and failed or partial reads are n
     assert.equal(report.outcome, "incomplete", String(status));
     assert.equal(calls.filter((call) => call.url === prefix).length, 2);
     assert.equal(
-      report.observations.find(
-        (record) => record.repository === prefix.replace("https://api.github.com/repos/", ""),
+      requiredFixture(
+        report.observations.find(
+          (record) => record.repository === prefix.replace("https://api.github.com/repos/", ""),
+        ),
       ).metadata_reused,
       false,
     );
     assert.equal(
-      report.observations.find((record) => record.repository === reviewedAccounting.pins[0].url)
-        .pin_assessment.status,
+      requiredFixture(
+        requiredFixture(
+          report.observations.find(
+            (record) => record.repository === requiredFixture(reviewedAccounting.pins[0]).url,
+          ),
+        ).pin_assessment,
+      ).status,
       "unknown",
     );
   }
@@ -2292,10 +2513,10 @@ test("repository reuse stays in one collection and failed or partial reads are n
         },
       }),
   ]) {
-    const calls = [],
+    const calls: { url: string; options: HealthRequestOptions }[] = [],
       ordinary = accountingFetch(calls);
     const report = await collectRepositoryHealth(catalog, {
-      fetch: (url, options) => {
+      fetch: async (url, options) => {
         if (url !== prefix) return ordinary(url, options);
         calls.push({ url, options });
         return invalid();
@@ -2304,12 +2525,17 @@ test("repository reuse stays in one collection and failed or partial reads are n
     assert.equal(report.outcome, "incomplete");
     assert.equal(calls.filter((call) => call.url === prefix).length, 2);
     assert.equal(
-      report.observations.find((record) => record.repository === reviewedAccounting.pins[0].url)
-        .pin_assessment.status,
+      requiredFixture(
+        requiredFixture(
+          report.observations.find(
+            (record) => record.repository === requiredFixture(reviewedAccounting.pins[0]).url,
+          ),
+        ).pin_assessment,
+      ).status,
       "unknown",
     );
   }
-  const calls = [];
+  const calls: { url: string; options: HealthRequestOptions }[] = [];
   const fresh = await collectRepositoryHealth(catalog, {
     previousReport: first,
     fetch: accountingFetch(calls),
@@ -2318,49 +2544,56 @@ test("repository reuse stays in one collection and failed or partial reads are n
   assert.equal(calls.length, 44);
 });
 
-test("reused repository facts still fail pin and original-location identity checks", async () => {
-  const pin = reviewedAccounting.pins[0],
+void test("reused repository facts still fail pin and original-location identity checks", async () => {
+  const pin = requiredFixture(reviewedAccounting.pins[0]),
     prefix = `https://api.github.com/repos/${pin.repository}`;
-  const calls = [];
+  const calls: { url: string; options: HealthRequestOptions }[] = [];
   const report = await collectRepositoryHealth(accountingCatalog(), {
     fetch: accountingFetch(calls, (url, response) =>
       url === prefix
-        ? { ...response, data: { ...response.data, full_name: "wrong/repository" } }
+        ? { ...response, data: { ...objectFixture(response.data), full_name: "wrong/repository" } }
         : response,
     ),
   });
   assert.equal(calls.filter((call) => call.url === prefix).length, 1);
   assert.equal(report.outcome, "incomplete");
-  const original = report.observations.find((record) => record.repository === pin.repository);
+  const original = requiredFixture(
+    report.observations.find((record) => record.repository === pin.repository),
+  );
   assert.equal(original.metadata_reused, true);
   assert.equal(original.reason, "identity-mismatch");
   assert.equal(original.accounted_for, false);
   assert.equal(
-    report.observations.find((record) => record.repository === pin.url).pin_assessment.status,
+    requiredFixture(
+      requiredFixture(report.observations.find((record) => record.repository === pin.url))
+        .pin_assessment,
+    ).status,
     "unknown",
   );
 });
 
-test("captured repository metadata cannot bypass deadline or historical numeric identity", async () => {
-  const pin = reviewedAccounting.pins[0];
+void test("captured repository metadata cannot bypass deadline or historical numeric identity", async () => {
+  const pin = requiredFixture(reviewedAccounting.pins[0]);
   const catalog = { ports: accountingCatalog().ports.filter((port) => port.id === pin.port_id) };
   const original = await collectRepositoryHealth(catalog, { fetch: accountingFetch([]) });
   const baseline = structuredClone(original);
-  baseline.observations.find(
-    (record) => record.repository === pin.repository,
+  requiredFixture(
+    baseline.observations.find((record) => record.repository === pin.repository),
   ).baseline_repository_id = 1;
   const mismatch = await collectRepositoryHealth(catalog, {
     previousReport: baseline,
     fetch: accountingFetch([]),
   });
-  const record = mismatch.observations.find((record) => record.repository === pin.repository);
+  const record = requiredFixture(
+    mismatch.observations.find((record) => record.repository === pin.repository),
+  );
   assert.equal(record.metadata_reused, true);
   assert.equal(record.reason, "identity-mismatch");
   assert.equal(record.accounted_for, false);
   assert.equal(mismatch.outcome, "incomplete");
 
   let clock = 0;
-  const calls = [],
+  const calls: { url: string; options: HealthRequestOptions }[] = [],
     fixed = accountingFetch(calls);
   const expired = await collectRepositoryHealth(catalog, {
     now: () => clock,
@@ -2370,7 +2603,9 @@ test("captured repository metadata cannot bypass deadline or historical numeric 
       return response;
     },
   });
-  const unattempted = expired.observations.find((record) => record.repository === pin.repository);
+  const unattempted = requiredFixture(
+    expired.observations.find((record) => record.repository === pin.repository),
+  );
   assert.equal(unattempted.reason, "budget");
   assert.equal(unattempted.attempted, false);
   assert.equal(unattempted.metadata_reused, false);
@@ -2378,10 +2613,10 @@ test("captured repository metadata cannot bypass deadline or historical numeric 
   assert.equal(calls.length, 4);
 });
 
-test("shared metadata validators require exact declared provider facts and complete collections", () => {
+void test("shared metadata validators require exact declared provider facts and complete collections", () => {
   for (let i = 0; i < reviewedAccounting.pins.length; i++) {
-    const pin = reviewedAccounting.pins[i],
-      fixture = pinMetadata[i];
+    const pin = requiredFixture(reviewedAccounting.pins[i]),
+      fixture = requiredFixture(pinMetadata[i]);
     assert.deepEqual(githubDirectPin(pin.url), {
       repository: pin.repository,
       tag: pin.tag,
@@ -2401,35 +2636,47 @@ test("shared metadata validators require exact declared provider facts and compl
   }
 });
 
-test("missing or changed pin metadata remains unaccounted while retaining the original302", async () => {
-  const first = reviewedAccounting.pins[0];
+void test("missing or changed pin metadata remains unaccounted while retaining the original302", async () => {
+  const first = requiredFixture(reviewedAccounting.pins[0]);
   const prefix = `https://api.github.com/repos/${first.repository}`;
-  const changes = [
-    [prefix, (response) => ({ ...response, data: { ...response.data, id: 1 } })],
+  const changes: [string, (response: AccountingReply) => AccountingReply][] = [
+    [prefix, (response) => ({ ...response, data: { ...objectFixture(response.data), id: 1 } })],
     [
       prefix,
-      (response) => ({ ...response, data: { ...response.data, full_name: "other/reused" } }),
-    ],
-    [prefix, (response) => ({ ...response, data: { ...response.data, archived: true } })],
-    [
-      `${prefix}/releases/tags/${first.tag}`,
-      (response) => ({ ...response, status: 302, data: null }),
+      (response: AccountingReply) => ({
+        ...response,
+        data: { ...objectFixture(response.data), full_name: "other/reused" },
+      }),
     ],
     [
-      `${prefix}/releases/tags/${first.tag}`,
-      (response) => ({ ...response, data: { ...response.data, id: 1 } }),
+      prefix,
+      (response) => ({ ...response, data: { ...objectFixture(response.data), archived: true } }),
     ],
     [
       `${prefix}/releases/tags/${first.tag}`,
-      (response) => ({ ...response, data: { ...response.data, draft: true } }),
+      (response: AccountingReply) => ({ ...response, status: 302, data: null }),
+    ],
+    [
+      `${prefix}/releases/tags/${first.tag}`,
+      (response: AccountingReply) => ({
+        ...response,
+        data: { ...objectFixture(response.data), id: 1 },
+      }),
+    ],
+    [
+      `${prefix}/releases/tags/${first.tag}`,
+      (response: AccountingReply) => ({
+        ...response,
+        data: { ...objectFixture(response.data), draft: true },
+      }),
     ],
     [
       `${prefix}/releases/${first.release_id}/assets?per_page=100`,
-      (response) => ({ ...response, data: [] }),
+      (response: AccountingReply) => ({ ...response, data: [] }),
     ],
     [
       `${prefix}/releases/${first.release_id}/assets?per_page=100`,
-      (response) => ({
+      (response: AccountingReply) => ({
         ...response,
         headers: { link: '<https://example.invalid/next>; rel="next"' },
       }),
@@ -2438,10 +2685,11 @@ test("missing or changed pin metadata remains unaccounted while retaining the or
   for (const field of ["id", "size", "digest", "browser_download_url", "updated_at"])
     changes.push([
       `${prefix}/releases/${first.release_id}/assets?per_page=100`,
-      (response) => ({
+      (response: AccountingReply) => ({
         ...response,
-        data: response.data.map((asset) =>
-          asset.id === first.asset_id
+        data: arrayFixture(response.data).map((rawAsset) => {
+          const asset = objectFixture(rawAsset);
+          return asset.id === first.asset_id
             ? {
                 ...asset,
                 [field]:
@@ -2453,38 +2701,40 @@ test("missing or changed pin metadata remains unaccounted while retaining the or
                         ? "2026-10-09T12:00:00Z"
                         : "https://example.invalid/asset",
               }
-            : asset,
-        ),
+            : asset;
+        }),
       }),
     ]);
   for (const [endpoint, mutate] of changes) {
-    const calls = [];
+    const calls: { url: string; options: HealthRequestOptions }[] = [];
     const report = await collectRepositoryHealth(accountingCatalog(), {
       fetch: accountingFetch(calls, (url, response) =>
         url === endpoint ? mutate(response) : response,
       ),
     });
-    const record = report.observations.find((record) => record.repository === first.url);
+    const record = requiredFixture(
+      report.observations.find((record) => record.repository === first.url),
+    );
     assert.equal(report.outcome, "incomplete", endpoint);
     assert.equal(record.http_status, 302);
-    assert.equal(record.pin_assessment.status, "unknown");
+    assert.equal(requiredFixture(record.pin_assessment).status, "unknown");
     assert.equal(record.accounted_for, false);
     assert.ok(calls.every((call) => !call.url.includes("example.invalid")));
   }
 });
 
-test("reviewed original conditions cannot hide changed status, redirect identity or port contracts", async () => {
-  const original = reviewedAccounting.original_conditions[0];
+void test("reviewed original conditions cannot hide changed status, redirect identity or port contracts", async () => {
+  const original = requiredFixture(reviewedAccounting.original_conditions[0]);
   const endpoint = `https://api.github.com/repos/${original.repository}`;
   for (const change of [
-    (response) => ({ ...response, status: 302 }),
-    (response) => ({ ...response, status: 401 }),
-    (response) => ({ ...response, status: 503 }),
-    (response) => ({
+    (response: AccountingReply) => ({ ...response, status: 302 }),
+    (response: AccountingReply) => ({ ...response, status: 401 }),
+    (response: AccountingReply) => ({ ...response, status: 503 }),
+    (response: AccountingReply) => ({
       ...response,
       data: { message: "Moved Permanently", url: "https://api.github.com/repositories/1" },
     }),
-    (response) => ({
+    (response: AccountingReply) => ({
       ...response,
       data: { message: "Moved Permanently", url: "https://example.invalid/redirect" },
     }),
@@ -2496,12 +2746,14 @@ test("reviewed original conditions cannot hide changed status, redirect identity
     });
     assert.equal(report.outcome, "incomplete");
     assert.equal(
-      report.observations.find((record) => record.repository === original.repository).accounted_for,
+      requiredFixture(
+        report.observations.find((record) => record.repository === original.repository),
+      ).accounted_for,
       false,
     );
   }
   const changed = accountingCatalog();
-  changed.ports.find((port) => port.id === original.port_id).name += " changed";
+  requiredFixture(changed.ports.find((port) => port.id === original.port_id)).name += " changed";
   assert.equal(
     (await collectRepositoryHealth(changed, { fetch: accountingFetch([]) })).outcome,
     "incomplete",
@@ -2513,7 +2765,9 @@ test("reviewed original conditions cannot hide changed status, redirect identity
     "complete",
   );
   const shared = accountingCatalog();
-  const extra = structuredClone(shared.ports.find((port) => port.id === original.port_id));
+  const extra = structuredClone(
+    requiredFixture(shared.ports.find((port) => port.id === original.port_id)),
+  );
   extra.id = "unreviewed-shared-port";
   shared.ports.push(extra);
   assert.equal(
@@ -2527,7 +2781,7 @@ test("reviewed original conditions cannot hide changed status, redirect identity
   );
 });
 
-test("missing pin scopes, malformed accounting rules and unclassified failures cannot authorize a pass", async () => {
+void test("missing pin scopes, malformed accounting rules and unclassified failures cannot authorize a pass", async () => {
   const missing = structuredClone(reviewedAccounting);
   missing.pins = [];
   assert.equal(
@@ -2551,10 +2805,12 @@ test("missing pin scopes, malformed accounting rules and unclassified failures c
     "incomplete",
   );
   for (const mutate of [
-    (policy) => (policy.extra = true),
-    (policy) => (policy.pins[0].repository_id = 0),
-    (policy) => (policy.original_conditions[0].http_status = 302),
-    (policy) => policy.original_conditions.push(policy.original_conditions[0]),
+    (policy: unknown) => (objectFixture(policy).extra = true),
+    (policy: typeof reviewedAccounting) => (requiredFixture(policy.pins[0]).repository_id = 0),
+    (policy: typeof reviewedAccounting) =>
+      (objectFixture(requiredFixture(policy.original_conditions[0])).http_status = 302),
+    (policy: typeof reviewedAccounting) =>
+      policy.original_conditions.push(requiredFixture(policy.original_conditions[0])),
   ]) {
     const invalid = structuredClone(reviewedAccounting);
     mutate(invalid);
@@ -2572,7 +2828,7 @@ test("missing pin scopes, malformed accounting rules and unclassified failures c
     assert.equal(calls, 0);
   }
   const catalog = accountingCatalog();
-  const extra = structuredClone(catalog.ports[0]);
+  const extra = structuredClone(requiredFixture(catalog.ports[0]));
   extra.id = "new-unclassified-port";
   extra.project_url = "https://github.com/unclassified/project";
   extra.release = { provider: "github", repository: "unclassified/project" };
@@ -2591,13 +2847,13 @@ test("missing pin scopes, malformed accounting rules and unclassified failures c
   );
 });
 
-test("same-ID contradictory release and asset collections never account an exact pin", () => {
-  const pin = reviewedAccounting.pins[0],
-    fixture = pinMetadata[0];
+void test("same-ID contradictory release and asset collections never account an exact pin", () => {
+  const pin = requiredFixture(reviewedAccounting.pins[0]),
+    fixture = requiredFixture(pinMetadata[0]);
   for (const field of ["digest", "size", "browser_download_url", "state", "updated_at"]) {
     const release = structuredClone(fixture.release);
-    const asset = release.assets.find((asset) => asset.id === pin.asset_id);
-    asset[field] =
+    const asset = requiredFixture(release.assets.find((asset) => asset.id === pin.asset_id));
+    objectFixture(asset)[field] =
       field === "digest"
         ? "sha256:" + "0".repeat(64)
         : field === "size"
@@ -2618,9 +2874,9 @@ test("same-ID contradictory release and asset collections never account an exact
   }
 });
 
-test("changed release classification or publication facts cannot inherit reviewed pin accounting", () => {
-  const pin = reviewedAccounting.pins[0],
-    fixture = pinMetadata[0];
+void test("changed release classification or publication facts cannot inherit reviewed pin accounting", () => {
+  const pin = requiredFixture(reviewedAccounting.pins[0]),
+    fixture = requiredFixture(pinMetadata[0]);
   for (const patch of [
     { prerelease: !fixture.release.prerelease },
     { published_at: "2026-10-09T12:00:00Z" },
@@ -2637,28 +2893,30 @@ test("changed release classification or publication facts cannot inherit reviewe
   }
 });
 
-const capacityPort = (id) => ({
+const capacityPort = (id: string) => ({
   id,
   release: { provider: "github", repository: `fixture/${id}` },
 });
-const capacityFetch = (calls) => async (url, options) => {
-  calls.push({ url, options });
-  return new Response(
-    JSON.stringify({
-      id: 42,
-      full_name: url.slice("https://api.github.com/repos/".length),
-      archived: false,
-    }),
-    { headers: { "content-type": "application/json" } },
-  );
-};
+const capacityFetch =
+  (calls: HealthCall[]): HealthFetch =>
+  async (url, options) => {
+    calls.push({ url, options });
+    return new Response(
+      JSON.stringify({
+        id: 42,
+        full_name: url.slice("https://api.github.com/repos/".length),
+        archived: false,
+      }),
+      { headers: { "content-type": "application/json" } },
+    );
+  };
 
-test("validated forecasts admit 255/256 and refuse 257 before any network I/O", async () => {
+void test("validated forecasts admit 255/256 and refuse 257 before any network I/O", async () => {
   for (const count of [255, 256, 257]) {
     const catalog = {
       ports: Array.from({ length: count }, (_, i) => capacityPort(`boundary-${i}`)),
     };
-    const calls = [];
+    const calls: { url: string; options: HealthRequestOptions }[] = [];
     const report = await collectRepositoryHealth(catalog, {
       fetch: capacityFetch(calls),
       now: () => 0,
@@ -2693,7 +2951,7 @@ test("validated forecasts admit 255/256 and refuse 257 before any network I/O", 
     assert.equal(none.outcome, "not-applicable");
     assert.equal(none.scope.unassessed_port_ids.length, count);
     const affected = await collectRepositoryHealth(catalog, {
-      portIds: [catalog.ports[0].id],
+      portIds: [requiredFixture(catalog.ports[0]).id],
       fetch: capacityFetch([]),
     });
     assert.equal(affected.limits.requests, 1);
@@ -2702,8 +2960,8 @@ test("validated forecasts admit 255/256 and refuse 257 before any network I/O", 
   }
 });
 
-test("overflow preserves static missing-release and conflicting-identity classifications", async () => {
-  const direct = (id, conflict = false) => ({
+void test("overflow preserves static missing-release and conflicting-identity classifications", async () => {
+  const direct = (id: string, conflict = false) => ({
     id,
     release: {
       provider: "direct-manifest",
@@ -2754,17 +3012,18 @@ test("overflow preserves static missing-release and conflicting-identity classif
   assert.equal(report.observations.length, 258);
   assert.equal(report.coverage.monitored_ports, 257);
   assert.equal(
-    report.observations.find((r) => r.provider === "unlocated-historical").reason,
+    requiredFixture(report.observations.find((r) => r.provider === "unlocated-historical")).reason,
     "release-identity-unavailable",
   );
   assert.equal(
-    report.observations.find((r) => r.repository.endsWith("conflicting.zip")).reason,
+    requiredFixture(report.observations.find((r) => r.repository.endsWith("conflicting.zip")))
+      .reason,
     "identity-mismatch",
   );
   assert.ok(report.observations.every((r) => !r.attempted && !r.accounted_for));
 });
 
-test("malformed inventories refuse before requests and prior-report bounds remain independently 512", async () => {
+void test("malformed inventories refuse before requests and prior-report bounds remain independently 512", async () => {
   const catalog = { ports: [capacityPort("history-bound")] };
   for (const bad of [
     null,
@@ -2783,17 +3042,21 @@ test("malformed inventories refuse before requests and prior-report bounds remai
   const fetch404 = async () => new Response(null, { status: 404 });
   const first = await collectRepositoryHealth(catalog, { fetch: fetch404 });
   assert.equal(first.limits.requests, 1);
-  assert.equal(first.port_health[0].canonical_incidents.length, 1);
+  assert.equal(requiredFixture(first.port_health[0]).canonical_incidents.length, 1);
   for (const count of [512, 513]) {
     for (const field of ["observations", "incidents"]) {
       const prior = structuredClone(first);
       if (field === "observations")
         prior.observations = Array.from({ length: count }, () =>
-          structuredClone(first.observations[0]),
+          structuredClone(requiredFixture(first.observations[0])),
         );
       else
-        prior.port_health[0].canonical_incidents = Array.from({ length: count }, () =>
-          structuredClone(first.port_health[0].canonical_incidents[0]),
+        requiredFixture(prior.port_health[0]).canonical_incidents = Array.from(
+          { length: count },
+          () =>
+            structuredClone(
+              requiredFixture(requiredFixture(first.port_health[0]).canonical_incidents[0]),
+            ),
         );
       const report = await collectRepositoryHealth(catalog, {
         previousReport: prior,
@@ -2804,21 +3067,23 @@ test("malformed inventories refuse before requests and prior-report bounds remai
         count === 512 ? "matching recent evidence" : "stale, mismatched or incomplete; not reused",
         field,
       );
-      assert.equal(report.observations[0].reason, "inaccessible-or-missing");
+      assert.equal(requiredFixture(report.observations[0]).reason, "inaccessible-or-missing");
       assert.equal(report.outcome, "incomplete");
     }
   }
 });
 
-test("reuse opportunities require the pin read to precede a shared hosted sibling", async () => {
-  const pin = reviewedAccounting.pins[0];
-  const pinnedPort = currentHealthCatalog.ports.find((port) => port.id === pin.port_id);
+void test("reuse opportunities require the pin read to precede a shared hosted sibling", async () => {
+  const pin = requiredFixture(reviewedAccounting.pins[0]);
+  const pinnedPort = requiredFixture(
+    currentHealthCatalog.ports.find((port) => port.id === pin.port_id),
+  );
   const sibling = {
     id: "shared-hosted-sibling",
     release: { provider: "github", repository: pin.repository },
   };
   for (const pinFirst of [true, false]) {
-    const calls = [];
+    const calls: { url: string; options: HealthRequestOptions }[] = [];
     const report = await collectRepositoryHealth(
       { ports: pinFirst ? [pinnedPort, sibling] : [sibling, pinnedPort] },
       { fetch: accountingFetch(calls) },

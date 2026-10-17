@@ -1,3 +1,6 @@
+import { isRecord, errorCode } from "./runtime-values.mts";
+import type { ObserverConfig, ObserveOptions } from "./upstream-observer.mts";
+import type { OutputUpstreamObservationReport } from "../apps/desktop/src/transport-types.generated.d.ts";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, open, rename, rm, writeFile } from "node:fs/promises";
@@ -14,13 +17,63 @@ import {
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 const checkpointLimit = 32 * 1024 * 1024;
 
-function validateCheckpoint(checkpoint, config) {
-  if (!checkpoint) return;
+type Observation = Awaited<ReturnType<typeof observeUpstream>>["observation"];
+type RetainedObservation = Record<string, unknown> &
+  Pick<Observation, "facts_sha256" | "config_sha256" | "port_id" | "completed_at"> & {
+    facts: unknown;
+  };
+type ProjectionIdentity = Pick<
+  OutputUpstreamObservationReport,
+  "port_id" | "repository_id" | "facts_sha256"
+>;
+interface CheckpointException {
+  key: string;
+  rule: string;
+  occurrences: number;
+  first_seen: string;
+  last_seen: string;
+  retry_at: string | null;
+}
+interface Checkpoint {
+  format: number;
+  config_sha256: string;
+  completed_runs: number;
+  first_complete_at: string | null;
+  last_complete: {
+    observation: RetainedObservation;
+    projection: ProjectionIdentity;
+    cache?: unknown;
+  } | null;
+  exception: CheckpointException | null;
+}
+export interface AdvanceOptions extends Omit<ObserveOptions, "cache"> {
+  project: (observation: Observation) => unknown;
+  catalogIds?: string[];
+  execution?: {
+    kind: string | undefined;
+    source_commit: string | null | undefined;
+    run_id: string | null | undefined;
+    run_attempt: string | null | undefined;
+  };
+}
+function validateCheckpoint(
+  checkpoint: unknown,
+  config: ObserverConfig,
+): asserts checkpoint is Checkpoint | null | undefined {
+  if (checkpoint === null || checkpoint === undefined) return;
   if (
+    !isRecord(checkpoint) ||
     Object.keys(checkpoint).sort().join(",") !==
-    ["format", "config_sha256", "completed_runs", "first_complete_at", "last_complete", "exception"]
-      .sort()
-      .join(",")
+      [
+        "format",
+        "config_sha256",
+        "completed_runs",
+        "first_complete_at",
+        "last_complete",
+        "exception",
+      ]
+        .sort()
+        .join(",")
   )
     throw new ObservationFailure("invalid-checkpoint", "checkpoint fields are invalid");
   if (checkpoint.format !== 1 || checkpoint.config_sha256 !== observationHash(config))
@@ -28,16 +81,22 @@ function validateCheckpoint(checkpoint, config) {
       "invalid-checkpoint",
       "checkpoint belongs to a different observer configuration",
     );
+  if (checkpoint.first_complete_at !== null && typeof checkpoint.first_complete_at !== "string")
+    throw new ObservationFailure("invalid-checkpoint", "invalid first complete clock");
   const prior = checkpoint.last_complete;
   if (
-    prior &&
-    (!prior.observation?.facts ||
+    prior !== null &&
+    (!isRecord(prior) ||
+      !isRecord(prior.observation) ||
+      !prior.observation.facts ||
       prior.observation.facts_sha256 !== observationHash(prior.observation.facts) ||
-      prior.projection?.facts_sha256 !== prior.observation.facts_sha256 ||
+      !isRecord(prior.projection) ||
+      prior.projection.facts_sha256 !== prior.observation.facts_sha256 ||
       prior.observation.config_sha256 !== checkpoint.config_sha256 ||
       prior.observation.port_id !== config.port_id ||
       prior.projection.port_id !== config.port_id ||
       prior.projection.repository_id !== config.repository_id ||
+      typeof prior.observation.completed_at !== "string" ||
       !Number.isFinite(Date.parse(prior.observation.completed_at)))
   )
     throw new ObservationFailure(
@@ -45,6 +104,7 @@ function validateCheckpoint(checkpoint, config) {
       "checkpoint observation and core projection do not match",
     );
   if (
+    typeof checkpoint.completed_runs !== "number" ||
     !Number.isSafeInteger(checkpoint.completed_runs) ||
     checkpoint.completed_runs < 0 ||
     checkpoint.completed_runs === Number.MAX_SAFE_INTEGER
@@ -52,14 +112,20 @@ function validateCheckpoint(checkpoint, config) {
     throw new ObservationFailure("invalid-checkpoint", "checkpoint run count is invalid");
   const exception = checkpoint.exception;
   if (
-    exception &&
-    (typeof exception.rule !== "string" ||
+    exception !== null &&
+    (!isRecord(exception) ||
+      typeof exception.rule !== "string" ||
       !/^[a-z-]{1,80}$/.test(exception.rule) ||
+      typeof exception.occurrences !== "number" ||
       !Number.isSafeInteger(exception.occurrences) ||
       exception.occurrences < 1 ||
+      typeof exception.first_seen !== "string" ||
       !Number.isFinite(Date.parse(exception.first_seen)) ||
+      typeof exception.last_seen !== "string" ||
       !Number.isFinite(Date.parse(exception.last_seen)) ||
-      (exception.retry_at !== null && !Number.isFinite(Date.parse(exception.retry_at))) ||
+      (exception.retry_at !== null &&
+        (typeof exception.retry_at !== "string" ||
+          !Number.isFinite(Date.parse(exception.retry_at)))) ||
       exception.key !==
         observationHash({
           port_id: config.port_id,
@@ -74,7 +140,12 @@ function validateCheckpoint(checkpoint, config) {
     );
 }
 
-function exceptionFor(error, prior, config, clock) {
+function exceptionFor(
+  error: unknown,
+  prior: CheckpointException | null,
+  config: ObserverConfig,
+  clock: string,
+) {
   const rule = error instanceof ObservationFailure ? error.rule : "core-or-observer-failure";
   const key = observationHash({
     port_id: config.port_id,
@@ -105,11 +176,15 @@ function exceptionFor(error, prior, config, clock) {
 }
 
 /** Immutable input, replacement checkpoint: callers commit only this complete result. */
-export async function advanceObservation(config, checkpoint, options) {
-  validateObserverConfig(config);
+export async function advanceObservation(
+  input: unknown,
+  checkpoint: unknown,
+  options: AdvanceOptions,
+) {
+  const config = validateObserverConfig(input);
   validateCheckpoint(checkpoint, config);
   const now = options.now ?? Date.now;
-  const next = structuredClone(
+  const next: Checkpoint = structuredClone(
     checkpoint ?? {
       format: 1,
       config_sha256: observationHash(config),
@@ -121,7 +196,7 @@ export async function advanceObservation(config, checkpoint, options) {
   );
   let transition = "deferred";
   let changedException = false;
-  let failedPolicyInput = null;
+  let failedPolicyInput: Observation | null = null;
   const retryClock = next.exception?.retry_at ? Date.parse(next.exception.retry_at) : 0;
   if (!retryClock || now() >= retryClock) {
     try {
@@ -132,6 +207,7 @@ export async function advanceObservation(config, checkpoint, options) {
       failedPolicyInput = result.observation;
       const projection = await options.project(result.observation);
       if (
+        !isRecord(projection) ||
         projection.format !== 1 ||
         projection.port_id !== config.port_id ||
         projection.repository_id !== config.repository_id ||
@@ -147,7 +223,15 @@ export async function advanceObservation(config, checkpoint, options) {
         : next.last_complete.observation.facts_sha256 === result.observation.facts_sha256
           ? "unchanged"
           : "changed";
-      next.last_complete = { ...result, projection };
+      next.last_complete = {
+        ...result,
+        projection: {
+          ...projection,
+          port_id: config.port_id,
+          repository_id: config.repository_id,
+          facts_sha256: result.observation.facts_sha256,
+        },
+      };
       next.first_complete_at ??= result.observation.completed_at;
       next.completed_runs++;
       next.exception = null;
@@ -195,7 +279,7 @@ export async function advanceObservation(config, checkpoint, options) {
       ? Math.max(0, now() - Date.parse(next.exception.first_seen))
       : null,
     fallback:
-      next.exception && previousComplete
+      next.exception && previousComplete && next.last_complete
         ? {
             observed_at: previousComplete,
             facts_sha256: next.last_complete.observation.facts_sha256,
@@ -228,7 +312,7 @@ export async function advanceObservation(config, checkpoint, options) {
   return { checkpoint: next, report, notify_exception: changedException };
 }
 
-async function boundedJson(filename, maximum, optional = false) {
+async function boundedJson(filename: string, maximum: number, optional = false): Promise<unknown> {
   let handle;
   try {
     handle = await open(filename, "r");
@@ -245,18 +329,18 @@ async function boundedJson(filename, maximum, optional = false) {
     if (length > maximum) throw new Error("JSON input grew beyond its bound");
     return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, length)));
   } catch (error) {
-    if (optional && error.code === "ENOENT") return null;
+    if (optional && errorCode(error) === "ENOENT") return null;
     throw error;
   } finally {
     await handle?.close();
   }
 }
 
-async function atomicJson(filename: string, value) {
+async function atomicJson(filename: string, value: unknown) {
   await assertOwnedUnlinkedPath(repositoryRoot, filename, "observer output");
   const temporary = `${filename}.${randomUUID()}.next`;
   const contents = JSON.stringify(value);
-  if (Buffer.byteLength(contents) > checkpointLimit)
+  if (contents === undefined || Buffer.byteLength(contents) > checkpointLimit)
     throw new Error("observer checkpoint exceeds its byte budget");
   await mkdir(path.dirname(filename), { recursive: true });
   try {
@@ -268,7 +352,10 @@ async function atomicJson(filename: string, value) {
 }
 
 /** Never steal an interrupted coordinator's lock; preserve its checkpoint for recovery. */
-export async function withCheckpointLock(statePath, operation) {
+export async function withCheckpointLock<T>(
+  statePath: string,
+  operation: () => T | Promise<T>,
+): Promise<T> {
   const lockPath = await assertOwnedUnlinkedPath(
     path.join(repositoryRoot, "work"),
     `${statePath}.lock`,
@@ -290,18 +377,21 @@ export async function withCheckpointLock(statePath, operation) {
   }
 }
 
-async function main(args) {
-  const parsed = new Map();
+async function main(args: string[]) {
+  const parsed = new Map<string, string>();
   for (let index = 0; index < args.length; index += 2) {
+    const key = args[index];
+    const value = args[index + 1];
     if (
-      !["--config", "--state", "--report", "--cli"].includes(args[index]) ||
-      !args[index + 1] ||
-      parsed.has(args[index])
+      key === undefined ||
+      !["--config", "--state", "--report", "--cli"].includes(key) ||
+      !value ||
+      parsed.has(key)
     )
       throw new Error(
         "usage: observe-configured-upstream.mts --cli EXECUTABLE [--config FILE] [--state FILE] [--report FILE]",
       );
-    parsed.set(args[index], args[index + 1]);
+    parsed.set(key, value);
   }
   if (!parsed.has("--cli")) throw new Error("the reviewed standalone core-backed CLI is required");
   const configPath = await assertOwnedUnlinkedPath(
@@ -335,22 +425,28 @@ async function main(args) {
     const priorReport = await boundedJson(reportPath, checkpointLimit, true);
     if (
       priorReport &&
-      (priorReport.format !== 1 || priorReport.config_sha256 !== observationHash(config))
+      (!isRecord(priorReport) ||
+        priorReport.format !== 1 ||
+        priorReport.config_sha256 !== observationHash(config))
     )
       throw new Error("existing report belongs to another operation or configuration");
     const catalog = await boundedJson(
       path.join(repositoryRoot, "crates/portcove-core/catalog/catalog.json"),
       4 * 1024 * 1024,
     );
-    const port = catalog.ports.find((port) => port.id === config.port_id);
+    if (!isRecord(catalog) || !Array.isArray(catalog.ports))
+      throw new Error("Invalid catalog ports");
+    const ports: unknown[] = catalog.ports;
+    const port = ports.find((port) => isRecord(port) && port.id === config.port_id);
     if (
-      !port ||
+      !isRecord(port) ||
+      !isRecord(port.release) ||
       (port.release.provider ?? "github") !== "github" ||
       port.release.repository !== config.repository
     )
       throw new Error("configured upstream differs from the existing catalog owner");
-    const cli = path.resolve(parsed.get("--cli"));
-    const project = async (observation) => {
+    const cli = path.resolve(parsed.get("--cli") ?? "");
+    const project = async (observation: Observation): Promise<unknown> => {
       const input = path.join(path.dirname(statePath), `observation-${randomUUID()}.json`);
       await mkdir(path.dirname(input), { recursive: true });
       try {
@@ -374,8 +470,12 @@ async function main(args) {
             stdio: ["ignore", "pipe", "pipe"],
           },
         );
-        const envelope = JSON.parse(output);
-        if (envelope.command !== "catalog.inspect-observation" || envelope.ok !== true)
+        const envelope: unknown = JSON.parse(output);
+        if (
+          !isRecord(envelope) ||
+          envelope.command !== "catalog.inspect-observation" ||
+          envelope.ok !== true
+        )
           throw new ObservationFailure(
             "core-policy",
             "core did not return a successful observation inspection",
@@ -386,7 +486,7 @@ async function main(args) {
       }
     };
     const execution = {
-      kind: ["schedule", "workflow_dispatch"].includes(process.env.GITHUB_EVENT_NAME)
+      kind: ["schedule", "workflow_dispatch"].includes(process.env.GITHUB_EVENT_NAME ?? "")
         ? process.env.GITHUB_EVENT_NAME
         : "local",
       source_commit: /^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA ?? "")
@@ -398,10 +498,14 @@ async function main(args) {
         : null,
     };
     const result = await advanceObservation(config, checkpoint, {
-      token: process.env.GITHUB_TOKEN,
+      ...(process.env.GITHUB_TOKEN ? { token: process.env.GITHUB_TOKEN } : {}),
       project,
       execution,
-      catalogIds: catalog.ports.map((port) => port.id),
+      catalogIds: ports.map((port) => {
+        if (!isRecord(port) || typeof port.id !== "string")
+          throw new Error("Invalid catalog identity");
+        return port.id;
+      }),
     });
     await atomicJson(statePath, result.checkpoint);
     await atomicJson(reportPath, result.report);

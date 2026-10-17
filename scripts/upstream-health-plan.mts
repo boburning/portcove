@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import { execFileSync } from "node:child_process";
 import { appendFile, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -16,12 +17,30 @@ const sha = /^[a-f0-9]{40}$/u;
 
 // Removing only summary is deliberate: an unfamiliar semantic field or root
 // structure remains part of the comparison instead of gaining an exemption.
-function healthPort(port) {
+function healthPort(port: SelectionPort) {
   const { summary: _summary, ...inputs } = port;
   return inputs;
 }
 
-export async function selectUpstreamHealthScope(base, head, changes) {
+type SelectionPort = Record<string, unknown> & { id: string };
+type SelectionCatalog = Record<string, unknown> & { ports: SelectionPort[] };
+export type HealthScope = { reason: string; port_ids: string[] } & (
+  | { mode: "full"; retcomm_port_ids: null }
+  | { mode: "affected" | "none"; retcomm_port_ids: string[] }
+);
+function assertSelectionCatalog(value: unknown): asserts value is SelectionCatalog {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.ports) ||
+    !value.ports.every((port: unknown) => isRecord(port) && typeof port.id === "string")
+  )
+    throw new Error("Selection requires catalog port identities");
+}
+export async function selectUpstreamHealthScope(
+  base: unknown,
+  head: unknown,
+  changes: unknown,
+): Promise<HealthScope> {
   // Validate both complete inventories without performing any requests.
   for (const catalog of [base, head])
     await collectRepositoryHealth(catalog, {
@@ -30,7 +49,9 @@ export async function selectUpstreamHealthScope(base, head, changes) {
         throw new Error("Selection must not request");
       },
     });
-  const full = (reason) => ({
+  assertSelectionCatalog(base);
+  assertSelectionCatalog(head);
+  const full = (reason: string): HealthScope => ({
     mode: "full",
     reason,
     port_ids: head.ports.map((port) => port.id),
@@ -39,11 +60,13 @@ export async function selectUpstreamHealthScope(base, head, changes) {
   if (!Array.isArray(changes) || !changes.length) return full("uncertain or empty Git diff");
   if (
     changes.some(
-      (change) =>
+      (change: unknown) =>
+        !isRecord(change) ||
         change.status !== "M" ||
         change.oldMode !== "100644" ||
         change.newMode !== "100644" ||
         change.oldPath !== change.newPath ||
+        typeof change.newPath !== "string" ||
         !catalogInputs.has(change.newPath),
     )
   )
@@ -58,7 +81,8 @@ export async function selectUpstreamHealthScope(base, head, changes) {
   const selected = head.ports.filter(
     (port) =>
       !old.has(port.id) ||
-      observationHash(healthPort(old.get(port.id))) !== observationHash(healthPort(port)),
+      observationHash(healthPort(requiredPort(old.get(port.id)))) !==
+        observationHash(healthPort(port)),
   );
   return {
     mode: selected.length ? "affected" : "none",
@@ -72,22 +96,40 @@ export async function selectUpstreamHealthScope(base, head, changes) {
   };
 }
 
+function requiredPort(value: SelectionPort | undefined): SelectionPort {
+  if (!value) throw new Error("Missing prior selection port");
+  return value;
+}
+interface DiscoveryContext {
+  event?: string | undefined;
+  baseSha?: string | undefined;
+  headSha?: string | undefined;
+  checkoutSha?: string | undefined;
+}
 export async function discoverUpstreamHealthScope(
-  { event, baseSha, headSha, checkoutSha },
-  git = (args) => execFileSync("git", args, { cwd: root, maxBuffer: 8 * 1024 * 1024 }),
-  readCheckout = () => readFile(path.join(root, catalogPath), "utf8"),
+  { event, baseSha, headSha, checkoutSha }: DiscoveryContext,
+  git: (args: string[]) => string | Buffer = (args) =>
+    execFileSync("git", args, { cwd: root, maxBuffer: 8 * 1024 * 1024 }),
+  readCheckout: () => string | Promise<string> = () =>
+    readFile(path.join(root, catalogPath), "utf8"),
 ) {
-  const current = JSON.parse(await readCheckout());
+  const current: unknown = JSON.parse(await readCheckout());
+  assertSelectionCatalog(current);
   if (event !== "pull_request")
     return {
-      mode: "full",
+      mode: "full" as const,
       reason: "main, scheduled and manual monitoring retain full inventory",
       port_ids: current.ports.map((port) => port.id),
       retcomm_port_ids: null,
     };
-  if (![baseSha, headSha, checkoutSha].every((value) => sha.test(value ?? "")))
+  if (
+    !baseSha ||
+    !headSha ||
+    !checkoutSha ||
+    ![baseSha, headSha, checkoutSha].every((value) => sha.test(value))
+  )
     throw new Error("PR health selection requires exact base, head and checkout SHAs");
-  const read = (args) => String(git(args)).trim();
+  const read = (args: string[]) => String(git(args)).trim();
   for (const value of [baseSha, headSha, checkoutSha])
     if (read(["rev-parse", "--verify", `${value}^{commit}`]) !== value)
       throw new Error("Git identity differs");
@@ -99,8 +141,8 @@ export async function discoverUpstreamHealthScope(
   // A synthetic checkout may contain target changes. Never select narrowly
   // unless its complete tree is the reviewed head tree.
   const changes = parseRawDiff(git(["diff", "--raw", "-z", "--find-renames", mergeBase, headSha]));
-  const base = JSON.parse(read(["show", `${mergeBase}:${catalogPath}`]));
-  const head = JSON.parse(read(["show", `${headSha}:${catalogPath}`]));
+  const base: unknown = JSON.parse(read(["show", `${mergeBase}:${catalogPath}`]));
+  const head: unknown = JSON.parse(read(["show", `${headSha}:${catalogPath}`]));
   let selection = await selectUpstreamHealthScope(base, head, changes);
   if (checkoutTree !== headTree || observationHash(current) !== observationHash(head))
     selection = {
