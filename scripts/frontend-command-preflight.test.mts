@@ -3,11 +3,17 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
+import { isRecord } from "./runtime-values.mts";
 import { frontendCommandPlan, probeFrontendCommand } from "./frontend-command-preflight.mts";
 import { acquireDesktopVerifySession } from "./desktop-verify.mts";
 import { vitePlusCommand } from "./viteplus-cli.mts";
 
-async function fixture(t, native = false) {
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+async function fixture(t: TestContext, native = false) {
   const cwd = await mkdtemp(path.join(os.tmpdir(), "pcv installed cli "));
   t.after(() => rm(cwd, { recursive: true, force: true }));
   const directory = path.join(cwd, "node_modules/vite-plus");
@@ -43,7 +49,7 @@ async function fixture(t, native = false) {
   };
 }
 
-test("frontend probe uses the same declared installed executable as build, with finite budgets", async (t) => {
+void test("frontend probe uses the same declared installed executable as build, with finite budgets", async (t) => {
   const input = await fixture(t);
   const cli = vitePlusCommand(input.cwd);
   const receipt = probeFrontendCommand({
@@ -65,7 +71,7 @@ test("frontend probe uses the same declared installed executable as build, with 
   assert.equal(receipt.observed_version, "1.2.0");
 });
 
-test("preflight failures are retained before any native lease acquisition", async (t) => {
+void test("preflight failures are retained before any native lease acquisition", async (t) => {
   const input = await fixture(t);
   const cases = [
     () => {
@@ -96,17 +102,20 @@ test("preflight failures are retained before any native lease acquisition", asyn
       }),
       /prerequisite failed/,
     );
-    const receipt = JSON.parse(
-      await readFile(path.join(runDirectory, "frontend-command-preflight.json"), "utf8"),
+    const receipt = object(
+      JSON.parse(
+        await readFile(path.join(runDirectory, "frontend-command-preflight.json"), "utf8"),
+      ),
     );
     assert.equal(receipt.ready, false);
     assert.equal(receipt.observed_version, null);
+    assert.ok(typeof receipt.stdout === "string" && typeof receipt.stderr === "string");
     assert(Buffer.byteLength(receipt.stdout) <= 16 * 1024);
     assert(Buffer.byteLength(receipt.stderr) <= 16 * 1024);
   }
 });
 
-test("successful installed-CLI preflight is retained before session acquisition", async (t) => {
+void test("successful installed-CLI preflight is retained before session acquisition", async (t) => {
   const input = await fixture(t);
   const runDirectory = path.join(input.cwd, "ready");
   await mkdir(runDirectory);
@@ -118,8 +127,10 @@ test("successful installed-CLI preflight is retained before session acquisition"
     probe: () => probeFrontendCommand(input),
     acquire: async () => {
       assert.equal(
-        JSON.parse(
-          await readFile(path.join(runDirectory, "frontend-command-preflight.json"), "utf8"),
+        object(
+          JSON.parse(
+            await readFile(path.join(runDirectory, "frontend-command-preflight.json"), "utf8"),
+          ),
         ).ready,
         true,
       );
@@ -130,7 +141,7 @@ test("successful installed-CLI preflight is retained before session acquisition"
   assert.equal(result.vitePlusVersion, "1.2.0");
 });
 
-test("installed Node CLI runs with no package manager, Corepack or global vp on PATH", async (t) => {
+void test("installed Node CLI runs with no package manager, Corepack or global vp on PATH", async (t) => {
   const input = await fixture(t);
   const plan = frontendCommandPlan(input);
   assert.equal(plan.file_available, true);
@@ -143,7 +154,7 @@ test("installed Node CLI runs with no package manager, Corepack or global vp on 
   assert.equal(missing.execution, "not-run");
 });
 
-test(
+void test(
   "declared native batch executable is not incorrectly launched as JavaScript",
   { skip: process.platform !== "win32" },
   async (t) => {
@@ -155,11 +166,11 @@ test(
   },
 );
 
-test("missing installation refuses PATH fallback and declared escaping executables", async (t) => {
+void test("missing installation refuses PATH fallback and declared escaping executables", async (t) => {
   const input = await fixture(t);
   const file = path.join(input.cwd, "node_modules/vite-plus/package.json");
-  const manifest = JSON.parse(await readFile(file, "utf8"));
-  manifest.bin.vp = "../../../foreign-vp";
+  const manifest = object(JSON.parse(await readFile(file, "utf8")));
+  object(manifest.bin).vp = "../../../foreign-vp";
   await writeFile(file, JSON.stringify(manifest));
   assert.throws(() => vitePlusCommand(input.cwd), /escapes/);
   assert.equal(probeFrontendCommand(input).ready, false);

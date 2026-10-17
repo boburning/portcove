@@ -1,12 +1,32 @@
 import { spawnCommand } from "./dev-storage.mts";
 import { vitePlusCommand } from "./viteplus-cli.mts";
 import { frontendEnvironment } from "../apps/desktop/scripts/build-frontend.mts";
+import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
+
+interface ProbeResult {
+  status: number | null;
+  stdout?: string | null;
+  stderr?: string | null;
+  error?: Error;
+}
+export type FrontendProbeRunner = (
+  command: string,
+  args: readonly string[],
+  options: {
+    cwd: string;
+    env: NodeJS.ProcessEnv;
+    encoding: "utf8";
+    windowsHide: true;
+    timeout: number;
+    maxBuffer: number;
+  },
+) => ProbeResult;
 
 export const frontendProbeTimeoutMs = 10_000;
 export const frontendProbeOutputBytes = 16 * 1024;
 
 // File availability is a plan observation, never successful execution/version proof.
-export function frontendCommandPlan({ cwd }) {
+export function frontendCommandPlan({ cwd }: { cwd: string }) {
   let cli;
   let error;
   try {
@@ -25,17 +45,26 @@ export function frontendCommandPlan({ cwd }) {
     execution: "not-run",
     timeout_ms: frontendProbeTimeoutMs,
     output_limit_bytes: frontendProbeOutputBytes,
-    ...(error ? { resolution_error: error.message } : {}),
+    ...(error ? { resolution_error: errorMessage(error) } : {}),
   };
 }
 
-export function probeFrontendCommand({ cwd, environment, run = spawnCommand }) {
+export function probeFrontendCommand({
+  cwd,
+  environment,
+  run = spawnCommand,
+}: {
+  cwd: string;
+  environment: NodeJS.ProcessEnv;
+  run?: FrontendProbeRunner;
+}) {
   const plan = frontendCommandPlan({ cwd });
   const started = new Date();
-  let result;
-  let failure;
+  let result: ProbeResult | undefined;
+  let failure: unknown;
   if (plan.file_available) {
     try {
+      if (plan.command === null) throw new Error("Installed frontend command is unavailable");
       result = run(plan.command, plan.args, {
         cwd,
         env: frontendEnvironment(environment),
@@ -49,14 +78,15 @@ export function probeFrontendCommand({ cwd, environment, run = spawnCommand }) {
       failure = error;
     }
   }
-  const bounded = (value) => {
+  const bounded = (value: unknown) => {
+    // oxlint-disable-next-line typescript/no-base-to-string -- Diagnostic streams preserve the existing coercion; they never grant execution or identity authority.
     let text = String(value ?? "");
     while (Buffer.byteLength(text, "utf8") > frontendProbeOutputBytes)
       text = text.slice(0, Math.floor(text.length / 2));
     return text;
   };
-  const stdout = bounded(result?.stdout ?? failure?.stdout);
-  const stderr = bounded(result?.stderr ?? failure?.stderr);
+  const stdout = bounded(result?.stdout ?? (isRecord(failure) ? failure.stdout : undefined));
+  const stderr = bounded(result?.stderr ?? (isRecord(failure) ? failure.stderr : undefined));
   const version = /^vp v(\d+\.\d+\.\d+(?:-[\w.-]+)?)$/u.exec(
     stdout.split(/\r?\n/u)[0]?.trim() ?? "",
   )?.[1];
@@ -75,11 +105,11 @@ export function probeFrontendCommand({ cwd, environment, run = spawnCommand }) {
     ready,
     observed_version: ready ? version : null,
     exit_status: result?.status ?? null,
-    error_code: failure?.code ?? null,
+    error_code: errorCode(failure) ?? null,
     stdout,
     stderr,
     message: ready
       ? "Installed frontend Vite+ command ready"
-      : `Frontend Vite+ prerequisite failed (${failure?.code ?? result?.status ?? plan.resolution_error ?? "unknown"}); run pnpm install --frozen-lockfile, then rerun.`,
+      : `Frontend Vite+ prerequisite failed (${errorCode(failure) ?? result?.status ?? plan.resolution_error ?? "unknown"}); run pnpm install --frozen-lockfile, then rerun.`,
   };
 }

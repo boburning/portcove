@@ -9,7 +9,7 @@ import {
 } from "./desktop-verify.mts";
 import { resolveDesktopSelection } from "./desktop-scenarios.mts";
 
-test("desktop verify parser defaults to a smoke-compatible cycle configuration", () => {
+void test("desktop verify parser defaults to a smoke-compatible cycle configuration", () => {
   const parsed = parseDesktopVerifyArgs([]);
   assert.equal(parsed.profile, undefined);
   assert.deepEqual(parsed.scenarios, []);
@@ -17,7 +17,7 @@ test("desktop verify parser defaults to a smoke-compatible cycle configuration",
   assert.equal(parsed.reloadCycles, 0);
 });
 
-test("desktop verify parser accepts a repeated exact series", () => {
+void test("desktop verify parser accepts a repeated exact series", () => {
   const parsed = parseDesktopVerifyArgs([
     "--scenario",
     "keyboard-layout",
@@ -33,13 +33,13 @@ test("desktop verify parser accepts a repeated exact series", () => {
   assert.equal(parsed.json, true);
 });
 
-test("desktop verify parser rejects invalid cycles and JSON execution", () => {
+void test("desktop verify parser rejects invalid cycles and JSON execution", () => {
   assert.throws(() => parseDesktopVerifyArgs(["--restart-cycles", "0"]), /1\.\.10/);
   assert.throws(() => parseDesktopVerifyArgs(["--reload-cycles", "26"]), /0\.\.25/);
   assert.throws(() => parseDesktopVerifyArgs(["--json"]), /only with/);
 });
 
-test("only the exact design compatibility scenario selects the fixture build", () => {
+void test("only the exact design compatibility scenario selects the fixture build", () => {
   const base = { PORTCOVE_TEMP_DIR: "test" };
   const ordinary = desktopBuildEnvironment(
     base,
@@ -54,7 +54,7 @@ test("only the exact design compatibility scenario selects the fixture build", (
   assert.equal(compatibility.PORTCOVE_TEMP_DIR, "test");
 });
 
-test("focused plans omit owned binaries while lifecycle plans include them", () => {
+void test("focused plans omit owned binaries while lifecycle plans include them", () => {
   const paths = {
     output_root: path.resolve("out"),
     target_directory: path.resolve("target"),
@@ -122,7 +122,7 @@ test("focused plans omit owned binaries while lifecycle plans include them", () 
   assert.equal(full.harness_deadline_ms, 600_000);
 });
 
-test("the native build script preserves identical generated inputs for Cargo reuse", async () => {
+void test("the native build script preserves identical generated inputs for Cargo reuse", async () => {
   const buildScript = await readFile(
     new URL("../apps/desktop/src-tauri/build.rs", import.meta.url),
     "utf8",
@@ -135,7 +135,7 @@ test("the native build script preserves identical generated inputs for Cargo reu
   assert.doesNotMatch(buildScript, /fs::write\(generated/u);
 });
 
-test("standalone selected setup routes build catalog-aware CLIs", async () => {
+void test("standalone selected setup routes build catalog-aware CLIs", async () => {
   const common = {
     paths: { output_root: path.resolve("out"), target_directory: path.resolve("target") },
     drivers: { driver: "driver", nativeDriver: "native" },

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-import { errorMessage } from "./runtime-values.mts";
+import { errorMessage, isRecord } from "./runtime-values.mts";
+import type { DesktopSelection } from "./desktop-scenarios.mts";
+import type { StoragePaths } from "./dev-storage.mts";
 
 import { planDesktopExecution } from "./desktop-execution-plan.mts";
 import { createRequire } from "node:module";
@@ -32,6 +34,10 @@ import {
 
 const scriptPath = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("..", import.meta.url));
+// Forward declarations as untrusted metadata; the evidence consumer owns validation.
+function readAcceptanceBindings(text: string): unknown {
+  return JSON.parse(text);
+}
 
 export const desktopVerifyUsage = `usage: just desktop-verify [--profile PROFILE | --scenario ID ...] [options]
 
@@ -49,14 +55,17 @@ Options:
   --json                        Machine output for --plan or --list-scenarios
   --help`;
 
-export function desktopBuildEnvironment(environment, selection) {
+export function desktopBuildEnvironment(
+  environment: NodeJS.ProcessEnv,
+  selection: DesktopSelection,
+): NodeJS.ProcessEnv {
   const result = { ...environment };
   if (planDesktopExecution(selection).fixtures.designCompatibility)
     result.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE = "1";
   return result;
 }
 
-export function parseDesktopVerifyArgs(args) {
+export function parseDesktopVerifyArgs(args: string[]) {
   const { values } = parseArgs({
     args,
     strict: true,
@@ -133,14 +142,28 @@ function executableSuffix(platform = process.platform) {
   return platform === "win32" ? ".exe" : "";
 }
 
-export function buildDesktopVerifyPlan({
+// Source/package observations are forwarded unchanged. Preserve each caller's
+// actual projection rather than claim that planning executes those prerequisites.
+export function buildDesktopVerifyPlan<Source extends { revision: string }, Packages>({
   selection,
   paths,
   drivers,
   source,
   packages,
   frontendCommand,
+}: {
+  selection: DesktopSelection;
+  paths: Pick<StoragePaths, "output_root" | "target_directory">;
+  drivers: Pick<
+    NonNullable<ReturnType<typeof cachedDesktopDrivers>>,
+    "driver" | "nativeDriver"
+  > | null;
+  source: Source;
+  packages: Packages;
+  frontendCommand?: ReturnType<typeof frontendCommandPlan> | undefined;
 }) {
+  if (!paths.target_directory)
+    throw new Error("Desktop verification requires resolved Rust target storage");
   const execution = planDesktopExecution(selection);
   const suffix = executableSuffix();
   const ownedFixture = execution.fixtures.owned;
@@ -188,7 +211,7 @@ export function buildDesktopVerifyPlan({
   };
 }
 
-function printCatalog(asJson) {
+function printCatalog(asJson: boolean) {
   const report = { format_version: 1, profiles: DESKTOP_PROFILES, scenarios: catalogReport() };
   if (asJson) return console.log(JSON.stringify(report, null, 2));
   console.log("Native desktop scenarios:");
@@ -201,14 +224,14 @@ function printCatalog(asJson) {
   }
 }
 
-async function unusedPort(port) {
+async function unusedPort(port: number) {
   const net = await import("node:net");
   const server = net.createServer();
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen({ host: "127.0.0.1", port, exclusive: true }, resolve);
   });
-  await new Promise((resolve, reject) =>
+  await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
   );
 }
@@ -226,7 +249,7 @@ export async function findUnusedDesktopPortPair(start = 4444) {
   throw new Error("No unused consecutive desktop-driver ports were found");
 }
 
-function doctorRemediation(report) {
+function doctorRemediation(report: Awaited<ReturnType<typeof collectDoctor>>) {
   return report.tools
     .filter((tool) => tool.required && tool.status !== "ok")
     .map(
@@ -235,7 +258,31 @@ function doctorRemediation(report) {
     .join("; ");
 }
 
-async function executePhase({ id, command, args, cwd, environment, log, timings }) {
+interface PhaseTiming {
+  phase: string;
+  started_at: string;
+  finished_at: string;
+  status: number;
+  duration_ms?: number;
+  frontend_observation?: Awaited<ReturnType<typeof observeFrontendBuild>>;
+}
+async function executePhase({
+  id,
+  command,
+  args,
+  cwd,
+  environment,
+  log,
+  timings,
+}: {
+  id: string;
+  command: string;
+  args: string[];
+  cwd: string;
+  environment: NodeJS.ProcessEnv;
+  log: string;
+  timings: PhaseTiming[];
+}) {
   const started = new Date();
   console.log(`desktop-verify: ${id}`);
   const cargo = ["cargo", "rustc"].includes(command);
@@ -260,7 +307,7 @@ async function executePhase({ id, command, args, cwd, environment, log, timings 
     phase: id,
     started_at: started.toISOString(),
     finished_at: finished.toISOString(),
-    duration_ms: finished - started,
+    duration_ms: finished.getTime() - started.getTime(),
     status: result.status ?? 1,
   };
   timings.push(timing);
@@ -271,13 +318,26 @@ async function executePhase({ id, command, args, cwd, environment, log, timings 
   if (result.status !== 0) throw new Error(`${id} failed with exit code ${result.status}`);
 }
 
-export async function acquireDesktopVerifySession({
+export async function acquireDesktopVerifySession<
+  Lock = Awaited<ReturnType<typeof acquireNativeSessionLock>>,
+>({
   runDirectory,
   environment,
   selection,
   timings,
   probe = probeFrontendCommand,
-  acquire = acquireNativeSessionLock,
+  acquire,
+}: {
+  runDirectory: string;
+  environment: NodeJS.ProcessEnv;
+  selection: Pick<DesktopSelection, "selected_scenarios"> & {
+    profile?: DesktopSelection["profile"];
+  };
+  timings: PhaseTiming[];
+  probe?: typeof probeFrontendCommand;
+  acquire?: (
+    metadata: NonNullable<Parameters<typeof acquireNativeSessionLock>[0]>,
+  ) => Promise<Lock>;
 }) {
   const receipt = probe({ cwd: path.join(root, "apps", "desktop"), environment });
   await writeFile(
@@ -292,15 +352,20 @@ export async function acquireDesktopVerifySession({
     status: receipt.ready ? 0 : 1,
   });
   if (!receipt.ready) throw new Error(receipt.message);
-  const lock = await acquire({
+  if (typeof receipt.observed_version !== "string")
+    throw new Error("Ready frontend receipt must contain the observed version");
+  const lock = await (acquire ?? acquireNativeSessionLock)({
     workspace: root,
-    profile: selection.profile,
+    ...(selection.profile === undefined ? {} : { profile: selection.profile }),
     scenarios: selection.selected_scenarios,
   });
   return { lock, vitePlusVersion: receipt.observed_version };
 }
 
-async function runVerification(options, selection) {
+async function runVerification(
+  options: ReturnType<typeof parseDesktopVerifyArgs>,
+  selection: DesktopSelection,
+) {
   const configuredPaths = getPaths();
   const storage = preflight(configuredPaths, minimumFreeGiB());
   const paths = storage.paths;
@@ -315,7 +380,6 @@ async function runVerification(options, selection) {
   const pins = readToolPins();
   const frontendCommand = frontendCommandPlan({
     cwd: path.join(root, "apps", "desktop"),
-    environment,
   });
   const plan = buildDesktopVerifyPlan({
     selection,
@@ -353,12 +417,12 @@ async function runVerification(options, selection) {
   const stamp = new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
   const runDirectory = await mkdtemp(path.join(plan.paths.output_parent, `${stamp}-`));
   const log = path.join(runDirectory, "phase.log");
-  const timings = [
+  const timings: PhaseTiming[] = [
     {
       phase: "workspace-package-preflight",
       started_at: packageStarted.toISOString(),
       finished_at: packageFinished.toISOString(),
-      duration_ms: packageFinished - packageStarted,
+      duration_ms: packageFinished.getTime() - packageStarted.getTime(),
       status: packages.ready ? 0 : 1,
     },
   ];
@@ -380,7 +444,7 @@ async function runVerification(options, selection) {
       phase: "desktop-doctor",
       started_at: doctorStarted.toISOString(),
       finished_at: doctorFinished.toISOString(),
-      duration_ms: doctorFinished - doctorStarted,
+      duration_ms: doctorFinished.getTime() - doctorStarted.getTime(),
       status: doctor.ok ? 0 : 1,
     });
     await writeFile(
@@ -392,7 +456,7 @@ async function runVerification(options, selection) {
     );
     if (!doctor.ok)
       throw new Error(
-        `Desktop doctor needs attention: ${doctorRemediation(doctor) || doctor.storage.message}`,
+        `Desktop doctor needs attention: ${doctorRemediation(doctor) || (doctor.storage.status === "failed" ? doctor.storage.message : undefined)}`,
       );
     if (!packages.ready)
       throw new Error(
@@ -401,7 +465,7 @@ async function runVerification(options, selection) {
     if (!drivers)
       throw new Error(`Desktop drivers are unavailable; remedy ${plan.drivers.remediation}`);
 
-    const phase = (id, command, args) =>
+    const phase = (id: string, command: string, args: string[]) =>
       executePhase({ id, command, args, cwd: root, environment, log, timings });
     if (selection.prerequisites.includes("owned-fixture"))
       await phase("scenario-context-preflight", process.execPath, [
@@ -415,11 +479,15 @@ async function runVerification(options, selection) {
       environment,
     });
     await phase("frontend-build", process.execPath, ["apps/desktop/scripts/build-frontend.mts"]);
+    if (!paths.frontend_output)
+      throw new Error("Desktop verification requires resolved frontend output storage");
     const frontendObservation = await observeFrontendBuild({
       identity: frontendIdentity,
       outputDirectory: paths.frontend_output,
     });
-    timings.at(-1).frontend_observation = frontendObservation;
+    const frontendTiming = timings.at(-1);
+    if (!frontendTiming) throw new Error("Frontend phase timing was not retained");
+    frontendTiming.frontend_observation = frontendObservation;
     const desktopFeatures = ["tauri/custom-protocol", ...plan.qualification_features];
     const buildIdentity = ["win32", "linux"].includes(process.platform)
       ? await createVerificationBuildIdentity({
@@ -474,7 +542,7 @@ async function runVerification(options, selection) {
           evidence_input_class: "non-secret-verification-metadata",
           ...(options.acceptanceBindingsFile
             ? {
-                acceptance_bindings: JSON.parse(
+                acceptance_bindings: readAcceptanceBindings(
                   await readFile(options.acceptanceBindingsFile, "utf8"),
                 ),
               }
@@ -501,6 +569,11 @@ async function runVerification(options, selection) {
       )}\n`,
       { flag: "wx" },
     );
+    const preparationArgs: string[] = [];
+    if (probe) {
+      if (plan.paths.cli === null) throw new Error("Owned probe requires a planned CLI executable");
+      preparationArgs.push("--preparation-cli", plan.paths.cli, "--preparation-tool", probe);
+    }
     const harnessArgs = [
       "scripts/desktop-test-cli.mts",
       "--app",
@@ -522,7 +595,7 @@ async function runVerification(options, selection) {
       ...(selection.profile
         ? ["--profile", selection.profile]
         : selection.requested_scenarios.flatMap((id) => ["--scenario", id])),
-      ...(probe ? ["--preparation-cli", plan.paths.cli, "--preparation-tool", probe] : []),
+      ...preparationArgs,
     ];
     const harnessEnvironment = {
       ...environment,
@@ -538,7 +611,15 @@ async function runVerification(options, selection) {
       timings,
     });
     const evidencePath = path.join(runDirectory, "native", "evidence.json");
-    const evidence = JSON.parse(await readFile(evidencePath, "utf8"));
+    const evidence: unknown = JSON.parse(await readFile(evidencePath, "utf8"));
+    if (
+      !isRecord(evidence) ||
+      typeof evidence.outcome !== "string" ||
+      !Array.isArray(evidence.checks) ||
+      !isRecord(evidence.executable) ||
+      typeof evidence.executable.sha256 !== "string"
+    )
+      throw new Error("Native evidence summary is malformed");
     console.log(
       `desktop-verify: ${evidence.outcome}; ${evidence.checks.length} selected outcomes; ` +
         `executable ${evidence.executable.sha256}; evidence ${evidencePath}`,
@@ -583,7 +664,7 @@ export async function main(args = process.argv.slice(2)) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   main().catch((error) => {
-    console.error(`desktop-verify: ${error.message}`);
+    console.error(`desktop-verify: ${errorMessage(error)}`);
     process.exitCode = 1;
   });
 }
