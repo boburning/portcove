@@ -53,7 +53,7 @@
     "lucide-react": "^1.57.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-i18next": "17.0.18"
+    "react-i18next": "17.0.19"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
