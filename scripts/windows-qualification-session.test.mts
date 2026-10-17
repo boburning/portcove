@@ -4,17 +4,46 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import type { TestContext } from "node:test";
+import { isRecord } from "./runtime-values.mts";
+import type { QualificationTransport } from "./qualification-report.mts";
 import test, { describe } from "node:test";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { captureQualificationReport } from "./qualification-report.mts";
+
+function requiredFixture<T>(value: T | undefined): T {
+  assert.notEqual(value, undefined, "Required fixture value is missing");
+  if (value === undefined) throw new Error("Required fixture value is missing");
+  return value;
+}
+function readReport(file: string) {
+  const report: unknown = JSON.parse(readFileSync(file, "utf8"));
+  assert.ok(isRecord(report) && Array.isArray(report.observations) && isRecord(report.evidence));
+  const rawObservations: unknown[] = report.observations;
+  const observations = rawObservations.map((value) => {
+    assert.ok(isRecord(value));
+    return value;
+  });
+  const evidence: Record<string, Record<string, unknown>> = {};
+  for (const [key, value] of Object.entries(report.evidence)) {
+    assert.ok(isRecord(value));
+    evidence[key] = value;
+  }
+  return {
+    report_format: report.report_format,
+    cli_sha256: report.cli_sha256,
+    observations,
+    evidence,
+  };
+}
 
 const script = fileURLToPath(new URL("./windows-qualification-session.ps1", import.meta.url));
 const installerLifecycleTool = fileURLToPath(
   new URL("./test-windows-installer.ps1", import.meta.url),
 );
 
-test("installer lifecycle journals every required process before spawning it", () => {
+void test("installer lifecycle journals every required process before spawning it", () => {
   const source = readFileSync(installerLifecycleTool, "utf8");
   for (const role of [
     "predecessor_installer",
@@ -75,7 +104,7 @@ test("installer lifecycle journals every required process before spawning it", (
   assert.match(readFileSync(script, "utf8"), /Cannot observe a stable abort executable image path/);
 });
 
-test("installer lifecycle waits for managed files and uninstall registration to disappear", () => {
+void test("installer lifecycle waits for managed files and uninstall registration to disappear", () => {
   const source = readFileSync(installerLifecycleTool, "utf8");
   const uninstall = source.indexOf('Invoke-JournaledProcess -Role "candidate_uninstaller"');
   const wait = source.indexOf(
@@ -143,7 +172,7 @@ test("installer lifecycle waits for managed files and uninstall registration to 
   );
 });
 
-describe("qualification report evidence preparation", () => {
+void describe("qualification report evidence preparation", () => {
   const subprocess = promisify(execFile);
   const managed = (portId = "managed-probe", id = "managed-install") => ({
     port_id: portId,
@@ -177,7 +206,11 @@ describe("qualification report evidence preparation", () => {
     user_data_root: "/library/user/external-probe",
   });
 
-  function fixture(t, statuses, overrides = {}) {
+  function fixture<Status>(
+    t: TestContext,
+    statuses: Status[],
+    overrides: Record<string, unknown> = {},
+  ) {
     const root = mkdtempSync(path.join(os.tmpdir(), "portcove-report-"));
     t.after(() => rmSync(root, { recursive: true, force: true }));
     const cli = path.join(root, "fixture CLI.bin");
@@ -208,8 +241,9 @@ describe("qualification report evidence preparation", () => {
       backup: [{ id: "retained-backup" }],
       ...overrides,
     };
-    const calls = [];
-    async function execute(file, args, options) {
+    const calls: string[][] = [];
+    const wireData: Record<string, unknown> = data;
+    const execute: QualificationTransport = async (file, args, options) => {
       assert.equal(file, cli);
       assert.deepEqual(args.slice(0, 4), ["--library", library, "--json", "--non-interactive"]);
       assert.deepEqual(options, {
@@ -219,8 +253,15 @@ describe("qualification report evidence preparation", () => {
       });
       const command = args.slice(4);
       calls.push(command);
-      assert.ok(Object.hasOwn(data, command[0]), `Unexpected fixture command: ${command}`);
-      const envelope = data[command[0]]?.fixture_error ?? { ok: true, data: data[command[0]] };
+      assert.ok(
+        Object.hasOwn(wireData, requiredFixture(command[0])),
+        `Unexpected fixture command: ${command.join(" ")}`,
+      );
+      const value = wireData[requiredFixture(command[0])];
+      const envelope = (isRecord(value) ? value.fixture_error : undefined) ?? {
+        ok: true,
+        data: value,
+      };
       // Portable real subprocess transport, with synthetic core responses and no real CLI/game.
       return subprocess(
         process.execPath,
@@ -232,7 +273,7 @@ describe("qualification report evidence preparation", () => {
         ],
         options,
       );
-    }
+    };
     return {
       cli,
       library,
@@ -240,14 +281,14 @@ describe("qualification report evidence preparation", () => {
       calls,
       data,
       execute,
-      capture: (transport = execute) =>
+      capture: (transport: QualificationTransport = execute) =>
         captureQualificationReport({ cli, library, output }, transport),
-      report: () => JSON.parse(readFileSync(path.join(output, "evidence.json"), "utf8")),
+      report: () => readReport(path.join(output, "evidence.json")),
       checklist: () => readFileSync(path.join(output, "checklist.md"), "utf8"),
     };
   }
 
-  test("direct entry validates required arguments through resolved and aliased paths", async () => {
+  void test("direct entry validates required arguments through resolved and aliased paths", async () => {
     const entries = [fileURLToPath(new URL("./qualification-report.mts", import.meta.url))];
     // Linux procfs supplies an alias without creating symlinks or invoking a real CLI.
     if (process.platform === "linux")
@@ -260,15 +301,17 @@ describe("qualification report evidence preparation", () => {
           timeout: 15_000,
         }),
         (error) => {
+          assert.ok(isRecord(error));
           assert.equal(error.code, 1, entry);
           assert.equal(error.stdout, "", entry);
-          assert.match(error.stderr, /--cli is required/, entry);
+          assert.equal(typeof error.stderr, "string");
+          assert.match(String(error.stderr), /--cli is required/, entry);
           return true;
         },
       );
   });
 
-  test("mixed inventory reports exact managed and non-owning facts without inherited observations", async (t) => {
+  void test("mixed inventory reports exact managed and non-owning facts without inherited observations", async (t) => {
     const f = fixture(t, [managed(), external(), { port_id: "uninstalled", active: null }]);
     const result = await f.capture();
     const report = f.report();
@@ -277,7 +320,7 @@ describe("qualification report evidence preparation", () => {
     assert.equal(result.reported_ports, 2);
     assert.equal(report.report_format, 1);
     assert.equal(report.cli_sha256, createHash("sha256").update(readFileSync(f.cli)).digest("hex"));
-    assert.deepEqual(report.evidence.status.data, f.data.status);
+    assert.deepEqual(requiredFixture(report.evidence.status).data, f.data.status);
     assert.deepEqual(f.calls, [
       ["doctor"],
       ["catalog", "export"],
@@ -287,7 +330,8 @@ describe("qualification report evidence preparation", () => {
       ["storage"],
       ["backup", "list", "managed-probe"],
     ]);
-    const [owned, registered] = report.observations;
+    const owned = requiredFixture(report.observations[0]);
+    const registered = requiredFixture(report.observations[1]);
     assert.deepEqual(
       {
         kind: owned.runtime_kind,
@@ -351,7 +395,9 @@ describe("qualification report evidence preparation", () => {
       });
       assert.deepEqual(
         item.readiness,
-        f.data.status.find((x) => x.port_id === item.port_id).readiness,
+        ((status) => ("readiness" in status ? status.readiness : undefined))(
+          requiredFixture(f.data.status.find((x) => x.port_id === item.port_id)),
+        ),
       );
     }
     assert.match(
@@ -369,7 +415,7 @@ describe("qualification report evidence preparation", () => {
     );
   });
 
-  test("external-only capture neither reads backups nor offers managed save operations", async (t) => {
+  void test("external-only capture neither reads backups nor offers managed save operations", async (t) => {
     const f = fixture(t, [external()]);
     await f.capture();
     assert.equal(
@@ -387,7 +433,7 @@ describe("qualification report evidence preparation", () => {
     );
   });
 
-  test("catalog source corrections are declarations, not retained runtime source evidence", async (t) => {
+  void test("catalog source corrections are declarations, not retained runtime source evidence", async (t) => {
     for (const kind of [managed, external]) {
       const status = kind();
       for (const source of ["source-before", "source-after", null]) {
@@ -400,27 +446,32 @@ describe("qualification report evidence preparation", () => {
         const f = fixture(t, [status], { catalog });
         await f.capture();
         const report = f.report();
-        const row = report.observations[0];
+        const row = requiredFixture(report.observations[0]);
         assert.equal(row.source_profile, null);
         assert.equal(row.catalog_source_profile, source);
-        assert.deepEqual(report.evidence.status.data, [status]);
-        assert.deepEqual(report.evidence.catalog.data, catalog);
-        assert.deepEqual(report.evidence.sources.data, f.data.source);
-        assert.equal(row.version, status.active?.version ?? status.external_runtime.version);
+        assert.deepEqual(requiredFixture(report.evidence.status).data, [status]);
+        assert.deepEqual(requiredFixture(report.evidence.catalog).data, catalog);
+        assert.deepEqual(requiredFixture(report.evidence.sources).data, f.data.source);
+        assert.equal(
+          row.version,
+          status.active?.version ??
+            ("external_runtime" in status ? status.external_runtime.version : undefined),
+        );
         assert.equal(
           row.install_id ?? row.registration_id,
-          status.active?.id ?? status.external_runtime.id,
+          status.active?.id ??
+            ("external_runtime" in status ? status.external_runtime.id : undefined),
         );
       }
     }
   });
 
-  test("partial optional facts remain unknown and never inherit current catalog or host facts", async (t) => {
+  void test("partial optional facts remain unknown and never inherit current catalog or host facts", async (t) => {
     const f = fixture(t, [
       { port_id: "external-probe", external_runtime: { id: "partial-registration" } },
     ]);
     await f.capture();
-    const row = f.report().observations[0];
+    const row = requiredFixture(f.report().observations[0]);
     assert.equal(row.registration_id, "partial-registration");
     for (const name of [
       "install_id",
@@ -438,7 +489,7 @@ describe("qualification report evidence preparation", () => {
     assert.match(f.checklist(), /External registration \| Unknown \| Unknown \| Unassessed/);
   });
 
-  test("retained records missing from the current catalog retain their exact status identities", async (t) => {
+  void test("retained records missing from the current catalog retain their exact status identities", async (t) => {
     const f = fixture(t, [managed("retained-managed"), external("retained-external")], {
       catalog: { ports: [] },
     });
@@ -452,7 +503,7 @@ describe("qualification report evidence preparation", () => {
     );
   });
 
-  test("same ID in distinct managed and registration namespaces is not conflated", async (t) => {
+  void test("same ID in distinct managed and registration namespaces is not conflated", async (t) => {
     const f = fixture(t, [
       managed("managed-probe", "same-id"),
       external("external-probe", "same-id"),
@@ -461,8 +512,8 @@ describe("qualification report evidence preparation", () => {
     assert.equal(f.report().observations.length, 2);
   });
 
-  test("ambiguous or missing identities refuse before output and per-port reads", async (t) => {
-    const invalid = [
+  void test("ambiguous or missing identities refuse before output and per-port reads", async (t) => {
+    const invalid: [string, unknown[], RegExp][] = [
       ["missing port", [{ active: managed().active }], /Missing port identity/],
       [
         "missing managed ID",
@@ -508,7 +559,7 @@ describe("qualification report evidence preparation", () => {
       });
   });
 
-  test("empty inventory is an empty unassessed capture without managed operations", async (t) => {
+  void test("empty inventory is an empty unassessed capture without managed operations", async (t) => {
     const f = fixture(t, []);
     const result = await f.capture();
     assert.equal(result.reported_ports, 0);
@@ -516,7 +567,7 @@ describe("qualification report evidence preparation", () => {
     assert.doesNotMatch(f.checklist(), /create a backup/);
   });
 
-  test("failed core capture never publishes a partial report", async (t) => {
+  void test("failed core capture never publishes a partial report", async (t) => {
     const f = fixture(t, [external()], {
       status: { fixture_error: { ok: false, error: { message: "Snapshot unavailable" } } },
     });
@@ -525,7 +576,24 @@ describe("qualification report evidence preparation", () => {
     assert.deepEqual(f.calls, [["doctor"], ["catalog", "export"], ["status"]]);
   });
 
-  test("changed CLI bytes after a snapshot refuse further capture and publication", async (t) => {
+  void test("malformed success envelopes refuse before publication or later commands", async (t) => {
+    for (const ok of [1, "true", {}, [], false, null]) {
+      const f = fixture(t, [external()]);
+      await assert.rejects(
+        f.capture(async (...args) => {
+          const response = await f.execute(...args);
+          return args[1][4] === "doctor"
+            ? { stdout: JSON.stringify({ ok, data: f.data.doctor }) }
+            : response;
+        }),
+        /doctor:/,
+      );
+      assert.deepEqual(f.calls, [["doctor"]]);
+      assert.equal(existsSync(f.output), false);
+    }
+  });
+
+  void test("changed CLI bytes after a snapshot refuse further capture and publication", async (t) => {
     const f = fixture(t, [managed(), external()]);
     await assert.rejects(
       f.capture(async (...args) => {
@@ -540,7 +608,7 @@ describe("qualification report evidence preparation", () => {
   });
 
   for (const replacement of ["directory", "missing"]) {
-    test(`${replacement} CLI after a snapshot refuses further capture and publication`, async (t) => {
+    void test(`${replacement} CLI after a snapshot refuses further capture and publication`, async (t) => {
       const f = fixture(t, [external()]);
       await assert.rejects(
         f.capture(async (...args) => {
@@ -550,9 +618,13 @@ describe("qualification report evidence preparation", () => {
           return result;
         }),
         (error) => {
+          assert.ok(error instanceof Error && isRecord(error.cause));
           assert.match(error.message, /Selected CLI identity changed/);
           if (replacement === "missing") assert.equal(error.cause.code, "ENOENT");
-          else assert.match(error.cause.message, /not a regular file/);
+          else {
+            assert.equal(typeof error.cause.message, "string");
+            assert.match(String(error.cause.message), /not a regular file/);
+          }
           return true;
         },
       );
@@ -561,7 +633,7 @@ describe("qualification report evidence preparation", () => {
     });
   }
 
-  test("CLI drift during the last managed backup refuses report publication", async (t) => {
+  void test("CLI drift during the last managed backup refuses report publication", async (t) => {
     const f = fixture(t, [managed(), external()]);
     await assert.rejects(
       f.capture(async (...args) => {
@@ -577,7 +649,7 @@ describe("qualification report evidence preparation", () => {
     assert.equal(existsSync(f.output), false);
   });
 
-  test("unchanged CLI preserves the exact original transport failure", async (t) => {
+  void test("unchanged CLI preserves the exact original transport failure", async (t) => {
     const f = fixture(t, [external()]);
     const original = new Error("Owned fixture transport failed");
     await assert.rejects(
@@ -591,7 +663,7 @@ describe("qualification report evidence preparation", () => {
     assert.equal(existsSync(f.output), false);
   });
 
-  test("transport failure and CLI drift retain both actual errors", async (t) => {
+  void test("transport failure and CLI drift retain both actual errors", async (t) => {
     const f = fixture(t, [external()]);
     const original = new Error("Owned fixture transport failed");
     await assert.rejects(
@@ -605,8 +677,11 @@ describe("qualification report evidence preparation", () => {
         assert.equal(error.errors.length, 2);
         assert.equal(error.errors[0], original);
         assert.equal(error.cause, original);
-        assert.match(error.errors[1].message, /Selected CLI identity changed/);
-        assert.match(error.errors[1].cause.message, /SHA-256 differs/);
+        const identityError: unknown = error.errors[1];
+        assert.ok(identityError instanceof Error);
+        assert.match(identityError.message, /Selected CLI identity changed/);
+        assert.ok(identityError.cause instanceof Error);
+        assert.match(identityError.cause.message, /SHA-256 differs/);
         return true;
       },
     );
@@ -614,7 +689,7 @@ describe("qualification report evidence preparation", () => {
     assert.equal(existsSync(f.output), false);
   });
 
-  test("core refusal and CLI drift retain the command failure before the identity failure", async (t) => {
+  void test("core refusal and CLI drift retain the command failure before the identity failure", async (t) => {
     const f = fixture(t, [external()], {
       doctor: { fixture_error: { ok: false, error: { message: "Snapshot unavailable" } } },
     });
@@ -627,9 +702,13 @@ describe("qualification report evidence preparation", () => {
       (error) => {
         assert.ok(error instanceof AggregateError);
         assert.equal(error.errors.length, 2);
-        assert.equal(error.errors[0].message, "doctor: Snapshot unavailable");
+        const commandError: unknown = error.errors[0];
+        assert.ok(commandError instanceof Error);
+        assert.equal(commandError.message, "doctor: Snapshot unavailable");
         assert.equal(error.cause, error.errors[0]);
-        assert.match(error.errors[1].message, /Selected CLI identity changed/);
+        const identityError: unknown = error.errors[1];
+        assert.ok(identityError instanceof Error);
+        assert.match(identityError.message, /Selected CLI identity changed/);
         return true;
       },
     );
@@ -637,7 +716,7 @@ describe("qualification report evidence preparation", () => {
     assert.equal(existsSync(f.output), false);
   });
 
-  test("malformed JSON and CLI drift retain the parse failure before the identity failure", async (t) => {
+  void test("malformed JSON and CLI drift retain the parse failure before the identity failure", async (t) => {
     const f = fixture(t, [external()]);
     await assert.rejects(
       f.capture(async (...args) => {
@@ -650,7 +729,9 @@ describe("qualification report evidence preparation", () => {
         assert.equal(error.errors.length, 2);
         assert.ok(error.errors[0] instanceof SyntaxError);
         assert.equal(error.cause, error.errors[0]);
-        assert.match(error.errors[1].message, /Selected CLI identity changed/);
+        const identityError: unknown = error.errors[1];
+        assert.ok(identityError instanceof Error);
+        assert.match(identityError.message, /Selected CLI identity changed/);
         return true;
       },
     );
@@ -658,7 +739,7 @@ describe("qualification report evidence preparation", () => {
     assert.equal(existsSync(f.output), false);
   });
 
-  test("an existing capture directory is preserved", async (t) => {
+  void test("an existing capture directory is preserved", async (t) => {
     const f = fixture(t, [external()]);
     mkdirSync(f.output);
     writeFileSync(path.join(f.output, "evidence.json"), "previous evidence\n");

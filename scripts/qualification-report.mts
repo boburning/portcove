@@ -1,4 +1,6 @@
 // Capture core-owned evidence and prepare an explicitly unassessed checklist.
+import { isRecord } from "./runtime-values.mts";
+import type { ExecFileOptions } from "node:child_process";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
@@ -6,22 +8,48 @@ import { lstat, mkdir, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { promisify, parseArgs } from "node:util";
 
-function requiredIdentity(value: string, label) {
+export interface QualificationReportOptions {
+  cli: string;
+  library: string;
+  output: string;
+}
+export type QualificationTransport = (
+  file: string,
+  args: string[],
+  options: ExecFileOptions,
+) => Promise<{ stdout: string }>;
+interface CapturedEnvelope {
+  ok: true;
+  data?: unknown;
+  [key: string]: unknown;
+}
+// Retain complete raw snapshots; only identities are admitted here. Optional core
+// facts stay unknown until their display projection, without claiming schema validation.
+interface RuntimeSnapshot {
+  status: Record<string, unknown>;
+  record: Record<string, unknown>;
+  portId: string;
+  id: string;
+  kind: "managed" | "external";
+}
+
+function requiredIdentity(value: unknown, label: string) {
   if (typeof value !== "string" || !value.trim())
     throw new Error(`Missing ${label} in core report`);
   return value;
 }
 
-function availableText(value: string) {
+function availableText(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-function reportRecords(statuses) {
+function reportRecords(statuses: unknown[]): RuntimeSnapshot[] {
   const ports = new Set();
   const identities = new Set();
-  const records = [];
+  const records: RuntimeSnapshot[] = [];
   for (const status of statuses) {
-    const portId = requiredIdentity(status?.port_id, "port identity");
+    const portId = requiredIdentity(isRecord(status) ? status.port_id : undefined, "port identity");
+    if (!isRecord(status)) throw new Error("Unsupported status shape");
     if (ports.has(portId)) throw new Error(`Duplicate port identity in core report: ${portId}`);
     ports.add(portId);
     if (status.active != null && status.external_runtime != null)
@@ -29,26 +57,39 @@ function reportRecords(statuses) {
     const record = status.active ?? status.external_runtime;
     if (record == null) continue;
     const kind = status.active != null ? "managed" : "external";
-    const id = requiredIdentity(record.id, `${kind} record identity for ${portId}`);
+    const id = requiredIdentity(
+      isRecord(record) ? record.id : undefined,
+      `${kind} record identity for ${portId}`,
+    );
+    if (!isRecord(record)) throw new Error("Unsupported runtime record shape");
     if (record.port_id != null && record.port_id !== portId)
       throw new Error(`Runtime record owner differs from status owner for ${portId}`);
     const identity = `${kind}:${id}`;
     if (identities.has(identity)) throw new Error(`Duplicate ${kind} record identity: ${id}`);
     identities.add(identity);
-    records.push({ status, record, kind });
+    records.push({ status, record, kind, portId, id });
   }
   return records;
 }
 
-function observation({ status, record, kind }, port) {
+function observation(
+  { status, record, kind, portId, id }: RuntimeSnapshot,
+  port: Record<string, unknown> | undefined,
+) {
   const managed = kind === "managed";
   return {
-    port_id: status.port_id,
-    name: port?.name ?? status.port_id,
+    port_id: portId,
+    name: port?.name ?? portId,
     runtime_kind: kind,
-    install_id: managed ? record.id : null,
-    registration_id: managed ? null : record.id,
-    artifact_sha256: availableText(managed ? record.artifact?.sha256 : record.archive_sha256),
+    install_id: managed ? id : null,
+    registration_id: managed ? null : id,
+    artifact_sha256: availableText(
+      managed
+        ? isRecord(record.artifact)
+          ? record.artifact.sha256
+          : undefined
+        : record.archive_sha256,
+    ),
     immutable_tree_sha256: managed ? null : availableText(record.immutable_tree_sha256),
     version: availableText(record.version),
     // InstallRecord has no artifact-platform field; the capture host is not that identity.
@@ -66,20 +107,27 @@ function observation({ status, record, kind }, port) {
   };
 }
 
-function readinessLabel(readiness) {
-  if (readiness?.launchable === true) return "Ready";
-  if (readiness?.launchable === false) return "Needs setup";
+function readinessLabel(readiness: unknown) {
+  if ((isRecord(readiness) ? readiness.launchable : undefined) === true) return "Ready";
+  if ((isRecord(readiness) ? readiness.launchable : undefined) === false) return "Needs setup";
   return "Unknown";
 }
 
-async function cliDigest(cli) {
+async function cliDigest(cli: string) {
   if (!(await lstat(cli)).isFile()) throw new Error(`Selected CLI is not a regular file: ${cli}`);
   const hash = createHash("sha256");
-  for await (const chunk of createReadStream(cli)) hash.update(chunk);
+  for await (const rawChunk of createReadStream(cli)) {
+    const chunk: unknown = rawChunk;
+    if (!(chunk instanceof Uint8Array)) throw new Error("CLI stream yielded non-byte data");
+    hash.update(chunk);
+  }
   return hash.digest("hex");
 }
 
-export async function captureQualificationReport(options, execute = promisify(execFile)) {
+export async function captureQualificationReport(
+  options: QualificationReportOptions,
+  execute: QualificationTransport = promisify(execFile),
+) {
   const cli = resolve(options.cli);
   const library = resolve(options.library);
   const output = resolve(options.output);
@@ -98,11 +146,11 @@ export async function captureQualificationReport(options, execute = promisify(ex
       throw new Error(`Selected CLI identity changed: ${cli}`, { cause });
     }
   }
-  async function capture(...args) {
+  async function capture(...args: string[]): Promise<CapturedEnvelope> {
     await requireCliIdentity();
-    let envelope;
+    let envelope: CapturedEnvelope | undefined;
     let commandFailed = false;
-    let commandError;
+    let commandError: unknown;
     try {
       const { stdout } = await execute(
         cli,
@@ -113,8 +161,13 @@ export async function captureQualificationReport(options, execute = promisify(ex
           timeout: 120_000,
         },
       );
-      envelope = JSON.parse(stdout);
-      if (!envelope.ok) throw new Error(`${args.join(" ")}: ${envelope.error?.message}`);
+      const value: unknown = JSON.parse(stdout);
+      if (!isRecord(value)) throw new Error("Unsupported core response envelope");
+      if (value.ok !== true)
+        throw new Error(
+          `${args.join(" ")}: ${String(isRecord(value.error) ? value.error.message : undefined)}`,
+        );
+      envelope = { ...value, ok: true };
     } catch (error) {
       commandFailed = true;
       commandError = error;
@@ -131,6 +184,7 @@ export async function captureQualificationReport(options, execute = promisify(ex
       throw identityError;
     }
     if (commandFailed) throw commandError;
+    if (!envelope) throw new Error("Core capture did not return a response");
     return envelope;
   }
   const commands = {
@@ -141,23 +195,23 @@ export async function captureQualificationReport(options, execute = promisify(ex
     activity: ["activity", "--limit", "50"],
     storage: ["storage"],
   };
-  const evidence = {};
+  const evidence: Record<string, CapturedEnvelope> = {};
   // Sequential commands avoid taking a burst of library connections on slower hosts.
   for (const [label, args] of Object.entries(commands)) evidence[label] = await capture(...args);
-  const catalog = evidence.catalog.data;
-  const statuses = evidence.status.data;
-  if (!Array.isArray(statuses) || !Array.isArray(catalog?.ports))
+  const catalog = evidence.catalog?.data;
+  const statuses = evidence.status?.data;
+  if (!Array.isArray(statuses) || !isRecord(catalog) || !Array.isArray(catalog.ports))
     throw new Error("Unsupported core report shape");
-  const records = reportRecords(statuses);
+  const rawStatuses: unknown[] = statuses;
+  const ports: unknown[] = catalog.ports;
+  const records = reportRecords(rawStatuses);
   const observations = [];
   for (const item of records) {
-    const port = catalog.ports.find((port) => port.id === item.status.port_id);
+    const port = ports.find(
+      (port): port is Record<string, unknown> => isRecord(port) && port.id === item.portId,
+    );
     if (item.kind === "managed")
-      evidence[`backups:${item.status.port_id}`] = await capture(
-        "backup",
-        "list",
-        item.status.port_id,
-      );
+      evidence[`backups:${item.portId}`] = await capture("backup", "list", item.portId);
     observations.push(observation(item, port));
   }
   const report = {
@@ -175,7 +229,7 @@ export async function captureQualificationReport(options, execute = promisify(ex
   await writeFile(join(output, "evidence.json"), `${JSON.stringify(report, null, 2)}\n`, {
     flag: "wx",
   });
-  const clean = (value) => String(value).replace(/[\r\n|]/g, " ");
+  const clean = (value: unknown) => String(value).replace(/[\r\n|]/g, " ");
   const rows = observations.map(
     (item) =>
       `| ${clean(item.name)} | ${item.runtime_kind === "managed" ? "Managed install" : "External registration"} | ${clean(item.version ?? "Unknown")} | ${readinessLabel(item.readiness)} | Unassessed |`,
@@ -219,9 +273,14 @@ if (import.meta.main) {
   const { values } = parseArgs({
     options: { cli: { type: "string" }, library: { type: "string" }, output: { type: "string" } },
   });
-  for (const name of ["cli", "library", "output"]) {
+  for (const name of ["cli", "library", "output"] as const) {
     if (!values[name]) throw new Error(`--${name} is required`);
   }
-  const result = await captureQualificationReport(values);
+  if (!values.cli || !values.library || !values.output) throw new Error("Missing report paths");
+  const result = await captureQualificationReport({
+    cli: values.cli,
+    library: values.library,
+    output: values.output,
+  });
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
