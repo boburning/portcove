@@ -9,13 +9,13 @@ It does not offer managed acquisition, updates, backup, rollback or uninstall.
 Both platform qualification arrays remain empty. Catalog inclusion is distinct
 from Supported or gameplay qualification.
 
-| Input | Exact identity |
-| --- | --- |
-| Windows ZIP | `RaceWave46-Windows-x64-v1.0.0.zip`, 35,768,574 bytes, SHA256 `f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028` |
-| Source ZIP | 47,827,235 bytes, SHA256 `dde1a882fb3a24e072da1b16c09dcae2100f509d99ffb04ecddca546bed19ccd` |
-| Executable | `WaveRace64Recompiled.exe`, 35,992,576 bytes, SHA256 `a5b00cadb0a390854603456f4c8015fb379a349d878e918291e28065b1edc3d1` |
-| Immutable tree | Core `portcove-external-tree-v1` digest `77dc97d78610f5cbb3258991af44e834bff912d4ab0bfe904f477e01a32a4663`, 122 regular files |
-| Required source | Existing Wave Race 64 USA Rev A identity; original uncompressed `.z64` representation |
+| Input           | Exact identity                                                                                                                   |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Windows ZIP     | `RaceWave46-Windows-x64-v1.0.0.zip`, 35,768,574 bytes, SHA256 `f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028` |
+| Source ZIP      | 47,827,235 bytes, SHA256 `dde1a882fb3a24e072da1b16c09dcae2100f509d99ffb04ecddca546bed19ccd`                                      |
+| Executable      | `WaveRace64Recompiled.exe`, 35,992,576 bytes, SHA256 `a5b00cadb0a390854603456f4c8015fb379a349d878e918291e28065b1edc3d1`          |
+| Immutable tree  | Core `portcove-external-tree-v1` digest `77dc97d78610f5cbb3258991af44e834bff912d4ab0bfe904f477e01a32a4663`, 122 regular files    |
+| Required source | Existing Wave Race 64 USA Rev A identity; original uncompressed `.z64` representation                                            |
 
 The archive digests matched GitHub's published asset digests at pickup. The
 Windows archive contains 122 entries / 65,088,750 uncompressed bytes; the source
