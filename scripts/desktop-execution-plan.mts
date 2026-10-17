@@ -66,6 +66,7 @@ export function planDesktopExecution(
     selection.selected_scenarios.includes("native-host-publication-recovery") ||
     selection.selected_scenarios.includes("native-direct-preparation-recovery") ||
     selection.selected_scenarios.includes("native-late-listener-disposal") ||
+    selection.selected_scenarios.includes("native-rejected-listener-registration") ||
     selection.selected_scenarios.includes("native-preliminary-selected-setup") ||
     selection.selected_scenarios.includes("native-saved-folder-hash-resume") ||
     selection.selected_scenarios.includes("native-preliminary-source-review") ||
@@ -89,48 +90,52 @@ export function planDesktopExecution(
     ? "host-publication"
     : selection.selected_scenarios.includes("native-direct-preparation-recovery")
       ? "direct-preparation-recovery"
-      : selection.selected_scenarios.includes("native-late-listener-disposal")
-        ? "late-listener-disposal"
-        : selection.selected_scenarios.includes("native-preliminary-selected-setup")
-          ? "preliminary-selected-setup"
-          : selection.selected_scenarios.includes("native-saved-folder-hash-resume")
-            ? "saved-folder-hash-resume"
-            : selection.selected_scenarios.includes("native-preliminary-source-review")
-              ? "preliminary-source-review"
-              : platform === "win32" &&
-                  selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")
-                ? "backup-review"
+      : selection.selected_scenarios.includes("native-rejected-listener-registration")
+        ? "rejected-listener-registration"
+        : selection.selected_scenarios.includes("native-late-listener-disposal")
+          ? "late-listener-disposal"
+          : selection.selected_scenarios.includes("native-preliminary-selected-setup")
+            ? "preliminary-selected-setup"
+            : selection.selected_scenarios.includes("native-saved-folder-hash-resume")
+              ? "saved-folder-hash-resume"
+              : selection.selected_scenarios.includes("native-preliminary-source-review")
+                ? "preliminary-source-review"
                 : platform === "win32" &&
-                    selection.selected_scenarios.includes("native-game-update-review")
-                  ? "game-update-review"
-                  : selection.selected_scenarios.includes("native-external-runtime-review")
-                    ? "external-runtime-review"
-                    : selection.selected_scenarios.includes("native-startup-network-diagnostic")
-                      ? "startup-network-diagnostic"
-                      : preferencesRecoverySession
-                        ? "startup-preferences-recovery"
-                        : librarySwitchRecoverySession
-                          ? "library-switch-recovery"
-                          : bootstrapRecoverySession
-                            ? "startup-library-recovery"
-                            : normalPackageSession
-                              ? "normal-package-boundary"
-                              : ordinaryCloseSession
-                                ? "ordinary-close-preparation"
-                                : hostInterruptionSession
-                                  ? "host-interruption"
-                                  : minimizedPreparationSession
-                                    ? "minimized-preparation"
-                                    : selection.selected_scenarios.includes(
-                                          "native-selected-setup-completion",
-                                        )
-                                      ? "selected-setup-completion"
-                                      : platform === "win32" &&
-                                          selection.selected_scenarios.includes(
-                                            "native-retained-contract-repair-state",
+                    selection.selected_scenarios.includes(
+                      "native-reviewed-backup-restore-and-delete",
+                    )
+                  ? "backup-review"
+                  : platform === "win32" &&
+                      selection.selected_scenarios.includes("native-game-update-review")
+                    ? "game-update-review"
+                    : selection.selected_scenarios.includes("native-external-runtime-review")
+                      ? "external-runtime-review"
+                      : selection.selected_scenarios.includes("native-startup-network-diagnostic")
+                        ? "startup-network-diagnostic"
+                        : preferencesRecoverySession
+                          ? "startup-preferences-recovery"
+                          : librarySwitchRecoverySession
+                            ? "library-switch-recovery"
+                            : bootstrapRecoverySession
+                              ? "startup-library-recovery"
+                              : normalPackageSession
+                                ? "normal-package-boundary"
+                                : ordinaryCloseSession
+                                  ? "ordinary-close-preparation"
+                                  : hostInterruptionSession
+                                    ? "host-interruption"
+                                    : minimizedPreparationSession
+                                      ? "minimized-preparation"
+                                      : selection.selected_scenarios.includes(
+                                            "native-selected-setup-completion",
                                           )
-                                        ? "retained-contract-repair"
-                                        : "backup-focus";
+                                        ? "selected-setup-completion"
+                                        : platform === "win32" &&
+                                            selection.selected_scenarios.includes(
+                                              "native-retained-contract-repair-state",
+                                            )
+                                          ? "retained-contract-repair"
+                                          : "backup-focus";
   const inputs: ReceiptInput[] = ["app", "driver", "native-driver"].map((name) => ({
     kind: "executable",
     name,
@@ -193,6 +198,9 @@ export function planDesktopExecution(
   inputs.push(receiptSource(new URL("desktop-workspace-refresh-test.mts", harnessUrl)));
   if (selection.selected_scenarios.includes("native-qualification-history"))
     inputs.push(receiptSource(new URL("desktop-qualification-history-test.mts", harnessUrl)));
+  if (selection.selected_scenarios.includes("native-rejected-listener-registration"))
+    for (const source of ["pnpm-workspace.yaml", "patches/@tauri-apps__api@2.12.4.patch"])
+      inputs.push(receiptSource(new URL(source, rootUrl)));
   inputs.push(
     receiptSource(new URL("desktop-catalog-update-test.mts", harnessUrl)),
     receiptSource(new URL("desktop-default-cover-test.mts", harnessUrl)),
@@ -346,7 +354,11 @@ export function planDesktopExecution(
     },
     build: {
       cliFeatures:
-        sourceJourney || completionJourney ? ["portcove-core/qualification-fixtures"] : [],
+        sourceJourney ||
+        completionJourney ||
+        selection.selected_scenarios.includes("native-host-publication-recovery")
+          ? ["portcove-core/qualification-fixtures"]
+          : [],
       qualificationFeatures:
         needs("install-fixture") || needs("steam-fixture") || needs("external-runtime-fixture")
           ? ["qualification-fixtures"]

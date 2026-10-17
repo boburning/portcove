@@ -52,6 +52,25 @@ function requiredFixture<T>(value: T | null | undefined): T {
   return value;
 }
 
+void test("listener lifetime helper selects its actual callback cleanup regression", () => {
+  const helper = "apps/desktop/scripts/desktop-listener-lifetime-test.mts";
+  const selection = classifyChanges([{ status: "M", path: helper }], {
+    fileExists: () => false,
+  });
+  assert.ok(selection.nodeTests.has("scripts/desktop-listener-probe.test.mts"));
+  assert.ok(!selection.unknown.has(helper));
+  assert.ok(!classifyChanges([]).nodeTests.has("scripts/desktop-listener-probe.test.mts"));
+});
+
+void test("manual native workflow selects its repository-dependency provenance contracts", () => {
+  const selection = classifyChanges(
+    [{ status: "M", path: ".github/workflows/native-design-compatibility.yml" }],
+    { fileExists: () => false },
+  );
+  assert.ok(selection.nodeTests.has("scripts/workflow-provenance.test.mts"));
+  assert.ok(!classifyChanges([]).nodeTests.has("scripts/workflow-provenance.test.mts"));
+});
+
 void test("removed, renamed-away and non-code frontend inputs retain complete execution", () => {
   for (const change of [
     { status: "D", path: "apps/desktop/src/components/removed.tsx" },
