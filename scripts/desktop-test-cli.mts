@@ -1,4 +1,5 @@
-import { errorMessage } from "./runtime-values.mts";
+import type { FileIdentity } from "./development-evidence.mts";
+import { errorMessage, isRecord } from "./runtime-values.mts";
 import { resourceEntrypoint } from "./resource-command.mts";
 import { createRequire } from "node:module";
 import assert from "node:assert/strict";
@@ -28,11 +29,7 @@ async function executeDesktopTest() {
     assert.ok(
       Boolean(values["current-installed"]) !== Boolean(values["verify-installed-admission"]),
     );
-    for (const name of ["installer", "package-evidence", "expected-app"])
-      assert.ok(
-        values[name] && path.isAbsolute(values[name]),
-        `--${name} requires an absolute path`,
-      );
+    assertAbsoluteArguments(values, ["installer", "package-evidence", "expected-app"] as const);
     const root = await realpath(fileURLToPath(new URL("..", import.meta.url)));
     const { acquireNativeSessionLock, isProcessAlive } = await import("./native-session-lock.mts");
     const { fileIdentity } = await import("./development-evidence.mts");
@@ -54,7 +51,10 @@ async function executeDesktopTest() {
         expected_executable: await fileIdentity(values["expected-app"]),
       };
       if (values["verify-installed-admission"]) {
-        const admission = JSON.parse(await readFile(values["verify-installed-admission"], "utf8"));
+        const admission: unknown = JSON.parse(
+          await readFile(values["verify-installed-admission"], "utf8"),
+        );
+        assert.ok(isRecord(admission));
         assert.equal(lock.inherited, true);
         assert.equal(admission.owner_pid, lock.owner.pid);
         assert.equal(admission.owner_created_at, lock.owner.created_at);
@@ -62,11 +62,7 @@ async function executeDesktopTest() {
         assert.deepEqual(admission.bindings, bindings);
         assert.equal(admission.doctor_ok, true);
       } else {
-        for (const name of ["test-base", "evidence"])
-          assert.ok(
-            values[name] && path.isAbsolute(values[name]),
-            `--${name} requires an absolute path`,
-          );
+        assertAbsoluteArguments(values, ["test-base", "evidence"] as const);
         assert.ok(values["expected-version"], "--expected-version is required");
         createRequire(path.join(root, "apps", "desktop", "package.json")).resolve(
           "selenium-webdriver",
@@ -172,13 +168,20 @@ async function executeDesktopTest() {
       } = await import("./retained-evidence.mts");
       const { captureDesktopReceiptInputs } = await import("./native-helper-dependencies.mts");
       const { acquireNativeSessionLock } = await import("./native-session-lock.mts");
-      const { values } = parseDesktopHarnessOptions(args);
+      const {
+        values,
+      }: {
+        values: ReturnType<typeof parseDesktopHarnessOptions>["values"] &
+          Record<string, string | boolean | string[] | undefined>;
+      } = parseDesktopHarnessOptions(args);
       const drivers = cachedDesktopDrivers();
-      values.driver ??= drivers?.driver;
-      values["native-driver"] ??= drivers?.nativeDriver;
-      for (const name of ["app", "output", "driver", "native-driver"])
+      if (values.driver === undefined && drivers) values.driver = drivers.driver;
+      if (values["native-driver"] === undefined && drivers)
+        values["native-driver"] = drivers.nativeDriver;
+      for (const name of ["app", "output", "driver", "native-driver"] as const)
         if (!values[name] || !path.isAbsolute(values[name]))
           throw new Error(`--${name} requires an absolute path or verified cached driver`);
+      assert.ok(typeof values.app === "string");
       const selection = resolveDesktopHarnessSelection(values);
       const { desktopHarnessDeadlineMs } = await import("./desktop-scenarios.mts");
       const lock = await acquireNativeSessionLock({
@@ -207,14 +210,16 @@ async function executeDesktopTest() {
         await mkdir(captureOutput, { recursive: true, mode: 0o700 });
         const metadataOriginal = values["run-metadata"];
         const metadataBytes = metadataOriginal ? await readFile(metadataOriginal) : null;
-        const metadata = metadataBytes ? JSON.parse(metadataBytes.toString("utf8")) : null;
+        const metadata: unknown = metadataBytes ? JSON.parse(metadataBytes.toString("utf8")) : null;
         const retainedMetadata =
-          metadata?.evidence_input_class === "non-secret-verification-metadata";
+          isRecord(metadata) &&
+          metadata.evidence_input_class === "non-secret-verification-metadata";
         const plan = planDesktopExecution(selection, { prelaunchCustody: true, retainedMetadata });
         if (retainedMetadata) {
-          const inspect = (value) => {
-            if (value && typeof value === "object")
-              for (const [key, child] of Object.entries(value)) {
+          const inspect = (value: unknown): void => {
+            if (isRecord(value) || Array.isArray(value)) {
+              const entries: Record<string, unknown> | unknown[] = value;
+              for (const [key, child] of Object.entries(entries)) {
                 if (
                   /(?:^|_)(?:token|password|secret|cookie|credentials|private_key|authorization|xauthority)(?:$|_)/iu.test(
                     key,
@@ -225,25 +230,39 @@ async function executeDesktopTest() {
                   );
                 inspect(child);
               }
+            }
           };
           inspect(metadata);
           // Consume exactly the validated read, not a later reread of a mutable
           // original. Preserve its exact byte identity rather than redacting it.
           values["run-metadata"] = path.join(captureOutput, "declared-metadata-input.json");
+          assert.ok(metadataBytes);
           await writeFile(values["run-metadata"], metadataBytes, { flag: "wx", mode: 0o600 });
         }
-        const inputs = await captureDesktopReceiptInputs({
+        const capturedInputs = await captureDesktopReceiptInputs({
           root,
-          values,
+          values: { ...values, app: values.app },
           plan,
           output: captureOutput,
           revision,
           retainedRoot: store,
           signal: captureSignal,
         });
+        const inputs = capturedInputs.map((input) => {
+          assert.ok(
+            "retained" in input && "binding" in input && "kind" in input && "role" in input,
+            "Prelaunch capture requires retained custody",
+          );
+          const record: typeof input & {
+            original_read_observation?: FileIdentity;
+            consumption_phase?: string;
+          } = input;
+          return record;
+        });
         captureSignal.throwIfAborted();
         for (const input of inputs) {
           if (input.kind === "argument-file") {
+            assert.ok(typeof metadataOriginal === "string" && metadataBytes);
             input.binding = "retained-metadata-read";
             input.original_read_observation = {
               path: path.resolve(metadataOriginal),
@@ -285,6 +304,7 @@ async function executeDesktopTest() {
           }),
           { flag: "wx", mode: 0o600 },
         );
+        assert.ok(process.argv[0] && process.argv[1]);
         process.argv = [
           process.argv[0],
           process.argv[1],
@@ -337,8 +357,21 @@ async function executeDesktopTest() {
     }
   }
 
-  return process.exitCode ?? 0;
+  return Number(process.exitCode ?? 0);
 }
 process.exitCode = args.includes("--help")
   ? await executeDesktopTest()
   : await resourceEntrypoint("browser", executeDesktopTest);
+
+function assertAbsoluteArguments<Key extends string, Values extends Partial<Record<Key, unknown>>>(
+  values: Values,
+  keys: readonly Key[],
+): asserts values is Values & Record<Key, string> {
+  for (const key of keys) {
+    const value = values[key];
+    assert.ok(
+      typeof value === "string" && value.length > 0 && path.isAbsolute(value),
+      `--${key} requires an absolute path`,
+    );
+  }
+}

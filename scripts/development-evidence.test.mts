@@ -211,6 +211,7 @@ test("bootstrap verifies late mutation after manifest preparation before importi
   const before = await stat(file);
   await assert.rejects(
     runInNewContext(`(async()=>{${block}})()`, {
+      assert,
       inputs: [{ ...input, role: "app", kind: "executable" }],
       values: { app: file },
       captureOutput: directory,
