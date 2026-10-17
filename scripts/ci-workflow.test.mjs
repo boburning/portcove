@@ -672,7 +672,7 @@ test("ordinary formatting and lint have one quality owner; deep analyzers stay i
   assert.doesNotMatch(frontend, /format:check|pnpm lint/);
 });
 
-test("reusable qualification is read-only, daily, and coalesces without cancelling", () => {
+test("reusable qualification is read-only, daily, and coalesces without cancelling", async () => {
   assert.match(qualificationWorkflow, /^ {2}workflow_call:\r?$/m);
   assert.match(qualificationWorkflow, /^ {2}workflow_dispatch:\r?$/m);
   assert.match(qualificationWorkflow, /cron: "17 5 \* \* \*"/);
@@ -683,6 +683,24 @@ test("reusable qualification is read-only, daily, and coalesces without cancelli
   );
   assert.match(qualificationWorkflow, /uses: \.\/\.github\/workflows\/ci\.yml/);
   assert.match(qualificationWorkflow, /force_qualification: true/);
+  const classifier = workflow.split("\n  classify:")[1].split("\n    name:")[0];
+  const requested = [...classifier.matchAll(/^ {6}([\w-]+): (read|write)$/gm)];
+  assert.equal(requested.length, 3);
+  const release = await readFile(
+    new URL("../.github/workflows/release.yml", import.meta.url),
+    "utf8",
+  );
+  for (const [source, job] of [
+    [qualificationWorkflow, "qualify"],
+    [release, "qualification"],
+  ]) {
+    const caller = source.split(`\n  ${job}:`)[1].split("\n    uses:")[0];
+    for (const [, scope, access] of requested) {
+      assert.equal(access, "read");
+      assert.match(caller, new RegExp(`^ {6}${scope}: ${access}$`, "m"));
+    }
+    assert.doesNotMatch(caller, /: write/);
+  }
   assert.match(qualificationWorkflow, /jobs\.qualify\.outputs\.plan_digest/);
   assert.match(qualificationWorkflow, /provenance_scope:/);
   assert.doesNotMatch(qualificationWorkflow, /secrets:|pull_request_target|contents: write/);

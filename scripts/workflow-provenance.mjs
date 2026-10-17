@@ -49,6 +49,8 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   ".github/qualification-coverage.json",
   ".github/workflows/ci.yml",
   "scripts/local-validation.mjs",
+  "scripts/ordinary-validation.mjs",
+  "scripts/validation-evidence.mjs",
   "scripts/checked-git.mjs",
   "scripts/resource-status.mjs",
   "scripts/report-summary.mjs",
@@ -764,6 +766,8 @@ const bootstrapPaths = new Set([
   "scripts/workflow-provenance.mjs",
   "scripts/workflow-provenance.test.mjs",
   "scripts/local-validation.mjs",
+  "scripts/ordinary-validation.mjs",
+  "scripts/validation-evidence.mjs",
   "scripts/local-validation.test.mjs",
   "scripts/native-backup-evidence.mjs",
   "scripts/ci-workflow.test.mjs",
@@ -1029,6 +1033,7 @@ export async function runHostedValidation(phase, options = {}) {
   }
   const preserved = [
     "scripts/audit.mjs",
+    "scripts/validation-evidence.mjs",
     "justfile",
     "rust-toolchain.toml",
     ".node-version",

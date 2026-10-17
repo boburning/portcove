@@ -568,6 +568,22 @@ optional local feedback, qualification selection and receipt rules. This file
 owns operation syntax and resource handling. [Development storage](DEVELOPMENT-STORAGE.md)
 owns workspace, cache and cleanup operations.
 
+Ordinary command selection and non-receipt execution live in
+`scripts/ordinary-validation.mjs`; hosted `ci-baseline.mjs` consumes that module
+directly. `local-validation.mjs` owns optional local CLI/preflight and receipt
+composition. `validation-evidence.mjs` shares conservative inventory,
+fingerprint and receipt primitives with the explicit audit; importing ordinary
+hosted planning does not load audit or receipt orchestration.
+
+Local receipt runs observe only runtime fields consumed by their selected reusable
+domains. Repository-only receipts need Git/just identity and do not probe Cargo,
+nextest, rscheck, Aqua, PowerShell or pnpm. Non-reusable-only plans do not collect
+receipt inventories/runtime. This changes prerequisites and setup work, not
+selection or evidence admission: fingerprints retain every applicable field,
+failed stages do not become successful, and explicit audit still inventories all
+tools. Explicit transition/release audit routes and hosted provenance fields
+remain supported; the consumed #1682 transition is not an ordinary prerequisite.
+
 Use `just local-check --plan` to inspect optional complete-diff feedback,
 `--preflight --json` to observe selected prerequisites, and `--fresh` to execute
 without local receipts. Use `just audit --plan` for explicit audit selection;

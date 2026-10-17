@@ -103,6 +103,8 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/check-ci-prose.mjs",
   "scripts/ci-result-gate.mjs",
   "scripts/local-validation.mjs",
+  "scripts/ordinary-validation.mjs",
+  "scripts/validation-evidence.mjs",
   "scripts/checked-git.mjs",
   "scripts/resource-status.mjs",
   "scripts/report-summary.mjs",

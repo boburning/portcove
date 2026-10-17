@@ -306,7 +306,12 @@ fn extract_zip(
         // Some Windows ZIP producers write DOS separators. Resolve that spelling once,
         // before portable validation and collision detection, on every host platform.
         // Catalog paths and TAR entries retain their stricter forward-slash contract.
-        let portable_name = entry.name().replace('\\', "/");
+        let portable_name = entry
+            .name()
+            .map_err(|error| {
+                PortcoveError::verification(format!("invalid ZIP entry name: {error}"))
+            })?
+            .replace('\\', "/");
         let (relative, key) = validate_relative_path(&portable_name, entry.is_dir())?;
         collisions.insert(key, entry.is_dir())?;
         plans.push(EntryPlan {

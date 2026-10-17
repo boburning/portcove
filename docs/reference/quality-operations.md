@@ -826,6 +826,12 @@ The command does not retry, approve, rebase or merge proposals, assign ownership
 or maintain another queue. Refresh
 after every delivered outcome. No unattended execution is implied.
 
+A final npm package rule retains the PR table's Package, Type, Update and Change
+columns after inherited confidence presentation rules. A top-level column setting
+alone does not override those inherited package rules. Missing update-type metadata still requires controlled maintenance;
+neither a title nor a confidence badge supplies it. Column configuration is not
+proof of hosted uptake or a completed operational fast-lane canary.
+
 Use four delivery paths:
 
 - **Routine fast lane:** run `just renovate-check --pr <number> --head <sha>`.
@@ -899,7 +905,7 @@ and rollback scope justify it.
 
 Validate configuration with the official pinned client used for the current
 resolved-rule receipt:
-`pnpm --package=renovate@44.156.3 dlx --allow-build=re2 renovate-config-validator --strict renovate.json`.
+`pnpm --package=renovate@44.156.3 dlx --allow-build=re2 renovate-config-validator --strict --no-global renovate.json`.
 Schema validation supplements the repository's rule/extraction/classifier tests;
 it does not prove effective inherited grouping or hosted proposal uptake. Inspect
 resolved presets and rule precedence with the matching official engine, then read
