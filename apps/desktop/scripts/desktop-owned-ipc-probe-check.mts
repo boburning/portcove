@@ -1,3 +1,22 @@
+// The fixture alone owns intentionally retained callback state. Public Channel
+// types correctly hide this method; inspect its pinned runtime before calling.
+function cleanupFixtureChannel(channel: object) {
+  const cleanup: unknown = Reflect.get(channel, "cleanupCallback");
+  assert.ok(typeof cleanup === "function");
+  Reflect.apply(cleanup, channel, []);
+}
+function fixtureValue<T>(value: T): NonNullable<T> {
+  assert.ok(value != null);
+  return value;
+}
+function fixtureElement<T>(values: readonly T[], index: number): T {
+  const value = values[index];
+  assert.ok(value !== undefined);
+  return value;
+}
+import type { ProbeNative } from "./desktop-owned-ipc-probe.mts";
+import type { OutputOperationEvent } from "../src/transport-types.generated.d.ts";
+import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import { createHash, webcrypto } from "node:crypto";
@@ -17,7 +36,7 @@ const pins = {
 };
 
 async function transport() {
-  const runtime = {};
+  const runtime: Record<string, string> = {};
   for (const [file, digest] of Object.entries(pins)) {
     const bytes = await readFile(new URL(`./testdata/tauri-2.11.6/${file}.txt`, import.meta.url));
     assert.equal(createHash("sha256").update(bytes).digest("hex"), digest, file);
@@ -28,7 +47,9 @@ async function transport() {
     await readFile(new URL("../../../Cargo.lock", import.meta.url), "utf8"),
     /name = "tauri"\nversion = "2\.12\.4"/,
   );
-  assert.equal(JSON.parse(await readFile(new URL("package.json", api), "utf8")).version, "2.12.4");
+  const manifest: unknown = JSON.parse(await readFile(new URL("package.json", api), "utf8"));
+  assert.ok(isRecord(manifest));
+  assert.equal(manifest.version, "2.12.4");
   const clientSource = await readFile(new URL("core.js", api), "utf8");
   assert.equal(
     createHash("sha256").update(clientSource).digest("hex"),
@@ -41,8 +62,9 @@ async function transport() {
       .digest("hex"),
     "88571c39817ebe327cfb45cf2d5ff9e68c544523d526f09ac2cc99acfc8fcf1b",
   );
-  const tslib = await import(tslibUrl);
-  const asyncErrors = [];
+  const tslib: unknown = await import(tslibUrl.href);
+  assert.ok(isRecord(tslib));
+  const asyncErrors: unknown[] = [];
   const dispatch = { forwarded: 0, fallback: 0 };
   const context = createContext({
     Response,
@@ -53,7 +75,7 @@ async function transport() {
     setTimeout,
     // The current real Channel reports throwing handlers asynchronously while
     // continuing delivery. Observe only this isolated runtime's scheduled errors.
-    queueMicrotask(callback) {
+    queueMicrotask(callback: () => void) {
       queueMicrotask(() => {
         try {
           callback();
@@ -74,26 +96,36 @@ async function transport() {
     return new Response('"inert native dispatch"');
   };
   context.ipc = {
-    postMessage(data) {
+    postMessage(data: string) {
       dispatch.fallback++;
-      context.__TAURI_INTERNALS__.runCallback(JSON.parse(data).error, "inert fallback dispatch");
+      const payload: unknown = JSON.parse(data);
+      assert.ok(isRecord(payload) && typeof payload.error === "number");
+      const native = context.__TAURI_INTERNALS__ as ProbeNative;
+      native.runCallback(payload.error, "inert fallback dispatch");
     },
   };
   runInContext(
-    runtime["core.js"]
+    fixtureValue(runtime["core.js"])
       .replaceAll("__TEMPLATE_os_name__", '"windows"')
       .replaceAll("__TEMPLATE_protocol_scheme__", '"http"'),
     context,
   );
   runInContext(
-    runtime["ipc-protocol.js"]
+    fixtureValue(runtime["ipc-protocol.js"])
       .replaceAll("__TEMPLATE_invoke_key__", '"inert-test-key"')
       .replaceAll("__TEMPLATE_os_name__", '"windows"')
       .replaceAll("__TEMPLATE_fetch_channel_data_command__", '"plugin:__TAURI_CHANNEL__|fetch"')
-      .replaceAll("__RAW_process_ipc_message_fn__", runtime["process-ipc-message-fn.js"]),
+      .replaceAll(
+        "__RAW_process_ipc_message_fn__",
+        fixtureValue(runtime["process-ipc-message-fn.js"]),
+      ),
     context,
   );
-  context.__TAURI_INTERNALS__.ipc = context.__TAURI_INTERNALS__.postMessage;
+  const native = context.__TAURI_INTERNALS__ as ProbeNative & {
+    ipc: unknown;
+    postMessage: unknown;
+  };
+  native.ipc = native.postMessage;
   // Preserve the hash-pinned API implementation. Only its one import/export
   // boundary is wired into this VM, avoiding process-global window/error hooks.
   const importLine =
@@ -109,22 +141,33 @@ async function transport() {
     context,
   );
   const browser = {
-    executeScript: async (fn, ...args) => {
+    // Mirror Selenium's generic serialization contract in this isolated VM only.
+    executeScript: async <Result,>(
+      fn: string | ((...args: never[]) => unknown),
+      ...args: unknown[]
+    ): Promise<Result> => {
       context.__args = args;
-      const value = await runInContext(`(${fn.toString()})(...__args)`, context);
-      return value === undefined ? null : JSON.parse(JSON.stringify(value));
+      const value: unknown = await runInContext(`(${fn.toString()})(...__args)`, context);
+      const serialized: unknown = value === undefined ? null : JSON.parse(JSON.stringify(value));
+      return serialized as Result;
     },
   };
-  return { context, browser, dispatch, client: context.__client, asyncErrors };
+  // Hash-pinned API source above owns this runtime shape; use its authoritative public declarations.
+  const client = context.__client as typeof import("@tauri-apps/api/core");
+  const checkedContext = context as typeof context & {
+    __TAURI_INTERNALS__: ProbeNative;
+    fetch: typeof globalThis.fetch;
+  };
+  return { context: checkedContext, browser, dispatch, client, asyncErrors };
 }
 
-async function runCase(check, expectedAsyncErrors = []) {
+async function runCase(
+  check: (fixture: Awaited<ReturnType<typeof transport>>) => Promise<void>,
+  expectedAsyncErrors: readonly string[] = [],
+) {
   const fixture = await transport();
   await check(fixture);
-  assert.deepEqual(
-    fixture.asyncErrors.map((error) => error.message),
-    expectedAsyncErrors,
-  );
+  assert.deepEqual(fixture.asyncErrors.map(errorMessage), expectedAsyncErrors);
   assert.deepEqual(fixture.dispatch, { forwarded: 0, fallback: 0 });
 }
 
@@ -145,6 +188,21 @@ export async function verifyOwnedProbeTransport() {
     () => requireTrustedProbeCleanup({ trustworthy: false }),
     (error) => isUntrustworthyProbeError(error),
   );
+  for (const primary of ["thrown failure", 7, false, 0, "", null, undefined]) {
+    assert.throws(
+      () => requireTrustedProbeCleanup({ trustworthy: false }, primary),
+      (error) => {
+        assert.ok(error instanceof Error);
+        assert.equal(
+          isUntrustworthyProbeError(error),
+          true,
+          "Unproven cleanup must force outer teardown",
+        );
+        assert.strictEqual(error.cause, primary, "Retain the original primitive failure");
+        return true;
+      },
+    );
+  }
   for (const payload of [
     null,
     7,
@@ -156,22 +214,24 @@ export async function verifyOwnedProbeTransport() {
   ]) {
     await runCase(async ({ context, browser, client }) => {
       const probe = await beginProgressiveScanProbe(browser, { source });
+      // @ts-expect-error Deliberately malformed primitive/array IPC arguments must reach the pinned runtime.
       await assert.rejects(client.invoke("scan_game_file_roots", payload), /Controlled scan/);
       const report = await probe.restore();
       assert.equal(report.restored, true);
-      assert.equal(report.response_cleanup[0].completed, true);
+      assert.equal(fixtureElement(report.response_cleanup, 0).completed, true);
       assert.equal(context.__TAURI_INTERNALS__.callbacks.size, 0);
     });
     for (const command of ["plan_game_update", "apply_game_update"])
       await runCase(async ({ context, browser, client }) => {
         const probe = await beginReviewedUpdateProbe(browser, update);
+        // @ts-expect-error Deliberately malformed IPC arguments exercise actual transport rejection.
         await assert.rejects(client.invoke(command, payload), (error) => {
           assert.deepEqual(error, update.failure);
           return true;
         });
         const report = await probe.restore();
         assert.equal(report.restored, true);
-        assert.equal(report.response_cleanup[0].completed, true);
+        assert.equal(fixtureElement(report.response_cleanup, 0).completed, true);
         assert.equal(context.__TAURI_INTERNALS__.callbacks.size, 0);
       });
   }
@@ -201,9 +261,9 @@ export async function verifyOwnedProbeTransport() {
       );
       const report = await probe.restore();
       assert.equal(report.channels, 1);
-      assert.equal(report.channel_cleanup[0].attempted, true);
-      assert.equal(report.channel_cleanup[0].completed, true);
-      assert.equal(report.response_cleanup[0].completed, true);
+      assert.equal(fixtureElement(report.channel_cleanup, 0).attempted, true);
+      assert.equal(fixtureElement(report.channel_cleanup, 0).completed, true);
+      assert.equal(fixtureElement(report.response_cleanup, 0).completed, true);
       assert.equal(context.__TAURI_INTERNALS__.callbacks.size, 0);
     });
   await runCase(async ({ context, browser, client }) => {
@@ -233,13 +293,13 @@ export async function verifyOwnedProbeTransport() {
   for (const fault of ["none", "channel-close", "foreign-fetch", "event-handler"]) {
     await runCase(
       async ({ context, browser, client, asyncErrors }) => {
-        const events = [];
+        const events: OutputOperationEvent[] = [];
         if (fault === "channel-close") {
           const native = context.__TAURI_INTERNALS__;
-          const facade = Object.create(native);
+          const facade: ProbeNative = Object.create(native) as ProbeNative;
           Object.defineProperty(facade, "runCallback", {
-            value(id, value) {
-              if (value.end) throw new Error("Owned Channel close failed");
+            value(id: number, value: unknown) {
+              if (isRecord(value) && value.end) throw new Error("Owned Channel close failed");
               return native.runCallback(id, value);
             },
           });
@@ -247,7 +307,7 @@ export async function verifyOwnedProbeTransport() {
         }
         const original = context.fetch;
         const probe = await beginProgressiveScanProbe(browser, { source });
-        const channel = new client.Channel((message) => {
+        const channel = new client.Channel<OutputOperationEvent>((message) => {
           if (fault === "event-handler") throw new Error("Owned event handler failed");
           events.push(message);
         });
@@ -263,7 +323,10 @@ export async function verifyOwnedProbeTransport() {
             3,
             "Owned response stays pending",
           );
-          assert.equal((await probe.capture()).response_cleanup[0].attempted, false);
+          assert.equal(
+            fixtureElement(fixtureValue(await probe.capture()).response_cleanup, 0).attempted,
+            false,
+          );
         }
         const foreign = () => assert.fail("Foreign replacement must not run during cleanup");
         if (fault === "foreign-fetch") context.fetch = foreign;
@@ -272,26 +335,29 @@ export async function verifyOwnedProbeTransport() {
         const report = await first;
         await rejected;
         assert.strictEqual(await probe.restore(), report, "Terminal report is retained");
-        assert.equal(report.response_cleanup[0].attempted, true);
+        assert.equal(fixtureElement(report.response_cleanup, 0).attempted, true);
         assert.equal(
-          report.response_cleanup[0].completed,
+          fixtureElement(report.response_cleanup, 0).completed,
           true,
           "Channel failure cannot prevent response completion",
         );
-        assert.equal(report.channel_cleanup[0].index, 2);
+        assert.equal(fixtureElement(report.channel_cleanup, 0).index, 2);
         assert.deepEqual(
-          asyncErrors.map((error) => error.message),
+          asyncErrors.map(errorMessage),
           fault === "event-handler"
             ? ["Owned event handler failed", "Owned event handler failed"]
             : [],
         );
         assert.equal(report.trustworthy, fault === "none" || fault === "event-handler");
         if (fault === "channel-close") {
-          assert.equal(report.channel_cleanup[0].attempted, true);
-          assert.equal(report.channel_cleanup[0].completed, false);
-          assert.match(report.channel_cleanup[0].error, /close failed/);
+          assert.equal(fixtureElement(report.channel_cleanup, 0).attempted, true);
+          assert.equal(fixtureElement(report.channel_cleanup, 0).completed, false);
+          assert.match(
+            fixtureValue(fixtureElement(report.channel_cleanup, 0).error),
+            /close failed/,
+          );
           assert.equal(context.__TAURI_INTERNALS__.callbacks.size, 1);
-          channel.cleanupCallback(); // Test fixture owns the intentionally retained callback.
+          cleanupFixtureChannel(channel); // Test fixture owns the intentionally retained callback.
         } else assert.equal(context.__TAURI_INTERNALS__.callbacks.size, 0);
         assert.strictEqual(context.fetch, fault === "foreign-fetch" ? foreign : original);
         assert.equal(report.fetch.attempted, fault !== "foreign-fetch");
@@ -308,7 +374,7 @@ export async function verifyOwnedProbeTransport() {
           for (const key of Object.keys(window).filter((key: string) =>
             key.startsWith("__portcoveOwnedIpcProbe_"),
           ))
-            delete window[key];
+            Reflect.deleteProperty(window, key);
         });
         assert.equal(await probe.capture(), null);
       } else
@@ -323,7 +389,7 @@ export async function verifyOwnedProbeTransport() {
     });
   }
   await runCase(async ({ context, browser, client }) => {
-    const foreignEvents = [];
+    const foreignEvents: unknown[] = [];
     const foreign = new client.Channel((event) => foreignEvents.push(event));
     const probe = await beginProgressiveScanProbe(browser, { source });
     const rejected = assert.rejects(
@@ -335,8 +401,8 @@ export async function verifyOwnedProbeTransport() {
     assert.deepEqual(foreignEvents, []);
     assert.equal(context.__TAURI_INTERNALS__.callbacks.has(foreign.id), true);
     assert.equal(report.trustworthy, false);
-    assert.equal(report.channel_cleanup[0].owned, false);
-    foreign.cleanupCallback();
+    assert.equal(fixtureElement(report.channel_cleanup, 0).owned, false);
+    cleanupFixtureChannel(foreign);
   });
   for (const fault of ["removed", "replaced"]) {
     await runCase(async ({ context, browser, client }) => {
@@ -353,9 +419,9 @@ export async function verifyOwnedProbeTransport() {
       const report = await probe.restore();
       await rejected;
       assert.equal(report.trustworthy, false);
-      assert.equal(report.channel_cleanup[0].attempted, false);
-      assert.equal(report.channel_cleanup[0].completed, null);
-      assert.equal(report.response_cleanup[0].completed, true);
+      assert.equal(fixtureElement(report.channel_cleanup, 0).attempted, false);
+      assert.equal(fixtureElement(report.channel_cleanup, 0).completed, null);
+      assert.equal(fixtureElement(report.response_cleanup, 0).completed, true);
       assert.strictEqual(callbacks.get(channel.id), fault === "removed" ? undefined : foreign);
       callbacks.delete(channel.id); // Fixture alone owns its injected replacement.
     });
@@ -376,14 +442,14 @@ export async function verifyOwnedProbeTransport() {
       const report = await probe.restore();
       assert.equal(settled, false, "Callback absence does not establish invoke completion");
       assert.equal(report.trustworthy, false);
-      assert.equal(report.channel_cleanup[0].completed, true);
-      assert.equal(report.response_cleanup[0].attempted, false);
-      assert.equal(report.response_cleanup[0].completed, null);
+      assert.equal(fixtureElement(report.channel_cleanup, 0).completed, true);
+      assert.equal(fixtureElement(report.response_cleanup, 0).attempted, false);
+      assert.equal(fixtureElement(report.response_cleanup, 0).completed, null);
       for (const [id] of bindings)
         assert.strictEqual(callbacks.get(id), fault === "removed" ? undefined : foreign);
       // Re-admit only the fixture's original observers, then reap its pending invocation.
       for (const [id, callback] of bindings) callbacks.set(id, callback);
-      bindings[1][1]("Fixture settlement");
+      fixtureElement(bindings, 1)[1]("Fixture settlement");
       await rejected;
     });
   }
@@ -399,8 +465,8 @@ export async function verifyOwnedProbeTransport() {
       /Controlled scan/,
     );
     const report = await probe.restore();
-    assert.equal(report.channel_cleanup[0].owned, false);
-    assert.equal(report.response_cleanup[0].completed, true);
+    assert.equal(fixtureElement(report.channel_cleanup, 0).owned, false);
+    assert.equal(fixtureElement(report.response_cleanup, 0).completed, true);
     assert.equal(context.__TAURI_INTERNALS__.callbacks.size, 0);
   });
 }

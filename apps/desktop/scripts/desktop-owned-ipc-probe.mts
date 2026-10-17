@@ -1,30 +1,126 @@
+import type { WebDriver } from "selenium-webdriver";
+import type { OutputOperationEvent1 } from "../src/transport-types.generated.d.ts";
+export type ProbeSource = Pick<
+  Extract<OutputOperationEvent1, { type: "source_candidate" }>,
+  "profile_id" | "path" | "sha256" | "size"
+>;
+export interface UpdateProbeOptions {
+  portId: string;
+  generation: number;
+  plan: { plan_sha256: string };
+  failure: unknown;
+}
+export interface ScanProbeOptions {
+  source: ProbeSource;
+}
+type ProbeOptions = UpdateProbeOptions | ScanProbeOptions;
+type ProbeKey = `__portcoveOwnedIpcProbe_${string}`;
+export interface CleanupObservation {
+  attempted: boolean;
+  completed: boolean | null;
+  reason?: string;
+  error?: string;
+}
+export interface ChannelObservation extends CleanupObservation {
+  id: number | null;
+  owned: boolean;
+  index: number;
+}
+interface ResponseObservation extends CleanupObservation {
+  owned: boolean;
+  ids: (number | null)[];
+  resolve: ((response: Response) => void) | null;
+}
+export interface ProbeSnapshot {
+  plans: number;
+  applies: number;
+  injected: number;
+  mismatches: string[];
+  channels: number;
+  callback_observation_error: string | null;
+  channel_cleanup: ChannelObservation[];
+  response_cleanup: Omit<ResponseObservation, "resolve" | "ids">[];
+}
+export interface ProbeCleanup extends Partial<ProbeSnapshot> {
+  restored: boolean;
+  trustworthy: boolean;
+  terminal: boolean;
+  fetch: CleanupObservation;
+  channel_cleanup: ChannelObservation[];
+  response_cleanup: Omit<ResponseObservation, "resolve" | "ids">[];
+  error?: string;
+}
+interface ProbeState {
+  capture(): ProbeSnapshot;
+  restore(): Promise<ProbeCleanup>;
+}
+// Private pinned transport interoperability only; verified against retained Tauri
+// sources by desktop-owned-ipc-probe-check. No ambient browser globals are added.
+export interface ProbeNative {
+  callbacks: Map<number, (value: unknown) => void>;
+  convertFileSrc: typeof import("@tauri-apps/api/core").convertFileSrc;
+  runCallback(id: number, value: unknown): void;
+}
+
 import { executeBrowserScript } from "./browser-script.mts";
 import { randomUUID } from "node:crypto";
-const untrustworthyErrors = new WeakSet();
-export const isUntrustworthyProbeError = (error) => untrustworthyErrors.has(error);
-export function requireTrustedProbeCleanup(report, primaryError) {
+const untrustworthyErrors = new WeakSet<object>();
+export const isUntrustworthyProbeError = (error: unknown) =>
+  error !== null &&
+  (typeof error === "object" || typeof error === "function") &&
+  untrustworthyErrors.has(error);
+export function requireTrustedProbeCleanup(
+  report: { trustworthy: boolean },
+  primaryError?: unknown,
+) {
   if (report.trustworthy) return;
-  const error =
-    primaryError ?? new Error("Owned IPC probe cleanup did not establish a trustworthy session");
+  if (
+    primaryError !== null &&
+    (typeof primaryError === "object" || typeof primaryError === "function")
+  ) {
+    untrustworthyErrors.add(primaryError);
+    return;
+  }
+  // Primitive throws cannot carry the WeakSet marker. Force teardown with a
+  // marked error and retain the original failure without mutating it.
+  const error = new Error("Owned IPC probe cleanup did not establish a trustworthy session", {
+    cause: primaryError,
+  });
   untrustworthyErrors.add(error);
-  if (!primaryError) throw error;
+  throw error;
 }
 
 // Two fixed probes share interception custody and terminal cleanup, not scenario policy.
-export const beginReviewedUpdateProbe = (browser, options) => begin(browser, "update", options);
-export const beginProgressiveScanProbe = (browser, options) => begin(browser, "scan", options);
+export const beginReviewedUpdateProbe = (
+  browser: Pick<WebDriver, "executeScript">,
+  options: UpdateProbeOptions,
+) => begin(browser, "update", options);
+export const beginProgressiveScanProbe = (
+  browser: Pick<WebDriver, "executeScript">,
+  options: ScanProbeOptions,
+) => begin(browser, "scan", options);
 
-async function begin(browser, mode, options) {
-  const key = `__portcoveOwnedIpcProbe_${randomUUID()}`;
+async function begin(
+  browser: Pick<WebDriver, "executeScript">,
+  mode: "update" | "scan",
+  options: ProbeOptions,
+) {
+  const key: ProbeKey = `__portcoveOwnedIpcProbe_${randomUUID()}`;
   await executeBrowserScript(browser, installProbe, key, mode, options);
-  let restoration;
+  let restoration: Promise<ProbeCleanup> | undefined;
   return Object.freeze({
-    capture: () => executeBrowserScript(browser, (key) => window[key]?.capture() ?? null, key),
+    capture: () =>
+      executeBrowserScript(
+        browser,
+        (key) => (Reflect.get(window, key) as ProbeState | undefined)?.capture() ?? null,
+        key,
+      ),
     restore() {
       // Retain the same terminal report, including rejected browser execution.
-      restoration ??= browser
-        .executeScript(async (key) => {
-          const probe = window[key];
+      restoration ??= executeBrowserScript(
+        browser,
+        async (key) => {
+          const probe = Reflect.get(window, key) as ProbeState | undefined;
           if (!probe)
             return {
               restored: false,
@@ -35,24 +131,38 @@ async function begin(browser, mode, options) {
               response_cleanup: [],
             };
           return probe.restore();
-        }, key)
-        .catch((error) => ({
-          restored: false,
-          trustworthy: false,
-          terminal: true,
-          fetch: { attempted: false, completed: false, reason: "Renderer cleanup unavailable" },
-          channel_cleanup: [],
-          response_cleanup: [],
-          error: String(error),
-        }));
+        },
+        key,
+      ).catch((error: unknown) => ({
+        restored: false,
+        trustworthy: false,
+        terminal: true,
+        fetch: { attempted: false, completed: false, reason: "Renderer cleanup unavailable" },
+        channel_cleanup: [],
+        response_cleanup: [],
+        error: String(error),
+      }));
       return restoration;
     },
   });
 }
 
 // Self-contained because Selenium serializes this function into the renderer.
-function installProbe(key, mode, options) {
-  const native = window.__TAURI_INTERNALS__;
+function installProbe(key: ProbeKey, mode: "update" | "scan", options: ProbeOptions) {
+  const rawNative: unknown = Reflect.get(window, "__TAURI_INTERNALS__");
+  if (
+    rawNative === null ||
+    typeof rawNative !== "object" ||
+    !("callbacks" in rawNative) ||
+    !(rawNative.callbacks instanceof Map) ||
+    !("convertFileSrc" in rawNative) ||
+    typeof rawNative.convertFileSrc !== "function" ||
+    !("runCallback" in rawNative) ||
+    typeof rawNative.runCallback !== "function"
+  )
+    throw new Error("Pinned Tauri probe transport unavailable");
+  // The pinned transport fixture proves the callback registry calling convention.
+  const native = rawNative as ProbeNative;
   const original = window.fetch;
   const targets =
     mode === "update"
@@ -62,73 +172,88 @@ function installProbe(key, mode, options) {
         ]
       : [native.convertFileSrc("scan_game_file_roots", "ipc")];
   const counts = { plans: 0, applies: 0, injected: 0 };
-  const mismatches = [];
-  const channels = [];
-  const responses = [];
+  const mismatches: string[] = [];
+  const channels: ChannelObservation[] = [];
+  const responses: ResponseObservation[] = [];
   // These fixed first-party actions allocate their Channel after installation.
   // Freshness is admission evidence for that bounded action window, not general ownership.
   const initialCallbacks = new Set(native.callbacks.keys());
-  const channelBindings = new Map();
-  const responseBindings = new Map();
-  let restoration;
+  const channelBindings = new Map<ChannelObservation, ((value: unknown) => void) | undefined>();
+  const responseBindings = new Map<
+    ResponseObservation,
+    (((value: unknown) => void) | undefined)[]
+  >();
+  let restoration: Promise<ProbeCleanup> | undefined;
   let active = true;
   const failure =
     mode === "update"
-      ? options.failure
+      ? "failure" in options
+        ? options.failure
+        : undefined
       : "Controlled scan observation ended; refresh or scan again.";
-  const errorText = (error) => String(error?.message ?? error);
-  const reply = (value, outcome) =>
+  const errorText = (error: unknown) =>
+    String(
+      error !== null && typeof error === "object" && "message" in error ? error.message : error,
+    );
+  const reply = (value: unknown, outcome: string) =>
     new Response(JSON.stringify(value), {
       headers: { "Content-Type": "application/json", "Tauri-Response": outcome },
     });
-  let callbackObservationError;
-  const callbackPresent = (id) => {
+  let callbackObservationError: string | undefined;
+  const callbackPresent = (id: number | null) => {
     try {
-      return native.callbacks instanceof Map ? native.callbacks.has(id) : null;
+      return native.callbacks instanceof Map ? id !== null && native.callbacks.has(id) : null;
     } catch (error) {
       callbackObservationError ??= errorText(error);
       return null;
     }
   };
 
-  function channelFor(payload, response) {
+  function channelFor(payload: Record<string, unknown> | null, response: ResponseObservation) {
     const token = payload?.onEvent;
     const id =
       typeof token === "string" && /^__CHANNEL__:\d+$/.test(token)
         ? Number(token.slice("__CHANNEL__:".length))
         : null;
     const owned =
+      id !== null &&
       Number.isSafeInteger(id) &&
       id >= 0 &&
       callbackPresent(id) === true &&
       !initialCallbacks.has(id) &&
       !responses.some((r) => r.ids.includes(id)) &&
       !channels.some((c) => c.id === id);
-    const channel = { id, owned, index: 0, attempted: false, completed: null };
+    const channel: ChannelObservation = { id, owned, index: 0, attempted: false, completed: null };
     channels.push(channel);
-    if (owned && response.owned) channelBindings.set(channel, native.callbacks.get(id));
+    if (owned && response.owned && id !== null)
+      channelBindings.set(channel, native.callbacks.get(id));
     else channel.owned = false;
     if (!channel.owned) mismatches.push("Controlled Channel identity unavailable or reused");
     return channel;
   }
 
-  function ownsChannel(channel) {
-    return channel.owned && native.callbacks.get(channel.id) === channelBindings.get(channel);
+  function ownsChannel(channel: ChannelObservation) {
+    return (
+      channel.id !== null &&
+      channel.owned &&
+      native.callbacks.get(channel.id) === channelBindings.get(channel)
+    );
   }
 
-  function emit(channel, message) {
-    if (!ownsChannel(channel)) throw new Error("Controlled Channel ownership lost");
+  function emit(channel: ChannelObservation, message: unknown) {
+    if (!ownsChannel(channel) || channel.id === null)
+      throw new Error("Controlled Channel ownership lost");
     native.runCallback(channel.id, { index: channel.index, message });
     channel.index++;
   }
 
-  function close(channel) {
+  function close(channel: ChannelObservation) {
     if (channel.attempted || channel.completed === true) return;
     if (!channel.owned) {
       channel.reason = "No admitted owned Channel";
       return;
     }
-    if (!ownsChannel(channel)) {
+    if (!ownsChannel(channel) || channel.id === null) {
       channel.completed = null;
       channel.reason = "Channel ownership lost before close";
       return;
@@ -145,17 +270,18 @@ function installProbe(key, mode, options) {
     }
   }
 
-  function responseFor(request) {
+  function responseFor(request: RequestInit | undefined) {
     const headers = new Headers(request?.headers);
     const ids = [headers.get("Tauri-Callback"), headers.get("Tauri-Error")].map((value) =>
       value !== null && /^\d+$/.test(value) ? Number(value) : null,
     );
-    const response = {
+    const response: ResponseObservation = {
       ids,
       owned:
         ids[0] !== ids[1] &&
         ids.every(
           (id) =>
+            id !== null &&
             Number.isSafeInteger(id) &&
             !initialCallbacks.has(id) &&
             callbackPresent(id) === true &&
@@ -169,10 +295,11 @@ function installProbe(key, mode, options) {
     responses.push(response);
     if (response.owned) {
       const bindings = ids.map((id) => {
-        const originalCallback = native.callbacks.get(id);
-        const observer = (value) => {
+        const originalCallback = id === null ? undefined : native.callbacks.get(id);
+        const observer = (value: unknown) => {
           if (response.completed === true || !ownsResponse(response)) return;
           try {
+            if (!originalCallback) throw new Error("Owned invoke callback disappeared");
             originalCallback(value);
             response.completed = true;
           } catch (error) {
@@ -181,7 +308,7 @@ function installProbe(key, mode, options) {
             throw error;
           }
         };
-        native.callbacks.set(id, observer);
+        if (id !== null) native.callbacks.set(id, observer);
         return observer;
       });
       responseBindings.set(response, bindings);
@@ -189,16 +316,17 @@ function installProbe(key, mode, options) {
     return response;
   }
 
-  function ownsResponse(response) {
+  function ownsResponse(response: ResponseObservation) {
     return (
       response.owned &&
       response.ids.every(
-        (id, index) => native.callbacks.get(id) === responseBindings.get(response)?.[index],
+        (id, index) =>
+          id !== null && native.callbacks.get(id) === responseBindings.get(response)?.[index],
       )
     );
   }
 
-  function settle(response) {
+  function settle(response: ResponseObservation) {
     if (!response.resolve || response.attempted) return;
     if (!ownsResponse(response)) {
       response.reason = "Invoke callback ownership lost before settlement";
@@ -234,20 +362,23 @@ function installProbe(key, mode, options) {
     response_cleanup: responses.map(({ resolve: _resolve, ids: _ids, ...r }) => ({ ...r })),
   });
 
-  function decode(request) {
-    const payload = JSON.parse(
-      typeof request?.body === "string" ? request.body : new TextDecoder().decode(request?.body),
+  function decode(request: RequestInit | undefined): Record<string, unknown> | null {
+    const payload: unknown = JSON.parse(
+      typeof request?.body === "string"
+        ? request.body // Native TextDecoder validates unsupported BodyInit variants at runtime;
+        : // malformed-input probes must retain that exception rather than dropping bytes.
+          new TextDecoder().decode(request?.body as AllowSharedBufferSource | undefined),
     );
     return payload !== null && typeof payload === "object" && !Array.isArray(payload)
-      ? payload
+      ? Object.fromEntries(Object.entries(payload))
       : null;
   }
 
-  function scanResponse(payload, response) {
+  function scanResponse(payload: Record<string, unknown> | null, response: ResponseObservation) {
     counts.injected++;
     const channel = channelFor(payload, response);
     try {
-      if (!active || !payload || !channel.owned)
+      if (!active || !payload || !channel.owned || !("source" in options))
         throw new Error("Controlled scan request mismatch");
       const event = {
         schema_version: 3,
@@ -270,7 +401,7 @@ function installProbe(key, mode, options) {
         },
       ])
         emit(channel, message);
-      return new Promise((resolve) => {
+      return new Promise<Response>((resolve) => {
         response.resolve = resolve;
       });
     } catch (error) {
@@ -279,14 +410,16 @@ function installProbe(key, mode, options) {
     }
   }
 
-  function updateResponse(url, payload) {
+  function updateResponse(url: string, payload: Record<string, unknown> | null) {
     const matches =
       active &&
+      "portId" in options &&
       payload !== null &&
       payload.portId === options.portId &&
       payload.activate === false &&
       payload.generation === options.generation;
-    if (!matches) throw new Error("Controlled port, activation, or generation mismatch");
+    if (!matches || !("plan" in options) || payload === null)
+      throw new Error("Controlled port, activation, or generation mismatch");
     if (url === targets[0]) {
       counts.plans++;
       return reply(options.plan, "ok");
@@ -296,9 +429,10 @@ function installProbe(key, mode, options) {
     return reply(failure, "error");
   }
 
-  const replacement = function (input, ...args) {
-    const url = typeof input === "string" ? input : input.url;
-    if (!targets.includes(url)) return original.call(window, input, ...args);
+  const replacement: typeof window.fetch = function (input, ...args) {
+    const url = typeof input === "string" ? input : "url" in input ? input.url : undefined;
+    if (typeof url !== "string" || !targets.includes(url))
+      return original.call(window, input, ...args);
     let response;
     try {
       response = responseFor(args[0]);
@@ -320,12 +454,12 @@ function installProbe(key, mode, options) {
     return Promise.resolve(reply(failure, "error"));
   };
 
-  window[key] = {
+  const state: ProbeState = {
     capture: snapshot,
     restore() {
       restoration ??= (async () => {
         active = false;
-        const fetch = { attempted: false, completed: false };
+        const fetch: CleanupObservation = { attempted: false, completed: false };
         try {
           if (window.fetch !== replacement) fetch.reason = "Fetch ownership lost";
           else {
@@ -344,9 +478,9 @@ function installProbe(key, mode, options) {
           ...snapshot(),
           terminal: true,
           fetch,
-          restored: fetch.completed,
+          restored: fetch.completed === true,
           trustworthy:
-            fetch.completed &&
+            fetch.completed === true &&
             channels.every((c) => c.completed === true) &&
             responses.every((r) => r.completed === true),
         };
@@ -354,5 +488,6 @@ function installProbe(key, mode, options) {
       return restoration;
     },
   };
+  Reflect.set(window, key, state);
   window.fetch = replacement;
 }
