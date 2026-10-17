@@ -33,4 +33,4 @@ jobs:
       - name: Remove only verified consumed Intel transfers
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/cleanup-intel-artifacts.mjs --apply
+        run: node scripts/cleanup-intel-artifacts.mts --apply

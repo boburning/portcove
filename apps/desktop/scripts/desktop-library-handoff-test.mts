@@ -1,0 +1,394 @@
+import type { Locator } from "selenium-webdriver";
+import type { ScenarioContext } from "./desktop-scenario-context.mts";
+import type { ScenarioInvoke } from "./desktop-scenario-context.mts";
+import type { FixtureCommand } from "./desktop-scenario-state.mts";
+import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
+import { transportValue, transportValues } from "./transport-values.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+interface HandoffContext extends ScenarioContext {
+  invoke: ScenarioInvoke;
+  library: string;
+  command: FixtureCommand;
+  confirmNative: ReturnType<typeof nativeConfirmation>;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function required<Value>(value: Value | null | undefined): Value {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function success(value: unknown) {
+  const result = object(value);
+  assert.equal(result.ok, true, JSON.stringify(result));
+  return result.value;
+}
+import { executeBrowserScript } from "./browser-script.mts";
+// Copy the harness-owned library, preserve its originals, and observe the new desktop generation.
+import assert from "node:assert/strict";
+import path from "node:path";
+import { access, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { By, Key, until } from "selenium-webdriver";
+import { fileIdentity } from "../../../scripts/development-evidence.mts";
+import {
+  assertCompactReview,
+  assertPrimaryReviewAction,
+  captureAccessibilityReport,
+  reviewControls,
+} from "./desktop-review-controls.mts";
+
+export async function libraryHandoffScenario({
+  browser,
+  invoke,
+  scenario,
+  library,
+  output,
+  artifacts,
+  command,
+  confirmNative,
+}: HandoffContext) {
+  const bootstrap = async () =>
+    transportValue("desktop_bootstrap_status", success(await invoke("get_bootstrap_status")));
+  await scenario("native-library-move-invalidates-prior-reviews", async () => {
+    assert.equal(path.resolve(library), path.resolve(output, "library"));
+    // Existing preparation scenarios retain recovery work intentionally. Use a
+    // separate owned library, without clearing or bypassing those journals.
+    const source = path.join(output, "handoff-library");
+    const ownedCommand = (args: readonly string[]) => command(args, source);
+    const destination = path.join(output, "moved-library");
+    const portId = "zelda64-recomp";
+    ownedCommand(["adopt", path.join(output, "owned-adoption-review"), "--port", portId, "--yes"]);
+    const paths = transportValue("port_paths", ownedCommand(["paths", portId]));
+    await writeFile(
+      path.join(paths.user_data_root, "unrelated-save.bin"),
+      "preserved handoff save",
+      { flag: "wx" },
+    );
+    const backup = transportValue("backup", ownedCommand(["backup", "create", portId]));
+    const profile = required(
+      transportValue("port", command(["catalog", "show", "opengoal-jak1"])).source_profile,
+    );
+    ownedCommand(["source", "add", profile, path.join(output, "opengoal-jak1.iso")]);
+    const selected = object(await invoke("set_default_library", { path: source }));
+    assert.equal(selected.ok, true, JSON.stringify(selected));
+    const before = await bootstrap();
+    const identityBefore = transportValue(
+      "library_identity",
+      success(
+        await invoke("get_library_identity", {
+          generation: before.generation,
+        }),
+      ),
+    );
+    assert.deepEqual(identityBefore, ownedCommand(["library", "identity"]));
+    const active = required(transportValue("status", ownedCommand(["status", portId])).active);
+    const preserved = await Promise.all(
+      [
+        path.join(paths.user_data_root, "general.json"),
+        path.join(paths.user_data_root, "unrelated-save.bin"),
+        path.join(backup.path, "data/general.json"),
+      ].map((file) => fileIdentity(file)),
+    );
+    const sources = transportValues("source", ownedCommand(["source", "list"]));
+    const { click, button } = reviewControls(browser);
+    const assertEscapeRestoresFocus = async (trigger: Locator, dialog: Locator, name: string) => {
+      await browser.actions().sendKeys(Key.ESCAPE).perform();
+      await browser.wait(
+        async () => (await browser.findElements(dialog)).length === 0,
+        5_000,
+        `${name} Dialog did not close after Escape`,
+      );
+      await browser.wait(
+        async () => {
+          const candidate = await browser.findElement(trigger);
+          return await executeBrowserScript(
+            browser,
+            "return document.activeElement === arguments[0];",
+            candidate,
+          );
+        },
+        5_000,
+        `${name} trigger did not regain focus after Escape`,
+      );
+    };
+    await browser.navigate().refresh();
+    await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    const moveTrigger = button("Move library");
+    const moveDialog = By.css('[aria-labelledby="move-library-title"]');
+    await click(moveTrigger);
+    await browser.wait(until.elementLocated(moveDialog), 15_000);
+    await assertEscapeRestoresFocus(moveTrigger, moveDialog, "library move");
+    await click(moveTrigger);
+    await browser.findElement(By.id("library-destination")).sendKeys(destination);
+    await click(button("Review move"));
+    await browser.wait(until.elementLocated(button("Move to this folder")), 15_000);
+    const moveActionStyles = await assertPrimaryReviewAction(
+      browser,
+      await browser.findElement(button("Move to this folder")),
+      await browser.findElement(button("Close")),
+    );
+    const plan = await browser.findElement(By.css('[aria-label="Library move plan"]')).getText();
+    assert.ok(plan.includes(destination) && plan.includes(source));
+    assert.ok(plan.includes(portId) && plan.includes(active.version));
+    assert.ok(plan.includes("Saved game-file locations"));
+    assert.ok(plan.includes("1 saved file location will stay unchanged."));
+    assert.ok(
+      plan.includes(
+        "Copying Portcove game-file folder contents does not redirect these saved locations.",
+      ),
+    );
+    assert.ok(plan.includes("this dialog cannot cancel it"));
+    await click(
+      By.xpath(
+        '//section[@aria-label="Library move plan"]//summary[starts-with(normalize-space(.), "Saved data")]',
+      ),
+    );
+    const files = await browser.wait(
+      until.elementLocated(By.css('[aria-label="Files in user"]')),
+      5_000,
+    );
+    assert.ok((await files.getText()).includes("unrelated-save.bin"));
+    await assertCompactReview(browser, '[role="dialog"]');
+    const report = path.join(output, "library-move-accessibility.json");
+    await captureAccessibilityReport(browser, report, artifacts);
+    const reviewImage = path.join(output, "native-library-move-review.png");
+    await writeFile(reviewImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(reviewImage);
+    await click(button("Move to this folder"));
+    const after = await browser.wait(async () => {
+      const observed = await bootstrap();
+      return observed.ready && observed.generation > before.generation ? observed : false;
+    }, 15_000);
+    assert.ok(after);
+    assert.equal(await realpath(required(after.library_root)), await realpath(destination));
+    const identityAfter = transportValue(
+      "library_identity",
+      success(
+        await invoke("get_library_identity", {
+          generation: after.generation,
+        }),
+      ),
+    );
+    assert.equal(identityAfter.id, identityBefore.id);
+    assert.equal(await realpath(identityAfter.root), await realpath(destination));
+    assert.deepEqual(identityAfter, ownedCommand(["library", "identity"]));
+    assert.deepEqual(identityAfter, command(["library", "identity"], destination));
+    const staleIdentity = object(
+      await invoke("get_library_identity", {
+        generation: before.generation,
+      }),
+    );
+    assert.equal(staleIdentity.ok, false);
+    assert.equal(object(staleIdentity.error).code, "conflict");
+    const stale = object(
+      await invoke("get_output_location", {
+        portId,
+        generation: before.generation,
+      }),
+    );
+    assert.equal(stale.ok, false);
+    assert.equal(object(stale.error).code, "conflict");
+    const current = transportValue(
+      "port_output_location",
+      success(
+        await invoke("get_output_location", {
+          portId,
+          generation: after.generation,
+        }),
+      ),
+    );
+    assert.equal(await realpath(current.library_root), await realpath(destination));
+    const statuses = transportValues("status", success(await invoke("get_statuses")));
+    const moved = required(required(statuses.find((item) => item.port_id === portId)).active);
+    assert.equal(moved.id, active.id);
+    assert.equal(
+      await realpath(moved.path),
+      await realpath(path.join(destination, "versions", portId, path.basename(active.path))),
+    );
+    const copied = [];
+    for (const original of preserved) {
+      assert.deepEqual(await fileIdentity(original.path), original);
+      const copy = await fileIdentity(
+        path.join(destination, path.relative(paths.library_root, original.path)),
+      );
+      assert.equal(copy.sha256, original.sha256);
+      copied.push(copy);
+    }
+    assert.deepEqual(transportValues("source", success(await invoke("get_sources"))), sources);
+
+    const metadata = path.join(output, "library-restore-export.json");
+    command(["library", "export", "--output", metadata], destination);
+    const exportedMetadata = await fileIdentity(metadata);
+    const exportedSave = await fileIdentity(
+      path.join(destination, path.relative(paths.library_root, required(preserved[0]).path)),
+    );
+    const restoreRoot = path.join(output, "restored-library");
+    await mkdir(restoreRoot);
+    const restoreSelection = object(await invoke("set_default_library", { path: restoreRoot }));
+    assert.equal(restoreSelection.ok, true, JSON.stringify(restoreSelection));
+    await browser.navigate().refresh();
+    await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    const restoreTrigger = button("Restore from a library copy");
+    const restoreDialog = By.css('[aria-labelledby="import-library-title"]');
+    await click(restoreTrigger);
+    await browser.wait(until.elementLocated(restoreDialog), 15_000);
+    await assertEscapeRestoresFocus(restoreTrigger, restoreDialog, "library restore");
+    await click(restoreTrigger);
+    await browser.findElement(By.id("import-metadata")).sendKeys(metadata);
+    await browser.findElement(By.id("import-content")).sendKeys(destination);
+    await click(button("Review restore"));
+    await browser.wait(until.elementLocated(button("Restore this library")), 15_000);
+    const restoreActionStyles = await assertPrimaryReviewAction(
+      browser,
+      await browser.findElement(button("Restore this library")),
+      await browser.findElement(button("Close")),
+    );
+    const restoreReview = await browser
+      .findElement(By.css('[aria-label="Library restore plan"]'))
+      .getText();
+    assert.ok(restoreReview.includes(destination) && restoreReview.includes(restoreRoot));
+    assert.ok(restoreReview.includes("Saved game-file locations"));
+    await assertCompactReview(browser, '[role="dialog"]');
+    const restoreAccessibility = path.join(output, "library-restore-accessibility.json");
+    await captureAccessibilityReport(browser, restoreAccessibility, artifacts);
+    const restoreImage = path.join(output, "native-library-restore-review.png");
+    await writeFile(restoreImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(restoreImage);
+    const beforeRestore = await bootstrap();
+    await click(button("Restore this library"));
+    await confirmNative(
+      "Confirm library restore",
+      "__observe__",
+      "Only restore a Portcove export you trust.",
+      "library-native-restore-before-consent",
+    );
+    assert.deepEqual(await fileIdentity(metadata), exportedMetadata);
+    assert.deepEqual(await fileIdentity(exportedSave.path), exportedSave);
+    await confirmNative(
+      "Confirm library restore",
+      "Restore library",
+      "Only restore a Portcove export you trust.",
+      "library-native-restore-confirmed",
+    );
+    const afterRestore = await browser.wait(async () => {
+      const observed = await bootstrap();
+      return observed.ready && observed.generation > beforeRestore.generation ? observed : false;
+    }, 15_000);
+    assert.ok(afterRestore);
+    assert.equal(await realpath(required(afterRestore.library_root)), await realpath(restoreRoot));
+    assert.equal(
+      required(transportValue("status", command(["status", portId], restoreRoot)).active).id,
+      active.id,
+    );
+    assert.deepEqual(await fileIdentity(metadata), exportedMetadata);
+    assert.deepEqual(await fileIdentity(exportedSave.path), exportedSave);
+
+    // After review, wait for core's pending authority marker before changing an
+    // owned save. This deterministically exercises the actual pre-activation
+    // recovery surface without manufacturing a journal or production state.
+    const recoveryDestination = path.join(output, "retained-recovery-copy");
+    const recoverySave = path.join(
+      restoreRoot,
+      path.relative(paths.library_root, required(preserved[0]).path),
+    );
+    const recoveryPaths = transportValue("port_paths", command(["paths", portId], restoreRoot));
+    await writeFile(
+      path.join(recoveryPaths.user_data_root, "owned-recovery-copy-window.bin"),
+      Buffer.alloc(256 * 1024 * 1024, 0x5a),
+    );
+    await browser.navigate().refresh();
+    await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await click(button("Move library"));
+    await browser.findElement(By.id("library-destination")).sendKeys(recoveryDestination);
+    await click(button("Review move"));
+    await browser.wait(until.elementLocated(button("Move to this folder")), 15_000);
+    const beforeRecovery = await bootstrap();
+    await click(button("Move to this folder"));
+    await waitForFile(path.join(restoreRoot, ".portcove-authority.json"));
+    await writeFile(recoverySave, `${await readFile(recoverySave, "utf8")}\nchanged after review`);
+    await browser.wait(until.elementLocated(button("Keep using original library")), 15_000);
+    assert.ok(
+      (
+        await browser.findElement(By.css('[aria-label="Library move recovery"]')).getText()
+      ).includes("before the new copy is activated"),
+    );
+    await assertCompactReview(browser, '[role="dialog"]');
+    const recoveryAccessibility = path.join(output, "library-move-recovery-accessibility.json");
+    await captureAccessibilityReport(browser, recoveryAccessibility, artifacts);
+    const recoveryImage = path.join(output, "native-library-move-recovery.png");
+    await writeFile(recoveryImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(recoveryImage);
+    await click(button("Keep using original library"));
+    const afterRecovery = await browser.wait(async () => {
+      const observed = await bootstrap();
+      return observed.ready && observed.generation > beforeRecovery.generation ? observed : false;
+    }, 15_000);
+    assert.ok(afterRecovery);
+    assert.equal(await realpath(required(afterRecovery.library_root)), await realpath(restoreRoot));
+    await access(recoveryDestination);
+    const result = path.join(output, "library-handoff-result.json");
+    await writeFile(
+      result,
+      JSON.stringify(
+        {
+          before,
+          after,
+          identity_before: identityBefore,
+          identity_after: identityAfter,
+          stale_identity_generation_rejected: true,
+          preserved_originals: preserved,
+          copied,
+          restore: {
+            before: beforeRestore,
+            after: afterRestore,
+            trusted_native_confirmation: true,
+            unchanged_export_metadata: exportedMetadata,
+            unchanged_export_content: exportedSave,
+          },
+          recovery: {
+            before: beforeRecovery,
+            after: afterRecovery,
+            pre_activation_abort_offered: true,
+            copied_destination_retained: recoveryDestination,
+          },
+          preserved_active_identity: active.id,
+          stale_generation_rejected: true,
+          move_and_restore_escape_dismissal_and_focus_restoration: true,
+          primary_action_styles: {
+            move: moveActionStyles,
+            restore: restoreActionStyles,
+          },
+          evidence:
+            "native owned-library move, trusted-export restore confirmation, and controlled pre-activation recovery; no physical interruption or production-feed claim",
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(result);
+  });
+}
+
+async function waitForFile(file: string, timeout = 15_000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    try {
+      await access(file);
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+  throw new Error(`Timed out waiting for ${file}`);
+}

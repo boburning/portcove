@@ -6,9 +6,9 @@ $desktopRoot = Join-Path $projectRoot "apps\desktop"
 $pnpmSpec = (Get-Content (Join-Path $projectRoot "package.json") -Raw | ConvertFrom-Json).packageManager
 $installedPnpm = (& pnpm --version | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or "pnpm@$installedPnpm" -ne $pnpmSpec) { throw "Provide the exact repository $pnpmSpec on PATH" }
-$metadataScript = Join-Path $PSScriptRoot "check-release-metadata.mjs"
-$metadataTest = Join-Path $PSScriptRoot "check-release-metadata.test.mjs"
-$storageScript = Join-Path $PSScriptRoot "dev-storage.mjs"
+$metadataScript = Join-Path $PSScriptRoot "check-release-metadata.mts"
+$metadataTest = Join-Path $PSScriptRoot "check-release-metadata.test.mts"
+$storageScript = Join-Path $PSScriptRoot "dev-storage.mts"
 $storageJson = & node $storageScript preflight --json
 if ($LASTEXITCODE -ne 0) { throw "Development storage preflight failed with exit code $LASTEXITCODE" }
 $storage = $storageJson | ConvertFrom-Json
@@ -58,9 +58,9 @@ try {
     & just audit --fresh
     if ($LASTEXITCODE -ne 0) { throw "Repository quality audit failed with exit code $LASTEXITCODE" }
 
-    & node (Join-Path $PSScriptRoot "check-catalog-repositories.mjs")
+    & node (Join-Path $PSScriptRoot "check-catalog-repositories.mts")
     if ($LASTEXITCODE -ne 0) { throw "Catalog repository check failed with exit code $LASTEXITCODE" }
-    & node (Join-Path $PSScriptRoot "check-retcomm-upstreams.mjs")
+    & node (Join-Path $PSScriptRoot "check-retcomm-upstreams.mts")
     if ($LASTEXITCODE -ne 0) { throw "PS1 upstream ownership check failed with exit code $LASTEXITCODE" }
 
     Push-Location $desktopRoot

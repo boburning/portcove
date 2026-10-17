@@ -273,7 +273,7 @@ unexpectedly skipped, or unexpectedly executed producer fails the wrapper.
 Protected check names therefore stay unchanged. Their wrappers validate the
 plan digest and exact expected fast, qualification, and skipped result set.
 
-`scripts/validation-plan.mjs` owns the area map for hosted selection and local
+`scripts/validation-plan.mts` owns the area map for hosted selection and local
 reporting. Its v2 record contains complete changed paths including both rename
 sides and deletions, base/merge-base/head/checkout identities, areas, reasons,
 platforms, expected groups, qualification requirement, fallback, and a
@@ -291,7 +291,7 @@ nested release qualification cannot collide with release provenance.
 
 Disable the optimization immediately by setting
 `PORTCOVE_PROSE_POLICY_ACTIVATED` back to `"false"`, removing both allowlist
-entries from `scripts/select-ci-plan.mjs`, or reverting the classifier/wrapper
+entries from `scripts/select-ci-plan.mts`, or reverting the classifier/wrapper
 change. Deactivation, reactivation, and any allowlist expansion are protected
 validation-contract changes: obtain the required independent authorization, add
 adversarial selector coverage, and run the applicable pre-change transition gate
@@ -396,7 +396,7 @@ and retains its own failure. Audit receipts preserve raw stage failure and a
 separate development-policy decision. These failed/diagnostic-only receipts
 cannot supply passing scanner evidence or successful audit reuse.
 
-Linux distribution separately uses `scripts/linux-beta-risk-706.mjs` through
+Linux distribution separately uses `scripts/linux-beta-risk-706.mts` through
 `just audit --fresh --profile release`, final asset assembly and the read-only
 pre-upload authorization job. Publication retains an isolated contents-write job;
 it refuses stale authorization or expiry before each release mutation. The exact

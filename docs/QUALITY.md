@@ -21,7 +21,7 @@ independent review for validation or merge authority. The completed October 9
 #1682 transition is historical. It does not require another fresh audit,
 all-platform qualification or distinct Windows qualification for policy work.
 
-The shared ordinary ownership decision in `scripts/validation-plan.mjs` drives
+The shared ordinary ownership decision in `scripts/validation-plan.mts` drives
 hosted producers and optional local commands. Selection uses the complete Git
 diff and both rename sides, including regular executable additions, deletions
 and permission changes. An executable bit alone adds no platform qualification.

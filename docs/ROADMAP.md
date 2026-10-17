@@ -34,9 +34,9 @@ native children for included components; collapsed row counts are not totals
 of accepted scope or release readiness.
 
 ```sh
-node scripts/roadmap.mjs next
-node scripts/roadmap.mjs readiness --release "Public beta"
-node scripts/roadmap.mjs readiness --release "1.0"
+node scripts/roadmap.mts next
+node scripts/roadmap.mts readiness --release "Public beta"
+node scripts/roadmap.mts readiness --release "1.0"
 ```
 
 **Required** must finish for its target release. **Planned** is approved work

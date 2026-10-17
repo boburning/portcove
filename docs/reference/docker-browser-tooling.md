@@ -23,7 +23,7 @@ just container-clean
 just container-clean --older-than-hours 72 --apply
 ```
 
-Without Just, use `node scripts/container-browser.mjs doctor`, `run`, `export`
+Without Just, use `node scripts/container-browser.mts doctor`, `run`, `export`
 or `clean` with the same arguments. No global Vite+ or Corepack is required
 by this host route. The deliberately failing `probe` command returns nonzero.
 `exact` uses the maintained literal-file selector; the default `suite` runs

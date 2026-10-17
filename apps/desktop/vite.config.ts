@@ -1,5 +1,5 @@
 import { defineConfig, lazyPlugins, type PluginOption } from "vite-plus";
-import { productionCssFailures } from "./scripts/production-css.mjs";
+import { productionCssFailures } from "./scripts/production-css.mts";
 
 export function assertScenarioExclusion(
   moduleIds: Iterable<string>,

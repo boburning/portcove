@@ -36,7 +36,7 @@ $null = $ProcessTimeoutSeconds, $TestFault
 $ProcessIdentityClockToleranceMilliseconds = 1000
 
 if ([string]::IsNullOrWhiteSpace($TestBase)) {
-    $storageJson = & node (Join-Path $PSScriptRoot "dev-storage.mjs") preflight --json
+    $storageJson = & node (Join-Path $PSScriptRoot "dev-storage.mts") preflight --json
     if ($LASTEXITCODE -ne 0) { throw "Development storage preflight failed with exit code $LASTEXITCODE" }
     $storage = $storageJson | ConvertFrom-Json
     $TestBase = Join-Path $storage.temporary_directory "installer-qualification"
@@ -223,7 +223,7 @@ if ($NormalPackageManifestPath) {
     $normalPackageManifest = Get-Content -LiteralPath $NormalPackageManifestPath -Raw | ConvertFrom-Json
     $normalRepository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
     if (-not $NormalPackageAdmissionPath) { throw "Current-installed boundary requires the admitted just desktop-test --current-installed route" }
-    & node (Join-Path $normalRepository 'scripts/desktop-test-cli.mjs') `
+    & node (Join-Path $normalRepository 'scripts/desktop-test-cli.mts') `
         --verify-installed-admission $NormalPackageAdmissionPath --installer $installer `
         --package-evidence $NormalPackageManifestPath --expected-app $ExpectedExecutablePath
     if ($LASTEXITCODE -ne 0) { throw "Current-installed boundary native admission was not verified before installation" }
@@ -778,9 +778,9 @@ try {
             }
             $driverPreflight = Join-Path $runRoot "driver-preflight-baseline"
             if ($RendererTransport -eq 'embedded') {
-                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-embedded-preflight.mjs") --app $application --output $driverPreflight
+                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-embedded-preflight.mts") --app $application --output $driverPreflight
             } else {
-                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mjs") --app $application --output $driverPreflight --scenario empty-library --port 45870
+                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mts") --app $application --output $driverPreflight --scenario empty-library --port 45870
             }
             if ($LASTEXITCODE -ne 0) { throw "Installed predecessor WebDriver baseline preflight failed" }
             if ($evidence) { $evidence.driver_preflight_baseline = "passed"; Write-InstallerEvidence "driver_preflight_baseline_passed" }
@@ -938,15 +938,15 @@ try {
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS = $relaunchMarker
             $driverPreflight = Join-Path $runRoot "driver-preflight-fixture-env"
             if ($RendererTransport -eq 'embedded') {
-                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-embedded-preflight.mjs") --app $application --output $driverPreflight
+                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-embedded-preflight.mts") --app $application --output $driverPreflight
             } else {
-                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mjs") --app $application --output $driverPreflight --scenario empty-library --port 45872
+                & node (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-test.mts") --app $application --output $driverPreflight --scenario empty-library --port 45872
             }
             if ($LASTEXITCODE -ne 0) { throw "Installed predecessor WebDriver fixture-environment preflight failed" }
             if ($evidence) { $evidence.driver_preflight_fixture_env = "passed"; Write-InstallerEvidence "driver_preflight_fixture_env_passed" }
             $candidateExecutableHash = (Get-FileHash -LiteralPath $ExpectedExecutablePath -Algorithm SHA256).Hash.ToLowerInvariant()
             $rendererArguments = @(
-                (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-update-test.mjs"),
+                (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-update-test.mts"),
                 "--app", $application,
                 "--output", $rendererEvidence,
                 "--staging", $updateRoot,
@@ -1189,7 +1189,7 @@ try {
         }) -Force
         $normalPackageManifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $boundManifest -Encoding utf8
         Write-InstallerEvidence "current_installed_boundary_running"
-        & node (Join-Path $normalRepository 'apps/desktop/scripts/desktop-test.mjs') `
+        & node (Join-Path $normalRepository 'apps/desktop/scripts/desktop-test.mts') `
             --app $application --output (Join-Path $normalBoundaryOutput 'native') `
             --scenario native-normal-package-webview-boundary --package-evidence $boundManifest `
             *> (Join-Path $normalBoundaryOutput 'native-harness.log')

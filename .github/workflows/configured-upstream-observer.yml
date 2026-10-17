@@ -35,7 +35,7 @@ jobs:
       - name: Build shared policy inspector
         run: cargo build --locked -p portcove-cli
       - name: Observe configured upstream
-        run: node scripts/observe-configured-upstream.mjs --cli target/debug/portcove
+        run: node scripts/observe-configured-upstream.mts --cli target/debug/portcove
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Preserve complete checkpoint and deduplicated exception
