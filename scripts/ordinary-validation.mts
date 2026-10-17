@@ -298,6 +298,7 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  [".github/workflows/native-design-compatibility.yml", ["scripts/workflow-provenance.test.mts"]],
   [
     "scripts/validation-evidence.mts",
     [...selectionContractTests, "scripts/validation-evidence.test.mts", "scripts/audit.test.mts"],
@@ -451,6 +452,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ],
   ],
   ["apps/desktop/scripts/desktop-preparation-test.mts", ["scripts/desktop-scenarios.test.mts"]],
+  [
+    "apps/desktop/scripts/desktop-listener-lifetime-test.mts",
+    ["scripts/desktop-listener-probe.test.mts"],
+  ],
   ["apps/desktop/scripts/desktop-default-cover-test.mts", ["scripts/desktop-scenarios.test.mts"]],
   ["apps/desktop/scripts/desktop-source-dialog-test.mts", ["scripts/desktop-scenarios.test.mts"]],
   [
