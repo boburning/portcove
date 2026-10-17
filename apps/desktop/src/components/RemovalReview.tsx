@@ -1,3 +1,4 @@
+import { ActionReviewFailure } from "./ActionReviewFailure";
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { desktopApi } from "../api";
@@ -124,7 +125,7 @@ export function RemovalReviewDialog({
             </p>
           </section>
         )}
-        {error && <p role="alert">{error}</p>}
+        <ActionReviewFailure error={error} />
         <ReviewedRemovalFooter
           hasPreview={Boolean(preview)}
           pending={pending}
