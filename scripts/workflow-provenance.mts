@@ -8,10 +8,177 @@ import { inflateRawSync } from "node:zlib";
 import { parseArgs } from "node:util";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
+import type { BinaryLike } from "node:crypto";
+import type { SpawnSyncOptions } from "node:child_process";
+
+export interface SelectedObligationCommand {
+  id: string;
+  executable: string;
+  args: string[];
+  cwd: string;
+}
+export type HostedOperation =
+  | "bootstrap"
+  | "selected"
+  | "compiled"
+  | "qualification-history"
+  | "candidate-consumer";
+interface BindingIdentity {
+  source: string;
+  base: string;
+  mergeBase: string;
+  controller: string;
+  authority: string;
+}
+interface CandidateConsumer {
+  controller_tree: string;
+  product_source: string;
+  product_tree: string;
+  source_tree: string;
+}
+interface HostedBindingBase {
+  format_version: 1;
+  source: string;
+  base: string;
+  merge_base: string;
+  controller: string;
+  authority: string;
+  inventory_sha256: string;
+  plan_digest: string;
+  selected_plan: SelectedObligationCommand[];
+  baseline_plan: SelectedObligationCommand[];
+}
+export type HostedValidationBinding = HostedBindingBase &
+  (
+    | { operation: "candidate-consumer"; consumer: CandidateConsumer }
+    | { operation: Exclude<HostedOperation, "candidate-consumer"> }
+  );
+export interface CargoDependencySpecification {
+  package: string;
+  from_version: string;
+  to_version: string;
+  from_checksum: string;
+  to_checksum: string;
+  lock_sha256: string;
+  manifests: { path: string; section: string }[];
+}
+export type HostedCommand = (commandName: string, args: readonly string[], cwd: string) => string;
+export interface HostedSpawnResult {
+  status: number | null;
+  stdout?: unknown;
+  stderr?: unknown;
+  signal?: string | null;
+  error?: NodeJS.ErrnoException;
+}
+export interface HostedExecutionOptions {
+  environment?: NodeJS.ProcessEnv;
+  controllerRoot?: string;
+  command?: HostedCommand;
+  log?: (message: string) => void;
+  spawn?: (
+    commandName: string,
+    args: readonly string[],
+    options: SpawnSyncOptions,
+  ) => HostedSpawnResult;
+}
+export interface ProvenanceBuildConfiguration {
+  ci: boolean;
+  cargo_profile_dev_debug?: string | null;
+  cargo_profile_test_debug?: string | null;
+}
+export interface ProvenanceDesired {
+  node: string;
+  package_manager: string;
+  rust: string;
+  build_configuration: unknown;
+}
+export interface ProvenanceObserved {
+  node: string | null;
+  package_manager: string | null;
+  rust: string | null;
+  cargo: string | null;
+  runner: { os: string | undefined; architecture: string | undefined };
+  build_configuration: unknown;
+}
+export interface WorkflowProvenance {
+  format_version: 4;
+  run: { id: number; attempt: number; event: string | undefined };
+  workflow: {
+    caller_path: string;
+    caller_ref: string;
+    source_sha: string;
+    called_path: string;
+    called_source_sha: string;
+    content_sha256: string;
+  };
+  checkout: { sha: string; github_sha: string; head_sha: string };
+  validation: { plan_digest: string; mode: string; caller: string };
+  desired: ProvenanceDesired & { runner: string; mode: string };
+  observed: ProvenanceObserved;
+  matches: {
+    node: boolean | null;
+    package_manager: boolean | null;
+    rust: boolean | null;
+    cargo: boolean | null;
+    build_configuration: boolean;
+  };
+  job_toolchains: {
+    job: string;
+    runner: ProvenanceObserved["runner"];
+    node?: unknown;
+    package_manager?: unknown;
+    rust?: unknown;
+    cargo?: unknown;
+  }[];
+  equivalent_cohort: string;
+}
+export interface ProvenanceBuildOptions {
+  workflow: string;
+  callerWorkflow?: string;
+  mode: string;
+  desiredRunner: string;
+  workflowContents: BinaryLike;
+  desired: ProvenanceDesired;
+  observed: ProvenanceObserved;
+  environment: NodeJS.ProcessEnv;
+  checkoutSha: string;
+  validationPlanDigest?: string;
+  validationPlanMode?: string;
+  caller?: string;
+}
+export interface ProvenanceValidationContext {
+  runId: number;
+  attempt: number;
+  headSha: string;
+  repository: string;
+  workflow: string;
+  calledWorkflow?: string;
+  event: string;
+}
+function parsedPackageManager(contents: string): string {
+  const value: unknown = JSON.parse(contents);
+  if (!isRecord(value) || typeof value.packageManager !== "string")
+    throw new Error("Repository package-manager pin is invalid");
+  return value.packageManager;
+}
+function parsedJustPin(contents: string): string | undefined {
+  const value: unknown = JSON.parse(contents);
+  if (!isRecord(value) || !Array.isArray(value.tools))
+    throw new Error("Repository quality-tool pins are invalid");
+  const tools: unknown[] = value.tools;
+  const just = tools.find((tool) => isRecord(tool) && tool.id === "just");
+  if (just === undefined) return undefined;
+  if (!isRecord(just) || typeof just.version !== "string")
+    throw new Error("Repository just pin is invalid");
+  return just.version;
+}
 const root = fileURLToPath(new URL("..", import.meta.url));
-const sha256 = (value) => createHash("sha256").update(value).digest("hex");
-const exactSha = (value) => /^[a-f0-9]{40}$/u.test(value ?? "");
-const exactPositiveInteger = (value) => /^[1-9]\d*$/u.test(value ?? "");
+const sha256 = (value: BinaryLike) => createHash("sha256").update(value).digest("hex");
+const exactSha = (value: unknown): value is string =>
+  typeof value === "string" && /^[a-f0-9]{40}$/u.test(value);
+const exactPositiveInteger = (value: unknown): value is string =>
+  typeof value === "string" && /^[1-9]\d*$/u.test(value);
 
 // The fixed local recipe's selection, execution, containment and tool authorities.
 // This transport rejects authority changes; it cannot qualify a changed selector.
@@ -106,8 +273,8 @@ export function isHostedLocalCheckScriptAuthority(name: string) {
 }
 
 export function hostedLocalCheckEnvironment(
-  environment,
-  rustPin,
+  environment: NodeJS.ProcessEnv,
+  rustPin: string,
   sourceRoot = path.resolve(root, "../source"),
 ) {
   const child = { ...environment };
@@ -151,7 +318,7 @@ export function hostedLocalCheckEnvironment(
   return child;
 }
 
-function hostedLocalCheckIdentities(environment) {
+function hostedLocalCheckIdentities(environment: NodeJS.ProcessEnv): BindingIdentity {
   const fields = {
     source: environment.PORTCOVE_LOCAL_SOURCE_SHA,
     base: environment.PORTCOVE_LOCAL_BASE_SHA,
@@ -159,8 +326,13 @@ function hostedLocalCheckIdentities(environment) {
     controller: environment.PORTCOVE_LOCAL_CONTROLLER_SHA,
     authority: environment.PORTCOVE_LOCAL_AUTHORITY_SHA,
   };
-  for (const [name, value] of Object.entries(fields))
-    if (!exactSha(value)) throw new Error(`Exact ${name} SHA is required`);
+  function assertIdentities(value: {
+    [K in keyof BindingIdentity]: string | undefined;
+  }): asserts value is BindingIdentity {
+    for (const [name, sha] of Object.entries(value))
+      if (!exactSha(sha)) throw new Error(`Exact ${name} SHA is required`);
+  }
+  assertIdentities(fields);
   if (
     environment.GITHUB_REPOSITORY !== "boburning/portcove" ||
     environment.GITHUB_EVENT_NAME !== "workflow_dispatch" ||
@@ -185,56 +357,68 @@ const cargoDependencyManifests = new Set([
 
 // This is a token-only transformation of trusted bytes, not a TOML normalizer.
 // The reviewed authority remains independent of the dependency candidate.
-function cargoDependencyBinding(raw, git, sourceRoot, identities) {
+function cargoDependencyBinding(
+  raw: string | undefined,
+  git: (cwd: string, args: readonly string[]) => string,
+  sourceRoot: string,
+  identities: BindingIdentity,
+) {
   if (!raw) return null;
-  const fail = () => {
+  function fail(): never {
     throw new Error("Invalid reviewed Cargo dependency binding");
-  };
-  let spec;
+  }
+  let spec: unknown;
   try {
     spec = JSON.parse(raw);
   } catch {
     fail();
   }
-  if (JSON.stringify(spec) !== raw || !spec || Array.isArray(spec)) fail();
-  const keys = [
-    "package",
-    "from_version",
-    "to_version",
-    "from_checksum",
-    "to_checksum",
-    "lock_sha256",
-    "manifests",
-  ];
-  if (Object.keys(spec).sort().join() !== keys.sort().join()) fail();
-  if (typeof spec.package !== "string" || !/^[a-zA-Z0-9_-]+$/u.test(spec.package)) fail();
-  for (const key of ["from_version", "to_version"])
+  if (JSON.stringify(spec) !== raw) fail();
+  function assertSpecification(value: unknown): asserts value is CargoDependencySpecification {
+    if (!isRecord(value)) fail();
+    const keys = [
+      "package",
+      "from_version",
+      "to_version",
+      "from_checksum",
+      "to_checksum",
+      "lock_sha256",
+      "manifests",
+    ];
+    if (Object.keys(value).sort().join() !== keys.sort().join()) fail();
+    if (typeof value.package !== "string" || !/^[a-zA-Z0-9_-]+$/u.test(value.package)) fail();
+    for (const key of ["from_version", "to_version"])
+      if (
+        typeof value[key] !== "string" ||
+        !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/u.test(value[key])
+      )
+        fail();
+    for (const key of ["from_checksum", "to_checksum", "lock_sha256"])
+      if (typeof value[key] !== "string" || !/^[a-f0-9]{64}$/u.test(value[key])) fail();
     if (
-      typeof spec[key] !== "string" ||
-      !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/u.test(spec[key])
+      value.from_version === value.to_version ||
+      !Array.isArray(value.manifests) ||
+      value.manifests.length < 1 ||
+      value.manifests.length > 2
     )
       fail();
-  for (const key of ["from_checksum", "to_checksum", "lock_sha256"])
-    if (typeof spec[key] !== "string" || !/^[a-f0-9]{64}$/u.test(spec[key])) fail();
-  if (
-    spec.from_version === spec.to_version ||
-    !Array.isArray(spec.manifests) ||
-    spec.manifests.length < 1 ||
-    spec.manifests.length > 2
-  )
-    fail();
-  const paths = new Set(["Cargo.lock"]);
-  for (const entry of spec.manifests) {
-    if (
-      !entry ||
-      Object.keys(entry).sort().join() !== "path,section" ||
-      !cargoDependencyManifests.has(entry.path) ||
-      paths.has(entry.path) ||
-      !["dependencies", "dev-dependencies"].includes(entry.section)
-    )
-      fail();
-    paths.add(entry.path);
+    const seen = new Set(["Cargo.lock"]);
+    for (const entry of value.manifests as unknown[]) {
+      if (
+        !isRecord(entry) ||
+        Object.keys(entry).sort().join() !== "path,section" ||
+        typeof entry.path !== "string" ||
+        !cargoDependencyManifests.has(entry.path) ||
+        seen.has(entry.path) ||
+        typeof entry.section !== "string" ||
+        !["dependencies", "dev-dependencies"].includes(entry.section)
+      )
+        fail();
+      seen.add(entry.path);
+    }
   }
+  assertSpecification(spec);
+  const paths = new Set(["Cargo.lock", ...spec.manifests.map((entry) => entry.path)]);
   const changed = git(sourceRoot, [
     "diff",
     "--name-only",
@@ -245,7 +429,7 @@ function cargoDependencyBinding(raw, git, sourceRoot, identities) {
     .split("\n")
     .filter(Boolean);
   if (changed.length !== paths.size || changed.some((name) => !paths.has(name))) fail();
-  const bytes = (revision, name) => {
+  const bytes = (revision: string, name: string) => {
     const tree = git(sourceRoot, ["ls-tree", revision, "--", name]);
     if (!/^100644 blob [a-f0-9]{40}\t/u.test(tree)) fail();
     const blob = execFileSync("git", ["show", `${revision}:${name}`], {
@@ -271,6 +455,7 @@ function cargoDependencyBinding(raw, git, sourceRoot, identities) {
   );
   if (matching.length !== 1) fail();
   const block = matching[0];
+  if (!block) fail();
   const prefix = `[[package]]\nname = "${spec.package}"\nversion = "${spec.from_version}"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "${spec.from_checksum}"`;
   if (!block.startsWith(prefix) || !/^(?:\n|$)/u.test(block.slice(prefix.length))) fail();
   // Only canonical Cargo-generated optional dependency arrays may follow.
@@ -310,11 +495,13 @@ function cargoDependencyBinding(raw, git, sourceRoot, identities) {
       "u",
     );
     for (let index = 0; index < lines.length; index++) {
-      if (/^\[/u.test(lines[index])) section = lines[index];
-      if (lines[index] === `[${entry.section}]`) tables++;
-      if (section === `[${entry.section}]` && declaration.test(lines[index])) {
+      const line = lines[index];
+      if (line === undefined) fail();
+      if (/^\[/u.test(line)) section = line;
+      if (line === `[${entry.section}]`) tables++;
+      if (section === `[${entry.section}]` && declaration.test(line)) {
         declarations++;
-        if (lines[index] === `${spec.package} = "${spec.from_version}"`) found = index;
+        if (line === `${spec.package} = "${spec.from_version}"`) found = index;
       }
     }
     if (tables !== 1 || declarations !== 1 || found < 0) fail();
@@ -329,39 +516,130 @@ function cargoDependencyBinding(raw, git, sourceRoot, identities) {
 }
 
 // This projection is diagnostic only: it never supplies input to an acceptance predicate.
-function emitPreflightRefusal(log, reason, result, identities, report, elapsedMs) {
+function field(value: unknown, key: string): unknown {
+  return isRecord(value) ? value[key] : undefined;
+}
+function describe(value: unknown) {
+  if (typeof value === "string") {
+    const bytes = Buffer.from(value);
+    return { type: "string", bytes: bytes.length, sha256: sha256(bytes) };
+  }
+  if (Array.isArray(value)) return { type: "array", count: value.length };
+  return { type: value === null ? "null" : typeof value };
+}
+function allowedText(value: unknown, choices: readonly string[]) {
+  return typeof value === "string" && choices.includes(value) ? value : undefined;
+}
+interface PreflightIdentity {
+  source: unknown;
+  base: unknown;
+  mergeBase?: unknown;
+  merge_base?: unknown;
+}
+function projectPreflightReport(report: unknown) {
+  const audit = field(report, "pre_change_audit");
+  const blocker = field(report, "blocker");
+  const observation = field(blocker, "observation");
+  const obligations = field(report, "obligations");
+  const format = field(report, "format_version");
+  const source = field(report, "source"),
+    base = field(report, "base"),
+    mergeBase = field(report, "merge_base"),
+    digest = field(report, "plan_digest");
+  return {
+    format_version: typeof format === "number" ? format : describe(format),
+    source: exactSha(source) ? source : describe(source),
+    base: exactSha(base) ? base : describe(base),
+    merge_base: exactSha(mergeBase) ? mergeBase : describe(mergeBase),
+    plan_digest:
+      typeof digest === "string" && /^[a-f0-9]{64}$/u.test(digest) ? digest : describe(digest),
+    status:
+      field(report, "status") === "planning-blocked"
+        ? "planning-blocked"
+        : describe(field(report, "status")),
+    obligations: Array.isArray(obligations)
+      ? (obligations as unknown[]).map((entry) => ({
+          id: describe(field(entry, "id")),
+          route:
+            allowedText(field(entry, "route"), ["local", "blocked", "hosted-local-check"]) ??
+            describe(field(entry, "route")),
+          missing: describe(field(entry, "missing")),
+        }))
+      : describe(obligations),
+    audit: {
+      route:
+        field(audit, "route") === "local-prerequisites-unverified"
+          ? "local-prerequisites-unverified"
+          : describe(field(audit, "route")),
+      profile:
+        allowedText(field(audit, "profile"), ["complete", "transition"]) ??
+        describe(field(audit, "profile")),
+      command_matches: field(audit, "command") === "just audit --profile transition --fresh",
+      command_observation: describe(field(audit, "command")),
+    },
+    ...(field(blocker, "id") === "cargo-metadata" && observation
+      ? {
+          cargo: {
+            reason:
+              allowedText(field(observation, "reason"), [
+                "spawn-error",
+                "cargo-exit",
+                "metadata-json",
+                "package-inventory",
+                "UNKNOWN",
+              ]) ?? "UNKNOWN",
+            status: Number.isInteger(field(observation, "status"))
+              ? field(observation, "status")
+              : null,
+            code:
+              allowedText(field(observation, "code"), [
+                "ENOENT",
+                "EACCES",
+                "EPERM",
+                "ETIMEDOUT",
+                "ENOBUFS",
+                "E2BIG",
+                "EIO",
+              ]) ?? "UNKNOWN",
+          },
+        }
+      : {}),
+  };
+}
+function emitPreflightRefusal(
+  log: (text: string) => void,
+  reason: string,
+  result: HostedSpawnResult,
+  identities: PreflightIdentity,
+  report: unknown,
+  elapsedMs: number,
+) {
   try {
-    const describe = (value) => {
-      if (typeof value === "string") {
-        const bytes = Buffer.from(value);
-        return { type: "string", bytes: bytes.length, sha256: sha256(bytes) };
-      }
-      if (Array.isArray(value)) return { type: "array", count: value.length };
-      return { type: value === null ? "null" : typeof value };
-    };
     const code = result.error?.code;
+    const mergeBase = identities.mergeBase ?? identities.merge_base;
     const diagnostic = {
       format_version: 1,
       reason,
       expected: {
         source: exactSha(identities.source) ? identities.source : null,
         base: exactSha(identities.base) ? identities.base : null,
-        merge_base: exactSha(identities.mergeBase ?? identities.merge_base)
-          ? (identities.mergeBase ?? identities.merge_base)
-          : null,
+        merge_base: exactSha(mergeBase) ? mergeBase : null,
       },
       result: {
         status: Number.isInteger(result.status) ? result.status : null,
-        signal: ["SIGTERM", "SIGKILL", "SIGINT", "SIGABRT", "SIGSEGV"].includes(result.signal)
-          ? result.signal
-          : result.signal == null
-            ? null
-            : "UNKNOWN",
-        code: ["ENOENT", "EACCES", "EPERM", "ETIMEDOUT", "ENOBUFS", "E2BIG", "EIO"].includes(code)
-          ? code
-          : code === undefined
-            ? null
-            : "UNKNOWN",
+        signal:
+          allowedText(result.signal, ["SIGTERM", "SIGKILL", "SIGINT", "SIGABRT", "SIGSEGV"]) ??
+          (result.signal == null ? null : "UNKNOWN"),
+        code:
+          allowedText(code, [
+            "ENOENT",
+            "EACCES",
+            "EPERM",
+            "ETIMEDOUT",
+            "ENOBUFS",
+            "E2BIG",
+            "EIO",
+          ]) ?? (code === undefined ? null : "UNKNOWN"),
         code_observation: describe(code),
         signal_observation: describe(result.signal),
       },
@@ -370,63 +648,8 @@ function emitPreflightRefusal(log, reason, result, identities, report, elapsedMs
       stdout: describe(result.stdout),
       stderr: describe(result.stderr),
       omitted: false,
+      ...(report === undefined ? {} : { report: projectPreflightReport(report) }),
     };
-    if (report !== undefined) {
-      diagnostic.report = {
-        format_version:
-          typeof report?.format_version === "number"
-            ? report.format_version
-            : describe(report?.format_version),
-        source: exactSha(report?.source) ? report.source : describe(report?.source),
-        base: exactSha(report?.base) ? report.base : describe(report?.base),
-        merge_base: exactSha(report?.merge_base) ? report.merge_base : describe(report?.merge_base),
-        plan_digest: /^[a-f0-9]{64}$/u.test(report?.plan_digest ?? "")
-          ? report.plan_digest
-          : describe(report?.plan_digest),
-        status:
-          report?.status === "planning-blocked" ? "planning-blocked" : describe(report?.status),
-        obligations: Array.isArray(report?.obligations)
-          ? report.obligations.map((entry) => ({
-              id: describe(entry?.id),
-              route: ["local", "blocked", "hosted-local-check"].includes(entry?.route)
-                ? entry.route
-                : describe(entry?.route),
-              missing: describe(entry?.missing),
-            }))
-          : describe(report?.obligations),
-        audit: {
-          route:
-            report?.pre_change_audit?.route === "local-prerequisites-unverified"
-              ? "local-prerequisites-unverified"
-              : describe(report?.pre_change_audit?.route),
-          profile: ["complete", "transition"].includes(report?.pre_change_audit?.profile)
-            ? report.pre_change_audit.profile
-            : describe(report?.pre_change_audit?.profile),
-          command_matches:
-            report?.pre_change_audit?.command === "just audit --profile transition --fresh",
-          command_observation: describe(report?.pre_change_audit?.command),
-        },
-      };
-      const observation = report?.blocker?.observation;
-      if (report?.blocker?.id === "cargo-metadata" && observation)
-        diagnostic.report.cargo = {
-          reason: [
-            "spawn-error",
-            "cargo-exit",
-            "metadata-json",
-            "package-inventory",
-            "UNKNOWN",
-          ].includes(observation.reason)
-            ? observation.reason
-            : "UNKNOWN",
-          status: Number.isInteger(observation.status) ? observation.status : null,
-          code: ["ENOENT", "EACCES", "EPERM", "ETIMEDOUT", "ENOBUFS", "E2BIG", "EIO"].includes(
-            observation.code,
-          )
-            ? observation.code
-            : "UNKNOWN",
-        };
-    }
     const prefix = "Hosted preflight refusal: ";
     let text = prefix + JSON.stringify(diagnostic);
     if (Buffer.byteLength(text + "\n") > 64 * 1024) {
@@ -436,78 +659,96 @@ function emitPreflightRefusal(log, reason, result, identities, report, elapsedMs
     }
     if (Buffer.byteLength(text + "\n") <= 64 * 1024) log(text);
   } catch {
-    // Reporting/serialization failure must never mask the existing refusal.
+    /* Reporting/serialization failure must never mask the existing refusal. */
   }
 }
-
-function preflightReportReason(report, identities) {
-  if (report?.format_version !== 1) return "format-version";
-  if (report.source !== identities.source) return "source";
-  if (report.base !== identities.base) return "base";
-  if (report.merge_base !== (identities.mergeBase ?? identities.merge_base)) return "merge-base";
-  if (!/^[a-f0-9]{64}$/u.test(report.plan_digest ?? "")) return "plan-digest";
-  if (report.status !== undefined) return "status";
-  if (!Array.isArray(report.obligations)) return "obligations";
-  if (report.obligations.length === 0) return "obligations-empty";
-  if (report.obligations.some((entry) => typeof entry?.id !== "string" || entry.id.length === 0))
+function preflightReportReason(report: unknown, identities: PreflightIdentity) {
+  if (field(report, "format_version") !== 1) return "format-version";
+  if (field(report, "source") !== identities.source) return "source";
+  if (field(report, "base") !== identities.base) return "base";
+  if (field(report, "merge_base") !== (identities.mergeBase ?? identities.merge_base))
+    return "merge-base";
+  const digest = field(report, "plan_digest");
+  if (typeof digest !== "string" || !/^[a-f0-9]{64}$/u.test(digest)) return "plan-digest";
+  if (field(report, "status") !== undefined) return "status";
+  const obligations = field(report, "obligations");
+  if (!Array.isArray(obligations)) return "obligations";
+  if (obligations.length === 0) return "obligations-empty";
+  const entries: unknown[] = obligations;
+  if (entries.some((entry) => typeof field(entry, "id") !== "string" || field(entry, "id") === ""))
     return "obligation-id";
-  if (new Set(report.obligations.map((entry) => entry.id)).size !== report.obligations.length)
+  if (new Set(entries.map((entry) => field(entry, "id"))).size !== entries.length)
     return "obligation-duplicate";
   return "prerequisites";
 }
-
-function hostedBrowserSelection(stdout, identities, exitStatus, reject = () => {}) {
-  const invalid = (reason, report) => {
+function hostedBrowserSelection(
+  stdout: unknown,
+  identities: BindingIdentity,
+  exitStatus: number,
+  reject: (reason: string, report?: unknown) => void = () => {},
+) {
+  const invalid = (reason: string, report?: unknown) => {
     reject(reason, report);
     return new Error("Invalid complete local-check preflight for provisioning");
   };
-  let report;
+  let report: unknown;
   try {
+    if (typeof stdout !== "string") throw new Error("Preflight output is not text");
     report = JSON.parse(stdout);
   } catch {
     throw invalid("json");
   }
+  const digest = field(report, "plan_digest"),
+    obligations = field(report, "obligations");
   if (
-    report?.format_version !== 1 ||
-    report.source !== identities.source ||
-    report.base !== identities.base ||
-    report.merge_base !== identities.mergeBase ||
-    !/^[a-f0-9]{64}$/u.test(report.plan_digest ?? "") ||
-    report.status !== undefined ||
-    !Array.isArray(report.obligations) ||
-    report.obligations.length === 0 ||
-    report.obligations.some((entry) => typeof entry?.id !== "string" || entry.id.length === 0) ||
-    new Set(report.obligations.map((entry) => entry.id)).size !== report.obligations.length
+    field(report, "format_version") !== 1 ||
+    field(report, "source") !== identities.source ||
+    field(report, "base") !== identities.base ||
+    field(report, "merge_base") !== identities.mergeBase ||
+    typeof digest !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(digest) ||
+    field(report, "status") !== undefined ||
+    !Array.isArray(obligations) ||
+    !obligations.length ||
+    (obligations as unknown[]).some(
+      (entry) => typeof field(entry, "id") !== "string" || field(entry, "id") === "",
+    ) ||
+    new Set((obligations as unknown[]).map((entry) => field(entry, "id"))).size !==
+      obligations.length
   )
     throw invalid(preflightReportReason(report, identities), report);
+  const entries: unknown[] = obligations;
   if (
-    report.obligations.some(
-      (entry) =>
-        entry.route !== "local" || !Array.isArray(entry.missing) || entry.missing.length !== 0,
-    )
+    entries.some((entry) => {
+      const missing = field(entry, "missing");
+      return field(entry, "route") !== "local" || !Array.isArray(missing) || missing.length !== 0;
+    })
   )
     throw invalid("prerequisites", report);
   // A policy preflight reports selection and the separate audit obligation together.
   // Acquisition cannot satisfy that audit, but its named routing disposition is
   // not a failure of the complete selected browser prerequisite observation.
-  const audit = report.pre_change_audit ?? null;
+  const audit = field(report, "pre_change_audit") ?? null;
   if (
     exitStatus !== 0 &&
     (exitStatus !== 1 ||
-      audit?.route !== "local-prerequisites-unverified" ||
-      !["complete", "transition"].includes(audit.profile) ||
-      audit.command !== "just audit --profile transition --fresh")
+      field(audit, "route") !== "local-prerequisites-unverified" ||
+      !allowedText(field(audit, "profile"), ["complete", "transition"]) ||
+      field(audit, "command") !== "just audit --profile transition --fresh")
   )
     throw invalid("audit-exit", report);
   return {
-    plan_digest: report.plan_digest,
-    browser: report.obligations.some((entry) => entry.id === "ui-browser-tests"),
+    plan_digest: digest,
+    browser: entries.some((entry) => field(entry, "id") === "ui-browser-tests"),
     pre_change_audit: audit,
   };
 }
 
-export async function runHostedLocalCheck(phase, options = {}) {
-  if (!["controller", "prepare", "provision", "run"].includes(phase))
+export async function runHostedLocalCheck(
+  phase: string | undefined,
+  options: HostedExecutionOptions = {},
+) {
+  if (!phase || !["controller", "prepare", "provision", "run"].includes(phase))
     throw new Error("hosted-local-check requires controller, prepare, provision or run");
   const environment = options.environment ?? process.env;
   const identities = hostedLocalCheckIdentities(environment);
@@ -515,8 +756,8 @@ export async function runHostedLocalCheck(phase, options = {}) {
   const sourceRoot = path.resolve(controllerRoot, "../source");
   const invoke = options.command ?? command;
   const log = options.log ?? console.log;
-  const git = (cwd, args) => invoke("git", args, cwd);
-  const clean = (cwd: string, expected) => {
+  const git = (cwd: string, args: readonly string[]) => invoke("git", args, cwd);
+  const clean = (cwd: string, expected: string) => {
     if (
       path.resolve(git(cwd, ["rev-parse", "--show-toplevel"])) !== path.resolve(cwd) ||
       git(cwd, ["rev-parse", "HEAD"]) !== expected ||
@@ -534,7 +775,15 @@ export async function runHostedLocalCheck(phase, options = {}) {
     ])
   )
     throw new Error("Controller workflow bytes differ from the frozen commit");
-  const binding = {
+  const binding: BindingIdentity & {
+    workflow_sha256: string;
+    run: string | undefined;
+    attempt: string | undefined;
+    runner: string;
+    architecture: string | undefined;
+    authority_tree_sha256?: string;
+    dependency?: NonNullable<ReturnType<typeof cargoDependencyBinding>>;
+  } = {
     ...identities,
     workflow_sha256: sha256(workflow),
     run: environment.GITHUB_RUN_ID,
@@ -614,7 +863,7 @@ export async function runHostedLocalCheck(phase, options = {}) {
   const rustPin = (await readFile(path.join(sourceRoot, "rust-toolchain.toml"), "utf8")).match(
     /^channel = "([^"]+)"$/mu,
   )?.[1];
-  if (!/^\d+\.\d+\.\d+$/u.test(rustPin ?? "")) throw new Error("Source Rust pin is invalid");
+  if (!rustPin || !/^\d+\.\d+\.\d+$/u.test(rustPin)) throw new Error("Source Rust pin is invalid");
   const child = hostedLocalCheckEnvironment(environment, rustPin, sourceRoot);
   git(sourceRoot, ["update-ref", "refs/remotes/origin/main", identities.base]);
   if (git(sourceRoot, ["rev-parse", "origin/main"]) !== identities.base)
@@ -622,13 +871,12 @@ export async function runHostedLocalCheck(phase, options = {}) {
   log(`Hosted local-check source binding: ${JSON.stringify(binding)}`);
   if (phase === "prepare") return 0;
   const nodePin = (await readFile(path.join(sourceRoot, ".node-version"), "utf8")).trim();
-  const packageManager = JSON.parse(
+  const packageManager = parsedPackageManager(
     await readFile(path.join(sourceRoot, "package.json"), "utf8"),
-  ).packageManager;
-  const tools = JSON.parse(
+  );
+  const justPin = parsedJustPin(
     await readFile(path.join(sourceRoot, ".github/quality-tools.json"), "utf8"),
   );
-  const justPin = tools.tools.find((tool) => tool.id === "just")?.version;
   if (
     process.version !== `v${nodePin}` ||
     invoke("just", ["--version"], sourceRoot) !== `just ${justPin}` ||
@@ -652,13 +900,13 @@ export async function runHostedLocalCheck(phase, options = {}) {
         maxBuffer: 8 * 1024 * 1024,
       },
     );
-    const refusal = (reason, report) =>
+    const refusal = (reason: string, report?: unknown) =>
       emitPreflightRefusal(log, reason, preflight, identities, report, performance.now() - started);
     if (preflight.error) {
       refusal("child-error");
       throw preflight.error;
     }
-    if (![0, 1].includes(preflight.status)) {
+    if (preflight.status !== 0 && preflight.status !== 1) {
       refusal("child-status");
       return preflight.status ?? 1;
     }
@@ -803,71 +1051,89 @@ const historyProductPaths = [
   "apps/desktop/src/components/components.test.tsx",
 ];
 const fixedWorkflow = ".github/workflows/native-design-compatibility.yml";
-const fixedPhaseJobs = {
+const fixedPhaseJobs: Readonly<Record<string, string | undefined>> = {
   selected: "hosted_selected",
   audit: "hosted_audit",
   compiled: "hosted_compiled",
   native: "hosted_history",
 };
 
-export function parseHostedValidationBinding(raw, digest) {
+export function parseHostedValidationBinding(
+  raw: unknown,
+  digest: unknown,
+): HostedValidationBinding {
   if (typeof raw !== "string" || Buffer.byteLength(raw) > 60_000 || sha256(raw) !== digest)
     throw new Error("Reviewed execution binding digest or size differs");
-  const binding = JSON.parse(raw);
-  const keys = (
-    "authority,base,baseline_plan,controller,format_version,inventory_sha256,merge_base,operation,plan_digest,selected_plan,source" +
-    (binding.operation === "candidate-consumer" ? ",consumer" : "")
-  )
-    .split(",")
-    .sort()
-    .join();
-  if (
-    Object.keys(binding).sort().join() !== keys ||
-    binding.format_version !== 1 ||
-    !hostedOperations.has(binding.operation) ||
-    !["source", "controller", "base", "merge_base", "authority"].every((key) =>
-      exactSha(binding[key]),
-    ) ||
-    !["inventory_sha256", "plan_digest"].every((key) => /^[a-f0-9]{64}$/u.test(binding[key])) ||
-    !Array.isArray(binding.selected_plan) ||
-    !Array.isArray(binding.baseline_plan)
-  )
-    throw new Error("Invalid reviewed execution binding");
-  if (binding.operation === "bootstrap" && binding.source !== binding.controller)
-    throw new Error("Bootstrap source must be the independently reviewed controller candidate");
-  if (
-    binding.operation === "candidate-consumer" &&
-    (binding.source === binding.controller ||
-      !binding.consumer ||
-      Object.keys(binding.consumer).sort().join() !==
-        "controller_tree,product_source,product_tree,source_tree" ||
-      !Object.values(binding.consumer).every(exactSha))
-  )
-    throw new Error("Invalid independently reviewed candidate consumer composition");
-  assertRetainedSelectedPlan(binding.baseline_plan, binding.selected_plan);
+  const binding: unknown = JSON.parse(raw);
+  function assertBinding(binding: unknown): asserts binding is HostedValidationBinding {
+    if (!isRecord(binding)) throw new Error("Invalid reviewed execution binding");
+    const keys = (
+      "authority,base,baseline_plan,controller,format_version,inventory_sha256,merge_base,operation,plan_digest,selected_plan,source" +
+      (binding.operation === "candidate-consumer" ? ",consumer" : "")
+    )
+      .split(",")
+      .sort()
+      .join();
+    if (
+      Object.keys(binding).sort().join() !== keys ||
+      binding.format_version !== 1 ||
+      typeof binding.operation !== "string" ||
+      !hostedOperations.has(binding.operation) ||
+      !["source", "controller", "base", "merge_base", "authority"].every((key) =>
+        exactSha(binding[key]),
+      ) ||
+      !["inventory_sha256", "plan_digest"].every((key) => {
+        const value = binding[key];
+        return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+      }) ||
+      !Array.isArray(binding.selected_plan) ||
+      !Array.isArray(binding.baseline_plan)
+    )
+      throw new Error("Invalid reviewed execution binding");
+    if (binding.operation === "bootstrap" && binding.source !== binding.controller)
+      throw new Error("Bootstrap source must be the independently reviewed controller candidate");
+    if (
+      binding.operation === "candidate-consumer" &&
+      (binding.source === binding.controller ||
+        !isRecord(binding.consumer) ||
+        Object.keys(binding.consumer).sort().join() !==
+          "controller_tree,product_source,product_tree,source_tree" ||
+        !Object.values(binding.consumer).every(exactSha))
+    )
+      throw new Error("Invalid independently reviewed candidate consumer composition");
+    assertRetainedSelectedPlan(binding.baseline_plan, binding.selected_plan);
+  }
+  assertBinding(binding);
   return binding;
 }
 
-export function assertRetainedSelectedPlan(baseline, selected) {
-  const validate = (plan) => {
-    if (
-      !plan.length ||
-      new Set(plan.map((entry) => entry.id)).size !== plan.length ||
-      plan.some(
-        (entry) =>
-          Object.keys(entry).sort().join() !== "args,cwd,executable,id" ||
-          typeof entry.id !== "string" ||
-          !entry.id ||
-          typeof entry.executable !== "string" ||
-          typeof entry.cwd !== "string" ||
-          !Array.isArray(entry.args) ||
-          entry.args.some((arg) => typeof arg !== "string"),
-      )
+function assertSelectedPlan(plan: unknown): asserts plan is SelectedObligationCommand[] {
+  if (!Array.isArray(plan) || !plan.length)
+    throw new Error("Incomplete selected obligation inventory");
+  const entries: unknown[] = plan;
+  if (
+    entries.some(
+      (entry) =>
+        !isRecord(entry) ||
+        Object.keys(entry).sort().join() !== "args,cwd,executable,id" ||
+        typeof entry.id !== "string" ||
+        !entry.id ||
+        typeof entry.executable !== "string" ||
+        typeof entry.cwd !== "string" ||
+        !Array.isArray(entry.args) ||
+        entry.args.some((arg: unknown) => typeof arg !== "string"),
     )
-      throw new Error("Incomplete selected obligation inventory");
-  };
-  validate(baseline);
-  validate(selected);
+  )
+    throw new Error("Incomplete selected obligation inventory");
+  if (
+    new Set(entries.map((entry) => (isRecord(entry) ? entry.id : undefined))).size !==
+    entries.length
+  )
+    throw new Error("Incomplete selected obligation inventory");
+}
+export function assertRetainedSelectedPlan(baseline: unknown, selected: unknown): void {
+  assertSelectedPlan(baseline);
+  assertSelectedPlan(selected);
   for (const expected of baseline) {
     const actual = selected.find((entry) => entry.id === expected.id);
     if (!actual || actual.executable !== expected.executable || actual.cwd !== expected.cwd)
@@ -879,9 +1145,13 @@ export function assertRetainedSelectedPlan(baseline, selected) {
 
 // Explicit execution-under-test admission. This never changes the old route's refusal
 // or establishes that an unmerged controller is a trusted qualification authority.
-export async function runHostedValidation(phase, options = {}) {
+export async function runHostedValidation(
+  phase: string | undefined,
+  options: HostedExecutionOptions = {},
+) {
   const log = options.log ?? console.log;
   if (
+    !phase ||
     !["controller", "prepare", "provision", "selected", "audit", "compiled", "native"].includes(
       phase,
     )
@@ -894,7 +1164,7 @@ export async function runHostedValidation(phase, options = {}) {
   );
   if (env.PORTCOVE_LOCAL_OPERATION !== binding.operation)
     throw new Error("Dispatch operation differs from the reviewed binding");
-  const permitted = {
+  const permitted: Record<HostedOperation, readonly string[]> = {
     bootstrap: ["prepare", "provision", "selected", "audit"],
     selected: ["prepare", "provision", "selected"],
     compiled: ["prepare", "compiled"],
@@ -927,7 +1197,7 @@ export async function runHostedValidation(phase, options = {}) {
   const source = path.resolve(controller, "../source");
   const evidence = path.resolve(controller, "../hosted-evidence");
   const invoke = options.command ?? command;
-  const git = (cwd, args) => invoke("git", args, cwd);
+  const git = (cwd: string, args: readonly string[]) => invoke("git", args, cwd);
   if (phase === "controller") {
     if (
       git(controller, ["rev-parse", "HEAD"]) !== binding.controller ||
@@ -946,7 +1216,7 @@ export async function runHostedValidation(phase, options = {}) {
     for (const [cwd, sha] of [
       [controller, binding.controller],
       [source, binding.source],
-    ])
+    ] as const)
       if (
         path.resolve(git(cwd, ["rev-parse", "--show-toplevel"])) !== path.resolve(cwd) ||
         git(cwd, ["rev-parse", "HEAD"]) !== sha ||
@@ -995,7 +1265,7 @@ export async function runHostedValidation(phase, options = {}) {
     if (authorityChanges.some((name) => !bootstrapPaths.has(name)))
       throw new Error("Bootstrap exceeds the independently admitted fifteen-path scope");
   } else if (binding.operation === "candidate-consumer") {
-    const diff = (before, after) =>
+    const diff = (before: string, after: string) =>
       git(source, ["diff", "--name-only", "--no-renames", before, after])
         .split("\n")
         .filter(Boolean);
@@ -1014,7 +1284,7 @@ export async function runHostedValidation(phase, options = {}) {
       [binding.controller, binding.consumer.controller_tree],
       [binding.source, binding.consumer.source_tree],
       [binding.consumer.product_source, binding.consumer.product_tree],
-    ])
+    ] as const)
       if (git(source, ["rev-parse", `${commit}^{tree}`]) !== expected)
         throw new Error("Candidate consumer tree differs from the independently reviewed binding");
     for (const name of historyProductPaths) {
@@ -1087,12 +1357,11 @@ export async function runHostedValidation(phase, options = {}) {
   const rustPin = (await readFile(path.join(source, "rust-toolchain.toml"), "utf8")).match(
     /^channel = "([^"]+)"$/mu,
   )?.[1];
-  if (!/^\d+\.\d+\.\d+$/u.test(rustPin ?? "")) throw new Error("Invalid Rust pin");
+  if (!rustPin || !/^\d+\.\d+\.\d+$/u.test(rustPin)) throw new Error("Invalid Rust pin");
   const child = hostedLocalCheckEnvironment(env, rustPin, source);
   git(source, ["update-ref", "refs/remotes/origin/main", binding.base]);
   await mkdir(evidence, { recursive: true });
   const receipt = {
-    format_version: 1,
     ...binding,
     binding_sha256: env.PORTCOVE_LOCAL_BINDING_SHA256,
     run: env.GITHUB_RUN_ID,
@@ -1106,11 +1375,10 @@ export async function runHostedValidation(phase, options = {}) {
   await writeFile(path.join(evidence, "binding.json"), JSON.stringify(receipt, null, 2) + "\n");
   if (phase === "prepare") return 0;
   const nodePin = (await readFile(path.join(source, ".node-version"), "utf8")).trim();
-  const manager = JSON.parse(
-    await readFile(path.join(source, "package.json"), "utf8"),
-  ).packageManager;
-  const tools = JSON.parse(await readFile(path.join(source, ".github/quality-tools.json"), "utf8"));
-  const just = tools.tools.find((tool) => tool.id === "just")?.version;
+  const manager = parsedPackageManager(await readFile(path.join(source, "package.json"), "utf8"));
+  const just = parsedJustPin(
+    await readFile(path.join(source, ".github/quality-tools.json"), "utf8"),
+  );
   if (
     process.version !== `v${nodePin}` ||
     invoke("just", ["--version"], source) !== `just ${just}` ||
@@ -1127,18 +1395,19 @@ export async function runHostedValidation(phase, options = {}) {
       ["scripts/local-validation.mts", "check", "--preflight", "--json"],
       { cwd: source, env: child, encoding: "utf8", timeout: 60_000, maxBuffer: 16 * 1024 * 1024 },
     );
-    const refusal = (reason, report) =>
+    const refusal = (reason: string, report?: unknown) =>
       emitPreflightRefusal(log, reason, planned, binding, report, performance.now() - started);
     if (planned.error) {
       refusal("child-error");
       throw planned.error;
     }
-    if (![0, 1].includes(planned.status)) {
+    if (planned.status !== 0 && planned.status !== 1) {
       refusal("child-status");
       throw new Error("Complete candidate-root planning failed");
     }
-    let report;
+    let report: unknown;
     try {
+      if (typeof planned.stdout !== "string") throw new Error("Preflight output is not text");
       report = JSON.parse(planned.stdout);
     } catch (error) {
       refusal("json");
@@ -1150,6 +1419,7 @@ export async function runHostedValidation(phase, options = {}) {
     );
     let mismatch;
     try {
+      if (!isRecord(report)) throw new Error("Preflight report is not an object");
       mismatch =
         report.source !== binding.source ||
         report.base !== binding.base ||
@@ -1157,11 +1427,17 @@ export async function runHostedValidation(phase, options = {}) {
         report.plan_digest !== binding.plan_digest ||
         JSON.stringify(report.selected_plan) !== JSON.stringify(binding.selected_plan) ||
         !Array.isArray(report.obligations) ||
-        report.obligations.some((entry) => entry.missing.length);
+        report.obligations.some((entry: unknown) => {
+          const missing = field(entry, "missing");
+          if (!Array.isArray(missing))
+            throw new Error("Preflight prerequisite list is not an array");
+          return missing.length;
+        });
     } catch (error) {
       refusal("report-evaluation", report);
       throw error;
     }
+    if (!isRecord(report)) throw new Error("Preflight report is not an object");
     if (mismatch) {
       const reason =
         report.source !== binding.source
@@ -1182,7 +1458,10 @@ export async function runHostedValidation(phase, options = {}) {
     }
     clean();
     if (phase === "provision") {
-      if (!report.obligations.some((entry) => entry.id === "ui-browser-tests")) return 0;
+      if (!Array.isArray(report.obligations))
+        throw new Error("Preflight obligations are not an array");
+      if (!report.obligations.some((entry: unknown) => field(entry, "id") === "ui-browser-tests"))
+        return 0;
       const result = execute("pnpm", ["--dir", "apps/desktop", "browser:bootstrap"], {
         cwd: source,
         env: child,
@@ -1194,7 +1473,7 @@ export async function runHostedValidation(phase, options = {}) {
       return result.status ?? 1;
     }
   }
-  const commands = {
+  const commands: Record<string, [string, string[]] | undefined> = {
     selected: ["just", ["local-check", "--fresh"]],
     audit: ["just", ["audit", "--fresh"]],
     compiled: ["pnpm", ["--dir", "apps/desktop", "test:adapter-conformance"]],
@@ -1221,7 +1500,9 @@ export async function runHostedValidation(phase, options = {}) {
       ],
     ],
   };
-  const [executable, args] = commands[phase];
+  const selectedCommand = commands[phase ?? ""];
+  if (!selectedCommand) throw new Error("Unsupported fixed hosted phase");
+  const [executable, args] = selectedCommand;
   // No command parameters are supplied by the candidate or dispatch caller.
   const stdout = await open(path.join(evidence, "stdout.log"), "wx");
   const stderr = await open(path.join(evidence, "stderr.log"), "wx");
@@ -1249,7 +1530,7 @@ export async function runHostedValidation(phase, options = {}) {
     const auditReceipt = await readFile(
       path.join(source, "work", "validation-receipts", "audits", `${binding.source}.json`),
     ).catch((error) => {
-      if (error.code === "ENOENT" && result.status !== 0) return null;
+      if (errorCode(error) === "ENOENT" && result.status !== 0) return null;
       throw error;
     });
     if (auditReceipt)
@@ -1277,7 +1558,14 @@ export async function runHostedValidation(phase, options = {}) {
   return result.status ?? 1;
 }
 
-function cohortInputs(record) {
+function cohortInputs(record: {
+  workflow?: unknown;
+  checkout?: unknown;
+  validation?: unknown;
+  desired?: unknown;
+  observed?: unknown;
+  job_toolchains?: unknown;
+}) {
   return {
     workflow: record.workflow,
     checkout: record.checkout,
@@ -1288,7 +1576,7 @@ function cohortInputs(record) {
   };
 }
 
-function command(commandName, args, cwd = root) {
+function command(commandName: string, args: readonly string[], cwd = root) {
   return execFileSync(commandName, args, {
     cwd,
     encoding: "utf8",
@@ -1297,13 +1585,15 @@ function command(commandName, args, cwd = root) {
   }).trim();
 }
 
-function rustVersion(value, commandName) {
+function rustVersion(value: string, commandName: string): string {
   const match = new RegExp(`^${commandName} (\\d+\\.\\d+\\.\\d+)\\b`, "u").exec(value);
   if (!match) throw new Error(`Unable to parse observed ${commandName} version`);
-  return match[1];
+  const version = match[1];
+  if (!version) throw new Error(`Unable to parse observed ${commandName} version`);
+  return version;
 }
 
-function observedMatch(desired, observed) {
+function observedMatch(desired: unknown, observed: unknown) {
   if (observed === null) return null;
   return (
     typeof desired === "string" &&
@@ -1327,7 +1617,7 @@ export function buildWorkflowProvenance({
   validationPlanDigest = environment.PORTCOVE_PLAN_DIGEST,
   validationPlanMode = environment.PORTCOVE_PLAN_MODE,
   caller = environment.PORTCOVE_CALLER ?? environment.GITHUB_EVENT_NAME,
-}) {
+}: ProvenanceBuildOptions): WorkflowProvenance {
   if (!/^[A-Za-z0-9._-]+\.ya?ml$/u.test(workflow)) throw new Error("Invalid workflow filename");
   if (!/^[A-Za-z0-9._-]+\.ya?ml$/u.test(callerWorkflow))
     throw new Error("Invalid caller workflow filename");
@@ -1341,11 +1631,14 @@ export function buildWorkflowProvenance({
   if (!exactPositiveInteger(environment.GITHUB_RUN_ID)) throw new Error("Invalid GITHUB_RUN_ID");
   if (!exactPositiveInteger(environment.GITHUB_RUN_ATTEMPT))
     throw new Error("Invalid GITHUB_RUN_ATTEMPT");
-  if (!/^[a-f0-9]{64}$/u.test(validationPlanDigest ?? ""))
+  if (typeof validationPlanDigest !== "string" || !/^[a-f0-9]{64}$/u.test(validationPlanDigest))
     throw new Error("validation plan digest must be exact");
-  if (!["fast", "prose", "qualification"].includes(validationPlanMode))
+  if (
+    typeof validationPlanMode !== "string" ||
+    !["fast", "prose", "qualification"].includes(validationPlanMode)
+  )
     throw new Error("validation plan mode is invalid");
-  if (!/^[a-z0-9][a-z0-9._-]{0,63}$/u.test(caller ?? ""))
+  if (typeof caller !== "string" || !/^[a-z0-9][a-z0-9._-]{0,63}$/u.test(caller))
     throw new Error("workflow caller identity is invalid");
   const expectedRefPrefix = `${environment.GITHUB_REPOSITORY}/.github/workflows/${callerWorkflow}@`;
   if (!environment.GITHUB_WORKFLOW_REF?.startsWith(expectedRefPrefix))
@@ -1364,7 +1657,7 @@ export function buildWorkflowProvenance({
     throw new Error(
       `Observed workflow configuration differs from desired: ${JSON.stringify(matches)}`,
     );
-  const record = {
+  const record: Omit<WorkflowProvenance, "equivalent_cohort"> = {
     format_version: 4,
     run: {
       id: Number(environment.GITHUB_RUN_ID),
@@ -1402,7 +1695,7 @@ export function buildWorkflowProvenance({
   return { ...record, equivalent_cohort: sha256(JSON.stringify(cohortInputs(record))) };
 }
 
-export function parseProvenanceArchive(archive) {
+export function parseProvenanceArchive(archive: unknown): unknown {
   if (!Buffer.isBuffer(archive) || archive.length < 22 || archive.length > 2 * 1024 * 1024)
     throw new Error("Invalid provenance artifact archive size");
   let end = -1;
@@ -1430,6 +1723,8 @@ export function parseProvenanceArchive(archive) {
     const localOffset = archive.readUInt32LE(cursor + 42);
     const name = archive.subarray(cursor + 46, cursor + 46 + nameLength).toString("utf8");
     if (name === "workflow-provenance.json") {
+      // Reject duplicates before another decoder can allocate a second bounded payload.
+      if (matches.length !== 0) throw new Error("Provenance artifact must contain one JSON record");
       if (flags & 1) throw new Error("Encrypted provenance artifacts are unsupported");
       if (![0, 8].includes(method) || uncompressedSize > 1024 * 1024)
         throw new Error("Unsupported provenance artifact compression");
@@ -1439,7 +1734,8 @@ export function parseProvenanceArchive(archive) {
       const localExtraLength = archive.readUInt16LE(localOffset + 28);
       const dataOffset = localOffset + 30 + localNameLength + localExtraLength;
       const compressed = archive.subarray(dataOffset, dataOffset + compressedSize);
-      const contents = method === 0 ? compressed : inflateRawSync(compressed);
+      const contents =
+        method === 0 ? compressed : inflateRawSync(compressed, { maxOutputLength: 1024 * 1024 });
       if (contents.length !== uncompressedSize)
         throw new Error("Provenance artifact size mismatch");
       matches.push(contents);
@@ -1447,18 +1743,35 @@ export function parseProvenanceArchive(archive) {
     cursor += 46 + nameLength + extraLength + commentLength;
   }
   if (matches.length !== 1) throw new Error("Provenance artifact must contain one JSON record");
-  return JSON.parse(matches[0].toString("utf8"));
+  const contents = matches[0];
+  if (!contents) throw new Error("Provenance artifact must contain one JSON record");
+  return JSON.parse(contents.toString("utf8"));
 }
 
 export function validateWorkflowProvenance(
-  record,
-  { runId, attempt, headSha, repository, workflow, calledWorkflow = workflow, event },
-) {
+  input: unknown,
+  {
+    runId,
+    attempt,
+    headSha,
+    repository,
+    workflow,
+    calledWorkflow = workflow,
+    event,
+  }: ProvenanceValidationContext,
+): WorkflowProvenance {
+  const record = isRecord(input) ? input : undefined;
+  const object = (value: unknown) => (isRecord(value) ? value : undefined);
+  const run = object(record?.run);
+  const workflowRecord = object(record?.workflow);
+  const checkout = object(record?.checkout);
+  const validation = object(record?.validation);
+  const desired = object(record?.desired);
+  const observed = object(record?.observed);
+  const runner = object(observed?.runner);
   const expectedPath = `.github/workflows/${workflow}`;
   const expectedCalledPath = `.github/workflows/${calledWorkflow}`;
   const expectedRefPrefix = `${repository}/${expectedPath}@`;
-  const desired = record?.desired;
-  const observed = record?.observed;
   const expectedMatches = {
     node: observedMatch(desired?.node, observed?.node),
     package_manager: observedMatch(desired?.package_manager, observed?.package_manager),
@@ -1469,54 +1782,58 @@ export function validateWorkflowProvenance(
       JSON.stringify(observed?.build_configuration),
   };
   const expectedCohort = sha256(JSON.stringify(cohortInputs(record ?? {})));
+  const nonemptyText = (value: unknown): value is string =>
+    typeof value === "string" && value.length > 0;
+  const hash = (value: unknown): value is string =>
+    typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
   if (
     record?.format_version !== 4 ||
-    record.run?.id !== runId ||
-    record.run?.attempt !== attempt ||
-    record.run?.event !== event ||
-    record.workflow?.caller_path !== expectedPath ||
-    !record.workflow?.caller_ref?.startsWith(expectedRefPrefix) ||
-    record.workflow?.called_path !== expectedCalledPath ||
-    record.workflow?.called_source_sha !== record.checkout?.sha ||
-    record.checkout?.head_sha !== headSha ||
-    !exactSha(record.checkout?.sha) ||
-    record.checkout?.github_sha !== record.checkout.sha ||
-    !/^[a-f0-9]{64}$/u.test(record.validation?.plan_digest ?? "") ||
-    !["fast", "prose", "qualification"].includes(record.validation?.mode) ||
-    !/^[a-z0-9][a-z0-9._-]{0,63}$/u.test(record.validation?.caller ?? "") ||
-    !exactSha(record.workflow?.source_sha) ||
-    !/^[a-f0-9]{64}$/u.test(record.workflow?.content_sha256 ?? "") ||
-    !["ci", "release"].includes(desired?.mode) ||
-    typeof desired?.runner !== "string" ||
-    desired.runner.length === 0 ||
-    ![desired?.node, desired?.package_manager, desired?.rust].every(
-      (value) => typeof value === "string" && value.length > 0,
-    ) ||
+    run?.id !== runId ||
+    run?.attempt !== attempt ||
+    run?.event !== event ||
+    workflowRecord?.caller_path !== expectedPath ||
+    typeof workflowRecord.caller_ref !== "string" ||
+    !workflowRecord.caller_ref.startsWith(expectedRefPrefix) ||
+    workflowRecord.called_path !== expectedCalledPath ||
+    workflowRecord.called_source_sha !== checkout?.sha ||
+    checkout?.head_sha !== headSha ||
+    !exactSha(checkout.sha) ||
+    checkout.github_sha !== checkout.sha ||
+    !hash(validation?.plan_digest) ||
+    typeof validation.mode !== "string" ||
+    !["fast", "prose", "qualification"].includes(validation.mode) ||
+    typeof validation.caller !== "string" ||
+    !/^[a-z0-9][a-z0-9._-]{0,63}$/u.test(validation.caller) ||
+    !exactSha(workflowRecord.source_sha) ||
+    !hash(workflowRecord.content_sha256) ||
+    typeof desired?.mode !== "string" ||
+    !["ci", "release"].includes(desired.mode) ||
+    !nonemptyText(desired.runner) ||
+    ![desired.node, desired.package_manager, desired.rust].every(nonemptyText) ||
     ![observed?.node, observed?.package_manager, observed?.rust, observed?.cargo].every(
-      (value) => value === null || (typeof value === "string" && value.length > 0),
+      (value) => value === null || nonemptyText(value),
     ) ||
-    typeof observed?.runner?.os !== "string" ||
-    observed.runner.os.length === 0 ||
-    typeof observed?.runner?.architecture !== "string" ||
-    observed.runner.architecture.length === 0 ||
+    !nonemptyText(runner?.os) ||
+    !nonemptyText(runner.architecture) ||
     !Array.isArray(record.job_toolchains) ||
     record.job_toolchains.length === 0 ||
-    record.job_toolchains.some(
-      (job) =>
-        typeof job?.job !== "string" ||
-        job.job.length === 0 ||
-        typeof job?.runner?.os !== "string" ||
-        typeof job?.runner?.architecture !== "string" ||
-        ![job.node, job.package_manager, job.rust, job.cargo].some(
-          (value) => typeof value === "string" && value.length > 0,
-        ),
-    ) ||
+    record.job_toolchains.some((value: unknown) => {
+      const job = object(value);
+      const jobRunner = object(job?.runner);
+      return (
+        !nonemptyText(job?.job) ||
+        typeof jobRunner?.os !== "string" ||
+        typeof jobRunner.architecture !== "string" ||
+        ![job.node, job.package_manager, job.rust, job.cargo].some(nonemptyText)
+      );
+    }) ||
     JSON.stringify(record.matches) !== JSON.stringify(expectedMatches) ||
     Object.values(expectedMatches).some((matches) => matches === false) ||
     record.equivalent_cohort !== expectedCohort
   )
     throw new Error("Provenance artifact identity or configuration mismatch");
-  return record;
+  // Return the original record, including retained extra observations, only after validating the contract above.
+  return input as WorkflowProvenance;
 }
 
 async function main(args = process.argv.slice(2)) {
@@ -1544,6 +1861,7 @@ async function main(args = process.argv.slice(2)) {
   });
   if (
     !values.workflow ||
+    !values.mode ||
     !["ci", "release"].includes(values.mode) ||
     !values.runner ||
     !values.output
@@ -1552,7 +1870,9 @@ async function main(args = process.argv.slice(2)) {
       "Usage: workflow-provenance --workflow FILE --mode ci|release --runner LABEL --output FILE",
     );
   const node = (await readFile(path.join(root, ".node-version"), "utf8")).trim();
-  const repositoryPackage = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
+  const repositoryPackageManager = parsedPackageManager(
+    await readFile(path.join(root, "package.json"), "utf8"),
+  );
   const rustToolchain = (await readFile(path.join(root, "rust-toolchain.toml"), "utf8")).match(
     /^channel = "([^"]+)"$/mu,
   )?.[1];
@@ -1574,7 +1894,7 @@ async function main(args = process.argv.slice(2)) {
     workflowContents: await readFile(path.join(root, ".github/workflows", values.workflow)),
     desired: {
       node,
-      package_manager: repositoryPackage.packageManager.replace(/^pnpm@/u, ""),
+      package_manager: repositoryPackageManager.replace(/^pnpm@/u, ""),
       rust: rustToolchain,
       build_configuration: expectedBuildConfiguration,
     },
@@ -1603,8 +1923,8 @@ async function main(args = process.argv.slice(2)) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error) => {
-    console.error(error.message);
+  void main().catch((error: unknown) => {
+    console.error(errorMessage(error));
     process.exitCode = 1;
   });
 }

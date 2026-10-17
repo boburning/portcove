@@ -1,3 +1,41 @@
+import { isRecord } from "./runtime-values.mts";
+import type { TestContext } from "node:test";
+import type { SpawnSyncOptions } from "node:child_process";
+import type {
+  HostedCommand,
+  HostedSpawnResult,
+  HostedExecutionOptions,
+  ProvenanceBuildOptions,
+  CargoDependencySpecification,
+} from "./workflow-provenance.mts";
+import { deflateRawSync } from "node:zlib";
+function record(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function text(value: unknown): string {
+  assert.equal(typeof value, "string");
+  return value as string;
+}
+function lookup(values: Record<string, string>, key: string): string {
+  return required(values[key]);
+}
+type CargoMutationFixture = Omit<
+  CargoDependencySpecification,
+  "package" | "from_version" | "to_version" | "from_checksum" | "to_checksum" | "lock_sha256"
+> & {
+  package: unknown;
+  from_version: unknown;
+  to_version: unknown;
+  from_checksum: unknown;
+  to_checksum: unknown;
+  lock_sha256: unknown;
+  extra?: unknown;
+};
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -22,7 +60,7 @@ import {
 const reviewedPlan = [
   { id: "diff-check", executable: "git", args: ["diff", "--check"], cwd: "$SOURCE/" },
 ];
-function reviewedBinding(overrides = {}) {
+function defaultReviewedBinding() {
   return {
     format_version: 1,
     operation: "bootstrap",
@@ -35,12 +73,18 @@ function reviewedBinding(overrides = {}) {
     plan_digest: "d".repeat(64),
     baseline_plan: reviewedPlan,
     selected_plan: reviewedPlan,
-    ...overrides,
   };
 }
-const bindingDigest = (raw) => createHash("sha256").update(raw).digest("hex");
+function reviewedBinding(): ReturnType<typeof defaultReviewedBinding>;
+function reviewedBinding<T extends object>(
+  overrides: T,
+): Omit<ReturnType<typeof defaultReviewedBinding>, keyof T> & T;
+function reviewedBinding(overrides: object = {}) {
+  return Object.assign(defaultReviewedBinding(), overrides);
+}
+const bindingDigest = (raw: string) => createHash("sha256").update(raw).digest("hex");
 
-test("reviewed hosted bindings retain baseline obligations and reject caller command extensions", () => {
+void test("reviewed hosted bindings retain baseline obligations and reject caller command extensions", () => {
   const raw = JSON.stringify(reviewedBinding());
   assert.equal(parseHostedValidationBinding(raw, bindingDigest(raw)).operation, "bootstrap");
   assert.throws(() => parseHostedValidationBinding(raw, "0".repeat(64)), /digest/);
@@ -68,14 +112,14 @@ test("reviewed hosted bindings retain baseline obligations and reject caller com
   );
 });
 
-test("bootstrap binds actual clean Git inventories and refuses out-of-scope or dirty inputs", async (t) => {
+void test("bootstrap binds actual clean Git inventories and refuses out-of-scope or dirty inputs", async (t) => {
   const directory = mkdtempSync(path.join(tmpdir(), "portcove-reviewed-binding-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const source = path.join(directory, "source");
   const controller = path.join(directory, "controller");
-  const git = (cwd, args) =>
+  const git = (cwd: string, args: readonly string[]) =>
     execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-  const write = (name: string, content) => {
+  const write = (name: string, content: string) => {
     mkdirSync(path.dirname(path.join(source, name)), { recursive: true });
     writeFileSync(path.join(source, name), content);
   };
@@ -136,10 +180,10 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
     PORTCOVE_LOCAL_BINDING: raw,
     PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(raw),
   };
-  const options = {
+  const options: HostedExecutionOptions = {
     controllerRoot: controller,
     environment,
-    command: (name, args, cwd) => {
+    command: (name: string, args: readonly string[], cwd: string) => {
       assert.equal(name, "git", "Prepare must not provision or execute candidate tools");
       return git(cwd, args);
     },
@@ -165,9 +209,11 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
     for (const report of [
       { ...matching, obligations: [{ id: "ui-build", missing: ["pnpm"] }] },
       { ...matching, selected_plan: [{ ...plan[0], args: ["pnpm", "run", "other"] }] },
+      { ...matching, obligations: [{ id: "ui-build", missing: "" }] },
       matching,
     ]) {
-      const commands = [];
+      const commands: { name: string; args: readonly string[]; cwd: SpawnSyncOptions["cwd"] }[] =
+        [];
       const result = runHostedValidation("provision", {
         ...options,
         environment: {
@@ -175,15 +221,18 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
           PORTCOVE_LOCAL_BINDING: boundRaw,
           PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(boundRaw),
         },
-        command: (name, args, cwd) => {
+        command: (name: string, args: readonly string[], cwd: string) => {
           if (name === "git") return git(cwd, args);
           assert.equal(cwd, source);
-          return {
-            just: "just 1.58.0",
-            pnpm: "12.8.1",
-            rustc: "rustc 1.98.1 (fixture)",
-            cargo: "cargo 1.98.1 (fixture)",
-          }[name];
+          return lookup(
+            {
+              just: "just 1.58.0",
+              pnpm: "12.8.1",
+              rustc: "rustc 1.98.1 (fixture)",
+              cargo: "cargo 1.98.1 (fixture)",
+            },
+            name,
+          );
         },
         spawn: (name, args, settings) => {
           commands.push({ name, args, cwd: settings.cwd });
@@ -199,6 +248,8 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
         },
       });
       if (report === matching) assert.equal(await result, 0);
+      else if (report.obligations.some((entry) => typeof entry.missing === "string"))
+        await assert.rejects(() => result, /prerequisite list is not an array/);
       else
         await assert.rejects(() => result, /Full reviewed selected plan or prerequisites differ/);
       assert.deepEqual(
@@ -208,15 +259,18 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
       assert.equal(commands.length, 1, "No browser or selected command may run during refusal");
       assert.throws(() => readFileSync(path.join(evidence, "execution.json")), /ENOENT/);
     }
-    const command = (name, args, cwd) =>
+    const command: HostedCommand = (name, args, cwd) =>
       name === "git"
         ? git(cwd, args)
-        : {
-            just: "just 1.58.0",
-            pnpm: "12.8.1",
-            rustc: "rustc 1.98.1 (fixture)",
-            cargo: "cargo 1.98.1 (fixture)",
-          }[name];
+        : lookup(
+            {
+              just: "just 1.58.0",
+              pnpm: "12.8.1",
+              rustc: "rustc 1.98.1 (fixture)",
+              cargo: "cargo 1.98.1 (fixture)",
+            },
+            name,
+          );
     for (const [reason, response] of [
       ["json", { status: 0, stdout: "private invalid JSON" }],
       ["report-evaluation", { status: 0, stdout: "null" }],
@@ -225,14 +279,14 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
         { status: null, error: Object.assign(Error("private timeout"), { code: "ETIMEDOUT" }) },
       ],
       ["child-status", { status: 7, stdout: "{}" }],
-    ]) {
-      const logs = [];
+    ] satisfies [string, HostedSpawnResult][]) {
+      const logs: string[] = [];
       let calls = 0;
       await assert.rejects(
         runHostedValidation("provision", {
           ...options,
           command,
-          log: (line) => logs.push(line),
+          log: (line: string) => logs.push(line),
           spawn: (_name, _args, settings) => {
             calls++;
             assert.equal(settings.timeout, 60_000);
@@ -346,29 +400,29 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
   );
 });
 
-test("candidate consumer binds four original product blobs and retains normal ancestry refusal", async (t) => {
+void test("candidate consumer binds four original product blobs and retains normal ancestry refusal", async (t) => {
   const directory = mkdtempSync(path.join(tmpdir(), "portcove-consumer-binding-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const source = path.join(directory, "source");
   const controller = path.join(directory, "controller");
-  const git = (cwd, args) =>
+  const git = (cwd: string, args: readonly string[]) =>
     execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-  const write = (name: string, content) => {
+  const write = (name: string, content: string) => {
     mkdirSync(path.dirname(path.join(source, name)), { recursive: true });
     writeFileSync(path.join(source, name), content);
   };
-  const commit = (message) => {
+  const commit = (message: string) => {
     git(source, ["add", "."]);
     git(source, ["commit", "--quiet", "-m", message]);
     return git(source, ["rev-parse", "HEAD"]);
   };
-  const tree = (sha) => git(source, ["rev-parse", `${sha}^{tree}`]);
+  const tree = (sha: string) => git(source, ["rev-parse", `${sha}^{tree}`]);
   const products = [
     "apps/desktop/src/components/DetailPanel.tsx",
     "apps/desktop/src/components/DetailQualificationSummary.test.tsx",
     "apps/desktop/src/components/DetailQualificationSummary.tsx",
     "apps/desktop/src/components/components.test.tsx",
-  ];
+  ] as const;
   mkdirSync(source);
   git(source, ["init", "--quiet"]);
   git(source, ["config", "user.name", "Reviewed fixture"]);
@@ -391,7 +445,7 @@ test("candidate consumer binds four original product blobs and retains normal an
   git(source, ["checkout", "--quiet", "--detach", control]);
   for (const name of products) write(name, `original product ${name}\n`);
   const composed = commit("reviewed composition");
-  const inventory = (head) =>
+  const inventory = (head: string) =>
     bindingDigest(
       JSON.stringify(
         git(source, ["diff", "--name-only", "--no-renames", base, head])
@@ -418,7 +472,10 @@ test("candidate consumer binds four original product blobs and retains normal an
       product_tree: tree(product),
     },
   });
-  const options = (binding = spec, job = "hosted_history") => {
+  const options = (
+    binding: Omit<typeof spec, "consumer"> & { consumer?: unknown } = spec,
+    job = "hosted_history",
+  ) => {
     const raw = JSON.stringify(binding);
     return {
       controllerRoot: controller,
@@ -438,7 +495,7 @@ test("candidate consumer binds four original product blobs and retains normal an
         PORTCOVE_LOCAL_BINDING: raw,
         PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(raw),
       },
-      command: (name, args, cwd) => {
+      command: (name: string, args: readonly string[], cwd: string) => {
         assert.equal(name, "git", "Binding tests must not execute native or candidate tools");
         return git(cwd, args);
       },
@@ -466,7 +523,7 @@ test("candidate consumer binds four original product blobs and retains normal an
   for (const [name, expected] of [
     [products[0], /product bytes differ/],
     ["scripts/workflow-provenance.mts", /exactly the four/],
-  ]) {
+  ] as const) {
     write(name, "unreviewed composition change\n");
     const changed = commit("unreviewed change");
     await assert.rejects(
@@ -486,7 +543,7 @@ test("candidate consumer binds four original product blobs and retains normal an
   }
 });
 
-test("preflight and controller share the exact hosted script authority boundary", () => {
+void test("preflight and controller share the exact hosted script authority boundary", () => {
   assert.equal(isHostedLocalCheckScriptAuthority("scripts/dev-doctor.mts"), true);
   assert.equal(isHostedLocalCheckScriptAuthority("apps/desktop/scripts/example.mjs"), true);
   assert.equal(isHostedLocalCheckScriptAuthority("scripts/example.test.mjs"), false);
@@ -495,14 +552,14 @@ test("preflight and controller share the exact hosted script authority boundary"
   assert.ok(hostedLocalCheckAuthorityPaths.includes("scripts/workflow-provenance.mts") === false);
 });
 
-function hostedFixture(t) {
+function hostedFixture(t: TestContext) {
   const directory = mkdtempSync(path.join(tmpdir(), "portcove-local-check-binding-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const source = path.join(directory, "source");
   const controller = path.join(directory, "controller");
-  const git = (cwd, args) =>
+  const git = (cwd: string, args: readonly string[]) =>
     execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-  const write = (cwd: string, name: string, value) => {
+  const write = (cwd: string, name: string, value: string) => {
     mkdirSync(path.dirname(path.join(cwd, name)), { recursive: true });
     writeFileSync(path.join(cwd, name), value);
   };
@@ -536,7 +593,7 @@ function hostedFixture(t) {
   git(controller, ["add", "."]);
   git(controller, ["commit", "--quiet", "-m", "reviewed controller"]);
   const controlHead = git(controller, ["rev-parse", "HEAD"]);
-  const env = {
+  const env: NodeJS.ProcessEnv = {
     GITHUB_REPOSITORY: "boburning/portcove",
     GITHUB_EVENT_NAME: "workflow_dispatch",
     GITHUB_SHA: controlHead,
@@ -557,15 +614,18 @@ function hostedFixture(t) {
     PATH: process.env.PATH,
     GH_TOKEN: "fixture-secret",
   };
-  const logs = [];
-  const command = (name, args, cwd) => {
+  const logs: string[] = [];
+  const command: HostedCommand = (name, args, cwd) => {
     if (name === "git") return git(cwd, args);
-    return {
-      just: "just 1.58.0",
-      rustc: "rustc 1.98.1 (fixture)",
-      cargo: "cargo 1.98.1 (fixture)",
-      pnpm: "12.4.2",
-    }[name];
+    return lookup(
+      {
+        just: "just 1.58.0",
+        rustc: "rustc 1.98.1 (fixture)",
+        cargo: "cargo 1.98.1 (fixture)",
+        pnpm: "12.4.2",
+      },
+      name,
+    );
   };
   return {
     source,
@@ -580,12 +640,15 @@ function hostedFixture(t) {
       controllerRoot: controller,
       environment: env,
       command,
-      log: (line) => logs.push(line),
+      log: (line: string) => logs.push(line),
     },
   };
 }
 
-function browserProvisioningReport(f, browser = true) {
+function browserProvisioningReport(
+  f: Pick<ReturnType<typeof hostedFixture>, "head" | "base">,
+  browser = true,
+) {
   return {
     format_version: 1,
     source: f.head,
@@ -596,11 +659,11 @@ function browserProvisioningReport(f, browser = true) {
   };
 }
 
-test("preflight refusal retains bounded safe branch and transport facts", async (t) => {
+void test("preflight refusal retains bounded safe branch and transport facts", async (t) => {
   const f = hostedFixture(t);
   const valid = browserProvisioningReport(f);
   const secret = "secret-canary Ω https://signed.invalid/?token=secret-cookie";
-  const cases = [
+  const cases: [string, unknown, number?][] = [
     ["json", secret],
     ["format-version", { ...valid, format_version: 2 }],
     ["source", { ...valid, source: secret }],
@@ -629,7 +692,7 @@ test("preflight refusal retains bounded safe branch and transport facts", async 
     f.logs.length = 0;
     let calls = 0;
     const stdout =
-      typeof report === "string" ? report : JSON.stringify({ ...report, private: secret });
+      typeof report === "string" ? report : JSON.stringify({ ...record(report), private: secret });
     await assert.rejects(
       runHostedLocalCheck("provision", {
         ...f.options,
@@ -647,13 +710,14 @@ test("preflight refusal retains bounded safe branch and transport facts", async 
     assert.ok(line, "Original refusal must retain a diagnostic");
     assert.ok(Buffer.byteLength(line) <= 64 * 1024);
     assert.ok(!line.includes("secret-canary") && !line.includes("signed.invalid"));
-    const diagnostic = JSON.parse(line.slice("Hosted preflight refusal: ".length));
+    assert.ok(line);
+    const diagnostic = record(JSON.parse(line.slice("Hosted preflight refusal: ".length)));
     assert.equal(diagnostic.reason, reason);
-    assert.equal(diagnostic.result.status, status);
-    assert.equal(diagnostic.stdout.bytes, Buffer.byteLength(stdout));
-    assert.equal(diagnostic.stdout.sha256, bindingDigest(stdout));
+    assert.equal(record(diagnostic.result).status, status);
+    assert.equal(record(diagnostic.stdout).bytes, Buffer.byteLength(stdout));
+    assert.equal(record(diagnostic.stdout).sha256, bindingDigest(stdout));
     assert.equal(diagnostic.capture_complete, true);
-    if (Array.isArray(report.obligations) && report.obligations.length === 1500)
+    if (isRecord(report) && Array.isArray(report.obligations) && report.obligations.length === 1500)
       assert.equal(diagnostic.omitted, true);
   }
   for (const code of ["ENOENT", "ETIMEDOUT", "ENOBUFS", "private-code"]) {
@@ -673,11 +737,12 @@ test("preflight refusal retains bounded safe branch and transport facts", async 
       (actual) => actual === error,
     );
     const line = f.logs.find((value: string) => value.startsWith("Hosted preflight refusal: "));
-    const diagnostic = JSON.parse(line.slice("Hosted preflight refusal: ".length));
+    assert.ok(line);
+    const diagnostic = record(JSON.parse(line.slice("Hosted preflight refusal: ".length)));
     assert.equal(diagnostic.reason, "child-error");
     assert.equal(diagnostic.capture_complete, false);
-    assert.equal(diagnostic.result.code, code === "private-code" ? "UNKNOWN" : code);
-    assert.equal(diagnostic.result.signal, "SIGTERM");
+    assert.equal(record(diagnostic.result).code, code === "private-code" ? "UNKNOWN" : code);
+    assert.equal(record(diagnostic.result).signal, "SIGTERM");
     assert.ok(!line.includes("secret-canary") && !line.includes("private-code"));
   }
   for (const status of [2, 7, null]) {
@@ -703,9 +768,9 @@ test("preflight refusal retains bounded safe branch and transport facts", async 
   );
 });
 
-test("complete policy preflight exit one preserves audit and provisions selected browser", async (t) => {
+void test("complete policy preflight exit one preserves audit and provisions selected browser", async (t) => {
   const f = hostedFixture(t);
-  const calls = [];
+  const calls: (readonly string[])[] = [];
   const report = {
     ...browserProvisioningReport(f),
     obligations: [{ id: "ui-browser-tests", route: "local", missing: [] }],
@@ -737,16 +802,16 @@ test("complete policy preflight exit one preserves audit and provisions selected
   assert.ok(f.logs.some((line) => line.includes('"route":"local-prerequisites-unverified"')));
 });
 
-test("selected hosted browser is provisioned before ordinary execution on a cold fixture", async (t) => {
+void test("selected hosted browser is provisioned before ordinary execution on a cold fixture", async (t) => {
   const f = hostedFixture(t);
-  const calls = [];
+  const calls: (readonly string[])[] = [];
   let browserReady = false;
-  const spawn = (name, args, options) => {
+  const spawn: NonNullable<HostedExecutionOptions["spawn"]> = (name, args, options) => {
     calls.push([name, ...args]);
     assert.equal(options.cwd, f.source);
-    assert.equal(options.env.GH_TOKEN, undefined);
-    assert.equal(options.env.CI, undefined);
-    assert.equal(options.env.CARGO_BUILD_JOBS, "4");
+    assert.equal(required(options.env).GH_TOKEN, undefined);
+    assert.equal(required(options.env).CI, undefined);
+    assert.equal(required(options.env).CARGO_BUILD_JOBS, "4");
     if (name === process.execPath)
       return { status: 0, stdout: JSON.stringify(browserProvisioningReport(f)) };
     if (name === "pnpm") {
@@ -767,7 +832,7 @@ test("selected hosted browser is provisioned before ordinary execution on a cold
   assert.ok(f.logs.some((line) => line.includes('"plan_digest":"' + "d".repeat(64))));
 });
 
-test("provisioning refuses blocked selection and unnamed preflight failures", async (t) => {
+void test("provisioning refuses blocked selection and unnamed preflight failures", async (t) => {
   const f = hostedFixture(t);
   const report = browserProvisioningReport(f);
   const audit = {
@@ -807,8 +872,8 @@ test("provisioning refuses blocked selection and unnamed preflight failures", as
       { ...report, obligations: [{ id: "ui-browser-tests", route: "blocked", missing: ["pnpm"] }] },
     ],
     [0, { ...report, obligations: [{ id: "ui-browser-tests", route: "local" }] }],
-  ]) {
-    const calls = [];
+  ] as const) {
+    const calls: (readonly string[])[] = [];
     await assert.rejects(
       runHostedLocalCheck("provision", {
         ...f.options,
@@ -822,7 +887,7 @@ test("provisioning refuses blocked selection and unnamed preflight failures", as
     assert.equal(calls.length, 1);
   }
   for (const status of [2, 7, null]) {
-    const calls = [];
+    const calls: (readonly string[])[] = [];
     assert.equal(
       await runHostedLocalCheck("provision", {
         ...f.options,
@@ -837,9 +902,9 @@ test("provisioning refuses blocked selection and unnamed preflight failures", as
   }
 });
 
-test("browser-free hosted selection acquires nothing", async (t) => {
+void test("browser-free hosted selection acquires nothing", async (t) => {
   const f = hostedFixture(t);
-  const calls = [];
+  const calls: (readonly string[])[] = [];
   assert.equal(
     await runHostedLocalCheck("provision", {
       ...f.options,
@@ -855,10 +920,10 @@ test("browser-free hosted selection acquires nothing", async (t) => {
   ]);
 });
 
-test("failed preflight or browser acquisition cannot report provisioned readiness", async (t) => {
+void test("failed preflight or browser acquisition cannot report provisioned readiness", async (t) => {
   for (const failure of ["preflight", "bootstrap"]) {
     const f = hostedFixture(t);
-    const calls = [];
+    const calls: (readonly string[])[] = [];
     assert.equal(
       await runHostedLocalCheck("provision", {
         ...f.options,
@@ -882,7 +947,7 @@ test("failed preflight or browser acquisition cannot report provisioned readines
   }
 });
 
-test("invalid or incomplete selected plan refuses acquisition", async (t) => {
+void test("invalid or incomplete selected plan refuses acquisition", async (t) => {
   const f = hostedFixture(t);
   const report = browserProvisioningReport(f);
   for (const value of [
@@ -898,7 +963,7 @@ test("invalid or incomplete selected plan refuses acquisition", async (t) => {
     { ...report, obligations: [{ id: "" }] },
     { ...report, obligations: [{ id: "ui-browser-tests" }, { id: "ui-browser-tests" }] },
   ]) {
-    const calls = [];
+    const calls: (readonly string[])[] = [];
     await assert.rejects(
       runHostedLocalCheck("provision", {
         ...f.options,
@@ -913,10 +978,10 @@ test("invalid or incomplete selected plan refuses acquisition", async (t) => {
   }
 });
 
-test("provisioning rechecks clean source and comparison before and after acquisition", async (t) => {
+void test("provisioning rechecks clean source and comparison before and after acquisition", async (t) => {
   for (const change of ["source", "controller", "base", "bootstrap-source"]) {
     const f = hostedFixture(t);
-    const calls = [];
+    const calls: (readonly string[])[] = [];
     await assert.rejects(
       runHostedLocalCheck("provision", {
         ...f.options,
@@ -940,7 +1005,7 @@ test("provisioning rechecks clean source and comparison before and after acquisi
   }
 });
 
-test("hosted local execution preserves defaults and removes provisioning credentials", () => {
+void test("hosted local execution preserves defaults and removes provisioning credentials", () => {
   const child = hostedLocalCheckEnvironment(
     {
       CI: "true",
@@ -1001,7 +1066,7 @@ test("hosted local execution preserves defaults and removes provisioning credent
   );
 });
 
-function cargoFixture(t, twoManifests = false) {
+function cargoFixture(t: TestContext, twoManifests = false) {
   const f = hostedFixture(t);
   f.git(f.source, ["reset", "--hard", f.base]);
   const packageName = twoManifests ? "minisign-verify" : "minisign";
@@ -1041,7 +1106,7 @@ function cargoFixture(t, twoManifests = false) {
         `"${newVersion}"`,
       ),
     );
-  const spec = {
+  const spec: CargoMutationFixture = {
     package: packageName,
     from_version: oldVersion,
     to_version: newVersion,
@@ -1064,10 +1129,10 @@ function cargoFixture(t, twoManifests = false) {
 }
 
 for (const count of [false, true]) {
-  test(`opt-in Cargo binding admits only the reviewed ${count ? "two" : "one"}-manifest update`, async (t) => {
+  void test(`opt-in Cargo binding admits only the reviewed ${count ? "two" : "one"}-manifest update`, async (t) => {
     const f = cargoFixture(t, count);
     assert.equal(await runHostedLocalCheck("prepare", f.options), 0);
-    const calls = [];
+    const calls: { name: string; args: readonly string[]; options: SpawnSyncOptions }[] = [];
     assert.equal(
       await runHostedLocalCheck("run", {
         ...f.options,
@@ -1087,13 +1152,15 @@ for (const count of [false, true]) {
     );
     assert.ok(
       calls.every(
-        ({ options }) => options.env.GH_TOKEN === undefined && options.env.CARGO_BUILD_JOBS === "4",
+        ({ options }) =>
+          required(options.env).GH_TOKEN === undefined &&
+          required(options.env).CARGO_BUILD_JOBS === "4",
       ),
     );
     assert.ok(
       f.logs.some(
         (line) =>
-          line.includes('"profile":"cargo-dependency"') && line.includes(f.spec.lock_sha256),
+          line.includes('"profile":"cargo-dependency"') && line.includes(text(f.spec.lock_sha256)),
       ),
     );
     delete f.env.PORTCOVE_LOCAL_DEPENDENCY_BINDING;
@@ -1101,8 +1168,8 @@ for (const count of [false, true]) {
   });
 }
 
-test("Cargo binding rejects every other tree, mode and dependency-byte change", async (t) => {
-  const mutations = [
+void test("Cargo binding rejects every other tree, mode and dependency-byte change", async (t) => {
+  const mutations: ((f: ReturnType<typeof cargoFixture>) => void)[] = [
     (f) => f.write(f.source, "subject.rs", "extra source\n"),
     (f) => f.write(f.source, "scripts/local-validation.mts", "altered selector\n"),
     (f) => f.write(f.source, "Cargo.toml", "altered root\n"),
@@ -1132,8 +1199,8 @@ test("Cargo binding rejects every other tree, mode and dependency-byte change", 
     (f) =>
       f.write(
         f.source,
-        f.spec.manifests[0].path,
-        readFileSync(path.join(f.source, f.spec.manifests[0].path), "utf8").replace(
+        required(f.spec.manifests[0]).path,
+        readFileSync(path.join(f.source, required(f.spec.manifests[0]).path), "utf8").replace(
           'minisign = "0.10.0"',
           'minisign = { version = "0.10.0", default-features = false }',
         ),
@@ -1141,18 +1208,18 @@ test("Cargo binding rejects every other tree, mode and dependency-byte change", 
     (f) =>
       f.write(
         f.source,
-        f.spec.manifests[0].path,
-        readFileSync(path.join(f.source, f.spec.manifests[0].path), "utf8") +
+        required(f.spec.manifests[0]).path,
+        readFileSync(path.join(f.source, required(f.spec.manifests[0]).path), "utf8") +
           '[dev-dependencies]\nminisign = "0.10.0"\n',
       ),
-    (f) => f.git(f.source, ["rm", f.spec.manifests[0].path]),
+    (f) => f.git(f.source, ["rm", required(f.spec.manifests[0]).path]),
     (f) => {
       chmodSync(path.join(f.source, "Cargo.lock"), 0o755);
       f.git(f.source, ["update-index", "--chmod=+x", "Cargo.lock"]);
     },
   ];
   const f = cargoFixture(t);
-  const originalHead = f.env.PORTCOVE_LOCAL_SOURCE_SHA;
+  const originalHead = required(f.env.PORTCOVE_LOCAL_SOURCE_SHA);
   for (const mutate of mutations) {
     f.git(f.source, ["reset", "--hard", originalHead]);
     mutate(f);
@@ -1164,7 +1231,7 @@ test("Cargo binding rejects every other tree, mode and dependency-byte change", 
   }
 });
 
-test("Cargo binding rejects ambiguous or unreviewed declarations and digests", async (t) => {
+void test("Cargo binding rejects ambiguous or unreviewed declarations and digests", async (t) => {
   const f = cargoFixture(t);
   const originalSpec = structuredClone(f.spec);
   for (const update of [
@@ -1178,13 +1245,13 @@ test("Cargo binding rejects ambiguous or unreviewed declarations and digests", a
       s.to_version = '0.10.0"\npath = "evil';
     },
     (s) => {
-      s.manifests.push(s.manifests[0]);
+      s.manifests.push(required(s.manifests[0]));
     },
     (s) => {
-      s.manifests[0].path = "Cargo.toml";
+      required(s.manifests[0]).path = "Cargo.toml";
     },
     (s) => {
-      s.manifests[0].section = "build-dependencies";
+      required(s.manifests[0]).section = "build-dependencies";
     },
     (s) => {
       s.extra = "ignored";
@@ -1198,7 +1265,7 @@ test("Cargo binding rejects ambiguous or unreviewed declarations and digests", a
     (s) => {
       s.to_checksum = [s.to_checksum];
     },
-  ]) {
+  ] satisfies ((s: CargoMutationFixture) => void)[]) {
     f.spec = structuredClone(originalSpec);
     update(f.spec);
     f.env.PORTCOVE_LOCAL_DEPENDENCY_BINDING = JSON.stringify(f.spec);
@@ -1212,7 +1279,7 @@ test("Cargo binding rejects ambiguous or unreviewed declarations and digests", a
   await assert.rejects(runHostedLocalCheck("prepare", f.options), /binding/);
 });
 
-test("Cargo binding is rechecked after provisioning and execution", async (t) => {
+void test("Cargo binding is rechecked after provisioning and execution", async (t) => {
   const f = cargoFixture(t);
   assert.equal(await runHostedLocalCheck("prepare", f.options), 0);
   f.write(f.source, "Cargo.lock", "tampered provisioning\n");
@@ -1230,9 +1297,9 @@ test("Cargo binding is rechecked after provisioning and execution", async (t) =>
   );
 });
 
-test("planning cannot change the reviewed lock before fresh execution", async (t) => {
+void test("planning cannot change the reviewed lock before fresh execution", async (t) => {
   const f = cargoFixture(t);
-  const calls = [];
+  const calls: (readonly string[])[] = [];
   await assert.rejects(
     runHostedLocalCheck("run", {
       ...f.options,
@@ -1249,10 +1316,10 @@ test("planning cannot change the reviewed lock before fresh execution", async (t
 });
 
 for (const delimiter of ['"""', "'''"]) {
-  test(`multiline TOML ${delimiter} descriptions cannot masquerade as dependency tables`, async (t) => {
+  void test(`multiline TOML ${delimiter} descriptions cannot masquerade as dependency tables`, async (t) => {
     const f = cargoFixture(t);
-    f.git(f.source, ["reset", "--hard", f.env.PORTCOVE_LOCAL_AUTHORITY_SHA]);
-    const manifest = f.spec.manifests[0].path;
+    f.git(f.source, ["reset", "--hard", required(f.env.PORTCOVE_LOCAL_AUTHORITY_SHA)]);
+    const manifest = required(f.spec.manifests[0]).path;
     const text = `[package]\nname = "fixture"\nversion = "0.1.0"\ndescription = ${delimiter}\n[dev-dependencies]\nminisign = "0.9.1"\n${delimiter}\n\n[dev-dependencies] # actual table\nminisign = "0.9.1"\n`;
     f.write(f.source, manifest, text);
     f.git(f.source, ["add", "."]);
@@ -1275,19 +1342,19 @@ for (const delimiter of ['"""', "'''"]) {
   });
 }
 
-test("hosted execution binds actual Git source, default base, controller and final child", async (t) => {
+void test("hosted execution binds actual Git source, default base, controller and final child", async (t) => {
   const f = hostedFixture(t);
-  const calls = [];
+  const calls: { name: string; args: readonly string[]; options: SpawnSyncOptions }[] = [];
   const status = await runHostedLocalCheck("run", {
     ...f.options,
     spawn: (name, args, options) => {
       calls.push({ name, args, options });
       assert.equal(f.git(f.source, ["rev-parse", "origin/main"]), f.base);
-      assert.equal(options.env.CI, undefined);
-      assert.equal(options.env.GH_TOKEN, undefined);
-      assert.equal(options.env.CARGO_BUILD_JOBS, "4");
-      assert.equal(options.env.CARGO_INCREMENTAL, undefined);
-      assert.equal(options.env.RUNNER_TEMP, undefined);
+      assert.equal(required(options.env).CI, undefined);
+      assert.equal(required(options.env).GH_TOKEN, undefined);
+      assert.equal(required(options.env).CARGO_BUILD_JOBS, "4");
+      assert.equal(required(options.env).CARGO_INCREMENTAL, undefined);
+      assert.equal(required(options.env).RUNNER_TEMP, undefined);
       return { status: 0 };
     },
   });
@@ -1305,7 +1372,7 @@ test("hosted execution binds actual Git source, default base, controller and fin
   assert.ok(f.logs.some((line: string) => line.startsWith("Hosted local-check completed:")));
 });
 
-test("hosted binding rejects frontend validation helper and test-policy changes", async (t) => {
+void test("hosted binding rejects frontend validation helper and test-policy changes", async (t) => {
   const f = hostedFixture(t);
   for (const name of [
     "apps/desktop/scripts/copy-lint-plugin.mts",
@@ -1333,14 +1400,14 @@ test("hosted binding rejects frontend validation helper and test-policy changes"
   }
 });
 
-test("hosted binding rejects source, workflow, base, dirt and authority mismatches", async (t) => {
+void test("hosted binding rejects source, workflow, base, dirt and authority mismatches", async (t) => {
   const f = hostedFixture(t);
   for (const [name, value, message] of [
     ["PORTCOVE_LOCAL_SOURCE_SHA", "refs/heads/main", /Exact source/],
     ["GITHUB_WORKFLOW_SHA", "f".repeat(40), /controller context/],
     ["PORTCOVE_LOCAL_MERGE_BASE_SHA", f.head, /merge-base differs/],
     ["PORTCOVE_LOCAL_SOURCE_SHA", f.base, /checkout is dirty/],
-  ])
+  ] as const)
     await assert.rejects(
       runHostedLocalCheck("prepare", { ...f.options, environment: { ...f.env, [name]: value } }),
       message,
@@ -1355,7 +1422,7 @@ test("hosted binding rejects source, workflow, base, dirt and authority mismatch
   await assert.rejects(runHostedLocalCheck("prepare", f.options), /changes trusted.*authority/);
 });
 
-test("hosted completion never upgrades failed, interrupted or altered execution", async (t) => {
+void test("hosted completion never upgrades failed, interrupted or altered execution", async (t) => {
   const f = hostedFixture(t);
   assert.equal(
     await runHostedLocalCheck("run", {
@@ -1385,7 +1452,7 @@ test("hosted completion never upgrades failed, interrupted or altered execution"
   assert.ok(!f.logs.some((line: string) => line.startsWith("Hosted local-check completed:")));
 });
 
-test("manual local-check transport preserves the audit and has no mutable execution inputs", () => {
+void test("manual local-check transport preserves the audit and has no mutable execution inputs", () => {
   const workflow = readFileSync(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
     "utf8",
@@ -1431,7 +1498,7 @@ test("manual local-check transport preserves the audit and has no mutable execut
   assert.doesNotMatch(local, /run:.*\$\{\{ inputs\./);
 });
 
-const sha = (letter) => letter.repeat(40);
+const sha = (letter: string) => letter.repeat(40);
 const environment = {
   GITHUB_WORKFLOW_SHA: sha("a"),
   GITHUB_SHA: sha("b"),
@@ -1446,7 +1513,7 @@ const environment = {
   PORTCOVE_CALLER: "pull-request",
   GITHUB_JOB: "provenance",
 };
-const build = (overrides = {}) =>
+const build = (overrides: Partial<ProvenanceBuildOptions> = {}) =>
   buildWorkflowProvenance({
     workflow: "ci.yml",
     mode: "ci",
@@ -1479,19 +1546,27 @@ const validationContext = {
   event: "pull_request",
 };
 
-function storedZip(name, contents) {
-  const data = Buffer.from(contents);
+function storedZip(
+  name: string,
+  contents: string,
+  options: { deflate?: boolean; declaredSize?: number } = {},
+) {
+  const decoded = Buffer.from(contents);
+  const data = options.deflate ? deflateRawSync(decoded) : decoded;
+  const declaredSize = options.declaredSize ?? decoded.length;
   const nameBytes = Buffer.from(name);
   const local = Buffer.alloc(30 + nameBytes.length);
   local.writeUInt32LE(0x04034b50, 0);
   local.writeUInt32LE(data.length, 18);
-  local.writeUInt32LE(data.length, 22);
+  local.writeUInt32LE(declaredSize, 22);
+  local.writeUInt16LE(options.deflate ? 8 : 0, 8);
   local.writeUInt16LE(nameBytes.length, 26);
   nameBytes.copy(local, 30);
   const central = Buffer.alloc(46 + nameBytes.length);
   central.writeUInt32LE(0x02014b50, 0);
   central.writeUInt32LE(data.length, 20);
-  central.writeUInt32LE(data.length, 24);
+  central.writeUInt32LE(declaredSize, 24);
+  central.writeUInt16LE(options.deflate ? 8 : 0, 10);
   central.writeUInt16LE(nameBytes.length, 28);
   nameBytes.copy(central, 46);
   const end = Buffer.alloc(22);
@@ -1503,7 +1578,7 @@ function storedZip(name, contents) {
   return Buffer.concat([local, data, central, end]);
 }
 
-test("binds official workflow source context, checked-out code, and exact configurations", () => {
+void test("binds official workflow source context, checked-out code, and exact configurations", () => {
   const record = build();
   assert.equal(record.workflow.source_sha, sha("a"));
   assert.equal(record.workflow.caller_path, ".github/workflows/ci.yml");
@@ -1527,7 +1602,7 @@ test("binds official workflow source context, checked-out code, and exact config
   );
 });
 
-test("records unused package and Rust toolchains as not applicable", () => {
+void test("records unused package and Rust toolchains as not applicable", () => {
   const full = build();
   const record = build({
     observed: {
@@ -1544,12 +1619,12 @@ test("records unused package and Rust toolchains as not applicable", () => {
     cargo: null,
     build_configuration: true,
   });
-  assert.equal(record.job_toolchains[0].node, "24.21.0");
-  assert.equal(record.job_toolchains[0].rust, null);
+  assert.equal(required(record.job_toolchains[0]).node, "24.21.0");
+  assert.equal(required(record.job_toolchains[0]).rust, null);
   assert.equal(validateWorkflowProvenance(record, validationContext), record);
 });
 
-test("binds a reusable workflow to both its top-level caller and called file", () => {
+void test("binds a reusable workflow to both its top-level caller and called file", () => {
   const reusableEnvironment = {
     ...environment,
     GITHUB_WORKFLOW_REF: "example/repo/.github/workflows/qualification.yml@refs/heads/main",
@@ -1570,7 +1645,7 @@ test("binds a reusable workflow to both its top-level caller and called file", (
   );
 });
 
-test("rejects substituted workflow refs, checkout SHAs, and artifact identities", () => {
+void test("rejects substituted workflow refs, checkout SHAs, and artifact identities", () => {
   assert.throws(
     () =>
       build({
@@ -1585,8 +1660,9 @@ test("rejects substituted workflow refs, checkout SHAs, and artifact identities"
   );
 });
 
-test("rejects incomplete match evidence and substituted cohort identities", () => {
+void test("rejects incomplete match evidence and substituted cohort identities", () => {
   const withoutMatches = build();
+  // @ts-expect-error malformed receipt deliberately removes required match evidence.
   delete withoutMatches.matches;
   assert.throws(() => validateWorkflowProvenance(withoutMatches, validationContext), /identity/u);
   const substitutedCohort = build();
@@ -1605,7 +1681,7 @@ test("rejects incomplete match evidence and substituted cohort identities", () =
   );
 });
 
-test("rejects missing plan, caller, and provenance-job toolchain identity", () => {
+void test("rejects missing plan, caller, and provenance-job toolchain identity", () => {
   assert.throws(() => build({ validationPlanDigest: "missing" }), /plan digest/u);
   assert.throws(() => build({ caller: "Bad caller" }), /caller/u);
   const missingJobs = build();
@@ -1613,6 +1689,7 @@ test("rejects missing plan, caller, and provenance-job toolchain identity", () =
   assert.throws(() => validateWorkflowProvenance(missingJobs, validationContext), /identity/u);
 
   const missingDesiredRust = build({
+    // @ts-expect-error malformed provider data deliberately omits the required Rust pin.
     desired: {
       node: "24.21.0",
       package_manager: "12.4.1",
@@ -1630,11 +1707,61 @@ test("rejects missing plan, caller, and provenance-job toolchain identity", () =
   );
 });
 
-test("extracts exactly one bounded provenance JSON file from an artifact ZIP", () => {
+void test("extracts exactly one bounded provenance JSON file from an artifact ZIP", () => {
   const record = build();
   assert.deepEqual(
     parseProvenanceArchive(storedZip("workflow-provenance.json", JSON.stringify(record))),
     record,
   );
   assert.throws(() => parseProvenanceArchive(storedZip("other.json", "{}")), /one JSON/u);
+});
+
+void test("provider run identities require text instead of coercible numbers", () => {
+  for (const malformed of [
+    { ...environment, GITHUB_RUN_ID: 42 },
+    { ...environment, GITHUB_RUN_ATTEMPT: 42 },
+  ]) {
+    assert.throws(() => {
+      // @ts-expect-error provider boundary deliberately receives a numeric environment identity.
+      build({ environment: malformed });
+    }, /Invalid GITHUB_RUN/);
+  }
+});
+
+void test("provenance deflate enforces its decoded bound before size comparison", () => {
+  const limit = 1024 * 1024;
+  const validJson = JSON.stringify("x".repeat(limit - 2));
+  assert.equal(Buffer.byteLength(validJson), limit);
+  assert.equal(
+    parseProvenanceArchive(storedZip("workflow-provenance.json", validJson, { deflate: true })),
+    "x".repeat(limit - 2),
+  );
+  const oversized = storedZip("workflow-provenance.json", " ".repeat(2 * limit), {
+    deflate: true,
+    declaredSize: 2,
+  });
+  assert.ok(oversized.length < 4096);
+  assert.throws(() => parseProvenanceArchive(oversized), { code: "ERR_BUFFER_TOO_LARGE" });
+});
+
+void test("duplicate provenance entries refuse before decoding a second payload", () => {
+  const json = JSON.stringify("x".repeat(1024 * 1024 - 2));
+  const single = storedZip("workflow-provenance.json", json, { deflate: true });
+  const footer = Buffer.from(single.subarray(single.length - 22));
+  const directoryOffset = footer.readUInt32LE(16);
+  const local = single.subarray(0, directoryOffset);
+  const central = single.subarray(directoryOffset, single.length - 22);
+  const secondLocal = Buffer.from(local);
+  const dataOffset = 30 + secondLocal.readUInt16LE(26) + secondLocal.readUInt16LE(28);
+  // If the parser reaches this duplicate's decoder, it raises Z_DATA_ERROR.
+  secondLocal[dataOffset] = 0xff;
+  const secondCentral = Buffer.from(central);
+  secondCentral.writeUInt32LE(local.length, 42);
+  footer.writeUInt16LE(2, 8);
+  footer.writeUInt16LE(2, 10);
+  footer.writeUInt32LE(central.length * 2, 12);
+  footer.writeUInt32LE(local.length * 2, 16);
+  const duplicate = Buffer.concat([local, secondLocal, central, secondCentral, footer]);
+  assert.ok(duplicate.length < 4096);
+  assert.throws(() => parseProvenanceArchive(duplicate), /must contain one JSON record/);
 });
