@@ -96,6 +96,7 @@ import {
   filterPorts,
   indexStatuses,
   mostRecentPort,
+  preparationRecoveryPort,
   requiredSourceNeeds,
   summarizeLibrary,
 } from "./view-model";
@@ -689,6 +690,18 @@ function Workspace({
           <StatusLayer
             error={operations.error}
             clearError={() => operations.setError(undefined)}
+            reviewPreparation={
+              preparationRecoveryPort(operations.error, data.catalog?.ports ?? [], data.statuses)
+                ? () => {
+                    const id = preparationRecoveryPort(
+                      operations.error,
+                      data.catalog?.ports ?? [],
+                      data.statuses,
+                    );
+                    if (id) openPortDetails(id, "error:preparation-review");
+                  }
+                : undefined
+            }
             operation={operations.operation}
             busy={operations.busy}
             updateNotice={applicationUpdate.notice}

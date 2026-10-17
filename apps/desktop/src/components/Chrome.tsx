@@ -297,6 +297,7 @@ function pageCopy(view: View, portCount: number) {
 export function StatusLayer({
   error,
   clearError,
+  reviewPreparation,
   operation,
   busy,
   updateNotice,
@@ -312,6 +313,7 @@ export function StatusLayer({
 }: {
   error?: unknown;
   clearError: () => void;
+  reviewPreparation?: (() => void) | undefined;
   operation?: OperationEvent | undefined;
   busy?: string | undefined;
   updateNotice?: ApplicationUpdateNoticeSnapshot["notice"] | undefined;
@@ -327,7 +329,9 @@ export function StatusLayer({
 }) {
   return (
     <>
-      {error != null && <ErrorNotice error={error} clearError={clearError} />}
+      {error != null && (
+        <ErrorNotice error={error} clearError={clearError} reviewPreparation={reviewPreparation} />
+      )}
       {updateNotice && (
         <ApplicationUpdateNoticeBanner
           notice={updateNotice}
@@ -493,7 +497,15 @@ function ApplicationUpdateNoticeBanner({
   );
 }
 
-function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => void }) {
+function ErrorNotice({
+  error,
+  clearError,
+  reviewPreparation,
+}: {
+  error: unknown;
+  clearError: () => void;
+  reviewPreparation?: (() => void) | undefined;
+}) {
   const presentation = failurePresentation(error);
   const committed = presentation?.mutation_state === "committed";
   const neutral =
@@ -536,6 +548,17 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
       </span>
       <div data-slot="notice-body">{renderFailureDetails()}</div>
       <div data-slot="notice-actions" className="error-actions flex gap-1">
+        {reviewPreparation && (
+          <Button
+            data-focusable
+            data-detail-origin="error:preparation-review"
+            variant="outline"
+            size="sm"
+            onClick={reviewPreparation}
+          >
+            Review game preparation
+          </Button>
+        )}
         <Button
           data-focusable
           variant="ghost"

@@ -178,7 +178,7 @@ fn diagnostic_text(text: &str) -> String {
 }
 
 pub(crate) fn failure(error: &portcove_core::FailureReport, technical: bool) -> String {
-    use portcove_core::{FailureTone, MutationState, RecoveryAction};
+    use portcove_core::{FailureRecoveryTarget, FailureTone, MutationState, RecoveryAction};
     let presentation = &error.presentation;
     let tone = if presentation.tone == FailureTone::Neutral {
         "cancelled"
@@ -202,6 +202,13 @@ pub(crate) fn failure(error: &portcove_core::FailureReport, technical: bool) -> 
         .contains(&RecoveryAction::ReviewPreparation)
     {
         output.push_str("\nReview game preparation before starting a new attempt.");
+        if let Some(FailureRecoveryTarget::Preparation { port_id }) = &presentation.recovery_target
+            && !port_id.is_empty()
+            && port_id.as_bytes().first().is_some_and(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+            && port_id.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        {
+            output.push_str(&format!("\nUsing the same library selection (including any --library option), inspect the current state with: portcove status {port_id}"));
+        }
     }
     if technical {
         let details = serde_json::json!({"code": error.code, "phase": presentation.phase,
@@ -2058,6 +2065,24 @@ fn optional_path(path: Option<&Path>) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn preparation_failure_guidance_is_read_only_and_keeps_the_originating_library_selection() {
+        use portcove_core::{FailureRecoveryTarget, MutationState, PortcoveError, RecoveryAction};
+        let mut report = PortcoveError::state("diagnostic")
+            .with_mutation_state(MutationState::RecoveryRequired).report();
+        report.presentation.recovery_actions.push(RecoveryAction::ReviewPreparation);
+        let legacy = super::failure(&report, false);
+        assert!(!legacy.contains("portcove status"));
+        for (id, expected) in [("opengoal-jak1", true), ("", false), ("--other", false), ("port;touch", false), ("port\nother", false)] {
+            report.presentation.recovery_target = Some(FailureRecoveryTarget::Preparation { port_id: id.into() });
+            let before = serde_json::to_value(&report).unwrap();
+            let output = super::failure(&report, false);
+            assert_eq!(output.contains("Using the same library selection (including any --library option)"), expected);
+            assert_eq!(output.contains("portcove status"), expected);
+            assert!(!output.contains("portcove prepare"));
+            assert_eq!(serde_json::to_value(&report).unwrap(), before);
+        }
+    }
     #[test]
     fn preview_channel_presentation_preserves_compatibility_and_upstream_names() {
         let value = serde_json::json!({"channel": "beta", "version": "Version1.0.5beta12", "upstream_name": "Beta 12", "application_milestone": "Public beta", "support_tier": "beta"});

@@ -1596,6 +1596,99 @@ export async function preparationScenarios({
     artifacts.push(report);
   });
 
+  await scenario("native-direct-preparation-recovery", async () => {
+    const { port, install } = await seed("opengoal-jak1", "failure");
+    await open(port);
+    const before = await activities();
+    const observations = { port_id: port.id, active_installation_id: install.id, inputs: [] };
+    try {
+      for (const input of [
+        path.join(output, `${port.id}.iso`),
+        path.join(install.path, port.executable_hints[host][0]),
+        path.join(install.path, port.setup_executable_hints[host][0]),
+        path.join(install.path, ".portcove-manifest.json"),
+      ]) {
+        const bytes = await readFile(input);
+        observations.inputs.push({
+          path: input,
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+          bytes: bytes.length,
+        });
+      }
+      await browser.findElement(button("Review game preparation")).click();
+      await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
+      await browser.findElement(button("Prepare game data")).click();
+      let failed;
+      await browser.wait(
+        async () => {
+          failed = (await activities()).find(
+            (item) =>
+              item.operation === "prepare" &&
+              item.target_id === port.id &&
+              !before.some((old) => old.id === item.id) &&
+              item.status === "failed",
+          );
+          return Boolean(failed);
+        },
+        15_000,
+        "The actual owned setup must fail and retain its Core report",
+      );
+      assert.equal(failed.failure.code, "source_invalid");
+      assert.equal(failed.failure.presentation.mutation_state, "recovery_required");
+      assert.equal(failed.failure.presentation.phase, "preparation.setup");
+      assert.deepEqual(failed.failure.presentation.recovery_target, {
+        kind: "preparation",
+        port_id: port.id,
+      });
+      assert.ok(failed.failure.presentation.recovery_actions.includes("review_preparation"));
+      observations.failed_activity = failed;
+      const action = By.css('[data-detail-origin="error:preparation-review"]');
+      await browser.wait(until.elementLocated(action), 15_000);
+      await browser
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .click();
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css("section[data-detail-workspace]"))).length === 0,
+        15_000,
+      );
+      const inventory = await activities();
+      await browser.findElement(action).click();
+      await browser.wait(
+        async () => {
+          const titles = await browser.findElements(By.css("#port-detail-title"));
+          return titles.length === 1 && (await titles[0].getText()) === port.name;
+        },
+        15_000,
+        "The direct error action must open its actual affected game",
+      );
+      assert.deepEqual(
+        (await activities()).map((item) => item.id).sort(),
+        inventory.map((item) => item.id).sort(),
+      );
+      assert.equal((await status(port.id)).active.id, install.id);
+      assert.deepEqual(
+        (await activities()).find((item) => item.id === failed.id).failure,
+        failed.failure,
+      );
+      for (const input of observations.inputs) {
+        const bytes = await readFile(input.path);
+        assert.equal(bytes.length, input.bytes);
+        assert.equal(createHash("sha256").update(bytes).digest("hex"), input.sha256);
+      }
+      observations.after_review = await status(port.id);
+      const image = path.join(output, "native-direct-preparation-recovery.png");
+      await writeFile(image, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+      artifacts.push(image);
+    } catch (error) {
+      observations.failure = String(error);
+      throw error;
+    } finally {
+      const report = path.join(output, "direct-preparation-recovery.json");
+      await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" });
+      artifacts.push(report);
+    }
+  });
   await scenario("native-preparation-cancellation", async () => {
     const { port, install } = await seed("opengoal-jak2", "wait", true);
     await open(port);

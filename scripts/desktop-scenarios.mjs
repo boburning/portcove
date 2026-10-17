@@ -285,6 +285,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-direct-preparation-recovery",
+    "An actual failed owned preparation opens its affected game from the direct error without repeating work.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-preparation-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-interrupted-preparation-recovery",
     "Interrupted preparation stays actionable across navigation and renderer restart.",
     {
@@ -626,6 +636,11 @@ export function resolveDesktopSelection({
     throw new Error("native-external-runtime-review requires one exact standalone scenario");
   if (uniqueRequested.includes("native-external-runtime-review") && platform !== "win32")
     throw new Error("native-external-runtime-review requires Windows");
+  if (
+    uniqueRequested.includes("native-direct-preparation-recovery") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-direct-preparation-recovery requires one standalone Windows scenario");
   if (
     uniqueRequested.includes("native-startup-preferences-recovery") &&
     uniqueRequested.length !== 1

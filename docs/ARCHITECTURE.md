@@ -965,6 +965,16 @@ cleanup use matching reviewed-plan, installation and activity identities before
 reading that retained definition. Unresolved or mismatched targets remain
 generic; diagnostic fields never supply a title or target, and display context
 does not authorize a recovery action or change an observed mutation outcome.
+Reports may carry an optional typed preparation recovery target from that same
+resolved definition. Older reports omit it; unknown or malformed optional target
+kinds do not hide the original report. The direct Desktop error offers existing
+game-detail review only for the explicit review action and a unique matching
+port/status in its current workspace. A genuine library generation change ends
+that workspace's error owner. This navigation repeats no mutation, restores no
+approval and grants no cleanup or resume authority; fresh detail/Core reviews
+retain their existing guards. CLI guidance preserves the originating library
+selection and identifies a read-only status command. Diagnostic strings never
+become a route.
 Not started, no requested changes, committed and recovery-required observations
 must be assigned where the operation owner has matching evidence. These states
 do not make blanket claims about diagnostic or lock-file bookkeeping.

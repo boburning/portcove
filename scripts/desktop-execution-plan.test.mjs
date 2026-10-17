@@ -136,6 +136,7 @@ test("execution planning preserves the independently reviewed pre-change oracle"
             "native-saved-folder-hash-resume",
             "native-preliminary-selected-setup",
             "native-linux-packaged-webview-boundary",
+            "native-direct-preparation-recovery",
           ].includes(id),
       ),
     });
@@ -343,6 +344,26 @@ test("game-update review binds Windows cleanup without first-play or wider deadl
     assert.deepEqual(selection.setup_scenarios, []);
     assert.equal(desktopHarnessDeadlineMs(selection), 180000);
   }
+});
+
+test("direct preparation recovery qualification is opt-in with positive identity cleanup", () => {
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: ["native-direct-preparation-recovery"],
+      platform: "win32",
+    }),
+  );
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "direct-preparation-recovery");
+  assert.deepEqual(plan.selection.setup_scenarios, []);
+  assert.throws(
+    () =>
+      resolveDesktopSelection({
+        scenarios: ["native-direct-preparation-recovery", "empty-library"],
+        platform: "win32",
+      }),
+    /standalone/,
+  );
 });
 
 test("backup review requires identity-bound Windows cleanup under the existing deadline", () => {
