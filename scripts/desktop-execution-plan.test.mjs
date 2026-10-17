@@ -459,6 +459,7 @@ test("coordinator consumes supplied order and obtains browser at each invocation
     interruptApplication() {},
     closeApplication() {},
     captureLivePreparation() {},
+    chooseOwnedLibrary() {},
     chooseGameFileFolder() {},
   };
   const runtime = {
@@ -489,6 +490,7 @@ test("coordinator consumes supplied order and obtains browser at each invocation
       assert.equal(c.browser, "replacement");
       assert.equal(c.cli, "cli");
       assert.equal(c.tool, "tool");
+      assert.equal(c.chooseOwnedLibrary, context.chooseOwnedLibrary);
       trace.push("preparation");
     },
   };

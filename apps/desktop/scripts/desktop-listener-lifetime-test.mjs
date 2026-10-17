@@ -15,6 +15,7 @@ export async function listenerLifetimeScenario({
   chooseOwnedLibrary,
   observeRunning,
 }) {
+  assert.equal(typeof chooseOwnedLibrary, "function", "Owned picker must survive journey dispatch");
   const alternate = path.join(output, "listener-reviewed-alternate");
   await mkdir(alternate);
   const key = `__portcoveListenerProbe_${randomUUID()}`;

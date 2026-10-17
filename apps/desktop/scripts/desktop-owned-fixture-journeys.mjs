@@ -49,6 +49,7 @@ export async function runOwnedFixtureJourneys({ plan, runtime }, journeys) {
           interruptApplication: context.interruptApplication,
           closeApplication: context.closeApplication,
           captureLivePreparation: context.captureLivePreparation,
+          chooseOwnedLibrary: context.chooseOwnedLibrary,
         });
         break;
       default:
