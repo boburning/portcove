@@ -1601,6 +1601,9 @@ internal static class ContractTests
                 "update selection explains the actual unavailable reason despite a retained active installation");
             Reject(() => PortActions.RequireUpdateReview(unavailable, 66),
                 "fresh update status refuses an unavailable route before consent");
+            Json.Object(unavailable)["active"] = null;
+            Check(PortActions.UpdateReviewProblem(unavailable, 66).Contains(reason.Replace('_', ' ')),
+                "missing active installation cannot replace an authoritative unavailable update reason");
         }
         var held = status(new object[] { rollback,
             new { action = "update", availability = "held", reason = "definition_ineligible",
@@ -1622,6 +1625,10 @@ internal static class ContractTests
             new { operation = "install", eligibility = new { outcome = "hold", reason = "metadata_stale" }, retained = false }
         }));
         Reject(() => PortActions.RequireUpdateReview(legacy, 65), "older definition hold still refuses update");
+        Json.Object(current)["definition_operations"] = Json.Field(legacy, "definition_operations");
+        Reject(() => PortActions.RequireUpdateReview(current, 66),
+            "current waiting update cannot override an explicit definition hold");
+        Json.Object(current).Remove("definition_operations");
         Json.Object(current)["active"] = null;
         Check(PortActions.UpdateReviewProblem(current, 66) != null,
             "update review still requires a current installation");

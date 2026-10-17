@@ -244,18 +244,18 @@ namespace Portcove.ReferenceClient
         internal static string UpdateReviewProblem(object status, long schema)
         {
             ValidateStatus(status, schema);
-            if (Json.Field(status, "active") == null)
-                return "Install this game before checking for a managed update.";
-            if (schema < 66)
+            DefinitionOperations.RequireEligible(status, "install");
+            if (schema >= 66)
             {
-                DefinitionOperations.RequireEligible(status, "install");
-                return null; // Supported older status has no update assessment.
+                var update = Read(status).Single(value => value.Action == "update");
+                if (update.Availability != "waiting" || update.Reason != "review_required")
+                    return "Portcove update is " + update.Availability.Replace('_', ' ') + ": " +
+                        (update.DefinitionReason ?? update.Reason).Replace('_', ' ') +
+                        ". Refresh readiness after resolving this restriction.";
             }
-            var update = Read(status).Single(value => value.Action == "update");
-            if (update.Availability == "waiting" && update.Reason == "review_required") return null;
-            return "Portcove update is " + update.Availability.Replace('_', ' ') + ": " +
-                (update.DefinitionReason ?? update.Reason).Replace('_', ' ') +
-                ". Refresh readiness after resolving this restriction.";
+            // Supported older status has no update assessment; retain its checks.
+            return Json.Field(status, "active") == null
+                ? "Install this game before checking for a managed update." : null;
         }
 
         internal static void RequireUpdateReview(object status, long schema)
