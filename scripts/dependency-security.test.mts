@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync, mkdtempSync, writeFileSync, rmSync, mkdirSync, readdirSync } from "node:fs";
@@ -9,6 +10,11 @@ import test from "node:test";
 import { developmentSecurity, recordsDevelopmentPolicy } from "./dependency-security.mts";
 import { executeAudit } from "./audit.mts";
 
+function requiredFixture<T>(value: T | null | undefined): T {
+  assert.ok(value !== undefined && value !== null);
+  return value;
+}
+
 const policy = readFileSync(new URL("../deny.toml", import.meta.url), "utf8");
 const digest = createHash("sha256").update(policy.replaceAll("\r\n", "\n")).digest("hex");
 const finding = {
@@ -17,15 +23,23 @@ const finding = {
   advisory: { id: "RUSTSEC-2024-0429", package: "glib" },
   labels: [{ span: "glib 0.18.5 registry+https://github.com/rust-lang/crates.io-index" }],
 };
-function scan(diagnostics = [finding]) {
-  const summary = Object.fromEntries(
-    ["advisories", "bans", "licenses", "sources"].map((g) => [
-      g,
-      { errors: 0, warnings: 0, notes: 0, helps: 0 },
-    ]),
-  );
-  for (const d of diagnostics)
-    summary.advisories[{ error: "errors", warning: "warnings" }[d.severity]]++;
+interface FixtureDiagnostic {
+  severity: string;
+  code: string;
+  advisory: { id: string; package: string };
+  labels?: { span: string }[];
+}
+function scan(diagnostics: FixtureDiagnostic[] = [finding]) {
+  const summary = {
+    advisories: { errors: 0, warnings: 0, notes: 0, helps: 0 },
+    bans: { errors: 0, warnings: 0, notes: 0, helps: 0 },
+    licenses: { errors: 0, warnings: 0, notes: 0, helps: 0 },
+    sources: { errors: 0, warnings: 0, notes: 0, helps: 0 },
+  };
+  for (const d of diagnostics) {
+    assert.ok(d.severity === "error" || d.severity === "warning");
+    summary.advisories[d.severity === "error" ? "errors" : "warnings"]++;
+  }
   return {
     head: "a".repeat(40),
     complete: true,
@@ -44,12 +58,12 @@ function scan(diagnostics = [finding]) {
       ...diagnostics.map((fields) => ({ type: "diagnostic", fields })),
       { type: "summary", fields: summary },
     ]
-      .map(JSON.stringify)
+      .map((entry) => JSON.stringify(entry))
       .join("\n"),
   };
 }
 
-test("development policy distinguishes raw failure, clean scan and release authorization", () => {
+void test("development policy distinguishes raw failure, clean scan and release authorization", () => {
   const raw = scan();
   const before = structuredClone(raw);
   const result = developmentSecurity(raw, policy);
@@ -61,7 +75,7 @@ test("development policy distinguishes raw failure, clean scan and release autho
   assert.equal(developmentSecurity(scan([]), policy).scanPassed, true);
 });
 
-test("actual development CLI succeeds without approval/API and retains raw failed scanner bytes", (t) => {
+void test("actual development CLI succeeds without approval/API and retains raw failed scanner bytes", (t) => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "portcove-security-cli-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(path.join(dir, "scripts"));
@@ -88,14 +102,18 @@ test("actual development CLI succeeds without approval/API and retains raw faile
     globalThis.fetch = () => { throw new Error('Release API forbidden'); };
     syncBuiltinESMExports();`,
   );
-  const environment = {
+  writeFileSync(
+    path.join(dir, "scripts/runtime-values.mts"),
+    readFileSync(new URL("./runtime-values.mts", import.meta.url)),
+  );
+  const environment: NodeJS.ProcessEnv = {
     ...process.env,
     GH_TOKEN: "",
     GITHUB_TOKEN: "",
     GITHUB_REF_NAME: "no-release-tag",
   };
   delete environment.PORTCOVE_706_SCAN_RECEIPT;
-  const run = (args = []) =>
+  const run = (args: string[] = []) =>
     spawnSync(
       process.execPath,
       [
@@ -116,37 +134,41 @@ test("actual development CLI succeeds without approval/API and retains raw faile
   assert.match(first.stdout, /Development security policy: PASS/);
   const evidenceDir = path.join(dir, "work/linux-beta-risk-706");
   const files = readdirSync(evidenceDir);
-  const receipt = JSON.parse(
+  const receipt: unknown = JSON.parse(
     readFileSync(
       path.join(
         evidenceDir,
-        files.find((f: string) => !f.endsWith(".decision.json")),
+        requiredFixture(files.find((f: string) => !f.endsWith(".decision.json"))),
       ),
+      "utf8",
     ),
   );
+  assert.ok(isRecord(receipt));
   assert.equal(receipt.exitCode, 1);
   assert.equal(receipt.stderr, raw.stderr);
-  const decision = JSON.parse(
+  const decision: unknown = JSON.parse(
     readFileSync(
       path.join(
         evidenceDir,
-        files.find((f: string) => f.endsWith(".decision.json")),
+        requiredFixture(files.find((f: string) => f.endsWith(".decision.json"))),
       ),
+      "utf8",
     ),
   );
+  assert.ok(isRecord(decision));
   assert.equal(decision.scanPassed, false);
   assert.equal(decision.releaseAuthorization, "not-evaluated");
   assert.equal(run(["scan"]).status, 1);
 });
 
-test("source/test edits, expired approval and unavailable release API have no development prerequisites", (t) => {
+void test("source/test edits, expired approval and unavailable release API have no development prerequisites", (t) => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "portcove-dev-security-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   for (const [file, value] of [
     ["unrelated.rs", "fn production() {}"],
     ["tests.rs", "#[test] fn unrelated() {}"],
     ["approval.json", '{"expiresAt":"2000-01-01"}'],
-  ]) {
+  ] as const) {
     writeFileSync(path.join(dir, file), value);
     assert.equal(developmentSecurity(scan(), policy).policyPassed, true);
   }
@@ -158,7 +180,7 @@ test("source/test edits, expired approval and unavailable release API have no de
   );
 });
 
-test("additional errors and changed advisory/package/version/source identity fail closed", () => {
+void test("additional errors and changed advisory/package/version/source identity fail closed", () => {
   for (const diagnostics of [
     [finding, { ...finding, advisory: { id: "RUSTSEC-2099-0001", package: "other" } }],
     [{ ...finding, advisory: { ...finding.advisory, id: "GHSA-wrw7-89jp-8q8g" } }],
@@ -174,7 +196,7 @@ test("additional errors and changed advisory/package/version/source identity fai
     assert.throws(() => developmentSecurity(scan(diagnostics), policy), /blocking finding/);
 });
 
-test("incomplete, malformed, timed out, wrong tool/config and inconsistent scanner executions fail", () => {
+void test("incomplete, malformed, timed out, wrong tool/config and inconsistent scanner executions fail", () => {
   for (const mutation of [
     { complete: false },
     { error: "ETIMEDOUT" },
@@ -194,7 +216,7 @@ test("incomplete, malformed, timed out, wrong tool/config and inconsistent scann
     assert.throws(() => developmentSecurity({ ...scan(), ...mutation }, policy));
 });
 
-test("configured warning severity remains nonblocking without accepting new errors", () => {
+void test("configured warning severity remains nonblocking without accepting new errors", () => {
   const warning = {
     severity: "warning",
     code: "unmaintained",
@@ -207,7 +229,7 @@ test("configured warning severity remains nonblocking without accepting new erro
   );
 });
 
-test("policy success cannot cover independent audit failure or become scanner evidence", (t) => {
+void test("policy success cannot cover independent audit failure or become scanner evidence", (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "portcove-dev-audit-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const stages = ["dependency-policy", "other-quality"].map((id) => ({
@@ -222,15 +244,19 @@ test("policy success cannot cover independent audit failure or become scanner ev
     { execute: () => ({ status: 1 }) },
   );
   const decision = developmentSecurity(scan(), policy);
+  assert.equal(typeof result.report.head, "string");
+  const head: unknown = result.report.head;
+  assert.equal(typeof head, "string");
+  assert.ok(typeof head === "string");
   assert.equal(result.success, false);
   assert.equal(
-    recordsDevelopmentPolicy({ ...result.report, policyDecision: decision }, result.report.head),
+    recordsDevelopmentPolicy({ ...result.report, policyDecision: decision }, head),
     false,
   );
   const onlyKnown = structuredClone(result.report);
-  onlyKnown.stages[1].status = "passed";
-  onlyKnown.policyDecision = decision;
-  assert.equal(recordsDevelopmentPolicy(onlyKnown, result.report.head), true);
+  requiredFixture(onlyKnown.stages[1]).status = "passed";
+  const withDecision = { ...onlyKnown, policyDecision: decision };
+  assert.equal(recordsDevelopmentPolicy(withDecision, head), true);
   assert.equal(onlyKnown.success, false);
-  assert.equal(onlyKnown.stages[0].status, "failed");
+  assert.equal(requiredFixture(onlyKnown.stages[0]).status, "failed");
 });

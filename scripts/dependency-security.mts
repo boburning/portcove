@@ -1,4 +1,4 @@
-import { errorMessage } from "./runtime-values.mts";
+import { isRecord, errorMessage } from "./runtime-values.mts";
 // Development regression policy. This module has no release-approval dependency.
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
@@ -7,12 +7,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const hash = (text: string) =>
+const hash = (text: string | Uint8Array) =>
   createHash("sha256")
     .update(typeof text === "string" ? text.replaceAll("\r\n", "\n") : text)
     .digest("hex");
 const canonicalText = (value: string) => value.replaceAll("\r\n", "\n");
-function scanCommand(name, args, cwd) {
+function scanCommand(name: string, args: string[], cwd: string) {
   return execFileSync(name, args, {
     cwd,
     encoding: "utf8",
@@ -22,7 +22,7 @@ function scanCommand(name, args, cwd) {
   }).trim();
 }
 
-const groups = ["advisories", "bans", "licenses", "sources"];
+const groups = ["advisories", "bans", "licenses", "sources"] as const;
 
 export function scanDependencies(cwd = root, filename = process.env.PORTCOVE_706_SCAN_RECEIPT) {
   const output = filename ?? path.join(cwd, "work", "linux-beta-risk-706", `${randomUUID()}.json`);
@@ -70,7 +70,7 @@ export function scanDependencies(cwd = root, filename = process.env.PORTCOVE_706
     exitCode: run.status,
     signal: run.signal,
     error: run.error ? String(run.error.message) : null,
-    complete: !run.error && run.signal === null && [0, 1].includes(run.status),
+    complete: !run.error && run.signal === null && (run.status === 0 || run.status === 1),
     stdout: run.stdout ?? "",
     stderr: run.stderr ?? "",
   };
@@ -82,30 +82,49 @@ export function scanDependencies(cwd = root, filename = process.env.PORTCOVE_706
   return { scan, output };
 }
 
-export function parseDependencyScan(stdout, stderr) {
-  const diagnostics = [];
-  let summary;
-  for (const line of `${stdout}\n${stderr}`.split(/\r?\n/u).filter((line: string) => line.trim())) {
-    const entry = JSON.parse(line);
+type Diagnostic = Record<string, unknown> & { severity: "error" | "warning" | "note" | "help" };
+type SummaryCounts = { errors: number; warnings: number; notes: number; helps: number };
+type DependencySummary = Record<"advisories" | "bans" | "licenses" | "sources", SummaryCounts>;
+function assertSummary(value: unknown): asserts value is DependencySummary {
+  if (!isRecord(value) || Object.keys(value).sort().join() !== groups.toSorted().join())
+    throw new Error("incomplete cargo-deny check coverage");
+  for (const group of groups) {
+    const counts = value[group];
+    if (!isRecord(counts)) throw new Error("incomplete cargo-deny summary");
+    for (const key of ["errors", "warnings", "notes", "helps"]) {
+      if (typeof counts[key] !== "number" || !Number.isSafeInteger(counts[key]) || counts[key] < 0)
+        throw new Error("incomplete cargo-deny summary");
+    }
+  }
+}
+export function parseDependencyScan(stdout: string, stderr: string) {
+  const diagnostics: Diagnostic[] = [];
+  let summary: unknown;
+  for (const line of `${stdout}\n${stderr}`.split(/\r?\n/u).filter((line) => line.trim())) {
+    const entry: unknown = JSON.parse(line);
+    if (!isRecord(entry)) throw new Error("unexpected or duplicate cargo-deny output");
     if (entry.type === "diagnostic") {
-      if (!["error", "warning", "note", "help"].includes(entry.fields?.severity))
+      const fields = entry.fields;
+      if (
+        !isRecord(fields) ||
+        (fields.severity !== "error" &&
+          fields.severity !== "warning" &&
+          fields.severity !== "note" &&
+          fields.severity !== "help")
+      )
         throw new Error("unknown cargo-deny diagnostic severity");
-      diagnostics.push(entry.fields);
+      diagnostics.push({ ...fields, severity: fields.severity });
     } else if (entry.type === "summary" && !summary) summary = entry.fields;
     else throw new Error("unexpected or duplicate cargo-deny output");
   }
-  if (!summary || Object.keys(summary).sort().join() !== groups.toSorted().join())
-    throw new Error("incomplete cargo-deny check coverage");
+  assertSummary(summary);
   for (const [severity, key] of [
     ["error", "errors"],
     ["warning", "warnings"],
     ["note", "notes"],
     ["help", "helps"],
-  ]) {
-    for (const group of groups)
-      if (!Number.isSafeInteger(summary[group]?.[key]) || summary[group][key] < 0)
-        throw new Error("incomplete cargo-deny summary");
-    // cargo-deny hides license helps/source notes at its default verbosity. Errors and warnings are emitted.
+  ] as const) {
+    // cargo-deny hides license helps/source notes at default verbosity.
     if (
       ["error", "warning"].includes(severity) &&
       diagnostics.filter((d) => d.severity === severity).length !==
@@ -116,24 +135,35 @@ export function parseDependencyScan(stdout, stderr) {
   return { errors: diagnostics.filter((d) => d.severity === "error"), summary, diagnostics };
 }
 
-export function knownFinding706(finding) {
+export function knownFinding706(finding: unknown): boolean {
+  if (!isRecord(finding)) return false;
   return (
     finding?.severity === "error" &&
     finding.code === "unsound" &&
-    finding.advisory?.id === "RUSTSEC-2024-0429" &&
+    isRecord(finding.advisory) &&
+    finding.advisory.id === "RUSTSEC-2024-0429" &&
     finding.advisory.package === "glib" &&
-    finding.labels?.some(
-      (label) => label.span === "glib 0.18.5 registry+https://github.com/rust-lang/crates.io-index",
+    Array.isArray(finding.labels) &&
+    finding.labels.some(
+      (label: unknown) =>
+        isRecord(label) &&
+        label.span === "glib 0.18.5 registry+https://github.com/rust-lang/crates.io-index",
     )
   );
 }
 
-export function developmentSecurity(scan, policy: string) {
+export function developmentSecurity(scan: unknown, policy: string) {
   if (
-    !scan?.complete ||
+    !isRecord(scan) ||
+    !scan.complete ||
+    typeof scan.head !== "string" ||
+    typeof scan.stdout !== "string" ||
+    typeof scan.stderr !== "string" ||
+    typeof scan.executionConfig !== "string" ||
+    typeof scan.sourceConfig !== "string" ||
     scan.signal !== null ||
     scan.error !== null ||
-    ![0, 1].includes(scan.exitCode) ||
+    (scan.exitCode !== 0 && scan.exitCode !== 1) ||
     scan.unsoundAll !== true ||
     scan.scope !== "workspace-default-all-targets-all-checks" ||
     scan.toolVersion !== "cargo-deny 0.20.2" ||
@@ -167,8 +197,9 @@ export function developmentSecurity(scan, policy: string) {
 }
 
 // Diagnostic recognition only: never turns a raw failed audit into reusable scanner evidence.
-export function recordsDevelopmentPolicy(payload, source) {
-  const decision = payload?.policyDecision;
+export function recordsDevelopmentPolicy(payload: unknown, source: string): boolean {
+  if (!isRecord(payload)) return false;
+  const decision = isRecord(payload.policyDecision) ? payload.policyDecision : undefined;
   return (
     payload?.success === false &&
     payload.originalExitCode === 1 &&
@@ -181,16 +212,19 @@ export function recordsDevelopmentPolicy(payload, source) {
     decision.knownFinding === "RUSTSEC-2024-0429" &&
     decision.releaseAuthorization === "not-evaluated" &&
     Array.isArray(payload.stages) &&
-    payload.stages.filter((s) => s?.status === "failed").length === 1 &&
+    payload.stages.filter((s: unknown) => isRecord(s) && s.status === "failed").length === 1 &&
     payload.stages.every(
-      (s) =>
-        s?.status === "passed" ||
-        (s?.id === "dependency-policy" && s.status === "failed" && s.exitCode === 1),
+      (s: unknown) =>
+        isRecord(s) &&
+        (s.status === "passed" ||
+          (s.id === "dependency-policy" && s.status === "failed" && s.exitCode === 1)),
     )
   );
 }
 
-export function describeDevelopmentSecurity(decision) {
+export function describeDevelopmentSecurity(
+  decision: Pick<ReturnType<typeof developmentSecurity>, "scanPassed">,
+) {
   return `Development security policy: PASS; dependency scanner: ${decision.scanPassed ? "PASS" : "FAIL — existing RUSTSEC-2024-0429; remediation #706 outstanding"}; Linux release authorization: not evaluated.`;
 }
 
