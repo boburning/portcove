@@ -1,3 +1,10 @@
+import type { ExecFileSyncOptions } from "node:child_process";
+import type {
+  ValidationChange,
+  ValidationChangeInput,
+  ValidationPlan,
+} from "./validation-plan.mts";
+import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
 import { discoverPostmergeReuse } from "./postmerge-ci.mts";
 import { annotateNextest } from "./nextest-equivalence.mts";
 import { execFileSync } from "node:child_process";
@@ -41,7 +48,7 @@ export function fastPlatformMatrix(plan) {
     });
 }
 
-function normalizePath(value: string) {
+function normalizePath(value: unknown) {
   if (
     typeof value !== "string" ||
     value.length === 0 ||
@@ -55,7 +62,7 @@ function normalizePath(value: string) {
   return value;
 }
 
-export function parseRawDiff(buffer) {
+export function parseRawDiff(buffer: unknown): (ValidationChange & { score: string | null })[] {
   if (!Buffer.isBuffer(buffer)) throw new Error("raw diff must be a Buffer");
   const fields = buffer.toString("utf8").split("\0");
   if (fields.at(-1) !== "") throw new Error("raw diff is not NUL terminated");
@@ -63,9 +70,12 @@ export function parseRawDiff(buffer) {
   const changes = [];
   for (let index = 0; index < fields.length;) {
     const header = fields[index++];
+    if (header === undefined) throw new Error("raw diff ended before its header");
     const match = header.match(/^:([0-7]{6}) ([0-7]{6}) ([a-f0-9]+) ([a-f0-9]+) ([A-Z])([0-9]*)$/u);
     if (!match) throw new Error(`malformed raw diff header: ${JSON.stringify(header)}`);
     const [, oldMode, newMode, , , status, score] = match;
+    if (!oldMode || !newMode || !status)
+      throw new Error("raw diff is missing mode or status fields");
     const oldPath = normalizePath(fields[index++]);
     const newPath = status === "R" || status === "C" ? normalizePath(fields[index++]) : oldPath;
     if (!oldPath || !newPath) throw new Error("raw diff ended before its paths");
@@ -74,7 +84,7 @@ export function parseRawDiff(buffer) {
   return changes;
 }
 
-export function classifyChanges(changes) {
+export function classifyChanges(changes: ValidationChangeInput[]) {
   const plan = buildValidationPlan({
     changes,
     eventName: "pull_request",
@@ -83,30 +93,46 @@ export function classifyChanges(changes) {
   return { mode: plan.mode, reason: plan.reason, files: plan.changed_files };
 }
 
-function checkedSha(value, label) {
-  if (!fullSha.test(value ?? "")) throw new Error(`${label} must be a full lowercase Git SHA`);
+function checkedSha(value: unknown, label: string): string {
+  if (typeof value !== "string" || !fullSha.test(value))
+    throw new Error(`${label} must be a full lowercase Git SHA`);
   return value;
 }
 
+interface CiDiscoveryOptions {
+  eventName?: string | undefined;
+  baseSha?: string | undefined;
+  headSha?: string | undefined;
+  checkoutSha?: string | undefined;
+  proseOnlyEnabled?: boolean;
+  fastValidationEnabled?: boolean;
+  forceQualification?: boolean;
+}
+type CiGitRunner = (args: string[], options?: ExecFileSyncOptions) => string | Buffer;
+
 export function discoverCiPlan(
   {
-    eventName,
+    eventName = "",
     baseSha,
     headSha,
     checkoutSha,
     proseOnlyEnabled = false,
     fastValidationEnabled = false,
     forceQualification = false,
-  },
-  runGit = (args, options = {}) => execFileSync("git", args, { cwd: projectRoot, ...options }),
-) {
+  }: CiDiscoveryOptions,
+  runGit: CiGitRunner = (args, options = {}) =>
+    execFileSync("git", args, { cwd: projectRoot, ...options }),
+): ValidationPlan {
   const checkout = checkedSha(checkoutSha, "checkout SHA");
-  const qualify = (plan) => {
+  const qualify = (
+    plan: ValidationPlan,
+    reason = "explicit-reusable-qualification",
+  ): ValidationPlan => {
     if (plan.mode === "blocked") return plan;
-    const replacement = {
+    const replacement: Omit<ValidationPlan, "digest"> & { digest?: string } = {
       ...plan,
       mode: "qualification",
-      reason: "explicit-reusable-qualification",
+      reason,
       groups: fastGroups,
       platforms: qualificationPlatforms,
       qualification_required: true,
@@ -130,7 +156,12 @@ export function discoverCiPlan(
       try {
         runGit(["cat-file", "-e", `${base}^{commit}`]);
       } catch (error) {
-        if (![1, 128].includes(error.status)) throw error;
+        if (
+          !isRecord(error) ||
+          typeof error.status !== "number" ||
+          ![1, 128].includes(error.status)
+        )
+          throw error;
         return buildValidationPlan({ changes: [], eventName, checkout });
       }
     }
@@ -151,39 +182,21 @@ export function discoverCiPlan(
     );
     const plan = buildValidationPlan({ changes, eventName, base, mergeBase, head, checkout });
     if (plan.mode === "prose" && !proseOnlyEnabled) {
-      const replacement = {
-        ...plan,
-        mode: "qualification",
-        reason: "prose-policy-awaiting-independent-activation",
-        groups: fastGroups,
-        platforms: qualificationPlatforms,
-        qualification_required: true,
-      };
-      delete replacement.digest;
-      return { ...replacement, digest: digestValidationPlan(replacement) };
+      return qualify(plan, "prose-policy-awaiting-independent-activation");
     }
     if (plan.mode === "fast" && !fastValidationEnabled) {
-      const replacement = {
-        ...plan,
-        mode: "qualification",
-        reason: "fast-validation-awaiting-independent-activation",
-        groups: fastGroups,
-        platforms: qualificationPlatforms,
-        qualification_required: true,
-      };
-      delete replacement.digest;
-      return { ...replacement, digest: digestValidationPlan(replacement) };
+      return qualify(plan, "fast-validation-awaiting-independent-activation");
     }
     return plan;
   } catch (error) {
     return buildValidationPlan({
       changes: [],
       eventName,
-      base: fullSha.test(baseSha ?? "") ? baseSha : null,
-      head: fullSha.test(headSha ?? "") ? headSha : null,
+      base: typeof baseSha === "string" && fullSha.test(baseSha) ? baseSha : null,
+      head: typeof headSha === "string" && fullSha.test(headSha) ? headSha : null,
       checkout,
       discovery: "failed",
-      blockedReason: `diff-discovery-failed:${error.code ?? error.name ?? "error"}`,
+      blockedReason: `diff-discovery-failed:${errorCode(error) ?? (isRecord(error) && typeof error.name === "string" ? error.name : "error")}`,
     });
   }
 }
@@ -268,7 +281,7 @@ async function main() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   main().catch((error) => {
-    console.error(error.message);
+    console.error(errorMessage(error));
     process.exitCode = 1;
   });
 }

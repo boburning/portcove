@@ -1,3 +1,4 @@
+import type { ValidationChangeInput, ValidationPlan, ValidationGroup } from "./validation-plan.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -10,8 +11,8 @@ import {
   validationOwnershipForPath,
 } from "./validation-plan.mts";
 import { discoverCiPlan } from "./select-ci-plan.mts";
-const sha = (c) => c.repeat(40);
-const change = (file, values = {}) => ({
+const sha = (c: string) => c.repeat(40);
+const change = (file: string, values: Partial<ValidationChangeInput> = {}) => ({
   status: "M",
   oldMode: "100644",
   newMode: "100644",
@@ -19,7 +20,10 @@ const change = (file, values = {}) => ({
   newPath: file,
   ...values,
 });
-const plan = (changes, values = {}) =>
+const plan = (
+  changes: ValidationChangeInput[],
+  values: Partial<Parameters<typeof buildValidationPlan>[0]> = {},
+) =>
   buildValidationPlan({
     changes,
     eventName: "pull_request",
@@ -29,9 +33,9 @@ const plan = (changes, values = {}) =>
     checkout: sha("d"),
     ...values,
   });
-const redigest = (p) => ({ ...p, digest: digestValidationPlan(p) });
+const redigest = <Plan extends object>(p: Plan) => ({ ...p, digest: digestValidationPlan(p) });
 
-test("regular executable modes route by ownership while nonregular inputs block", () => {
+void test("regular executable modes route by ownership while nonregular inputs block", () => {
   for (const modes of [
     { oldMode: "100755", newMode: "100755" },
     { status: "A", oldMode: "000000", newMode: "100755" },
@@ -51,20 +55,20 @@ test("regular executable modes route by ownership while nonregular inputs block"
   }
 });
 
-test("shared browser trace runtime selects required frontend coverage", () => {
+void test("shared browser trace runtime selects required frontend coverage", () => {
   const file = "scripts/browser-traces.ts";
   const ownership = validationOwnershipForPath(file);
   assert.ok(ownership.groups.includes("frontend"));
   assert.ok(plan([change(file)]).groups.includes("frontend"));
 });
 
-test("shared frontend compiler policy selects the same required checks as the root compiler config", () => {
+void test("shared frontend compiler policy selects the same required checks as the root compiler config", () => {
   const shared = validationOwnershipForPath("tsconfig.base.json");
   const root = validationOwnershipForPath("tsconfig.json");
   assert.deepEqual({ ...shared, path: root.path }, root);
 });
 
-test("scoped beta matcher and Roadmap release consumer retain protected qualification ownership", () => {
+void test("scoped beta matcher and Roadmap release consumer retain protected qualification ownership", () => {
   for (const file of [
     "scripts/linux-beta-risk-706.mts",
     "scripts/linux-beta-risk-706.test.mts",
@@ -79,7 +83,7 @@ test("scoped beta matcher and Roadmap release consumer retain protected qualific
   }
 });
 
-test("ordinary layers select the minimum baseline and union mixed changes", () => {
+void test("ordinary layers select the minimum baseline and union mixed changes", () => {
   for (const [file, groups] of [
     ["apps/desktop/src/App.tsx", ["frontend", "rust-quality"]],
     ["crates/portcove-core/src/lib.rs", ["rust", "rust-quality"]],
@@ -88,7 +92,7 @@ test("ordinary layers select the minimum baseline and union mixed changes", () =
     ["docs/QUALITY.md", ["catalog", "rust-quality"]],
     [".github/workflows/ci.yml", ["catalog", "rust-quality"]],
     ["scripts/validation-plan.mts", ["catalog", "rust-quality"]],
-  ]) {
+  ] as const) {
     const p = plan([change(file)]);
     assert.equal(p.mode, "fast");
     assert.deepEqual(p.groups, groups);
@@ -102,7 +106,7 @@ test("ordinary layers select the minimum baseline and union mixed changes", () =
     "rust-quality",
   ]);
 });
-test("docs and captures ignore schema/catalog/platform topic words", () => {
+void test("docs and captures ignore schema/catalog/platform topic words", () => {
   for (const file of [
     "docs/SIGNED-CATALOG.md",
     "docs/UPDATER-TRUST.md",
@@ -113,7 +117,7 @@ test("docs and captures ignore schema/catalog/platform topic words", () => {
     assert.deepEqual(plan([change(file)]).groups, ["catalog", "rust-quality"]);
   assert.equal(plan([change("docs/README.md")]).mode, "prose");
 });
-test("shared toolchain and safe unknown inputs select the entire Windows baseline", () => {
+void test("shared toolchain and safe unknown inputs select the entire Windows baseline", () => {
   for (const file of [".node-version", ".github/quality-tools.json", "future/new-script.xyz"]) {
     const p = plan([change(file)]);
     assert.deepEqual(p.groups, fastGroups);
@@ -123,7 +127,7 @@ test("shared toolchain and safe unknown inputs select the entire Windows baselin
   const p = plan([change("future/new-script.xyz")]);
   assert.deepEqual(p.fallback, { kind: "all-fast-groups", paths: ["future/new-script.xyz"] });
 });
-test("native/platform and release implementation edits stay ordinary; full coverage is explicit", () => {
+void test("native/platform and release implementation edits stay ordinary; full coverage is explicit", () => {
   for (const file of [
     "apps/desktop/src-tauri/src/application_update_windows.rs",
     "scripts/test-linux-package-ownership.sh",
@@ -148,7 +152,7 @@ test("native/platform and release implementation edits stay ordinary; full cover
     validateQualificationBinding({ plan: p, digest: p.digest, checkout: sha("c") }),
   );
 });
-test("both rename sides and deletions preserve explicit change identity", () => {
+void test("both rename sides and deletions preserve explicit change identity", () => {
   const changes = [
     change("crates/portcove-core/src/source_report.rs", {
       status: "R",
@@ -163,7 +167,7 @@ test("both rename sides and deletions preserve explicit change identity", () => 
   assert.ok(p.changed_files.includes("docs/old-rust.md"));
   validateValidationPlan(p);
 });
-test("incomplete discovery and unsafe modes/statuses block; unsafe paths reject", () => {
+void test("incomplete discovery and unsafe modes/statuses block; unsafe paths reject", () => {
   for (const input of [
     plan([]),
     plan([change("AGENTS.md", { newMode: "120000" })]),
@@ -177,9 +181,10 @@ test("incomplete discovery and unsafe modes/statuses block; unsafe paths reject"
   for (const file of ["../secret", "/absolute", "bad\\path", "bad\0path"])
     assert.throws(() => plan([change(file)]));
 });
-test("digest and structural tampering cannot authorize missing or stale lanes", () => {
+void test("digest and structural tampering cannot authorize missing or stale lanes", () => {
   const p = plan([change("crates/portcove-core/src/lib.rs")]);
   assert.throws(() => validateValidationPlan({ ...p, groups: [] }));
+  type MutableGroupPlan = Omit<ValidationPlan, "groups"> & { groups: ValidationGroup[] };
   for (const mutate of [
     (q) => q.groups.pop(),
     (q) => (q.changes = []),
@@ -187,8 +192,8 @@ test("digest and structural tampering cannot authorize missing or stale lanes", 
     (q) => (q.paths = []),
     (q) => (q.discovery = "failed"),
     (q) => (q.platforms = []),
-  ]) {
-    const q = structuredClone(p);
+  ] satisfies readonly ((candidate: MutableGroupPlan) => unknown)[]) {
+    const q = { ...structuredClone(p), groups: [...p.groups] };
     mutate(q);
     assert.throws(() => validateValidationPlan(redigest(q)));
   }
@@ -197,7 +202,7 @@ test("digest and structural tampering cannot authorize missing or stale lanes", 
   assert.throws(() => validateValidationPlan(redigest(q)));
 });
 
-test("generated transport snapshots and declaration inputs retain real Rust drift validation", () => {
+void test("generated transport snapshots and declaration inputs retain real Rust drift validation", () => {
   for (const file of [
     "apps/desktop/src/transport-host-output.generated.json",
     "apps/desktop/src/transport-types.generated.d.ts",
@@ -212,7 +217,7 @@ test("generated transport snapshots and declaration inputs retain real Rust drif
   }
 });
 
-test("actual Stylelint loader and typed policy retain protected audit qualification", () => {
+void test("actual Stylelint loader and typed policy retain protected audit qualification", () => {
   for (const file of [
     "apps/desktop/stylelint.config.mjs",
     "apps/desktop/scripts/stylelint-config.mts",
@@ -220,6 +225,29 @@ test("actual Stylelint loader and typed policy retain protected audit qualificat
     const ownership = validationOwnershipForPath(file);
     assert.ok(ownership.areas.includes("policy"), file);
     assert.equal(ownership.qualificationRequired, true, file);
-    assert.deepEqual(ownership.platforms, [...qualificationPlatforms].sort(), file);
+    assert.deepEqual(
+      ownership.platforms,
+      [...qualificationPlatforms].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0)),
+      file,
+    );
+  }
+});
+
+void test("validation plan rejects malformed retained equivalence proof before trusting its lanes", () => {
+  const proof = {
+    parser: "python-tomllib-v1",
+    before: "a".repeat(64),
+    after: "b".repeat(64),
+  } as const;
+  const candidate = plan([change(".config/nextest.toml", { nextest_equivalence: proof })]);
+  assert.equal(validateValidationPlan(candidate), candidate);
+  const entry = candidate.changes[0];
+  assert(entry);
+  for (const malformed of [null, {}, { ...proof, before: {} }, { ...proof, parser: "other" }]) {
+    const tampered = redigest({
+      ...candidate,
+      changes: [{ ...entry, nextest_equivalence: malformed }],
+    });
+    assert.throws(() => validateValidationPlan(tampered), /nextest equivalence proof/u);
   }
 });

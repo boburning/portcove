@@ -1,9 +1,34 @@
+import type { SpawnSyncOptionsWithStringEncoding, SpawnSyncReturns } from "node:child_process";
+import { isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 
+export interface NextestProof {
+  parser: "python-tomllib-v1";
+  before: string;
+  after: string;
+}
+export interface NextestChange {
+  status: string;
+  oldPath?: string | null;
+  newPath?: string | null;
+  oldMode?: string | null;
+  newMode?: string | null;
+  nextest_equivalence?: NextestProof;
+}
+type NextestRunner = (
+  command: string,
+  args: string[],
+  options: SpawnSyncOptionsWithStringEncoding,
+) => Pick<SpawnSyncReturns<string>, "status" | "stdout" | "error">;
+
 // A deliberately narrow TOML comparison. Parser absence or uncertainty keeps
 // the normal workspace obligation. This helper never changes runner budgets.
-export function compareNextest(before, after, spawn = spawnSync) {
+export function compareNextest(
+  before: unknown,
+  after: unknown,
+  spawn: NextestRunner = spawnSync,
+): NextestProof | null {
   if (
     typeof before !== "string" ||
     typeof after !== "string" ||
@@ -35,24 +60,35 @@ export function compareNextest(before, after, spawn = spawnSync) {
     },
   );
   if (result.error || result.status !== 0 || result.stdout.trim() !== "equal") return null;
-  const hash = (text) => createHash("sha256").update(text).digest("hex");
+  const hash = (text: string) => createHash("sha256").update(text).digest("hex");
   return { parser: "python-tomllib-v1", before: hash(before), after: hash(after) };
 }
 
-export function hasNextestEquivalence(change) {
+export function isNextestProof(value: unknown): value is NextestProof {
+  return (
+    isRecord(value) &&
+    value.parser === "python-tomllib-v1" &&
+    [value.before, value.after].every(
+      (hash) => typeof hash === "string" && /^[a-f0-9]{64}$/u.test(hash),
+    )
+  );
+}
+
+export function hasNextestEquivalence(change: NextestChange) {
   return (
     change.oldPath === ".config/nextest.toml" &&
     change.newPath === change.oldPath &&
     change.status === "M" &&
     change.oldMode === change.newMode &&
-    change.nextest_equivalence?.parser === "python-tomllib-v1" &&
-    [change.nextest_equivalence.before, change.nextest_equivalence.after].every((value) =>
-      /^[a-f0-9]{64}$/u.test(value ?? ""),
-    )
+    isNextestProof(change.nextest_equivalence)
   );
 }
 
-export function annotateNextest(changes, readBefore, readAfter) {
+export function annotateNextest<Change extends NextestChange>(
+  changes: readonly Change[],
+  readBefore: (file: string) => unknown,
+  readAfter: (file: string) => unknown,
+): (Change & { nextest_equivalence?: NextestProof })[] {
   return changes.map((change) => {
     if (
       change.oldPath !== ".config/nextest.toml" ||

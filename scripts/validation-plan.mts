@@ -1,8 +1,9 @@
-import { errorMessage } from "./runtime-values.mts";
+import type { NextestProof } from "./nextest-equivalence.mts";
+import { errorMessage, isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { hasNextestEquivalence } from "./nextest-equivalence.mts";
+import { hasNextestEquivalence, isNextestProof } from "./nextest-equivalence.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
 
@@ -14,7 +15,7 @@ export const fastGroups = Object.freeze([
   "frontend",
   "rust",
   "rust-quality",
-]);
+] as const);
 
 export const validationAreas = Object.freeze([
   "catalog",
@@ -26,7 +27,69 @@ export const validationAreas = Object.freeze([
   "policy",
   "release-security",
   "rust",
-]);
+] as const);
+
+export type ValidationGroup = (typeof fastGroups)[number];
+export type ValidationArea = (typeof validationAreas)[number];
+export type ValidationPlatform = "primary-host" | (typeof qualificationPlatforms)[number];
+export interface ValidationChange {
+  status: string;
+  oldMode: string | null;
+  newMode: string | null;
+  oldPath: string;
+  newPath: string;
+  nextest_equivalence?: NextestProof;
+}
+export interface ValidationChangeInput {
+  status: string;
+  oldMode?: string | null;
+  newMode?: string | null;
+  oldPath?: string | null;
+  newPath?: string | null;
+  path?: string;
+  previousPath?: string;
+  nextest_equivalence?: NextestProof;
+}
+export interface PathOwnership {
+  path: string;
+  areas: ValidationArea[];
+  groups: ValidationGroup[];
+  platforms: ValidationPlatform[];
+  qualificationRequired: boolean;
+  reasons: string[];
+  unknown: boolean;
+}
+export interface ValidationPlan {
+  format_version: 3;
+  mode: "blocked" | "fast" | "prose" | "qualification";
+  discovery: "complete" | "failed";
+  reason: string;
+  changed_files: string[];
+  changes: ValidationChange[];
+  areas: readonly ValidationArea[];
+  groups: readonly ValidationGroup[];
+  platforms: readonly ValidationPlatform[];
+  qualification_required: boolean;
+  fallback: { kind: "all-fast-groups"; paths: string[] } | null;
+  identities: {
+    base: string | null;
+    merge_base: string | null;
+    head: string | null;
+    checkout: string;
+  };
+  paths: PathOwnership[];
+  digest: string;
+}
+interface ValidationPlanInput {
+  changes: ValidationChangeInput[];
+  eventName: string;
+  base?: string | null;
+  mergeBase?: string | null;
+  head?: string | null;
+  checkout: string;
+  discovery?: "complete" | "failed";
+  blockedReason?: string | null;
+}
 
 // Documentation selection is about consumers, not a list of approved prose pages.
 // Policy and executable examples retain their ordinary contract selection.
@@ -41,7 +104,7 @@ export function isInformationalPath(file: string) {
   );
 }
 
-export function isSharedFrontendInput(file) {
+export function isSharedFrontendInput(file: string) {
   return (
     [
       "vite.config.ts",
@@ -63,9 +126,9 @@ export const qualificationPlatforms = Object.freeze([
   "macos-aarch64",
   "macos-x86_64",
   "windows-x86_64",
-]);
+] as const);
 
-function withNodeTestCompanions(files) {
+function withNodeTestCompanions(files: readonly string[]) {
   return new Set(
     files.flatMap((file: string) =>
       /\.[cm]?[jt]s$/u.test(file) && !/\.test\.[cm]?[jt]s$/u.test(file)
@@ -203,8 +266,8 @@ const ordinaryGithubFiles = new Set([
   ".github/roadmap.json",
 ]);
 
-function explicitPlatformOwnership(file) {
-  const platforms = [];
+function explicitPlatformOwnership(file: string) {
+  const platforms: ValidationPlatform[] = [];
   if (/(?:^|[/_.-])windows(?:[/_.-]|$)|\.msi$/u.test(file)) platforms.push("windows-x86_64");
   if (/(?:^|[/_.-])(?:linux|appimage|steam-deck)(?:[/_.-]|$)/u.test(file))
     platforms.push("linux-x86_64");
@@ -213,7 +276,7 @@ function explicitPlatformOwnership(file) {
   return platforms;
 }
 
-function normalizedPath(value: string) {
+function normalizedPath(value: unknown) {
   if (
     typeof value !== "string" ||
     value.length === 0 ||
@@ -227,15 +290,15 @@ function normalizedPath(value: string) {
   return value;
 }
 
-function add(target, ...values) {
+function add<Value>(target: Set<Value>, ...values: readonly Value[]) {
   for (const value of values) target.add(value);
 }
 
-function classifyPath(file: string) {
-  const areas = new Set();
-  const groups = new Set();
-  const platforms = new Set();
-  const reasons = [];
+function classifyPath(file: string): PathOwnership {
+  const areas = new Set<ValidationArea>();
+  const groups = new Set<ValidationGroup>();
+  const platforms = new Set<ValidationPlatform>();
+  const reasons: string[] = [];
   let qualificationRequired = false;
 
   const platformMatches = explicitPlatformOwnership(file);
@@ -265,7 +328,12 @@ function classifyPath(file: string) {
   // executable catalog/source authority. Other formats and locations retain
   // their existing routes; file modes and rename sides are checked separately.
 
-  const match = (condition, area, selectedGroups, reason) => {
+  const match = (
+    condition: boolean,
+    area: ValidationArea,
+    selectedGroups: readonly ValidationGroup[],
+    reason: string,
+  ) => {
     if (!condition) return;
     areas.add(area);
     add(groups, ...selectedGroups);
@@ -322,7 +390,7 @@ function classifyPath(file: string) {
           /(?:transport|schema|ipc)/iu.test(file) &&
           (rust || file.startsWith("scripts/"))),
       "native-ipc",
-      ["catalog", "frontend", "rust-quality", ...(rust ? ["rust"] : [])],
+      ["catalog", "frontend", "rust-quality", ...(rust ? ["rust" as const] : [])],
       "native-or-ipc-contract",
     );
     match(
@@ -361,13 +429,13 @@ function classifyPath(file: string) {
     match(
       releaseSecurity,
       "release-security",
-      ["catalog", "rust-quality", ...(rust ? ["rust"] : [])],
+      ["catalog", "rust-quality", ...(rust ? ["rust" as const] : [])],
       "release-or-security-contract",
     );
     match(
       hasPlatformSignal && !nativeScenarioFiles.has(file),
       "platform",
-      ["catalog", "rust-quality", ...(rust ? ["rust"] : [])],
+      ["catalog", "rust-quality", ...(rust ? ["rust" as const] : [])],
       "platform-contract",
     );
     match(
@@ -413,22 +481,22 @@ function classifyPath(file: string) {
 
   return {
     path: file,
-    areas: [...areas].sort(),
-    groups: [...groups].sort(),
-    platforms: [...platforms].sort(),
+    areas: [...areas].sort(compareStrings),
+    groups: [...groups].sort(compareStrings),
+    platforms: [...platforms].sort(compareStrings),
     qualificationRequired,
-    reasons: [...new Set(reasons)].sort(),
+    reasons: [...new Set(reasons)].sort(compareStrings),
     unknown: areas.size === 0,
   };
 }
 
 // Audit receipt domains retain their conservative input ownership independently
 // of ordinary CI scheduling. Changing the PR budget must not admit stale audit receipts.
-function classifyAuditPath(file: string) {
-  const areas = new Set();
-  const groups = new Set();
-  const platforms = new Set();
-  const reasons = [];
+function classifyAuditPath(file: string): PathOwnership {
+  const areas = new Set<ValidationArea>();
+  const groups = new Set<ValidationGroup>();
+  const platforms = new Set<ValidationPlatform>();
+  const reasons: string[] = [];
   let qualificationRequired = false;
 
   const platformMatches = explicitPlatformOwnership(file);
@@ -460,7 +528,13 @@ function classifyAuditPath(file: string) {
   // their existing routes; file modes and rename sides are checked separately.
   const documentationRaster = /^docs\/media\/.+\.(?:png|jpg|jpeg|webp)$/u.test(file);
 
-  const match = (condition, area, selectedGroups, reason, selectedPlatforms = []) => {
+  const match = (
+    condition: boolean,
+    area: ValidationArea,
+    selectedGroups: readonly ValidationGroup[],
+    reason: string,
+    selectedPlatforms: readonly ValidationPlatform[] = [],
+  ) => {
     if (!condition) return;
     areas.add(area);
     add(groups, ...selectedGroups);
@@ -606,7 +680,7 @@ function classifyAuditPath(file: string) {
     qualificationRequired = true;
   }
   if (
-    ["native-ipc", "platform", "dependency"].some((area) => areas.has(area)) &&
+    (["native-ipc", "platform", "dependency"] as const).some((area) => areas.has(area)) &&
     qualificationPlatforms.every((platform) => platforms.has(platform))
   )
     qualificationRequired = true;
@@ -619,43 +693,52 @@ function classifyAuditPath(file: string) {
 
   return {
     path: file,
-    areas: [...areas].sort(),
-    groups: [...groups].sort(),
-    platforms: [...platforms].sort(),
+    areas: [...areas].sort(compareStrings),
+    groups: [...groups].sort(compareStrings),
+    platforms: [...platforms].sort(compareStrings),
     qualificationRequired,
-    reasons: [...new Set(reasons)].sort(),
+    reasons: [...new Set(reasons)].sort(compareStrings),
     unknown: areas.size === 0,
   };
 }
 
-export function ordinaryOwnershipForPath(input) {
+export function ordinaryOwnershipForPath(input: string) {
   return classifyPath(normalizedPath(input));
 }
 
-export function validationOwnershipForPath(input) {
+export function validationOwnershipForPath(input: string) {
   return classifyAuditPath(normalizedPath(input));
 }
 
-function stableJson(value) {
+function compareStrings(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function stableJson(value: unknown): string | undefined {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
-  if (value && typeof value === "object") {
+  if (isRecord(value)) {
     return `{${Object.keys(value)
-      .sort()
+      .sort(compareStrings)
       .map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`)
       .join(",")}}`;
   }
   return JSON.stringify(value);
 }
 
-export function digestValidationPlan(plan) {
-  const unsigned = { ...plan };
+export function digestValidationPlan(plan: object) {
+  const unsigned = Object.fromEntries(Object.entries(plan));
   delete unsigned.digest;
-  return createHash("sha256").update(stableJson(unsigned)).digest("hex");
+  return createHash("sha256")
+    .update(stableJson(unsigned) ?? "")
+    .digest("hex");
 }
 
-function isRegularValidationChange(change) {
+function isRegularValidationChange(
+  change: Pick<ValidationChangeInput, "status" | "oldMode" | "newMode">,
+) {
   const status = String(change.status).charAt(0);
-  const regular = (mode) => ["100644", "100755"].includes(mode);
+  const regular = (mode: string | null | undefined) =>
+    ["100644", "100755"].some((valid) => valid === mode);
   if (["A", "?"].includes(status)) return change.oldMode === "000000" && regular(change.newMode);
   if (status === "D") return regular(change.oldMode) && change.newMode === "000000";
   return ["M", "R"].includes(status) && regular(change.oldMode) && regular(change.newMode);
@@ -670,7 +753,7 @@ export function buildValidationPlan({
   checkout,
   discovery = "complete",
   blockedReason = null,
-}) {
+}: ValidationPlanInput): ValidationPlan {
   if (!/^[a-f0-9]{40}$/u.test(checkout ?? ""))
     throw new Error("checkout SHA must be a full lowercase Git SHA");
   if (!Array.isArray(changes)) throw new Error("changes must be an array");
@@ -681,7 +764,7 @@ export function buildValidationPlan({
     discovery !== "complete" ||
     (eventName === "pull_request" && !changes.length)
   ) {
-    const plan = {
+    const plan: Omit<ValidationPlan, "digest"> = {
       format_version: validationPlanVersion,
       mode: "blocked",
       discovery,
@@ -700,7 +783,7 @@ export function buildValidationPlan({
   }
 
   if (changes.length === 0) {
-    const plan = {
+    const plan: Omit<ValidationPlan, "digest"> = {
       format_version: validationPlanVersion,
       mode: "fast",
       discovery,
@@ -726,8 +809,8 @@ export function buildValidationPlan({
   const paths = [
     ...new Set(normalizedChanges.flatMap((change) => [change.oldPath, change.newPath])),
   ]
-    .sort()
-    .map((file) => {
+    .sort(compareStrings)
+    .map((file): PathOwnership => {
       const owned = classifyPath(file);
       if (
         file === ".config/nextest.toml" &&
@@ -758,22 +841,24 @@ export function buildValidationPlan({
       discovery: "failed",
       blockedReason: "unsafe-file-type-or-change-status",
     });
-  const areas = [...new Set(paths.flatMap((entry) => entry.areas))].sort();
+  const areas = [...new Set(paths.flatMap((entry) => entry.areas))].sort(compareStrings);
   const unknown = paths.filter((entry) => entry.unknown).map((entry) => entry.path);
   const qualificationRequired = paths.some((entry) => entry.qualificationRequired);
   const groups = qualificationRequired
     ? fastGroups
     : unknown.length
       ? fastGroups
-      : [...new Set(paths.flatMap((entry) => entry.groups))].sort();
-  const selectedPlatforms = [...new Set(paths.flatMap((entry) => entry.platforms))].sort();
-  const platforms = qualificationRequired
+      : [...new Set(paths.flatMap((entry) => entry.groups))].sort(compareStrings);
+  const selectedPlatforms = [...new Set(paths.flatMap((entry) => entry.platforms))].sort(
+    compareStrings,
+  );
+  const platforms: readonly ValidationPlatform[] = qualificationRequired
     ? qualificationPlatforms
     : unknown.length || selectedPlatforms.length === 0
       ? ["primary-host"]
       : selectedPlatforms;
   const mode = allProse ? "prose" : qualificationRequired ? "qualification" : "fast";
-  const plan = {
+  const plan: Omit<ValidationPlan, "digest"> = {
     format_version: validationPlanVersion,
     mode,
     discovery,
@@ -807,7 +892,85 @@ export function buildValidationPlan({
   return { ...plan, digest: digestValidationPlan(plan) };
 }
 
-export function validateValidationPlan(plan) {
+function assertStringArray<Value extends string>(
+  value: unknown,
+  allowed: readonly Value[],
+  label: string,
+): asserts value is Value[] {
+  if (!Array.isArray(value)) throw new Error(`validation ${label} must be an array`);
+  for (const item of value) {
+    if (
+      typeof item !== "string" ||
+      (allowed.length > 0 && !allowed.some((entry) => entry === item))
+    )
+      throw new Error(`unknown validation ${label}: ${JSON.stringify(item)}`);
+  }
+}
+
+function assertPathOwnership(entry: unknown): asserts entry is PathOwnership {
+  if (!isRecord(entry)) throw new Error("validation path entry is malformed");
+  normalizedPath(entry.path);
+  assertStringArray(entry.areas, validationAreas, "path area");
+  assertStringArray(entry.groups, fastGroups, "path group");
+  assertStringArray(entry.platforms, ["primary-host", ...qualificationPlatforms], "path platform");
+  assertStringArray(entry.reasons, [], "path reason");
+  if (typeof entry.qualificationRequired !== "boolean" || typeof entry.unknown !== "boolean")
+    throw new Error("validation path authority is malformed");
+}
+
+// Narrow the untrusted wire shape before semantic/digest checks. Both stages
+// inspect the original object; no projection can discard retained identities.
+function assertPlanShape(plan: unknown): asserts plan is ValidationPlan {
+  if (!isRecord(plan)) throw new Error("validation plan must be an object");
+  if (plan.format_version !== validationPlanVersion) throw new Error("unsupported plan version");
+  if (typeof plan.digest !== "string") throw new Error("validation plan digest mismatch");
+  if (!["blocked", "fast", "prose", "qualification"].some((mode) => mode === plan.mode))
+    throw new Error("invalid validation plan mode");
+  if (plan.discovery !== "complete" && plan.discovery !== "failed")
+    throw new Error("invalid validation plan discovery state");
+  if (typeof plan.reason !== "string" || !plan.reason)
+    throw new Error("validation plan reason is missing");
+  if (typeof plan.qualification_required !== "boolean")
+    throw new Error("validation qualification authority is invalid");
+  assertStringArray(plan.changed_files, [], "changed_files");
+  assertStringArray(plan.areas, validationAreas, "area");
+  assertStringArray(plan.groups, fastGroups, "group");
+  assertStringArray(plan.platforms, ["primary-host", ...qualificationPlatforms], "platform");
+  if (!Array.isArray(plan.changes)) throw new Error("validation plan changes must be an array");
+  for (const change of plan.changes) {
+    if (!isRecord(change) || typeof change.status !== "string")
+      throw new Error("invalid validation change status");
+    normalizedPath(change.oldPath);
+    normalizedPath(change.newPath);
+    if (
+      (change.oldMode !== null && typeof change.oldMode !== "string") ||
+      (change.newMode !== null && typeof change.newMode !== "string")
+    )
+      throw new Error("unsafe or missing validation file mode");
+    if (change.nextest_equivalence !== undefined && !isNextestProof(change.nextest_equivalence))
+      throw new Error("invalid nextest equivalence proof");
+  }
+  if (!Array.isArray(plan.paths)) throw new Error("validation plan paths must be an array");
+  for (const entry of plan.paths) assertPathOwnership(entry);
+  if (!isRecord(plan.identities)) throw new Error("validation identities are missing");
+  for (const field of ["base", "merge_base", "head", "checkout"] as const) {
+    const value = plan.identities[field];
+    if ((field === "checkout" || value !== null) && typeof value !== "string")
+      throw new Error(`validation identity ${field} is invalid`);
+  }
+  if (plan.fallback !== null) {
+    if (!isRecord(plan.fallback) || plan.fallback.kind !== "all-fast-groups")
+      throw new Error("validation fallback is malformed");
+    assertStringArray(plan.fallback.paths, [], "fallback path");
+  }
+}
+
+export function validateValidationPlan(input: unknown): ValidationPlan {
+  assertPlanShape(input);
+  return validatePlanSemantics(input);
+}
+
+function validatePlanSemantics(plan: ValidationPlan): ValidationPlan {
   if (!plan || typeof plan !== "object" || Array.isArray(plan))
     throw new Error("validation plan must be an object");
   if (plan.format_version !== validationPlanVersion) throw new Error("unsupported plan version");
@@ -821,12 +984,19 @@ export function validateValidationPlan(plan) {
     throw new Error("validation plan reason is missing");
   if (typeof plan.qualification_required !== "boolean")
     throw new Error("validation qualification authority is invalid");
-  for (const field of ["changed_files", "changes", "areas", "groups", "platforms", "paths"])
+  for (const field of [
+    "changed_files",
+    "changes",
+    "areas",
+    "groups",
+    "platforms",
+    "paths",
+  ] as const)
     if (!Array.isArray(plan[field])) throw new Error(`validation plan ${field} must be an array`);
 
-  const assertUniqueSorted = (values, label) => {
+  const assertUniqueSorted = (values: readonly string[], label: string) => {
     if (new Set(values).size !== values.length) throw new Error(`duplicate validation ${label}`);
-    if (JSON.stringify(values) !== JSON.stringify([...values].sort()))
+    if (JSON.stringify(values) !== JSON.stringify([...values].sort(compareStrings)))
       throw new Error(`validation ${label} must be sorted`);
   };
   for (const file of plan.changed_files) normalizedPath(file);
@@ -850,14 +1020,17 @@ export function validateValidationPlan(plan) {
     if (!isRegularValidationChange(change))
       throw new Error("unsafe or missing validation file mode");
   }
-  if (JSON.stringify([...new Set(changePaths)].sort()) !== JSON.stringify(plan.changed_files))
+  if (
+    JSON.stringify([...new Set(changePaths)].sort(compareStrings)) !==
+    JSON.stringify(plan.changed_files)
+  )
     throw new Error("validation changes do not match changed files");
   const pathNames = [];
   for (const entry of plan.paths) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry))
       throw new Error("validation path entry is malformed");
     pathNames.push(normalizedPath(entry.path));
-    for (const field of ["areas", "groups", "platforms", "reasons"])
+    for (const field of ["areas", "groups", "platforms", "reasons"] as const)
       if (!Array.isArray(entry[field]))
         throw new Error(`validation path ${field} must be an array`);
     for (const area of entry.areas)
@@ -872,7 +1045,7 @@ export function validateValidationPlan(plan) {
       entry.reasons.some((reason) => typeof reason !== "string" || reason.length === 0)
     )
       throw new Error("validation path reason is malformed");
-    for (const field of ["areas", "groups", "platforms", "reasons"])
+    for (const field of ["areas", "groups", "platforms", "reasons"] as const)
       assertUniqueSorted(entry[field], `path ${field.slice(0, -1)}`);
     if (typeof entry.qualificationRequired !== "boolean" || typeof entry.unknown !== "boolean")
       throw new Error("validation path authority is malformed");
@@ -885,7 +1058,7 @@ export function validateValidationPlan(plan) {
 
   if (!plan.identities || typeof plan.identities !== "object" || Array.isArray(plan.identities))
     throw new Error("validation identities are missing");
-  for (const field of ["base", "merge_base", "head", "checkout"])
+  for (const field of ["base", "merge_base", "head", "checkout"] as const)
     if (
       (field === "checkout" && !/^[a-f0-9]{40}$/u.test(plan.identities[field] ?? "")) ||
       (field !== "checkout" &&
@@ -895,7 +1068,7 @@ export function validateValidationPlan(plan) {
       throw new Error(`validation identity ${field} is invalid`);
   if (
     plan.paths.length > 0 &&
-    ["base", "merge_base", "head"].some(
+    (["base", "merge_base", "head"] as const).some(
       (field) => !/^[a-f0-9]{40}$/u.test(plan.identities[field] ?? ""),
     )
   )
@@ -958,13 +1131,19 @@ export function validateValidationPlan(plan) {
       (plan.mode === "fast" &&
         JSON.stringify(plan.platforms) !== JSON.stringify(["primary-host"])) ||
       plan.fallback !== null ||
-      ["base", "merge_base", "head"].some((field) => plan.identities[field] !== null)
+      (["base", "merge_base", "head"] as const).some((field) => plan.identities[field] !== null)
     )
       throw new Error("explicit-event validation plan is inconsistent");
   } else if (["fast", "prose"].includes(plan.mode)) {
-    const expectedAreas = [...new Set(plan.paths.flatMap((entry) => entry.areas))].sort();
-    const expectedGroups = [...new Set(plan.paths.flatMap((entry) => entry.groups))].sort();
-    const routedPlatforms = [...new Set(plan.paths.flatMap((entry) => entry.platforms))].sort();
+    const expectedAreas = [...new Set(plan.paths.flatMap((entry) => entry.areas))].sort(
+      compareStrings,
+    );
+    const expectedGroups = [...new Set(plan.paths.flatMap((entry) => entry.groups))].sort(
+      compareStrings,
+    );
+    const routedPlatforms = [...new Set(plan.paths.flatMap((entry) => entry.platforms))].sort(
+      compareStrings,
+    );
     const expectedPlatforms = routedPlatforms.length > 0 ? routedPlatforms : ["primary-host"];
     if (
       JSON.stringify(plan.areas) !== JSON.stringify(expectedAreas) ||
@@ -981,32 +1160,43 @@ export function validateValidationPlan(plan) {
   return plan;
 }
 
-export function validateQualificationBinding({ plan, digest, checkout }) {
-  validateValidationPlan(plan);
+export function validateQualificationBinding({
+  plan: input,
+  digest,
+  checkout,
+}: {
+  plan: unknown;
+  digest: string | undefined;
+  checkout: string | undefined;
+}) {
+  const plan = validateValidationPlan(input);
   if (plan.mode !== "qualification" || !plan.qualification_required)
     throw new Error("reusable result is not a qualification plan");
   if (plan.digest !== digest) throw new Error("reusable qualification digest mismatch");
   if (plan.identities?.checkout !== checkout || !/^[a-f0-9]{40}$/u.test(checkout ?? ""))
     throw new Error("reusable qualification checkout mismatch");
-  if (JSON.stringify([...plan.groups].sort()) !== JSON.stringify([...fastGroups].sort()))
+  if (
+    JSON.stringify([...plan.groups].sort(compareStrings)) !==
+    JSON.stringify([...fastGroups].sort(compareStrings))
+  )
     throw new Error("reusable qualification omitted a protected group");
   if (
-    JSON.stringify([...plan.platforms].sort()) !==
-    JSON.stringify([...qualificationPlatforms].sort())
+    JSON.stringify([...plan.platforms].sort(compareStrings)) !==
+    JSON.stringify([...qualificationPlatforms].sort(compareStrings))
   )
     throw new Error("reusable qualification omitted a platform");
   return plan;
 }
 
 function main() {
-  let plan;
+  let input: unknown;
   try {
-    plan = JSON.parse(process.env.PORTCOVE_PLAN_JSON ?? "");
+    input = JSON.parse(process.env.PORTCOVE_PLAN_JSON ?? "");
   } catch {
     throw new Error("PORTCOVE_PLAN_JSON must contain the reusable qualification plan");
   }
-  validateQualificationBinding({
-    plan,
+  const plan = validateQualificationBinding({
+    plan: input,
     digest: process.env.PORTCOVE_PLAN_DIGEST,
     checkout: process.env.PORTCOVE_EXPECTED_CHECKOUT,
   });

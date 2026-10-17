@@ -5,7 +5,7 @@ import { compareNextest, annotateNextest } from "./nextest-equivalence.mts";
 import { buildValidationPlan, validateValidationPlan } from "./validation-plan.mts";
 import { baselineSelection } from "./ci-baseline.mts";
 
-test("effective nextest comparison handles TOML syntax and keeps semantic changes broad", () => {
+void test("effective nextest comparison handles TOML syntax and keeps semantic changes broad", () => {
   const base = '[profile.default]\nretries=0\ntest-threads=2\nname="quoted # value"\n';
   const formatted =
     '# explanation\n[profile.default]\nname = "quoted # value"\ntest-threads = 2 # slots\nretries = 0\n';
@@ -67,13 +67,13 @@ test("effective nextest comparison handles TOML syntax and keeps semantic change
   assert.ok(broad.groups.includes("rust"));
 });
 
-test("local command preserves effective-config proof through its hosted-plan conversion", async () => {
+void test("local command preserves effective-config proof through its hosted-plan conversion", async () => {
   const proof = compareNextest(
     "[profile.default]\nretries=0",
     "# comment\n[profile.default]\nretries=0",
   );
   assert.ok(proof);
-  const messages = [];
+  const messages: string[] = [];
   const original = console.log;
   try {
     console.log = (message) => messages.push(String(message));
