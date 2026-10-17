@@ -49,7 +49,18 @@ export function BackupHistory({
     (!readState || readState.status === "current") &&
     restoreAssessment?.action === "backup_restore" &&
     restoreAssessment.availability === "allowed" &&
-    restoreAssessment.reason === "available";
+    restoreAssessment.reason === "available" &&
+    restoreAssessment.definition == null;
+  const restoreConsistent =
+    restoreAssessment?.action === "backup_restore" &&
+    restoreAssessment.definition == null &&
+    ((restoreAssessment?.availability === "allowed" && restoreAssessment.reason === "available") ||
+      (restoreAssessment?.availability === "waiting" &&
+        restoreAssessment.reason === "missing_backup") ||
+      (restoreAssessment?.availability === "held" &&
+        ["unreadable_data", "unsafe_data", "recovery_required"].includes(
+          restoreAssessment.reason,
+        )));
   const renderReadStatus = () =>
     readState &&
     readState.status !== "idle" && (
@@ -121,7 +132,14 @@ export function BackupHistory({
           {backups.length
             ? state === "recovery_required"
               ? "Verified backups remain listed, but restoring and deleting require recovery to finish."
-              : "Verified backups remain listed and usable."
+              : (!readState || readState.status === "current") &&
+                  restoreConsistent &&
+                  restoreAssessment?.availability === "held" &&
+                  restoreAssessment.reason === "recovery_required"
+                ? "Verified backups remain listed, but restoring requires recovery to finish."
+                : restoreAllowed
+                  ? "Verified backups remain listed and usable."
+                  : "Verified backups remain listed. Review the current restore availability below."
             : problems.length > 0
               ? "No backup is currently available to restore. Review the problems below."
               : "No backup is currently available to restore."}
@@ -161,15 +179,17 @@ export function BackupHistory({
       <p role="status" className="backup-restore-assessment">
         {readState && readState.status !== "current"
           ? "Restore eligibility is unknown until backup history is read again."
-          : restoreAssessment?.reason === "recovery_required"
-            ? "Restoring requires recovery to finish. Restart Portcove to retry recovery and review doctor output if it remains."
-            : restoreAssessment?.reason === "unsafe_data"
-              ? "Restore is on hold. Review the owned backup and saved-data locations."
-              : restoreAssessment?.reason === "unreadable_data"
-                ? "Restore is on hold because the owned saved-data location could not be read."
-                : restoreAssessment?.reason === "missing_backup"
-                  ? "No usable backup is currently available to restore."
-                  : "Restore eligibility is unknown. Refresh backup history before proceeding."}
+          : !restoreConsistent
+            ? "Restore eligibility is unknown. Refresh backup history before proceeding."
+            : restoreAssessment?.reason === "recovery_required"
+              ? "Restoring requires recovery to finish. Restart Portcove to retry recovery and review doctor output if it remains."
+              : restoreAssessment?.reason === "unsafe_data"
+                ? "Restore is on hold. Review the owned backup and saved-data locations."
+                : restoreAssessment?.reason === "unreadable_data"
+                  ? "Restore is on hold because the owned saved-data location could not be read."
+                  : restoreAssessment?.reason === "missing_backup"
+                    ? "No usable backup is currently available to restore."
+                    : "Restore eligibility is unknown. Refresh backup history before proceeding."}
       </p>
     );
   const renderReview = () =>

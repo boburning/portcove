@@ -88,6 +88,7 @@ function Fixture({ generation = 7 }: { generation?: number }) {
     refresh: data.retryRefresh,
     refreshActivities: data.refreshActivities,
     invalidateDiagnostics: data.invalidateDiagnostics,
+    activities: data.activities,
   });
   return (
     <div
@@ -978,6 +979,64 @@ describe("workspace refresh recovery", () => {
     expect(operations.operation?.type).toBe("finished");
     expect(desktopApi.activities).toHaveBeenCalledTimes(6);
   });
+
+  it.each(["succeeded", "failed", "cancelled"] as const)(
+    "settles missed terminal events from authoritative %s readback without repeating work",
+    async (status) => {
+      await render();
+      const handler = eventHandlers.get("portcove://operation")!;
+      const progress: OperationEvent = {
+        schema_version: 3,
+        operation_id: "missed-finish",
+        parent_operation_id: null,
+        sequence: 1,
+        timestamp_ms: 100,
+        target: { kind: "port", id: "lighthouse" },
+        operation: "install",
+        type: "progress",
+        phase: "copying",
+        completed: 1,
+        total: 2,
+      };
+      await act(async () => handler({ payload: progress }));
+      expect(operations.operation).toEqual(progress);
+      const terminal = {
+        ...emptyActivityFeed(),
+        records: [
+          {
+            id: progress.operation_id,
+            operation: "install" as const,
+            target_kind: "port" as const,
+            target_id: "lighthouse",
+            status,
+            started_at: 0,
+            finished_at: 1,
+            message: null,
+            failure: null,
+            cancellation: null,
+          },
+        ],
+      };
+      vi.mocked(desktopApi.activities).mockResolvedValue(terminal);
+      await act(async () => data.refreshActivities());
+      expect(data.activities[0]?.status).toBe(status);
+      expect(operations.operation).toBeUndefined();
+
+      // A queued progress callback cannot revive the durable terminal activity.
+      await act(async () => handler({ payload: { ...progress, sequence: 2 } }));
+      expect(operations.operation).toBeUndefined();
+      // Nor may truncating later terminal history revive the removed progress.
+      vi.mocked(desktopApi.activities).mockResolvedValue(emptyActivityFeed());
+      await act(async () => data.refreshActivities());
+      await act(async () => handler({ payload: { ...progress, sequence: 3 } }));
+      expect(operations.operation).toBeUndefined();
+      const task = vi.fn().mockResolvedValue("current state");
+      await act(async () => operations.perform("review current state", task, { refresh: "none" }));
+      expect(operations.operation).toBeUndefined();
+      expect(task).toHaveBeenCalledOnce();
+      expect(operations.error).toBeUndefined();
+    },
+  );
 
   it("does not invalidate workspace or diagnostics for a read-only operation", async () => {
     await render();

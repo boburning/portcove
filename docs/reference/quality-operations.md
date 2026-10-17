@@ -77,7 +77,7 @@ authority. The exact inventory lives in the protected hosted selector. New or
 renamed unknown harness paths retain all-fast fallback; mixed product, native,
 signing, and policy changes retain their additional owners and qualification.
 
-The maintained `apps/desktop/scripts/desktop-source-dialog-test.mjs` consumer
+The maintained `apps/desktop/scripts/desktop-source-dialog-test.mts` consumer
 also has explicit frontend ownership and selects its Node scenario contracts
 locally. It observes source intake, discovery and scan presentation through the
 existing application and CLI; it does not implement durable scanning or source
@@ -85,7 +85,7 @@ authority. Its changed native interactions still require the ordinary isolated
 native scenario. This exact entry grants no ownership to another harness, its
 Core/Tauri implementation, or a renamed or mixed authority input.
 
-The pure `apps/desktop/scripts/desktop-install-fixture.test.mjs` assertions
+The pure `apps/desktop/scripts/desktop-install-fixture.test.mts` assertions
 belong to frontend Node validation. Compiler-backed probe and shell roundtrips
 live in `*.native.test.mjs` and run through Node directly. The canonical
 `native:tools` task retains their explicit local route. Existing affected Windows
@@ -135,7 +135,7 @@ Cargo-metadata architecture checker, the retained whole-Desktop Fallow policy
 when selected, and rscheck's absolute-path rule outside reviewed exceptions.
 
 Oxlint uses one root configuration for the desktop TypeScript/TSX and the
-repository's JavaScript modules. Its explicit plugin list includes ESLint,
+repository's maintained TypeScript tooling, tests and configuration files. Its explicit plugin list includes ESLint,
 TypeScript, React, JSX accessibility, Oxc, import, and Vitest coverage; an
 explicit list replaces Oxlint's defaults. The standard pass applies the
 correctness category plus explicit JavaScript correctness, React Hooks, modern
@@ -161,22 +161,23 @@ semantic-content rules remain enabled. Reassess the exception when the rule can
 distinguish these patterns instead of suppressing accessibility diagnostics by
 file or across the plugin.
 
-The runner adds a second `oxlint-tsgolint` pass for desktop source and TypeScript
-configuration files, including `apps/desktop/vite.config.ts`. It explicitly
-restores every rule from the former `typescript-eslint/recommendedTypeChecked`
-policy that Oxlint supports; core equivalents cover the former TypeScript
-plugin's array-constructor, unused-expression, and unused-variable rules. The
-only type-aware rules not implemented by the pinned `oxlint-tsgolint` are
-`naming-convention` and `prefer-destructuring`, neither of which belonged to the
-former policy. Repository JavaScript utilities still receive the standard
-Oxlint pass without being inferred into unrelated TypeScript programs. Test
-fixtures may use async mocks and intentionally exercise structured non-Error
-Tauri rejections; their narrow rule exceptions remain test/config-file only.
+The pinned Vite+ check integrates standard lint, type-aware rules and TypeScript
+compiler diagnostics through its bundled Oxlint/tsgolint toolchain. The strict
+policy reaches application code, tooling, associated tests and configuration;
+the Node and browser environments use separate scoped projects. The shared
+policy preserves strict checking, exact optional properties and unchecked-index
+handling. Unsafe argument, assignment, call, member-access and return rules are
+enforced across maintained TypeScript. Unbound-method handling remains the
+existing test-only rule exception.
 
-The linter accepts no warnings and rejects unused suppression comments. The
-separate `pnpm typecheck` command remains the authoritative whole-program
-TypeScript compiler gate; Oxlint's experimental whole-program type-check mode is
-not enabled. The VS Code integration enables the same type-aware diagnostics.
+The linter accepts no warnings and rejects unused suppression comments.
+`pnpm --dir apps/desktop typecheck` runs the same admitted root Vite+ check with
+formatting and lint diagnostics omitted; it does not select another compiler or
+checking scope. The normal `pnpm check` workflow runs the complete static route.
+Project membership follows the nearest scoped `tsconfig.json` for each file;
+no-emit projects do not require declaration output or build references. The
+[TypeScript execution contract](../DEVELOPMENT-TOOLS.md#typescript-execution-and-compatibility-files)
+owns environments and the exact JavaScript compatibility inventory.
 
 Vitest correctness rules reject focused or disabled tests, conditional or
 standalone expectations, invalid callbacks and titles, missing awaited promise
@@ -188,10 +189,10 @@ contracts across hundreds of ordinary test mocks; contract-sensitive mocks may
 still declare explicit types. This is a rule-specific policy decision, not a
 file exclusion or diagnostic suppression.
 
-The package uses one TypeScript 7 dependency for the `tsc` build command,
-transport compiler rejection fixtures, and Vite ecosystem tooling. This removes
-the former compiler alias and its Fallow dependency exception. The build and
-transport compiler tests continue to verify the compiler independently.
+Vite+ pins its TypeScript 7 checker backend with the rest of the frontend
+toolchain. Native Node tools execute erasable TypeScript directly; checking does
+not emit JavaScript or add a runtime loader. Transport compiler refusal fixtures
+continue to exercise their installed compiler boundary independently.
 
 Stylelint applies its recommended correctness rules to the existing stylesheet.
 The documented descending-specificity exception preserves the stylesheet's
@@ -330,7 +331,7 @@ behavior, and native qualification clears the production bar.
 
 Quality-tool pins follow their native provisioning boundary. `.github/quality-tools.json`
 owns required and deep Rust CLI versions, install tiers, version commands and any
-tool-private Rust requirement; `scripts/quality-tools.mjs --validate` rejects
+tool-private Rust requirement; `scripts/quality-tools.mts --validate` rejects
 copied Rust-tool pins in governed consumers. `.aqua-version` pins Aqua itself,
 while `aqua.yaml` and committed `aqua-checksums.json` own Ruff, actionlint and
 ShellCheck versions, platform assets and required SHA-256 verification.
@@ -451,8 +452,8 @@ This is an on-demand report, not another required CI job or a planning authority
 
 ```powershell
 just ci-health
-node scripts/ci-health.mjs --runs 30 --json > work/ci-health.json
-node scripts/ci-health.mjs --branch my-branch --event pull_request --runs 10
+node scripts/ci-health.mts --runs 30 --json > work/ci-health.json
+node scripts/ci-health.mts --branch my-branch --event pull_request --runs 10
 ```
 
 The report separates successful first attempts from successful reruns, reports
@@ -637,7 +638,7 @@ Supported local Rust validation commands serialize their heavyweight compiler
 and test work across Portcove worktrees on the same machine. The maintained
 `rust-check`, `clippy`, and documentation-test recipes enter admission before
 starting Cargo, and nextest enters the same admission before compiling its host
-fixture. `scripts/run-rust-tests.mjs`
+fixture. `scripts/run-rust-tests.mts`
 publishes a complete lock record atomically below the shared tool-cache root
 before compiling its host fixture. Each host first starts an owned containment
 supervisor behind a registration gate; it cannot launch the pinned
@@ -708,7 +709,7 @@ The required Rust aggregate fails if either the build or any Intel test job fail
 Timed Rust lanes prepare the native host-tool probe fixture once during setup.
 Each test copies it into its own temporary directory before mutation or probing.
 `just rust-test` uses the same identity-bound preparation through
-`scripts/run-rust-tests.mjs`;
+`scripts/run-rust-tests.mts`;
 plain Cargo tests retain their standalone fixture compiler. Fixture compilation
 is build setup, while every test's assertions and process probes keep the same
 hang guard.
@@ -751,8 +752,8 @@ specialized POSIX compiler/tracking failure remain historical; their narrow
 policy and uncached workaround have been removed.
 
 After changing a Rust transport type, run
-`node scripts/check-transport-contract.mjs --write`, followed by
-`node apps/desktop/scripts/generate-transport-types.mjs --write`. Commit the
+`node scripts/check-transport-contract.mts --write`, followed by
+`node apps/desktop/scripts/generate-transport-types.mts --write`. Commit the
 generated JSON snapshots and declaration files with the caller changes.
 `json-schema-to-typescript` is pinned as a development dependency; generation
 resolves only local schema references and rejects inconsistent named definitions.
@@ -768,7 +769,7 @@ typed install request; Rust fixtures check actual Serde output/input behavior.
 
 The transport check also inventories Desktop IPC exposure without generating a
 second RPC description. The one production `tauri::generate_handler!` list is the
-registration authority. `node scripts/check-transport-contract.mjs` requires its
+registration authority. `node scripts/check-transport-contract.mts` requires its
 command names to match every bare `#[tauri::command]` declaration and every `invoke`
 use in shipped non-test TypeScript under `apps/desktop/src`. It requires the direct
 import and a literal command name, rejecting aliases, indirect calls, missing, extra,
@@ -806,7 +807,7 @@ artifacts, and release assets are preserved. The one-day upload retention remain
 as the fallback. After successful transfer cleanup, rerun Intel tests together
 with their producer rather than rerunning only an already-successful consumer.
 
-Use `node scripts/cleanup-intel-artifacts.mjs` for a read-only inventory and add
+Use `node scripts/cleanup-intel-artifacts.mts` for a read-only inventory and add
 `--apply` only for the authorized scoped cleanup. A restarted attempt or changed
 artifact identity stops deletion. Failed or ambiguous deletion responses require
 readback; the tool never retries an uncertain mutation.

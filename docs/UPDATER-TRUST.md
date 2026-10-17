@@ -191,7 +191,7 @@ requires the separately authorized production policy; all public 0.x is Preview.
 Promoting identical installed bytes never causes reinstallation. GitHub latest,
 release date and absence of a suffix are not eligibility authority.
 
-The offline `reconstruct-application-update-records.mjs` tool consumes the raw
+The offline `reconstruct-application-update-records.mts` tool consumes the raw
 verified #219 inventory manifests and their exact signature files, frozen source
 tree and qualified-run identity, compatibility contract, evidence IDs and the
 separate reviewed eligibility map. It computes each inventory digest itself and

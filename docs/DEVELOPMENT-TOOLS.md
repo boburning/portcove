@@ -42,8 +42,8 @@ guards or terminate another owner's work. `just resource-status` only observes
 running/queued records and coverage gaps. Missing records never prove machine idle.
 See [shared local resources](#shared-local-resources).
 
-Use `node scripts/checked-git.mjs -- <git arguments>` for a checked call, or
-`node scripts/checked-git.mjs --sequence <owned-json-file>` for dependent calls.
+Use `node scripts/checked-git.mts -- <git arguments>` for a checked call, or
+`node scripts/checked-git.mts --sequence <owned-json-file>` for dependent calls.
 The JSON is an ordered array of argument arrays, for example
 `[["rev-parse", "--verify", "HEAD^{tree}"], ["diff", "--check"]]`.
 Git receives literal arguments and the first failed exit, timeout or spawn stops
@@ -51,7 +51,7 @@ the sequence. Resolve source/target/tree identities before mutation; conflicts
 stay visible for explicit resolution. Other PowerShell callers still check each
 native exit immediately.
 
-Retain raw JSON, then use `node scripts/report-summary.mjs KIND FILE`
+Retain raw JSON, then use `node scripts/report-summary.mts KIND FILE`
 to inspect decision-relevant fields within 16 KiB, with omission counts and raw
 evidence references. `--help`/usage lists supported report kinds. CI summaries
 accept REST and `gh` job IDs and never claim complete pagination. Delivery watch
@@ -72,7 +72,7 @@ Both routes retain the existing isolation, timing and resource contracts.
 Use the literal-file wrapper rather than direct Vitest filename filters, which
 can silently accept a partial match.
 
-Read `node scripts/roadmap.mjs set --help` for current field flags and values;
+Read `node scripts/roadmap.mts set --help` for current field flags and values;
 command-specific help runs offline without acquiring a live-operation lock.
 Use `--summary` on Roadmap context/doctor and Renovate inspection for a retained,
 16 KiB projection; it is mutually exclusive with full `--json`. The report-summary
@@ -83,7 +83,7 @@ Use one `just pr-watch` per source/run/attempt/deadline binding. Opt into
 `--progress` for change-only workflow/check observations on stderr while final
 JSON stays on stdout. Repeated unchanged observations remain quiet. Consume the
 progress stream live; redirect only stdout when retaining the final JSON result.
-Use `node scripts/report-summary.mjs watch FILE` for its bounded final summary.
+Use `node scripts/report-summary.mts watch FILE` for its bounded final summary.
 Consume the watch result or retained snapshots; retrieve the identified failed
 job when needed.
 When a tool returns a running session, consume it with a bounded wait of at most
@@ -97,7 +97,7 @@ optional provisioning choice and is not an installed operation prerequisite.
 
 For a dependency-only bundle comparison, use:
 
-`node scripts/frontend-build-compare.mjs --baseline ROOT --candidate ROOT --dependency NAME --evidence-root ROOT`
+`node scripts/frontend-build-compare.mts --baseline ROOT --candidate ROOT --dependency NAME --evidence-root ROOT`
 
 Both inputs must be clean, distinct, nonnested Git checkout roots with equivalent
 tracked source/configuration except the declared dependency and its narrow lock
@@ -109,7 +109,7 @@ Failures and build outputs are preserved; the command never cleans caller roots.
 
 For the retained serde_json engine investigation, use:
 
-`node scripts/renovate-engine-probe.mjs --engine ENGINE --workspace INPUT --config renovate.json --observed-at ISO_TIME --evidence-root ROOT`
+`node scripts/renovate-engine-probe.mts --engine ENGINE --workspace INPUT --config renovate.json --observed-at ISO_TIME --evidence-root ROOT`
 
 Supply a complete isolated Cargo input with its pre-update lock and the official
 engine matched to `scripts/fixtures/serde-json-renovate-44.156.3.json`. The probe
@@ -124,6 +124,61 @@ hosted proposal/artifact readback, and full lockfile maintenance remains outside
 this scoped transitive-age guarantee.
 
 ## Frontend workflow
+
+### TypeScript execution and compatibility files
+
+Maintained first-party code defaults to TypeScript: `.ts`/`.tsx` for bundler
+inputs, `.mts` for directly executed ESM tooling, and `.cts` only for an actual
+CommonJS consumer. Direct Node tooling runs on the pinned Node baseline without
+a loader or build step. Its projects use NodeNext resolution, erasable syntax,
+explicit relative runtime extensions, type-only imports and no emit. Browser
+application/configuration projects retain bundler resolution; native harnesses
+also check the DOM callbacks that Selenium serializes. Node-only tooling does
+not receive browser globals. All projects inherit the strict shared policy.
+
+Native harnesses use `apps/desktop/scripts/transport-values.mts` when consuming
+complete domain payloads. It validates against the existing Rust-exported output
+schemas before exposing their generated types, using the pinned Ajv 2020 loader
+without coercion, defaults, property removal or remote schema loading. Schemars
+numeric format names remain annotations; exported type and numeric keywords
+supply the schema constraints. Core retains semantic validation authority.
+Dependency-free repository/bootstrap helpers keep their existing narrow checks.
+
+The normal root Vite+ check discovers each source file's nearest project; these
+no-emit projects are independent checker inputs, not declaration-build project
+references. The root project checks bundler configurations and the Stylelint
+bridge; `apps/desktop` checks application source; `scripts` checks Node tooling;
+`apps/desktop/scripts` checks native harnesses and serialized browser callbacks;
+`apps/desktop/test` checks browser setup; `integrations/playnite` checks integration
+tooling; and `apps/desktop/public` checks the raw theme bootstrap. Keep new files
+inside the appropriate includes and verify them through `pnpm check` (the
+existing Vite+ static workflow).
+
+CI keeps the complete validation plan and digest as workflow outputs. Child
+processes receive the same plan through `PORTCOVE_PLAN_GZIP_BASE64`, bounded to
+64 KiB before environment propagation and 1 MiB after inflation. This avoids
+Linux's per-environment-string execution limit on repository-wide changes.
+Consumers still validate the plan, digest and source bindings; compression is
+only transport. Local legacy `PORTCOVE_PLAN_JSON` input remains supported, while
+ambiguous transports, corrupt data and excessive inflation are rejected.
+
+The compatibility inventory is exactly:
+
+| File                                     | Consumer requirement                                                                                                                      | Checking and validation                                                                           |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `apps/desktop/public/theme-bootstrap.js` | Static HTML loads this public script before the application; Vite copies public files without transforming TypeScript.                    | Its public-directory project enables `checkJs`; theme bootstrap tests exercise the actual script. |
+| `apps/desktop/stylelint.config.mjs`      | Installed Cosmiconfig 9 rejects `.mts` configuration files. This one-line bridge loads the TypeScript implementation through native Node. | Root `checkJs`, the typed Stylelint configuration and actual `lint:style` execution.              |
+
+The existing CI workflow contract checks this exact tracked JavaScript inventory.
+An additional compatibility file requires a concrete consumer reason and an
+update here, rather than a general script or test exemption. Historical commands,
+checksums and retained evidence keep their original source identities.
+
+Native-helper declarations describe executed dependencies. Their source parser
+uses native Node type stripping before the existing restricted import/URL grammar:
+whole type-only imports are erased, while retained side-effect imports must still
+be declared. Check-reproduction inputs belong to the checked source projects;
+an erased type import is not evidence of runtime execution.
 
 Vite+ owns the JavaScript toolchain. The root `vite.config.ts` contains format,
 lint, test-project, staged-check and composite-task settings; the desktop config
@@ -145,7 +200,7 @@ pnpm build
 ```
 
 Package scripts resolve the installed local CLI. `pnpm exec vp <command>`
-is the explicit route; `node scripts/run-viteplus.mjs <command>` also runs the
+is the explicit route; `node scripts/run-viteplus.mts <command>` also runs the
 installed package without a package-manager hop. Node and pnpm are pinned in
 `.node-version` and `package.json`. A contributor may choose Corepack during
 provisioning. Bootstrap prefers an already provided exact pnpm and uses Corepack
@@ -176,9 +231,8 @@ first verifies the coordinated installed toolchain and also runs Stylelint. The
 shared compiler policy enables strict, exactOptionalPropertyTypes and
 noUncheckedIndexedAccess across application TS/TSX, typed tests/fixtures and
 runtime-specific configuration projects. There is no narrow strict project or
-duplicate compiler task. Untyped Node
-scripts use Node globals and correctness lint; browser and typed code retain
-their actual execution-environment distinctions. Rust formatting,
+duplicate compiler task. Native Node scripts and their tests use Node globals
+and type-aware lint rules; browser callbacks retain their actual DOM environment. Rust formatting,
 Oxlint source policy, Stylelint CSS, localization, deterministic theme tests
 and transport contracts retain their distinct responsibilities. `pnpm verify:frontend`
 (or `vp run frontend:verify`) composes static checks and the runtime group: content/schema,
@@ -299,7 +353,7 @@ Repository postUpgradeTasks are not used: arbitrary commands are blocked by
 Renovate's default hosting policy, and no administrator allowedCommands support
 has been established here. Automatic proposals plus existing Codex delivery need
 no paid host, new monitor or persistent coordinator.
-`node scripts/viteplus-renovate-probe.mjs ENGINE_DIRECTORY` inspects extraction,
+`node scripts/viteplus-renovate-probe.mts ENGINE_DIRECTORY` inspects extraction,
 resolved presets and ordinary/security rules with the verified 44.156.3 engine.
 It is local engine evidence, not a future hosted-proposal observation.
 
@@ -327,7 +381,7 @@ remain in the saved job step inventory. Rust's first inventory includes workspac
 compilation; filter discovery, selected tests and live transport checks have
 separate phases. Measurement does not add another compilation or acceptance gate.
 
-Use `node scripts/ci-metrics.mjs summarize DIRECTORY` for downloaded reports.
+Use `node scripts/ci-metrics.mts summarize DIRECTORY` for downloaded reports.
 The delivery watcher records initial queue delay separately from workflow start
 through completion of the five required contexts. Missing measurements stay
 unavailable. Cache warmth comes from reported restore/reuse outcomes, not attempt
@@ -340,11 +394,11 @@ hosted speedup.
 
 ## Generated GitHub text
 
-Use `node scripts/github-body.mjs --help` for guarded file-based issue/PR edits,
+Use `node scripts/github-body.mts --help` for guarded file-based issue/PR edits,
 comments and PR creation. Issue intake continues through Roadmap. For example:
 
 ```powershell
-node scripts/github-body.mjs issue-edit --target 1685 --body-file work/candidate.md --previous-body-file work/original.md
+node scripts/github-body.mts issue-edit --target 1685 --body-file work/candidate.md --previous-body-file work/original.md
 ```
 
 The preimage file must be an exact UTF-8 copy of the fetched remote body. The
@@ -436,7 +490,7 @@ compiler selection matters. Keep each worktree's Cargo target separate and use
 the existing development-storage wrapper for heavy commands.
 
 Selective development uses the shared capability map in
-`scripts/development-capabilities.mjs`. Observe a requested profile with
+`scripts/development-capabilities.mts`. Observe a requested profile with
 `just doctor --profile frontend|core|daily|native-desktop`; observation never
 acquires tools or dependencies. Existing `standard` and `desktop` defaults retain
 their legacy behavior. Profile readiness is prerequisite evidence; it does not
@@ -469,10 +523,10 @@ and unrelated shims remain intact. Git and PowerShell must already be available
 for daily setup; an unavailable prerequisite remains an explicit limitation.
 No ordinary validation command invokes these provisioning routes implicitly.
 
-The active toolchain authorities are Rust 1.98.1 in `rust-toolchain.toml`, Node
+The active toolchain authorities are Rust 1.99.1 in `rust-toolchain.toml`, Node
 24.21.0 in `.node-version`, and pnpm 12.8.1 in the repository root package's
 `packageManager` field. GitHub workflows derive pnpm from that package manifest
-instead of copying its version. `scripts/dependency-automation.test.mjs` checks
+instead of copying its version. `scripts/dependency-automation.test.mts` checks
 those relationships together with Renovate coverage for nonstandard pins.
 
 The root `package.json`, `pnpm-workspace.yaml`, and `pnpm-lock.yaml` are the sole
@@ -570,9 +624,9 @@ owns operation syntax and resource handling. [Development storage](DEVELOPMENT-S
 owns workspace, cache and cleanup operations.
 
 Ordinary command selection and non-receipt execution live in
-`scripts/ordinary-validation.mjs`; hosted `ci-baseline.mjs` consumes that module
-directly. `local-validation.mjs` owns optional local CLI/preflight and receipt
-composition. `validation-evidence.mjs` shares conservative inventory,
+`scripts/ordinary-validation.mts`; hosted `ci-baseline.mts` consumes that module
+directly. `local-validation.mts` owns optional local CLI/preflight and receipt
+composition. `validation-evidence.mts` shares conservative inventory,
 fingerprint and receipt primitives with the explicit audit; importing ordinary
 hosted planning does not load audit or receipt orchestration.
 
@@ -626,7 +680,7 @@ is [conditional](reference/validation-operations-history.md).
 #### Static component scenarios
 
 From the checkout root, run
-`node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop dev`, then open
+`node scripts/dev-storage.mts run -- pnpm --dir apps/desktop dev`, then open
 `http://127.0.0.1:1420/scenarios.html` in an ordinary browser. The development-only
 page offers typed deterministic empty-library, ready-game, missing-source,
 missing-tool, staged-update, interrupted-operation, refresh-failure and unavailable
@@ -669,8 +723,8 @@ After the frozen pnpm install, explicitly provision the pinned Playwright Chromi
 headless shell on the checkout volume:
 
 ```powershell
-node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop browser:bootstrap
-node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop test:browser
+node scripts/dev-storage.mts run -- pnpm --dir apps/desktop browser:bootstrap
+node scripts/dev-storage.mts run -- pnpm --dir apps/desktop test:browser
 ```
 
 `browser:bootstrap` installs only the reviewed Chromium shell and its companions
@@ -816,7 +870,7 @@ by a healthy local-main return with the same library identity and generation.
 This fixture establishes no ordinary-package, media-device, updater or minimum
 environment claim. Its listener stays owned until native cleanup joins.
 
-`node scripts/desktop-linux-x11.mjs --config ABSOLUTE_JSON` reuses the
+`node scripts/desktop-linux-x11.mts --config ABSOLUTE_JSON` reuses the
 ext4/private authenticated virtual-X11 route. On Windows it holds the existing
 Windows native slot and Heavy Rust guard while dispatching existing Ubuntu tools;
 Linux holds its own native slot and maintained PID namespace/init controls.
@@ -864,7 +918,7 @@ separate. Existing personal browser profiles are not selected. The owned profile
 also retains a default-redaction network log with a 4 MB size budget and ten-second
 capture for failed-navigation diagnosis; it is not destination acceptance.
 The manifest binds the current source, exact ordinary
-`pnpm tauri build --bundles deb` command, empty qualification features,
+`pnpm --dir apps/desktop desktop:build --bundles deb` command, empty qualification features,
 package and configuration identities, and the actual `dpkg-deb --extract` receipt
 with its `usr/bin/portcove-desktop` identity. This route uses the existing native
 PID namespace and requires positive join before releasing custody. It observes
@@ -966,7 +1020,7 @@ review-only scenario remains separately selectable.
 
 With no selector, `desktop-verify` uses the `smoke` profile. Exact `--scenario`
 flags are repeatable and mutually exclusive with `--profile`; selection is normalized
-in catalog order. The pure `scripts/desktop-execution-plan.mjs` supplies fixture
+in catalog order. The pure `scripts/desktop-execution-plan.mts` supplies fixture
 requirements, build features, initial receipt sources and ordered family entries.
 The harness consumes that order after workspace refresh/history and before reload;
 its existing scenario attempt remains responsible for dependency gating and
@@ -1080,6 +1134,20 @@ The curated profiles are:
 - `full`: smoke, owned lifecycle and artwork. It remains a curated native suite,
   not universal desktop, physical-device, gameplay or human qualification.
 
+`--scenario native-late-listener-disposal` is a standalone Windows qualification
+of actual native operation-listener lifetime during one live Core preparation.
+After a renderer reload, two UI-reviewed owned-folder selections have only their
+bridge input redirected to the current owned root. Core returns its real
+generation changes while retaining the worker; no response or generation is
+invented. The probe delays delivery of one completed native listen response
+across the second owner remount, then observes the exact native unlisten and
+callback removal while the current owner's listener remains registered.
+The same preparation ID is cancelled through the current UI and its original
+inputs and durable recovery outcome are checked. This controlled bridge-input
+and response-delay proof is not a natural library move, transport rejection,
+Linux observation, or operating-system shutdown. It is excluded from ordinary
+profiles; uncertain interception cleanup invalidates the session.
+
 `--scenario native-host-interrupted-preparation` is an opt-in Windows proof:
 an owned setup child reaches its live checkpoint, the identified harness tree
 is forcibly terminated without first deleting the WebDriver session, and a new
@@ -1116,7 +1184,7 @@ final evidence; dirty source is allowed and recorded during iteration.
 Before acquiring its own native session lease or building, `desktop-verify`
 executes the installed package's declared Vite+ executable with `--version`,
 using the same launcher, Desktop cwd and signing-filtered environment as
-`build-frontend.mjs`. The observed version must match its installed package
+`build-frontend.mts`. The observed version must match its installed package
 metadata; workspace package readiness separately checks the declared graph.
 A ten-second deadline and 16 KiB per-stream cap bound the probe. The fresh
 run directory retains `frontend-command-preflight.json` even on failure.
@@ -1127,7 +1195,7 @@ executing Vite+, installing packages or acquiring a lease. An inherited caller
 lease remains the caller's responsibility.
 
 Native helper dependencies are declared in
-`scripts/native-helper-dependencies.mjs`. Literal PowerShell dot-source imports
+`scripts/native-helper-dependencies.mts`. Literal PowerShell dot-source imports
 and wrapper imports are checked against the declaration (using the Windows
 PowerShell parser for dot-source enumeration). Missing, escaping, dynamic or
 undeclared imports fail. The harness captures deduplicated actual helper byte
@@ -1316,7 +1384,7 @@ failed batch without retrying it. The defaults remain one restart and no extra
 reload probe, within the existing three-minute harness deadline. Partial reports
 and failed runs remain evidence; a later pass does not establish a root-cause fix.
 
-`development-evidence.mjs` writes format version 2 observations with a full
+`development-evidence.mts` writes format version 2 observations with a full
 revision, executable hash, method, selected/setup/excluded scenario inventories,
 cycle counts, source cleanliness, phase timings, explicit gaps, qualification
 completeness, scenario outcomes and hashed artifact references. Setup needed to
@@ -1605,7 +1673,7 @@ production content publication, physical devices or human comprehension.
 
 `--scenario native-normal-package-webview-boundary` is an opt-in Windows
 ordinary-package case through the existing external Tauri/EdgeDriver route.
-Use low-level `desktop-test.mjs --app <retained-installed-executable> --output
+Use low-level `desktop-test.mts --app <retained-installed-executable> --output
 <new-absolute-directory> --scenario native-normal-package-webview-boundary
 --package-evidence <absolute-manifest>`. The manifest binds the clean candidate
 revision, exact admitted `pnpm --dir apps/desktop desktop:build --bundles nsis` invocation,
@@ -1783,7 +1851,7 @@ while older work finishes. An unmodified PID-only native guard cannot safely
 represent independent supervised descendants or remote-engine work. Coordinate a
 finite checkpoint with existing local writers, finish legacy heavy/native/container
 work and resolve unknown retained records. Then run
-`node scripts/resource-command.mjs retire-legacy-entrypoints` from an updated
+`node scripts/resource-command.mts retire-legacy-entrypoints` from an updated
 checkout. This owner-authorized operation holds the legacy guards, checks the
 drained capacity domain, retains a migration receipt and atomically selects
 `coordinated` mode. Queued requests re-read mode. After cutover, retire all

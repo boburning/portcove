@@ -135,7 +135,7 @@ retry or local cleanup. Server-enforced review threads, permissions and
 repository rules remain in force; the helper is a mechanism, not review or
 merge authority, and is not an administrator bypass.
 
-Supported PR body writes (`github-body.mjs pr-create` and `pr-edit`) also require
+Supported PR body writes (`github-body.mts pr-create` and `pr-edit`) also require
 `--closure-intent-file`. Its JSON is `{ "format_version": 1, "allowed_targets": [] }`
 for a component PR. Allowed targets are independently declared
 `owner/repository#number` identities, not extracted permissions from candidate

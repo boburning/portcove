@@ -45,7 +45,7 @@ All normal core catalog validation runs before admission. The schema-2 identity,
 With an existing publisher-controlled Ed25519 PKCS#8 PEM key, run:
 
 ```text
-node scripts/sign-catalog.mjs --catalog catalog.json --key publisher-private.pem --sequence 1 --expires-at <unix-seconds> --output catalog-signed.json
+node scripts/sign-catalog.mts --catalog catalog.json --key publisher-private.pem --sequence 1 --expires-at <unix-seconds> --output catalog-signed.json
 ```
 
 The utility defaults issuance to the current time, accepts an explicit `--issued-at`, prints only the public key/fingerprint and output identity, and refuses to overwrite its output. It does not generate or choose a production key, upload anything, or replace core catalog validation. Private-key paths are inputs to this offline publisher utility, never Portcove runtime configuration. Publishers should validate the signed output through core before distributing it:

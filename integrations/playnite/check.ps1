@@ -22,7 +22,7 @@ if (@($output | Where-Object { $_ -notin @('Portcove.Playnite.dll', 'extension.y
     throw 'Unexpected files in plugin output. Do not ship SDK or private Playnite assemblies.'
 }
 if ($ContractsOnly) { return }
-node (Join-Path $projectRoot 'lifecycle-check.mjs')
+node (Join-Path $projectRoot 'lifecycle-check.mts')
 if ($LASTEXITCODE -ne 0) { throw 'Reference-client real lifecycle qualification failed.' }
 $outputRoot = if ($env:PORTCOVE_OUTPUT_DIR) { [IO.Path]::GetFullPath($env:PORTCOVE_OUTPUT_DIR) } else { [IO.Path]::GetFullPath((Join-Path $projectRoot '../../outputs')) }
 $packageRoot = Join-Path (Join-Path $outputRoot 'playnite') ([DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))

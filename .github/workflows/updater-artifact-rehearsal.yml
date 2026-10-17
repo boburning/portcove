@@ -65,7 +65,7 @@ jobs:
         if: runner.os == 'Windows'
         id: windows-quality-pins
         shell: pwsh
-        run: node scripts/quality-tools.mjs --github-output >> $env:GITHUB_OUTPUT
+        run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
       - name: Provision existing pinned Windows prebuilt quality tools
         if: runner.os == 'Windows'
         uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
@@ -78,7 +78,7 @@ jobs:
       - name: Test signature rejection and inventory identity
         run: |
           cargo test --locked -p portcove-release-tools
-          node --test scripts/updater-artifact-inventory.test.mjs
+          node --test scripts/updater-artifact-inventory.test.mts
       - name: Build and verify disposable signed packages and selected version transition
         shell: pwsh
         run: ./scripts/rehearse-updater-artifacts.ps1 -PlatformLabel '${{ matrix.label }}' -TransitionProfile '${{ inputs.transition_profile }}'

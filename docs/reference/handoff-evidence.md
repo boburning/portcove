@@ -8,7 +8,7 @@ Nonzero exit means evidence reuse is incomplete. This is optional continuation
 feedback, not a new required status or native acceptance lane.
 
 The companion format is `format_version: 1`, extending the shared
-`scripts/development-evidence.mjs` file identities. It records `revision`,
+`scripts/development-evidence.mts` file identities. It records `revision`,
 `captured_at`, `library: { id, resource_id }`, `resources`, `completed`,
 `outstanding` and `resume_condition`. `pull_request: { repository, number, head }`
 is optional and must match the source revision. The checker validates the selected

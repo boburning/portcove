@@ -146,6 +146,80 @@ describe("backup history presentation", () => {
     for (const opening of actionButtons) expect(opening).not.toContain('disabled=""');
   });
 
+  it.each([
+    [
+      "recovery_required",
+      "Verified backups remain listed, but restoring requires recovery to finish.",
+    ],
+    [
+      "unsafe_data",
+      "Verified backups remain listed. Review the current restore availability below.",
+    ],
+  ] as const)(
+    "does not call degraded backups usable when restore is held by %s",
+    (reason, message) => {
+      const html = renderToStaticMarkup(
+        <BackupHistory
+          backups={[
+            {
+              id: "backup-1",
+              port_id: port.id,
+              path: "backups/sample/backup-1",
+              created_at: 1,
+              file_count: 1,
+              size: 1024,
+              sha256: "a".repeat(64),
+            },
+          ]}
+          state="degraded"
+          restoreAssessment={{ action: "backup_restore", availability: "held", reason }}
+          restore={vi.fn()}
+          remove={vi.fn()}
+        />,
+      );
+      expect(html).toContain(message);
+      expect(html).not.toContain("listed and usable");
+      expect(html).toMatch(/<button[^>]*disabled=""[^>]*>[^]*?Restore/u);
+      // A restore assessment does not establish a delete hold.
+      expect(html).not.toContain("restoring and deleting require recovery");
+    },
+  );
+
+  it.each(["idle", "pending", "failed"] as const)(
+    "keeps a retained restore hold provisional while read state is %s",
+    (status) => {
+      const html = renderToStaticMarkup(
+        <BackupHistory
+          backups={[
+            {
+              id: "backup-1",
+              port_id: port.id,
+              path: "backups/sample/backup-1",
+              created_at: 1,
+              file_count: 1,
+              size: 1024,
+              sha256: "a".repeat(64),
+            },
+          ]}
+          state="degraded"
+          readState={{ status, hasInventory: true }}
+          restoreAssessment={{
+            action: "backup_restore",
+            availability: "held",
+            reason: "recovery_required",
+          }}
+          restore={vi.fn()}
+          remove={vi.fn()}
+        />,
+      );
+      expect(html).toContain(
+        "Verified backups remain listed. Review the current restore availability below.",
+      );
+      expect(html).not.toContain("restoring requires recovery to finish");
+      expect(html).not.toContain("listed and usable");
+    },
+  );
+
   it("names unusable backups honestly and shows each recovery action outside technical details", () => {
     const html = renderToStaticMarkup(
       <BackupHistory

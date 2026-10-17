@@ -3,7 +3,7 @@
 Read when changing the update/scan IPC interception harness.
 
 The native update and progressive-scan journeys share owned IPC interception
-custody through `desktop-owned-ipc-probe.mjs`. Its two fixed handles own payload
+custody through `desktop-owned-ipc-probe.mts`. Its two fixed handles own payload
 decoding, the no-forwarding boundary, fetch identity, Channel closure, pending
 response settlement, and one retained terminal cleanup report. Callers own
 scenario behavior, durable readback, screenshots, and their primary error.

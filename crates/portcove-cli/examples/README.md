@@ -9,9 +9,9 @@ From the repository root:
 
 ```sh
 cargo run --locked -p portcove-cli --example export_desktop_transport
-node scripts/check-transport-contract.mjs
-node scripts/check-transport-contract.mjs --write
-node apps/desktop/scripts/generate-transport-types.mjs
+node scripts/check-transport-contract.mts
+node scripts/check-transport-contract.mts --write
+node apps/desktop/scripts/generate-transport-types.mts
 ```
 
 The normal checker compares compiled Rust output/input/event schemas with all

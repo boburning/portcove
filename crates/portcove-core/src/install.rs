@@ -737,7 +737,7 @@ impl Installer {
             operation.checkpoint()?;
         }
         if let Some(preparation) = request.managed.clone() {
-            emit(operation.message("info", "Generating and compiling the verified PS1 source"));
+            emit(operation.message("info", "Preparing and compiling PlayStation game data"));
             let managed_root = payload_root.clone();
             run_managed_install_worker(lifecycle, operation, move |checkpoint| {
                 crate::psx::prepare_install(&managed_root, &preparation, &checkpoint)
@@ -866,7 +866,7 @@ impl Installer {
             .detail("expected", &asset.sha256)
             .detail("actual", actual_hash));
         }
-        emit(operation.message("info", format!("SHA-256 verified: {}", asset.name)));
+        emit(operation.message("info", format!("Download checksum matches: {}", asset.name)));
         let asset_name = asset.name.clone();
         let extraction_path = download_path.to_path_buf();
         let extraction_root = payload_root.to_path_buf();

@@ -50,7 +50,7 @@ Use standard public `windows-2022` compute only. The workflow writes no Actions
 artifacts or caches. Its dedicated bounded evidence encoder retains the real PNG,
 JSON and log bytes in ordinary job logs, which GitHub documents as outside the
 artifact-storage allowance. Recover those records with
-`node scripts/native-backup-evidence.mjs recover <job-log> <new-directory>`;
+`node scripts/native-backup-evidence.mts recover <job-log> <new-directory>`;
 missing, reordered, corrupt, excessive or incomplete records refuse recovery.
 Verify source/run identities and hashes before inspecting the actual images.
 Log retention remains GitHub's existing retention; download promptly. Failure to
@@ -136,7 +136,7 @@ reader actually returned a complete existing job log. Retrieve the identified
 job through that reader and materialize its complete decoded text, then run:
 
 ```bash
-node scripts/native-backup-evidence.mjs recover-hosted job.log new-evidence expected-binding.json
+node scripts/native-backup-evidence.mts recover-hosted job.log new-evidence expected-binding.json
 ```
 
 The expected binding supplies source/controller/base/run/attempt, fixed job name,

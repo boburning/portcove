@@ -173,7 +173,7 @@ describe("Catalog channel controls", () => {
     expect(invoke).not.toHaveBeenCalled();
   });
   it("binds the native switch confirmation selector to the rendered reviewed action", async () => {
-    const { default: nativeHarnessSource } = await import("../../../scripts/desktop-test.mjs?raw");
+    const { default: nativeHarnessSource } = await import("../../../scripts/desktop-test.mts?raw");
     const target = "E:/qualification/alternate-library";
     const switchLibrary = vi.fn().mockResolvedValue(undefined);
     await act(async () =>

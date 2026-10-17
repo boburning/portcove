@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
-import { applyOperationEvent, mostRecentOperation } from "./operation-state";
-import type { OperationEvent } from "../../types";
+import {
+  applyOperationEvent,
+  mostRecentOperation,
+  reconcileOperationEvents,
+} from "./operation-state";
+import type { ActivityRecord, OperationEvent } from "../../types";
 
 function event(
   operationId: string,
@@ -24,6 +28,53 @@ function event(
 }
 
 describe("operation event state", () => {
+  const activity = (id: string, status: ActivityRecord["status"]): ActivityRecord => ({
+    id,
+    status,
+    operation: "install",
+    target_kind: "port",
+    target_id: "lighthouse",
+    started_at: 1,
+    finished_at: status === "running" ? null : 2,
+    message: null,
+    failure: null,
+    cancellation: null,
+  });
+
+  it.each(["succeeded", "failed", "cancelled"] as const)(
+    "retires exact %s activity progress without inventing a terminal event",
+    (status) => {
+      const current = new Map([
+        ["completed", event("completed", 1, 10)],
+        ["overlap", event("overlap", 1, 11)],
+      ]);
+      const next = reconcileOperationEvents(current, [activity("completed", status)]);
+      expect([...next.keys()]).toEqual(["overlap"]);
+      expect(next.get("overlap")).toBe(current.get("overlap"));
+      expect(current.size).toBe(2);
+    },
+  );
+
+  it("keeps absent, unknown and running cancellation-requested work and independently live children", () => {
+    const current = new Map([
+      ["parent", event("parent", 1, 10)],
+      ["child", event("child", 1, 11, "parent")],
+      ["missing", event("missing", 1, 12)],
+      ["unknown", event("unknown", 1, 13)],
+    ]);
+    const running = {
+      ...activity("child", "running"),
+      cancellation: { requested: true, phase: "preparing" as const },
+    };
+    const next = reconcileOperationEvents(current, [
+      activity("parent", "failed"),
+      running,
+      { ...activity("unknown", "running"), status: "future" } as unknown as ActivityRecord,
+    ]);
+    expect([...next.keys()]).toEqual(["child", "missing", "unknown"]);
+    expect(reconcileOperationEvents(next, [])).toBe(next);
+  });
+
   it("accepts current event schema and ignores unknown future schema", () => {
     const current = { ...event("scan", 1, 10), schema_version: 3 };
     const state = applyOperationEvent(new Map(), current);

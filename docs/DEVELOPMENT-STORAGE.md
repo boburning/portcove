@@ -28,7 +28,7 @@ git worktree list
 git fetch origin
 git worktree add -b feature/my-change E:\Portcove-Worktrees\my-change origin/main
 Set-Location E:\Portcove-Worktrees\my-change
-node scripts/dev-storage.mjs preflight
+node scripts/dev-storage.mts preflight
 just doctor
 just local-check --plan
 ```
@@ -75,12 +75,12 @@ From the new workspace, inspect the resolved layout and prerequisites before a
 heavy command:
 
 ```powershell
-node scripts/dev-storage.mjs preflight
+node scripts/dev-storage.mts preflight
 just doctor
 ```
 
 Only when frontend dependencies are missing or incompatible with the lockfile,
-run `node scripts/dev-storage.mjs run -- pnpm install --frozen-lockfile` from the repository root.
+run `node scripts/dev-storage.mts run -- pnpm install --frozen-lockfile` from the repository root.
 Browser Mode keeps its explicitly provisioned Chromium shell and companions under
 the checkout's ignored `work/browser-cache`; `browser:bootstrap` owns that cache,
 and the browser project reports the missing executable when it is absent. Browser
@@ -167,7 +167,7 @@ Run rust-analyzer from the selected workspace so its Cargo metadata resolves the
 Use the explicit cleanup command when the shared Cargo tree is no longer needed:
 
 ```powershell
-node scripts/dev-storage.mjs clean
+node scripts/dev-storage.mts clean
 ```
 
 The command prints the exact deletion target, accepts only this workspace's ordinary `target` directory (or an absent target), and refuses symlinks/junctions anywhere in its ancestor chain. It rejects custom targets, including other directories inside the checkout, and delegates deletion to `cargo clean --target-dir <checked-target>`. Cleanup remains available when free space is low or the old checkout is on the system drive. Stop build/editor processes using that target before invoking it; the command does not stop them for you.
@@ -196,7 +196,7 @@ From WSL, the same E: workspace must resolve below `/mnt/e`. For example:
 ```bash
 cd /mnt/e/Portcove-Development
 cargo metadata --format-version 1 --no-deps | jq -r .target_directory
-node scripts/dev-storage.mjs preflight
+node scripts/dev-storage.mts preflight
 ```
 
 If the new checkout fails, stop new builds, preserve its logs and outputs, and return to the untouched old source checkout. Do not restore an old `target`; recreate dependencies and build output from the lockfiles after correcting the storage path.

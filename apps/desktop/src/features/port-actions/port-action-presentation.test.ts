@@ -7,6 +7,7 @@ import {
   installedCardInputPresentation,
   definitionHoldReason,
   portActionPresentation,
+  removalReviewPresentation,
 } from "./port-action-presentation";
 
 type Assessment = NonNullable<PortStatus["port_actions"]>[number];
@@ -14,6 +15,39 @@ const withAssessment = (assessment: Assessment): PortStatus => ({
   ...portStatus(),
   port_actions: [assessment],
 });
+
+it.each(["remove_managed", "remove_external"] as const)(
+  "requires a unique consistent current %s review assessment",
+  (action) => {
+    const ready = { action, availability: "waiting", reason: "review_required" } as const;
+    expect(removalReviewPresentation(withAssessment(ready), action).blocked).toBe(false);
+    expect(removalReviewPresentation(undefined, action).blocked).toBe(true);
+    for (const actions of [
+      null,
+      [ready, ready],
+      [{ action: "launch", availability: "allowed", reason: "available" }],
+      [{ ...ready, availability: "future" }],
+      [{ ...ready, reason: "available" }],
+      [{ ...ready, availability: "allowed", reason: "available" }],
+      [{ ...ready, definition: { outcome: "hold", reason: "publisher_revoked" } }],
+    ])
+      expect(
+        removalReviewPresentation({ ...portStatus(), port_actions: actions as never }, action)
+          .blocked,
+      ).toBe(true);
+    for (const actions of [undefined, []])
+      expect(
+        removalReviewPresentation({ ...portStatus(), port_actions: actions as never }, action)
+          .blocked,
+      ).toBe(false);
+    expect(
+      removalReviewPresentation(
+        withAssessment({ action, availability: "not_offered", reason: "not_installed" }),
+        action,
+      ).blocked,
+    ).toBe(true);
+  },
+);
 
 it("explains exact artifact revocation for retained rollback", () => {
   expect(
@@ -398,6 +432,92 @@ const installedStatus = (
   ...portStatus(),
   active: { id: "installed" } as NonNullable<PortStatus["active"]>,
   readiness: { launchable: false, pending_setup: false, blockers },
+});
+
+const incompatibleStatus = (extension: unknown): PortStatus =>
+  ({
+    ...installedStatus(["incompatible_source"]),
+    readiness: {
+      launchable: false,
+      pending_setup: false,
+      source: "current",
+      blockers: ["incompatible_source"],
+      required_source_extension: extension,
+    },
+    port_actions: [{ action: "launch", availability: "waiting", reason: "incompatible_source" }],
+  }) as PortStatus;
+
+it("explains the retained runtime's required format in details and installed cards without rejecting source identity", () => {
+  const status = incompatibleStatus("z64");
+  const original = JSON.stringify(status);
+  const action = portActionPresentation(status, "launch");
+  expect(action.blocked).toBe(true);
+  expect(action.reason).toBe(
+    "This runtime requires an uncompressed .z64 game file. Select and validate that file before playing.",
+  );
+  expect(installedCardInputPresentation(status)).toEqual({
+    label: "Game-file format needs review",
+    reasons: [action.reason],
+  });
+  expect(status.readiness?.source).toBe("current");
+  expect(JSON.stringify(status)).toBe(original);
+});
+
+it.each([
+  undefined,
+  null,
+  "",
+  ".z64",
+  "../z64",
+  "z64\n",
+  "z64\u202e",
+  "\u212a",
+  "a".repeat(17),
+  {},
+  7,
+])(
+  "keeps a format hold actionable without reflecting malformed or unavailable extension %j",
+  (extension) => {
+    const status = incompatibleStatus(extension);
+    const action = portActionPresentation(status, "launch");
+    expect(action.blocked).toBe(true);
+    expect(action.reason).toBe(
+      "The selected game-file format cannot be used by this runtime. Select and validate the required format before playing.",
+    );
+    expect(installedCardInputPresentation(status)?.reasons).toEqual([action.reason]);
+  },
+);
+
+it("does not infer a format hold from an extension alone or replace a known installation failure", () => {
+  const status = incompatibleStatus("z64");
+  status.readiness!.blockers = ["invalid_installation", "incompatible_source"];
+  expect(installedCardInputPresentation(status)).toBeUndefined();
+  status.readiness = {
+    launchable: true,
+    pending_setup: false,
+    blockers: [],
+    required_source_extension: "z64",
+  };
+  status.port_actions = [{ action: "launch", availability: "allowed", reason: "available" }];
+  expect(installedCardInputPresentation(status)).toBeUndefined();
+  expect(portActionPresentation(status, "launch")).toEqual({ blocked: false });
+});
+
+it("keeps BIOS and changed-source problems separate when current readback replaces a format hold", () => {
+  const status = incompatibleStatus("z64");
+  status.readiness!.blockers.push("missing_bios");
+  const compound = installedCardInputPresentation(status);
+  expect(compound?.reasons).toEqual([
+    "A required BIOS file is missing. View details to select and review the required files.",
+    "This runtime requires an uncompressed .z64 game file. Select and validate that file before playing.",
+  ]);
+  status.readiness!.blockers = ["changed_source"];
+  status.readiness!.source = "changed";
+  status.port_actions = [{ action: "launch", availability: "waiting", reason: "changed_source" }];
+  const current = installedCardInputPresentation(status);
+  expect(current?.label).toBe("Game files changed");
+  expect(current?.reasons.join(" ")).not.toContain(".z64");
+  expect(portActionPresentation(status, "launch").reason).toContain("game files changed");
 });
 it.each([
   ["missing_source", "Game files missing", "Required game files are missing"],

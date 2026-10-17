@@ -22,7 +22,7 @@ before proposing work. Maintainers can create a newly discovered port's durable
 issue directly:
 
 ```powershell
-node scripts/roadmap.mjs capture-port --title "Project name" --url https://github.com/owner/project --port-key project-name
+node scripts/roadmap.mts capture-port --title "Project name" --url https://github.com/owner/project --port-key project-name
 ```
 
 Contributors can instead use the **New port / upstream candidate** form. Its
@@ -31,7 +31,7 @@ independently prioritizable games even when they share one repository. A
 maintainer then runs:
 
 ```powershell
-node scripts/roadmap.mjs normalize-port --issue <number>
+node scripts/roadmap.mts normalize-port --issue <number>
 ```
 
 Normalization preserves the submitted form content, rejects repository-wide

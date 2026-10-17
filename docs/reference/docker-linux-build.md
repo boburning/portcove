@@ -5,7 +5,7 @@ Ubuntu 22.04 x86-64 build and unsigned-package route. Native Windows development
 remains primary. [The browser adapter](docker-browser-tooling.md) describes shared
 Windows Docker Desktop / WSL 2 admission, exact-commit source transfer,
 publication/recovery and bounded cleanup. Both thin adapters use
-`scripts/container-host.mjs`; their images, labels, staging and exports are separate.
+`scripts/container-host.mts`; their images, labels, staging and exports are separate.
 The builder does not inherit the browser runtime or install browser binaries.
 
 ## Commands
@@ -24,7 +24,7 @@ just container-build-clean
 just container-build-clean --older-than-hours 72 --apply
 ```
 
-Without Just, use `node scripts/container-build.mjs doctor|run|export|clean`
+Without Just, use `node scripts/container-build.mts doctor|run|export|clean`
 with the same arguments. `check` is the default; packaging requires explicit
 `--mode package`. There is no arbitrary shell-command mode. Dirty current work
 is refused unless explicitly excluded with `--exclude-dirty`; exclusion is

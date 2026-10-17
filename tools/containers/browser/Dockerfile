@@ -1,4 +1,4 @@
-FROM ghcr.io/voidzero-dev/vite-plus:1.2.0@sha256:72da2a35e67d6d73fb5110466ee21741c847a1929777e6ca1499862d2f0db5e8
+FROM ghcr.io/voidzero-dev/vite-plus:1.3.0@sha256:61860c1b58bf35878605280802809973c668f1594675298c3be553a98ac06e59
 
 ARG SOURCE_COMMIT
 ARG SOURCE_TREE
@@ -12,19 +12,19 @@ WORKDIR /workspace
 RUN test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT" && test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"
 # The complete committed tree includes every manifest, patch and lifecycle input.
 RUN vp install --frozen-lockfile
-RUN node apps/desktop/scripts/browser-package-compatibility.mjs
+RUN node apps/desktop/scripts/browser-package-compatibility.mts
 USER root
 # Use the installed, lockfile-selected Playwright package's own library list.
 RUN node apps/desktop/node_modules/playwright/cli.js install-deps chromium
 RUN SUDO_FORCE_REMOVE=yes apt-get purge -y sudo && rm -rf /var/lib/apt/lists/* /etc/sudoers.d
 RUN dpkg-query -W > /portcove/installed-system-packages.txt
 USER vp
-RUN node apps/desktop/scripts/browser-runtime.mjs bootstrap
+RUN node apps/desktop/scripts/browser-runtime.mts bootstrap
 RUN pnpm list --recursive --depth Infinity --json > /portcove/installed-npm-packages.json
 RUN node -e "const {execFileSync}=require('node:child_process'); require('node:fs').writeFileSync('/portcove/tool-versions.json', JSON.stringify(Object.fromEntries(['node','pnpm','vp'].map(command => [command,execFileSync(command,['--version'],{encoding:'utf8'}).trim()]))));"
-COPY --chown=vp:vp container-entry.mjs container-source.mjs /portcove/
-RUN node /portcove/container-source.mjs "$SOURCE_COMMIT" "$SOURCE_TREE"
+COPY --chown=vp:vp container-entry.mts container-source.mts runtime-values.mts /portcove/
+RUN node /portcove/container-source.mts "$SOURCE_COMMIT" "$SOURCE_TREE"
 ARG WORKSPACE_OWNER
 ARG PREPARATION
 LABEL io.portcove.tool="browser-v1" io.portcove.workspace=$WORKSPACE_OWNER io.portcove.preparation=$PREPARATION io.portcove.source=$SOURCE_COMMIT io.portcove.tree=$SOURCE_TREE
-ENTRYPOINT ["node", "/portcove/container-entry.mjs"]
+ENTRYPOINT ["node", "/portcove/container-entry.mts"]

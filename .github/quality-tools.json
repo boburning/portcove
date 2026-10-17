@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "rust": {
-    "channel": "1.98.1",
+    "channel": "1.99.1",
     "components": ["clippy", "rustfmt"]
   },
   "tools": [

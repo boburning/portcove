@@ -95,7 +95,7 @@ fn switch_library(
         })?;
         require_no_library_handoff(&initialization)?;
         if let Ok(current) = initialization.as_mut()
-            && current.library.root() == selection.root
+            && same_existing_library(current.library.root(), &selection.root)
         {
             persist_selection(&preferences, &selection)?;
             current.selection = selection;
@@ -149,6 +149,18 @@ fn switch_library(
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
     }
     Ok(bootstrap_status(state))
+}
+
+fn same_existing_library(current: &std::path::Path, target: &std::path::Path) -> bool {
+    // Core validates existing roots, including aliases. A missing default root
+    // must still take the normal initialization path below.
+    match (
+        Library::validate_selection_target(current),
+        Library::validate_selection_target(target),
+    ) {
+        (Ok(current), Ok(target)) => current == target,
+        _ => false,
+    }
 }
 
 fn wait_for_outgoing_library(root: &std::path::Path) -> portcove_core::Result<()> {
@@ -215,6 +227,50 @@ mod tests {
             generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
             launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
         }
+    }
+
+    #[test]
+    fn existing_library_comparison_handles_ordinary_and_canonical_roots() {
+        let temporary = tempfile::tempdir().unwrap();
+        let current = temporary.path().join("current");
+        let other = temporary.path().join("other");
+        let _library = Library::open(current.clone()).unwrap();
+        let _other = Library::open(other.clone()).unwrap();
+        let canonical = Library::validate_selection_target(&current).unwrap();
+        assert!(same_existing_library(&current, &current));
+        assert!(same_existing_library(&current, &canonical));
+        assert!(same_existing_library(&canonical, &current));
+        assert!(!same_existing_library(&current, &other));
+        assert!(!same_existing_library(
+            &current,
+            &temporary.path().join("missing")
+        ));
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn same_library_selection_reuses_active_state_for_a_canonical_alias() {
+        let temporary = tempfile::tempdir().unwrap();
+        let current = temporary.path().join("current");
+        let preferences =
+            HostPreferenceStore::new(temporary.path().join("config/preferences.json")).unwrap();
+        let state = desktop_state(preferences, current.clone());
+        let held = crate::ready(&state).unwrap();
+        let canonical = Library::validate_selection_target(&current).unwrap();
+        assert_ne!(held.library.root(), canonical);
+        let before_identity = held.library.identity_record().unwrap();
+        let switched = switch_library(&state, Some(current)).unwrap();
+        let after = crate::ready(&state).unwrap();
+        assert_eq!(switched.generation, 2);
+        assert_eq!(switched.selection.unwrap().root, canonical);
+        assert_eq!(after.library.identity_record().unwrap(), before_identity);
+        assert!(std::sync::Arc::ptr_eq(
+            &held.workspace_observer,
+            &after.workspace_observer
+        ));
+        assert!(std::sync::Arc::ptr_eq(&held.github, &after.github));
+        assert!(std::sync::Arc::ptr_eq(&held.releases, &after.releases));
+        assert_eq!(after.library.root(), held.library.root());
     }
 
     #[test]

@@ -23,7 +23,7 @@ attributed evidence; it does not prove scheduled execution.
 
 ## Bounded interface and policy
 
-`scripts/upstream-observer.mjs` reads the configured repository, all release
+`scripts/upstream-observer.mts` reads the configured repository, all release
 pages and each release's complete asset collection. It preserves provider
 release order, draft/prerelease flags, numeric identities, tags, publication
 clocks, asset names, URLs, sizes and provider digest claims. It discards prose
@@ -71,7 +71,7 @@ does not decide whether a user should update or whether bytes are trusted.
 
 ## Checkpoints, interruption and exceptions
 
-Run `node scripts/observe-configured-upstream.mjs --cli PATH_TO_PORTCOVE` from
+Run `node scripts/observe-configured-upstream.mts --cli PATH_TO_PORTCOVE` from
 the checkout. The optional `GITHUB_TOKEN` is sent only to the fixed GitHub API
 origin. `--config` must stay in the checkout; optional `--state` and `--report`
 must stay under its `work` directory without symlink/reparse components.
@@ -149,7 +149,7 @@ must be recorded separately in the owning issue and linked run artifacts.
 
 ## Catalog location reachability
 
-`node scripts/check-catalog-repositories.mjs` is the separate read-only location
+`node scripts/check-catalog-repositories.mts` is the separate read-only location
 checker used by `upstream-health.yml`. `--json` emits its format-2 diagnostic
 report instead of human lines. Its inventory includes each distinct declared
 GitHub or GitLab repository, original project location, DirectManifest artifact

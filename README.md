@@ -151,7 +151,7 @@ Each entry records its upstream project, platforms, release channels, required l
 
 Requirements:
 
-- Rust 1.98.1
+- Rust 1.99.1
 - Node.js 24.21.0
 - pnpm at the version specified by `packageManager` in [`package.json`](package.json)
 - the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)
@@ -161,15 +161,15 @@ Development storage defaults are portable: a checkout may use the Windows system
 Run the desktop app from the repository root:
 
 ```powershell
-node scripts/dev-storage.mjs preflight
-node scripts/dev-storage.mjs run -- pnpm install --frozen-lockfile
-node scripts/dev-storage.mjs run -- pnpm --dir apps/desktop desktop:dev
+node scripts/dev-storage.mts preflight
+node scripts/dev-storage.mts run -- pnpm install --frozen-lockfile
+node scripts/dev-storage.mts run -- pnpm --dir apps/desktop desktop:dev
 ```
 
 Build the CLI using the repository storage wrapper:
 
 ```powershell
-node scripts/dev-storage.mjs run -- cargo build -p portcove-cli --release
+node scripts/dev-storage.mts run -- cargo build -p portcove-cli --release
 ```
 
 The documented command requires Node.js to run the storage wrapper and preserve

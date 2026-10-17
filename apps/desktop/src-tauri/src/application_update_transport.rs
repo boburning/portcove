@@ -103,7 +103,7 @@ impl TransportBudget {
 
 fn reserve(counter: &AtomicU64, amount: u64, maximum: u64) -> bool {
     counter
-        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |current| {
+        .try_update(Ordering::AcqRel, Ordering::Acquire, |current| {
             current
                 .checked_add(amount)
                 .filter(|updated| *updated <= maximum)

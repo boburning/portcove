@@ -124,13 +124,21 @@ export default defineConfig({
         rules: { "portcove/player-copy": "error", "portcove/theme-utilities": "error" },
       },
       {
-        files: ["**/*.mjs", "**/*.cjs", "**/*.config.{ts,mts}", "vite.config.ts"],
+        files: [
+          "**/*.mjs",
+          "**/*.cjs",
+          "**/*.mts",
+          "**/*.cts",
+          "**/*.config.{ts,mts}",
+          "vite.config.ts",
+          "apps/desktop/scripts/**/*.ts",
+        ],
         env: {
           node: true,
         },
       },
       {
-        files: ["apps/desktop/scripts/desktop-*.mjs", "apps/desktop/test/**/*.mjs"],
+        files: ["apps/desktop/scripts/desktop-*.mts", "apps/desktop/test/**/*.mts"],
         env: {
           browser: true,
           node: true,
@@ -192,7 +200,7 @@ export default defineConfig({
         },
       },
       {
-        files: ["**/*.test.ts", "**/*.test.tsx"],
+        files: ["**/*.test.ts", "**/*.test.tsx", "**/*.test.mts"],
         plugins: ["typescript"],
         rules: {
           "typescript/unbound-method": "off",
@@ -200,7 +208,7 @@ export default defineConfig({
       },
     ],
     jsPlugins: [
-      "./apps/desktop/scripts/copy-lint-plugin.mjs",
+      "./apps/desktop/scripts/copy-lint-plugin.mts",
       {
         name: "vite-plus",
         specifier: "vite-plus/oxlint-plugin",
@@ -211,33 +219,33 @@ export default defineConfig({
   staged: { "*": "vp check --fix" },
   run: {
     tasks: {
-      "repository:static": { command: "node scripts/run-viteplus.mjs check", cache: false },
+      "repository:static": { command: "node scripts/run-viteplus.mts check", cache: false },
       "frontend:static": {
         command: [
-          "node apps/desktop/scripts/browser-package-compatibility.mjs",
-          "node scripts/run-viteplus.mjs check",
+          "node apps/desktop/scripts/browser-package-compatibility.mts",
+          "node scripts/run-viteplus.mts check",
           "vp -C apps/desktop run lint:style",
         ],
         cache: false,
       },
       "frontend:content": {
         command: [
-          "node apps/desktop/scripts/generate-transport-types.mjs",
-          "node scripts/check-transport-contract.mjs --ipc-only",
+          "node apps/desktop/scripts/generate-transport-types.mts",
+          "node scripts/check-transport-contract.mts --ipc-only",
           "vp -C apps/desktop run i18n:check",
         ],
         cache: false,
       },
       "frontend:unit": {
-        command: "node scripts/run-viteplus.mjs test --project unit",
+        command: "node scripts/run-viteplus.mts test --project unit",
         cache: false,
       },
       "frontend:browser": {
         command:
-          "node scripts/run-viteplus.mjs test --project browser --project browser-forced-colors",
+          "node scripts/run-viteplus.mts test --project browser --project browser-forced-colors",
         cache: false,
       },
-      "frontend:build": { command: "node apps/desktop/scripts/build-frontend.mjs", cache: false },
+      "frontend:build": { command: "node apps/desktop/scripts/build-frontend.mts", cache: false },
       "frontend:runtime": {
         command: [
           "vp run frontend:content",
@@ -253,7 +261,7 @@ export default defineConfig({
       },
       "test:native": { command: "vp -C apps/desktop run test:desktop", cache: false },
       "native:tools": {
-        command: "node --test --test-timeout=30000 apps/desktop/scripts/*.native.test.mjs",
+        command: "node --test --test-timeout=30000 apps/desktop/scripts/*.native.test.mts",
         cache: false,
       },
     },

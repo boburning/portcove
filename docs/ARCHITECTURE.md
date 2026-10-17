@@ -822,6 +822,15 @@ Desktop continues to call core directly.
 
 ## Desktop library handoff state
 
+Desktop retires event progress when a current Core activity snapshot explicitly
+reports that exact activity as succeeded, failed or cancelled. Queued events for
+that retired identity remain suppressed until the workspace owner ends, even if
+the activity later leaves the bounded history window. This only removes stale
+progress; it does not synthesize a completion event or mutation outcome. Missing
+records, failed reads, running cancellation requests and parent completion do not
+establish that another operation stopped. Durable reports and existing execution
+guards remain authoritative.
+
 Library selection and transfer share the same adapter initialization lock. Either
 in-flight handoff excludes another switch, move, import or recovery transfer before
 it can replace the active adapter state. Bootstrap captures the library and its
@@ -941,6 +950,10 @@ vocabulary and terminal activity reports. CLI and Tauri serialize the same core
 report while preserving original machine error fields. React presents this
 information; it does not infer successful rollback or unchanged files from a
 failed operation or a particular error code. Unannotated outcomes remain Unknown.
+Reviewed-action dialogs retain the structured report through review and execution
+failures and expose its original outcome, phase, code and redacted diagnostics
+through the shared failure-details control. Their review-again controls load only
+a fresh preview; they do not repeat a mutation or restore consumed consent.
 Preparation also supplies the observed unsuccessful setup result or unconfirmed
 declared completion file as a private cause for the shared safe summary. These
 causes are never inferred from diagnostic text, details or error codes; original
@@ -1024,11 +1037,11 @@ idempotent behavior.
 
 This document records the architecture Portcove tests today; it is not a promise to preserve the initial crate graph forever. The durable requirement is unambiguous ownership, not the name or number of crates. A real implementation need may justify splitting a coherent domain from `portcove-core`, adding a boundary service, or keeping genuinely host-specific orchestration in an adapter.
 
-Make such changes as one reviewed migration: explain the pressure and tradeoffs here, assign one owner to every durable state transition, update `scripts/check-rust-architecture.mjs` and its tests, and remove the superseded route. Safety invariants, machine-readable CLI compatibility, and rollback behavior remain hard constraints. File size, a complexity score, or a desire to make a tool green is not sufficient evidence by itself.
+Make such changes as one reviewed migration: explain the pressure and tradeoffs here, assign one owner to every durable state transition, update `scripts/check-rust-architecture.mts` and its tests, and remove the superseded route. Safety invariants, machine-readable CLI compatibility, and rollback behavior remain hard constraints. File size, a complexity score, or a desire to make a tool green is not sufficient evidence by itself.
 
 In this document, “thin adapter” means that the CLI and desktop do not reimplement catalog, installation, release, source, or library policy. Adapters may own concerns that exist only at their boundary, including argument and IPC translation, native dialogs, credential-store access, process attachment, and presentation-shaped aggregation. If a boundary concern becomes reusable domain behavior, move it behind the shared authority instead of copying it.
 
-Repository-owned Node maintenance tools use `scripts/github-api.mjs` as their
+Repository-owned Node maintenance tools use `scripts/github-api.mts` as their
 single GitHub process and wire-format boundary. It owns `gh` execution, JSON
 stdin for GraphQL and REST bodies, included-response parsing, rate-limit
 metadata and generic REST page traversal. Roadmap, pull-request delivery,
@@ -2351,7 +2364,7 @@ Manual host-tool selection crosses that policy only through the core registry's 
 
 Core also owns the fixed host-tool registry and resolution order. Each definition fixes its stable ID, display name, supported platforms, official HTTPS reference, and bounded probe policy. Resolution is environment override, saved host preference, reviewed discovery, then missing. An invalid environment or saved path is reported as misconfigured and blocks lower-priority fallback. Tool paths share the versioned host-preference document outside the movable library; changing them does not modify a library or source tree.
 
-Native game executables receive catalog-owned arguments plus literal caller arguments. Windows `.bat` and `.cmd` launchers are represented as `WindowsBatch`; caller arguments are rejected, and fixed catalog arguments pass a strict metacharacter check before the implicit `cmd.exe` boundary. Setup tools, validators, builders, conversion tools, and host integration require native executables. `scripts/check-child-process-policy.mjs` prevents a production adapter from reintroducing direct `Command::new` construction outside the core policy.
+Native game executables receive catalog-owned arguments plus literal caller arguments. Windows `.bat` and `.cmd` launchers are represented as `WindowsBatch`; caller arguments are rejected, and fixed catalog arguments pass a strict metacharacter check before the implicit `cmd.exe` boundary. Setup tools, validators, builders, conversion tools, and host integration require native executables. `scripts/check-child-process-policy.mts` prevents a production adapter from reintroducing direct `Command::new` construction outside the core policy.
 
 Supervised native games run in their own process group. The CLI intercepts Ctrl-C and, on Unix, termination. Before child creation it durably cancels its known request ID; if the core has already closed cancellation, the CLI forwards the pending signal after the exact child is recorded and continues waiting so core can complete exact-install save collection. A nonzero exit or signal is a failed launch outcome and never advances successful-launch history, but it does not skip collection. The desktop supervisor is detached from the UI process and uses null standard streams; closing the window therefore cannot become a save-lifecycle decision. Desktop completion observation queries only its exact request primary key and emits one refresh after the durable terminal outcome; it never polls the complete launch-session table per launch.
 
