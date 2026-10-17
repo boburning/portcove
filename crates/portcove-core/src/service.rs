@@ -10170,6 +10170,7 @@ fn main() {
         port.manually_validated_platforms.clear();
         port.source_profile = Some("star-fox-64".into());
         port.bios_source_profile = None;
+        port.launch_arguments = vec!["--launch".into()];
         port.runtime_source_filename = None;
         port.persistent_paths.clear();
         port.presentation = None;
@@ -10291,11 +10292,13 @@ fn main() {
             crate::ErrorCode::SourceInvalid
         );
         // A catalog update cannot reinterpret the already registered runtime.
-        document
+        let changed_port = document
             .ports
             .iter_mut()
             .find(|entry| entry.id == port.id)
-            .unwrap()
+            .unwrap();
+        changed_port.launch_arguments = vec!["--different-catalog-launch".into()];
+        changed_port
             .release
             .user_prepared
             .get_mut(&platform)
@@ -10339,8 +10342,8 @@ fn main() {
             )
             .unwrap();
         assert_eq!(
-            launch.arguments.first(),
-            Some(&raw.to_string_lossy().into_owned())
+            launch.arguments,
+            [raw.to_string_lossy().into_owned(), "--launch".into()]
         );
         assert_eq!(
             service
