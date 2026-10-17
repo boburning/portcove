@@ -8,8 +8,8 @@ import {
 } from "./windows-helper-checks.mts";
 import { evaluateCiResults } from "./ci-result-gate.mts";
 
-const sha = (character) => character.repeat(40);
-const plan = (oldPath, newPath = oldPath, status = "M") =>
+const sha = (character: string) => character.repeat(40);
+const plan = (oldPath: string, newPath = oldPath, status = "M") =>
   buildValidationPlan({
     changes: [
       {
@@ -26,8 +26,10 @@ const plan = (oldPath, newPath = oldPath, status = "M") =>
     head: sha("c"),
     checkout: sha("d"),
   });
-test("native tool inputs retain affected Windows proof without frontend installation", () => {
+void test("native tool inputs retain affected Windows proof without frontend installation", () => {
   for (const file of [
+    "apps/desktop/scripts/desktop-artwork-observations.mts",
+    "apps/desktop/scripts/desktop-artwork-observations.native.test.mts",
     "apps/desktop/src/cli-command.ts",
     "crates/portcove-core/src/testdata/host_tool_probe.rs.txt",
     "apps/desktop/scripts/desktop-install-fixture.native.test.mts",
@@ -51,7 +53,7 @@ test("native tool inputs retain affected Windows proof without frontend installa
   );
 });
 
-test("Windows helper selection includes rename/delete sides and policy inputs without changing Rust selection", () => {
+void test("Windows helper selection includes rename/delete sides and policy inputs without changing Rust selection", () => {
   for (const file of [
     "apps/desktop/scripts/native-window-discovery.ps1",
     "apps/desktop/scripts/desktop-native-confirmation.mts",
@@ -82,7 +84,7 @@ test("Windows helper selection includes rename/delete sides and policy inputs wi
   assert(broad.groups.includes("rust"));
   assert.equal(windowsHelperChecksRequired({ ...broad, mode: "qualification" }), false);
 });
-test("catalog aggregate rejects absent or failed selected Windows producer", () => {
+void test("catalog aggregate rejects absent or failed selected Windows producer", () => {
   const input = {
     classifier: "success",
     plan: plan("scripts/desktop-verify.mts"),
@@ -114,9 +116,12 @@ test("catalog aggregate rejects absent or failed selected Windows producer", () 
     /expected skipped/,
   );
 });
-test("workflow runs bounded Windows controls and pinned lint under the existing catalog aggregate", async () => {
+void test("workflow runs bounded Windows controls and pinned lint under the existing catalog aggregate", async () => {
   const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
-  const job = workflow.split("\n  windows_helpers:\n")[1].split("\n  fast_catalog:")[0];
+  const windows = workflow.split("\n  windows_helpers:\n")[1];
+  assert.ok(windows, "Windows helpers job must exist");
+  const job = windows.split("\n  fast_catalog:")[0];
+  assert.ok(job);
   assert.match(job, /runs-on: windows-latest/);
   assert.match(job, /timeout-minutes: 10/);
   assert.match(job, /outputs.windows_helpers == 'true'/);
@@ -139,7 +144,10 @@ test("workflow runs bounded Windows controls and pinned lint under the existing 
     job,
     /node --test --test-timeout=30000 apps\/desktop\/scripts\/\*\.native\.test\.mts/,
   );
-  const catalog = workflow.split("\n  catalog:\n")[1].split("\n  fast_dependency_review:")[0];
+  const catalogSection = workflow.split("\n  catalog:\n")[1];
+  assert.ok(catalogSection, "catalog aggregate must exist");
+  const catalog = catalogSection.split("\n  fast_dependency_review:")[0];
+  assert.ok(catalog);
   assert.match(
     catalog,
     /needs: \[classify, prose_checks, fast_catalog, windows_helpers, catalog_full\]/,
