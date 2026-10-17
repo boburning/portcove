@@ -1061,6 +1061,7 @@ export async function runHostedValidation(phase, options = {}) {
     "scripts/process-lock.mjs",
     "scripts/native-session-lock.mjs",
     "scripts/rust-test-tree-supervisor.mjs",
+    "scripts/rust-test-impact.mjs",
     "scripts/dev-storage.mjs",
     "scripts/bootstrap-quality-tools.sh",
     "scripts/install-linux-desktop-prerequisites.sh",

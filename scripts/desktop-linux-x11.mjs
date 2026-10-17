@@ -1,3 +1,5 @@
+import { resourceEntrypoint } from "./resource-command.mjs";
+import { frontendOutputResource } from "./resource-capacity.mjs";
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -300,6 +302,7 @@ export async function runLinuxX11(file) {
   const lease = await acquireNativeSessionLock({
     workspace: root,
     scenarios: [`private-x11-${config.stage}`],
+    namespaceDelegation: true,
   });
   let launch;
   try {
@@ -357,7 +360,20 @@ export async function runLinuxX11(file) {
         JSON.stringify(config),
         runtime,
       ],
-      { ...process.env, PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: lease.owner.token },
+      {
+        ...Object.fromEntries(
+          Object.entries(process.env).filter(
+            ([key]) =>
+              ![
+                "PORTCOVE_RESOURCE_RESERVATION",
+                "PORTCOVE_HEAVY_RUST_LOCK_TOKEN",
+                "PORTCOVE_HEAVY_RUST_PROCESS_TOKEN",
+              ].includes(key),
+          ),
+        ),
+        PORTCOVE_CONTAINER_GUEST: "1",
+        PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: lease.owner.token,
+      },
     );
     launch.child.stdout.pipe(process.stdout);
     launch.child.stderr.pipe(process.stderr);
@@ -425,6 +441,13 @@ export async function runWindowsLinuxX11(file) {
         "/usr/bin/env",
         "-u",
         "PORTCOVE_NATIVE_SESSION_LOCK_TOKEN",
+        "-u",
+        "PORTCOVE_RESOURCE_RESERVATION",
+        "-u",
+        "PORTCOVE_HEAVY_RUST_LOCK_TOKEN",
+        "-u",
+        "PORTCOVE_HEAVY_RUST_PROCESS_TOKEN",
+        "PORTCOVE_CONTAINER_GUEST=1",
         `GIT_DIR=${mapped(gitDirectory)}`,
         `GIT_WORK_TREE=${mapped(root)}`,
         `PORTCOVE_SHARED_TOOL_CACHE=${config.tool_cache}`,
@@ -453,8 +476,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === source) {
     if (mode === "--internal-bootstrap") await bootstrap(JSON.parse(value), runtime);
     else if (mode === "--internal-display") await virtualDisplay(JSON.parse(value), runtime);
     else if (mode === "--config" && value && !runtime) {
-      if (process.platform === "win32") await runWindowsLinuxX11(value);
-      else await runLinuxX11(value);
+      process.exitCode = await resourceEntrypoint(
+        process.platform === "win32" ? "rust" : "browser",
+        async () => {
+          if (process.platform === "win32") await runWindowsLinuxX11(value);
+          else await runLinuxX11(value);
+          return process.exitCode ?? 0;
+        },
+        { exclusive: [frontendOutputResource(root)] },
+      );
     } else
       throw new Error(
         "usage: desktop-linux-x11.mjs --config ABSOLUTE_JSON; stages gtk|harness; prerequisites must already exist",

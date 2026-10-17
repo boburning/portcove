@@ -4,6 +4,8 @@ import {
 } from "./native-helper-dependencies.mjs";
 
 const nativeToolInputs = new Set([
+  "scripts/rust-test-impact.mjs",
+  "scripts/desktop-linux-x11.mjs",
   "scripts/resource-capacity.mjs",
   "scripts/resource-paths.mjs",
   "scripts/resource-capacity.test.mjs",

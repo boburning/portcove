@@ -128,3 +128,51 @@ test("native outer admission cannot hold retirement guards while handover is pen
   );
   assert.equal(inspected, true);
 });
+
+test("private namespace inheritance requires explicit outer delegation and its exact token", async () => {
+  const { root, lockPath } = await fixture();
+  try {
+    const lease = await acquireNativeSessionLock({ namespaceDelegation: true }, { lockPath });
+    try {
+      const inherited = await acquireNativeSessionLock(
+        {},
+        {
+          lockPath,
+          inheritedToken: lease.owner.token,
+          environment: { PORTCOVE_CONTAINER_GUEST: "1" },
+          inspectProcessIdentity: () => {
+            throw new Error("Namespace PID cannot observe outer PID");
+          },
+        },
+      );
+      assert.equal(inherited.inherited, true);
+      await assert.rejects(
+        acquireNativeSessionLock(
+          {},
+          { lockPath, inheritedToken: "foreign", environment: { PORTCOVE_CONTAINER_GUEST: "1" } },
+        ),
+        /does not match/u,
+      );
+    } finally {
+      await lease.release();
+    }
+    const ordinary = await acquireNativeSessionLock({}, { lockPath });
+    try {
+      await assert.rejects(
+        acquireNativeSessionLock(
+          {},
+          {
+            lockPath,
+            inheritedToken: ordinary.owner.token,
+            environment: { PORTCOVE_CONTAINER_GUEST: "1" },
+          },
+        ),
+        /lacks an explicit outer delegation/u,
+      );
+    } finally {
+      await ordinary.release();
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

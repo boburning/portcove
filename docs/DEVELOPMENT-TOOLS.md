@@ -444,7 +444,7 @@ prove a build, test run, fresh execution task, cold acquisition or native sessio
 
 | Profile          | Required capabilities                                                                                                                                                                                                                                                                                                                  |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `frontend`       | Pinned Node and pnpm, installed root and desktop frontend dependencies.                                                                                                                                                                                                                                                                |
+| `frontend`       | Pinned Node and pnpm, installed root and desktop frontend dependencies; Windows/Linux also use pinned rustc and its platform linker for cached process containment.                                                                                                                                                                    |
 | `core`           | Pinned Rust/Cargo, rustfmt and Clippy components, pinned cargo-nextest. Direct Cargo development does not require Node, frontend dependencies or Tauri.                                                                                                                                                                                |
 | `daily`          | Frontend and Core, Git, PowerShell, pinned Aqua and its verified Ruff/ShellCheck/actionlint payloads, all required Cargo tools from the quality manifest, and PSScriptAnalyzer on Windows.                                                                                                                                             |
 | `native-desktop` | Daily plus platform build prerequisites, tauri-driver and the platform driver; Linux also requires Xvfb. Missing or unverified platform capabilities fail this requested profile. Windows observes installed compiler/linker paths; this does not prove Cargo selection. Linux/macOS driver identity remains unverified by this slice. |
@@ -1769,3 +1769,24 @@ receipts also verify source after execution. Hosted CI does not consult this loc
 domain and retains its runner limits and containment. Optional local audit/Fallow
 feedback, required hosted contexts, review, artifact reuse and explicit native or
 release acceptance retain the current [quality contract](QUALITY.md).
+
+The maintained private-X11 adapter acquires host capacity before entering its
+PID namespaces. Only its explicitly delegated native token crosses that boundary;
+host capacity records and process tokens do not. The existing guest participation
+marker also covers this owned private namespace/Windows-driven WSL route, where
+PID remapping prevents parent-identity observation. The outer owner retains
+capacity and native custody until the maintained namespace join proves quiescence.
+Arbitrary independently started WSL/native processes remain outside this contract.
+
+Repository bootstrap scripts also enter the existing resource executor before
+checkout dependency installation and Cargo tool builds, reserve the checkout's
+mutable outputs, and verify inherited ownership before nesting. Hosted/guest
+setup keeps its existing runner context. The pinned Rust compiler and platform
+linker needed to build the supervisor are explicit initial host prerequisites;
+setup disables Rustup auto-install for that guard. On a new host, install Rustup
+and the pinned compiler (`rustup toolchain install` with the repository channel
+and minimal profile) plus the existing platform linker first, then perform the
+resource handover and requested bootstrap. This initial third-party toolchain
+installation is outside Portcove admission. Normal guarded validation never
+provisions it implicitly. Cold worktree dependencies remain independently owned;
+sharing the download/tool cache does not share generated `node_modules`.

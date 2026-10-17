@@ -1015,6 +1015,7 @@ export function createContainerHost(profile) {
               "pack.threads=2",
               "bundle",
               "create",
+              "--progress",
               bundle,
               "refs/heads/container-selected",
             ],

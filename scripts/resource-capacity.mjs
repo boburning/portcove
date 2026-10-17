@@ -15,6 +15,22 @@ import {
 } from "./heavy-rust-test-lock.mjs";
 import { acquireOwnedProcessLock, readProcessLockOwner } from "./process-lock.mjs";
 
+const processToken = randomUUID().replaceAll("-", "").slice(0, 16);
+let identityUsers = 0;
+let originalTitle;
+function retainIdentity() {
+  if (identityUsers++ === 0 && process.platform === "darwin") {
+    originalTitle = process.title;
+    process.title = `portcove-rust:${processToken} ${originalTitle}`;
+  }
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    if (--identityUsers === 0 && process.platform === "darwin") process.title = originalTitle;
+  };
+}
+
 const inheritedName = "PORTCOVE_RESOURCE_RESERVATION";
 export const resourceProfiles = Object.freeze({ rust: 1, browser: 1, analysis: 1, container: 2 });
 
@@ -259,11 +275,14 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
   }
   await mkdir(path.join(root, "queue"), { recursive: true });
   const name = `${Date.now()}-${randomUUID()}`;
-  const processToken = options.processToken ?? randomUUID().replaceAll("-", "").slice(0, 16);
-  const originalTitle = process.title;
-  if (process.platform === "darwin")
-    process.title = `portcove-rust:${processToken} ${originalTitle}`;
-  const ownIdentity = readProcessIdentity(process.pid, { processToken });
+  const releaseIdentity = retainIdentity();
+  let ownIdentity;
+  try {
+    ownIdentity = readProcessIdentity(process.pid, { processToken });
+  } catch (error) {
+    releaseIdentity();
+    throw error;
+  }
   const inspectProcessIdentity = (pid, options) =>
     pid === process.pid ? ownIdentity : readProcessIdentity(pid, options);
   const common = {
@@ -281,11 +300,15 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
       capacity_aware: true,
     },
     { ...common, lockPath: path.join(root, "queue", name) },
-  );
+  ).catch((error) => {
+    releaseIdentity();
+    throw error;
+  });
   const started = performance.now();
   const waitMs = options.waitMs ?? config.waitMs;
   if (!Number.isInteger(waitMs) || waitMs < 0 || waitMs > 3_600_000) {
     await queued.release();
+    releaseIdentity();
     throw new Error("Resource waitMs must be 0..3600000");
   }
   const deadline = started + waitMs;
@@ -297,7 +320,7 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
       options.signal?.throwIfAborted();
       const waiting = await queueOwners(root, true, inspectProcessIdentity, {
         firstOnly: true,
-        deadline: waitMs === 0 ? Infinity : deadline,
+        deadline: waitMs === 0 ? started + 5_000 : deadline,
       });
       const legacy = await (options.legacyBlocker ?? legacyBlocker)(config, environment);
       const outsideConfiguredCapacity = (await readdir(root)).some(
@@ -347,7 +370,8 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
               ),
             );
           } catch (error) {
-            if (error.code !== "PORTCOVE_RESOURCE_BUSY") throw error;
+            if (error.code !== "PORTCOVE_RESOURCE_BUSY" && error.cause?.code !== "ENOENT")
+              throw error;
           }
         }
         if (acquired.length === units) {
@@ -364,7 +388,8 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
                 ),
               );
             } catch (error) {
-              if (error.code !== "PORTCOVE_RESOURCE_BUSY") throw error;
+              if (error.code !== "PORTCOVE_RESOURCE_BUSY" && error.cause?.code !== "ENOENT")
+                throw error;
               break;
             }
           }
@@ -414,6 +439,7 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
         .filter((lock) => path.basename(lock.lockPath).startsWith("exclusive-"))
         .map((lock) => ({ name: path.basename(lock.lockPath), token: lock.owner.token })),
     };
+    let releasePromise;
     return {
       inherited: false,
       queueMs,
@@ -439,20 +465,21 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
             { flag: "wx" },
           );
       },
-      release: async () => {
-        const external = await missingAllowed(() =>
-          readFile(`${acquired[0].lockPath}.external-${acquired[0].owner.token}`, "utf8"),
-        );
-        if (external) await releaseExternalRecords(lease, JSON.parse(external), root, false);
-        else for (const lock of acquired) await lock.release();
-        if (process.platform === "darwin") process.title = originalTitle;
-      },
+      release: () =>
+        (releasePromise ??= (async () => {
+          const external = await missingAllowed(() =>
+            readFile(`${acquired[0].lockPath}.external-${acquired[0].owner.token}`, "utf8"),
+          );
+          if (external) await releaseExternalRecords(lease, JSON.parse(external), root, false);
+          else for (const lock of acquired) await lock.release();
+          releaseIdentity();
+        })()),
     };
   } finally {
     await queued.release();
     if (!admitted) {
       for (const lock of acquired) await lock.release();
-      if (process.platform === "darwin") process.title = originalTitle;
+      releaseIdentity();
     }
   }
 }
@@ -465,40 +492,60 @@ async function releaseExternalRecords(lease, external, root, requireDead) {
   const key = createHash("sha256").update(JSON.stringify(decision)).digest("hex");
   const directory = path.join(root, "recovery");
   const journal = path.join(directory, `${key}.json`);
-  const previous = await missingAllowed(() => readFile(journal, "utf8"));
-  if (previous && previous !== JSON.stringify(decision))
-    throw new Error("Resource recovery journal differs");
-  if (!previous) {
+  const releaseIdentity = retainIdentity();
+  let guard;
+  try {
+    guard = await acquireHeavyRustTestLock(
+      { command: "external capacity cleanup", workspace: root },
+      {
+        lockPath: `${journal}.lock`,
+        inheritedToken: "",
+        waitMilliseconds: 0,
+        processToken,
+        manageProcessTitle: false,
+      },
+    );
+    const previous = await missingAllowed(() => readFile(journal, "utf8"));
+    if (previous && previous !== JSON.stringify(decision))
+      throw new Error("Resource recovery journal differs");
+    if (!previous) {
+      for (const slot of slots) {
+        const owner = await readHeavyRustLockOwner(slot.path);
+        if (
+          owner.token !== slot.token ||
+          (owner.external && JSON.stringify(owner.external) !== JSON.stringify(external))
+        )
+          throw new Error("External resource custody differs; retaining the reservation");
+        if (requireDead && heavyRustOwnerActivity({ ...owner, external: undefined }))
+          throw new Error(
+            "External caller or contained descendants remain active; retaining custody",
+          );
+      }
+      await mkdir(directory, { recursive: true });
+      try {
+        await writeFile(journal, JSON.stringify(decision), { flag: "wx" });
+      } catch (error) {
+        if (
+          error.code !== "EEXIST" ||
+          (await readFile(journal, "utf8")) !== JSON.stringify(decision)
+        )
+          throw error;
+      }
+    }
     for (const slot of slots) {
-      const owner = await readHeavyRustLockOwner(slot.path);
-      if (
-        owner.token !== slot.token ||
-        (owner.external && JSON.stringify(owner.external) !== JSON.stringify(external))
-      )
-        throw new Error("External resource custody differs; retaining the reservation");
-      if (requireDead && heavyRustOwnerActivity({ ...owner, external: undefined }))
-        throw new Error(
-          "External caller or contained descendants remain active; retaining custody",
-        );
+      const owner = await missingAllowed(() => readHeavyRustLockOwner(slot.path));
+      if (owner?.token === slot.token) {
+        if (requireDead && heavyRustOwnerActivity({ ...owner, external: undefined }))
+          throw new Error("Original resource caller remains active");
+        await rm(`${slot.path}.external-${slot.token}`, { force: true });
+        await releaseHeavyRustLock(slot.path, slot.token);
+      }
     }
-    await mkdir(directory, { recursive: true });
-    try {
-      await writeFile(journal, JSON.stringify(decision), { flag: "wx" });
-    } catch (error) {
-      if (error.code !== "EEXIST" || (await readFile(journal, "utf8")) !== JSON.stringify(decision))
-        throw error;
-    }
+    return journal;
+  } finally {
+    if (guard) await guard.release();
+    releaseIdentity();
   }
-  for (const slot of slots) {
-    const owner = await missingAllowed(() => readHeavyRustLockOwner(slot.path));
-    if (owner?.token === slot.token) {
-      if (requireDead && heavyRustOwnerActivity({ ...owner, external: undefined }))
-        throw new Error("Original resource caller remains active");
-      await rm(`${slot.path}.external-${slot.token}`, { force: true });
-      await releaseHeavyRustLock(slot.path, slot.token);
-    }
-  }
-  return journal;
 }
 
 // Called only after the adapter proves this exact remote operation cannot restart.

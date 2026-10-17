@@ -35,17 +35,27 @@ export async function acquireNativeSessionLock(metadata = {}, options = {}) {
     profile: metadata.profile ?? null,
     scenarios: metadata.scenarios ?? [],
     capacity_aware: true,
+    namespace_delegation: metadata.namespaceDelegation === true,
   };
-  const acquire = (target, token, metadata = details, ownerToken) =>
-    acquireOwnedProcessLock(target, metadata, {
+  const acquire = async (target, token, metadata = details, ownerToken) => {
+    // The private-X11 outer owner is verified before namespace launch. Its exact
+    // delegated token remains exclusive while PID numbers are intentionally remapped.
+    const delegated = environment.PORTCOVE_CONTAINER_GUEST === "1" && token;
+    if (
+      delegated &&
+      !(await readProcessLockOwner(target, "Native namespace owner")).namespace_delegation
+    )
+      throw new Error("Native namespace inheritance lacks an explicit outer delegation");
+    return acquireOwnedProcessLock(target, metadata, {
       label: "Native desktop verification",
       inheritedToken: token,
       isProcessAlive: options.isProcessAlive ?? isProcessAlive,
-      verifyIdentity: true,
+      verifyIdentity: !delegated,
       inspectProcessIdentity: options.inspectProcessIdentity,
       canReclaim: false,
       ownerToken,
     });
+  };
   if (options.lockPath) return acquire(lockPath, inheritedToken);
   const legacyToken = inheritedToken ?? randomUUID();
   let hostToken;

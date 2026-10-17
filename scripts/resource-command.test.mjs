@@ -1,3 +1,8 @@
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { acquireResourceCapacity } from "./resource-capacity.mjs";
+import { acquireRustResources } from "./run-rust-tests.mjs";
 import { vitePlusNeedsCapacity } from "./run-viteplus.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -54,4 +59,51 @@ test("full checks, directories and option operands cannot masquerade as cheap ex
     false,
   );
   assert.equal(vitePlusNeedsCapacity(["fmt", "--check"]), false);
+});
+
+test("nested Rust cannot bypass output ownership and admitted Cargo jobs remain bounded", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-nested-rust-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, "config.json"), JSON.stringify({ legacyMode: "coordinated" }));
+  const options = {
+    root,
+    environment: {},
+    legacyBlocker: async () => null,
+    snapshot: () => "fixed",
+  };
+  const browser = await acquireResourceCapacity("browser", {}, options);
+  try {
+    await assert.rejects(
+      acquireRustResources(
+        { workspace: root, cwd: root },
+        {
+          ...options,
+          environment: { ...browser.childEnvironment, CARGO_TARGET_DIR: path.join(root, "target") },
+        },
+      ),
+      /Nested output reservation upgrade refused/u,
+    );
+  } finally {
+    await browser.release();
+  }
+  const rust = await acquireRustResources(
+    { workspace: root, cwd: root },
+    {
+      ...options,
+      environment: { CARGO_TARGET_DIR: path.join(root, "target"), CARGO_BUILD_JOBS: "99" },
+    },
+  );
+  try {
+    assert.equal(rust.childEnvironment.CARGO_BUILD_JOBS, "2");
+    const nested = await acquireRustResources(
+      { workspace: root, cwd: root },
+      {
+        ...options,
+        environment: { ...rust.childEnvironment, CARGO_TARGET_DIR: path.join(root, "target") },
+      },
+    );
+    assert.equal(nested.inherited, true);
+  } finally {
+    await rust.release();
+  }
 });
