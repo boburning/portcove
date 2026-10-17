@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import type { BinaryLike } from "node:crypto";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -22,11 +23,30 @@ const script = fileURLToPath(
   new URL("./reconstruct-application-update-records.mts", import.meta.url),
 );
 
-function digest(bytes) {
+function required<Value>(value: Value | undefined): Value {
+  assert.ok(value !== undefined);
+  return value;
+}
+
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
+  return value as Record<string, unknown>;
+}
+
+function jsonObject(bytes: Buffer | undefined): Record<string, unknown> {
+  const value: unknown = JSON.parse(required(bytes).toString("utf8"));
+  return object(value);
+}
+
+function digest(bytes: BinaryLike) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-function source(version, label = "windows-x86_64", overrides = {}) {
+function source(
+  version: string,
+  label = "windows-x86_64",
+  overrides: Record<string, unknown> = {},
+) {
   const signatureBytes = Buffer.from(`tauri-signature-${version}-${label}\n`);
   const identity = updaterIdentity(policy, label, version);
   const packages = packagesForPlatform(policy, label).map((entry, index) => ({
@@ -90,7 +110,7 @@ function source(version, label = "windows-x86_64", overrides = {}) {
   };
 }
 
-function evidence(version, overrides = {}) {
+function evidence(version: string, overrides: Record<string, unknown> = {}) {
   return {
     version,
     preview_eligible: true,
@@ -100,7 +120,7 @@ function evidence(version, overrides = {}) {
   };
 }
 
-test("reconstructs deterministic versioned release and separately authenticated channel records", async () => {
+void test("reconstructs deterministic versioned release and separately authenticated channel records", async () => {
   const sources = [source("1.0.0"), source("0.9.0")];
   const eligibility = {
     "v0.9.0": evidence("0.9.0"),
@@ -123,18 +143,21 @@ test("reconstructs deterministic versioned release and separately authenticated 
     ],
   );
   const releaseBytes = first.files.get("releases/1.0.0/windows-x86_64/nsis.json");
-  const release = JSON.parse(releaseBytes);
-  const stable = JSON.parse(first.files.get("channels/stable/windows-x86_64/nsis/1.0.0.json"));
-  assert.equal(release.qualified_run.inventory_sha256, digest(sources[0].inventoryBytes));
-  assert.equal(release.artifact.tauri_signature, "tauri-signature-1.0.0-windows-x86_64");
-  assert.equal(release.artifact.payload_key_id, "c".repeat(64));
-  assert.equal(stable.release_sha256, digest(releaseBytes));
+  const release = jsonObject(releaseBytes);
+  const stable = jsonObject(first.files.get("channels/stable/windows-x86_64/nsis/1.0.0.json"));
+  assert.equal(
+    object(release.qualified_run).inventory_sha256,
+    digest(required(sources[0]).inventoryBytes),
+  );
+  assert.equal(object(release.artifact).tauri_signature, "tauri-signature-1.0.0-windows-x86_64");
+  assert.equal(object(release.artifact).payload_key_id, "c".repeat(64));
+  assert.equal(stable.release_sha256, digest(required(releaseBytes)));
   assert.equal(stable.release_path, "releases/1.0.0/windows-x86_64/nsis.json");
   assert.equal(stable.production_eligible, true);
   assert.equal(stable.eligible, true);
 });
 
-test("canonicalizes compatibility sets and evidence identifiers", async () => {
+void test("canonicalizes compatibility sets and evidence identifiers", async () => {
   const firstSource = source("0.9.1");
   firstSource.compatibility.required_capabilities = ["z-capability", "a-capability"];
   firstSource.compatibility.catalog_formats = [2, 1];
@@ -152,13 +175,16 @@ test("canonicalizes compatibility sets and evidence identifiers", async () => {
   const first = await reconstructApplicationUpdateRecords([firstSource], eligibility, { policy });
   const second = await reconstructApplicationUpdateRecords([secondSource], eligibility, { policy });
   assert.deepEqual([...first.files], [...second.files]);
-  const release = JSON.parse(first.files.get("releases/0.9.1/windows-x86_64/nsis.json"));
-  assert.deepEqual(release.compatibility.required_capabilities, ["a-capability", "z-capability"]);
-  assert.deepEqual(release.compatibility.catalog_formats, [1, 2]);
+  const release = jsonObject(first.files.get("releases/0.9.1/windows-x86_64/nsis.json"));
+  assert.deepEqual(object(release.compatibility).required_capabilities, [
+    "a-capability",
+    "z-capability",
+  ]);
+  assert.deepEqual(object(release.compatibility).catalog_formats, [1, 2]);
   assert.deepEqual(release.evidence_ids, ["a-evidence", "z-evidence"]);
 });
 
-test("emits explicit held and withdrawn promotions with bridges while Stable stays explicit", async () => {
+void test("emits explicit held and withdrawn promotions with bridges while Stable stays explicit", async () => {
   const held = await reconstructApplicationUpdateRecords(
     [source("1.2.0")],
     {
@@ -177,11 +203,11 @@ test("emits explicit held and withdrawn promotions with bridges while Stable sta
     { policy },
   );
   for (const channel of ["preview", "stable"]) {
-    const record = JSON.parse(held.files.get(`channels/${channel}/windows-x86_64/nsis/1.2.0.json`));
+    const record = jsonObject(held.files.get(`channels/${channel}/windows-x86_64/nsis/1.2.0.json`));
     assert.equal(record.eligible, false);
     assert.equal(record.withdrawn, false);
     assert.equal(record.reason, "native package qualification is incomplete");
-    assert.equal(record.required_bridge.path, "bridges/windows-x86_64/v1.json");
+    assert.equal(object(record.required_bridge).path, "bridges/windows-x86_64/v1.json");
   }
   const withdrawn = await reconstructApplicationUpdateRecords(
     [source("1.2.1")],
@@ -193,7 +219,7 @@ test("emits explicit held and withdrawn promotions with bridges while Stable sta
     },
     { policy },
   );
-  const preview = JSON.parse(
+  const preview = jsonObject(
     withdrawn.files.get("channels/preview/windows-x86_64/nsis/1.2.1.json"),
   );
   assert.equal(preview.withdrawn, true);
@@ -201,7 +227,7 @@ test("emits explicit held and withdrawn promotions with bridges while Stable sta
   assert.equal(withdrawn.files.has("channels/stable/windows-x86_64/nsis/1.2.1.json"), false);
 });
 
-test("fails closed on tampered inventories, signatures, eligibility, and ambiguous SemVer", async () => {
+void test("fails closed on tampered inventories, signatures, eligibility, and ambiguous SemVer", async () => {
   const valid = source("0.8.0");
   const eligibility = { "v0.8.0": evidence("0.8.0") };
   const alteredSignature = { ...valid, signatureBytes: Buffer.from("different") };
@@ -209,7 +235,7 @@ test("fails closed on tampered inventories, signatures, eligibility, and ambiguo
     reconstructApplicationUpdateRecords([alteredSignature], eligibility, { policy }),
     /signature does not match/,
   );
-  const inventory = JSON.parse(valid.inventoryBytes);
+  const inventory = jsonObject(valid.inventoryBytes);
   inventory.untrusted = true;
   await assert.rejects(
     reconstructApplicationUpdateRecords(
@@ -258,7 +284,7 @@ test("fails closed on tampered inventories, signatures, eligibility, and ambiguo
   assert.equal(compareApplicationVersionPrecedence("1.0.0-beta.9", "1.0.0-beta.10"), -1);
 });
 
-test("atomically repairs partial channel output but never rewrites or omits immutable releases", async (t) => {
+void test("atomically repairs partial channel output but never rewrites or omits immutable releases", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-reconstruct-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const output = path.join(root, "generated");
@@ -318,7 +344,7 @@ test("atomically repairs partial channel output but never rewrites or omits immu
   await assert.rejects(readFile(path.join(root, "outside.json")), /ENOENT/);
 });
 
-test("the documented CLI resolves descriptor inputs and verifies an identical retry", async (t) => {
+void test("the documented CLI resolves descriptor inputs and verifies an identical retry", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-reconstruct-cli-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "release"), { recursive: true });
@@ -359,8 +385,9 @@ test("the documented CLI resolves descriptor inputs and verifies an identical re
   ];
   assert.match((await run(process.execPath, arguments_)).stdout, /^Reconstructed 2/);
   assert.match((await run(process.execPath, arguments_)).stdout, /^Verified 2/);
-  assert.equal(
-    JSON.parse(await readFile(path.join(output, "reconstruction-manifest.json"))).records.length,
-    2,
-  );
+  const records = jsonObject(
+    await readFile(path.join(output, "reconstruction-manifest.json")),
+  ).records;
+  assert.ok(Array.isArray(records));
+  assert.equal(records.length, 2);
 });

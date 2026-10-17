@@ -1,4 +1,55 @@
-import { errorMessage } from "./runtime-values.mts";
+import type { BinaryLike } from "node:crypto";
+import type { ReleasePackagePolicy } from "./release-package-policy.mts";
+import type { UpdaterInventory } from "./updater-artifact-inventory.mts";
+interface ReconstructionOptions {
+  policy?: ReleasePackagePolicy;
+  projectRoot?: string;
+}
+interface QualifiedRun {
+  workflow: string;
+  workflow_commit: string;
+  run_id: number;
+  attempt: number;
+}
+interface QualifiedSource {
+  inventoryBytes: Buffer;
+  signatureBytes: Buffer;
+  source_tree: string;
+  qualified_run: QualifiedRun;
+  execution_context: string;
+  compatibility: ReturnType<typeof compatibility>;
+  evidence_ids: string[];
+}
+interface Eligibility {
+  version: string;
+  preview_eligible: boolean;
+  production_eligible: boolean;
+  targets: string[];
+  held?: boolean;
+  withdrawn?: boolean;
+  reason?: string;
+  bridges?: Record<string, { path: string; sha256: string }>;
+}
+interface ReconstructionRecord {
+  kind: "release" | "promotion";
+  channel?: "preview" | "stable";
+  path: string;
+  version: string;
+  target: string;
+  package: string;
+  bytes: number;
+  sha256: string;
+}
+export interface ApplicationUpdateReconstruction {
+  files: Map<string, Buffer>;
+  manifest: { schema_version: 1; records: ReconstructionRecord[] };
+}
+function required<Value>(value: Value | null | undefined): Value {
+  if (value === undefined || value === null)
+    throw new Error("Required reconstruction value is missing");
+  return value;
+}
+import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
 import { createHash, randomUUID } from "node:crypto";
 import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -29,19 +80,23 @@ const limits = Object.freeze({
   payload: 2 * 1024 * 1024 * 1024,
 });
 
-function sha256(bytes) {
+function sha256(bytes: BinaryLike) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-function object(value, label) {
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error(`${label} must be an object`);
+function object(value: unknown, label: string): Record<string, unknown> {
+  if (!isRecord(value)) throw new Error(`${label} must be an object`);
   return value;
 }
 
-function exactKeys(value, required, optional, label) {
+function exactKeys(
+  value: unknown,
+  required: readonly string[],
+  optional: readonly string[],
+  label: string,
+): asserts value is Record<string, unknown> {
   object(value, label);
-  const keys = new Set(Object.keys(value));
+  const keys = new Set(Object.keys(object(value, label)));
   for (const key of required) {
     if (!keys.delete(key)) throw new Error(`${label} is missing ${key}`);
   }
@@ -49,34 +104,30 @@ function exactKeys(value, required, optional, label) {
   if (keys.size) throw new Error(`${label} has unknown field ${[...keys].sort()[0]}`);
 }
 
-function boundedText(value, label, maximum = 256) {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    value.length > maximum ||
-    [...value].some((character: string) => {
-      const code = character.charCodeAt(0);
-      return code <= 0x1f || code === 0x7f;
-    })
-  )
+function boundedText(value: unknown, label: string, maximum = 256) {
+  if (typeof value !== "string" || value.length === 0 || value.length > maximum)
     throw new Error(`${label} is invalid`);
+  for (const character of value) {
+    const code = character.charCodeAt(0);
+    if (code <= 0x1f || code === 0x7f) throw new Error(`${label} is invalid`);
+  }
   return value;
 }
 
-function identity(value, label) {
-  boundedText(value, label, 128);
+function identity(input: unknown, label: string) {
+  const value = boundedText(input, label, 128);
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value)) throw new Error(`${label} is unsafe`);
   return value;
 }
 
-function hex(value, length, label) {
+function hex(value: unknown, length: number, label: string) {
   if (typeof value !== "string" || !new RegExp(`^[a-f0-9]{${length}}$`).test(value))
     throw new Error(`${label} must be ${length} lowercase hexadecimal characters`);
   return value;
 }
 
-function targetPath(value: string, label) {
-  boundedText(value, label);
+function targetPath(input: unknown, label: string) {
+  const value = boundedText(input, label);
   if (
     value.includes("\\") ||
     value.startsWith("/") ||
@@ -91,57 +142,72 @@ function targetPath(value: string, label) {
   return value;
 }
 
-function positiveInteger(value, label) {
-  if (!Number.isSafeInteger(value) || value < 1) throw new Error(`${label} must be positive`);
+function positiveInteger(value: unknown, label: string) {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1)
+    throw new Error(`${label} must be positive`);
   return value;
 }
 
-function range(value, label) {
+function range(value: unknown, label: string) {
   exactKeys(value, ["min", "max"], [], label);
-  positiveInteger(value.min, `${label} minimum`);
-  positiveInteger(value.max, `${label} maximum`);
-  if (value.max < value.min) throw new Error(`${label} is inverted`);
-  return value;
+  const min = positiveInteger(value.min, `${label} minimum`),
+    max = positiveInteger(value.max, `${label} maximum`);
+  if (max < min) throw new Error(`${label} is inverted`);
+  return { min, max };
 }
-
-function uniqueArray(value, label, validate, maximum = 32, minimum = 1) {
+function uniqueArray<Value>(
+  value: unknown,
+  label: string,
+  validate: (entry: unknown) => Value,
+  maximum = 32,
+  minimum = 1,
+): Value[] {
   if (!Array.isArray(value) || value.length < minimum || value.length > maximum)
     throw new Error(`${label} must be a bounded array`);
-  value.forEach((entry) => validate(entry));
-  if (new Set(value).size !== value.length) throw new Error(`${label} contains duplicates`);
-  return value;
+  const entries: unknown[] = value;
+  const validated = entries.map(validate);
+  if (new Set(entries).size !== entries.length) throw new Error(`${label} contains duplicates`);
+  return validated;
 }
-
-function compatibility(value) {
+function compatibility(value: unknown) {
   exactKeys(
     value,
     ["minimum_os_version", "required_capabilities", "cli_protocol", "catalog_formats", "library"],
     [],
     "compatibility",
   );
-  compareApplicationVersionPrecedence(value.minimum_os_version, value.minimum_os_version);
-  uniqueArray(
+  const minimum_os_version = boundedText(value.minimum_os_version, "minimum OS version");
+  compareApplicationVersionPrecedence(minimum_os_version, minimum_os_version);
+  const required_capabilities = uniqueArray(
     value.required_capabilities,
     "required capabilities",
     (entry) => identity(entry, "required capability"),
     64,
     0,
   );
-  range(value.cli_protocol, "CLI protocol range");
-  uniqueArray(
+  const cli_protocol = range(value.cli_protocol, "CLI protocol range");
+  const catalog_formats = uniqueArray(
     value.catalog_formats,
     "catalog formats",
     (entry) => positiveInteger(entry, "catalog format"),
     16,
   );
-  exactKeys(value.library, ["read", "write_schema", "lock_protocol"], [], "library contract");
-  range(value.library.read, "library read range");
-  positiveInteger(value.library.write_schema, "library write schema");
-  identity(value.library.lock_protocol, "library lock protocol");
-  return value;
+  const library = value.library;
+  exactKeys(library, ["read", "write_schema", "lock_protocol"], [], "library contract");
+  return {
+    minimum_os_version,
+    required_capabilities,
+    cli_protocol,
+    catalog_formats,
+    library: {
+      read: range(library.read, "library read range"),
+      write_schema: positiveInteger(library.write_schema, "library write schema"),
+      lock_protocol: identity(library.lock_protocol, "library lock protocol"),
+    },
+  };
 }
 
-function canonicalCompatibility(value) {
+function canonicalCompatibility(value: ReturnType<typeof compatibility>) {
   return {
     minimum_os_version: value.minimum_os_version,
     required_capabilities: [...value.required_capabilities].sort(),
@@ -155,18 +221,18 @@ function canonicalCompatibility(value) {
   };
 }
 
-function validateArtifact(entry, label) {
-  boundedText(entry.filename, `${label} filename`);
-  if (entry.filename !== path.basename(entry.filename) || /[\\/]/.test(entry.filename))
+function validateArtifact(value: unknown, label: string) {
+  const entry = object(value, label);
+  const filename = boundedText(entry.filename, `${label} filename`);
+  if (filename !== path.basename(filename) || /[\\/]/.test(filename))
     throw new Error(`${label} filename is unsafe`);
-  positiveInteger(entry.bytes, `${label} byte length`);
-  if (entry.bytes > limits.payload) throw new Error(`${label} exceeds the payload limit`);
-  hex(entry.sha256, 64, `${label} SHA-256`);
+  const bytes = positiveInteger(entry.bytes, `${label} byte length`);
+  if (bytes > limits.payload) throw new Error(`${label} exceeds the payload limit`);
+  return { filename, bytes, sha256: hex(entry.sha256, 64, `${label} SHA-256`) };
 }
-
-function validateInventory(inventory, policy) {
+function validateInventory(value: unknown, policy: ReleasePackagePolicy) {
   exactKeys(
-    inventory,
+    value,
     [
       "schema_version",
       "repository",
@@ -180,49 +246,65 @@ function validateInventory(inventory, policy) {
     [],
     "updater inventory",
   );
-  if (inventory.schema_version !== 1 || inventory.repository !== policy.repository)
+  if (value.schema_version !== 1 || value.repository !== policy.repository)
     throw new Error("updater inventory authority mismatch");
-  classifyApplicationVersion(inventory.version);
-  hex(inventory.source_commit, 40, "inventory source commit");
-  if (inventory.application_identifier !== "io.github.portcove.portcove")
+  const version = boundedText(value.version, "inventory version");
+  classifyApplicationVersion(version);
+  const source_commit = hex(value.source_commit, 40, "inventory source commit");
+  if (value.application_identifier !== "io.github.portcove.portcove")
     throw new Error("application identifier mismatch");
-  const expected = updaterIdentity(policy, inventory.platform_label, inventory.version);
-  const definitions = packagesForPlatform(policy, inventory.platform_label);
-  if (!Array.isArray(inventory.packages)) throw new Error("updater inventory packages are invalid");
+  const platform_label = boundedText(value.platform_label, "inventory platform");
+  const expected = updaterIdentity(policy, platform_label, version),
+    definitions = packagesForPlatform(policy, platform_label);
+  if (!Array.isArray(value.packages)) throw new Error("updater inventory packages are invalid");
+  const packages = (value.packages as unknown[]).map((entry) => {
+    exactKeys(entry, ["id", "filename", "bytes", "sha256"], [], "inventory package");
+    const id = boundedText(entry.id, "inventory package ID");
+    const definition = definitions.find((candidate) => candidate.id === id);
+    if (!definition || entry.filename !== artifactName(definition, version))
+      throw new Error("updater inventory package filename mismatch");
+    return { id, ...validateArtifact(entry, `inventory package ${id}`) };
+  });
   assertExactArtifactNames(
     definitions.map((entry) => entry.id),
-    inventory.packages.map((entry) => entry?.id),
+    packages.map((entry) => entry.id),
     "updater inventory package identities",
   );
-  for (const entry of inventory.packages) {
-    exactKeys(entry, ["id", "filename", "bytes", "sha256"], [], "inventory package");
-    const definition = definitions.find((candidate) => candidate.id === entry.id);
-    if (entry.filename !== artifactName(definition, inventory.version))
-      throw new Error("updater inventory package filename mismatch");
-    validateArtifact(
-      { filename: entry.filename, bytes: entry.bytes, sha256: entry.sha256 },
-      `inventory package ${entry.id}`,
-    );
-  }
+  const updater = value.updater;
   exactKeys(
-    inventory.updater,
+    updater,
     ["id", "target", "format", "filename", "bytes", "sha256", "signature", "public_key_sha256"],
     [],
     "updater payload",
   );
-  for (const field of ["id", "target", "format", "filename"]) {
-    if (inventory.updater[field] !== expected[field]) throw new Error(`updater ${field} mismatch`);
-  }
-  validateArtifact(inventory.updater, "updater payload");
-  exactKeys(inventory.updater.signature, ["filename", "bytes", "sha256"], [], "updater signature");
-  validateArtifact(inventory.updater.signature, "updater signature");
-  if (inventory.updater.signature.filename !== `${inventory.updater.filename}.sig`)
+  for (const field of ["id", "target", "format", "filename"] as const)
+    if (updater[field] !== expected[field]) throw new Error(`updater ${field} mismatch`);
+  const artifact = validateArtifact(updater, "updater payload");
+  exactKeys(updater.signature, ["filename", "bytes", "sha256"], [], "updater signature");
+  const signature = validateArtifact(updater.signature, "updater signature");
+  if (signature.filename !== `${artifact.filename}.sig`)
     throw new Error("updater signature filename mismatch");
-  hex(inventory.updater.public_key_sha256, 64, "updater public-key SHA-256");
-  return expected;
+  const inventory: UpdaterInventory = {
+    schema_version: 1,
+    repository: policy.repository,
+    version,
+    source_commit,
+    platform_label,
+    application_identifier: value.application_identifier,
+    packages,
+    updater: {
+      ...artifact,
+      id: expected.id,
+      target: expected.target,
+      format: expected.format,
+      signature,
+      public_key_sha256: hex(updater.public_key_sha256, 64, "updater public-key SHA-256"),
+    },
+  };
+  return { inventory, expected };
 }
 
-function validateSource(source, policy) {
+function validateSource(source: unknown, policy: ReleasePackagePolicy) {
   exactKeys(
     source,
     [
@@ -241,13 +323,13 @@ function validateSource(source, policy) {
     throw new Error("updater inventory bytes are missing or oversized");
   if (!Buffer.isBuffer(source.signatureBytes) || source.signatureBytes.length > limits.signature)
     throw new Error("updater signature bytes are missing or oversized");
-  let inventory;
+  let rawInventory: unknown;
   try {
-    inventory = JSON.parse(source.inventoryBytes.toString("utf8"));
+    rawInventory = JSON.parse(source.inventoryBytes.toString("utf8"));
   } catch (error) {
     throw new Error(`updater inventory is malformed: ${errorMessage(error)}`);
   }
-  const expected = validateInventory(inventory, policy);
+  const { inventory, expected } = validateInventory(rawInventory, policy);
   if (
     source.signatureBytes.length !== inventory.updater.signature.bytes ||
     sha256(source.signatureBytes) !== inventory.updater.signature.sha256
@@ -259,24 +341,34 @@ function validateSource(source, policy) {
     throw new Error("Tauri updater signature has invalid trailing bytes");
   if (signature.includes("\uFFFD")) throw new Error("Tauri updater signature is not UTF-8");
   boundedText(signature, "Tauri updater signature", limits.signature);
-  hex(source.source_tree, 40, "source tree");
-  exactKeys(
-    source.qualified_run,
-    ["workflow", "workflow_commit", "run_id", "attempt"],
-    [],
-    "qualified run",
-  );
-  boundedText(source.qualified_run.workflow, "qualified workflow");
-  hex(source.qualified_run.workflow_commit, 40, "qualified workflow commit");
-  positiveInteger(source.qualified_run.run_id, "qualified run ID");
-  positiveInteger(source.qualified_run.attempt, "qualified run attempt");
-  identity(source.execution_context, "execution context");
-  compatibility(source.compatibility);
-  uniqueArray(source.evidence_ids, "evidence IDs", (entry) => boundedText(entry, "evidence ID"));
-  return { inventory, expected, signature };
+  const source_tree = hex(source.source_tree, 40, "source tree");
+  const run = source.qualified_run;
+  exactKeys(run, ["workflow", "workflow_commit", "run_id", "attempt"], [], "qualified run");
+  const qualified_run: QualifiedRun = {
+    workflow: boundedText(run.workflow, "qualified workflow"),
+    workflow_commit: hex(run.workflow_commit, 40, "qualified workflow commit"),
+    run_id: positiveInteger(run.run_id, "qualified run ID"),
+    attempt: positiveInteger(run.attempt, "qualified run attempt"),
+  };
+  const validated: QualifiedSource = {
+    inventoryBytes: source.inventoryBytes,
+    signatureBytes: source.signatureBytes,
+    source_tree,
+    qualified_run,
+    execution_context: identity(source.execution_context, "execution context"),
+    compatibility: compatibility(source.compatibility),
+    evidence_ids: uniqueArray(source.evidence_ids, "evidence IDs", (entry) =>
+      boundedText(entry, "evidence ID"),
+    ),
+  };
+  return { source: validated, inventory, expected, signature };
 }
 
-function validateEligibility(evidence, version, sourceTargets) {
+function validateEligibility(
+  evidence: unknown,
+  version: string,
+  sourceTargets: ReadonlySet<string>,
+): Eligibility {
   exactKeys(
     evidence,
     ["version", "preview_eligible", "production_eligible", "targets"],
@@ -295,9 +387,18 @@ function validateEligibility(evidence, version, sourceTargets) {
     throw new Error("production eligibility requires Preview eligibility");
   if (evidence.held && evidence.withdrawn)
     throw new Error("an eligibility record cannot be both held and withdrawn");
-  classifyApplicationVersion(version, evidence.production_eligible);
-  uniqueArray(evidence.targets, "eligibility targets", (entry) => identity(entry, "target"), 16);
-  for (const target of evidence.targets) {
+  const preview_eligible = evidence.preview_eligible,
+    production_eligible = evidence.production_eligible;
+  if (typeof preview_eligible !== "boolean" || typeof production_eligible !== "boolean")
+    throw new Error("Eligibility flags must be boolean");
+  classifyApplicationVersion(version, production_eligible);
+  const targets = uniqueArray(
+    evidence.targets,
+    "eligibility targets",
+    (entry) => identity(entry, "target"),
+    16,
+  );
+  for (const target of targets) {
     if (!sourceTargets.has(target))
       throw new Error(`eligibility names unavailable target ${target}`);
   }
@@ -305,34 +406,47 @@ function validateEligibility(evidence, version, sourceTargets) {
   if (!active) boundedText(evidence.reason, "inactive eligibility reason", 512);
   if (evidence.reason !== undefined) boundedText(evidence.reason, "eligibility reason", 512);
   const bridges = evidence.bridges ?? {};
-  object(bridges, "eligibility bridges");
-  for (const [target, bridge] of Object.entries(bridges)) {
-    if (!evidence.targets.includes(target))
-      throw new Error(`bridge names unavailable target ${target}`);
+  const bridgeRecords = object(bridges, "eligibility bridges");
+  const validatedBridges: NonNullable<Eligibility["bridges"]> = {};
+  for (const [target, bridge] of Object.entries(bridgeRecords)) {
+    if (!targets.includes(target)) throw new Error(`bridge names unavailable target ${target}`);
     exactKeys(bridge, ["path", "sha256"], [], `bridge for ${target}`);
-    targetPath(bridge.path, "bridge path");
-    hex(bridge.sha256, 64, "bridge SHA-256");
+    validatedBridges[target] = {
+      path: targetPath(bridge.path, "bridge path"),
+      sha256: hex(bridge.sha256, 64, "bridge SHA-256"),
+    };
   }
-  return evidence;
+  const parsed: Eligibility = { version, preview_eligible, production_eligible, targets };
+  if (typeof evidence.held === "boolean") parsed.held = evidence.held;
+  if (typeof evidence.withdrawn === "boolean") parsed.withdrawn = evidence.withdrawn;
+  if (evidence.reason !== undefined)
+    parsed.reason = boundedText(evidence.reason, "eligibility reason", 512);
+  if (evidence.bridges !== undefined) parsed.bridges = validatedBridges;
+  return parsed;
 }
 
-function jsonBytes(value) {
+function jsonBytes(value: unknown) {
   return Buffer.from(`${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-function addFile(files, file, bytes) {
+function addFile(files: Map<string, Buffer>, file: string, bytes: Buffer) {
   if (files.has(file)) throw new Error(`duplicate reconstructed target path: ${file}`);
   files.set(file, bytes);
 }
 
-export async function reconstructApplicationUpdateRecords(sources, eligibility, options = {}) {
+export async function reconstructApplicationUpdateRecords(
+  sources: unknown,
+  eligibilityValue: unknown,
+  options: ReconstructionOptions = {},
+): Promise<ApplicationUpdateReconstruction> {
   if (!Array.isArray(sources) || sources.length === 0 || sources.length > limits.sources)
     throw new Error("qualified release sources must be a bounded nonempty array");
-  object(eligibility, "eligibility evidence");
+  const eligibilityInput = object(eligibilityValue, "eligibility evidence");
+  const eligibility = new Map<string, Eligibility>();
   const policy = options.policy ?? (await loadPackagePolicy(options.projectRoot));
-  const parsed = sources.map((source) => ({ source, ...validateSource(source, policy) }));
-  const sourceTargetsByVersion = new Map();
-  const authorityByVersion = new Map();
+  const parsed = (sources as unknown[]).map((source) => validateSource(source, policy));
+  const sourceTargetsByVersion = new Map<string, Set<string>>();
+  const authorityByVersion = new Map<string, string>();
   for (const entry of parsed) {
     const targets = sourceTargetsByVersion.get(entry.inventory.version) ?? new Set();
     targets.add(entry.inventory.platform_label);
@@ -353,14 +467,14 @@ export async function reconstructApplicationUpdateRecords(sources, eligibility, 
     authorityByVersion.set(entry.inventory.version, authority);
   }
   for (const [version, targets] of sourceTargetsByVersion) {
-    const evidence = eligibility[`v${version}`];
+    const evidence = eligibilityInput[`v${version}`];
     if (!evidence) throw new Error(`missing eligibility evidence for v${version}`);
-    validateEligibility(evidence, version, targets);
+    eligibility.set(`v${version}`, validateEligibility(evidence, version, targets));
   }
   const expectedEligibilityKeys = new Set(
     [...sourceTargetsByVersion.keys()].map((version) => `v${version}`),
   );
-  for (const key of Object.keys(eligibility)) {
+  for (const key of Object.keys(eligibilityInput)) {
     if (!expectedEligibilityKeys.has(key))
       throw new Error(`eligibility has no qualified inventory: ${key}`);
   }
@@ -374,8 +488,8 @@ export async function reconstructApplicationUpdateRecords(sources, eligibility, 
     return compareApplicationVersionPrecedence(left.inventory.version, right.inventory.version);
   });
   for (let index = 1; index < parsed.length; index += 1) {
-    const left = parsed[index - 1].inventory;
-    const right = parsed[index].inventory;
+    const left = required(parsed[index - 1]).inventory;
+    const right = required(parsed[index]).inventory;
     if (
       left.updater.target === right.updater.target &&
       left.updater.format === right.updater.format &&
@@ -384,8 +498,8 @@ export async function reconstructApplicationUpdateRecords(sources, eligibility, 
       throw new Error("qualified inventories contain duplicate SemVer precedence");
   }
 
-  const files = new Map();
-  const records = [];
+  const files = new Map<string, Buffer>();
+  const records: ReconstructionRecord[] = [];
   for (const entry of parsed) {
     const { source, inventory, signature } = entry;
     const releasePath = `releases/${inventory.version}/${inventory.updater.target}/${inventory.updater.format}.json`;
@@ -402,8 +516,8 @@ export async function reconstructApplicationUpdateRecords(sources, eligibility, 
         inventory_sha256: sha256(source.inventoryBytes),
       },
       target: inventory.updater.target,
-      os: packagesForPlatform(policy, inventory.platform_label)[0].os,
-      architecture: packagesForPlatform(policy, inventory.platform_label)[0].architecture,
+      os: required(packagesForPlatform(policy, inventory.platform_label)[0]).os,
+      architecture: required(packagesForPlatform(policy, inventory.platform_label)[0]).architecture,
       execution_context: source.execution_context,
       package: {
         kind: inventory.updater.format,
@@ -432,9 +546,9 @@ export async function reconstructApplicationUpdateRecords(sources, eligibility, 
       sha256: sha256(releaseBytes),
     });
 
-    const evidence = eligibility[`v${inventory.version}`];
+    const evidence = required(eligibility.get(`v${inventory.version}`));
     if (!evidence.targets.includes(inventory.platform_label)) continue;
-    for (const channel of ["preview", "stable"]) {
+    for (const channel of ["preview", "stable"] as const) {
       if (channel === "stable" && !evidence.production_eligible) continue;
       const channelEligible =
         (channel === "preview" ? evidence.preview_eligible : evidence.production_eligible) &&
@@ -454,8 +568,8 @@ export async function reconstructApplicationUpdateRecords(sources, eligibility, 
         reason: channelEligible ? (evidence.reason ?? null) : evidence.reason,
         required_bridge: evidence.bridges?.[inventory.platform_label]
           ? {
-              path: evidence.bridges[inventory.platform_label].path,
-              sha256: evidence.bridges[inventory.platform_label].sha256,
+              path: required(evidence.bridges[inventory.platform_label]).path,
+              sha256: required(evidence.bridges[inventory.platform_label]).sha256,
             }
           : null,
       };
@@ -475,7 +589,7 @@ export async function reconstructApplicationUpdateRecords(sources, eligibility, 
     }
   }
   records.sort((left, right) => left.path.localeCompare(right.path));
-  const manifest = { schema_version: 1, records };
+  const manifest = { schema_version: 1 as const, records };
   const manifestBytes = jsonBytes(manifest);
   const total = [...files.values()].reduce(
     (sum, bytes) => sum + bytes.length,
@@ -486,7 +600,7 @@ export async function reconstructApplicationUpdateRecords(sources, eligibility, 
   return { files, manifest };
 }
 
-async function walkFiles(root: string, prefix = "") {
+async function walkFiles(root: string, prefix = ""): Promise<string[]> {
   const files = [];
   for (const entry of await readdir(root, { withFileTypes: true })) {
     const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -500,20 +614,20 @@ async function walkFiles(root: string, prefix = "") {
   return files.sort();
 }
 
-async function exists(value) {
+async function exists(value: string) {
   try {
     await lstat(value);
     return true;
   } catch (error) {
-    if (error?.code === "ENOENT") return false;
+    if (errorCode(error) === "ENOENT") return false;
     throw error;
   }
 }
 
 export async function writeApplicationUpdateReconstruction(
-  outputPath,
-  reconstruction,
-  options = {},
+  outputPath: string,
+  reconstruction: Pick<ApplicationUpdateReconstruction, "files">,
+  options: Pick<ReconstructionOptions, "projectRoot"> = {},
 ) {
   if (!(reconstruction?.files instanceof Map) || reconstruction.files.size === 0)
     throw new Error("reconstruction files must be a nonempty map");
@@ -546,7 +660,7 @@ export async function writeApplicationUpdateReconstruction(
         await Promise.all(
           expectedFiles.map(async (relative: string) =>
             (await readFile(path.join(output, ...relative.split("/")))).equals(
-              reconstruction.files.get(relative),
+              required(reconstruction.files.get(relative)),
             ),
           ),
         )
@@ -583,21 +697,21 @@ export async function writeApplicationUpdateReconstruction(
   }
 }
 
-async function readBounded(file, maximum, label) {
+async function readBounded(file: string, maximum: number, label: string) {
   const metadata = await lstat(file);
   if (!metadata.isFile() || metadata.size < 1 || metadata.size > maximum)
     throw new Error(`${label} is missing or oversized`);
   return readFile(file);
 }
 
-async function loadSources(projectRoot, descriptorPath) {
+async function loadSources(projectRoot: string, descriptorPath: string) {
   const descriptorFile = await assertOwnedUnlinkedPath(
     projectRoot,
     descriptorPath,
     "source descriptor",
   );
   const descriptorBytes = await readBounded(descriptorFile, limits.descriptor, "source descriptor");
-  const descriptor = JSON.parse(descriptorBytes.toString("utf8"));
+  const descriptor: unknown = JSON.parse(descriptorBytes.toString("utf8"));
   exactKeys(descriptor, ["schema_version", "releases"], [], "source descriptor");
   if (
     descriptor.schema_version !== 1 ||
@@ -609,7 +723,7 @@ async function loadSources(projectRoot, descriptorPath) {
   const base = path.dirname(descriptorFile);
   const inputPaths = [descriptorFile];
   const sources = await Promise.all(
-    descriptor.releases.map(async (entry) => {
+    (descriptor.releases as unknown[]).map(async (entry) => {
       exactKeys(
         entry,
         [
@@ -626,12 +740,12 @@ async function loadSources(projectRoot, descriptorPath) {
       );
       const inventory = await assertOwnedUnlinkedPath(
         projectRoot,
-        path.resolve(base, entry.inventory),
+        path.resolve(base, boundedText(entry.inventory, "inventory input")),
         "inventory input",
       );
       const signature = await assertOwnedUnlinkedPath(
         projectRoot,
-        path.resolve(base, entry.signature),
+        path.resolve(base, boundedText(entry.signature, "signature input")),
         "signature input",
       );
       inputPaths.push(inventory, signature);
@@ -657,25 +771,47 @@ function contains(parent: string, child: string) {
   );
 }
 
-function parseArguments(argv) {
-  const options = { projectRoot: defaultProjectRoot };
+function parseArguments(argv: string[]) {
+  const options: { projectRoot: string; input?: string; eligibility?: string; output?: string } = {
+    projectRoot: defaultProjectRoot,
+  };
   const seen = new Set();
   for (let index = 0; index < argv.length; index += 2) {
     const name = argv[index];
     const value = argv[index + 1];
-    if (!["--project-root", "--input", "--eligibility", "--output"].includes(name) || !value)
+    if (
+      !(
+        name === "--project-root" ||
+        name === "--input" ||
+        name === "--eligibility" ||
+        name === "--output"
+      ) ||
+      !value
+    )
       throw new Error(
         "usage: reconstruct-application-update-records.mts --input PATH --eligibility PATH --output PATH [--project-root PATH]",
       );
     if (seen.has(name)) throw new Error(`duplicate ${name}`);
     seen.add(name);
-    const key = name === "--project-root" ? "projectRoot" : name.slice(2);
+    const key =
+      name === "--project-root"
+        ? "projectRoot"
+        : name === "--input"
+          ? "input"
+          : name === "--eligibility"
+            ? "eligibility"
+            : "output";
     options[key] = path.resolve(value);
   }
   if (!options.input || !options.eligibility || !options.output)
     throw new Error("input, eligibility and output are required");
   options.projectRoot = path.resolve(options.projectRoot);
-  return options;
+  return {
+    projectRoot: options.projectRoot,
+    input: options.input,
+    eligibility: options.eligibility,
+    output: options.output,
+  };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
@@ -685,7 +821,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
     options.eligibility,
     "eligibility input",
   );
-  const eligibility = JSON.parse(
+  const eligibility: unknown = JSON.parse(
     (await readBounded(eligibilityFile, limits.eligibility, "eligibility input")).toString("utf8"),
   );
   const { sources, inputPaths } = await loadSources(options.projectRoot, options.input);
