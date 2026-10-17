@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { verifyConsumedInputs } from "./retained-evidence.mts";
 import {
   expandNativeHelperInputs,
   nativeHelperDependencies,
@@ -225,4 +226,91 @@ test("native parser accepts erasable types and rejects runtime transformations w
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+void test("native receipts include the admission runtime and containment reproduction sources", () => {
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({ scenarios: ["native-external-runtime-review"], platform: "win32" }),
+  );
+  const files = new Set(
+    plan.receiptInputs.filter((input) => input.kind === "file").map((input) => input.path),
+  );
+  for (const file of [
+    "resource-command.mts",
+    "resource-capacity.mts",
+    "resource-paths.mts",
+    "fallow-source.mts",
+    "run-rust-tests.mts",
+    "rust-support-cache.mts",
+    "ci-metrics.mts",
+    "report-summary.mts",
+    "bounded-summary.mts",
+    "fallow-summary.mts",
+    "heavy-rust-test-lock.mts",
+    "process-lock.mts",
+    "tool-cache.mts",
+    "rust-test-tree-supervisor.mts",
+    "fixtures/windows-process-tree-supervisor.rs.txt",
+    "fixtures/linux-process-tree-reaper.rs.txt",
+  ])
+    assert.ok(files.has(`scripts/${file}`), `Missing trusted verifier source ${file}`);
+});
+
+void test("missing admission source retains failed capture and resource mutation refuses consumption", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-resource-custody-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const plan = {
+    receiptInputs: expandNativeHelperInputs([
+      { kind: "executable", name: "app" },
+      { kind: "file", path: prefix + "desktop-test.mts" },
+    ]),
+    selection: { selected_scenarios: ["native-fixture"] },
+  };
+  for (const input of plan.receiptInputs) {
+    if (input.kind !== "file") continue;
+    const destination = path.join(directory, input.path);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await copyFile(path.join(root, input.path), destination);
+  }
+  const source = path.join(directory, "scripts/resource-command.mts");
+  const retained = path.join(directory, "resource-command-retained.mts");
+  await copyFile(source, retained);
+  const identity = await fileIdentity(source);
+  const observed = {
+    ...identity,
+    retained: { path: retained },
+    binding: "live-path-checked-cooperative",
+  };
+  await verifyConsumedInputs([observed]);
+  const changed = await readFile(source);
+  changed[0] = changed[0] === 65 ? 66 : 65;
+  await writeFile(source, changed);
+  await assert.rejects(
+    verifyConsumedInputs([observed]),
+    /Live execution input changed after capture/,
+  );
+  await rm(source);
+  const output = path.join(directory, "failed");
+  await mkdir(output);
+  await assert.rejects(
+    captureDesktopReceiptInputs({
+      root: directory,
+      values: { app: process.execPath },
+      plan,
+      output,
+      revision: "a".repeat(40),
+    }),
+    /ENOENT/,
+  );
+  const failure: unknown = JSON.parse(
+    await readFile(path.join(output, "input-capture-failure.json"), "utf8"),
+  );
+  assert.ok(
+    failure !== null &&
+      typeof failure === "object" &&
+      "failed_path" in failure &&
+      "complete" in failure,
+  );
+  assert.equal(failure.failed_path, source);
+  assert.equal(failure.complete, false);
 });

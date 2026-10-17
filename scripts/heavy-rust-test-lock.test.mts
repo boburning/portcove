@@ -1,4 +1,15 @@
-import { errorCode } from "./runtime-values.mts";
+import type { ChildProcess } from "node:child_process";
+import type { Readable } from "node:stream";
+import type { HeavyRustLock, IdentityProbeRunner } from "./heavy-rust-test-lock.mts";
+function record(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function text(value: unknown): string {
+  assert.equal(typeof value, "string");
+  return value as string;
+}
+import { errorCode, isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { lstat, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -18,32 +29,34 @@ async function fixture() {
   return { root, lockPath: path.join(root, "heavy-rust-tests") };
 }
 
-function identityInspector(identities) {
-  return (pid) => identities.get(pid) ?? null;
+function identityInspector(identities: ReadonlyMap<number, string>) {
+  return (pid: number) => identities.get(pid) ?? null;
 }
 
-async function writeOwner(lockPath: string, owner) {
+async function writeOwner(lockPath: string, owner: unknown) {
   await mkdir(lockPath);
   await writeFile(path.join(lockPath, "owner.json"), `${JSON.stringify(owner, null, 2)}\n`);
 }
 
 async function readPersistedOwner(lockPath: string) {
-  let owner;
+  let owner: Record<string, unknown>;
   try {
-    owner = JSON.parse(await readFile(lockPath, "utf8"));
+    owner = record(JSON.parse(await readFile(lockPath, "utf8")));
   } catch (error) {
-    if (!["EISDIR", "EPERM"].includes(errorCode(error))) throw error;
-    owner = JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8"));
+    if (!["EISDIR", "EPERM"].some((code) => code === errorCode(error))) throw error;
+    owner = record(JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8")));
   }
   try {
-    owner.child = JSON.parse(await readFile(`${lockPath}.child-${owner.token}`, "utf8")).child;
+    owner.child = record(
+      JSON.parse(await readFile(`${lockPath}.child-${text(owner.token)}`, "utf8")),
+    ).child;
   } catch (error) {
-    if (error.code !== "ENOENT") throw error;
+    if (errorCode(error) !== "ENOENT") throw error;
   }
   return owner;
 }
 
-function owner(processRecord, child = null) {
+function owner(processRecord: unknown, child: unknown = null) {
   return {
     format_version: 1,
     token: "existing-token",
@@ -55,11 +68,12 @@ function owner(processRecord, child = null) {
   };
 }
 
-function waitForLine(stream, expected) {
-  return new Promise((resolve, reject) => {
+function waitForLine(stream: Readable | null, expected: string) {
+  assert.ok(stream);
+  return new Promise<string>((resolve, reject) => {
     let text = "";
-    const onData = (chunk) => {
-      text += chunk;
+    const onData = (chunk: Buffer | string) => {
+      text += String(chunk);
       if (!text.includes(expected)) return;
       stream.off("data", onData);
       resolve(text);
@@ -70,15 +84,15 @@ function waitForLine(stream, expected) {
   });
 }
 
-function waitForExit(child) {
+function waitForExit(child: ChildProcess) {
   if (child.exitCode !== null) return Promise.resolve(child.exitCode);
-  return new Promise((resolve, reject) => {
+  return new Promise<number | null>((resolve, reject) => {
     child.once("error", reject);
     child.once("close", (code) => resolve(code));
   });
 }
 
-test("separate processes cannot enter the same shared-host slot concurrently", async () => {
+void test("separate processes cannot enter the same shared-host slot concurrently", async () => {
   const { root, lockPath } = await fixture();
   const moduleUrl = new URL("./heavy-rust-test-lock.mts", import.meta.url).href;
   const helper = `
@@ -120,7 +134,7 @@ test("separate processes cannot enter the same shared-host slot concurrently", a
   }
 });
 
-test("heavy Rust lock blocks a matching live owner with actionable identity", async () => {
+void test("heavy Rust lock blocks a matching live owner with actionable identity", async () => {
   const { root, lockPath } = await fixture();
   const identities = new Map([[process.pid, "current-process"]]);
   try {
@@ -149,7 +163,7 @@ test("heavy Rust lock blocks a matching live owner with actionable identity", as
   }
 });
 
-test("surviving registered child keeps a dead wrapper's lock active", async () => {
+void test("surviving registered child keeps a dead wrapper's lock active", async () => {
   const { root, lockPath } = await fixture();
   const identities = new Map([
     [process.pid, "current-process"],
@@ -176,7 +190,7 @@ test("surviving registered child keeps a dead wrapper's lock active", async () =
   }
 });
 
-test("dead and PID-reused records are reclaimed only when no identity matches", async () => {
+void test("dead and PID-reused records are reclaimed only when no identity matches", async () => {
   const { root, lockPath } = await fixture();
   const identities = new Map([
     [process.pid, "current-process"],
@@ -207,7 +221,7 @@ test("dead and PID-reused records are reclaimed only when no identity matches", 
   }
 });
 
-test("registered child identity is persisted before guarded work continues", async () => {
+void test("registered child identity is persisted before guarded work continues", async () => {
   const { root, lockPath } = await fixture();
   const identities = new Map([
     [process.pid, "current-process"],
@@ -222,6 +236,8 @@ test("registered child identity is persisted before guarded work continues", asy
         inspectProcessIdentity: identityInspector(identities),
       },
     );
+    // Legacy callers may still send ignored registration fields.
+    // @ts-expect-error platform is deliberately outside the maintained registration contract.
     await current.registerChild({ pid: 905 }, { platform: null });
     const persisted = await readPersistedOwner(lockPath);
     assert.deepEqual(persisted.child, {
@@ -235,7 +251,7 @@ test("registered child identity is persisted before guarded work continues", asy
   }
 });
 
-test("inherited ownership accepts only the active token and never releases the parent lock", async () => {
+void test("inherited ownership accepts only the active token and never releases the parent lock", async () => {
   const { root, lockPath } = await fixture();
   const identities = new Map([[process.pid, "current-process"]]);
   try {
@@ -276,7 +292,7 @@ test("inherited ownership accepts only the active token and never releases the p
   }
 });
 
-test("release refuses ownership changes and unreadable metadata remains fail closed", async () => {
+void test("release refuses ownership changes and unreadable metadata remains fail closed", async () => {
   const { root, lockPath } = await fixture();
   const identities = new Map([[process.pid, "current-process"]]);
   try {
@@ -308,7 +324,7 @@ test("release refuses ownership changes and unreadable metadata remains fail clo
   }
 });
 
-test("new lock publication and child replacement remain complete JSON records", async () => {
+void test("new lock publication and child replacement remain complete JSON records", async () => {
   const { root, lockPath } = await fixture();
   const identities = new Map([
     [process.pid, "current-process"],
@@ -337,10 +353,10 @@ test("new lock publication and child replacement remain complete JSON records", 
   }
 });
 
-test("bounded wait retries a live owner and reports the configured limit", async () => {
+void test("bounded wait retries a live owner and reports the configured limit", async () => {
   const { root, lockPath } = await fixture();
   const identities = new Map([[process.pid, "current-process"]]);
-  const reports = [];
+  const reports: string[] = [];
   try {
     const first = await acquireHeavyRustTestLock(
       {},
@@ -364,7 +380,9 @@ test("bounded wait retries a live owner and reports the configured limit", async
       /after waiting 50ms/u,
     );
     assert.equal(reports.length >= 1, true);
+    assert.ok(reports[0]);
     assert.match(reports[0], /owner PID/u);
+    assert.ok(reports[0]);
     assert.match(reports[0], /queued \d+ms of 50ms/u);
     await first.release();
   } finally {
@@ -372,12 +390,12 @@ test("bounded wait retries a live owner and reports the configured limit", async
   }
 });
 
-test("bounded wait admits the queued command after the exact owner releases", async () => {
+void test("bounded wait admits the queued command after the exact owner releases", async () => {
   const { root, lockPath } = await fixture();
   const identities = new Map([[process.pid, "current-process"]]);
-  let first;
+  let first: HeavyRustLock | null = null;
   let sleeps = 0;
-  const reports = [];
+  const reports: string[] = [];
   try {
     first = await acquireHeavyRustTestLock(
       { workspace: "first-worktree", command: "cargo check" },
@@ -397,6 +415,7 @@ test("bounded wait admits the queued command after the exact owner releases", as
         inspectProcessIdentity: identityInspector(identities),
         sleep: async () => {
           sleeps += 1;
+          assert.ok(first);
           await first.release();
           first = null;
         },
@@ -406,7 +425,9 @@ test("bounded wait admits the queued command after the exact owner releases", as
     assert.equal(second.owner.workspace, "second-worktree");
     assert.equal(second.owner.command, "cargo clippy");
     assert.equal(reports.length, 2);
+    assert.ok(reports[0]);
     assert.match(reports[0], /Waiting for the Heavy Rust validation slot/u);
+    assert.ok(reports[1]);
     assert.match(reports[1], /Acquired the Heavy Rust validation slot after \d+ms/u);
     await second.release();
   } finally {
@@ -415,7 +436,7 @@ test("bounded wait admits the queued command after the exact owner releases", as
   }
 });
 
-test("default admission timing is finite and probes live owners sparsely", () => {
+void test("default admission timing is finite and probes live owners sparsely", () => {
   assert.deepEqual(heavyRustLockTiming, {
     defaultWaitMilliseconds: 3_600_000,
     maximumWaitMilliseconds: 3_600_000,
@@ -424,17 +445,17 @@ test("default admission timing is finite and probes live owners sparsely", () =>
   });
 });
 
-test("admission overrides cannot exceed the maintained finite budget", async () => {
+void test("admission overrides cannot exceed the maintained finite budget", async () => {
   await assert.rejects(
     acquireHeavyRustTestLock({}, { waitMilliseconds: 3_600_001 }),
     /integer from 0 through 3600000/u,
   );
 });
 
-test("live-owner diagnostics use monotonic elapsed intervals instead of every poll", async () => {
+void test("live-owner diagnostics use monotonic elapsed intervals instead of every poll", async () => {
   const { root, lockPath } = await fixture();
   const identities = new Map([[process.pid, "current-process"]]);
-  const reports = [];
+  const reports: string[] = [];
   let elapsed = 0;
   try {
     const first = await acquireHeavyRustTestLock(
@@ -473,9 +494,13 @@ test("live-owner diagnostics use monotonic elapsed intervals instead of every po
   }
 });
 
-test("Darwin identity uses an exact per-process marker instead of a second-resolution start", () => {
-  const calls = [];
-  const spawnSync = (command, args, options) => {
+void test("Darwin identity uses an exact per-process marker instead of a second-resolution start", () => {
+  const calls: {
+    command: string;
+    args: readonly string[];
+    options: Parameters<IdentityProbeRunner>[2];
+  }[] = [];
+  const spawnSync: IdentityProbeRunner = (command, args, options) => {
     calls.push({ command, args, options });
     return {
       status: 0,
@@ -511,10 +536,11 @@ test("Darwin identity uses an exact per-process marker instead of a second-resol
     }),
     null,
   );
+  assert.ok(calls[0]);
   assert.equal(calls[0].options.timeout, 5_000);
 });
 
-test("legacy Darwin start identities remain readable only for lock migration", () => {
+void test("legacy Darwin start identities remain readable only for lock migration", () => {
   assert.equal(
     readProcessIdentity(909, {
       platform: "darwin",
@@ -528,7 +554,7 @@ test("legacy Darwin start identities remain readable only for lock migration", (
   );
 });
 
-test("a surviving recorded process tree blocks after its supervisor exits", async () => {
+void test("a surviving recorded process tree blocks after its supervisor exits", async () => {
   const { root, lockPath } = await fixture();
   const identities = new Map([[process.pid, "current-process"]]);
   try {
@@ -555,7 +581,7 @@ test("a surviving recorded process tree blocks after its supervisor exits", asyn
   }
 });
 
-test("Unix watchdog cleanup must prove quiescence before a dead lock is reclaimed", async () => {
+void test("Unix watchdog cleanup must prove quiescence before a dead lock is reclaimed", async () => {
   const { root, lockPath } = await fixture();
   const receiptPath = path.join(root, "cleanup.json");
   const identities = new Map([[process.pid, "current-process"]]);
@@ -609,7 +635,7 @@ test("Unix watchdog cleanup must prove quiescence before a dead lock is reclaime
   }
 });
 
-test("ambiguous legacy child containment blocks automatic reclamation", async () => {
+void test("ambiguous legacy child containment blocks automatic reclamation", async () => {
   const { root, lockPath } = await fixture();
   const identities = new Map([[process.pid, "current-process"]]);
   try {
@@ -633,21 +659,21 @@ test("ambiguous legacy child containment blocks automatic reclamation", async ()
   }
 });
 
-test("legacy Windows descendant metadata blocks automatic reclamation", () => {
+void test("legacy Windows descendant metadata blocks automatic reclamation", () => {
   assert.throws(
     () => processTreeMembers({ pid: 913, tree_platform: "win32" }),
     /cannot be reclaimed automatically/u,
   );
 });
 
-test("legacy Unix process-group metadata blocks automatic reclamation", () => {
+void test("legacy Unix process-group metadata blocks automatic reclamation", () => {
   assert.throws(
     () => processTreeMembers({ pid: 914, tree_platform: "linux" }),
     /cannot be reclaimed automatically/u,
   );
 });
 
-test("platform identity probes fail closed on their bounded timeout", () => {
+void test("platform identity probes fail closed on their bounded timeout", () => {
   const error = Object.assign(new Error("probe timeout"), { code: "ETIMEDOUT" });
   assert.throws(
     () =>
@@ -655,6 +681,21 @@ test("platform identity probes fail closed on their bounded timeout", () => {
         platform: "win32",
         spawnSync: () => ({ error, status: null, stdout: "", stderr: "" }),
       }),
-    /identity probe timed out/u,
+    { code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE", message: /identity probe timed out/u },
   );
+});
+
+void test("numeric owner timestamps fail closed without reclaiming the record", async () => {
+  const { root, lockPath } = await fixture();
+  try {
+    const invalid = { ...owner({ pid: 999999, identity: "absent" }), created_at: 0 };
+    await writeOwner(lockPath, invalid);
+    await assert.rejects(
+      acquireHeavyRustTestLock({}, { lockPath, waitMilliseconds: 0 }),
+      /invalid owner metadata/,
+    );
+    assert.deepEqual(await readPersistedOwner(lockPath), invalid);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

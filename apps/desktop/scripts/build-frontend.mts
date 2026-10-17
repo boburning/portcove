@@ -1,4 +1,5 @@
 import { errorMessage, errorCode } from "../../../scripts/runtime-values.mts";
+import { resourceEntrypoint } from "../../../scripts/resource-command.mts";
 import { fileURLToPath } from "node:url";
 import { lstatSync, rmSync } from "node:fs";
 import path from "node:path";
@@ -56,4 +57,6 @@ export function buildFrontend(
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url))
-  process.exitCode = buildFrontend(process.env, spawnCommand, process.argv.includes("--fresh"));
+  process.exitCode = await resourceEntrypoint("browser", () =>
+    buildFrontend(process.env, spawnCommand, process.argv.includes("--fresh")),
+  );

@@ -44,6 +44,22 @@ if ($CapabilityProfile -ne "standard") {
         throw "Selective native-desktop provisioning currently supports Windows only; use the existing approved native platform setup, then doctor --profile native-desktop"
     }
 }
+# The supervisor compiler/linker is an explicit host prerequisite. The guarded
+# command disables implicit Rustup acquisition before any dependency installation.
+if ($env:GITHUB_ACTIONS -ne "true" -and $env:PORTCOVE_CONTAINER_GUEST -ne "1") {
+    if (-not $env:PORTCOVE_RESOURCE_RESERVATION) {
+        $resumeArguments = @()
+        foreach ($entry in $PSBoundParameters.GetEnumerator()) {
+            if ($entry.Value -is [switch]) {
+                if ($entry.Value.IsPresent) { $resumeArguments += "-$($entry.Key)" }
+            } else { $resumeArguments += "-$($entry.Key)"; $resumeArguments += [string]$entry.Value }
+        }
+        & node (Join-Path $PSScriptRoot "resource-command.mts") rust --bootstrap -- (Get-Process -Id $PID).Path -NoProfile -File $PSCommandPath @resumeArguments
+        exit $LASTEXITCODE
+    }
+    & node (Join-Path $PSScriptRoot "resource-command.mts") verify-bootstrap
+    if ($LASTEXITCODE -ne 0) { throw "Bootstrap resource inheritance is invalid" }
+}
 function Install-SelectedFrontend {
     if ((& node --version) -ne "v$requiredNodeVersion") { throw "Node $requiredNodeVersion is required for frontend setup" }
     $pnpmVersion = ([string]$toolPaths.pins.packageManager).Split('@')[1]
@@ -60,26 +76,30 @@ function Install-SelectedFrontend {
     if ($LASTEXITCODE -ne 0) { throw "Explicit development hook setup failed; existing hooks were preserved" }
 }
 if ($capabilityPlan -and $capabilityPlan.setup.frontend) { Install-SelectedFrontend }
-if ($CapabilityProfile -eq "frontend") {
-    & node (Join-Path $PSScriptRoot "dev-doctor.mts") --profile frontend
-    if ($LASTEXITCODE -ne 0) { throw "Requested frontend profile remains incomplete" }
-    exit 0
-}
 if ($capabilityPlan -and $capabilityPlan.setup.rust) {
     $rustPin = [string]$capabilityPlan.pins.rust
+    $components = @($capabilityPlan.pins.rust_components | Where-Object { $capabilityPlan.capabilities -contains "$_-component" })
     $oldAutoInstall = $env:RUSTUP_AUTO_INSTALL
     try {
         $env:RUSTUP_AUTO_INSTALL = "0"
         $rustReady = ((& rustc --version 2>$null) -like "rustc $rustPin *") -and $LASTEXITCODE -eq 0
-        & cargo fmt --version *> $null
-        $rustReady = $rustReady -and $LASTEXITCODE -eq 0
-        & cargo clippy --version *> $null
-        $rustReady = $rustReady -and $LASTEXITCODE -eq 0
+        foreach ($component in $components) {
+            $componentCommand = if ($component -eq "rustfmt") { "fmt" } else { $component }
+            & cargo $componentCommand --version *> $null
+            $rustReady = $rustReady -and $LASTEXITCODE -eq 0
+        }
     } catch { $rustReady = $false } finally { $env:RUSTUP_AUTO_INSTALL = $oldAutoInstall }
     if (-not $rustReady) {
-        & rustup toolchain install $rustPin --profile minimal --component rustfmt --component clippy
+        $componentArguments = @($components | ForEach-Object { "--component"; $_ })
+        & rustup toolchain install $rustPin --profile minimal @componentArguments
         if ($LASTEXITCODE -ne 0) { throw "Requested pinned Rust provisioning failed" }
     }
+}
+
+if ($CapabilityProfile -eq "frontend") {
+    & node (Join-Path $PSScriptRoot "dev-doctor.mts") --profile frontend
+    if ($LASTEXITCODE -ne 0) { throw "Requested frontend profile remains incomplete" }
+    exit 0
 }
 
 function Assert-UnderRoot([string]$Candidate, [string]$Root, [string]$Label) {

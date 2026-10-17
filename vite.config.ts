@@ -219,11 +219,11 @@ export default defineConfig({
   staged: { "*": "vp check --fix" },
   run: {
     tasks: {
-      "repository:static": { command: "vp check", cache: false },
+      "repository:static": { command: "node scripts/run-viteplus.mts check", cache: false },
       "frontend:static": {
         command: [
           "node apps/desktop/scripts/browser-package-compatibility.mts",
-          "vp check",
+          "node scripts/run-viteplus.mts check",
           "vp -C apps/desktop run lint:style",
         ],
         cache: false,
@@ -236,9 +236,13 @@ export default defineConfig({
         ],
         cache: false,
       },
-      "frontend:unit": { command: "vp test --project unit", cache: false },
+      "frontend:unit": {
+        command: "node scripts/run-viteplus.mts test --project unit",
+        cache: false,
+      },
       "frontend:browser": {
-        command: "vp test --project browser --project browser-forced-colors",
+        command:
+          "node scripts/run-viteplus.mts test --project browser --project browser-forced-colors",
         cache: false,
       },
       "frontend:build": { command: "node apps/desktop/scripts/build-frontend.mts", cache: false },

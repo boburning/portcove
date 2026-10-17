@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -16,7 +16,7 @@ import {
   browser,
   command,
 } from "./container-build.mts";
-import { createContainerHost } from "./container-host.mts";
+import { createContainerHost, completedContainerPreparation } from "./container-host.mts";
 test("missing package tools preserve the failed executable and arguments", async () => {
   const missing = path.join(os.tmpdir(), "portcove-missing-tool-parent-does-not-exist", "rpm");
   assert(!existsSync(missing));
@@ -191,4 +191,55 @@ test("package identities reject another version or architecture", () => {
         ),
       /identity/u,
     );
+});
+
+test("pre-container recovery requires exact terminal engine evidence, preserving failed status", () => {
+  const record = {
+    name: "portcove-build-exact-run",
+    ref: "desktop-linux/desktop-linux/opaque123",
+    status: "Error",
+    created_at: "2026-10-17T00:00:00Z",
+    completed_at: "2026-10-17T00:01:00Z",
+  };
+  assert.equal(completedContainerPreparation([record], record.name), record);
+  for (const changed of [
+    { status: "Running" },
+    { completed_at: null },
+    { ref: "foreign/builder/opaque123" },
+    { created_at: "unknown" },
+    { completed_at: "2026-10-16T23:00:00Z" },
+  ])
+    assert.equal(completedContainerPreparation([{ ...record, ...changed }], record.name), null);
+  assert.equal(completedContainerPreparation([record, record], record.name), null);
+  assert.equal(completedContainerPreparation([record], "another-run"), null);
+  assert.equal(record.status, "Error");
+});
+
+test("builder runtime producer environment preserves guest admission and rejects host state", () => {
+  const fixture = structuredClone(
+    JSON.parse(
+      readFileSync(new URL("./testdata/container-browser-runtime-oracle.json", import.meta.url)),
+    ).runtimeValidation.find((item) => item.expected.accepted).input,
+  );
+  fixture.HostConfig.NetworkMode = "bridge";
+  const run = "30000000-0000-4000-8000-000000000000";
+  const args = runtimeArguments({
+    name: `portcove-build-${run}`,
+    run,
+    image: "sha256:owned",
+    commit: "a".repeat(40),
+    tree: "b".repeat(40),
+    mode: "check",
+  });
+  for (let i = 0; i < args.length; i++) if (args[i] === "--env") fixture.Config.Env.push(args[++i]);
+  validateRuntime(fixture);
+  for (const value of [
+    "PORTCOVE_CONTAINER_GUEST=0",
+    "PORTCOVE_RESOURCE_RESERVATION=host-record",
+    "PORTCOVE_HEAVY_RUST_PROCESS_TOKEN=host-token",
+  ]) {
+    const bad = structuredClone(fixture);
+    bad.Config.Env.push(value);
+    assert.throws(() => validateRuntime(bad), /Unexpected runtime environment key/);
+  }
 });

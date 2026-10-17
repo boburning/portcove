@@ -1,6 +1,7 @@
 import { observeVisibleTarget } from "./browser-readiness.mts";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
+import { reenterResourceCommand } from "../../../scripts/resource-command.mts";
 import os from "node:os";
 import {
   writeAcceptancePreflight,
@@ -264,6 +265,7 @@ if (backupFocusSession) {
     "The bounded backup-focus qualification must run as one exact scenario",
   );
 }
+await reenterResourceCommand("browser", import.meta.url);
 const ownedSession = new OwnedNativeSession();
 const nativeLock = await acquireNativeSessionLock({
   workspace: root,

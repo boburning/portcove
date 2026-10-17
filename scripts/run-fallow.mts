@@ -1,4 +1,6 @@
 import { errorMessage } from "./runtime-values.mts";
+import { resourceEntrypoint } from "./resource-command.mts";
+import { frontendOutputResource } from "./resource-capacity.mts";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
@@ -198,9 +200,15 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
     const [mode = "desktop", base, reuse, ...extra] = process.argv.slice(2);
     if (extra.length || (mode !== "review" && base))
       throw new Error("usage: run-fallow.mts [desktop|tooling|css|review BASE [REUSE_DIRECTORY]]");
-    const result = runFallow({ mode, base, reuse });
-    (result.exitCode ? console.error : console.log)(result.text);
-    process.exitCode = result.exitCode;
+    process.exitCode = await resourceEntrypoint(
+      "analysis",
+      () => {
+        const result = runFallow({ mode, base, reuse });
+        (result.exitCode ? console.error : console.log)(result.text);
+        return result.exitCode;
+      },
+      { exclusive: [frontendOutputResource(root)] },
+    );
   } catch (error) {
     console.error(formatFallowFailure(error));
     process.exitCode = 1;

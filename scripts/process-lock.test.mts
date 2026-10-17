@@ -1,3 +1,8 @@
+import { isRecord } from "./runtime-values.mts";
+function record(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -10,7 +15,7 @@ async function fixture() {
   return { root, lockPath: path.join(root, "shared", "roadmap") };
 }
 
-test("generic process locks serialize sibling workspaces and preserve owner identity", async () => {
+void test("generic process locks serialize sibling workspaces and preserve owner identity", async () => {
   const { root, lockPath } = await fixture();
   try {
     const first = await acquireOwnedProcessLock(
@@ -27,7 +32,7 @@ test("generic process locks serialize sibling workspaces and preserve owner iden
       /already owned.*worktree-one/,
     );
     assert.equal(
-      JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8")).command,
+      record(JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8"))).command,
       "doctor",
     );
     await first.release();
@@ -36,7 +41,7 @@ test("generic process locks serialize sibling workspaces and preserve owner iden
   }
 });
 
-test("generic process locks reclaim only valid positively dead owners", async () => {
+void test("generic process locks reclaim only valid positively dead owners", async () => {
   const { root, lockPath } = await fixture();
   try {
     await mkdir(lockPath, { recursive: true });

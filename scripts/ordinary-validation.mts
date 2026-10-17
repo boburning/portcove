@@ -270,11 +270,21 @@ const oxfmtExtensions = new Set([
 // descendant-closure consumers. Helper-only edits must exercise those contracts.
 const containmentContractTests = [
   "scripts/heavy-rust-test-lock.test.mts",
+  "scripts/resource-capacity.test.mts",
+  "scripts/resource-command.test.mts",
+  "scripts/native-session-lock.test.mts",
+  "scripts/process-lock.test.mts",
   "scripts/run-rust-tests.test.mts",
   "scripts/rust-support-cache.test.mts",
   "scripts/rust-test-tree-supervisor.test.mts",
 ];
 const containmentInputs = new Set([
+  "scripts/rust-test-impact.mts",
+  "scripts/desktop-linux-x11.mts",
+  "scripts/resource-paths.mts",
+  "scripts/native-build.mts",
+  "scripts/container-host.mts",
+  "scripts/fallow-source.mts",
   ...containmentContractTests,
   ...containmentContractTests.map((file) => file.replace(/\.test\.([cm]?[jt]s)$/u, ".$1")),
   "scripts/fixtures/linux-process-tree-reaper.rs.txt",
@@ -392,6 +402,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/ci-baseline.test.mts", "scripts/local-validation.test.mts"],
   ],
   ["scripts/rust-test-impact.mts", ["scripts/rust-test-impact.test.mts"]],
+  [
+    "scripts/desktop-linux-x11.mts",
+    [
+      "scripts/desktop-linux-native-session.test.mts",
+      "scripts/native-session-lock.test.mts",
+      "scripts/resource-command.test.mts",
+    ],
+  ],
   ["scripts/ui-test-selection.mts", ["scripts/ui-test-selection.test.mts"]],
   ["scripts/run-ui-tests.mts", ["scripts/ui-test-selection.test.mts"]],
   ["scripts/run-viteplus.mts", ["scripts/frontend-command-preflight.test.mts"]],

@@ -524,6 +524,10 @@ export function runWorkspaceRustImpact(
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
+    if (!["--workspace-run", "--run"].includes(process.argv[2] ?? ""))
+      throw new Error("Use the guarded Rust runner for impact unions");
+    const { resourceEntrypoint } = await import("./resource-command.mts");
+    process.exitCode = await resourceEntrypoint("rust", async () => {
     if (process.argv[2] === "--workspace-run") {
       const planFile = process.argv[3];
       const planText =
@@ -543,6 +547,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       if (!packageName) throw new Error("Rust impact union requires a package name");
       process.exitCode = runRustImpactUnion(packageName, process.argv.slice(4));
     }
+      return process.exitCode ?? 0;
+    });
   } catch (error) {
     console.error(errorMessage(error));
     process.exitCode = 1;

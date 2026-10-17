@@ -5,6 +5,22 @@ import {
 } from "./native-helper-dependencies.mts";
 
 const nativeToolInputs = new Set([
+  "scripts/rust-test-impact.mts",
+  "scripts/desktop-linux-x11.mts",
+  "scripts/resource-capacity.mts",
+  "scripts/resource-paths.mts",
+  "scripts/resource-capacity.test.mts",
+  "scripts/resource-command.mts",
+  "scripts/resource-command.test.mts",
+  "scripts/native-build.mts",
+  "scripts/native-build.test.mts",
+  "scripts/run-rust-tests.mts",
+  "scripts/run-rust-tests.test.mts",
+  "scripts/heavy-rust-test-lock.mts",
+  "scripts/heavy-rust-test-lock.test.mts",
+  "scripts/rust-test-tree-supervisor.mts",
+  "scripts/rust-test-tree-supervisor.test.mts",
+
   "apps/desktop/scripts/desktop-install-fixture.native.test.mts",
   "apps/desktop/scripts/cli-command-shell.native.test.mts",
   "apps/desktop/src/cli-command.ts",

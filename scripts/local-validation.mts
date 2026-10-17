@@ -573,6 +573,12 @@ export function executePlanWithReceipts(
     if (result.error) throw result.error;
     if (result.status !== 0)
       throw new Error(`${entry.id} failed with exit code ${result.status ?? "unknown"}`);
+    if (
+      receiptPath &&
+      fingerprintLocalStage(entry, options.inventory ?? repositoryInventory(root), runtime) !==
+        fingerprint
+    )
+      throw new Error(`${entry.id} source changed during execution; successful receipt withheld`);
     if (receiptPath && reusableContext)
       writeLocalReceipt(
         receiptPath,

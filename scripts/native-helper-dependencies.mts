@@ -44,6 +44,25 @@ export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
   [helper("desktop-native-confirmation.mts")]: Object.freeze(["../../../scripts/dev-storage.mts"]),
 });
 export const nativeHelperSharedSources = Object.freeze([
+  // Launcher and admission code is already loaded when prelaunch capture begins.
+  // These are trusted verifier/reproduction observations, never proof that a
+  // retained copy was the immutable module consumed by the target process.
+  "scripts/resource-command.mts",
+  "scripts/resource-capacity.mts",
+  "scripts/resource-paths.mts",
+  "scripts/fallow-source.mts",
+  "scripts/run-rust-tests.mts",
+  "scripts/rust-support-cache.mts",
+  "scripts/ci-metrics.mts",
+  "scripts/report-summary.mts",
+  "scripts/bounded-summary.mts",
+  "scripts/fallow-summary.mts",
+  "scripts/heavy-rust-test-lock.mts",
+  "scripts/process-lock.mts",
+  "scripts/tool-cache.mts",
+  "scripts/rust-test-tree-supervisor.mts",
+  "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
+  "scripts/fixtures/linux-process-tree-reaper.rs.txt",
   "scripts/runtime-values.mts",
   ...new Set(
     Object.values(nativeWrapperSharedImports)
@@ -345,8 +364,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     .then((files) =>
       console.log(`Native helper dependency declarations verified: ${files.length} files`),
     )
-    .catch((error) => {
-      console.error(error.message);
+    .catch((error: unknown) => {
+      console.error(errorMessage(error));
       process.exitCode = 1;
     });
 }

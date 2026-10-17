@@ -1,4 +1,5 @@
 import { errorMessage } from "./runtime-values.mts";
+import { observeCapacity } from "./resource-capacity.mts";
 import { lstat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -114,21 +115,45 @@ export async function collectResourceStatus(options: ResourceStatusOptions = {})
     paths.native,
     (lockPath) => readProcessLockOwner(lockPath, "Native desktop verification"),
     (owner) => ({
-      verification: "unknown",
+      verification: owner.process_identity
+        ? inspectIdentity(owner.pid) === owner.process_identity
+          ? "verified-live"
+          : "recorded-process-absent-or-changed"
+        : "unknown",
       processes: [
         {
           role: "wrapper",
           pid: owner.pid,
           observedPresent: alive(owner.pid),
-          verification: "pid-only",
+          verification: owner.process_identity ? "creation-identity" : "pid-only",
         },
       ],
-      limits: "This legacy record does not bind an exact process creation identity",
+      limits: owner.process_identity
+        ? "Creation identity observed; guard still owns exclusivity and recovery"
+        : "This legacy record does not bind an exact process creation identity",
     }),
   );
+  let capacity;
+  if (!options.paths || options.capacityRoot) {
+    try {
+      capacity = {
+        resource: "host-capacity",
+        observation: "recorded",
+        verification: "observational-only",
+        ...(await observeCapacity({ root: options.capacityRoot })),
+      };
+    } catch (error) {
+      capacity = {
+        resource: "host-capacity",
+        observation: "unavailable",
+        verification: "unknown",
+        reason: error.message,
+      };
+    }
+  }
   return {
     format_version: 1,
-    resources: [heavy, native],
+    resources: [heavy, native, ...(capacity ? [capacity] : [])],
     limits:
       "Read-only recorded-process observations; unregistered runners are unobserved. This is not admission or permission to reclaim a resource.",
   };

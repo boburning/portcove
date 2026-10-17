@@ -1,4 +1,88 @@
-import { errorMessage } from "./runtime-values.mts";
+import type { ChildProcess, SpawnOptions } from "node:child_process";
+import type { EventEmitter } from "node:events";
+import type {
+  CompilerRunner,
+  CompilerIdentity,
+  RustSupportOptions,
+} from "./rust-support-cache.mts";
+import type { HeavyRustLockOptions, HeavyRustLock } from "./heavy-rust-test-lock.mts";
+import type {
+  ResourceMetadata,
+  ResourceCapacityOptions,
+  ResourceLease,
+} from "./resource-capacity.mts";
+export type RustRunMode =
+  | { kind: "prepare" }
+  | {
+      kind: "nextest" | "guarded-command";
+      executable: string;
+      args: string[];
+      description: string;
+    };
+type ChildOutcome = { error: Error; code?: never } | { code: number; error?: never };
+interface ChildObservation {
+  completed: Promise<number>;
+  outcome: () => ChildOutcome | null;
+}
+interface Cancellation {
+  pending: Promise<{ signal: string }>;
+  signal: AbortSignal;
+  requested: () => string | null;
+  dispose: () => void;
+}
+export interface ManagedRustChild extends Pick<EventEmitter, "once"> {
+  pid?: number | undefined;
+  stdin?: ChildProcess["stdin"];
+}
+export interface RustAdmission {
+  inherited?: boolean;
+  childEnvironment: NodeJS.ProcessEnv;
+  registerChild: (
+    child: { pid?: number | undefined },
+    registration: import("./heavy-rust-test-lock.mts").ChildRegistration,
+  ) => Promise<unknown>;
+  release: () => Promise<unknown>;
+}
+type RustResources = ResourceLease | HeavyRustLock;
+export interface RustResourceOptions extends ResourceCapacityOptions, HeavyRustLockOptions {}
+export interface RustRunDependencies {
+  environment?: NodeJS.ProcessEnv;
+  metrics?: ReturnType<typeof createCiMetrics>;
+  spawnSync?: CompilerRunner;
+  spawn?: (command: string, args: readonly string[], options: SpawnOptions) => ManagedRustChild;
+  acquireLock?: (
+    metadata: ResourceMetadata,
+    options: RustResourceOptions,
+  ) => Promise<RustAdmission>;
+  prepareSupportArtifact?: (
+    options: RustSupportOptions,
+  ) => Pick<
+    ReturnType<typeof prepareRustSupportArtifact>,
+    "outcome" | "fingerprint" | "elapsed_ms"
+  >;
+  rustSupportCompilerIdentity?: typeof rustSupportCompilerIdentity;
+  tempRoot?: string;
+  platform?: string;
+  architecture?: string;
+  cwd?: string;
+  signalTarget?: Pick<EventEmitter, "once" | "off">;
+  treeWaitMilliseconds?: number;
+  treePollMilliseconds?: number;
+  killProcess?: (pid: number, signal: NodeJS.Signals) => boolean;
+  closeLinuxControl?: (child: ManagedRustChild) => unknown;
+  readLinuxSupervisor?: (file: string, child: ManagedRustChild) => { pid: number };
+  readUnixSupervisorStatus?: (file: string) => number;
+  readCleanupReceipt?: (file: string) => unknown;
+  writeGate?: typeof writeFileSync;
+}
+function causeCode(value: unknown) {
+  return isRecord(value) ? errorCode(value.cause) : undefined;
+}
+function diagnosticText(value: unknown) {
+  return String(value);
+}
+import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
+import { acquireSourceBoundCapacity, frontendOutputResource } from "./resource-capacity.mts";
 import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -13,7 +97,7 @@ const scriptPath = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("../", import.meta.url));
 const guardedCommandMarker = "--guard-command";
 
-export function parseRustRunMode(args) {
+export function parseRustRunMode(args: string[]): RustRunMode {
   if (args[0] === "--locked" && args[1] === "--impact-union") args = args.slice(1);
   if (args.length === 1 && args[0] === "--prepare-only") return { kind: "prepare" };
   if (args[0] === "--impact-union") {
@@ -49,27 +133,30 @@ export function parseRustRunMode(args) {
   };
 }
 
-function waitForChild(child) {
-  let outcome = null;
-  const completed = new Promise((resolve, reject) => {
-    child.once("error", (error) => {
+function waitForChild(child: ManagedRustChild): ChildObservation {
+  let outcome: ChildOutcome | null = null;
+  const completed = new Promise<number>((resolve, reject) => {
+    child.once("error", (error: Error) => {
       outcome = { error };
       reject(error);
     });
-    child.once("close", (code) => {
+    child.once("close", (code: number | null) => {
       if (outcome?.error) return;
       outcome = { code: code ?? 1 };
       resolve(outcome.code);
     });
   });
-  completed.catch(() => {});
+  void completed.catch(() => {});
   return { completed, outcome: () => outcome };
 }
 
-function observeCancellation(target) {
-  let requestedSignal = null;
-  let resolveCancellation;
-  const pending = new Promise((resolve) => {
+function observeCancellation(target: Pick<EventEmitter, "once" | "off">): Cancellation {
+  let requestedSignal: string | null = null;
+  const abort = new AbortController();
+  let resolveCancellation: (value: { signal: string }) => void = () => {
+    throw new Error("Cancellation promise is not initialized");
+  };
+  const pending = new Promise<{ signal: string }>((resolve) => {
     resolveCancellation = resolve;
   });
   const listeners = new Map(
@@ -78,6 +165,7 @@ function observeCancellation(target) {
       () => {
         if (requestedSignal) return;
         requestedSignal = signal;
+        abort.abort();
         resolveCancellation({ signal });
       },
     ]),
@@ -85,6 +173,7 @@ function observeCancellation(target) {
   for (const [signal, listener] of listeners) target.once(signal, listener);
   return {
     pending,
+    signal: abort.signal,
     requested: () => requestedSignal,
     dispose: () => {
       for (const [signal, listener] of listeners) target.off(signal, listener);
@@ -92,11 +181,11 @@ function observeCancellation(target) {
   };
 }
 
-function cancellationExitCode(signal) {
+function cancellationExitCode(signal: string | null) {
   return signal === "SIGINT" ? 130 : 143;
 }
 
-function terminateWindowsTree(pid, runSync) {
+function terminateWindowsTree(pid: number | undefined, runSync: CompilerRunner) {
   const terminated = runSync("taskkill.exe", ["/PID", String(pid), "/T", "/F"], {
     stdio: "ignore",
     timeout: 5_000,
@@ -109,15 +198,15 @@ function terminateWindowsTree(pid, runSync) {
   return terminated.status === 0;
 }
 
-async function waitForBoundedExit(observation, milliseconds) {
-  let timeout;
+async function waitForBoundedExit(observation: ChildObservation, milliseconds: number) {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       observation.completed.then(
         () => true,
         () => true,
       ),
-      new Promise((resolve) => {
+      new Promise<boolean>((resolve) => {
         timeout = setTimeout(() => resolve(false), milliseconds);
       }),
     ]);
@@ -126,17 +215,24 @@ async function waitForBoundedExit(observation, milliseconds) {
   }
 }
 
-function signalUnixTree(pid, dependencies) {
+function signalUnixTree(pid: number | undefined, dependencies: RustRunDependencies) {
   try {
-    (dependencies.killProcess ?? process.kill)(-pid, "SIGKILL");
+    if (pid === undefined) throw new Error("Cannot signal an unregistered child process");
+    if (dependencies.killProcess) dependencies.killProcess(-pid, "SIGKILL");
+    else process.kill(-pid, "SIGKILL");
     return true;
   } catch (error) {
-    if (error.code === "ESRCH") return false;
+    if (errorCode(error) === "ESRCH") return false;
     throw error;
   }
 }
 
-async function closeChildTree(child, observation, dependencies, force) {
+async function closeChildTree(
+  child: ManagedRustChild,
+  observation: ChildObservation,
+  dependencies: RustRunDependencies,
+  force: boolean,
+) {
   const platform = dependencies.platform ?? process.platform;
   const runSync = dependencies.spawnSync ?? spawnSync;
   const waitMilliseconds =
@@ -148,14 +244,17 @@ async function closeChildTree(child, observation, dependencies, force) {
       await (
         dependencies.closeLinuxControl ??
         ((managed) =>
-          new Promise((resolve, reject) => {
+          new Promise<void>((resolve, reject) => {
+            if (!managed.stdin) throw new Error("Linux reaper has no control pipe");
             managed.stdin.once("error", reject);
             managed.stdin.end(resolve);
           }))
       )(child);
     }
     if (!(await waitForBoundedExit(observation, waitMilliseconds))) {
-      const error = new Error("Linux Heavy Rust reaper did not exit; retaining the shared lock");
+      const error = new Error(
+        "Linux Heavy Rust reaper did not exit; retaining the shared lock",
+      ) as NodeJS.ErrnoException;
       error.code = "PORTCOVE_HEAVY_RUST_TREE_ACTIVE";
       throw error;
     }
@@ -171,7 +270,7 @@ async function closeChildTree(child, observation, dependencies, force) {
       : signalUnixTree(child.pid, dependencies);
   if (!signalled && observation.outcome()) return;
   if (!(await waitForBoundedExit(observation, waitMilliseconds))) {
-    const error = new Error(
+    const error: NodeJS.ErrnoException = new Error(
       `Heavy Rust containment supervisor ${child.pid} did not exit; retaining the shared lock`,
     );
     error.code = "PORTCOVE_HEAVY_RUST_TREE_ACTIVE";
@@ -179,8 +278,18 @@ async function closeChildTree(child, observation, dependencies, force) {
   }
 }
 
-export function inspectLinuxSupervisor(value, reaperPid, read = readFileSync) {
-  if (!Number.isSafeInteger(value?.pid) || value.pid < 2 || typeof value.identity !== "string")
+export function inspectLinuxSupervisor(
+  value: unknown,
+  reaperPid: number | undefined,
+  read: (file: string, encoding: "utf8") => string = readFileSync,
+) {
+  if (
+    !isRecord(value) ||
+    typeof value.pid !== "number" ||
+    !Number.isSafeInteger(value.pid) ||
+    value.pid < 2 ||
+    typeof value.identity !== "string"
+  )
     throw new Error("Linux Heavy Rust registration handshake is malformed");
   const stat = read(`/proc/${value.pid}/stat`, "utf8");
   const fields = stat
@@ -189,7 +298,7 @@ export function inspectLinuxSupervisor(value, reaperPid, read = readFileSync) {
     .split(/\s+/u);
   if (
     stat.lastIndexOf(")") < 0 ||
-    !["R", "S", "D", "T", "t", "I", "W"].includes(fields[0]) ||
+    !["R", "S", "D", "T", "t", "I", "W"].some((state) => state === fields[0]) ||
     Number(fields[1]) !== reaperPid ||
     Number(fields[2]) !== value.pid ||
     readProcessIdentity(value.pid, { platform: "linux", readFileSync: read }) !== value.identity
@@ -199,11 +308,11 @@ export function inspectLinuxSupervisor(value, reaperPid, read = readFileSync) {
 }
 
 async function waitForLinuxSupervisor(
-  registrationPath,
-  child,
-  observation,
-  cancellation,
-  dependencies,
+  registrationPath: string,
+  child: ManagedRustChild,
+  observation: ChildObservation,
+  cancellation: Cancellation,
+  dependencies: RustRunDependencies,
 ) {
   const deadline = Date.now() + 5_000;
   const inspect =
@@ -218,7 +327,7 @@ async function waitForLinuxSupervisor(
         throw new Error("Linux Heavy Rust reaper exited during registration");
       return registered;
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (errorCode(error) !== "ENOENT") throw error;
       if (observation.outcome() || Date.now() >= deadline)
         throw new Error("Linux Heavy Rust reaper did not publish its gated supervisor identity", {
           cause: error,
@@ -228,10 +337,15 @@ async function waitForLinuxSupervisor(
   }
 }
 
-function unixSupervisorStatus(statusPath) {
+function unixSupervisorStatus(statusPath: string): number {
   try {
-    const value = JSON.parse(readFileSync(statusPath, "utf8"));
-    if (!Number.isInteger(value.exit_code)) throw new Error("exit_code is not an integer");
+    const value: unknown = JSON.parse(readFileSync(statusPath, "utf8"));
+    if (
+      !isRecord(value) ||
+      typeof value.exit_code !== "number" ||
+      !Number.isInteger(value.exit_code)
+    )
+      throw new Error("exit_code is not an integer");
     return value.exit_code;
   } catch (error) {
     throw new Error(
@@ -243,14 +357,18 @@ function unixSupervisorStatus(statusPath) {
   }
 }
 
-async function waitForUnixSupervisorStatus(statusPath, observation, dependencies) {
+async function waitForUnixSupervisorStatus(
+  statusPath: string,
+  observation: ChildObservation,
+  dependencies: RustRunDependencies,
+) {
   const pollMilliseconds = dependencies.treePollMilliseconds ?? 25;
   const readStatus = dependencies.readUnixSupervisorStatus ?? unixSupervisorStatus;
   for (;;) {
     try {
       return readStatus(statusPath);
     } catch (error) {
-      if (error.cause?.code !== "ENOENT") throw error;
+      if (causeCode(error) !== "ENOENT") throw error;
     }
     const outcome = observation.outcome();
     if (outcome) return readStatus(statusPath);
@@ -258,11 +376,11 @@ async function waitForUnixSupervisorStatus(statusPath, observation, dependencies
   }
 }
 
-function readUnixCleanupReceipt(receiptPath) {
+function readUnixCleanupReceipt(receiptPath: string): unknown {
   return JSON.parse(readFileSync(receiptPath, "utf8"));
 }
 
-async function waitForUnixCleanupReceipt(receiptPath, dependencies) {
+async function waitForUnixCleanupReceipt(receiptPath: string, dependencies: RustRunDependencies) {
   const waitMilliseconds =
     dependencies.treeWaitMilliseconds === undefined ? 5_000 : dependencies.treeWaitMilliseconds;
   const pollMilliseconds = dependencies.treePollMilliseconds ?? 25;
@@ -271,14 +389,14 @@ async function waitForUnixCleanupReceipt(receiptPath, dependencies) {
   for (;;) {
     try {
       const value = readReceipt(receiptPath);
-      if (value?.outcome !== "quiescent")
+      if (!isRecord(value) || value.outcome !== "quiescent")
         throw new Error(
-          `Unix Heavy Rust containment cleanup did not prove quiescence: ${value?.outcome ?? "invalid receipt"}`,
+          `Unix Heavy Rust containment cleanup did not prove quiescence: ${diagnosticText(isRecord(value) ? (value.outcome ?? "invalid receipt") : "invalid receipt")}`,
         );
       return value;
     } catch (error) {
-      if (error.code !== "ENOENT" && error.cause?.code !== "ENOENT") {
-        const failure = new Error(
+      if (errorCode(error) !== "ENOENT" && causeCode(error) !== "ENOENT") {
+        const failure: NodeJS.ErrnoException = new Error(
           `Unix Heavy Rust supervisor cleanup evidence is invalid; retaining the shared lock: ${errorMessage(error)}`,
           { cause: error },
         );
@@ -287,7 +405,7 @@ async function waitForUnixCleanupReceipt(receiptPath, dependencies) {
       }
     }
     if (Date.now() >= deadline) {
-      const error = new Error(
+      const error: NodeJS.ErrnoException = new Error(
         "Unix Heavy Rust supervisor exited without containment cleanup evidence; retaining the shared lock",
       );
       error.code = "PORTCOVE_HEAVY_RUST_TREE_ACTIVE";
@@ -297,12 +415,45 @@ async function waitForUnixCleanupReceipt(receiptPath, dependencies) {
   }
 }
 
-export async function runRustTests(args, dependencies = {}) {
+export async function acquireRustResources(
+  metadata: ResourceMetadata,
+  options: RustResourceOptions = {},
+): Promise<RustResources> {
+  const environment = options.environment ?? process.env;
+  if (environment.GITHUB_ACTIONS === "true" || environment.PORTCOVE_CONTAINER_GUEST === "1")
+    return acquireHeavyRustTestLock(metadata, options);
+  const capacity = await acquireSourceBoundCapacity("rust", metadata, {
+    ...options,
+    environment,
+    exclusive: [
+      ...(options.exclusive ?? []),
+      frontendOutputResource(
+        path.resolve(
+          metadata.cwd ?? root,
+          environment.CARGO_TARGET_DIR ?? path.join(root, "target"),
+        ),
+      ),
+    ],
+  });
+  const jobs = Number(environment.CARGO_BUILD_JOBS);
+  return {
+    ...capacity,
+    childEnvironment: {
+      ...capacity.childEnvironment,
+      CARGO_BUILD_JOBS: String(Number.isInteger(jobs) && jobs > 0 ? Math.min(jobs, 2) : 2),
+    },
+  };
+}
+
+export async function runRustTests(
+  args: string[],
+  dependencies: RustRunDependencies = {},
+): Promise<number> {
   const environment = dependencies.environment ?? process.env;
   const metrics = dependencies.metrics ?? createCiMetrics({ environment });
   const runSync = dependencies.spawnSync ?? spawnSync;
   const start = dependencies.spawn ?? spawn;
-  const acquireLock = dependencies.acquireLock ?? acquireHeavyRustTestLock;
+  const acquireLock = dependencies.acquireLock ?? acquireRustResources;
   const prepareSupport = dependencies.prepareSupportArtifact ?? prepareRustSupportArtifact;
   const readCompilerIdentity =
     dependencies.rustSupportCompilerIdentity ?? rustSupportCompilerIdentity;
@@ -311,6 +462,7 @@ export async function runRustTests(args, dependencies = {}) {
   );
   const platform = dependencies.platform ?? process.platform;
   const mode = parseRustRunMode(args);
+  const executionRoot = dependencies.cwd ?? root;
   const directory = mkdtempSync(path.join(base, "portcove-host-tool-fixture-"));
   const relative = path.relative(base, directory);
   if (relative.startsWith("..") || path.isAbsolute(relative))
@@ -324,23 +476,25 @@ export async function runRustTests(args, dependencies = {}) {
   const cleanupReceiptPath = path.join(directory, "containment-cleanup.json");
   const prepareOnly = mode.kind === "prepare";
   let retained = false;
-  let lock = null;
+  let lock: RustAdmission | null = null;
   let releaseLock = true;
-  let cancellation = null;
-  let compiler = null;
-  const prepareSupportProduct = (definition) => {
+  let cancellation: Cancellation | null = null;
+  let compiler: CompilerIdentity | null = null;
+  const prepareSupportProduct = (
+    definition: Pick<RustSupportOptions, "product" | "source" | "output" | "rustcArgs">,
+  ) => {
     compiler ??= metrics.measure("compiler-identity", () =>
       readCompilerIdentity({ runSync, environment, platform }),
     );
+    const activeCompiler = compiler;
     const result = metrics.measure(`support-setup:${definition.product}`, () =>
       prepareSupport({
         root,
-        output: definition.output,
         environment,
         platform,
         architecture: dependencies.architecture ?? process.arch,
         runSync,
-        compiler,
+        compiler: activeCompiler,
         ...definition,
       }),
     );
@@ -355,12 +509,14 @@ export async function runRustTests(args, dependencies = {}) {
     );
   };
   try {
+    cancellation = observeCancellation(dependencies.signalTarget ?? process);
+    const activeCancellation = cancellation;
     if (!prepareOnly) {
       lock = await metrics.measureAsync("rust-reservation-wait", () =>
-        acquireLock({
-          workspace: root,
-          command: mode.description,
-        }),
+        acquireLock(
+          { workspace: root, cwd: executionRoot, command: mode.description },
+          { signal: activeCancellation.signal },
+        ),
       );
     }
     if (mode.kind !== "guarded-command") {
@@ -377,7 +533,8 @@ export async function runRustTests(args, dependencies = {}) {
       retained = true; // The runner owns cleanup after all test steps finish.
       return 0;
     }
-    if (platform === "win32") {
+    if (!lock) throw new Error("Rust execution requires an acquired reservation");
+    if (platform === "win32" && !lock.inherited) {
       prepareSupportProduct({
         product: "windows-process-tree-supervisor",
         source: "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
@@ -387,7 +544,7 @@ export async function runRustTests(args, dependencies = {}) {
     }
     if (lock.inherited) {
       const nested = start(mode.executable, mode.args, {
-        cwd: root,
+        cwd: executionRoot,
         detached: false,
         stdio: "inherit",
         windowsHide: true,
@@ -407,7 +564,6 @@ export async function runRustTests(args, dependencies = {}) {
         rustcArgs: ["--edition=2024", "--crate-name", "portcove_linux_process_tree_reaper"],
       });
     }
-    cancellation = observeCancellation(dependencies.signalTarget ?? process);
     const command =
       platform === "win32" ? supervisor : platform === "linux" ? linuxReaper : process.execPath;
     const commandArgs =
@@ -419,7 +575,7 @@ export async function runRustTests(args, dependencies = {}) {
               statusPath,
               cleanupReceiptPath,
               registrationPath,
-              readProcessIdentity(process.pid),
+              requiredProcessIdentity(),
               process.execPath,
               path.join(root, "scripts/rust-test-tree-supervisor.mts"),
               mode.executable,
@@ -434,7 +590,7 @@ export async function runRustTests(args, dependencies = {}) {
               ...mode.args,
             ];
     const tested = start(command, commandArgs, {
-      cwd: root,
+      cwd: executionRoot,
       detached: platform !== "win32" && platform !== "linux",
       stdio: platform === "linux" ? ["pipe", "inherit", "inherit"] : "inherit",
       windowsHide: true,
@@ -447,7 +603,7 @@ export async function runRustTests(args, dependencies = {}) {
     const observation = waitForChild(tested);
     let gateOpened = false;
     let cleanupAttempted = false;
-    const proveQuiescence = async (force) => {
+    const proveQuiescence = async (force: boolean) => {
       cleanupAttempted = true;
       try {
         await closeChildTree(tested, observation, dependencies, force);
@@ -521,7 +677,7 @@ export async function runRustTests(args, dependencies = {}) {
         completion.then((status) => ({ status })),
         cancellation.pending,
       ]);
-      if (first.signal) {
+      if ("signal" in first) {
         await proveQuiescence(true);
         return cancellationExitCode(first.signal);
       }
@@ -547,6 +703,9 @@ export async function runRustTests(args, dependencies = {}) {
       }
       throw error;
     }
+  } catch (error) {
+    if (!lock && cancellation?.requested()) return cancellationExitCode(cancellation.requested());
+    throw error;
   } finally {
     cancellation?.dispose();
     if (lock && releaseLock) await lock.release();
@@ -554,12 +713,18 @@ export async function runRustTests(args, dependencies = {}) {
   }
 }
 
+function requiredProcessIdentity(): string {
+  const identity = readProcessIdentity(process.pid);
+  if (!identity) throw new Error("Cannot establish current process identity");
+  return identity;
+}
+
 async function main() {
   try {
     process.exitCode = await runRustTests(process.argv.slice(2));
   } catch (error) {
     console.error(errorMessage(error));
-    process.exitCode = 1;
+    process.exitCode = errorCode(error) === "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" ? 75 : 1;
   }
 }
 

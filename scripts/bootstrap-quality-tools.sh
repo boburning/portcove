@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+bootstrap_args=("$@")
 include_deep=false
 profile=standard
 while [[ $# -gt 0 ]]; do
@@ -31,6 +32,14 @@ if [[ "$profile" != standard ]]; then
     exit 1
   fi
 fi
+# Initial pinned compiler/linker installation is an explicit host prerequisite;
+# guarded setup never auto-installs the compiler needed by its own supervisor.
+if [[ "${GITHUB_ACTIONS:-}" != true && "${PORTCOVE_CONTAINER_GUEST:-}" != 1 ]]; then
+  if [[ -z "${PORTCOVE_RESOURCE_RESERVATION:-}" ]]; then
+    exec node scripts/resource-command.mts rust --bootstrap -- "$BASH" "$project_root/scripts/bootstrap-quality-tools.sh" "${bootstrap_args[@]}"
+  fi
+  node scripts/resource-command.mts verify-bootstrap
+fi
 if $want_frontend; then
   node_pin="$(tr -d '\r\n' < .node-version)"
   [[ "$(node --version)" == "v$node_pin" ]] || { printf 'Node %s is required for frontend setup.\n' "$node_pin" >&2; exit 1; }
@@ -46,10 +55,17 @@ if $want_frontend; then
 fi
 if $want_rust && [[ "$profile" != standard ]]; then
   rust_pin="$(node -e 'console.log(JSON.parse(process.argv[1]).pins.rust)' "$capability_plan")"
-  if [[ "$(RUSTUP_AUTO_INSTALL=0 rustc --version 2>/dev/null || true)" != "rustc $rust_pin "* ]] ||
-     ! RUSTUP_AUTO_INSTALL=0 cargo fmt --version >/dev/null 2>&1 ||
-     ! RUSTUP_AUTO_INSTALL=0 cargo clippy --version >/dev/null 2>&1; then
-    rustup toolchain install "$rust_pin" --profile minimal --component rustfmt --component clippy
+  components=()
+  while IFS= read -r component; do [[ -z "$component" ]] || components+=("$component"); done < <(node -e 'const p=JSON.parse(process.argv[1]); console.log(p.pins.rust_components.filter(c=>p.capabilities.includes(c+"-component")).join("\n"))' "$capability_plan")
+  rust_ready=true
+  [[ "$(RUSTUP_AUTO_INSTALL=0 rustc --version 2>/dev/null || true)" == "rustc $rust_pin "* ]] || rust_ready=false
+  component_args=()
+  for component in "${components[@]}"; do
+    component_args+=(--component "$component")
+    RUSTUP_AUTO_INSTALL=0 cargo "${component/rustfmt/fmt}" --version >/dev/null 2>&1 || rust_ready=false
+  done
+  if ! $rust_ready; then
+    rustup toolchain install "$rust_pin" --profile minimal "${component_args[@]}"
   fi
 fi
 if $want_aqua; then

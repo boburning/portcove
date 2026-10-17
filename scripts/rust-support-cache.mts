@@ -1,3 +1,57 @@
+import { errorCode, isRecord } from "./runtime-values.mts";
+import type { BinaryLike } from "node:crypto";
+import type { SpawnSyncOptions } from "node:child_process";
+export interface CompilerProbeResult {
+  error?: NodeJS.ErrnoException;
+  status: number | null;
+  stdout?: string | Buffer | null;
+  stderr?: string | Buffer | null;
+}
+export type CompilerRunner = (
+  command: string,
+  args: readonly string[],
+  options: SpawnSyncOptions,
+) => CompilerProbeResult;
+export interface CompilerIdentity {
+  verbose_version: string;
+  sysroot: string;
+  commands: { command: string; resolved: string | null; bytes?: number; sha256?: string }[];
+  environment: { name: string; value_sha256: string }[];
+}
+export interface RustSupportDefinition {
+  product: string;
+  source: string;
+  rustcArgs: readonly string[];
+  compiler: CompilerIdentity;
+  platform: string;
+  architecture: string;
+}
+export interface RustSupportOptions extends Omit<
+  RustSupportDefinition,
+  "platform" | "architecture"
+> {
+  root: string;
+  output: string;
+  environment: NodeJS.ProcessEnv;
+  platform?: string;
+  architecture?: string;
+  runSync: CompilerRunner;
+  now?: () => number;
+}
+interface CachedOutput {
+  bytes: number;
+  sha256: string;
+  mode: number;
+}
+interface CacheManifest {
+  format_version: number;
+  input_fingerprint: string;
+  input: unknown;
+  output: CachedOutput;
+}
+type CacheEntry =
+  | { valid: true; artifactPath: string; manifest: CacheManifest }
+  | { valid: false; reason: string; error?: unknown };
 import { createHash, randomUUID } from "node:crypto";
 import {
   copyFileSync,
@@ -42,17 +96,17 @@ const compilerEnvironmentNames = new Set([
   "WINDOWSSDKVERSION",
 ]);
 
-const sha256 = (value) => createHash("sha256").update(value).digest("hex");
-const fileIdentity = (file) => {
+const sha256 = (value: BinaryLike) => createHash("sha256").update(value).digest("hex");
+const fileIdentity = (file: string) => {
   const contents = readFileSync(file);
   return { bytes: contents.length, sha256: sha256(contents) };
 };
-const outputIdentity = (file) => ({
+const outputIdentity = (file: string) => ({
   ...fileIdentity(file),
   mode: statSync(file).mode & 0o777,
 });
 
-function compilerEnvironment(environment) {
+function compilerEnvironment(environment: NodeJS.ProcessEnv) {
   const selected = [];
   for (const [name, value] of Object.entries(environment)) {
     const canonical = name.toUpperCase();
@@ -62,12 +116,12 @@ function compilerEnvironment(environment) {
   return selected.sort((left, right) => left.name.localeCompare(right.name));
 }
 
-function environmentValue(environment, wanted) {
+function environmentValue(environment: NodeJS.ProcessEnv, wanted: string) {
   const key = Object.keys(environment).find((name: string) => name.toUpperCase() === wanted);
   return key ? environment[key] : undefined;
 }
 
-function resolveCommand(command: string, environment, platform) {
+function resolveCommand(command: string, environment: NodeJS.ProcessEnv, platform: string) {
   if (path.isAbsolute(command)) return existsSync(command) ? realpathSync(command) : null;
   const search = String(environmentValue(environment, "PATH") ?? "").split(path.delimiter);
   const configuredExtensions = String(environmentValue(environment, "PATHEXT") ?? ".EXE;.CMD;.BAT")
@@ -85,13 +139,17 @@ function resolveCommand(command: string, environment, platform) {
   return null;
 }
 
-function commandIdentity(command, environment, platform) {
+function commandIdentity(command: string, environment: NodeJS.ProcessEnv, platform: string) {
   const resolved = resolveCommand(command, environment, platform);
   if (!resolved) return { command, resolved: null };
   return { command, resolved, ...fileIdentity(resolved) };
 }
 
-function checkedCompilerProbe(runSync, args, environment) {
+function checkedCompilerProbe(
+  runSync: CompilerRunner,
+  args: readonly string[],
+  environment: NodeJS.ProcessEnv,
+) {
   const result = runSync("rustc", args, {
     encoding: "utf8",
     env: environment,
@@ -103,7 +161,15 @@ function checkedCompilerProbe(runSync, args, environment) {
   return String(result.stdout).trim();
 }
 
-export function rustSupportCompilerIdentity({ runSync, environment, platform = process.platform }) {
+export function rustSupportCompilerIdentity({
+  runSync,
+  environment,
+  platform = process.platform,
+}: {
+  runSync: CompilerRunner;
+  environment: NodeJS.ProcessEnv;
+  platform?: string;
+}): CompilerIdentity {
   const linkerCommands =
     platform === "win32"
       ? [environmentValue(environment, "LD") ?? "link"]
@@ -119,7 +185,7 @@ export function rustSupportCompilerIdentity({ runSync, environment, platform = p
   };
 }
 
-function cacheRootFor(root: string, environment) {
+function cacheRootFor(root: string, environment: NodeJS.ProcessEnv) {
   const configured = environment.CARGO_TARGET_DIR;
   const target = configured
     ? path.resolve(root, configured)
@@ -127,20 +193,27 @@ function cacheRootFor(root: string, environment) {
   return path.join(target, "portcove-rust-support", `v${formatVersion}`);
 }
 
-function safeProductName(value) {
+function safeProductName(value: string) {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value))
     throw new Error(`invalid Rust support product name: ${value}`);
   return value;
 }
 
-function ensureOwnedCacheDirectory(directory) {
+function ensureOwnedCacheDirectory(directory: string) {
   mkdirSync(directory, { recursive: true });
   const state = lstatSync(directory);
   if (!state.isDirectory() || state.isSymbolicLink())
     throw new Error(`Rust support cache path is not an owned directory: ${directory}`);
 }
 
-function manifestFor({ product, source, compiler, rustcArgs, platform, architecture }) {
+function manifestFor({
+  product,
+  source,
+  compiler,
+  rustcArgs,
+  platform,
+  architecture,
+}: RustSupportDefinition) {
   const identity = {
     format_version: formatVersion,
     product,
@@ -153,7 +226,7 @@ function manifestFor({ product, source, compiler, rustcArgs, platform, architect
   return { identity, fingerprint: sha256(JSON.stringify(identity)) };
 }
 
-function readValidatedEntry(directory: string, expectedFingerprint) {
+function readValidatedEntry(directory: string, expectedFingerprint: string): CacheEntry {
   let directoryPresent = false;
   try {
     const directoryState = lstatSync(directory);
@@ -171,25 +244,43 @@ function readValidatedEntry(directory: string, expectedFingerprint) {
       artifactState.isSymbolicLink()
     )
       return { valid: false, reason: "unsafe-cache-entry" };
-    const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    const manifest: unknown = JSON.parse(readFileSync(manifestPath, "utf8"));
     if (
-      manifest?.format_version !== formatVersion ||
+      !isRecord(manifest) ||
+      manifest.format_version !== formatVersion ||
       manifest?.input_fingerprint !== expectedFingerprint ||
       !manifest?.input ||
       sha256(JSON.stringify(manifest.input)) !== expectedFingerprint ||
-      !/^[a-f0-9]{64}$/u.test(manifest?.output?.sha256 ?? "") ||
-      !Number.isSafeInteger(manifest?.output?.bytes) ||
+      !isRecord(manifest.output) ||
+      typeof manifest.output.sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(manifest.output.sha256) ||
+      typeof manifest.output.bytes !== "number" ||
+      !Number.isSafeInteger(manifest.output.bytes) ||
       manifest.output.bytes < 1 ||
-      !Number.isSafeInteger(manifest?.output?.mode) ||
+      typeof manifest.output.mode !== "number" ||
+      !Number.isSafeInteger(manifest.output.mode) ||
       manifest.output.mode < 0
     )
       return { valid: false, reason: "invalid-cache-manifest" };
     const output = outputIdentity(artifactPath);
     if (JSON.stringify(output) !== JSON.stringify(manifest.output))
       return { valid: false, reason: "cached-output-changed" };
-    return { valid: true, artifactPath, manifest };
+    return {
+      valid: true,
+      artifactPath,
+      manifest: {
+        format_version: manifest.format_version,
+        input_fingerprint: expectedFingerprint,
+        input: manifest.input,
+        output: {
+          bytes: manifest.output.bytes,
+          sha256: manifest.output.sha256,
+          mode: manifest.output.mode,
+        },
+      },
+    };
   } catch (error) {
-    if (error.code === "ENOENT")
+    if (errorCode(error) === "ENOENT")
       return {
         valid: false,
         reason: directoryPresent ? "incomplete-cache-entry" : "missing-cache-entry",
@@ -198,27 +289,27 @@ function readValidatedEntry(directory: string, expectedFingerprint) {
   }
 }
 
-function copyVerified(entry, output) {
+function copyVerified(entry: Extract<CacheEntry, { valid: true }>, output: string) {
   copyFileSync(entry.artifactPath, output);
   const copied = outputIdentity(output);
   if (JSON.stringify(copied) !== JSON.stringify(entry.manifest.output))
     throw new Error("Rust support cache copy did not preserve verified output bytes");
 }
 
-function quarantineInvalidEntry(directory) {
+function quarantineInvalidEntry(directory: string) {
   const rejected = `${directory}.rejected-${randomUUID()}`;
   try {
     renameSync(directory, rejected);
     return rejected;
   } catch (error) {
-    if (error.code === "ENOENT") return null;
+    if (errorCode(error) === "ENOENT") return null;
     throw new Error(`Could not quarantine invalid Rust support cache entry: ${directory}`, {
       cause: error,
     });
   }
 }
 
-function pruneProductCache(productRoot: string, currentFingerprint) {
+function pruneProductCache(productRoot: string, currentFingerprint: string) {
   const entries = [];
   const interrupted = [];
   try {
@@ -231,7 +322,7 @@ function pruneProductCache(productRoot: string, currentFingerprint) {
       }
     }
   } catch (error) {
-    if (error.code === "ENOENT") return;
+    if (errorCode(error) === "ENOENT") return;
     throw error;
   }
   const retained = entries
@@ -260,7 +351,7 @@ export function prepareRustSupportArtifact({
   architecture = process.arch,
   runSync,
   now = () => performance.now(),
-}) {
+}: RustSupportOptions) {
   const started = now();
   const checkedProduct = safeProductName(product);
   const absoluteSource = path.resolve(root, source);

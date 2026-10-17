@@ -1,3 +1,8 @@
+import { isRecord } from "./runtime-values.mts";
+function record(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -10,7 +15,7 @@ async function fixture() {
   return { root, lockPath: path.join(root, "native-desktop") };
 }
 
-test("native lock blocks a live owner and reports its identity", async () => {
+void test("native lock blocks a live owner and reports its identity", async () => {
   const { root, lockPath } = await fixture();
   try {
     const first = await acquireNativeSessionLock(
@@ -30,35 +35,54 @@ test("native lock blocks a live owner and reports its identity", async () => {
   }
 });
 
-test("native lock reclaims only a positively stale valid owner", async () => {
+void test("native lock preserves PID-only legacy ownership until desktop quiescence is established", async () => {
   const { root, lockPath } = await fixture();
   try {
     await mkdir(lockPath);
-    await writeFile(
-      path.join(lockPath, "owner.json"),
-      JSON.stringify({
-        format_version: 1,
-        token: "stale",
-        pid: 999999,
-        created_at: "2026-01-01T00:00:00.000Z",
-        workspace: "old",
-      }),
+    const bytes = JSON.stringify({
+      format_version: 1,
+      token: "stale",
+      pid: 999999,
+      created_at: "2026-01-01T00:00:00.000Z",
+      workspace: "old",
+    });
+    await writeFile(path.join(lockPath, "owner.json"), bytes);
+    await assert.rejects(
+      acquireNativeSessionLock({ workspace: "new" }, { lockPath, isProcessAlive: () => false }),
+      { code: "PORTCOVE_RESOURCE_RECOVERY_REQUIRED" },
     );
-    const current = await acquireNativeSessionLock(
-      { workspace: "new", scenarios: ["accessibility"] },
-      { lockPath, isProcessAlive: () => false },
-    );
-    assert.equal(
-      JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8")).token,
-      current.owner.token,
-    );
-    await current.release();
+    assert.equal(await readFile(path.join(lockPath, "owner.json"), "utf8"), bytes);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-test("native lock refuses unreadable owner metadata", async () => {
+void test("native inherited token also requires the same process creation identity", async () => {
+  const { root, lockPath } = await fixture();
+  try {
+    const owner = await acquireNativeSessionLock(
+      {},
+      { lockPath, inspectProcessIdentity: () => "first-creation" },
+    );
+    await assert.rejects(
+      acquireNativeSessionLock(
+        {},
+        { lockPath, inheritedToken: owner.owner.token, inspectProcessIdentity: () => "reused-pid" },
+      ),
+      /verified live creation identity/,
+    );
+    assert.equal(
+      record(JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8")))
+        .process_identity,
+      "first-creation",
+    );
+    await owner.release();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+void test("native lock refuses unreadable owner metadata", async () => {
   const { root, lockPath } = await fixture();
   try {
     await mkdir(lockPath);
@@ -72,7 +96,7 @@ test("native lock refuses unreadable owner metadata", async () => {
   }
 });
 
-test("child harness can inherit but cannot forge a runner lock", async () => {
+void test("child harness can inherit but cannot forge a runner lock", async () => {
   const { root, lockPath } = await fixture();
   try {
     const runner = await acquireNativeSessionLock({}, { lockPath, isProcessAlive: () => true });
@@ -87,6 +111,73 @@ test("child harness can inherit but cannot forge a runner lock", async () => {
       /does not match/,
     );
     await runner.release();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+void test("native outer admission cannot hold retirement guards while handover is pending", async () => {
+  let inspected = false;
+  await assert.rejects(
+    acquireNativeSessionLock(
+      {},
+      {
+        lockPath: path.join(os.tmpdir(), "must-not-be-created-portcove-handover"),
+        environment: {},
+        readConfiguration: async () => {
+          inspected = true;
+          return { legacyMode: "pending" };
+        },
+      },
+    ),
+    { code: "PORTCOVE_RESOURCE_HANDOVER_PENDING" },
+  );
+  assert.equal(inspected, true);
+});
+
+void test("private namespace inheritance requires explicit outer delegation and its exact token", async () => {
+  const { root, lockPath } = await fixture();
+  try {
+    const lease = await acquireNativeSessionLock({ namespaceDelegation: true }, { lockPath });
+    try {
+      const inherited = await acquireNativeSessionLock(
+        {},
+        {
+          lockPath,
+          inheritedToken: lease.owner.token,
+          environment: { PORTCOVE_CONTAINER_GUEST: "1" },
+          inspectProcessIdentity: () => {
+            throw new Error("Namespace PID cannot observe outer PID");
+          },
+        },
+      );
+      assert.equal(inherited.inherited, true);
+      await assert.rejects(
+        acquireNativeSessionLock(
+          {},
+          { lockPath, inheritedToken: "foreign", environment: { PORTCOVE_CONTAINER_GUEST: "1" } },
+        ),
+        /does not match/u,
+      );
+    } finally {
+      await lease.release();
+    }
+    const ordinary = await acquireNativeSessionLock({}, { lockPath });
+    try {
+      await assert.rejects(
+        acquireNativeSessionLock(
+          {},
+          {
+            lockPath,
+            inheritedToken: ordinary.owner.token,
+            environment: { PORTCOVE_CONTAINER_GUEST: "1" },
+          },
+        ),
+        /lacks an explicit outer delegation/u,
+      );
+    } finally {
+      await ordinary.release();
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }

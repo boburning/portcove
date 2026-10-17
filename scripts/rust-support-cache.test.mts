@@ -1,3 +1,18 @@
+import type {
+  CompilerIdentity,
+  CompilerRunner,
+  RustSupportOptions,
+} from "./rust-support-cache.mts";
+import { isRecord } from "./runtime-values.mts";
+function record(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function lastArg(args: readonly string[]): string {
+  const value = args.at(-1);
+  assert.ok(value);
+  return value;
+}
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { mkdtemp, readFile, rm, symlink, utimes, writeFile } from "node:fs/promises";
@@ -11,10 +26,14 @@ import {
   rustSupportCompilerIdentity,
 } from "./rust-support-cache.mts";
 
-const compiler = (name = "one", environment = []) => ({
+const compiler = (
+  name = "one",
+  environment: CompilerIdentity["environment"] = [],
+): CompilerIdentity => ({
   verbose_version: `rustc ${name}`,
   sysroot: `sysroot-${name}`,
   environment,
+  commands: [],
 });
 
 async function fixture() {
@@ -30,16 +49,22 @@ async function fixture() {
   };
 }
 
-function compilerRun(events, contents = "compiled") {
+function compilerRun(events: string[][], contents = "compiled"): CompilerRunner {
   return (_command, args) => {
     events.push([...args]);
-    const output = args.at(-1);
+    const output = lastArg(args);
     writeFileSync(output, `${contents}:${args.join("|")}\n`);
     return { status: 0 };
   };
 }
 
-function prepare(state, overrides = {}) {
+function prepare(
+  state: Awaited<ReturnType<typeof fixture>>,
+  overrides: Partial<Omit<RustSupportOptions, "runSync">> & {
+    runSync: CompilerRunner;
+    outputName?: string;
+  },
+) {
   return prepareRustSupportArtifact({
     root: state.root,
     product: "host-tool-probe",
@@ -50,15 +75,14 @@ function prepare(state, overrides = {}) {
     environment: state.environment,
     platform: "win32",
     architecture: "x64",
-    runSync: overrides.runSync,
     ...overrides,
   });
 }
 
-test("cold build publishes once and warm hits copy verified bytes into fresh fixtures", async (t) => {
+void test("cold build publishes once and warm hits copy verified bytes into fresh fixtures", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
-  const events = [];
+  const events: string[][] = [];
   const first = prepare(state, { runSync: compilerRun(events), outputName: "first.exe" });
   assert.equal(first.outcome, "built");
   assert.equal(first.reason, "missing-cache-entry");
@@ -73,10 +97,10 @@ test("cold build publishes once and warm hits copy verified bytes into fresh fix
   assert.doesNotMatch(String(await readFile(path.join(state.root, "second.exe"))), /mutated/u);
 });
 
-test("a concurrent valid publisher wins without reusing or retaining the losing candidate", async (t) => {
+void test("a concurrent valid publisher wins without reusing or retaining the losing candidate", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
-  const winnerEvents = [];
+  const winnerEvents: string[][] = [];
   let nested = false;
   const result = prepare(state, {
     outputName: "outer.exe",
@@ -88,7 +112,7 @@ test("a concurrent valid publisher wins without reusing or retaining the losing 
         runSync: compilerRun(winnerEvents, "winner"),
       });
       assert.equal(winner.outcome, "built");
-      writeFileSync(args.at(-1), "losing concurrent bytes\n");
+      writeFileSync(lastArg(args), "losing concurrent bytes\n");
       return { status: 0 };
     },
   });
@@ -99,10 +123,10 @@ test("a concurrent valid publisher wins without reusing or retaining the losing 
   assert.deepEqual(readdirSync(productRoot), [result.fingerprint]);
 });
 
-test("source, flags, compiler, target, and relevant environment identities invalidate reuse", async (t) => {
+void test("source, flags, compiler, target, and relevant environment identities invalidate reuse", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
-  const events = [];
+  const events: string[][] = [];
   const runSync = compilerRun(events);
   const first = prepare(state, { runSync });
   await writeFile(state.source, 'fn main() { println!("changed"); }\n');
@@ -142,10 +166,10 @@ test("source, flags, compiler, target, and relevant environment identities inval
   );
 });
 
-test("corrupt cached output is quarantined, rebuilt, and never copied", async (t) => {
+void test("corrupt cached output is quarantined, rebuilt, and never copied", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
-  const events = [];
+  const events: string[][] = [];
   const runSync = compilerRun(events);
   const first = prepare(state, { runSync });
   const entry = path.join(
@@ -163,10 +187,10 @@ test("corrupt cached output is quarantined, rebuilt, and never copied", async (t
   assert.ok(!readdirSync(path.dirname(entry)).some((name) => name.includes(".rejected-")));
 });
 
-test("tampered manifest identity is rejected and rebuilt", async (t) => {
+void test("tampered manifest identity is rejected and rebuilt", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
-  const events = [];
+  const events: string[][] = [];
   const runSync = compilerRun(events);
   const first = prepare(state, { runSync });
   const manifestPath = path.join(
@@ -177,8 +201,8 @@ test("tampered manifest identity is rejected and rebuilt", async (t) => {
     first.fingerprint,
     "manifest.json",
   );
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  manifest.input.source.sha256 = "0".repeat(64);
+  const manifest = record(JSON.parse(await readFile(manifestPath, "utf8")));
+  record(record(manifest.input).source).sha256 = "0".repeat(64);
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
   const rebuilt = prepare(state, { runSync, outputName: "rebuilt-manifest.exe" });
@@ -187,7 +211,7 @@ test("tampered manifest identity is rejected and rebuilt", async (t) => {
   assert.equal(events.length, 2);
 });
 
-test("linked cache ownership paths fail closed before compilation", async (t) => {
+void test("linked cache ownership paths fail closed before compilation", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
   const outside = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-support-outside-"));
@@ -212,7 +236,7 @@ test("linked cache ownership paths fail closed before compilation", async (t) =>
   assert.equal(compiled, false);
 });
 
-test("interrupted candidates are never reused and stale candidates are removed after publication", async (t) => {
+void test("interrupted candidates are never reused and stale candidates are removed after publication", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
   const productRoot = path.join(state.target, "portcove-rust-support", "v1", "host-tool-probe");
@@ -222,14 +246,14 @@ test("interrupted candidates are never reused and stale candidates are removed a
   const old = new Date(Date.now() - 2 * 60 * 60 * 1_000);
   await utimes(interrupted, old, old);
 
-  const events = [];
+  const events: string[][] = [];
   const built = prepare(state, { runSync: compilerRun(events), outputName: "fresh.exe" });
   assert.equal(built.outcome, "built");
   assert.equal(events.length, 1);
   assert.equal(existsSync(interrupted), false);
 });
 
-test("failed compilation publishes no reusable entry", async (t) => {
+void test("failed compilation publishes no reusable entry", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
   assert.throws(
@@ -240,10 +264,10 @@ test("failed compilation publishes no reusable entry", async (t) => {
   assert.deepEqual(readdirSync(productRoot), []);
 });
 
-test("retention keeps only the newest bounded set of immutable identities", async (t) => {
+void test("retention keeps only the newest bounded set of immutable identities", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
-  const events = [];
+  const events: string[][] = [];
   for (let index = 0; index < rustSupportCacheContract.retainedEntriesPerProduct + 3; index += 1) {
     await writeFile(state.source, `fn main() { println!("${index}"); }\n`);
     prepare(state, { runSync: compilerRun(events), outputName: `probe-${index}.exe` });
@@ -255,12 +279,12 @@ test("retention keeps only the newest bounded set of immutable identities", asyn
   );
 });
 
-test("compiler identity binds version, sysroot, platform linkers, and compile environment", () => {
-  const probes = [];
+void test("compiler identity binds version, sysroot, platform linkers, and compile environment", () => {
+  const probes: (readonly string[])[] = [];
   for (const [platform, commands] of [
     ["win32", ["rustc", "link"]],
     ["linux", ["rustc", "cc", "ld"]],
-  ]) {
+  ] as const) {
     const identity = rustSupportCompilerIdentity({
       environment: {
         PATH: "one",
@@ -298,7 +322,7 @@ test("compiler identity binds version, sysroot, platform linkers, and compile en
   ]);
 });
 
-test("resolved compiler and linker bytes invalidate the reusable artifact identity", async (t) => {
+void test("resolved compiler and linker bytes invalidate the reusable artifact identity", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
   const tools = path.join(state.root, "tools");
@@ -315,7 +339,7 @@ test("resolved compiler and linker bytes invalidate the reusable artifact identi
         stdout: args.includes("sysroot") ? "/fixture/sysroot\n" : "rustc fixture\nhost: test\n",
       }),
     });
-  const events = [];
+  const events: string[][] = [];
   const firstCompiler = identify();
   const first = prepare(state, { compiler: firstCompiler, runSync: compilerRun(events) });
 
@@ -340,6 +364,11 @@ test("resolved compiler and linker bytes invalidate the reusable artifact identi
     new Set([first.fingerprint, changedCompiler.fingerprint, changedLinker.fingerprint]).size,
     3,
   );
+  assert.ok(firstCompiler.commands[0]);
+  assert.ok(changedCompilerIdentity.commands[0]);
+  assert.ok(changedCompilerIdentity.commands[1]);
+  assert.ok(changedLinkerIdentity.commands[0]);
+  assert.ok(changedLinkerIdentity.commands[1]);
   assert.notEqual(firstCompiler.commands[0].sha256, changedCompilerIdentity.commands[0].sha256);
   assert.equal(
     changedCompilerIdentity.commands[0].sha256,
@@ -352,11 +381,11 @@ test("resolved compiler and linker bytes invalidate the reusable artifact identi
   assert.ok(changedLinkerIdentity.commands.every(({ resolved }) => resolved !== null));
 });
 
-test("existing cache entries with missing manifest or artifact are quarantined before publication", async (t) => {
+void test("existing cache entries with missing manifest or artifact are quarantined before publication", async (t) => {
   for (const missing of ["manifest.json", "artifact"]) {
     const state = await fixture();
     t.after(() => rm(state.root, { recursive: true, force: true }));
-    const events = [];
+    const events: string[][] = [];
     const runSync = compilerRun(events);
     const initial = prepare(state, { runSync });
     const entry = path.join(
