@@ -352,6 +352,18 @@ Deep audit's outer `audit` job received 45 minutes; `local_check` stayed at
 30 minutes. All required independent stages must finish with complete evidence;
 these finite calibrations do not accept a failed test or an incomplete audit.
 Retain the original failures and independently review and qualify the final head.
+The [October 16 audit](https://github.com/boburning/portcove/actions/runs/38953995304)
+completed all ten stages and exported diagnostic-only evidence near the 45-minute
+outer limit, then was cancelled during post-job Rust-cache cleanup. The audit job
+now has 55 minutes for that measured workload and required cleanup; `local_check`
+stays at 30 minutes. Original raw failures, coverage, test/product deadlines and
+zero retries remain unchanged. Completion under this budget is not a performance fix.
+The [Windows helper failure](https://github.com/boburning/portcove/actions/runs/38961665198/job/117178258170)
+retains a separate 15-second HWND contract subprocess timeout at its C# compilation
+phase, before algorithm controls were observed. Only that test invocation now allows 25 seconds
+inside the unchanged 30-second test budget. Phase telemetry, all production HWND
+deadlines, assertions and zero retries remain; the original compilation delay is
+not retrospectively diagnosed or repaired by a later pass.
 These are retained calibration records, not ceilings or a requirement for fresh
 owner permission. Future harness-only adjustments follow the standing
 [timeout authorization](#autonomous-test-timeout-calibration); #706 security-risk

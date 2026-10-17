@@ -153,6 +153,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-preliminary-source-review",
             "native-saved-folder-hash-resume",
             "native-preliminary-selected-setup",
+            "native-linux-packaged-webview-boundary",
           ].includes(id),
       ),
     });

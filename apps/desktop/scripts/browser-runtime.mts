@@ -29,63 +29,68 @@ if (
   throw new Error(`Chromium executable is outside the browser cache: ${executable}`);
 }
 
-process.exitCode = await resourceEntrypoint("browser", async () => {
-  if (process.argv[2] === "bootstrap") {
-    const result = spawnCommand(
-      process.execPath,
-      [
-        path.join(desktop, "node_modules", "playwright", "cli.js"),
-        "install",
-        "--only-shell",
-        "chromium",
-      ],
-      { cwd: desktop, env: process.env, stdio: "inherit", windowsHide: true },
-    );
-    if (result.status !== 0) process.exit(result.status ?? 1);
-    const browser = await chromium.launch({ headless: true });
-    try {
-      console.log(`Browser ready: Chromium headless ${browser.version()} in ${browserCache}`);
-    } finally {
-      await browser.close();
-    }
-  } else if (process.argv[2] === "probe") {
-    process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE = "1";
-    let browser;
-    try {
-      browser = await chromium.launch({ headless: true });
-    } catch (error) {
-      throw new Error("Chromium is unavailable; run pnpm --dir apps/desktop browser:bootstrap", {
-        cause: error,
-      });
-    } finally {
-      await browser?.close();
-    }
-    const traceRoot = path.join(root, "work", "bt");
-    mkdirSync(traceRoot, { recursive: true });
-    const traceRun = mkdtempSync(path.join(traceRoot, "run-"));
-    if (path.dirname(resolvePhysicalPath(traceRun)) !== resolvePhysicalPath(traceRoot)) {
-      throw new Error(`Browser trace run resolves outside the trace root: ${traceRun}`);
-    }
-    process.env.PORTCOVE_BROWSER_TRACE_DIR = traceRun;
-    const cli = vitePlusCommand(root);
-    const result = spawnCommand(
-      cli.command,
-      [
-        ...cli.args,
-        "test",
-        "--config",
-        path.join(root, "vite.config.ts"),
-        "--project",
-        "browser",
-        "src/browser/failure-probe.browser.test.tsx",
-      ],
-      { cwd: desktop, env: process.env, stdio: "inherit", windowsHide: true },
-    );
-    if (result.status === 0) rmSync(traceRun, { recursive: true });
-    process.exit(result.status ?? 1);
-  } else {
-    throw new Error("Usage: browser-runtime.mts bootstrap|probe");
+async function bootstrapChromium() {
+  const result = spawnCommand(
+    process.execPath,
+    [
+      path.join(desktop, "node_modules", "playwright", "cli.js"),
+      "install",
+      "--only-shell",
+      "chromium",
+    ],
+    { cwd: desktop, env: process.env, stdio: "inherit", windowsHide: true },
+  );
+  if (result.status !== 0) process.exit(result.status ?? 1);
+  const browser = await chromium.launch({ headless: true });
+  try {
+    console.log(`Browser ready: Chromium headless ${browser.version()} in ${browserCache}`);
+  } finally {
+    await browser.close();
   }
+}
 
-  return process.exitCode ?? 0;
-});
+async function probeBrowserTrace() {
+  process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE = "1";
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true });
+  } catch (error) {
+    throw new Error("Chromium is unavailable; run pnpm --dir apps/desktop browser:bootstrap", {
+      cause: error,
+    });
+  } finally {
+    await browser?.close();
+  }
+  const traceRoot = path.join(root, "work", "bt");
+  mkdirSync(traceRoot, { recursive: true });
+  const traceRun = mkdtempSync(path.join(traceRoot, "run-"));
+  if (path.dirname(resolvePhysicalPath(traceRun)) !== resolvePhysicalPath(traceRoot)) {
+    throw new Error(`Browser trace run resolves outside the trace root: ${traceRun}`);
+  }
+  process.env.PORTCOVE_BROWSER_TRACE_DIR = traceRun;
+  const cli = vitePlusCommand(root);
+  const result = spawnCommand(
+    cli.command,
+    [
+      ...cli.args,
+      "test",
+      "--config",
+      path.join(root, "vite.config.ts"),
+      "--project",
+      "browser",
+      "src/browser/failure-probe.browser.test.tsx",
+    ],
+    { cwd: desktop, env: process.env, stdio: "inherit", windowsHide: true },
+  );
+  if (result.status === 0) rmSync(traceRun, { recursive: true });
+  process.exit(result.status ?? 1);
+}
+
+async function runBrowserRuntime() {
+  if (process.argv[2] === "bootstrap") await bootstrapChromium();
+  else if (process.argv[2] === "probe") await probeBrowserTrace();
+  else throw new Error("Usage: browser-runtime.mts bootstrap|probe");
+  return Number(process.exitCode ?? 0);
+}
+
+process.exitCode = await resourceEntrypoint("browser", runBrowserRuntime);

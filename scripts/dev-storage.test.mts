@@ -569,6 +569,13 @@ void test("direct just recipes initialize a fresh checkout and preserve storage 
   const root = workspace(t);
   for (const name of ["run-viteplus.mts", "viteplus-cli.mts"])
     copyFileSync(new URL(`./${name}`, import.meta.url), path.join(root, "scripts", name));
+  // This storage/recipe fixture runs only the fixed inert vp probe below.
+  // Resolve the real wrapper's import, and refuse any unexpected heavy route;
+  // resource-command controls and native observations own actual admission.
+  writeFileSync(
+    path.join(root, "scripts/resource-command.mts"),
+    'export const resourceEntrypoint=()=>{throw new Error("Storage fixture unexpectedly requested heavy admission");};',
+  );
   copyFileSync(new URL("../justfile", import.meta.url), path.join(root, "justfile"));
   mkdirSync(path.join(root, "apps/desktop"), { recursive: true });
   writeFileSync(

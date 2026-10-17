@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
+import "../apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts";
 import {
   copyFile,
   mkdtemp,
@@ -442,7 +443,173 @@ import {
   verifyNormalPackageEvidence,
   assertOwnedBoundaryRequests,
   normalPackageBoundaryScenario,
+  verifyLinuxPackageEvidence,
+  assertMainWebviewContainment,
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mts";
+
+test("failed permission command retains bounded redacted progress without acceptance or error replacement", async () => {
+  async function run(mode) {
+    const original = new Error("Owned permission command timed out");
+    const observations = {};
+    const window = {};
+    let reads = 0;
+    const browser = {
+      executeAsyncScript: async (callback) => {
+        const source = callback.toString();
+        if (source.includes("window.open")) return { refused: true };
+        if (source.includes("securitypolicyviolation"))
+          return { executed: false, blockedUri: "inline" };
+        assert.ok(source.includes("Notification.requestPermission"));
+        runInNewContext(`(${source})(done)`, {
+          window,
+          done: () => assert.fail("Pending media must not complete the command"),
+          Notification: { requestPermission: () => Promise.resolve("denied") },
+          navigator: {
+            geolocation: {
+              getCurrentPosition: (_success, failure, constraints) => {
+                assert.equal(constraints.timeout, 5000);
+                failure({ code: 1 });
+              },
+            },
+            mediaDevices: {
+              getUserMedia: (constraints) => {
+                assert.deepEqual(JSON.parse(JSON.stringify(constraints)), {
+                  audio: true,
+                  video: true,
+                });
+                return new Promise(() => {});
+              },
+            },
+          },
+        });
+        await new Promise((resolve) => setImmediate(resolve));
+        if (mode === "foreign")
+          window.__portcovePermissionProgress = {
+            notifications: "owned-private-value",
+            geolocation: "code-1",
+            media: { private: "owned-private-value" },
+            extra: "owned-private-value",
+          };
+        throw original;
+      },
+      executeScript: async (callback) => {
+        reads++;
+        if (mode === "read-error") throw new Error("owned-private-value");
+        if (mode === "deadline") return new Promise(() => {});
+        return runInNewContext(`(${callback.toString()})()`, { window });
+      },
+    };
+    await assert.rejects(
+      assertMainWebviewContainment({
+        browser,
+        invoke: async (command) => {
+          assert.equal(command, "get_locale_preference");
+          return { value: { locale: "en" } };
+        },
+        observations,
+        onNavigation: () => assert.fail("Original permission failure must stop navigation"),
+      }),
+      (error) => error === original,
+    );
+    assert.equal(reads, 1);
+    assert.equal(Object.hasOwn(observations, "permissionRequests"), false);
+    assert.ok(!JSON.stringify(observations).includes("owned-private-value"));
+    return JSON.parse(JSON.stringify(observations.permissionRequestDiagnostic));
+  }
+  assert.deepEqual(await run("captured"), {
+    status: "captured",
+    requests: { notifications: "denied", geolocation: "code-1", media: "pending" },
+  });
+  assert.deepEqual(await run("foreign"), {
+    status: "captured",
+    requests: { notifications: "unclassified", geolocation: "code-1", media: "unclassified" },
+  });
+  assert.deepEqual(await run("read-error"), { status: "unavailable", reason: "read-error" });
+  assert.deepEqual(await run("deadline"), { status: "unavailable", reason: "deadline" });
+});
+
+test("Linux packaged boundary refuses substituted payload, producer and qualification evidence", async (t) => {
+  const selection = resolveDesktopSelection({
+    scenarios: ["native-linux-packaged-webview-boundary"],
+    platform: "linux",
+  });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.throws(
+    () =>
+      resolveDesktopSelection({
+        scenarios: ["native-linux-packaged-webview-boundary", "empty-library"],
+        platform: "linux",
+      }),
+    /standalone/,
+  );
+  for (const ids of Object.values(DESKTOP_PROFILES))
+    assert.ok(!ids.includes("native-linux-packaged-webview-boundary"));
+  const work = path.resolve("work");
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(path.join(work, "linux-package-contract-"));
+  t.after(async () => {
+    assert.equal(path.dirname(root), work);
+    await rm(root, { recursive: true });
+  });
+  await mkdir(path.join(root, "apps/desktop/src-tauri"), { recursive: true });
+  const configuration = [];
+  for (const name of ["tauri.conf.json", "Cargo.toml"]) {
+    const file = path.join(root, "apps/desktop/src-tauri", name);
+    await writeFile(file, "owned configuration");
+    configuration.push(await fileIdentity(file));
+  }
+  const packagePath = path.join(root, "owned.deb"),
+    payload = path.join(root, "payload");
+  await writeFile(packagePath, "owned package");
+  await mkdir(path.join(payload, "usr/bin"), { recursive: true });
+  const executablePath = path.join(payload, "usr/bin/portcove-desktop");
+  await writeFile(executablePath, "owned executable");
+  const executable = await fileIdentity(executablePath),
+    packageIdentity = await fileIdentity(packagePath);
+  const receiptPath = path.join(root, "extraction.json");
+  await writeFile(
+    receiptPath,
+    JSON.stringify({
+      exit_code: 0,
+      package_sha256: packageIdentity.sha256,
+      executable_sha256: executable.sha256,
+      payload_root: payload,
+      command: ["dpkg-deb", "--extract", packagePath, payload],
+    }),
+  );
+  const manifest = {
+    revision: "a".repeat(40),
+    build_command: ["pnpm", "tauri", "build", "--bundles", "deb"],
+    qualification_features: [],
+    execution_context: "extracted-deb-payload",
+    configuration,
+    package: packageIdentity,
+    extraction_evidence: await fileIdentity(receiptPath),
+  };
+  const file = path.join(root, "manifest.json");
+  const save = () => writeFile(file, JSON.stringify(manifest));
+  await save();
+  await verifyLinuxPackageEvidence(file, manifest.revision, executable, root);
+  await assert.rejects(verifyLinuxPackageEvidence(file, "b".repeat(40), executable, root));
+  await assert.rejects(
+    verifyLinuxPackageEvidence(
+      file,
+      manifest.revision,
+      { ...executable, path: path.join(root, "outside") },
+      root,
+    ),
+  );
+  manifest.qualification_features = ["native-compatibility-qualification"];
+  await save();
+  await assert.rejects(verifyLinuxPackageEvidence(file, manifest.revision, executable, root));
+  manifest.qualification_features = [];
+  await save();
+  await writeFile(executablePath, "substituted executable");
+  await assert.rejects(verifyLinuxPackageEvidence(file, manifest.revision, executable, root));
+  await writeFile(executablePath, "owned executable");
+  await writeFile(packagePath, "substituted package");
+  await assert.rejects(verifyLinuxPackageEvidence(file, manifest.revision, executable, root));
+});
 import { assertSteamEntryContext } from "../apps/desktop/scripts/desktop-context-contract.mts";
 import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mts";
 import { observeStartupNetwork } from "../apps/desktop/scripts/desktop-startup-network-diagnostic.mts";
@@ -689,14 +856,26 @@ test(
     const script = path
       .resolve("apps/desktop/scripts/native-confirmation.ps1")
       .replaceAll("'", "''");
-    for (const kind of ["stale-time", "wrong-image", "directory-input", "outside-prepared"]) {
+    await mkdir(path.join(output, "different-owner", "player-owned-runtime"), { recursive: true });
+    await mkdir(path.join(output, "unadmitted-name"));
+    for (const kind of [
+      "stale-time",
+      "wrong-image",
+      "directory-input",
+      "outside-prepared",
+      "unadmitted-name",
+    ]) {
       const helper = path.join(output, `${kind}.ps1`);
       const extra =
         kind === "directory-input"
           ? "-DirectoryPath $PSScriptRoot"
           : kind === "outside-prepared"
-            ? "-PreparedRuntimeDirectory $PSScriptRoot"
-            : "";
+            ? // An admitted basename with the wrong parent reaches the path check,
+              // rather than the earlier fixture-name refusal.
+              "-PreparedRuntimeDirectory (Join-Path (Join-Path $PSScriptRoot 'different-owner') 'player-owned-runtime')"
+            : kind === "unadmitted-name"
+              ? "-PreparedRuntimeDirectory (Join-Path $PSScriptRoot 'unadmitted-name')"
+              : "";
       await writeFile(
         helper,
         `
@@ -738,8 +917,10 @@ try {
         kind === "directory-input"
           ? /Parameter set cannot be resolved/
           : kind === "outside-prepared"
-            ? /Picker input is not an admitted owned fixture directory/
-            : /Captured picker driver identity changed/,
+            ? /Prepared runtime input requires the exact regular owned fixture directory/
+            : kind === "unadmitted-name"
+              ? /Picker input is not an admitted owned fixture directory/
+              : /Captured picker driver identity changed/,
       );
       if (kind !== "directory-input") assert.equal(stage, "picker-preflight");
       await assert.rejects(stat(path.join(output, `${kind}.json`)), /ENOENT/);
@@ -939,11 +1120,14 @@ test("cancelled navigation permits only observed GETs and never popup or executi
     assert.throws(() => assertOwnedBoundaryRequests([invalid]));
 });
 
+const normalFixtureMainUrl =
+  process.platform === "linux" ? "tauri://localhost/" : "http://tauri.localhost/";
+
 test("owned frame CSP requires a trusted enforced event and removes its frame/listener/timer", async (t) => {
   const outputRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-frame-boundary-"));
   t.after(() => rm(outputRoot, { recursive: true, force: true }));
   const library = path.resolve("work", "frame-boundary-library");
-  const url = "http://tauri.localhost/";
+  const url = normalFixtureMainUrl;
   const valid = {
     isTrusted: true,
     effectiveDirective: "frame-src",
@@ -959,7 +1143,13 @@ test("owned frame CSP requires a trusted enforced event and removes its frame/li
     const frames = [];
     let attempts = 0;
     let appended = false;
-    const invoke = async (command: string) => {
+    const invoke = async (command: string, args?: Record<string, unknown>) => {
+      if (
+        appended &&
+        command === "open_external_url" &&
+        args?.url === "https://github.com/boburning/portcove"
+      )
+        throw new Error("Contract fixture stops after frame guard");
       if (command === "get_locale_preference" && appended)
         throw new Error("Contract fixture stops after frame guard");
       if (command === "get_locale_preference") return { ok: true, value: { locale: "en" } };
@@ -1083,6 +1273,7 @@ test("owned frame CSP requires a trusted enforced event and removes its frame/li
         output,
         artifacts: [],
         packageEvidence: { fixture: true },
+        externalBrowser: { fixture: true },
       });
     } catch (caught) {
       if (caught.message !== "Contract fixture stops after frame guard") error = caught;
@@ -1175,7 +1366,7 @@ test("reviewed link refusals require guard errors and preserve the ready native 
     };
     await normalPackageBoundaryScenario({
       browser: {
-        getCurrentUrl: async () => (refused && urlChange) || "http://tauri.localhost/",
+        getCurrentUrl: async () => (refused && urlChange) || normalFixtureMainUrl,
         manage: () => ({ setTimeouts: async () => {} }),
         executeScript: async () => ({}),
         executeAsyncScript: async () => ({}),
@@ -1323,7 +1514,7 @@ test("shipping secondary creation requires ACL refusal and preserves native main
     try {
       await normalPackageBoundaryScenario({
         browser: {
-          getCurrentUrl: async () => state().url ?? "http://tauri.localhost/",
+          getCurrentUrl: async () => state().url ?? normalFixtureMainUrl,
           manage: () => ({ setTimeouts: async () => {} }),
           executeScript: async (callback) => {
             if (callback.toString().includes("document.scripts"))
@@ -1523,7 +1714,7 @@ test("ordinary package boundary is isolated and rejects stale or substituted evi
   );
   const manifest = {
     revision: "b".repeat(40),
-    build_command: ["pnpm", "tauri", "build", "--bundles", "nsis"],
+    build_command: ["pnpm", "--dir", "apps/desktop", "desktop:build", "--bundles", "nsis"],
     qualification_features: [],
     configuration,
     installer,
@@ -1532,6 +1723,21 @@ test("ordinary package boundary is isolated and rejects stale or substituted evi
   const manifestPath = path.join(root, "package.json");
   await writeFile(manifestPath, JSON.stringify(manifest));
   await verifyNormalPackageEvidence(manifestPath, manifest.revision, executable, root);
+  const ordinaryBuild = manifest.build_command;
+  for (const substituted of [
+    ["pnpm", "tauri", "build", "--bundles", "nsis"],
+    [...ordinaryBuild, "--features", "native-compatibility-qualification"],
+    ordinaryBuild.map((argument) => (argument === "nsis" ? "deb" : argument)),
+    ordinaryBuild.map((argument) => (argument === "desktop:build" ? "desktop:dev" : argument)),
+  ]) {
+    manifest.build_command = substituted;
+    await writeFile(manifestPath, JSON.stringify(manifest));
+    await assert.rejects(
+      verifyNormalPackageEvidence(manifestPath, manifest.revision, executable, root),
+    );
+  }
+  manifest.build_command = ordinaryBuild;
+  await writeFile(manifestPath, JSON.stringify(manifest));
   await assert.rejects(
     verifyNormalPackageEvidence(manifestPath, "c".repeat(40), executable, root),
     /source must match/,

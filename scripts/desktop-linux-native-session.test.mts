@@ -1,4 +1,4 @@
-import { readLinuxX11Configuration } from "./desktop-linux-x11.mts";
+import { readLinuxX11Configuration, assertQualificationUidMap } from "./desktop-linux-x11.mts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawn, spawnSync } from "node:child_process";
@@ -7,7 +7,314 @@ import { mkdtemp, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { launchLinuxNativeSession } from "../apps/desktop/scripts/desktop-linux-native-session.mts";
+import {
+  assertHostedMediaEnvironment,
+  readMediaConfiguration,
+  assertApplicationMediaReadiness,
+  assertMediaWrapperOutcome,
+  publishApplicationMediaReadiness,
+  awaitApplicationMediaReadiness,
+  verifyApplicationMediaInputs,
+} from "./desktop-linux-media.mts";
+import { fileIdentity } from "./development-evidence.mts";
+import { executionAdmission } from "./retained-evidence.mts";
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test("application media verifies mixed retained and raw inputs without downgrading malformed custody", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-mixed-inputs-"));
+  const rawFile = path.join(directory, "raw"),
+    liveFile = path.join(directory, "live"),
+    retainedFile = path.join(directory, "retained");
+  await writeFile(rawFile, "raw bytes");
+  await writeFile(liveFile, "held bytes");
+  await writeFile(retainedFile, "held bytes");
+  const raw = await fileIdentity(rawFile);
+  const retained = {
+    ...(await fileIdentity(liveFile)),
+    retained: await fileIdentity(retainedFile),
+    binding: "live-path-checked-cooperative",
+  };
+  const admission = executionAdmission(new Date().toISOString(), 5000);
+  // Reproduce the original wrong-API failure using actual mixed records.
+  await assert.rejects(admission.verify([retained, raw]), TypeError);
+  await verifyApplicationMediaInputs([retained, raw], admission);
+  await writeFile(rawFile, "bad bytes"); // same size: hashing, not length, must refuse
+  await assert.rejects(
+    verifyApplicationMediaInputs([retained, raw], admission),
+    /input bytes changed/u,
+  );
+  await writeFile(rawFile, "raw bytes");
+  await writeFile(retainedFile, "evil bytes");
+  await assert.rejects(
+    verifyApplicationMediaInputs([retained, raw], admission),
+    /Retained execution input changed/u,
+  );
+  await writeFile(retainedFile, "held bytes");
+  await writeFile(liveFile, "evil bytes");
+  await assert.rejects(
+    verifyApplicationMediaInputs([retained, raw], admission),
+    /Live execution input changed/u,
+  );
+  for (const invalid of [
+    { ...raw, path: path.join(directory, "missing") },
+    { ...raw, path: directory },
+    { ...raw, retained: null },
+    { ...raw, retained: {} },
+  ])
+    await assert.rejects(verifyApplicationMediaInputs([invalid], admission));
+  await assert.rejects(
+    verifyApplicationMediaInputs([raw], executionAdmission("2000-01-01T00:00:00Z", 1)),
+  );
+});
+
+test(
+  "published readiness cannot hide a wrapper failure with failed persistence and a live child",
+  { skip: process.platform !== "linux", timeout: 30_000 },
+  async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-terminal-"));
+    const evidence = path.join(directory, "readiness.json");
+    const marker = path.join(directory, "child-counter");
+    const module = new URL("./desktop-linux-media.mts", import.meta.url).href;
+    const childProgram =
+      "import{writeFileSync}from'node:fs';let n=0;setInterval(()=>writeFileSync(process.argv[1],String(++n)),20);process.send('live');";
+    const program = `
+      import assert from 'node:assert/strict';
+      import {spawn} from 'node:child_process';
+      import {writeFile} from 'node:fs/promises';
+      import {once} from 'node:events';
+      import {publishApplicationMediaReadiness, failApplicationMediaWrapper} from ${JSON.stringify(module)};
+      const child=spawn(process.execPath,['--input-type=module','-e',${JSON.stringify(childProgram)},${JSON.stringify(marker)}],{stdio:['ignore','ignore','inherit','ipc']});
+      await once(child,'message');
+      assert.equal(child.exitCode,null);
+      await publishApplicationMediaReadiness(${JSON.stringify(evidence)},{phase:'app-launched'});
+      await writeFile(${JSON.stringify(`${evidence}.failure.json`)},'original failure evidence',{flag:'wx'});
+      await failApplicationMediaWrapper(${JSON.stringify(evidence)},{phase:'app-launched'},new Error('post-publication failure'));
+    `;
+    const launch = await launchLinuxNativeSession(
+      process.execPath,
+      ["--input-type=module", "-e", program],
+      process.env,
+    );
+    launch.child.stdout.resume();
+    launch.child.stderr.resume();
+    try {
+      await launch.ready();
+      const until = Date.now() + 5000;
+      while (!launch.receipt.events.some((event) => event.kind === "driver-exited")) {
+        assert.ok(Date.now() < until, "Wrapper must fail promptly despite its live child");
+        await pause(20);
+      }
+      assert.throws(
+        () => assertMediaWrapperOutcome(launch.receipt.events),
+        /exited unsuccessfully/u,
+      );
+      assert.deepEqual(JSON.parse(await readFile(evidence, "utf8")), { phase: "app-launched" });
+      assert.equal(await readFile(`${evidence}.failure.json`, "utf8"), "original failure evidence");
+      // The ordinary child stays under PID1 custody after the failed wrapper exits.
+      const before = await waitCounter(marker);
+      await waitCounter(marker, before);
+    } finally {
+      const closed = await launch.stop();
+      assert.equal(closed.quiesced, true);
+    }
+    const final = await counter(marker);
+    await pause(100);
+    assert.equal(await counter(marker), final);
+  },
+);
+
+test("application media readiness waits for atomic publication within the existing startup deadline", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-publication-"));
+  const file = path.join(directory, "readiness.json");
+  const launch = { receipt: { events: [] }, child: { exitCode: null } };
+  const waiting = awaitApplicationMediaReadiness(file, launch, Date.now() + 2000);
+  await pause(30);
+  const receipt = { phase: "app-launched", marker: "complete" };
+  await publishApplicationMediaReadiness(file, receipt);
+  assert.deepEqual(await waiting, receipt);
+  await assert.rejects(
+    publishApplicationMediaReadiness(file, { marker: "replacement" }),
+    /EEXIST/u,
+  );
+  assert.deepEqual(JSON.parse(await readFile(file, "utf8")), receipt);
+  await assert.rejects(
+    awaitApplicationMediaReadiness(path.join(directory, "absent"), launch, Date.now() - 1),
+    /readiness deadline/u,
+  );
+  const malformed = path.join(directory, "malformed.json");
+  await writeFile(malformed, "{");
+  await assert.rejects(
+    awaitApplicationMediaReadiness(malformed, launch, Date.now() + 2000),
+    SyntaxError,
+  );
+});
+
+test("wrapper failure packets refuse even without terminal files; deliberate namespace cleanup needs no driver exit", async () => {
+  assertMediaWrapperOutcome([{ kind: "driver-started", pid: 2 }]);
+  assertMediaWrapperOutcome([{ kind: "driver-exited", code: 0, signal: null }]);
+  for (const event of [
+    { kind: "driver-error", message: "cannot persist failure" },
+    { kind: "driver-exited", code: 1, signal: null },
+    { kind: "driver-exited", code: null, signal: "SIGTERM" },
+  ]) {
+    assert.throws(() => assertMediaWrapperOutcome([event]));
+    await assert.rejects(
+      awaitApplicationMediaReadiness(
+        "missing-terminal-files",
+        {
+          receipt: { events: [event] },
+          child: { exitCode: null },
+        },
+        Date.now() + 2000,
+      ),
+    );
+  }
+});
+
+test("media admission requires positive reads and the actual application's namespace, generation and bytes", () => {
+  const namespaces = { user: "user:[10]", mnt: "mnt:[20]", pid: "pid:[30]" };
+  const shared = {
+    namespaces,
+    uid_map: "1000 1000 1",
+    gid_map: "1000 1000 1",
+    credentials: {
+      Uid: ["1000", "1000", "1000", "1000"],
+      Gid: ["1000", "1000", "1000", "1000"],
+      Groups: ["1000"],
+    },
+    device: { ino: 4, rdev: 5, uid: 1000, gid: 1000, mode: 0o20600, ctime_ms: 1000 },
+    socket: { ino: 6, rdev: 0, uid: 1000, gid: 1000, mode: 0o140600, ctime_ms: 1000 },
+  };
+  const receipt = {
+    phase: "app-launched",
+    probe: { outcome: "ready", uid: 1000, positive_reads: { video_buffers: 1, audio_buffers: 1 } },
+    wrapper: shared,
+    application: { ...shared, pid: 3, start_ticks: "12345" },
+    executable: { path: "/owned/app", sha256: "a".repeat(64) },
+  };
+  const listener = {
+    namespace_pid: 3,
+    start_ticks: "12345",
+    namespaces,
+    executable: "/owned/app",
+    sha256: "a".repeat(64),
+  };
+  assertApplicationMediaReadiness(receipt, listener);
+  assert.throws(() => assertApplicationMediaReadiness(undefined, listener));
+  for (const mutate of [
+    (value) => {
+      value.phase = "failed";
+    },
+    (value) => {
+      value.probe.outcome = "missing-devices";
+    },
+    (value) => {
+      value.probe.positive_reads.video_buffers = 0;
+    },
+    (value) => {
+      value.probe.positive_reads.audio_buffers = 0;
+    },
+    ...["user", "mnt", "pid"].map((name) => (value) => {
+      value.application.namespaces[name] = `${name}:[99]`;
+    }),
+    ...["uid_map", "gid_map", "credentials", "device", "socket"].map((name) => (value) => {
+      delete value.wrapper[name];
+    }),
+    (value) => {
+      value.application.start_ticks = "54321";
+    },
+    (value) => {
+      value.application.pid = 4;
+    },
+    (value) => {
+      value.application.uid_map = "0 0 1";
+    },
+    (value) => {
+      value.application.gid_map = "0 0 1";
+    },
+    (value) => {
+      value.application.credentials.Uid[1] = "0";
+    },
+    (value) => {
+      value.application.device.ino = 99;
+    },
+    (value) => {
+      value.application.socket.ino = 99;
+    },
+    (value) => {
+      value.executable.sha256 = "b".repeat(64);
+    },
+    (value) => {
+      value.executable.path = "/substituted/app";
+    },
+  ]) {
+    const changed = structuredClone(receipt);
+    // Keep independent wrapper/application objects for substitution controls.
+    changed.application = structuredClone(changed.application);
+    mutate(changed);
+    assert.throws(() => assertApplicationMediaReadiness(changed, listener));
+  }
+  for (const name of ["user", "mnt", "pid"])
+    assert.throws(() =>
+      assertApplicationMediaReadiness(receipt, {
+        ...listener,
+        namespaces: { ...namespaces, [name]: `${name}:[99]` },
+      }),
+    );
+});
+
+test("private-X11 bootstrap binds the actual ordinary caller rather than another user's UID", () => {
+  assertQualificationUidMap(1000, "0 1000 1\n");
+  assertQualificationUidMap(1001, "         0       1001          1\n");
+  for (const [uid, mapping] of [
+    [1001, "0 1000 1"],
+    [0, "0 0 1"],
+    [-1, "0 -1 1"],
+    [1.5, "0 1.5 1"],
+    [1001, "0 1001 2"],
+  ])
+    assert.throws(() => assertQualificationUidMap(uid, mapping));
+});
+
+test("media provisioning refuses a user host, root, other repository or other platform before privileged commands", () => {
+  const environment = {
+    GITHUB_ACTIONS: "true",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    RUNNER_OS: "Linux",
+    RUNNER_ARCH: "X64",
+    RUNNER_ENVIRONMENT: "github-hosted",
+  };
+  assertHostedMediaEnvironment(environment, "linux", 1001);
+  for (const [env, platform, uid] of [
+    [{ ...environment, GITHUB_ACTIONS: "false" }, "linux", 1001],
+    [{ ...environment, GITHUB_REPOSITORY: "other/repo" }, "linux", 1001],
+    [{ ...environment, RUNNER_ENVIRONMENT: "self-hosted" }, "linux", 1001],
+    [environment, "win32", 1001],
+    [environment, "linux", 0],
+  ])
+    assert.throws(() => assertHostedMediaEnvironment(env, platform, uid));
+});
+
+test("media configuration refuses arbitrary commands and device substitution", async () => {
+  const fs = await import("node:fs/promises");
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "pcv-media-config-"));
+  try {
+    const file = path.join(temporary, "media.json");
+    const config = {
+      video: "/dev/video42",
+      source: "portcove_qualification",
+      source_head: "a".repeat(40),
+      socket: path.join(temporary, "socket"),
+      cookie: path.join(temporary, "auth.cookie"),
+    };
+    await fs.writeFile(file, JSON.stringify({ ...config, command: "untrusted" }));
+    await assert.rejects(readMediaConfiguration(file));
+    await fs.writeFile(file, JSON.stringify({ ...config, video: "/dev/video0" }));
+    await assert.rejects(readMediaConfiguration(file));
+  } finally {
+    await fs.rm(temporary, { recursive: true, force: true });
+  }
+});
 
 test(
   "namespace startup failure retains bounded actual stderr and cannot establish custody",
@@ -409,6 +716,11 @@ test("private-X11 configuration refuses missing prerequisites and undeclared aut
         cookie: "must never capture",
       }),
     );
+    await assert.rejects(readLinuxX11Configuration(file), /Unsupported/u);
+    const publicConfig = JSON.parse(await fs.readFile(file, "utf8"));
+    delete publicConfig.cookie;
+    publicConfig._caller_uid = 0;
+    await fs.writeFile(file, JSON.stringify(publicConfig));
     await assert.rejects(readLinuxX11Configuration(file), /Unsupported/u);
   } finally {
     await fs.rm(temporary, { recursive: true, force: true });

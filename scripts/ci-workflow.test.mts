@@ -182,6 +182,50 @@ const nativeCompatibilityRunner = await readFile(
   "utf8",
 );
 
+void test("ordinary Linux package operation is fixed and isolated from fixture builds and broader dispatch", async () => {
+  const sections = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
+  const block = sections.find((section) => section.startsWith("linux_package_boundary:\n"));
+  assert.ok(block);
+  assert.match(
+    block,
+    /- name: Run the unchanged shipping boundary with synthetic media readiness\n        timeout-minutes: 10\n        env:\n          PORTCOVE_RETAINED_EVIDENCE_DIR: \$\{\{ runner\.temp \}\}\/pcv-package2-retained-inputs\n        run: node scripts\/run-rust-tests\.mts --guard-command node scripts\/desktop-linux-media\.mts --run/u,
+  );
+  assert.doesNotMatch(requiredFixture(block.split("    steps:")[0]), /\$\{\{ runner\./u);
+  assert.match(block, /\$\{\{ runner\.temp \}\}\/pcv-package2-retained-inputs\/\*\*/u);
+  const mediaAdapter = await readFile(
+    new URL("./desktop-linux-media.mts", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(mediaAdapter, /PORTCOVE_RETAINED_EVIDENCE_DIR\s*:/u);
+  assert.match(mediaAdapter, /PORTCOVE_SHARED_TOOL_CACHE: toolCachePaths\(\)\.sharedRoot/u);
+  assert.match(
+    mediaAdapter,
+    /acquireNativeSessionLock\(\{\s*workspace: root,\s*scenarios: \["native-linux-packaged-webview-boundary"\],\s*namespaceDelegation: true,/u,
+  );
+  assert.match(
+    block,
+    /if: \$\{\{ inputs\.operation == 'linux-package-boundary' && inputs\.runner == 'ubuntu-22\.04' && !inputs\.edge_driver_proof \}\}/u,
+  );
+  assert.match(block, /runs-on: ubuntu-22\.04/u);
+  assert.doesNotMatch(
+    block,
+    /VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE|--features|secrets\.|continue-on-error|sysctl|apparmor_parser/u,
+  );
+  assert.deepEqual(
+    sections
+      .filter((section) => /^\w+:\n    if:.*linux-package-boundary/mu.test(section))
+      .map((section) => section.split(":")[0]),
+    ["linux_package_boundary"],
+  );
+  assert.match(
+    block,
+    /desktop-linux-media\.mts --prepare[\s\S]*desktop-linux-media\.mts --build[\s\S]*desktop-linux-media\.mts --run/u,
+  );
+  assert.match(block, /if: always\(\)[\s\S]*desktop-linux-media\.mts --cleanup/u);
+  assert.match(block, /!\*\*\/private-authority/u);
+  assert.match(block, /!\*\*\/auth\.cookie/u);
+});
+
 void test("candidate consumer selects only existing selected, compiled and history jobs", () => {
   const jobs = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
   const consumers = jobs.filter((job) => /^hosted_.*\n    if:.*candidate-consumer/mu.test(job));
@@ -2907,7 +2951,7 @@ void test("deep audit evidence retains audit status without privilege changes", 
     requiredFixture(deep.split("  audit:")[1]).split(/\n  [a-z_]+:/u)[0],
   );
   assert.match(auditJob, /runs-on: ubuntu-22\.04/u);
-  assert.match(auditJob, /^    timeout-minutes: 45$/m);
+  assert.match(auditJob, /^    timeout-minutes: 55$/m);
   const localJob = requiredFixture(
     requiredFixture(deep.split("  local_check:")[1]).split(/\n  [a-z_]+:/u)[0],
   );

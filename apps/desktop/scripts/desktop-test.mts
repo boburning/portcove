@@ -25,7 +25,7 @@ import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mts";
 import { isUntrustworthyProbeError } from "./desktop-owned-ipc-probe.mts";
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, lstat } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
@@ -38,11 +38,17 @@ import {
   assertOwnedBoundaryRequests,
   normalPackageBoundaryScenario,
   verifyNormalPackageEvidence,
+  verifyLinuxPackageEvidence,
   createOriginBoundaryFixture,
   linuxOriginBoundaryScenario,
+  prepareLinuxExternalBrowser,
 } from "./desktop-main-webview-boundary.mts";
 import { OwnedNativeSession, nativeSessionScript } from "./desktop-owned-native-session.mts";
 import { launchLinuxNativeSession } from "./desktop-linux-native-session.mts";
+import {
+  connectLinuxInspector,
+  linuxInspectorEnvironment,
+} from "./desktop-linux-webkit-inspector.mts";
 import { observeStartupNetwork } from "./desktop-startup-network-diagnostic.mts";
 import {
   prepareLibrarySwitchRecoveryFixture,
@@ -213,6 +219,9 @@ let driver;
 let browser;
 let driverLog = "";
 let startupAttempt = 0;
+const linuxPackagedInspector =
+  process.platform === "linux" &&
+  selection.selected_scenarios.includes("native-linux-packaged-webview-boundary");
 let historyInventory;
 const linuxSelectedSession =
   process.platform === "linux" &&
@@ -220,6 +229,7 @@ const linuxSelectedSession =
     [
       "native-selected-setup-completion",
       "native-saved-folder-selected-setup",
+      "native-linux-packaged-webview-boundary",
       "native-linux-webview-origin-boundary",
     ].includes(name),
   );
@@ -229,6 +239,26 @@ let linuxLaunchCount = 0;
 let linuxStop;
 let packageEvidence;
 let originFixture;
+let externalBrowser;
+const applicationMediaEvidence = path.join(output, "linux-app-media-readiness.json");
+if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundary")) {
+  assert.equal(process.platform, "linux");
+  assert.deepEqual(selection.selected_scenarios, ["native-linux-packaged-webview-boundary"]);
+  packageEvidence = await verifyLinuxPackageEvidence(
+    values["package-evidence"],
+    revision,
+    inputs[0],
+    root,
+  );
+  inputs.push(
+    ...packageEvidence.identities,
+    await fileIdentity(
+      fileURLToPath(new URL("./desktop-main-webview-boundary.mts", import.meta.url)),
+    ),
+  );
+  assert.ok(path.isAbsolute(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG ?? ""));
+  inputs.push(await fileIdentity(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG));
+}
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
   assert.deepEqual(selection.selected_scenarios, ["native-normal-package-webview-boundary"]);
@@ -288,9 +318,60 @@ async function stopDriver() {
         const evidence = path.join(output, `linux-native-launch-${launchIndex}-join.json`);
         await writeFile(evidence, JSON.stringify(cleanup, null, 2) + "\n", { flag: "wx" });
         artifacts.push(evidence);
+        let mediaWrapperFailure = false;
+        if (linuxPackagedInspector) {
+          const finalEvidence = `${applicationMediaEvidence}.final.json`;
+          await writeFile(
+            finalEvidence,
+            JSON.stringify(
+              {
+                quiesced: cleanup.quiesced,
+                namespace_join: evidence,
+                limitation: "Namespace closure; no application or wrapper normal-exit inference",
+              },
+              null,
+              2,
+            ) + "\n",
+            { flag: "wx" },
+          );
+          artifacts.push(finalEvidence);
+          for (const suffix of ["", ".failure.json", ".exit.json"]) {
+            const captured = await lstat(`${applicationMediaEvidence}${suffix}`).catch((error) => {
+              if (error.code === "ENOENT") return null;
+              throw error;
+            });
+            if (captured) {
+              assert.ok(captured.isFile() && !captured.isSymbolicLink());
+              artifacts.push(`${applicationMediaEvidence}${suffix}`);
+              if (suffix === ".failure.json") mediaWrapperFailure = true;
+            }
+          }
+        }
         linuxCleanup = cleanup;
         linuxLaunch = undefined;
         driver = undefined;
+        if (linuxPackagedInspector) {
+          const { assertMediaWrapperOutcome } =
+            await import("../../../scripts/desktop-linux-media.mts");
+          assertMediaWrapperOutcome(cleanup.events);
+          assert.equal(
+            mediaWrapperFailure,
+            false,
+            "Application media wrapper failed; preserve its failure receipt",
+          );
+          const exit = await readFile(`${applicationMediaEvidence}.exit.json`, "utf8").catch(
+            (error) => {
+              if (error.code === "ENOENT") return null;
+              throw error;
+            },
+          );
+          if (exit)
+            assert.deepEqual(
+              { code: JSON.parse(exit).code, signal: JSON.parse(exit).signal },
+              { code: 0, signal: null },
+              "Unexpected ordinary app exit before namespace cleanup",
+            );
+        }
       })();
     }
     return linuxStop;
@@ -961,6 +1042,39 @@ async function scenario(name, action) {
 
 async function connectObservedDriver() {
   await admission.verify(custody?.inputs ?? []);
+  if (linuxPackagedInspector) {
+    const evidence = path.join(output, "linux-webkit-inspector.json");
+    artifacts.push(evidence);
+    const {
+      assertApplicationMediaReadiness,
+      awaitApplicationMediaReadiness,
+      verifyApplicationMediaInputs,
+    } = await import("../../../scripts/desktop-linux-media.mts");
+    let readiness;
+    browser = await connectLinuxInspector({
+      port,
+      launch: linuxLaunch,
+      app: values.app,
+      expectedSha256: inputs[0].sha256,
+      evidence,
+      beforeConnect: async (deadline) => {
+        readiness = await awaitApplicationMediaReadiness(
+          applicationMediaEvidence,
+          linuxLaunch,
+          deadline,
+        );
+      },
+    });
+    await verifyApplicationMediaInputs(inputs, admission);
+    for (const binding of [readiness.configuration, readiness.source]) {
+      const captured = inputs.find((input) => input.path === binding.path);
+      assert.ok(captured, "Application media readiness requires captured configuration/source");
+      assert.equal(binding.sha256, captured.sha256);
+      assert.equal(binding.bytes, captured.bytes);
+    }
+    assertApplicationMediaReadiness(readiness, browser.ownedProcessIdentity);
+    return;
+  }
   const finishObservation =
     process.platform === "win32"
       ? await observeStartup({
@@ -999,6 +1113,19 @@ async function connectObservedDriver() {
 
 async function connect() {
   await connectObservedDriver();
+  if (linuxPackagedInspector) {
+    await browser.wait(
+      () =>
+        browser.executeScript(
+          () =>
+            document.querySelector('nav[aria-label="Primary navigation"]') !== null &&
+            document.querySelector(".loading-state") === null,
+        ),
+      30_000,
+    );
+    connectedLaunches++;
+    return;
+  }
   await browser.manage().setTimeouts({ script: 15_000 });
   const initialRecovery =
     (bootstrapRecoverySession || preferencesRecoverySession) && connectedLaunches === 0;
@@ -1283,11 +1410,20 @@ function driverEnvironment(childEnvironment) {
     PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(output, "application-update-state"),
     WEBVIEW2_USER_DATA_FOLDER: profile,
   };
+  if (externalBrowser) {
+    delete environment.BROWSER;
+    delete environment.CHROME_CONFIG_HOME;
+    delete environment.CHROME_USER_DATA_DIR;
+  }
   return savedLibraryRecoverySession ? bootstrapRecoveryEnvironment(environment) : environment;
 }
 
 async function startDriver(childEnvironment = {}) {
-  await admission.verify(custody?.inputs ?? []);
+  if (linuxPackagedInspector) {
+    const { verifyApplicationMediaInputs } =
+      await import("../../../scripts/desktop-linux-media.mts");
+    await verifyApplicationMediaInputs(inputs, admission);
+  } else await admission.verify(custody?.inputs ?? []);
   ownedSession.beginLaunch();
   const launchStarted = Date.now();
   const arguments_ = [
@@ -1304,9 +1440,20 @@ async function startDriver(childEnvironment = {}) {
     linuxStop = undefined;
     linuxLaunchCount++;
     linuxLaunch = await launchLinuxNativeSession(
-      values.driver,
-      arguments_,
-      driverEnvironment(childEnvironment),
+      linuxPackagedInspector ? process.execPath : values.driver,
+      linuxPackagedInspector
+        ? [
+            path.join(root, "scripts/desktop-linux-media.mts"),
+            "--launch-probed-app",
+            process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG,
+            values.app,
+            inputs[0].sha256,
+            applicationMediaEvidence,
+          ]
+        : arguments_,
+      linuxPackagedInspector
+        ? linuxInspectorEnvironment(driverEnvironment(childEnvironment), port)
+        : driverEnvironment(childEnvironment),
       { beforeLaunch: admission.assertReady },
     );
     driver = linuxLaunch.child;
@@ -1328,6 +1475,7 @@ async function startDriver(childEnvironment = {}) {
       driverLog = (driverLog + chunk).slice(-1024 * 1024);
     });
   if (linuxSelectedSession) await linuxLaunch.ready();
+  if (linuxPackagedInspector) return;
   await captureSelectedDriverLaunch(launchStarted);
   if (historySession) historyInventory = await captureHistoryDriver(driver.pid, values.driver);
   for (let attempt = 0; attempt < 40; attempt++) {
@@ -1615,6 +1763,10 @@ try {
   }
   await requireUnusedPort(port);
   await requireUnusedPort(port + 1);
+  if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundary")) {
+    externalBrowser = await prepareLinuxExternalBrowser();
+    inputs.push(...externalBrowser.identities);
+  }
   if (selection.selected_scenarios.includes("native-linux-webview-origin-boundary")) {
     await requireUnusedPort(port + 2);
     originFixture = await createOriginBoundaryFixture();
@@ -1630,7 +1782,7 @@ try {
     const declaration = runnerMetadata.acceptance_bindings;
     const retainedRoot = retainedEvidenceRoot(output);
     const fixtures = packetFixtureIdentities;
-    const capabilities = await browser.getCapabilities();
+    const capabilities = linuxPackagedInspector ? null : await browser.getCapabilities();
     const nodeIdentity = await fileIdentity(process.execPath, { signal: admission.signal });
     let privateDisplay;
     if (process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT) {
@@ -1647,11 +1799,13 @@ try {
       node: process.version,
       node_executable: nodeIdentity,
       operating_system: os.release(),
-      browser: {
-        name: capabilities.get("browserName") ?? null,
-        version: capabilities.get("browserVersion") ?? null,
-        platform: capabilities.get("platformName") ?? null,
-      },
+      browser: linuxPackagedInspector
+        ? browser.observedRuntime
+        : {
+            name: capabilities.get("browserName") ?? null,
+            version: capabilities.get("browserVersion") ?? null,
+            platform: capabilities.get("platformName") ?? null,
+          },
       ...(privateDisplay ? { private_display: privateDisplay.retained } : {}),
       display_route: process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT
         ? "private-authenticated-virtual-X11"
@@ -1804,6 +1958,19 @@ try {
       packageEvidence,
     });
     assertOwnedBoundaryRequests(requests);
+  });
+  await scenario("native-linux-packaged-webview-boundary", async () => {
+    const requests = await normalPackageBoundaryScenario({
+      browser,
+      invoke,
+      library,
+      output,
+      artifacts,
+      packageEvidence,
+      externalBrowser,
+    });
+    assertOwnedBoundaryRequests(requests);
+    artifacts.push(await browser.verifyOwnedListener());
   });
   await scenario("native-linux-webview-origin-boundary", async () => {
     await linuxOriginBoundaryScenario({
@@ -3497,7 +3664,11 @@ try {
       setupChecks,
       artifacts,
       inputs,
-      method: selection.profile ? `native-desktop-${selection.profile}` : "native-desktop-focused",
+      method: linuxPackagedInspector
+        ? "native-linux-ordinary-package-webkit-inspector"
+        : selection.profile
+          ? `native-desktop-${selection.profile}`
+          : "native-desktop-focused",
       context: {
         ...runnerMetadata,
         ...(acceptancePreflight ? { acceptance_preflight: acceptancePreflight.identity } : {}),

@@ -14,6 +14,7 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnCommand } from "./dev-storage.mts";
 import {
   collectProfileDoctor,
   probeTool,
@@ -248,11 +249,22 @@ console.log(${JSON.stringify(version)});
     COREPACK_ENABLE_NETWORK: "1",
   });
   const globalNetwork = process.env.COREPACK_ENABLE_NETWORK;
+  const { rust } = await loadQualityManifest();
   const options: DoctorOptions = {
     environment,
     frontendDependenciesAvailable: () => true,
     storage: {},
     pnpmDefinition: () => ({ ...pnpmDefinition(version), command: [shim, "--version"] }),
+    // Full frontend profiles need the containment compiler; this pnpm-only
+    // acquisition fixture observes a declared compiler without provisioning it.
+    run(command, args, options) {
+      assert.equal(options.env?.RUSTUP_AUTO_INSTALL, "0");
+      if (command === "rustc") {
+        assert.deepEqual(args, ["--version"]);
+        return { status: 0, stdout: `rustc ${rust.channel}` };
+      }
+      return spawnCommand(command, args, options);
+    },
   };
   for (const warm of [false, true]) {
     if (warm) writeFileSync(runtime, "verified warm fixture");
@@ -264,7 +276,7 @@ console.log(${JSON.stringify(version)});
       if (!warm) assert.match(requiredFixture(pnpm.remediation), /repository-pinned pnpm/u);
       assert.equal(requiredFixture(tools.find((tool) => tool.id === "node")).status, "ok");
     }
-    assert.equal(profile.ok, warm);
+    assert.equal(profile.ok, warm, JSON.stringify(profile));
     assert.equal(existsSync(acquisition), false);
     assert.equal(existsSync(runtime), warm);
     assert.equal(environment.COREPACK_ENABLE_NETWORK, "1");
@@ -483,7 +495,7 @@ void test("requested profile stays failed when one capability is missing; observ
     run(command, args, options) {
       commands.push([command, args]);
       assert.equal(options.env?.RUSTUP_AUTO_INSTALL, "0");
-      return { status: 0, stdout: "24.21.0" };
+      return { status: 0, stdout: command === "rustc" ? "1.98.1" : "24.21.0" };
     },
   });
   assert.equal(report.ok, false);
@@ -492,7 +504,10 @@ void test("requested profile stays failed when one capability is missing; observ
     "unavailable",
   );
   assert.equal(requiredFixture(report.tools.find((tool) => tool.id === "node")).status, "ok");
-  assert.equal(commands.length, 1);
+  assert.deepEqual(
+    commands.map(([command]) => command),
+    [process.execPath, ...(["linux", "win32"].includes(process.platform) ? ["rustc"] : [])],
+  );
 });
 
 void test("native Windows profile observes installed compiler paths while ordinary validation stays unverified", async () => {

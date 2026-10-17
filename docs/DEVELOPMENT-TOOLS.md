@@ -862,14 +862,19 @@ by a healthy local-main return with the same library identity and generation.
 This fixture establishes no ordinary-package, media-device, updater or minimum
 environment claim. Its listener stays owned until native cleanup joins.
 
-`node scripts/desktop-linux-x11.mts --config ABSOLUTE_JSON` reuses the proven uid-1000
+`node scripts/desktop-linux-x11.mts --config ABSOLUTE_JSON` reuses the
 ext4/private authenticated virtual-X11 route. On Windows it holds the existing
 Windows native slot and Heavy Rust guard while dispatching existing Ubuntu tools;
 Linux holds its own native slot and maintained PID namespace/init controls.
 Stages `gtk` and `harness` permit selected diagnostics without running a whole
 journey. A version-1 configuration declares existing absolute `xvfb`, `xkbcomp`,
 `output_root` and `harness_args`; Windows dispatch additionally requires existing
-absolute Linux `node` and `tool_cache` paths. It installs nothing. For example:
+absolute Linux `node` and `tool_cache` paths. It installs nothing.
+
+The parent binds its actual ordinary caller UID to the bootstrap namespace map;
+public configuration cannot supply that binding. The inner application UID/map
+remains 1000-to-0. A different host UID needs its own actual runtime observation.
+For example:
 
 ```json
 {
@@ -892,6 +897,66 @@ preserves GTK chooser ownership checks. It establishes only actual GTK/WebKit on
 that private virtual display; WSLg, physical display/controller and other Linux
 routes remain separate. Missing or unsupported prerequisites are reported; no
 provisioning or fallback qualification is implied.
+
+For ordinary Linux shipping boundaries, select only
+`native-linux-packaged-webview-boundary` and pass `--package-evidence ABSOLUTE_JSON`.
+The maintained private-X11 route also requires an installed Google Chrome at
+`/usr/bin/google-chrome`. It creates a desktop association and explicit fresh
+browser profile inside its owned XDG directories, retains browser/opener identities,
+and observes the approved destination through the real browser's profile-bound
+DevTools endpoint. Chrome keeps its normal sandbox. This observation covers that
+isolated association; the host's ordinary default-browser configuration remains
+separate. Existing personal browser profiles are not selected. The owned profile
+also retains a default-redaction network log with a 4 MB size budget and ten-second
+capture for failed-navigation diagnosis; it is not destination acceptance.
+The manifest binds the current source, exact ordinary
+`pnpm tauri build --bundles deb` command, empty qualification features,
+package and configuration identities, and the actual `dpkg-deb --extract` receipt
+with its `usr/bin/portcove-desktop` identity. This route uses the existing native
+PID namespace and requires positive join before releasing custody. It observes
+the extracted DEB payload; it supplies no system installation, updater or
+claimed-minimum evidence. Windows current-installed NSIS acceptance keeps its
+separate existing route.
+
+Only this standalone Linux packaged case uses WebKit's nonautomation `WebPage`
+inspector transport. WebKitGTK 2.50.4's automation session can grant media before
+the application's normal permission callback, so a WebDriver media result cannot
+qualify that refusal. The maintained native namespace launches the ordinary
+executable directly with a loopback-only `WEBKIT_INSPECTOR_HTTP_SERVER` child
+environment; `TAURI_WEBVIEW_AUTOMATION` and the legacy inspector variable are
+absent. No production feature, CSP or permission override is added. Other native
+scenarios keep their existing driver routes.
+
+Before executing the unchanged boundary assertions, the observer requires the
+listener's live PID/generation, executable digest and owned namespace ancestry,
+one advertised page target, the actual local main document and
+`navigator.webdriver === false`. WebKit `Runtime.awaitPromise` preserves the
+ten-second script deadline and callback failure; expired replies cannot satisfy
+a later operation. The final listener recheck and ordinary native namespace join
+remain distinct evidence. Inspector discovery or evaluation failure is a failed
+prerequisite, never a permission refusal or a package pass.
+
+The existing manual `native-design-compatibility.yml` workflow also offers the
+fixed `linux-package-boundary` operation on standard `ubuntu-22.04` only. After
+review and ordinary candidate CI, it prepares the distribution's matching
+`linux-modules-extra` Vivid capture-only webcam and a foreground private PulseAudio
+null source. The [Linux 6.8 driver contract](https://www.kernel.org/doc/html/v6.8/admin-guide/media/vivid.html#configuring-the-driver)
+defines the single webcam node; its supported 640×360 format replaces the failed
+DKMS loopback fixture. The outer mapped-user probe is preparation evidence.
+The fixed internal media launcher repeats the bounded positive reads inside the
+application's final user/mount/PID namespace immediately before spawning the
+ordinary executable, with no intervening namespace or credential change. Its
+readiness receipt records namespace links, UID/GID maps, credentials and
+device/socket identities for the wrapper and app. Application start ticks,
+namespace IDs and executable hash must also match the live inspector listener
+before any application assertion. Missing or mismatched readiness fails
+admission. The existing namespace init owns both descendants; final join evidence
+does not imply normal application or wrapper exit.
+Existing devices, missing matching modules, module/signature refusal or unknown
+process joins stop qualification; no custom kernel, reboot, key enrollment or WebKit
+permission override is used. Only the operation's identified quiescent fixture
+may be removed. This route supplies no physical capture, installed GUI or minimum
+claim, and a ready fixture alone does not satisfy the strict media refusal.
 
 ## Native desktop smoke tests
 
@@ -1589,7 +1654,7 @@ ordinary-package case through the existing external Tauri/EdgeDriver route.
 Use low-level `desktop-test.mts --app <retained-installed-executable> --output
 <new-absolute-directory> --scenario native-normal-package-webview-boundary
 --package-evidence <absolute-manifest>`. The manifest binds the clean candidate
-revision, exact ordinary `pnpm tauri build --bundles nsis` invocation,
+revision, exact admitted `pnpm --dir apps/desktop desktop:build --bundles nsis` invocation,
 empty qualification-feature list, hashes of the normal Tauri configuration,
 Windows overlay and Desktop Cargo manifest, installer, and completed
 `test-windows-installer.ps1` evidence. Its retained executable must match the

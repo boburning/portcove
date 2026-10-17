@@ -155,6 +155,7 @@ ui-build:
     {{storage}} node scripts/run-viteplus.mts run frontend:build
 
 ui-test:
+    {{storage}} node --test scripts/transport-values.test.mts
     {{storage}} node scripts/run-viteplus.mts run frontend:unit
 
 fallow:

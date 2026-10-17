@@ -26,6 +26,7 @@ export const nativeHelperDependencies: NativeHelperRegistry = Object.freeze(
         ["native-linux-folder-picker.py", []],
         ["desktop-owned-native-session.mts", ["native-session.ps1"]],
         ["desktop-linux-native-session.mts", ["native-linux-init.mts"]],
+        ["desktop-linux-webkit-inspector.mts", []],
         ["native-linux-init.mts", []],
         ["desktop-startup-observation.mts", ["native-startup-observation.ps1"]],
         ["native-confirmation.ps1", ["native-process-tree.ps1", "native-window-discovery.ps1"]],
@@ -78,6 +79,7 @@ export const nativeHelperRoots = Object.freeze(
     "desktop-native-confirmation.mts",
     "desktop-owned-native-session.mts",
     "desktop-linux-native-session.mts",
+    "desktop-linux-webkit-inspector.mts",
     "desktop-startup-observation.mts",
   ].map(helper),
 );

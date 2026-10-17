@@ -233,7 +233,7 @@ if ($NormalPackageManifestPath) {
     if ($LASTEXITCODE -ne 0 -or $normalDirty -or $normalPackageManifest.revision -ne $normalRevision) {
         throw "Current-installed boundary requires clean exact package source"
     }
-    if (($normalPackageManifest.build_command -join '|') -ne 'pnpm|tauri|build|--bundles|nsis' -or
+    if (($normalPackageManifest.build_command -join '|') -ne 'pnpm|--dir|apps/desktop|desktop:build|--bundles|nsis' -or
         @($normalPackageManifest.qualification_features).Count -ne 0) {
         throw "Current-installed boundary requires an ordinary default-feature NSIS build"
     }
