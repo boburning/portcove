@@ -3,6 +3,8 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 import { fixtureValue } from "../test-fixtures";
 
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
+import "../styles/index.css";
 import { desktopApi } from "../api";
 import { portDefinition } from "../test-fixtures";
 import type { GameFileQuerySnapshot, GameFileQueryRefreshRequest } from "../types";
@@ -55,6 +57,7 @@ afterEach(async () => {
   vi.clearAllMocks();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  delete document.documentElement.dataset.theme;
 });
 const render = async (context = "accepted", generation = 1) => {
   await root.rerender(
@@ -188,6 +191,8 @@ it("keeps the real refresh pending after cancellation acknowledgment and rejects
   expect(button.disabled).toBe(true);
   await act(async () => resolve(snapshot()));
   expect(container.textContent).not.toContain("Cancellation requested");
+  expect(container.textContent).toContain("Files missing");
+  expect(container.textContent).toContain("Last checked");
 });
 it("expires accepted observations without issuing another inspection", async () => {
   vi.useFakeTimers();
@@ -300,3 +305,86 @@ it("rejects stale, mismatched, duplicated and contradictory producer observation
   ])
     expect(acceptedGameFileQuery(invalid, request, library, now)).toBe(false);
 });
+
+it("keeps B's cancellation target when settled A sends a late started event", async () => {
+  await render();
+  await check();
+  const oldEvent = vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[0]![2]!;
+  let resolve!: (value: GameFileQuerySnapshot) => void;
+  vi.mocked(desktopApi.refreshGameFileQuery).mockImplementationOnce(
+    () =>
+      new Promise((done) => {
+        resolve = done;
+      }),
+  );
+  await check();
+  const newEvent = vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[1]![2]!;
+  const started = (operation_id: string) => ({
+    schema_version: 3 as const,
+    operation_id,
+    parent_operation_id: null,
+    operation: "verify_source" as const,
+    sequence: 0,
+    timestamp_ms: Date.now(),
+    target: null,
+    type: "started" as const,
+  });
+  await act(async () => {
+    newEvent(started("B"));
+    oldEvent(started("late-A"));
+  });
+  const cancel = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+    (item) => item.textContent === "Cancel game-file check",
+  )!;
+  await act(async () => cancel.click());
+  expect(desktopApi.cancelOperation).toHaveBeenLastCalledWith("B");
+  expect(container.textContent).toContain("Previous check");
+  expect(container.textContent).not.toContain("Files missing");
+  await act(async () => resolve(snapshot()));
+});
+
+it("uses Core's exact observation time and drops independent history when details unmount", async () => {
+  const value = snapshot();
+  value.observed_at -= 12;
+  value.expires_at -= 12;
+  vi.mocked(desktopApi.refreshGameFileQuery).mockResolvedValueOnce(value);
+  await render();
+  await check();
+  const time = container.querySelector("time")!;
+  expect(time.dateTime).toBe(new Date(value.observed_at * 1000).toISOString());
+  expect(time.textContent).toBe(new Date(value.observed_at * 1000).toLocaleString());
+  await root.rerender(null);
+  await render();
+  expect(container.querySelector("time")).toBeNull();
+  expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
+});
+
+it.each(["dark", "light"])(
+  "keeps the result and check action prominent beside history in %s",
+  async (theme) => {
+    await page.viewport(520, 780);
+    document.documentElement.dataset.theme = theme;
+    await render();
+    await check();
+    const section = container.querySelector("section")!;
+    expect(section.textContent).toContain("Files missing");
+    expect(section.textContent).toContain("Last checked");
+    await page.screenshot({
+      element: section,
+      path: `../../../../outputs/observation-clarity/selected-current-${theme}-520.png`,
+    });
+    vi.mocked(desktopApi.refreshGameFileQuery).mockRejectedValueOnce(
+      new Error("Connected files could not be checked."),
+    );
+    await check();
+    expect(section.textContent).toContain("latest check failed");
+    expect(section.textContent).toContain("Previous check");
+    expect(section.textContent).not.toContain("Files missing");
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(520);
+    await page.screenshot({
+      element: section,
+      path: `../../../../outputs/observation-clarity/selected-failed-${theme}-520.png`,
+    });
+    expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(2);
+  },
+);

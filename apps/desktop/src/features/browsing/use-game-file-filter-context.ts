@@ -1,17 +1,14 @@
-import { useObservationExpired } from "./use-observation-expiry";
-import { useLayoutEffect, useRef, useState } from "react";
-import { desktopApi } from "../../api";
+import { useGameFileObservation } from "./use-game-file-observation";
+import { useState } from "react";
 import type {
   CatalogDocument,
   SourceRecord,
   PortStatus,
   CatalogBrowsingSnapshot,
 } from "../../types";
-import { errorText } from "../../view-model";
 import {
   gameFileFilterContext,
   gameFileFilterRequest,
-  type GameFileFilterContext,
   type Route,
 } from "./game-file-query-context";
 
@@ -45,106 +42,36 @@ export function useGameFileFilterContext({
     libraryKey,
     selection,
   ]);
-  const [identity, setIdentity] = useState({ key, epoch: 0 });
-  const currentIdentity = identity.key === key ? identity : { key, epoch: identity.epoch + 1 };
-  if (identity.key !== key) setIdentity(currentIdentity);
-  const epoch = currentIdentity.epoch;
-  const owner = useRef({ epoch: 0, closed: false, processing: false });
-  const [pending, setPending] = useState(false);
-  const [operation, setOperation] = useState<{ epoch: number; id: string }>();
-  const [result, setResult] = useState<{
-    epoch: number;
-    context: GameFileFilterContext;
-    deadline: number;
-  }>();
-  const [error, setError] = useState<{ epoch: number; message: string }>();
-  useLayoutEffect(() => {
-    const lifecycle = owner.current;
-    lifecycle.epoch = epoch;
-    lifecycle.closed = false;
-    return () => {
-      lifecycle.closed = true;
-    };
-  }, [epoch]);
-  const window = result
-    ? {
-        observedAt: result.context.observedAt,
-        expiresAt: result.context.expiresAt,
-        deadline: result.deadline,
-      }
-    : undefined;
-  const windowExpired = useObservationExpired(result, window);
-  const expired = Boolean(result?.epoch === epoch && windowExpired);
-  const context = result?.epoch === epoch && !expired ? result.context : undefined;
-  const refresh = async () => {
-    if (owner.current.processing || !catalog || !libraryKey) return;
-    const request = gameFileFilterRequest(catalog.ports, selection);
-    if (!request) {
-      setError({
-        epoch,
-        message:
-          "This catalog exceeds the bounded complete query scope. Game-file filters are unavailable.",
-      });
-      return;
-    }
-    const requestEpoch = epoch;
-    const active = () => !owner.current.closed && owner.current.epoch === requestEpoch;
-    owner.current.processing = true;
-    setPending(true);
-    setOperation(undefined);
-    setResult(undefined);
-    setError(undefined);
-    try {
-      const library = await desktopApi.libraryIdentity(generation);
-      if (!active()) return;
-      const snapshot = await desktopApi.refreshGameFileQuery(request, generation, (event) => {
-        if (
-          active() &&
-          (event.schema_version === 2 || event.schema_version === 3) &&
-          event.type === "started" &&
-          event.operation === "verify_source"
-        )
-          setOperation({ epoch: requestEpoch, id: event.operation_id });
-      });
-      if (!active()) return;
-      const accepted = gameFileFilterContext(
-        snapshot,
-        request,
-        library,
-        libraryKey,
-        Math.floor(Date.now() / 1000),
-      );
+  const observation = useGameFileObservation({
+    contextKey: key,
+    generation,
+    request: () => (catalog ? gameFileFilterRequest(catalog.ports, selection) : undefined),
+    refusal:
+      "This catalog exceeds the bounded complete query scope. Game-file filters are unavailable.",
+    accept: (snapshot, request, library, now) => {
+      const accepted = gameFileFilterContext(snapshot, request, library, libraryKey ?? "", now);
       if (!accepted)
         throw new Error(
           "The complete game-file observation no longer matches this context. Check again.",
         );
-      setResult({
-        epoch: requestEpoch,
-        context: accepted,
-        deadline:
-          performance.now() +
-          Math.max(0, Math.min(300_000, accepted.expiresAt * 1000 - Date.now())),
-      });
-    } catch (value) {
-      if (active()) setError({ epoch: requestEpoch, message: errorText(value) });
-    } finally {
-      owner.current.processing = false;
-      if (!owner.current.closed) {
-        setPending(false);
-        setOperation(undefined);
-      }
-    }
+      return accepted;
+    },
+  });
+  const refresh = async () => {
+    if (!catalog || !libraryKey) return;
+    await observation.refresh();
   };
   return {
     selection,
     setSelection,
     refresh,
-    pending,
-    context,
+    pending: observation.pending,
+    context: observation.current,
     available: Boolean(catalog && libraryKey),
-    operationId: operation?.epoch === epoch ? operation.id : undefined,
-    error: error?.epoch === epoch ? error.message : undefined,
-    expired,
+    operationId: observation.operationId,
+    error: observation.error,
+    expired: observation.expired,
+    observation: observation.presentation,
   };
 }
 

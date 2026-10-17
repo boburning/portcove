@@ -1,6 +1,6 @@
 # Portcove
 
-This glossary defines the delivery-evidence terms used by Portcove's development tooling.
+This glossary defines product and delivery-evidence terms used by Portcove.
 
 ## Delivery evidence
 
@@ -33,3 +33,14 @@ _Avoid_: Completed evidence
 
 **Completed packet**: Actual outcomes and retained artifacts bound to process closure, exact-image inspection, separate review and final delivery. It records evidence without granting acceptance or merge authority.
 _Avoid_: Acceptance authority
+
+## Game files
+
+**Game-file observation**: A Core-produced, scope-bound check of connected game
+files accepted for specified ports, routes, target platforms and channels at
+Core's recorded observation time. Acceptance includes negative and inconclusive
+results; it is not a positive file match or permission to operate. Current
+classifications require the existing context and freshness checks. Retained
+history contains only accepted time, scope and original expiry information and
+cannot provide classifications, counts or matching-build evidence.
+_Avoid_: File availability guarantee

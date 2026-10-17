@@ -2572,8 +2572,12 @@ bounded Core refresh; opening details, changing choices and returning to browsin
 do not trigger inspection. It binds completion, cancellation controls and events
 to a monotonic request-context epoch. Changes to the accepted catalog, sources,
 statuses or library generation invalidate an observation even when the player
-returns to an earlier selection. Expiry removes the displayed observation without
-another refresh. Positive states require their emitted identity, contract and
+returns to an earlier selection. Expiry removes current usability without another
+refresh; metadata-only history retains the accepted Core time, requested scope and
+original sticky expiry. Retries clear current results immediately while retaining
+this history through failure or actual cancellation. Context changes clear both.
+The [browsing contract](../apps/desktop/src/features/browsing/README.md#game-file-observation-history)
+owns presentation and navigation lifetimes. Positive states require their emitted identity, contract and
 definition context. The control presents Core reasons without private paths or
 an action shortcut; ordinary setup and launch reviews remain authoritative.
 The composable catalog game-file group requests one explicit Core refresh for the
