@@ -15,7 +15,7 @@ import type {
   OutputGameUpdatePlan,
 } from "../src/transport-types.generated.d.ts";
 import { transportValue, transportValues } from "./transport-values.mts";
-interface PreparationContext {
+export interface PreparationContext {
   browser: WebDriver;
   invoke: (name: string, args?: Record<string, unknown>) => Promise<unknown>;
   scenario: (name: string, execute: () => Promise<void>) => Promise<unknown>;
