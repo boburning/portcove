@@ -8,9 +8,9 @@ import { parseRawDiff } from "./select-ci-plan.mts";
 import { baselineLintPlan } from "./ci-baseline.mts";
 import { buildValidationPlan, validateValidationPlan } from "./validation-plan.mts";
 
-test("Git metadata routes executable edit, lifecycle, chmod, both rename sides and rejects nonregular entries", () => {
+void test("Git metadata routes executable edit, lifecycle, chmod, both rename sides and rejects nonregular entries", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "portcove-routing-"));
-  const git = (...args) =>
+  const git = (...args: string[]) =>
     execFileSync("git", args, { cwd: root, encoding: "utf8", windowsHide: true });
   try {
     git("init");
@@ -48,7 +48,7 @@ test("Git metadata routes executable edit, lifecycle, chmod, both rename sides a
     );
     git("add", ".");
     git("update-index", "--chmod=+x", "scripts/test-linux-package-ownership.sh");
-    assert.equal(selected().changes[0].oldMode, "100755");
+    assert.equal(required(selected().changes[0]).oldMode, "100755");
     assert.equal(selected().mode, "fast");
     assert.ok(
       baselineLintPlan(selected()).some(
@@ -64,12 +64,12 @@ test("Git metadata routes executable edit, lifecycle, chmod, both rename sides a
     git("add", ".");
     git("update-index", "--chmod=+x", "apps/desktop/src/renamed.sh");
     const renamed = selected();
-    assert.equal(renamed.changes[0].status, "R");
+    assert.equal(required(renamed.changes[0]).status, "R");
     assert.ok(renamed.groups.includes("frontend"));
     assert.ok(renamed.changed_files.includes("scripts/test-linux-package-ownership.sh"));
     git("rm", "-f", "apps/desktop/src/renamed.sh");
     assert.equal(selected().mode, "fast");
-    assert.equal(selected().changes[0].newMode, "000000");
+    assert.equal(required(selected().changes[0]).newMode, "000000");
     writeFileSync(path.join(root, "scripts/new.sh"), "#!/bin/sh\nexit 0\n");
     git("add", ".");
     git("update-index", "--chmod=+x", "scripts/new.sh");
@@ -84,3 +84,8 @@ test("Git metadata routes executable edit, lifecycle, chmod, both rename sides a
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+function required<T>(value: T | undefined): T {
+  assert.ok(value !== undefined);
+  return value;
+}

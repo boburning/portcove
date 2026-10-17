@@ -50,5 +50,5 @@ process.exitCode = await resourceEntrypoint("browser", async () => {
     await runner.close();
   }
 
-  return process.exitCode ?? 0;
+  return Number(process.exitCode ?? 0);
 });

@@ -6,9 +6,9 @@ import path from "node:path";
 import test from "node:test";
 import { fallowSource } from "./fallow-source.mts";
 
-test("candidate fingerprint detects same-HEAD dirty edits, untracked inputs, renames and deletions", () => {
+void test("candidate fingerprint detects same-HEAD dirty edits, untracked inputs, renames and deletions", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "fallow-source-"));
-  const git = (...args) => execFileSync("git", args, { cwd: root, stdio: "pipe" });
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: root, stdio: "pipe" });
   try {
     git("init", "-b", "main");
     writeFileSync(path.join(root, "helper.mjs"), "export const value=1;");

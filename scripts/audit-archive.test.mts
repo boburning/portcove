@@ -3,7 +3,7 @@ import { createAuditZip as archive } from "./fixtures/audit-zip-fixture.mts";
 import test from "node:test";
 import { parseAuditArchive } from "./audit-archive.mts";
 
-test("bounded ZIP decodes regular allowlisted files with verified CRCs", () => {
+void test("bounded ZIP decodes regular allowlisted files with verified CRCs", () => {
   const bytes = archive([
     ["manifest.json", "{}"],
     ["inputs.json", '{"original":true}', { method: 0 }],
@@ -14,7 +14,7 @@ test("bounded ZIP decodes regular allowlisted files with verified CRCs", () => {
   assert.equal(files.size, 3);
 });
 
-test("metadata rejects huge counts, declared sizes, ZIP64 and multipart before inflation", () => {
+void test("metadata rejects huge counts, declared sizes, ZIP64 and multipart before inflation", () => {
   for (const mutate of [
     (b: Buffer) => {
       b.writeUInt16LE(65535, b.length - 14);
@@ -45,7 +45,7 @@ test("metadata rejects huge counts, declared sizes, ZIP64 and multipart before i
   }
 });
 
-test("paths, links, duplicate names, mismatched headers and overlaps refuse before inflation", () => {
+void test("paths, links, duplicate names, mismatched headers and overlaps refuse before inflation", () => {
   const bad = [
     archive([["../inputs.json", "{}"]]),
     archive([["inputs.json", "{}", { attributes: 0xa1ff0000 }]]),
@@ -80,7 +80,7 @@ test("paths, links, duplicate names, mismatched headers and overlaps refuse befo
   }
 });
 
-test("actual inflated output and checksums cannot exceed declared admission", () => {
+void test("actual inflated output and checksums cannot exceed declared admission", () => {
   const bytes = archive([["inputs.json", "{}"]]);
   assert.throws(() => parseAuditArchive(bytes, { inflate: () => Buffer.from("too large") }));
   const stored = archive([["inputs.json", "{}", { method: 0 }]]);
@@ -88,10 +88,12 @@ test("actual inflated output and checksums cannot exceed declared admission", ()
   assert.throws(() => parseAuditArchive(stored), /CRC/);
 });
 
-test("valid expanded boundary works while cumulative excess refuses before inflate", () => {
+void test("valid expanded boundary works while cumulative excess refuses before inflate", () => {
   const data = Buffer.alloc(32 * 1024 * 1024, 0x20);
   const good = archive([["inputs.json", data]]);
-  assert.equal(parseAuditArchive(good).get("inputs.json").length, data.length);
+  const retained = parseAuditArchive(good).get("inputs.json");
+  assert.ok(retained);
+  assert.equal(retained.length, data.length);
   const bad = archive([
     ["inputs.json", data],
     ["manifest.json", "x"],

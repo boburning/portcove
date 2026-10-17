@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -6,9 +7,14 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+function record(value: unknown) {
+  assert.ok(isRecord(value));
+  return value;
+}
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-test("live Rust schemas and desktop command/event exposure match checked-in consumers", () => {
+void test("live Rust schemas and desktop command/event exposure match checked-in consumers", () => {
   const result = spawnSync(
     process.execPath,
     [path.join(root, "scripts", "check-transport-contract.mts")],
@@ -20,8 +26,8 @@ test("live Rust schemas and desktop command/event exposure match checked-in cons
     assert.match(result.stdout, /Headless Desktop contracts match the compiled native host/);
 });
 
-for (const contract of ["core", "desktop", "events"])
-  test(`rejects ${contract} drift against its compiled Rust serialization contract`, () => {
+for (const contract of ["core", "desktop", "events"] as const)
+  void test(`rejects ${contract} drift against its compiled Rust serialization contract`, () => {
     const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "portcove-transport-"));
     try {
       const filename = {
@@ -29,20 +35,25 @@ for (const contract of ["core", "desktop", "events"])
         desktop: "transport-host-output.generated.json",
         events: "transport-host-events.generated.json",
       }[contract];
-      const schemas = JSON.parse(
+      const raw: unknown = JSON.parse(
         fs.readFileSync(path.join(root, "apps", "desktop", "src", filename), "utf8"),
       );
+      const schemas = record(raw);
       if (contract === "core") {
-        assert.equal(schemas.status.$defs.ArtifactIdentity.properties.size.type, "integer");
-        schemas.status.$defs.ArtifactIdentity.properties.size.type = "string";
-      } else if (contract === "desktop") {
-        assert.ok(schemas.bootstrap_status.required.includes("error"));
-        schemas.bootstrap_status.required = schemas.bootstrap_status.required.filter(
-          (name) => name !== "error",
+        const size = record(
+          record(record(record(record(schemas.status).$defs).ArtifactIdentity).properties).size,
         );
+        assert.equal(size.type, "integer");
+        size.type = "string";
+      } else if (contract === "desktop") {
+        const bootstrap = record(schemas.bootstrap_status);
+        assert.ok(Array.isArray(bootstrap.required));
+        const names: unknown[] = bootstrap.required;
+        assert.ok(names.includes("error"));
+        bootstrap.required = names.filter((name) => name !== "error");
       } else {
-        assert.equal(schemas["portcove://library-changed"].type, "null");
-        schemas["portcove://library-changed"].type = "string";
+        assert.equal(record(schemas["portcove://library-changed"]).type, "null");
+        record(schemas["portcove://library-changed"]).type = "string";
       }
       const fixture = path.join(temporary, "schemas.json");
       fs.writeFileSync(fixture, JSON.stringify(schemas, null, 2) + "\n");
