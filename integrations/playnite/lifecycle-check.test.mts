@@ -3,12 +3,40 @@ import path from "node:path";
 import process from "node:process";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import {
   cargoPhaseArguments,
   executeCargoPhase,
   lifecyclePaths,
   runCargoPhase,
 } from "./lifecycle-check.mts";
+
+void test("lightweight admission contracts load without Desktop transport dependencies", () => {
+  const moduleUrl = pathToFileURL(path.resolve("integrations/playnite/lifecycle-check.mts")).href;
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      `import { registerHooks } from 'node:module';
+       import assert from 'node:assert/strict';
+       registerHooks({ resolve(specifier, context, next) {
+         if (specifier === 'ajv' || specifier.startsWith('ajv/'))
+           throw new Error('Desktop AJV dependency is unavailable in repository-only CI');
+         return next(specifier, context);
+       }});
+       const lifecycle = await import(${JSON.stringify(moduleUrl)});
+       assert.ok(lifecycle.cargoPhaseArguments('cli-build').includes('--locked'));
+       await assert.rejects(lifecycle.executeCargoPhase('cli-build', undefined, {
+         environment: {PORTCOVE_HEAVY_RUST_LOCK_TOKEN: 'owned'},
+         acquire: async () => { throw new Error('owned refusal before Cargo'); },
+         execute: async () => { throw new Error('Cargo must not run'); }
+       }), /owned refusal before Cargo/);`,
+    ],
+    { encoding: "utf8", timeout: 15_000 },
+  );
+  assert.equal(result.status, 0, result.stderr);
+});
 
 void test("internal Cargo execution requires a matching inherited lease before starting its timer", async () => {
   let executed = false;
