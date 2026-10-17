@@ -36,6 +36,7 @@ import { readinessScenario } from "./desktop-readiness-test.mjs";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mjs";
 import { sourceDialogScenario } from "./desktop-source-dialog-test.mjs";
 import { primaryFilePickerScenario } from "./desktop-primary-file-picker-test.mjs";
+import { listenerLifetimeScenario } from "./desktop-listener-lifetime-test.mjs";
 
 // Qualification witness guard only; Core retains filesystem ownership and symlink authority.
 export function rollbackWitnessWithinLibrary(library, owned) {
@@ -622,6 +623,7 @@ export async function preparationScenarios({
   interruptApplication,
   closeApplication,
   captureLivePreparation,
+  chooseOwnedLibrary,
 }) {
   const command = ownedFixtureCommand({ cli, library, output });
   const host =
@@ -1596,7 +1598,7 @@ export async function preparationScenarios({
     artifacts.push(report);
   });
 
-  await scenario("native-preparation-cancellation", async () => {
+  const livePreparationCancellation = async (probeListener = false) => {
     const { port, install } = await seed("opengoal-jak2", "wait", true);
     await open(port);
     const observations = { port_id: port.id, phases: [], inputs: [] };
@@ -1679,6 +1681,54 @@ export async function preparationScenarios({
       assert.deepEqual(preparationIds(restored.activities), [...baselineIds, activity.id].sort());
       assert.equal(restored.activities.find((item) => item.id === activity.id)?.status, "running");
       assert.equal(restored.status.readiness.launchable, false);
+      if (probeListener) {
+        observations.listener_lifetime = await listenerLifetimeScenario({
+          browser,
+          invoke,
+          output,
+          artifacts,
+          chooseOwnedLibrary,
+          observeRunning: async (index) => {
+            const current = await observe(`live-listener-generation-${index + 1}`);
+            assert.equal(current.status.active.id, install.id);
+            assert.deepEqual(
+              current.activities.map((item) => item.id).sort(),
+              restored.activities.map((item) => item.id).sort(),
+            );
+            assert.equal(
+              current.activities.find((item) => item.id === activity.id)?.status,
+              "running",
+            );
+            return {
+              activity_id: activity.id,
+              active_installation_id: current.status.active.id,
+              activity_ids: current.activities.map((item) => item.id).sort(),
+            };
+          },
+        });
+        const remounted = await observe("live-after-listener-disposal");
+        assert.equal(remounted.bootstrap.library_root, before.bootstrap.library_root);
+        assert.equal(remounted.bootstrap.generation, before.bootstrap.generation + 2);
+        assert.equal(remounted.status.active.id, install.id);
+        assert.deepEqual(
+          preparationIds(remounted.activities),
+          [...baselineIds, activity.id].sort(),
+        );
+        assert.equal(
+          remounted.activities.find((item) => item.id === activity.id)?.status,
+          "running",
+        );
+        // Same-document navigation preserves interception custody during the probe.
+        await browser
+          .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Library"]]'))
+          .click();
+        const card = By.xpath(
+          `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]//button[@data-detail-origin]`,
+        );
+        await browser.wait(until.elementLocated(card), 15_000);
+        await browser.findElement(card).click();
+        await browser.wait(until.elementLocated(By.css("section[data-detail-workspace]")), 15_000);
+      }
       const cancel = await browser.wait(
         async () => {
           const candidates = await browser.findElements(
@@ -1847,7 +1897,9 @@ export async function preparationScenarios({
       }
     }
     if (evidenceFailure) throw evidenceFailure;
-  });
+  };
+  await scenario("native-preparation-cancellation", () => livePreparationCancellation());
+  await scenario("native-late-listener-disposal", () => livePreparationCancellation(true));
   browser = await interruptedPreparationScenario({
     browser,
     invoke,

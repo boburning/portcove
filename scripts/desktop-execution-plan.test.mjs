@@ -136,6 +136,7 @@ test("execution planning preserves the independently reviewed pre-change oracle"
             "native-saved-folder-hash-resume",
             "native-preliminary-selected-setup",
             "native-linux-packaged-webview-boundary",
+            "native-late-listener-disposal",
           ].includes(id),
       ),
     });
@@ -159,6 +160,7 @@ test("execution planning preserves the independently reviewed pre-change oracle"
           nativeHelperSharedSources.includes(added) ||
           added === "scripts/native-readiness.mjs" ||
           added === "scripts/acceptance-packet.mjs" ||
+          added === "apps/desktop/scripts/desktop-listener-lifetime-test.mjs" ||
           added === nativeHelperRegistryPath,
         added,
       );
@@ -343,6 +345,21 @@ test("game-update review binds Windows cleanup without first-play or wider deadl
     assert.deepEqual(selection.setup_scenarios, []);
     assert.equal(desktopHarnessDeadlineMs(selection), 180000);
   }
+});
+
+test("late listener qualification binds its imported probe and positive final cleanup", () => {
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({ scenarios: ["native-late-listener-disposal"], platform: "win32" }),
+  );
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "late-listener-disposal");
+  assert.ok(
+    plan.receiptInputs.some(
+      (input) => input.path === "apps/desktop/scripts/desktop-listener-lifetime-test.mjs",
+    ),
+  );
+  assert.ok(plan.selection.prerequisites.includes("native-dialog"));
+  assert.ok(plan.selection.host_resources.includes("native-dialog"));
 });
 
 test("backup review requires identity-bound Windows cleanup under the existing deadline", () => {

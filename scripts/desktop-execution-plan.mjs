@@ -45,6 +45,7 @@ export function planDesktopExecution(
     "native-normal-package-webview-boundary",
   );
   const identityBoundSession =
+    selection.selected_scenarios.includes("native-late-listener-disposal") ||
     selection.selected_scenarios.includes("native-preliminary-selected-setup") ||
     selection.selected_scenarios.includes("native-saved-folder-hash-resume") ||
     selection.selected_scenarios.includes("native-preliminary-source-review") ||
@@ -64,46 +65,48 @@ export function planDesktopExecution(
     preferencesRecoverySession ||
     bootstrapRecoverySession ||
     librarySwitchRecoverySession;
-  const cleanupName = selection.selected_scenarios.includes("native-preliminary-selected-setup")
-    ? "preliminary-selected-setup"
-    : selection.selected_scenarios.includes("native-saved-folder-hash-resume")
-      ? "saved-folder-hash-resume"
-      : selection.selected_scenarios.includes("native-preliminary-source-review")
-        ? "preliminary-source-review"
-        : platform === "win32" &&
-            selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")
-          ? "backup-review"
+  const cleanupName = selection.selected_scenarios.includes("native-late-listener-disposal")
+    ? "late-listener-disposal"
+    : selection.selected_scenarios.includes("native-preliminary-selected-setup")
+      ? "preliminary-selected-setup"
+      : selection.selected_scenarios.includes("native-saved-folder-hash-resume")
+        ? "saved-folder-hash-resume"
+        : selection.selected_scenarios.includes("native-preliminary-source-review")
+          ? "preliminary-source-review"
           : platform === "win32" &&
-              selection.selected_scenarios.includes("native-game-update-review")
-            ? "game-update-review"
-            : selection.selected_scenarios.includes("native-external-runtime-review")
-              ? "external-runtime-review"
-              : selection.selected_scenarios.includes("native-startup-network-diagnostic")
-                ? "startup-network-diagnostic"
-                : preferencesRecoverySession
-                  ? "startup-preferences-recovery"
-                  : librarySwitchRecoverySession
-                    ? "library-switch-recovery"
-                    : bootstrapRecoverySession
-                      ? "startup-library-recovery"
-                      : normalPackageSession
-                        ? "normal-package-boundary"
-                        : ordinaryCloseSession
-                          ? "ordinary-close-preparation"
-                          : hostInterruptionSession
-                            ? "host-interruption"
-                            : minimizedPreparationSession
-                              ? "minimized-preparation"
-                              : selection.selected_scenarios.includes(
-                                    "native-selected-setup-completion",
-                                  )
-                                ? "selected-setup-completion"
-                                : platform === "win32" &&
-                                    selection.selected_scenarios.includes(
-                                      "native-retained-contract-repair-state",
+              selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")
+            ? "backup-review"
+            : platform === "win32" &&
+                selection.selected_scenarios.includes("native-game-update-review")
+              ? "game-update-review"
+              : selection.selected_scenarios.includes("native-external-runtime-review")
+                ? "external-runtime-review"
+                : selection.selected_scenarios.includes("native-startup-network-diagnostic")
+                  ? "startup-network-diagnostic"
+                  : preferencesRecoverySession
+                    ? "startup-preferences-recovery"
+                    : librarySwitchRecoverySession
+                      ? "library-switch-recovery"
+                      : bootstrapRecoverySession
+                        ? "startup-library-recovery"
+                        : normalPackageSession
+                          ? "normal-package-boundary"
+                          : ordinaryCloseSession
+                            ? "ordinary-close-preparation"
+                            : hostInterruptionSession
+                              ? "host-interruption"
+                              : minimizedPreparationSession
+                                ? "minimized-preparation"
+                                : selection.selected_scenarios.includes(
+                                      "native-selected-setup-completion",
                                     )
-                                  ? "retained-contract-repair"
-                                  : "backup-focus";
+                                  ? "selected-setup-completion"
+                                  : platform === "win32" &&
+                                      selection.selected_scenarios.includes(
+                                        "native-retained-contract-repair-state",
+                                      )
+                                    ? "retained-contract-repair"
+                                    : "backup-focus";
   const inputs = ["app", "driver", "native-driver"].map((name) => ({ kind: "executable", name }));
   if (prelaunchCustody)
     for (const source of [
@@ -174,6 +177,7 @@ export function planDesktopExecution(
       inputs.push({ kind: "executable", name });
     }
     inputs.push(receiptSource(new URL("./desktop-preparation-test.mjs", harnessUrl)));
+    inputs.push(receiptSource(new URL("./desktop-listener-lifetime-test.mjs", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-readiness-test.mjs", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-artwork-observations.mjs", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-preparation-recovery-test.mjs", harnessUrl)));
