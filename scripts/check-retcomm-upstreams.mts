@@ -1,13 +1,42 @@
-import { errorMessage } from "./runtime-values.mts";
+import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const catalogPath = new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url);
 const mappingPath = new URL("./retcomm-psx-upstreams.json", import.meta.url);
-const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
-const mappings = JSON.parse(await readFile(mappingPath, "utf8"));
+import type {
+  DirectReleaseSpec,
+  PortDefinition,
+} from "../apps/desktop/src/transport-types.generated.d.ts";
+
+// This checker consumes authoring JSON before Rust applies defaults. It does not admit a catalog.
+function authoringPort(value: unknown) {
+  if (!isRecord(value) || typeof value.id !== "string")
+    throw new Error("Invalid catalog port identity");
+  const id: PortDefinition["id"] = value.id;
+  return {
+    id,
+    adapter: value.adapter,
+    project_url: value.project_url,
+    platforms: value.platforms,
+    release: isRecord(value.release) ? value.release : {},
+  };
+}
+const rawCatalog: unknown = JSON.parse(await readFile(catalogPath, "utf8"));
+if (!isRecord(rawCatalog) || !Array.isArray(rawCatalog.ports))
+  throw new Error("Invalid catalog ports");
+const rawPorts: unknown[] = rawCatalog.ports;
+const catalog = { ports: rawPorts.map(authoringPort) };
+const rawMappings: unknown = JSON.parse(await readFile(mappingPath, "utf8"));
+if (!isRecord(rawMappings)) throw new Error("Invalid RetComM mappings");
+const mappings = Object.fromEntries(
+  Object.entries(rawMappings).map(([id, title]) => {
+    if (typeof title !== "string") throw new Error(`Invalid RetComM title mapping: ${id}`);
+    return [id, title];
+  }),
+);
 const psxPorts = catalog.ports.filter((port) => port.adapter === "psx-recomp-managed");
-const failures = [];
+const failures: string[] = [];
 const offline = process.argv.includes("--offline");
 const scopeArguments = process.argv.slice(2).filter((arg: string) => arg.startsWith("--port-ids="));
 if (
@@ -43,7 +72,8 @@ const retcommRepositories = new Set([
     .map((repository: string) => repository.toLowerCase()),
 ]);
 
-function githubIdentity(value, asset = false) {
+function githubIdentity(value: unknown, asset = false) {
+  if (typeof value !== "string") return null;
   try {
     const url = new URL(value);
     const parts = url.pathname.split("/").slice(1);
@@ -74,11 +104,12 @@ function githubIdentity(value, asset = false) {
   }
 }
 
-function independentDirectIdentity(port) {
+function independentDirectIdentity(port: ReturnType<typeof authoringPort>) {
   const project = githubIdentity(port.project_url);
   const direct = port.release.direct;
   if (
     !project ||
+    typeof port.project_url !== "string" ||
     retcommRepositories.has(project) ||
     port.release.repository !== undefined ||
     !Array.isArray(port.platforms) ||
@@ -91,20 +122,33 @@ function independentDirectIdentity(port) {
   )
     return null;
   const artifacts = [];
-  for (const platform of port.platforms) {
-    const artifact = direct[platform];
+  const platforms: unknown[] = port.platforms;
+  const artifactsByPlatform = isRecord(direct) ? direct : {};
+  for (const platform of platforms) {
+    if (typeof platform !== "string") return null;
+    const artifact = artifactsByPlatform[platform];
+    if (!isRecord(artifact)) return null;
     const repository = githubIdentity(artifact?.url, true);
     if (
       !repository ||
+      typeof artifact.url !== "string" ||
       retcommRepositories.has(repository) ||
       typeof artifact.version !== "string" ||
       !artifact.version.trim() ||
+      typeof artifact.size !== "number" ||
       !Number.isSafeInteger(artifact.size) ||
       artifact.size <= 0 ||
-      !/^[a-f0-9]{64}$/u.test(artifact.sha256 ?? "")
+      typeof artifact.sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(artifact.sha256)
     )
       return null;
-    artifacts.push({ platform, ...artifact });
+    const checked: Pick<DirectReleaseSpec, "url" | "version" | "size" | "sha256"> = {
+      url: artifact.url,
+      version: artifact.version,
+      size: artifact.size,
+      sha256: artifact.sha256,
+    };
+    artifacts.push({ platform, ...artifact, ...checked });
   }
   return { port_id: port.id, project_url: port.project_url, artifacts };
 }
@@ -138,7 +182,7 @@ const localCatalogDir = process.env.RETCOMM_CATALOG_DIR;
 const ref = process.env.RETCOMM_CATALOG_REF ?? "main";
 const rawHeaders = { "User-Agent": "Portcove-RetComM-upstream-audit" };
 
-async function loadRetcommTitle(titleId) {
+async function loadRetcommTitle(titleId: string): Promise<unknown> {
   const relativeCandidates = [
     join("titles", "psx", `${titleId}.json`),
     join("titles", `${titleId}.json`),
@@ -148,7 +192,7 @@ async function loadRetcommTitle(titleId) {
       try {
         return JSON.parse(await readFile(join(localCatalogDir, relative), "utf8"));
       } catch (error) {
-        if (error.code !== "ENOENT") throw error;
+        if (errorCode(error) !== "ENOENT") throw error;
       }
     }
     throw new Error(`RetComM catalog has no PSX title manifest for ${titleId}`);
@@ -174,20 +218,31 @@ if (!offline) {
 
       try {
         const title = await loadRetcommTitle(titleId);
-        const releaseRepository = title.release?.github;
-        const buildRepository = title.build?.source?.github;
+        if (!isRecord(title)) throw new Error("Invalid RetComM title manifest");
+        const releaseRepository = isRecord(title.release) ? title.release.github : undefined;
+        const source = isRecord(title.build) ? title.build.source : undefined;
+        const buildRepository = isRecord(source) ? source.github : undefined;
         if (!releaseRepository) {
           failures.push(`${titleId}: RetComM entry has no GitHub game release repository`);
           return;
         }
-        if (buildRepository && buildRepository !== releaseRepository) {
+        if (
+          typeof releaseRepository !== "string" ||
+          (buildRepository && typeof buildRepository !== "string")
+        )
+          throw new Error("Invalid RetComM GitHub repository identity");
+        if (
+          typeof buildRepository === "string" &&
+          buildRepository &&
+          buildRepository !== releaseRepository
+        ) {
           failures.push(
             `${titleId}: RetComM release (${releaseRepository}) and build (${buildRepository}) repositories differ`,
           );
         }
         if (port.release.repository !== releaseRepository) {
           failures.push(
-            `${portId}: Portcove uses ${port.release.repository}, RetComM uses ${releaseRepository}`,
+            `${portId}: Portcove uses ${String(port.release.repository)}, RetComM uses ${releaseRepository}`,
           );
         }
       } catch (error) {
