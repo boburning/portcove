@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { desktopApi } from "../api";
-import type { PortDefinition } from "../types";
+import type { PortDefinition, PortStatus } from "../types";
+import { removalReviewPresentation } from "../features/port-actions/port-action-presentation";
 import { useActionReview, type ReviewOutcome } from "../use-action-review";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
@@ -12,22 +13,31 @@ export type ApplyRemoval = (expectedPreview: string) => Promise<ReviewOutcome>;
 
 export function RemovalControl({
   port,
+  status,
   generation,
   busy,
   apply,
 }: {
   port: PortDefinition;
+  status?: PortStatus | undefined;
   generation: number;
   busy: boolean;
   apply: ApplyRemoval;
 }) {
   const [open, setOpen] = useState(false);
+  const removal = removalReviewPresentation(status, "remove_managed");
   return (
     <>
-      <Button data-focusable variant="destructive" disabled={busy} onClick={() => setOpen(true)}>
+      <Button
+        data-focusable
+        variant="destructive"
+        disabled={busy || removal.blocked}
+        onClick={() => setOpen(true)}
+      >
         <Icon glyph={Trash2} />
         Uninstall {port.name}
       </Button>
+      {removal.blocked && <p role="status">{removal.reason}</p>}
       {open && (
         <RemovalReviewDialog
           port={port}

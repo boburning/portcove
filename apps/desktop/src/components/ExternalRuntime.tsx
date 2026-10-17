@@ -1,7 +1,10 @@
 import { FolderOpen } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
-import { catalogSetupPresentation } from "../features/port-actions/port-action-presentation";
+import {
+  catalogSetupPresentation,
+  removalReviewPresentation,
+} from "../features/port-actions/port-action-presentation";
 import { pickInstallFolder } from "../file-picker";
 import { LatestRequestGeneration } from "../shared/concurrency-state";
 import type { PortDefinition, PortStatus } from "../types";
@@ -76,6 +79,7 @@ function ExternalRuntimeContext({
   }, []);
   if (port.release.provider !== "user-prepared" && !status?.external_runtime) return null;
   const registered = status?.external_runtime;
+  const removal = removalReviewPresentation(status, "remove_external");
   const registration = catalogSetupPresentation(status).routes.find(
     (action) => action.action === "register_external",
   );
@@ -103,11 +107,12 @@ function ExternalRuntimeContext({
           <Button
             data-focusable
             variant="outline"
-            disabled={busy}
+            disabled={busy || removal.blocked}
             onClick={() => setReview({ kind: "remove" })}
           >
             Stop using this installation
           </Button>
+          {removal.blocked && <p role="status">{removal.reason}</p>}
         </div>
       ) : (
         <div>

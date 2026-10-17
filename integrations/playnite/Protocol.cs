@@ -239,6 +239,16 @@ namespace Portcove.ReferenceClient
 
     internal static class PortActions
     {
+        internal static bool CanReviewRemoval(object status, bool external)
+        {
+            var decisions = Read(status);
+            if (decisions.Length == 0) return true; // Supported older whole projection.
+            var action = external ? "remove_external" : "remove_managed";
+            var matching = decisions.Where(value => value.Action == action).ToArray();
+            return matching.Length == 1 && matching[0].Availability == "waiting"
+                && matching[0].Reason == "review_required" && matching[0].DefinitionReason == null;
+        }
+
         internal static PortActionDecision[] Read(object status)
         {
             object raw;

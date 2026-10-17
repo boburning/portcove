@@ -7,6 +7,7 @@ import {
   installedCardInputPresentation,
   definitionHoldReason,
   portActionPresentation,
+  removalReviewPresentation,
 } from "./port-action-presentation";
 
 type Assessment = NonNullable<PortStatus["port_actions"]>[number];
@@ -14,6 +15,39 @@ const withAssessment = (assessment: Assessment): PortStatus => ({
   ...portStatus(),
   port_actions: [assessment],
 });
+
+it.each(["remove_managed", "remove_external"] as const)(
+  "requires a unique consistent current %s review assessment",
+  (action) => {
+    const ready = { action, availability: "waiting", reason: "review_required" } as const;
+    expect(removalReviewPresentation(withAssessment(ready), action).blocked).toBe(false);
+    expect(removalReviewPresentation(undefined, action).blocked).toBe(true);
+    for (const actions of [
+      null,
+      [ready, ready],
+      [{ action: "launch", availability: "allowed", reason: "available" }],
+      [{ ...ready, availability: "future" }],
+      [{ ...ready, reason: "available" }],
+      [{ ...ready, availability: "allowed", reason: "available" }],
+      [{ ...ready, definition: { outcome: "hold", reason: "publisher_revoked" } }],
+    ])
+      expect(
+        removalReviewPresentation({ ...portStatus(), port_actions: actions as never }, action)
+          .blocked,
+      ).toBe(true);
+    for (const actions of [undefined, []])
+      expect(
+        removalReviewPresentation({ ...portStatus(), port_actions: actions as never }, action)
+          .blocked,
+      ).toBe(false);
+    expect(
+      removalReviewPresentation(
+        withAssessment({ action, availability: "not_offered", reason: "not_installed" }),
+        action,
+      ).blocked,
+    ).toBe(true);
+  },
+);
 
 it("explains exact artifact revocation for retained rollback", () => {
   expect(
