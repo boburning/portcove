@@ -1,7 +1,59 @@
+import { isRecord } from "./runtime-values.mts";
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+
+export interface RenovatePull {
+  head?: { sha?: string; ref?: string };
+  base?: { sha: string; ref?: string };
+  state?: string;
+  merged?: boolean;
+  user?: { login?: string };
+  title?: string;
+  body?: string;
+  labels?: { name?: string }[];
+  draft?: boolean;
+  mergeable?: boolean | null;
+}
+export interface RenovateBaseEvidence {
+  changedHead?: string | null;
+  currentTarget: string;
+  currentMergeBase: string | null;
+  targetPaths: string[];
+  targetDependencyPaths?: string[];
+}
+export interface RenovateSnapshot {
+  pull: RenovatePull;
+  commits: { sha?: string; author?: { login?: string } }[];
+  files: { filename: string; status?: string }[];
+  contexts: { context: string; outcome: string; conclusion?: string | null }[];
+  statuses: { context: string; state: string; description?: string | null }[];
+  config: unknown;
+  expectedHead: string;
+  baseEvidence: RenovateBaseEvidence;
+}
+interface DependencyDelta {
+  manager: string;
+  packageName: string;
+  currentVersion: string;
+  newVersion: string;
+  baseManifest: string;
+  headManifest: string;
+  baseLock: string;
+  headLock: string;
+}
+interface MetadataCommand {
+  id: string;
+  executable: string;
+  args: string[];
+}
+interface MetadataResult {
+  id: string;
+  elapsed_seconds: number;
+  stdout: string;
+}
+type VerdictName = "reject" | "manual-review-required" | "waiting" | "metadata-required";
 
 const renovateLogins = new Set(["renovate[bot]", "app/renovate"]);
 // Function-sensitive updates require controlled qualification even at stable versions.
@@ -52,8 +104,8 @@ const sharedPolicyPaths = [
   /^scripts\/(?:pr-delivery|renovate-fast-lane)\.(?:mjs|mts)$/u,
 ];
 
-function unique(values, label) {
-  const seen = new Set();
+function unique(values: readonly string[], label: string) {
+  const seen = new Set<string>();
   for (const value of values) {
     if (seen.has(value)) throw new Error(`${label} contains duplicate identity: ${value}`);
     seen.add(value);
@@ -70,7 +122,7 @@ function tableCells(line: string) {
     .map((cell: string) => cell.trim());
 }
 
-function markdownLabel(value) {
+function markdownLabel(value: string) {
   return /^\[([^\]]+)\]\([^)]+\)$/u.exec(value)?.[1] ?? value;
 }
 
@@ -80,17 +132,21 @@ function parseVersion(value: string) {
   return { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) };
 }
 
-function versionChangeMatches(updateType, current, next) {
+function versionChangeMatches(
+  updateType: string,
+  current: NonNullable<ReturnType<typeof parseVersion>>,
+  next: NonNullable<ReturnType<typeof parseVersion>>,
+) {
   if (current.major !== next.major) return false;
   if (updateType === "patch") return current.minor === next.minor && next.patch > current.patch;
   return updateType === "minor" && next.minor > current.minor;
 }
 
-export function parseRenovateUpdates(body) {
+export function parseRenovateUpdates(body: string | null | undefined) {
   const lines = String(body ?? "").split(/\r?\n/u);
   const headerIndex = lines.findIndex((line) => /^\|\s*Package\s*\|/iu.test(line));
   if (headerIndex < 0 || !lines[headerIndex + 1]?.match(/^\|(?:\s*:?-+:?\s*\|)+$/u)) return [];
-  const headers = tableCells(lines[headerIndex]).map((cell: string) => cell.toLowerCase());
+  const headers = tableCells(lines[headerIndex] ?? "").map((cell: string) => cell.toLowerCase());
   const packageIndex = headers.indexOf("package");
   const updateIndex = headers.indexOf("update");
   const changeIndex = headers.indexOf("change");
@@ -104,16 +160,16 @@ export function parseRenovateUpdates(body) {
     if (!change) return [];
     updates.push({
       packageName: markdownLabel(cells[packageIndex] ?? ""),
-      dependencyType: typeIndex < 0 ? null : cells[typeIndex],
+      dependencyType: typeIndex < 0 ? null : (cells[typeIndex] ?? ""),
       updateType: cells[updateIndex]?.toLowerCase() ?? "",
-      currentVersion: change[1],
-      newVersion: change[2],
+      currentVersion: change[1] ?? "",
+      newVersion: change[2] ?? "",
     });
   }
   return updates;
 }
 
-function packagePatternMatches(pattern, packageName: string) {
+function packagePatternMatches(pattern: unknown, packageName: string) {
   if (typeof pattern !== "string" || !pattern) return true;
   if (pattern.startsWith("/") && pattern.lastIndexOf("/") > 0) {
     const end = pattern.lastIndexOf("/");
@@ -130,25 +186,36 @@ function packagePatternMatches(pattern, packageName: string) {
   return pattern.toLowerCase() === packageName.toLowerCase();
 }
 
-function groupedPackage(config, packageName) {
-  return (config.packageRules ?? [])
-    .filter((rule) => typeof rule.groupName === "string" && rule.groupName)
-    .some((rule) =>
-      (rule.matchPackageNames ?? []).some((pattern) => packagePatternMatches(pattern, packageName)),
-    );
+function groupedPackage(config: unknown, packageName: string) {
+  const rules = isRecord(config) ? (config.packageRules ?? []) : [];
+  if (!Array.isArray(rules)) throw new Error("Renovate package rules must be an array");
+  const entries: unknown[] = rules;
+  return entries
+    .map((rule) => {
+      if (!isRecord(rule)) throw new Error("Renovate package rule is invalid");
+      return rule;
+    })
+    .filter((rule) => typeof rule.groupName === "string" && Boolean(rule.groupName))
+    .some((rule) => {
+      const patterns = rule.matchPackageNames ?? [];
+      if (!Array.isArray(patterns))
+        throw new Error("Renovate package match names must be an array");
+      const values: unknown[] = patterns;
+      return values.some((pattern) => packagePatternMatches(pattern, packageName));
+    });
 }
 
-export function fastLanePolicyErrors(config) {
+export function fastLanePolicyErrors(config: unknown) {
   return Object.entries(requiredPolicy)
-    .filter(([key, expected]) => config?.[key] !== expected)
+    .filter(([key, expected]) => (isRecord(config) ? config[key] : undefined) !== expected)
     .map(([key, expected]) => `${key} must remain ${JSON.stringify(expected)}`);
 }
 
-function renovateIdentity(value) {
+function renovateIdentity(value: string | null | undefined) {
   return renovateLogins.has(String(value ?? "").toLowerCase());
 }
 
-function changedFileKind(files) {
+function changedFileKind(files: RenovateSnapshot["files"]) {
   const paths = unique(
     files.map((file) => file.filename),
     "pull request files",
@@ -168,7 +235,12 @@ function changedFileKind(files) {
   return { manager: null, paths };
 }
 
-function targetPathRisk(manager, pullPaths, targetPaths, targetDependencyPaths = []) {
+function targetPathRisk(
+  manager: string,
+  pullPaths: string[],
+  targetPaths: string[],
+  targetDependencyPaths: string[] = [],
+) {
   const pullSet = new Set(pullPaths);
   const directOverlap = targetPaths.filter((file) => pullSet.has(file));
   const ecosystemPatterns = manager === "cargo" ? cargoPolicyPaths : npmPolicyPaths;
@@ -178,18 +250,27 @@ function targetPathRisk(manager, pullPaths, targetPaths, targetDependencyPaths =
   return [...new Set([...directOverlap, ...policyOverlap, ...targetDependencyPaths])];
 }
 
-function verdict(verdictName, reason, evidence = {}) {
+function verdict<V extends VerdictName>(
+  verdictName: V,
+  reason: string,
+): { verdict: V; reason: string; evidence: Record<string, never> };
+function verdict<V extends VerdictName, E extends object>(
+  verdictName: V,
+  reason: string,
+  evidence: E,
+): { verdict: V; reason: string; evidence: E };
+function verdict(verdictName: VerdictName, reason: string, evidence: object = {}) {
   return { verdict: verdictName, reason, evidence };
 }
 
-export function renovateSecurityIntent(pull) {
+export function renovateSecurityIntent(pull: RenovatePull) {
   const labels = (pull.labels ?? []).map((label) => String(label.name ?? "").toLowerCase());
   const firstSection = String(pull.body ?? "").split(/^---$/mu, 1)[0];
   return (
     labels.some((label) => label.includes("security")) ||
     /\[security\]/iu.test(String(pull.title ?? "")) ||
     /(?:^|[/-])security(?:[/-]|$)/iu.test(String(pull.head?.ref ?? "")) ||
-    /\b(?:security update|vulnerability alert)\b/iu.test(firstSection)
+    /\b(?:security update|vulnerability alert)\b/iu.test(firstSection ?? "")
   );
 }
 
@@ -202,7 +283,7 @@ export function classifyRenovateSnapshot({
   config,
   expectedHead,
   baseEvidence,
-}) {
+}: RenovateSnapshot) {
   const policyErrors = fastLanePolicyErrors(config);
   if (policyErrors.length)
     return verdict("manual-review-required", "fast-lane policy invariants changed", {
@@ -235,7 +316,8 @@ export function classifyRenovateSnapshot({
         ? "grouped dependency updates stay outside the fast lane"
         : "Renovate update metadata is missing or malformed",
     );
-  const [update] = updates;
+  const update = updates[0];
+  if (!update) throw new Error("Renovate update identity disappeared");
   if (!new Set(["patch", "minor"]).has(update.updateType))
     return verdict(
       "manual-review-required",
@@ -319,12 +401,14 @@ export function classifyRenovateSnapshot({
   const stability = statuses.filter((status) => status.context === "renovate/stability-days");
   if (stability.length !== 1)
     return verdict("manual-review-required", "release-age status is missing or ambiguous");
-  if (stability[0].state === "pending")
+  const releaseAge = stability[0];
+  if (!releaseAge) throw new Error("Release-age status disappeared");
+  if (releaseAge.state === "pending")
     return verdict("waiting", "minimum release age is still pending", {
-      release_age: { state: stability[0].state, description: stability[0].description ?? null },
+      release_age: { state: releaseAge.state, description: releaseAge.description ?? null },
     });
-  if (stability[0].state !== "success")
-    return verdict("manual-review-required", `minimum release age reported ${stability[0].state}`);
+  if (releaseAge.state !== "success")
+    return verdict("manual-review-required", `minimum release age reported ${releaseAge.state}`);
 
   return verdict("metadata-required", "remote fast-lane gates are ready", {
     manager: fileKind.manager,
@@ -337,13 +421,13 @@ export function classifyRenovateSnapshot({
     current_target: baseEvidence.currentTarget,
     current_merge_base: baseEvidence.currentMergeBase,
     release_age: {
-      state: stability[0].state,
-      description: stability[0].description ?? null,
+      state: releaseAge.state,
+      description: releaseAge.description ?? null,
     },
   });
 }
 
-export function metadataPlan(manager) {
+export function metadataPlan(manager: string): MetadataCommand[] {
   if (manager === "cargo")
     return [
       {
@@ -375,7 +459,7 @@ export function metadataPlan(manager) {
   throw new Error(`unsupported fast-lane manager: ${manager}`);
 }
 
-function runCommand(command, cwd) {
+function runCommand(command: MetadataCommand, cwd: string): MetadataResult {
   const started = Date.now();
   const result = spawnSync(command.executable, command.args, {
     cwd,
@@ -397,16 +481,22 @@ function runCommand(command, cwd) {
   };
 }
 
-function git(cwd, args, options = {}) {
+function git(cwd: string, args: string[]): string;
+function git(cwd: string, args: string[], options: { encoding: "buffer" }): Buffer;
+function git(
+  cwd: string,
+  args: string[],
+  options: { encoding?: "buffer" | "utf8" } = {},
+): string | Buffer {
   return execFileSync("git", args, {
     cwd,
-    encoding: options.encoding ?? "utf8",
+    encoding: options.encoding === "buffer" ? null : "utf8",
     maxBuffer: 16 * 1024 * 1024,
     windowsHide: true,
   });
 }
 
-function parseZeroPaths(buffer) {
+function parseZeroPaths(buffer: Buffer) {
   return unique(buffer.toString("utf8").split("\0").filter(Boolean), "Git changed paths");
 }
 
@@ -420,6 +510,12 @@ export function inspectCurrentBase({
   expectedHead,
   currentTarget,
   interactionTerms = [],
+}: {
+  projectRoot: string;
+  number: number;
+  expectedHead: string;
+  currentTarget: string;
+  interactionTerms?: string[];
 }) {
   git(projectRoot, ["fetch", "--no-tags", "origin", `pull/${number}/head`]);
   const fetchHead = git(projectRoot, ["rev-parse", "FETCH_HEAD"]).trim();
@@ -468,27 +564,50 @@ export function inspectCurrentBase({
   };
 }
 
-export function validateCargoAuthority(metadataOutput, packageName) {
-  let metadata;
+export function validateCargoAuthority(metadataOutput: string | undefined, packageName: string) {
+  let metadata: unknown;
   try {
-    metadata = JSON.parse(metadataOutput);
+    metadata = JSON.parse(metadataOutput ?? "");
   } catch {
     throw new Error("cargo metadata did not return valid JSON");
   }
-  const matches = (metadata.packages ?? []).flatMap((pkg) =>
-    (pkg.dependencies ?? []).filter((dependency) => dependency.name === packageName),
-  );
+  if (!isRecord(metadata) || !Array.isArray(metadata.packages))
+    throw new Error("cargo metadata did not return a package inventory");
+  const packages: unknown[] = metadata.packages;
+  const matches = packages.flatMap((pkg) => {
+    if (!isRecord(pkg)) throw new Error("cargo package metadata is invalid");
+    const dependencies = pkg.dependencies ?? [];
+    if (!Array.isArray(dependencies)) throw new Error("cargo dependency inventory is invalid");
+    const values: unknown[] = dependencies;
+    return values
+      .map((dependency) => {
+        if (!isRecord(dependency)) throw new Error("cargo dependency metadata is invalid");
+        return dependency;
+      })
+      .filter((dependency) => dependency.name === packageName);
+  });
   if (!matches.length) throw new Error(`cargo metadata did not find dependency ${packageName}`);
-  if (matches.some((dependency) => !String(dependency.source ?? "").startsWith("registry+")))
+  if (
+    matches.some(
+      (dependency) =>
+        !(typeof dependency.source === "string" ? dependency.source : "").startsWith("registry+"),
+    )
+  )
     throw new Error(`${packageName} is not exclusively registry-backed`);
 }
 
-export function validateNpmAuthority(manifest, packageName) {
-  const values = [
-    manifest.dependencies?.[packageName],
-    manifest.devDependencies?.[packageName],
-  ].filter((value) => typeof value === "string");
-  if (values.length !== 1 || !/^(?:[~^=])?\d+\.\d+\.\d+(?:\+[0-9A-Za-z.-]+)?$/u.test(values[0]))
+function npmRequirements(manifest: unknown, packageName: string): string[] {
+  if (!isRecord(manifest)) throw new Error("npm manifest is not an object");
+  return [manifest.dependencies, manifest.devDependencies]
+    .map((section) => (isRecord(section) ? section[packageName] : undefined))
+    .filter((value): value is string => typeof value === "string");
+}
+export function validateNpmAuthority(manifest: unknown, packageName: string) {
+  const values = npmRequirements(manifest, packageName);
+  if (
+    values.length !== 1 ||
+    !/^(?:[~^=])?\d+\.\d+\.\d+(?:\+[0-9A-Za-z.-]+)?$/u.test(values[0] ?? "")
+  )
     throw new Error(`${packageName} is not one ordinary registry-backed npm dependency`);
 }
 
@@ -497,21 +616,21 @@ function exactVersion(value: string) {
   return match?.[1] ?? null;
 }
 
-function cargoManifestVersion(manifest: string, packageName) {
+function cargoManifestVersion(manifest: string, packageName: string) {
   const escaped = gitRegex(packageName);
   const pattern = new RegExp(
     `^\\s*(?:"${escaped}"|${escaped})\\s*=\\s*(?:"([^"]+)"|\\{[^}\\r\\n]*\\bversion\\s*=\\s*"([^"]+)")`,
     "gmu",
   );
   const matches = [...manifest.matchAll(pattern)].map((match) =>
-    exactVersion(match[1] ?? match[2]),
+    exactVersion(match[1] ?? match[2] ?? ""),
   );
   if (matches.length !== 1 || !matches[0])
     throw new Error(`${packageName} does not have one supported Cargo manifest version`);
   return matches[0];
 }
 
-function cargoLockVersions(lockfile: string, packageName) {
+function cargoLockVersions(lockfile: string, packageName: string) {
   const versions = new Set();
   for (const block of lockfile.split(/^\[\[package\]\]\s*$/mu).slice(1)) {
     const name = /^name\s*=\s*"([^"]+)"\s*$/mu.exec(block)?.[1];
@@ -521,47 +640,49 @@ function cargoLockVersions(lockfile: string, packageName) {
   return versions;
 }
 
-function npmManifestVersion(manifestText, packageName) {
-  let manifest;
+function npmManifestVersion(manifestText: string, packageName: string) {
+  let manifest: unknown;
   try {
     manifest = JSON.parse(manifestText);
   } catch {
     throw new Error("npm manifest is not valid JSON");
   }
-  const values = [
-    manifest.dependencies?.[packageName],
-    manifest.devDependencies?.[packageName],
-  ].filter((value) => typeof value === "string");
-  if (values.length !== 1 || !exactVersion(values[0]))
+  const values = npmRequirements(manifest, packageName);
+  if (values.length !== 1 || !exactVersion(values[0] ?? ""))
     throw new Error(`${packageName} does not have one supported npm manifest version`);
-  return exactVersion(values[0]);
+  return exactVersion(values[0] ?? "");
 }
 
-function manifestWithoutClaimedVersion(manager, manifest, packageName) {
+function manifestWithoutClaimedVersion(manager: string, manifest: string, packageName: string) {
   if (manager === "npm") {
-    let document;
+    let document: unknown;
     try {
       document = JSON.parse(manifest);
     } catch {
       throw new Error("npm manifest is not valid JSON");
     }
+    if (!isRecord(document)) throw new Error("npm manifest is not an object");
     const owners = ["dependencies", "devDependencies"].filter(
-      (section) => typeof document[section]?.[packageName] === "string",
+      (section) =>
+        isRecord(document[section]) && typeof document[section][packageName] === "string",
     );
     if (owners.length !== 1)
       throw new Error(`${packageName} does not have one replaceable manifest declaration`);
-    const requirement = document[owners[0]][packageName];
+    const section = document[owners[0] ?? ""];
+    if (!isRecord(section) || typeof section[packageName] !== "string")
+      throw new Error("npm dependency owner disappeared");
+    const requirement = section[packageName];
     const version = exactVersion(requirement);
     if (!version) throw new Error(`${packageName} manifest version is not supported semver`);
     const offset = requirement.lastIndexOf(version);
     if (offset < 0) throw new Error(`${packageName} manifest version could not be isolated`);
-    document[owners[0]][packageName] = `${requirement.slice(
+    section[packageName] = `${requirement.slice(
       0,
       offset,
     )}<PORTCOVE_RENOVATE_VERSION>${requirement.slice(offset + version.length)}`;
-    const normalize = (value) => {
+    const normalize = (value: unknown): unknown => {
       if (Array.isArray(value)) return value.map(normalize);
-      if (value && typeof value === "object")
+      if (isRecord(value))
         return Object.fromEntries(
           Object.entries(value)
             .sort(([left], [right]) => left.localeCompare(right))
@@ -580,7 +701,8 @@ function manifestWithoutClaimedVersion(manager, manifest, packageName) {
   if (matches.length !== 1)
     throw new Error(`${packageName} does not have one replaceable manifest declaration`);
   const match = matches[0];
-  const requirement = match[1] ?? match[2];
+  if (!match) throw new Error("Cargo manifest match disappeared");
+  const requirement = match[1] ?? match[2] ?? "";
   const version = exactVersion(requirement);
   if (!version) throw new Error(`${packageName} manifest version is not supported semver`);
   const offset = match[0].lastIndexOf(version);
@@ -589,7 +711,7 @@ function manifestWithoutClaimedVersion(manager, manifest, packageName) {
   return `${manifest.slice(0, start)}<PORTCOVE_RENOVATE_VERSION>${manifest.slice(start + version.length)}`;
 }
 
-function pnpmLockVersions(lockfile: string, packageName) {
+function pnpmLockVersions(lockfile: string, packageName: string) {
   const escaped = gitRegex(packageName);
   const pattern = new RegExp(`^  ['"]?${escaped}@([^:'"()\\s]+)`, "gmu");
   return new Set([...lockfile.matchAll(pattern)].map((match) => match[1]));
@@ -604,7 +726,7 @@ function assertVersionTransition({
   headManifest,
   baseLock,
   headLock,
-}) {
+}: DependencyDelta) {
   const manifestVersion = manager === "cargo" ? cargoManifestVersion : npmManifestVersion;
   const lockVersions = manager === "cargo" ? cargoLockVersions : pnpmLockVersions;
   const observedBase = manifestVersion(baseManifest, packageName);
@@ -638,7 +760,7 @@ function assertVersionTransition({
 // Compare the whole resolved input after masking only the claimed direct identity.
 // Unknown syntax, changed sources/features/engines/hooks and transitive graph changes
 // remain controlled; frozen metadata alone cannot establish their behavior.
-function normalizedLock(manager, lock: string, packageName, version) {
+function normalizedLock(manager: string, lock: string, packageName: string, version: string) {
   const escaped = gitRegex(packageName);
   let text = lock.replaceAll("\r\n", "\n");
   if (manager === "cargo") {
@@ -697,7 +819,7 @@ function normalizedLock(manager, lock: string, packageName, version) {
   );
   return text.replace(
     new RegExp(String.raw`(^|[\s'"(])${escaped}@${gitRegex(version)}(?=[(:'"\s]|$)`, "gmu"),
-    (_match, prefix) => `${prefix}${packageName}@<direct-version>`,
+    (_match: string, prefix: string) => `${prefix}${packageName}@<direct-version>`,
   );
 }
 
@@ -710,7 +832,7 @@ export function validateDependencyDelta({
   headManifest,
   baseLock,
   headLock,
-}) {
+}: DependencyDelta) {
   if (!new Set(["cargo", "npm"]).has(manager))
     throw new Error(`unsupported fast-lane manager: ${manager}`);
   assertVersionTransition({
@@ -730,8 +852,8 @@ export function validateDependencyDelta({
     throw new Error("resolved lock graph contains changes beyond the direct version and integrity");
 }
 
-async function validateNpmCheckoutAuthority(checkout: string, packageName) {
-  const manifest = JSON.parse(
+async function validateNpmCheckoutAuthority(checkout: string, packageName: string) {
+  const manifest: unknown = JSON.parse(
     await readFile(path.join(checkout, "apps", "desktop", "package.json"), "utf8"),
   );
   validateNpmAuthority(manifest, packageName);
@@ -747,6 +869,16 @@ export async function runMetadataValidation({
   newVersion,
   paths,
   commandRunner = runCommand,
+}: {
+  projectRoot: string;
+  base: string;
+  head: string;
+  manager: string;
+  packageName: string;
+  currentVersion: string;
+  newVersion: string;
+  paths: string[];
+  commandRunner?: typeof runCommand;
 }) {
   const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-renovate-check-"));
   const checkout = path.join(temporaryRoot, "checkout");
@@ -800,6 +932,6 @@ export async function runMetadataValidation({
   }
 }
 
-export function fastLaneSummary(result) {
+export function fastLaneSummary(result: { verdict: string; reason: string }) {
   return `${result.verdict}: ${result.reason}`;
 }

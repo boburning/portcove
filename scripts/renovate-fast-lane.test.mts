@@ -1,3 +1,4 @@
+import type { RenovateSnapshot, RenovatePull } from "./renovate-fast-lane.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -12,16 +13,23 @@ import {
   validateNpmAuthority,
 } from "./renovate-fast-lane.mts";
 
+type SnapshotOverrides = Omit<Partial<RenovateSnapshot>, "pull"> & { pull?: Partial<RenovatePull> };
+function requiredFixture<T>(value: T | undefined): T {
+  assert.notEqual(value, undefined);
+  if (value === undefined) throw new Error("Required fixture value is missing");
+  return value;
+}
+
 const head = "a".repeat(40);
 const base = "b".repeat(40);
 const target = "c".repeat(40);
 const required = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"];
 
-function cargoArtifact(name, version, checksum = "1".repeat(64)) {
+function cargoArtifact(name: string, version: string, checksum = "1".repeat(64)) {
   return `[[package]]\nname = "${name}"\nversion = "${version}"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "${checksum}"\n`;
 }
 
-function npmArtifact(version, integrity = "AAAA", extra = "") {
+function npmArtifact(version: string, integrity = "AAAA", extra = "") {
   return `packages:\n\n  lucide-react@${version}:\n    resolution: {integrity: sha512-${integrity}}\n${extra}`;
 }
 
@@ -55,7 +63,7 @@ function body({
 `;
 }
 
-function snapshot(overrides = {}) {
+function snapshot(overrides: SnapshotOverrides = {}): RenovateSnapshot {
   const { pull: pullOverrides, ...snapshotOverrides } = overrides;
   const pull = {
     number: 7,
@@ -102,11 +110,11 @@ function snapshot(overrides = {}) {
   };
 }
 
-function classify(overrides = {}) {
+function classify(overrides: SnapshotOverrides = {}) {
   return classifyRenovateSnapshot(snapshot(overrides));
 }
 
-test("parses current Renovate tables with and without dependency type columns", () => {
+void test("parses current Renovate tables with and without dependency type columns", () => {
   assert.deepEqual(parseRenovateUpdates(body()), [
     {
       packageName: "crc32fast",
@@ -120,7 +128,7 @@ test("parses current Renovate tables with and without dependency type columns", 
     .replace("| Package | Type | Update | Change |", "| Package | Update | Change |")
     .replace("|---|---|---|---|", "|---|---|---|")
     .replace(" | dependencies | patch |", " | patch |");
-  assert.equal(parseRenovateUpdates(noType)[0].dependencyType, null);
+  assert.equal(requiredFixture(parseRenovateUpdates(noType)[0]).dependencyType, null);
   const noUpdate = body()
     .replace("| Package | Type | Update | Change |", "| Package | Type | Change |")
     .replace("|---|---|---|---|", "|---|---|---|")
@@ -130,21 +138,21 @@ test("parses current Renovate tables with and without dependency type columns", 
   assert.deepEqual(parseRenovateUpdates("not a Renovate body"), []);
 });
 
-test("fast lane requires the checked-in non-automerge release-age policy", () => {
+void test("fast lane requires the checked-in non-automerge release-age policy", () => {
   assert.deepEqual(fastLanePolicyErrors(config), []);
   for (const [key, value] of [
     ["automerge", true],
     ["minimumReleaseAge", "0 days"],
     ["minimumReleaseAgeBehaviour", "timestamp-optional"],
     ["internalChecksFilter", "flexible"],
-  ]) {
+  ] as const) {
     assert.ok(
       fastLanePolicyErrors({ ...config, [key]: value }).some((error) => error.includes(key)),
     );
   }
 });
 
-test("ordinary stable Cargo and npm patch or minor updates reach metadata validation", () => {
+void test("ordinary stable Cargo and npm patch or minor updates reach metadata validation", () => {
   const cargo = classify();
   assert.equal(cargo.verdict, "metadata-required");
   assert.equal(cargo.evidence.manager, "cargo");
@@ -162,7 +170,7 @@ test("ordinary stable Cargo and npm patch or minor updates reach metadata valida
   assert.equal(npm.evidence.manager, "npm");
 });
 
-test("identity and exact-head violations reject or leave the fast lane", () => {
+void test("identity and exact-head violations reject or leave the fast lane", () => {
   assert.equal(classify({ pull: { user: { login: "maintainer" } } }).verdict, "reject");
   assert.equal(classify({ expectedHead: "d".repeat(40) }).verdict, "reject");
   assert.equal(
@@ -173,7 +181,7 @@ test("identity and exact-head violations reject or leave the fast lane", () => {
   assert.equal(classify({ pull: { base: { sha: base, ref: "release" } } }).verdict, "reject");
 });
 
-test("grouped security pre-1.0 major and configured ecosystem updates stay manual", () => {
+void test("grouped security pre-1.0 major and configured ecosystem updates stay manual", () => {
   const second = body({ packageName: "other", currentVersion: "2.0.0", newVersion: "2.0.1" })
     .split("\n")
     .find((line: string) => line.startsWith("| [other]"));
@@ -195,7 +203,7 @@ test("grouped security pre-1.0 major and configured ecosystem updates stay manua
   }
 });
 
-test("unexpected file forms and npm dependency types stay manual", () => {
+void test("unexpected file forms and npm dependency types stay manual", () => {
   for (const files of [
     [{ filename: "Cargo.lock", status: "modified" }],
     [
@@ -240,7 +248,7 @@ test("unexpected file forms and npm dependency types stay manual", () => {
   );
 });
 
-test("metadata authority accepts registries and rejects Git or custom sources", () => {
+void test("metadata authority accepts registries and rejects Git or custom sources", () => {
   const registryMetadata = JSON.stringify({
     packages: [
       {
@@ -278,7 +286,7 @@ test("metadata authority accepts registries and rejects Git or custom sources", 
   );
 });
 
-test("dependency delta binds the claimed package and versions to manifest and lock changes", () => {
+void test("dependency delta binds the claimed package and versions to manifest and lock changes", () => {
   const cargo = {
     manager: "cargo",
     packageName: "crc32fast",
@@ -356,7 +364,7 @@ test("dependency delta binds the claimed package and versions to manifest and lo
   );
 });
 
-test("small stable signing trust credential archive and persistent-data changes require controlled review", () => {
+void test("small stable signing trust credential archive and persistent-data changes require controlled review", () => {
   for (const packageName of [
     "minisign",
     "minisign-verify",
@@ -384,7 +392,7 @@ test("small stable signing trust credential archive and persistent-data changes 
   }
 });
 
-test("whole Cargo lock review refuses hidden transitive source feature and integrity changes", () => {
+void test("whole Cargo lock review refuses hidden transitive source feature and integrity changes", () => {
   const change = {
     manager: "cargo",
     packageName: "crc32fast",
@@ -433,8 +441,8 @@ test("whole Cargo lock review refuses hidden transitive source feature and integ
   );
 });
 
-test("pnpm masking is confined to the direct artifact and importer entry, including sibling versions", () => {
-  const importer = (direct, sibling) =>
+void test("pnpm masking is confined to the direct artifact and importer entry, including sibling versions", () => {
+  const importer = (direct: string, sibling: string) =>
     `importers:\n  apps/desktop:\n    dependencies:\n      lucide-react:\n        specifier: ^${direct}\n        version: ${direct}(react@19.3.0)\n      other:\n        specifier: ^1.45.0\n        version: ${sibling}\n`;
   const unchanged =
     "\n  other@1.45.0:\n    resolution: {integrity: sha512-CCCC}\n\n  other@1.46.0:\n    resolution: {integrity: sha512-DDDD}\n";
@@ -502,29 +510,26 @@ test("pnpm masking is confined to the direct artifact and importer entry, includ
   }
 });
 
-test("current-base manifest workflow and policy interactions stay manual", () => {
+void test("current-base manifest workflow and policy interactions stay manual", () => {
   for (const targetPath of [
     "Cargo.toml",
     "crates/portcove-core/Cargo.toml",
     ".github/workflows/ci.yml",
     "renovate.json",
     ".github/repository-ruleset.json",
-    "scripts/renovate-fast-lane.mts",
-    "scripts/pr-delivery.mts",
-    "scripts/ci-result-gate.mts",
-    "scripts/ci-result-gate.mts",
-    "scripts/select-ci-plan.mts",
-    "scripts/select-ci-plan.mts",
-    "scripts/validation-plan.mts",
-    "scripts/validation-plan.mts",
-    "scripts/renovate-fast-lane.mts",
-    "scripts/renovate-fast-lane.mts",
-    "scripts/pr-delivery.mts",
+    ...[
+      "ci-result-gate",
+      "select-ci-plan",
+      "validation-plan",
+      "renovate-fast-lane",
+      "pr-delivery",
+    ].flatMap((name) => [`scripts/${name}.mjs`, `scripts/${name}.mts`]),
   ]) {
     const result = classify({
       baseEvidence: { currentTarget: target, currentMergeBase: base, targetPaths: [targetPath] },
     });
     assert.equal(result.verdict, "manual-review-required", targetPath);
+    assert.ok("target_paths" in result.evidence);
     assert.deepEqual(result.evidence.target_paths, [targetPath]);
   }
   for (const targetPath of ["pnpm-lock.yaml", "pnpm-workspace.yaml", "package.json"]) {
@@ -539,6 +544,7 @@ test("current-base manifest workflow and policy interactions stay manual", () =>
       baseEvidence: { currentTarget: target, currentMergeBase: base, targetPaths: [targetPath] },
     });
     assert.equal(result.verdict, "manual-review-required", targetPath);
+    assert.ok("target_paths" in result.evidence);
     assert.deepEqual(result.evidence.target_paths, [targetPath]);
   }
   const dependencyInteraction = classify({
@@ -550,12 +556,13 @@ test("current-base manifest workflow and policy interactions stay manual", () =>
     },
   });
   assert.equal(dependencyInteraction.verdict, "manual-review-required");
+  assert.ok("target_paths" in dependencyInteraction.evidence);
   assert.deepEqual(dependencyInteraction.evidence.target_paths, [
     "crates/portcove-core/src/source.rs",
   ]);
 });
 
-test("pending failed missing and successful remote gates produce bounded verdicts", () => {
+void test("pending failed missing and successful remote gates produce bounded verdicts", () => {
   assert.equal(classify({ pull: { draft: true } }).verdict, "waiting");
   assert.equal(classify({ pull: { mergeable: null } }).verdict, "waiting");
   assert.equal(classify({ pull: { mergeable: false } }).verdict, "manual-review-required");
@@ -586,7 +593,7 @@ test("pending failed missing and successful remote gates produce bounded verdict
   );
 });
 
-test("metadata plans contain no compilation lint or test suite commands", () => {
+void test("metadata plans contain no compilation lint or test suite commands", () => {
   const cargo = metadataPlan("cargo");
   assert.deepEqual(
     cargo.map((command) => command.id),
@@ -602,7 +609,7 @@ test("metadata plans contain no compilation lint or test suite commands", () => 
     assert.doesNotMatch(rendered, new RegExp(forbidden, "u"));
 });
 
-test("human summary preserves the machine verdict and reason", () => {
+void test("human summary preserves the machine verdict and reason", () => {
   assert.equal(
     fastLaneSummary({ verdict: "waiting", reason: "minimum release age is still pending" }),
     "waiting: minimum release age is still pending",
