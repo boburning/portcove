@@ -4,7 +4,7 @@ import path from "node:path";
 import { copyFile, lstat, mkdir, opendir, readFile, writeFile } from "node:fs/promises";
 import type { WebDriver } from "selenium-webdriver";
 import { By, Key, until } from "selenium-webdriver";
-import { isRecord } from "../../../scripts/runtime-values.mts";
+import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import type { FileIdentity } from "../../../scripts/development-evidence.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
@@ -188,7 +188,14 @@ export async function prepareRealRuntimeInputs({
     // starting the Desktop. No injected definition or admission result is used.
     const preview = command(["external", "preview", port.id, directory]);
     inputs.push(archiveIdentity, ...originals);
-    packages.push({ port, spec, directory, originals, preview });
+    packages.push({
+      port,
+      spec,
+      directory,
+      originalDirectory: request.directory,
+      originals,
+      preview,
+    });
   }
   return { packages, inputs, sourceIdentity, sourceCopy, manifestIdentity };
 }
@@ -421,7 +428,7 @@ async function runRealRuntimeRoutes(context: RealContext, report: Record<string,
     );
     await browser.wait(async () => !(await status(port.id)).external_runtime, 15_000);
     assert.deepEqual(await files(directory), postgame);
-    await unchanged(item.originals);
+    assert.deepEqual(await files(item.originalDirectory), item.originals);
     await unchanged([fixture.sourceIdentity, fixture.sourceCopy]);
     assert.deepEqual(sessionIds(library, port.id), route.session_ids_after_launch);
     await screenshot(`${port.id}-registration-only-removal`);
@@ -476,6 +483,8 @@ async function launchRealRuntime(
   await control.click();
   let cleanupSnapshot: string | undefined;
   let naturalExit = false;
+  let primaryFailure: { error: unknown } | undefined;
+  const cleanupErrors: unknown[] = [];
   try {
     const session = await browser.wait(async () => {
       const fresh = sessionIds(library, port.id).filter((id) => !previous.has(id));
@@ -608,12 +617,39 @@ async function launchRealRuntime(
       context.fixture.sourceCopy,
       ...item.originals,
     ]);
+    assert.deepEqual(await files(item.originalDirectory), item.originals);
     route.postgame_verified = after;
+  } catch (error) {
+    primaryFailure = { error };
+    route.failure = errorMessage(error);
   } finally {
     if (cleanupSnapshot && !naturalExit) {
-      const stopped = native("StopApplication", cleanupSnapshot, ["-ApplicationPath", executable]);
-      const exited = native("Wait", cleanupSnapshot);
-      route.failure_only_game_cleanup = { stopped, exited };
+      const cleanup: Record<string, unknown> = {};
+      route.failure_only_game_cleanup = cleanup;
+      try {
+        cleanup.stopped = native("StopApplication", cleanupSnapshot, [
+          "-ApplicationPath",
+          executable,
+        ]);
+      } catch (error) {
+        cleanup.stop_error = errorMessage(error);
+        cleanupErrors.push(error);
+      }
+      try {
+        cleanup.exited = native("Wait", cleanupSnapshot);
+      } catch (error) {
+        cleanup.wait_error = errorMessage(error);
+        cleanupErrors.push(error);
+      }
+      if (cleanupErrors.length) {
+        route.cleanup_uncertain = true;
+      }
     }
   }
+  if (cleanupErrors.length)
+    throw new AggregateError(
+      [...(primaryFailure ? [primaryFailure.error] : []), ...cleanupErrors],
+      "Real runtime journey failed and owned game cleanup could not be established",
+    );
+  if (primaryFailure) throw primaryFailure.error;
 }
