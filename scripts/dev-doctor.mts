@@ -1,4 +1,7 @@
-import { errorMessage } from "./runtime-values.mts";
+import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
+import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
+import type { StoragePaths, StorageVolume } from "./dev-storage.mts";
+import type { ValidationCapabilityEntry } from "./development-capabilities.mts";
 import { existsSync, readFileSync, lstatSync, realpathSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -26,14 +29,64 @@ import {
 } from "./development-capabilities.mts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+function isWebViewVersion(value: unknown): value is string {
+  // Same registered Evergreen identity admitted by bootstrap's Get-WebViewRuntimeVersion.
+  return typeof value === "string" && /^\d+\.\d+\.\d+\.\d+$/u.test(value);
+}
+export interface ToolDefinition {
+  id: string;
+  command: [string, ...string[]];
+  version?: string | null | undefined;
+  required?: boolean;
+  remediation?: string | undefined;
+  version_source?: "installed-package";
+  installed_version?: string | undefined;
+  applicable?: boolean;
+  paths?: string[];
+  reportedPath?: string;
+  reportedVersion?: string | null;
+}
+interface AquaDefinition extends Omit<ToolDefinition, "command"> {
+  command?: ToolDefinition["command"];
+  cachePackage: string;
+  cacheVersion: string;
+}
+export type DoctorRunner = (
+  command: string,
+  args: string[],
+  options: SpawnSyncOptionsWithStringEncoding,
+) => {
+  status: number | null;
+  stdout?: string | undefined;
+  stderr?: string;
+  error?: unknown;
+};
+export interface DoctorOptions {
+  platform?: string;
+  profile?: string;
+  run?: DoctorRunner;
+  environment?: NodeJS.ProcessEnv;
+  capabilities?: readonly string[];
+  pnpmDefinition?: (version: string, environment: NodeJS.ProcessEnv) => ToolDefinition | null;
+  aquaDefinition?: typeof existingAquaDefinition;
+  readToolState?: typeof readToolState;
+  desktopDrivers?: typeof cachedDesktopDrivers;
+  frontendDependenciesAvailable?: () => boolean;
+  temporaryDirectory?: string;
+  storage?: { paths?: Partial<StoragePaths>; volumes?: StorageVolume[] };
+}
 
-function doctorCommand(command, arguments_, options) {
+function doctorCommand(
+  command: string,
+  arguments_: string[],
+  options: SpawnSyncOptionsWithStringEncoding,
+) {
   return command === "aqua"
     ? runAqua(arguments_, options)
     : spawnCommand(command, arguments_, options);
 }
 
-function aquaToolPaths(command, environment) {
+function aquaToolPaths(command: string, environment: NodeJS.ProcessEnv) {
   try {
     const result = doctorCommand("aqua", ["which", command], {
       cwd: root,
@@ -48,17 +101,21 @@ function aquaToolPaths(command, environment) {
   }
 }
 
-function aquaDefinitions(environment, locate = true) {
+function aquaDefinitions(
+  environment: NodeJS.ProcessEnv,
+  locate = true,
+): (AquaDefinition & ToolDefinition)[] {
   const contents = readFileSync(path.join(root, "aqua.yaml"), "utf8");
-  const commands = {
-    "astral-sh/ruff": ["ruff", "--version"],
-    "rhysd/actionlint": ["actionlint", "-version"],
-    "koalaman/shellcheck": ["shellcheck", "--version"],
-  };
+  const commands = new Map<string, [string, ...string[]]>([
+    ["astral-sh/ruff", ["ruff", "--version"]],
+    ["rhysd/actionlint", ["actionlint", "-version"]],
+    ["koalaman/shellcheck", ["shellcheck", "--version"]],
+  ]);
   return [...contents.matchAll(/^\s*- name: ([^@\s]+)@([^\s]+)$/gmu)].map(
     ([, packageName, version]) => {
-      const command = commands[packageName];
+      const command = packageName ? commands.get(packageName) : undefined;
       if (!command) throw new Error(`unsupported aqua quality tool: ${packageName}`);
+      if (!packageName || !version) throw new Error("incomplete Aqua quality tool identity");
       return {
         id: command[0],
         command: ["aqua", "exec", "--", ...command],
@@ -72,7 +129,7 @@ function aquaDefinitions(environment, locate = true) {
   );
 }
 
-function powershellAnalyzerDefinition() {
+function powershellAnalyzerDefinition(): ToolDefinition {
   const contents = readFileSync(path.join(root, ".config", "powershell-resources.psd1"), "utf8");
   const version = contents.match(/version\s*=\s*'([^']+)'/u)?.[1];
   if (!version) throw new Error("PSScriptAnalyzer version is missing");
@@ -88,7 +145,11 @@ function powershellAnalyzerDefinition() {
   };
 }
 
-export function probeTool(definition, run = spawnCommand, options = {}) {
+export function probeTool(
+  definition: ToolDefinition,
+  run: DoctorRunner = spawnCommand,
+  options: { environment?: NodeJS.ProcessEnv } = {},
+): PrerequisiteObservation {
   const { id, command, version = null, required = true } = definition;
   const versionEvidence =
     definition.version_source === "installed-package"
@@ -109,7 +170,7 @@ export function probeTool(definition, run = spawnCommand, options = {}) {
       id,
       required,
       expected: version,
-      status: error.code === "ETIMEDOUT" ? "timeout" : "unavailable",
+      status: errorCode(error) === "ETIMEDOUT" ? "timeout" : "unavailable",
       observed: null,
       remediation: definition.remediation,
       ...versionEvidence,
@@ -121,7 +182,7 @@ export function probeTool(definition, run = spawnCommand, options = {}) {
       ? definition.installed_version
       : (output.match(/(?<![0-9])\d+\.\d+\.\d+(?:\.\d+)?(?:[-+][\w.-]+)?/u)?.[0] ?? null);
   const status =
-    result.error?.code === "ETIMEDOUT"
+    errorCode(result.error) === "ETIMEDOUT"
       ? "timeout"
       : result.error || result.status !== 0
         ? "unavailable"
@@ -144,7 +205,7 @@ export function probeTool(definition, run = spawnCommand, options = {}) {
 // Test fixtures and build scripts can expose further prerequisites at execution.
 export { selectedPrerequisites };
 
-export function pnpmDefinition(version) {
+export function pnpmDefinition(version: string): ToolDefinition {
   return {
     id: "pnpm",
     version,
@@ -153,7 +214,11 @@ export function pnpmDefinition(version) {
   };
 }
 
-export function existingAquaDefinition(definition, aquaRoot: string, platform = process.platform) {
+export function existingAquaDefinition(
+  definition: AquaDefinition,
+  aquaRoot: string,
+  platform: string = process.platform,
+): (AquaDefinition & ToolDefinition) | null {
   try {
     const rootPath = realpathSync(aquaRoot);
     const directory = path.join(
@@ -164,9 +229,9 @@ export function existingAquaDefinition(definition, aquaRoot: string, platform = 
     );
     const relative = path.relative(rootPath, realpathSync(directory));
     if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) return null;
-    const matches = [];
+    const matches: string[] = [];
     let entries = 0;
-    const visit = (directoryPath: string, depth) => {
+    const visit = (directoryPath: string, depth: number): void => {
       if (depth > 4) throw new Error("cached payload depth exceeds the bounded observation");
       for (const item of readdirSync(directoryPath, { withFileTypes: true })) {
         if (++entries > 256 || item.isSymbolicLink())
@@ -181,36 +246,65 @@ export function existingAquaDefinition(definition, aquaRoot: string, platform = 
       }
     };
     visit(directory, 0);
-    if (matches.length !== 1) return null;
-    const payloadRelative = path.relative(realpathSync(directory), realpathSync(matches[0]));
+    const payload = matches[0];
+    if (matches.length !== 1 || !payload) return null;
+    const payloadRelative = path.relative(realpathSync(directory), realpathSync(payload));
     if (!payloadRelative || payloadRelative.startsWith("..") || path.isAbsolute(payloadRelative))
       return null;
     return {
       ...definition,
-      command: [matches[0], definition.id === "actionlint" ? "-version" : "--version"],
+      command: [payload, definition.id === "actionlint" ? "-version" : "--version"],
     };
   } catch {
     return null;
   }
 }
 
-export function existingNpmDefinition(id, base: string, name: string, bin) {
+function isYamlModule(value: unknown): value is Pick<typeof import("yaml"), "parse"> {
+  return isRecord(value) && typeof value.parse === "function";
+}
+export function existingNpmDefinition(
+  id: string,
+  base: string,
+  name: string,
+  bin: string,
+): ToolDefinition | null {
   try {
-    let desired = JSON.parse(readFileSync(path.join(base, "package.json"), "utf8"))
-      .devDependencies?.[name];
+    const repositoryPackage: unknown = JSON.parse(
+      readFileSync(path.join(base, "package.json"), "utf8"),
+    );
+    let desired: unknown =
+      isRecord(repositoryPackage) && isRecord(repositoryPackage.devDependencies)
+        ? repositoryPackage.devDependencies[name]
+        : undefined;
     if (desired === "catalog:") {
-      const { parse } = createRequire(import.meta.url)("yaml");
-      desired = String(
-        parse(readFileSync(path.join(base, "pnpm-workspace.yaml"), "utf8")).catalog[name],
+      const yaml: unknown = createRequire(import.meta.url)("yaml");
+      if (!isYamlModule(yaml)) return null;
+      const workspace: unknown = yaml.parse(
+        readFileSync(path.join(base, "pnpm-workspace.yaml"), "utf8"),
       );
+      if (!isRecord(workspace) || !isRecord(workspace.catalog)) return null;
+      desired = String(workspace.catalog[name]);
     }
     const packageRoot = path.join(base, "node_modules", name);
-    const installed = JSON.parse(readFileSync(path.join(packageRoot, "package.json"), "utf8"));
-    if (installed.name !== name || !/^\d+\.\d+\.\d+$/u.test(desired ?? "")) return null;
-    const executable = path.resolve(
-      packageRoot,
-      typeof installed.bin === "string" ? installed.bin : installed.bin[bin],
+    const installed: unknown = JSON.parse(
+      readFileSync(path.join(packageRoot, "package.json"), "utf8"),
     );
+    if (
+      !isRecord(installed) ||
+      installed.name !== name ||
+      typeof desired !== "string" ||
+      !/^\d+\.\d+\.\d+$/u.test(desired)
+    )
+      return null;
+    const launcher =
+      typeof installed.bin === "string"
+        ? installed.bin
+        : isRecord(installed.bin)
+          ? installed.bin[bin]
+          : undefined;
+    if (typeof launcher !== "string") return null;
+    const executable = path.resolve(packageRoot, launcher);
     const relative = path.relative(realpathSync(packageRoot), realpathSync(executable));
     if (
       !relative ||
@@ -222,7 +316,12 @@ export function existingNpmDefinition(id, base: string, name: string, bin) {
     // tsgolint has no version flag. Its help command checks launcher/native
     // startup; the installed package metadata supplies distinct version evidence.
     const packageVersion = name === "oxlint-tsgolint" && bin === "tsgolint";
-    if (packageVersion && !/^\d+\.\d+\.\d+$/u.test(installed.version ?? "")) return null;
+    if (
+      packageVersion &&
+      (typeof installed.version !== "string" || !/^\d+\.\d+\.\d+$/u.test(installed.version))
+    )
+      return null;
+    if (installed.version !== undefined && typeof installed.version !== "string") return null;
     return {
       id,
       command: [process.execPath, executable, packageVersion ? "--help" : "--version"],
@@ -249,29 +348,27 @@ export interface PrerequisiteObservation {
 }
 
 export async function collectSelectedPrerequisites(
-  plan,
-  options = {},
+  plan: readonly ValidationCapabilityEntry[],
+  options: DoctorOptions = {},
 ): Promise<PrerequisiteObservation[]> {
   const platform = options.platform ?? process.platform;
   const run = options.run ?? doctorCommand;
   const manifest = await loadQualityManifest();
-  const repositoryPackage = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
   const cachePaths = toolCachePaths();
+  const packageManagerVersion = cachePaths.pins.packageManager.split("@")[1];
+  if (!packageManagerVersion) throw new Error("packageManager version is unavailable");
   const environment = {
     ...checkoutToolEnvironment(options.environment ?? process.env, { paths: cachePaths }),
     RUSTUP_AUTO_INSTALL: "0",
     COREPACK_ENABLE_NETWORK: "0",
   };
-  const definitions = {
+  const definitions: Record<string, ToolDefinition | null> = {
     node: {
       id: "node",
       command: [process.execPath, "--version"],
       version: readFileSync(path.join(root, ".node-version"), "utf8").trim(),
     },
-    pnpm: (options.pnpmDefinition ?? pnpmDefinition)(
-      repositoryPackage.packageManager.split("@")[1],
-      environment,
-    ),
+    pnpm: (options.pnpmDefinition ?? pnpmDefinition)(packageManagerVersion, environment),
     git: { id: "git", command: ["git", "--version"] },
     aqua: { id: "aqua", command: ["aqua", "--version"], version: cachePaths.pins.aquaSemver },
     "tauri-driver": { id: "tauri-driver", command: ["tauri-driver", "--help"] },
@@ -305,11 +402,11 @@ export async function collectSelectedPrerequisites(
       cachePaths.aquaRoot,
       platform,
     );
-  const npm = {
-    "npm-vite-plus": [root, "vite-plus", "vp"],
-    "npm-stylelint": [path.join(root, "apps/desktop"), "stylelint", "stylelint"],
-  };
-  for (const [id, [base, name, bin]] of Object.entries(npm)) {
+  const npm: [id: string, source: [base: string, name: string, bin: string]][] = [
+    ["npm-vite-plus", [root, "vite-plus", "vp"]],
+    ["npm-stylelint", [path.join(root, "apps/desktop"), "stylelint", "stylelint"]],
+  ];
+  for (const [id, [base, name, bin]] of npm) {
     definitions[id] = existingNpmDefinition(id, base, name, bin);
   }
   const ids = new Set(
@@ -318,24 +415,26 @@ export async function collectSelectedPrerequisites(
   if (platform === "win32" && (ids.has("tauri-driver") || ids.has("native-driver"))) {
     const state = (options.readToolState ?? readToolState)({ paths: cachePaths });
     const drivers = (options.desktopDrivers ?? cachedDesktopDrivers)({ paths: cachePaths, state });
-    const pinned =
-      state?.desktop?.tauri_driver_version === cachePaths.pins.bootstrap.desktop.tauri_driver;
+    const desktopState = isRecord(state) && isRecord(state.desktop) ? state.desktop : null;
+    const desktopPin = cachePaths.pins.bootstrap.desktop;
+    const version = desktopState?.tauri_driver_version;
+    const pinned = desktopPin && typeof version === "string" && version === desktopPin.tauri_driver;
     definitions["tauri-driver"] =
       drivers && pinned
         ? {
             id: "tauri-driver",
             command: [drivers.driver, "--help"],
-            version: cachePaths.pins.bootstrap.desktop.tauri_driver,
+            version: desktopPin.tauri_driver,
             version_source: "installed-package",
-            installed_version: state.desktop.tauri_driver_version,
+            installed_version: version,
           }
         : null;
     definitions["native-driver"] =
-      drivers && pinned
+      drivers && pinned && isWebViewVersion(desktopState?.webview2_version)
         ? {
             id: "native-driver",
             command: [drivers.nativeDriver, "--version"],
-            version: state.desktop.webview2_version,
+            version: desktopState.webview2_version,
           }
         : null;
   }
@@ -489,7 +588,7 @@ function windowsCompilers() {
     "Installer",
     "vswhere.exe",
   );
-  let installations = [];
+  const installations: { name: string; version: string; path: string }[] = [];
   if (existsSync(vswhere)) {
     try {
       const result = spawnCommand(
@@ -509,12 +608,26 @@ function windowsCompilers() {
           timeout: 10_000,
         },
       );
-      if (result.status === 0)
-        installations = JSON.parse(result.stdout).map((item) => ({
-          name: item.displayName,
-          version: item.installationVersion,
-          path: item.installationPath,
-        }));
+      if (result.status === 0) {
+        const inventory: unknown = JSON.parse(result.stdout);
+        if (!Array.isArray(inventory)) throw new Error("invalid Visual Studio inventory");
+        const candidates: unknown[] = inventory;
+        const observed = candidates.map((item) => {
+          if (
+            !isRecord(item) ||
+            typeof item.displayName !== "string" ||
+            typeof item.installationVersion !== "string" ||
+            typeof item.installationPath !== "string"
+          )
+            throw new Error("invalid Visual Studio installation");
+          return {
+            name: item.displayName,
+            version: item.installationVersion,
+            path: item.installationPath,
+          };
+        });
+        installations.push(...observed);
+      }
     } catch {
       /* Absence is reported below; never infer the compiler selected by Cargo. */
     }
@@ -529,14 +642,40 @@ function windowsCompilers() {
   };
 }
 
-export async function collectProfileDoctor(profile, options = {}) {
-  const plan = await developmentCapabilityPlan(profile, { platform: options.platform });
+type StorageObservation =
+  | { status: "ok"; paths?: Partial<StoragePaths>; volumes?: StorageVolume[] }
+  | { status: "failed"; message: string };
+interface DoctorReport {
+  format_version: 2;
+  profile: string;
+  platform: string;
+  architecture: string;
+  workspace: string;
+  capabilities?: string[];
+  ok: boolean;
+  tools: (PrerequisiteObservation & { paths: string[] })[];
+  cache: {
+    status: string;
+    shared_root?: string;
+    shim_directory?: string;
+    pin_fingerprint?: string;
+  };
+  storage: StorageObservation;
+  msvc: ReturnType<typeof windowsCompilers>;
+}
+export async function collectProfileDoctor(
+  profile: string,
+  options: DoctorOptions = {},
+): Promise<DoctorReport & { capabilities: string[] }> {
+  const plan = await developmentCapabilityPlan(profile, {
+    ...(options.platform ? { platform: options.platform } : {}),
+  });
   const tools = await collectSelectedPrerequisites([], {
     ...options,
     profile,
     capabilities: plan.capabilities,
   });
-  let storage;
+  let storage: StorageObservation;
   try {
     const scope = profile === "frontend" ? "frontend" : profile === "core" ? "rust" : "all";
     storage = {
@@ -561,24 +700,24 @@ export async function collectProfileDoctor(profile, options = {}) {
   };
 }
 
-export async function collectDoctor(options = {}) {
+export async function collectDoctor(options: DoctorOptions = {}): Promise<DoctorReport> {
   const profile = options.profile ?? "standard";
-  if (developmentProfiles.includes(profile)) return collectProfileDoctor(profile, options);
+  if (developmentProfiles.some((known) => known === profile))
+    return collectProfileDoctor(profile, options);
   if (!["standard", "desktop"].includes(profile))
     throw new Error(`unknown doctor profile: ${profile}`);
   const cachePaths = toolCachePaths();
   const environment = checkoutToolEnvironment(process.env, { paths: cachePaths });
   const toolState = readToolState({ paths: cachePaths });
   const manifest = await loadQualityManifest();
-  const bootstrapManifest = JSON.parse(
-    readFileSync(path.join(root, ".config", "tool-bootstrap.json"), "utf8"),
-  );
-  const repositoryPackage = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+  const bootstrapManifest = cachePaths.pins.bootstrap;
+  const packageManagerVersion = cachePaths.pins.packageManager.split("@")[1];
+  if (!packageManagerVersion) throw new Error("packageManager version is unavailable");
   const requiredRustDefinitions = manifest.tools.filter((tool) => tool.tier === "required");
   const aquaVersion = readFileSync(path.join(root, ".aqua-version"), "utf8")
     .trim()
     .replace(/^v/u, "");
-  const definitions = [
+  const definitions: ToolDefinition[] = [
     {
       id: "node",
       command: [process.execPath, "--version"],
@@ -591,7 +730,7 @@ export async function collectDoctor(options = {}) {
     {
       id: "pnpm",
       command: ["pnpm", "--version"],
-      version: repositoryPackage.packageManager.split("@")[1],
+      version: packageManagerVersion,
       remediation: "./scripts/bootstrap-quality-tools.ps1",
     },
     {
@@ -618,13 +757,13 @@ export async function collectDoctor(options = {}) {
           applicable: false,
           required: false,
         },
-    ...requiredRustDefinitions.map((definition) => ({
+    ...requiredRustDefinitions.map((definition): ToolDefinition => ({
       ...definition,
       command: [definition.id === "rscheck-cli" ? "rscheck" : definition.crate, "--version"],
       remediation: "./scripts/bootstrap-quality-tools.ps1",
     })),
   ];
-  const tools = definitions.map((definition) =>
+  const tools: DoctorReport["tools"] = definitions.map((definition) =>
     definition.applicable === false
       ? {
           id: definition.id,
@@ -645,15 +784,26 @@ export async function collectDoctor(options = {}) {
   );
   if (profile === "desktop") {
     const drivers = cachedDesktopDrivers({ paths: cachePaths, state: toolState });
-    const desktopDefinitions = [
+    const desktopPin = bootstrapManifest.desktop;
+    if (!desktopPin) throw new Error("desktop bootstrap pins are unavailable");
+    const desktopState =
+      isRecord(toolState) && isRecord(toolState.desktop) ? toolState.desktop : null;
+    const reportedDriverVersion =
+      typeof desktopState?.tauri_driver_version === "string"
+        ? desktopState.tauri_driver_version
+        : null;
+    const reportedWebviewVersion = isWebViewVersion(desktopState?.webview2_version)
+      ? desktopState.webview2_version
+      : null;
+    const desktopDefinitions: ToolDefinition[] = [
       {
         id: "tauri-driver",
         command: [
           drivers?.driver ?? path.join(cachePaths.shimDirectory, "missing-tauri-driver.exe"),
           "--help",
         ],
-        version: bootstrapManifest.desktop.tauri_driver,
-        reportedVersion: toolState?.desktop?.tauri_driver_version ?? null,
+        version: desktopPin.tauri_driver,
+        reportedVersion: reportedDriverVersion,
       },
       {
         id: "msedgedriver",
@@ -661,10 +811,22 @@ export async function collectDoctor(options = {}) {
           drivers?.nativeDriver ?? path.join(cachePaths.shimDirectory, "missing-msedgedriver.exe"),
           "--version",
         ],
-        version: toolState?.desktop?.webview2_version ?? null,
+        version: reportedWebviewVersion,
       },
     ];
     for (const definition of desktopDefinitions) {
+      if (definition.id === "msedgedriver" && !reportedWebviewVersion) {
+        tools.push({
+          id: definition.id,
+          required: true,
+          expected: null,
+          observed: null,
+          status: "unavailable",
+          remediation: "./scripts/bootstrap-quality-tools.ps1 -Desktop",
+          paths: [],
+        });
+        continue;
+      }
       let result = probeTool(definition, doctorCommand, { environment });
       if (definition.reportedVersion && result.status === "mismatch") {
         result = { ...result, observed: definition.reportedVersion, status: "ok" };
@@ -677,7 +839,7 @@ export async function collectDoctor(options = {}) {
       });
     }
   }
-  let storage;
+  let storage: StorageObservation;
   try {
     storage = { status: "ok", ...preflight(getPaths(), minimumFreeGiB()) };
   } catch (error) {
@@ -715,8 +877,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   for (let index = 0; index < args.length; index += 1) {
     if (args[index] === "--json") asJson = true;
     else if (args[index] === "--profile") {
-      profile = args[++index];
-      if (!profile) throw new Error("--profile requires a development profile");
+      const nextProfile = args[++index];
+      if (!nextProfile) throw new Error("--profile requires a development profile");
+      profile = nextProfile;
     } else
       throw new Error(
         "usage: dev-doctor.mts [--json] [--profile standard|desktop|frontend|core|daily|native-desktop] [--help]",
@@ -739,10 +902,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log(`  shared: ${report.cache.shared_root}`);
     console.log(`  shims:  ${report.cache.shim_directory}`);
     console.log(`Storage: ${report.storage.status}`);
-    if (report.storage.paths)
+    if (report.storage.status === "ok" && report.storage.paths)
       for (const [name, value] of Object.entries(report.storage.paths))
         console.log(`  ${name}: ${value}`);
-    if (report.storage.message) console.log(report.storage.message);
+    if (report.storage.status === "failed") console.log(report.storage.message);
     if (report.msvc) console.log(`MSVC: ${JSON.stringify(report.msvc)}`);
   }
   process.exitCode = report.ok ? 0 : 1;

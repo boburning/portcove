@@ -1,9 +1,11 @@
+import type { ToolDefinition, DoctorOptions } from "./dev-doctor.mts";
+import { readToolPins } from "./tool-cache.mts";
+import { loadQualityManifest } from "./quality-tools.mts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
   mkdtempSync,
   mkdirSync,
-  readFileSync,
   writeFileSync,
   existsSync,
   rmSync,
@@ -22,9 +24,9 @@ import {
   existingNpmDefinition,
 } from "./dev-doctor.mts";
 
-test("selected frontend prerequisites do not invoke Rust, native provisioning or bootstrap", async () => {
-  const calls = [];
-  let pnpmVersion;
+void test("selected frontend prerequisites do not invoke Rust, native provisioning or bootstrap", async () => {
+  const calls: [string, string[]][] = [];
+  let pnpmVersion: string | undefined;
   const report = await collectSelectedPrerequisites([{ id: "oxfmt" }], {
     pnpmDefinition: (version) => {
       pnpmVersion = version;
@@ -32,7 +34,7 @@ test("selected frontend prerequisites do not invoke Rust, native provisioning or
     },
     run: (command, args, options) => {
       calls.push([command, args]);
-      assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
+      assert.equal(options.env?.RUSTUP_AUTO_INSTALL, "0");
       return { status: 0, stdout: command === "cached-pnpm" ? pnpmVersion : "v24.21.0" };
     },
   });
@@ -41,12 +43,12 @@ test("selected frontend prerequisites do not invoke Rust, native provisioning or
     ["node", "pnpm", "frontend-dependencies"],
   );
   assert.equal(calls.length, 2);
-  assert.equal(report.find((entry) => entry.id === "pnpm").status, "ok");
+  assert.equal(requiredFixture(report.find((entry) => entry.id === "pnpm")).status, "ok");
   assert.ok(calls.every(([command]) => command !== "cargo" && command !== "rustc"));
 });
 
-test("selected native compilation reports missing Linux libraries without installing them", async () => {
-  const calls = [];
+void test("selected native compilation reports missing Linux libraries without installing them", async () => {
+  const calls: [string, string[]][] = [];
   const report = await collectSelectedPrerequisites([{ id: "rust-clippy:portcove-desktop" }], {
     platform: "linux",
     run: (command, args) => {
@@ -57,8 +59,11 @@ test("selected native compilation reports missing Linux libraries without instal
       };
     },
   });
-  assert.equal(report.find((item) => item.id === "native-desktop-build").status, "unavailable");
-  assert.deepEqual(calls.find(([command]) => command === "pkg-config")[1], [
+  assert.equal(
+    requiredFixture(report.find((item) => item.id === "native-desktop-build")).status,
+    "unavailable",
+  );
+  assert.deepEqual(requiredFixture(calls.find(([command]) => command === "pkg-config"))[1], [
     "--exists",
     "gtk+-3.0",
     "webkit2gtk-4.1",
@@ -67,20 +72,17 @@ test("selected native compilation reports missing Linux libraries without instal
   assert.ok(!calls.some(([command]) => command === "apt-get"));
 });
 
-test("stale Windows Aqua state is an actionable prerequisite failure", async () => {
+void test("stale Windows Aqua state is an actionable prerequisite failure", async () => {
   const report = await collectSelectedPrerequisites([{ id: "actionlint" }], {
     platform: "win32",
     readToolState: () => null,
     run: () => ({ status: 0, stdout: "24.21.0" }),
   });
-  assert.deepEqual(
-    report.find((item) => item.id === "aqua-state"),
-    {
-      id: "aqua-state",
-      status: "unavailable",
-      remediation: "./scripts/bootstrap-quality-tools.ps1",
-    },
-  );
+  assert.deepEqual(requiredFixture(report.find((item) => item.id === "aqua-state")), {
+    id: "aqua-state",
+    status: "unavailable",
+    remediation: "./scripts/bootstrap-quality-tools.ps1",
+  });
   assert.ok(
     selectedPrerequisites({ id: "conservative-audit" }).includes("complete-audit-prerequisites"),
   );
@@ -89,14 +91,14 @@ test("stale Windows Aqua state is an actionable prerequisite failure", async () 
   assert.ok(!selectedPrerequisites({ id: "playnite-contract" }).includes("dotnet"));
 });
 
-test("selected release audit observes the bare PowerShell executable on every executing host", async () => {
+void test("selected release audit observes the bare PowerShell executable on every executing host", async () => {
   const selected = { id: "conservative-audit", args: ["rust", "release-unit"] };
   assert.ok(selectedPrerequisites(selected, "linux").includes("pwsh"));
   assert.ok(selectedPrerequisites(selected, "win32").includes("pwsh"));
   assert.ok(
     !selectedPrerequisites({ id: "conservative-audit", args: ["rust"] }, "linux").includes("pwsh"),
   );
-  const commands = [];
+  const commands: string[] = [];
   const report = await collectSelectedPrerequisites([selected], {
     platform: "linux",
     run: (command) => {
@@ -106,36 +108,45 @@ test("selected release audit observes the bare PowerShell executable on every ex
         : { status: 0, stdout: "v24.21.0" };
     },
   });
-  assert.equal(report.find((item) => item.id === "pwsh")?.status, "unavailable");
+  assert.equal(requiredFixture(report.find((item) => item.id === "pwsh"))?.status, "unavailable");
   assert.ok(commands.includes("pwsh"));
 });
 
-test("selected Linux Rust audit observes the physical fixture socket pathname budget", async () => {
+void test("selected Linux Rust audit observes the physical fixture socket pathname budget", async () => {
   const prefix = mkdtempSync(path.join(os.tmpdir(), "pcv-socket-"));
   try {
     const long = path.join(prefix, "a".repeat(100));
-    const run = async (temporaryDirectory, platform = "linux", stages = ["rust"]) =>
+    const run = async (temporaryDirectory: string, platform = "linux", stages = ["rust"]) =>
       collectSelectedPrerequisites([{ id: "conservative-audit", args: stages }], {
         platform,
         temporaryDirectory,
         run: () => ({ status: 0, stdout: "v24.21.0" }),
       });
     const tooLong = await run(long);
-    const socket = tooLong.find((item) => item.id === "unix-socket-path");
+    const socket = requiredFixture(tooLong.find((item) => item.id === "unix-socket-path"));
     assert.equal(socket?.status, "unavailable");
-    assert.ok(socket.observed_bytes > socket.maximum_bytes);
-    assert.match(socket.remediation, /shorter.*temporary/i);
+    assert.ok(requiredFixture(socket.observed_bytes) > requiredFixture(socket.maximum_bytes));
+    assert.match(requiredFixture(socket.remediation), /shorter.*temporary/i);
     if (process.platform === "linux") {
       const multibyte = await run(path.join(prefix, "é".repeat(45)));
-      assert.equal(multibyte.find((item) => item.id === "unix-socket-path")?.status, "unavailable");
+      assert.equal(
+        requiredFixture(multibyte.find((item) => item.id === "unix-socket-path"))?.status,
+        "unavailable",
+      );
     }
     const short = await run(path.parse(prefix).root);
-    assert.equal(short.find((item) => item.id === "unix-socket-path")?.status, "ok");
+    assert.equal(
+      requiredFixture(short.find((item) => item.id === "unix-socket-path"))?.status,
+      "ok",
+    );
     mkdirSync(long);
     const alias = path.join(prefix, "short-alias");
     symlinkSync(long, alias, process.platform === "win32" ? "junction" : "dir");
     const physical = await run(alias);
-    assert.equal(physical.find((item) => item.id === "unix-socket-path")?.status, "unavailable");
+    assert.equal(
+      requiredFixture(physical.find((item) => item.id === "unix-socket-path"))?.status,
+      "unavailable",
+    );
     assert.ok(!(await run(long, "win32")).some((item) => item.id === "unix-socket-path"));
     assert.ok(
       !(await run(long, "linux", ["release-unit"])).some((item) => item.id === "unix-socket-path"),
@@ -145,8 +156,8 @@ test("selected Linux Rust audit observes the physical fixture socket pathname bu
   }
 });
 
-test("selected fixtures retain their actual direct tools and platform deferrals", () => {
-  const fixtures = (names, platform) =>
+void test("selected fixtures retain their actual direct tools and platform deferrals", () => {
+  const fixtures = (names: string[], platform: string) =>
     selectedPrerequisites(
       { id: "lint-tool-fixtures", args: ["scripts/lint-tools.integration.mts", ...names] },
       platform,
@@ -163,13 +174,13 @@ test("selected fixtures retain their actual direct tools and platform deferrals"
   assert.throws(() => fixtures(["unowned"], "linux"), /inventory is unavailable/);
 });
 
-test("cache observations never install a missing package manager or Aqua payload", async (t) => {
+void test("cache observations never install a missing package manager or Aqua payload", async (t) => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-prerequisite-cache-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const environment = { COREPACK_HOME: path.join(directory, "absent") };
   assert.deepEqual(pnpmDefinition("12.7.0").command, ["pnpm", "--version"]);
   assert.equal(existsSync(environment.COREPACK_HOME), false);
-  const calls = [];
+  const calls: string[] = [];
   const results = await collectSelectedPrerequisites([{ id: "oxfmt" }, { id: "actionlint" }], {
     environment: { ...process.env, ...environment },
     pnpmDefinition: () => null,
@@ -179,13 +190,16 @@ test("cache observations never install a missing package manager or Aqua payload
       return { status: 0, stdout: "24.21.0" };
     },
   });
-  assert.equal(results.find((item) => item.id === "pnpm").status, "unavailable");
-  assert.equal(results.find((item) => item.id === "actionlint").status, "unavailable");
+  assert.equal(requiredFixture(results.find((item) => item.id === "pnpm")).status, "unavailable");
+  assert.equal(
+    requiredFixture(results.find((item) => item.id === "actionlint")).status,
+    "unavailable",
+  );
   assert.ok(!calls.includes("corepack") && !calls.includes("aqua"));
   assert.equal(existsSync(environment.COREPACK_HOME), false);
 });
 
-test("pinned pnpm readiness uses its declared command and rejects observed version mismatch", () => {
+void test("pinned pnpm readiness uses its declared command and rejects observed version mismatch", () => {
   const definition = pnpmDefinition("12.7.0");
   const result = probeTool(definition, (command, args) => {
     assert.equal(command, "pnpm");
@@ -195,12 +209,10 @@ test("pinned pnpm readiness uses its declared command and rejects observed versi
   assert.equal(result.status, "mismatch");
 });
 
-test("selected and profile observations refuse missing pnpm runtime acquisition and reuse warm runtime", async (t) => {
+void test("selected and profile observations refuse missing pnpm runtime acquisition and reuse warm runtime", async (t) => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove pnpm runtime "));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
-  const version = JSON.parse(
-    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
-  ).packageManager.split("@")[1];
+  const version = requiredFixture(readToolPins().packageManager.split("@")[1]);
   const installed = directory;
   mkdirSync(path.join(installed, "bin"), { recursive: true });
   const runtime = path.join(installed, "pnpm-native");
@@ -236,7 +248,7 @@ console.log(${JSON.stringify(version)});
     COREPACK_ENABLE_NETWORK: "1",
   });
   const globalNetwork = process.env.COREPACK_ENABLE_NETWORK;
-  const options = {
+  const options: DoctorOptions = {
     environment,
     frontendDependenciesAvailable: () => true,
     storage: {},
@@ -247,10 +259,10 @@ console.log(${JSON.stringify(version)});
     const selected = await collectSelectedPrerequisites([{ id: "oxfmt" }], options);
     const profile = await collectProfileDoctor("frontend", options);
     for (const tools of [selected, profile.tools]) {
-      const pnpm = tools.find((tool) => tool.id === "pnpm");
+      const pnpm = requiredFixture(tools.find((tool) => tool.id === "pnpm"));
       assert.equal(pnpm.status, warm ? "ok" : "unavailable");
-      if (!warm) assert.match(pnpm.remediation, /repository-pinned pnpm/u);
-      assert.equal(tools.find((tool) => tool.id === "node").status, "ok");
+      if (!warm) assert.match(requiredFixture(pnpm.remediation), /repository-pinned pnpm/u);
+      assert.equal(requiredFixture(tools.find((tool) => tool.id === "node")).status, "ok");
     }
     assert.equal(profile.ok, warm);
     assert.equal(existsSync(acquisition), false);
@@ -260,7 +272,7 @@ console.log(${JSON.stringify(version)});
   }
 });
 
-test("Aqua observations use an existing unique payload and reject ambiguous or missing caches", (t) => {
+void test("Aqua observations use an existing unique payload and reject ambiguous or missing caches", (t) => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-cached-aqua-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const definition = {
@@ -276,22 +288,22 @@ test("Aqua observations use an existing unique payload and reject ambiguous or m
   );
   mkdirSync(path.join(versionRoot, "archive"), { recursive: true });
   writeFileSync(path.join(versionRoot, "archive/actionlint"), "existing fixture");
-  assert.deepEqual(existingAquaDefinition(definition, directory, "linux").command, [
-    path.join(versionRoot, "archive/actionlint"),
-    "-version",
-  ]);
+  assert.deepEqual(
+    requiredFixture(existingAquaDefinition(definition, directory, "linux")).command,
+    [path.join(versionRoot, "archive/actionlint"), "-version"],
+  );
   mkdirSync(path.join(versionRoot, "other"));
   writeFileSync(path.join(versionRoot, "other/actionlint"), "ambiguous fixture");
   assert.equal(existingAquaDefinition(definition, directory, "linux"), null);
 });
 
-const definition = {
+const definition: ToolDefinition = {
   id: "example",
   command: ["example", "--version"],
   version: "1.2.3",
 };
 
-test("stale npm fixture tools cannot approve their own installed version", (t) => {
+void test("stale npm fixture tools cannot approve their own installed version", (t) => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-npm-prerequisite-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   writeFileSync(
@@ -307,6 +319,7 @@ test("stale npm fixture tools cannot approve their own installed version", (t) =
     JSON.stringify({ name: "oxfmt", version: "0.69.0", bin: { oxfmt: "cli.mjs" } }),
   );
   const definition = existingNpmDefinition("npm-vite-plus", directory, "oxfmt", "oxfmt");
+  assert.ok(definition);
   assert.equal(definition.version, "0.70.0");
   assert.equal(definition.installed_version, "0.69.0");
   assert.equal(probeTool(definition, () => ({ status: 0, stdout: "0.69.0" })).status, "mismatch");
@@ -316,7 +329,7 @@ test("stale npm fixture tools cannot approve their own installed version", (t) =
   );
   assert.equal(existingNpmDefinition("npm-vite-plus", directory, "oxfmt", "oxfmt"), null);
 });
-test("tsgolint observes installed metadata only after successful help startup", (t) => {
+void test("tsgolint observes installed metadata only after successful help startup", (t) => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-tsgolint-prerequisite-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   writeFileSync(
@@ -329,13 +342,14 @@ test("tsgolint observes installed metadata only after successful help startup", 
   writeFileSync(executable, "throw new Error('fixture must not execute');");
   const marker = path.join(packageRoot, "package.json");
   const metadata = { name: "oxlint-tsgolint", version: "7.0.2003", bin: { tsgolint: "cli.cjs" } };
-  const writeMetadata = (value) => writeFileSync(marker, JSON.stringify(value));
+  const writeMetadata = (value: unknown) => writeFileSync(marker, JSON.stringify(value));
   const readDefinition = () =>
     existingNpmDefinition("npm-vite-plus", directory, "oxlint-tsgolint", "tsgolint");
   writeMetadata(metadata);
   const definition = readDefinition();
+  assert.ok(definition);
   assert.deepEqual(definition.command, [process.execPath, executable, "--help"]);
-  const calls = [];
+  const calls: [string, string[]][] = [];
   const result = probeTool(definition, (command, args) => {
     calls.push([command, args]);
     return { status: 0, stderr: "Usage: tsgolint; incidental 1.2.3 SECRET" };
@@ -348,7 +362,10 @@ test("tsgolint observes installed metadata only after successful help startup", 
   assert.ok(!JSON.stringify(result).includes("SECRET"));
 
   writeMetadata({ ...metadata, version: "7.0.2002" });
-  const stale = probeTool(readDefinition(), () => ({ status: 0, stdout: "7.0.2003" }));
+  const stale = probeTool(requiredFixture(readDefinition()), () => ({
+    status: 0,
+    stdout: "7.0.2003",
+  }));
   assert.equal(stale.status, "mismatch");
   assert.equal(stale.observed, "7.0.2002");
   for (const failure of [
@@ -391,7 +408,7 @@ test("tsgolint observes installed metadata only after successful help startup", 
   assert.equal(readDefinition(), null);
 });
 
-test("tsgolint refuses a launcher symlink outside its installed package", (t) => {
+void test("tsgolint refuses a launcher symlink outside its installed package", (t) => {
   if (process.platform === "win32") return t.skip("file symlinks require Windows privilege");
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-tsgolint-linked-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
@@ -414,8 +431,8 @@ test("tsgolint refuses a launcher symlink outside its installed package", (t) =>
   );
 });
 
-test("doctor distinguishes exact, mismatched, failed and absent tools without raw output", () => {
-  const run = (stdout) => () => ({ status: 0, stdout });
+void test("doctor distinguishes exact, mismatched, failed and absent tools without raw output", () => {
+  const run = (stdout: string) => () => ({ status: 0, stdout });
   assert.equal(probeTool(definition, run("example 1.2.3")).status, "ok");
   assert.equal(probeTool(definition, run("v1.2.3")).status, "ok");
   assert.equal(probeTool(definition, run("example 1.2.30")).status, "mismatch");
@@ -426,7 +443,7 @@ test("doctor distinguishes exact, mismatched, failed and absent tools without ra
   assert.equal(missing.status, "unavailable");
   assert.ok(!JSON.stringify(missing).includes("SECRET"));
 });
-test("doctor reports a timeout rather than a version pass", () => {
+void test("doctor reports a timeout rather than a version pass", () => {
   assert.equal(
     probeTool(definition, () => ({
       status: null,
@@ -437,16 +454,16 @@ test("doctor reports a timeout rather than a version pass", () => {
   );
 });
 
-test("Core profile observes only Rust capabilities; missing frontend cannot block it", async () => {
-  const commands = [];
+void test("Core profile observes only Rust capabilities; missing frontend cannot block it", async () => {
+  const commands: [string, string[]][] = [];
   const report = await collectProfileDoctor("core", {
     storage: {},
     pnpmDefinition: () => null,
     aquaDefinition: () => null,
     run(command, args, options) {
       commands.push([command, args]);
-      assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
-      assert.equal(options.env.COREPACK_ENABLE_NETWORK, "0");
+      assert.equal(options.env?.RUSTUP_AUTO_INSTALL, "0");
+      assert.equal(options.env?.COREPACK_ENABLE_NETWORK, "0");
       if (command === "rustc") return { status: 0, stdout: "rustc 1.98.1" };
       if (args[0] === "nextest") return { status: 0, stdout: "cargo-nextest 0.9.100" };
       return { status: 0, stdout: "1.98.1" };
@@ -458,43 +475,42 @@ test("Core profile observes only Rust capabilities; missing frontend cannot bloc
   assert.ok(!report.capabilities.includes("frontend-dependencies"));
 });
 
-test("requested profile stays failed when one capability is missing; observations never provision", async () => {
-  const commands = [];
+void test("requested profile stays failed when one capability is missing; observations never provision", async () => {
+  const commands: [string, string[]][] = [];
   const report = await collectProfileDoctor("frontend", {
     storage: {},
     pnpmDefinition: () => null,
     run(command, args, options) {
       commands.push([command, args]);
-      assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
+      assert.equal(options.env?.RUSTUP_AUTO_INSTALL, "0");
       return { status: 0, stdout: "24.21.0" };
     },
   });
   assert.equal(report.ok, false);
-  assert.equal(report.tools.find((tool) => tool.id === "pnpm").status, "unavailable");
-  assert.equal(report.tools.find((tool) => tool.id === "node").status, "ok");
+  assert.equal(
+    requiredFixture(report.tools.find((tool) => tool.id === "pnpm")).status,
+    "unavailable",
+  );
+  assert.equal(requiredFixture(report.tools.find((tool) => tool.id === "node")).status, "ok");
   assert.equal(commands.length, 1);
 });
 
-test("native Windows profile observes installed compiler paths while ordinary validation stays unverified", async () => {
+void test("native Windows profile observes installed compiler paths while ordinary validation stays unverified", async () => {
   const { developmentCapabilityPlan } = await import("./development-capabilities.mts");
   const { readFileSync } = await import("node:fs");
   const plan = await developmentCapabilityPlan("native-desktop", { platform: "win32" });
-  const quality = JSON.parse(
-    readFileSync(new URL("../.github/quality-tools.json", import.meta.url), "utf8"),
-  );
+  const quality = await loadQualityManifest();
   const pssa = readFileSync(
     new URL("../.config/powershell-resources.psd1", import.meta.url),
     "utf8",
-  ).match(/version\s*=\s*'([^']+)'/u)[1];
-  const calls = [];
-  const options = {
+  ).match(/version\s*=\s*'([^']+)'/u)?.[1];
+  const calls: [string, string[]][] = [];
+  const options: DoctorOptions = {
     platform: "win32",
     storage: {},
     readToolState: () => ({
       desktop: {
-        tauri_driver_version: JSON.parse(
-          readFileSync(new URL("../.config/tool-bootstrap.json", import.meta.url), "utf8"),
-        ).desktop.tauri_driver,
+        tauri_driver_version: requiredFixture(readToolPins().bootstrap.desktop).tauri_driver,
         webview2_version: "100.0.0.1",
       },
     }),
@@ -530,16 +546,25 @@ test("native Windows profile observes installed compiler paths while ordinary va
         const pin = readFileSync(new URL("../aqua.yaml", import.meta.url), "utf8")
           .match(new RegExp(`(?:ruff|shellcheck|actionlint)@([^\\s]+)`, "g"))
           ?.find((value: string) => value.startsWith(command + "@"));
-        return { status: 0, stdout: pin.split("@")[1].replace(/^v/u, "") };
+        return {
+          status: 0,
+          stdout: requiredFixture(requiredFixture(pin).split("@")[1]).replace(/^v/u, ""),
+        };
       }
       return { status: 0, stdout: version };
     },
   };
   const report = await collectProfileDoctor("native-desktop", options);
   assert.equal(report.ok, true, JSON.stringify(report.tools));
-  assert.equal(report.tools.find((tool) => tool.id === "native-desktop-build").status, "ok");
+  assert.equal(
+    requiredFixture(report.tools.find((tool) => tool.id === "native-desktop-build")).status,
+    "ok",
+  );
   assert.match(
-    report.tools.find((tool) => tool.id === "native-desktop-build").interpretation,
+    requiredFixture(
+      requiredFixture(report.tools.find((tool) => tool.id === "native-desktop-build"))
+        .interpretation,
+    ),
     /presence only/,
   );
   assert.ok(
@@ -553,11 +578,14 @@ test("native Windows profile observes installed compiler paths while ordinary va
     [{ id: "rust-clippy:portcove-desktop" }],
     options,
   );
-  assert.equal(legacy.find((tool) => tool.id === "native-desktop-build").status, "unverified");
+  assert.equal(
+    requiredFixture(legacy.find((tool) => tool.id === "native-desktop-build")).status,
+    "unverified",
+  );
 });
 
-test("Linux native PATH help cannot approve unverified driver identity", async () => {
-  const commands = [];
+void test("Linux native PATH help cannot approve unverified driver identity", async () => {
+  const commands: string[] = [];
   const report = await collectProfileDoctor("native-desktop", {
     platform: "linux",
     storage: {},
@@ -567,7 +595,34 @@ test("Linux native PATH help cannot approve unverified driver identity", async (
     },
   });
   for (const id of ["tauri-driver", "native-driver"])
-    assert.equal(report.tools.find((tool) => tool.id === id).status, "unverified");
+    assert.equal(requiredFixture(report.tools.find((tool) => tool.id === id)).status, "unverified");
   assert.equal(report.ok, false);
   assert.ok(!commands.includes("tauri-driver") && !commands.includes("WebKitWebDriver"));
+});
+
+function requiredFixture<T>(value: T | null | undefined): T {
+  assert.ok(value !== undefined && value !== null, "expected fixture entry is missing");
+  return value;
+}
+
+void test("a cached Windows native driver cannot pass with an unknown WebView version binding", async () => {
+  const pin = requiredFixture(readToolPins().bootstrap.desktop).tauri_driver;
+  for (const webview2_version of [undefined, null, "", "100.0.0", " 100.0.0.1", 42, {}]) {
+    let launches = 0;
+    const observations = await collectSelectedPrerequisites([], {
+      platform: "win32",
+      capabilities: ["native-driver"],
+      readToolState: () => ({ desktop: { tauri_driver_version: pin, webview2_version } }),
+      desktopDrivers: () => ({
+        driver: "/fixture/tauri-driver",
+        nativeDriver: "/fixture/msedgedriver",
+      }),
+      run: () => {
+        launches++;
+        return { status: 0, stdout: "100.0.0.1" };
+      },
+    });
+    assert.equal(requiredFixture(observations[0]).status, "unavailable");
+    assert.equal(launches, 0, "unbound driver must not be probed as a qualified prerequisite");
+  }
 });
