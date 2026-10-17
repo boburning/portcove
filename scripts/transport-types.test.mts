@@ -13,7 +13,7 @@ import {
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const desktop = path.join(root, "apps", "desktop");
 
-test("schema composition rejects conflicting definitions and external references", async () => {
+void test("schema composition rejects conflicting definitions and external references", async () => {
   const first = { type: "object", $defs: { Value: { type: "string" } } };
   assert.throws(
     () =>
@@ -31,7 +31,7 @@ test("schema composition rejects conflicting definitions and external references
   await assert.rejects(renderTransportTypes({ local: { $ref: "file:///forbidden-schema.json" } }));
 });
 
-test("one batched frontend compiler invocation rejects every maintained transport drift", () => {
+void test("one batched frontend compiler invocation rejects every maintained transport drift", () => {
   const work = path.join(root, "work");
   fs.mkdirSync(work, { recursive: true });
   const temporary = fs.mkdtempSync(path.join(work, "transport-compiler-"));
@@ -171,4 +171,31 @@ const libraryChanged: DesktopEventPayloads["portcove://library-changed"] = null;
   } finally {
     fs.rmSync(temporary, { recursive: true, force: true });
   }
+});
+
+void test("schema composition refuses malformed inventories without asserting Rust-owned contents", () => {
+  for (const value of [
+    null,
+    [],
+    { root: null },
+    { root: { $defs: [] } },
+    { root: { $defs: { Value: null } } },
+  ])
+    assert.throws(() => combineTransportSchemas(value), /Transport schema/);
+});
+
+void test("schema composition preserves own prototype-named roots and definitions and detects their conflicts", () => {
+  const schemas: unknown = JSON.parse(
+    '{"__proto__":{"type":"string"},"normal":{"type":"object","$defs":{"__proto__":{"type":"number"},"constructor":{"type":"boolean"}}}}',
+  );
+  const combined = combineTransportSchemas(schemas);
+  assert(Object.hasOwn(combined.properties, "__proto__"));
+  assert(combined.required.includes("__proto__"));
+  assert(Object.hasOwn(combined.$defs, "__proto__"));
+  assert.deepEqual(combined.$defs.__proto__, { type: "number" });
+  assert.deepEqual(combined.$defs.constructor, { type: "boolean" });
+  const conflict: unknown = JSON.parse(
+    '{"first":{"$defs":{"__proto__":{"type":"string"}}},"second":{"$defs":{"__proto__":{"type":"number"}}}}',
+  );
+  assert.throws(() => combineTransportSchemas(conflict), /disagree about __proto__/);
 });

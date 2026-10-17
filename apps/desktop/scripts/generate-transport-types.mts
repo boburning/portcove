@@ -1,3 +1,21 @@
+import { isRecord } from "../../../scripts/runtime-values.mts";
+// Rust owns schema contents. This adapter validates only the containers it reads;
+// the schema compiler validates keywords, with all external resolution disabled.
+type SchemaNode = Record<string, unknown>;
+interface SchemaRoot extends SchemaNode {
+  $defs?: Record<string, SchemaNode>;
+}
+function assertSchemas(value: unknown): asserts value is Record<string, SchemaRoot> {
+  if (!isRecord(value)) throw new Error("Transport schema inventory must be an object");
+  for (const schema of Object.values(value)) {
+    if (
+      !isRecord(schema) ||
+      (schema.$defs !== undefined &&
+        (!isRecord(schema.$defs) || !Object.values(schema.$defs).every(isRecord)))
+    )
+      throw new Error("Transport schema roots and definitions must be objects");
+  }
+}
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,64 +28,66 @@ const transportContractMetadata = {
   output: { prefix: "Output", title: "TransportOutputs" },
 };
 
-function metadataForContract(contract) {
-  return transportContractMetadata[contract] ?? transportContractMetadata.output;
+function metadataForContract(contract: string) {
+  return contract === "event"
+    ? transportContractMetadata.event
+    : contract === "input"
+      ? transportContractMetadata.input
+      : transportContractMetadata.output;
 }
 
-function generatedSchemaName(key: string, prefix) {
+function generatedSchemaName(key: string, prefix: string) {
   const suffix = key
     .split(/[^A-Za-z0-9]+/u)
     .filter(Boolean)
-    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join("");
   return `${prefix}${suffix}`;
 }
 
-export function combineTransportSchemas(schemas, contract = "output") {
+export function combineTransportSchemas(schemas: unknown, contract = "output") {
+  assertSchemas(schemas);
   const { prefix, title } = metadataForContract(contract);
-  const definitions = {};
-  function body(schema) {
+  const definitions = new Map<string, SchemaNode>();
+  function body(schema: SchemaNode) {
     const value = { ...schema };
     delete value.$defs;
     delete value.$schema;
     delete value.title;
     return value;
   }
-  function add(name, schema) {
+  function add(name: string, schema: SchemaNode) {
     const value = body(schema);
-    if (
-      Object.hasOwn(definitions, name) &&
-      JSON.stringify(definitions[name]) !== JSON.stringify(value)
-    ) {
+    if (definitions.has(name) && JSON.stringify(definitions.get(name)) !== JSON.stringify(value)) {
       throw new Error(`Rust transport schemas disagree about ${name}`);
     }
-    definitions[name] = value;
+    definitions.set(name, value);
   }
   for (const schema of Object.values(schemas)) {
     for (const [name, definition] of Object.entries(schema.$defs ?? {})) add(name, definition);
   }
-  const properties = {};
+  const properties = new Map<string, { $ref: string }>();
   for (const [key, schema] of Object.entries(schemas)) {
     // A root export and a nested definition often name the same Rust type.
     // Reuse that declaration only when the complete schema body is identical.
-    const matching = Object.entries(definitions).find(
+    const matching = [...definitions].find(
       ([, definition]) => JSON.stringify(definition) === JSON.stringify(body(schema)),
     );
     const name = matching?.[0] ?? generatedSchemaName(key, prefix);
     add(name, schema);
-    properties[key] = { $ref: `#/$defs/${name}` };
+    properties.set(key, { $ref: `#/$defs/${name}` });
   }
   return {
-    type: "object",
+    type: "object" as const,
     title,
-    properties,
-    required: Object.keys(properties),
+    properties: Object.fromEntries(properties),
+    required: [...properties.keys()],
     additionalProperties: false,
-    $defs: definitions,
+    $defs: Object.fromEntries(definitions),
   };
 }
 
-export async function renderTransportTypes(schemas, contract = "output") {
+export async function renderTransportTypes(schemas: unknown, contract = "output") {
   return compile(combineTransportSchemas(schemas, contract), "TransportContracts", {
     bannerComment: `// Generated from Rust ${contract} schemas. Do not edit.\n// Regenerate: node apps/desktop/scripts/generate-transport-types.mts --write`,
     unknownAny: true,
@@ -76,7 +96,9 @@ export async function renderTransportTypes(schemas, contract = "output") {
   });
 }
 
-function withHostSchemas(core, host) {
+function withHostSchemas(core: unknown, host: unknown) {
+  assertSchemas(core);
+  assertSchemas(host);
   const combined = { ...core };
   for (const [name, schema] of Object.entries(host)) {
     const key = `desktop_${name}`;
@@ -92,22 +114,22 @@ async function main() {
     options: { write: { type: "boolean", default: false } },
   });
   const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../src");
-  const schemas = JSON.parse(
+  const schemas: unknown = JSON.parse(
     fs.readFileSync(path.join(source, "transport-schemas.generated.json"), "utf8"),
   );
-  const inputs = JSON.parse(
+  const inputs: unknown = JSON.parse(
     fs.readFileSync(path.join(source, "transport-inputs.generated.json"), "utf8"),
   );
-  const hostInput = JSON.parse(
+  const hostInput: unknown = JSON.parse(
     fs.readFileSync(path.join(source, "transport-host-input.generated.json"), "utf8"),
   );
-  const hostOutput = JSON.parse(
+  const hostOutput: unknown = JSON.parse(
     fs.readFileSync(path.join(source, "transport-host-output.generated.json"), "utf8"),
   );
-  const hostEvents = JSON.parse(
+  const hostEvents: unknown = JSON.parse(
     fs.readFileSync(path.join(source, "transport-host-events.generated.json"), "utf8"),
   );
-  for (const [name, expected] of [
+  const outputs: readonly (readonly [string, string])[] = [
     [
       "transport-types.generated.d.ts",
       await renderTransportTypes(withHostSchemas(schemas, hostOutput)),
@@ -117,7 +139,8 @@ async function main() {
       await renderTransportTypes(withHostSchemas(inputs, hostInput), "input"),
     ],
     ["transport-event-types.generated.d.ts", await renderTransportTypes(hostEvents, "event")],
-  ]) {
+  ];
+  for (const [name, expected] of outputs) {
     const target = path.join(source, name);
     if (values.write) fs.writeFileSync(target, expected);
     if (fs.readFileSync(target, "utf8").replaceAll("\r\n", "\n") !== expected)
