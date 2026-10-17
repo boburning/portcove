@@ -18,7 +18,7 @@ retain upstream behavior. The maintained adapter regression uses the actual API
 package with an emulated transport. Review the patch and regression when updating
 that dependency; remove the patch only after equivalent upstream cleanup is proven.
 Root pnpm `patches/*.patch` changes, including removal, select the complete UI
-suite. Their bytes also invalidate UI and release evidence fingerprints; unrelated
+suite. Their bytes also invalidate format, UI and release evidence fingerprints; unrelated
 files in that directory remain subject to unknown-input refusal.
 
 The Windows/Linux native CLI wrapper captures declared inputs before importing

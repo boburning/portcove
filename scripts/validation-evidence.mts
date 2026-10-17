@@ -256,7 +256,7 @@ export function domainsForPath(input: string) {
   }
 
   if (/^patches\/[^/]+\.patch$/u.test(file)) {
-    add(domains, "ui", "release");
+    add(domains, "format", "ui", "release");
     recognized = true;
   }
 

@@ -19,15 +19,16 @@ import {
   validateReceipt,
 } from "./validation-evidence.mts";
 
-void test("pnpm patch bytes belong to UI and release evidence", () => {
+void test("pnpm patch bytes belong to format, UI and release evidence", () => {
   const patch = "patches/@tauri-apps__api@2.12.4.patch";
   const selected = domainsForPath(patch);
   assert.equal(selected.ambiguous, false);
+  assert.ok(selected.domains.has("format"));
   assert.ok(selected.domains.has("ui"));
   assert.ok(selected.domains.has("release"));
   assert.equal(domainsForPath("patches/unowned.txt").ambiguous, true);
   const runtime = validationRuntime(undefined, {
-    domains: ["ui", "release"],
+    domains: ["format", "ui", "release"],
     commandVersion: () => "fixture",
   });
   const inventory = (identity: string): Pick<RepositoryInventory, "objectFormat" | "files"> => ({
@@ -49,7 +50,7 @@ void test("pnpm patch bytes belong to UI and release evidence", () => {
       },
     ],
   });
-  for (const domain of ["ui", "release"] as const) {
+  for (const domain of ["format", "ui", "release"] as const) {
     const stage = { id: "patch-consumer", recipe: "unchanged", domain };
     const before = fingerprintStage(stage, inventory("a".repeat(64)), runtime);
     assert.notEqual(before, fingerprintStage(stage, inventory("b".repeat(64)), runtime));
