@@ -1,13 +1,14 @@
 function parseTokens(block: string) {
-  return new Map(
-    [...block.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/gi)].map(([, name, value]) => [
-      `--${name}`,
-      value.trim(),
-    ]),
+  return new Map<string, string>(
+    [...block.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/gi)].map(([, name, value]) => {
+      if (name === undefined || value === undefined)
+        throw new Error("Theme token capture is incomplete");
+      return [`--${name}`, value.trim()] as const;
+    }),
   );
 }
 
-export function semanticReferenceFailures(tokens) {
+export function semanticReferenceFailures(tokens: ReadonlyMap<string, string>) {
   const referenceFailures = [];
   for (const token of tokens.keys()) {
     if (!token.startsWith("--color-")) continue;
@@ -30,13 +31,13 @@ export function semanticReferenceFailures(tokens) {
   return referenceFailures;
 }
 
-function tokenValue(tokens, token) {
+function tokenValue(tokens: ReadonlyMap<string, string>, token: string) {
   const value = tokens.get(token);
   if (!value) throw new Error(`Unknown theme token ${token}`);
   return value;
 }
 
-function resolveColor(tokens, token) {
+function resolveColor(tokens: ReadonlyMap<string, string>, token: string) {
   let value = tokenValue(tokens, token);
   const visited = new Set([token]);
   while (value.startsWith("var(")) {
@@ -50,17 +51,22 @@ function resolveColor(tokens, token) {
   return value;
 }
 
-function luminance(hex) {
+function luminance(hex: string) {
   const channels = [1, 3, 5].map((index) => Number.parseInt(hex.slice(index, index + 2), 16) / 255);
   const linear = channels.map((channel) =>
     channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
   );
-  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+  const [red, green, blue] = linear;
+  if (red === undefined || green === undefined || blue === undefined)
+    throw new Error("RGB channels are incomplete");
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
-function contrast(foreground, background) {
+function contrast(foreground: string, background: string) {
   const values = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
-  return (values[0] + 0.05) / (values[1] + 0.05);
+  const [lighter, darker] = values;
+  if (lighter === undefined || darker === undefined) throw new Error("Contrast pair is incomplete");
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
 export function themeTokenFailures(css: string) {
@@ -68,10 +74,12 @@ export function themeTokenFailures(css: string) {
     /(:root|:root\[data-theme=(?:"light"|'light')\])\s*\{([\s\S]*?)\r?\n\s*\}/g;
   const tokenBlocks = [...css.matchAll(themeBlockPattern)];
   const rootBlock = tokenBlocks.find(([, selector]) => selector === ":root");
-  const lightBlock = tokenBlocks.find(([, selector]) => selector.includes("light"));
+  const lightBlock = tokenBlocks.find(([, selector]) => selector?.includes("light"));
 
-  if (!rootBlock) return { failures: ["Theme has no :root token block"], results: [] };
-  if (!lightBlock) return { failures: ["Theme has no light theme token block"], results: [] };
+  if (!rootBlock || rootBlock[2] === undefined)
+    return { failures: ["Theme has no :root token block"], results: [] };
+  if (!lightBlock || lightBlock[2] === undefined)
+    return { failures: ["Theme has no light theme token block"], results: [] };
 
   const baseTokens = parseTokens(rootBlock[2]);
   const lightOverrides = parseTokens(lightBlock[2]);
@@ -134,7 +142,12 @@ export function themeTokenFailures(css: string) {
   for (const theme of themes) failures.push(...semanticReferenceFailures(theme.tokens));
   if (failures.length) return { failures, results: [] };
 
-  const contrastPairs = [
+  const contrastPairs: readonly (readonly [
+    label: string,
+    foreground: string,
+    background: string,
+    minimum: number,
+  ])[] = [
     ["primary text on app background", "--color-text", "--color-bg", 4.5],
     ["primary text on elevated surface", "--color-text", "--color-bg-elevated", 4.5],
     ["secondary text on elevated surface", "--color-text-secondary", "--color-bg-elevated", 4.5],

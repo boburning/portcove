@@ -1,9 +1,9 @@
-function expectSource(failures, condition, message) {
+function expectSource(failures: string[], condition: boolean, message: string) {
   if (!condition) failures.push(message);
 }
 
-export function productionCssFailures(builtCss) {
-  const failures = [];
+export function productionCssFailures(builtCss: string) {
+  const failures: string[] = [];
   expectSource(failures, builtCss.length > 0, "production CSS output is empty");
   expectSource(
     failures,
