@@ -1,3 +1,4 @@
+import type { DesktopCargoFeatures } from "./check-release-metadata.mts";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -8,13 +9,57 @@ import {
   inspectPng,
   loadDesktopCargoFeatures,
   parseArguments,
+  parseDesktopCargoFeatures,
   parseWorkspacePackage,
   validateBrandManifestDefinition,
   validateModelManifestDefinition,
   validateReleaseMetadata,
 } from "./check-release-metadata.mts";
 
-function validMetadata() {
+interface WindowFixture {
+  title: string;
+  label?: string;
+  create?: boolean;
+  url?: string;
+}
+interface CapabilityFixture {
+  identifier: string;
+  windows: string[];
+  permissions: string[];
+  local?: boolean;
+  remote?: { urls: string[] };
+  webviews?: string[];
+}
+function fixtureElement<T>(values: readonly T[], index: number): T {
+  const value = values[index];
+  assert.ok(value !== undefined);
+  return value;
+}
+interface MetadataFixture {
+  cargo: Required<ReturnType<typeof parseWorkspacePackage>>;
+  repositoryPackage: { packageManager: string };
+  desktopPackage: { version: string };
+  desktopCargoFeatures: DesktopCargoFeatures;
+  desktopCapability: CapabilityFixture;
+  tauri: {
+    productName: string;
+    version: string;
+    identifier: string;
+    app: { windows: WindowFixture[] };
+    bundle: {
+      active: boolean;
+      icon: string[];
+      homepage: string;
+      shortDescription: string;
+      longDescription: string;
+      licenseFile: string;
+    };
+  };
+  missingFiles: string[];
+  brandManifestErrors: string[];
+  modelManifestErrors: string[];
+}
+function validMetadata(): MetadataFixture {
   return {
     cargo: {
       version: "1.2.3-beta.1",
@@ -67,10 +112,12 @@ function validMetadata() {
       },
     },
     missingFiles: [],
+    brandManifestErrors: [],
+    modelManifestErrors: [],
   };
 }
 
-function pngHeader(width, height, colorType = 6, bitDepth = 8) {
+function pngHeader(width: number, height: number, colorType = 6, bitDepth = 8) {
   const buffer = Buffer.alloc(29);
   Buffer.from("89504e470d0a1a0a", "hex").copy(buffer);
   buffer.writeUInt32BE(13, 8);
@@ -124,13 +171,15 @@ function validModelManifest() {
       "MAT_WarmWhite",
       "MAT_Graphite",
     ],
-    files: [
-      ["mascot-v2-blender-source", "source.blend"],
-      ["mascot-v2-glb-exchange", "exchange.glb"],
-      ["mascot-v2-model-builder", "build.py"],
-      ["mascot-v2-model-validator", "validate.py"],
-      ["mascot-v2-proof-builder", "proofs.py"],
-    ].map(([id, name]) => ({
+    files: (
+      [
+        ["mascot-v2-blender-source", "source.blend"],
+        ["mascot-v2-glb-exchange", "exchange.glb"],
+        ["mascot-v2-model-builder", "build.py"],
+        ["mascot-v2-model-validator", "validate.py"],
+        ["mascot-v2-proof-builder", "proofs.py"],
+      ] as const
+    ).map(([id, name]) => ({
       id,
       path: `apps/desktop/assets/brand/models/v2/${name}`,
       role: "Model file",
@@ -140,7 +189,7 @@ function validModelManifest() {
   };
 }
 
-test("parses release identity from the Cargo workspace table", () => {
+void test("parses release identity from the Cargo workspace table", () => {
   const parsed = parseWorkspacePackage(`
 [workspace]
 members = []
@@ -160,7 +209,7 @@ serde = "1"
   });
 });
 
-test("Cargo metadata preserves comments and always-on dependency features", async () => {
+void test("Cargo metadata preserves comments and always-on dependency features", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "portcove-release-metadata-"));
   const desktopRoot = path.join(root, "desktop");
   const coreRoot = path.join(root, "core");
@@ -199,7 +248,7 @@ test("Cargo metadata preserves comments and always-on dependency features", asyn
   }
 });
 
-test("accepts one matching semantic version and tag across every surface", () => {
+void test("accepts one matching semantic version and tag across every surface", () => {
   assert.deepEqual(
     validateReleaseMetadata(validMetadata(), {
       tag: "v1.2.3-beta.1",
@@ -209,7 +258,7 @@ test("accepts one matching semantic version and tag across every surface", () =>
   );
 });
 
-test("rejects additional release windows and remote capability contexts", () => {
+void test("rejects additional release windows and remote capability contexts", () => {
   const metadata = validMetadata();
   metadata.tauri.app.windows.push({ label: "secondary", title: "Secondary" });
   metadata.desktopCapability.windows.push("secondary");
@@ -219,9 +268,9 @@ test("rejects additional release windows and remote capability contexts", () => 
   assert.match(errors.join("\n"), /only to the local main window/);
 });
 
-test("rejects external main windows and independent capability webviews", () => {
+void test("rejects external main windows and independent capability webviews", () => {
   const externalWindow = validMetadata();
-  externalWindow.tauri.app.windows[0].url = "https://example.invalid";
+  fixtureElement(externalWindow.tauri.app.windows, 0).url = "https://example.invalid";
   assert.match(validateReleaseMetadata(externalWindow).join("\n"), /exactly one local main window/);
 
   const independentWebview = validMetadata();
@@ -232,13 +281,13 @@ test("rejects external main windows and independent capability webviews", () => 
   );
 });
 
-test("rejects a configured main window that is not created", () => {
+void test("rejects a configured main window that is not created", () => {
   const metadata = validMetadata();
-  metadata.tauri.app.windows[0].create = false;
+  fixtureElement(metadata.tauri.app.windows, 0).create = false;
   assert.match(validateReleaseMetadata(metadata).join("\n"), /exactly one local main window/);
 });
 
-test("rejects capabilities that disable the local application context", () => {
+void test("rejects capabilities that disable the local application context", () => {
   const metadata = validMetadata();
   metadata.desktopCapability.local = false;
   assert.match(
@@ -247,7 +296,7 @@ test("rejects capabilities that disable the local application context", () => {
   );
 });
 
-test("rejects qualification-only features from default desktop builds", () => {
+void test("rejects qualification-only features from default desktop builds", () => {
   const metadata = validMetadata();
   metadata.desktopCargoFeatures.default = [
     "application-update-qualification",
@@ -267,7 +316,7 @@ test("rejects qualification-only features from default desktop builds", () => {
   );
 });
 
-test("rejects transitive aliases and dependency activation for qualification-only features", () => {
+void test("rejects transitive aliases and dependency activation for qualification-only features", () => {
   const metadata = validMetadata();
   metadata.desktopCargoFeatures.default = ["shipping"];
   metadata.desktopCargoFeatures.definitions.shipping = [
@@ -290,7 +339,7 @@ test("rejects transitive aliases and dependency activation for qualification-onl
   );
 });
 
-test("reports every mismatched release identity in one pass", () => {
+void test("reports every mismatched release identity in one pass", () => {
   const metadata = validMetadata();
   metadata.desktopPackage.version = "1.2.2";
   metadata.tauri.version = "1.2.4";
@@ -307,7 +356,7 @@ test("reports every mismatched release identity in one pass", () => {
   assert.match(errors.join("\n"), /required release file is missing/);
 });
 
-test("rejects malformed versions before a tag can be accepted", () => {
+void test("rejects malformed versions before a tag can be accepted", () => {
   const metadata = validMetadata();
   metadata.cargo.version = "01.2";
   metadata.desktopPackage.version = "01.2";
@@ -316,14 +365,14 @@ test("rejects malformed versions before a tag can be accepted", () => {
   assert.match(errors.join("\n"), /not valid SemVer/);
 });
 
-test("requires the complete platform icon set", () => {
+void test("requires the complete platform icon set", () => {
   const metadata = validMetadata();
   metadata.tauri.bundle.icon = ["icons/icon.ico"];
   const errors = validateReleaseMetadata(metadata);
   assert.match(errors.join("\n"), /complete platform icon set/);
 });
 
-test("reads dimensions and color mode from a PNG header", () => {
+void test("reads dimensions and color mode from a PNG header", () => {
   assert.deepEqual(inspectPng(pngHeader(1024, 512)), {
     width: 1024,
     height: 512,
@@ -334,19 +383,19 @@ test("reads dimensions and color mode from a PNG header", () => {
   assert.throws(() => inspectPng(Buffer.from("not a png")), /not a valid PNG/);
 });
 
-test("rejects ambiguous or unsafe brand manifest entries", () => {
+void test("rejects ambiguous or unsafe brand manifest entries", () => {
   const manifest = validBrandManifest();
-  manifest.assets.push({ ...manifest.assets[0], path: "../outside.png" });
+  manifest.assets.push({ ...fixtureElement(manifest.assets, 0), path: "../outside.png" });
   const errors = validateBrandManifestDefinition(manifest);
   assert.match(errors.join("\n"), /duplicate id/);
   assert.match(errors.join("\n"), /invalid PNG path/);
 });
 
-test("locks model anatomy, materials, and repository-contained files", () => {
+void test("locks model anatomy, materials, and repository-contained files", () => {
   assert.deepEqual(validateModelManifestDefinition(validModelManifest()), []);
   const manifest = validModelManifest();
   manifest.geometry.walking_legs = 6;
-  manifest.files[0].path = "../outside.blend";
+  fixtureElement(manifest.files, 0).path = "../outside.blend";
   manifest.files.pop();
   const errors = validateModelManifestDefinition(manifest);
   assert.match(errors.join("\n"), /walking_legs must be 4/);
@@ -354,13 +403,13 @@ test("locks model anatomy, materials, and repository-contained files", () => {
   assert.match(errors.join("\n"), /missing required file id/);
 });
 
-test("reports brand asset integrity failures with release metadata", () => {
+void test("reports brand asset integrity failures with release metadata", () => {
   const metadata = validMetadata();
   metadata.brandManifestErrors = ["brand asset logo-v2 SHA-256 does not match manifest"];
   assert.match(validateReleaseMetadata(metadata).join("\n"), /brand asset logo-v2 SHA-256/);
 });
 
-test("reports model integrity failures with release metadata", () => {
+void test("reports model integrity failures with release metadata", () => {
   const metadata = validMetadata();
   metadata.modelManifestErrors = [
     "model file mascot-v2-glb-exchange SHA-256 does not match manifest",
@@ -371,7 +420,7 @@ test("reports model integrity failures with release metadata", () => {
   );
 });
 
-test("parses inline and positional release options", () => {
+void test("parses inline and positional release options", () => {
   assert.deepEqual(
     parseArguments(["--tag=v1.2.3", "--expect-version", "1.2.3", "--print-version"]),
     {
@@ -382,4 +431,84 @@ test("parses inline and positional release options", () => {
   );
   assert.throws(() => parseArguments(["--tag"]), /requires a value/);
   assert.throws(() => parseArguments(["--unknown"]), /unknown argument/);
+});
+
+void test("release identity and asset digests reject coercible arrays", () => {
+  const metadata = validMetadata();
+  assert.match(
+    validateReleaseMetadata({
+      ...metadata,
+      repositoryPackage: { packageManager: [metadata.repositoryPackage.packageManager] },
+    }).join("\n"),
+    /exact pnpm version/,
+  );
+  const manifest = validBrandManifest();
+  const asset = fixtureElement(manifest.assets, 0);
+  assert.match(
+    validateBrandManifestDefinition({
+      ...manifest,
+      assets: [{ ...asset, sha256: [asset.sha256] }],
+    }).join("\n"),
+    /lowercase SHA-256/,
+  );
+  const model = validModelManifest();
+  const file = fixtureElement(model.files, 0);
+  assert.match(
+    validateModelManifestDefinition({
+      ...model,
+      files: [{ ...file, sha256: [file.sha256] }, ...model.files.slice(1)],
+    }).join("\n"),
+    /lowercase SHA-256/,
+  );
+});
+void test("malformed Cargo feature references cannot disguise qualification defaults", () => {
+  const metadata = validMetadata();
+  assert.match(
+    validateReleaseMetadata({
+      ...metadata,
+      desktopCargoFeatures: {
+        ...metadata.desktopCargoFeatures,
+        definitions: { shipping: "qualification-fixtures" },
+        default: ["shipping"],
+      },
+    }).join("\n"),
+    /feature references are invalid/,
+  );
+});
+
+void test("own prototype-named feature aliases retain qualification edges", () => {
+  const definitions: unknown = JSON.parse(
+    '{"default":["__proto__"],"__proto__":["qualification-fixtures"]}',
+  );
+  const desktop = {
+    name: "portcove-desktop",
+    manifest_path: "/fixture/desktop/Cargo.toml",
+    features: definitions,
+    dependencies: [
+      { name: "portcove-core", kind: null, path: "/fixture/core", uses_default_features: true },
+    ],
+  };
+  const core = {
+    name: "portcove-core",
+    manifest_path: "/fixture/core/Cargo.toml",
+    features: definitions,
+    dependencies: [],
+  };
+  const features = parseDesktopCargoFeatures({ packages: [desktop, core] }, desktop.manifest_path);
+  assert.equal(Object.hasOwn(features.definitions, "__proto__"), true);
+  assert.equal(features.alwaysEnabledCoreFeatures.includes("qualification-fixtures"), true);
+  const metadata = validMetadata();
+  const rawDefinitions: unknown = JSON.parse('{"__proto__":["application-update-qualification"]}');
+  const errors = validateReleaseMetadata({
+    ...metadata,
+    desktopCargoFeatures: {
+      ...metadata.desktopCargoFeatures,
+      default: ["__proto__"],
+      definitions: rawDefinitions,
+    },
+  });
+  assert.match(
+    errors.join("\n"),
+    /default features must exclude qualification-only features: application-update-qualification/,
+  );
 });
