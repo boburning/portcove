@@ -163,11 +163,21 @@ const oxfmtExtensions = new Set([
 // descendant-closure consumers. Helper-only edits must exercise those contracts.
 const containmentContractTests = [
   "scripts/heavy-rust-test-lock.test.mjs",
+  "scripts/resource-capacity.test.mjs",
+  "scripts/resource-command.test.mjs",
+  "scripts/native-session-lock.test.mjs",
+  "scripts/process-lock.test.mjs",
   "scripts/run-rust-tests.test.mjs",
   "scripts/rust-support-cache.test.mjs",
   "scripts/rust-test-tree-supervisor.test.mjs",
 ];
 const containmentInputs = new Set([
+  "scripts/rust-test-impact.mjs",
+  "scripts/desktop-linux-x11.mjs",
+  "scripts/resource-paths.mjs",
+  "scripts/native-build.mjs",
+  "scripts/container-host.mjs",
+  "scripts/fallow-source.mjs",
   ...containmentContractTests,
   ...containmentContractTests.map((file) => file.replace(".test.mjs", ".mjs")),
   "scripts/fixtures/linux-process-tree-reaper.rs.txt",
@@ -283,6 +293,14 @@ const explicitNodeTests = new Map([
     ["scripts/ci-baseline.test.mjs", "scripts/local-validation.test.mjs"],
   ],
   ["scripts/rust-test-impact.mjs", ["scripts/rust-test-impact.test.mjs"]],
+  [
+    "scripts/desktop-linux-x11.mjs",
+    [
+      "scripts/desktop-linux-native-session.test.mjs",
+      "scripts/native-session-lock.test.mjs",
+      "scripts/resource-command.test.mjs",
+    ],
+  ],
   ["scripts/ui-test-selection.mjs", ["scripts/ui-test-selection.test.mjs"]],
   ["scripts/run-ui-tests.mjs", ["scripts/ui-test-selection.test.mjs"]],
   ["scripts/run-viteplus.mjs", ["scripts/frontend-command-preflight.test.mjs"]],

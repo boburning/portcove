@@ -1685,3 +1685,30 @@ test("live transport stages invalidate receipts when comparator and consumer inp
     );
   }
 });
+
+test("a successful payload cannot mint a reusable receipt after source changes", (t) => {
+  const receiptRoot = mkdtempSync(path.join(tmpdir(), "portcove-source-change-"));
+  t.after(() => rmSync(receiptRoot, { recursive: true, force: true }));
+  const inventory = receiptInventory();
+  const stage = {
+    id: "rust-clippy:portcove-core",
+    reason: "fixture",
+    executable: "cargo",
+    args: ["clippy"],
+    cwd: process.cwd(),
+    obligation: "rust",
+  };
+  assert.throws(
+    () =>
+      executePlanWithReceipts([stage], {
+        receiptRoot,
+        inventory,
+        runtime: receiptRuntime,
+        spawn() {
+          inventory.files[0].sha256 = "changed-during-owned-execution";
+          return { status: 0 };
+        },
+      }),
+    /source changed during execution; successful receipt withheld/u,
+  );
+});
