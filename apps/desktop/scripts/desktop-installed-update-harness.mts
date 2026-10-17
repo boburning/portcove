@@ -83,7 +83,7 @@ export async function awaitInstalledUpdateDriver(
   );
 }
 
-export async function connectInstalledUpdateDriver(application: string, profile: string) {
+export async function connectInstalledUpdateDriver(application: string, profile?: string) {
   const { Builder } = await import("selenium-webdriver");
   if (process.platform === "win32")
     assert.ok(profile && path.isAbsolute(profile), "Windows WebView2 profile must be absolute");
