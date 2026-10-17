@@ -171,12 +171,11 @@ export async function listenerLifetimeScenario({
         const notice = By.xpath('//*[normalize-space(.)="Live workspace updates are unavailable"]');
         if (index === 0) {
           await browser.wait(until.elementLocated(notice), 15_000);
-          await executeBrowserScript(
-            browser,
-            (key) => (Reflect.get(window, key) as ListenerProbe).armRefresh(),
-            key,
+          await browser.wait(
+            () => executeBrowserScript(browser, activateManualRefresh, key),
+            15_000,
+            "The current degraded owner must expose an idle, enabled refresh action",
           );
-          await browser.findElement(By.xpath('//button[normalize-space(.)="Refresh now"]')).click();
           await browser.wait(
             async () => (await capture()).manual_refresh?.accepted === true,
             15_000,
@@ -277,6 +276,36 @@ export async function listenerLifetimeScenario({
 }
 
 // Serialized by Selenium; never unregisters or deletes arbitrary callbacks.
+function activateManualRefresh(key: string): boolean {
+  const notices = [...document.querySelectorAll('[role="status"][aria-busy="false"]')].filter(
+    (notice) =>
+      [...notice.querySelectorAll("strong")].some(
+        (heading) => heading.textContent === "Live workspace updates are unavailable",
+      ),
+  );
+  if (notices.length !== 1) return false;
+  const buttons = [...notices[0]!.querySelectorAll("button")].filter(
+    (button) => button.textContent?.trim() === "Refresh now",
+  );
+  const button = buttons[0];
+  if (
+    buttons.length !== 1 ||
+    !(button instanceof HTMLButtonElement) ||
+    !button.isConnected ||
+    button.disabled ||
+    button.closest('[inert], [hidden], [aria-hidden="true"]') ||
+    button.getClientRects().length === 0
+  )
+    return false;
+  const style = getComputedStyle(button);
+  if (style.display === "none" || style.visibility !== "visible") return false;
+  // Arm and activate the actual owner callback in one browser turn. A pending
+  // automatic refresh cannot consume the held response between two RPCs.
+  (Reflect.get(window, key) as ListenerProbe).armRefresh();
+  button.click();
+  return true;
+}
+
 function install(
   key: string,
   reviewed: string,

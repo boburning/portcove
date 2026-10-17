@@ -340,6 +340,69 @@ impl Fixture {
 }
 
 #[test]
+fn changed_input_refuses_preparation_before_start_and_preserves_the_current_installation() {
+    let fixture = Fixture::new();
+    let library = fixture.service.library();
+    let before = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
+    let activities = library.activities(100).unwrap();
+    let plan = fixture
+        .service
+        .plan_preparation(PORT, fixture.options())
+        .unwrap();
+    let authorization = fixture
+        .service
+        .authorize_preparation(PORT, fixture.options(), &plan.plan_sha256)
+        .unwrap();
+    fs::write(
+        &fixture.source,
+        b"changed owned prerequisite before execution",
+    )
+    .unwrap();
+    let changed_source = fs::read(&fixture.source).unwrap();
+    let mut events = Vec::new();
+    let error = fixture
+        .service
+        .prepare(PORT, fixture.options(), &authorization.token, |event| {
+            events.push(event)
+        })
+        .unwrap_err();
+    let report = error.report();
+    assert_eq!(
+        report.presentation.mutation_state,
+        crate::MutationState::NotStarted
+    );
+    assert_eq!(
+        report.presentation.phase.as_deref(),
+        Some("preparation.review")
+    );
+    assert!(events.is_empty());
+    assert_eq!(
+        crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap(),
+        before
+    );
+    assert_eq!(fs::read(&fixture.source).unwrap(), changed_source);
+    assert_eq!(
+        fixture.service.status(PORT).unwrap().active.unwrap().id,
+        fixture.install.id
+    );
+    assert_eq!(
+        serde_json::to_value(library.activities(100).unwrap()).unwrap(),
+        serde_json::to_value(activities).unwrap()
+    );
+    assert!(
+        OperationStore::new(library.clone())
+            .all()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        serde_json::from_value::<crate::FailureReport>(serde_json::to_value(&report).unwrap())
+            .unwrap(),
+        report
+    );
+}
+
+#[test]
 fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update() {
     let fixture = Fixture::generic_native("success");
     let library = fixture.service.library().clone();

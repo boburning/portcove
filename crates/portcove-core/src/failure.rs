@@ -32,6 +32,25 @@ pub enum FailureTone {
     Error,
 }
 
+/// A known item to inspect, never authorization to resume or change it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum FailureRecoveryTarget {
+    Preparation { port_id: String },
+}
+
+// Optional routing context must not make an otherwise readable retained failure
+// disappear when a newer writer adds a target kind this reader does not know.
+fn read_recovery_target<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<FailureRecoveryTarget>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(serde_json::from_value(value).ok())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct FailurePresentation {
     pub presentation_key: String,
@@ -40,6 +59,12 @@ pub struct FailurePresentation {
     pub mutation_state: MutationState,
     pub phase: Option<String>,
     pub recovery_actions: Vec<RecoveryAction>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "read_recovery_target"
+    )]
+    pub recovery_target: Option<FailureRecoveryTarget>,
     pub technical_message: String,
     pub technical_context: BTreeMap<String, String>,
 }
@@ -407,6 +432,11 @@ impl PortcoveError {
             mutation_state: self.failure.mutation_state,
             phase: self.failure.phase.clone(),
             recovery_actions,
+            recovery_target: self.failure.preparation_target.as_ref().map(|target| {
+                FailureRecoveryTarget::Preparation {
+                    port_id: target.port_id.clone(),
+                }
+            }),
             technical_message: redact_diagnostic_text(&self.message),
             technical_context: self
                 .details
@@ -613,6 +643,7 @@ mod tests {
                 .summary
                 .starts_with("Game preparation for ")
         );
+        assert_eq!(error.presentation().recovery_target, None);
         assert!(
             !error
                 .presentation()
@@ -622,7 +653,7 @@ mod tests {
     }
 
     #[test]
-    fn preparation_target_is_bounded_control_safe_and_changes_only_the_summary() {
+    fn preparation_target_is_bounded_control_safe_and_adds_only_summary_and_read_only_target() {
         let catalog = crate::Catalog::embedded().unwrap();
         let mut port = catalog.port("opengoal-jak1").unwrap().clone();
         for name in [
@@ -638,6 +669,12 @@ mod tests {
                 .offer_recovery(RecoveryAction::ReviewPreparation);
             let original = error.report();
             let annotated = error.with_preparation_target(&port).report();
+            assert_eq!(
+                annotated.presentation.recovery_target,
+                Some(FailureRecoveryTarget::Preparation {
+                    port_id: port.id.clone()
+                })
+            );
             assert!(annotated.presentation.summary.contains("opengoal-jak1"));
             assert!(!annotated.presentation.summary.chars().any(char::is_control));
             assert!(!annotated.presentation.summary.contains('\u{202e}'));
@@ -663,12 +700,38 @@ mod tests {
                 .as_object_mut()
                 .unwrap()
                 .remove("summary");
+            actual["presentation"]
+                .as_object_mut()
+                .unwrap()
+                .remove("recovery_target");
             assert_eq!(actual, expected);
             assert_eq!(
                 serde_json::from_value::<FailureReport>(serde_json::to_value(&original).unwrap())
                     .unwrap(),
                 original
             );
+        }
+    }
+
+    #[test]
+    fn unknown_or_malformed_optional_recovery_targets_preserve_the_failure() {
+        let report = PortcoveError::state("retained diagnostic")
+            .with_mutation_state(MutationState::RecoveryRequired)
+            .offer_recovery(RecoveryAction::ReviewPreparation)
+            .report();
+        let original = serde_json::to_value(&report).unwrap();
+        assert!(original["presentation"].get("recovery_target").is_none());
+        for target in [
+            serde_json::json!({"kind":"future","port_id":"opengoal-jak1"}),
+            serde_json::json!({"kind":"preparation","port_id":3}),
+            serde_json::json!([]),
+            serde_json::Value::Null,
+        ] {
+            let mut stored = original.clone();
+            stored["presentation"]["recovery_target"] = target;
+            let decoded: FailureReport = serde_json::from_value(stored).unwrap();
+            assert_eq!(decoded, report);
+            assert_eq!(serde_json::to_value(decoded).unwrap(), original);
         }
     }
 
