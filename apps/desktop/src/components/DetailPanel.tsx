@@ -2219,6 +2219,7 @@ function MaintenanceActions({
       <RemovalControl
         key={`${port.id}:${libraryGeneration}`}
         port={port}
+        status={status}
         generation={libraryGeneration}
         busy={Boolean(busy)}
         apply={actions.remove}
@@ -2242,22 +2243,40 @@ function DataActions({
     readState?.status === "current" &&
     readState.hasInventory &&
     assessment?.action === "backup_create";
-  const available = current && assessment?.availability === "allowed";
+  const available =
+    current &&
+    assessment?.availability === "allowed" &&
+    assessment.reason === "available" &&
+    assessment.definition == null;
+  const consistent =
+    assessment?.definition == null &&
+    (available ||
+      (assessment?.availability === "waiting" && assessment.reason === "missing_data") ||
+      (assessment?.availability === "held" &&
+        ["unreadable_data", "unsafe_data", "recovery_required", "assessment_incomplete"].includes(
+          assessment.reason,
+        )));
   const explanation = !current
-    ? readState?.status === "failed"
-      ? "Your saved data could not be checked. Retry the backup inventory read."
-      : "Checking your saved data…"
-    : assessment.reason === "available"
+    ? readState?.status === "current"
+      ? "Current backup availability is unavailable. Refresh the backup inventory to check again."
+      : readState?.status === "failed"
+        ? "Your saved data could not be checked. Retry the backup inventory read."
+        : "Checking your saved data…"
+    : available
       ? "Back up owned saves and settings."
-      : assessment.reason === "missing_data"
-        ? "There are no owned saves or settings to back up yet."
-        : assessment.reason === "recovery_required"
-          ? "Restart Portcove to retry recovery, then check your backups again."
-          : assessment.reason === "unsafe_data"
-            ? "The saved-data location needs path and ownership review."
-            : assessment.reason === "assessment_incomplete"
-              ? "The saved-data check did not finish. Your data is preserved."
-              : "Your saved data could not be read. Check its location, then retry.";
+      : !consistent
+        ? "Current backup availability is unavailable. Refresh the backup inventory to check again."
+        : assessment.reason === "missing_data"
+          ? "There are no owned saves or settings to back up yet."
+          : assessment.reason === "recovery_required"
+            ? "Restart Portcove to retry recovery, then check your backups again."
+            : assessment.reason === "unsafe_data"
+              ? "The saved-data location needs path and ownership review."
+              : assessment.reason === "assessment_incomplete"
+                ? "The saved-data check did not finish. Your data is preserved."
+                : assessment.reason === "unreadable_data"
+                  ? "Your saved data could not be read. Check its location, then retry."
+                  : "Current backup availability is unavailable. Refresh the backup inventory to check again.";
   return (
     <div className="flex flex-wrap gap-2">
       <p role="status" className="w-full" id="backup-create-explanation">

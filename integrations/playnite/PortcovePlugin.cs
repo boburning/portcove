@@ -159,7 +159,8 @@ namespace Portcove.ReferenceClient
             var status = cli.Read("status", "status", port).GetAwaiter().GetResult();
             if (Json.Text(status, "port_id") != port)
                 throw new InvalidOperationException("Portcove returned another game before removal action selection.");
-            if (Json.OptionalObjectField(status, "external_runtime") != null && !cli.SupportsReviewedExternal)
+            var external = Json.OptionalObjectField(status, "external_runtime") != null;
+            if ((external && !cli.SupportsReviewedExternal) || !PortActions.CanReviewRemoval(status, external))
                 yield break;
             yield return new ManagedUninstall(args.Game, RemoveRegisteredGame);
         }
@@ -172,6 +173,8 @@ namespace Portcove.ReferenceClient
             var current = cli.Read("status", "status", port).GetAwaiter().GetResult();
             if (Json.Text(current, "port_id") != port)
                 throw new InvalidOperationException("Portcove returned another game's status. Refresh before removal.");
+            if (!PortActions.CanReviewRemoval(current, Json.OptionalObjectField(current, "external_runtime") != null))
+                throw new InvalidOperationException("Portcove cannot offer removal from this status. Refresh and review the current installation.");
             if (Json.OptionalObjectField(current, "external_runtime") != null)
             {
                 cli.RequireReviewedExternal();
