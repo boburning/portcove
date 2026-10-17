@@ -16,7 +16,7 @@ ENV CI=true PORTCOVE_CONTAINER_GUEST=1 VP_GIT_HOOKS=0 VP_HOME=/home/vp/.vite-plu
 ENV PATH=/home/vp/.vite-plus/bin:/home/vp/.cargo/bin:$PATH
 # Extracted byte-for-byte from the selected commit, not from dirty current work.
 COPY linux-prerequisites.sh /portcove/linux-prerequisites.sh
-RUN bash /portcove/linux-prerequisites.sh --include-rpm --install-timeout-seconds=2700
+RUN bash /portcove/linux-prerequisites.sh --include-rpm --install-timeout-seconds=3600
 RUN dpkg-query -W > /portcove/installed-system-packages.txt
 COPY --chown=vp:vp source.bundle /portcove/source.bundle
 USER vp

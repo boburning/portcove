@@ -339,7 +339,7 @@ export function createContainerHost(profile: string) {
   const GiB = 1024 ** 3;
   const budgets = Object.freeze({
     timeout_ms: (builder ? 90 : 30) * 60_000,
-    setup_ms: (builder ? 90 : 30) * 60_000,
+    setup_ms: (builder ? 120 : 30) * 60_000,
     cpus: 4,
     memory: "6g",
     shm: "1g",

@@ -107,17 +107,28 @@ install_from_current_mirror() {
     echo "Ubuntu package index failed from $label." >&2
     return 1
   fi
-  if ! run_apt "$install_deadline" install \
+  if run_apt "$install_deadline" install \
     --yes \
     --no-install-recommends \
     "${packages[@]}"; then
+    return 0
+  else
+    local status=$?
     echo "Ubuntu package installation failed from $label." >&2
-    return 1
+    return "$status"
   fi
 }
 
 if install_from_current_mirror "the runner-configured mirror" 2m "$install_deadline"; then
   exit 0
+else
+  status=$?
+  if (( status == 124 || status == 137 )); then
+    # timeout may have interrupted dpkg configuration. A different mirror cannot
+    # repair that state; preserve the deadline failure instead of retrying it.
+    echo "APT installation exceeded its deadline; refusing a mirror retry on interrupted package state." >&2
+    exit "$status"
+  fi
 fi
 
 # GitHub's Azure-backed Ubuntu mirror has repeatedly throttled concurrent jobs.
