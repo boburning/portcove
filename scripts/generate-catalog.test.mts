@@ -16,12 +16,112 @@ import {
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
+import type { TestContext } from "node:test";
+import type { Socket } from "node:net";
+import type { ArtworkCatalog, ArtworkPreparationOptions } from "./inspect-igdb-artwork.mts";
+import { isRecord } from "./runtime-values.mts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+function rejectedReason(result: PromiseRejectedResult): unknown {
+  return result.reason;
+}
+function requiredFixture<T>(value: T): NonNullable<T> {
+  assert.ok(value !== undefined && value !== null, "Required fixture value is missing");
+  return value;
+}
+function record(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value), "Expected fixture object");
+  return value;
+}
+function records(value: unknown): Record<string, unknown>[] {
+  assert.ok(Array.isArray(value), "Expected fixture array");
+  const items: unknown[] = value;
+  return items.map(record);
+}
+function stringArray(value: unknown): string[] {
+  assert.ok(Array.isArray(value));
+  const items: unknown[] = value;
+  return items.map(text);
+}
+function text(value: unknown): string {
+  assert.equal(typeof value, "string");
+  if (typeof value !== "string") throw new Error("Expected fixture text");
+  return value;
+}
+function fixtureJson(bytes: string | Buffer): Record<string, unknown> {
+  const value: unknown = JSON.parse(bytes.toString());
+  return record(value);
+}
+interface FixtureRecord extends Record<string, unknown> {
+  id: string;
+}
+interface FixturePort extends FixtureRecord {
+  release?: Record<string, unknown>;
+  presentation?: Record<string, unknown> | null;
+  executable_hints?: Record<string, unknown>;
+}
+interface FixtureCatalog extends ArtworkCatalog {
+  ports: FixturePort[];
+  source_catalog: Record<
+    "identities" | "contracts" | "validators" | "evidence",
+    FixtureRecord[]
+  > & {
+    qualification: Record<string, unknown>[];
+  };
+}
+function differenceRecords(value: unknown) {
+  return records(value).map((item) => ({ ...item, path: text(item.path) }));
+}
+function comparisonReport(value: unknown) {
+  const report = record(value);
+  const changes = record(report.proposal_changes);
+  return {
+    ...report,
+    differences: differenceRecords(report.differences),
+    proposal_changes: {
+      ...changes,
+      ports: records(changes.ports).map((port) => {
+        const groups = record(port.changes);
+        return {
+          ...port,
+          port_id: text(port.port_id),
+          action: text(port.action),
+          name_before: port.name_before,
+          name_after: port.name_after,
+          changes: {
+            source: differenceRecords(groups.source),
+            execution: differenceRecords(groups.execution),
+            persistence: differenceRecords(groups.persistence),
+            other: differenceRecords(groups.other),
+          },
+        };
+      }),
+      source_records: records(changes.source_records),
+      order_changes: records(changes.order_changes),
+    },
+  };
+}
+function fixtureCatalog(value: unknown): FixtureCatalog {
+  function assertCatalog(value: unknown): asserts value is FixtureCatalog {
+    const catalog = record(value);
+    for (const port of records(catalog.ports)) {
+      text(port.id);
+      for (const field of ["release", "presentation", "executable_hints"])
+        if (port[field] !== undefined && !(field === "presentation" && port[field] === null))
+          record(port[field]);
+    }
+    const source = record(catalog.source_catalog);
+    for (const field of ["identities", "contracts", "validators", "evidence"])
+      for (const item of records(source[field])) text(item.id);
+    records(source.qualification);
+  }
+  assertCatalog(value);
+  return value;
+}
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const catalogRoot = join(root, "crates", "portcove-core", "catalog");
 
-function run(...args) {
+function run(...args: string[]) {
   return spawnSync(process.execPath, ["scripts/generate-catalog.mts", ...args], {
     cwd: root,
     encoding: "utf8",
@@ -31,7 +131,7 @@ function run(...args) {
 function isolatedGenerator() {
   const scratch = mkdtempSync(join(tmpdir(), "portcove-generator-dispatch-"));
   mkdirSync(join(scratch, "scripts"));
-  for (const name of ["generate-catalog.mts", "inspect-igdb-artwork.mts"])
+  for (const name of ["generate-catalog.mts", "inspect-igdb-artwork.mts", "runtime-values.mts"])
     copyFileSync(join(root, "scripts", name), join(scratch, "scripts", name));
   const catalogs = join(scratch, "crates", "portcove-core", "catalog");
   mkdirSync(catalogs, { recursive: true });
@@ -45,7 +145,7 @@ function isolatedGenerator() {
   return {
     scratch,
     catalogs,
-    run: (...args) =>
+    run: (...args: string[]) =>
       spawnSync(process.execPath, ["scripts/generate-catalog.mts", ...args], {
         cwd: scratch,
         encoding: "utf8",
@@ -53,13 +153,15 @@ function isolatedGenerator() {
   };
 }
 
-test("ordinary generation refuses an unreviewed identity before replacing embedded bytes", () => {
+void test("ordinary generation refuses an unreviewed identity before replacing embedded bytes", () => {
   const fixture = isolatedGenerator();
   const output = join(fixture.catalogs, "catalog.json");
   const original = readFileSync(join(catalogRoot, "catalog.json"));
   writeFileSync(output, original);
-  const input = JSON.parse(readFileSync(join(fixture.catalogs, "catalog-current-authoring.json")));
-  input.ports.push({ ...input.ports[0], id: "unreviewed-fixture-port" });
+  const input = fixtureCatalog(
+    fixtureJson(readFileSync(join(fixture.catalogs, "catalog-current-authoring.json"))),
+  );
+  input.ports.push({ ...requiredFixture(input.ports[0]), id: "unreviewed-fixture-port" });
   writeFileSync(join(fixture.catalogs, "catalog-current-authoring.json"), JSON.stringify(input));
   const result = fixture.run();
   assert.notEqual(result.status, 0);
@@ -71,12 +173,12 @@ function proposalDecoderFixture(
   images = 0,
   failInitialization = false,
   mode = "--prepare-proposal",
-  editInput,
+  editInput?: (input: FixtureCatalog, catalogs: string) => void,
 ) {
   const fixture = isolatedGenerator();
   if (editInput) {
     const path = join(fixture.catalogs, "catalog-current-authoring.json");
-    const input = JSON.parse(readFileSync(path));
+    const input = fixtureCatalog(fixtureJson(readFileSync(path)));
     editInput(input, fixture.catalogs);
     writeFileSync(path, JSON.stringify(input));
   }
@@ -170,15 +272,21 @@ function proposalDecoderFixture(
     original,
     cli,
     factories: existsSync(factoryLog)
-      ? readFileSync(factoryLog, "utf8").trim().split("\n").map(JSON.parse)
+      ? readFileSync(factoryLog, "utf8")
+          .trim()
+          .split("\n")
+          .map((line) => fixtureJson(line))
       : [],
     processes: existsSync(processLog)
-      ? readFileSync(processLog, "utf8").trim().split("\n").map(JSON.parse)
+      ? readFileSync(processLog, "utf8")
+          .trim()
+          .split("\n")
+          .map((line) => fixtureJson(line))
       : [],
   };
 }
 
-test("unreviewed proposal identities report required fixture review without editing expectations", () => {
+void test("unreviewed proposal identities report required fixture review without editing expectations", () => {
   // Test generic bookkeeping with independently fixed identities, not the live
   // catalog count. Live accepted-catalog and frozen equality checks are separate.
   const expectedBytes = Buffer.from(
@@ -208,21 +316,25 @@ test("unreviewed proposal identities report required fixture review without edit
   });
   assert.equal(fixture.result.status, 0, fixture.result.stderr);
   assert.equal(fixture.processes.filter(({ inspection }) => inspection).length, 3);
-  const report = JSON.parse(readFileSync(join(fixture.output, "proposal-evidence.json")));
+  const report = fixtureJson(readFileSync(join(fixture.output, "proposal-evidence.json")));
   assert.deepEqual(
-    report.declaration_cases.cases,
+    record(report.declaration_cases).cases,
     [],
     "unreviewed identity bookkeeping is not a declaration change against the same accepted fixture",
   );
   assert.match(
-    report.declaration_cases.scope,
+    text(record(report.declaration_cases).scope),
     /not validation impact, capability fit or reusable qualification/u,
   );
-  const review = report.compatibility_fixture_review;
+  const review = record(report.compatibility_fixture_review);
   assert.equal(review.status, "requires-review");
-  assert.deepEqual(review.collections.port_ids.unreviewed_ids, ["unreviewed-proposal-port"]);
-  assert.deepEqual(review.collections.source_profile_ids.missing_expected_ids, ["added-source"]);
-  assert.equal(review.collections.port_ids.expected_count, 2);
+  assert.deepEqual(record(record(review.collections).port_ids).unreviewed_ids, [
+    "unreviewed-proposal-port",
+  ]);
+  assert.deepEqual(record(record(review.collections).source_profile_ids).missing_expected_ids, [
+    "added-source",
+  ]);
+  assert.equal(record(record(review.collections).port_ids).expected_count, 2);
   assert.deepEqual(
     readFileSync(join(fixture.catalogs, "catalog-legacy-additions-fixture.json")),
     expectedBytes,
@@ -230,68 +342,69 @@ test("unreviewed proposal identities report required fixture review without edit
   assert.equal(review.fixture_sha256, createHash("sha256").update(expectedBytes).digest("hex"));
 });
 
+type EditExpected = { port_ids: string[]; source_profile_ids: string[]; approve?: boolean };
 for (const [name, editInput, editExpected] of [
   [
     "missing additive port",
-    (input) => {
+    (input: FixtureCatalog) => {
       input.ports = input.ports.filter(({ id }) => id !== "dkc3-recomp");
     },
   ],
   [
     "missing frozen profile",
-    (input) => {
+    (input: FixtureCatalog) => {
       input.source_catalog.identities.shift();
     },
   ],
   [
     "duplicate actual port",
-    (input) => {
-      input.ports.push(input.ports[0]);
+    (input: FixtureCatalog) => {
+      input.ports.push(requiredFixture(input.ports[0]));
     },
   ],
   [
     "duplicate actual profile",
-    (input) => {
-      input.source_catalog.identities.push(input.source_catalog.identities[0]);
+    (input: FixtureCatalog) => {
+      input.source_catalog.identities.push(requiredFixture(input.source_catalog.identities[0]));
     },
   ],
   [
     "duplicate expected",
     null,
-    (expected) => {
-      expected.port_ids.push(expected.port_ids[0]);
+    (expected: EditExpected) => {
+      expected.port_ids.push(requiredFixture(expected.port_ids[0]));
     },
   ],
   [
     "legacy overlap",
     null,
-    (expected) => {
+    (expected: EditExpected) => {
       expected.port_ids.push("shipwright");
     },
   ],
   [
     "unknown fixture key",
     null,
-    (expected) => {
+    (expected: EditExpected) => {
       expected.approve = true;
     },
   ],
   [
     "empty expected",
     null,
-    (expected) => {
+    (expected: EditExpected) => {
       expected.source_profile_ids = [];
     },
   ],
   [
     "invalid expected ID",
     null,
-    (expected) => {
+    (expected: EditExpected) => {
       expected.port_ids[0] = "../escape";
     },
   ],
-]) {
-  test(`compatibility bookkeeping refuses ${name} without replacing output`, () => {
+] as const) {
+  void test(`compatibility bookkeeping refuses ${name} without replacing output`, () => {
     const fixture = isolatedGenerator();
     const output = join(fixture.catalogs, "catalog.json");
     const before = readFileSync(join(catalogRoot, "catalog.json"));
@@ -299,12 +412,16 @@ for (const [name, editInput, editExpected] of [
     const inputPath = join(fixture.catalogs, "catalog-current-authoring.json");
     const expectedPath = join(fixture.catalogs, "catalog-legacy-additions-fixture.json");
     if (editInput) {
-      const input = JSON.parse(readFileSync(inputPath));
+      const input = fixtureCatalog(fixtureJson(readFileSync(inputPath)));
       editInput(input);
       writeFileSync(inputPath, JSON.stringify(input));
     }
     if (editExpected) {
-      const expected = JSON.parse(readFileSync(expectedPath));
+      const expectedRaw = fixtureJson(readFileSync(expectedPath));
+      const expected: EditExpected = {
+        port_ids: stringArray(expectedRaw.port_ids),
+        source_profile_ids: stringArray(expectedRaw.source_profile_ids),
+      };
       editExpected(expected);
       writeFileSync(expectedPath, JSON.stringify(expected));
     }
@@ -317,7 +434,7 @@ for (const [name, editInput, editExpected] of [
 }
 
 for (const missing of [true, false]) {
-  test(`compatibility bookkeeping refuses ${missing ? "missing" : "malformed"} expectations`, () => {
+  void test(`compatibility bookkeeping refuses ${missing ? "missing" : "malformed"} expectations`, () => {
     const fixture = isolatedGenerator();
     const expected = join(fixture.catalogs, "catalog-legacy-additions-fixture.json");
     if (missing) renameSync(expected, `${expected}.retained`);
@@ -332,61 +449,64 @@ for (const missing of [true, false]) {
   });
 }
 
-test("reuse-only full proposal retains declaration checks without initializing an unused decoder", () => {
+void test("reuse-only full proposal retains declaration checks without initializing an unused decoder", () => {
   const fixture = proposalDecoderFixture();
   assert.equal(fixture.result.status, 0, fixture.result.stderr);
   assert.equal(fixture.factories.length, 0);
   assert.equal(existsSync(join(fixture.output, "scratch")), false);
   assert.equal(fixture.processes.length, 3);
   assert.ok(fixture.processes.every(({ inspection }) => inspection));
-  const evidence = JSON.parse(readFileSync(join(fixture.output, "proposal-evidence.json")));
+  const evidence = fixtureJson(readFileSync(join(fixture.output, "proposal-evidence.json")));
   const expected = createHash("sha256").update(fixture.original).digest("hex");
-  for (const receipt of Object.values(evidence.checks))
-    assert.equal(receipt.validator_artifact_sha256, expected);
+  for (const receipt of Object.values(record(evidence.checks)))
+    assert.equal(record(receipt).validator_artifact_sha256, expected);
 });
 
-test("needed decoder snapshots the captured validator once and retains each image receipt", () => {
+void test("needed decoder snapshots the captured validator once and retains each image receipt", () => {
   const fixture = proposalDecoderFixture(2);
   assert.equal(fixture.result.status, 0, fixture.result.stderr);
   assert.equal(fixture.factories.length, 1);
   assert.equal(
-    fixture.factories[0].sha256,
+    requiredFixture(fixture.factories[0]).sha256,
     createHash("sha256").update(fixture.original).digest("hex"),
   );
-  assert.notEqual(fixture.factories[0].cli, fixture.cli);
+  assert.notEqual(requiredFixture(fixture.factories[0]).cli, fixture.cli);
   assert.equal(fixture.processes.filter(({ inspection }) => inspection).length, 3);
   assert.equal(fixture.processes.filter(({ inspection }) => !inspection).length, 2);
   const scratch = join(fixture.output, "scratch");
   const roots = readdirSync(scratch);
   assert.equal(roots.length, 1);
   for (const ordinal of ["1", "2"]) {
-    const receipt = JSON.parse(
-      readFileSync(join(scratch, roots[0], ordinal, "validation-process.json")),
+    const receipt = fixtureJson(
+      readFileSync(join(scratch, requiredFixture(roots[0]), ordinal, "validation-process.json")),
     );
     assert.equal(receipt.status, 0);
-    assert.equal(receipt.validator_artifact_sha256, fixture.factories[0].sha256);
+    assert.equal(
+      record(receipt).validator_artifact_sha256,
+      requiredFixture(fixture.factories[0]).sha256,
+    );
   }
 });
 
-test("decoder initialization failure is retained by existing artwork handling without repeated initialization", () => {
+void test("decoder initialization failure is retained by existing artwork handling without repeated initialization", () => {
   const fixture = proposalDecoderFixture(2, true);
   assert.equal(fixture.result.status, 0, fixture.result.stderr);
   assert.equal(fixture.factories.length, 1);
   assert.equal(fixture.processes.length, 3);
-  const artwork = JSON.parse(readFileSync(join(fixture.output, "artwork-evidence.json")));
+  const artwork = fixtureJson(readFileSync(join(fixture.output, "artwork-evidence.json")));
   assert.deepEqual(artwork.records, [{ failure: true }, { failure: true }]);
 });
 
-test("artwork-only mode retains its eager selected-tool snapshot boundary", () => {
+void test("artwork-only mode retains its eager selected-tool snapshot boundary", () => {
   const fixture = proposalDecoderFixture(0, false, "--prepare-artwork");
   assert.equal(fixture.result.status, 0, fixture.result.stderr);
   assert.equal(fixture.factories.length, 1);
-  assert.equal(fixture.factories[0].cli, fixture.cli);
+  assert.equal(requiredFixture(fixture.factories[0]).cli, fixture.cli);
   assert.ok(existsSync(join(fixture.output, "scratch")));
   assert.equal(fixture.processes.length, 0);
 });
 
-function compareProposal(before, after) {
+function compareProposal(before: FixtureCatalog, after: FixtureCatalog) {
   const fixture = isolatedGenerator();
   writeFileSync(
     join(fixture.catalogs, "catalog-schema2-migration-fixture.json"),
@@ -395,10 +515,10 @@ function compareProposal(before, after) {
   writeFileSync(join(fixture.catalogs, "catalog-current-authoring.json"), JSON.stringify(after));
   const result = fixture.run("--compare-historical");
   assert.equal(result.status, 0, result.stderr);
-  return JSON.parse(result.stdout);
+  return comparisonReport(fixtureJson(result.stdout));
 }
 
-function proposalFixture() {
+function proposalFixture(): FixtureCatalog {
   return {
     schema_version: 2,
     ports: ["first", "second"].map((id) => ({
@@ -419,10 +539,10 @@ function proposalFixture() {
   };
 }
 
-test("proposal identity report separates insertion from unchanged shared-repository siblings", () => {
+void test("proposal identity report separates insertion from unchanged shared-repository siblings", () => {
   const before = proposalFixture();
   const after = structuredClone(before);
-  after.ports.unshift({ ...after.ports[0], id: "new", name: "New port" });
+  after.ports.unshift({ ...requiredFixture(after.ports[0]), id: "new", name: "New port" });
   const report = compareProposal(before, after);
   assert.ok(report.differences.some((change) => change.path === "$.ports[0].id"));
   assert.deepEqual(
@@ -444,25 +564,27 @@ test("proposal identity report separates insertion from unchanged shared-reposit
   assert.deepEqual(compareProposal(before, after), report);
 });
 
-test("proposal identity report retains exact source execution persistence and unclassified changes", () => {
+void test("proposal identity report retains exact source execution persistence and unclassified changes", () => {
   const before = proposalFixture();
   const after = structuredClone(before);
-  const port = after.ports[1];
+  const port = requiredFixture(after.ports[1]);
   port.source_profile = "replacement-source";
-  port.executable_hints["linux-x86-64"] = ["replacement"];
+  requiredFixture(port.executable_hints)["linux-x86-64"] = ["replacement"];
   port.persistent_paths = ["replacement-saves"];
-  port.release.user_prepared = { "linux-x86-64": { mutable_paths: ["player-data"] } };
+  requiredFixture(port.release).user_prepared = {
+    "linux-x86-64": { mutable_paths: ["player-data"] },
+  };
   port.summary = "Changed description";
-  after.source_catalog.identities[0].label = "Changed shared source";
+  requiredFixture(after.source_catalog.identities[0]).label = "Changed shared source";
   const report = compareProposal(before, after);
-  const [change] = report.proposal_changes.ports;
+  const change = requiredFixture(report.proposal_changes.ports[0]);
   assert.equal(change.port_id, "second");
   assert.equal(change.name_before, "Port second");
   assert.equal(change.name_after, "Port second");
   assert.deepEqual(change.changes.source, [
     { path: "$.source_profile", before: "shared-source", after: "replacement-source" },
   ]);
-  assert.deepEqual(change.changes.execution[0], {
+  assert.deepEqual(requiredFixture(change.changes.execution[0]), {
     path: "$.executable_hints.linux-x86-64[0]",
     before: "game",
     after: "replacement",
@@ -486,14 +608,16 @@ test("proposal identity report retains exact source execution persistence and un
   ]);
 });
 
-test("proposal identity report preserves removals ordering and hostile identities without merging them", () => {
+void test("proposal identity report preserves removals ordering and hostile identities without merging them", () => {
   const before = proposalFixture();
   for (const id of ["__proto__", "constructor"])
-    before.ports.push({ ...before.ports[0], id, name: id });
+    before.ports.push({ ...requiredFixture(before.ports[0]), id, name: id });
   const after = structuredClone(before);
   after.ports.shift();
   after.ports.reverse();
-  after.ports.find((port) => port.id === "__proto__").launch_arguments = ["--reviewed"];
+  requiredFixture(after.ports.find((port) => port.id === "__proto__")).launch_arguments = [
+    "--reviewed",
+  ];
   after.source_catalog.identities = [];
   const report = compareProposal(before, after);
   assert.deepEqual(
@@ -503,11 +627,11 @@ test("proposal identity report preserves removals ordering and hostile identitie
       { port_id: "__proto__", action: "modified" },
     ],
   );
-  assert.equal(report.proposal_changes.ports[0].name_after, null);
-  assert.deepEqual(report.proposal_changes.ports[1].changes.execution, [
+  assert.equal(requiredFixture(report.proposal_changes.ports[0]).name_after, null);
+  assert.deepEqual(requiredFixture(report.proposal_changes.ports[1]).changes.execution, [
     { path: "$.launch_arguments", after: ["--reviewed"] },
   ]);
-  assert.equal(report.proposal_changes.source_records[0].action, "removed");
+  assert.equal(requiredFixture(report.proposal_changes.source_records[0]).action, "removed");
   assert.deepEqual(
     report.proposal_changes.order_changes.map((item) => item.collection),
     ["ports", "source_catalog.identities"],
@@ -519,7 +643,7 @@ test("proposal identity report preserves removals ordering and hostile identitie
   assert.equal(reorder.order_changes.length, 1);
 });
 
-test("proposal identity report refuses duplicate historical identities instead of losing a record", () => {
+void test("proposal identity report refuses duplicate historical identities instead of losing a record", () => {
   const before = proposalFixture();
   const after = structuredClone(before);
   before.source_catalog.validators = [{ id: "validator" }, { id: "validator" }];
@@ -538,28 +662,31 @@ test("proposal identity report refuses duplicate historical identities instead o
   assert.equal(result.stdout, "");
 });
 
-test("proposal identity report keeps added empty own fields and exact null values", () => {
+void test("proposal identity report keeps added empty own fields and exact null values", () => {
   const before = proposalFixture();
   const after = structuredClone(before);
-  Object.defineProperty(after.ports[0], "__proto__", { value: {}, enumerable: true });
-  after.ports[0].source_profile = null;
-  const [change] = compareProposal(before, after).proposal_changes.ports;
+  Object.defineProperty(requiredFixture(after.ports[0]), "__proto__", {
+    value: {},
+    enumerable: true,
+  });
+  requiredFixture(after.ports[0]).source_profile = null;
+  const change = requiredFixture(compareProposal(before, after).proposal_changes.ports[0]);
   assert.deepEqual(change.changes.other, [{ path: "$.__proto__", after: {} }]);
   assert.deepEqual(change.changes.source, [
     { path: "$.source_profile", before: "shared-source", after: null },
   ]);
 });
 
-test("proposal identity report leaves similarly named unknown presentation fields unclassified", () => {
+void test("proposal identity report leaves similarly named unknown presentation fields unclassified", () => {
   const before = proposalFixture();
   const after = structuredClone(before);
-  after.ports[0].presentation = {
+  requiredFixture(after.ports[0]).presentation = {
     source_requirements: [],
     saves_and_settings: "external_user_owned",
     source_requirements_extra: "unclassified source wording",
     saves_and_settings_extra: "unclassified persistence wording",
   };
-  const [change] = compareProposal(before, after).proposal_changes.ports;
+  const change = requiredFixture(compareProposal(before, after).proposal_changes.ports[0]);
   assert.deepEqual(
     change.changes.source.map((item) => item.path),
     ["$.presentation.source_requirements"],
@@ -574,27 +701,27 @@ test("proposal identity report leaves similarly named unknown presentation field
   );
 });
 
-test("semantic diff retains own fields colliding with Object.prototype", () => {
+void test("semantic diff retains own fields colliding with Object.prototype", () => {
   const fixture = isolatedGenerator();
   const currentPath = join(fixture.catalogs, "catalog-current-authoring.json");
   const before = readFileSync(currentPath, "utf8");
   writeFileSync(join(fixture.catalogs, "catalog-schema2-migration-fixture.json"), before);
-  const current = JSON.parse(before);
+  const current = fixtureJson(before);
   for (const [key, value] of Object.entries(
-    JSON.parse('{"__proto__":{},"constructor":{},"toString":{}}'),
+    fixtureJson('{"__proto__":{},"constructor":{},"toString":{}}'),
   ))
     Object.defineProperty(current, key, { value, enumerable: true });
   writeFileSync(currentPath, JSON.stringify(current));
   const result = fixture.run("--compare-historical");
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(JSON.parse(result.stdout).differences, [
+  assert.deepEqual(fixtureJson(result.stdout).differences, [
     { path: "$.__proto__", after: {} },
     { path: "$.constructor", after: {} },
     { path: "$.toString", after: {} },
   ]);
 });
 
-test("malformed generator mode arguments refuse before embedded catalog writes", () => {
+void test("malformed generator mode arguments refuse before embedded catalog writes", () => {
   const fixture = isolatedGenerator();
   const embedded = join(fixture.catalogs, "catalog.json");
   const retained = "retained embedded catalog sentinel";
@@ -614,11 +741,11 @@ test("malformed generator mode arguments refuse before embedded catalog writes",
   assert.equal(ordinary.status, 0, ordinary.stderr);
   assert.equal(
     readFileSync(embedded, "utf8"),
-    `${JSON.stringify(JSON.parse(readFileSync(join(fixture.catalogs, "catalog-current-authoring.json"))), null, 2)}\n`,
+    `${JSON.stringify(fixtureJson(readFileSync(join(fixture.catalogs, "catalog-current-authoring.json"))), null, 2)}\n`,
   );
 });
 
-test("full proposal preparation cannot combine with ordinary catalog writes or checks", () => {
+void test("full proposal preparation cannot combine with ordinary catalog writes or checks", () => {
   const result = run("--prepare-proposal", "unused.json", "--check");
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /cannot.*check|cannot.*combine/i);
@@ -629,7 +756,7 @@ test("full proposal preparation cannot combine with ordinary catalog writes or c
   }
 });
 
-test("captured proposal bytes remain exact after the caller path changes", async () => {
+void test("captured proposal bytes remain exact after the caller path changes", async () => {
   const { readArtworkInput } = await import("./inspect-igdb-artwork.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-proposal-bytes-"));
   const path = join(scratch, "input.json");
@@ -638,13 +765,13 @@ test("captured proposal bytes remain exact after the caller path changes", async
   const captured = readArtworkInput(path);
   writeFileSync(path, '{"replacement":true}');
   assert.deepEqual(captured.bytes, original);
-  assert.equal(captured.document.name, "é");
-  assert.equal(captured.document.duplicate, 2);
+  assert.equal(record(captured.document).name, "é");
+  assert.equal(record(captured.document).duplicate, 2);
   // Core receives the captured duplicate-key bytes, not JSON.stringify's loss.
   assert.match(captured.bytes.toString(), /"duplicate": 1, "duplicate": 2/);
 });
 
-test("full preparation requires an explicit validator and preserves prior output and authoring", () => {
+void test("full preparation requires an explicit validator and preserves prior output and authoring", () => {
   const scratch = mkdtempSync(join(tmpdir(), "portcove-proposal-refusal-"));
   const input = join(catalogRoot, "catalog-current-authoring.json");
   const before = readFileSync(input);
@@ -672,14 +799,14 @@ test("full preparation requires an explicit validator and preserves prior output
   assert.deepEqual(readFileSync(input), before);
 });
 
-test("current schema-2 authoring deterministically owns the embedded catalog", () => {
+void test("current schema-2 authoring deterministically owns the embedded catalog", () => {
   const result = run("--check");
   assert.equal(result.status, 0, result.stderr);
 
-  const current = JSON.parse(
-    readFileSync(join(catalogRoot, "catalog-current-authoring.json"), "utf8"),
+  const current = fixtureCatalog(
+    fixtureJson(readFileSync(join(catalogRoot, "catalog-current-authoring.json"), "utf8")),
   );
-  const embedded = JSON.parse(readFileSync(join(catalogRoot, "catalog.json"), "utf8"));
+  const embedded = fixtureJson(readFileSync(join(catalogRoot, "catalog.json"), "utf8"));
   assert.deepEqual(embedded, current);
   assert.equal(current.schema_version, 2);
   assert.equal("source_profiles" in current, false);
@@ -691,29 +818,42 @@ test("current schema-2 authoring deterministically owns the embedded catalog", (
   assert.equal(identityIds.size, current.source_catalog.identities.length);
   assert.equal(evidenceIds.size, current.source_catalog.evidence.length);
   for (const contract of current.source_catalog.contracts) {
-    assert.equal(portIds.has(contract.port_id), true, contract.id);
-    assert.equal(identityIds.has(contract.profile_id), true, contract.id);
-    for (const evidenceId of contract.evidence_ids) {
+    assert.equal(portIds.has(text(contract.port_id)), true, contract.id);
+    assert.equal(identityIds.has(text(contract.profile_id)), true, contract.id);
+    for (const evidenceId of stringArray(contract.evidence_ids)) {
       assert.equal(evidenceIds.has(evidenceId), true, `${contract.id}: ${evidenceId}`);
     }
   }
 });
 
-test("semantic comparison reports every historical-to-current difference", () => {
+void test("semantic comparison reports every historical-to-current difference", () => {
   const result = run("--compare-historical");
   assert.equal(result.status, 0, result.stderr);
-  const comparison = JSON.parse(result.stdout);
+  const comparison = fixtureJson(result.stdout);
   assert.equal(typeof comparison.equal, "boolean");
-  assert.match(comparison.historical_sha256, /^[0-9a-f]{64}$/u);
-  assert.match(comparison.current_sha256, /^[0-9a-f]{64}$/u);
+  assert.match(text(comparison.historical_sha256), /^[0-9a-f]{64}$/u);
+  assert.match(text(comparison.current_sha256), /^[0-9a-f]{64}$/u);
   assert.ok(Array.isArray(comparison.differences));
   assert.equal(comparison.equal, comparison.differences.length === 0);
-  for (const difference of comparison.differences) assert.match(difference.path, /^\$/u);
+  for (const difference of records(comparison.differences))
+    assert.match(text(difference.path), /^\$/u);
 });
 
-test("artwork proposal batches reuse accepted choices and separately prove identity and bytes", async () => {
+void test("artwork batches reject numeric port identities rather than coercing them into stable IDs", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
-  const accepted = {
+  await assert.rejects(
+    prepareCatalogArtwork(
+      // @ts-expect-error Numeric IDs deliberately represent malformed authoring input.
+      { ports: [{ id: 7, name: "Numeric identity" }] },
+      { acceptedCatalog: { ports: [] } },
+    ),
+    /unique stable port ids/,
+  );
+});
+
+void test("artwork proposal batches reuse accepted choices and separately prove identity and bytes", async () => {
+  const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
+  const accepted: ArtworkCatalog = {
     ports: [
       {
         id: "accepted",
@@ -740,7 +880,7 @@ test("artwork proposal batches reuse accepted choices and separately prove ident
     release: { version: "2" },
   });
   const before = structuredClone(catalog);
-  const queries = [];
+  const queries: (number | null)[] = [];
   const result = await prepareCatalogArtwork(catalog, {
     acceptedCatalog: accepted,
     identities: {
@@ -768,17 +908,24 @@ test("artwork proposal batches reuse accepted choices and separately prove ident
   });
   assert.deepEqual(catalog, before);
   assert.deepEqual(queries, [3]);
-  assert.equal(result.records[0].reason, "accepted-mapping-reused");
-  assert.equal(result.records[1].reason, "exact-port-cover");
-  assert.equal(result.catalog.ports[1].presentation.artwork.game_id, 3);
-  assert.deepEqual(result.catalog.ports[1].release, before.ports[1].release);
+  assert.equal(requiredFixture(result.records[0]).reason, "accepted-mapping-reused");
+  assert.equal(requiredFixture(result.records[1]).reason, "exact-port-cover");
+  assert.equal(
+    requiredFixture(requiredFixture(requiredFixture(result.catalog.ports[1]).presentation).artwork)
+      .game_id,
+    3,
+  );
+  assert.deepEqual(
+    requiredFixture(result.catalog.ports[1]).release,
+    requiredFixture(before.ports[1]).release,
+  );
   assert.equal(result.metrics.reused, 1);
   assert.equal(result.metrics.selected, 1);
 });
 
-test("coverless port falls through to exact original; ambiguous and failed images remain nonblocking", async () => {
+void test("coverless port falls through to exact original; ambiguous and failed images remain nonblocking", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
-  const target = (game_id, slug) => ({
+  const target = (game_id: number, slug: string) => ({
     game_id,
     slug,
     names: [slug],
@@ -819,21 +966,31 @@ test("coverless port falls through to exact original; ambiguous and failed image
       };
     },
   });
-  assert.equal(result.records[0].reason, "exact-original-game-cover");
-  assert.equal(result.catalog.ports[0].presentation.artwork.match_kind, "underlying-game");
-  assert.equal(result.records[1].reason, "generated-fallback");
-  assert.equal(result.records[1].exceptions[0].reason, "identity-not-unique");
-  assert.equal(result.records[2].exceptions[0].reason, "image-unavailable-or-invalid");
+  assert.equal(requiredFixture(result.records[0]).reason, "exact-original-game-cover");
+  assert.equal(
+    requiredFixture(requiredFixture(requiredFixture(result.catalog.ports[0]).presentation).artwork)
+      .match_kind,
+    "underlying-game",
+  );
+  assert.equal(requiredFixture(result.records[1]).reason, "generated-fallback");
+  assert.equal(
+    requiredFixture(requiredFixture(result.records[1]).exceptions[0]).reason,
+    "identity-not-unique",
+  );
+  assert.equal(
+    requiredFixture(requiredFixture(result.records[2]).exceptions[0]).reason,
+    "image-unavailable-or-invalid",
+  );
   assert.equal(result.metrics.fallback, 2);
 });
 
-test("the entire accepted cover inventory survives a routine executable release without lookup", async () => {
+void test("the entire accepted cover inventory survives a routine executable release without lookup", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
-  const accepted = JSON.parse(
-    readFileSync(join(catalogRoot, "catalog-current-authoring.json"), "utf8"),
+  const accepted = fixtureCatalog(
+    fixtureJson(readFileSync(join(catalogRoot, "catalog-current-authoring.json"), "utf8")),
   );
   const input = structuredClone(accepted);
-  input.ports[0].release.version = "ordinary-successor";
+  requiredFixture(requiredFixture(input.ports[0]).release).version = "ordinary-successor";
   const result = await prepareCatalogArtwork(input, {
     acceptedCatalog: accepted,
     inspectGame: () => assert.fail("unchanged accepted artwork must not search"),
@@ -856,7 +1013,7 @@ test("the entire accepted cover inventory survives a routine executable release 
   assert.deepEqual(result.catalog, input);
 });
 
-test("another port can reuse a uniquely accepted original-game asset without merging port identities", async () => {
+void test("another port can reuse a uniquely accepted original-game asset without merging port identities", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
   const mapping = {
     game_id: 2,
@@ -866,7 +1023,7 @@ test("another port can reuse a uniquely accepted original-game asset without mer
     game_slug: "original",
     match_kind: "underlying-game",
   };
-  const accepted = {
+  const accepted: ArtworkCatalog = {
     ports: [
       {
         id: "first-port",
@@ -904,15 +1061,18 @@ test("another port can reuse a uniquely accepted original-game asset without mer
     },
     inspectImage: () => assert.fail("accepted original bytes need no repeated download"),
   });
-  assert.equal(result.records[0].reason, "accepted-original-game-reused");
+  assert.equal(requiredFixture(result.records[0]).reason, "accepted-original-game-reused");
   assert.equal(result.metrics.original_reused, 1);
   assert.equal(result.metrics.game_queries, 1);
-  assert.equal(result.catalog.ports[0].id, "second-port");
-  assert.equal(result.catalog.ports[0].source_profile, "distinct-contract");
-  assert.deepEqual(result.catalog.ports[0].presentation.artwork, mapping);
+  assert.equal(requiredFixture(result.catalog.ports[0]).id, "second-port");
+  assert.equal(requiredFixture(result.catalog.ports[0]).source_profile, "distinct-contract");
+  assert.deepEqual(
+    requiredFixture(requiredFixture(result.catalog.ports[0]).presentation).artwork,
+    mapping,
+  );
 });
 
-test("ordinary names require exact attributable project evidence, including shared repositories", async () => {
+void test("ordinary names require exact attributable project evidence, including shared repositories", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
   const catalog = {
     ports: [
@@ -922,7 +1082,7 @@ test("ordinary names require exact attributable project evidence, including shar
       { id: "custom-port", name: "Custom", project_url: "https://github.com/Owner/Shared" },
     ],
   };
-  const queries = [];
+  const queries: Parameters<NonNullable<ArtworkPreparationOptions["inspectGame"]>>[0][] = [];
   const result = await prepareCatalogArtwork(catalog, {
     acceptedCatalog: { ports: [] },
     inspectGame: async (identity) => {
@@ -930,8 +1090,8 @@ test("ordinary names require exact attributable project evidence, including shar
       return [
         {
           id: identity.names[0] === "One" ? 1 : 2,
-          name: identity.names[0],
-          slug: identity.names[0].toLowerCase(),
+          name: requiredFixture(identity.names[0]),
+          slug: requiredFixture(identity.names[0]).toLowerCase(),
           websites: [
             {
               url:
@@ -959,14 +1119,28 @@ test("ordinary names require exact attributable project evidence, including shar
     result.records.map((record) => record.reason),
     ["exact-port-cover", "exact-port-cover", "generated-fallback", "generated-fallback"],
   );
-  assert.equal(result.catalog.ports[0].presentation.artwork.game_id, 1);
-  assert.equal(result.catalog.ports[1].presentation.artwork.game_id, 2);
+  assert.equal(
+    requiredFixture(requiredFixture(requiredFixture(result.catalog.ports[0]).presentation).artwork)
+      .game_id,
+    1,
+  );
+  assert.equal(
+    requiredFixture(requiredFixture(requiredFixture(result.catalog.ports[1]).presentation).artwork)
+      .game_id,
+    2,
+  );
   assert.equal(result.metrics.image_queries, 1);
-  assert.equal(result.records[2].exceptions[0].reason, "identity-mismatch");
-  assert.equal(result.records[3].exceptions[0].reason, "identity-mismatch");
+  assert.equal(
+    requiredFixture(requiredFixture(result.records[2]).exceptions[0]).reason,
+    "identity-mismatch",
+  );
+  assert.equal(
+    requiredFixture(requiredFixture(result.records[3]).exceptions[0]).reason,
+    "identity-mismatch",
+  );
 });
 
-test("original-game name lookup requires platform and edition evidence and refuses truncated results", async () => {
+void test("original-game name lookup requires platform and edition evidence and refuses truncated results", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
   const input = {
     ports: [{ id: "original", name: "Port", project_url: "https://example.org/port" }],
@@ -980,7 +1154,7 @@ test("original-game name lookup requires platform and edition evidence and refus
       },
     },
   };
-  const setup = (games) => ({
+  const setup = (games: unknown): ArtworkPreparationOptions => ({
     acceptedCatalog: { ports: [] },
     identities,
     inspectGame: async (identity) => (identity.kind === "port" ? [] : games),
@@ -1004,17 +1178,25 @@ test("original-game name lookup requires platform and edition evidence and refus
     input,
     setup([base, { ...base, id: 2, platforms: [6], version_title: "Remaster", version_parent: 1 }]),
   );
-  assert.equal(observed.records[0].reason, "exact-original-game-cover");
-  assert.equal(observed.catalog.ports[0].presentation.artwork.game_id, 1);
+  assert.equal(requiredFixture(observed.records[0]).reason, "exact-original-game-cover");
+  assert.equal(
+    requiredFixture(
+      requiredFixture(requiredFixture(observed.catalog.ports[0]).presentation).artwork,
+    ).game_id,
+    1,
+  );
   const truncated = await prepareCatalogArtwork(
     input,
     setup(Array.from({ length: 21 }, (_, i) => ({ ...base, id: i + 1 }))),
   );
-  assert.equal(truncated.records[0].reason, "generated-fallback");
-  assert.equal(truncated.records[0].exceptions[1].reason, "identity-query-incomplete");
+  assert.equal(requiredFixture(truncated.records[0]).reason, "generated-fallback");
+  assert.equal(
+    requiredFixture(requiredFixture(truncated.records[0]).exceptions[1]).reason,
+    "identity-query-incomplete",
+  );
 });
 
-test("provider requests use fixed origins, bounded metadata and safe strings; auth failure is attempted once", async () => {
+void test("provider requests use fixed origins, bounded metadata and safe strings; auth failure is attempted once", async () => {
   const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-provider-contract-"));
   const privateFile = join(scratch, "private-fixture.json");
@@ -1022,7 +1204,7 @@ test("provider requests use fixed origins, bounded metadata and safe strings; au
     privateFile,
     JSON.stringify({ client_id: "fixture-id", client_secret: "fixture-secret" }),
   );
-  const calls = [];
+  const calls: { url: string; options: RequestInit }[] = [];
   const provider = createIgdbInspector(
     privateFile,
     () => assert.fail("metadata test must not decode"),
@@ -1041,8 +1223,8 @@ test("provider requests use fixed origins, bounded metadata and safe strings; au
     ["https://id.twitch.tv/oauth2/token", "https://api.igdb.com/v4/games"],
   );
   assert.ok(calls.every((call) => call.options.redirect === "error"));
-  assert.ok(calls[1].options.body.includes('name ~ "Port\\"; fields *;"'));
-  assert.ok(calls[1].options.body.endsWith("limit 21;"));
+  assert.ok(text(requiredFixture(calls[1]).options.body).includes('name ~ "Port\\"; fields *;"'));
+  assert.ok(text(requiredFixture(calls[1]).options.body).endsWith("limit 21;"));
   assert.equal(provider.providerMetrics.authentication_requests, 1);
   assert.equal(provider.providerMetrics.game_requests, 1);
   const denied = createIgdbInspector(
@@ -1081,7 +1263,7 @@ test("provider requests use fixed origins, bounded metadata and safe strings; au
   );
 });
 
-test("malformed nested provider responses reject only that cover and the actual batch continues", async () => {
+void test("malformed nested provider responses reject only that cover and the actual batch continues", async () => {
   const { prepareCatalogArtwork, createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-malformed-provider-"));
   const credentials = join(scratch, "private-fixture.json");
@@ -1105,7 +1287,7 @@ test("malformed nested provider responses reject only that cover and the actual 
             readFileSync(join(root, "apps/desktop/scripts/testdata/catalog-artwork-red.jpg")),
             { headers: { "content-type": "image/jpeg" } },
           );
-        const good = options.body.includes('"Good"');
+        const good = text(options.body).includes('"Good"');
         return new Response(
           JSON.stringify([
             {
@@ -1129,19 +1311,19 @@ test("malformed nested provider responses reject only that cover and the actual 
       },
       { ...transport, acceptedCatalog: { ports: [] } },
     );
-    assert.equal(result.records[0].reason, "generated-fallback");
+    assert.equal(requiredFixture(result.records[0]).reason, "generated-fallback");
     assert.equal(
-      result.records[0].exceptions[0].reason,
+      requiredFixture(requiredFixture(result.records[0]).exceptions[0]).reason,
       invalid.cover ? "no-usable-cover" : "identity-response-invalid",
     );
-    assert.equal(result.records[1].reason, "exact-port-cover");
+    assert.equal(requiredFixture(result.records[1]).reason, "exact-port-cover");
     assert.equal(transport.providerMetrics.authentication_requests, 1);
     assert.equal(transport.providerMetrics.game_requests, 2);
     assert.equal(transport.providerMetrics.image_requests, 1);
   }
 });
 
-test("wrong editions and invalid declarations never reach image acquisition", async () => {
+void test("wrong editions and invalid declarations never reach image acquisition", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
   const result = await prepareCatalogArtwork(
     { ports: [{ id: "port", name: "Port" }] },
@@ -1170,19 +1352,19 @@ test("wrong editions and invalid declarations never reach image acquisition", as
     },
   );
   assert.deepEqual(
-    result.records[0].exceptions.map((item) => item.reason),
+    requiredFixture(result.records[0]).exceptions.map((item) => item.reason),
     ["identity-mismatch", "identity-declaration-invalid"],
   );
-  assert.equal(result.records[0].reason, "generated-fallback");
+  assert.equal(requiredFixture(result.records[0]).reason, "generated-fallback");
 });
 
-test("an unavailable explicit refresh retains permitted accepted metadata", async () => {
+void test("an unavailable explicit refresh retains permitted accepted metadata", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
-  const accepted = JSON.parse(
-    readFileSync(join(catalogRoot, "catalog-current-authoring.json"), "utf8"),
+  const accepted = fixtureCatalog(
+    fixtureJson(readFileSync(join(catalogRoot, "catalog-current-authoring.json"), "utf8")),
   );
-  const port = accepted.ports[0];
-  const mapping = port.presentation.artwork;
+  const port = requiredFixture(accepted.ports[0]);
+  const mapping = record(requiredFixture(port.presentation).artwork);
   const result = await prepareCatalogArtwork(
     { ...accepted, ports: [port] },
     {
@@ -1204,12 +1386,19 @@ test("an unavailable explicit refresh retains permitted accepted metadata", asyn
       inspectImage: () => assert.fail("unavailable identity cannot download"),
     },
   );
-  assert.deepEqual(result.catalog.ports[0], port);
-  assert.equal(result.records[0].reason, "accepted-mapping-retained-after-unavailable-refresh");
-  assert.equal(result.records[0].checks.live_refresh_passed, false);
+  assert.deepEqual(requiredFixture(result.catalog.ports[0]), port);
+  assert.equal(
+    requiredFixture(result.records[0]).reason,
+    "accepted-mapping-retained-after-unavailable-refresh",
+  );
+  assert.equal(record(requiredFixture(result.records[0]).checks).live_refresh_passed, false);
 });
 
-async function capturedArtworkRefresh({ status = 410, imageId = "coexisting", fault } = {}) {
+async function capturedArtworkRefresh({
+  status = 410,
+  imageId = "coexisting",
+  fault,
+}: { status?: number; imageId?: string; fault?: string } = {}) {
   const { prepareCatalogArtwork, createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-refresh-"));
   const credentials = join(scratch, "private-fixture.json");
@@ -1222,7 +1411,7 @@ async function capturedArtworkRefresh({ status = 410, imageId = "coexisting", fa
     game_slug: "refresh-probe",
     match_kind: "port",
   };
-  const accepted = {
+  const accepted: ArtworkCatalog = {
     ports: [
       {
         id: "refresh-probe",
@@ -1232,7 +1421,12 @@ async function capturedArtworkRefresh({ status = 410, imageId = "coexisting", fa
       },
     ],
   };
-  const games = [
+  const games: {
+    id: number;
+    name: string;
+    slug: string;
+    cover?: { id: number; image_id: string };
+  }[] = [
     {
       id: 101,
       name: "Refresh Probe",
@@ -1240,7 +1434,7 @@ async function capturedArtworkRefresh({ status = 410, imageId = "coexisting", fa
       cover: { id: 202, image_id: imageId },
     },
   ];
-  const requests = [];
+  const requests: string[] = [];
   let decodes = 0;
   const inspector = createIgdbInspector(
     credentials,
@@ -1248,14 +1442,14 @@ async function capturedArtworkRefresh({ status = 410, imageId = "coexisting", fa
       decodes++;
       return { width: 12, height: 24, format: "jpeg", validator: "portcove-core" };
     },
-    async (url: string, options) => {
+    async (url: string, options: RequestInit) => {
       requests.push(url);
       assert.equal(options.redirect, "error");
       if (url === "https://id.twitch.tv/oauth2/token")
         return Response.json({ access_token: "fixture" }, { status: fault === "auth" ? 403 : 200 });
       if (url === "https://api.igdb.com/v4/games")
         return Response.json(
-          games.filter((game) => options.body.includes(`id = ${game.id};`)),
+          games.filter((game) => text(options.body).includes(`id = ${game.id};`)),
           {
             status: fault === "identity-gone" ? 410 : 200,
           },
@@ -1277,7 +1471,9 @@ async function capturedArtworkRefresh({ status = 410, imageId = "coexisting", fa
       );
     },
   );
-  const options = {
+  const options: ArtworkPreparationOptions & {
+    identities: Record<string, { port?: unknown; underlying_game?: unknown }>;
+  } = {
     ...inspector,
     acceptedCatalog: accepted,
     refreshPortIds: ["refresh-probe"],
@@ -1303,13 +1499,16 @@ async function capturedArtworkRefresh({ status = 410, imageId = "coexisting", fa
   };
 }
 
-test("a confirmed Gone response for the accepted image chooses generated fallback", async () => {
+void test("a confirmed Gone response for the accepted image chooses generated fallback", async () => {
   const fixture = await capturedArtworkRefresh();
   const before = structuredClone(fixture.accepted);
   const result = await fixture.run();
-  assert.equal(result.catalog.ports[0].presentation.artwork, undefined);
-  assert.equal(result.records[0].reason, "generated-fallback");
-  assert.deepEqual(result.records[0].exceptions[0], {
+  assert.equal(
+    requiredFixture(requiredFixture(result.catalog.ports[0]).presentation).artwork,
+    undefined,
+  );
+  assert.equal(requiredFixture(result.records[0]).reason, "generated-fallback");
+  assert.deepEqual(requiredFixture(requiredFixture(result.records[0]).exceptions[0]), {
     kind: "port",
     reason: "image-gone",
     resume:
@@ -1317,7 +1516,7 @@ test("a confirmed Gone response for the accepted image chooses generated fallbac
     image_id: "coexisting",
     http_status: 410,
   });
-  assert.equal(result.records[0].mapping, null);
+  assert.equal(requiredFixture(result.records[0]).mapping, null);
   assert.equal(result.metrics.fallback, 1);
   assert.equal(result.metrics.reused, 0);
   assert.equal(fixture.inspector.providerMetrics.image_bytes, 0);
@@ -1326,71 +1525,88 @@ test("a confirmed Gone response for the accepted image chooses generated fallbac
 });
 
 for (const status of [404, 503, 429]) {
-  test(`HTTP${status} retains permitted accepted artwork metadata`, async () => {
+  void test(`HTTP${status} retains permitted accepted artwork metadata`, async () => {
     const fixture = await capturedArtworkRefresh({ status });
     const before = structuredClone(fixture.accepted);
     const result = await fixture.run();
     assert.deepEqual(result.catalog, before);
     assert.deepEqual(fixture.accepted, before);
-    assert.equal(result.records[0].reason, "accepted-mapping-retained-after-unavailable-refresh");
+    assert.equal(
+      requiredFixture(result.records[0]).reason,
+      "accepted-mapping-retained-after-unavailable-refresh",
+    );
     assert.equal(fixture.decodes(), 0);
   });
 }
 
-test("an unchanged accepted mapping makes no source-health claim or provider request", async () => {
+void test("an unchanged accepted mapping makes no source-health claim or provider request", async () => {
   const fixture = await capturedArtworkRefresh();
   fixture.options.refreshPortIds = [];
   const result = await fixture.run();
   assert.deepEqual(result.catalog, fixture.accepted);
-  assert.equal(result.records[0].reason, "accepted-mapping-reused");
+  assert.equal(requiredFixture(result.records[0]).reason, "accepted-mapping-reused");
   assert.equal(fixture.requests.length, 0);
 });
 
-test("Gone for a different candidate image cannot withdraw accepted artwork", async () => {
+void test("Gone for a different candidate image cannot withdraw accepted artwork", async () => {
   const fixture = await capturedArtworkRefresh({ imageId: "codifferent" });
   const result = await fixture.run();
   assert.deepEqual(result.catalog, fixture.accepted);
   assert.equal(fixture.decodes(), 0);
-  assert.equal(result.records[0].reason, "accepted-mapping-retained-after-unavailable-refresh");
+  assert.equal(
+    requiredFixture(result.records[0]).reason,
+    "accepted-mapping-retained-after-unavailable-refresh",
+  );
 });
 
 for (const fault of ["auth", "network", "identity-gone"]) {
-  test(`${fault} failure does not establish Gone for an accepted image`, async () => {
+  void test(`${fault} failure does not establish Gone for an accepted image`, async () => {
     const fixture = await capturedArtworkRefresh({ fault });
     const result = await fixture.run();
     assert.deepEqual(result.catalog, fixture.accepted);
-    assert.ok(result.records[0].exceptions.every((item) => item.reason !== "image-gone"));
+    assert.ok(
+      requiredFixture(result.records[0]).exceptions.every((item) => item.reason !== "image-gone"),
+    );
     assert.equal(fixture.decodes(), 0);
   });
 }
 
-test("unclassified status properties and another image's Gone error cannot withdraw metadata", async () => {
+void test("unclassified status properties and another image's Gone error cannot withdraw metadata", async () => {
   const fixture = await capturedArtworkRefresh({ imageId: "codifferent" });
-  const unrelated = await fixture.inspector.inspectImage("codifferent").catch((error) => error);
+  const unrelated = await fixture.inspector
+    .inspectImage("codifferent")
+    .catch((error: unknown) => error);
   for (const error of [
     Object.assign(new Error("IGDB image is gone."), { status: 410, image_id: "coexisting" }),
     unrelated,
   ]) {
-    fixture.games[0].cover.image_id = "coexisting";
+    requiredFixture(requiredFixture(fixture.games[0]).cover).image_id = "coexisting";
     fixture.options.inspectImage = async () => {
       throw error;
     };
     const result = await fixture.run();
     assert.deepEqual(result.catalog, fixture.accepted);
-    assert.equal(result.records[0].exceptions[0].reason, "image-unavailable-or-invalid");
+    assert.equal(
+      requiredFixture(requiredFixture(result.records[0]).exceptions[0]).reason,
+      "image-unavailable-or-invalid",
+    );
   }
 });
 
 for (const refreshedFirst of [true, false]) {
-  test(`same-image accepted references fall back with refreshed entry ${refreshedFirst ? "first" : "last"}`, async () => {
+  void test(`same-image accepted references fall back with refreshed entry ${refreshedFirst ? "first" : "last"}`, async () => {
     const fixture = await capturedArtworkRefresh();
-    const reused = { ...structuredClone(fixture.accepted.ports[0]), id: "reused", name: "Reused" };
+    const reused = {
+      ...structuredClone(requiredFixture(fixture.accepted.ports[0])),
+      id: "reused",
+      name: "Reused",
+    };
     fixture.accepted.ports = refreshedFirst
       ? [...fixture.accepted.ports, reused]
       : [reused, ...fixture.accepted.ports];
     const before = structuredClone(fixture.accepted);
     const result = await fixture.run();
-    assert.ok(result.catalog.ports.every((port) => !port.presentation.artwork));
+    assert.ok(result.catalog.ports.every((port) => !requiredFixture(port.presentation).artwork));
     assert.ok(
       result.records.every(
         (record) => record.reason === "generated-fallback" && record.mapping === null,
@@ -1421,7 +1637,7 @@ for (const refreshedFirst of [true, false]) {
 }
 
 for (const refreshedFirst of [true, false]) {
-  test(`accepted original-game reuse cannot restore Gone with refreshed entry ${refreshedFirst ? "first" : "last"}`, async () => {
+  void test(`accepted original-game reuse cannot restore Gone with refreshed entry ${refreshedFirst ? "first" : "last"}`, async () => {
     const fixture = await capturedArtworkRefresh();
     const original = {
       game_id: 102,
@@ -1446,7 +1662,7 @@ for (const refreshedFirst of [true, false]) {
       },
     };
     const added = { id: "new", name: "New", project_url: "https://example.org/new" };
-    const refreshed = fixture.accepted.ports[0];
+    const refreshed = requiredFixture(fixture.accepted.ports[0]);
     const before = structuredClone(fixture.accepted);
     const result = await fixture.run({
       ports: refreshedFirst ? [refreshed, added] : [added, refreshed],
@@ -1475,7 +1691,7 @@ for (const refreshedFirst of [true, false]) {
   });
 }
 
-test("Gone for the port cover still permits a checked exact original-game replacement", async () => {
+void test("Gone for the port cover still permits a checked exact original-game replacement", async () => {
   const fixture = await capturedArtworkRefresh();
   fixture.games.push({
     id: 102,
@@ -1483,7 +1699,7 @@ test("Gone for the port cover still permits a checked exact original-game replac
     name: "Original",
     cover: { id: 203, image_id: "coreplacement" },
   });
-  fixture.options.identities["refresh-probe"].underlying_game = {
+  requiredFixture(fixture.options.identities["refresh-probe"]).underlying_game = {
     game_id: 102,
     slug: "original",
     names: ["Original"],
@@ -1493,15 +1709,27 @@ test("Gone for the port cover still permits a checked exact original-game replac
   const result = await fixture.run();
   const bytes = readFileSync(join(root, "apps/desktop/scripts/testdata/catalog-artwork-red.jpg"));
   const { createHash } = await import("node:crypto");
-  assert.equal(result.records[0].reason, "exact-original-game-cover");
-  assert.equal(result.catalog.ports[0].presentation.artwork.image_id, "coreplacement");
-  assert.equal(result.catalog.ports[0].presentation.artwork.match_kind, "underlying-game");
+  assert.equal(requiredFixture(result.records[0]).reason, "exact-original-game-cover");
   assert.equal(
-    result.catalog.ports[0].presentation.artwork.image_sha256,
+    requiredFixture(requiredFixture(requiredFixture(result.catalog.ports[0]).presentation).artwork)
+      .image_id,
+    "coreplacement",
+  );
+  assert.equal(
+    requiredFixture(requiredFixture(requiredFixture(result.catalog.ports[0]).presentation).artwork)
+      .match_kind,
+    "underlying-game",
+  );
+  assert.equal(
+    requiredFixture(requiredFixture(requiredFixture(result.catalog.ports[0]).presentation).artwork)
+      .image_sha256,
     createHash("sha256").update(bytes).digest("hex"),
   );
-  assert.equal(result.records[0].exceptions[0].http_status, 410);
-  assert.equal(result.records[0].checks.content.bytes, bytes.length);
+  assert.equal(requiredFixture(requiredFixture(result.records[0]).exceptions[0]).http_status, 410);
+  assert.equal(
+    record(record(requiredFixture(result.records[0]).checks).content).bytes,
+    bytes.length,
+  );
   assert.equal(result.metrics.image_bytes, bytes.length);
   assert.equal(fixture.inspector.providerMetrics.image_bytes, bytes.length);
   assert.equal(fixture.inspector.providerMetrics.image_requests, 2);
@@ -1509,7 +1737,7 @@ test("Gone for the port cover still permits a checked exact original-game replac
   assert.deepEqual(fixture.accepted, before);
 });
 
-test("Gone observations still consume the existing finite image-request budget", async () => {
+void test("Gone observations still consume the existing finite image-request budget", async () => {
   const fixture = await capturedArtworkRefresh();
   for (let request = 0; request < 400; request++)
     await assert.rejects(fixture.inspector.inspectImage("coexisting"), /image is gone/);
@@ -1520,12 +1748,15 @@ test("Gone observations still consume the existing finite image-request budget",
   assert.equal(fixture.decodes(), 0);
 });
 
-test("a successful HTTP image exceeding its remaining byte budget retains accepted metadata", async () => {
+void test("a successful HTTP image exceeding its remaining byte budget retains accepted metadata", async () => {
   const fixture = await capturedArtworkRefresh({ status: 200 });
   fixture.options.inspectImage = (imageId) => fixture.inspector.inspectImage(imageId, 1);
   const result = await fixture.run();
   assert.deepEqual(result.catalog, fixture.accepted);
-  assert.equal(result.records[0].exceptions[0].reason, "image-unavailable-or-invalid");
+  assert.equal(
+    requiredFixture(requiredFixture(result.records[0]).exceptions[0]).reason,
+    "image-unavailable-or-invalid",
+  );
   assert.equal(fixture.inspector.providerMetrics.image_requests, 1);
   assert.equal(fixture.decodes(), 0);
 });
@@ -1544,12 +1775,12 @@ function lifecycleCredentials() {
   return file;
 }
 
-async function boundedLifecycleResult(operation) {
-  let timer;
+async function boundedLifecycleResult<T>(operation: Promise<T>): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
   try {
     return await Promise.race([
       operation,
-      new Promise((_, reject) => {
+      new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error("Owned response cleanup did not settle.")), 1000);
       }),
     ]);
@@ -1584,17 +1815,17 @@ for (const spec of [
   { name: "image length", route: "image", status: 200, length: 4096, error: /byte contract/ },
   { name: "image streaming limit", route: "image", status: 200, error: /byte contract/ },
 ]) {
-  test(`provider response lifecycle closes unfinished ${spec.name} before request timeout`, async () => {
+  void test(`provider response lifecycle closes unfinished ${spec.name} before request timeout`, async () => {
     const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
-    const sockets = new Set();
-    let selectedResponse;
-    let closeTransfer;
-    const closed = new Promise((resolve) => {
+    const sockets = new Set<Socket>();
+    let selectedResponse: Response | undefined;
+    let closeTransfer = () => {};
+    const closed = new Promise<void>((resolve) => {
       closeTransfer = resolve;
     });
-    const routes = [];
+    const routes: string[] = [];
     const server = createServer((request, response) => {
-      const route = request.url.slice(1);
+      const route = (request.url ?? "").slice(1);
       routes.push(route);
       if (route !== spec.route) {
         response.writeHead(200, { "Content-Type": "application/json" });
@@ -1618,13 +1849,13 @@ for (const spec of [
     server.listen(0, "127.0.0.1");
     await once(server, "listening");
     try {
-      const origin = `http://127.0.0.1:${server.address().port}`;
+      const origin = `http://127.0.0.1:${String(record(server.address()).port)}`;
       const inspector = createIgdbInspector(
         lifecycleCredentials(),
         () => assert.fail("refused response must not reach the decoder"),
         async (url, options) => {
           assert.equal(options.redirect, "error");
-          assert.equal(options.signal.aborted, false);
+          assert.equal(requiredFixture(options.signal).aborted, false);
           const route =
             url === "https://id.twitch.tv/oauth2/token"
               ? "token"
@@ -1644,8 +1875,8 @@ for (const spec of [
       );
       // Observe cancellation before test-owned socket teardown can supply it.
       await boundedLifecycleResult(closed);
-      assert.equal(selectedResponse.body.locked, false);
-      assert.equal(selectedResponse.bodyUsed, true);
+      assert.equal(requiredFixture(requiredFixture(selectedResponse).body).locked, false);
+      assert.equal(requiredFixture(selectedResponse).bodyUsed, true);
       if (spec.refusesNext) {
         await assert.rejects(inspector.inspectGame(lifecycleIdentity), /batch deadline reached/);
         assert.deepEqual(routes, ["token", "games"]);
@@ -1669,7 +1900,7 @@ for (const spec of [
 
 for (const refusal of ["status", "length", "streaming"]) {
   for (const cancellation of ["resolve", "reject", "throw", "pending"]) {
-    test(`provider response lifecycle retains ${refusal} failure with ${cancellation} cancellation`, async () => {
+    void test(`provider response lifecycle retains ${refusal} failure with ${cancellation} cancellation`, async () => {
       const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
       let cancellations = 0;
       const response = new Response(
@@ -1702,14 +1933,14 @@ for (const refusal of ["status", "length", "streaming"]) {
           refusal === "status" ? "IGDB image unavailable." : "Response exceeds its byte contract.",
       });
       assert.equal(cancellations, 1);
-      assert.equal(response.body.locked, false);
+      assert.equal(requiredFixture(response.body).locked, false);
       assert.equal(inspector.providerMetrics.image_requests, 1);
       assert.equal(inspector.providerMetrics.image_bytes, refusal === "streaming" ? 2 : 0);
     });
   }
 }
 
-test("provider response lifecycle releases an aborted reader without changing its error", async () => {
+void test("provider response lifecycle releases an aborted reader without changing its error", async () => {
   const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
   const primary = new DOMException("fixture request aborted", "AbortError");
   const response = new Response(
@@ -1726,11 +1957,11 @@ test("provider response lifecycle releases an aborted reader without changing it
     async () => response,
   );
   await assert.rejects(inspector.inspectImage("coprobe"), (error) => error === primary);
-  assert.equal(response.body.locked, false);
+  assert.equal(requiredFixture(response.body).locked, false);
   assert.equal(inspector.providerMetrics.image_bytes, 0);
 });
 
-test("provider response lifecycle preserves consumed JSON and exact image bytes", async () => {
+void test("provider response lifecycle preserves consumed JSON and exact image bytes", async () => {
   const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
   const bytes = readFileSync(join(root, "apps/desktop/scripts/testdata/catalog-artwork-red.jpg"));
   const responses = [
@@ -1747,7 +1978,7 @@ test("provider response lifecycle preserves consumed JSON and exact image bytes"
       assert.deepEqual(value, bytes);
       return { width: 12, height: 24, format: "jpeg", validator: "portcove-core" };
     },
-    async () => responses[requests++],
+    async () => requiredFixture(responses[requests++]),
   );
   assert.deepEqual(await inspector.inspectGame(lifecycleIdentity), []);
   const image = await inspector.inspectImage("coprobe");
@@ -1755,13 +1986,15 @@ test("provider response lifecycle preserves consumed JSON and exact image bytes"
   assert.equal(image.sha256, createHash("sha256").update(bytes).digest("hex"));
   assert.equal(decodes, 1);
   assert.equal(requests, 3);
-  assert.ok(responses.every((response) => response.bodyUsed && !response.body.locked));
+  assert.ok(
+    responses.every((response) => response.bodyUsed && !requiredFixture(response.body).locked),
+  );
   assert.equal(inspector.providerMetrics.authentication_requests, 1);
   assert.equal(inspector.providerMetrics.game_requests, 1);
   assert.equal(inspector.providerMetrics.image_bytes, bytes.length);
 });
 
-test("provider response lifecycle preserves malformed JSON and missing-body failures", async () => {
+void test("provider response lifecycle preserves malformed JSON and missing-body failures", async () => {
   const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
   const response = new Response("{");
   const inspector = createIgdbInspector(
@@ -1769,11 +2002,11 @@ test("provider response lifecycle preserves malformed JSON and missing-body fail
     () => assert.fail("invalid response must not decode"),
     async () => response,
   );
-  const failure = await inspector.inspectGame(lifecycleIdentity).catch((error) => error);
+  const failure = await inspector.inspectGame(lifecycleIdentity).catch((error: unknown) => error);
   assert.ok(failure instanceof SyntaxError);
   await assert.rejects(inspector.inspectGame(lifecycleIdentity), (error) => error === failure);
   assert.equal(inspector.providerMetrics.authentication_requests, 1);
-  assert.equal(response.body.locked, false);
+  assert.equal(requiredFixture(response.body).locked, false);
   const empty = createIgdbInspector(
     lifecycleCredentials(),
     () => assert.fail("missing response must not decode"),
@@ -1784,28 +2017,32 @@ test("provider response lifecycle preserves malformed JSON and missing-body fail
 
 const providerClockStart = Date.UTC(2026, 9, 3, 8);
 
-async function flushProviderTimers(context) {
+async function flushProviderTimers(context: TestContext) {
   await new Promise((resolve) => setImmediate(resolve));
   context.mock.timers.tick(0);
   await new Promise((resolve) => setImmediate(resolve));
 }
 
 async function capturedMetadataBackoff(
-  context,
-  { status = 429, retryAfter = "2", responseDelay = 0 } = {},
+  context: TestContext,
+  {
+    status = 429,
+    retryAfter = "2",
+    responseDelay = 0,
+  }: { status?: number; retryAfter?: string | null; responseDelay?: number } = {},
 ) {
   const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-metadata-backoff-"));
   const privateFile = join(scratch, "private-fixture.json");
   writeFileSync(privateFile, JSON.stringify({ client_id: "fixture", client_secret: "fixture" }));
   context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: providerClockStart });
-  const calls = [];
+  const calls: number[] = [];
   const inspector = createIgdbInspector(
     privateFile,
     () => assert.fail("metadata must not decode"),
     async (url, options) => {
       assert.equal(options.redirect, "error");
-      assert.equal(options.signal.aborted, false);
+      assert.equal(requiredFixture(options.signal).aborted, false);
       if (url === "https://id.twitch.tv/oauth2/token")
         return Response.json({ access_token: "fixture" });
       assert.equal(url, "https://api.igdb.com/v4/games");
@@ -1817,14 +2054,14 @@ async function capturedMetadataBackoff(
       });
     },
   );
-  const request = (id) =>
+  const request = (id: number) =>
     inspector.inspectGame({
       game_id: id,
       slug: `probe-${id}`,
       names: [`Probe ${id}`],
       evidence_url: "https://example.org/probe",
     });
-  const first = request(101).catch((error) => error);
+  const first = request(101).catch((error: unknown) => error);
   await flushProviderTimers(context);
   await first;
   return { inspector, calls, request };
@@ -1837,8 +2074,8 @@ for (const [status, retryAfter] of [
   [503, "Saturday, 03-Oct-26 08:00:02 GMT"],
   [429, "Sat Oct  3 08:00:02 2026"],
   [503, "Sat Oct 03 08:00:02 2026"],
-]) {
-  test(`metadata${status} honors Retry-After ${retryAfter}`, async (context) => {
+] as const) {
+  void test(`metadata${status} honors Retry-After ${retryAfter}`, async (context) => {
     const fixture = await capturedMetadataBackoff(context, { status, retryAfter });
     const next = fixture.request(102);
     await flushProviderTimers(context);
@@ -1857,7 +2094,7 @@ for (const [status, retryAfter] of [
   });
 }
 
-test("HTTP-date metadata backoff preserves UTC semantics across process timezones", (context) => {
+void test("HTTP-date metadata backoff preserves UTC semantics across process timezones", (context) => {
   const env = { ...process.env };
   // The outer runner marks its workers; a new independent runner must not
   // inherit that marker and silently refuse recursive discovery.
@@ -1868,7 +2105,7 @@ test("HTTP-date metadata backoff preserves UTC semantics across process timezone
     ["Asia/Tokyo", -540],
     ["Pacific/Kiritimati", -840],
     ["Asia/Kathmandu", -345],
-  ]) {
+  ] as const) {
     // A fresh process prevents timezone changes from affecting other tests.
     // Observe the actual timezone so an ignored TZ cannot manufacture coverage.
     const verifyTimezone = `import assert from "node:assert/strict"; assert.equal(new Date("2026-10-03T08:00:00Z").getTimezoneOffset(), ${offset});`;
@@ -1895,7 +2132,7 @@ test("HTTP-date metadata backoff preserves UTC semantics across process timezone
     const passed = result.stdout.match(/ℹ pass (\d+)/);
     assert.ok(passed, `${timezone}: child must report executed tests`);
     context.diagnostic(
-      `${timezone}: ${passed[1]} selected cases passed; observed offset ${offset}`,
+      `${timezone}: ${requiredFixture(passed[1])} selected cases passed; observed offset ${offset}`,
     );
   }
 });
@@ -1915,7 +2152,7 @@ for (const retryAfter of [
   "Sat Oct  3 07:59:59 2026",
   new Date(providerClockStart - 1000).toUTCString(),
 ]) {
-  test(`unusable or elapsed Retry-After ${retryAfter} preserves the metadata rate floor`, async (context) => {
+  void test(`unusable or elapsed Retry-After ${retryAfter} preserves the metadata rate floor`, async (context) => {
     const fixture = await capturedMetadataBackoff(context, { retryAfter });
     const next = fixture.request(102);
     await flushProviderTimers(context);
@@ -1930,7 +2167,7 @@ for (const retryAfter of [
   });
 }
 
-test("successful metadata ignores Retry-After and preserves ordinary pacing", async (context) => {
+void test("successful metadata ignores Retry-After and preserves ordinary pacing", async (context) => {
   const fixture = await capturedMetadataBackoff(context, { status: 200, retryAfter: "900" });
   const next = fixture.request(102);
   await flushProviderTimers(context);
@@ -1940,7 +2177,7 @@ test("successful metadata ignores Retry-After and preserves ordinary pacing", as
   assert.deepEqual(fixture.calls, [providerClockStart, providerClockStart + 300]);
 });
 
-test("Retry-After seconds start when the unavailable response arrives", async (context) => {
+void test("Retry-After seconds start when the unavailable response arrives", async (context) => {
   const fixture = await capturedMetadataBackoff(context, { responseDelay: 500 });
   const next = fixture.request(102);
   await flushProviderTimers(context);
@@ -1953,18 +2190,18 @@ test("Retry-After seconds start when the unavailable response arrives", async (c
   assert.deepEqual(fixture.calls, [providerClockStart, providerClockStart + 2500]);
 });
 
-test("deadline expiry while a metadata wait resolves does not count or send a request", async (context) => {
+void test("deadline expiry while a metadata wait resolves does not count or send a request", async (context) => {
   const fixture = await capturedMetadataBackoff(context);
-  const next = fixture.request(102).catch((error) => error);
+  const next = fixture.request(102).catch((error: unknown) => error);
   await flushProviderTimers(context);
   context.mock.timers.tick(15 * 60 * 1000);
   await flushProviderTimers(context);
-  assert.match((await next).message, /batch deadline/);
+  assert.match(text(record(await next).message), /batch deadline/);
   assert.equal(fixture.calls.length, 1);
   assert.equal(fixture.inspector.providerMetrics.game_requests, 1);
 });
 
-test("metadata pacing preserves the800request cap without repeated authentication", async (context) => {
+void test("metadata pacing preserves the800request cap without repeated authentication", async (context) => {
   const fixture = await capturedMetadataBackoff(context, { retryAfter: null });
   for (let request = 1; request < 799; request++) {
     const next = fixture.request(101 + request);
@@ -1980,7 +2217,11 @@ test("metadata pacing preserves the800request cap without repeated authenticatio
   const results = await last;
   assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
   assert.match(
-    results.find((result) => result.status === "rejected").reason.message,
+    text(
+      record(
+        rejectedReason(requiredFixture(results.find((result) => result.status === "rejected"))),
+      ).message,
+    ),
     /metadata budget/,
   );
   await assert.rejects(fixture.request(901), /metadata budget/);
@@ -1989,7 +2230,7 @@ test("metadata pacing preserves the800request cap without repeated authenticatio
   assert.equal(fixture.inspector.providerMetrics.authentication_requests, 1);
 });
 
-test("metadata backoff uses the existing batch cancellation signal", async (context) => {
+void test("metadata backoff uses the existing batch cancellation signal", async (context) => {
   const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-metadata-cancel-"));
   const privateFile = join(scratch, "private-fixture.json");
@@ -2016,7 +2257,7 @@ test("metadata backoff uses the existing batch cancellation signal", async (cont
   const controller = new AbortController();
   const timeout = AbortSignal.timeout.bind(AbortSignal);
   let waitSignals = 0;
-  context.mock.method(AbortSignal, "timeout", (milliseconds) => {
+  context.mock.method(AbortSignal, "timeout", (milliseconds: number) => {
     if (milliseconds <= 15000) return timeout(milliseconds);
     waitSignals++;
     return controller.signal;
@@ -2030,10 +2271,10 @@ test("metadata backoff uses the existing batch cancellation signal", async (cont
   assert.equal(inspector.providerMetrics.authentication_requests, 1);
 });
 
-test("over-budget metadata backoff retains accepted mappings and leaves authoring input unchanged", async (context) => {
+void test("over-budget metadata backoff retains accepted mappings and leaves authoring input unchanged", async (context) => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
   const fixture = await capturedMetadataBackoff(context, { retryAfter: "900" });
-  const accepted = {
+  const accepted: ArtworkCatalog = {
     ports: [
       {
         id: "probe",
@@ -2070,8 +2311,11 @@ test("over-budget metadata backoff retains accepted mappings and leaves authorin
   });
   assert.deepEqual(result.catalog, accepted);
   assert.deepEqual(accepted, before);
-  assert.equal(result.records[0].reason, "accepted-mapping-retained-after-unavailable-refresh");
-  assert.equal(result.records[0].checks.live_refresh_passed, false);
+  assert.equal(
+    requiredFixture(result.records[0]).reason,
+    "accepted-mapping-retained-after-unavailable-refresh",
+  );
+  assert.equal(record(requiredFixture(result.records[0]).checks).live_refresh_passed, false);
   assert.equal(fixture.calls.length, 1);
   assert.equal(fixture.inspector.providerMetrics.image_requests, 0);
 });
@@ -2087,24 +2331,24 @@ for (const retryAfter of [
   "Sat Oct 03 08:15:01 2026",
   new Date(providerClockStart + 901000).toUTCString(),
 ]) {
-  test(`Retry-After beyond the finite batch budget refuses another metadata request: ${retryAfter.slice(0, 40)}`, async (context) => {
+  void test(`Retry-After beyond the finite batch budget refuses another metadata request: ${retryAfter.slice(0, 40)}`, async (context) => {
     const fixture = await capturedMetadataBackoff(context, { retryAfter });
     const next = fixture.request(102).then(
       () => assert.fail("over-budget pause cannot send"),
-      (error) => error,
+      (error: unknown) => error,
     );
     await flushProviderTimers(context);
     context.mock.timers.tick(300);
     await flushProviderTimers(context);
     assert.equal(fixture.calls.length, 1);
-    assert.match((await next).message, /batch deadline/);
+    assert.match(text(record(await next).message), /batch deadline/);
     assert.equal(Date.now(), providerClockStart + 300, "no unbounded sleep");
     assert.equal(fixture.inspector.providerMetrics.game_requests, 1);
     assert.equal(fixture.inspector.providerMetrics.authentication_requests, 1);
   });
 }
 
-test("ordinary generator prepares one complete retained batch and refuses output overwrite", () => {
+void test("ordinary generator prepares one complete retained batch and refuses output overwrite", () => {
   const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-generator-"));
   const output = join(scratch, "proposal");
   const before = readFileSync(join(catalogRoot, "catalog.json"), "utf8");
@@ -2116,19 +2360,47 @@ test("ordinary generator prepares one complete retained batch and refuses output
   ];
   const generated = run(...args);
   assert.equal(generated.status, 0, generated.stderr);
-  const evidence = JSON.parse(readFileSync(join(output, "artwork-evidence.json"), "utf8"));
-  const accepted = JSON.parse(before);
+  const evidence = fixtureJson(readFileSync(join(output, "artwork-evidence.json"), "utf8"));
+  const accepted = fixtureCatalog(fixtureJson(before));
   assert.deepEqual(
-    evidence.records.map((record) => record.port_id),
+    records(evidence.records).map((record) => record.port_id),
     accepted.ports.map((port) => port.id),
   );
   assert.deepEqual(evidence.differences, []);
-  assert.equal(evidence.provider_metrics.authentication_requests, 0);
-  assert.equal(evidence.provider_metrics.game_requests, 0);
-  assert.equal(evidence.provider_metrics.image_requests, 0);
+  assert.equal(record(evidence.provider_metrics).authentication_requests, 0);
+  assert.equal(record(evidence.provider_metrics).game_requests, 0);
+  assert.equal(record(evidence.provider_metrics).image_requests, 0);
   writeFileSync(join(output, "preservation-marker"), "keep");
   const repeated = run(...args);
   assert.notEqual(repeated.status, 0);
   assert.equal(readFileSync(join(output, "preservation-marker"), "utf8"), "keep");
   assert.equal(readFileSync(join(catalogRoot, "catalog.json"), "utf8"), before);
+});
+
+void test("artwork preparation widens replaced artwork while retaining authoring metadata", async () => {
+  const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
+  const input = {
+    schema_version: 2,
+    custom: { retained: true },
+    ports: [
+      {
+        id: "typed-artwork",
+        name: "Typed artwork",
+        custom: "retained",
+        presentation: { artwork: null, summary: "retained" },
+      },
+    ],
+  };
+  const result = await prepareCatalogArtwork(input, {});
+  const port = requiredFixture(result.catalog.ports[0]);
+  assert.ok(port);
+  // @ts-expect-error Preparation may remove null or replace it with a checked mapping.
+  const originalLiteral: null = port.presentation?.artwork;
+  assert.equal(originalLiteral, undefined);
+  const imageId: string | undefined = port.presentation?.artwork?.image_id;
+  assert.equal(imageId, undefined);
+  assert.deepEqual(result.catalog.custom, input.custom);
+  assert.equal(port.custom, "retained");
+  assert.equal(port.presentation?.summary, "retained");
+  assert.equal(requiredFixture(input.ports[0])?.presentation.artwork, null);
 });

@@ -1,3 +1,9 @@
+import type { ReadableStreamReadResult } from "node:stream/web";
+import { isRecord, errorCode } from "./runtime-values.mts";
+import type {
+  IgdbArtwork,
+  IgdbArtworkMatch,
+} from "../apps/desktop/src/transport-types.generated.d.ts";
 import {
   readFileSync,
   writeFileSync,
@@ -16,26 +22,154 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import timers from "node:timers/promises";
 
+interface ArtworkPort extends Record<string, unknown> {
+  id: string;
+  name?: unknown;
+  project_url?: unknown;
+  source_profile?: unknown;
+  presentation?: ({ artwork?: unknown } & Record<string, unknown>) | null;
+}
+export interface ArtworkCatalog extends Record<string, unknown> {
+  ports: ArtworkPort[];
+}
+interface PreparedArtworkPort extends ArtworkPort {
+  presentation?: ({ artwork?: IgdbArtwork } & Record<string, unknown>) | null;
+}
+interface PreparedArtworkCatalog extends ArtworkCatalog {
+  ports: PreparedArtworkPort[];
+}
+
+function assertPreparedArtwork(catalog: ArtworkCatalog): asserts catalog is PreparedArtworkCatalog {
+  for (const port of catalog.ports) {
+    const artwork = port.presentation?.artwork;
+    if (artwork !== undefined && !validMapping(artwork))
+      throw new Error("Prepared artwork does not satisfy its mapping contract.");
+  }
+}
+
+interface DeclaredIdentity {
+  kind: IgdbArtworkMatch;
+  game_id: number | null;
+  slug: string | null;
+  names: string[];
+  evidence_url: string;
+  project_url: string | null;
+  platform_ids: number[];
+  edition: string | null;
+}
+interface ObservedGame {
+  id: number;
+  name: string;
+  slug: string;
+  cover?: unknown;
+  alternative_names?: { name: string }[] | null;
+  websites?: { url: string }[] | null;
+  platforms?: number[] | null;
+  version_parent?: number | null;
+  version_title?: string | null;
+}
+interface ImageContent {
+  sha256: string;
+  bytes: number;
+  width: number;
+  height: number;
+  format: "jpeg";
+  validator: "portcove-core";
+}
+interface ArtworkException {
+  kind: IgdbArtworkMatch;
+  reason: string;
+  resume: string;
+  image_id?: string;
+  http_status?: 410;
+}
+type ArtworkChecks =
+  | { scope: "retained-accepted-mapping"; download_repeated: false }
+  | { scope: "retained-accepted-mapping"; live_refresh_passed: false }
+  | {
+      identity: DeclaredIdentity;
+      scope: "retained-accepted-original-game";
+      download_repeated: false;
+    }
+  | { identity: DeclaredIdentity; content: ImageContent };
+interface SelectedCover {
+  mapping: IgdbArtwork;
+  checks: ArtworkChecks;
+  reused_original?: true;
+}
+interface ArtworkRecord {
+  port_id: string;
+  role: "cover";
+  reason: string;
+  mapping: IgdbArtwork | null;
+  checks: ArtworkChecks | null;
+  exceptions: ArtworkException[];
+}
+interface ArtworkMetrics {
+  ports: number;
+  reused: number;
+  original_reused: number;
+  selected: number;
+  fallback: number;
+  game_queries: number;
+  image_queries: number;
+  image_bytes: number;
+}
+export interface ArtworkPreparationOptions {
+  acceptedCatalog?: ArtworkCatalog;
+  identities?: unknown;
+  refreshPortIds?: readonly string[];
+  inspectGame?: (identity: DeclaredIdentity) => unknown;
+  inspectImage?: (imageId: string, remainingBytes: number) => unknown;
+}
+interface ArtworkContext extends ArtworkPreparationOptions {
+  acceptedPorts: ArtworkPort[];
+  refreshing: boolean;
+  metrics: ArtworkMetrics;
+  games: Map<string, Promise<unknown>>;
+  images: Map<string, Promise<ImageContent>>;
+  goneImages: Set<string>;
+}
+interface ArtworkReader {
+  read(): Promise<ReadableStreamReadResult<Uint8Array>>;
+  cancel(): Promise<void>;
+  releaseLock(): void;
+}
+interface ArtworkBody {
+  getReader(): ArtworkReader;
+  cancel(): Promise<void>;
+}
+export interface ArtworkResponse {
+  ok: boolean;
+  status: number;
+  headers: Pick<Headers, "get">;
+  body: ArtworkBody | null;
+}
+export type ArtworkFetch = (url: string, init: RequestInit) => Promise<ArtworkResponse>;
+export type ImageValidator = (bytes: Buffer) => unknown;
+
 const maximumImageBytes = 16 * 1024 * 1024;
 const maximumBatchBytes = 512 * 1024 * 1024;
 const slugPattern = /^[a-z0-9-]{1,255}$/;
 const imagePattern = /^[a-z0-9]{1,128}$/;
 const hashPattern = /^[a-f0-9]{64}$/;
-const positiveId = (value) => Number.isSafeInteger(value) && value > 0;
-const matchesString = (pattern, value) => typeof value === "string" && pattern.test(value);
+const positiveId = (value: unknown): value is number =>
+  typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+const matchesString = (pattern: RegExp, value: unknown): value is string =>
+  typeof value === "string" && pattern.test(value);
 // Only this module's fixed image request can establish a Gone observation.
 // Provider metadata, generic errors and caller-supplied status properties cannot.
-const goneImageObservations = new WeakMap();
+const goneImageObservations = new WeakMap<object, string>();
 
-function goneImageException(kind, imageId) {
+function goneImageException(kind: IgdbArtworkMatch, imageId: string): ArtworkException {
   return { ...exception(kind, "image-gone"), image_id: imageId, http_status: 410 };
 }
 
-export function readArtworkJson(file, maximum = 8 * 1024 * 1024) {
+export function readArtworkJson(file: string, maximum = 8 * 1024 * 1024) {
   return readArtworkInput(file, maximum).document;
 }
 
-export function readArtworkInput(file, maximum = 8 * 1024 * 1024) {
+export function readArtworkInput(file: string, maximum = 8 * 1024 * 1024) {
   const fd = openSync(file, "r");
   try {
     if (!fstatSync(fd).isFile()) throw new Error("Artwork input must be a regular file.");
@@ -49,7 +183,8 @@ export function readArtworkInput(file, maximum = 8 * 1024 * 1024) {
     }
     try {
       const bytes = Buffer.from(buffer.subarray(0, length));
-      return { document: JSON.parse(bytes.toString("utf8")), bytes };
+      const document: unknown = JSON.parse(bytes.toString("utf8"));
+      return { document, bytes };
     } catch {
       throw new Error("Artwork input is not valid JSON.");
     }
@@ -58,13 +193,14 @@ export function readArtworkInput(file, maximum = 8 * 1024 * 1024) {
   }
 }
 
-function nameKey(value) {
+function nameKey(value: unknown) {
   return String(value).normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-function evidenceUrl(value) {
+function evidenceUrl(value: unknown) {
   let evidence;
   try {
+    if (typeof value !== "string") throw new Error();
     evidence = new URL(value);
   } catch {
     throw new Error("Artwork identity needs attributable HTTPS evidence.");
@@ -79,16 +215,20 @@ function evidenceUrl(value) {
   return evidence.href;
 }
 
-function declaredIdentity(value, kind = value?.kind ?? "port") {
+function declaredIdentity(value: unknown, requestedKind?: IgdbArtworkMatch): DeclaredIdentity {
+  const kind = requestedKind ?? (isRecord(value) ? (value.kind ?? "port") : "port");
+  if (kind !== "port" && kind !== "underlying-game")
+    throw new Error("Artwork identity kind is invalid.");
   if (
-    !value ||
+    !isRecord(value) ||
     (value.game_id != null && !positiveId(value.game_id)) ||
     (value.slug != null && !matchesString(slugPattern, value.slug)) ||
     !Array.isArray(value.names) ||
     !value.names.length ||
     value.names.length > 16 ||
-    value.names.some(
-      (name: string) => typeof name !== "string" || !name.trim() || name.length > 255,
+    !value.names.every(
+      (name: unknown): name is string =>
+        typeof name === "string" && Boolean(name.trim()) && name.length <= 255,
     )
   ) {
     throw new Error(
@@ -97,7 +237,7 @@ function declaredIdentity(value, kind = value?.kind ?? "port") {
   }
   const projectUrl = value.project_url ? evidenceUrl(value.project_url) : null;
   const platforms = value.platform_ids ?? [];
-  if (!Array.isArray(platforms) || platforms.length > 16 || platforms.some((id) => !positiveId(id)))
+  if (!Array.isArray(platforms) || platforms.length > 16 || !platforms.every(positiveId))
     throw new Error("Artwork original-game platforms are invalid.");
   if (value.game_id == null && (kind === "port" ? !projectUrl : !platforms.length))
     throw new Error(
@@ -122,8 +262,9 @@ function declaredIdentity(value, kind = value?.kind ?? "port") {
   };
 }
 
-function websiteKey(value) {
+function websiteKey(value: unknown) {
   try {
+    if (typeof value !== "string") return null;
     const url = new URL(value);
     if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) return null;
     if (url.hostname === "github.com" && !url.port && !url.search && !url.hash)
@@ -134,7 +275,7 @@ function websiteKey(value) {
   }
 }
 
-function matchesIdentity(game, declared) {
+function matchesIdentity(game: ObservedGame, declared: DeclaredIdentity) {
   if (declared.game_id != null && game.id !== declared.game_id) return false;
   if (declared.slug != null && game.slug !== declared.slug) return false;
   const names = [
@@ -170,13 +311,18 @@ function matchesIdentity(game, declared) {
   return true;
 }
 
-function validOptionalList(value, predicate) {
-  return value == null || (Array.isArray(value) && value.length <= 256 && value.every(predicate));
+function validOptionalList<T>(
+  value: unknown,
+  predicate: (value: unknown) => value is T,
+): value is T[] | null | undefined {
+  if (value === undefined || value === null) return true;
+  if (!Array.isArray(value) || value.length > 256) return false;
+  const items: unknown[] = value;
+  return items.every(predicate);
 }
-
-function validObservedMetadata(game) {
+function validObservedMetadata(game: unknown): game is ObservedGame {
   if (
-    !game ||
+    !isRecord(game) ||
     !positiveId(game.id) ||
     typeof game.name !== "string" ||
     !matchesString(slugPattern, game.slug)
@@ -185,14 +331,16 @@ function validObservedMetadata(game) {
   if (
     !validOptionalList(
       game.alternative_names,
-      (name) => name && typeof name.name === "string" && name.name.length <= 255,
+      (name): name is { name: string } =>
+        isRecord(name) && typeof name.name === "string" && name.name.length <= 255,
     )
   )
     return false;
   if (
     !validOptionalList(
       game.websites,
-      (site) => site && typeof site.url === "string" && site.url.length <= 2048,
+      (site): site is { url: string } =>
+        isRecord(site) && typeof site.url === "string" && site.url.length <= 2048,
     )
   )
     return false;
@@ -204,30 +352,39 @@ function validObservedMetadata(game) {
   );
 }
 
-function identifiedGame(matches, declared) {
-  if (!Array.isArray(matches) || matches.some((game) => !validObservedMetadata(game)))
-    return { reason: "identity-response-invalid" };
+function identifiedGame(
+  matches: unknown,
+  declared: DeclaredIdentity,
+): { game: ObservedGame; reason?: never } | { reason: string; game?: never } {
+  if (!Array.isArray(matches)) return { reason: "identity-response-invalid" };
+  const values: unknown[] = matches;
+  if (!values.every(validObservedMetadata)) return { reason: "identity-response-invalid" };
   if (matches.length >= 21) return { reason: "identity-query-incomplete" };
   if (declared.game_id != null && matches.length !== 1) return { reason: "identity-not-unique" };
-  const eligible = matches.filter((game) => matchesIdentity(game, declared));
-  return eligible.length === 1
-    ? { game: eligible[0] }
+  const eligible = values.filter((game) => matchesIdentity(game, declared));
+  const game = eligible.length === 1 ? eligible[0] : undefined;
+  return game
+    ? { game }
     : { reason: eligible.length > 1 ? "identity-not-unique" : "identity-mismatch" };
 }
 
-function validMapping(value) {
+function validMapping(value: unknown): value is IgdbArtwork {
   return (
-    value &&
+    isRecord(value) &&
     positiveId(value.game_id) &&
     positiveId(value.cover_id) &&
     matchesString(imagePattern, value.image_id) &&
     matchesString(hashPattern, value.image_sha256) &&
     matchesString(slugPattern, value.game_slug) &&
-    ["port", "underlying-game"].includes(value.match_kind)
+    (value.match_kind === "port" || value.match_kind === "underlying-game")
   );
 }
 
-function reusableMapping(port, accepted, declarations) {
+function reusableMapping(
+  port: ArtworkPort,
+  accepted: ArtworkPort | undefined,
+  declarations: unknown,
+) {
   if (
     !accepted ||
     port.name !== accepted.name ||
@@ -237,13 +394,20 @@ function reusableMapping(port, accepted, declarations) {
   )
     return null;
   const mapping = accepted.presentation.artwork;
-  const identity = declarations?.[mapping.match_kind === "port" ? "port" : "underlying_game"];
-  if (identity && (identity.game_id !== mapping.game_id || identity.slug !== mapping.game_slug))
+  const identity = isRecord(declarations)
+    ? declarations[mapping.match_kind === "port" ? "port" : "underlying_game"]
+    : undefined;
+  if (
+    identity &&
+    (!isRecord(identity) ||
+      identity.game_id !== mapping.game_id ||
+      identity.slug !== mapping.game_slug)
+  )
     return null;
   return structuredClone(mapping);
 }
 
-function exception(kind, reason) {
+function exception(kind: IgdbArtworkMatch, reason: string): ArtworkException {
   return {
     kind,
     reason,
@@ -254,9 +418,9 @@ function exception(kind, reason) {
   };
 }
 
-function observedContent(value) {
+function assertObservedContent(value: unknown): asserts value is ImageContent {
   if (
-    !value ||
+    !isRecord(value) ||
     !matchesString(hashPattern, value.sha256) ||
     !positiveId(value.bytes) ||
     value.bytes > maximumImageBytes ||
@@ -269,14 +433,17 @@ function observedContent(value) {
     value.validator !== "portcove-core"
   )
     throw new Error("Image did not pass the core content contract.");
+}
+function observedContent(value: unknown): ImageContent {
+  assertObservedContent(value);
   return value;
 }
 
-function acceptedOriginal(declared, context) {
+function acceptedOriginal(declared: DeclaredIdentity, context: ArtworkContext) {
   const mappings = context.acceptedPorts
     .map((port) => port.presentation?.artwork)
     .filter(
-      (mapping) =>
+      (mapping): mapping is IgdbArtwork =>
         validMapping(mapping) &&
         !context.goneImages.has(mapping.image_id) &&
         mapping.match_kind === "underlying-game" &&
@@ -287,7 +454,12 @@ function acceptedOriginal(declared, context) {
   return unique.size === 1 ? structuredClone([...unique.values()][0]) : null;
 }
 
-async function selectCover(identity, kind, context, exceptions) {
+async function selectCover(
+  identity: unknown,
+  kind: IgdbArtworkMatch,
+  context: ArtworkContext,
+  exceptions: ArtworkException[],
+): Promise<SelectedCover | null> {
   if (!identity) {
     exceptions.push(exception(kind, "identity-not-declared"));
     return null;
@@ -321,7 +493,10 @@ async function selectCover(identity, kind, context, exceptions) {
     context.metrics.game_queries++;
     context.games.set(
       key,
-      Promise.resolve().then(() => context.inspectGame(declared)),
+      Promise.resolve().then(() => {
+        if (!context.inspectGame) throw new Error("Artwork identity inspector unavailable.");
+        return context.inspectGame(declared);
+      }),
     );
   }
   let matches;
@@ -337,11 +512,12 @@ async function selectCover(identity, kind, context, exceptions) {
     return null;
   }
   const game = identified.game;
-  if (!positiveId(game.cover?.id) || !matchesString(imagePattern, game.cover?.image_id)) {
+  const cover = isRecord(game.cover) ? game.cover : undefined;
+  if (!cover || !positiveId(cover.id) || !matchesString(imagePattern, cover.image_id)) {
     exceptions.push(exception(kind, "no-usable-cover"));
     return null;
   }
-  const imageId = game.cover.image_id;
+  const imageId = cover.image_id;
   if (!context.images.has(imageId)) {
     if (context.metrics.image_queries >= 400 || context.metrics.image_bytes >= maximumBatchBytes) {
       exceptions.push(exception(kind, "batch-image-budget-exhausted"));
@@ -351,7 +527,10 @@ async function selectCover(identity, kind, context, exceptions) {
     context.images.set(
       imageId,
       Promise.resolve()
-        .then(() => context.inspectImage(imageId, maximumBatchBytes - context.metrics.image_bytes))
+        .then(() => {
+          if (!context.inspectImage) throw new Error("Artwork image inspector unavailable.");
+          return context.inspectImage(imageId, maximumBatchBytes - context.metrics.image_bytes);
+        })
         .then((value) => {
           const content = observedContent(value);
           context.metrics.image_bytes += content.bytes;
@@ -364,8 +543,9 @@ async function selectCover(identity, kind, context, exceptions) {
   let content;
   try {
     content = await context.images.get(imageId);
+    if (!content) throw new Error("Image observation disappeared.");
   } catch (error) {
-    if (goneImageObservations.get(error) === imageId) {
+    if (isRecord(error) && goneImageObservations.get(error) === imageId) {
       context.goneImages.add(imageId);
       exceptions.push(goneImageException(kind, imageId));
     } else {
@@ -376,7 +556,7 @@ async function selectCover(identity, kind, context, exceptions) {
   return {
     mapping: {
       game_id: game.id,
-      cover_id: game.cover.id,
+      cover_id: cover.id,
       image_id: imageId,
       image_sha256: content.sha256,
       game_slug: game.slug,
@@ -386,11 +566,17 @@ async function selectCover(identity, kind, context, exceptions) {
   };
 }
 
-function applyGoneImageFallbacks(catalog, records, context) {
+function applyGoneImageFallbacks(
+  catalog: ArtworkCatalog,
+  records: ArtworkRecord[],
+  context: ArtworkContext,
+) {
   for (const [index, record] of records.entries()) {
     const mapping = record.mapping;
     if (!mapping || !context.goneImages.has(mapping.image_id)) continue;
-    delete catalog.ports[index].presentation.artwork;
+    const port = catalog.ports[index];
+    if (!port?.presentation) throw new Error("Artwork output relationship disappeared.");
+    delete port.presentation.artwork;
     if (
       ["accepted-mapping-reused", "accepted-mapping-retained-after-unavailable-refresh"].includes(
         record.reason,
@@ -411,12 +597,20 @@ function applyGoneImageFallbacks(catalog, records, context) {
 
 // Proposal preparation only. The accepted baseline is caller-selected trusted
 // authoring data; neither a provider response nor this output admits a port.
-export async function prepareCatalogArtwork(catalog, options) {
+// Only the inspected projection is promised: artwork is deliberately widened
+// because preparation can replace or remove it. All other authoring data stays
+// in the cloned document; Core remains its schema and admission authority.
+export async function prepareCatalogArtwork(
+  catalog: ArtworkCatalog,
+  options: ArtworkPreparationOptions,
+) {
   if (
     !Array.isArray(catalog?.ports) ||
     catalog.ports.length > 400 ||
     new Set(catalog.ports.map((port) => port.id)).size !== catalog.ports.length ||
-    catalog.ports.some((port) => !/^[a-z0-9][a-z0-9-]{0,127}$/.test(port.id ?? ""))
+    catalog.ports.some(
+      (port) => typeof port.id !== "string" || !/^[a-z0-9][a-z0-9-]{0,127}$/.test(port.id),
+    )
   ) {
     throw new Error("Artwork batches require at most400 unique stable port ids.");
   }
@@ -425,8 +619,9 @@ export async function prepareCatalogArtwork(catalog, options) {
   const refresh = new Set(options.refreshPortIds ?? []);
   if ([...refresh].some((id) => !catalog.ports.some((port) => port.id === id)))
     throw new Error("Artwork refresh names a port outside this batch.");
-  const context = {
+  const context: ArtworkContext = {
     ...options,
+    refreshing: false,
     games: new Map(),
     images: new Map(),
     goneImages: new Set(),
@@ -442,9 +637,10 @@ export async function prepareCatalogArtwork(catalog, options) {
       image_bytes: 0,
     },
   };
-  const records = [];
+  const records: ArtworkRecord[] = [];
   for (const port of result.ports) {
-    const supplied = options.identities?.[port.id];
+    const rawSupplied = isRecord(options.identities) ? options.identities[port.id] : undefined;
+    const supplied = isRecord(rawSupplied) ? rawSupplied : undefined;
     const reused = reusableMapping(port, accepted.get(port.id), supplied);
     if (reused && !refresh.has(port.id)) {
       port.presentation = { ...port.presentation, artwork: reused };
@@ -459,7 +655,7 @@ export async function prepareCatalogArtwork(catalog, options) {
       context.metrics.reused++;
       continue;
     }
-    const declarations = {
+    const declarations: { port: unknown; underlying_game?: unknown } = {
       ...supplied,
       port: supplied?.port ?? {
         names: [port.name],
@@ -468,7 +664,7 @@ export async function prepareCatalogArtwork(catalog, options) {
       },
     };
     context.refreshing = refresh.has(port.id);
-    const exceptions = [];
+    const exceptions: ArtworkException[] = [];
     const selected =
       (await selectCover(declarations?.port, "port", context, exceptions)) ??
       (await selectCover(declarations?.underlying_game, "underlying-game", context, exceptions));
@@ -511,10 +707,11 @@ export async function prepareCatalogArtwork(catalog, options) {
   // A later refreshed record can observe Gone for an earlier reused mapping.
   // Apply that exact-image fact to every output reference without extra requests.
   applyGoneImageFallbacks(result, records, context);
+  assertPreparedArtwork(result);
   return { catalog: result, records, metrics: context.metrics };
 }
 
-function cancelBody(body) {
+function cancelBody(body: Pick<ArtworkReader, "cancel"> | null | undefined) {
   try {
     // Start abandonment now; an untrusted cancellation promise must neither
     // delay fallback nor replace its original failure. Fetch cancellation
@@ -525,11 +722,15 @@ function cancelBody(body) {
   }
 }
 
-async function readBounded(response, maximum, observeBytes = () => {}) {
+async function readBounded(
+  response: ArtworkResponse,
+  maximum: number,
+  observeBytes: (bytes: number) => void = () => {},
+) {
   if (Number(response.headers.get("content-length")) > maximum || !response.body)
     throw new Error("Response exceeds its byte contract.");
   const reader = response.body.getReader();
-  const chunks = [];
+  const chunks: Uint8Array[] = [];
   let length = 0;
   try {
     for (;;) {
@@ -546,23 +747,25 @@ async function readBounded(response, maximum, observeBytes = () => {}) {
   }
 }
 
-function readCredentials(file) {
+function readCredentials(file: string | null | undefined) {
   try {
+    if (!file) throw new Error();
     const value = readArtworkJson(file, 64 * 1024);
     if (
+      !isRecord(value) ||
       typeof value.client_id !== "string" ||
       !value.client_id ||
       typeof value.client_secret !== "string" ||
       !value.client_secret
     )
       throw new Error();
-    return value;
+    return { client_id: value.client_id, client_secret: value.client_secret };
   } catch {
     throw new Error("Private IGDB credentials are unavailable or invalid.");
   }
 }
 
-function metadataRetryAt(header: string, now, deadline) {
+function metadataRetryAt(header: string | null, now: number, deadline: number) {
   if (header === null) return now;
   // Bound parsing and arithmetic before provider input reaches a timer.
   if (/^\d+$/.test(header)) {
@@ -630,7 +833,7 @@ function metadataRetryAt(header: string, now, deadline) {
     !parts ||
     (!shortYear && date.getUTCFullYear() !== Number(explicitYear)) ||
     date.getUTCDate() !== Number(parts[1]) ||
-    date.getUTCMonth() !== months.indexOf(parts[2]) ||
+    date.getUTCMonth() !== months.indexOf(parts[2] ?? "") ||
     date.getUTCHours() !== Number(parts[3]) ||
     date.getUTCMinutes() !== Number(parts[4]) ||
     date.getUTCSeconds() !== Number(parts[5])
@@ -641,8 +844,12 @@ function metadataRetryAt(header: string, now, deadline) {
 
 // One lazy authentication attempt, sequential requests, no retries. Credentials
 // and response bodies never enter proposal evidence or error messages.
-export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = fetch) {
-  let tokenPromise;
+export function createIgdbInspector(
+  credentialsFile: string | null | undefined,
+  validateImage: ImageValidator,
+  fetchImpl: ArtworkFetch = fetch,
+) {
+  let tokenPromise: Promise<{ clientId: string; token: string }> | undefined;
   let lastGameRequest = 0;
   let gameRetryAt = 0;
   const metrics = {
@@ -687,8 +894,10 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
         });
         try {
           if (!response.ok) throw new Error("Twitch authentication unavailable.");
-          const value = JSON.parse((await readBounded(response, 64 * 1024)).toString("utf8"));
-          if (typeof value.access_token !== "string" || !value.access_token)
+          const value: unknown = JSON.parse(
+            (await readBounded(response, 64 * 1024)).toString("utf8"),
+          );
+          if (!isRecord(value) || typeof value.access_token !== "string" || !value.access_token)
             throw new Error("Twitch authentication unavailable.");
           return { clientId: privateValue.client_id, token: value.access_token };
         } finally {
@@ -699,7 +908,7 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
   }
   return {
     providerMetrics: metrics,
-    async inspectGame(identity) {
+    async inspectGame(identity: unknown): Promise<unknown> {
       const verified = declaredIdentity(identity);
       const auth = await token();
       if (metrics.game_requests >= 800 || metrics.metadata_bytes >= 32 * 1024 * 1024)
@@ -753,7 +962,7 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
         cancelBody(response.body);
       }
     },
-    async inspectImage(imageId, remainingBytes = maximumBatchBytes) {
+    async inspectImage(imageId: string, remainingBytes = maximumBatchBytes) {
       if (!matchesString(imagePattern, imageId)) throw new Error("Invalid image identity.");
       if (metrics.image_requests >= 400 || metrics.image_bytes >= maximumBatchBytes)
         throw new Error("Artwork image budget reached.");
@@ -779,6 +988,7 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
         );
         const sha256 = createHash("sha256").update(bytes).digest("hex");
         const validated = await validateImage(bytes);
+        if (!isRecord(validated)) throw new Error("Image did not pass the core content contract.");
         return observedContent({ ...validated, sha256, bytes: bytes.length });
       } finally {
         cancelBody(response.body);
@@ -789,7 +999,7 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
 
 // Reuse the actual core decoder through its existing CLI import into a fresh
 // task-owned library. No user library/choice or arbitrary provider command.
-export function createCoreImageValidator(cli, scratchRoot) {
+export function createCoreImageValidator(cli: string, scratchRoot: string) {
   mkdirSync(scratchRoot, { recursive: true });
   const root = mkdtempSync(join(resolve(scratchRoot), "core-image-validation-"));
   const artifact = join(root, process.platform === "win32" ? "validator.exe" : "validator");
@@ -797,7 +1007,7 @@ export function createCoreImageValidator(cli, scratchRoot) {
   chmodSync(artifact, 0o500);
   const artifactSha256 = createHash("sha256").update(readFileSync(artifact)).digest("hex");
   let ordinal = 0;
-  return (bytes) => {
+  return (bytes: Buffer) => {
     const runRoot = join(root, String(++ordinal));
     mkdirSync(runRoot);
     const file = join(runRoot, "image.jpg");
@@ -826,7 +1036,7 @@ export function createCoreImageValidator(cli, scratchRoot) {
           validator_artifact_sha256: artifactSha256,
           status: child.status,
           signal: child.signal,
-          error_code: child.error?.code ?? null,
+          error_code: errorCode(child.error) ?? null,
           stdout_tail: child.stdout?.slice(-16384) ?? "",
           stderr_tail: child.stderr?.slice(-16384) ?? "",
         },
@@ -837,9 +1047,11 @@ export function createCoreImageValidator(cli, scratchRoot) {
     );
     if (child.error || child.status !== 0)
       throw new Error("Core image validation refused or unavailable.");
-    const value = JSON.parse(child.stdout).data?.selection;
+    const envelope: unknown = JSON.parse(child.stdout);
+    const data = isRecord(envelope) ? envelope.data : undefined;
+    const value = isRecord(data) ? data.selection : undefined;
     if (
-      !value ||
+      !isRecord(value) ||
       value.sha256 !== createHash("sha256").update(bytes).digest("hex") ||
       value.byte_size !== bytes.length
     )
