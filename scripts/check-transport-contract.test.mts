@@ -27,7 +27,7 @@ const schemas = {
         type: "object",
         required: ["count"],
         properties: {
-          count: { type: ["integer", "null"] },
+          count: { type: ["integer", "null"] as string | string[] },
           state: { enum: ["ready", "held"] },
         },
       },
@@ -35,7 +35,7 @@ const schemas = {
   },
 };
 
-test("headless export retains required Windows native parity and explicit capable-host parity", () => {
+void test("headless export retains required Windows native parity and explicit capable-host parity", () => {
   const headless = [
     "run",
     "--locked",
@@ -60,23 +60,25 @@ test("headless export retains required Windows native parity and explicit capabl
   assert.deepEqual(desktopSchemaExporterCommands("linux", true), [headless, native]);
 });
 
-test("native parity compares the complete Rust envelope without depending on key order", () => {
+void test("native parity compares the complete Rust envelope without depending on key order", () => {
   const contracts = { output: schemas, input: {}, events: { changed: { type: "null" } } };
   assert.deepEqual(
     checkDesktopExporterParity(contracts, { events: contracts.events, input: {}, output: schemas }),
     [],
   );
-  for (const section of ["output", "input", "events"]) {
-    const changed = structuredClone(contracts);
-    changed[section].fixture = { type: "integer" };
+  for (const section of ["output", "input", "events"] as const) {
+    const changed = {
+      ...structuredClone(contracts),
+      [section]: { ...contracts[section], fixture: { type: "integer" } },
+    };
     assert.match(
-      checkDesktopExporterParity(contracts, changed)[0],
+      fixtureElement(checkDesktopExporterParity(contracts, changed), 0),
       /differ from the compiled native host/,
     );
   }
 });
 
-test("the complete contract is canonical and line-ending independent", () => {
+void test("the complete contract is canonical and line-ending independent", () => {
   const rendered = renderTransportSchemas(schemas);
   assert.deepEqual(checkTransportContract(schemas, rendered.replaceAll("\n", "\r\n")), []);
   const reordered = {
@@ -85,21 +87,21 @@ test("the complete contract is canonical and line-ending independent", () => {
   assert.equal(renderTransportSchemas(reordered), rendered);
 });
 
-test("nested types, nullability, required presence, arrays and union drift fail closed", () => {
+void test("nested types, nullability, required presence, arrays and union drift fail closed", () => {
   for (const mutate of [
-    (schema) => {
+    (schema: typeof schemas.response) => {
       schema.$defs.Item.properties.count.type = ["string", "null"];
     },
-    (schema) => {
+    (schema: typeof schemas.response) => {
       schema.$defs.Item.properties.count.type = "integer";
     },
-    (schema) => {
+    (schema: typeof schemas.response) => {
       schema.$defs.Item.required = [];
     },
-    (schema) => {
+    (schema: typeof schemas.response) => {
       schema.properties.items.type = "object";
     },
-    (schema) => {
+    (schema: typeof schemas.response) => {
       schema.$defs.Item.properties.state.enum.push("unknown");
     },
   ]) {
@@ -109,7 +111,7 @@ test("nested types, nullability, required presence, arrays and union drift fail 
   }
 });
 
-test("invalid or absent schema inventories cannot generate an empty passing contract", () => {
+void test("invalid or absent schema inventories cannot generate an empty passing contract", () => {
   for (const invalid of [null, [], {}, { response: null }])
     assert.throws(() => renderTransportSchemas(invalid), /named JSON schemas/);
   assert.equal(checkTransportContract(schemas, "").length, 1);
@@ -134,7 +136,7 @@ const frontendSource = `
   };
 `;
 
-test("desktop command declarations, registrations, and literal frontend bindings agree", () => {
+void test("desktop command declarations, registrations, and literal frontend bindings agree", () => {
   assert.deepEqual(extractRegisteredDesktopCommands(registrationSource), [
     "get_catalog",
     "set_policy",
@@ -154,7 +156,7 @@ test("desktop command declarations, registrations, and literal frontend bindings
   );
 });
 
-test("missing, extra, duplicate, and dynamic desktop exposure fails closed", () => {
+void test("missing, extra, duplicate, and dynamic desktop exposure fails closed", () => {
   const missingFrontend = frontendSource.replace(
     'policy: () => invoke<void>("set_policy", { value: true }),',
     "",
@@ -199,7 +201,7 @@ test("missing, extra, duplicate, and dynamic desktop exposure fails closed", () 
   );
 });
 
-test("aliased, indirect, and out-of-facade invokes fail alongside a complete inventory", () => {
+void test("aliased, indirect, and out-of-facade invokes fail alongside a complete inventory", () => {
   for (const hiddenInvoke of [
     "const call = invoke; call(selectedCommand);",
     "invoke.call(null, selectedCommand);",
@@ -253,7 +255,7 @@ test("aliased, indirect, and out-of-facade invokes fail alongside a complete inv
   );
 });
 
-test("a coherent registration and frontend rename cannot hide declaration drift", () => {
+void test("a coherent registration and frontend rename cannot hide declaration drift", () => {
   const renamedRegistration = registrationSource.replace("get_catalog", "renamed_catalog");
   const renamedFrontend = frontendSource.replace("get_catalog", "renamed_catalog");
   assert.match(
@@ -266,7 +268,7 @@ test("a coherent registration and frontend rename cannot hide declaration drift"
   );
 });
 
-test("unsupported command attributes and unparsed registration syntax fail closed", () => {
+void test("unsupported command attributes and unparsed registration syntax fail closed", () => {
   assert.throws(
     () =>
       extractDeclaredDesktopCommands([
@@ -318,7 +320,7 @@ const eventFrontendSources = [
    export function listenDesktopEvent(name, accept) { return listen(name, (event) => accept(event.payload)); }`,
 ];
 
-test("Rust event declarations, Tauri producers, and typed frontend consumers agree", () => {
+void test("Rust event declarations, Tauri producers, and typed frontend consumers agree", () => {
   const declarations = extractDeclaredDesktopEvents(eventDeclarationSource);
   assert.deepEqual([...declarations.values()].sort(), [
     "portcove://application-update-notice",
@@ -351,7 +353,7 @@ test("Rust event declarations, Tauri producers, and typed frontend consumers agr
   );
 });
 
-test("missing, extra, duplicate, dynamic, and direct desktop event consumers fail closed", () => {
+void test("missing, extra, duplicate, dynamic, and direct desktop event consumers fail closed", () => {
   const withoutLibrary = eventFrontendSources.filter(
     (source) => !source.includes('listenDesktopEvent("portcove://library-changed"'),
   );
@@ -406,12 +408,16 @@ test("missing, extra, duplicate, dynamic, and direct desktop event consumers fai
     /must directly import and export listen/,
   );
   assert.throws(
-    () => extractFrontendDesktopEvents([...eventFrontendSources, eventFrontendSources[0]]),
+    () =>
+      extractFrontendDesktopEvents([
+        ...eventFrontendSources,
+        fixtureElement(eventFrontendSources, 0),
+      ]),
     /contains duplicates/,
   );
 });
 
-test("the independent event fixture rejects a coherent generated rename", () => {
+void test("the independent event fixture rejects a coherent generated rename", () => {
   const renamedDeclaration = eventDeclarationSource.replaceAll(
     "portcove://operation",
     "portcove://renamed-operation",
@@ -430,7 +436,7 @@ test("the independent event fixture rejects a coherent generated rename", () => 
   );
 });
 
-test("unparsed event constants and Tauri producers fail closed", () => {
+void test("unparsed event constants and Tauri producers fail closed", () => {
   assert.throws(
     () =>
       extractDeclaredDesktopEvents(
@@ -476,7 +482,7 @@ test("unparsed event constants and Tauri producers fail closed", () => {
   );
 });
 
-test("the cheap IPC-only CLI checks actual repository exposure without accepting schema substitutes", () => {
+void test("the cheap IPC-only CLI checks actual repository exposure without accepting schema substitutes", () => {
   const output = execFileSync(
     process.execPath,
     ["scripts/check-transport-contract.mts", "--ipc-only"],
@@ -493,3 +499,9 @@ test("the cheap IPC-only CLI checks actual repository exposure without accepting
     /cannot write or substitute/,
   );
 });
+
+function fixtureElement<T>(values: readonly T[], index: number): T {
+  const value = values[index];
+  assert.ok(value !== undefined);
+  return value;
+}

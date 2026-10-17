@@ -1,4 +1,4 @@
-import { errorMessage } from "./runtime-values.mts";
+import { errorMessage, isRecord } from "./runtime-values.mts";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,13 +7,24 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { renderTransportSchemas } from "./transport-schemas.mts";
 
-export function checkTransportContract(schemas, sourceText: string) {
+function capture(match: RegExpMatchArray | undefined, index: number): string {
+  const value = match?.[index];
+  if (value === undefined) throw new Error("Required transport source capture is missing");
+  return value;
+}
+function declaredEvent(declarations: ReadonlyMap<string, string>, name: string): string {
+  const value = declarations.get(name);
+  if (value === undefined) throw new Error(`Rust emits undeclared desktop event constant: ${name}`);
+  return value;
+}
+
+export function checkTransportContract(schemas: unknown, sourceText: string) {
   return sourceText.replaceAll("\r\n", "\n") === renderTransportSchemas(schemas)
     ? []
     : ["Generated transport schemas differ from the Rust output contract"];
 }
 
-function sortedUnique(values, label) {
+function sortedUnique(values: readonly string[], label: string) {
   const sorted = [...values].sort();
   const duplicates = sorted.filter((value, index) => value === sorted[index - 1]);
   if (duplicates.length > 0)
@@ -36,13 +47,13 @@ export const DESKTOP_EVENT_PAYLOAD_COMPATIBILITY = Object.freeze({
 export function extractDeclaredDesktopEvents(sourceText: string) {
   const declarationCount = [...sourceText.matchAll(/\bconst\s+DESKTOP_EVENT_[A-Z0-9_]+\b/gu)]
     .length;
-  const declarations = new Map();
+  const declarations = new Map<string, string>();
   for (const match of sourceText.matchAll(
     /pub\(crate\)\s+const\s+(DESKTOP_EVENT_[A-Z0-9_]+)\s*:\s*&str\s*=\s*"(portcove:\/\/[a-z0-9-]+)"\s*;/gu,
   )) {
-    if (declarations.has(match[1]))
-      throw new Error(`Rust desktop event constants contain duplicates: ${match[1]}`);
-    declarations.set(match[1], match[2]);
+    if (declarations.has(capture(match, 1)))
+      throw new Error(`Rust desktop event constants contain duplicates: ${capture(match, 1)}`);
+    declarations.set(capture(match, 1), capture(match, 2));
   }
   if (declarations.size !== declarationCount)
     throw new Error(
@@ -53,8 +64,11 @@ export function extractDeclaredDesktopEvents(sourceText: string) {
   return declarations;
 }
 
-export function extractProducedDesktopEvents(sources, declarations) {
-  const producedConstants = [];
+export function extractProducedDesktopEvents(
+  sources: readonly string[],
+  declarations: ReadonlyMap<string, string>,
+) {
+  const producedConstants: string[] = [];
   let directEmitCalls = 0;
   let emitterAdapters = 0;
   for (const sourceText of sources) {
@@ -83,9 +97,11 @@ export function extractProducedDesktopEvents(sources, declarations) {
         `parsed ${parsed.length} of ${calls} typed desktop event producers; producers must bind one explicit payload type and declared event constant`,
       );
     for (const match of parsed) {
-      const payloadType = match[1];
-      const eventConstant = match[2];
-      const expectedType = DESKTOP_EVENT_PAYLOAD_COMPATIBILITY[eventConstant];
+      const payloadType = capture(match, 1);
+      const eventConstant = capture(match, 2);
+      const expectedType = new Map(Object.entries(DESKTOP_EVENT_PAYLOAD_COMPATIBILITY)).get(
+        eventConstant,
+      );
       if (payloadType !== expectedType)
         throw new Error(
           `${eventConstant} producers must emit ${expectedType ?? "a known payload type"}, found ${payloadType}`,
@@ -102,10 +118,13 @@ export function extractProducedDesktopEvents(sources, declarations) {
   for (const name of producedConstants)
     if (!declarations.has(name))
       throw new Error(`Rust emits undeclared desktop event constant: ${name}`);
-  return [...new Set(producedConstants.map((name) => declarations.get(name)))].sort();
+  return [...new Set(producedConstants.map((name) => declaredEvent(declarations, name)))].sort();
 }
 
-export function extractExportedDesktopEvents(sourceText: string, declarations) {
+export function extractExportedDesktopEvents(
+  sourceText: string,
+  declarations: ReadonlyMap<string, string>,
+) {
   const references = [...sourceText.matchAll(/\bDESKTOP_EVENT_[A-Z0-9_]+\s*\.to_owned\s*\(\s*\)/gu)]
     .length;
   const parsed = [
@@ -117,25 +136,27 @@ export function extractExportedDesktopEvents(sourceText: string, declarations) {
     throw new Error(
       `parsed ${parsed.length} of ${references} desktop event schema exports; exports must bind a declared event constant to one explicit payload type`,
     );
-  const exported = [];
+  const exported: string[] = [];
   for (const match of parsed) {
-    const eventConstant = match[1];
-    const payloadType = match[2];
+    const eventConstant = capture(match, 1);
+    const payloadType = capture(match, 2);
     if (!declarations.has(eventConstant))
       throw new Error(`desktop event schemas export undeclared constant: ${eventConstant}`);
-    const expectedType = DESKTOP_EVENT_PAYLOAD_COMPATIBILITY[eventConstant];
+    const expectedType = new Map(Object.entries(DESKTOP_EVENT_PAYLOAD_COMPATIBILITY)).get(
+      eventConstant,
+    );
     if (payloadType !== expectedType)
       throw new Error(
         `${eventConstant} schema must export ${expectedType ?? "a known payload type"}, found ${payloadType}`,
       );
-    exported.push(declarations.get(eventConstant));
+    exported.push(declaredEvent(declarations, eventConstant));
   }
   if (exported.length === 0) throw new Error("the desktop event schema export inventory is empty");
   return sortedUnique(exported, "desktop event schema exports");
 }
 
 function commandName(pathname: string) {
-  return pathname.split("::").at(-1);
+  return pathname.split("::").at(-1) ?? "";
 }
 
 export function extractRegisteredDesktopCommands(sourceText: string) {
@@ -144,7 +165,7 @@ export function extractRegisteredDesktopCommands(sourceText: string) {
     throw new Error(
       `expected exactly one tauri::generate_handler! inventory, found ${inventories.length}`,
     );
-  const body = inventories[0][1]
+  const body = capture(inventories[0], 1)
     .replaceAll(/\/\*[\s\S]*?\*\//gu, "")
     .replaceAll(/\/\/[^\r\n]*/gu, "");
   const paths = body
@@ -158,7 +179,7 @@ export function extractRegisteredDesktopCommands(sourceText: string) {
   return sortedUnique(paths.map(commandName), "Tauri registration inventory");
 }
 
-export function extractDeclaredDesktopCommands(sources) {
+export function extractDeclaredDesktopCommands(sources: readonly string[]) {
   const commands = [];
   let attributes = 0;
   for (const sourceText of sources) {
@@ -166,7 +187,7 @@ export function extractDeclaredDesktopCommands(sources) {
     for (const match of sourceText.matchAll(
       /#\s*\[\s*tauri::command\s*\]\s*(?:pub(?:\s*\([^)]*\))?\s+)?(?:async\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)/gu,
     ))
-      commands.push(match[1]);
+      commands.push(capture(match, 1));
   }
   if (commands.length !== attributes)
     throw new Error(
@@ -177,10 +198,13 @@ export function extractDeclaredDesktopCommands(sources) {
   return sortedUnique(commands, "Rust Tauri command declarations");
 }
 
-function sourceTokens(sourceText) {
-  const tokens = [];
+type Token =
+  | { kind: "escaped-string" | "string" | "identifier" | "punctuation"; value: string }
+  | { kind: "template"; value: null };
+function sourceTokens(sourceText: string) {
+  const tokens: Token[] = [];
   for (let index = 0; index < sourceText.length;) {
-    const character = sourceText[index];
+    const character = sourceText.charAt(index);
     if (/\s/u.test(character)) {
       index += 1;
       continue;
@@ -203,7 +227,7 @@ function sourceTokens(sourceText) {
       let escaped = false;
       index += 1;
       while (index < sourceText.length) {
-        const next = sourceText[index];
+        const next = sourceText.charAt(index);
         if (next === quote) {
           closed = true;
           index += 1;
@@ -243,7 +267,8 @@ function sourceTokens(sourceText) {
     if (/[A-Za-z_$]/u.test(character)) {
       const start = index;
       index += 1;
-      while (index < sourceText.length && /[A-Za-z0-9_$]/u.test(sourceText[index])) index += 1;
+      while (index < sourceText.length && /[A-Za-z0-9_$]/u.test(sourceText.charAt(index)))
+        index += 1;
       tokens.push({ kind: "identifier", value: sourceText.slice(start, index) });
       continue;
     }
@@ -253,7 +278,7 @@ function sourceTokens(sourceText) {
   return tokens;
 }
 
-function isDirectInvokeImport(tokens, index) {
+function isDirectInvokeImport(tokens: readonly Token[], index: number) {
   if (tokens[index + 1]?.value === "as")
     throw new Error("frontend invoke imports must not be aliased");
   for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
@@ -264,7 +289,7 @@ function isDirectInvokeImport(tokens, index) {
   return false;
 }
 
-function isDirectNamedImport(tokens, index, name) {
+function isDirectNamedImport(tokens: readonly Token[], index: number, name: string) {
   if (tokens[index + 1]?.value === "as")
     throw new Error(`frontend ${name} imports must not be aliased`);
   for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
@@ -275,7 +300,7 @@ function isDirectNamedImport(tokens, index, name) {
   return false;
 }
 
-function validateTauriCoreImports(tokens) {
+function validateTauriCoreImports(tokens: readonly Token[]) {
   for (let index = 0; index < tokens.length; index += 1) {
     if (tokens[index]?.kind !== "string" || tokens[index]?.value !== "@tauri-apps/api/core")
       continue;
@@ -294,10 +319,17 @@ function validateTauriCoreImports(tokens) {
   }
 }
 
-export function extractFrontendDesktopCommands(sourceTexts) {
-  const sources = typeof sourceTexts === "string" ? [sourceTexts] : sourceTexts;
-  if (!Array.isArray(sources) || sources.length === 0)
-    throw new Error("the shipped frontend source inventory is empty");
+function frontendSourceList(value: unknown): string[] {
+  const raw: unknown[] = typeof value === "string" ? [value] : Array.isArray(value) ? value : [];
+  if (!raw.length) throw new Error("the shipped frontend source inventory is empty");
+  return raw.map((source) => {
+    if (typeof source !== "string") throw new Error("frontend source must be a string");
+    return source;
+  });
+}
+
+export function extractFrontendDesktopCommands(sourceTexts: string | readonly string[]) {
+  const sources = frontendSourceList(sourceTexts);
   const commands = [];
   for (const sourceText of sources) {
     if (!/\binvoke\b/u.test(sourceText) && !sourceText.includes("@tauri-apps/api/core")) continue;
@@ -306,7 +338,7 @@ export function extractFrontendDesktopCommands(sourceTexts) {
     let directImport = false;
     let directCalls = 0;
     for (let index = 0; index < tokens.length; index += 1) {
-      if (tokens[index].kind !== "identifier" || tokens[index].value !== "invoke") continue;
+      if (tokens[index]?.kind !== "identifier" || tokens[index]?.value !== "invoke") continue;
       if (isDirectInvokeImport(tokens, index)) {
         directImport = true;
         continue;
@@ -339,10 +371,8 @@ export function extractFrontendDesktopCommands(sourceTexts) {
   return sortedUnique(commands, "frontend command invocations");
 }
 
-export function extractFrontendDesktopEvents(sourceTexts) {
-  const sources = typeof sourceTexts === "string" ? [sourceTexts] : sourceTexts;
-  if (!Array.isArray(sources) || sources.length === 0)
-    throw new Error("the shipped frontend source inventory is empty");
+export function extractFrontendDesktopEvents(sourceTexts: string | readonly string[]) {
+  const sources = frontendSourceList(sourceTexts);
   const adapterSources = sources.filter((sourceText) =>
     sourceText.includes("@tauri-apps/api/event"),
   );
@@ -351,6 +381,7 @@ export function extractFrontendDesktopEvents(sourceTexts) {
       `expected exactly one shipped Tauri event adapter, found ${adapterSources.length}`,
     );
   const adapter = adapterSources[0];
+  if (adapter === undefined) throw new Error("the shipped Tauri event adapter is missing");
   if (
     !/import\s*\{\s*listen\s*\}\s*from\s*["']@tauri-apps\/api\/event["']\s*;/u.test(adapter) ||
     !/export\s+function\s+listenDesktopEvent\b/u.test(adapter)
@@ -393,7 +424,7 @@ export function extractFrontendDesktopEvents(sourceTexts) {
   return sortedUnique(events, "frontend desktop event consumers");
 }
 
-function inventoryDifference(expected, actual) {
+function inventoryDifference(expected: readonly string[], actual: readonly string[]) {
   const actualSet = new Set(actual);
   return expected.filter((value) => !actualSet.has(value));
 }
@@ -402,6 +433,10 @@ export function checkDesktopCommandContract({
   registrationSource,
   declarationSources,
   frontendSources,
+}: {
+  registrationSource: string;
+  declarationSources: readonly string[];
+  frontendSources: string | readonly string[];
 }) {
   try {
     const registered = extractRegisteredDesktopCommands(registrationSource);
@@ -411,7 +446,7 @@ export function checkDesktopCommandContract({
     for (const [label, actual] of [
       ["Rust declarations", declared],
       ["frontend invocations", frontend],
-    ]) {
+    ] as const) {
       const missing = inventoryDifference(registered, actual);
       const extra = inventoryDifference(actual, registered);
       if (missing.length > 0)
@@ -430,6 +465,11 @@ export function checkDesktopEventContract({
   producerSources,
   exporterSource,
   frontendSources,
+}: {
+  declarationSource: string;
+  producerSources: readonly string[];
+  exporterSource: string;
+  frontendSources: string | readonly string[];
 }) {
   try {
     const declarations = extractDeclaredDesktopEvents(declarationSource);
@@ -443,7 +483,7 @@ export function checkDesktopEventContract({
       ["Rust schema exports", exported],
       ["frontend consumers", frontend],
       ["independent compatibility fixture", DESKTOP_EVENT_COMPATIBILITY],
-    ]) {
+    ] as const) {
       const missing = inventoryDifference(declared, actual);
       const extra = inventoryDifference(actual, declared);
       if (missing.length > 0) failures.push(`${label} omit declared events: ${missing.join(", ")}`);
@@ -455,7 +495,7 @@ export function checkDesktopEventContract({
   }
 }
 
-function rustSources(directory: string) {
+function rustSources(directory: string): string[] {
   const sources = [];
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const target = path.join(directory, entry.name);
@@ -466,7 +506,7 @@ function rustSources(directory: string) {
   return sources;
 }
 
-function shippedFrontendSources(directory: string) {
+function shippedFrontendSources(directory: string): string[] {
   const sources = [];
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const target = path.join(directory, entry.name);
@@ -482,7 +522,7 @@ function shippedFrontendSources(directory: string) {
   return sources;
 }
 
-function exportSchemas(root, contract) {
+function exportSchemas(root: string, contract: string) {
   const command = spawnSync(
     "cargo",
     [
@@ -510,14 +550,19 @@ function exportSchemas(root, contract) {
     process.exit(command.status ?? 1);
   }
 
-  const envelope = JSON.parse(command.stdout.trim());
-  if (!envelope.ok || envelope.command !== "schema.export") {
+  const envelope: unknown = JSON.parse(command.stdout.trim());
+  if (
+    !isRecord(envelope) ||
+    !envelope.ok ||
+    envelope.command !== "schema.export" ||
+    !isRecord(envelope.data)
+  ) {
     throw new Error("portcove schema export returned an invalid envelope");
   }
   return envelope.data;
 }
 
-export function desktopSchemaExporterCommands(platform, verifyNative = false) {
+export function desktopSchemaExporterCommands(platform: string, verifyNative = false) {
   const commands = [
     ["run", "--locked", "--quiet", "-p", "portcove-cli", "--example", "export_desktop_transport"],
   ];
@@ -534,13 +579,13 @@ export function desktopSchemaExporterCommands(platform, verifyNative = false) {
   return commands;
 }
 
-export function checkDesktopExporterParity(headless, native) {
+export function checkDesktopExporterParity(headless: unknown, native: unknown) {
   return renderTransportSchemas(headless) === renderTransportSchemas(native)
     ? []
     : ["Headless Desktop schemas differ from the compiled native host"];
 }
 
-function exportDesktopSchemas(root, verifyNative) {
+function exportDesktopSchemas(root: string, verifyNative: boolean) {
   const results = desktopSchemaExporterCommands(process.platform, verifyNative).map((args) => {
     const command = spawnSync("cargo", args, {
       cwd: root,
@@ -552,14 +597,18 @@ function exportDesktopSchemas(root, verifyNative) {
       process.stderr.write(command.stderr || command.stdout);
       process.exit(command.status ?? 1);
     }
-    return JSON.parse(command.stdout.trim());
+    const result: unknown = JSON.parse(command.stdout.trim());
+    if (!isRecord(result)) throw new Error("Desktop exporter returned an invalid envelope");
+    return result;
   });
   if (results.length === 2) {
-    const failures = checkDesktopExporterParity(...results);
+    const failures = checkDesktopExporterParity(results[0], results[1]);
     if (failures.length) throw new Error(failures.join("\n"));
     console.log("Headless Desktop contracts match the compiled native host.");
   }
-  return results[0];
+  const result = results[0];
+  if (!result) throw new Error("Desktop exporter inventory is empty");
+  return result;
 }
 
 export function checkRepositoryDesktopExposure(root: string) {
