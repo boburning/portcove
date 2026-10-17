@@ -369,7 +369,7 @@ fn changed_input_refuses_preparation_before_start_and_preserves_the_current_inst
     let report = error.report();
     assert_eq!(
         report.presentation.mutation_state,
-        MutationState::NotStarted
+        crate::MutationState::NotStarted
     );
     assert_eq!(
         report.presentation.phase.as_deref(),
