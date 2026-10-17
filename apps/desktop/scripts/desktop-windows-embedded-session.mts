@@ -9,26 +9,66 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { hashFile } from "./desktop-installed-update-harness.mts";
 
+import type { WebDriver } from "selenium-webdriver";
+import type { ChildProcessByStdio } from "node:child_process";
+import type { Readable } from "node:stream";
+import type {
+  NativeSessionMode,
+  NativeSessionObservations,
+} from "./desktop-owned-native-session.mts";
+import { readNativeSessionObservation } from "./desktop-owned-native-session.mts";
+interface EmbeddedBaseReport {
+  revision: string;
+  working_tree: string;
+  method: string;
+  outcome: "failed" | "passed";
+}
+interface StatusProbe {
+  started_at: string;
+  finished_at?: string;
+  status?: number;
+  error?: string;
+}
+export interface EmbeddedCleanup {
+  forced: boolean;
+  exit_code: number | null;
+  signal: NodeJS.Signals | null;
+}
+export interface EmbeddedSession {
+  child: ChildProcessByStdio<null, Readable, Readable>;
+  port: number;
+  identity: Awaited<ReturnType<typeof hashFile>>;
+  listener: Extract<NativeSessionObservations["ApplicationListener"], { ready: true }> | null;
+  browser: WebDriver | null;
+  statusProbes: StatusProbe[];
+  startupComplete: boolean;
+  startup?: NativeSessionObservations["SnapshotApplication"];
+  connectedProcesses?: NativeSessionObservations["SnapshotApplication"];
+  capture(): NativeSessionObservations["SnapshotApplication"];
+  connect(): Promise<WebDriver>;
+  close(): Promise<EmbeddedCleanup>;
+}
 const nativeSession = fileURLToPath(new URL("./native-session.ps1", import.meta.url));
-export async function beginEmbeddedEvidence(method) {
+export async function beginEmbeddedEvidence(method: string) {
   const { values } = parseArgs({
     options: { app: { type: "string" }, output: { type: "string" } },
   });
-  for (const name of ["app", "output"]) assert.ok(values[name] && path.isAbsolute(values[name]));
-  await mkdir(values.output, { recursive: false });
-  return {
-    values,
-    report: {
-      revision: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
-      working_tree: execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim(),
-      method,
-      outcome: "failed",
-    },
+  const app = values.app,
+    output = values.output;
+  assert.ok(app && path.isAbsolute(app));
+  assert.ok(output && path.isAbsolute(output));
+  await mkdir(output, { recursive: false });
+  const report: EmbeddedBaseReport = {
+    revision: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+    working_tree: execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim(),
+    method,
+    outcome: "failed",
   };
+  return { values: { app, output }, report };
 }
 
-async function probeOwnedListener(port, remaining, probes) {
-  const probe = { started_at: new Date().toISOString() };
+async function probeOwnedListener(port: number, remaining: number, probes: StatusProbe[]) {
+  const probe: StatusProbe = { started_at: new Date().toISOString() };
   probes.push(probe);
   let response;
   try {
@@ -40,7 +80,13 @@ async function probeOwnedListener(port, remaining, probes) {
     probe.error = String(error);
     // An owned listening socket can precede its HTTP server readiness.
     // Keep polling within the original deadline; other failures are fatal.
-    if (!["TimeoutError", "AbortError"].includes(error.name)) throw error;
+    const name =
+      error !== null &&
+      (typeof error === "object" || typeof error === "function") &&
+      "name" in error
+        ? error.name
+        : undefined;
+    if (typeof name !== "string" || !["TimeoutError", "AbortError"].includes(name)) throw error;
   } finally {
     probe.finished_at = new Date().toISOString();
   }
@@ -48,19 +94,21 @@ async function probeOwnedListener(port, remaining, probes) {
 }
 
 export async function startEmbeddedInstalledSession(
-  application,
+  application: string,
   output: string,
-  launchArguments = [],
-) {
+  launchArguments: string[] = [],
+): Promise<EmbeddedSession> {
   assert.equal(process.platform, "win32");
   const identity = await hashFile(application);
   const reservation = createServer();
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     reservation.once("error", reject);
     reservation.listen(0, "127.0.0.1", resolve);
   });
-  const port = reservation.address().port;
-  await new Promise((resolve, reject) =>
+  const address = reservation.address();
+  assert.ok(address && typeof address === "object");
+  const port = address.port;
+  await new Promise<void>((resolve, reject) =>
     reservation.close((error) => (error ? reject(error) : resolve())),
   );
   const child = spawn(application, launchArguments, {
@@ -73,26 +121,33 @@ export async function startEmbeddedInstalledSession(
     },
   });
   const launched = once(child, "spawn");
-  launched.catch(() => {});
+  void launched.catch(() => {});
   let log = "";
-  let spawnError;
+  let spawnError: Error | undefined;
   child.on("error", (error) => {
     spawnError = error;
   });
   for (const stream of [child.stdout, child.stderr])
-    stream.on("data", (chunk) => {
-      log = (log + chunk).slice(-1024 * 1024);
+    stream.on("data", (chunk: Buffer) => {
+      log = (log + chunk.toString()).slice(-1024 * 1024);
     });
-  let snapshotPath;
+  let snapshotPath: string | undefined;
   let captureIndex = 0;
-  const command = (mode, target = snapshotPath, extra = []) =>
-    JSON.parse(
+  function command<Mode extends NativeSessionMode>(
+    mode: Mode,
+    target = snapshotPath,
+    extra: string[] = [],
+  ): NativeSessionObservations[Mode] {
+    assert.ok(target, "Native command requires the captured process inventory");
+    const value: unknown = JSON.parse(
       execFileSync(
         "pwsh",
         ["-NoProfile", "-File", nativeSession, "-Mode", mode, "-SnapshotPath", target, ...extra],
         { encoding: "utf8", windowsHide: true, timeout: 20_000 },
       ),
     );
+    return readNativeSessionObservation(mode, value);
+  }
   const capture = () => {
     const target = path.join(output, `embedded-processes-${captureIndex++}.json`);
     const result = command("SnapshotApplication", target, [
@@ -118,7 +173,7 @@ export async function startEmbeddedInstalledSession(
         unproven: "No application tree was captured; descendant cleanup is unproven",
       };
     }
-    let unproven;
+    let unproven: string | undefined;
     try {
       capture();
     } catch (error) {
@@ -143,7 +198,7 @@ export async function startEmbeddedInstalledSession(
         : null,
     };
   };
-  const session = {
+  const session: EmbeddedSession = {
     child,
     port,
     identity,
@@ -177,11 +232,11 @@ export async function startEmbeddedInstalledSession(
                 "wdio:tauriServiceOptions": { windowLabel: "main" },
               })
               .build();
-            let timer;
+            let timer: ReturnType<typeof setTimeout> | undefined;
             try {
               session.browser = await Promise.race([
                 connection,
-                new Promise((_, reject) => {
+                new Promise<never>((_, reject) => {
                   timer = setTimeout(
                     () => reject(new Error("Embedded session creation timed out")),
                     15_000,
@@ -208,7 +263,7 @@ export async function startEmbeddedInstalledSession(
         if (rootIsLive()) {
           await Promise.race([
             once(child, "exit"),
-            new Promise((_, reject) =>
+            new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error("Embedded application cleanup timed out")), 5000),
             ),
           ]);

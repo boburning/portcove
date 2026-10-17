@@ -4,14 +4,27 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import type {
+  ChildProcess,
+  SpawnOptionsWithStdioTuple,
+  StdioNull,
+  StdioPipe,
+} from "node:child_process";
 
-export async function hashFile(file) {
+export async function hashFile(file: string) {
   const hash = createHash("sha256");
-  for await (const chunk of createReadStream(file)) hash.update(chunk);
+  for await (const chunk of createReadStream(file)) {
+    assert.ok(Buffer.isBuffer(chunk));
+    hash.update(chunk);
+  }
   return { sha256: hash.digest("hex"), bytes: (await stat(file)).size };
 }
 
-export async function waitFor(predicate, label, deadlineMs = 60_000) {
+export async function waitFor<Value>(
+  predicate: () => Promise<Value>,
+  label: string,
+  deadlineMs = 60_000,
+): Promise<NonNullable<Value>> {
   const untilMs = Date.now() + deadlineMs;
   while (Date.now() < untilMs) {
     const result = await predicate().catch(() => null);
@@ -21,34 +34,48 @@ export async function waitFor(predicate, label, deadlineMs = 60_000) {
   throw new Error(`${label} did not complete within ${deadlineMs} ms`);
 }
 
-export async function readJson(file) {
+export async function readJson(file: string): Promise<unknown> {
   return JSON.parse(await readFile(file, "utf8"));
 }
 
-export function startInstalledUpdateDriver(driverPath, nativeDriverPath, options = {}) {
-  const output = { driver: null, log: "" };
-  output.driver = spawn(
+export function startInstalledUpdateDriver(
+  driverPath: string,
+  nativeDriverPath: string,
+  options: Omit<SpawnOptionsWithStdioTuple<StdioNull, StdioPipe, StdioPipe>, "stdio"> = {},
+) {
+  const driver = spawn(
     driverPath,
     ["--port", "45770", "--native-port", "45771", "--native-driver", nativeDriverPath],
     { stdio: ["ignore", "pipe", "pipe"], ...options },
   );
+  const output = { driver, log: "" };
   output.driver.on("error", (error) => {
     output.log += `\nspawn: ${error.message}`;
   });
   for (const stream of [output.driver.stdout, output.driver.stderr])
-    stream.on("data", (chunk) => {
-      output.log = (output.log + chunk).slice(-1024 * 1024);
+    stream.on("data", (chunk: Buffer) => {
+      output.log = (output.log + chunk.toString()).slice(-1024 * 1024);
     });
   return output;
 }
 
-export async function awaitInstalledUpdateDriver(driver, identify = () => true) {
+type InstalledDriver = Pick<ChildProcess, "exitCode" | "pid">;
+export function awaitInstalledUpdateDriver(driver: InstalledDriver): Promise<true>;
+export function awaitInstalledUpdateDriver<Value>(
+  driver: InstalledDriver,
+  identify: (pid: number) => Value | Promise<Value>,
+): Promise<NonNullable<Value>>;
+export async function awaitInstalledUpdateDriver(
+  driver: InstalledDriver,
+  identify: (pid: number) => unknown = () => true,
+) {
   return waitFor(
     async () => {
       if (driver.exitCode !== null) throw new Error(`tauri-driver exited ${driver.exitCode}`);
       const response = await fetch("http://127.0.0.1:45770/status", {
         signal: AbortSignal.timeout(500),
       });
+      assert.ok(driver.pid);
       return response.ok ? identify(driver.pid) : null;
     },
     "tauri-driver startup",
@@ -56,7 +83,7 @@ export async function awaitInstalledUpdateDriver(driver, identify = () => true) 
   );
 }
 
-export async function connectInstalledUpdateDriver(application, profile: string) {
+export async function connectInstalledUpdateDriver(application: string, profile: string) {
   const { Builder } = await import("selenium-webdriver");
   if (process.platform === "win32")
     assert.ok(profile && path.isAbsolute(profile), "Windows WebView2 profile must be absolute");
@@ -80,20 +107,45 @@ export async function verifyInstalledUpdateStaging({
   candidateVersion,
   application,
   initialSha,
+}: {
+  stagingRoot: string;
+  payloadName: string;
+  candidateSha: string;
+  candidateVersion: string;
+  application: string;
+  initialSha: string;
 }) {
   const staged = await hashFile(path.join(stagingRoot, payloadName));
-  const staging = await readJson(path.join(stagingRoot, "staging.json"));
+  const staging = object(await readJson(path.join(stagingRoot, "staging.json")));
+  const release = object(object(staging.candidate).release);
   assert.equal(staging.phase, "verified");
   assert.equal(staged.sha256, candidateSha);
-  assert.equal(staged.bytes, staging.candidate.release.artifact.bytes);
-  assert.equal(staging.candidate.release.version, candidateVersion);
+  assert.equal(staged.bytes, object(release.artifact).bytes);
+  assert.equal(release.version, candidateVersion);
   assert.equal((await hashFile(application)).sha256, initialSha);
   return staged;
 }
 
-export async function recordInstalledUpdateFailure(report, error, helperMarker: string) {
+export interface InstalledUpdateFailure {
+  phase: string;
+  failure: string | null;
+  helper_failure?: unknown;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
+  return value as Record<string, unknown>;
+}
+export async function recordInstalledUpdateFailure(
+  report: InstalledUpdateFailure,
+  error: unknown,
+  helperMarker: string,
+) {
   report.phase = "failed";
-  report.failure = String(error.stack ?? error);
+  const stack =
+    error !== null && (typeof error === "object" || typeof error === "function") && "stack" in error
+      ? error.stack
+      : undefined;
+  report.failure = String(stack ?? error);
   report.helper_failure = await readJson(
     path.join(path.dirname(helperMarker), "helper-failure.json"),
   ).catch(() => null);

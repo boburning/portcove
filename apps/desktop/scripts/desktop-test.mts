@@ -44,7 +44,12 @@ import {
   linuxOriginBoundaryScenario,
   prepareLinuxExternalBrowser,
 } from "./desktop-main-webview-boundary.mts";
-import { OwnedNativeSession, nativeSessionScript } from "./desktop-owned-native-session.mts";
+import {
+  OwnedNativeSession,
+  nativeSessionScript,
+  readNativeProcessSnapshot,
+  readNativeSessionObservation,
+} from "./desktop-owned-native-session.mts";
 import { launchLinuxNativeSession } from "./desktop-linux-native-session.mts";
 import {
   connectLinuxInspector,
@@ -110,7 +115,10 @@ import type { Readable } from "node:stream";
 import type { FileIdentity, EvidenceCheck } from "../../../scripts/development-evidence.mts";
 import type { ConsumedInput } from "../../../scripts/retained-evidence.mts";
 import type {
-  CapturedNativeProcess,
+  NativeCloseObservation,
+  NativeCurrentObservation,
+  NativeSessionMode,
+  NativeSessionObservations,
   NativeExitObservation,
   NativeStopObservation,
   NativeProcessSnapshot,
@@ -1372,7 +1380,7 @@ async function restartApplication(
       );
     const inventory = captureBackupFocusCleanup(selectedSetupRestart ? name : cleanupName);
     validateBackupFocusInventory(
-      nativeSnapshot(JSON.parse(await readFile(inventory, "utf8"))),
+      readNativeProcessSnapshot(JSON.parse(await readFile(inventory, "utf8"))),
       selectedSetupRestart,
     );
     await required(browser).quit();
@@ -1443,7 +1451,7 @@ async function interruptApplication(
 ) {
   assert.equal(process.platform, "win32", "Live host interruption is Windows qualification");
   const inventory = captureBackupFocusCleanup();
-  const captured = nativeSnapshot(JSON.parse(await readFile(inventory, "utf8")));
+  const captured = readNativeProcessSnapshot(JSON.parse(await readFile(inventory, "utf8")));
   const matches = (expected: string) =>
     captured.processes.filter(
       (entry) => path.resolve(entry.path).toLowerCase() === path.resolve(expected).toLowerCase(),
@@ -1539,17 +1547,6 @@ async function closeApplication(
   return driverBrowser();
 }
 
-interface NativeCloseObservation {
-  requested_at: string;
-  application_pid: number;
-  started_filetime: string;
-  method: "identity-bound-native-main-window-close-request";
-  message_sent: true;
-}
-interface NativeCurrentObservation {
-  observed_at: string;
-  processes: (CapturedNativeProcess & { state: "running" | "exited" })[];
-}
 interface RestartObservation {
   started_at: string;
   shutdown_request: string;
@@ -1563,55 +1560,10 @@ interface RestartObservation {
   fixture_prepared_while_stopped?: boolean;
   reconnected_at?: string;
 }
-function natural(value: unknown): number {
-  assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value >= 0);
-  return value;
-}
-function nativeProcess(value: unknown): CapturedNativeProcess {
-  const record = object(value);
-  const pid = natural(record.pid);
-  assert.ok(pid > 0, "Captured native PID must be positive");
-  const executable = text(record.path);
-  assert.ok(path.isAbsolute(executable), "Captured native executable must be absolute");
-  const started = text(record.started_filetime);
-  assert.match(started, /^\d+$/u);
-  return { ...record, pid, path: executable, started_filetime: started };
-}
-function nativeSnapshot(value: unknown): NativeProcessSnapshot {
-  const record = object(value);
-  assert.ok(Array.isArray(record.processes));
-  const applicationPid = record.application_pid === null ? null : natural(record.application_pid);
-  assert.ok(applicationPid === null || applicationPid > 0);
-  return {
-    ...record,
-    captured_at: text(record.captured_at),
-    driver: nativeProcess(record.driver),
-    application_pid: applicationPid,
-    processes: record.processes.map(nativeProcess),
-  };
-}
-function observeNativeSession(
-  mode: "Snapshot" | "SnapshotDriver" | "SnapshotDriverTree",
+function observeNativeSession<Mode extends NativeSessionMode>(
+  mode: Mode,
   snapshot: string,
-): NativeProcessSnapshot;
-function observeNativeSession(mode: "Wait", snapshot: string): NativeExitObservation;
-function observeNativeSession(
-  mode: "StopDriver",
-  snapshot: string,
-): Extract<NativeStopObservation, { method: "identity-bound-isolated-tree-termination" }>;
-function observeNativeSession(mode: "RequestClose", snapshot: string): NativeCloseObservation;
-function observeNativeSession(mode: "Observe", snapshot: string): NativeCurrentObservation;
-function observeNativeSession(
-  mode:
-    | "Snapshot"
-    | "SnapshotDriver"
-    | "SnapshotDriverTree"
-    | "Wait"
-    | "StopDriver"
-    | "RequestClose"
-    | "Observe",
-  snapshot: string,
-) {
+): NativeSessionObservations[Mode] {
   const driverProcessId = mode === "Wait" ? 0 : required(driver).pid;
   const result = spawnCommand(
     "pwsh",
@@ -1631,54 +1583,7 @@ function observeNativeSession(
     { encoding: "utf8", windowsHide: true, timeout: 10_000 },
   );
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  const record = object(JSON.parse(result.stdout));
-  switch (mode) {
-    case "Snapshot":
-    case "SnapshotDriver":
-    case "SnapshotDriverTree":
-      return nativeSnapshot(record);
-    case "Wait":
-      return {
-        ...record,
-        exited_at: text(record.exited_at),
-        observed_processes: natural(record.observed_processes),
-        wait_ms: natural(record.wait_ms),
-      };
-    case "StopDriver": {
-      assert.equal(record.method, "identity-bound-isolated-tree-termination");
-      assert.ok(Array.isArray(record.terminated_survivors));
-      return {
-        ...record,
-        stopped_at: text(record.stopped_at),
-        driver_pid: natural(record.driver_pid),
-        method: "identity-bound-isolated-tree-termination" as const,
-        terminated_survivors: record.terminated_survivors.map(natural),
-      };
-    }
-    case "RequestClose":
-      assert.equal(record.method, "identity-bound-native-main-window-close-request");
-      assert.equal(record.message_sent, true);
-      return {
-        ...record,
-        requested_at: text(record.requested_at),
-        application_pid: natural(record.application_pid),
-        started_filetime: text(record.started_filetime),
-        method: "identity-bound-native-main-window-close-request" as const,
-        message_sent: true as const,
-      };
-    case "Observe":
-      assert.ok(Array.isArray(record.processes));
-      return {
-        ...record,
-        observed_at: text(record.observed_at),
-        processes: record.processes.map((value: unknown) => {
-          const process = object(value);
-          const state = process.state;
-          assert.ok(state === "running" || state === "exited");
-          return { ...nativeProcess(process), state };
-        }),
-      };
-  }
+  return readNativeSessionObservation(mode, JSON.parse(result.stdout));
 }
 
 function captureBackupFocusDriverLaunch(launchStarted: number) {
