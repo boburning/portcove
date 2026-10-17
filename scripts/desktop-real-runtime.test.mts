@@ -111,11 +111,11 @@ void test("real runtime review waits for the actual visible enabled action after
 
 function input() {
   return {
-    format_version: 1,
-    source: path.join(os.tmpdir(), "owned-original.Z64"),
-    packages: ["wave-race-64-recomp", "wave-race-64-racewave46"].map((port_id) => ({
+    format_version: 2,
+    packages: ["wave-race-64-racewave46", "dkc3-recomp"].map((port_id) => ({
       port_id,
       archive: path.join(os.tmpdir(), `${port_id}.zip`),
+      source: path.join(os.tmpdir(), `${port_id}-owned-original.bin`),
       directory: path.join(os.tmpdir(), port_id),
     })),
   };
@@ -131,7 +131,7 @@ void test("real runtime manifest selects both distinct retained routes without d
   assert.throws(() => parseRealRuntimeInput(incomplete));
   assert.throws(() => parseRealRuntimeInput({ ...input(), catalog_override: "unreviewed.json" }));
   const relative = input();
-  relative.source = "relative-original.z64";
+  relative.packages[0]!.source = "relative-original.z64";
   assert.throws(() => parseRealRuntimeInput(relative));
   const replacement = input();
   replacement.packages[0]!.port_id = "unreviewed-other-game";

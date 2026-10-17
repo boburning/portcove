@@ -132,7 +132,7 @@ function ownedRuntimePicker(
       } else {
         const admitted = [
           "player-owned-runtime",
-          "real-prepared-runtime-wave-race-64-recomp",
+          "real-prepared-runtime-dkc3-recomp",
           "real-prepared-runtime-wave-race-64-racewave46",
         ].map((name) => path.join(output, name));
         assert.ok(

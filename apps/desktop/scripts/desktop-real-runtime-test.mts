@@ -105,22 +105,32 @@ export async function prepareRealRuntimeInputs({
   const decoded: unknown = JSON.parse(await readFile(manifest, "utf8"));
   const input = parseRealRuntimeInput(decoded);
   const command = ownedFixtureCommand({ cli, library, output });
-  await noLinkedAncestors(input.source);
-  const sourceIdentity = await fileIdentity(input.source);
-  const source = path.join(output, "real-runtime-owned-original.Z64");
-  await copyFile(input.source, source, constants.COPYFILE_EXCL);
-  const sourceCopy = await fileIdentity(source);
-  assert.equal(sourceCopy.sha256, sourceIdentity.sha256);
-  assert.equal(sourceCopy.bytes, sourceIdentity.bytes);
-  command(["source", "add", "wave-race-64", source]);
-  command(["source", "verify", "wave-race-64"]);
   const packages = [];
-  const inputs: FileIdentity[] = [manifestIdentity, sourceIdentity, sourceCopy];
+  const sources: FileIdentity[] = [];
+  const inputs: FileIdentity[] = [manifestIdentity];
   for (const request of input.packages) {
     const port = transportValue("port", command(["catalog", "show", request.port_id]));
     assert.equal(port.release.provider, "user-prepared");
     const spec = port.release.user_prepared?.["windows-x86-64"];
     assert.ok(spec && spec.executable && spec.mutable_paths?.length);
+    assert.ok(port.source_profile && /^[a-z0-9-]+$/u.test(port.source_profile));
+    assert.ok(
+      spec.source_argument_extension && /^[a-z0-9]{1,8}$/u.test(spec.source_argument_extension),
+    );
+    await noLinkedAncestors(request.source);
+    const sourceIdentity = await fileIdentity(request.source);
+    const source = path.join(
+      output,
+      `real-runtime-${port.id}-owned-original.${spec.source_argument_extension}`,
+    );
+    await copyFile(request.source, source, constants.COPYFILE_EXCL);
+    const sourceCopy = await fileIdentity(source);
+    assert.equal(sourceCopy.sha256, sourceIdentity.sha256);
+    assert.equal(sourceCopy.bytes, sourceIdentity.bytes);
+    command(["source", "add", port.source_profile, source]);
+    command(["source", "verify", port.source_profile]);
+    sources.push(sourceIdentity, sourceCopy);
+    inputs.push(sourceIdentity, sourceCopy);
     await noLinkedAncestors(request.archive);
     const archiveIdentity = await fileIdentity(request.archive);
     assert.equal(archiveIdentity.sha256, spec.archive_sha256);
@@ -154,7 +164,7 @@ export async function prepareRealRuntimeInputs({
       preview,
     });
   }
-  return { packages, inputs, sourceIdentity, sourceCopy, manifestIdentity };
+  return { packages, inputs, sources, manifestIdentity };
 }
 
 type RealFixture = Awaited<ReturnType<typeof prepareRealRuntimeInputs>>;
@@ -389,7 +399,7 @@ async function runRealRuntimeRoutes(context: RealContext, report: Record<string,
     await browser.wait(async () => !(await status(port.id)).external_runtime, 15_000);
     assert.deepEqual(await files(directory), postgame);
     assert.deepEqual(await files(item.originalDirectory), item.originals);
-    await unchanged([fixture.sourceIdentity, fixture.sourceCopy]);
+    await unchanged(fixture.sources);
     assert.deepEqual(sessionIds(library, port.id), route.session_ids_after_launch);
     await screenshot(`${port.id}-registration-only-removal`);
     route.removed = await status(port.id);
@@ -414,7 +424,11 @@ async function launchRealRuntime(
 ) {
   const { browser, library, output, artifacts, application } = context;
   const { port, spec, directory } = item;
-  const prefix = port.id === "wave-race-64-recomp" ? "saves" : ".runtime";
+  const directories = spec.mutable_paths.filter(
+    (entry) => entry === "saves" || entry === ".runtime",
+  );
+  assert.equal(directories.length, 1, "Selected route must declare one mutable save directory");
+  const prefix = directories[0];
   const sentinelRelative = `${prefix}/portcove-owned-preservation-sentinel.bin`;
   assert.ok(runtimeMutable(sentinelRelative, spec.mutable_paths));
   const sentinel = path.join(directory, sentinelRelative);
@@ -575,12 +589,7 @@ async function launchRealRuntime(
         .filter((file) => !runtimeMutable(path.relative(directory, file.path), spec.mutable_paths))
         .map((file) => [path.relative(directory, file.path), file.bytes, file.sha256]);
     assert.deepEqual(immutable(after), immutable(pregame));
-    await unchanged([
-      sentinelIdentity,
-      context.fixture.sourceIdentity,
-      context.fixture.sourceCopy,
-      ...item.originals,
-    ]);
+    await unchanged([sentinelIdentity, ...context.fixture.sources, ...item.originals]);
     assert.deepEqual(await files(item.originalDirectory), item.originals);
     route.postgame_verified = after;
   } catch (error) {

@@ -1173,11 +1173,12 @@ The curated profiles are:
   not universal desktop, physical-device, gameplay or human qualification.
 
 `--scenario native-real-prepared-runtime` is an opt-in standalone Windows journey
-for the two selected real user-prepared definitions, `wave-race-64-recomp` and
+for the two selected real user-prepared definitions, `dkc3-recomp` and
 `wave-race-64-racewave46`. Set `PORTCOVE_REAL_RUNTIME_INPUTS` to an absolute JSON
-file containing `format_version: 1`, an absolute lawful `source` path, and
-`packages` with exactly those two `port_id` values and absolute `directory` and
-`archive` paths. The archives must match the normal catalog's size and SHA-256.
+file containing `format_version: 2` and
+`packages` with exactly those two `port_id` values and absolute `source`, `directory` and
+`archive` paths. Each source profile and argument extension comes from Core's catalog;
+the two games may use different originals. Archives must match the normal catalog's size and SHA-256.
 The bounded regular-file inventory rejects linked paths, copies source and
 runtime bytes into the fresh owned output, and records original identities.
 The production CLI verifies source and runtime eligibility; no fixture catalog

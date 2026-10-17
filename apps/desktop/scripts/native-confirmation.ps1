@@ -125,7 +125,7 @@ if ($ObservePicker) {
     if ($PreparedRuntimeDirectory) {
         $allowedNames = if ($ExpectedPickerTitle -ceq 'Choose game-file folder') {
             @('selected-setup-inputs', 'connected-folder-extra', 'connected-folder-replacement')
-        } else { @('player-owned-runtime', 'real-prepared-runtime-wave-race-64-recomp', 'real-prepared-runtime-wave-race-64-racewave46') }
+        } else { @('player-owned-runtime', 'real-prepared-runtime-dkc3-recomp', 'real-prepared-runtime-wave-race-64-racewave46') }
         $outputDirectory = [IO.Path]::GetFullPath([IO.Path]::GetDirectoryName($ObservationPath))
         $suppliedName = [IO.Path]::GetFileName($PreparedRuntimeDirectory)
         if ($suppliedName -cnotin $allowedNames) { throw 'Picker input is not an admitted owned fixture directory.' }

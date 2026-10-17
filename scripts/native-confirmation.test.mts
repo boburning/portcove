@@ -852,6 +852,9 @@ void test(
     t.after(() => rm(root, { recursive: true, force: true }));
     const names = [
       "player-owned-runtime",
+      "real-prepared-runtime-dkc3-recomp",
+      "real-prepared-runtime-wave-race-64-racewave46",
+      "real-prepared-runtime-wave-race-64-recomp",
       "selected-setup-inputs",
       "connected-folder-extra",
       "connected-folder-replacement",
@@ -872,10 +875,10 @@ if(-not $guard){throw 'Actual picker preflight missing'}
 $ObservationPath=[IO.Path]::Combine('ROOT','fresh-observation.json')
 foreach($title in @('Select Folder','Choose game-file folder')){
  $ExpectedPickerTitle=$title
- foreach($name in @('player-owned-runtime','selected-setup-inputs','connected-folder-extra','connected-folder-replacement','foreign','nested/selected-setup-inputs','../selected-setup-inputs')){
+ foreach($name in @('player-owned-runtime','real-prepared-runtime-dkc3-recomp','real-prepared-runtime-wave-race-64-racewave46','real-prepared-runtime-wave-race-64-recomp','selected-setup-inputs','connected-folder-extra','connected-folder-replacement','foreign','nested/selected-setup-inputs','../selected-setup-inputs')){
   $PreparedRuntimeDirectory=[IO.Path]::Combine('ROOT',$name);$rejected=$false
   try{. ([scriptblock]::Create($guard))}catch{$rejected=$true}
-  $allowed=if($title -ceq 'Select Folder'){$name -ceq 'player-owned-runtime'}else{$name -cin @('selected-setup-inputs','connected-folder-extra','connected-folder-replacement')}
+  $allowed=if($title -ceq 'Select Folder'){$name -cin @('player-owned-runtime','real-prepared-runtime-dkc3-recomp','real-prepared-runtime-wave-race-64-racewave46')}else{$name -cin @('selected-setup-inputs','connected-folder-extra','connected-folder-replacement')}
   if($allowed -eq $rejected){throw "Wrong actual fixture guard result for $title / $name"}
  }
  $PreparedRuntimeDirectory='selected-setup-inputs';$rejected=$false
