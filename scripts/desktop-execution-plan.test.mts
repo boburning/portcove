@@ -382,12 +382,27 @@ void test("execution planning preserves the independently reviewed pre-change or
       }; // Deliberately retained pre-change deadline owner.
       // This prerequisite now runs before lease/build; preserve the old oracle.
       Reflect.deleteProperty(actual, "frontend_command");
+      // Admission metadata is independently checked by the current runner tests.
+      Reflect.deleteProperty(actual, "required_output_resources");
       expected.phases = [
         "workspace-package-preflight",
-        "frontend-command-preflight",
         "desktop-doctor",
+        "frontend-command-preflight",
+        ...(expected.phases.includes("scenario-context-preflight")
+          ? ["scenario-context-preflight"]
+          : []),
+        ...(expected.qualification_features.some(
+          (feature: string) => feature === "qualification-fixtures",
+        )
+          ? ["checkpoint-feature-inventory", "checkpoint-feature-tests"]
+          : []),
         ...expected.phases.filter(
-          (phase) => !["workspace-package-preflight", "desktop-doctor"].includes(phase),
+          (phase) =>
+            ![
+              "workspace-package-preflight",
+              "desktop-doctor",
+              "scenario-context-preflight",
+            ].includes(phase),
         ),
       ];
       assert.deepEqual(historicalSelection(actual), expected);

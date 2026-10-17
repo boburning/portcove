@@ -375,6 +375,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ].map((file): [string, string[]] => [file, selectionContractTests]),
   ["AGENTS.md", ["scripts/repository-settings.test.mts", "scripts/repository-skills.test.mts"]],
   [
+    "scripts/node-test-inventory.mts",
+    [
+      "scripts/node-test-inventory.test.mts",
+      "scripts/ci-workflow.test.mts",
+      "scripts/precommit-check.test.mts",
+    ],
+  ],
+  [
     "CONTRIBUTING.md",
     ["scripts/repository-settings.test.mts", "scripts/repository-skills.test.mts"],
   ],

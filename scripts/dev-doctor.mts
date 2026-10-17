@@ -706,8 +706,10 @@ export async function collectDoctor(options: DoctorOptions = {}): Promise<Doctor
     return collectProfileDoctor(profile, options);
   if (!["standard", "desktop"].includes(profile))
     throw new Error(`unknown doctor profile: ${profile}`);
-  const cachePaths = toolCachePaths();
-  const environment = checkoutToolEnvironment(process.env, { paths: cachePaths });
+  const cachePaths = toolCachePaths({ environment: options.environment ?? process.env });
+  const environment = checkoutToolEnvironment(options.environment ?? process.env, {
+    paths: cachePaths,
+  });
   const toolState = readToolState({ paths: cachePaths });
   const manifest = await loadQualityManifest();
   const bootstrapManifest = cachePaths.pins.bootstrap;
