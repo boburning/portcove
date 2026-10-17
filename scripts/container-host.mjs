@@ -582,6 +582,7 @@ export function createContainerHost(profile) {
         value = variable.slice(separator + 1);
       if (/^(?:https?|all|no)_proxy$/iu.test(key) && value === "") continue;
       if (
+        (key === "PORTCOVE_CONTAINER_GUEST" && value === "1") ||
         (key === "HOME" && value === "/home/vp") ||
         (key === "HOSTNAME" && value === info.Config.Hostname)
       )

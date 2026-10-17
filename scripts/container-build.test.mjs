@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -213,4 +213,33 @@ test("pre-container recovery requires exact terminal engine evidence, preserving
   assert.equal(completedContainerPreparation([record, record], record.name), null);
   assert.equal(completedContainerPreparation([record], "another-run"), null);
   assert.equal(record.status, "Error");
+});
+
+test("builder runtime producer environment preserves guest admission and rejects host state", () => {
+  const fixture = structuredClone(
+    JSON.parse(
+      readFileSync(new URL("./testdata/container-browser-runtime-oracle.json", import.meta.url)),
+    ).runtimeValidation.find((item) => item.expected.accepted).input,
+  );
+  fixture.HostConfig.NetworkMode = "bridge";
+  const run = "30000000-0000-4000-8000-000000000000";
+  const args = runtimeArguments({
+    name: `portcove-build-${run}`,
+    run,
+    image: "sha256:owned",
+    commit: "a".repeat(40),
+    tree: "b".repeat(40),
+    mode: "check",
+  });
+  for (let i = 0; i < args.length; i++) if (args[i] === "--env") fixture.Config.Env.push(args[++i]);
+  validateRuntime(fixture);
+  for (const value of [
+    "PORTCOVE_CONTAINER_GUEST=0",
+    "PORTCOVE_RESOURCE_RESERVATION=host-record",
+    "PORTCOVE_HEAVY_RUST_PROCESS_TOKEN=host-token",
+  ]) {
+    const bad = structuredClone(fixture);
+    bad.Config.Env.push(value);
+    assert.throws(() => validateRuntime(bad), /Unexpected runtime environment key/);
+  }
 });
