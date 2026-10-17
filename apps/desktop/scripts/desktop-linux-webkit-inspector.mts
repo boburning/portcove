@@ -1,24 +1,91 @@
+import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
+interface ProcessIdentity {
+  pid: number;
+  parent: number;
+  start_ticks: string;
+}
+interface InspectorLaunch {
+  child: { pid?: number; exitCode: number | null };
+}
+interface ListenerOptions {
+  port: number;
+  launch: InspectorLaunch;
+  app: string;
+  expectedSha256: string;
+}
+interface ListenerIdentity extends ProcessIdentity {
+  inode: string;
+  executable: string;
+  sha256: string;
+  namespace: string;
+  namespaces: Record<string, string>;
+  namespace_pid: number;
+}
+interface MainDocument {
+  url: string;
+  label: "main";
+  webdriver: false;
+  user_agent?: unknown;
+}
+interface InspectorReport {
+  frames?: number;
+  closed_at?: string;
+  transport?: string;
+  automation?: boolean;
+  started_at?: string;
+  discovery?: { at: string; bytes: number }[];
+  listener?: ListenerIdentity;
+  socket_path?: string;
+  document?: unknown;
+  page_target?: string;
+  outcome?: string;
+  error?: string;
+  close_error?: string;
+}
+interface InspectorSocket extends Pick<EventTarget, "addEventListener"> {
+  send: (data: string) => void;
+  close: () => void;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value), "Inspector protocol object is required");
+  return value;
+}
+function text(value: unknown): string {
+  assert.ok(typeof value === "string", "Inspector protocol text is required");
+  return value;
+}
+function required<Value>(value: Value | null | undefined): Value {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function rethrowFailure(error: unknown): never {
+  throw error;
+}
 // The standalone ordinary Linux package case must not use WebKit automation:
 // WebKitGTK grants automated media requests before its normal permission path.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, readdir, readlink, realpath, writeFile } from "node:fs/promises";
 
-const pause = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
-const sha256 = async (file) =>
+const pause = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const sha256 = async (file: string) =>
   createHash("sha256")
     .update(await readFile(file))
     .digest("hex");
 const scriptLimit = 10_000;
 
-async function bounded(operation, deadline, label) {
+async function bounded<Value>(
+  operation: PromiseLike<Value>,
+  deadline: number,
+  label: string,
+): Promise<Value> {
   const remaining = deadline - Date.now();
   assert.ok(remaining > 0, `${label} deadline`);
-  let timer;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       operation,
-      new Promise((_, reject) => {
+      new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error(`${label} deadline`)), remaining);
       }),
     ]);
@@ -27,8 +94,8 @@ async function bounded(operation, deadline, label) {
   }
 }
 
-export function linuxInspectorEnvironment(environment, port) {
-  assert.ok(Number.isInteger(port) && port > 0 && port < 65536);
+export function linuxInspectorEnvironment(environment: NodeJS.ProcessEnv, port: unknown) {
+  assert.ok(typeof port === "number" && Number.isInteger(port) && port > 0 && port < 65536);
   const result = { ...environment };
   delete result.TAURI_WEBVIEW_AUTOMATION;
   delete result.WEBKIT_INSPECTOR_SERVER;
@@ -36,33 +103,38 @@ export function linuxInspectorEnvironment(environment, port) {
   return result;
 }
 
-export function inspectorSocketPath(html) {
+export function inspectorSocketPath(html: string) {
   assert.ok(Buffer.byteLength(html) <= 65_536, "Bounded inspector discovery document");
   const tuples = [...html.matchAll(/\/socket\/(\d+)\/(\d+)\/WebPage/gu)];
   const paths = [...new Set(tuples.map((match) => `/socket/${match[1]}/${match[2]}/WebPage`))];
   assert.equal(paths.length, 1, "Exactly one ordinary application WebPage is required");
-  for (const value of paths[0].split("/").slice(2, 4)) {
+  for (const value of required(paths[0]).split("/").slice(2, 4)) {
     assert.match(value, /^[1-9]\d{0,19}$/u, "Canonical inspector target identity");
     assert.ok(BigInt(value) <= 0xffffffffffffffffn);
   }
-  return paths[0];
+  return required(paths[0]);
 }
 
-export function isInspectorMainDocument(document) {
+export function isInspectorMainDocument(document: unknown): document is MainDocument {
   return (
+    isRecord(document) &&
+    typeof document.url === "string" &&
     ["tauri://localhost", "tauri://localhost/"].includes(document.url) &&
     document.label === "main" &&
     document.webdriver === false
   );
 }
 
-async function processIdentity(pid) {
+async function processIdentity(pid: string | number): Promise<ProcessIdentity> {
   const stat = await readFile(`/proc/${pid}/stat`, "utf8");
   const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
-  return { pid: Number(pid), parent: Number(fields[1]), start_ticks: fields[19] };
+  return { pid: Number(pid), parent: Number(fields[1]), start_ticks: required(fields[19]) };
 }
 
-async function listenerIdentity({ port, launch, app, expectedSha256 }, deadline) {
+async function listenerIdentity(
+  { port, launch, app, expectedSha256 }: ListenerOptions,
+  deadline: number,
+) {
   const address = `0100007F:${port.toString(16).toUpperCase().padStart(4, "0")}`;
   const rows = (await readFile("/proc/net/tcp", "utf8"))
     .trim()
@@ -71,9 +143,9 @@ async function listenerIdentity({ port, launch, app, expectedSha256 }, deadline)
     .map((row) => row.trim().split(/\s+/u));
   const listeners = rows.filter((row) => row[1] === address && row[3] === "0A");
   assert.equal(listeners.length, 1, "Exactly one loopback inspector listener");
-  const inode = listeners[0][9];
-  const processes = new Map();
-  const owners = [];
+  const inode = required(required(listeners[0])[9]);
+  const processes = new Map<number, ProcessIdentity>();
+  const owners: ProcessIdentity[] = [];
   const pids = (await readdir("/proc")).filter((value) => /^\d+$/u.test(value));
   assert.ok(pids.length <= 4096, "Bounded namespace process inventory");
   for (const pid of pids) {
@@ -95,13 +167,13 @@ async function listenerIdentity({ port, launch, app, expectedSha256 }, deadline)
     }
   }
   assert.equal(owners.length, 1, "Inspector listener process attribution is required");
-  const owner = owners[0];
+  const owner = required(owners[0]);
   let ancestor = owner.pid;
   const seen = new Set();
   while (ancestor !== launch.child.pid) {
     assert.ok(!seen.has(ancestor) && processes.has(ancestor), "Owned launch ancestry required");
     seen.add(ancestor);
-    ancestor = processes.get(ancestor).parent;
+    ancestor = required(processes.get(ancestor)).parent;
   }
   const executable = await realpath(`/proc/${owner.pid}/exe`);
   assert.equal(executable, await realpath(app));
@@ -109,16 +181,15 @@ async function listenerIdentity({ port, launch, app, expectedSha256 }, deadline)
   const namespace = await readlink(`/proc/${owner.pid}/ns/pid`);
   const namespaces = Object.fromEntries(
     await Promise.all(
-      ["user", "mnt", "pid"].map(async (name) => [
-        name,
-        await readlink(`/proc/${owner.pid}/ns/${name}`),
-      ]),
+      ["user", "mnt", "pid"].map(
+        async (name) => [name, await readlink(`/proc/${owner.pid}/ns/${name}`)] as const,
+      ),
     ),
   );
   const status = await readFile(`/proc/${owner.pid}/status`, "utf8");
   const namespacePids = status
     .match(/^NSpid:\s+([\d\s]+)$/mu)?.[1]
-    .trim()
+    ?.trim()
     .split(/\s+/u)
     .map(Number);
   assert.ok(
@@ -133,17 +204,17 @@ async function listenerIdentity({ port, launch, app, expectedSha256 }, deadline)
     sha256: expectedSha256,
     namespace,
     namespaces,
-    namespace_pid: namespacePids.at(-1),
+    namespace_pid: required(namespacePids.at(-1)),
   };
 }
 
-async function discoveryDocument(port, deadline) {
+async function discoveryDocument(port: number, deadline: number) {
   const response = await fetch(`http://127.0.0.1:${port}/`, {
     signal: AbortSignal.timeout(Math.max(1, Math.min(1000, deadline - Date.now()))),
   });
   assert.ok(response.ok);
-  const reader = response.body.getReader();
-  const chunks = [];
+  const reader = required(response.body).getReader();
+  const chunks: Buffer[] = [];
   let bytes = 0;
   try {
     for (;;) {
@@ -162,50 +233,78 @@ async function discoveryDocument(port, deadline) {
 // Exported for protocol controls in the adjacent native contract suite. It does
 // not launch applications or confer ownership; connectLinuxInspector does that.
 export class LinuxInspectorProtocol {
-  constructor(socket, report) {
+  socket: InspectorSocket;
+  report: InspectorReport;
+  pending = new Map<
+    number,
+    { resolve: (value: unknown) => void; reject: (error: unknown) => void }
+  >();
+  outer = new Map<number, number>();
+  nextId = 0;
+  frames = 0;
+  failure?: unknown;
+  hasFailure = false;
+  target?: string;
+  verifyOwnedListener?: () => Promise<string>;
+  observedRuntime?: MainDocument & { transport: string | undefined };
+  ownedProcessIdentity?: ListenerIdentity;
+  constructor(socket: InspectorSocket, report: InspectorReport) {
     this.socket = socket;
     this.report = report;
-    this.pending = new Map();
-    this.outer = new Map();
-    this.nextId = 0;
-    this.frames = 0;
-    socket.addEventListener("message", (event) => this.receive(event.data));
+    socket.addEventListener("message", (event) => {
+      if (!(event instanceof MessageEvent))
+        return this.fail(new Error("Inspector message event is required"));
+      const data: unknown = event.data;
+      this.receive(data);
+    });
     socket.addEventListener("error", () => this.fail(new Error("Inspector socket error")));
     socket.addEventListener("close", () => this.fail(new Error("Inspector socket closed")));
   }
 
-  fail(error) {
-    this.failure ??= error;
+  fail(error: unknown) {
+    if (!this.hasFailure) {
+      this.failure = error;
+      this.hasFailure = true;
+    }
     for (const entry of this.pending.values()) entry.reject(error);
     this.pending.clear();
     this.outer.clear();
   }
 
-  receive(data) {
+  receive(data: unknown) {
     try {
-      assert.equal(typeof data, "string");
+      assert.ok(typeof data === "string");
       assert.ok(Buffer.byteLength(data) <= 8 * 1024 * 1024, "Bounded inspector frame");
       assert.ok(++this.frames <= 4096, "Bounded inspector event count");
-      const message = JSON.parse(data);
+      const message = object(JSON.parse(data));
       if (message.method === "Target.targetCreated") {
-        const target = message.params.targetInfo;
+        const target = object(object(message.params).targetInfo);
         if (target.type === "page" && !target.isProvisional) {
           assert.ok(!this.target || this.target === target.targetId, "Main target must not change");
-          this.target = target.targetId;
+          this.target = text(target.targetId);
         }
       } else if (message.method === "Target.targetDestroyed") {
-        assert.notEqual(message.params.targetId, this.target, "Main target was destroyed");
+        assert.notEqual(object(message.params).targetId, this.target, "Main target was destroyed");
       } else if (message.method === "Target.dispatchMessageFromTarget") {
-        assert.equal(message.params.targetId, this.target, "Reply must belong to the main target");
-        const nested = JSON.parse(message.params.message);
-        const entry = this.pending.get(nested.id);
+        assert.equal(
+          object(message.params).targetId,
+          this.target,
+          "Reply must belong to the main target",
+        );
+        const nested = object(JSON.parse(text(object(message.params).message)));
+        const entry = this.pending.get(typeof nested.id === "number" ? nested.id : NaN);
         if (entry) {
           if (nested.error) entry.reject(new Error(JSON.stringify(nested.error)));
           else entry.resolve(nested.result);
         }
-      } else if (message.id && message.error && this.outer.has(message.id)) {
+      } else if (
+        message.id &&
+        message.error &&
+        typeof message.id === "number" &&
+        this.outer.has(message.id)
+      ) {
         this.pending
-          .get(this.outer.get(message.id))
+          .get(required(this.outer.get(message.id)))
           ?.reject(new Error(JSON.stringify(message.error)));
       }
     } catch (error) {
@@ -213,14 +312,14 @@ export class LinuxInspectorProtocol {
     }
   }
 
-  async command(method, parameters, deadline) {
-    if (this.failure) throw this.failure;
+  async command(method: string, parameters: object, deadline: number): Promise<unknown> {
+    if (this.hasFailure) rethrowFailure(this.failure);
     assert.ok(this.target, "Main inspector target is required");
     assert.ok(this.pending.size < 8, "Bounded outstanding inspector operations");
     const innerId = ++this.nextId;
     const outerId = ++this.nextId;
     try {
-      const result = new Promise((resolve, reject) =>
+      const result = new Promise<unknown>((resolve, reject) =>
         this.pending.set(innerId, { resolve, reject }),
       );
       this.outer.set(outerId, innerId);
@@ -241,33 +340,39 @@ export class LinuxInspectorProtocol {
     }
   }
 
-  async evaluatePromise(expression, deadline) {
-    let result = await this.command(
-      "Runtime.evaluate",
-      { expression, returnByValue: false },
-      deadline,
+  async evaluatePromise(expression: string, deadline: number) {
+    let result = object(
+      await this.command("Runtime.evaluate", { expression, returnByValue: false }, deadline),
     );
     assert.notEqual(result.wasThrown, true, "Inspector script threw");
     // WebKit's RemoteObject has no CDP-style promise subtype. Both callers
     // create a real Promise; awaitPromise independently checks its native type.
-    assert.equal(result.result.type, "object");
-    assert.equal(result.result.className, "Promise");
-    assert.equal(typeof result.result.objectId, "string");
-    result = await this.command(
-      "Runtime.awaitPromise",
-      {
-        promiseObjectId: result.result.objectId,
-        returnByValue: true,
-      },
-      deadline,
+    assert.equal(object(result.result).type, "object");
+    assert.equal(object(result.result).className, "Promise");
+    assert.equal(typeof object(result.result).objectId, "string");
+    result = object(
+      await this.command(
+        "Runtime.awaitPromise",
+        {
+          promiseObjectId: object(result.result).objectId,
+          returnByValue: true,
+        },
+        deadline,
+      ),
     );
     assert.notEqual(result.wasThrown, true, "Inspector callback rejected");
-    if (result.result.type === "undefined") return undefined;
-    assert.ok(Object.hasOwn(result.result, "value"), "A serialized script result is required");
-    return result.result.value;
+    if (object(result.result).type === "undefined") return undefined;
+    assert.ok(
+      Object.hasOwn(object(result.result), "value"),
+      "A serialized script result is required",
+    );
+    return object(result.result).value;
   }
 
-  executeScript(script, ...args) {
+  executeScript<Arguments extends unknown[], Result>(
+    script: (...args: Arguments) => Result,
+    ...args: Arguments
+  ) {
     assert.equal(typeof script, "function");
     return this.evaluatePromise(
       `Promise.resolve().then(()=>(${script.toString()})(...${JSON.stringify(args)}))`,
@@ -275,26 +380,29 @@ export class LinuxInspectorProtocol {
     );
   }
 
-  executeAsyncScript(script, ...args) {
+  executeAsyncScript<Arguments extends unknown[]>(
+    script: (...args: [...Arguments, (value: unknown) => void]) => unknown,
+    ...args: Arguments
+  ) {
     assert.equal(typeof script, "function");
     const expression = `new Promise((resolve,reject)=>{try{(${script.toString()})(...${JSON.stringify(args)},resolve)}catch(error){reject(error)}})`;
     return this.evaluatePromise(expression, Date.now() + scriptLimit);
   }
 
-  getCurrentUrl() {
-    return this.executeScript(() => location.href);
+  async getCurrentUrl() {
+    return text(await this.executeScript(() => location.href));
   }
 
   manage() {
     return {
-      setTimeouts: async (values) => {
+      setTimeouts: async (values: Record<string, number>) => {
         assert.ok(Object.keys(values).every((key) => ["script", "pageLoad"].includes(key)));
         for (const value of Object.values(values)) assert.equal(value, scriptLimit);
       },
     };
   }
 
-  async wait(predicate, milliseconds) {
+  async wait(predicate: () => unknown, milliseconds: number) {
     assert.equal(typeof predicate, "function");
     assert.ok(Number.isInteger(milliseconds) && milliseconds > 0 && milliseconds <= 30_000);
     const deadline = Date.now() + milliseconds;
@@ -307,21 +415,26 @@ export class LinuxInspectorProtocol {
   }
 
   async takeScreenshot() {
-    const viewport = await this.executeScript(() => ({ width: innerWidth, height: innerHeight }));
-    for (const value of Object.values(viewport))
-      assert.ok(Number.isInteger(value) && value > 0 && value <= 4096);
-    const result = await this.command(
-      "Page.snapshotRect",
-      {
-        x: 0,
-        y: 0,
-        ...viewport,
-        coordinateSystem: "Viewport",
-      },
-      Date.now() + scriptLimit,
+    const viewport = object(
+      await this.executeScript(() => ({ width: innerWidth, height: innerHeight })),
     );
-    assert.match(result.dataURL, /^data:image\/png;base64,/u);
-    const data = result.dataURL.slice("data:image/png;base64,".length);
+    for (const value of Object.values(viewport))
+      assert.ok(typeof value === "number" && Number.isInteger(value) && value > 0 && value <= 4096);
+    const result = object(
+      await this.command(
+        "Page.snapshotRect",
+        {
+          x: 0,
+          y: 0,
+          ...viewport,
+          coordinateSystem: "Viewport",
+        },
+        Date.now() + scriptLimit,
+      ),
+    );
+    const dataURL = text(result.dataURL);
+    assert.match(dataURL, /^data:image\/png;base64,/u);
+    const data = dataURL.slice("data:image/png;base64,".length);
     assert.match(data, /^[A-Za-z0-9+/]+={0,2}$/u);
     assert.equal(Buffer.from(data, "base64").subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
     return data;
@@ -342,16 +455,20 @@ export async function connectLinuxInspector({
   expectedSha256,
   evidence,
   beforeConnect,
+}: ListenerOptions & {
+  evidence: string;
+  beforeConnect?: ((deadline: number) => Promise<unknown>) | undefined;
 }) {
   assert.equal(process.platform, "linux");
-  const report = {
+  const report: InspectorReport & { discovery: { at: string; bytes: number }[] } = {
     transport: "WebKit WebPage inspector",
     automation: false,
     started_at: new Date().toISOString(),
     discovery: [],
   };
-  let browser;
-  let originalFailure;
+  let browser: LinuxInspectorProtocol | undefined;
+  let originalFailure: unknown;
+  let hasOriginalFailure = false;
   try {
     const deadline = Date.now() + 20_000;
     if (beforeConnect)
@@ -380,7 +497,7 @@ export async function connectLinuxInspector({
       }
     }
     const verifyListener = async () => {
-      if (browser?.failure) throw browser.failure;
+      if (browser?.hasFailure) rethrowFailure(browser.failure);
       const limit = Date.now() + scriptLimit;
       assert.deepEqual(
         await bounded(
@@ -396,7 +513,7 @@ export async function connectLinuxInspector({
     const socket = new WebSocket(`ws://127.0.0.1:${port}${socketPath}`);
     browser = new LinuxInspectorProtocol(socket, report);
     await bounded(
-      new Promise((resolve, reject) => {
+      new Promise<Event>((resolve, reject) => {
         socket.addEventListener("open", resolve, { once: true });
         socket.addEventListener("error", reject, { once: true });
       }),
@@ -404,15 +521,19 @@ export async function connectLinuxInspector({
       "Inspector connection",
     );
     while (!browser.target) {
-      if (browser.failure) throw browser.failure;
+      if (browser.hasFailure) rethrowFailure(browser.failure);
       assert.ok(Date.now() < deadline, "Main target deadline");
       await pause(20);
     }
     await browser.wait(
       async () => {
-        report.document = await browser.executeScript(() => ({
+        report.document = await required(browser).executeScript(() => ({
           url: location.href,
-          label: window.__TAURI_INTERNALS__?.metadata?.currentWebview?.label,
+          label: (
+            window as Window & {
+              __TAURI_INTERNALS__?: { metadata?: { currentWebview?: { label?: string } } };
+            }
+          ).__TAURI_INTERNALS__?.metadata?.currentWebview?.label,
           webdriver: navigator.webdriver,
           user_agent: navigator.userAgent,
         }));
@@ -431,7 +552,7 @@ export async function connectLinuxInspector({
         JSON.stringify(
           {
             ...report,
-            frames: browser.frames,
+            frames: required(browser).frames,
             final_listener_verified_at: new Date().toISOString(),
           },
           null,
@@ -446,22 +567,26 @@ export async function connectLinuxInspector({
     report.outcome = "connected-nonautomation-main";
   } catch (error) {
     originalFailure = error;
+    hasOriginalFailure = true;
     report.outcome = "failed";
-    report.error = error.message;
+    report.error = errorMessage(error);
     if (browser)
       await browser.quit().catch((secondary) => {
-        report.close_error = secondary.message;
+        report.close_error = errorMessage(secondary);
       });
   }
   try {
     await writeFile(evidence, JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
   } catch (error) {
     if (browser) await browser.quit().catch(() => {});
-    if (originalFailure) {
-      originalFailure.evidenceFailure = error.message;
-      console.error(`Inspector evidence failure (secondary): ${error.message}`);
-    } else originalFailure = error;
+    if (hasOriginalFailure) {
+      if (isRecord(originalFailure)) originalFailure.evidenceFailure = errorMessage(error);
+      console.error(`Inspector evidence failure (secondary): ${errorMessage(error)}`);
+    } else {
+      originalFailure = error;
+      hasOriginalFailure = true;
+    }
   }
-  if (originalFailure) throw originalFailure;
-  return browser;
+  if (hasOriginalFailure) rethrowFailure(originalFailure);
+  return required(browser);
 }

@@ -42,6 +42,9 @@ export const nativeHelperRegistryPath = "scripts/native-helper-dependencies.mts"
 // Shared repository launcher boundary, captured but not recursively classified as
 // a native helper graph. All other non-builtin imports must be declared helpers.
 export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
+  [helper("desktop-linux-webkit-inspector.mts")]: Object.freeze([
+    "../../../scripts/runtime-values.mts",
+  ]),
   [helper("desktop-native-confirmation.mts")]: Object.freeze([
     "../../../scripts/dev-storage.mts",
     "../../../scripts/runtime-values.mts",

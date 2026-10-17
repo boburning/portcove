@@ -1,3 +1,33 @@
+import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
+// Deliberate boundary controls must preserve non-Error rejection identity.
+function rethrowFailure(error: unknown): never {
+  throw error;
+}
+function parseJson(value: string): unknown {
+  return JSON.parse(value);
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function text(value: unknown): string {
+  assert.ok(typeof value === "string");
+  return value;
+}
+function required<Value>(value: Value | undefined): Value {
+  assert.ok(value !== undefined);
+  return value;
+}
+interface InspectorRequest {
+  id: number;
+  method: string;
+  params: { targetId: string; message: string };
+}
+function nestedRequest(value: string) {
+  const request = object(JSON.parse(value));
+  assert.ok(typeof request.id === "number" && typeof request.method === "string");
+  return { ...request, id: request.id, method: request.method, params: object(request.params) };
+}
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
@@ -7,11 +37,12 @@ import {
   isInspectorMainDocument,
   linuxInspectorEnvironment,
   LinuxInspectorProtocol,
+  connectLinuxInspector,
 } from "./desktop-linux-webkit-inspector.mts";
 
 // Imported by the maintained desktop-scenarios contract suite. Keep native-only
 // helper consumers adjacent so the frontend graph observes their actual tests.
-test("external browser observation uses only the owned Chrome loopback endpoint", () => {
+void test("external browser observation uses only the owned Chrome loopback endpoint", () => {
   const id = "12345678-1234-1234-1234-123456789abc";
   assert.equal(
     chromeObserverEndpoint(`45123\n/devtools/browser/${id}\n`),
@@ -27,7 +58,7 @@ test("external browser observation uses only the owned Chrome loopback endpoint"
     assert.throws(() => chromeObserverEndpoint(input));
 });
 
-test("local native boundary identity does not treat opaque URL origins as equal", () => {
+void test("local native boundary identity does not treat opaque URL origins as equal", () => {
   assertLocalMainUrl("tauri://localhost", "linux");
   assertLocalMainUrl("tauri://localhost/", "linux");
   assertLocalMainUrl("http://tauri.localhost/", "win32");
@@ -49,22 +80,31 @@ test("local native boundary identity does not treat opaque URL origins as equal"
 });
 
 class InspectorSocket extends EventTarget {
-  sent = [];
-  send(message) {
-    this.sent.push(JSON.parse(message));
+  sent: InspectorRequest[] = [];
+  closed = false;
+  send(message: string) {
+    const request = object(JSON.parse(message));
+    const params = object(request.params);
+    assert.ok(typeof request.id === "number");
+    this.sent.push({
+      ...request,
+      id: request.id,
+      method: text(request.method),
+      params: { ...params, targetId: text(params.targetId), message: text(params.message) },
+    });
   }
   close() {
     this.closed = true;
   }
-  emit(message) {
+  emit(message: unknown) {
     this.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(message) }));
   }
-  reply(request, result, target = "page-1") {
+  reply(request: InspectorRequest, result: unknown, target = "page-1") {
     this.emit({
       method: "Target.dispatchMessageFromTarget",
       params: {
         targetId: target,
-        message: JSON.stringify({ id: JSON.parse(request.params.message).id, result }),
+        message: JSON.stringify({ id: nestedRequest(request.params.message).id, result }),
       },
     });
   }
@@ -82,16 +122,16 @@ function inspector() {
   return { socket, protocol };
 }
 
-async function waitForRequest(socket, count) {
+async function waitForRequest(socket: InspectorSocket, count: number) {
   const end = Date.now() + 1000;
   while (socket.sent.length < count) {
     assert.ok(Date.now() < end, "Protocol control did not reach its next command");
     await new Promise((resolve) => setTimeout(resolve, 1));
   }
-  return socket.sent[count - 1];
+  return required(socket.sent[count - 1]);
 }
 
-test("Linux inspector environment removes automation without overriding permissions", () => {
+void test("Linux inspector environment removes automation without overriding permissions", () => {
   const original = {
     TAURI_WEBVIEW_AUTOMATION: "true",
     WEBKIT_INSPECTOR_SERVER: "remote:1",
@@ -106,7 +146,7 @@ test("Linux inspector environment removes automation without overriding permissi
     assert.throws(() => linuxInspectorEnvironment({}, port));
 });
 
-test("inspector discovery selects one canonical tuple rather than executing HTML", () => {
+void test("inspector discovery selects one canonical tuple rather than executing HTML", () => {
   assert.equal(inspectorSocketPath("window.open('/socket/2/3/WebPage')"), "/socket/2/3/WebPage");
   for (const html of [
     "",
@@ -120,7 +160,7 @@ test("inspector discovery selects one canonical tuple rather than executing HTML
     assert.throws(() => inspectorSocketPath(html));
 });
 
-test("inspector readiness accepts both observed local spellings and requires the nonautomation main view", () => {
+void test("inspector readiness accepts both observed local spellings and requires the nonautomation main view", () => {
   for (const url of ["tauri://localhost", "tauri://localhost/"])
     assert.equal(isInspectorMainDocument({ url, label: "main", webdriver: false }), true);
   for (const url of [
@@ -141,17 +181,17 @@ test("inspector readiness accepts both observed local spellings and requires the
     assert.equal(isInspectorMainDocument(document), false);
 });
 
-test("inspector refuses thrown scripts, rejected callbacks and non-Promise handles", async () => {
+void test("inspector refuses thrown scripts, rejected callbacks and non-Promise handles", async () => {
   for (const failure of ["evaluate-threw", "await-rejected", "not-promise"]) {
     const { socket, protocol } = inspector();
     const execution = protocol.executeScript(() => "must not be accepted as a refusal");
     if (failure === "evaluate-threw") {
-      socket.reply(socket.sent[0], {
+      socket.reply(required(socket.sent[0]), {
         wasThrown: true,
         result: { type: "object", description: "script failure" },
       });
     } else {
-      socket.reply(socket.sent[0], {
+      socket.reply(required(socket.sent[0]), {
         result: {
           type: "object",
           className: failure === "not-promise" ? "Object" : "Promise",
@@ -172,67 +212,73 @@ test("inspector refuses thrown scripts, rejected callbacks and non-Promise handl
   }
 });
 
-test("inspector executes real serialized sync and callback scripts through promise results", async () => {
+void test("inspector executes real serialized sync and callback scripts through promise results", async () => {
   for (const callback of [false, true]) {
     const { socket, protocol } = inspector();
     const promise = callback
       ? protocol.executeAsyncScript((value, done) => queueMicrotask(() => done({ value })), "owned")
       : protocol.executeScript((value) => ({ value }), "owned");
-    const evaluate = JSON.parse(socket.sent[0].params.message);
+    const evaluate = nestedRequest(required(socket.sent[0]).params.message);
     assert.equal(evaluate.method, "Runtime.evaluate");
-    const actual = vm.runInNewContext(evaluate.params.expression, { queueMicrotask });
-    socket.reply(socket.sent[0], {
+    const actual: unknown = vm.runInNewContext(text(evaluate.params.expression), {
+      queueMicrotask,
+    });
+    socket.reply(required(socket.sent[0]), {
       result: { type: "object", className: "Promise", objectId: "owned-promise" },
     });
     const awaitRequest = await waitForRequest(socket, 2);
-    const command = JSON.parse(awaitRequest.params.message);
+    const command = nestedRequest(awaitRequest.params.message);
     assert.equal(command.method, "Runtime.awaitPromise");
     assert.equal(command.params.promiseObjectId, "owned-promise");
     socket.reply(awaitRequest, {
-      result: { type: "object", value: JSON.parse(JSON.stringify(await actual)) },
+      result: { type: "object", value: parseJson(JSON.stringify(await actual)) },
     });
     assert.deepEqual(await promise, { value: "owned" });
     await protocol.quit();
   }
 });
 
-test("inspector propagates wrong-target and native protocol errors", async () => {
+void test("inspector propagates wrong-target and native protocol errors", async () => {
   const { socket, protocol } = inspector();
   const request = protocol.command("Runtime.evaluate", {}, Date.now() + 1000);
-  socket.reply(socket.sent[0], { result: { type: "string", value: "untrusted" } }, "other-page");
+  socket.reply(
+    required(socket.sent[0]),
+    { result: { type: "string", value: "untrusted" } },
+    "other-page",
+  );
   await assert.rejects(request, /main target/);
   await assert.rejects(protocol.command("Runtime.evaluate", {}, Date.now() + 1000), /main target/);
   const next = inspector();
   const refused = next.protocol.command("Runtime.evaluate", {}, Date.now() + 1000);
-  next.socket.emit({ id: next.socket.sent[0].id, error: { message: "native refusal" } });
+  next.socket.emit({ id: required(next.socket.sent[0]).id, error: { message: "native refusal" } });
   await assert.rejects(refused, /native refusal/);
   await next.protocol.quit();
 });
 
-test("expired inspector operation cannot accept a late callback as a later success", async () => {
+void test("expired inspector operation cannot accept a late callback as a later success", async () => {
   const { socket, protocol } = inspector();
   const first = protocol.command("Runtime.awaitPromise", {}, Date.now() + 10);
-  const oldRequest = socket.sent[0];
+  const oldRequest = required(socket.sent[0]);
   await assert.rejects(first, /deadline/);
   const next = protocol.command("Runtime.evaluate", {}, Date.now() + 1000);
   socket.reply(oldRequest, { result: { type: "string", value: "late" } });
-  socket.reply(socket.sent[1], { result: { type: "string", value: "current" } });
+  socket.reply(required(socket.sent[1]), { result: { type: "string", value: "current" } });
   assert.deepEqual(await next, { result: { type: "string", value: "current" } });
   assert.equal(protocol.pending.size, 0);
   await protocol.quit();
 });
 
-test("inspector location reads preserve the strict script budget and reject unsupported controls", async () => {
+void test("inspector location reads preserve the strict script budget and reject unsupported controls", async () => {
   const { socket, protocol } = inspector();
   await protocol.manage().setTimeouts({ script: 10000, pageLoad: 10000 });
   await assert.rejects(protocol.manage().setTimeouts({ script: 10001 }));
   await assert.rejects(protocol.manage().setTimeouts({ implicit: 10000 }));
   const current = protocol.getCurrentUrl();
-  const evaluate = JSON.parse(socket.sent[0].params.message);
-  const actual = vm.runInNewContext(evaluate.params.expression, {
+  const evaluate = nestedRequest(required(socket.sent[0]).params.message);
+  const actual: unknown = vm.runInNewContext(text(evaluate.params.expression), {
     location: { href: "tauri://localhost/" },
   });
-  socket.reply(socket.sent[0], {
+  socket.reply(required(socket.sent[0]), {
     result: { type: "object", className: "Promise", objectId: "location-result" },
   });
   const awaitRequest = await waitForRequest(socket, 2);
@@ -241,10 +287,10 @@ test("inspector location reads preserve the strict script budget and reject unsu
   await protocol.quit();
 });
 
-test("inspector screenshot observes the viewport and refuses a non-PNG response", async () => {
+void test("inspector screenshot observes the viewport and refuses a non-PNG response", async () => {
   const { socket, protocol } = inspector();
   const capture = protocol.takeScreenshot();
-  socket.reply(socket.sent[0], {
+  socket.reply(required(socket.sent[0]), {
     result: { type: "object", className: "Promise", objectId: "viewport-result" },
   });
   const viewportRequest = await waitForRequest(socket, 2);
@@ -252,12 +298,103 @@ test("inspector screenshot observes the viewport and refuses a non-PNG response"
     result: { type: "object", value: { width: 1280, height: 800 } },
   });
   const snapshot = await waitForRequest(socket, 3);
-  assert.deepEqual(JSON.parse(snapshot.params.message), {
-    id: JSON.parse(snapshot.params.message).id,
+  assert.deepEqual(nestedRequest(snapshot.params.message), {
+    id: nestedRequest(snapshot.params.message).id,
     method: "Page.snapshotRect",
     params: { x: 0, y: 0, width: 1280, height: 800, coordinateSystem: "Viewport" },
   });
   socket.reply(snapshot, { dataURL: "data:image/jpeg;base64,invalid" });
   await assert.rejects(capture, /png/);
   await protocol.quit();
+});
+
+void test("inspector rejects malformed native envelopes without admitting later replies", async () => {
+  for (const message of [
+    null,
+    [],
+    "untrusted",
+    {
+      method: "Target.targetCreated",
+      params: { targetInfo: { type: "page", isProvisional: false, targetId: 42 } },
+    },
+    { method: "Target.dispatchMessageFromTarget", params: { targetId: "page-1", message: [] } },
+    { method: "Target.dispatchMessageFromTarget", params: { targetId: "page-1", message: "null" } },
+  ]) {
+    const { socket, protocol } = inspector();
+    const pending = protocol.command("Runtime.evaluate", {}, Date.now() + 1000);
+    socket.emit(message);
+    await assert.rejects(pending);
+    assert.ok(protocol.failure);
+    const failure = protocol.failure;
+    await assert.rejects(
+      protocol.command("Runtime.evaluate", {}, Date.now() + 1000),
+      (error) => error === failure,
+    );
+    assert.equal(protocol.pending.size, 0);
+    assert.equal(protocol.outer.size, 0);
+    await protocol.quit();
+  }
+});
+void test("erased inspector callback control never coerces a string reply ID into authority", async () => {
+  const { socket, protocol } = inspector();
+  const pending = protocol.command("Runtime.evaluate", {}, Date.now() + 20);
+  const request = nestedRequest(required(socket.sent[0]).params.message);
+  socket.emit({
+    method: "Target.dispatchMessageFromTarget",
+    params: {
+      targetId: "page-1",
+      message: JSON.stringify({ id: String(request.id), result: { value: "untrusted" } }),
+    },
+  });
+  await assert.rejects(pending, /deadline/);
+  assert.equal(protocol.pending.size, 0);
+  assert.equal(protocol.outer.size, 0);
+  await protocol.quit();
+});
+
+void test("inspector retains every primitive failure and refuses subsequent commands", async () => {
+  for (const failure of [false, 0, "", null, undefined]) {
+    const { socket, protocol } = inspector();
+    protocol.fail(failure);
+    const count = socket.sent.length;
+    await assert.rejects(protocol.command("Runtime.evaluate", {}, Date.now() + 10), (error) =>
+      Object.is(error, failure),
+    );
+    assert.equal(socket.sent.length, count, "Failed observers must not send another operation");
+    await protocol.quit();
+    assert.ok(
+      Object.is(protocol.failure, failure),
+      "Close must preserve the first failure identity",
+    );
+  }
+});
+
+void test("inspector connection preserves primitive primary failures through evidence failures", async () => {
+  for (const failure of [false, 0, "", null, undefined]) {
+    for (const evidenceFails of [false, true]) {
+      const secondary = new Error("owned report write failure");
+      const logs: string[] = [];
+      // Execute the actual native-erased function with Linux/IO test seams.
+      // The injected readiness callback fails before listener or application IO;
+      // this control makes no Linux execution or deadline-qualification claim.
+      const invocation: unknown = vm.runInNewContext(
+        `(${connectLinuxInspector.toString()})({ port: 45123, launch: { child: { pid: 123, exitCode: null } }, app: "/owned-fixture", expectedSha256: "a".repeat(64), evidence: "owned-report.json", beforeConnect })`,
+        {
+          assert,
+          process: { platform: "linux" },
+          beforeConnect: async () => rethrowFailure(failure),
+          bounded: async (operation: Promise<unknown>) => operation,
+          writeFile: async () => {
+            if (evidenceFails) throw secondary;
+          },
+          isRecord,
+          errorMessage,
+          rethrowFailure,
+          console: { error: (message: string) => logs.push(message) },
+        },
+      );
+      await assert.rejects(Promise.resolve(invocation), (error) => Object.is(error, failure));
+      assert.equal(logs.length, evidenceFails ? 1 : 0);
+    }
+  }
 });
