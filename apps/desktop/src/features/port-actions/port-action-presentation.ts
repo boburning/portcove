@@ -4,6 +4,37 @@ type PresentedAction = "install" | "launch" | "rollback";
 type ActionPresentation = { blocked: false; reason?: never } | { blocked: true; reason: string };
 type Assessment = NonNullable<PortStatus["port_actions"]>[number];
 
+/** Opens a fresh removal review only; Core still binds ownership and consent. */
+export function removalReviewPresentation(
+  status: PortStatus | undefined,
+  action: "remove_managed" | "remove_external",
+): ActionPresentation {
+  const unknown: ActionPresentation = {
+    blocked: true,
+    reason: "Current removal availability is unavailable. Refresh the workspace to check again.",
+  };
+  if (!status) return unknown;
+  const assessments = status.port_actions;
+  // Supported older statuses omitted the entire projection or supplied an empty list.
+  if (assessments === undefined || (Array.isArray(assessments) && assessments.length === 0))
+    return { blocked: false };
+  if (!Array.isArray(assessments)) return unknown;
+  const matches = assessments.filter((assessment) => assessment?.action === action);
+  const [assessment] = matches;
+  if (matches.length !== 1 || !assessment || assessment.definition != null) return unknown;
+  if (assessment.availability === "waiting" && assessment.reason === "review_required")
+    return { blocked: false };
+  if (assessment.availability === "not_offered" && assessment.reason === "not_installed")
+    return {
+      blocked: true,
+      reason:
+        action === "remove_external"
+          ? "There is no saved external installation to remove."
+          : "There is no managed installation to uninstall.",
+    };
+  return unknown;
+}
+
 const definitionReasons: Record<string, string> = {
   publisher_revoked: "The catalog publisher was revoked.",
   curated_artifact_revoked:

@@ -3,9 +3,9 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
-import { portDefinition } from "../test-fixtures";
+import { portDefinition, portStatus } from "../test-fixtures";
 import type { PortRemovalPreview } from "../types";
-import { RemovalReviewDialog } from "./RemovalReview";
+import { RemovalReviewDialog, RemovalControl } from "./RemovalReview";
 
 const port = portDefinition();
 const review: PortRemovalPreview = {
@@ -41,6 +41,32 @@ function dialog() {
   expect(result).not.toBeNull();
   return result!;
 }
+
+it.each(
+  [
+    undefined,
+    {
+      ...portStatus(),
+      port_actions: [{ action: "launch", availability: "allowed", reason: "available" }],
+    },
+  ].map((status, index) => ({ name: index === 0 ? "missing status" : "missing action", status })),
+)("does not load a removal preview for $name", async ({ status }) => {
+  const preview = vi.spyOn(desktopApi, "previewRemoval");
+  await root.rerender(
+    <RemovalControl
+      port={port}
+      status={status as never}
+      generation={7}
+      busy={false}
+      apply={vi.fn()}
+    />,
+  );
+  const button = document.body.querySelector<HTMLButtonElement>("button");
+  expect(button?.disabled).toBe(true);
+  await act(async () => button?.click());
+  expect(preview).not.toHaveBeenCalled();
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+});
 
 it("lists every affected path, removed settings and preserved data before explicit consent", async () => {
   const preview = vi.spyOn(desktopApi, "previewRemoval").mockResolvedValue(review);

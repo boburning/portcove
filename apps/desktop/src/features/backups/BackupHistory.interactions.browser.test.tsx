@@ -95,6 +95,39 @@ async function click(label: string) {
   await act(async () => button?.click());
 }
 
+it.each(
+  [
+    {
+      action: "backup_restore",
+      availability: "allowed",
+      reason: "available",
+      definition: { outcome: "hold", reason: "publisher_revoked" },
+    },
+    { action: "backup_restore", availability: "allowed", reason: "missing_backup" },
+    { action: "backup_create", availability: "allowed", reason: "available" },
+    { action: "backup_restore", availability: "future", reason: "available" },
+  ].map((assessment, index) => ({
+    name: ["definition hold", "wrong reason", "wrong action", "future state"][index],
+    assessment,
+  })),
+)("does not open restore for $name", async ({ assessment }) => {
+  const restore = vi.fn();
+  await root.rerender(
+    <BackupHistory
+      backups={backups}
+      restoreAssessment={assessment as never}
+      restore={restore}
+      remove={vi.fn()}
+    />,
+  );
+  const button = document.body.querySelector<HTMLButtonElement>('[data-backup-action="restore"]');
+  expect(button?.disabled).toBe(true);
+  await act(async () => button?.click());
+  expect(desktopApi.previewBackupAction).not.toHaveBeenCalled();
+  expect(restore).not.toHaveBeenCalled();
+  expect(document.body.textContent).toContain("Restore eligibility is unknown");
+});
+
 it("returns focus to a remaining backup after successful deletion removes the opener", async () => {
   await root.rerender(<History />);
   const opener = await openDeletion("backup-1");
@@ -552,6 +585,41 @@ function DetailReadHistory({
     />
   );
 }
+
+it.each(
+  [
+    {
+      action: "backup_create",
+      availability: "allowed",
+      reason: "available",
+      definition: { outcome: "hold", reason: "publisher_revoked" },
+    },
+    { action: "backup_create", availability: "allowed", reason: "missing_data" },
+    { action: "backup_restore", availability: "allowed", reason: "available" },
+    { action: "backup_create", availability: "future", reason: "available" },
+  ].map((assessment, index) => ({
+    name: ["definition hold", "wrong reason", "wrong action", "future state"][index],
+    assessment,
+  })),
+)("does not create a backup for $name", async ({ assessment }) => {
+  vi.spyOn(desktopApi, "backups").mockResolvedValue({
+    port_id: "sample",
+    state: "healthy",
+    backups,
+    problems: [],
+    create_assessment: assessment as never,
+    restore_assessment: { action: "backup_restore", availability: "allowed", reason: "available" },
+  });
+  const create = vi.spyOn(desktopApi, "backup");
+  await root.rerender(<DetailReadHistory />);
+  const button = [...document.body.querySelectorAll("button")].find(
+    (button) => button.textContent?.trim() === "Back up data",
+  );
+  expect(button?.disabled).toBe(true);
+  await act(async () => button?.click());
+  expect(create).not.toHaveBeenCalled();
+  expect(document.body.textContent).toContain("Current backup availability is unavailable");
+});
 
 it("projects restore-only recovery separately from deletion and refuses stale eligibility after a failed read", async () => {
   let refresh!: () => Promise<void>;
