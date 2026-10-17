@@ -1,4 +1,6 @@
 import { errorMessage } from "./runtime-values.mts";
+import type { ClassifyOptions } from "./ordinary-validation.mts";
+import type { ValidationPlan } from "./validation-plan.mts";
 import { execFileSync, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +11,7 @@ import { spawnCommand } from "./dev-storage.mts";
 import { createCiMetrics } from "./ci-metrics.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-export function baselineBootstrapTests(plan) {
+export function baselineBootstrapTests(plan: ValidationPlan) {
   validateValidationPlan(plan);
   const infrastructure = plan.changes.some((change) =>
     [change.oldPath, change.newPath].some(
@@ -22,7 +24,7 @@ export function baselineBootstrapTests(plan) {
   );
   return infrastructure ? ["scripts/rust-support-cache.test.mts"] : [];
 }
-export function baselineSelection(plan, options = {}) {
+export function baselineSelection(plan: ValidationPlan, options: ClassifyOptions = {}) {
   validateValidationPlan(plan);
   if (!["fast", "prose"].includes(plan.mode))
     throw new Error("Expected an ordinary hosted baseline");
@@ -33,13 +35,13 @@ export function baselineSelection(plan, options = {}) {
       ...(change.oldPath !== change.newPath ? { previousPath: change.oldPath } : {}),
       oldMode: change.oldMode,
       newMode: change.newMode,
-      nextest_equivalence: change.nextest_equivalence,
+      ...(change.nextest_equivalence ? { nextest_equivalence: change.nextest_equivalence } : {}),
     })),
     options,
   );
 }
 
-export function baselineContractTests(plan, options) {
+export function baselineContractTests(plan: ValidationPlan, options: ClassifyOptions = {}) {
   const selection = baselineSelection(plan, options);
   const tests = new Set(selection.nodeTests);
   for (const file of [
@@ -85,7 +87,7 @@ export function baselineContractTests(plan, options) {
 }
 
 // Tests that actually invoke native compiler/runner fixture controls.
-export function baselineRequiresRust(plan) {
+export function baselineRequiresRust(plan: ValidationPlan) {
   if (plan.mode === "qualification") return true;
   if (plan.mode === "blocked" || plan.mode === "prose") return false;
   return baselineContractTests(plan).some((file) =>
@@ -98,7 +100,7 @@ export function baselineRequiresRust(plan) {
   );
 }
 
-export function baselineRequiresPython(plan) {
+export function baselineRequiresPython(plan: ValidationPlan) {
   if (plan.mode === "qualification") return true;
   if (!["fast", "prose"].includes(plan.mode)) return false;
   return baselineContractTests(plan).includes("scripts/nextest-equivalence.test.mts");
@@ -106,9 +108,9 @@ export function baselineRequiresPython(plan) {
 
 // Run the cheap production checkers against the actual checkout when their
 // contracts are selected. Fixture-based unit tests alone cannot prove integrity.
-export function baselineIntegrityCommands(plan, options) {
+export function baselineIntegrityCommands(plan: ValidationPlan, options: ClassifyOptions = {}) {
   const tests = new Set(baselineContractTests(plan, options));
-  const checks = [
+  const checks: [test: string, args: string[]][] = [
     ["scripts/qualification-coverage.test.mts", ["scripts/qualification-coverage.mts"]],
     ["scripts/quality-tools.test.mts", ["scripts/quality-tools.mts", "--validate"]],
     ["scripts/repository-settings.test.mts", ["scripts/repository-settings.mts", "--validate"]],
@@ -121,7 +123,7 @@ export function baselineIntegrityCommands(plan, options) {
   return checks.filter(([test]) => tests.has(test)).map(([, args]) => args);
 }
 
-export function baselineFrontendPlan(plan, options) {
+export function baselineFrontendPlan(plan: ValidationPlan, options: ClassifyOptions = {}) {
   const selection = baselineSelection(plan, options);
   if (!plan.groups.includes("frontend")) throw new Error("Plan omitted frontend execution");
   // A missing graph input or shared/unknown input executes the complete unit suite.
@@ -139,7 +141,7 @@ export function baselineFrontendPlan(plan, options) {
   );
 }
 
-export function baselineLintPlan(plan, options) {
+export function baselineLintPlan(plan: ValidationPlan, options: ClassifyOptions = {}) {
   if (!plan.groups.includes("rust-quality")) throw new Error("Plan omitted repository quality");
   const selection = baselineSelection(plan, options);
   return buildPlan(selection, { validationPlan: plan }).filter((entry) =>
@@ -148,7 +150,7 @@ export function baselineLintPlan(plan, options) {
 }
 
 // Fixture execution must not publish synthetic timings under the hosted job identity.
-export function baselineTestEnvironment(environment = process.env) {
+export function baselineTestEnvironment(environment: NodeJS.ProcessEnv = process.env) {
   const isolated = { ...environment };
   delete isolated.PORTCOVE_CI_METRICS_DIR;
   return isolated;
@@ -220,7 +222,7 @@ function main() {
         return;
       }
     }
-  } else if (["frontend", "lint"].includes(process.argv[2])) {
+  } else if (process.argv[2] === "frontend" || process.argv[2] === "lint") {
     const commands =
       process.argv[2] === "lint" ? baselineLintPlan(plan) : baselineFrontendPlan(plan);
     executePlan(commands, {

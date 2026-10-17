@@ -56,9 +56,10 @@ const failureLabels = {
 };
 
 // Structured observations, never a guess from log text or a change to a verdict.
-export function describeFailure(result: CommandObservation, kind: string = "unknown") {
+export function describeFailure(result: unknown, kind: string = "unknown") {
   if (!Object.hasOwn(failureLabels, kind)) kind = "unknown";
   try {
+    if (!isRecord(result)) throw new TypeError("Missing process observation");
     const error = result.error;
     const code = errorCode(error);
     if (isRecord(error) && typeof error.syscall === "string" && /^spawn/u.test(error.syscall)) {

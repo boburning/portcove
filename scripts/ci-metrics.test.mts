@@ -1,11 +1,12 @@
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createCiMetrics, readCiMetrics } from "./ci-metrics.mts";
 
-test("timers preserve result/error identity and retain failed partial phases", async (t) => {
+void test("timers preserve result/error identity and retain failed partial phases", async (t) => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-metrics-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   let time = 0;
@@ -43,7 +44,7 @@ test("timers preserve result/error identity and retain failed partial phases", a
   assert.ok(
     records
       .filter((entry) => entry.outcome === "failed")
-      .every((entry) => entry.failure.kind === "unknown"),
+      .every((entry) => entry.failure?.kind === "unknown"),
   );
   assert.ok(
     records
@@ -53,7 +54,7 @@ test("timers preserve result/error identity and retain failed partial phases", a
   assert.ok(records.every((entry) => entry.context.run === "12" && entry.context.attempt === "2"));
 });
 
-test("disabled or failed diagnostics never change an operation", () => {
+void test("disabled or failed diagnostics never change an operation", () => {
   let writes = 0;
   const disabled = createCiMetrics({
     environment: {},
@@ -66,7 +67,7 @@ test("disabled or failed diagnostics never change an operation", () => {
     42,
   );
   assert.equal(writes, 0);
-  const warnings = [];
+  const warnings: string[] = [];
   const metrics = createCiMetrics({
     environment: { PORTCOVE_CI_METRICS_DIR: os.tmpdir() },
     write: () => {
@@ -81,8 +82,8 @@ test("disabled or failed diagnostics never change an operation", () => {
   assert.equal(warnings.length, 1);
 });
 
-test("signal failures and diagnostic warning failures preserve operation outcomes", () => {
-  const records = [];
+void test("signal failures and diagnostic warning failures preserve operation outcomes", () => {
+  const records: unknown[] = [];
   const metrics = createCiMetrics({
     environment: { PORTCOVE_CI_METRICS_DIR: os.tmpdir() },
     write: (_file, data) => records.push(JSON.parse(data)),
@@ -92,6 +93,7 @@ test("signal failures and diagnostic warning failures preserve operation outcome
     metrics.measure("signal", () => result),
     result,
   );
+  assert.ok(isRecord(records[0]) && isRecord(records[0].failure));
   assert.equal(records[0].outcome, "failed");
   assert.equal(records[0].failure.kind, "unknown");
   const broken = createCiMetrics({
@@ -117,8 +119,8 @@ test("signal failures and diagnostic warning failures preserve operation outcome
   );
 });
 
-test("sync and async launch failures preserve identities and observed prerequisite evidence", async () => {
-  const records = [];
+void test("sync and async launch failures preserve identities and observed prerequisite evidence", async () => {
+  const records: unknown[] = [];
   const metrics = createCiMetrics({
     environment: { PORTCOVE_CI_METRICS_DIR: os.tmpdir() },
     write: (_file, data) => records.push(JSON.parse(data)),
@@ -135,5 +137,52 @@ test("sync and async launch failures preserve identities and observed prerequisi
     }),
     (caught) => caught === error,
   );
-  assert.ok(records.every((entry) => entry.failure.kind === "missing-prerequisite"));
+  assert.ok(
+    records.every(
+      (entry) =>
+        isRecord(entry) && isRecord(entry.failure) && entry.failure.kind === "missing-prerequisite",
+    ),
+  );
+});
+
+void test("timing reports reject malformed context and optional measurements before claiming observations", (t) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-metrics-shape-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  createCiMetrics({ environment: { PORTCOVE_CI_METRICS_DIR: directory } }).record("fixture");
+  const name = readdirSync(directory)[0];
+  assert.ok(name);
+  const file = path.join(directory, name);
+  const original: unknown = JSON.parse(readFileSync(file, "utf8"));
+  assert.ok(isRecord(original));
+  for (const mutation of [
+    { context: true },
+    { context: { job: 42 } },
+    { outcome: "accepted" },
+    { failure: { kind: 7 } },
+    { selected_tests: -1 },
+    { complete_tests: 1.5 },
+    { groups: ["core", 42] },
+  ]) {
+    writeFileSync(file, JSON.stringify({ ...original, ...mutation }));
+    assert.throws(() => readCiMetrics(directory), /Invalid CI timing report/u);
+  }
+});
+
+void test("malformed plan metadata stays unknown without changing operation results", () => {
+  const records: unknown[] = [];
+  const metrics = createCiMetrics({
+    environment: {
+      PORTCOVE_CI_METRICS_DIR: os.tmpdir(),
+      PORTCOVE_PLAN_JSON: JSON.stringify({ identities: { head: { forged: true } }, mode: 42 }),
+      PORTCOVE_HEAD_SHA: "observed-head",
+    },
+    write: (_file, data) => records.push(JSON.parse(data)),
+  });
+  assert.equal(
+    metrics.measure("identity", () => 42),
+    42,
+  );
+  assert.ok(isRecord(records[0]) && isRecord(records[0].context));
+  assert.equal(records[0].context.source, "observed-head");
+  assert.equal(records[0].context.mode, null);
 });

@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
@@ -18,7 +19,7 @@ import {
   baselineSelection,
   baselineRequiresPython,
 } from "./ci-baseline.mts";
-const make = (files) =>
+const make = (files: string[]) =>
   buildValidationPlan({
     changes: files.map((file: string) => ({
       status: "M",
@@ -34,7 +35,7 @@ const make = (files) =>
     checkout: "b".repeat(40),
   });
 
-test("local and hosted lint use one full stage for relevant inputs, including rename and deletion", () => {
+void test("local and hosted lint use one full stage for relevant inputs, including rename and deletion", () => {
   for (const file of [
     "apps/desktop/src/App.tsx",
     "apps/desktop/src/app.css",
@@ -53,6 +54,7 @@ test("local and hosted lint use one full stage for relevant inputs, including re
   ]) {
     const plan = make([file]);
     const hosted = baselineLintPlan(plan);
+    assert.ok(hosted[0]);
     assert.equal(hosted.length, 1, file);
     assert.equal(hosted[0].id, "repository-lint");
     assert.equal(hosted[0].executable, process.execPath);
@@ -70,7 +72,7 @@ test("local and hosted lint use one full stage for relevant inputs, including re
     );
   }
   for (const file of ["docs/QUALITY.md", "Cargo.toml"])
-    assert.equal(baselineLintPlan(make([file]))[0].id, "oxfmt", file);
+    assert.equal(baselineLintPlan(make([file]))[0]?.id, "oxfmt", file);
   for (const file of [
     "crates/portcove-core/src/lib.rs",
     "apps/desktop/public/logo.png",
@@ -107,7 +109,7 @@ test("local and hosted lint use one full stage for relevant inputs, including re
   assert.equal(baselineLintPlan(make(["scripts/a.mjs", "apps/desktop/src/App.tsx"])).length, 1);
 });
 
-test("first pushes and missing historical bases retain full lint without changed-file entries", () => {
+void test("first pushes and missing historical bases retain full lint without changed-file entries", () => {
   const options = {
     eventName: "push",
     baseSha: "a".repeat(40),
@@ -120,7 +122,7 @@ test("first pushes and missing historical bases retain full lint without changed
     assert.fail("first push needs no historical Git reads"),
   );
   const missing = discoverCiPlan(options, (args) => {
-    if (args[0] === "cat-file" && args[2].startsWith("a".repeat(40)))
+    if (args[0] === "cat-file" && args[2]?.startsWith("a".repeat(40)))
       throw Object.assign(new Error("missing base"), { status: 128 });
     return Buffer.alloc(0);
   });
@@ -135,24 +137,25 @@ test("first pushes and missing historical bases retain full lint without changed
     assert.deepEqual(baselineLintPlan(plan), local);
   }
 });
-test("unknown ownership executes the canonical static group exactly once", () => {
+void test("unknown ownership executes the canonical static group exactly once", () => {
   const plan = make(["unknown/input.bin"]);
   const commands = buildPlan(baselineSelection(plan), { validationPlan: plan });
   assert.equal(commands.filter((entry) => entry.args.includes("frontend:static")).length, 1);
 });
-test("Playnite and handoff repairs select their cheap regressions in ordinary CI", () => {
+void test("Playnite and handoff repairs select their cheap regressions in ordinary CI", () => {
   const tests = baselineContractTests(
     make(["integrations/playnite/check.ps1", "scripts/handoff-evidence.mts"]),
   );
   assert.ok(tests.includes("integrations/playnite/lifecycle-check.test.mts"));
   assert.ok(tests.includes("scripts/handoff-evidence.test.mts"));
 });
-test("bootstrap regressions are limited to infrastructure, including old rename paths", () => {
+void test("bootstrap regressions are limited to infrastructure, including old rename paths", () => {
   assert.deepEqual(baselineBootstrapTests(make(["crates/portcove-core/src/lib.rs"])), []);
   assert.deepEqual(baselineBootstrapTests(make([".github/workflows/ci.yml"])), [
     "scripts/rust-support-cache.test.mts",
   ]);
   const renamed = make(["scripts/new-runner.mjs"]);
+  assert.ok(renamed.changes[0]);
   renamed.changes[0].oldPath = "scripts/run-rust-tests.mts";
   renamed.changes[0].status = "R100";
   // Rebuild the validated plan so its digest and discovery stay coherent.
@@ -166,7 +169,7 @@ test("bootstrap regressions are limited to infrastructure, including old rename 
   });
   assert.deepEqual(baselineBootstrapTests(plan), ["scripts/rust-support-cache.test.mts"]);
 });
-test("hosted contracts retain relevant script/docs/schema tests without stateful qualification", () => {
+void test("hosted contracts retain relevant script/docs/schema tests without stateful qualification", () => {
   const p = make(["scripts/run-rust-tests.mts", "docs/QUALITY.md"]);
   const tests = baselineContractTests(p);
   for (const file of [
@@ -178,7 +181,7 @@ test("hosted contracts retain relevant script/docs/schema tests without stateful
   assert.ok(!tests.includes("scripts/windows-qualification-session.integration.test.mts"));
 });
 
-test("release run evidence contracts are selected for implementation and test changes", () => {
+void test("release run evidence contracts are selected for implementation and test changes", () => {
   for (const changed of [
     "scripts/release-run-evidence.mts",
     "scripts/release-run-evidence.test.mts",
@@ -189,17 +192,16 @@ test("release run evidence contracts are selected for implementation and test ch
     assert.ok(baselineContractTests(plan).includes("scripts/release-run-evidence.test.mts"));
   }
 });
-test("shared and unknown frontend inputs use full units; sources use the related graph", () => {
+void test("shared and unknown frontend inputs use full units; sources use the related graph", () => {
   const related = baselineFrontendPlan(make(["apps/desktop/src/App.tsx"]));
   assert.ok(
     related.findIndex((entry) => entry.id === "ui-content") <
       related.findIndex((entry) => entry.id === "ui-build"),
   );
   assert.ok(related.some((entry) => entry.id === "ui-related-tests"));
-  assert.deepEqual(related.find((entry) => entry.id === "ui-related-tests").args.slice(0, 2), [
-    "scripts/run-ui-tests.mts",
-    "related",
-  ]);
+  const selected = related.find((entry) => entry.id === "ui-related-tests");
+  assert.ok(selected);
+  assert.deepEqual(selected.args.slice(0, 2), ["scripts/run-ui-tests.mts", "related"]);
   for (const p of [make(["apps/desktop/tsconfig.json"]), make(["unknown/new-input.bin"])]) {
     const full = baselineFrontendPlan(p);
     assert.ok(full.some((entry) => entry.id === "ui-tests"));
@@ -208,7 +210,7 @@ test("shared and unknown frontend inputs use full units; sources use the related
   assert.throws(() => baselineFrontendPlan(make(["docs/QUALITY.md"])));
 });
 
-test("selected contract tests retain cheap actual-checkout integrity", () => {
+void test("selected contract tests retain cheap actual-checkout integrity", () => {
   const catalog = baselineIntegrityCommands(make(["crates/portcove-core/catalog/catalog.json"]));
   assert.ok(
     catalog.some((args) => args[0] === "scripts/generate-catalog.mts" && args[1] === "--check"),
@@ -225,7 +227,7 @@ test("selected contract tests retain cheap actual-checkout integrity", () => {
   assert.ok(!docs.some((args) => args[0] === "scripts/generate-catalog.mts"));
 });
 
-test("fixture subprocess timings cannot contaminate the hosted batch report", (t) => {
+void test("fixture subprocess timings cannot contaminate the hosted batch report", (t) => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-fixture-timing-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const environment = {
@@ -252,21 +254,24 @@ test("fixture subprocess timings cannot contaminate the hosted batch report", (t
   assert.equal(readdirSync(directory).length, 1, "only actual parent batch diagnostics survive");
 });
 
-test("ordinary selected checking retains CSS correctness", () => {
-  const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+void test("ordinary selected checking retains CSS correctness", () => {
+  const manifest: unknown = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  assert.ok(isRecord(manifest) && isRecord(manifest.scripts));
   assert.equal(manifest.scripts.check, "vp run frontend:static");
   assert.match(
     readFileSync(new URL("../vite.config.ts", import.meta.url), "utf8"),
     /vp -C apps\/desktop run lint:style/u,
   );
-  assert.deepEqual(baselineLintPlan(make(["apps/desktop/src/app.css"]))[0].args, [
+  assert.deepEqual(baselineLintPlan(make(["apps/desktop/src/app.css"]))[0]?.args, [
     "scripts/run-viteplus.mts",
     "run",
     "frontend:static",
   ]);
 });
 
-test("Python is provisioned for the effective TOML positive contracts, not ordinary prose", () => {
+void test("Python is provisioned for the effective TOML positive contracts, not ordinary prose", () => {
   assert.equal(baselineRequiresPython(make(["scripts/nextest-equivalence.mts"])), true);
   assert.equal(baselineRequiresPython(make(["docs/QUALITY.md"])), false);
 });

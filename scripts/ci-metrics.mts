@@ -1,9 +1,83 @@
-import { errorMessage } from "./runtime-values.mts";
+import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describeFailure, summarizeReport } from "./report-summary.mts";
+
+interface MetricsOptions {
+  environment?: NodeJS.ProcessEnv;
+  now?: () => number;
+  write?: (file: string, data: string, options: { flag: "wx" }) => void;
+  warn?: (message: string) => void;
+}
+interface TimingData {
+  elapsed_ms?: number;
+  outcome?: "failed" | "completed";
+  failure?: ReturnType<typeof describeFailure>;
+  cache_outcome?: string;
+  fingerprint?: string;
+  selected_tests?: number;
+  complete_tests?: number;
+  groups?: string[];
+}
+interface TimingContext {
+  source: string | null;
+  checkout: string | null;
+  run: string | null;
+  attempt: string | null;
+  job: string | null;
+  runner: string;
+  mode: string | null;
+}
+export interface CiTimingRecord extends TimingData {
+  format: 1;
+  kind: "ci-timing";
+  context: TimingContext;
+  phase: string;
+  recorded_at: string;
+  process_elapsed_ms: number;
+}
+
+const optionalString = (value: unknown): string | null =>
+  typeof value === "string" ? value : null;
+const nonnegativeInteger = (value: unknown): value is number =>
+  typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+function isTimingContext(value: unknown): value is TimingContext {
+  return (
+    isRecord(value) &&
+    typeof value.runner === "string" &&
+    ["source", "checkout", "run", "attempt", "job", "mode"].every(
+      (key) => value[key] === null || typeof value[key] === "string",
+    )
+  );
+}
+function isTimingRecord(value: unknown): value is CiTimingRecord {
+  return (
+    isRecord(value) &&
+    value.format === 1 &&
+    value.kind === "ci-timing" &&
+    typeof value.phase === "string" &&
+    isTimingContext(value.context) &&
+    typeof value.recorded_at === "string" &&
+    nonnegativeInteger(value.process_elapsed_ms) &&
+    ["elapsed_ms", "selected_tests", "complete_tests"].every(
+      (key) => value[key] === undefined || nonnegativeInteger(value[key]),
+    ) &&
+    (value.outcome === undefined || value.outcome === "failed" || value.outcome === "completed") &&
+    ["cache_outcome", "fingerprint"].every(
+      (key) => value[key] === undefined || typeof value[key] === "string",
+    ) &&
+    (value.groups === undefined ||
+      (Array.isArray(value.groups) &&
+        value.groups.every((group: unknown) => typeof group === "string"))) &&
+    (value.failure === undefined ||
+      (isRecord(value.failure) &&
+        typeof value.failure.kind === "string" &&
+        typeof value.failure.label === "string" &&
+        typeof value.failure.observation === "string"))
+  );
+}
 
 // Diagnostics only: never acquire resources, execute commands or supply acceptance.
 export function createCiMetrics({
@@ -11,25 +85,26 @@ export function createCiMetrics({
   now = () => performance.now(),
   write = writeFileSync,
   warn = console.error,
-} = {}) {
+}: MetricsOptions = {}) {
   const directory = environment.PORTCOVE_CI_METRICS_DIR;
   const started = now();
-  let plan = null;
+  let plan: unknown = null;
   try {
     plan = JSON.parse(environment.PORTCOVE_PLAN_JSON ?? "null");
   } catch {
     /* Unknown is reported explicitly. */
   }
-  const context = {
-    source: plan?.identities?.head ?? environment.PORTCOVE_HEAD_SHA ?? null,
-    checkout: plan?.identities?.checkout ?? environment.GITHUB_SHA ?? null,
+  const identities = isRecord(plan) && isRecord(plan.identities) ? plan.identities : null;
+  const context: TimingContext = {
+    source: optionalString(identities?.head) ?? environment.PORTCOVE_HEAD_SHA ?? null,
+    checkout: optionalString(identities?.checkout) ?? environment.GITHUB_SHA ?? null,
     run: environment.GITHUB_RUN_ID ?? null,
     attempt: environment.GITHUB_RUN_ATTEMPT ?? null,
     job: environment.GITHUB_JOB ?? null,
     runner: `${environment.RUNNER_OS ?? process.platform}-${environment.RUNNER_ARCH ?? process.arch}`,
-    mode: plan?.mode ?? null,
+    mode: optionalString(isRecord(plan) ? plan.mode : null),
   };
-  const record = (phase, data = {}) => {
+  const record = (phase: string, data: TimingData = {}) => {
     if (!directory) return;
     try {
       mkdirSync(directory, { recursive: true });
@@ -48,19 +123,18 @@ export function createCiMetrics({
       );
     } catch (error) {
       try {
-        warn(`[ci-metrics] diagnostics unavailable (${error.code ?? "unknown"})`);
+        warn(`[ci-metrics] diagnostics unavailable (${errorCode(error) ?? "unknown"})`);
       } catch {
         /* Diagnostics cannot change command outcomes. */
       }
     }
   };
-  const outcome = (value) =>
-    value?.error ||
-    value?.signal ||
-    (value != null && Object.hasOwn(value, "status") && value.status !== 0)
+  const outcome = (value: unknown) =>
+    isRecord(value) &&
+    (value.error || value.signal || (Object.hasOwn(value, "status") && value.status !== 0))
       ? "failed"
       : "completed";
-  const measure = (phase, operation) => {
+  const measure = <T,>(phase: string, operation: () => T): T => {
     const start = now();
     try {
       const result = operation();
@@ -79,7 +153,7 @@ export function createCiMetrics({
       throw error;
     }
   };
-  const measureAsync = async (phase, operation) => {
+  const measureAsync = async <T,>(phase: string, operation: () => Promise<T>): Promise<T> => {
     const start = now();
     try {
       const result = await operation();
@@ -105,15 +179,8 @@ export function readCiMetrics(directory: string) {
   const records = readdirSync(directory)
     .filter((file: string) => file.endsWith(".json"))
     .map((file: string) => {
-      const record = JSON.parse(readFileSync(path.join(directory, file), "utf8"));
-      if (
-        record.format !== 1 ||
-        record.kind !== "ci-timing" ||
-        typeof record.phase !== "string" ||
-        !record.context ||
-        (record.elapsed_ms !== undefined &&
-          (!Number.isSafeInteger(record.elapsed_ms) || record.elapsed_ms < 0))
-      )
+      const record: unknown = JSON.parse(readFileSync(path.join(directory, file), "utf8"));
+      if (!isTimingRecord(record))
         throw new Error("Invalid CI timing report; no measurement claimed");
       return record;
     });
