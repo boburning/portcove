@@ -2402,3 +2402,4 @@ test("selected setup identities admit both replacements only in the opt-in catal
 import "../apps/desktop/scripts/desktop-qualification-history.native.test.mts";
 import "../apps/desktop/scripts/desktop-harness.native.test.mts";
 import "../apps/desktop/scripts/desktop-native-observations.native.test.mts";
+import "../apps/desktop/scripts/desktop-webview-boundary.native.test.mts";

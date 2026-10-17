@@ -7,19 +7,51 @@ import {
   startEmbeddedInstalledSession,
 } from "./desktop-windows-embedded-session.mts";
 
-const { values, report } = await beginEmbeddedEvidence("installed-embedded-startup");
-let session;
+import type { EmbeddedSession, EmbeddedCleanup } from "./desktop-windows-embedded-session.mts";
+type EmbeddedBase = Awaited<ReturnType<typeof beginEmbeddedEvidence>>["report"];
+interface EmbeddedStartupReport extends EmbeddedBase {
+  executable?: { path: string; sha256: string; bytes: number };
+  listener?: EmbeddedSession["listener"];
+  failure?: string;
+  cleanup_failure?: string;
+  cleanup?: EmbeddedCleanup;
+  interpretation?: string;
+}
+function failureText(error: unknown): string {
+  const stack =
+    error !== null && (typeof error === "object" || typeof error === "function") && "stack" in error
+      ? error.stack
+      : undefined;
+  return String(stack ?? error);
+}
+const { values, report: baseReport } = await beginEmbeddedEvidence("installed-embedded-startup");
+const report: EmbeddedStartupReport = { ...baseReport };
+let session: EmbeddedSession | undefined;
 try {
   session = await startEmbeddedInstalledSession(values.app, values.output);
   const browser = await session.connect();
   report.executable = { path: values.app, ...session.identity };
   report.listener = session.listener;
-  const bootstrap = await browser.executeAsyncScript((done) => {
-    window.__TAURI_INTERNALS__
-      .invoke("get_bootstrap_status")
-      .then(done, (error) => done({ error: String(error) }));
-  });
-  assert.equal(path.resolve(bootstrap.library_root), path.resolve(process.env.PORTCOVE_LIBRARY));
+  const raw: unknown = await browser.executeAsyncScript<unknown>(
+    (done: (value: unknown) => void) => {
+      const native = (
+        window as Window & { __TAURI_INTERNALS__?: { invoke(command: string): Promise<unknown> } }
+      ).__TAURI_INTERNALS__;
+      if (!native) throw new Error("Embedded bootstrap bridge missing");
+      void native
+        .invoke("get_bootstrap_status")
+        .then(done, (error: unknown) => done({ error: String(error) }));
+    },
+  );
+  assert.ok(
+    raw !== null &&
+      typeof raw === "object" &&
+      "library_root" in raw &&
+      typeof raw.library_root === "string",
+  );
+  const expectedLibrary = process.env.PORTCOVE_LIBRARY;
+  assert.ok(expectedLibrary);
+  assert.equal(path.resolve(raw.library_root), path.resolve(expectedLibrary));
   await browser.wait(
     until.elementLocated(By.xpath('//h1[normalize-space(.)="Port catalog"]')),
     15_000,
@@ -38,7 +70,7 @@ try {
   );
   report.outcome = "passed";
 } catch (error) {
-  report.failure = String(error.stack ?? error);
+  report.failure = failureText(error);
   process.exitCode = 1;
 } finally {
   if (session) {
@@ -51,7 +83,7 @@ try {
       report.cleanup = await session.close();
     } catch (error) {
       report.outcome = "failed";
-      report.cleanup_failure = String(error.stack ?? error);
+      report.cleanup_failure = failureText(error);
       process.exitCode = 1;
     }
   }
