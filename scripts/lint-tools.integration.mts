@@ -1,3 +1,4 @@
+import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -11,8 +12,14 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const desktop = path.join(root, "apps", "desktop");
 const nonce = randomUUID();
 
-function run(command, args) {
-  const settings = {
+interface CommandResult {
+  error?: Error;
+  status: number | null;
+  stdout: string;
+  stderr: string;
+}
+function run(command: string, args: readonly string[]): CommandResult {
+  const settings: SpawnSyncOptionsWithStringEncoding = {
     cwd: root,
     encoding: "utf8",
     timeout: 30_000,
@@ -21,28 +28,27 @@ function run(command, args) {
   return command === "aqua" ? runAqua(args, settings) : spawnSync(command, args, settings);
 }
 
-function runAsync(command, args) {
-  return new Promise((resolve, reject) => {
+function runAsync(command: string, args: readonly string[]): Promise<CommandResult> {
+  return new Promise<CommandResult>((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: root,
-      encoding: "utf8",
       timeout: 30_000,
       windowsHide: true,
     });
     let stdout = "";
     let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdout += chunk.toString();
     });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
     });
     child.on("error", reject);
     child.on("close", (status) => resolve({ status, stdout, stderr }));
   });
 }
 
-function expectSuccess(tool, result) {
+function expectSuccess(tool: string, result: CommandResult) {
   assert.ifError(result.error);
   assert.equal(
     result.status,
@@ -51,7 +57,7 @@ function expectSuccess(tool, result) {
   );
 }
 
-function expectFailure(tool, result, diagnostic) {
+function expectFailure(tool: string, result: CommandResult, diagnostic: RegExp) {
   assert.ifError(result.error);
   assert.notEqual(result.status, 0, `${tool} accepted its invalid fixture`);
   assert.match(
@@ -61,7 +67,7 @@ function expectFailure(tool, result, diagnostic) {
   );
 }
 
-function expectFixture(tool, valid, invalid) {
+function expectFixture(tool: string, valid: CommandResult, invalid: CommandResult) {
   assert.ifError(valid.error);
   assert.equal(
     valid.status,
@@ -93,11 +99,11 @@ async function oxlintFixture() {
     );
     childInvocations += 1;
   }
-  function runOxlint(target) {
+  function runOxlint(target: string) {
     assertFixtureTarget(target);
     return run(runner.command, [...runner.args, "lint", target]);
   }
-  function runOxlintAsync(target) {
+  function runOxlintAsync(target: string) {
     assertFixtureTarget(target);
     return runAsync(runner.command, [...runner.args, "lint", target]);
   }
@@ -120,7 +126,7 @@ async function oxlintFixture() {
       ['export const view = <p aria-label="&#86;erified">file(s)</p>;', /portcove\(player-copy\)/u],
       ['export const broken = <p title="broken', /Unterminated|Expected/iu],
       ["let value; let value; export {value};", /already.*declared|redeclar/iu],
-    ]) {
+    ] as const) {
       await writeFile(fixture, source);
       expectFailure("Oxlint copy/parser policy", runOxlint(fixture), diagnostic);
     }
@@ -135,7 +141,7 @@ async function oxlintFixture() {
         /unused (?:oxlint-)?disable directive/i,
         "// oxlint-disable-next-line no-undef\nexport const value = 1;\n",
       ],
-    ]) {
+    ] as const) {
       await writeFile(fixture, source);
       expectFailure(`Oxlint ${rule}`, runOxlint(fixture), diagnostic);
     }
@@ -231,7 +237,7 @@ async function oxfmtFixture() {
     try {
       await writeFile(ignored, "{ malformed generated or historical input");
       const result = run(process.execPath, [
-        command[0],
+        requiredArgument(command, 0),
         "fmt",
         "--check",
         "--no-error-on-unmatched-pattern",
@@ -268,7 +274,7 @@ async function stylelintFixture() {
         "component gradient",
         "a { background: linear-gradient(var(--color-bg),var(--color-bg-elevated)); }\n",
       ],
-    ]) {
+    ] as const) {
       await writeFile(fixture, source);
       expectFixture(label, valid, run(process.execPath, args));
     }
@@ -277,7 +283,13 @@ async function stylelintFixture() {
   }
 }
 
-async function aquaFixture(tool, extension, validSource, invalidSource, arguments_) {
+async function aquaFixture(
+  tool: string,
+  extension: string,
+  validSource: string,
+  invalidSource: string,
+  arguments_: readonly string[],
+) {
   const fixture = path.join(root, "scripts", `.lint-${tool}-${nonce}.${extension}`);
   const command = ["exec", "--", tool, ...arguments_, fixture];
   try {
@@ -328,7 +340,7 @@ async function psscriptAnalyzerFixture() {
   }
 }
 
-const fixtures = {
+const fixtures: Record<string, () => Promise<void>> = {
   oxfmt: oxfmtFixture,
   oxlint: oxlintFixture,
   stylelint: stylelintFixture,
@@ -346,4 +358,13 @@ const selected = process.argv.slice(2);
 if (!selected.length || selected.some((name) => !Object.hasOwn(fixtures, name))) {
   throw new Error(`usage: lint-tools.integration.mts ${Object.keys(fixtures).join("|")} [...]`);
 }
-for (const name of selected) await fixtures[name]();
+for (const name of selected) {
+  const fixture = fixtures[name];
+  assert.ok(fixture);
+  await fixture();
+}
+function requiredArgument(args: readonly string[], index: number): string {
+  const value = args[index];
+  assert.ok(value !== undefined);
+  return value;
+}
