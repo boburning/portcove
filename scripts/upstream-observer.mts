@@ -1,8 +1,9 @@
+import { isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 
-function canonical(value) {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value && typeof value === "object")
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((entry: unknown) => canonical(entry));
+  if (isRecord(value))
     return Object.fromEntries(
       Object.keys(value)
         .sort()
@@ -11,30 +12,83 @@ function canonical(value) {
   return value;
 }
 
-export const observationHash = (value) =>
-  createHash("sha256")
-    .update(JSON.stringify(canonical(value)))
-    .digest("hex");
+export const observationHash = (value: unknown): string => {
+  const serialized = JSON.stringify(canonical(value));
+  if (serialized === undefined) throw new TypeError("Observation is not JSON serializable");
+  return createHash("sha256").update(serialized).digest("hex");
+};
+export interface ObserverBudget {
+  requests: number;
+  pages_per_collection: number;
+  response_bytes: number;
+  total_bytes: number;
+  duration_ms: number;
+  retries: number;
+}
+export interface ObserverConfig {
+  format: number;
+  port_id: string;
+  repository: string;
+  repository_id: number;
+  cadence_hours: number;
+  stale_after_hours: number;
+  budget: ObserverBudget;
+}
+export interface GithubPinScope {
+  repository: string;
+  repository_id: number;
+  archived: boolean;
+  release_id: number;
+  tag: string;
+  release_facts_sha256: string;
+  url: string;
+  asset_id: number;
+  name: string;
+  size: number;
+  sha256: string;
+  asset_facts_sha256: string;
+}
+interface CachedPage {
+  etag: string;
+  link: string;
+  body: unknown;
+  sha256: string;
+}
+export interface ObserverRequestOptions {
+  headers: Record<string, string>;
+  redirect: "error";
+  signal: AbortSignal;
+}
+export type ObserverFetch = (url: string, options: ObserverRequestOptions) => Promise<Response>;
+export interface ObserveOptions {
+  cache?: unknown;
+  fetch?: ObserverFetch;
+  now?: () => number;
+  sleep?: (milliseconds: number) => Promise<unknown>;
+  token?: string;
+}
 const apiRoot = "https://api.github.com";
 
 export class ObservationFailure extends Error {
-  constructor(rule, details, retryAt = null) {
+  rule: string;
+  retryAt: string | null;
+  constructor(rule: string, details: string, retryAt: string | null = null) {
     super(details);
     this.rule = rule;
     this.retryAt = retryAt;
   }
 }
 
-function requireFact(condition, rule, details) {
+function requireFact(condition: unknown, rule: string, details: string): asserts condition {
   if (!condition) throw new ObservationFailure(rule, details);
 }
 
-function keys(value, names, label) {
-  requireFact(
-    value && typeof value === "object" && !Array.isArray(value),
-    "invalid-metadata",
-    `${label} must be an object`,
-  );
+function keys(
+  value: unknown,
+  names: readonly string[],
+  label: string,
+): asserts value is Record<string, unknown> {
+  requireFact(isRecord(value), "invalid-metadata", `${label} must be an object`);
   requireFact(
     Object.keys(value).every((key) => names.includes(key)) &&
       names.every((key) => Object.hasOwn(value, key)),
@@ -43,7 +97,7 @@ function keys(value, names, label) {
   );
 }
 
-export function validateObserverConfig(config) {
+function assertObserverConfig(config: unknown): asserts config is ObserverConfig {
   keys(
     config,
     [
@@ -72,14 +126,18 @@ export function validateObserverConfig(config) {
     "invalid configured repository",
   );
   requireFact(
-    Number.isSafeInteger(config.repository_id) && config.repository_id > 0,
+    typeof config.repository_id === "number" &&
+      Number.isSafeInteger(config.repository_id) &&
+      config.repository_id > 0,
     "invalid-config",
     "repository numeric identity is required",
   );
   requireFact(
-    Number.isInteger(config.cadence_hours) &&
+    typeof config.cadence_hours === "number" &&
+      Number.isInteger(config.cadence_hours) &&
       config.cadence_hours >= 1 &&
       config.cadence_hours <= 24 &&
+      typeof config.stale_after_hours === "number" &&
       Number.isInteger(config.stale_after_hours) &&
       config.stale_after_hours >= config.cadence_hours &&
       config.stale_after_hours <= 48,
@@ -97,19 +155,24 @@ export function validateObserverConfig(config) {
   keys(config.budget, Object.keys(limits), "observer budget");
   for (const [name, maximum] of Object.entries(limits))
     requireFact(
-      Number.isInteger(config.budget[name]) &&
+      typeof config.budget[name] === "number" &&
+        Number.isInteger(config.budget[name]) &&
         config.budget[name] >= (name === "retries" ? 0 : 1) &&
         config.budget[name] <= maximum,
       "invalid-config",
       `invalid ${name} budget`,
     );
+  return;
+}
+export function validateObserverConfig(config: unknown): ObserverConfig {
+  assertObserverConfig(config);
   return config;
 }
 
-function textFact(value, label, maximum = 1024) {
+function textFact(value: unknown, label: string, maximum = 1024) {
   const hasControlCharacter =
     typeof value === "string" &&
-    [...value].some((character: string) => {
+    Array.from(value).some((character: string) => {
       const code = character.charCodeAt(0);
       return code <= 0x1f || code === 0x7f;
     });
@@ -124,16 +187,18 @@ function textFact(value, label, maximum = 1024) {
   return value;
 }
 
-function identity(value, label) {
+function identity(value: unknown, label: string) {
   requireFact(
-    Number.isSafeInteger(value) && value > 0,
+    typeof value === "number" && Number.isSafeInteger(value) && value > 0,
     "invalid-metadata",
     `invalid ${label} identity`,
   );
   return value;
 }
 
-function timestamp(value, label, nullable = false) {
+function timestamp(value: unknown, label: string, nullable?: false): string;
+function timestamp(value: unknown, label: string, nullable: true): string | null;
+function timestamp(value: unknown, label: string, nullable = false) {
   if (nullable && value === null) return null;
   requireFact(
     typeof value === "string" &&
@@ -145,7 +210,7 @@ function timestamp(value, label, nullable = false) {
   return value;
 }
 
-function downloadUrl(value, config, tag, name) {
+function downloadUrl(value: unknown, config: { repository: string }, tag: string, name: string) {
   const url = new URL(textFact(value, "asset URL", 4096));
   const expected = `/${config.repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(name)}`;
   requireFact(
@@ -158,11 +223,11 @@ function downloadUrl(value, config, tag, name) {
     "asset-scope",
     "asset URL does not match the configured repository, tag and filename",
   );
-  return value;
+  return textFact(value, "asset URL", 4096);
 }
 
-function assetFact(asset, config, tag) {
-  requireFact(asset && typeof asset === "object", "invalid-metadata", "invalid asset object");
+function assetFact(asset: unknown, config: { repository: string }, tag: string) {
+  requireFact(isRecord(asset), "invalid-metadata", "invalid asset object");
   const name = textFact(asset.name, "asset filename", 255);
   requireFact(
     !/[\\/]/.test(name) && name !== "." && name !== "..",
@@ -170,14 +235,17 @@ function assetFact(asset, config, tag) {
     "asset filename is not a single component",
   );
   requireFact(
-    Number.isSafeInteger(asset.size) && asset.size >= 0 && asset.state === "uploaded",
+    typeof asset.size === "number" &&
+      Number.isSafeInteger(asset.size) &&
+      asset.size >= 0 &&
+      asset.state === "uploaded",
     "invalid-metadata",
     "asset size or upload state is invalid",
   );
   requireFact(
     asset.digest === null ||
       asset.digest === undefined ||
-      /^sha256:[a-fA-F0-9]{64}$/.test(asset.digest),
+      (typeof asset.digest === "string" && /^sha256:[a-fA-F0-9]{64}$/.test(asset.digest)),
     "invalid-metadata",
     "unsupported asset digest",
   );
@@ -193,10 +261,9 @@ function assetFact(asset, config, tag) {
   };
 }
 
-function releaseFact(release) {
+function releaseFact(release: unknown) {
   requireFact(
-    release &&
-      typeof release === "object" &&
+    isRecord(release) &&
       typeof release.draft === "boolean" &&
       typeof release.prerelease === "boolean",
     "invalid-metadata",
@@ -218,9 +285,13 @@ function releaseFact(release) {
   };
 }
 
-function repositoryFact(repository, config) {
+function repositoryFact(
+  repository: unknown,
+  config: Pick<ObserverConfig, "repository" | "repository_id">,
+) {
   requireFact(
-    repository?.id === config.repository_id &&
+    isRecord(repository) &&
+      repository.id === config.repository_id &&
       repository.full_name === config.repository &&
       typeof repository.archived === "boolean",
     "repository-identity",
@@ -234,7 +305,7 @@ function repositoryFact(repository, config) {
 }
 
 // A fixed declared download URL selects metadata, never a redirect destination.
-export function githubDirectPin(url) {
+export function githubDirectPin(url: string) {
   const parsed = new URL(url);
   const parts = parsed.pathname.split("/");
   requireFact(
@@ -248,8 +319,8 @@ export function githubDirectPin(url) {
     "asset-scope",
     "invalid declared repository",
   );
-  const tag = textFact(decodeURIComponent(parts[5]), "release tag", 255);
-  const name = textFact(decodeURIComponent(parts[6]), "asset filename", 255);
+  const tag = textFact(decodeURIComponent(parts[5] ?? ""), "release tag", 255);
+  const name = textFact(decodeURIComponent(parts[6] ?? ""), "asset filename", 255);
   requireFact(
     !/[\\/]/u.test(name) && name !== "." && name !== "..",
     "asset-scope",
@@ -260,7 +331,12 @@ export function githubDirectPin(url) {
 }
 
 // Provider metadata is a pin-presence fact, not verified bytes or lineage.
-export function validateGithubPinMetadata(repository, release, assets, expected) {
+export function validateGithubPinMetadata(
+  repository: unknown,
+  release: unknown,
+  assets: unknown,
+  expected: GithubPinScope,
+) {
   const config = { repository: expected.repository, repository_id: expected.repository_id };
   const repo = repositoryFact(repository, config);
   requireFact(repo.archived === expected.archived, "repository-identity", "archive state changed");
@@ -277,13 +353,14 @@ export function validateGithubPinMetadata(repository, release, assets, expected)
     Array.isArray(assets) &&
       assets.length > 0 &&
       assets.length < 100 &&
+      isRecord(release) &&
       Array.isArray(release.assets) &&
       release.assets.length === assets.length,
     "invalid-metadata",
     "asset collection is empty, capped or incomplete",
   );
-  const normalized = assets.map((asset) => assetFact(asset, config, expected.tag));
-  const embedded = release.assets.map((asset) => assetFact(asset, config, expected.tag));
+  const normalized = assets.map((asset: unknown) => assetFact(asset, config, expected.tag));
+  const embedded = release.assets.map((asset: unknown) => assetFact(asset, config, expected.tag));
   const ids = normalized.map((asset) => asset.id);
   requireFact(
     new Set(ids).size === ids.length &&
@@ -294,7 +371,11 @@ export function validateGithubPinMetadata(repository, release, assets, expected)
     "asset collections differ or repeat an identity",
   );
   const matches = normalized.filter((asset) => asset.browser_download_url === expected.url);
-  requireFact(matches.length === 1, "asset-scope", "declared asset is missing or ambiguous");
+  requireFact(
+    matches.length === 1 && matches[0] !== undefined,
+    "asset-scope",
+    "declared asset is missing or ambiguous",
+  );
   const asset = matches[0];
   requireFact(
     asset.id === expected.asset_id &&
@@ -308,7 +389,7 @@ export function validateGithubPinMetadata(repository, release, assets, expected)
   return { repository: repo, release: selectedRelease, asset };
 }
 
-function nextPage(link: string, pathname: string, page, config) {
+function nextPage(link: string, pathname: string, page: number, config: ObserverConfig) {
   if (!link) return false;
   const paths = [
     pathname,
@@ -318,6 +399,11 @@ function nextPage(link: string, pathname: string, page, config) {
   for (const part of link.split(",")) {
     const match = part.trim().match(/^<([^>]+)>; rel="(next|prev|first|last)"$/);
     requireFact(match, "pagination", "malformed pagination link");
+    requireFact(
+      match[1] !== undefined && match[2] !== undefined,
+      "pagination",
+      "malformed pagination capture",
+    );
     const url = new URL(match[1]);
     const number = Number(url.searchParams.get("page"));
     requireFact(
@@ -341,15 +427,11 @@ function nextPage(link: string, pathname: string, page, config) {
   return relations.has("next");
 }
 
-function validatedCache(cache, configHash) {
+function validatedCache(cache: unknown, configHash: string): Record<string, unknown> {
   if (!cache) return {};
   keys(cache, ["format", "config_sha256", "pages"], "observation cache");
   requireFact(
-    cache.format === 1 &&
-      cache.config_sha256 === configHash &&
-      cache.pages &&
-      typeof cache.pages === "object" &&
-      !Array.isArray(cache.pages),
+    cache.format === 1 && cache.config_sha256 === configHash && isRecord(cache.pages),
     "invalid-cache",
     "cache configuration identity differs",
   );
@@ -357,35 +439,54 @@ function validatedCache(cache, configHash) {
 }
 
 /** Read-only provider observations. No candidate data is executed or admitted. */
-export async function observeUpstream(config, options = {}) {
-  validateObserverConfig(config);
+export async function observeUpstream(input: unknown, options: ObserveOptions = {}) {
+  const config = validateObserverConfig(input);
   const configHash = observationHash(config);
   const prior = validatedCache(options.cache, configHash);
   const fetcher = options.fetch ?? fetch;
   const now = options.now ?? Date.now;
-  const sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const sleep =
+    options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   const started = now();
-  const pages = {};
+  const pages: Record<string, CachedPage> = {};
   const consumed = { requests: 0, response_bytes: 0, conditional_hits: 0 };
-  const requestOrder = [];
+  const requestOrder: {
+    pathname: string;
+    page: number | null;
+    normalize: (value: unknown) => unknown;
+    url: string;
+    value: CachedPage;
+  }[] = [];
 
-  async function request(pathname, page = null, cached = null) {
+  async function request(
+    pathname: string,
+    page: number | null = null,
+    cached: unknown = null,
+  ): Promise<{ url: string; value: CachedPage }> {
     const url = `${apiRoot}${pathname}${page === null ? "" : `?per_page=100&page=${page}`}`;
-    const previous = cached ?? prior[url];
-    if (previous) {
-      keys(previous, ["etag", "link", "body", "sha256"], "cached response");
+    const candidate = cached ?? prior[url];
+    let previous: CachedPage | undefined;
+    if (candidate) {
+      keys(candidate, ["etag", "link", "body", "sha256"], "cached response");
       requireFact(
-        typeof previous.etag === "string" &&
-          previous.etag.length <= 512 &&
-          !/[\r\n]/.test(previous.etag) &&
-          typeof previous.link === "string" &&
-          previous.link.length <= 8192 &&
-          previous.sha256 === observationHash(previous.body),
+        typeof candidate.etag === "string" &&
+          candidate.etag.length <= 512 &&
+          !/[\r\n]/.test(candidate.etag) &&
+          typeof candidate.link === "string" &&
+          candidate.link.length <= 8192 &&
+          candidate.sha256 === observationHash(candidate.body),
         "invalid-cache",
         "cached response identity is invalid",
       );
+      requireFact(typeof candidate.sha256 === "string", "invalid-cache", "invalid cached hash");
+      previous = {
+        etag: candidate.etag,
+        link: candidate.link,
+        body: candidate.body,
+        sha256: candidate.sha256,
+      };
       requireFact(
-        Buffer.byteLength(JSON.stringify(previous.body)) <= config.budget.response_bytes,
+        Buffer.byteLength(JSON.stringify(candidate.body)) <= config.budget.response_bytes,
         "invalid-cache",
         "cached response exceeds the byte budget",
       );
@@ -397,7 +498,7 @@ export async function observeUpstream(config, options = {}) {
         "budget",
         "observation request or time budget exhausted",
       );
-      const headers = {
+      const headers: Record<string, string> = {
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "Portcove-upstream-observer",
@@ -473,20 +574,27 @@ export async function observeUpstream(config, options = {}) {
         await response.body?.cancel();
         throw new ObservationFailure("invalid-metadata", "provider response is not JSON");
       }
-      const chunks = [];
+      const chunks: Uint8Array[] = [];
       let bytes = 0;
+      requireFact(response.body, "invalid-metadata", "provider response has no body");
       for await (const chunk of response.body) {
-        bytes += chunk.length;
-        consumed.response_bytes += chunk.length;
+        const bytesChunk: unknown = chunk;
+        requireFact(
+          bytesChunk instanceof Uint8Array,
+          "invalid-metadata",
+          "provider response chunk is not bytes",
+        );
+        bytes += bytesChunk.length;
+        consumed.response_bytes += bytesChunk.length;
         requireFact(
           bytes <= config.budget.response_bytes &&
             consumed.response_bytes <= config.budget.total_bytes,
           "budget",
           "provider response byte budget exhausted",
         );
-        chunks.push(chunk);
+        chunks.push(bytesChunk);
       }
-      let body;
+      let body: unknown;
       try {
         body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)));
       } catch {
@@ -504,14 +612,21 @@ export async function observeUpstream(config, options = {}) {
     }
   }
 
-  async function read(pathname, page, normalize) {
+  async function read(
+    pathname: string,
+    page: number | null,
+    normalize: (value: unknown) => unknown,
+  ) {
     const result = await request(pathname, page);
     pages[result.url] = result.value;
     requestOrder.push({ pathname, page, normalize, ...result });
     return result.value;
   }
 
-  async function collection(pathname, normalizeItem) {
+  async function collection(
+    pathname: string,
+    normalizeItem: (value: unknown) => unknown,
+  ): Promise<unknown[]> {
     const all = [];
     const ids = new Set();
     for (let page = 1; ; page++) {
@@ -526,15 +641,16 @@ export async function observeUpstream(config, options = {}) {
           "invalid-metadata",
           "collection page must contain at most 100 objects",
         );
-        return body.map(normalizeItem);
+        return body.map((value: unknown) => normalizeItem(value));
       });
       requireFact(
         Array.isArray(response.body) && response.body.length <= 100,
         "invalid-metadata",
         "collection page must contain at most 100 objects",
       );
-      for (const item of response.body) {
-        const id = identity(item?.id, "collection item");
+      const items: unknown[] = response.body;
+      for (const item of items) {
+        const id = identity(isRecord(item) ? item.id : undefined, "collection item");
         requireFact(!ids.has(id), "pagination", "collection repeated an identity across pages");
         ids.add(id);
         all.push(item);
@@ -553,11 +669,11 @@ export async function observeUpstream(config, options = {}) {
   const assetIds = new Set();
   for (const raw of await collection(`${repositoryPath}/releases`, releaseFact)) {
     const release = releaseFact(raw);
-    const normalizeAsset = (asset) => assetFact(asset, config, release.tag_name);
-    release.assets = (
+    const normalizeAsset = (asset: unknown) => assetFact(asset, config, release.tag_name);
+    const assets = (
       await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)
     ).map(normalizeAsset);
-    for (const asset of release.assets) {
+    for (const asset of assets) {
       requireFact(
         !assetIds.has(asset.id),
         "invalid-metadata",
@@ -565,7 +681,7 @@ export async function observeUpstream(config, options = {}) {
       );
       assetIds.add(asset.id);
     }
-    releases.push(release);
+    releases.push({ ...release, assets });
   }
   // GitHub provides no atomic repository snapshot. Revalidate every consumed
   // page and preserve the observation interval; any detected change aborts.
