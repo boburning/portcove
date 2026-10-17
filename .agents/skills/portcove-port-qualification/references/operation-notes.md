@@ -76,7 +76,7 @@ evidence. A schema pass, download or launch alone is not gameplay or full
 lifecycle qualification. Unknown saves permit only operations that do not
 claim, replace or delete unowned data until ownership is established.
 
-Capture an initialized library with `node scripts/qualification-report.mjs --cli <absolute-executable> --library <absolute-library> --output <new-directory>`. Inspect the script's current arguments before composing a larger session. For Windows session orchestration, read [windows-qualification-session.ps1](../../../../scripts/windows-qualification-session.ps1).
+Capture an initialized library with `node scripts/qualification-report.mts --cli <absolute-executable> --library <absolute-library> --output <new-directory>`. Inspect the script's current arguments before composing a larger session. For Windows session orchestration, read [windows-qualification-session.ps1](../../../../scripts/windows-qualification-session.ps1).
 
 Report exact artifact, platform, source contract/variant/representation, check version, operation, outcome and evidence location. Preserve failed, not-run and unknown results. The report collects snapshots; it does not grant qualification. Keep isolated fixtures, packaged execution, physical-device results and human gameplay distinct.
 

@@ -26,7 +26,7 @@ $bootstrapManifest = Get-Content -LiteralPath (Join-Path $projectRoot ".config\t
 $requiredAqua = (Get-Content -LiteralPath (Join-Path $projectRoot ".aqua-version") -Raw).Trim()
 $requiredAquaSemver = $requiredAqua.TrimStart("v")
 $requiredNodeVersion = (Get-Content -LiteralPath (Join-Path $projectRoot ".node-version") -Raw).Trim()
-$toolPathsJson = & node (Join-Path $PSScriptRoot "tool-cache.mjs") --paths
+$toolPathsJson = & node (Join-Path $PSScriptRoot "tool-cache.mts") --paths
 if ($LASTEXITCODE -ne 0) { throw "Could not resolve the checkout tool-cache contract" }
 $toolPaths = $toolPathsJson | ConvertFrom-Json
 $sharedRoot = [IO.Path]::GetFullPath([string]$toolPaths.sharedRoot)
@@ -37,7 +37,7 @@ $aquaExecutable = [IO.Path]::GetFullPath([string]$toolPaths.aquaExecutable)
 $capabilityPlan = $null
 if ($CapabilityProfile -ne "standard") {
     if ($Desktop -or $IncludeDeep) { throw "Selective profiles cannot be combined with legacy -Desktop or -IncludeDeep" }
-    $planJson = & node (Join-Path $PSScriptRoot "development-capabilities.mjs") --profile $CapabilityProfile
+    $planJson = & node (Join-Path $PSScriptRoot "development-capabilities.mts") --profile $CapabilityProfile
     if ($LASTEXITCODE -ne 0) { throw "Could not select requested development capabilities" }
     $capabilityPlan = $planJson | ConvertFrom-Json
     if ($capabilityPlan.setup.native -and -not $runningOnWindows) {
@@ -54,10 +54,10 @@ if ($env:GITHUB_ACTIONS -ne "true" -and $env:PORTCOVE_CONTAINER_GUEST -ne "1") {
                 if ($entry.Value.IsPresent) { $resumeArguments += "-$($entry.Key)" }
             } else { $resumeArguments += "-$($entry.Key)"; $resumeArguments += [string]$entry.Value }
         }
-        & node (Join-Path $PSScriptRoot "resource-command.mjs") rust --bootstrap -- (Get-Process -Id $PID).Path -NoProfile -File $PSCommandPath @resumeArguments
+        & node (Join-Path $PSScriptRoot "resource-command.mts") rust --bootstrap -- (Get-Process -Id $PID).Path -NoProfile -File $PSCommandPath @resumeArguments
         exit $LASTEXITCODE
     }
-    & node (Join-Path $PSScriptRoot "resource-command.mjs") verify-bootstrap
+    & node (Join-Path $PSScriptRoot "resource-command.mts") verify-bootstrap
     if ($LASTEXITCODE -ne 0) { throw "Bootstrap resource inheritance is invalid" }
 }
 function Install-SelectedFrontend {
@@ -72,7 +72,7 @@ function Install-SelectedFrontend {
         throw "Provide pnpm $pnpmVersion on PATH; Corepack is an optional provisioning provider"
     }
     if ($LASTEXITCODE -ne 0) { throw "Requested frontend dependency provisioning failed" }
-    & node (Join-Path $PSScriptRoot "hooks-install.mjs")
+    & node (Join-Path $PSScriptRoot "hooks-install.mts")
     if ($LASTEXITCODE -ne 0) { throw "Explicit development hook setup failed; existing hooks were preserved" }
 }
 if ($capabilityPlan -and $capabilityPlan.setup.frontend) { Install-SelectedFrontend }
@@ -97,7 +97,7 @@ if ($capabilityPlan -and $capabilityPlan.setup.rust) {
 }
 
 if ($CapabilityProfile -eq "frontend") {
-    & node (Join-Path $PSScriptRoot "dev-doctor.mjs") --profile frontend
+    & node (Join-Path $PSScriptRoot "dev-doctor.mts") --profile frontend
     if ($LASTEXITCODE -ne 0) { throw "Requested frontend profile remains incomplete" }
     exit 0
 }
@@ -540,7 +540,7 @@ try {
         Install-DesktopTools
     }
     else {
-        $existingStateJson = & node (Join-Path $PSScriptRoot "tool-cache.mjs") --state
+        $existingStateJson = & node (Join-Path $PSScriptRoot "tool-cache.mts") --state
         if ($LASTEXITCODE -eq 0 -and $existingStateJson) {
             ($existingStateJson | ConvertFrom-Json).desktop
         }
@@ -571,7 +571,7 @@ finally {
 }
 
 if ($capabilityPlan) {
-    & node (Join-Path $PSScriptRoot "dev-doctor.mjs") --profile $CapabilityProfile
+    & node (Join-Path $PSScriptRoot "dev-doctor.mts") --profile $CapabilityProfile
     if ($LASTEXITCODE -ne 0) { throw "Requested $CapabilityProfile profile remains incomplete" }
 }
 Write-Output "Pinned Portcove tools are ready in $sharedRoot."

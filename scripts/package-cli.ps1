@@ -18,8 +18,8 @@ if ([string]::IsNullOrWhiteSpace($TargetRoot)) {
 $TargetRoot = [System.IO.Path]::GetFullPath($TargetRoot)
 
 $scriptsRoot = Join-Path $ProjectRoot "scripts"
-$metadataScript = Join-Path $scriptsRoot "check-release-metadata.mjs"
-$policyScript = Join-Path $scriptsRoot "release-package-policy.mjs"
+$metadataScript = Join-Path $scriptsRoot "check-release-metadata.mts"
+$policyScript = Join-Path $scriptsRoot "release-package-policy.mts"
 $version = (& node $metadataScript --print-version | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($version)) {
     throw "Could not resolve the verified release version"

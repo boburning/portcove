@@ -149,7 +149,7 @@ fails. A successful traversal is a dated observation, not an atomic snapshot
 of concurrent field edits.
 
 Repository Node tools execute GitHub requests through the shared
-`scripts/github-api.mjs` transport. GraphQL queries and variables are serialized
+`scripts/github-api.mts` transport. GraphQL queries and variables are serialized
 as one JSON stdin document rather than shell fields; REST bodies use the same
 boundary. That transport owns response headers, quota evidence and generic Link
 pagination, while this Roadmap client continues to own Project schema,
@@ -164,7 +164,7 @@ retried blindly. A partial run stops safely and the same specification can be
 resumed because already-applied targets are reconciled explicitly. Full
 readback and the Roadmap doctor remain the final success gate.
 
-`roadmap.mjs set-many` and `pr-delivery.mjs watch|merge` retain their human
+`roadmap.mts set-many` and `pr-delivery.mts watch|merge` retain their human
 output by default. `--json` emits one schema-versioned operation envelope on
 stdout with `planned`, `succeeded`, `partial`, `unknown` or `failed` status;
 diagnostics stay on stderr and every status other than `planned` or `succeeded`
@@ -178,7 +178,7 @@ ProjectV2 fields, items, views and dependencies remain GraphQL-owned; REST issue
 coverage cannot substitute for those fields.
 
 For more than one planned field transition, prepare an ignored JSON file under
-`work/` and use `node scripts/roadmap.mjs set-many --spec-file <path>`. Each
+`work/` and use `node scripts/roadmap.mts set-many --spec-file <path>`. Each
 transition records an exact `from` value (or `null` for unset) and configured
 `to` value. The default is a read-only plan; add `--apply` only after reviewing
 the resolved targets, already-applied transitions, observed GraphQL cost and
@@ -315,7 +315,7 @@ readiness analysis serve migrations and release declarations, not every PR.
 
 Required determines release readiness. Planned is approved non-gating work that
 runners are expected to execute by Priority, Horizon, readiness and Project order.
-Use `roadmap.mjs next` as the common execution queue; a Required-only readiness
+Use `roadmap.mts next` as the common execution queue; a Required-only readiness
 view is never the universal task selector. Deferred work remains inactive.
 
 One owner is accountable for each coherent candidate. At clean handoffs favor
@@ -379,8 +379,8 @@ live Project fields, typed relationships, actual writers and exact source once.
 Reuse that context until material requirements or source changes; refresh the
 relevant authority before final merge or a remote write. Compare actual deltas
 and repeat only affected obligations, without ceremonial stage-by-stage reads.
-Use `roadmap.mjs next` for the common Required/Planned queue and
-`roadmap.mjs context --issue <number> --runner <reported-instance> --json`
+Use `roadmap.mts next` for the common Required/Planned queue and
+`roadmap.mts context --issue <number> --runner <reported-instance> --json`
 for full current task requirements. The configured `delivery_mode` is
 `single-local-runner` (a legacy transport name for retiring the coordinator board,
 not a limit on workers or models). Context skips the retired operational board and does not
@@ -566,7 +566,7 @@ when declaring Public beta or 1.0; incomplete future capabilities do not block
 an otherwise eligible development preview. This planning distinction does not
 activate new publication authority or change current release invocations.
 
-`roadmap.mjs candidate-scope --issues 123,456` evaluates an explicitly frozen
+`roadmap.mts candidate-scope --issues 123,456` evaluates an explicitly frozen
 candidate's implementation scope and genuine transitive blockers independently
 of cumulative milestones. Selected optional work still has to be complete when
 included in that candidate; missing/unclassified dependencies fail closed. A
@@ -574,11 +574,11 @@ READY scope result never substitutes for package, CI, review, signature/feed or
 publication-authority checks. Use `readiness --release "Public beta"` or
 `readiness --release "1.0"` additionally for a maturity declaration.
 
-Historical receipts retain Opportunistic. Readiness interprets that historical input as Planned, while active configuration uses only Required / Planned. Use `roadmap.mjs rename-commitment` for a read-only in-place option plan, then `--apply` for an ID-preserving rename with assignment readback. An already-applied rename is a no-op; competing old/new options refuse automatic consolidation.
+Historical receipts retain Opportunistic. Readiness interprets that historical input as Planned, while active configuration uses only Required / Planned. Use `roadmap.mts rename-commitment` for a read-only in-place option plan, then `--apply` for an ID-preserving rename with assignment readback. An already-applied rename is a no-op; competing old/new options refuse automatic consolidation.
 
 ## Tools and snapshots
 
-Use `node scripts/roadmap.mjs capture-port` for direct maintainer port intake,
+Use `node scripts/roadmap.mts capture-port` for direct maintainer port intake,
 `normalize-port --issue <number>` for a public New Port form submission,
 `capture-feature` for feature intake, `promote` for draft-to-issue conversion,
 `set` and `move` for planning changes, `next` for the ordered work queue, and
@@ -607,11 +607,11 @@ remain explicit manual confirmations. `bootstrap` reconciles the live Project; o
 only the offline `check` and tests.
 
 Before a tagged release, generate a dated readiness snapshot with
-`roadmap.mjs snapshot`. Review and commit that immutable evidence document under
+`roadmap.mts snapshot`. Review and commit that immutable evidence document under
 `docs/releases/`. It records what the Project and catalog said at one commit;
 the live Project remains authoritative afterward.
 
-Use `source-provenance-audit.mjs --live` when a dated source-support and durable
+Use `source-provenance-audit.mts --live` when a dated source-support and durable
 Port-ticket coverage record is needed. The command reads the raw catalog,
 repository issues, and Project items; it writes only the explicitly selected
 path under `docs/archive/`. The report records the exact catalog digest, dynamic

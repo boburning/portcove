@@ -9,7 +9,7 @@ Read `docs/PROJECT-GOVERNANCE.md` and load `portcove-roadmap` before intake
 or planning changes. Reuse canonical issues and preserve completed work,
 parent relationships, dependencies, and active reservations.
 
-Use `node scripts/roadmap.mjs capture-feature` for feature intake. It creates
+Use `node scripts/roadmap.mts capture-feature` for feature intake. It creates
 a Project draft; use `promote <draft-item-id> --spec-file <path>` with a complete
 specification to create the durable GitHub issue. Use `capture-port` for direct
 maintainer port intake and `normalize-port` for public New Port submissions.

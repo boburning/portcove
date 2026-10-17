@@ -1,5 +1,5 @@
 import { expect, test, afterEach } from "vite-plus/test";
-import { observeCompletionReturnFocus } from "../../scripts/desktop-completion-focus.mjs";
+import { observeCompletionReturnFocus } from "../../scripts/desktop-completion-focus.mts";
 afterEach(() => document.body.replaceChildren());
 
 type FocusCase = [

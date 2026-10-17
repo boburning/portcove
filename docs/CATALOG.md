@@ -3,7 +3,7 @@
 ## Default covers
 
 For a whole ordinary catalog proposal, use
-`node scripts/generate-catalog.mjs --prepare-proposal PROPOSAL.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY`.
+`node scripts/generate-catalog.mts --prepare-proposal PROPOSAL.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY`.
 Optional artwork facts/credentials/refresh flags are the same as below. This
 mode snapshots the explicitly selected CLI, checks accepted/input/output catalog
 declarations through `catalog inspect-proposal`, and prepares existing artwork in
@@ -85,7 +85,7 @@ changed references. Ordinary schema-2 catalog proposals can prepare covers and
 their evidence in the same batch using the existing generator:
 
 ```text
-node scripts/generate-catalog.mjs --prepare-artwork PROPOSAL.json --identities FACTS.json --credentials-file PRIVATE.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY
+node scripts/generate-catalog.mts --prepare-artwork PROPOSAL.json --identities FACTS.json --credentials-file PRIVATE.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY
 ```
 
 The optional facts document is keyed by stable port ID. Ordinary port matching
@@ -151,7 +151,7 @@ other roles, full backlog coverage, protected acceptance/publication and install
 or physical-platform evidence retain their own acceptance.
 
 Generate the embedded catalog with
-`node scripts/generate-catalog.mjs`, then run selected local checks and the opt-in
+`node scripts/generate-catalog.mts`, then run selected local checks and the opt-in
 `just desktop-verify --scenario native-default-cover-display --require-clean`.
 That scenario derives its cover inventory from the actual native catalog, checks
 every mapped cover in both themes, and captures representative detail surfaces.
@@ -428,7 +428,7 @@ this clarification creates no new qualification record or platform support.
 
 ### Qualification evidence preparation
 
-`node scripts/qualification-report.mjs --cli <executable> --library <library> --output <new-directory>`
+`node scripts/qualification-report.mts --cli <executable> --library <library> --output <new-directory>`
 captures existing versioned core snapshots and a checklist for active managed
 installs and non-owning external registrations. Format 1 retains managed fields
 and adds `runtime_kind`, a distinct `registration_id`, and available platform,
@@ -712,7 +712,7 @@ variants, tagged physical representations, explicitly scoped conjunctive digest
 records, per-port game and BIOS contracts, validators, exact qualification facts,
 and immutable evidence
 references. Maintainers edit the complete schema-2 authority in
-`catalog-current-authoring.json`; `scripts/generate-catalog.mjs` deterministically
+`catalog-current-authoring.json`; `scripts/generate-catalog.mts` deterministically
 generates the embedded `catalog.json`, and `--check` refuses stale output. Core owns the temporary
 schema-1 compatibility projection required by the existing matcher and rejects
 any conflicting projection supplied by catalog input. The deterministic
@@ -821,7 +821,7 @@ exceptions have bounded retries, scope and a reproducible resume condition.
 
 ## Read-only disappearance reporting
 
-`scripts/check-catalog-repositories.mjs` reports each catalog port against six
+`scripts/check-catalog-repositories.mts` reports each catalog port against six
 separate facts: original-upstream reachability, lineage, exact accepted-artifact
 obtainability, preservation, applicable holds, and retained qualification. Its
 format-2 output binds the canonical catalog hash and observation interval. A

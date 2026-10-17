@@ -5,7 +5,7 @@ Resolve the active checkout with `git rev-parse --show-toplevel` before using
 relative paths.
 Invoke `.agents/skills/portcove-daily-discovery/SKILL.md` in `boburning/portcove`.
 The observer is an investigator, not another product implementer. Use current
-`roadmap.mjs --help`, the [Roadmap skill](../.agents/skills/portcove-roadmap/SKILL.md)
+`roadmap.mts --help`, the [Roadmap skill](../.agents/skills/portcove-roadmap/SKILL.md)
 and [pickup contract](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
 Do not close #177 on delivery of this slice.
 
@@ -50,7 +50,7 @@ Keep one durable checkpoint in the existing task's observation storage. For
 local execution without task storage, use one dedicated metadata checkout's
 ignored `work/daily-discovery/`; do not edit an active product checkout. Persist
 that path in the scheduler prompt. Use the existing `withCheckpointLock` from
-`observe-configured-upstream.mjs` on `work/daily-discovery/investigation` for
+`observe-configured-upstream.mts` on `work/daily-discovery/investigation` for
 the full investigation, including writes (separate from the checkpoint file's
 short commit lock, so the CLI can safely acquire that inner lock);
 the path must be under that checkout's `work/`. Never remove a live/stale lock
@@ -106,12 +106,12 @@ IDs, including relevant held/deferred/closed records. Only mark an issue
 checked after completing its selected metadata review; report weekly overdue
 IDs/count honestly when 50/day or the budget cannot cover them.
 
-`scripts/discovery-checkpoint.mjs` supplies pure incremental state functions,
+`scripts/discovery-checkpoint.mts` supplies pure incremental state functions,
 release fingerprints, oldest-first rotation and a local collection-state CLI:
 
 ```sh
-node scripts/discovery-checkpoint.mjs plan work/daily-discovery/checkpoint.json work/daily-discovery/run.json
-node scripts/discovery-checkpoint.mjs apply work/daily-discovery/checkpoint.json work/daily-discovery/run.json
+node scripts/discovery-checkpoint.mts plan work/daily-discovery/checkpoint.json work/daily-discovery/run.json
+node scripts/discovery-checkpoint.mts apply work/daily-discovery/checkpoint.json work/daily-discovery/run.json
 ```
 
 The run envelope contains `observed_at`, `expected_checkpoint_sha256` (copy
@@ -172,7 +172,7 @@ retain a precise intake conflict for the existing tooling owner; do not bypass i
 For known implementations, read current issue body, relevant recent comments
 and Project preimage immediately before writing. Preserve closure, assignment,
 status/stage, priority, horizon, target, commitment and ownership. Prefer one
-concise dated material-change comment; use `github-body.mjs` exact preimage
+concise dated material-change comment; use `github-body.mts` exact preimage
 edits only to correct factual current wording while preserving linked history.
 On concurrent change re-read/reconcile that item; on denied writes stop that
 mutation path. On ambiguous success read back before retry. Fingerprint the

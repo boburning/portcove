@@ -5,8 +5,8 @@
     "src/i18next-contract.test-d.ts",
     "src/i18next.d.ts",
     "src/dev-scenarios/entry.ts",
-    "test/browser-setup.mjs",
-    "scripts/*.native.test.mjs"
+    "test/browser-setup.mts",
+    "scripts/*.native.test.mts"
   ],
   "boundaries": {
     "zones": [

@@ -22,6 +22,9 @@ on:
       plan_json:
         description: Exact qualification plan.
         value: ${{ jobs.qualify.outputs.plan_json }}
+      plan_gzip_base64:
+        description: Bounded compressed transport of the executed qualification plan.
+        value: ${{ jobs.qualify.outputs.plan_gzip_base64 }}
       checkout:
         description: Exact qualified candidate revision.
         value: ${{ jobs.qualify.outputs.checkout }}

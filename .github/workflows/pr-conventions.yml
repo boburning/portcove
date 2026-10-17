@@ -35,4 +35,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
-        run: node scripts/pr-conventions.mjs --pr "$PR_NUMBER"
+        run: node scripts/pr-conventions.mts --pr "$PR_NUMBER"

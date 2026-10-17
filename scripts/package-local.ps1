@@ -2,7 +2,7 @@ param([string]$Version)
 
 $ErrorActionPreference = "Stop"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$storageScript = Join-Path $PSScriptRoot "dev-storage.mjs"
+$storageScript = Join-Path $PSScriptRoot "dev-storage.mts"
 $storageJson = & node $storageScript preflight --json
 if ($LASTEXITCODE -ne 0) { throw "Development storage preflight failed with exit code $LASTEXITCODE" }
 $storage = $storageJson | ConvertFrom-Json
@@ -33,7 +33,7 @@ try {
         $previousEnvironment[$name] = [System.Environment]::GetEnvironmentVariable($name, "Process")
         [System.Environment]::SetEnvironmentVariable($name, $storageEnvironment[$name], "Process")
     }
-    $metadataScript = Join-Path $projectRoot "scripts\check-release-metadata.mjs"
+    $metadataScript = Join-Path $projectRoot "scripts\check-release-metadata.mts"
     if ([string]::IsNullOrWhiteSpace($Version)) {
         $Version = (& node $metadataScript --print-version | Out-String).Trim()
     }
