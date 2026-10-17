@@ -1134,6 +1134,14 @@ The curated profiles are:
 - `full`: smoke, owned lifecycle and artwork. It remains a curated native suite,
   not universal desktop, physical-device, gameplay or human qualification.
 
+`--scenario native-direct-preparation-recovery` is an opt-in Windows journey
+through a real failed owned setup child. Its original source/runtime inputs and
+active installation remain unchanged; the actual Core failure supplies the
+affected preparation target. The direct error opens that game's existing
+detail review after navigation, with the same activity inventory and no repeated
+preparation. This is native debug/owned-fixture evidence, not an unfamiliar
+upstream failure, installed-release observation or host interruption.
+
 `--scenario native-late-listener-disposal` is a standalone Windows qualification
 of actual native operation-listener lifetime during one live Core preparation.
 After a renderer reload, two UI-reviewed owned-folder selections have only their
