@@ -1,4 +1,4 @@
-import { errorMessage } from "../../../scripts/runtime-values.mts";
+import { errorCode, errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import { readFile, writeFile, mkdir, realpath } from "node:fs/promises";
@@ -7,11 +7,45 @@ import { randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
+import type { FileIdentity } from "../../../scripts/development-evidence.mts";
 
-export function chromeObserverEndpoint(value) {
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value), "Boundary evidence must be an object");
+  return value;
+}
+function text(value: unknown): string {
+  assert.ok(typeof value === "string", "Boundary evidence text required");
+  return value;
+}
+async function readObject(file: string) {
+  const value: unknown = JSON.parse(await readFile(file, "utf8"));
+  return object(value);
+}
+function binding(value: unknown): FileIdentity {
+  const entry = object(value);
+  assert.ok(
+    typeof entry.bytes === "number" && Number.isSafeInteger(entry.bytes) && entry.bytes >= 0,
+  );
+  const sha256 = text(entry.sha256);
+  assert.match(sha256, /^[a-f0-9]{64}$/u);
+  return { ...entry, path: text(entry.path), sha256, bytes: entry.bytes };
+}
+function strings(value: unknown): string[] {
+  assert.ok(Array.isArray(value), "Boundary text collection required");
+  const entries: unknown[] = value;
+  return entries.map(text);
+}
+function configurations(value: unknown) {
+  assert.ok(Array.isArray(value), "Package configuration identities required");
+  const entries: unknown[] = value;
+  return entries.map(binding);
+}
+
+export function chromeObserverEndpoint(value: string) {
   const lines = value.trim().split("\n");
   assert.equal(lines.length, 2);
   const [port, endpoint] = lines;
+  assert.ok(port && endpoint);
   assert.match(port, /^\d{1,5}$/u);
   assert.ok(Number(port) >= 1024 && Number(port) <= 65535);
   assert.match(endpoint, /^\/devtools\/browser\/[a-f0-9-]{36}$/u);
@@ -26,24 +60,26 @@ export async function prepareLinuxExternalBrowser() {
     "Maintained private X11 route required",
   );
   const runtime = path.dirname(displayReceipt);
-  const receipt = JSON.parse(await readFile(displayReceipt, "utf8"));
-  assert.equal(receipt.gtk_readiness?.outcome, "ready");
+  const receipt = await readObject(displayReceipt);
+  assert.equal(object(receipt.gtk_readiness).outcome, "ready");
   for (const [variable, name] of [
     ["XDG_CONFIG_HOME", "xdg_config_home"],
     ["XDG_DATA_HOME", "xdg_data_home"],
     ["XDG_CACHE_HOME", "xdg_cache_home"],
-  ]) {
+  ] as const) {
     assert.equal(process.env[variable], path.join(runtime, name));
-    assert.equal(await realpath(process.env[variable]), process.env[variable]);
+    const directory = process.env[variable];
+    assert.ok(directory);
+    assert.equal(await realpath(directory), directory);
   }
-  const profile = path.join(process.env.XDG_CACHE_HOME, "external-browser-profile");
+  const profile = path.join(text(process.env.XDG_CACHE_HOME), "external-browser-profile");
   // Qualification paths are controlled; never interpolate desktop-entry metacharacters.
   assert.match(profile, /^\/[A-Za-z0-9_./-]+$/u);
   await mkdir(profile, { mode: 0o700 });
-  const applications = path.join(process.env.XDG_DATA_HOME, "applications");
+  const applications = path.join(text(process.env.XDG_DATA_HOME), "applications");
   await mkdir(applications, { mode: 0o700 });
   const desktop = path.join(applications, "portcove-qualification-browser.desktop");
-  const association = path.join(process.env.XDG_CONFIG_HOME, "mimeapps.list");
+  const association = path.join(text(process.env.XDG_CONFIG_HOME), "mimeapps.list");
   await writeFile(
     desktop,
     `[Desktop Entry]\nType=Application\nName=Portcove isolated qualification browser\nExec=/usr/bin/google-chrome --ozone-platform=x11 --user-data-dir=${profile} --no-first-run --no-default-browser-check --remote-debugging-port=0 --log-net-log=${profile}/network.json --net-log-max-size-mb=4 --net-log-duration=10 %u\nMimeType=x-scheme-handler/https;\nTerminal=false\n`,
@@ -72,7 +108,7 @@ export async function prepareLinuxExternalBrowser() {
         "/opt/google/chrome/chrome",
         desktop,
         association,
-      ].map(fileIdentity),
+      ].map((file) => fileIdentity(file)),
     ),
   };
 }
@@ -109,7 +145,7 @@ async function observeLinuxApprovedLink({
           await readFile(path.join(externalBrowser.profile, "DevToolsActivePort"), "utf8"),
         );
       } catch (error) {
-        if (error.code !== "ENOENT") throw error;
+        if (errorCode(error) !== "ENOENT") throw error;
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
     }
@@ -147,7 +183,7 @@ async function observeLinuxApprovedLink({
   }
 }
 
-export function assertLocalMainUrl(value, platform = process.platform) {
+export function assertLocalMainUrl(value: string, platform: string = process.platform) {
   const url = new URL(value);
   assert.ok(["win32", "linux"].includes(platform), "Qualified native boundary platform required");
   assert.equal(url.protocol, platform === "linux" ? "tauri:" : "http:");
@@ -157,9 +193,25 @@ export function assertLocalMainUrl(value, platform = process.platform) {
   assert.equal(url.password, "");
 }
 
-export async function verifyLinuxPackageEvidence(file, revision, executable, root) {
+export async function verifyLinuxPackageEvidence(
+  file: string,
+  revision: string,
+  executable: FileIdentity,
+  root: string,
+) {
   assert.ok(file && path.isAbsolute(file));
-  const manifest = JSON.parse(await readFile(file, "utf8"));
+  const raw = await readObject(file);
+  const manifest = {
+    ...raw,
+    revision: text(raw.revision),
+    build_command: strings(raw.build_command),
+    qualification_features: strings(raw.qualification_features),
+    execution_context:
+      raw.execution_context === undefined ? undefined : text(raw.execution_context),
+    configuration: configurations(raw.configuration),
+    package: binding(raw.package),
+    extraction_evidence: binding(raw.extraction_evidence),
+  };
   assert.equal(manifest.revision, revision);
   assert.deepEqual(manifest.build_command, [
     "pnpm",
@@ -190,7 +242,15 @@ export async function verifyLinuxPackageEvidence(file, revision, executable, roo
     assert.equal(identity.bytes, binding.bytes);
     identities.push(identity);
   }
-  const receipt = JSON.parse(await readFile(manifest.extraction_evidence.path, "utf8"));
+  const rawReceipt = await readObject(manifest.extraction_evidence.path);
+  const receipt = {
+    ...rawReceipt,
+    exit_code: rawReceipt.exit_code,
+    package_sha256: rawReceipt.package_sha256,
+    command: rawReceipt.command,
+    payload_root: text(rawReceipt.payload_root),
+    executable_sha256: rawReceipt.executable_sha256,
+  };
   assert.equal(receipt.exit_code, 0);
   assert.equal(receipt.package_sha256, manifest.package.sha256);
   assert.deepEqual(receipt.command, [
@@ -207,7 +267,7 @@ export async function verifyLinuxPackageEvidence(file, revision, executable, roo
 }
 
 export async function createOriginBoundaryFixture() {
-  const requests = [];
+  const requests: (string | undefined)[] = [];
   const server = createServer((request, response) => {
     requests.push(request.url);
     response.setHeader("Content-Type", "text/html");
@@ -215,15 +275,17 @@ export async function createOriginBoundaryFixture() {
       "<!doctype html><title>Owned untrusted origin</title><h1>Owned untrusted origin</h1>",
     );
   });
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(0, "127.0.0.1", resolve);
   });
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
   return {
-    url: `http://127.0.0.1:${server.address().port}/untrusted`,
+    url: `http://127.0.0.1:${address.port}/untrusted`,
     requests,
     close: () =>
-      new Promise((resolve, reject) =>
+      new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
       ),
   };
@@ -338,12 +400,23 @@ export async function linuxOriginBoundaryScenario({
 // Evidence binding only; this does not authorize signing, installation or publication.
 export async function verifyNormalPackageEvidence(
   file: string,
-  revision,
-  executable,
+  revision: string,
+  executable: { sha256: string; path?: string },
   root: string,
 ) {
   assert.ok(file && path.isAbsolute(file), "Normal package evidence requires an absolute path");
-  const manifest = JSON.parse(await readFile(file, "utf8"));
+  const raw = await readObject(file);
+  const manifest = {
+    ...raw,
+    revision: text(raw.revision),
+    build_command: strings(raw.build_command),
+    qualification_features: strings(raw.qualification_features),
+    configuration: configurations(raw.configuration),
+    installer: binding(raw.installer),
+    installer_evidence: binding(raw.installer_evidence),
+    execution_context:
+      raw.execution_context === undefined ? undefined : text(raw.execution_context),
+  };
   assert.equal(manifest.revision, revision, "Package source must match the current candidate");
   assert.deepEqual(manifest.build_command, [
     "pnpm",
@@ -373,25 +446,27 @@ export async function verifyNormalPackageEvidence(
       path.join(root, "apps/desktop/src-tauri/Cargo.toml"),
     ],
   );
-  const receipt = JSON.parse(await readFile(manifest.installer_evidence.path, "utf8"));
+  const rawReceipt = await readObject(manifest.installer_evidence.path);
+  const receipt = { ...rawReceipt, phase: rawReceipt.phase, details: object(rawReceipt.details) };
   assert.equal(receipt.details.installer_sha256, manifest.installer.sha256);
   assert.equal(receipt.details.installed_executable_sha256, executable.sha256);
   const context = manifest.execution_context ?? "retained-installed-bytes";
   assert.ok(
-    ["retained-installed-bytes", "current-installed"].includes(context),
+    context === "retained-installed-bytes" || context === "current-installed",
     "Unknown normal package execution context",
   );
   if (context === "current-installed") {
     assert.equal(receipt.phase, "current_installed_boundary_ready");
     assert.equal(receipt.details.uninstall_registration_count, 1);
     assert.match(
-      receipt.details.registration_path,
+      text(receipt.details.registration_path),
       /HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\/i,
     );
-    assert.equal(path.resolve(receipt.details.installed_executable_path), executable.path);
+    assert.ok(executable.path);
+    assert.equal(path.resolve(text(receipt.details.installed_executable_path)), executable.path);
     assert.equal(
       path.dirname(executable.path),
-      path.resolve(receipt.details.install_root),
+      path.resolve(text(receipt.details.install_root)),
       "Native executable must remain in the verified installation",
     );
     const installed = await fileIdentity(executable.path);
@@ -442,7 +517,7 @@ export async function normalPackageBoundaryScenario({
       `<!doctype html><title>Owned untrusted origin</title><script>window[${JSON.stringify(marker)}] = true; new Image().src = ${JSON.stringify(beacon)}</script>`,
     );
   });
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(0, "127.0.0.1", resolve);
   });
