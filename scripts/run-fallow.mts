@@ -1,4 +1,25 @@
-import { errorMessage } from "./runtime-values.mts";
+import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
+import type { CommandObservation } from "./report-summary.mts";
+export interface FallowProcessResult extends CommandObservation {
+  status: number | null;
+  stdout: string | null;
+  stderr: string | null;
+}
+export type FallowSpawn = (
+  command: string,
+  args: readonly string[],
+  options: SpawnSyncOptionsWithStringEncoding,
+) => FallowProcessResult;
+export interface FallowOptions {
+  spawn?: FallowSpawn;
+  mode?: string;
+  base?: string | undefined;
+  reuse?: string | undefined;
+  identity?: () => ReturnType<typeof fallowSource>;
+  evidenceDirectory?: string;
+  jobSummary?: string | null | undefined;
+}
+import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
 import { resourceEntrypoint } from "./resource-command.mts";
 import { frontendOutputResource } from "./resource-capacity.mts";
 import { spawnSync } from "node:child_process";
@@ -15,7 +36,11 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const cli = fileURLToPath(new URL("../node_modules/fallow/bin/fallow", import.meta.url));
 const version = "3.33.1";
 
-export function fallowArguments(mode, base, threads = process.env.PORTCOVE_FALLOW_THREADS ?? "2") {
+export function fallowArguments(
+  mode: string,
+  base?: string,
+  threads = process.env.PORTCOVE_FALLOW_THREADS ?? "2",
+) {
   if (!/^\d+$/u.test(String(threads)) || Number(threads) < 1 || Number(threads) > 64)
     throw new Error("PORTCOVE_FALLOW_THREADS must be an integer from 1 to 64");
   const common = ["--threads", String(threads), "--format", "json", "--quiet", "--explain"];
@@ -41,10 +66,10 @@ export function fallowArguments(mode, base, threads = process.env.PORTCOVE_FALLO
   throw new Error(`Unknown Fallow scope: ${mode}`);
 }
 
-function validateAdvisory(report, mode) {
+function validateAdvisory(report: unknown, mode: string) {
   const expected = mode === "css" ? ["health", 11] : ["audit-brief", 12];
   if (
-    !report ||
+    !isRecord(report) ||
     report.kind !== expected[0] ||
     report.schema_version !== expected[1] ||
     report.version !== version
@@ -54,10 +79,13 @@ function validateAdvisory(report, mode) {
     throw new Error("Incomplete CSS report");
   if (
     mode === "review" &&
-    (!["pass", "warn", "fail"].includes(report.verdict) ||
+    (typeof report.verdict !== "string" ||
+      !["pass", "warn", "fail"].includes(report.verdict) ||
       !report.attribution ||
+      typeof report.changed_files_count !== "number" ||
       !Number.isSafeInteger(report.changed_files_count) ||
       report.changed_files_count < 0 ||
+      typeof report.base_ref !== "string" ||
       !report.base_ref)
   )
     throw new Error("Incomplete review report");
@@ -71,23 +99,28 @@ export function runFallow({
   identity = () => fallowSource(root, base),
   evidenceDirectory = path.join(root, "work/fallow-reports", `${mode}-${randomUUID()}`),
   jobSummary = process.env.GITHUB_STEP_SUMMARY,
-} = {}) {
+}: FallowOptions = {}) {
   const args = fallowArguments(mode, base);
   const source = identity();
   const metadata = { format_version: 1, mode, version, args, source };
-  let result;
+  let result: FallowProcessResult;
   if (reuse) {
-    const previous = JSON.parse(readFileSync(path.join(reuse, "metadata.json"), "utf8"));
+    const previous: unknown = JSON.parse(readFileSync(path.join(reuse, "metadata.json"), "utf8"));
+    if (
+      !isRecord(previous) ||
+      (previous.status !== null && typeof previous.status !== "number") ||
+      typeof previous.stdout !== "string" ||
+      typeof previous.stderr !== "string"
+    )
+      throw new Error("Fallow report reuse refused: invalid retained metadata");
     if (JSON.stringify(previous.identity) !== JSON.stringify(metadata))
       throw new Error("Fallow report reuse refused: source, scope, base or tool changed");
-    result = {
-      status: previous.status,
-      stdout: readFileSync(previous.stdout, "utf8"),
-      stderr: readFileSync(previous.stderr, "utf8"),
-    };
+    const stdout = readFileSync(previous.stdout, "utf8");
+    const stderr = readFileSync(previous.stderr, "utf8");
+    result = { status: previous.status, stdout, stderr };
     if (
-      previous.stdout_sha256 !== createHash("sha256").update(result.stdout).digest("hex") ||
-      previous.stderr_sha256 !== createHash("sha256").update(result.stderr).digest("hex")
+      previous.stdout_sha256 !== createHash("sha256").update(stdout).digest("hex") ||
+      previous.stderr_sha256 !== createHash("sha256").update(stderr).digest("hex")
     )
       throw new Error("Fallow report reuse refused: retained bytes changed");
   } else {
@@ -123,15 +156,16 @@ export function runFallow({
       { flag: "wx" },
     );
   } catch (error) {
-    secondary ??= `metadata retention failed: ${error.code ?? "unknown"}`;
+    secondary ??= `metadata retention failed: ${errorCode(error) ?? "unknown"}`;
   }
-  evidence.failure ??= secondary;
-  const fail = (message, cause) =>
+  if (evidence.failure === undefined && secondary !== undefined) evidence.failure = secondary;
+  const fail = (message: string, cause: unknown = result.error) =>
     commandFailure(message, result, evidenceDirectory, cause, "unknown", evidence);
-  if (result.error || result.signal || ![0, 1].includes(result.status))
+  if (result.error || result.signal || (result.status !== 0 && result.status !== 1))
     throw fail(`Fallow analyzer execution failed (exit ${result.status ?? "unknown"})`);
-  let report;
+  let report: unknown;
   try {
+    if (typeof result.stdout !== "string") throw new Error("Fallow stdout is not text");
     report = JSON.parse(result.stdout);
   } catch (error) {
     throw fail("Fallow returned an invalid JSON report", error);
@@ -145,7 +179,7 @@ export function runFallow({
   } catch (error) {
     throw fail(`Fallow returned invalid evidence: ${errorMessage(error)}`, error);
   }
-  const failures = mode === "desktop" ? assessment.failures : [];
+  const failures = mode === "desktop" && assessment ? assessment.failures : [];
   // Combined machine output normally exits 0 for findings. Never turn an
   // unexplained nonzero result into a passing result. Review always exits 0.
   if (result.status === 1 && !assessment?.failures.length)
@@ -162,14 +196,16 @@ export function runFallow({
   if (jobSummary) {
     try {
       // Saved evidence only: native formatting performs no new analysis.
-      const formatted =
-        mode === "review"
-          ? null
-          : spawn(
-              process.execPath,
-              [cli, "report", "--from", evidence.stdout, "--format", "github-summary"],
-              { cwd: root, encoding: "utf8", maxBuffer: 1024 * 1024, windowsHide: true },
-            );
+      let formatted: FallowProcessResult | null = null;
+      if (mode !== "review") {
+        const reportFile = evidence.stdout;
+        if (!reportFile) throw new Error("native saved-report formatting unavailable");
+        formatted = spawn(
+          process.execPath,
+          [cli, "report", "--from", reportFile, "--format", "github-summary"],
+          { cwd: root, encoding: "utf8", maxBuffer: 1024 * 1024, windowsHide: true },
+        );
+      }
       if (formatted && (formatted.error || formatted.status !== 0))
         throw new Error("native saved-report formatting failed");
       appendFileSync(
@@ -189,10 +225,11 @@ export function runFallow({
   };
 }
 
-export function formatFallowFailure(error) {
-  return error.evidence && Buffer.byteLength(error.message) <= 16 * 1024 - 1
-    ? error.message
-    : renderBoundedSummary("Fallow failed", [String(error.message)]).text;
+export function formatFallowFailure(error: unknown) {
+  const message = errorMessage(error);
+  return isRecord(error) && error.evidence && Buffer.byteLength(message) <= 16 * 1024 - 1
+    ? message
+    : renderBoundedSummary("Fallow failed", [message]).text;
 }
 
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {

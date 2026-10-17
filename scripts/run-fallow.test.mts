@@ -3,6 +3,19 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { CommandFailure } from "./report-summary.mts";
+import { isRecord } from "./runtime-values.mts";
+import type { FallowOptions, FallowSpawn } from "./run-fallow.mts";
+const fixtureIdentity = (
+  overrides: Partial<ReturnType<NonNullable<FallowOptions["identity"]>>> = {},
+) => ({
+  head: "fixture",
+  source_sha256: "test",
+  dirty: false,
+  target: null,
+  merge_base: null,
+  ...overrides,
+});
 import { report } from "./fallow-test-fixture.mts";
 import {
   fallowArguments,
@@ -11,24 +24,26 @@ import {
 } from "./run-fallow.mts";
 
 // Unit fixtures never publish into the enclosing Actions job's real summary.
-const runFallow = (options) => runFallowCommand({ jobSummary: null, ...options });
+const runFallow = (options: FallowOptions) => runFallowCommand({ jobSummary: null, ...options });
 
-test("Fallow child and parse failures retain raw streams with bounded diagnostics", () => {
+void test("Fallow child and parse failures retain raw streams with bounded diagnostics", () => {
   const evidenceDirectory = mkdtempSync(path.join(os.tmpdir(), "fallow-error-"));
   try {
     for (const [status, stderr] of [
       [2, "x".repeat(15_850)],
       [2, "界".repeat(20_000)],
       [0, "界".repeat(20_000)],
-    ]) {
+    ] as const) {
       assert.throws(
         () =>
           runFallow({
             evidenceDirectory,
-            identity: () => ({ head: "fixture", source_sha256: "test", dirty: false }),
+            identity: () => fixtureIdentity(),
             spawn: () => ({ status, stdout: "invalid JSON", stderr }),
           }),
-        (error) => {
+        (error: unknown) => {
+          assert(error instanceof CommandFailure);
+          assert(error.evidence.stdout && error.evidence.stderr);
           const displayed = formatFallowFailure(error);
           assert.ok(Buffer.byteLength(displayed) + 1 <= 16 * 1024);
           assert.ok(displayed.includes(error.evidence.stdout));
@@ -46,7 +61,7 @@ test("Fallow child and parse failures retain raw streams with bounded diagnostic
   }
 });
 
-test("selective routes preserve explicit full-branch review and bounded parser work", () => {
+void test("selective routes preserve explicit full-branch review and bounded parser work", () => {
   assert.throws(() => fallowArguments("review"), /explicit comparison base/);
   for (const threads of ["0", "-1", "2.5", "NaN", "65"])
     assert.throws(() => fallowArguments("tooling", undefined, threads));
@@ -58,25 +73,31 @@ test("selective routes preserve explicit full-branch review and bounded parser w
   assert.ok(fallowArguments("css").includes("--report-only"));
 });
 
-test("successful high duplication retains actionable results and supports exact-input reuse", () => {
+void test("successful high duplication retains actionable results and supports exact-input reuse", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-reuse-"));
   let calls = 0;
   let formats = 0;
-  const identity = () => ({ head: "fixture", source_sha256: "content", dirty: true });
-  const value = report({ duplication: 17 });
-  value.dupes.clone_groups = [
-    {
-      fingerprint: "dup:example",
-      instances: [
-        { file: "src/a.ts", start_line: 12 },
-        { file: "src/b.ts", start_line: 20 },
+  const identity = () => fixtureIdentity({ source_sha256: "content", dirty: true });
+  const baseReport = report({ duplication: 17 });
+  const value = {
+    ...baseReport,
+    dupes: {
+      ...baseReport.dupes,
+      clone_groups: [
+        {
+          fingerprint: "dup:example",
+          instances: [
+            { file: "src/a.ts", start_line: 12 },
+            { file: "src/b.ts", start_line: 20 },
+          ],
+          line_count: 8,
+        },
       ],
-      line_count: 8,
     },
-  ];
+  };
   try {
     const jobSummary = path.join(directory, "summary.md");
-    const spawn = (_command, args) => {
+    const spawn: FallowSpawn = (_command, args) => {
       if (args.includes("report")) {
         formats++;
         assert.ok(args.includes("--from"), "formatting must consume retained evidence");
@@ -121,9 +142,9 @@ test("successful high duplication retains actionable results and supports exact-
   }
 });
 
-test("analyzer status and advisory review verdict never become a quality pass", () => {
+void test("analyzer status and advisory review verdict never become a quality pass", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-status-"));
-  const identity = () => ({ head: "fixture", dirty: false });
+  const identity = () => fixtureIdentity();
   try {
     const unexplained = runFallow({
       evidenceDirectory: directory,
@@ -159,13 +180,13 @@ test("analyzer status and advisory review verdict never become a quality pass", 
   }
 });
 
-test("secondary presentation failure preserves code failure and original evidence", () => {
+void test("secondary presentation failure preserves code failure and original evidence", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-presentation-"));
   try {
     let calls = 0;
     const result = runFallow({
       evidenceDirectory: directory,
-      identity: () => ({ head: "fixture" }),
+      identity: () => fixtureIdentity(),
       jobSummary: path.join(directory, "summary.md"),
       spawn: () =>
         ++calls === 1
@@ -175,14 +196,17 @@ test("secondary presentation failure preserves code failure and original evidenc
     assert.equal(result.exitCode, 1);
     assert.match(result.text, /1 dead-code or dependency/);
     assert.match(result.text, /secondary/);
-    const metadata = JSON.parse(readFileSync(path.join(directory, "metadata.json"), "utf8"));
+    const metadata: unknown = JSON.parse(
+      readFileSync(path.join(directory, "metadata.json"), "utf8"),
+    );
+    assert(isRecord(metadata) && typeof metadata.stderr === "string");
     assert.equal(readFileSync(metadata.stderr, "utf8"), "original");
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
-test("validated Fallow findings and failed evidence retention remain distinct failures", () => {
+void test("validated Fallow findings and failed evidence retention remain distinct failures", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-verdict-"));
   try {
     const stdout = JSON.stringify(report({ issues: 1 }));
@@ -190,7 +214,7 @@ test("validated Fallow findings and failed evidence retention remain distinct fa
     const result = runFallow({
       evidenceDirectory: directory,
       spawn,
-      identity: () => ({ head: "fixture", dirty: false }),
+      identity: () => fixtureIdentity(),
     });
     assert.equal(result.exitCode, 1);
     assert.match(result.text, /source\/check failure/);
@@ -200,23 +224,63 @@ test("validated Fallow findings and failed evidence retention remain distinct fa
     const combined = runFallow({
       evidenceDirectory: blocked,
       spawn,
-      identity: () => ({ head: "fixture", dirty: false }),
+      identity: () => fixtureIdentity(),
     });
     assert.equal(combined.exitCode, 1);
     assert.match(combined.text, /source\/check failure/);
     assert.match(combined.text, /1 dead-code or dependency findings/);
     assert.match(combined.text, /evidence-collection failure \(secondary\)/);
-    const healthy = JSON.parse(stdout);
+    const healthy = report({ issues: 1 });
     healthy.check.total_issues = 0;
     const retention = runFallow({
       evidenceDirectory: blocked,
-      identity: () => ({ head: "fixture", dirty: false }),
+      identity: () => fixtureIdentity(),
       spawn: () => ({ status: 0, stdout: JSON.stringify(healthy), stderr: "" }),
     });
     assert.equal(retention.exitCode, 1);
     assert.match(retention.text, /evidence-collection failure/);
     assert.doesNotMatch(retention.text, /source\/check failure/);
     assert.equal(readFileSync(blocked, "utf8"), "preserved");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("retained Fallow reuse rejects malformed metadata and changed stream bytes without analysis", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-reuse-invalid-"));
+  try {
+    const original = runFallow({
+      evidenceDirectory: path.join(directory, "original"),
+      identity: fixtureIdentity,
+      spawn: () => ({ status: 0, stdout: JSON.stringify(report()), stderr: "retained" }),
+    });
+    const metadataPath = path.join(original.evidenceDirectory, "metadata.json");
+    const metadata: unknown = JSON.parse(readFileSync(metadataPath, "utf8"));
+    assert(isRecord(metadata) && typeof metadata.stderr === "string");
+    const noAnalysis = () => {
+      assert.fail("reuse must not run the analyzer");
+    };
+    writeFileSync(metadataPath, JSON.stringify({ ...metadata, stderr: [metadata.stderr] }));
+    assert.throws(
+      () =>
+        runFallow({
+          reuse: original.evidenceDirectory,
+          identity: fixtureIdentity,
+          spawn: noAnalysis,
+        }),
+      /invalid retained metadata/,
+    );
+    writeFileSync(metadataPath, JSON.stringify(metadata));
+    writeFileSync(metadata.stderr, "changed");
+    assert.throws(
+      () =>
+        runFallow({
+          reuse: original.evidenceDirectory,
+          identity: fixtureIdentity,
+          spawn: noAnalysis,
+        }),
+      /retained bytes changed/,
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
