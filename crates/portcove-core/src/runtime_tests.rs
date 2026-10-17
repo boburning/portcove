@@ -952,13 +952,22 @@ async fn adopted_runtime_remains_subject_to_critical_launch_policy() {
             .blockers
             .contains(&LaunchBlocker::MissingRuntime)
     );
-    assert!(
-        service
-            .prepare_launch(PORT, None)
-            .unwrap_err()
-            .message
-            .contains("verified runtime")
+    let report = service.prepare_launch(PORT, None).unwrap_err().report();
+    assert!(report.message.contains("verified runtime"));
+    assert_eq!(report.code, crate::ErrorCode::Verification);
+    assert_eq!(report.details.get("install_id"), Some(&adopted.id));
+    assert_eq!(
+        report.presentation.presentation_key,
+        "required_runtime_unverified"
     );
+    assert!(report.presentation.summary.contains("when available"));
+    assert!(
+        !report
+            .presentation
+            .summary
+            .contains("Update the port before launching")
+    );
+    assert_eq!(service.status(PORT).unwrap().active.unwrap().id, adopted.id);
 }
 
 #[test]
