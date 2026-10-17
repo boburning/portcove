@@ -9,14 +9,17 @@ COPY --from=vite --chown=vp:vp /home/vp/.vite-plus /home/vp/.vite-plus
 COPY --from=rust --chown=vp:vp /usr/local/rustup /opt/rustup
 COPY --from=rust --chown=vp:vp /usr/local/cargo /home/vp/.cargo
 # PowerShell's published Linux archive, checked against the official release asset digest.
-ARG POWERSHELL_VERSION=7.6.6
-ARG POWERSHELL_SHA256=ddbc4a2d113bbd46d283cfedcbcd117a70caefd7673f41f2b4e0000badf103bc
+ARG POWERSHELL_VERSION=7.6.7
+ARG POWERSHELL_SHA256=6896f9e3a6b0a354bf470835a96da76d2f801cd50dcf047ad7c4563bf93bf431
 RUN curl --fail --location --max-time 300 -o /tmp/powershell.tar.gz https://github.com/PowerShell/PowerShell/releases/download/v${POWERSHELL_VERSION}/powershell-${POWERSHELL_VERSION}-linux-x64.tar.gz && echo "${POWERSHELL_SHA256}  /tmp/powershell.tar.gz" | sha256sum --check - && mkdir -p /opt/microsoft/powershell/7 && tar -xzf /tmp/powershell.tar.gz -C /opt/microsoft/powershell/7 && chmod +x /opt/microsoft/powershell/7/pwsh && ln -s /opt/microsoft/powershell/7/pwsh /usr/local/bin/pwsh && rm /tmp/powershell.tar.gz
 ENV CI=true PORTCOVE_CONTAINER_GUEST=1 VP_GIT_HOOKS=0 VP_HOME=/home/vp/.vite-plus RUSTUP_HOME=/opt/rustup CARGO_HOME=/home/vp/.cargo APPIMAGE_EXTRACT_AND_RUN=1
 ENV PATH=/home/vp/.vite-plus/bin:/home/vp/.cargo/bin:$PATH
 # Extracted byte-for-byte from the selected commit, not from dirty current work.
 COPY linux-prerequisites.sh /portcove/linux-prerequisites.sh
-RUN bash /portcove/linux-prerequisites.sh --include-rpm --install-timeout-seconds=2700
+# The rootfs is disposable until this layer succeeds. Suppress per-file/database
+# syncs only in APT's child process, then flush normally before committing it.
+# Do not persist LD_PRELOAD or wrap any source, task, package or runtime process.
+RUN timeout --kill-after=10s 5m apt-get update && timeout --kill-after=10s 5m env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends eatmydata && eatmydata bash /portcove/linux-prerequisites.sh --include-rpm --install-timeout-seconds=3600 && sync -f /var/lib/dpkg/status && test -z "${LD_PRELOAD:-}"
 RUN dpkg-query -W > /portcove/installed-system-packages.txt
 COPY --chown=vp:vp source.bundle /portcove/source.bundle
 USER vp

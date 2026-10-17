@@ -177,6 +177,7 @@ const nativeDesignCompatibilityWorkflow = await readFile(
   new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
   "utf8",
 );
+
 const nativeCompatibilityRunner = await readFile(
   new URL("../apps/desktop/test/native-compatibility.mts", import.meta.url),
   "utf8",
@@ -525,7 +526,7 @@ void test("full frontend qualification retains native scenario contracts; ordina
 void test("EdgeDriver trust proof is manual, isolated, and does not launch the application", () => {
   const job = requiredFixture(
     requiredFixture(nativeDesignCompatibilityWorkflow.split("\n  edge_driver_proof:")[1])?.split(
-      "\n  hosted_selected:",
+      "\n  slice3_windows_recovery:",
     )[0],
   );
   assert.ok(job);

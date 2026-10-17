@@ -42,6 +42,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { parse as parseYaml } from "yaml";
 import { recoverBackupEvidence } from "./native-backup-evidence.mts";
@@ -58,6 +59,151 @@ import {
   assertRetainedSelectedPlan,
   runHostedValidation,
 } from "./workflow-provenance.mts";
+
+void test("slice3 Windows recovery binds fixed sources and scenarios without billed evidence storage", () => {
+  const nativeDesignCompatibilityWorkflow = readFileSync(
+    new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
+    "utf8",
+  );
+  const workflow: unknown = parseYaml(nativeDesignCompatibilityWorkflow);
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs));
+  const job = workflow.jobs.slice3_windows_recovery;
+  assert.ok(isRecord(job));
+  assert.equal(job["runs-on"], "windows-2022");
+  assert.equal(job["timeout-minutes"], 90);
+  assert.match(String(job.if), /inputs.operation == 'slice3-windows-recovery'/);
+  assert.match(String(job.if), /inputs.runner == 'windows-2022'/);
+  assert.match(String(job.if), /github.event.repository.visibility == 'public'/);
+  assert.ok(isRecord(job.strategy) && isRecord(job.strategy.matrix));
+  assert.equal(job.strategy["fail-fast"], false);
+  assert.ok(Array.isArray(job.strategy.matrix.include));
+  assert.deepEqual(
+    job.strategy.matrix.include.map((entry: unknown) => {
+      assert.ok(isRecord(entry));
+      return { source: entry.source, scenario: entry.scenario };
+    }),
+    [
+      {
+        source: "7613845d66f5c83f089ff03cbeefd1f27ac089dd",
+        scenario: "native-host-publication-recovery",
+      },
+      {
+        source: "79cb76fcbd2ef73c7be7f66eea1457259d857011",
+        scenario: "native-rejected-listener-registration",
+      },
+    ],
+  );
+  assert.ok(Array.isArray(job.steps));
+  const checkout: unknown = job.steps.find(
+    (step: unknown) => isRecord(step) && String(step.uses).startsWith("actions/checkout@"),
+  );
+  assert.ok(isRecord(checkout) && isRecord(checkout.with));
+  assert.equal(checkout.with.ref, "${{ matrix.source }}");
+  assert.equal(checkout.with["persist-credentials"], false);
+  const block = nativeDesignCompatibilityWorkflow
+    .split("\n  slice3_windows_recovery:")[1]
+    ?.split("\n  hosted_selected:")[0];
+  assert.ok(block);
+  assert.match(block, /user_interactive -or \$identity.session_id -le 0/);
+  assert.match(block, /bootstrap-quality-tools.ps1 -Profile native-desktop/);
+  assert.match(block, /Application target must be fresh/);
+  assert.match(block, /qualification_checkpoint::tests/);
+  assert.match(block, /--scenario \$env:SCENARIO --require-clean/);
+  assert.match(block, /native-backup-evidence.mts emit/);
+  assert.doesNotMatch(
+    block,
+    /upload-artifact|rust-cache|actions\/cache|cache: pnpm|inputs\.execution_binding/,
+  );
+});
+
+void test(
+  "Windows recovery exposes selected Cargo executables before bootstrap and in later steps",
+  { skip: process.platform !== "win32" },
+  (t) => {
+    const workflow: unknown = parseYaml(
+      readFileSync(
+        new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
+        "utf8",
+      ),
+    );
+    const job = record(record(record(workflow).jobs).slice3_windows_recovery);
+    assert.ok(Array.isArray(job.steps));
+    const steps: unknown[] = job.steps;
+    const provisioning = record(
+      required(
+        steps.find(
+          (step) =>
+            record(step).name === "Provision source-pinned packages and native prerequisites",
+        ),
+      ),
+    );
+    const program = text(provisioning.run);
+    const prefix = required(program.split("pnpm install --frozen-lockfile")[0]);
+    assert.match(prefix, /tool-cache.mts --paths/);
+    assert.match(prefix, /development-capabilities.mts --profile native-desktop/);
+    assert.match(prefix, /\$cargoBins \| Add-Content -LiteralPath \$env:GITHUB_PATH/);
+    const temporary = mkdtempSync(path.join(tmpdir(), "portcove-windows-tool-path-"));
+    const relative = path.relative(tmpdir(), temporary);
+    assert.ok(relative.startsWith("portcove-windows-tool-path-") && !relative.includes(".."));
+    t.after(() => rmSync(temporary, { recursive: true, force: true }));
+    const environment = Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([name]) => !["LOCALAPPDATA", "GITHUB_PATH"].includes(name.toUpperCase()),
+      ),
+    );
+    environment.LOCALAPPDATA = path.join(temporary, "cache");
+    environment.GITHUB_PATH = path.join(temporary, "github-path");
+    writeFileSync(environment.GITHUB_PATH, "");
+    const cwd = fileURLToPath(new URL("..", import.meta.url));
+    const paths = record(
+      JSON.parse(
+        execFileSync(process.execPath, ["scripts/tool-cache.mts", "--paths"], {
+          cwd,
+          env: environment,
+          encoding: "utf8",
+        }),
+      ),
+    );
+    const plan = record(
+      JSON.parse(
+        execFileSync(
+          process.execPath,
+          ["scripts/development-capabilities.mts", "--profile", "native-desktop"],
+          { cwd, env: environment, encoding: "utf8" },
+        ),
+      ),
+    );
+    const selected = record(plan.setup).cargo_tools;
+    assert.ok(Array.isArray(selected) && selected.length > 0);
+    const expected = selected.map((value: unknown) => {
+      const tool = record(value);
+      return path.join(text(paths.cargoRoot), text(tool.crate), text(tool.version), "bin");
+    });
+    const observed: unknown = JSON.parse(
+      execFileSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          prefix + "\n[ordered]@{ path = $env:PATH } | ConvertTo-Json -Compress",
+        ],
+        { cwd, env: environment, encoding: "utf8", timeout: 30_000 },
+      ),
+    );
+    assert.equal(
+      text(record(observed).path)
+        .split(path.delimiter)
+        .slice(0, expected.length)
+        .join(path.delimiter),
+      expected.join(path.delimiter),
+    );
+    assert.deepEqual(
+      readFileSync(environment.GITHUB_PATH, "utf8").trim().split(/\r?\n/u),
+      expected,
+    );
+  },
+);
 
 const reviewedPlan = [
   { id: "diff-check", executable: "git", args: ["diff", "--check"], cwd: "$SOURCE/" },
