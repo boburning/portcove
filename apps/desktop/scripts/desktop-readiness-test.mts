@@ -1,9 +1,79 @@
-import { errorMessage } from "../../../scripts/runtime-values.mts";
+import type { WebDriver } from "selenium-webdriver";
+import type {
+  PortDefinition,
+  PortStatus,
+  SourceRecord,
+} from "../src/transport-types.generated.d.ts";
+import type { ScenarioContext } from "./desktop-scenario-context.mts";
+import type { FixtureCommand } from "./desktop-scenario-state.mts";
+import { transportValue, transportValues } from "./transport-values.mts";
+interface ReadinessContext extends ScenarioContext {
+  command: FixtureCommand;
+  open: (port: PortDefinition, refresh?: boolean) => Promise<unknown>;
+}
+interface HoldProbe {
+  original: typeof fetch;
+  injected: number;
+  originalAvailability: string | null;
+}
+interface ReadinessWindow extends Window {
+  __TAURI_INTERNALS__?: {
+    convertFileSrc(command: string, protocol: string): string;
+    invoke(command: string, args: unknown): Promise<unknown>;
+  };
+  __portcoveActionHoldProbe?: HoldProbe;
+  __portcoveReadinessProbe?: { original: typeof fetch; injected: number };
+}
+interface ProbeObservation {
+  injected: number;
+  restored: boolean;
+}
+interface HoldObservation extends ProbeObservation {
+  originalAvailability: string | null;
+}
+interface HeldObservations {
+  injection: string;
+  launch_before: PortStatus;
+  launch_during?: PortStatus;
+  launch_probe?: HoldObservation;
+  install_before?: PortStatus;
+  install_during?: PortStatus;
+  install_after?: PortStatus;
+  sources_before?: SourceRecord[];
+  selected_source?: string;
+  review_text?: string;
+  install_probe?: HoldObservation;
+  failure?: string;
+}
+type HoldContext = Pick<ReadinessContext, "browser" | "output" | "artifacts" | "command"> & {
+  port: PortDefinition;
+};
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function required<Value>(value: Value | null | undefined): Value {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function readinessCommand(command: FixtureCommand) {
+  function read(args: ["catalog", "show", string]): PortDefinition;
+  function read(args: ["status", string]): PortStatus;
+  function read(args: ["source", "list"]): SourceRecord[];
+  function read(args: string[]) {
+    const value = command(args);
+    if (args[0] === "catalog") return transportValue("port", value);
+    if (args[0] === "status") return transportValue("status", value);
+    if (args[0] === "source") return transportValues("source", value);
+    throw new Error("Unknown readiness observation command");
+  }
+  return read;
+}
+import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
-import axe from "axe-core";
 import { By, until } from "selenium-webdriver";
 import {
   captureAccessibilityReport,
@@ -11,93 +81,145 @@ import {
   reviewControls,
 } from "./desktop-review-controls.mts";
 
-async function injectActionHold(browser, portId, action) {
-  const result = await browser.executeAsyncScript(
-    (portId, action, done) => {
-      const native = window.__TAURI_INTERNALS__;
-      const original = window.fetch;
-      const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
-      window.__portcoveActionHoldProbe = { original, injected: 0, originalAvailability: null };
-      window.fetch = async function (input, ...args) {
-        const response = await original.call(window, input, ...args);
-        const url = typeof input === "string" ? input : (input.url ?? String(input));
-        if (url !== target || !response.ok) return response;
-        const snapshot = await response.clone().json();
-        const status = snapshot.statuses?.find((item) => item.port_id === portId);
-        const matches = status?.port_actions?.filter((item) => item.action === action);
-        if (matches?.length !== 1) return response;
-        const probe = window.__portcoveActionHoldProbe;
-        probe.injected++;
-        probe.originalAvailability ??= matches[0].availability;
-        return new Response(
-          JSON.stringify({
-            ...snapshot,
-            statuses: snapshot.statuses.map((item) =>
-              item.port_id === portId
-                ? {
-                    ...item,
-                    port_actions: item.port_actions.map((assessment) =>
-                      assessment.action === action
-                        ? {
-                            ...assessment,
-                            availability: "held",
-                            reason: "definition_ineligible",
-                            definition: { outcome: "hold", reason: "publisher_revoked" },
-                          }
-                        : assessment,
-                    ),
-                  }
-                : item,
-            ),
-          }),
-          { status: response.status, statusText: response.statusText, headers: response.headers },
-        );
-      };
-      native
-        .invoke("plugin:event|emit", {
-          event: "portcove://library-changed",
-          payload: `action-hold-probe-${action}`,
-        })
-        .then(
-          () => done({ ok: true }),
-          (error) => done({ error: String(error) }),
-        );
-    },
-    portId,
-    action,
+async function injectActionHold(browser: WebDriver, portId: string, action: string) {
+  const result = object(
+    await browser.executeAsyncScript<unknown>(
+      (portId: string, action: string, done: (result: unknown) => void) => {
+        const runtime = window as ReadinessWindow;
+        const native = runtime.__TAURI_INTERNALS__;
+        if (!native) throw new Error("Native bridge unavailable");
+        const original = window.fetch;
+        const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
+        runtime.__portcoveActionHoldProbe = { original, injected: 0, originalAvailability: null };
+        window.fetch = async function (input, ...args) {
+          const response = await original.call(window, input, ...args);
+          const url =
+            typeof input === "string"
+              ? input
+              : input !== null &&
+                  (typeof input === "object" || typeof input === "function") &&
+                  "url" in input &&
+                  input.url !== undefined &&
+                  input.url !== null
+                ? input.url
+                : // oxlint-disable-next-line typescript/no-base-to-string -- Preserve native fetch coercion for foreign-realm URLs; covered by serialized-input controls.
+                  String(input);
+          if (url !== target || !response.ok) return response;
+          const snapshot: unknown = await response.clone().json();
+          const record = (value: unknown): value is Record<string, unknown> =>
+            value !== null && typeof value === "object" && !Array.isArray(value);
+          if (!record(snapshot) || !Array.isArray(snapshot.statuses)) return response;
+          const statuses: unknown[] = snapshot.statuses;
+          const status = statuses.find(
+            (item): item is Record<string, unknown> => record(item) && item.port_id === portId,
+          );
+          if (!status || !Array.isArray(status.port_actions)) return response;
+          const assessments: unknown[] = status.port_actions;
+          const matches = assessments.filter(
+            (item): item is Record<string, unknown> => record(item) && item.action === action,
+          );
+          const match = matches[0];
+          if (matches.length !== 1 || !match || typeof match.availability !== "string")
+            return response;
+          const probe = runtime.__portcoveActionHoldProbe;
+          if (!probe) return response;
+          probe.injected++;
+          probe.originalAvailability ??= match.availability;
+          return new Response(
+            JSON.stringify({
+              ...snapshot,
+              statuses: statuses.map((item) =>
+                record(item) && item.port_id === portId && Array.isArray(item.port_actions)
+                  ? {
+                      ...item,
+                      port_actions: (item.port_actions as unknown[]).map((assessment) =>
+                        record(assessment) && assessment.action === action
+                          ? {
+                              ...assessment,
+                              availability: "held",
+                              reason: "definition_ineligible",
+                              definition: { outcome: "hold", reason: "publisher_revoked" },
+                            }
+                          : assessment,
+                      ),
+                    }
+                  : item,
+              ),
+            }),
+            { status: response.status, statusText: response.statusText, headers: response.headers },
+          );
+        };
+        void native
+          .invoke("plugin:event|emit", {
+            event: "portcove://library-changed",
+            payload: `action-hold-probe-${action}`,
+          })
+          .then(
+            () => done({ ok: true }),
+            (error: unknown) => done({ error: String(error) }),
+          );
+      },
+      portId,
+      action,
+    ),
   );
   assert.equal(result.ok, true, JSON.stringify(result));
 }
 
-async function restoreActionHold(browser, expectedAvailability) {
-  const result = await browser.executeAsyncScript((done) => {
-    const probe = window.__portcoveActionHoldProbe;
-    if (!probe) return done({ installed: false });
-    window.fetch = probe.original;
-    delete window.__portcoveActionHoldProbe;
-    const observation = {
-      injected: probe.injected,
-      originalAvailability: probe.originalAvailability,
-      restored: window.fetch === probe.original,
-    };
-    window.__TAURI_INTERNALS__
-      .invoke("plugin:event|emit", {
-        event: "portcove://library-changed",
-        payload: "action-hold-probe-restored",
-      })
-      .then(
-        () => done(observation),
-        (error) => done({ ...observation, error: String(error) }),
-      );
-  });
+async function restoreActionHold(
+  browser: WebDriver,
+  expectedAvailability: string,
+): Promise<HoldObservation> {
+  const result = object(
+    await browser.executeAsyncScript<unknown>((done: (result: unknown) => void) => {
+      const runtime = window as ReadinessWindow;
+      const probe = runtime.__portcoveActionHoldProbe;
+      if (!probe) return done({ installed: false });
+      window.fetch = probe.original;
+      delete runtime.__portcoveActionHoldProbe;
+      const observation = {
+        injected: probe.injected,
+        originalAvailability: probe.originalAvailability,
+        restored: window.fetch === probe.original,
+      };
+      const native = runtime.__TAURI_INTERNALS__;
+      if (!native) throw new Error("Native bridge unavailable");
+      void native
+        .invoke("plugin:event|emit", {
+          event: "portcove://library-changed",
+          payload: "action-hold-probe-restored",
+        })
+        .then(
+          () => done(observation),
+          (error: unknown) => done({ ...observation, error: String(error) }),
+        );
+    }),
+  );
   assert.equal(result.restored, true, JSON.stringify(result));
-  assert.ok(result.injected > 0, "The held assessment must reach an actual native snapshot");
+  assert.ok(
+    typeof result.injected === "number" && result.injected > 0,
+    "The held assessment must reach an actual native snapshot",
+  );
   assert.equal(result.originalAvailability, expectedAvailability);
   assert.equal(result.error, undefined, JSON.stringify(result));
-  return result;
+  assert.ok(typeof result.originalAvailability === "string");
+  return {
+    ...result,
+    injected: result.injected,
+    restored: true,
+    originalAvailability: result.originalAvailability,
+  };
 }
 
-async function observeHeldLaunch({ browser, output, artifacts, command, port, held }) {
+async function observeHeldLaunch({
+  browser,
+  output,
+  artifacts,
+  command: rawCommand,
+  port,
+  held,
+}: HoldContext & { held: HeldObservations }) {
+  const command = readinessCommand(rawCommand);
   try {
     await injectActionHold(browser, port.id, "launch");
     await browser.wait(
@@ -122,7 +244,7 @@ async function observeHeldLaunch({ browser, output, artifacts, command, port, he
       artifacts,
     );
     held.launch_during = command(["status", port.id]);
-    assert.equal(held.launch_during.active.id, held.launch_before.active.id);
+    assert.equal(required(held.launch_during.active).id, required(held.launch_before.active).id);
     assert.equal(held.launch_during.successful_launches, held.launch_before.successful_launches);
   } finally {
     held.launch_probe = await restoreActionHold(browser, "allowed");
@@ -133,7 +255,15 @@ async function observeHeldLaunch({ browser, output, artifacts, command, port, he
   }, 10_000);
 }
 
-async function observeHeldInstall({ browser, output, artifacts, command, port, held }) {
+async function observeHeldInstall({
+  browser,
+  output,
+  artifacts,
+  command: rawCommand,
+  port,
+  held,
+}: HoldContext & { held: HeldObservations }) {
+  const command = readinessCommand(rawCommand);
   const controls = reviewControls(browser);
   const openPete = command(["catalog", "show", "openpete"]);
   held.install_before = command(["status", openPete.id]);
@@ -191,7 +321,7 @@ async function observeHeldInstall({ browser, output, artifacts, command, port, h
   }
   await browser.wait(async () => {
     const reviews = await browser.findElements(controls.button("Review installation"));
-    return reviews.length === 1 && (await reviews[0].isEnabled());
+    return reviews.length === 1 && (await required(reviews[0]).isEnabled());
   }, 10_000);
   await controls.click(controls.button("Review installation"));
   await browser.wait(until.elementLocated(installDialog), 15_000);
@@ -205,10 +335,10 @@ async function observeHeldInstall({ browser, output, artifacts, command, port, h
   );
 }
 
-async function observeActionHolds({ browser, output, artifacts, command, port }) {
-  const held = {
+async function observeActionHolds({ browser, output, artifacts, command, port }: HoldContext) {
+  const held: HeldObservations = {
     injection: "replace one assessed action in actual native workspace snapshots only",
-    launch_before: command(["status", port.id]),
+    launch_before: readinessCommand(command)(["status", port.id]),
   };
   try {
     await observeHeldLaunch({ browser, output, artifacts, command, port, held });
@@ -223,12 +353,12 @@ async function observeActionHolds({ browser, output, artifacts, command, port })
   }
 }
 
-async function detailLayout(browser, summary) {
+async function detailLayout(browser: WebDriver, summary: string) {
   return executeBrowserScript(
     browser,
     (expectedSummary) => {
       const detail = document.querySelector(".detail-panel");
-      const bounds = (selector) => detail?.querySelector(selector)?.getBoundingClientRect();
+      const bounds = (selector: string) => detail?.querySelector(selector)?.getBoundingClientRect();
       const summaryParagraph = [...(detail?.querySelectorAll(".detail-body > p") ?? [])].find(
         (paragraph) => paragraph.textContent?.trim() === expectedSummary,
       );
@@ -249,12 +379,26 @@ async function detailLayout(browser, summary) {
   );
 }
 
-function assertMeasured(layout, names) {
+type DetailLayout = Awaited<ReturnType<typeof detailLayout>>;
+type Measurement =
+  | "reasonBottom"
+  | "heroBottom"
+  | "actionTop"
+  | "actionBottom"
+  | "summaryTop"
+  | "artworkTop";
+function assertMeasured<Name extends Measurement>(
+  layout: DetailLayout,
+  names: Name[],
+): asserts layout is DetailLayout & Record<Name, number> {
   for (const name of names)
-    assert.ok(Number.isFinite(layout[name]), `${name} is missing: ${JSON.stringify(layout)}`);
+    assert.ok(
+      typeof layout[name] === "number" && Number.isFinite(layout[name]),
+      `${name} is missing: ${JSON.stringify(layout)}`,
+    );
 }
 
-async function assertUnavailableLayout(browser, summary) {
+async function assertUnavailableLayout(browser: WebDriver, summary: string) {
   const layout = await detailLayout(browser, summary);
   assert.equal(layout.state, "Readiness unavailable");
   assert.equal(
@@ -266,7 +410,7 @@ async function assertUnavailableLayout(browser, summary) {
   assert.ok(layout.actionTop < layout.summaryTop, JSON.stringify(layout));
 }
 
-async function assertReadyLayout(browser, summary) {
+async function assertReadyLayout(browser: WebDriver, summary: string) {
   const layout = await detailLayout(browser, summary);
   assertMeasured(layout, ["heroBottom", "actionTop", "actionBottom", "summaryTop", "artworkTop"]);
   assert.ok(layout.actionTop >= layout.heroBottom, JSON.stringify(layout));
@@ -277,12 +421,26 @@ async function assertReadyLayout(browser, summary) {
   assert.equal(layout.hasReason, false, JSON.stringify(layout));
 }
 
-export async function readinessScenario({ browser, scenario, output, artifacts, command, open }) {
+export async function readinessScenario({
+  browser,
+  scenario,
+  output,
+  artifacts,
+  command: rawCommand,
+  open,
+}: ReadinessContext) {
+  const command = readinessCommand(rawCommand);
   await scenario("native-missing-readiness-recovery", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
     const before = command(["status", port.id]);
-    assert.equal(before.readiness.launchable, true);
-    const observations = {
+    assert.equal(required(before.readiness).launchable, true);
+    const observations: {
+      injection: string;
+      before: PortStatus;
+      after_review?: PortStatus;
+      failure?: string;
+      probe?: ProbeObservation | { installed: false };
+    } = {
       injection:
         "omit one owned port's readiness from actual get_workspace_snapshot responses; core remains launchable",
       before,
@@ -291,29 +449,52 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
     await open(port, false);
     try {
       await browser
-        .executeAsyncScript((portId, done) => {
-          const native = window.__TAURI_INTERNALS__;
+        .executeAsyncScript<unknown>((portId: string, done: (result: unknown) => void) => {
+          const runtime = window as ReadinessWindow;
+          const native = runtime.__TAURI_INTERNALS__;
+          if (!native) throw new Error("Native bridge unavailable");
           const original = window.fetch;
           const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
-          window.__portcoveReadinessProbe = { original, injected: 0 };
+          runtime.__portcoveReadinessProbe = { original, injected: 0 };
           window.fetch = async function (input, ...args) {
-            const url = typeof input === "string" ? input : (input.url ?? String(input));
+            const url =
+              typeof input === "string"
+                ? input
+                : input !== null &&
+                    (typeof input === "object" || typeof input === "function") &&
+                    "url" in input &&
+                    input.url !== undefined &&
+                    input.url !== null
+                  ? input.url
+                  : // oxlint-disable-next-line typescript/no-base-to-string -- Preserve native fetch coercion for foreign-realm URLs; covered by serialized-input controls.
+                    String(input);
             const response = await original.call(window, input, ...args);
             if (url !== target) return response;
-            const snapshot = await response.clone().json();
+            const snapshot: unknown = await response.clone().json();
+            const record = (value: unknown): value is Record<string, unknown> =>
+              value !== null && typeof value === "object" && !Array.isArray(value);
+            if (!record(snapshot)) return response;
             if (
               !Array.isArray(snapshot.statuses) ||
               !snapshot.statuses.some(
-                (status) => status.port_id === portId && status.readiness?.launchable === true,
+                (status: unknown) =>
+                  record(status) &&
+                  status.port_id === portId &&
+                  record(status.readiness) &&
+                  status.readiness.launchable === true,
               )
             )
               return response;
-            window.__portcoveReadinessProbe.injected++;
+            const probe = runtime.__portcoveReadinessProbe;
+            if (!probe) return response;
+            probe.injected++;
             return new Response(
               JSON.stringify({
                 ...snapshot,
-                statuses: snapshot.statuses.map((status) =>
-                  status.port_id === portId ? { ...status, readiness: null } : status,
+                statuses: (snapshot.statuses as unknown[]).map((status) =>
+                  record(status) && status.port_id === portId
+                    ? { ...status, readiness: null }
+                    : status,
                 ),
               }),
               {
@@ -323,17 +504,20 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
               },
             );
           };
-          native
+          void native
             .invoke("plugin:event|emit", {
               event: "portcove://library-changed",
               payload: "readiness-probe",
             })
             .then(
               () => done({ ok: true }),
-              (error) => done({ error }),
+              (error: unknown) => done({ error }),
             );
         }, port.id)
-        .then((result) => assert.equal(result.ok, true, JSON.stringify(result)));
+        .then((value) => {
+          const result = object(value);
+          assert.equal(result.ok, true, JSON.stringify(result));
+        });
       await browser.wait(
         async () =>
           (await browser.findElement(By.css(".detail-panel")).getText()).includes(
@@ -345,16 +529,10 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
       assert.equal(await primary.isEnabled(), false);
       assert.equal(await primary.getText(), "Play unavailable");
       await assertUnavailableLayout(browser, port.summary);
-      await executeBrowserScript(browser, axe.source);
-      const accessibility = await browser.executeAsyncScript((done) => window.axe.run().then(done));
-      const report = path.join(output, "readiness-accessibility.json");
-      await writeFile(report, JSON.stringify(accessibility, null, 2), {
-        flag: "wx",
-      });
-      artifacts.push(report);
-      assert.deepEqual(
-        accessibility.violations.map((item) => item.id),
-        [],
+      await captureAccessibilityReport(
+        browser,
+        path.join(output, "readiness-accessibility.json"),
+        artifacts,
       );
       const screenshot = path.join(output, "native-readiness-unavailable.png");
       await writeFile(screenshot, await browser.takeScreenshot(), {
@@ -373,8 +551,8 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
         10_000,
       );
       observations.after_review = command(["status", port.id]);
-      assert.equal(observations.after_review.readiness.launchable, true);
-      assert.equal(observations.after_review.active.id, before.active.id);
+      assert.equal(required(observations.after_review.readiness).launchable, true);
+      assert.equal(required(observations.after_review.active).id, required(before.active).id);
       assert.equal(observations.after_review.successful_launches, before.successful_launches);
     } catch (error) {
       observations.failure = errorMessage(error);
@@ -382,17 +560,18 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
     } finally {
       try {
         observations.probe = await executeBrowserScript(browser, () => {
-          const probe = window.__portcoveReadinessProbe;
+          const runtime = window as ReadinessWindow;
+          const probe = runtime.__portcoveReadinessProbe;
           if (!probe) return { installed: false };
           window.fetch = probe.original;
           const result = {
             injected: probe.injected,
             restored: window.fetch === probe.original,
           };
-          delete window.__portcoveReadinessProbe;
+          delete runtime.__portcoveReadinessProbe;
           return result;
         });
-        assert.equal(observations.probe.restored, true);
+        assert.ok("restored" in observations.probe && observations.probe.restored === true);
       } finally {
         const report = path.join(output, "readiness-observations.json");
         await writeFile(report, JSON.stringify(observations, null, 2), {
@@ -402,7 +581,7 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
       }
     }
     assert.ok(
-      observations.probe.injected > 0,
+      observations.probe && "injected" in observations.probe && observations.probe.injected > 0,
       "The native omission must actually reach the renderer",
     );
     await open(port, false);
@@ -429,6 +608,6 @@ export async function readinessScenario({ browser, scenario, output, artifacts, 
     await assertReadyLayout(browser, port.summary);
     assert.equal(command(["status", port.id]).successful_launches, before.successful_launches);
     if (process.platform === "win32")
-      await observeActionHolds({ browser, output, artifacts, command, port });
+      await observeActionHolds({ browser, output, artifacts, command: rawCommand, port });
   });
 }
