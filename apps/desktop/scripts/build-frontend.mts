@@ -5,6 +5,13 @@ import { lstatSync, rmSync } from "node:fs";
 import path from "node:path";
 import { resolvePhysicalPath, spawnCommand } from "../../../scripts/dev-storage.mts";
 import { vitePlusCommand } from "../../../scripts/viteplus-cli.mts";
+import type { SpawnSyncOptions } from "node:child_process";
+
+type FrontendRunner = (
+  command: string,
+  args: readonly string[],
+  options: SpawnSyncOptions,
+) => { status: number | null };
 
 export function frontendEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return Object.fromEntries(
@@ -16,7 +23,7 @@ export function frontendEnvironment(environment: NodeJS.ProcessEnv): NodeJS.Proc
 
 export function buildFrontend(
   environment = process.env,
-  run = spawnCommand,
+  run: FrontendRunner = spawnCommand,
   fresh = false,
   directory = fileURLToPath(new URL("../", import.meta.url)),
 ) {

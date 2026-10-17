@@ -3,18 +3,33 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
 import process from "node:process";
 import { runInNewContext } from "node:vm";
-import { build } from "vite";
+import assert from "node:assert/strict";
+import { build, type InlineConfig } from "vite-plus";
+import type { SpawnSyncReturns } from "node:child_process";
+import { isRecord } from "../../../scripts/runtime-values.mts";
 
 import { expect, it, vi } from "vite-plus/test";
 import config from "../vite.config.ts";
 import { frontendEnvironment, buildFrontend } from "./build-frontend.mts";
 import { vitePlusCommand } from "../../../scripts/viteplus-cli.mts";
 
+function outputs(result: Awaited<ReturnType<typeof build>>) {
+  if (Array.isArray(result)) return result.flatMap((item) => item.output);
+  assert.ok("output" in result, "one-shot fixture build must return output rather than a watcher");
+  return result.output;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+
 it("processes imported CSS, nesting, utilities and local assets through the selected transformer", async () => {
-  const fixture = await mkdtemp(new URL("../../../work/css-pipeline-", import.meta.url));
+  const fixture = await mkdtemp(
+    fileURLToPath(new URL("../../../work/css-pipeline-", import.meta.url)),
+  );
   const entry = path.join(fixture, "entry.js");
   const stylesheet = path.join(fixture, "probe.css");
-  const options = {
+  const options: InlineConfig = {
     ...config,
     root: fixture,
     configFile: false,
@@ -44,18 +59,20 @@ it("processes imported CSS, nesting, utilities and local assets through the sele
       '<script type="module" src="./entry.js"></script>',
     );
     const result = await build(options);
-    const output = Array.isArray(result) ? result.flatMap((item) => item.output) : result.output;
+    const output = outputs(result);
     const css = output
-      .filter((item) => item.type === "asset" && item.fileName.endsWith(".css"))
-      .map((item) => String(item.source))
+      .flatMap((item) =>
+        item.type === "asset" && item.fileName.endsWith(".css") ? [String(item.source)] : [],
+      )
       .join("\n");
-    expect(config.css.transformer).toBe("lightningcss");
-    expect(config.build.cssTarget).toEqual(["chrome111", "safari16.4"]);
+    expect(config.css?.transformer).toBe("lightningcss");
+    expect(config.build?.cssTarget).toEqual(["chrome111", "safari16.4"]);
     expect(css).toContain(".pipeline-probe>span");
     expect(css).not.toContain("& > span");
     expect(css).not.toContain("12345px");
     const asset = output.find((item) => item.type === "asset" && item.fileName.endsWith(".svg"));
     expect(asset).toBeDefined();
+    assert.ok(asset);
     expect(css).toContain(path.posix.basename(asset.fileName));
     expect(output.some((item) => item.type === "asset" && item.fileName.endsWith(".woff2"))).toBe(
       true,
@@ -88,8 +105,12 @@ async function installedCliFixture(directory: string) {
 it.each([false, true])(
   "refuses an output link before invoking the child (dangling=%s)",
   async (dangling) => {
-    const fixture = await mkdtemp(new URL("../../../work/frontend-link-", import.meta.url));
-    const outside = await mkdtemp(new URL("../../../work/frontend-outside-", import.meta.url));
+    const fixture = await mkdtemp(
+      fileURLToPath(new URL("../../../work/frontend-link-", import.meta.url)),
+    );
+    const outside = await mkdtemp(
+      fileURLToPath(new URL("../../../work/frontend-outside-", import.meta.url)),
+    );
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       await installedCliFixture(fixture);
@@ -114,7 +135,9 @@ it.each([false, true])(
 );
 
 it("preserves a failing child's exit and newly emitted partial output", async () => {
-  const fixture = await mkdtemp(new URL("../../../work/frontend-failure-", import.meta.url));
+  const fixture = await mkdtemp(
+    fileURLToPath(new URL("../../../work/frontend-failure-", import.meta.url)),
+  );
   try {
     await installedCliFixture(fixture);
     await mkdir(path.join(fixture, "dist"));
@@ -160,11 +183,13 @@ it("excludes signing sentinels from direct and whole-object frontend access and 
     "TAURI_SIGNING_PRIVATE_KEY",
     "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
     "VITE_PUBLIC_LABEL",
-  ];
+  ] as const;
   const previous = names.map((name) => process.env[name]);
-  const fixture = await mkdtemp(new URL("../../../work/env-probe-", import.meta.url));
+  const fixture = await mkdtemp(
+    fileURLToPath(new URL("../../../work/env-probe-", import.meta.url)),
+  );
   const entry = `${fixture}/entry.js`;
-  const sentinels = ["fake-only-key-1279", "fake-only-password-1279"];
+  const sentinels = ["fake-only-key-1279", "fake-only-password-1279"] as const;
   try {
     process.env[names[0]] = sentinels[0];
     process.env[names[1]] = sentinels[1];
@@ -184,19 +209,21 @@ it("excludes signing sentinels from direct and whole-object frontend access and 
         lib: { entry, formats: ["iife"], name: "EnvironmentProbe" },
       },
     });
-    const outputs = Array.isArray(result) ? result.flatMap((item) => item.output) : result.output;
-    const context = {};
-    for (const output of outputs) {
+    const emitted = outputs(result);
+    const context: Record<string, unknown> = {};
+    for (const output of emitted) {
       const contents = output.type === "chunk" ? output.code : String(output.source);
       for (const sentinel of sentinels) expect(contents).not.toContain(sentinel);
       if (output.type === "chunk") runInNewContext(output.code, context);
     }
-    expect(outputs.some((output) => output.fileName.endsWith(".map"))).toBe(true);
-    expect(context.probe.direct).toBeUndefined();
-    expect(context.probe.password).toBeUndefined();
-    expect(context.probe.all.TAURI_SIGNING_PRIVATE_KEY).toBeUndefined();
-    expect(context.probe.all.TAURI_SIGNING_PRIVATE_KEY_PASSWORD).toBeUndefined();
-    expect(context.probe.all.VITE_PUBLIC_LABEL).toBe("public-1279");
+    expect(emitted.some((output) => output.fileName.endsWith(".map"))).toBe(true);
+    const probe = object(context.probe),
+      all = object(probe.all);
+    expect(probe.direct).toBeUndefined();
+    expect(probe.password).toBeUndefined();
+    expect(all.TAURI_SIGNING_PRIVATE_KEY).toBeUndefined();
+    expect(all.TAURI_SIGNING_PRIVATE_KEY_PASSWORD).toBeUndefined();
+    expect(all.VITE_PUBLIC_LABEL).toBe("public-1279");
   } finally {
     await rm(fixture, { recursive: true, force: true });
     for (const [index, name] of names.entries()) {
@@ -207,7 +234,9 @@ it("excludes signing sentinels from direct and whole-object frontend access and 
 });
 
 it("rejects an emitted application build with no current CSS", async () => {
-  const fixture = await mkdtemp(new URL("../../../work/css-output-probe-", import.meta.url));
+  const fixture = await mkdtemp(
+    fileURLToPath(new URL("../../../work/css-output-probe-", import.meta.url)),
+  );
   try {
     const entry = path.join(fixture, "entry.js");
     await writeFile(entry, "globalThis.cssOutputProbe = true;");
@@ -230,7 +259,9 @@ it("rejects an emitted application build with no current CSS", async () => {
 });
 
 it("uses resolved public environment for the explicit compatibility fixture boundary", async () => {
-  const fixture = await mkdtemp(new URL("../../../work/design-env-probe-", import.meta.url));
+  const fixture = await mkdtemp(
+    fileURLToPath(new URL("../../../work/design-env-probe-", import.meta.url)),
+  );
   const previous = process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE;
   delete process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE;
   try {
@@ -258,10 +289,11 @@ it("uses resolved public environment for the explicit compatibility fixture boun
       "VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE=1\n",
     );
     const result = await buildProbe();
-    const output = Array.isArray(result) ? result.flatMap((item) => item.output) : result.output;
+    const output = outputs(result);
     const fixtureCss = output
-      .filter((item) => item.type === "asset" && item.fileName.endsWith(".css"))
-      .map((item) => String(item.source))
+      .flatMap((item) =>
+        item.type === "asset" && item.fileName.endsWith(".css") ? [String(item.source)] : [],
+      )
       .join("\n");
     expect(fixtureCss).toContain("dark\\:opacity-50");
     expect(process.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE).toBeUndefined();
@@ -278,21 +310,23 @@ import { readFile } from "node:fs/promises";
 it.each([false, true])(
   "build entrypoints strip signing inputs before the toolchain (fresh=%s)",
   async (fresh) => {
-    const nativeConfig = JSON.parse(
-      await readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
+    const nativeConfig = object(
+      JSON.parse(await readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8")),
     );
-    expect(nativeConfig.build.beforeBuildCommand).toBe("node scripts/build-frontend.mts");
-    const rootPackage = JSON.parse(
-      await readFile(new URL("../../../package.json", import.meta.url), "utf8"),
+    expect(object(nativeConfig.build).beforeBuildCommand).toBe("node scripts/build-frontend.mts");
+    const rootPackage = object(
+      JSON.parse(await readFile(new URL("../../../package.json", import.meta.url), "utf8")),
     );
-    const appPackage = JSON.parse(
-      await readFile(new URL("../package.json", import.meta.url), "utf8"),
+    const appPackage = object(
+      JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")),
     );
-    expect(rootPackage.scripts.build).toBe("node apps/desktop/scripts/build-frontend.mts");
-    expect(appPackage.scripts.build).toBe("node scripts/build-frontend.mts");
-    expect(rootPackage.scripts["build:cached"]).toBeUndefined();
-    expect(appPackage.scripts["build:cached"]).toBeUndefined();
-    const fixture = await mkdtemp(new URL("../../../work/frontend-child-", import.meta.url));
+    expect(object(rootPackage.scripts).build).toBe("node apps/desktop/scripts/build-frontend.mts");
+    expect(object(appPackage.scripts).build).toBe("node scripts/build-frontend.mts");
+    expect(object(rootPackage.scripts)["build:cached"]).toBeUndefined();
+    expect(object(appPackage.scripts)["build:cached"]).toBeUndefined();
+    const fixture = await mkdtemp(
+      fileURLToPath(new URL("../../../work/frontend-child-", import.meta.url)),
+    );
     const child = path.join(fixture, "observe.mjs");
     const marker = path.join(fixture, "observed.json");
     try {
@@ -303,7 +337,7 @@ it.each([false, true])(
         child,
         `import {writeFileSync} from "node:fs";writeFileSync(${JSON.stringify(marker)},JSON.stringify({signing:process.env.TAURI_SIGNING_PRIVATE_KEY??null,native:process.env.TAURI_ENV_PLATFORM,args:process.argv.slice(2)}));`,
       );
-      let childResult;
+      let childResult: SpawnSyncReturns<string> | undefined;
       const status = buildFrontend(
         {
           ...process.env,
@@ -327,6 +361,7 @@ it.each([false, true])(
         fixture,
       );
       const result = childResult;
+      assert.ok(result, "the frontend runner must execute its child");
       expect(status).toBe(0);
       expect(result.error).toBeUndefined();
       expect(result.status, result.stderr).toBe(0);
