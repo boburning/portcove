@@ -38,6 +38,7 @@ interface HelperSelectionPlan {
 const helperPaths = new Set([
   ...nativeHelperSharedSources,
   "apps/desktop/scripts/browser-script.mts",
+  "apps/desktop/scripts/browser-readiness.mts",
   ...nativeToolInputs,
   ...Object.keys(nativeHelperDependencies),
   "apps/desktop/scripts/desktop-test.mts",

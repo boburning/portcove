@@ -1,3 +1,4 @@
+import { observeVisibleTarget } from "./browser-readiness.mts";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import {
@@ -122,6 +123,7 @@ export async function selectedSetupCompletionScenario({
         name,
         scenario: "native-selected-setup-completion",
         target,
+        observeTarget: () => executeBrowserScript(browser, observeVisibleTarget, target),
         readiness: () =>
           executeBrowserScript(
             browser,

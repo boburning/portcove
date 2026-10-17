@@ -1,3 +1,4 @@
+import { observeVisibleTarget } from "./browser-readiness.mts";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import os from "node:os";
@@ -1999,6 +2000,12 @@ try {
       name: "native-library-selection-review",
       scenario: "native-library-selection-review",
       target: '[aria-labelledby="library-selection-review-title"]',
+      observeTarget: () =>
+        executeBrowserScript(
+          browser,
+          observeVisibleTarget,
+          '[aria-labelledby="library-selection-review-title"]',
+        ),
       readiness: () =>
         executeBrowserScript(browser, () => {
           const review = document.querySelector(

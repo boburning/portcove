@@ -1,3 +1,5 @@
+import { runInNewContext as runBrowserProbe } from "node:vm";
+import { isRecord } from "./runtime-values.mts";
 import {
   writeAcceptancePreflight,
   completeAcceptancePacket,
@@ -5,10 +7,8 @@ import {
 } from "./acceptance-packet.mts";
 import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
 import {
-  observeGamepadCapability,
   capabilityRequirement,
   captureSettledVisual,
-  observeVisibleTarget,
   observePreparationCompletion,
 } from "./native-readiness.mts";
 import test from "node:test";
@@ -37,6 +37,34 @@ import {
   retainedExecutableCanLaunch,
   readPrelaunchCustody,
 } from "./retained-evidence.mts";
+
+// Load through the actual native runtime before serializing. The Node-only test
+// project does not import DOM implementations, and this VM has no host helpers.
+function serializedBrowserProbe(name: "observeGamepadCapability" | "observeVisibleTarget"): string {
+  const child = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    const probes = await import(process.argv[1]);
+    console.log(JSON.stringify({source: probes[process.argv[2]].toString()}));
+  `,
+      new URL("../apps/desktop/scripts/browser-readiness.mts", import.meta.url).href,
+      name,
+    ],
+    {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15_000,
+    },
+  );
+  assert.ifError(child.error);
+  assert.equal(child.status, 0, child.stderr);
+  const value: unknown = JSON.parse(child.stdout);
+  assert(isRecord(value) && typeof value.source === "string");
+  return value.source;
+}
 
 // Retained-store controls must live outside disposable checkout temp roots,
 // including when dev-storage redirects TMP/TEMP for the test process.
@@ -579,7 +607,7 @@ test("evidence hashes bytes and never replaces prior observations", async () => 
 
 test("native capability distinguishes API absence, restriction, exposed absence and scoped observations", () => {
   const observe = (navigator) =>
-    runInNewContext(`(${observeGamepadCapability.toString()})()`, { navigator });
+    runBrowserProbe(`(${serializedBrowserProbe("observeGamepadCapability")})()`, { navigator });
   assert.equal(observe({}).outcome, "api-absent");
   assert.equal(
     observe({
@@ -615,7 +643,7 @@ test("native capability distinguishes API absence, restriction, exposed absence 
 
 test("serialized visual target observation rejects absent, loading and offscreen targets", () => {
   const observe = (rect, loading = 0) =>
-    runInNewContext(`(${observeVisibleTarget.toString()})("#target")`, {
+    runBrowserProbe(`(${serializedBrowserProbe("observeVisibleTarget")})("#target")`, {
       document: {
         readyState: "complete",
         querySelectorAll: (selector) =>
@@ -665,6 +693,7 @@ test("settled visual binds retained image to semantic state and preserves negati
   ) =>
     captureSettledVisual({
       browser,
+      observeTarget: () => browser.executeScript(),
       output: directory,
       name,
       scenario: "owned-review",
@@ -721,6 +750,7 @@ test("settled capture waits for the actual target geometry without accepting a m
   };
   const options = {
     browser,
+    observeTarget: () => browser.executeScript(),
     output: directory,
     scenario: "owned-return",
     target: "#queue",
@@ -772,6 +802,11 @@ test("timed-out capture joins the blocked filesystem worker without publishing a
       takeScreenshot: async () => Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64"),
     },
     output: directory,
+    observeTarget: async () => ({
+      visible: true,
+      viewport: { width: 800, height: 600 },
+      application_state: { document_ready: "complete", loading: 0 },
+    }),
     name: "blocked",
     scenario: "owned-review",
     target: "#review",

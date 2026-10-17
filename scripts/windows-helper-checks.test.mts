@@ -56,6 +56,7 @@ test("Windows helper selection includes rename/delete sides and policy inputs wi
     "apps/desktop/scripts/native-window-discovery.ps1",
     "apps/desktop/scripts/desktop-native-confirmation.mts",
     "apps/desktop/scripts/browser-script.mts",
+    "apps/desktop/scripts/browser-readiness.mts",
     "scripts/runtime-values.mts",
     "apps/desktop/scripts/desktop-test.mts",
     "scripts/frontend-command-preflight.mts",

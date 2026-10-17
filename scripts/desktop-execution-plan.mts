@@ -124,6 +124,7 @@ export function planDesktopExecution(
   inputs.push({ kind: "file", path: "scripts/native-readiness.mts" });
   inputs.push({ kind: "file", path: "scripts/runtime-values.mts" });
   inputs.push({ kind: "file", path: "apps/desktop/scripts/browser-script.mts" });
+  inputs.push({ kind: "file", path: "apps/desktop/scripts/browser-readiness.mts" });
   inputs.push({ kind: "file", path: "scripts/acceptance-packet.mts" });
   inputs.push(receiptSource(harnessUrl));
   if (selection.selected_scenarios.includes("native-linux-webview-origin-boundary"))

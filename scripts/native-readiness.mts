@@ -1,25 +1,69 @@
+import type {
+  ActivityRecord,
+  LaunchReadiness,
+} from "../apps/desktop/src/transport-types.generated.js";
 import { errorMessage } from "./runtime-values.mts";
 import { writeFile, link, unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileIdentity } from "./development-evidence.mts";
 import assert from "node:assert/strict";
 
-export async function observePreparationCompletion({
+type PreparationActivity = Pick<ActivityRecord, "id" | "operation" | "target_id" | "status"> &
+  Partial<Pick<ActivityRecord, "started_at" | "finished_at">>;
+type ObservationPhase = "activity" | "status" | "review";
+interface PreparationSample {
+  observed_at: string;
+  readiness: boolean | "not-read-before-terminal";
+  review_closed: boolean | "not-read-before-readiness";
+  phase?: ObservationPhase | "complete";
+  activity_ms?: number;
+  status_ms?: number;
+  review_ms?: number;
+  new_activity_count?: number;
+  activities?: {
+    id: ActivityRecord["id"];
+    status: ActivityRecord["status"];
+    started_at: ActivityRecord["started_at"] | undefined;
+    finished_at: ActivityRecord["finished_at"] | undefined;
+  }[];
+}
+export interface PreparationObservation {
+  samples?: number;
+  last?: PreparationSample;
+  activity_reads?: number;
+  status_reads?: number;
+  review_reads?: number;
+}
+interface PreparationOptions<Status> {
+  readActivities(this: void): Promise<{ records: PreparationActivity[] }>;
+  readStatus(this: void): Promise<Status>;
+  isReviewClosed(this: void): Promise<boolean>;
+  portId: string;
+  priorPreparationIds: ReadonlySet<string>;
+  observation: PreparationObservation;
+}
+
+export async function observePreparationCompletion<
+  Status extends { readiness: Pick<LaunchReadiness, "launchable"> },
+>({
   readActivities,
   readStatus,
   isReviewClosed,
   portId,
   priorPreparationIds,
   observation,
-}) {
+}: PreparationOptions<Status>) {
   observation.samples = (observation.samples ?? 0) + 1;
-  const sample = {
+  const sample: PreparationSample = {
     observed_at: new Date().toISOString(),
     readiness: "not-read-before-terminal",
     review_closed: "not-read-before-readiness",
   };
   observation.last = sample;
-  const read = async (kind, action) => {
+  const read = async <Value,>(
+    kind: ObservationPhase,
+    action: () => Promise<Value>,
+  ): Promise<Value> => {
     sample.phase = kind;
     observation[`${kind}_reads`] = (observation[`${kind}_reads`] ?? 0) + 1;
     const started = performance.now();
@@ -61,23 +105,9 @@ export async function observePreparationCompletion({
   return { status: value, activity: terminal };
 }
 
-// Serializable in the actual WebView; do not import host state into this probe.
-export function observeGamepadCapability() {
-  try {
-    if (typeof globalThis.navigator.getGamepads !== "function")
-      return { outcome: "api-absent", exposed_devices: 0 };
-    const devices = Array.from(globalThis.navigator.getGamepads()).filter(Boolean);
-    return {
-      outcome: devices.length ? "devices-exposed" : "no-exposed-device",
-      exposed_devices: devices.length,
-    };
-  } catch {
-    return { outcome: "api-access-failed-or-restricted", exposed_devices: null };
-  }
-}
-
-export function capabilityRequirement(observation, requirement) {
+export function capabilityRequirement(observation: { outcome: string }, requirement: unknown) {
   if (
+    typeof requirement !== "string" ||
     !["declared-api-fallback", "injected-controller", "physical-controller"].includes(requirement)
   )
     throw new Error("Unknown controller requirement");
@@ -99,54 +129,50 @@ export function capabilityRequirement(observation, requirement) {
   };
 }
 
-export function observeVisibleTarget(selector) {
-  const elements = Array.from(globalThis.document.querySelectorAll(selector));
-  const target = elements.length === 1 ? elements[0] : null;
-  const rect = target?.getBoundingClientRect();
-  const style = target ? globalThis.getComputedStyle(target) : null;
-  const viewport = {
-    width: globalThis.innerWidth,
-    height: globalThis.innerHeight,
-    device_pixel_ratio: globalThis.devicePixelRatio,
-  };
-  return {
-    viewport,
-    application_state: {
-      document_ready: globalThis.document.readyState,
-      loading: globalThis.document.querySelectorAll(".loading-state").length,
-    },
-    target: selector,
-    target_count: elements.length,
-    rect: rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null,
-    visible: Boolean(
-      target &&
-      !target.closest('[hidden],[inert],[aria-hidden="true"]') &&
-      style.display !== "none" &&
-      style.visibility !== "hidden" &&
-      Number(style.opacity) !== 0 &&
-      rect.width > 0 &&
-      rect.height > 0 &&
-      rect.right > 0 &&
-      rect.bottom > 0 &&
-      rect.left < globalThis.innerWidth &&
-      rect.top < globalThis.innerHeight,
-    ),
-  };
+export interface VisualTargetObservation {
+  visible: boolean;
+  viewport: { width: number; height: number };
+  application_state: { document_ready: string; loading: number };
+}
+interface CaptureOptions<
+  State extends VisualTargetObservation,
+  Semantic extends { ready: boolean },
+> {
+  browser: { takeScreenshot(): Promise<string> };
+  output: string;
+  name: string;
+  scenario: string;
+  target: string;
+  // Browser execution belongs to the adapter. Node evidence code consumes the
+  // resulting wire observation without importing a DOM implementation.
+  observeTarget(this: void): Promise<State>;
+  readiness(this: void): Promise<Semantic>;
+  timeoutMs?: number;
+  write?: (
+    file: string,
+    bytes: string | Uint8Array,
+    options: { flag: "wx"; signal: AbortSignal },
+  ) => Promise<void>;
 }
 
-export async function captureSettledVisual({
+export async function captureSettledVisual<
+  State extends VisualTargetObservation,
+  Semantic extends { ready: boolean },
+>({
   browser,
   output,
   name,
   scenario,
   target,
+  observeTarget,
   readiness,
   timeoutMs = 5000,
   write = writeFile,
-}) {
+}: CaptureOptions<State, Semantic>) {
   if (
     !scenario ||
     !target ||
+    typeof observeTarget !== "function" ||
     typeof readiness !== "function" ||
     !/^[a-z0-9-]+$/u.test(name) ||
     !Number.isInteger(timeoutMs) ||
@@ -155,9 +181,9 @@ export async function captureSettledVisual({
   )
     throw new Error("Settled capture requires a bounded caller-specific contract");
   const end = Date.now() + timeoutMs;
-  const observations = [];
-  let image;
-  async function writeJoined(file, bytes) {
+  const observations: { semantic: Semantic; state: State }[] = [];
+  let image: string | undefined;
+  async function writeJoined(file: string, bytes: string | Uint8Array) {
     const remaining = end - Date.now();
     if (remaining <= 0) throw new Error("Settled capture timed out");
     const controller = new AbortController();
@@ -174,14 +200,14 @@ export async function captureSettledVisual({
       clearTimeout(timer);
     }
   }
-  async function bounded(operation) {
+  async function bounded<Value>(operation: () => Value | Promise<Value>): Promise<Value> {
     const remaining = end - Date.now();
     if (remaining <= 0) throw new Error("Settled capture timed out");
-    let timer;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       return await Promise.race([
         Promise.resolve().then(operation),
-        new Promise((_, reject) => {
+        new Promise<never>((_, reject) => {
           timer = setTimeout(() => reject(new Error("Settled capture timed out")), remaining);
         }),
       ]);
@@ -191,13 +217,13 @@ export async function captureSettledVisual({
   }
   async function observe() {
     const semantic = await bounded(readiness);
-    const state = await bounded(() => browser.executeScript(observeVisibleTarget, target));
+    const state = await bounded(observeTarget);
     const value = { semantic, state };
     observations.push(value);
     if (observations.length > 16) observations.shift();
     return value;
   }
-  const ready = (value) =>
+  const ready = (value: { semantic: Semantic; state: State }) =>
     value.semantic?.ready === true &&
     value.state.visible &&
     value.state.viewport.width > 0 &&
@@ -205,7 +231,8 @@ export async function captureSettledVisual({
     value.state.application_state.document_ready === "complete" &&
     value.state.application_state.loading === 0;
   try {
-    let before, previous;
+    let before: { semantic: Semantic; state: State };
+    let previous: typeof before | undefined;
     for (;;) {
       before = await observe();
       // Semantic readiness can precede a returning panel's layout transition.
@@ -221,9 +248,10 @@ export async function captureSettledVisual({
     const after = await observe();
     if (!ready(after) || JSON.stringify(before) !== JSON.stringify(after))
       throw new Error("Application state changed during capture");
-    image = path.join(output, `${name}.png`);
-    await writeJoined(image, bytes);
-    const identity = await bounded(() => fileIdentity(image));
+    const imagePath = path.join(output, `${name}.png`);
+    image = imagePath;
+    await writeJoined(imagePath, bytes);
+    const identity = await bounded(() => fileIdentity(imagePath));
     const receipt = path.join(output, `${name}-capture.json`);
     const record = {
       format_version: 1,

@@ -1,24 +1,43 @@
+import type { ScenarioContext } from "./desktop-scenario-context.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 // Presentation-only fixtures supplement actual native keyboard interaction.
 import assert from "node:assert/strict";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { By, Key, until } from "selenium-webdriver";
-import { assertCompactReview, captureAccessibilityReport } from "./desktop-review-controls.mts";
+import {
+  assertCompactReview,
+  captureAccessibilityReport,
+  observeAccessibility,
+  assertNoAccessibilityViolations,
+} from "./desktop-review-controls.mts";
 
-export async function accessibleNavigationScenario({ browser, scenario, output, artifacts }) {
+export async function accessibleNavigationScenario({
+  browser,
+  scenario,
+  output,
+  artifacts,
+}: ScenarioContext) {
   await scenario("native-expanded-navigation-copy", async () => {
     const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
     const commandTrigger = await browser.findElement(By.css('[aria-label="Open command palette"]'));
-    await executeBrowserScript(browser, (element) => element.focus(), commandTrigger);
+    await executeBrowserScript(
+      browser,
+      (element) => {
+        if (!(element instanceof HTMLElement))
+          throw new Error("Command trigger is not an HTML control");
+        element.focus();
+      },
+      commandTrigger,
+    );
     await browser.actions().keyDown(modifier).sendKeys("k").keyUp(modifier).perform();
     await browser.wait(until.elementLocated(By.css(".command-palette")), 5000);
     const search = await browser.findElement(
       By.css('.command-palette input[aria-label="Search commands"]'),
     );
     assert.equal(
-      (await search.getAttribute("value")).length,
-      0,
+      await search.getAttribute("value"),
+      "",
       "A freshly opened palette must start with an empty query",
     );
     await browser.wait(
@@ -34,7 +53,7 @@ export async function accessibleNavigationScenario({ browser, scenario, output, 
       true,
       "The command palette must use the shared portal",
     );
-    const hints = async (inputMode) =>
+    const hints = async (inputMode: "keyboard" | "controller") =>
       executeBrowserScript(
         browser,
         (nextInputMode) => {
@@ -92,6 +111,7 @@ export async function accessibleNavigationScenario({ browser, scenario, output, 
     const expansion = await executeBrowserScript(browser, () => {
       document.documentElement.style.fontSize = "125%";
       const samples = [];
+      const vowels: Readonly<Record<string, string>> = { a: "á", e: "ë", i: "ï", o: "ö", u: "ü" };
       for (const element of document.querySelectorAll(
         ".palette-command strong, .palette-command small, .palette-footer span",
       )) {
@@ -100,7 +120,7 @@ export async function accessibleNavigationScenario({ browser, scenario, output, 
         const expanded =
           original.replace(
             /[aeiou]/gi,
-            (letter: string) => ({ a: "á", e: "ë", i: "ï", o: "ö", u: "ü" })[letter.toLowerCase()],
+            (letter: string) => vowels[letter.toLowerCase()] ?? letter,
           ) +
           " " +
           "ľ".repeat(Math.max(0, Math.ceil(original.length * 0.35) - 1));
@@ -115,6 +135,7 @@ export async function accessibleNavigationScenario({ browser, scenario, output, 
     await assertCompactReview(browser, ".command-palette");
     const layout = await executeBrowserScript(browser, () => {
       const dialog = document.querySelector(".command-palette");
+      if (!dialog) throw new Error("Command palette is unavailable");
       const bounds = dialog.getBoundingClientRect();
       return {
         font_size: getComputedStyle(document.documentElement).fontSize,
@@ -144,11 +165,12 @@ export async function accessibleNavigationScenario({ browser, scenario, output, 
       0,
     );
     assert.equal(await search.getAttribute("aria-expanded"), "false");
-    const emptyAccessibility = await browser.executeAsyncScript((done) =>
-      window.axe.run().then(done),
-    );
+    const emptyAccessibility = await observeAccessibility(browser);
     const emptyReport = path.join(output, "empty-command-search-accessibility.json");
-    await writeFile(emptyReport, JSON.stringify(emptyAccessibility, null, 2), {
+    const serializedEmpty = JSON.stringify(emptyAccessibility, null, 2);
+    if (serializedEmpty === undefined)
+      throw new Error("Accessibility engine returned no JSON result");
+    await writeFile(emptyReport, serializedEmpty, {
       flag: "wx",
     });
     artifacts.push(emptyReport);
@@ -158,10 +180,7 @@ export async function accessibleNavigationScenario({ browser, scenario, output, 
       flag: "wx",
     });
     artifacts.push(emptyImage);
-    assert.deepEqual(
-      emptyAccessibility.violations.map((item) => item.id),
-      [],
-    );
+    assertNoAccessibilityViolations(emptyAccessibility);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(
       async () => (await browser.findElements(By.css(".command-palette"))).length === 0,
