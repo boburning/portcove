@@ -1,3 +1,4 @@
+import "../apps/desktop/scripts/desktop-completion-focus.native.test.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";

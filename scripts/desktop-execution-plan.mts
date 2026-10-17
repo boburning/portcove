@@ -160,6 +160,7 @@ export function planDesktopExecution(
   if (selection.selected_scenarios.includes("native-selected-setup-completion"))
     for (const name of [
       "desktop-selected-setup-completion-test.mts",
+      "desktop-completion-focus.mts",
       "desktop-source-dialog-test.mts",
       "../../../crates/portcove-core/src/testdata/host_tool_probe.rs.txt",
     ])

@@ -5,7 +5,8 @@ import {
   captureDesktopReceiptInputs,
 } from "./native-helper-dependencies.mts";
 import assert from "node:assert/strict";
-import { readFile, mkdtemp, rm } from "node:fs/promises";
+import { readFile, mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
+import { verifyConsumedInputs } from "./retained-evidence.mts";
 import os from "node:os";
 import test from "node:test";
 import path from "node:path";
@@ -27,6 +28,58 @@ const executableNames = {
   "preparation-cli": "baseline-cli.exe",
   "preparation-tool": "baseline-tool.exe",
 };
+
+void test("selected completion captures and verifies its serialized focus observer source", async (t) => {
+  const source = "apps/desktop/scripts/desktop-completion-focus.mts";
+  for (const platform of ["win32", "linux"] as const) {
+    const plan = planDesktopExecution(
+      resolveDesktopSelection({ scenarios: ["native-selected-setup-completion"], platform }),
+      { platform },
+    );
+    assert.equal(
+      plan.receiptInputs.filter((input) => input.kind === "file" && input.path === source).length,
+      1,
+    );
+  }
+  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-focus-custody-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, source);
+  await mkdir(path.dirname(file), { recursive: true });
+  const original = await readFile(new URL(`../${source}`, import.meta.url));
+  await writeFile(file, original);
+  const output = path.join(directory, "output");
+  await mkdir(output);
+  const inputs = await captureDesktopReceiptInputs({
+    root: directory,
+    values: { app: process.execPath },
+    plan: {
+      receiptInputs: [
+        { kind: "executable", name: "app" },
+        { kind: "file", path: source },
+      ],
+      selection: { selected_scenarios: ["native-selected-setup-completion"] },
+    },
+    output,
+    revision: "a".repeat(40),
+    retainedRoot: path.join(directory, "retained"),
+    // Isolate source custody; the native-helper suite checks the full declaration graph.
+    validate: async () => [],
+  });
+  const retained = inputs.map((input) => {
+    assert.ok("retained" in input);
+    return input;
+  });
+  await verifyConsumedInputs(retained);
+  const changed = Buffer.from(original);
+  changed[0] = changed[0] === 65 ? 66 : 65;
+  await writeFile(file, changed);
+  await assert.rejects(
+    verifyConsumedInputs(retained),
+    /Live execution input changed after capture/u,
+  );
+  await writeFile(file, original);
+  await verifyConsumedInputs(retained);
+});
 
 void test("Linux origin qualification is explicit, standalone and feature scoped", () => {
   const id = "native-linux-webview-origin-boundary";
@@ -183,6 +236,8 @@ void test("execution planning preserves the independently reviewed pre-change or
           nativeTransportReceiptSources.some((source) => source === added) ||
           added === "apps/desktop/scripts/browser-script.mts" ||
           added === "apps/desktop/scripts/browser-readiness.mts" ||
+          (added === "apps/desktop/scripts/desktop-completion-focus.mts" &&
+            selection.selected_scenarios.includes("native-selected-setup-completion")) ||
           added === "scripts/native-readiness.mts" ||
           added === "scripts/acceptance-packet.mts" ||
           added === nativeHelperRegistryPath,
