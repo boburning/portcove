@@ -216,8 +216,8 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     env:
-      CARGO_TARGET_DIR: ${{ runner.temp }}/slice3-native-${{ github.sha }}
-      PORTCOVE_RETAINED_EVIDENCE_DIR: ${{ runner.temp }}/slice3-native-retained
+      CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
+      PORTCOVE_RETAINED_EVIDENCE_DIR: ${{ github.workspace }}/work/slice3-native-retained
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -319,7 +319,7 @@ jobs:
           name: linux-preparation-continuity-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             work/linux-preparation-continuity/**
-            ${{ runner.temp }}/slice3-native-retained/**
+            work/slice3-native-retained/**
             !**/webview/**
             !**/xdg_config_home/**
             !**/xdg_cache_home/**
