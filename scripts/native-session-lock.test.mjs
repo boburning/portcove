@@ -30,29 +30,47 @@ test("native lock blocks a live owner and reports its identity", async () => {
   }
 });
 
-test("native lock reclaims only a positively stale valid owner", async () => {
+test("native lock preserves PID-only legacy ownership until desktop quiescence is established", async () => {
   const { root, lockPath } = await fixture();
   try {
     await mkdir(lockPath);
-    await writeFile(
-      path.join(lockPath, "owner.json"),
-      JSON.stringify({
-        format_version: 1,
-        token: "stale",
-        pid: 999999,
-        created_at: "2026-01-01T00:00:00.000Z",
-        workspace: "old",
-      }),
+    const bytes = JSON.stringify({
+      format_version: 1,
+      token: "stale",
+      pid: 999999,
+      created_at: "2026-01-01T00:00:00.000Z",
+      workspace: "old",
+    });
+    await writeFile(path.join(lockPath, "owner.json"), bytes);
+    await assert.rejects(
+      acquireNativeSessionLock({ workspace: "new" }, { lockPath, isProcessAlive: () => false }),
+      { code: "PORTCOVE_RESOURCE_RECOVERY_REQUIRED" },
     );
-    const current = await acquireNativeSessionLock(
-      { workspace: "new", scenarios: ["accessibility"] },
-      { lockPath, isProcessAlive: () => false },
+    assert.equal(await readFile(path.join(lockPath, "owner.json"), "utf8"), bytes);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("native inherited token also requires the same process creation identity", async () => {
+  const { root, lockPath } = await fixture();
+  try {
+    const owner = await acquireNativeSessionLock(
+      {},
+      { lockPath, inspectProcessIdentity: () => "first-creation" },
+    );
+    await assert.rejects(
+      acquireNativeSessionLock(
+        {},
+        { lockPath, inheritedToken: owner.owner.token, inspectProcessIdentity: () => "reused-pid" },
+      ),
+      /verified live creation identity/,
     );
     assert.equal(
-      JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8")).token,
-      current.owner.token,
+      JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8")).process_identity,
+      "first-creation",
     );
-    await current.release();
+    await owner.release();
   } finally {
     await rm(root, { recursive: true, force: true });
   }

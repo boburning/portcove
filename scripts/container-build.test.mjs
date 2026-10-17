@@ -16,7 +16,7 @@ import {
   browser,
   command,
 } from "./container-build.mjs";
-import { createContainerHost } from "./container-host.mjs";
+import { createContainerHost, completedContainerPreparation } from "./container-host.mjs";
 test("missing package tools preserve the failed executable and arguments", async () => {
   const missing = path.join(os.tmpdir(), "portcove-missing-tool-parent-does-not-exist", "rpm");
   assert(!existsSync(missing));
@@ -191,4 +191,26 @@ test("package identities reject another version or architecture", () => {
         ),
       /identity/u,
     );
+});
+
+test("pre-container recovery requires exact terminal engine evidence, preserving failed status", () => {
+  const record = {
+    name: "portcove-build-exact-run",
+    ref: "desktop-linux/desktop-linux/opaque123",
+    status: "Error",
+    created_at: "2026-10-17T00:00:00Z",
+    completed_at: "2026-10-17T00:01:00Z",
+  };
+  assert.equal(completedContainerPreparation([record], record.name), record);
+  for (const changed of [
+    { status: "Running" },
+    { completed_at: null },
+    { ref: "foreign/builder/opaque123" },
+    { created_at: "unknown" },
+    { completed_at: "2026-10-16T23:00:00Z" },
+  ])
+    assert.equal(completedContainerPreparation([{ ...record, ...changed }], record.name), null);
+  assert.equal(completedContainerPreparation([record, record], record.name), null);
+  assert.equal(completedContainerPreparation([record], "another-run"), null);
+  assert.equal(record.status, "Error");
 });

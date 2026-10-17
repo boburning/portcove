@@ -23,6 +23,24 @@ test("candidate fingerprint detects same-HEAD dirty edits, untracked inputs, ren
       "base",
     );
     const clean = fallowSource(root, "main");
+    const allInputs = fallowSource(root, undefined, { includeAll: true });
+    writeFileSync(path.join(root, "native.rs"), "fn main() {}\n");
+    const nativeInputs = fallowSource(root, undefined, { includeAll: true });
+    assert.notEqual(allInputs.source_sha256, nativeInputs.source_sha256);
+    writeFileSync(path.join(root, "native.rs"), "fn changed() {}\n");
+    assert.notEqual(
+      nativeInputs.source_sha256,
+      fallowSource(root, undefined, { includeAll: true }).source_sha256,
+    );
+    const beforeMode = fallowSource(root, undefined, { includeAll: true });
+    git("update-index", "--chmod=+x", "helper.mjs");
+    assert.notEqual(
+      beforeMode.source_sha256,
+      fallowSource(root, undefined, { includeAll: true }).source_sha256,
+    );
+    git("update-index", "--chmod=-x", "helper.mjs");
+    rmSync(path.join(root, "native.rs"));
+
     writeFileSync(path.join(root, "helper.mjs"), "export const value=2;");
     const dirty = fallowSource(root, "main");
     assert.equal(clean.head, dirty.head);

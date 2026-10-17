@@ -25,7 +25,19 @@ test("frontend and direct Core inventories are independent; daily and native are
   const core = await developmentCapabilityPlan("core");
   const daily = await developmentCapabilityPlan("daily");
   const native = await developmentCapabilityPlan("native-desktop");
-  assert.deepEqual(frontend.capabilities, ["node", "pnpm", "frontend-dependencies"]);
+  assert.deepEqual(frontend.capabilities, profileCapabilities("frontend"));
+  assert.deepEqual(profileCapabilities("frontend", { platform: "darwin" }), [
+    "node",
+    "pnpm",
+    "frontend-dependencies",
+  ]);
+  for (const platform of ["win32", "linux"])
+    assert.deepEqual(profileCapabilities("frontend", { platform }), [
+      "node",
+      "pnpm",
+      "frontend-dependencies",
+      "rustc",
+    ]);
   assert.deepEqual(core.capabilities, [
     "rustc",
     "cargo",
@@ -39,7 +51,7 @@ test("frontend and direct Core inventories are independent; daily and native are
   );
   assert.equal(core.setup.frontend, false);
   assert.equal(core.setup.aqua, false);
-  assert.equal(frontend.setup.rust, false);
+  assert.equal(frontend.setup.rust, ["win32", "linux"].includes(process.platform));
   assert.equal(frontend.setup.aqua, false);
   assert.equal(frontend.setup.cargo_tools.length, 0);
   for (const capability of [...frontend.capabilities, ...core.capabilities])
@@ -56,11 +68,16 @@ test("frontend and direct Core inventories are independent; daily and native are
 
 test("validation consumers share the exact mapping and keep Node wrappers and fixture subsets", () => {
   assert.equal(selectedPrerequisites, validationCapabilities);
-  assert.deepEqual(selectedPrerequisites({ id: "repository-lint" }), [
+  assert.deepEqual(selectedPrerequisites({ id: "repository-lint" }, "darwin"), [
     "node",
     "pnpm",
     "frontend-dependencies",
   ]);
+  for (const platform of ["win32", "linux"]) {
+    assert(selectedPrerequisites({ id: "repository-lint" }, platform).includes("rustc"));
+    assert(!selectedPrerequisites({ id: "oxfmt" }, platform).includes("rustc"));
+    assert(!selectedPrerequisites({ id: "node-tests" }, platform).includes("rustc"));
+  }
   assert.deepEqual(selectedPrerequisites({ id: "rust-tests:portcove-core" }), [
     "node",
     "rustc",

@@ -54,6 +54,12 @@ test("browser adapter retains its independently reviewed pre-extraction contract
         ? "io.portcove.workspace=<physical-workspace-hash>"
         : argument,
     );
+    const guest = actual.indexOf("PORTCOVE_CONTAINER_GUEST=1");
+    assert(
+      guest > 0 && actual[guest - 1] === "--env",
+      "guest work must reuse host admission without exposing its records",
+    );
+    actual.splice(guest - 1, 2);
     assert.deepEqual(actual, expected);
   }
   for (const { name, input, expected } of oracle.runtimeValidation) {

@@ -35,11 +35,12 @@ See [the comparison decision](adr/0002-separate-build-reuse-from-qualification.m
 and [delivery terminology](../GLOSSARY.md). Packet stages described in that ADR
 are the chosen boundary for the later package component, not a new global gate.
 
-Before overlapping local Rust or native commands, use `just resource-status` for
-a passive snapshot of existing guard records. It reports recorded identities and
-unknown coverage; the guards still own admission. Sequence conflicting owned
-commands, including focused Rust tests and `local-check`; independent work may
-continue. Missing records do not prove the machine is idle.
+Supported finite heavy commands acquire local resources at execution, including
+Rust tests/builds, full Vite+ checks, UI suites, advisory Fallow runs and the
+Windows Docker adapters. Use those entrypoints concurrently; do not bypass their
+guards or terminate another owner's work. `just resource-status` only observes
+running/queued records and coverage gaps. Missing records never prove machine idle.
+See [shared local resources](#shared-local-resources).
 
 Use `node scripts/checked-git.mjs -- <git arguments>` for a checked call, or
 `node scripts/checked-git.mjs --sequence <owned-json-file>` for dependent calls.
@@ -1085,7 +1086,7 @@ Every native run can take focus and send input. The shared lock serializes
 Portcove qualification runners across worktrees, but it cannot prevent unrelated
 user input. Announce the foreground run and establish an uncontended window.
 Malformed or live lock ownership is never removed; a valid lock is reclaimed only
-when its recorded PID is positively absent.
+when its recorded PID is positively absent and the owning operation proves quiescence; unknown native ownership is retained.
 
 When the native runner reports a live owner, treat that as resource contention,
 not a harness timeout: preserve the report, continue noninteractive work, wait for
@@ -1691,3 +1692,80 @@ raw scanner status. `just audit` includes the scanner and development decision;
 no special risk flag is required. The known GLib error stays visible and remains
 a raw failed scan. Release expiry, tags, inventories and native source review
 belong exclusively to Linux release authorization; see [QUALITY](QUALITY.md).
+
+## Shared local resources
+
+Capacity and desktop exclusivity are separate. Participating same-user commands
+share `~/.portcove/resources`, independent of worktree, branch, tool version,
+`PORTCOVE_SHARED_TOOL_CACHE` and XDG cache overrides. Defaults admit two estimated
+units: Rust, browser and analysis phases use one each; container preparation and
+execution use both. These are conservative admission weights, not CPU/RAM
+reservations. Cargo compilation uses at most two jobs; existing nextest limits
+remain; unit and browser projects use two workers each. Git bundle preparation
+uses two pack threads. Preserve headroom for unrelated programs.
+
+`config.json` in that domain accepts `slots` (1..8, default 2), `waitMs`
+(0..3600000, default 900000), absolute `legacyRoots` for additional known shared
+tool-cache roots, and `legacyMode` (`exclusive` or `coordinated`). Do not edit the
+mode during active work. Lowering capacity does not erase existing reservations.
+The guard queues with operation/worktree diagnostics, keeps queue duration
+separate from execution, and times out admission with exit 75. Cancellation is
+130/143. Neither means a completed test. Execution budgets begin after admission;
+outer callers must allow the bounded queue as well as setup and execution.
+
+The initial `exclusive` mode safely mirrors the older Rust and desktop guards;
+heavy phases are serialized during this transition. Container runs require the
+cutover because an unmodified old guard cannot retain remote-engine custody after
+a host caller dies. Coordinate a finite checkpoint with existing local writers,
+finish legacy heavy/native/container work and resolve unknown retained records.
+Then run `node scripts/resource-command.mjs retire-legacy-entrypoints` from an
+updated checkout. This owner-authorized operation holds the legacy guards, checks
+the drained capacity domain, retains a migration receipt and atomically selects
+`coordinated` mode. Queued requests re-read mode. After cutover, retire unmodified
+legacy entrypoints: a passive legacy scan cannot protect against an unsupported
+old command starting later. Returning to compatibility requires another drained
+transition; there is no live mode switch or cleanup override.
+
+Rust target directories and mutable frontend outputs use physical-path exclusive
+reservations alongside capacity. Distinct worktrees can execute together; the
+same frontend output cannot be built/restored/tested concurrently. Nested commands
+reuse verified ownership. An upgrade requiring more slots or another output must
+be declared at the outer phase and fails rather than deadlocking. Native journeys
+retain a separate host desktop lock with process creation identity and a legacy
+compatibility record. Unknown/PID-only orphan ownership is retained for positive
+quiescence investigation, never reclaimed merely by age or PID absence.
+
+The supported frontend, native-build, native-verification and container routes
+reuse the existing process supervisor and descendant cleanup. On Windows/Linux,
+heavy frontend and host bundle preparation therefore need the pinned Rust compiler
+for the small cached supervisor; frontend profile setup/doctor includes it.
+Formatting, explicit-file lint, Node contract tests, Git/API reads, editing and
+review do not acquire capacity or provision Rust, browsers or Docker. No validation
+command implicitly installs a missing compiler. `desktop:build` resolves the
+pinned Tauri adapter and declares Rust/frontend output ownership. Interactive
+`desktop:dev` remains a long-lived third-party watcher: its idle lifetime is not a
+finite admitted phase. Do not overlap its compilation/output mutation with finite
+commands in that checkout; use a separate worktree and the native session rules.
+Raw Cargo/Vitest/Tauri commands and independently launched WSL jobs do not gain
+universal host enforcement. Windows-driven WSL verification participates through
+its host guard; a separate Linux user/kernel domain does not share host identity.
+
+Docker browser and builder adapters reserve host capacity before expensive image,
+dependency and bundle preparation, retain it through exact labelled container
+quiescence, and keep guest limits/isolation. The guest receives only a participation
+flag, never host coordination paths/tokens or mounts. Preparation and runtime are
+measured separately from queue time; image inventory is refreshed after admission.
+Recovery retains custody across host exit, uses the exact build name's completed
+Buildx history or the stopped labelled container, and records the release decision
+before removing individual slots. Interrupted cleanup can resume without touching
+a successor's token. Uncertain/missing engine evidence retains capacity and the
+run's `host.json`; use the adapter's existing `export --run UUID` recovery command.
+A budget refusal before dispatched work releases immediately. Successful package
+construction remains distinct from installed/native GUI qualification.
+
+Source custody is checked again after waiting using the existing provenance
+primitive. A changed candidate is refused before payload launch; reusable local
+receipts also verify source after execution. Hosted CI does not consult this local
+domain and retains its runner limits and containment. Optional local audit/Fallow
+feedback, required hosted contexts, review, artifact reuse and explicit native or
+release acceptance retain the current [quality contract](QUALITY.md).

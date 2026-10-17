@@ -237,7 +237,15 @@ function doctorRemediation(report) {
 async function executePhase({ id, command, args, cwd, environment, log, timings }) {
   const started = new Date();
   console.log(`desktop-verify: ${id}`);
-  const result = spawnCommand(command, args, {
+  const cargo = ["cargo", "rustc"].includes(command);
+  const native = id === "native-harness";
+  const guardedArgs = cargo
+    ? ["scripts/run-rust-tests.mjs", "--guard-command", command, ...args]
+    : native
+      ? ["scripts/resource-command.mjs", "browser", "--", command, ...args]
+      : args;
+  const guardedCommand = cargo || native ? process.execPath : command;
+  const result = spawnCommand(guardedCommand, guardedArgs, {
     cwd,
     env: environment,
     encoding: "utf8",

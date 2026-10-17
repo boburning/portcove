@@ -163,11 +163,19 @@ const oxfmtExtensions = new Set([
 // descendant-closure consumers. Helper-only edits must exercise those contracts.
 const containmentContractTests = [
   "scripts/heavy-rust-test-lock.test.mjs",
+  "scripts/resource-capacity.test.mjs",
+  "scripts/resource-command.test.mjs",
+  "scripts/native-session-lock.test.mjs",
+  "scripts/process-lock.test.mjs",
   "scripts/run-rust-tests.test.mjs",
   "scripts/rust-support-cache.test.mjs",
   "scripts/rust-test-tree-supervisor.test.mjs",
 ];
 const containmentInputs = new Set([
+  "scripts/resource-paths.mjs",
+  "scripts/native-build.mjs",
+  "scripts/container-host.mjs",
+  "scripts/fallow-source.mjs",
   ...containmentContractTests,
   ...containmentContractTests.map((file) => file.replace(".test.mjs", ".mjs")),
   "scripts/fixtures/linux-process-tree-reaper.rs.txt",
