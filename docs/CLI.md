@@ -394,6 +394,14 @@ recovery actions and redacted technical context. Unknown outcomes are not treate
 as no changes, and cancellation has neutral presentation. SQLite schema 20 stores
 these reports alongside terminal activity status; older records have no report.
 
+Known refusal branches attach their own presentation facts for catalog validity
+and replay, library versions and locks, changed sources, stale removal reviews,
+unfinished recovery, storage and extraction limits, unsupported paths/packages,
+and provider API responses. Human summaries give the supported next review or
+recovery step without deriving a cause from diagnostics or changing the mutation
+outcome. Provider reset times are reported absolute UTC times, not a guarantee
+that retry will succeed. Unclassified failures retain the generic presentation.
+
 Schema 35 added `prepare` to the activity vocabulary and SQLite schema 19 added
 reviewed preparation plans to the existing lifecycle journal. Schema 36 adds the
 `preparation_required` launch blocker and the `preparation.run` command.
