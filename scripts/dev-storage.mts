@@ -1,5 +1,11 @@
 #!/usr/bin/env node
-import { errorMessage } from "./runtime-values.mts";
+import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
+import type {
+  SpawnSyncOptions,
+  SpawnSyncOptionsWithStringEncoding,
+  SpawnSyncOptionsWithBufferEncoding,
+  SpawnSyncReturns,
+} from "node:child_process";
 
 import {
   accessSync,
@@ -28,8 +34,28 @@ const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
 const DEFAULT_MINIMUM_FREE_GIB = 20;
 const GIB = 1024 ** 3;
+export interface StoragePaths {
+  workspace: string;
+  temporary_directory: string;
+  output_root: string;
+  target_directory?: string;
+  tauri_generated?: string;
+  pnpm_store?: string;
+  browser_cache?: string;
+  frontend_dependencies?: string;
+  desktop_dependencies?: string;
+  frontend_output?: string;
+}
+export interface StorageVolume {
+  root: string;
+  free_bytes: number;
+}
+interface CargoStorageMetadata {
+  workspace_root: string;
+  target_directory: string;
+}
 
-function resolveConfiguredPath(value, fallback) {
+function resolveConfiguredPath(value: string | undefined, fallback: string) {
   return path.resolve(projectRoot, value || fallback);
 }
 
@@ -46,7 +72,14 @@ function cargoMetadata() {
       `cargo metadata failed with exit code ${result.status}: ${result.stderr.trim()}`,
     );
   }
-  return JSON.parse(result.stdout);
+  const metadata: unknown = JSON.parse(result.stdout);
+  if (
+    !isRecord(metadata) ||
+    typeof metadata.workspace_root !== "string" ||
+    typeof metadata.target_directory !== "string"
+  )
+    throw new Error("cargo metadata omitted workspace storage paths");
+  return { workspace_root: metadata.workspace_root, target_directory: metadata.target_directory };
 }
 
 export function isWindowsSystemDrivePath(candidate: string, systemDrive = "C:") {
@@ -60,25 +93,32 @@ export function isWindowsSystemDrivePath(candidate: string, systemDrive = "C:") 
   return Boolean(candidateRoot) && candidateRoot === systemRoot;
 }
 
-export function windowsSystemDriveViolations(paths, systemDrive = "C:") {
+export function windowsSystemDriveViolations<P extends object>(
+  paths: { [K in keyof P]: string },
+  systemDrive = "C:",
+) {
   return Object.entries(paths)
-    .filter(([, candidate]) => isWindowsSystemDrivePath(candidate, systemDrive))
-    .map(([label, candidate]) => `${label}=${candidate}`);
+    .filter(
+      ([, candidate]) =>
+        typeof candidate === "string" && isWindowsSystemDrivePath(candidate, systemDrive),
+    )
+    .map(([label, candidate]) => `${label}=${String(candidate)}`);
 }
 
 export function readStoragePolicy({
   environment = process.env,
   configPath = path.join(os.homedir(), ".config/portcove/development-storage.json"),
-} = {}) {
-  let config = { format: 1, blockSystemDrive: false };
+}: { environment?: NodeJS.ProcessEnv; configPath?: string } = {}) {
+  let config: unknown = { format: 1, blockSystemDrive: false };
   try {
     config = JSON.parse(readFileSync(configPath, "utf8").replace(/^\uFEFF/u, ""));
   } catch (error) {
-    if (error.code !== "ENOENT")
+    if (errorCode(error) !== "ENOENT")
       throw new Error(`Cannot read machine storage policy ${configPath}: ${errorMessage(error)}`);
   }
   if (
-    config?.format !== 1 ||
+    !isRecord(config) ||
+    config.format !== 1 ||
     typeof config.blockSystemDrive !== "boolean" ||
     Object.keys(config).some((key) => !["format", "blockSystemDrive"].includes(key))
   )
@@ -90,10 +130,13 @@ export function readStoragePolicy({
   return { blockSystemDrive: config.blockSystemDrive || override === "1" };
 }
 
-export function getPaths(scope = "all", { metadataProvider = cargoMetadata } = {}) {
+export function getPaths(
+  scope = "all",
+  { metadataProvider = cargoMetadata }: { metadataProvider?: () => CargoStorageMetadata } = {},
+) {
   if (!["all", "tooling", "frontend", "rust"].includes(scope))
     throw new Error(`Unknown storage task scope: ${scope}`);
-  const paths = {
+  const paths: StoragePaths = {
     workspace: projectRoot,
     temporary_directory: resolveConfiguredPath(process.env.PORTCOVE_TEMP_DIR, "work/temp"),
     output_root: resolveConfiguredPath(process.env.PORTCOVE_OUTPUT_DIR, "outputs"),
@@ -128,7 +171,7 @@ function nearestExistingPath(candidate: string) {
       lstatSync(current);
       return current;
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (errorCode(error) !== "ENOENT") throw error;
       const parent = path.dirname(current);
       if (parent === current) throw new Error(`No existing ancestor for ${candidate}`);
       current = parent;
@@ -146,9 +189,10 @@ export function resolvePhysicalPath(candidate: string) {
   );
 }
 
-export function storageVolumes(paths) {
-  const volumes = new Map();
+export function storageVolumes<P extends object>(paths: { [K in keyof P]: string }) {
+  const volumes = new Map<number, StorageVolume>();
   for (const candidate of Object.values(paths)) {
+    if (typeof candidate !== "string") throw new TypeError("Storage paths must be strings");
     const probe = nearestExistingPath(candidate);
     const device = statSync(probe).dev;
     if (!volumes.has(device)) {
@@ -166,7 +210,7 @@ export function storageVolumes(paths) {
   return [...volumes.values()];
 }
 
-export function minimumFreeGiB(value) {
+export function minimumFreeGiB(value?: string | number) {
   const parsed = Number(value ?? process.env.PORTCOVE_MIN_FREE_GIB ?? DEFAULT_MINIMUM_FREE_GIB);
   if (!Number.isFinite(parsed) || parsed <= 0) {
     throw new Error(`Minimum free space must be a positive GiB value, received ${value}`);
@@ -174,11 +218,18 @@ export function minimumFreeGiB(value) {
   return parsed;
 }
 
-export function preflight(paths, requiredFreeGiB, policy = readStoragePolicy()) {
-  paths = Object.fromEntries(
-    Object.entries(paths).map(([label, candidate]) => [label, resolvePhysicalPath(candidate)]),
-  );
+export function preflight<P extends object>(
+  paths: { [K in keyof P]: string },
+  requiredFreeGiB: number,
+  policy = readStoragePolicy(),
+) {
+  const physicalPaths: { [K in keyof P]: string } = { ...paths };
   for (const [label, candidate] of Object.entries(paths)) {
+    if (typeof candidate !== "string") throw new TypeError("Storage paths must be strings");
+    Object.assign(physicalPaths, { [label]: resolvePhysicalPath(candidate) });
+  }
+  for (const [label, candidate] of Object.entries(physicalPaths)) {
+    if (typeof candidate !== "string") throw new TypeError("Storage paths must be strings");
     try {
       accessSync(nearestExistingPath(candidate), constants.W_OK);
     } catch (error) {
@@ -188,7 +239,7 @@ export function preflight(paths, requiredFreeGiB, policy = readStoragePolicy()) 
     }
   }
   if (process.platform === "win32" && policy.blockSystemDrive) {
-    const violations = windowsSystemDriveViolations(paths, process.env.SystemDrive || "C:");
+    const violations = windowsSystemDriveViolations(physicalPaths, process.env.SystemDrive || "C:");
     if (violations.length) {
       throw new Error(
         `Heavy Portcove work is blocked because these paths resolve to the Windows system drive: ${violations.join(", ")}`,
@@ -196,7 +247,7 @@ export function preflight(paths, requiredFreeGiB, policy = readStoragePolicy()) 
     }
   }
 
-  const volumes = storageVolumes(paths);
+  const volumes = storageVolumes(physicalPaths);
   const shortVolumes = volumes.filter((volume) => volume.free_bytes / GIB < requiredFreeGiB);
   if (shortVolumes.length) {
     throw new Error(
@@ -206,10 +257,10 @@ export function preflight(paths, requiredFreeGiB, policy = readStoragePolicy()) 
           .join(", "),
     );
   }
-  return { paths, volumes };
+  return { paths: physicalPaths, volumes };
 }
 
-function printable(paths, volumes, requiredFreeGiB) {
+function printable(paths: StoragePaths, volumes: StorageVolume[], requiredFreeGiB: number) {
   return {
     ...paths,
     minimum_free_gib: requiredFreeGiB,
@@ -220,7 +271,12 @@ function printable(paths, volumes, requiredFreeGiB) {
   };
 }
 
-function printPaths(paths, volumes, requiredFreeGiB, asJson) {
+function printPaths(
+  paths: StoragePaths,
+  volumes: StorageVolume[],
+  requiredFreeGiB: number,
+  asJson: boolean,
+) {
   const report = printable(paths, volumes, requiredFreeGiB);
   if (asJson) {
     process.stdout.write(`${JSON.stringify(report)}\n`);
@@ -244,7 +300,7 @@ function printPaths(paths, volumes, requiredFreeGiB, asJson) {
   }
 }
 
-export function childEnvironment(paths) {
+export function childEnvironment(paths: Partial<StoragePaths>) {
   const overrides = Object.fromEntries(
     Object.entries({
       CARGO_TARGET_DIR: paths.target_directory,
@@ -270,13 +326,13 @@ export function childEnvironment(paths) {
   return checkoutToolEnvironment({ ...inherited, ...overrides }, { paths: toolCachePaths() });
 }
 
-function ensureChildDirectories(paths) {
+function ensureChildDirectories(paths: Partial<StoragePaths>) {
   for (const candidate of [paths.temporary_directory, paths.output_root, paths.pnpm_store]) {
     if (candidate) mkdirSync(candidate, { recursive: true });
   }
 }
 
-export function prepareStorageScope(scope) {
+export function prepareStorageScope(scope: string) {
   const requiredFreeGiB = minimumFreeGiB();
   console.log(`Storage task: ${scope}`);
   const { paths, volumes } = preflight(getPaths(scope), requiredFreeGiB);
@@ -285,9 +341,33 @@ export function prepareStorageScope(scope) {
   return childEnvironment(paths);
 }
 
-export function spawnCommand(command, args, options) {
+export function spawnCommand(
+  command: string,
+  args: readonly string[],
+  options: SpawnSyncOptionsWithStringEncoding,
+): SpawnSyncReturns<string>;
+export function spawnCommand(
+  command: string,
+  args: readonly string[],
+  options?: SpawnSyncOptionsWithBufferEncoding,
+): SpawnSyncReturns<Buffer>;
+export function spawnCommand(
+  command: string,
+  args: readonly string[],
+  options: SpawnSyncOptions,
+): SpawnSyncReturns<string | Buffer>;
+export function spawnCommand(
+  command: string,
+  args: readonly string[],
+  options: SpawnSyncOptions = {},
+): SpawnSyncReturns<string | Buffer> {
   let result = spawnSync(command, args, options);
-  if (process.platform === "win32" && ["ENOENT", "EINVAL"].includes(result.error?.code)) {
+  const launchError = result.error;
+  if (
+    process.platform === "win32" &&
+    launchError &&
+    ["ENOENT", "EINVAL"].includes(errorCode(launchError) ?? "")
+  ) {
     // Batch shims need cmd.exe. Quote every token and reject expansion/control
     // characters in both the executable and arguments before invoking the shell.
     const tokens = [command, ...args];
@@ -298,18 +378,20 @@ export function spawnCommand(command, args, options) {
       Object.entries(options.env ?? process.env).find(
         ([key]) => key.toLowerCase() === "path",
       )?.[1] ?? "";
+    const workingDirectory =
+      options.cwd instanceof URL ? fileURLToPath(options.cwd) : (options.cwd ?? process.cwd());
     const directories =
       command.includes("/") || command.includes("\\")
-        ? [options.cwd ?? process.cwd()]
+        ? [workingDirectory]
         : [
-            options.cwd ?? process.cwd(),
+            workingDirectory,
             ...searchPath.split(";").map((directory: string) => directory.replace(/^"|"$/g, "")),
           ];
     const names = /\.(cmd|bat)$/iu.test(command) ? [command] : [`${command}.cmd`, `${command}.bat`];
     const shim = directories
       .flatMap((directory: string) => names.map((name: string) => path.resolve(directory, name)))
       .find((candidate) => statSync(candidate, { throwIfNoEntry: false })?.isFile());
-    if (!shim) throw result.error;
+    if (!shim) throw launchError;
     if (/["&|<>^%!()\r\n]/u.test(shim))
       throw new Error("Refusing shell metacharacters in a Windows command shim path");
     const line = [shim, ...args].map((token) => `"${token}"`).join(" ");
@@ -322,17 +404,24 @@ export function spawnCommand(command, args, options) {
   return result;
 }
 
-export function canonicalCheckoutCommand(command: string, args, toolState = readToolState()) {
+export function canonicalCheckoutCommand(
+  command: string,
+  args: string[],
+  toolState: unknown = readToolState(),
+): [string, string[]] {
+  const pinnedNode =
+    isRecord(toolState) && typeof toolState.node === "string" ? toolState.node : null;
   const executable = path.basename(command).toLowerCase();
   if (!path.isAbsolute(command) && new Set(["aqua", "aqua.exe"]).has(executable))
     return [pinnedAquaCommand(), args];
   if (
     !path.isAbsolute(command) &&
     new Set(["node", "node.exe"]).has(executable) &&
-    path.isAbsolute(toolState?.node ?? "") &&
-    statSync(toolState.node, { throwIfNoEntry: false })?.isFile()
+    pinnedNode &&
+    path.isAbsolute(pinnedNode) &&
+    statSync(pinnedNode, { throwIfNoEntry: false })?.isFile()
   ) {
-    return [toolState.node, args];
+    return [pinnedNode, args];
   }
   if (new Set(["corepack", "corepack.cmd", "corepack.exe"]).has(executable) && args[0] === "pnpm") {
     return [command, [readToolPins().packageManager, ...args.slice(1)]];
@@ -340,12 +429,12 @@ export function canonicalCheckoutCommand(command: string, args, toolState = read
   return [command, args];
 }
 
-function runChild(command, args, paths) {
+function runChild(command: string, args: string[], paths: StoragePaths) {
   ensureChildDirectories(paths);
   const options = {
     cwd: projectRoot,
     env: childEnvironment(paths),
-    stdio: "inherit",
+    stdio: "inherit" as const,
     windowsHide: true,
   };
   [command, args] = canonicalCheckoutCommand(command, args);
@@ -353,7 +442,9 @@ function runChild(command, args, paths) {
   return result.status ?? 1;
 }
 
-export function validateCleanTarget(paths) {
+export function validateCleanTarget(paths: Pick<StoragePaths, "workspace" | "target_directory">) {
+  if (typeof paths.target_directory !== "string")
+    throw new Error("Cargo target directory is unavailable");
   const target = path.resolve(paths.target_directory);
   const workspace = path.resolve(paths.workspace);
   if (target !== path.join(workspace, "target")) {
@@ -371,7 +462,7 @@ export function validateCleanTarget(paths) {
         );
       }
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (errorCode(error) !== "ENOENT") throw error;
     }
     const parent = path.dirname(current);
     if (parent === current) break;
@@ -380,7 +471,7 @@ export function validateCleanTarget(paths) {
   return target;
 }
 
-function cleanCargoTarget(paths) {
+function cleanCargoTarget(paths: StoragePaths) {
   const target = validateCleanTarget(paths);
   console.log(`Cleaning exact Cargo target: ${target}`);
   const result = spawnSync("cargo", ["clean", "--target-dir", target], {
@@ -393,7 +484,9 @@ function cleanCargoTarget(paths) {
   return result.status ?? 1;
 }
 
-export function validateIncrementalCache(paths) {
+export function validateIncrementalCache(
+  paths: Pick<StoragePaths, "workspace" | "target_directory">,
+) {
   const target = validateCleanTarget(paths);
   const debug = path.join(target, "debug");
   const incremental = path.join(debug, "incremental");
@@ -406,18 +499,18 @@ export function validateIncrementalCache(paths) {
         );
       }
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (errorCode(error) !== "ENOENT") throw error;
     }
   }
   return incremental;
 }
 
-function pruneCargoIncremental(paths) {
+function pruneCargoIncremental(paths: StoragePaths) {
   const incremental = validateIncrementalCache(paths);
   try {
     lstatSync(incremental);
   } catch (error) {
-    if (error.code !== "ENOENT") throw error;
+    if (errorCode(error) !== "ENOENT") throw error;
     console.log(`Cargo incremental cache is already absent: ${incremental}`);
     return 0;
   }
@@ -426,10 +519,10 @@ function pruneCargoIncremental(paths) {
   return 0;
 }
 
-export function parseArguments(argv) {
+export function parseArguments(argv: string[]) {
   const remaining = [...argv];
   let action = "preflight";
-  if (remaining[0] && !remaining[0].startsWith("-")) action = remaining.shift();
+  if (remaining[0] && !remaining[0].startsWith("-")) action = remaining.shift() ?? action;
   let asJson = false;
   let requestedMinimum;
   let scope;
@@ -438,7 +531,7 @@ export function parseArguments(argv) {
     if (option === "--json") asJson = true;
     else if (option === "--scope") {
       scope = remaining.shift();
-      if (!["all", "tooling", "frontend", "rust"].includes(scope))
+      if (!scope || !["all", "tooling", "frontend", "rust"].includes(scope))
         throw new Error("--scope requires all, tooling, frontend or rust");
     } else if (option === "--minimum-free-gib") {
       requestedMinimum = remaining.shift();
@@ -461,8 +554,9 @@ export function parseArguments(argv) {
   return { action, asJson, requestedMinimum, scope, command: remaining };
 }
 
-export function isSideEffectFreeHelpCommand(command) {
-  if (!Array.isArray(command) || !command.includes("--help")) return false;
+export function isSideEffectFreeHelpCommand(command: readonly string[]) {
+  const externalCommand: unknown = command;
+  if (!Array.isArray(externalCommand) || !command.includes("--help")) return false;
   const executable = path.basename(command[0] ?? "").toLowerCase();
   if (!new Set(["node", "node.exe"]).has(executable)) return false;
   const script = String(command[1] ?? "")
@@ -480,8 +574,10 @@ function main() {
   const { action, asJson, requestedMinimum, scope, command } = parseArguments(
     process.argv.slice(2),
   );
-  if (action === "run" && isSideEffectFreeHelpCommand(command)) {
-    const result = spawnSync(command[0], command.slice(1), {
+  const executable = command[0];
+  if (action === "run" && !executable) throw new Error("run requires a command after --");
+  if (action === "run" && executable && isSideEffectFreeHelpCommand(command)) {
+    const result = spawnSync(executable, command.slice(1), {
       cwd: projectRoot,
       env: process.env,
       stdio: "inherit",
@@ -492,7 +588,8 @@ function main() {
   }
   const plannerCommand =
     action === "run" &&
-    ["node", "node.exe"].includes(path.basename(command[0]).toLowerCase()) &&
+    executable &&
+    ["node", "node.exe"].includes(path.basename(executable).toLowerCase()) &&
     path.resolve(projectRoot, command[1] ?? "") ===
       path.join(projectRoot, "scripts/local-validation.mts");
   const selectedScope = scope ?? (plannerCommand ? "tooling" : "all");
@@ -510,7 +607,8 @@ function main() {
   const { paths, volumes } = preflight(configuredPaths, requiredFreeGiB);
   printPaths(paths, volumes, requiredFreeGiB, asJson);
   if (action === "preflight") return 0;
-  return runChild(command[0], command.slice(1), paths);
+  if (!executable) throw new Error("run requires a command after --");
+  return runChild(executable, command.slice(1), paths);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {

@@ -1,3 +1,5 @@
+import type { TestContext } from "node:test";
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -12,7 +14,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   childEnvironment,
@@ -32,8 +34,13 @@ import {
 } from "./dev-storage.mts";
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
+function fixtureRecord(text: string) {
+  const value: unknown = JSON.parse(text);
+  assert.ok(isRecord(value), "fixture output must be an object");
+  return value;
+}
 
-test("only maintained read-only CLI help bypasses storage preparation", () => {
+void test("only maintained read-only CLI help bypasses storage preparation", () => {
   for (const script of [
     "scripts/local-validation.mts",
     "scripts/audit.mts",
@@ -45,8 +52,8 @@ test("only maintained read-only CLI help bypasses storage preparation", () => {
   assert.equal(isSideEffectFreeHelpCommand(["node", "untrusted.mjs", "--help"]), false);
 });
 
-test("storage wrapper resolves canonical pnpm commands from the package authority", () => {
-  const { packageManager } = JSON.parse(
+void test("storage wrapper resolves canonical pnpm commands from the package authority", () => {
+  const { packageManager } = fixtureRecord(
     readFileSync(new URL("../package.json", import.meta.url), "utf8"),
   );
   assert.deepEqual(canonicalCheckoutCommand("corepack", ["pnpm", "--version"], null), [
@@ -56,7 +63,7 @@ test("storage wrapper resolves canonical pnpm commands from the package authorit
   assert.deepEqual(canonicalCheckoutCommand("cargo", ["check"], null), ["cargo", ["check"]]);
 });
 
-test("storage wrapper selects the bootstrapped pinned Node runtime", (t) => {
+void test("storage wrapper selects the bootstrapped pinned Node runtime", (t) => {
   const root = fixture(t);
   const executable = path.join(root, process.platform === "win32" ? "node.exe" : "node");
   writeFileSync(executable, "pinned runtime fixture");
@@ -67,7 +74,7 @@ test("storage wrapper selects the bootstrapped pinned Node runtime", (t) => {
   assert.deepEqual(canonicalCheckoutCommand("node", ["--version"], null), ["node", ["--version"]]);
 });
 
-function fixture(t) {
+function fixture(t: TestContext) {
   const scratch = path.join(projectRoot, "work/temp");
   mkdirSync(scratch, { recursive: true });
   const root = mkdtempSync(path.join(scratch, "storage-test-"));
@@ -78,7 +85,7 @@ function fixture(t) {
   return root;
 }
 
-test(
+void test(
   "CLI smoke binds every executable observation inside its isolated scope",
   { skip: process.platform !== "win32" },
   (t) => {
@@ -112,7 +119,7 @@ foreach ($call in $calls) {
   },
 );
 
-test(
+void test(
   "CLI smoke restores absent empty and conflicting bindings after success and failure",
   { skip: process.platform !== "win32" },
   (t) => {
@@ -198,7 +205,7 @@ if ($observedFailure -cne 'original-command-failure') { throw "Restoration warni
   },
 );
 
-function workspace(t) {
+function workspace(t: TestContext) {
   const root = fixture(t);
   mkdirSync(path.join(root, "scripts"));
   copyFileSync(
@@ -235,7 +242,7 @@ function workspace(t) {
   return root;
 }
 
-function environment(overrides = {}) {
+function environment(overrides: NodeJS.ProcessEnv = {}) {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       ([key]) => !/^(PORTCOVE_|CARGO_TARGET_DIR$|pnpm_config_store_dir$)/i.test(key),
@@ -244,7 +251,7 @@ function environment(overrides = {}) {
   return { ...env, ...overrides };
 }
 
-function cli(root: string, args, overrides = {}) {
+function cli(root: string, args: string[], overrides: NodeJS.ProcessEnv = {}) {
   return spawnSync(process.execPath, [path.join(root, "scripts/dev-storage.mts"), ...args], {
     cwd: root,
     env: environment(overrides),
@@ -253,7 +260,7 @@ function cli(root: string, args, overrides = {}) {
   });
 }
 
-test("recognizes only the configured Windows system drive", () => {
+void test("recognizes only the configured Windows system drive", () => {
   assert.equal(isWindowsSystemDrivePath("C:\\work\\portcove", "C:"), true);
   assert.equal(isWindowsSystemDrivePath("c:/work/portcove/target", "C:"), true);
   assert.equal(isWindowsSystemDrivePath("\\\\?\\C:\\work\\target", "C:"), true);
@@ -261,7 +268,18 @@ test("recognizes only the configured Windows system drive", () => {
   assert.equal(isWindowsSystemDrivePath("/home/runner/work/portcove", "C:"), false);
 });
 
-test("resolves missing descendants through junctions and rejects files and dangling links", (t) => {
+void test("preflight preserves arbitrary storage labels and widens resolved lexical paths", () => {
+  const lexical = { docker_disk: ".", custom_cache: "." } as const;
+  const result = preflight(lexical, 1, { blockSystemDrive: false });
+  assert.deepEqual(Object.keys(result.paths), ["docker_disk", "custom_cache"]);
+  assert.ok(path.isAbsolute(result.paths.docker_disk));
+  assert.equal(result.paths.custom_cache, result.paths.docker_disk);
+  // @ts-expect-error Physical resolution must not promise the original relative-path literal.
+  const originalLiteral: typeof lexical.docker_disk = result.paths.docker_disk;
+  assert.equal(originalLiteral, result.paths.docker_disk);
+});
+
+void test("resolves missing descendants through junctions and rejects files and dangling links", (t) => {
   const root = fixture(t);
   const destination = path.join(root, "physical");
   const link = path.join(root, "alias");
@@ -277,7 +295,7 @@ test("resolves missing descendants through junctions and rejects files and dangl
   assert.throws(() => resolvePhysicalPath(path.join(root, "dangling/child")), /ENOENT/);
 });
 
-test(
+void test(
   "Windows preflight rejects a system-drive junction even when descendants are missing",
   { skip: process.platform !== "win32" },
   (t) => {
@@ -294,7 +312,7 @@ test(
   },
 );
 
-test("portable defaults and explicit machine/environment restrictions are distinct", (t) => {
+void test("portable defaults and explicit machine/environment restrictions are distinct", (t) => {
   const configPath = path.join(fixture(t), "policy.json");
   assert.deepEqual(readStoragePolicy({ configPath, environment: {} }), { blockSystemDrive: false });
   assert.deepEqual(
@@ -323,7 +341,7 @@ test("portable defaults and explicit machine/environment restrictions are distin
   );
 });
 
-test("light storage never resolves Cargo; Rust resolves actual metadata and unknown scopes fail", () => {
+void test("light storage never resolves Cargo; Rust resolves actual metadata and unknown scopes fail", () => {
   let calls = 0;
   const metadataProvider = () => {
     calls += 1;
@@ -361,7 +379,7 @@ test("light storage never resolves Cargo; Rust resolves actual metadata and unkn
   );
 });
 
-test(
+void test(
   "Rust-generated Tauri storage remains subject to strict physical-path checks",
   { skip: process.platform !== "win32" },
   (t) => {
@@ -381,13 +399,13 @@ test(
   },
 );
 
-test("frontend setup and execution work without Cargo or native output resolution", (t) => {
+void test("frontend setup and execution work without Cargo or native output resolution", (t) => {
   const root = workspace(t);
   const overrides = { PATH: "", CARGO_TARGET_DIR: path.join(root, "not-a-directory") };
   writeFileSync(overrides.CARGO_TARGET_DIR, "unrelated Rust path must not be inspected");
   const result = cli(root, ["preflight", "--scope", "frontend", "--json"], overrides);
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(JSON.parse(result.stdout).target_directory, undefined);
+  assert.equal(fixtureRecord(result.stdout).target_directory, undefined);
   const executed = cli(
     root,
     [
@@ -408,7 +426,7 @@ test("frontend setup and execution work without Cargo or native output resolutio
   assert.match(unknown.stderr, /cargo|ENOENT/);
 });
 
-test(
+void test(
   "ordinary Windows system-drive paths pass capacity checks while strict policy refuses",
   { skip: process.platform !== "win32" },
   () => {
@@ -422,7 +440,7 @@ test(
   },
 );
 
-test("clean accepts only the default target and refuses linked ancestors", (t) => {
+void test("clean accepts only the default target and refuses linked ancestors", (t) => {
   const root = fixture(t);
   const target = path.join(root, "target");
   assert.equal(validateCleanTarget({ workspace: root, target_directory: target }), target);
@@ -456,7 +474,7 @@ test("clean accepts only the default target and refuses linked ancestors", (t) =
   );
 });
 
-test("incremental pruning accepts only an ordinary unlinked cache", (t) => {
+void test("incremental pruning accepts only an ordinary unlinked cache", (t) => {
   const root = fixture(t);
   const paths = { workspace: root, target_directory: path.join(root, "target") };
   assert.equal(validateIncrementalCache(paths), path.join(root, "target", "debug", "incremental"));
@@ -472,7 +490,7 @@ test("incremental pruning accepts only an ordinary unlinked cache", (t) => {
   assert.throws(() => validateIncrementalCache(paths), /non-directory/);
 });
 
-test("rejects malformed invocations and invalid free-space margins", () => {
+void test("rejects malformed invocations and invalid free-space margins", () => {
   for (const args of [
     ["run"],
     ["typo"],
@@ -487,11 +505,11 @@ test("rejects malformed invocations and invalid free-space margins", () => {
   assert.equal(minimumFreeGiB("20.5"), 20.5);
 });
 
-test("preflight is read-only and machine-readable, and low space prevents child execution", (t) => {
+void test("preflight is read-only and machine-readable, and low space prevents child execution", (t) => {
   const root = workspace(t);
   const result = cli(root, ["preflight", "--json"]);
   assert.equal(result.status, 0, result.stderr);
-  const report = JSON.parse(result.stdout);
+  const report = fixtureRecord(result.stdout);
   assert.equal(report.workspace, root);
   assert.equal(report.target_directory, path.join(root, "target"));
   assert.equal(report.frontend_dependencies, path.join(root, "node_modules"));
@@ -512,7 +530,7 @@ test("preflight is read-only and machine-readable, and low space prevents child 
   assert.equal(existsSync(path.join(root, "ran")), false);
 });
 
-test("run creates configured scratch directories, exports matching paths, and preserves exit status", (t) => {
+void test("run creates configured scratch directories, exports matching paths, and preserves exit status", (t) => {
   const root = workspace(t);
   const overrides = {
     CARGO_TARGET_DIR: path.join(root, "build target"),
@@ -525,16 +543,17 @@ test("run creates configured scratch directories, exports matching paths, and pr
   const probe = `const fs = require('fs'); const os = require('os'); const {CARGO_TARGET_DIR, TMPDIR, pnpm_config_store_dir} = process.env; fs.writeFileSync('probe.json', JSON.stringify({env: {CARGO_TARGET_DIR, TMPDIR, pnpm_config_store_dir}, temp: os.tmpdir(), exists: fs.existsSync(os.tmpdir())})); process.exit(17);`;
   const result = cli(root, ["run", "--", process.execPath, "-e", probe], overrides);
   assert.equal(result.status, 17, result.stderr);
-  const report = JSON.parse(readFileSync(path.join(root, "probe.json"), "utf8"));
+  const report = fixtureRecord(readFileSync(path.join(root, "probe.json"), "utf8"));
   assert.equal(report.exists, true);
   assert.equal(report.temp, path.join(root, "scratch temp"));
+  assert.ok(isRecord(report.env));
   assert.equal(report.env.CARGO_TARGET_DIR, path.join(root, "build target"));
   assert.equal(report.env.TMPDIR, report.temp);
   assert.equal(report.env.pnpm_config_store_dir, path.join(root, "package store"));
   assert.equal(existsSync(path.join(root, "packages")), true);
 });
 
-test("pnpm uses the configured store instead of the workspace YAML default", (t) => {
+void test("pnpm uses the configured store instead of the workspace YAML default", (t) => {
   const root = workspace(t);
   writeFileSync(path.join(root, "pnpm-workspace.yaml"), "storeDir: work/pnpm-store\n");
   const store = path.join(root, "custom store");
@@ -546,7 +565,7 @@ test("pnpm uses the configured store instead of the workspace YAML default", (t)
   assert.equal(result.stdout.trim().split(/\r?\n/).at(-1), path.join(store, "v11"));
 });
 
-test("direct just recipes initialize a fresh checkout and preserve storage overrides", (t) => {
+void test("direct just recipes initialize a fresh checkout and preserve storage overrides", (t) => {
   const root = workspace(t);
   for (const name of ["run-viteplus.mts", "viteplus-cli.mts"])
     copyFileSync(new URL(`./${name}`, import.meta.url), path.join(root, "scripts", name));
@@ -598,23 +617,32 @@ test("direct just recipes initialize a fresh checkout and preserve storage overr
     }),
   });
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(JSON.parse(readFileSync(path.join(root, "result.json"), "utf8")), {
+  assert.deepEqual(fixtureRecord(readFileSync(path.join(root, "result.json"), "utf8")), {
     temp: path.join(root, "custom/temp"),
     store: path.join(root, "custom/store"),
   });
 });
 
-test(
+void test(
   "Windows shims preserve spaced arguments and exit status and reject shell injection",
   { skip: process.platform !== "win32" },
   (t) => {
     const root = fixture(t);
     const shim = path.join(root, "test shim.cmd");
     writeFileSync(shim, "@echo off\r\necho [%~1] [%~2]\r\nexit /b 23\r\n");
-    const options = { cwd: root, encoding: "utf8", windowsHide: true };
+    const options = { cwd: root, encoding: "utf8" as const, windowsHide: true };
     const result = spawnCommand(shim, ["has spaces", ""], options);
     assert.equal(result.status, 23, result.stderr);
     assert.equal(result.stdout.trim(), "[has spaces] []");
+    const fromUrl = spawnCommand(path.basename(shim), ["has spaces", ""], {
+      ...options,
+      cwd: pathToFileURL(root + path.sep),
+    });
+    assert.equal(fromUrl.status, 23, fromUrl.stderr);
+    assert.equal(fromUrl.stdout.trim(), "[has spaces] []");
+    const withoutOptions = spawnCommand(shim, ["has spaces", ""]);
+    assert.equal(withoutOptions.status, 23, withoutOptions.stderr?.toString());
+    assert.equal(withoutOptions.stdout?.toString().trim(), "[has spaces] []");
     for (const token of ['bad"quote', "bad&command", "%TEMP%", "!TEMP!", "line\nbreak"]) {
       assert.throws(() => spawnCommand(shim, [token], options), /shell metacharacters/);
     }
@@ -622,7 +650,7 @@ test(
   },
 );
 
-test("child environment covers POSIX and Windows temp consumers", () => {
+void test("child environment covers POSIX and Windows temp consumers", () => {
   const paths = {
     target_directory: "target",
     temporary_directory: "scratch",
@@ -636,7 +664,7 @@ test("child environment covers POSIX and Windows temp consumers", () => {
   assert.equal(env.pnpm_config_store_dir, "store");
 });
 
-test("clean remains available below the free-space margin and preserves source files", (t) => {
+void test("clean remains available below the free-space margin and preserves source files", (t) => {
   const root = workspace(t);
   mkdirSync(path.join(root, "target"));
   writeFileSync(
@@ -658,7 +686,7 @@ test("clean remains available below the free-space margin and preserves source f
   assert.equal(existsSync(path.join(root, "src/lib.rs")), true);
 });
 
-test("incremental prune preserves reusable Cargo artifacts and works below the margin", (t) => {
+void test("incremental prune preserves reusable Cargo artifacts and works below the margin", (t) => {
   const root = workspace(t);
   mkdirSync(path.join(root, "target/debug/incremental/unit"), { recursive: true });
   mkdirSync(path.join(root, "target/debug/deps"), { recursive: true });
@@ -685,7 +713,7 @@ test("incremental prune preserves reusable Cargo artifacts and works below the m
   assert.equal(existsSync(path.join(custom, "cache")), true);
 });
 
-test("routine and exhaustive Rust gates preserve incremental reuse without duplicate checking", () => {
+void test("routine and exhaustive Rust gates preserve incremental reuse without duplicate checking", () => {
   const recipes = readFileSync(new URL("../justfile", import.meta.url), "utf8");
   assert.match(recipes, /^default: local-check$/m);
   assert.match(
@@ -718,7 +746,7 @@ test("routine and exhaustive Rust gates preserve incremental reuse without dupli
   );
 });
 
-test(
+void test(
   "local packaging honors custom storage, produces a ZIP without generated data, and restores the environment",
   { skip: process.platform !== "win32" },
   (t) => {
@@ -784,7 +812,7 @@ if ($env:TEMP -ne $previousTemp -or $env:pnpm_config_store_dir -ne $previousStor
       },
     );
     assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(JSON.parse(readFileSync(path.join(root, "build-env.json"), "utf8")), {
+    assert.deepEqual(fixtureRecord(readFileSync(path.join(root, "build-env.json"), "utf8")), {
       target,
       temp: path.join(root, "scratch"),
       store: path.join(root, "package store"),
@@ -809,7 +837,7 @@ if ($env:TEMP -ne $previousTemp -or $env:pnpm_config_store_dir -ne $previousStor
   },
 );
 
-test(
+void test(
   "release preflight restores caller storage variables after a failed gate",
   { skip: process.platform !== "win32" },
   (t) => {
@@ -855,7 +883,7 @@ if ($env:TEMP -ne $previousTemp) { throw "Caller environment was not restored" }
   },
 );
 
-test(
+void test(
   "installer qualification resolves relative scratch paths, isolates process temp, and retains failure evidence",
   { skip: process.platform !== "win32" },
   (t) => {
@@ -897,7 +925,8 @@ if ($env:TEMP -ne $previousTemp) { throw "Caller environment was not restored" }
       },
     );
     assert.equal(result.status, 0, result.stderr);
-    const report = JSON.parse(readFileSync(path.join(root, "installer-env.json"), "utf8"));
+    const report = fixtureRecord(readFileSync(path.join(root, "installer-env.json"), "utf8"));
+    assert.ok(typeof report.temp === "string");
     assert.equal(path.dirname(report.temp), path.join(root, "scratch/installer-qualification"));
     assert.equal(report.tmp, report.temp);
     assert.equal(report.tmpdir, report.temp);
@@ -906,7 +935,7 @@ if ($env:TEMP -ne $previousTemp) { throw "Caller environment was not restored" }
   },
 );
 
-test("reports every heavy path that would write to the system drive", () => {
+void test("reports every heavy path that would write to the system drive", () => {
   assert.deepEqual(
     windowsSystemDriveViolations({
       workspace: "E:\\Portcove-Development",
