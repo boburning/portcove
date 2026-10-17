@@ -62,6 +62,7 @@ export async function listenerLifetimeScenario({
       await browser.wait(
         async () => {
           const current = await invoke("get_bootstrap_status");
+          observations.last_bootstrap = current;
           return current.ok && current.value.generation === before.generation + index + 1;
         },
         15_000,
