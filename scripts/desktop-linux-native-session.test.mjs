@@ -14,8 +14,58 @@ import {
   assertMediaWrapperOutcome,
   publishApplicationMediaReadiness,
   awaitApplicationMediaReadiness,
+  verifyApplicationMediaInputs,
 } from "./desktop-linux-media.mjs";
+import { fileIdentity } from "./development-evidence.mjs";
+import { executionAdmission } from "./retained-evidence.mjs";
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test("application media verifies mixed retained and raw inputs without downgrading malformed custody", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-mixed-inputs-"));
+  const rawFile = path.join(directory, "raw"),
+    liveFile = path.join(directory, "live"),
+    retainedFile = path.join(directory, "retained");
+  await writeFile(rawFile, "raw bytes");
+  await writeFile(liveFile, "held bytes");
+  await writeFile(retainedFile, "held bytes");
+  const raw = await fileIdentity(rawFile);
+  const retained = {
+    ...(await fileIdentity(liveFile)),
+    retained: await fileIdentity(retainedFile),
+    binding: "live-path-checked-cooperative",
+  };
+  const admission = executionAdmission(new Date().toISOString(), 5000);
+  // Reproduce the original wrong-API failure using actual mixed records.
+  await assert.rejects(admission.verify([retained, raw]), TypeError);
+  await verifyApplicationMediaInputs([retained, raw], admission);
+  await writeFile(rawFile, "bad bytes"); // same size: hashing, not length, must refuse
+  await assert.rejects(
+    verifyApplicationMediaInputs([retained, raw], admission),
+    /input bytes changed/u,
+  );
+  await writeFile(rawFile, "raw bytes");
+  await writeFile(retainedFile, "evil bytes");
+  await assert.rejects(
+    verifyApplicationMediaInputs([retained, raw], admission),
+    /Retained execution input changed/u,
+  );
+  await writeFile(retainedFile, "held bytes");
+  await writeFile(liveFile, "evil bytes");
+  await assert.rejects(
+    verifyApplicationMediaInputs([retained, raw], admission),
+    /Live execution input changed/u,
+  );
+  for (const invalid of [
+    { ...raw, path: path.join(directory, "missing") },
+    { ...raw, path: directory },
+    { ...raw, retained: null },
+    { ...raw, retained: {} },
+  ])
+    await assert.rejects(verifyApplicationMediaInputs([invalid], admission));
+  await assert.rejects(
+    verifyApplicationMediaInputs([raw], executionAdmission("2000-01-01T00:00:00Z", 1)),
+  );
+});
 
 test(
   "published readiness cannot hide a wrapper failure with failed persistence and a live child",

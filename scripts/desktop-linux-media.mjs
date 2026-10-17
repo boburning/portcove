@@ -66,6 +66,24 @@ export function assertMediaWrapperOutcome(events) {
   }
 }
 
+export async function verifyApplicationMediaInputs(inputs, admission) {
+  admission.assertReady();
+  for (const input of inputs) {
+    // Retained custody and package/configuration identities have distinct
+    // formats. A malformed retained record must never fall back to a live read.
+    if (Object.hasOwn(input, "retained")) await admission.verify([input]);
+    else {
+      const observed = await fileIdentity(input.path, {
+        maxBytes: input.bytes,
+        signal: admission.signal,
+      });
+      assert.equal(observed.bytes, input.bytes, "Application media input size changed");
+      assert.equal(observed.sha256, input.sha256, "Application media input bytes changed");
+    }
+  }
+  admission.assertReady();
+}
+
 export async function publishApplicationMediaReadiness(file, value) {
   const pending = `${file}.pending`;
   await save(pending, value);

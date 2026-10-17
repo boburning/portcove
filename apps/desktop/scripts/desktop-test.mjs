@@ -1037,8 +1037,11 @@ async function connectObservedDriver() {
   if (linuxPackagedInspector) {
     const evidence = path.join(output, "linux-webkit-inspector.json");
     artifacts.push(evidence);
-    const { assertApplicationMediaReadiness, awaitApplicationMediaReadiness } =
-      await import("../../../scripts/desktop-linux-media.mjs");
+    const {
+      assertApplicationMediaReadiness,
+      awaitApplicationMediaReadiness,
+      verifyApplicationMediaInputs,
+    } = await import("../../../scripts/desktop-linux-media.mjs");
     let readiness;
     browser = await connectLinuxInspector({
       port,
@@ -1054,7 +1057,7 @@ async function connectObservedDriver() {
         );
       },
     });
-    await admission.verify(inputs);
+    await verifyApplicationMediaInputs(inputs, admission);
     for (const binding of [readiness.configuration, readiness.source]) {
       const captured = inputs.find((input) => input.path === binding.path);
       assert.ok(captured, "Application media readiness requires captured configuration/source");
@@ -1408,7 +1411,11 @@ function driverEnvironment(childEnvironment) {
 }
 
 async function startDriver(childEnvironment = {}) {
-  await admission.verify(linuxPackagedInspector ? inputs : (custody?.inputs ?? []));
+  if (linuxPackagedInspector) {
+    const { verifyApplicationMediaInputs } =
+      await import("../../../scripts/desktop-linux-media.mjs");
+    await verifyApplicationMediaInputs(inputs, admission);
+  } else await admission.verify(custody?.inputs ?? []);
   ownedSession.beginLaunch();
   const launchStarted = Date.now();
   const arguments_ = [
