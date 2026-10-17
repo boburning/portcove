@@ -1,3 +1,4 @@
+import { ActionReviewFailure } from "./ActionReviewFailure";
 import { FolderOpen } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
@@ -214,7 +215,7 @@ function RegisterExternalDialog({
             </span>
           </div>
         )}
-        {error && <p role="alert">{error}</p>}
+        <ActionReviewFailure error={error} />
         <DialogFooter>
           <ReviewCancelButton pending={pending === "apply"} dismiss={dismiss} />
           {!preview && (
@@ -279,7 +280,7 @@ function RemoveExternalDialog({
             Files will stay in: <code>{preview.path}</code>
           </p>
         )}
-        {error && <p role="alert">{error}</p>}
+        <ActionReviewFailure error={error} />
         <DialogFooter>
           <ReviewCancelButton pending={pending === "apply"} dismiss={dismiss} />
           {!preview && (

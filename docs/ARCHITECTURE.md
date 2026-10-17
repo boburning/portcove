@@ -941,6 +941,10 @@ vocabulary and terminal activity reports. CLI and Tauri serialize the same core
 report while preserving original machine error fields. React presents this
 information; it does not infer successful rollback or unchanged files from a
 failed operation or a particular error code. Unannotated outcomes remain Unknown.
+Reviewed-action dialogs retain the structured report through review and execution
+failures and expose its original outcome, phase, code and redacted diagnostics
+through the shared failure-details control. Their review-again controls load only
+a fresh preview; they do not repeat a mutation or restore consumed consent.
 Preparation also supplies the observed unsuccessful setup result or unconfirmed
 declared completion file as a private cause for the shared safe summary. These
 causes are never inferred from diagnostic text, details or error codes; original
