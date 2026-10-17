@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 
+import type { ReconcileOptions } from "./reconcile-release-assets.mts";
+import { isRecord } from "./runtime-values.mts";
 import { reconcileReleaseAssets } from "./reconcile-release-assets.mts";
 import {
   artifactName,
@@ -17,7 +19,13 @@ const policy = await loadPackagePolicy();
 const version = "0.1.0-alpha.2";
 const options = { policy, version, tag: `v${version}` };
 
-function reconcile(paths, overrides = {}) {
+interface FixturePaths {
+  root: string;
+  input: string;
+  output: string;
+}
+
+function reconcile(paths: FixturePaths, overrides: ReconcileOptions = {}) {
   return reconcileReleaseAssets(paths.input, paths.output, {
     ...options,
     projectRoot: paths.root,
@@ -25,11 +33,11 @@ function reconcile(paths, overrides = {}) {
   });
 }
 
-function digest(contents) {
+function digest(contents: string | Buffer) {
   return createHash("sha256").update(contents).digest("hex");
 }
 
-async function fixture(t) {
+async function fixture(t: TestContext) {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-release-matrix-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const input = path.join(root, "input");
@@ -51,7 +59,7 @@ async function fixture(t) {
   return { root, input, output, inventoryPath };
 }
 
-async function addProducerRecords(paths, overrides = {}) {
+async function addProducerRecords(paths: FixturePaths, overrides: Record<string, unknown> = {}) {
   for (const [index, label] of releaseLabels(policy).entries()) {
     const record = {
       schema_version: 1,
@@ -74,7 +82,7 @@ async function addProducerRecords(paths, overrides = {}) {
   }
 }
 
-test("reconciles the exact matrix, keeps platform manifests internal, and is deterministic", async (t) => {
+void test("reconciles the exact matrix, keeps platform manifests internal, and is deterministic", async (t) => {
   const { input, output, inventoryPath } = await fixture(t);
   const paths = { root: path.dirname(input), input, output };
   const first = await reconcile(paths, { inventoryPath });
@@ -92,7 +100,7 @@ test("reconciles the exact matrix, keeps platform manifests internal, and is det
   assert(!(await readdir(output)).includes("stale-package.exe"));
 });
 
-test("inventory binds labels, exact tag links, sizes, and checksums to validated packages", async (t) => {
+void test("inventory binds labels, exact tag links, sizes, and checksums to validated packages", async (t) => {
   const { input, output } = await fixture(t);
   const result = await reconcile({ root: path.dirname(input), input, output });
   assert.equal(result.inventory.packages.length, 10);
@@ -102,6 +110,7 @@ test("inventory binds labels, exact tag links, sizes, and checksums to validated
     "https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/SHA256SUMS.txt",
   );
   const windows = result.inventory.packages.find((entry) => entry.id === "cli-windows-x86_64-zip");
+  assert(windows);
   assert.equal(windows.display_label, "Windows — Intel/AMD 64-bit");
   assert.equal(windows.filename, "portcove-cli-0.1.0-alpha.2-windows-x86_64.zip");
   assert.equal(
@@ -112,7 +121,7 @@ test("inventory binds labels, exact tag links, sizes, and checksums to validated
   assert.match(windows.sha256, /^[a-f0-9]{64}$/);
 });
 
-test("accepts only producers from the current workflow run and revision", async (t) => {
+void test("accepts only producers from the current workflow run and revision", async (t) => {
   const paths = await fixture(t);
   await addProducerRecords(paths);
   const lineage = { runId: "34727305533", revision: "a".repeat(40), maxAttempt: 2 };
@@ -127,12 +136,13 @@ test("accepts only producers from the current workflow run and revision", async 
     paths.input,
     "release-build-macos-x86_64/release-upload/release-producer-macos-x86_64.json",
   );
-  const producer = JSON.parse(await readFile(intelProducer, "utf8"));
+  const producer: unknown = JSON.parse(await readFile(intelProducer, "utf8"));
+  assert(isRecord(producer));
   await writeFile(intelProducer, `${JSON.stringify({ ...producer, run_id: "1" })}\n`);
   await assert.rejects(reconcile(paths, { lineage }), /came from another workflow run/);
 });
 
-test("rejects missing, future-attempt, and wrong-revision producer records", async (t) => {
+void test("rejects missing, future-attempt, and wrong-revision producer records", async (t) => {
   const missing = await fixture(t);
   await addProducerRecords(missing);
   await rm(
@@ -153,7 +163,7 @@ test("rejects missing, future-attempt, and wrong-revision producer records", asy
   await assert.rejects(reconcile(changed, { lineage }), /came from another revision/);
 });
 
-test("rejects missing jobs and package outputs not declared by policy", async (t) => {
+void test("rejects missing jobs and package outputs not declared by policy", async (t) => {
   const missingJob = await fixture(t);
   await rm(path.join(missingJob.input, "release-build-linux-x86_64"), {
     recursive: true,
@@ -171,7 +181,7 @@ test("rejects missing jobs and package outputs not declared by policy", async (t
   await assert.rejects(reconcile(unexpected), /staged files mismatch.*unexpected: .*\.msi/);
 });
 
-test("rejects duplicate, unsafe, malformed, and mismatched checksum entries", async (t) => {
+void test("rejects duplicate, unsafe, malformed, and mismatched checksum entries", async (t) => {
   const duplicate = await fixture(t);
   const manifest = path.join(
     duplicate.input,
@@ -206,7 +216,7 @@ test("rejects duplicate, unsafe, malformed, and mismatched checksum entries", as
   await assert.rejects(reconcile(changed), /checksum mismatch/);
 });
 
-test("rejects wrong version and tag identities", async (t) => {
+void test("rejects wrong version and tag identities", async (t) => {
   const paths = await fixture(t);
   await assert.rejects(
     reconcile(paths, { version: "0.1.0-alpha.3", tag: "v0.1.0-alpha.3" }),
@@ -218,7 +228,7 @@ test("rejects wrong version and tag identities", async (t) => {
   );
 });
 
-test("rejects output paths that could remove inputs or publish internal inventory", async (t) => {
+void test("rejects output paths that could remove inputs or publish internal inventory", async (t) => {
   const paths = await fixture(t);
   await assert.rejects(
     reconcileReleaseAssets(paths.input, paths.root, {
@@ -242,7 +252,7 @@ test("rejects output paths that could remove inputs or publish internal inventor
   );
 });
 
-test("rejects packages hidden in arbitrary nested staging paths", async (t) => {
+void test("rejects packages hidden in arbitrary nested staging paths", async (t) => {
   const paths = await fixture(t);
   const name = `portcove-cli-${version}-windows-x86_64.zip`;
   const original = path.join(paths.input, "release-build-windows-x86_64", "release-upload", name);
@@ -259,7 +269,7 @@ test("rejects packages hidden in arbitrary nested staging paths", async (t) => {
   await assert.rejects(reconcile(paths), /unexpected staged path/);
 });
 
-test("refuses linked aggregate and inventory ancestry without touching the link targets", async (t) => {
+void test("refuses linked aggregate and inventory ancestry without touching the link targets", async (t) => {
   const aggregate = await fixture(t);
   const outsideAggregate = await mkdtemp(path.join(os.tmpdir(), "portcove-release-outside-"));
   t.after(() => rm(outsideAggregate, { recursive: true, force: true }));
@@ -294,4 +304,16 @@ test("refuses linked aggregate and inventory ancestry without touching the link 
     await readFile(path.join(outsideInventory, "sentinel.txt"), "utf8"),
     "preserve inventory",
   );
+});
+
+void test("rejects coerced producer identity fields before replacing existing output", async (t) => {
+  for (const overrides of [{ run_id: ["34727305533"] }, { revision: ["a".repeat(40)] }]) {
+    const paths = await fixture(t);
+    await addProducerRecords(paths, overrides);
+    await mkdir(paths.output);
+    const sentinel = path.join(paths.output, "sentinel.txt");
+    await writeFile(sentinel, "preserve existing output");
+    await assert.rejects(reconcile(paths), /invalid release producer identity/);
+    assert.equal(await readFile(sentinel, "utf8"), "preserve existing output");
+  }
 });

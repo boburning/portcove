@@ -1,3 +1,25 @@
+import type { ReleasePackagePolicy, ReleasePackageEntry } from "./release-package-policy.mts";
+import type { ReleaseProducerLineage } from "./write-release-checksums.mts";
+import { isRecord } from "./runtime-values.mts";
+export type ReleaseConsumerLineage = Pick<ReleaseProducerLineage, "runId" | "revision"> & {
+  maxAttempt: number;
+};
+export interface ReleaseProducerRecord {
+  schema_version: 1;
+  platform_label: string;
+  version: string;
+  run_id: string;
+  run_attempt: number;
+  revision: string;
+}
+export interface ReconcileOptions {
+  projectRoot?: string;
+  inventoryPath?: string;
+  policy?: ReleasePackagePolicy;
+  version?: string;
+  tag?: string;
+  lineage?: ReleaseConsumerLineage;
+}
 import { createHash } from "node:crypto";
 import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -16,8 +38,8 @@ import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 const scriptPath = fileURLToPath(import.meta.url);
 const defaultProjectRoot = fileURLToPath(new URL("..", import.meta.url));
 
-async function walk(root: string) {
-  const files = [];
+async function walk(root: string): Promise<string[]> {
+  const files: string[] = [];
   for (const entry of await readdir(root, { withFileTypes: true })) {
     const entryPath = path.join(root, entry.name);
     if (entry.isSymbolicLink())
@@ -28,20 +50,21 @@ async function walk(root: string) {
   return files;
 }
 
-async function sha256(file) {
+async function sha256(file: string) {
   return createHash("sha256")
     .update(await readFile(file))
     .digest("hex");
 }
 
-function parseManifest(contents: string, label) {
+function parseManifest(contents: string, label: string) {
   const entries = contents
     .trim()
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line: string) => {
       const match = line.match(/^([a-f0-9]{64}) {2}([^/\\]+)$/);
-      if (!match) throw new Error(`invalid checksum line for ${label}: ${line}`);
+      if (!match || !match[1] || !match[2])
+        throw new Error(`invalid checksum line for ${label}: ${line}`);
       return { sha256: match[1], name: match[2] };
     });
   const names = new Set();
@@ -54,15 +77,24 @@ function parseManifest(contents: string, label) {
   return entries;
 }
 
-function validateProducer(record, label, version, lineage) {
+function validateProducer(
+  record: unknown,
+  label: string,
+  version: string,
+  lineage: ReleaseConsumerLineage | undefined,
+): ReleaseProducerRecord {
   if (
-    record?.schema_version !== 1 ||
+    !isRecord(record) ||
+    record.schema_version !== 1 ||
     record.platform_label !== label ||
     record.version !== version ||
-    !/^\d+$/u.test(record.run_id ?? "") ||
+    typeof record.run_id !== "string" ||
+    !/^\d+$/u.test(record.run_id) ||
+    typeof record.run_attempt !== "number" ||
     !Number.isInteger(record.run_attempt) ||
     record.run_attempt < 1 ||
-    !/^[a-f0-9]{40}$/u.test(record.revision ?? "")
+    typeof record.revision !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(record.revision)
   ) {
     throw new Error(`invalid release producer identity for ${label}`);
   }
@@ -73,10 +105,22 @@ function validateProducer(record, label, version, lineage) {
     if (record.run_attempt > lineage.maxAttempt)
       throw new Error(`${label} producer attempt is newer than the consumer attempt`);
   }
-  return record;
+  return {
+    ...record,
+    schema_version: 1,
+    platform_label: label,
+    version,
+    run_id: record.run_id,
+    run_attempt: record.run_attempt,
+    revision: record.revision,
+  };
 }
 
-export async function reconcileReleaseAssets(inputRoot: string, outputRoot: string, options = {}) {
+export async function reconcileReleaseAssets(
+  inputRoot: string,
+  outputRoot: string,
+  options: ReconcileOptions = {},
+) {
   const input = path.resolve(inputRoot);
   const output = path.resolve(outputRoot);
   const contains = (parent: string, child: string) => {
@@ -112,8 +156,8 @@ export async function reconcileReleaseAssets(inputRoot: string, outputRoot: stri
     throw new Error(`release matrix must contain exactly: ${expectedDirectories.join(", ")}`);
   }
 
-  const selected = [];
-  const producers = [];
+  const selected: (ReleasePackageEntry & { file: string; bytes: number; sha256: string })[] = [];
+  const producers: ReleaseProducerRecord[] = [];
   const globalNames = new Set();
   for (const label of releaseLabels) {
     const root = path.join(input, `release-build-${label}`);
@@ -130,8 +174,10 @@ export async function reconcileReleaseAssets(inputRoot: string, outputRoot: stri
     const manifestName = `SHA256SUMS-${label}.txt`;
     const producerName = `release-producer-${label}.json`;
     const manifests = files.filter((file: string) => path.basename(file) === manifestName);
-    if (manifests.length !== 1) throw new Error(`expected exactly one ${manifestName}`);
-    const entries = parseManifest(await readFile(manifests[0], "utf8"), label);
+    const manifest = manifests[0];
+    if (manifests.length !== 1 || !manifest)
+      throw new Error(`expected exactly one ${manifestName}`);
+    const entries = parseManifest(await readFile(manifest, "utf8"), label);
     const expectedEntries = packagesForPlatform(policy, label);
     const expectedNames = expectedEntries.map((entry) => artifactName(entry, version));
     assertExactArtifactNames(
@@ -144,10 +190,11 @@ export async function reconcileReleaseAssets(inputRoot: string, outputRoot: stri
       throw new Error(`expected exactly one ${producerName}`);
     if (!options.lineage && producerFiles.length > 1)
       throw new Error(`expected at most one ${producerName}`);
-    if (producerFiles.length === 1) {
+    const producerFile = producerFiles[0];
+    if (producerFiles.length === 1 && producerFile) {
       producers.push(
         validateProducer(
-          JSON.parse(await readFile(producerFiles[0], "utf8")),
+          JSON.parse(await readFile(producerFile, "utf8")),
           label,
           version,
           options.lineage,
@@ -161,20 +208,22 @@ export async function reconcileReleaseAssets(inputRoot: string, outputRoot: stri
     );
     for (const entry of entries) {
       const matches = files.filter((file: string) => path.basename(file) === entry.name);
-      if (matches.length !== 1)
+      const file = matches[0];
+      if (matches.length !== 1 || !file)
         throw new Error(`${label} expected exactly one package named ${entry.name}`);
-      const actual = await sha256(matches[0]);
+      const actual = await sha256(file);
       if (actual !== entry.sha256) throw new Error(`checksum mismatch for ${entry.name}`);
       const normalized = entry.name.toLowerCase();
       if (globalNames.has(normalized))
         throw new Error(`duplicate matrix artifact filename: ${entry.name}`);
       globalNames.add(normalized);
       const definition = expectedEntries.find((item) => artifactName(item, version) === entry.name);
+      if (!definition) throw new Error(`validated package definition is missing for ${entry.name}`);
       selected.push({
         ...definition,
-        file: matches[0],
+        file,
         filename: entry.name,
-        bytes: (await stat(matches[0])).size,
+        bytes: (await stat(file)).size,
         sha256: actual,
       });
     }
@@ -236,12 +285,19 @@ export async function reconcileReleaseAssets(inputRoot: string, outputRoot: stri
   };
 }
 
-function parseArguments(argv) {
-  const options = { projectRoot: defaultProjectRoot };
+function parseArguments(argv: readonly string[]) {
+  const options: ReconcileOptions & {
+    input?: string;
+    output?: string;
+    runId?: string;
+    revision?: string;
+    maxAttempt?: number;
+  } = { projectRoot: defaultProjectRoot };
   for (let index = 0; index < argv.length; index += 2) {
     const name = argv[index];
     const value = argv[index + 1];
     if (
+      name === undefined ||
       ![
         "--input",
         "--output",
@@ -265,12 +321,15 @@ function parseArguments(argv) {
           ? "projectRoot"
           : name === "--inventory"
             ? "inventoryPath"
-            : name.slice(2);
+            : name === "--input"
+              ? "input"
+              : "output";
       options[key] = path.resolve(value);
     } else if (name === "--run-id") options.runId = value;
     else if (name === "--revision") options.revision = value;
     else if (name === "--max-attempt") options.maxAttempt = Number(value);
-    else options[name.slice(2)] = value;
+    else if (name === "--version") options.version = value;
+    else if (name === "--tag") options.tag = value;
   }
   if (!options.input || !options.output) throw new Error("--input and --output are required");
   const lineageValues = [options.runId, options.revision, options.maxAttempt].filter(
@@ -279,9 +338,18 @@ function parseArguments(argv) {
   if (lineageValues.length !== 0 && lineageValues.length !== 3)
     throw new Error("--run-id, --revision and --max-attempt must be supplied together");
   if (lineageValues.length === 3) {
-    if (!/^\d+$/u.test(options.runId) || !/^[a-f0-9]{40}$/u.test(options.revision))
+    if (
+      typeof options.runId !== "string" ||
+      !/^\d+$/u.test(options.runId) ||
+      typeof options.revision !== "string" ||
+      !/^[a-f0-9]{40}$/u.test(options.revision)
+    )
       throw new Error("release consumer lineage is invalid");
-    if (!Number.isInteger(options.maxAttempt) || options.maxAttempt < 1)
+    if (
+      typeof options.maxAttempt !== "number" ||
+      !Number.isInteger(options.maxAttempt) ||
+      options.maxAttempt < 1
+    )
       throw new Error("release consumer attempt is invalid");
     options.lineage = {
       runId: options.runId,
@@ -289,7 +357,7 @@ function parseArguments(argv) {
       maxAttempt: options.maxAttempt,
     };
   }
-  return options;
+  return { ...options, input: options.input, output: options.output };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
