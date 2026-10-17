@@ -314,6 +314,17 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-late-listener-disposal",
+    "One live Core preparation survives genuine owner remounts and late native listener disposal.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-preparation-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-interrupted-preparation-recovery",
     "Interrupted preparation stays actionable across navigation and renderer restart.",
     {
@@ -675,6 +686,11 @@ export function resolveDesktopSelection({
     (uniqueRequested.length !== 1 || platform !== "win32")
   )
     throw new Error("native-direct-preparation-recovery requires one standalone Windows scenario");
+  if (
+    uniqueRequested.includes("native-late-listener-disposal") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-late-listener-disposal requires one standalone Windows scenario");
   if (
     uniqueRequested.includes("native-startup-preferences-recovery") &&
     uniqueRequested.length !== 1
