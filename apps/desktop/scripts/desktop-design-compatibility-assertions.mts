@@ -1,18 +1,31 @@
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 
+import type {
+  WebDriver,
+  By as SeleniumBy,
+  Key as SeleniumKey,
+  until as seleniumUntil,
+} from "selenium-webdriver";
+interface DesignCompatibilityOptions {
+  browser: Pick<WebDriver, "wait" | "findElement" | "findElements" | "executeScript" | "actions">;
+  By: typeof SeleniumBy;
+  Key: typeof SeleniumKey;
+  until: typeof seleniumUntil;
+  embeddedMacKeyboard?: boolean;
+}
 export async function assertDesignCompatibility({
   browser,
   By,
   Key,
   until,
   embeddedMacKeyboard = false,
-}) {
+}: DesignCompatibilityOptions) {
   const fixtureLocator = By.css(".design-compatibility-fixture");
   await browser.wait(until.elementLocated(fixtureLocator), 15_000);
   const fixtureElement = await browser.findElement(fixtureLocator);
   const cachedFixtureId = await fixtureElement.getId();
-  const observeStep = async (phase, operation) => {
+  const observeStep = async <Result,>(phase: string, operation: () => Promise<Result>) => {
     try {
       return await operation();
     } catch (error) {
@@ -25,7 +38,8 @@ export async function assertDesignCompatibility({
             url: location.href,
             readyState: document.readyState,
             fixtureConnected: root?.isConnected ?? false,
-            fixture: root ? { ...root.dataset } : null,
+            fixture:
+              root instanceof HTMLElement ? Object.fromEntries(Object.entries(root.dataset)) : null,
             dialogCount: document.querySelectorAll('[data-slot="dialog-content"]').length,
             triggerExpanded: trigger?.getAttribute("aria-expanded"),
             activeElement: document.activeElement?.id ?? null,
@@ -41,16 +55,20 @@ export async function assertDesignCompatibility({
     }
   };
   const fixture = {
-    getAttribute: (name) => observeStep(`read ${name}`, () => fixtureElement.getAttribute(name)),
+    getAttribute: (name: string) =>
+      observeStep(`read ${name}`, () => fixtureElement.getAttribute(name)),
   };
-  const environment = await executeBrowserScript(browser, () => ({
-    architecture: navigator.userAgentData?.architecture ?? null,
-    platform: navigator.platform,
-    reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    supportsColorMix: CSS.supports("color", "color-mix(in oklch, red, blue)"),
-    supportsOklch: CSS.supports("color", "oklch(0.5 0.1 30)"),
-    userAgent: navigator.userAgent,
-  }));
+  const environment = await executeBrowserScript(browser, () => {
+    const browserNavigator: Navigator & { userAgentData?: { architecture?: string } } = navigator;
+    return {
+      architecture: browserNavigator.userAgentData?.architecture ?? null,
+      platform: navigator.platform,
+      reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      supportsColorMix: CSS.supports("color", "color-mix(in oklch, red, blue)"),
+      supportsOklch: CSS.supports("color", "oklch(0.5 0.1 30)"),
+      userAgent: navigator.userAgent,
+    };
+  });
   assert.equal(environment.supportsColorMix, true);
   assert.equal(environment.supportsOklch, true);
 
@@ -88,6 +106,7 @@ export async function assertDesignCompatibility({
       theme: root.dataset.theme,
     };
   });
+  assert.ok(darkColors);
   assert.equal(darkColors.theme, "dark");
   assert.equal(darkColors.variantOpacity, "0.5");
   await browser.findElement(By.id("fixture-theme-light")).click();
@@ -100,18 +119,19 @@ export async function assertDesignCompatibility({
     15_000,
   );
   assert.notEqual(
-    await executeBrowserScript(
-      browser,
-      () =>
-        getComputedStyle(document.querySelector(".design-compatibility-fixture")).backgroundColor,
-    ),
+    await executeBrowserScript(browser, () => {
+      const element = document.querySelector(".design-compatibility-fixture");
+      if (!element) throw new Error("required design fixture element missing");
+      return getComputedStyle(element).backgroundColor;
+    }),
     darkColors.background,
   );
   assert.equal(
-    await executeBrowserScript(
-      browser,
-      () => getComputedStyle(document.querySelector("[data-theme-variant-probe]")).opacity,
-    ),
+    await executeBrowserScript(browser, () => {
+      const element = document.querySelector("[data-theme-variant-probe]");
+      if (!element) throw new Error("required design fixture element missing");
+      return getComputedStyle(element).opacity;
+    }),
     "1",
     "a generated dark: utility changes an actual computed control property under data-theme",
   );
@@ -125,10 +145,11 @@ export async function assertDesignCompatibility({
     15_000,
   );
   assert.equal(
-    await executeBrowserScript(
-      browser,
-      () => getComputedStyle(document.querySelector("[data-theme-variant-probe]")).opacity,
-    ),
+    await executeBrowserScript(browser, () => {
+      const element = document.querySelector("[data-theme-variant-probe]");
+      if (!element) throw new Error("required design fixture element missing");
+      return getComputedStyle(element).opacity;
+    }),
     "0.5",
     "a mounted control regains its generated dark: style when returning to dark",
   );
@@ -142,10 +163,11 @@ export async function assertDesignCompatibility({
     15_000,
   );
   assert.equal(
-    await executeBrowserScript(
-      browser,
-      () => getComputedStyle(document.querySelector("[data-theme-variant-probe]")).opacity,
-    ),
+    await executeBrowserScript(browser, () => {
+      const element = document.querySelector("[data-theme-variant-probe]");
+      if (!element) throw new Error("required design fixture element missing");
+      return getComputedStyle(element).opacity;
+    }),
     "1",
     "a mounted control returns to its light style on the next switch",
   );
@@ -174,10 +196,11 @@ export async function assertDesignCompatibility({
     true,
   );
   assert.equal(
-    await executeBrowserScript(
-      browser,
-      () => getComputedStyle(document.querySelector('[data-slot="dialog-content"]')).direction,
-    ),
+    await executeBrowserScript(browser, () => {
+      const element = document.querySelector('[data-slot="dialog-content"]');
+      if (!element) throw new Error("required design fixture element missing");
+      return getComputedStyle(element).direction;
+    }),
     "rtl",
     "portaled dialog content inherits the active direction",
   );
@@ -217,7 +240,10 @@ export async function assertDesignCompatibility({
           const trigger = document.querySelector("#fixture-channel");
           return {
             activeElement: document.activeElement?.id ?? null,
-            dialogOpen: document.querySelector(".design-compatibility-fixture")?.dataset.dialogOpen,
+            dialogOpen: (() => {
+              const root = document.querySelector(".design-compatibility-fixture");
+              return root instanceof HTMLElement ? root.dataset.dialogOpen : undefined;
+            })(),
             triggerExpanded: trigger?.getAttribute("aria-expanded"),
             triggerDisabled: trigger?.getAttribute("aria-disabled"),
           };
@@ -244,10 +270,11 @@ export async function assertDesignCompatibility({
     true,
   );
   assert.equal(
-    await executeBrowserScript(
-      browser,
-      () => getComputedStyle(document.querySelector('[data-slot="select-content"]')).direction,
-    ),
+    await executeBrowserScript(browser, () => {
+      const element = document.querySelector('[data-slot="select-content"]');
+      if (!element) throw new Error("required design fixture element missing");
+      return getComputedStyle(element).direction;
+    }),
     "rtl",
     "portaled select content inherits the active direction",
   );
@@ -284,10 +311,11 @@ export async function assertDesignCompatibility({
 
   await browser.findElement(By.id("fixture-reduced-motion")).click();
   assert.equal(await fixture.getAttribute("data-reduced-motion"), "true");
-  const motionDuration = await executeBrowserScript(
-    browser,
-    () => getComputedStyle(document.querySelector("#fixture-open-dialog")).transitionDuration,
-  );
+  const motionDuration = await executeBrowserScript(browser, () => {
+    const element = document.querySelector("#fixture-open-dialog");
+    if (!element) throw new Error("required design fixture element missing");
+    return getComputedStyle(element).transitionDuration;
+  });
   assert.ok(Number.parseFloat(motionDuration) <= 0.000001, motionDuration);
   return environment;
 }

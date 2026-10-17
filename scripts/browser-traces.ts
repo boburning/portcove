@@ -23,7 +23,7 @@ export function createBrowserTraceRun(root: string, requestedNamespace?: string)
   const directory = path.join(parent, `run-${randomUUID()}`);
   const physicalDirectory = path.join(physicalParent, path.basename(directory));
   if (existsSync(directory)) throw new Error("Browser trace namespace already exists");
-  const reporter: Reporter = {
+  const reporter = {
     onTestRunEnd(_modules, _errors, reason) {
       if (reason !== "passed" || !existsSync(directory)) return;
       // Recheck physical identity immediately before deleting this invocation's
@@ -44,6 +44,6 @@ export function createBrowserTraceRun(root: string, requestedNamespace?: string)
         return;
       rmSync(directory, { recursive: true });
     },
-  };
+  } satisfies Reporter;
   return { directory, reporter };
 }
