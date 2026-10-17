@@ -42,6 +42,11 @@ void test("real prepared runtimes use production builds and positive owned closu
   assert.deepEqual(plan.build.qualificationFeatures, []);
   assert.ok(
     plan.receiptInputs.some(
+      (input) => input.kind === "file" && input.path === "scripts/desktop-real-runtime-inputs.mts",
+    ),
+  );
+  assert.ok(
+    plan.receiptInputs.some(
       (input) =>
         input.kind === "file" &&
         input.path === "apps/desktop/scripts/desktop-real-runtime-test.mts",

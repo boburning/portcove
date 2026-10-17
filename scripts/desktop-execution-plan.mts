@@ -146,8 +146,10 @@ export function planDesktopExecution(
   inputs.push({ kind: "file", path: "apps/desktop/scripts/browser-readiness.mts" });
   inputs.push({ kind: "file", path: "scripts/acceptance-packet.mts" });
   inputs.push(receiptSource(harnessUrl));
-  if (selection.selected_scenarios.includes("native-real-prepared-runtime"))
+  if (selection.selected_scenarios.includes("native-real-prepared-runtime")) {
     inputs.push(receiptSource(new URL("./desktop-real-runtime-test.mts", harnessUrl)));
+    inputs.push({ kind: "file", path: "scripts/desktop-real-runtime-inputs.mts" });
+  }
   if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundary")) {
     inputs.push(receiptSource(new URL("./desktop-main-webview-boundary.mts", harnessUrl)));
     inputs.push({ kind: "file", path: "scripts/desktop-linux-media.mts" });

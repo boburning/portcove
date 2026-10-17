@@ -1,3 +1,8 @@
+import {
+  parseRealRuntimeInput,
+  runtimeMutable,
+  absoluteRealRuntimeInputPath as absolute,
+} from "../../../scripts/desktop-real-runtime-inputs.mts";
 import assert from "node:assert/strict";
 import { constants } from "node:fs";
 import path from "node:path";
@@ -24,54 +29,6 @@ import type { NativeSessionMode } from "./desktop-owned-native-session.mts";
 import type { NativeSessionObservations } from "./desktop-owned-native-session.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { ExternalRuntimeRecord } from "../src/transport-types.generated.d.ts";
-
-const pilotIds = ["wave-race-64-recomp", "wave-race-64-racewave46"] as const;
-type PilotId = (typeof pilotIds)[number];
-interface PackageInput {
-  port_id: PilotId;
-  directory: string;
-  archive: string;
-}
-interface RealInput {
-  format_version: 1;
-  source: string;
-  packages: PackageInput[];
-}
-
-function absolute(value: unknown) {
-  assert.ok(typeof value === "string" && path.isAbsolute(value), "Input paths must be absolute");
-  return value;
-}
-
-export function parseRealRuntimeInput(value: unknown): RealInput {
-  assert.ok(isRecord(value) && value.format_version === 1 && Array.isArray(value.packages));
-  assert.deepEqual(Object.keys(value).sort(), ["format_version", "packages", "source"]);
-  assert.equal(
-    value.packages.length,
-    pilotIds.length,
-    "Qualify the two selected distinct real routes",
-  );
-  const packages = value.packages.map((entry: unknown) => {
-    assert.ok(isRecord(entry));
-    assert.deepEqual(Object.keys(entry).sort(), ["archive", "directory", "port_id"]);
-    assert.ok(pilotIds.some((id) => id === entry.port_id));
-    return {
-      port_id: entry.port_id as PilotId,
-      directory: absolute(entry.directory),
-      archive: absolute(entry.archive),
-    };
-  });
-  assert.deepEqual(packages.map((entry) => entry.port_id).sort(), [...pilotIds].sort());
-  return { format_version: 1, source: absolute(value.source), packages };
-}
-
-export function runtimeMutable(relative: string, mutable: readonly string[]) {
-  const name = relative.replaceAll("\\", "/").toLowerCase();
-  return mutable.some((entry) => {
-    const prefix = entry.replaceAll("\\", "/").toLowerCase();
-    return name === prefix || name.startsWith(`${prefix}/`);
-  });
-}
 
 async function files(root: string): Promise<FileIdentity[]> {
   await noLinkedAncestors(root);

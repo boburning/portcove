@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import os from "node:os";
 import { test } from "node:test";
-import {
-  parseRealRuntimeInput,
-  runtimeMutable,
-} from "../apps/desktop/scripts/desktop-real-runtime-test.mts";
+import { parseRealRuntimeInput, runtimeMutable } from "./desktop-real-runtime-inputs.mts";
 
 function input() {
   return {
