@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -14,13 +15,17 @@ const publicationFreshnessMilliseconds = 15 * 60 * 1000;
 const phases = new Set(["prepared", "qualifying", "building", "publishing", "promoting"]);
 const failureKinds = new Set(["transient", "substantive", "authority"]);
 
-function object(value, label) {
+function object(value: unknown, label: string): asserts value is Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error(`${label} must be an object`);
-  return value;
 }
 
-function exactKeys(value, required, optional, label) {
+function exactKeys(
+  value: unknown,
+  required: readonly string[],
+  optional: readonly string[],
+  label: string,
+): asserts value is Record<string, unknown> {
   object(value, label);
   const keys = new Set(Object.keys(value));
   for (const key of required) {
@@ -30,18 +35,18 @@ function exactKeys(value, required, optional, label) {
   if (keys.size) throw new Error(`${label} has unknown field ${[...keys].sort()[0]}`);
 }
 
-function sha(value, label) {
+function sha(value: unknown, label: string) {
   if (typeof value !== "string" || !/^[a-f0-9]{40}$/u.test(value))
     throw new Error(`${label} must be an exact lowercase commit identity`);
   return value;
 }
 
-function text(value, label, maximum = 128) {
+function text(value: unknown, label: string, maximum = 128) {
   const containsControlCharacter =
     typeof value === "string" &&
-    [...value].some((character: string) => {
+    Array.from(value).some((character: string) => {
       const codePoint = character.codePointAt(0);
-      return codePoint <= 0x1f || codePoint === 0x7f;
+      return (codePoint ?? 0) <= 0x1f || codePoint === 0x7f;
     });
   if (
     typeof value !== "string" ||
@@ -53,37 +58,47 @@ function text(value, label, maximum = 128) {
   return value;
 }
 
-function boolean(value, label) {
+function boolean(value: unknown, label: string) {
   if (typeof value !== "boolean") throw new Error(`${label} must be boolean`);
   return value;
 }
 
-function boundedCount(value, maximum, label) {
-  if (!Number.isSafeInteger(value) || value < 0 || value > maximum)
+function boundedCount(value: unknown, maximum: number, label: string) {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0 || value > maximum)
     throw new Error(`${label} is outside its bounded budget`);
   return value;
 }
 
-function instant(value, label, optional = false) {
+function instant(value: unknown, label: string): number;
+function instant(value: unknown, label: string, optional: true): number | null;
+function instant(value: unknown, label: string, optional = false) {
   if (optional && value === null) return null;
-  const milliseconds = Date.parse(value ?? "");
+  const milliseconds = typeof value === "string" ? Date.parse(value) : NaN;
   if (!Number.isFinite(milliseconds) || new Date(milliseconds).toISOString() !== value)
     throw new Error(`${label} must be a canonical UTC instant`);
   return milliseconds;
 }
 
-function uniqueStrings(value, label, validate = text) {
+function uniqueStrings(
+  value: unknown,
+  label: string,
+  validate: (value: unknown, label: string) => string = text,
+) {
   if (!Array.isArray(value) || value.length > 256) throw new Error(`${label} must be an array`);
-  value.forEach((entry) => validate(entry, `${label} entry`));
+  const raw: unknown[] = value;
+  const checked = raw.map((entry) => validate(entry, `${label} entry`));
   if (new Set(value).size !== value.length) throw new Error(`${label} contains duplicates`);
-  if (JSON.stringify(value) !== JSON.stringify([...value].sort()))
+  if (JSON.stringify(value) !== JSON.stringify([...checked].sort()))
     throw new Error(`${label} must be sorted`);
-  return value;
+  return checked;
 }
 
-function stable(value) {
-  if (Array.isArray(value)) return value.map(stable);
-  if (value && typeof value === "object")
+function stable(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    const entries: unknown[] = value;
+    return entries.map(stable);
+  }
+  if (isRecord(value))
     return Object.fromEntries(
       Object.keys(value)
         .sort()
@@ -92,7 +107,25 @@ function stable(value) {
   return value;
 }
 
-function plan(action, reason, authority, details = {}) {
+interface Decision<Action extends string> {
+  schema_version: number;
+  action: Action;
+  reason: string;
+  authority: Authority;
+  plan_sha256: string;
+}
+function plan<Action extends string, Details extends object>(
+  action: Action,
+  reason: string,
+  authority: Authority,
+  details: Details,
+): Decision<Action> & Details;
+function plan<Action extends string>(
+  action: Action,
+  reason: string,
+  authority: Authority,
+): Decision<Action>;
+function plan(action: string, reason: string, authority: Authority, details: object = {}) {
   const unsigned = {
     schema_version: 1,
     action,
@@ -108,7 +141,7 @@ function plan(action, reason, authority, details = {}) {
   };
 }
 
-function validateController(controller) {
+function validateController(controller: unknown) {
   exactKeys(
     controller,
     ["workflow", "revision", "publication_paused", "free_capacity_available"],
@@ -119,10 +152,18 @@ function validateController(controller) {
   sha(controller.revision, "controller revision");
   boolean(controller.publication_paused, "publication pause");
   boolean(controller.free_capacity_available, "free capacity availability");
-  return controller;
+  return {
+    workflow: text(controller.workflow, "controller workflow", 256),
+    revision: sha(controller.revision, "controller revision"),
+    publication_paused: boolean(controller.publication_paused, "publication pause"),
+    free_capacity_available: boolean(
+      controller.free_capacity_available,
+      "free capacity availability",
+    ),
+  };
 }
 
-function validateOpportunity(opportunity) {
+function validateOpportunity(opportunity: unknown) {
   exactKeys(
     opportunity,
     [
@@ -143,7 +184,10 @@ function validateOpportunity(opportunity) {
   sha(opportunity.source_commit, "opportunity source commit");
   sha(opportunity.source_tree, "opportunity source tree");
   sha(opportunity.base_commit, "opportunity base commit");
-  if (!/^[a-f0-9]{64}$/u.test(opportunity.change_set_sha256 ?? ""))
+  if (
+    typeof opportunity.change_set_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(opportunity.change_set_sha256)
+  )
     throw new Error("opportunity change-set digest is invalid");
   boolean(opportunity.complete_change_set, "complete change set");
   boolean(opportunity.meaningful, "meaningful change");
@@ -151,7 +195,7 @@ function validateOpportunity(opportunity) {
   boolean(opportunity.urgency, "urgency");
   if (!opportunity.complete_change_set)
     throw new Error("release opportunity requires a complete accumulated change set");
-  if (!["preview", "stable"].includes(opportunity.requested_channel))
+  if (opportunity.requested_channel !== "preview" && opportunity.requested_channel !== "stable")
     throw new Error("requested channel must be preview or stable");
   object(opportunity.classification, "reviewed classification");
   if (
@@ -162,10 +206,21 @@ function validateOpportunity(opportunity) {
     opportunity.classification.change_set_sha256 !== opportunity.change_set_sha256
   )
     throw new Error("reviewed classification is stale for the candidate identity");
-  return opportunity;
+  return {
+    source_commit: sha(opportunity.source_commit, "opportunity source commit"),
+    source_tree: sha(opportunity.source_tree, "opportunity source tree"),
+    base_commit: sha(opportunity.base_commit, "opportunity base commit"),
+    change_set_sha256: opportunity.change_set_sha256,
+    complete_change_set: boolean(opportunity.complete_change_set, "complete change set"),
+    meaningful: boolean(opportunity.meaningful, "meaningful change"),
+    documentation_only: boolean(opportunity.documentation_only, "documentation-only change"),
+    urgency: boolean(opportunity.urgency, "urgency"),
+    requested_channel: opportunity.requested_channel,
+    classification: opportunity.classification,
+  };
 }
 
-function validatePublication(publication, now) {
+function validatePublication(publication: unknown, now: number) {
   exactKeys(
     publication,
     [
@@ -190,10 +245,17 @@ function validatePublication(publication, now) {
   const lastPreview = instant(publication.last_routine_preview_at, "last routine Preview", true);
   if (lastPreview !== null && lastPreview > now)
     throw new Error("last routine Preview is in the future");
-  return { ...publication, observed, lastPreview };
+  return {
+    observed_at: text(publication.observed_at, "publication observation"),
+    published_versions: uniqueStrings(publication.published_versions, "published versions"),
+    published_sources: uniqueStrings(publication.published_sources, "published sources", sha),
+    reserved_versions: uniqueStrings(publication.reserved_versions, "reserved versions"),
+    observed,
+    lastPreview,
+  };
 }
 
-function validateActive(active) {
+function validateActive(active: unknown) {
   if (active === null) return null;
   exactKeys(
     active,
@@ -214,14 +276,14 @@ function validateActive(active) {
   );
   for (const field of ["source_commit", "source_tree", "prepared_commit", "prepared_tree"])
     sha(active[field], `active candidate ${field}`);
-  if (!/^[a-f0-9]{64}$/u.test(active.intent_sha256 ?? ""))
+  if (typeof active.intent_sha256 !== "string" || !/^[a-f0-9]{64}$/u.test(active.intent_sha256))
     throw new Error("active candidate intent digest is invalid");
   text(active.version, "active candidate version");
   classifyApplicationVersion(active.version);
-  if (!phases.has(active.phase) && active.phase !== "failed")
+  if (typeof active.phase !== "string" || (!phases.has(active.phase) && active.phase !== "failed"))
     throw new Error("active candidate phase is invalid or terminal");
   if (active.phase === "failed") {
-    if (!failureKinds.has(active.failure_kind))
+    if (typeof active.failure_kind !== "string" || !failureKinds.has(active.failure_kind))
       throw new Error("failed active candidate requires a failure kind");
   } else if (active.failure_kind !== null) {
     throw new Error("nonfailed active candidate cannot carry a failure kind");
@@ -230,17 +292,52 @@ function validateActive(active) {
   boundedCount(active.substantive_repairs, 3, "substantive repairs");
   if (active.release_run !== undefined && active.release_run !== null) {
     exactKeys(active.release_run, ["run_id", "attempt", "revision"], [], "release run");
-    if (!Number.isSafeInteger(active.release_run.run_id) || active.release_run.run_id < 1)
+    if (
+      typeof active.release_run.run_id !== "number" ||
+      !Number.isSafeInteger(active.release_run.run_id) ||
+      active.release_run.run_id < 1
+    )
       throw new Error("release run ID is invalid");
-    if (!Number.isSafeInteger(active.release_run.attempt) || active.release_run.attempt < 1)
+    if (
+      typeof active.release_run.attempt !== "number" ||
+      !Number.isSafeInteger(active.release_run.attempt) ||
+      active.release_run.attempt < 1
+    )
       throw new Error("release run attempt is invalid");
     if (active.release_run.revision !== active.prepared_commit)
       throw new Error("release run is not bound to the prepared commit");
   }
-  return active;
+  return {
+    source_commit: sha(active.source_commit, "active source commit"),
+    source_tree: sha(active.source_tree, "active source tree"),
+    prepared_commit: sha(active.prepared_commit, "prepared commit"),
+    prepared_tree: sha(active.prepared_tree, "prepared tree"),
+    version: text(active.version, "active candidate version"),
+    intent_sha256: active.intent_sha256,
+    phase: active.phase,
+    failure_kind: active.failure_kind,
+    transient_retries: boundedCount(active.transient_retries, 2, "transient retries"),
+    substantive_repairs: boundedCount(active.substantive_repairs, 3, "substantive repairs"),
+    release_run: active.release_run ?? null,
+  };
 }
 
-function activePlan(active, opportunity, authority) {
+type Authority = {
+  controller_workflow: string;
+  controller_revision: string;
+  publication_observed_at: string;
+  publication_sha256: string;
+  opportunity_base_commit: string;
+  opportunity_commit: string;
+  opportunity_tree: string;
+  change_set_sha256: string;
+  reviewed_classification_sha256: string;
+};
+function activePlan(
+  active: NonNullable<ReturnType<typeof validateActive>>,
+  opportunity: ReturnType<typeof validateOpportunity>,
+  authority: Authority,
+) {
   const queued =
     opportunity.source_commit === active.source_commit
       ? null
@@ -311,7 +408,7 @@ function activePlan(active, opportunity, authority) {
  * A trusted controller persists this output beside workflow/issue evidence and then
  * invokes the existing preparation and release workflows with the exact identities.
  */
-export function planReleaseOpportunity(input) {
+export function planReleaseOpportunity(input: unknown) {
   exactKeys(
     input,
     ["schema_version", "now", "controller", "opportunity", "publication", "active_candidate"],
@@ -391,7 +488,7 @@ export function planReleaseOpportunity(input) {
   });
 }
 
-async function readInput(filename) {
+async function readInput(filename: string): Promise<unknown> {
   const metadata = await lstat(filename);
   if (!metadata.isFile() || metadata.size < 1 || metadata.size > 1024 * 1024)
     throw new Error("release coordinator input must be a bounded regular file");
@@ -399,16 +496,20 @@ async function readInput(filename) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  if (process.argv.length !== 3) throw new Error("usage: release-coordinator.mts INPUT.json");
-  const input = await readInput(path.resolve(process.argv[2]));
+  const filename = process.argv[2];
+  if (process.argv.length !== 3 || !filename)
+    throw new Error("usage: release-coordinator.mts INPUT.json");
+  const input = await readInput(path.resolve(filename));
+  object(input, "release coordinator input");
+  const controller = isRecord(input.controller) ? input.controller : {};
   if (
     process.env.PORTCOVE_CONTROLLER_REVISION &&
-    input.controller?.revision !== process.env.PORTCOVE_CONTROLLER_REVISION
+    controller.revision !== process.env.PORTCOVE_CONTROLLER_REVISION
   )
     throw new Error("coordinator input does not match the executing controller revision");
   if (
     process.env.PORTCOVE_CONTROLLER_WORKFLOW &&
-    input.controller?.workflow !== process.env.PORTCOVE_CONTROLLER_WORKFLOW
+    controller.workflow !== process.env.PORTCOVE_CONTROLLER_WORKFLOW
   )
     throw new Error("coordinator input does not match the executing controller workflow");
   console.log(JSON.stringify(planReleaseOpportunity(input), null, 2));

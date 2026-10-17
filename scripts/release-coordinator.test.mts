@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
@@ -15,8 +16,8 @@ const controllerRevision = "3".repeat(40);
 const baseCommit = "0".repeat(40);
 const changeSet = "a".repeat(64);
 
-function fixture(overrides = {}) {
-  const input = {
+function fixture(overrides: Record<string, unknown> = {}) {
+  const input: Record<string, unknown> = {
     schema_version: 1,
     now: "2026-09-14T12:00:00.000Z",
     controller: {
@@ -57,10 +58,9 @@ function fixture(overrides = {}) {
     active_candidate: null,
   };
   for (const [key, value] of Object.entries(overrides)) {
-    input[key] =
-      value && typeof value === "object" && !Array.isArray(value)
-        ? { ...input[key], ...value }
-        : value;
+    input[key] = isRecord(value)
+      ? { ...(isRecord(input[key]) ? input[key] : {}), ...value }
+      : value;
   }
   return input;
 }
@@ -82,7 +82,7 @@ function active(overrides = {}) {
   };
 }
 
-test("prepares one deterministic Preview from complete reviewed authority", () => {
+void test("prepares one deterministic Preview from complete reviewed authority", () => {
   const first = planReleaseOpportunity(fixture());
   const second = planReleaseOpportunity(fixture());
   assert.deepEqual(second, first);
@@ -100,7 +100,7 @@ test("prepares one deterministic Preview from complete reviewed authority", () =
   });
 });
 
-test("skips docs-only and already-published snapshots without allocating", () => {
+void test("skips docs-only and already-published snapshots without allocating", () => {
   assert.equal(
     planReleaseOpportunity(fixture({ opportunity: { documentation_only: true } })).action,
     "skip",
@@ -111,7 +111,7 @@ test("skips docs-only and already-published snapshots without allocating", () =>
   );
 });
 
-test("coalesces routine Preview work until the daily opportunity and lets urgency bypass cadence", () => {
+void test("coalesces routine Preview work until the daily opportunity and lets urgency bypass cadence", () => {
   const publication = { last_routine_preview_at: "2026-09-14T00:00:01.000Z" };
   const deferred = planReleaseOpportunity(fixture({ publication }));
   assert.equal(deferred.action, "coalesce");
@@ -121,7 +121,7 @@ test("coalesces routine Preview work until the daily opportunity and lets urgenc
   assert.equal(urgent.urgency_bypassed_cadence, true);
 });
 
-test("Stable bypasses Preview cadence but remains impossible for public 0.x", () => {
+void test("Stable bypasses Preview cadence but remains impossible for public 0.x", () => {
   const stable = planReleaseOpportunity(
     fixture({
       publication: {
@@ -157,7 +157,7 @@ test("Stable bypasses Preview cadence but remains impossible for public 0.x", ()
   );
 });
 
-test("finishes an active frozen candidate and coalesces newer commits without cancellation", () => {
+void test("finishes an active frozen candidate and coalesces newer commits without cancellation", () => {
   const publication = { reserved_versions: ["0.1.0-alpha.3"] };
   const same = planReleaseOpportunity(fixture({ publication, active_candidate: active() }));
   assert.equal(same.action, "resume-active");
@@ -191,6 +191,7 @@ test("finishes an active frozen candidate and coalesces newer commits without ca
   assert.equal(queued.active_candidate.phase, "qualifying");
   assert.equal(queued.active_candidate.transient_retries, 0);
   assert.equal(queued.active_candidate.substantive_repairs, 0);
+  assert.ok(queued.queued_candidate);
   assert.equal(queued.queued_candidate.source_commit, newer);
 
   const changedIntent = planReleaseOpportunity(
@@ -202,7 +203,7 @@ test("finishes an active frozen candidate and coalesces newer commits without ca
   assert.notEqual(changedIntent.plan_sha256, same.plan_sha256);
 });
 
-test("enforces transient and substantive recovery budgets across restarts", () => {
+void test("enforces transient and substantive recovery budgets across restarts", () => {
   const publication = { reserved_versions: ["0.1.0-alpha.3"] };
   const transient = planReleaseOpportunity(
     fixture({
@@ -256,7 +257,7 @@ test("enforces transient and substantive recovery budgets across restarts", () =
   );
 });
 
-test("pause and free-capacity limits hold before candidate execution", () => {
+void test("pause and free-capacity limits hold before candidate execution", () => {
   assert.equal(
     planReleaseOpportunity(fixture({ controller: { publication_paused: true } })).action,
     "pause",
@@ -267,7 +268,7 @@ test("pause and free-capacity limits hold before candidate execution", () => {
   );
 });
 
-test("rejects incomplete discovery, stale review, lost reservations, and run substitution", () => {
+void test("rejects incomplete discovery, stale review, lost reservations, and run substitution", () => {
   assert.throws(
     () => planReleaseOpportunity(fixture({ publication: { complete: false } })),
     /inventory is incomplete/u,
@@ -330,7 +331,7 @@ test("rejects incomplete discovery, stale review, lost reservations, and run sub
   );
 });
 
-test("CLI emits the same exact plan from a bounded fixture file", async (t) => {
+void test("CLI emits the same exact plan from a bounded fixture file", async (t) => {
   const temporary = await mkdtemp(path.join(os.tmpdir(), "portcove-release-coordinator-"));
   t.after(async () =>
     import("node:fs/promises").then(({ rm }) => rm(temporary, { recursive: true })),
@@ -367,7 +368,7 @@ test("CLI emits the same exact plan from a bounded fixture file", async (t) => {
   );
 });
 
-test("manual coordinator rehearsal is serialized, read-only, and default-branch bound", async () => {
+void test("manual coordinator rehearsal is serialized, read-only, and default-branch bound", async () => {
   const workflow = await readFile(
     new URL("../.github/workflows/release-coordinator.yml", import.meta.url),
     "utf8",
@@ -388,5 +389,18 @@ test("manual coordinator rehearsal is serialized, read-only, and default-branch 
   assert.doesNotMatch(
     workflow,
     /contents: write|actions: write|secrets\.|gh release|workflow run release/u,
+  );
+});
+
+void test("coordinator rejects array-valued intent digests before resuming", () => {
+  assert.throws(
+    () =>
+      planReleaseOpportunity(
+        fixture({
+          active_candidate: active({ intent_sha256: ["6".repeat(64)] }),
+          publication: { reserved_versions: ["0.1.0-alpha.3"] },
+        }),
+      ),
+    /intent digest is invalid/,
   );
 });
