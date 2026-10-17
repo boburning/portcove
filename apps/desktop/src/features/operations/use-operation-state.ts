@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { listenDesktopEvent } from "../../desktop-events";
-import type { OperationEvent } from "../../types";
+import type { ActivityRecord, OperationEvent } from "../../types";
 import { failurePresentation, isCancellation } from "../../view-model";
 import {
   addPendingOperation,
@@ -8,7 +8,14 @@ import {
   removePendingOperation,
 } from "../../shared/concurrency-state";
 import { startManagedSubscription } from "../../shared/subscription-lifecycle";
-import { applyOperationEvent, mostRecentOperation } from "./operation-state";
+import {
+  activityIsTerminal,
+  applyOperationEvent,
+  mostRecentOperation,
+  reconcileOperationEvents,
+} from "./operation-state";
+
+const noActivities: readonly ActivityRecord[] = [];
 
 export type OperationRefresh = "workspace" | "activities" | "none";
 
@@ -22,6 +29,7 @@ export function useOperationState(configuration: {
   refresh: () => Promise<unknown>;
   refreshActivities?: (priority?: "progress" | "prompt") => Promise<unknown>;
   invalidateDiagnostics?: () => void;
+  activities?: readonly ActivityRecord[];
 }) {
   const refresh = configuration.refresh;
   const refreshActivities = configuration.refreshActivities ?? configuration.refresh;
@@ -36,11 +44,33 @@ export function useOperationState(configuration: {
     new Map(),
   );
   const [subscriptionFailure, setSubscriptionFailure] = useState<unknown>();
+  const activities = configuration.activities ?? noActivities;
+  const currentActivities = useRef(activities);
+  // Remember only observed event identities retired by durable readback, until
+  // this workspace owner ends. History pagination must not revive queued events.
+  const retiredOperations = useRef(new Set<string>());
+  useLayoutEffect(() => {
+    currentActivities.current = activities;
+    setOperationEvents((current) => {
+      const next = reconcileOperationEvents(current, activities);
+      for (const id of current.keys()) if (!next.has(id)) retiredOperations.current.add(id);
+      return next;
+    });
+  }, [activities]);
   const operation = mostRecentOperation(operationEvents);
   useEffect(() => {
     const subscription = startManagedSubscription<OperationEvent>({
       register: (accept) => listenDesktopEvent("portcove://operation", accept),
       onEvent: (payload) => {
+        if (
+          retiredOperations.current.has(payload.operation_id) ||
+          currentActivities.current.some(
+            (activity) => activity.id === payload.operation_id && activityIsTerminal(activity),
+          )
+        ) {
+          retiredOperations.current.add(payload.operation_id);
+          return;
+        }
         setOperationEvents((current) => applyOperationEvent(current, payload));
         void refreshActivities(
           payload.type === "started" || payload.type === "finished" ? "prompt" : "progress",

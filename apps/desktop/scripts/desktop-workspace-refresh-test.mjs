@@ -276,6 +276,99 @@ export async function workspaceRefreshScenario({
         activity_rows_before: activityBefore.value.records.length,
         activity_rows_after: activityAfter.value.records.length,
       };
+      // The preceding commits converge without injected notifications. Separately
+      // replay one delayed progress event for the actual terminal Core activity.
+      await browser
+        .executeAsyncScript((activity, done) => {
+          window.__TAURI_INTERNALS__
+            .invoke("plugin:event|emit", {
+              event: "portcove://operation",
+              payload: {
+                schema_version: 3,
+                operation_id: activity.id,
+                parent_operation_id: null,
+                sequence: 100,
+                timestamp_ms: Date.now(),
+                operation: activity.operation,
+                target: { kind: activity.target_kind, id: activity.target_id },
+                type: "progress",
+                phase: "copy",
+                completed: 1,
+                total: 10,
+              },
+            })
+            .then(
+              () => done({ ok: true }),
+              (error) => done({ error }),
+            );
+        }, adoptedActivity)
+        .then((result) => assert.equal(result.ok, true, JSON.stringify(result)));
+      await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+      await browser.executeScript(() => {
+        const probe = window.__portcoveExternalReconciliationProbe;
+        const previous = window.fetch;
+        probe.supportRequests = 0;
+        probe.supportGate = new Promise((resolve) => {
+          probe.releaseSupport = resolve;
+        });
+        window.fetch = async function (input, ...args) {
+          const url = typeof input === "string" ? input : (input.url ?? String(input));
+          if (url === window.__TAURI_INTERNALS__.convertFileSrc("create_support_bundle", "ipc")) {
+            probe.supportRequests++;
+            await probe.supportGate;
+          }
+          return previous.call(window, input, ...args);
+        };
+      });
+      try {
+        await browser
+          .findElement(By.xpath('//button[normalize-space(.)="Create support bundle"]'))
+          .click();
+        await browser.wait(
+          async () =>
+            browser.executeScript(
+              () => window.__portcoveExternalReconciliationProbe.supportRequests === 1,
+            ),
+          10_000,
+        );
+        const progress = await browser.wait(
+          until.elementLocated(By.css('.operation-bar [role="progressbar"]')),
+          10_000,
+        );
+        const label = await progress.getAttribute("aria-label");
+        assert.equal(label, "Working");
+        assert.equal(await progress.getAttribute("aria-valuenow"), null);
+        observations.progress_reconciliation = {
+          injection:
+            "one delayed synthetic progress event for an actual Core terminal activity; support-bundle IPC held before dispatch",
+          activity_id: adoptedActivity.id,
+          durable_status: adoptedActivity.status,
+          next_task_label: label,
+          next_task_indeterminate: true,
+          support_requests: 1,
+        };
+        const screenshot = path.join(output, "terminal-snapshot-next-task.png");
+        await writeFile(screenshot, await browser.takeScreenshot(), {
+          encoding: "base64",
+          flag: "wx",
+        });
+        artifacts.push(screenshot);
+      } finally {
+        await browser.executeScript(() =>
+          window.__portcoveExternalReconciliationProbe.releaseSupport?.(),
+        );
+      }
+      await browser.wait(
+        async () => (await browser.findElements(By.css(".operation-bar"))).length === 0,
+        15_000,
+      );
+      const reconciledActivity = await invoke("get_activities");
+      assert.equal(reconciledActivity.ok, true);
+      assert.equal(
+        reconciledActivity.value.records.find((activity) => activity.id === adoptedActivity.id)
+          ?.status,
+        "succeeded",
+      );
       observations.commands = await browser.executeScript(
         () => window.__portcoveExternalReconciliationProbe.commands,
       );
