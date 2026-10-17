@@ -11,6 +11,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+  isFingerprintRuntime,
   fingerprintStage,
   validationRuntime,
   receiptEnvelope,
@@ -129,4 +130,32 @@ void test("runtime identity rejects malformed packageManager data before claimin
     JSON.stringify({ packageManager: "pnpm@fixture" }),
   );
   assert.equal(validationRuntime(directory, options).packageManager, "pnpm@fixture");
+});
+
+void test("persisted fingerprint runtime rejects unsafe fields while retaining unavailable observations", () => {
+  const runtime = {
+    platform: "linux",
+    architecture: "x64",
+    osRelease: "fixture",
+    node: "fixture",
+    git: "fixture",
+    just: "fixture",
+    environment: { OPTIONAL: null, PRESENT: "value" },
+    rustc: null,
+    packageManager: "pnpm@fixture",
+  };
+  assert.equal(isFingerprintRuntime(runtime), true);
+  for (const invalid of [
+    null,
+    [],
+    {},
+    { ...runtime, node: 24 },
+    { ...runtime, environment: [] },
+    { ...runtime, environment: { UNSAFE: {} } },
+    { ...runtime, cargo: false },
+    { ...runtime, powershell: 123 },
+  ]) {
+    assert.equal(isFingerprintRuntime(invalid), false);
+  }
+  assert.equal(isFingerprintRuntime({ ...runtime, cargo: undefined }), true);
 });

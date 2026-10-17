@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { isRecord } from "../runtime-values.mts";
-import { isValidationDomain } from "../validation-evidence.mts";
+import { isValidationDomain, isFingerprintRuntime } from "../validation-evidence.mts";
 import type {
   FingerprintInventory,
   RepositoryInventory,
@@ -10,26 +10,6 @@ import type {
 } from "../validation-evidence.mts";
 import type { AuditStage } from "../audit.mts";
 
-function assertRuntime(value: unknown): asserts value is FingerprintRuntime {
-  assert(isRecord(value));
-  for (const key of ["platform", "architecture", "osRelease", "node", "git", "just"])
-    assert.equal(typeof value[key], "string");
-  assert(isRecord(value.environment));
-  for (const entry of Object.values(value.environment))
-    assert(entry === null || typeof entry === "string");
-  for (const key of [
-    "rustc",
-    "cargo",
-    "cargoNextest",
-    "cargoShear",
-    "rscheck",
-    "aqua",
-    "powershell",
-    "packageManager",
-    "packageManagerVersion",
-  ])
-    assert(value[key] === undefined || value[key] === null || typeof value[key] === "string");
-}
 function baselineCase(raw: unknown) {
   assert(isRecord(raw) && typeof raw.label === "string" && typeof raw.expected === "string");
   const stage = raw.stage;
@@ -112,7 +92,7 @@ function baselineCase(raw: unknown) {
     files,
   };
   const runtime = raw.runtime;
-  assertRuntime(runtime);
+  assert(isFingerprintRuntime(runtime));
   return {
     ...raw,
     label: raw.label,

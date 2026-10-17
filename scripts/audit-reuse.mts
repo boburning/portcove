@@ -1,4 +1,4 @@
-import { errorCode } from "./runtime-values.mts";
+import { errorCode, isRecord } from "./runtime-values.mts";
 import { createHash, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
@@ -18,14 +18,66 @@ import { parseAuditArchive } from "./audit-archive.mts";
 import { createGitHubRunner } from "./github-api.mts";
 import { renderBoundedSummary } from "./report-summary.mts";
 
+import {
+  isValidationDomain,
+  isFingerprintRuntime,
+  validateReceipt,
+} from "./validation-evidence.mts";
+import type { FingerprintInventory, StageIdentity } from "./validation-evidence.mts";
+
+import type { planAudit } from "./audit.mts";
+
+type CurrentPlan = ReturnType<typeof planAudit>;
+interface AuditMiss {
+  reason: string;
+  stage?: string;
+  run?: unknown;
+}
+interface ReuseResult {
+  status: "skipped" | "imported" | "cache-miss";
+  reason: string;
+  imported: string[];
+  misses?: AuditMiss[];
+  examinedRuns?: number;
+  downloads?: number;
+}
+export interface AuditRequestOptions {
+  binary: boolean;
+  timeoutMs: number;
+  cwd: string;
+}
+export interface AuditReuseOptions {
+  workflowDigest?: string;
+  fresh?: boolean;
+  clock?: () => number;
+  root?: string;
+  request?: (endpoint: string, options: AuditRequestOptions) => unknown;
+}
+function record(value: unknown, reason = "invalid-bundle") {
+  requireValid(isRecord(value), reason);
+  return value;
+}
+function text(value: unknown, reason: string): string {
+  requireValid(typeof value === "string", reason);
+  return value;
+}
+function number(value: unknown, reason: string): number {
+  requireValid(typeof value === "number", reason);
+  return value;
+}
+function bytesAt(files: ReadonlyMap<string, Buffer>, name: string): Buffer {
+  const bytes = files.get(name);
+  requireValid(bytes, "incomplete-bundle");
+  return bytes;
+}
 const repositoryName = "boburning/portcove",
   route = `repos/${repositoryName}`;
 const workflowPath = ".github/workflows/deep-quality.yml";
 const workflowRef = `${repositoryName}/${workflowPath}@refs/heads/main`;
-const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const sha = /^[a-f0-9]{40}$/;
-export function describeAuditReuse(result) {
-  const reasons = new Map();
+export function describeAuditReuse(result: ReuseResult) {
+  const reasons = new Map<string, number>();
   for (const miss of result.misses ?? [])
     reasons.set(miss.reason, (reasons.get(miss.reason) ?? 0) + 1);
   return renderBoundedSummary(`[audit-reuse] ${result.status}: ${result.reason}`, [
@@ -33,13 +85,13 @@ export function describeAuditReuse(result) {
     ...[...reasons].map(([reason, count]) => `${reason}: ${count}`),
   ]).text;
 }
-function reject(reason) {
+function reject(reason: string): never {
   throw Object.assign(new Error(`Audit reuse miss: ${reason}`), { code: reason });
 }
-function requireValid(condition, reason) {
+function requireValid(condition: unknown, reason: string): asserts condition {
   if (!condition) reject(reason);
 }
-function json(bytes, limit = 32 * 1024 * 1024) {
+function json(bytes: unknown, limit = 32 * 1024 * 1024) {
   requireValid(Buffer.isBuffer(bytes) && bytes.length <= limit, "invalid-bundle");
   // Bound parser-owned nesting and object work before allocating parsed records.
   let depth = 0,
@@ -60,54 +112,94 @@ function json(bytes, limit = 32 * 1024 * 1024) {
     else if (byte === 44 || byte === 58) tokens++;
     requireValid(tokens <= 1_000_000, "json-limits");
   }
-  return JSON.parse(bytes.toString("utf8"));
+  const value: unknown = JSON.parse(bytes.toString("utf8"));
+  return value;
 }
 
-function recomputeOriginal(inputs) {
+function recomputeOriginal(raw: unknown) {
+  const inputs = record(raw, "invalid-inputs");
+  requireValid(Array.isArray(inputs.inputs), "invalid-inputs");
+  const rawFiles: unknown[] = inputs.inputs;
+  const files: FingerprintInventory["files"] = rawFiles.map((rawFile) => {
+    const f = record(rawFile, "invalid-inputs");
+    requireValid(
+      Array.isArray(f.modes) &&
+        f.modes.length <= 3 &&
+        f.modes.every((v: unknown) => typeof v === "string") &&
+        Array.isArray(f.contentIdentities) &&
+        f.contentIdentities.length <= 3 &&
+        f.contentIdentities.every((v: unknown) => typeof v === "string") &&
+        Array.isArray(f.domains) &&
+        typeof f.path === "string" &&
+        (f.kind === "file" || f.kind === "missing" || f.kind === "symlink" || f.kind === "other") &&
+        (f.sha256 === null || typeof f.sha256 === "string") &&
+        typeof f.ambiguous === "boolean",
+      "invalid-inputs",
+    );
+    const domains = f.domains.map((domain: unknown) => {
+      requireValid(isValidationDomain(domain), "invalid-inputs");
+      return domain;
+    });
+    // Canonical lists have at most three entries; absence remains absence, not a fabricated identity.
+    const modes: unknown[] = f.modes,
+      identities: unknown[] = f.contentIdentities;
+    const identity = (value: unknown) => (typeof value === "string" ? value : null);
+    return {
+      path: f.path,
+      kind: f.kind,
+      sha256: f.sha256,
+      domains,
+      ambiguous: f.ambiguous,
+      headMode: identity(modes[0]),
+      indexMode: identity(modes[1]),
+      worktreeMode: identity(modes[2]),
+      headBlob: identity(identities[0]),
+      indexBlob: identity(identities[1]),
+      gitBlob: identity(identities[2]),
+    };
+  });
+  const stage = record(inputs.stage, "invalid-inputs");
   requireValid(
-    Array.isArray(inputs?.inputs) &&
-      inputs.inputs.every(
-        (f) =>
-          Array.isArray(f.modes) &&
-          f.modes.length <= 3 &&
-          Array.isArray(f.contentIdentities) &&
-          f.contentIdentities.length <= 3 &&
-          Array.isArray(f.domains),
-      ),
+    typeof stage.id === "string" &&
+      typeof stage.recipe === "string" &&
+      isValidationDomain(stage.domain) &&
+      isFingerprintRuntime(inputs.runtime) &&
+      (inputs.gitObjectFormat === "sha1" || inputs.gitObjectFormat === "sha256"),
     "invalid-inputs",
   );
-  const files = inputs.inputs.map((f) => ({
-    path: f.path,
-    kind: f.kind,
-    sha256: f.sha256,
-    domains: f.domains,
-    ambiguous: f.ambiguous,
-    headMode: f.modes[0],
-    indexMode: f.modes[1],
-    worktreeMode: f.modes[2],
-    headBlob: f.contentIdentities[0],
-    indexBlob: f.contentIdentities[1],
-    gitBlob: f.contentIdentities[2],
-  }));
+  const checkedStage: StageIdentity = { id: stage.id, recipe: stage.recipe, domain: stage.domain };
   return fingerprintStage(
-    inputs.stage,
+    checkedStage,
     { objectFormat: inputs.gitObjectFormat, files },
     inputs.runtime,
   );
 }
 
-export function validateAuditProducer(files, proof, { workflowDigest } = {}) {
-  const manifest = json(files.get("manifest.json"), 65536);
-  const { run, job, artifact, repository, ancestry } = proof;
-  const identity = manifest.identity;
+export function validateAuditProducer(
+  files: ReadonlyMap<string, Buffer>,
+  rawProof: unknown,
+  { workflowDigest }: Pick<AuditReuseOptions, "workflowDigest"> = {},
+) {
+  const proof = record(rawProof);
+  const manifest = record(json(files.get("manifest.json"), 65536));
+  const run = record(proof.run, "unsuccessful-main-producer"),
+    job = record(proof.job, "unsuccessful-audit-job"),
+    artifact = record(proof.artifact, "invalid-artifact"),
+    repository = record(proof.repository, "foreign-repository"),
+    ancestry = record(proof.ancestry, "not-merged-main");
+  const identity = record(manifest.identity, "changed-contract-or-attempt");
+  const runRepository = record(run.repository, "foreign-repository"),
+    headRepository = record(run.head_repository, "foreign-repository");
+  const artifactRun = record(artifact.workflow_run, "invalid-artifact");
   requireValid(
     repository?.full_name === repositoryName &&
+      typeof repository.id === "number" &&
       Number.isSafeInteger(repository.id) &&
       repository.id > 0 &&
-      run?.repository?.id === repository.id &&
-      run.repository.full_name === repositoryName &&
-      run.head_repository?.id === repository.id &&
-      run.head_repository.full_name === repositoryName,
+      runRepository.id === repository.id &&
+      runRepository.full_name === repositoryName &&
+      headRepository.id === repository.id &&
+      headRepository.full_name === repositoryName,
     "foreign-repository",
   );
   requireValid(
@@ -115,20 +207,24 @@ export function validateAuditProducer(files, proof, { workflowDigest } = {}) {
       run.event === "workflow_dispatch" &&
       run.path === workflowPath &&
       run.workflow_id === proof.workflowId &&
+      typeof run.head_sha === "string" &&
       sha.test(run.head_sha) &&
+      typeof run.id === "number" &&
       Number.isSafeInteger(run.id) &&
       run.id > 0 &&
+      typeof run.run_attempt === "number" &&
       Number.isSafeInteger(run.run_attempt) &&
       run.run_attempt > 0 &&
       run.status === "completed" &&
-      ["success", "failure"].includes(run.conclusion),
+      ["success", "failure"].includes(text(run.conclusion, "unsuccessful-main-producer")),
     "unsuccessful-main-producer",
   );
   requireValid(
-    sha.test(proof.mainSha) &&
-      ancestry?.base_commit?.sha === run.head_sha &&
-      ancestry.merge_base_commit?.sha === run.head_sha &&
-      ["ahead", "identical"].includes(ancestry.status),
+    typeof proof.mainSha === "string" &&
+      sha.test(proof.mainSha) &&
+      record(ancestry.base_commit, "not-merged-main").sha === run.head_sha &&
+      record(ancestry.merge_base_commit, "not-merged-main").sha === run.head_sha &&
+      ["ahead", "identical"].includes(text(ancestry.status, "not-merged-main")),
     "not-merged-main",
   );
   requireValid(
@@ -136,30 +232,34 @@ export function validateAuditProducer(files, proof, { workflowDigest } = {}) {
       job.run_id === run.id &&
       job.run_attempt === run.run_attempt &&
       job.head_sha === run.head_sha &&
+      typeof job.id === "number" &&
       Number.isSafeInteger(job.id) &&
       job.id > 0 &&
       job.status === "completed" &&
-      ["success", "failure"].includes(job.conclusion) &&
-      Number.isFinite(Date.parse(job.started_at)) &&
-      Number.isFinite(Date.parse(job.completed_at)),
+      ["success", "failure"].includes(text(job.conclusion, "unsuccessful-audit-job")) &&
+      Number.isFinite(Date.parse(text(job.started_at, "invalid-producer-time"))) &&
+      Number.isFinite(Date.parse(text(job.completed_at, "invalid-producer-time"))),
     "unsuccessful-audit-job",
   );
   requireValid(
     artifact?.expired === false &&
-      Number.isFinite(Date.parse(artifact.expires_at)) &&
-      Date.parse(artifact.expires_at) > Date.now() &&
+      Number.isFinite(Date.parse(text(artifact.expires_at, "invalid-producer-time"))) &&
+      Date.parse(text(artifact.expires_at, "invalid-producer-time")) > Date.now() &&
+      typeof artifact.id === "number" &&
       Number.isSafeInteger(artifact.id) &&
       artifact.id > 0 &&
+      typeof artifact.size_in_bytes === "number" &&
       Number.isSafeInteger(artifact.size_in_bytes) &&
+      typeof artifact.size_in_bytes === "number" &&
       artifact.size_in_bytes > 0 &&
       artifact.size_in_bytes <= AUDIT_BUNDLE_LIMITS.compressedBytes &&
-      /^sha256:[a-f0-9]{64}$/.test(artifact.digest) &&
+      /^sha256:[a-f0-9]{64}$/.test(text(artifact.digest, "invalid-artifact")) &&
       artifact.name === `audit-evidence-${run.id}-${run.run_attempt}` &&
-      artifact.workflow_run?.id === run.id &&
-      artifact.workflow_run.repository_id === repository.id &&
-      artifact.workflow_run.head_repository_id === repository.id &&
-      artifact.workflow_run.head_branch === "main" &&
-      artifact.workflow_run.head_sha === run.head_sha,
+      artifactRun.id === run.id &&
+      artifactRun.repository_id === repository.id &&
+      artifactRun.head_repository_id === repository.id &&
+      artifactRun.head_branch === "main" &&
+      artifactRun.head_sha === run.head_sha,
     "invalid-artifact",
   );
   requireValid(
@@ -183,9 +283,12 @@ export function validateAuditProducer(files, proof, { workflowDigest } = {}) {
       JSON.stringify(manifest.limits) === JSON.stringify(AUDIT_BUNDLE_LIMITS),
     "incomplete-bundle",
   );
-  const seen = new Set();
-  let total = files.get("manifest.json").length;
-  for (const record of manifest.files) {
+  const seen = new Set<string>();
+  let total = bytesAt(files, "manifest.json").length;
+  const manifestFiles: unknown[] = manifest.files;
+  for (const rawFile of manifestFiles) {
+    const record = isRecord(rawFile) ? rawFile : {};
+    requireValid(typeof record.path === "string", "bundle-integrity");
     const bytes = files.get(record.path);
     requireValid(
       record.path !== "manifest.json" &&
@@ -199,12 +302,16 @@ export function validateAuditProducer(files, proof, { workflowDigest } = {}) {
     total += bytes.length;
     requireValid(total <= AUDIT_BUNDLE_LIMITS.expandedBytes, "bundle-limits");
   }
-  const capture = json(files.get("inputs.json")),
-    aggregate = json(files.get("audit.json"), 131072),
-    binding = json(files.get("binding.json"), 16384);
+  const capture = record(json(files.get("inputs.json"))),
+    aggregate = record(json(files.get("audit.json"), 131072)),
+    binding = record(json(files.get("binding.json"), 16384));
+  const aggregatePayload = record(aggregate.payload),
+    capturePayload = record(capture.payload);
   requireValid(
-    binding.startedMs >= Date.parse(job.started_at) &&
-      binding.completedMs <= Date.parse(job.completed_at),
+    number(binding.startedMs, "job-time-binding") >=
+      Date.parse(text(job.started_at, "invalid-producer-time")) &&
+      number(binding.completedMs, "job-time-binding") <=
+        Date.parse(text(job.completed_at, "invalid-producer-time")),
     "job-time-binding",
   );
   const receipts = Object.fromEntries(
@@ -215,20 +322,54 @@ export function validateAuditProducer(files, proof, { workflowDigest } = {}) {
   );
   const rebuilt = buildAuditBundle({ identity, binding, capture, aggregate, receipts });
   requireValid(
-    rebuilt.files.size === files.size && manifest.diagnosticOnly === !aggregate.payload.success,
+    rebuilt.files.size === files.size && manifest.diagnosticOnly === !aggregatePayload.success,
     "incomplete-bundle",
   );
   for (const [name, bytes] of rebuilt.files)
     requireValid(
-      files.has(name) && hash(bytes) === hash(files.get(name)),
+      files.has(name) && hash(bytes) === hash(bytesAt(files, name)),
       "unsupported-bundle-shape",
     );
-  for (const stage of aggregate.payload.stages)
+  requireValid(
+    typeof aggregatePayload.success === "boolean" && Array.isArray(aggregatePayload.stages),
+    "incomplete-bundle",
+  );
+  const stageInputs = record(capturePayload.stageInputs);
+  const rawStages: unknown[] = aggregatePayload.stages;
+  const stages = rawStages.map((rawStage) => {
+    const stage = record(rawStage);
+    requireValid(typeof stage.id === "string", "invalid-inputs");
     requireValid(
-      recomputeOriginal(capture.payload.stageInputs[stage.id]) === stage.fingerprint,
+      recomputeOriginal(stageInputs[stage.id]) === stage.fingerprint,
       "original-fingerprint-mismatch",
     );
-  return { manifest, capture, aggregate, binding, receipts };
+    requireValid(typeof stage.status === "string", "invalid-inputs");
+    return { ...stage, id: stage.id, status: stage.status };
+  });
+  const checkedReceipts = Object.fromEntries(
+    Object.entries(receipts).map(([id, receipt]) => {
+      const checked = validateReceipt(receipt);
+      requireValid(checked.valid, "invalid-receipt");
+      return [id, { ...record(receipt), payload: checked.payload }];
+    }),
+  );
+  return {
+    manifest,
+    capture,
+    aggregate: {
+      ...aggregate,
+      payload: { ...aggregatePayload, success: aggregatePayload.success, stages },
+    },
+    binding,
+    receipts: checkedReceipts,
+    proof: {
+      run: { id: run.id, run_attempt: run.run_attempt, head_sha: run.head_sha },
+      job: { id: job.id },
+      artifact: { id: artifact.id, digest: text(artifact.digest, "invalid-artifact") },
+      mainSha: proof.mainSha,
+      workflowDigest: proof.workflowDigest,
+    },
+  };
 }
 
 function ensureDirectory(directory: string, root: string) {
@@ -247,10 +388,22 @@ function ensureDirectory(directory: string, root: string) {
   }
 }
 
-export function importAuditReceipts(files, proof, currentPlan, options = {}) {
-  const bundle = validateAuditProducer(files, proof, options);
-  const matching = [],
-    misses = [];
+interface ImportResult {
+  imported: string[];
+  misses: AuditMiss[];
+  provenance: string | null;
+}
+
+export function importAuditReceipts(
+  files: ReadonlyMap<string, Buffer>,
+  rawProof: unknown,
+  currentPlan: CurrentPlan,
+  options: Pick<AuditReuseOptions, "workflowDigest"> = {},
+): ImportResult {
+  const bundle = validateAuditProducer(files, rawProof, options);
+  const proof = bundle.proof;
+  const matching = [];
+  const misses: AuditMiss[] = [];
   for (const stage of currentPlan.stages.filter((s) => s.reusable)) {
     const receipt = bundle.receipts[stage.id];
     if (
@@ -303,16 +456,16 @@ export function importAuditReceipts(files, proof, currentPlan, options = {}) {
   };
   writeFileSync(path.join(temporary, "provenance.json"), JSON.stringify(record), { flag: "wx" });
   renameSync(temporary, provenance);
-  const imported = [];
+  const imported: string[] = [];
   for (const { stage, file } of matching) {
     ensureDirectory(path.dirname(file), currentPlan.receiptRoot);
     const temp = `${file}.${randomUUID()}.tmp`;
-    writeFileSync(temp, files.get(`receipts/${stage.id}.json`), { flag: "wx" });
+    writeFileSync(temp, bytesAt(files, `receipts/${stage.id}.json`), { flag: "wx" });
     try {
       linkSync(temp, file);
       imported.push(stage.id);
     } catch (error) {
-      if (error.code !== "EEXIST") throw error;
+      if (errorCode(error) !== "EEXIST") throw error;
       misses.push({ stage: stage.id, reason: "concurrent-local-receipt" });
     } finally {
       try {
@@ -325,7 +478,10 @@ export function importAuditReceipts(files, proof, currentPlan, options = {}) {
   return { imported, misses, provenance };
 }
 
-function defaultRequest(endpoint, { binary, timeoutMs, cwd }) {
+function defaultRequest(
+  endpoint: string,
+  { binary, timeoutMs, cwd }: AuditRequestOptions,
+): unknown {
   if (!binary)
     return JSON.parse(
       createGitHubRunner({ cwd, timeoutMs, maxBuffer: 2 * 1024 * 1024 })(["api", endpoint]),
@@ -342,7 +498,10 @@ function defaultRequest(endpoint, { binary, timeoutMs, cwd }) {
   return result.stdout;
 }
 
-export function discoverAuditReceipts(currentPlan, options = {}) {
+export function discoverAuditReceipts(
+  currentPlan: CurrentPlan,
+  options: AuditReuseOptions = {},
+): ReuseResult {
   if (options.fresh || currentPlan.profile === "transition")
     return { status: "skipped", reason: "fresh-required", imported: [] };
   const needed = new Set(
@@ -351,14 +510,14 @@ export function discoverAuditReceipts(currentPlan, options = {}) {
   if (!needed.size) return { status: "skipped", reason: "existing-local-evidence", imported: [] };
   const clock = options.clock ?? Date.now,
     deadline = clock() + 60000;
-  const misses = [],
-    imported = [];
+  const misses: AuditMiss[] = [],
+    imported: string[] = [];
   let examinedRuns = 0,
     downloads = 0;
   const active = () => {
     requireValid(clock() < deadline, "collection-deadline");
   };
-  const request = (endpoint, binary = false) => {
+  const request = (endpoint: string, binary = false) => {
     active();
     const value = (options.request ?? defaultRequest)(endpoint, {
       binary,
@@ -368,22 +527,27 @@ export function discoverAuditReceipts(currentPlan, options = {}) {
     active();
     return value;
   };
-  const collection = (endpoint, key) => {
-    const entries = [];
-    let total = null;
+  const requestRecord = (endpoint: string) =>
+    record(request(endpoint), "provider-coverage-unavailable");
+  const collection = (endpoint: string, key: string) => {
+    const entries: Record<string, unknown>[] = [];
+    let total: number | null = null;
     for (let page = 1; page <= 10; page++) {
-      const data = request(`${endpoint}?per_page=100&page=${page}`);
+      const data = requestRecord(`${endpoint}?per_page=100&page=${page}`);
+      const pageEntries = data[key];
       requireValid(
-        Number.isSafeInteger(data.total_count) &&
+        typeof data.total_count === "number" &&
+          Number.isSafeInteger(data.total_count) &&
           data.total_count >= 0 &&
           data.total_count <= 1000 &&
-          Array.isArray(data[key]) &&
-          data[key].length <= 100,
+          Array.isArray(pageEntries) &&
+          pageEntries.length <= 100,
         "provider-coverage-unavailable",
       );
       if (total === null) total = data.total_count;
       requireValid(total === data.total_count, "provider-coverage-unavailable");
-      entries.push(...data[key]);
+      const rawEntries: unknown[] = pageEntries;
+      entries.push(...rawEntries.map((entry) => record(entry, "provider-coverage-unavailable")));
       if (entries.length >= total) {
         requireValid(
           entries.length === total && new Set(entries.map((x) => x.id)).size === entries.length,
@@ -391,18 +555,21 @@ export function discoverAuditReceipts(currentPlan, options = {}) {
         );
         return entries;
       }
-      requireValid(data[key].length === 100, "provider-coverage-unavailable");
+      requireValid(pageEntries.length === 100, "provider-coverage-unavailable");
     }
     reject("provider-coverage-unavailable");
   };
   try {
-    const repository = request(route),
-      mainSha = request(`${route}/git/ref/heads/main`).object?.sha;
+    const repository = requestRecord(route),
+      mainSha = record(
+        requestRecord(`${route}/git/ref/heads/main`).object,
+        "provider-identity-unavailable",
+      ).sha;
     requireValid(
-      repository.full_name === repositoryName && sha.test(mainSha),
+      repository.full_name === repositoryName && typeof mainSha === "string" && sha.test(mainSha),
       "provider-identity-unavailable",
     );
-    const workflow = request(`${route}/actions/workflows/deep-quality.yml`);
+    const workflow = requestRecord(`${route}/actions/workflows/deep-quality.yml`);
     requireValid(
       workflow.path === workflowPath && Number.isSafeInteger(workflow.id),
       "provider-identity-unavailable",
@@ -410,53 +577,64 @@ export function discoverAuditReceipts(currentPlan, options = {}) {
     const localDigest =
       options.workflowDigest ??
       hash(readFileSync(path.join(options.root ?? process.cwd(), workflowPath)));
-    const mainWorkflow = request(`${route}/contents/${workflowPath}?ref=${mainSha}`);
+    const mainWorkflow = requestRecord(`${route}/contents/${workflowPath}?ref=${mainSha}`);
     requireValid(
       mainWorkflow.encoding === "base64" &&
         mainWorkflow.type === "file" &&
+        typeof mainWorkflow.size === "number" &&
         mainWorkflow.size > 0 &&
         mainWorkflow.size <= 131072 &&
-        hash(Buffer.from(mainWorkflow.content, "base64")) === localDigest,
+        hash(Buffer.from(text(mainWorkflow.content, "changed-contract"), "base64")) === localDigest,
       "changed-contract",
     );
-    const window = request(
+    const window = requestRecord(
       `${route}/actions/workflows/deep-quality.yml/runs?branch=main&status=completed&per_page=20`,
     );
     const runs = window.workflow_runs;
     requireValid(
-      Number.isSafeInteger(window.total_count) &&
+      typeof window.total_count === "number" &&
+        Number.isSafeInteger(window.total_count) &&
         window.total_count >= 0 &&
         Array.isArray(runs) &&
         runs.length === Math.min(window.total_count, 20) &&
-        new Set(runs.map((r) => r.id)).size === runs.length,
+        new Set(runs.map((r: unknown) => record(r, "provider-coverage-unavailable").id)).size ===
+          runs.length,
       "provider-coverage-unavailable",
     );
-    for (const candidate of runs) {
+    const rawRuns: unknown[] = runs;
+    for (const rawCandidate of rawRuns) {
+      const candidate = record(rawCandidate, "provider-coverage-unavailable");
       active();
       examinedRuns++;
       try {
         requireValid(
           candidate.head_branch === "main" &&
             candidate.status === "completed" &&
-            ["success", "failure"].includes(candidate.conclusion) &&
+            ["success", "failure"].includes(
+              text(candidate.conclusion, "unsuccessful-main-producer"),
+            ) &&
+            typeof candidate.id === "number" &&
             Number.isSafeInteger(candidate.id) &&
             candidate.id > 0,
           "unsuccessful-main-producer",
         );
-        const run = request(`${route}/actions/runs/${candidate.id}`);
+        const run = requestRecord(`${route}/actions/runs/${candidate.id}`);
         requireValid(
-          run.id === candidate.id &&
+          typeof run.id === "number" &&
+            run.id === candidate.id &&
+            typeof run.head_sha === "string" &&
             sha.test(run.head_sha) &&
+            typeof run.run_attempt === "number" &&
             Number.isSafeInteger(run.run_attempt) &&
             run.run_attempt > 0 &&
-            run.repository?.id === repository.id &&
-            run.head_repository?.id === repository.id &&
+            record(run.repository, "provider-identity-unavailable").id === repository.id &&
+            record(run.head_repository, "provider-identity-unavailable").id === repository.id &&
             run.head_branch === "main" &&
             run.event === "workflow_dispatch" &&
             run.path === workflowPath &&
             run.workflow_id === workflow.id &&
             run.status === "completed" &&
-            ["success", "failure"].includes(run.conclusion),
+            ["success", "failure"].includes(text(run.conclusion, "unsuccessful-main-producer")),
           "provider-identity-unavailable",
         );
         const jobs = collection(
@@ -465,38 +643,51 @@ export function discoverAuditReceipts(currentPlan, options = {}) {
         );
         const audits = jobs.filter((j) => j.name === "audit");
         requireValid(
-          audits.length === 1 && ["success", "failure"].includes(audits[0].conclusion),
+          audits.length === 1 &&
+            audits[0] !== undefined &&
+            ["success", "failure"].includes(text(audits[0].conclusion, "unsuccessful-audit-job")),
           "unsuccessful-audit-job",
         );
+        const artifactName = `audit-evidence-${run.id}-${run.run_attempt}`;
         const artifacts = collection(
           `${route}/actions/runs/${run.id}/artifacts`,
           "artifacts",
-        ).filter((a) => a.name === `audit-evidence-${run.id}-${run.run_attempt}`);
+        ).filter((a) => a.name === artifactName);
         requireValid(
-          artifacts.length === 1 && Number.isSafeInteger(artifacts[0].id) && artifacts[0].id > 0,
+          artifacts.length === 1 &&
+            artifacts[0] !== undefined &&
+            typeof artifacts[0].id === "number" &&
+            Number.isSafeInteger(artifacts[0].id) &&
+            artifacts[0].id > 0,
           "artifact-unavailable",
         );
-        const artifact = request(`${route}/actions/artifacts/${artifacts[0].id}`);
+        const artifact = requestRecord(`${route}/actions/artifacts/${artifacts[0].id}`);
         requireValid(
           artifact.id === artifacts[0].id &&
             artifact.expired === false &&
+            typeof artifact.size_in_bytes === "number" &&
             artifact.size_in_bytes > 0 &&
             artifact.size_in_bytes <= AUDIT_BUNDLE_LIMITS.compressedBytes &&
-            /^sha256:[a-f0-9]{64}$/.test(artifact.digest),
+            /^sha256:[a-f0-9]{64}$/.test(text(artifact.digest, "invalid-artifact")),
           "invalid-artifact",
         );
-        const ancestry = request(`${route}/compare/${run.head_sha}...${mainSha}`);
+        const ancestry = requestRecord(`${route}/compare/${run.head_sha}...${mainSha}`);
         requireValid(
-          ancestry.merge_base_commit?.sha === run.head_sha &&
-            ["ahead", "identical"].includes(ancestry.status),
+          record(ancestry.merge_base_commit, "not-merged-main").sha === run.head_sha &&
+            ["ahead", "identical"].includes(text(ancestry.status, "not-merged-main")),
           "not-merged-main",
         );
-        const content = request(`${route}/contents/${workflowPath}?ref=${run.head_sha}`);
+        const content = requestRecord(`${route}/contents/${workflowPath}?ref=${run.head_sha}`);
         requireValid(
-          content.encoding === "base64" && content.type === "file" && content.size <= 131072,
+          content.encoding === "base64" &&
+            content.type === "file" &&
+            typeof content.size === "number" &&
+            content.size <= 131072,
           "changed-contract",
         );
-        const workflowDigest = hash(Buffer.from(content.content, "base64"));
+        const workflowDigest = hash(
+          Buffer.from(text(content.content, "changed-contract"), "base64"),
+        );
         requireValid(workflowDigest === localDigest, "changed-contract");
         if (downloads >= 3) break;
         downloads++;
@@ -504,12 +695,15 @@ export function discoverAuditReceipts(currentPlan, options = {}) {
         requireValid(
           Buffer.isBuffer(bytes) &&
             bytes.length <= AUDIT_BUNDLE_LIMITS.compressedBytes &&
-            hash(bytes) === artifact.digest.slice(7),
+            hash(bytes) === text(artifact.digest, "invalid-artifact").slice(7),
           "artifact-digest-mismatch",
         );
         const files = parseAuditArchive(bytes, { deadline, clock });
-        const finalRun = request(`${route}/actions/runs/${run.id}`),
-          finalMain = request(`${route}/git/ref/heads/main`).object?.sha;
+        const finalRun = requestRecord(`${route}/actions/runs/${run.id}`),
+          finalMain = record(
+            requestRecord(`${route}/git/ref/heads/main`).object,
+            "provider-identity-unavailable",
+          ).sha;
         requireValid(
           finalRun.head_sha === run.head_sha &&
             finalRun.run_attempt === run.run_attempt &&
@@ -537,7 +731,7 @@ export function discoverAuditReceipts(currentPlan, options = {}) {
         misses.push(...result.misses.map((m) => ({ run: run.id, ...m })));
         if (!needed.size) break;
       } catch (error) {
-        misses.push({ run: candidate.id, reason: error.code ?? "invalid-evidence" });
+        misses.push({ run: candidate.id, reason: errorCode(error) ?? "invalid-evidence" });
         if (clock() >= deadline) reject("collection-deadline");
       }
     }
@@ -557,8 +751,8 @@ export function discoverAuditReceipts(currentPlan, options = {}) {
         "changed-contract",
         "provider-coverage-unavailable",
         "provider-identity-unavailable",
-      ].includes(errorCode(error))
-        ? errorCode(error)
+      ].includes(errorCode(error) ?? "")
+        ? (errorCode(error) ?? "provider-unavailable")
         : "provider-unavailable",
       imported,
       examinedRuns,

@@ -16,10 +16,24 @@ import {
   describeAuditReuse,
 } from "./audit-reuse.mts";
 
+import { firstAuditBaseline } from "./fixtures/audit-baseline-fixture.mts";
+import { isRecord } from "./runtime-values.mts";
+import type { AuditRequestOptions } from "./audit-reuse.mts";
+
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function record(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function read(files: ReadonlyMap<string, Buffer>, name: string) {
+  const value: unknown = JSON.parse(required(files.get(name)).toString("utf8"));
+  return record(value);
+}
 function fixture() {
-  const baseline = JSON.parse(
-    readFileSync(new URL("./fixtures/audit-fingerprint-baseline.json", import.meta.url)),
-  );
+  const entry = firstAuditBaseline();
   const source = "a".repeat(40),
     main = "b".repeat(40),
     workflowBytes = Buffer.from("reviewed workflow fixture"),
@@ -37,12 +51,17 @@ function fixture() {
     completedMs = Date.now() - 1000;
   const stages = AUDIT_STAGES.filter((s) => !s.platforms || s.platforms.includes("linux"));
   const stageInputs = Object.fromEntries(
-    stages.map((s) => [
-      s.id,
-      fingerprintInputs(s, baseline.cases[0].inventory, baseline.cases[0].runtime),
-    ]),
+    stages.map((s) => [s.id, fingerprintInputs(s, entry.inventory, entry.runtime)]),
   );
-  const results = stages.map((s) => ({
+  const results: {
+    id: string;
+    recipe: string;
+    status: string;
+    originatingHead: string;
+    durationMs: number;
+    fingerprint: string;
+    exitCode?: number;
+  }[] = stages.map((s) => ({
     id: s.id,
     recipe: s.recipe,
     status: "passed",
@@ -145,28 +164,27 @@ function fixture() {
     ancestry: { base_commit: { sha: source }, merge_base_commit: { sha: source }, status: "ahead" },
   };
   const currentPlan = planAudit({
-    inventory: baseline.cases[0].inventory,
-    runtime: baseline.cases[0].runtime,
+    inventory: entry.inventory,
+    runtime: entry.runtime,
     fresh: false,
     receiptRoot: "unused",
   });
-  return { bundle, proof, currentPlan, source, workflowBytes };
+  return {
+    bundle,
+    proof,
+    currentPlan,
+    source,
+    workflowBytes,
+    aggregate,
+    capture,
+    binding,
+    receipts,
+  };
 }
 
-test("diagnostic aggregate retains failure while admitting only completed deterministic successes", () => {
+void test("diagnostic aggregate retains failure while admitting only completed deterministic successes", () => {
   const f = fixture();
-  const read = (name) => JSON.parse(f.bundle.files.get(name).toString("utf8"));
-  const payload = read("audit.json").payload;
-  payload.success = false;
-  payload.originalExitCode = 1;
-  Object.assign(
-    payload.stages.find((stage) => stage.id === "dependency-policy"),
-    {
-      status: "failed",
-      exitCode: 1,
-    },
-  );
-  payload.policyDecision = {
+  const policyDecision = {
     disposition: "development-baseline",
     candidate: f.source,
     purpose: "development",
@@ -176,23 +194,32 @@ test("diagnostic aggregate retains failure while admitting only completed determ
     scanPassed: false,
     scanExitCode: 1,
   };
+  const payload: typeof f.aggregate.payload & {
+    originalExitCode?: number;
+    policyDecision?: typeof policyDecision;
+  } = { ...structuredClone(f.aggregate.payload), success: false, originalExitCode: 1 };
+  Object.assign(required(payload.stages.find((stage) => stage.id === "dependency-policy")), {
+    status: "failed",
+    exitCode: 1,
+  });
+  payload.policyDecision = policyDecision;
   const aggregate = receiptEnvelope(payload);
   const input = {
     identity: f.bundle.manifest.identity,
-    binding: { ...read("binding.json"), receiptIntegrity: aggregate.integrity },
-    capture: read("inputs.json"),
+    binding: { ...read(f.bundle.files, "binding.json"), receiptIntegrity: aggregate.integrity },
+    capture: read(f.bundle.files, "inputs.json"),
     aggregate,
     receipts: Object.fromEntries(
       [...f.bundle.files]
         .filter(([name]) => name.startsWith("receipts/"))
-        .map(([name, bytes]) => [name.slice(9, -5), JSON.parse(bytes.toString("utf8"))]),
+        .map(([name, bytes]) => [name.slice(9, -5), record(JSON.parse(bytes.toString("utf8")))]),
     ),
   };
   const bundle = buildAuditBundle(input);
   assert.equal(bundle.manifest.diagnosticOnly, true);
-  assert.equal(JSON.parse(bundle.files.get("audit.json")).payload.success, false);
-  assert.equal(JSON.parse(bundle.files.get("audit.json")).payload.originalExitCode, 1);
-  assert.equal(JSON.parse(bundle.files.get("binding.json")).exitCode, "0");
+  assert.equal(record(read(bundle.files, "audit.json").payload).success, false);
+  assert.equal(record(read(bundle.files, "audit.json").payload).originalExitCode, 1);
+  assert.equal(read(bundle.files, "binding.json").exitCode, "0");
   assert.equal(bundle.files.has("receipts/dependency-policy.json"), false);
   const admitted = validateAuditProducer(bundle.files, f.proof, {
     workflowDigest: f.proof.workflowDigest,
@@ -209,24 +236,24 @@ test("diagnostic aggregate retains failure while admitting only completed determ
     () => validateAuditProducer(tampered, f.proof, { workflowDigest: f.proof.workflowDigest }),
     /incomplete-bundle|unsupported-bundle-shape/,
   );
-  for (const mutate of [
+  const mutations: ((p: typeof payload) => unknown)[] = [
     (p) => delete p.policyDecision,
-    (p) => (p.policyDecision.policyPassed = false),
-    (p) => (p.policyDecision.candidate = "b".repeat(40)),
-    (p) => (p.policyDecision.purpose = "release"),
-    (p) => (p.policyDecision.scanPassed = true),
+    (p) => (required(p.policyDecision).policyPassed = false),
+    (p) => (required(p.policyDecision).candidate = "b".repeat(40)),
+    (p) => (required(p.policyDecision).purpose = "release"),
+    (p) => (required(p.policyDecision).scanPassed = true),
     (p) => (p.originalExitCode = 0),
     (p) =>
-      Object.assign(
-        p.stages.find((stage) => stage.id === "ui"),
-        { status: "failed", exitCode: 1 },
-      ),
+      Object.assign(required(p.stages.find((stage) => stage.id === "ui")), {
+        status: "failed",
+        exitCode: 1,
+      }),
     (p) =>
-      Object.assign(
-        p.stages.find((stage) => stage.id === "dependency-policy"),
-        { exitCode: 2 },
-      ),
-  ]) {
+      Object.assign(required(p.stages.find((stage) => stage.id === "dependency-policy")), {
+        exitCode: 2,
+      }),
+  ];
+  for (const mutate of mutations) {
     const bad = structuredClone(input);
     mutate(bad.aggregate.payload);
     bad.aggregate = receiptEnvelope(bad.aggregate.payload);
@@ -235,7 +262,7 @@ test("diagnostic aggregate retains failure while admitting only completed determ
   }
 });
 
-test("successful main producer imports exact original receipts with retained inputs and provenance", () => {
+void test("successful main producer imports exact original receipts with retained inputs and provenance", () => {
   const f = fixture();
   const root = mkdtempSync(path.join(os.tmpdir(), "audit-import-"));
   try {
@@ -244,20 +271,23 @@ test("successful main producer imports exact original receipts with retained inp
       workflowDigest: f.proof.workflowDigest,
     });
     assert.equal(result.imported.length, 7);
-    const receipt = JSON.parse(
-      readFileSync(
-        path.join(
-          root,
-          "stages",
-          "rust",
-          `${f.currentPlan.stages.find((s) => s.id === "rust").fingerprint}.json`,
+    const receipt = record(
+      JSON.parse(
+        readFileSync(
+          path.join(
+            root,
+            "stages",
+            "rust",
+            `${required(f.currentPlan.stages.find((s) => s.id === "rust")).fingerprint}.json`,
+          ),
+          "utf8",
         ),
-        "utf8",
       ),
     );
-    assert.equal(receipt.payload.originatingHead, f.source);
-    assert.equal(receipt.payload.kind, "successful-stage");
-    assert.equal(existsSync(path.join(result.provenance, "inputs.json")), true);
+    const receiptPayload = record(receipt.payload);
+    assert.equal(receiptPayload.originatingHead, f.source);
+    assert.equal(receiptPayload.kind, "successful-stage");
+    assert.equal(existsSync(path.join(required(result.provenance), "inputs.json")), true);
     assert.equal(
       importAuditReceipts(f.bundle.files, f.proof, f.currentPlan, {
         workflowDigest: f.proof.workflowDigest,
@@ -269,30 +299,30 @@ test("successful main producer imports exact original receipts with retained inp
   }
 });
 
-test("fork, unmerged, failed, wrong attempt, expired and changed contract producers refuse before writes", () => {
+void test("fork, unmerged, failed, wrong attempt, expired and changed contract producers refuse before writes", () => {
   for (const mutate of [
-    (f) => {
+    (f: ReturnType<typeof fixture>) => {
       f.proof.run.head_repository = { id: 2, full_name: "foreign/fork" };
     },
-    (f) => {
+    (f: ReturnType<typeof fixture>) => {
       f.proof.ancestry.merge_base_commit.sha = "e".repeat(40);
     },
-    (f) => {
+    (f: ReturnType<typeof fixture>) => {
       f.proof.run.conclusion = "cancelled";
     },
-    (f) => {
+    (f: ReturnType<typeof fixture>) => {
       f.proof.job.conclusion = "timed_out";
     },
-    (f) => {
+    (f: ReturnType<typeof fixture>) => {
       f.proof.run.run_attempt = 3;
     },
-    (f) => {
+    (f: ReturnType<typeof fixture>) => {
       f.proof.artifact.expired = true;
     },
-    (f) => {
+    (f: ReturnType<typeof fixture>) => {
       f.proof.workflowDigest = "f".repeat(64);
     },
-    (f) => {
+    (f: ReturnType<typeof fixture>) => {
       f.proof.artifact.workflow_run.head_sha = "e".repeat(40);
     },
   ]) {
@@ -305,7 +335,7 @@ test("fork, unmerged, failed, wrong attempt, expired and changed contract produc
   }
 });
 
-test("changed production inputs cause a named fingerprint miss and never import a receipt", () => {
+void test("changed production inputs cause a named fingerprint miss and never import a receipt", () => {
   const f = fixture();
   const root = mkdtempSync(path.join(os.tmpdir(), "audit-miss-"));
   try {
@@ -322,10 +352,10 @@ test("changed production inputs cause a named fingerprint miss and never import 
   }
 });
 
-test("tampered files and partial bundle coverage are rejected", () => {
+void test("tampered files and partial bundle coverage are rejected", () => {
   for (const mutate of [
-    (f) => f.bundle.files.set("inputs.json", Buffer.from("{}")),
-    (f) => f.bundle.files.delete("receipts/rust.json"),
+    (f: ReturnType<typeof fixture>) => f.bundle.files.set("inputs.json", Buffer.from("{}")),
+    (f: ReturnType<typeof fixture>) => f.bundle.files.delete("receipts/rust.json"),
   ]) {
     const f = fixture();
     mutate(f);
@@ -335,7 +365,7 @@ test("tampered files and partial bundle coverage are rejected", () => {
   }
 });
 
-test("unavailable discovery and budget exhaustion are cache misses without dispatch or mutation", () => {
+void test("unavailable discovery and budget exhaustion are cache misses without dispatch or mutation", () => {
   const f = fixture();
   let calls = 0;
   const result = discoverAuditReceipts(f.currentPlan, {
@@ -362,7 +392,7 @@ test("unavailable discovery and budget exhaustion are cache misses without dispa
   assert.equal(expired.reason, "collection-deadline");
 });
 
-test("reuse diagnostics name fingerprint misses within the shared output byte bound", () => {
+void test("reuse diagnostics name fingerprint misses within the shared output byte bound", () => {
   const text = describeAuditReuse({
     status: "cache-miss",
     reason: "no-compatible-main-evidence",
@@ -375,7 +405,7 @@ test("reuse diagnostics name fingerprint misses within the shared output byte bo
   assert.ok(Buffer.byteLength(`${text}\n`) <= 16 * 1024);
 });
 
-test("direct CLI completes the real reuse module import and catches asynchronous failures", () => {
+void test("direct CLI completes the real reuse module import and catches asynchronous failures", () => {
   const auditUrl = new URL("./audit.mts", import.meta.url).href;
   for (const failure of [false, true]) {
     // Replace only the orchestration body in memory; retain production imports,
@@ -405,17 +435,25 @@ test("direct CLI completes the real reuse module import and catches asynchronous
   }
 });
 
-function transportFixture({ count = 1, mutate, invalidDigest = false } = {}) {
+interface TransportCall extends AuditRequestOptions {
+  endpoint: string;
+}
+interface TransportOptions {
+  count?: number;
+  invalidDigest?: boolean;
+  mutate?: (endpoint: string, value: unknown, calls: TransportCall[]) => unknown;
+}
+function transportFixture({ count = 1, mutate, invalidDigest = false }: TransportOptions = {}) {
   const f = fixture();
   const bytes = createAuditZip([...f.bundle.files]);
   f.proof.artifact.size_in_bytes = bytes.length;
   f.proof.artifact.digest = `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-  const calls = [],
+  const calls: TransportCall[] = [],
     runs = Array.from({ length: count }, (_, i) => ({ ...f.proof.run, id: 123 + i }));
   const route = "repos/boburning/portcove";
-  const request = (endpoint: string, options) => {
+  const request = (endpoint: string, options: AuditRequestOptions): unknown => {
     calls.push({ endpoint, ...options });
-    let value;
+    let value: unknown;
     if (endpoint === route) value = f.proof.repository;
     else if (endpoint.endsWith("/git/ref/heads/main")) value = { object: { sha: f.proof.mainSha } };
     else if (endpoint.endsWith("/actions/workflows/deep-quality.yml"))
@@ -432,10 +470,10 @@ function transportFixture({ count = 1, mutate, invalidDigest = false } = {}) {
     else if (/\/actions\/runs\/\d+$/.test(endpoint))
       value = runs.find((r) => r.id === Number(endpoint.split("/").at(-1)));
     else if (endpoint.includes("/jobs?")) {
-      const runId = Number(endpoint.match(/\/runs\/(\d+)/)[1]);
+      const runId = Number(required(required(endpoint.match(/\/runs\/(\d+)/))[1]));
       value = { total_count: 1, jobs: [{ ...f.proof.job, run_id: runId }] };
     } else if (endpoint.includes("/artifacts?")) {
-      const runId = Number(endpoint.match(/\/runs\/(\d+)/)[1]);
+      const runId = Number(required(required(endpoint.match(/\/runs\/(\d+)/))[1]));
       value = { total_count: 1, artifacts: [{ id: runId, name: `audit-evidence-${runId}-2` }] };
     } else if (endpoint.endsWith("/zip")) {
       assert.equal(options.binary, true);
@@ -461,7 +499,7 @@ function transportFixture({ count = 1, mutate, invalidDigest = false } = {}) {
   return { ...f, bytes, calls, request };
 }
 
-test("API discovery imports a real digest-bound ZIP and replanning reuses deterministic stages only", () => {
+void test("API discovery imports a real digest-bound ZIP and replanning reuses deterministic stages only", () => {
   const f = transportFixture();
   const root = mkdtempSync(path.join(os.tmpdir(), "audit-discovery-"));
   try {
@@ -503,7 +541,7 @@ test("API discovery imports a real digest-bound ZIP and replanning reuses determ
   }
 });
 
-test("newest twenty runs and at most three downloads bound failed discovery", () => {
+void test("newest twenty runs and at most three downloads bound failed discovery", () => {
   const f = transportFixture({ count: 20, invalidDigest: true });
   const result = discoverAuditReceipts(f.currentPlan, {
     request: f.request,
@@ -512,44 +550,44 @@ test("newest twenty runs and at most three downloads bound failed discovery", ()
   assert.equal(result.status, "cache-miss");
   assert.equal(result.downloads, 3);
   assert.equal(f.calls.filter((c) => c.binary).length, 3);
-  assert.ok(result.examinedRuns <= 20);
-  assert.ok(result.misses.some((m) => m.reason === "artifact-digest-mismatch"));
+  assert.ok(required(result.examinedRuns) <= 20);
+  assert.ok(required(result.misses).some((m) => m.reason === "artifact-digest-mismatch"));
   assert.ok(f.calls.some((c) => c.endpoint.endsWith("branch=main&status=completed&per_page=20")));
 });
 
-test("truncated collections, changed readback and unsafe ZIP fail without publishing receipts", () => {
+void test("truncated collections, changed readback and unsafe ZIP fail without publishing receipts", () => {
   for (const mode of ["jobs", "artifacts", "run", "main", "zip", "window"]) {
     const root = mkdtempSync(path.join(os.tmpdir(), "audit-reject-"));
     const f = transportFixture({
       mutate: (endpoint: string, value, calls) => {
-        if (mode === "jobs" && endpoint.includes("/jobs?")) value.total_count = 2;
-        if (mode === "artifacts" && endpoint.includes("/artifacts?")) value.total_count = 2;
+        if (mode === "jobs" && endpoint.includes("/jobs?")) record(value).total_count = 2;
+        if (mode === "artifacts" && endpoint.includes("/artifacts?")) record(value).total_count = 2;
         if (
           mode === "run" &&
           endpoint.endsWith("/actions/runs/123") &&
           calls.filter((c) => c.endpoint === endpoint).length === 2
         )
-          value.run_attempt = 3;
+          record(value).run_attempt = 3;
         if (
           mode === "main" &&
           endpoint.endsWith("/git/ref/heads/main") &&
           calls.filter((c) => c.endpoint === endpoint).length === 2
         )
-          value.object.sha = "f".repeat(40);
+          record(record(value).object).sha = "f".repeat(40);
         if (mode === "window" && endpoint.includes("/workflows/deep-quality.yml/runs?"))
-          value.total_count = 2;
+          record(value).total_count = 2;
         return value;
       },
     });
     if (mode === "zip") {
       const bytes = createAuditZip([["../inputs.json", "{}"]]);
       const request = f.request;
-      f.request = (endpoint: string, options) => {
+      f.request = (endpoint: string, options: AuditRequestOptions) => {
         const value = request(endpoint, options);
         if (endpoint.endsWith("/zip")) return bytes;
         if (/\/actions\/artifacts\/\d+$/.test(endpoint))
           return {
-            ...value,
+            ...record(value),
             size_in_bytes: bytes.length,
             digest: `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
           };
@@ -565,12 +603,12 @@ test("truncated collections, changed readback and unsafe ZIP fail without publis
       assert.equal(result.status, "cache-miss", mode);
       if (["run", "main"].includes(mode))
         assert.ok(
-          result.misses.some((m) => m.reason === "producer-changed"),
+          required(result.misses).some((m) => m.reason === "producer-changed"),
           mode,
         );
       if (mode === "zip")
         assert.ok(
-          result.misses.some((m) => m.reason === "invalid-evidence"),
+          required(result.misses).some((m) => m.reason === "invalid-evidence"),
           mode,
         );
       assert.equal(existsSync(path.join(root, "stages")), false, mode);
@@ -583,25 +621,28 @@ test("truncated collections, changed readback and unsafe ZIP fail without publis
   }
 });
 
-test("completed raw failed producer imports passed deterministic stages and preserves failed reusable stage", () => {
+void test("completed raw failed producer imports passed deterministic stages and preserves failed reusable stage", () => {
   const f = fixture();
-  const read = (name) => JSON.parse(f.bundle.files.get(name));
-  const payload = read("audit.json").payload;
+  const payload = structuredClone(f.aggregate.payload);
   payload.success = false;
-  Object.assign(
-    payload.stages.find((s) => s.id === "rscheck"),
-    { status: "failed", exitCode: 1 },
-  );
+  Object.assign(required(payload.stages.find((s) => s.id === "rscheck")), {
+    status: "failed",
+    exitCode: 1,
+  });
   const aggregate = receiptEnvelope(payload);
   const receipts = Object.fromEntries(
     [...f.bundle.files]
       .filter(([name]) => name.startsWith("receipts/") && name !== "receipts/rscheck.json")
-      .map(([name, bytes]) => [name.slice(9, -5), JSON.parse(bytes)]),
+      .map(([name, bytes]) => [name.slice(9, -5), record(JSON.parse(bytes.toString("utf8")))]),
   );
   const bundle = buildAuditBundle({
     identity: f.bundle.manifest.identity,
-    binding: { ...read("binding.json"), exitCode: "1", receiptIntegrity: aggregate.integrity },
-    capture: read("inputs.json"),
+    binding: {
+      ...read(f.bundle.files, "binding.json"),
+      exitCode: "1",
+      receiptIntegrity: aggregate.integrity,
+    },
+    capture: read(f.bundle.files, "inputs.json"),
     aggregate,
     receipts,
   });
@@ -620,7 +661,7 @@ test("completed raw failed producer imports passed deterministic stages and pres
     });
     assert.equal(admitted.aggregate.payload.success, false);
     assert.equal(
-      admitted.aggregate.payload.stages.find((s) => s.id === "rscheck").status,
+      required(admitted.aggregate.payload.stages.find((s) => s.id === "rscheck")).status,
       "failed",
     );
     assert.equal(bundle.files.has("receipts/rscheck.json"), false);

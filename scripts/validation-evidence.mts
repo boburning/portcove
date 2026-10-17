@@ -30,6 +30,33 @@ export interface StageIdentity {
   recipe: string;
   domain: ValidationDomain;
 }
+/** Runtime data is persisted JSON; optional unavailable tool observations may be null. */
+export function isFingerprintRuntime(value: unknown): value is FingerprintRuntime {
+  if (!isRecord(value) || !isRecord(value.environment)) return false;
+  if (
+    !["platform", "architecture", "osRelease", "node", "git", "just"].every(
+      (key) => typeof value[key] === "string",
+    )
+  )
+    return false;
+  if (
+    !Object.values(value.environment).every((entry) => entry === null || typeof entry === "string")
+  )
+    return false;
+  return [
+    "rustc",
+    "cargo",
+    "cargoNextest",
+    "cargoShear",
+    "rscheck",
+    "aqua",
+    "powershell",
+    "packageManager",
+    "packageManagerVersion",
+  ].every(
+    (key) => value[key] === undefined || value[key] === null || typeof value[key] === "string",
+  );
+}
 interface GitEntry {
   mode: string;
   blob: string;
