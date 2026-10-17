@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import process from "node:process";
 import { test } from "vite-plus/test";
+import type {
+  ReviewElement,
+  ReviewObservation,
+  ReviewSnapshot,
+  ReviewWaiter,
+} from "./desktop-preparation-test.mts";
+import { By } from "selenium-webdriver";
 import {
   assertPreparedLibrarySummary,
   rollbackWitnessWithinLibrary,
@@ -95,22 +102,33 @@ const ready = {
   action_enabled: true,
 };
 
-function observedReview(snapshots) {
-  let current = snapshots[0];
-  const state = { clicks: 0, bounds: [] };
-  const action = {
+function observedReview(snapshots: readonly ReviewSnapshot[]) {
+  const initial = snapshots[0];
+  assert.ok(initial);
+  let current = initial;
+  const state: { clicks: number; bounds: number[] } = { clicks: 0, bounds: [] };
+  const action: ReviewElement = {
+    getText: async () => assert.fail("Action text is not part of readiness"),
     isDisplayed: async () => current.action_displayed,
     isEnabled: async () => current.action_enabled,
-    click: async () => state.clicks++,
+    click: async () => {
+      state.clicks++;
+    },
   };
-  const version = {
-    getText: async () => current.version,
+  const version: ReviewElement = {
+    click: async () => assert.fail("Readiness must not click the release version"),
+    isEnabled: async () => assert.fail("Version enabled state is not part of readiness"),
+    getText: async () => {
+      assert.ok(current.version !== null);
+      return current.version;
+    },
     isDisplayed: async () => current.version_displayed,
   };
   const review = {
     getText: async () => current.text,
     isDisplayed: async () => current.displayed,
-    findElements: async (locator) => {
+    findElements: async (locator: import("selenium-webdriver").Locator) => {
+      assert.ok(locator instanceof By);
       if (locator.using === "css selector") {
         assert.equal(locator.value, ".install-plan > p:first-child strong");
         return Array.from({ length: current.version_count }, () => version);
@@ -121,8 +139,8 @@ function observedReview(snapshots) {
     },
     findElement: async () => action,
   };
-  const browser = {
-    wait: async (condition, timeout, message) => {
+  const browser: ReviewWaiter = {
+    wait: async <Value>(condition: () => Promise<Value>, timeout: number, message: string) => {
       state.bounds.push(timeout);
       for (const snapshot of snapshots) {
         current = snapshot;
@@ -138,13 +156,16 @@ function observedReview(snapshots) {
 test("waits for semantic review readiness and records actual first/latest observations", async () => {
   const opening = { ...ready, text: "", displayed: false, version: "", action_displayed: false };
   const { browser, review, state, action } = observedReview([opening, ready]);
-  const observation = {};
+  const observation: ReviewObservation = {};
   assert.equal(
     await waitForReviewedUpdateAction(browser, review, expectedVersion, observation),
     action,
   );
   assert.deepEqual(state.bounds, [5_000]);
   assert.equal(state.clicks, 0, "Readiness itself must not apply the update");
+  assert.ok(observation.review);
+  assert.ok(observation.review.first);
+  assert.ok(observation.review.latest);
   assert.equal(observation.review.expected_version, expectedVersion);
   assert.equal(observation.review.first.text, "");
   assert.equal(observation.review.first.displayed, false);
@@ -153,7 +174,7 @@ test("waits for semantic review readiness and records actual first/latest observ
   assert.equal(observation.review.polls, 2);
 });
 
-for (const [name, changes] of [
+const refusedReviews: readonly (readonly [string, Partial<ReviewSnapshot>])[] = [
   ["merely located unopened dialog", { text: "", displayed: false, action_displayed: false }],
   ["wrong exact rendered version", { version: "v0.3.80", text: ready.text + " v0.3.80" }],
   ["missing rendered version", { version_count: 0 }],
@@ -163,10 +184,11 @@ for (const [name, changes] of [
   ["hidden scoped action", { action_displayed: false }],
   ["disabled scoped action", { action_enabled: false }],
   ["ambiguous scoped action", { action_count: 2 }],
-]) {
+];
+for (const [name, changes] of refusedReviews) {
   test(`refuses Apply admission for ${name}`, async () => {
     const { browser, review, state } = observedReview([{ ...ready, ...changes }]);
-    const observation = {};
+    const observation: ReviewObservation = {};
     await assert.rejects(async () => {
       const action = await waitForReviewedUpdateAction(
         browser,
@@ -178,6 +200,9 @@ for (const [name, changes] of [
     }, /The controlled review must show its exact release and available action/);
     assert.deepEqual(state.bounds, [5_000]);
     assert.equal(state.clicks, 0);
+    assert.ok(observation.review);
+    assert.ok(observation.review.first);
+    assert.ok(observation.review.latest);
     assert.equal(observation.review.expected_version, expectedVersion);
     assert.ok(observation.review.first);
     assert.ok(observation.review.latest);

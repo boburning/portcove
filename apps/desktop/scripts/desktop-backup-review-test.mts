@@ -20,7 +20,7 @@ interface BackupReviewContext {
   seed: (
     portId: string,
     mode: "success",
-  ) => Promise<{ port: PortDefinition; install: InstallRecord }>;
+  ) => Promise<{ port: PortDefinition; install: Pick<InstallRecord, "id"> }>;
   open: (port: PortDefinition, refresh?: boolean) => Promise<unknown>;
   confirmNative: ReturnType<typeof nativeConfirmation>;
 }

@@ -1,3 +1,4 @@
+import type { WebDriver } from "selenium-webdriver";
 import { executeBrowserScript } from "./browser-script.mts";
 // An isolated durable-state fixture followed by real core recovery and native rendering.
 import assert from "node:assert/strict";
@@ -59,7 +60,7 @@ export async function interruptedPreparationScenario({
   activities,
   confirmNative,
   restartApplication,
-}) {
+}): Promise<WebDriver> {
   await scenario("native-interrupted-preparation-recovery", async () => {
     browser = await restartApplication("interrupted-preparation-recovery");
     const applicationUpdateChoice = By.xpath(
@@ -838,7 +839,7 @@ export async function minimizedPreparationScenario({
   open,
   status,
   captureLivePreparation,
-}) {
+}): Promise<WebDriver> {
   await scenario("native-minimized-preparation-continuity", async () => {
     assert.equal(process.platform, "win32", "This scenario qualifies Windows only");
     assert.equal(path.resolve(library), path.resolve(output, "library"));
@@ -1179,11 +1180,11 @@ async function previewRecoveredPreparationCleanup({
   return { cleanup, operation };
 }
 
-export async function liveInterruptedPreparationScenario(context) {
+export async function liveInterruptedPreparationScenario(context): Promise<WebDriver> {
   return livePreparationRecoveryScenario(context);
 }
 
-export async function closedPreparationScenario(context) {
+export async function closedPreparationScenario(context): Promise<WebDriver> {
   return livePreparationRecoveryScenario({
     ...context,
     interruptApplication: context.closeApplication,
@@ -1207,7 +1208,7 @@ async function livePreparationRecoveryScenario({
   interruptApplication,
   scenarioId = "native-host-interrupted-preparation",
   ordinaryClose = false,
-}) {
+}): Promise<WebDriver> {
   await scenario(scenarioId, async () => {
     assert.equal(process.platform, "win32", "This scenario qualifies Windows only");
     assert.equal(path.resolve(library), path.resolve(output, "library"));

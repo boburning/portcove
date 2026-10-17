@@ -1,8 +1,64 @@
-import { errorMessage } from "../../../scripts/runtime-values.mts";
+import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
+import type { Locator, IRectangle, WebElement } from "selenium-webdriver";
+import type { FixtureCommand } from "./desktop-scenario-state.mts";
+import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
+import type {
+  PortDefinition,
+  PortStatus,
+  InstallRecord,
+  ActivityRecord,
+  FailureReport,
+  MutationState,
+  Platform,
+  TransportOutputs,
+  SourceRecord,
+  OutputGameUpdatePlan,
+} from "../src/transport-types.generated.d.ts";
+import { transportValue, transportValues } from "./transport-values.mts";
+interface PreparationContext {
+  browser: WebDriver;
+  invoke: (name: string, args?: Record<string, unknown>) => Promise<unknown>;
+  scenario: (name: string, execute: () => Promise<void>) => Promise<unknown>;
+  library: string;
+  output: string;
+  artifacts: string[];
+  cli: string;
+  tool: string;
+  confirmNative: ReturnType<typeof nativeConfirmation>;
+  restartApplication: (
+    name: string,
+    prepareWhileStopped?: () => Promise<void>,
+    environment?: NodeJS.ProcessEnv,
+  ) => Promise<WebDriver>;
+  interruptApplication: (
+    name: string,
+    executable: string,
+    assertPreparing: () => Promise<void>,
+  ) => Promise<WebDriver>;
+  closeApplication: (
+    name: string,
+    executable: string,
+    assertPreparing: () => Promise<void>,
+  ) => Promise<WebDriver>;
+  captureLivePreparation: (executable: string) => unknown;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+// Preserve original error identity, including deliberate non-Error boundary failures.
+function rethrowFailure(error: unknown): never {
+  throw error;
+}
+function required<Value>(value: Value | null | undefined): Value {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
 import { executeBrowserScript } from "./browser-script.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 // Optional owned-fixture scenarios; all state stays under desktop-test's new output directory.
 import assert from "node:assert/strict";
+import type { ProbeCleanup } from "./desktop-owned-ipc-probe.mts";
 import {
   beginReviewedUpdateProbe,
   requireTrustedProbeCleanup,
@@ -11,8 +67,9 @@ import { createHash } from "node:crypto";
 import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { By, Key, until } from "selenium-webdriver";
+import { By, Key, until, WebDriver, Session, Capabilities } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
+import type { FileIdentity } from "../../../scripts/development-evidence.mts";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import { backupReviewScenario } from "./desktop-backup-review-test.mts";
 import { removalReviewScenario } from "./desktop-removal-review-test.mts";
@@ -55,23 +112,22 @@ export function rollbackWitnessWithinLibrary(library: string, owned: string) {
 }
 
 function rgbLuminance(color: string) {
-  const channels = color
-    .match(/[\d.]+/g)
+  const channels = required(color.match(/[\d.]+/g))
     .slice(0, 3)
     .map(Number);
   const linear = channels.map((value) => {
     const channel = value / 255;
     return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
   });
-  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+  return 0.2126 * required(linear[0]) + 0.7152 * required(linear[1]) + 0.0722 * required(linear[2]);
 }
 
-function contrastRatio(foreground, background) {
+function contrastRatio(foreground: string, background: string) {
   const values = [rgbLuminance(foreground), rgbLuminance(background)].sort((a, b) => b - a);
-  return (values[0] + 0.05) / (values[1] + 0.05);
+  return (required(values[0]) + 0.05) / (required(values[1]) + 0.05);
 }
 
-async function assertActivityLabelSeparation(browser, width) {
+async function assertActivityLabelSeparation(browser: WebDriver, width: number) {
   const gap = await executeBrowserScript(
     browser,
     (compact) => {
@@ -79,7 +135,7 @@ async function assertActivityLabelSeparation(browser, width) {
       const previous = activity?.querySelector(compact ? ".activity-main" : ".activity-time");
       const status = activity?.querySelector(".activity-status");
       if (!previous || !status) return null;
-      const textBounds = (element) => {
+      const textBounds = (element: Element) => {
         const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
         let left = Infinity;
         let right = -Infinity;
@@ -111,7 +167,7 @@ const updateReviewWindows = [
   { width: 1280, height: 800 },
 ];
 
-async function openUpdateTheme(browser, theme) {
+async function openUpdateTheme(browser: WebDriver, theme: string) {
   await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
   await browser
     .findElement(By.xpath(`//button[normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`))
@@ -125,8 +181,17 @@ async function openUpdateTheme(browser, theme) {
     .click();
 }
 
-async function assertIndividualUpdateFailure({ browser, port, command, output, artifacts }) {
-  const failure = {
+async function assertIndividualUpdateFailure({
+  browser,
+  port,
+  command,
+  output,
+  artifacts,
+}: Pick<PreparationContext, "browser" | "output" | "artifacts"> & {
+  port: Pick<PortDefinition, "id" | "name">;
+  command: FixtureCommand;
+}) {
+  const failure: FailureReport = {
     code: "network",
     message: "owned-raw-private-diagnostic",
     details: { token: "owned-raw-private-token" },
@@ -142,24 +207,63 @@ async function assertIndividualUpdateFailure({ browser, port, command, output, a
       technical_context: { fixture: "owned synthetic diagnostics", token: "[REDACTED]" },
     },
   };
-  const observations = {
+  interface FailureLayout {
+    theme: string;
+    window: IRectangle;
+    viewport: { width: number; height: number };
+    overflow: boolean;
+    documentOverflow: boolean;
+    summaryWhiteSpace: string;
+    summaryOverflow: boolean;
+    detailNavigationNested: boolean;
+  }
+  const observations: {
+    synthetic: boolean;
+    scope: string;
+    before: PortStatus;
+    sources_before: SourceRecord[];
+    layouts: FailureLayout[];
+    copy_acknowledged?: boolean;
+    navigation_verified?: boolean;
+    after?: PortStatus;
+    sources_after?: SourceRecord[];
+    failure?: string;
+    probe?: { installed: boolean; restored: boolean; intercepted?: number };
+  } = {
     synthetic: true,
     scope: "Normal-app presentation of supplied diagnostics; no provider or Core failure claim.",
-    before: command(["status", port.id]),
-    sources_before: command(["source", "list"]),
+    before: transportValue("status", command(["status", port.id])),
+    sources_before: transportValues("source", command(["source", "list"])),
     layouts: [],
   };
   try {
     await executeBrowserScript(
       browser,
       (portId, error) => {
+        const ownedWindow = window as Window & {
+          __TAURI_INTERNALS__?: Pick<
+            import("./desktop-owned-ipc-probe.mts").ProbeNative,
+            "convertFileSrc"
+          >;
+          __portcoveUpdateFailureProbe?: { original: typeof fetch; intercepted: number };
+        };
         const original = window.fetch;
-        const target = window.__TAURI_INTERNALS__.convertFileSrc("check_installed", "ipc");
-        window.__portcoveUpdateFailureProbe = { original, intercepted: 0 };
+        if (!ownedWindow.__TAURI_INTERNALS__) throw new Error("Pinned Tauri transport is missing");
+        const target = ownedWindow.__TAURI_INTERNALS__.convertFileSrc("check_installed", "ipc");
+        const probe = { original, intercepted: 0 };
+        ownedWindow.__portcoveUpdateFailureProbe = probe;
         window.fetch = function (input, ...args) {
-          const url = typeof input === "string" ? input : (input.url ?? String(input));
+          // Native fetch also accepts string-coercible cross-realm input.
+          /* oxlint-disable typescript/no-base-to-string */
+          const url =
+            typeof input === "string"
+              ? input
+              : ((input !== null && typeof input === "object" && "url" in input
+                  ? input.url
+                  : undefined) ?? String(input));
+          /* oxlint-enable typescript/no-base-to-string */
           if (url !== target) return original.call(window, input, ...args);
-          window.__portcoveUpdateFailureProbe.intercepted++;
+          probe.intercepted++;
           return Promise.resolve(
             new Response(JSON.stringify([{ port_id: portId, ok: false, result: null, error }]), {
               status: 200,
@@ -213,7 +317,7 @@ async function assertIndividualUpdateFailure({ browser, port, command, output, a
         );
         await clickVisible(browser, summary);
         assert.equal(await region.findElement(By.css("details")).getAttribute("open"), "true");
-        const technical = JSON.parse(await region.findElement(By.css("pre")).getText());
+        const technical: unknown = JSON.parse(await region.findElement(By.css("pre")).getText());
         assert.deepEqual(technical, {
           code: failure.code,
           mutation_state: failure.presentation.mutation_state,
@@ -225,6 +329,7 @@ async function assertIndividualUpdateFailure({ browser, port, command, output, a
           browser,
           (element) => {
             const paragraph = element.querySelector("p");
+            if (!paragraph) throw new Error("Update failure summary is missing");
             return {
               viewport: { width: window.innerWidth, height: window.innerHeight },
               overflow: element.scrollWidth > element.clientWidth + 1,
@@ -274,8 +379,8 @@ async function assertIndividualUpdateFailure({ browser, port, command, output, a
     await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
     assert.equal(await browser.findElement(By.id("port-detail-title")).getText(), port.name);
     observations.navigation_verified = true;
-    observations.after = command(["status", port.id]);
-    observations.sources_after = command(["source", "list"]);
+    observations.after = transportValue("status", command(["status", port.id]));
+    observations.sources_after = transportValues("source", command(["source", "list"]));
     assert.deepEqual(observations.after, observations.before);
     assert.deepEqual(observations.sources_after, observations.sources_before);
   } catch (error) {
@@ -283,10 +388,13 @@ async function assertIndividualUpdateFailure({ browser, port, command, output, a
     throw error;
   } finally {
     observations.probe = await executeBrowserScript(browser, () => {
-      const probe = window.__portcoveUpdateFailureProbe;
+      const ownedWindow = window as Window & {
+        __portcoveUpdateFailureProbe?: { original: typeof fetch; intercepted: number };
+      };
+      const probe = ownedWindow.__portcoveUpdateFailureProbe;
       if (!probe) return { installed: false, restored: false };
       window.fetch = probe.original;
-      delete window.__portcoveUpdateFailureProbe;
+      delete ownedWindow.__portcoveUpdateFailureProbe;
       return {
         installed: true,
         intercepted: probe.intercepted,
@@ -304,7 +412,7 @@ async function assertIndividualUpdateFailure({ browser, port, command, output, a
   }
 }
 
-function controlledUpdateFailure(mutation) {
+function controlledUpdateFailure(mutation: MutationState): FailureReport {
   const cancelled = mutation === "no_changes";
   return {
     code: cancelled ? "cancelled" : "state",
@@ -325,7 +433,40 @@ function controlledUpdateFailure(mutation) {
   };
 }
 
-async function reviewedUpdateState(review) {
+export type ReviewElement = Pick<WebElement, "getText" | "isDisplayed" | "isEnabled" | "click">;
+export interface ReviewContainer<Element extends ReviewElement = ReviewElement> {
+  getText: () => Promise<string>;
+  isDisplayed: () => Promise<boolean>;
+  findElements: (locator: Locator) => Promise<Element[]>;
+}
+export interface ReviewWaiter {
+  wait: <Value>(
+    condition: () => Promise<Value>,
+    timeout: number,
+    message: string,
+  ) => Promise<Value>;
+}
+export interface ReviewSnapshot {
+  text: string;
+  displayed: boolean;
+  version_count: number;
+  version: string | null;
+  version_displayed: boolean;
+  action_count: number;
+  action_displayed: boolean;
+  action_enabled: boolean;
+}
+export interface ReviewObservation {
+  review?: {
+    expected_version: string;
+    polls: number;
+    first: ReviewSnapshot | null;
+    latest: ReviewSnapshot | null;
+  };
+}
+async function reviewedUpdateState<Element extends ReviewElement>(
+  review: ReviewContainer<Element>,
+) {
   const [text, displayed, versions, actions] = await Promise.all([
     review.getText(),
     review.isDisplayed(),
@@ -355,7 +496,7 @@ async function reviewedUpdateState(review) {
   };
 }
 
-function confirmsReviewedRelease(snapshot, expectedVersion) {
+function confirmsReviewedRelease(snapshot: ReviewSnapshot, expectedVersion: string) {
   return (
     snapshot.displayed &&
     snapshot.text.includes("Confirm the release and what happens to your active version") &&
@@ -365,14 +506,24 @@ function confirmsReviewedRelease(snapshot, expectedVersion) {
   );
 }
 
-function hasAvailableReviewedAction(snapshot) {
+function hasAvailableReviewedAction(snapshot: ReviewSnapshot) {
   return snapshot.action_count === 1 && snapshot.action_displayed && snapshot.action_enabled;
 }
 
-export async function waitForReviewedUpdateAction(browser, review, expectedVersion, observation) {
-  const state = { expected_version: expectedVersion, polls: 0, first: null, latest: null };
+export async function waitForReviewedUpdateAction<Element extends ReviewElement>(
+  browser: ReviewWaiter,
+  review: ReviewContainer<Element>,
+  expectedVersion: string,
+  observation: ReviewObservation,
+) {
+  const state: NonNullable<ReviewObservation["review"]> = {
+    expected_version: expectedVersion,
+    polls: 0,
+    first: null,
+    latest: null,
+  };
   observation.review = state;
-  return browser.wait(
+  const action = await browser.wait(
     async () => {
       const { action, snapshot } = await reviewedUpdateState(review);
       state.polls++;
@@ -386,6 +537,8 @@ export async function waitForReviewedUpdateAction(browser, review, expectedVersi
     5_000,
     "The controlled review must show its exact release and available action",
   );
+  assert.ok(action);
+  return action;
 }
 
 async function assertReviewedUpdateOutcomes({
@@ -397,15 +550,47 @@ async function assertReviewedUpdateOutcomes({
   invoke,
   output,
   artifacts,
+}: Pick<PreparationContext, "browser" | "invoke" | "output" | "artifacts"> & {
+  port: Pick<PortDefinition, "id" | "name">;
+  candidate: OutputGameUpdatePlan;
+  generation: number;
+  command: FixtureCommand;
 }) {
-  const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+  const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
   const dialog = By.css('[aria-labelledby="game-update-review-title"]');
-  const observations = {
+  interface CaseObservation extends ReviewObservation, Partial<ProbeCleanup> {
+    availability?: string;
+    reason?: string;
+    synthetic?: boolean;
+    mutation?: MutationState;
+    cancelled?: boolean;
+    expected_version?: string;
+    failure?: string;
+    failure_capture_error?: string;
+    review_cancelled_without_reapply?: boolean;
+  }
+  const readActivities = async () => {
+    const result = object(await invoke("get_activities"));
+    assert.equal(result.ok, true);
+    return transportValue("activity", result.value);
+  };
+  const observations: {
+    synthetic: boolean;
+    scope: string;
+    before: PortStatus;
+    sources_before: SourceRecord[];
+    activities_before: TransportOutputs["activity"];
+    cases: CaseObservation[];
+    ordinary_review_restored?: boolean;
+    after?: PortStatus;
+    sources_after?: SourceRecord[];
+    activities_after?: TransportOutputs["activity"];
+  } = {
     synthetic: true,
     scope: "Supplied structured outcomes in the normal app; no Core failure or mutation claim.",
-    before: command(["status", port.id]),
-    sources_before: command(["source", "list"]),
-    activities_before: (await invoke("get_activities")).value,
+    before: transportValue("status", command(["status", port.id])),
+    sources_before: transportValues("source", command(["source", "list"])),
+    activities_before: await readActivities(),
     cases: [],
   };
   let primaryError;
@@ -415,19 +600,25 @@ async function assertReviewedUpdateOutcomes({
       ["waiting", "missing_source", "download", "Add the required game files"],
       ["waiting", "missing_bios", "download", "Add the required BIOS"],
       ["held", "invalid_installation", "blocked_unverified", "An unverified local copy"],
-    ]) {
-      const observation = { availability, reason, synthetic: true, restored: false };
+    ] as const) {
+      const observation: CaseObservation = {
+        availability,
+        reason,
+        synthetic: true,
+        restored: false,
+      };
       observations.cases.push(observation);
+      const suppliedPlan = {
+        ...candidate,
+        activate: false,
+        plan_sha256: "owned-controlled-update-plan",
+        assessment: { action: "update", availability, reason, definition: null },
+        plan: { ...candidate.plan, action },
+      };
       const probe = await beginReviewedUpdateProbe(browser, {
         portId: port.id,
         generation,
-        plan: {
-          ...candidate,
-          activate: false,
-          plan_sha256: "owned-controlled-update-plan",
-          assessment: { action: "update", availability, reason, definition: null },
-          plan: { ...candidate.plan, action },
-        },
+        plan: suppliedPlan,
         failure: controlledUpdateFailure("no_changes"),
       });
       let scenarioError;
@@ -446,7 +637,7 @@ async function assertReviewedUpdateOutcomes({
           0,
           "Held or waiting assessment must offer no update execution action",
         );
-        const admitted = await probe.capture();
+        const admitted = required(await probe.capture());
         assert.equal(admitted.plans, 1);
         assert.equal(admitted.applies, 0);
         assert.deepEqual(admitted.mismatches, []);
@@ -460,14 +651,15 @@ async function assertReviewedUpdateOutcomes({
         observation.failure = errorMessage(error);
         throw error;
       } finally {
-        Object.assign(observation, await probe.restore());
-        requireTrustedProbeCleanup(observation, scenarioError);
+        const cleanup = await probe.restore();
+        Object.assign(observation, cleanup);
+        requireTrustedProbeCleanup(cleanup, scenarioError);
       }
       assert.equal(observation.plans, 1);
       assert.equal(observation.applies, 0);
       assert.equal(observation.restored, true);
     }
-    for (const mutation of ["committed", "unknown", "no_changes"]) {
+    for (const mutation of ["committed", "unknown", "no_changes"] as const) {
       const cancelled = mutation === "no_changes";
       const failure = controlledUpdateFailure(mutation);
       const suppliedPlan = {
@@ -484,7 +676,7 @@ async function assertReviewedUpdateOutcomes({
         },
         plan: { ...candidate.plan, action: "use_staged" },
       };
-      const observation = {
+      const observation: CaseObservation = {
         mutation,
         cancelled,
         expected_version: candidate.plan.release.version,
@@ -507,7 +699,7 @@ async function assertReviewedUpdateOutcomes({
           candidate.plan.release.version,
           observation,
         );
-        const admitted = await probe.capture();
+        const admitted = required(await probe.capture());
         assert.equal(admitted.plans, 1, "The supplied review must be intercepted before Apply");
         assert.deepEqual(admitted.mismatches, []);
         assert.equal(/^[a-f0-9]{64}$/.test(suppliedPlan.plan_sha256), false);
@@ -538,7 +730,7 @@ async function assertReviewedUpdateOutcomes({
         const details = await outcome.findElement(By.css("details"));
         assert.equal(await details.getAttribute("open"), null);
         await clickVisible(browser, await details.findElement(By.css("summary")));
-        const diagnostic = JSON.parse(await details.findElement(By.css("pre")).getText());
+        const diagnostic = object(JSON.parse(await details.findElement(By.css("pre")).getText()));
         assert.equal(diagnostic.mutation_state, mutation);
         assert.equal(diagnostic.message, failure.presentation.technical_message);
         await executeBrowserScript(
@@ -573,12 +765,13 @@ async function assertReviewedUpdateOutcomes({
           });
           artifacts.push(image);
         } catch (captureError) {
-          observation.failure_capture_error = String(captureError);
+          observation.failure_capture_error = errorMessage(captureError);
         }
         throw error;
       } finally {
-        Object.assign(observation, await probe.restore());
-        requireTrustedProbeCleanup(observation, scenarioError);
+        const cleanup = await probe.restore();
+        Object.assign(observation, cleanup);
+        requireTrustedProbeCleanup(cleanup, scenarioError);
       }
       assert.deepEqual(observation.mismatches, []);
       assert.equal(observation.plans, 2);
@@ -591,9 +784,9 @@ async function assertReviewedUpdateOutcomes({
     await clickVisible(browser, await browser.findElement(button("Cancel review")));
     await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
     observations.ordinary_review_restored = true;
-    observations.after = command(["status", port.id]);
-    observations.sources_after = command(["source", "list"]);
-    observations.activities_after = (await invoke("get_activities")).value;
+    observations.after = transportValue("status", command(["status", port.id]));
+    observations.sources_after = transportValues("source", command(["source", "list"]));
+    observations.activities_after = await readActivities();
     assert.deepEqual(observations.after, observations.before);
     assert.deepEqual(observations.sources_after, observations.sources_before);
     assert.deepEqual(observations.activities_after, observations.activities_before);
@@ -609,17 +802,28 @@ async function assertReviewedUpdateOutcomes({
       console.error("Owned update observation report failed:", errorMessage(error));
     }
   }
-  if (primaryError) throw primaryError;
-  if (reportError) throw reportError;
+  if (primaryError) rethrowFailure(primaryError);
+  if (reportError) rethrowFailure(reportError);
 }
 
-export function assertPreparedLibrarySummary(text: string, statuses, preparedPortId) {
+interface SummaryStatus {
+  port_id: string;
+  active?: unknown;
+  external_runtime?: unknown;
+  staged?: unknown;
+  readiness?: { launchable: boolean; pending_setup: boolean; blockers: readonly unknown[] } | null;
+}
+export function assertPreparedLibrarySummary(
+  text: string,
+  statuses: readonly SummaryStatus[],
+  preparedPortId: string,
+) {
   const installed = statuses.filter((item) => item.active || item.external_runtime);
   assert.ok(installed.some((item) => item.port_id === preparedPortId));
   for (const item of installed) {
     assert.equal(item.readiness?.launchable, true, `${item.port_id} must be ready`);
-    assert.equal(item.readiness.pending_setup, false);
-    assert.deepEqual(item.readiness.blockers, []);
+    assert.equal(required(item.readiness).pending_setup, false);
+    assert.deepEqual(required(item.readiness).blockers, []);
     assert.ok(!item.staged, `${item.port_id} must have no downloaded update`);
   }
   assert.equal(
@@ -630,7 +834,7 @@ export function assertPreparedLibrarySummary(text: string, statuses, preparedPor
 
 export async function preparationScenarios({
   browser,
-  invoke,
+  invoke: invokeRaw,
   scenario,
   library,
   output,
@@ -642,9 +846,20 @@ export async function preparationScenarios({
   interruptApplication,
   closeApplication,
   captureLivePreparation,
-}) {
+}: PreparationContext) {
+  const invoke = async (name: string, args?: Record<string, unknown>) =>
+    object(await invokeRaw(name, args));
+  const read = async <Contract extends keyof TransportOutputs>(
+    contract: Contract,
+    name: string,
+    args?: Record<string, unknown>,
+  ) => {
+    const response = await invoke(name, args);
+    assert.equal(response.ok, true);
+    return transportValue(contract, response.value);
+  };
   const command = ownedFixtureCommand({ cli, library, output });
-  const host =
+  const host: Platform =
     process.platform === "win32"
       ? "windows-x86-64"
       : process.platform === "darwin"
@@ -652,37 +867,54 @@ export async function preparationScenarios({
           ? "macos-aarch64"
           : "macos-x86-64"
         : "linux-x86-64";
-  const seeded = new Map();
-  async function seed(portId, mode, chd = false) {
+  const seeded = new Map<
+    string,
+    {
+      mode: string;
+      chd: boolean;
+      value: { port: PortDefinition; install: Pick<InstallRecord, "id"> };
+    }
+  >();
+  async function seed(portId: string, mode: string, chd = false) {
     const previous = seeded.get(portId);
     if (previous) {
       assert.equal(previous.mode, mode, `Fixture mode changed for ${portId}`);
       assert.equal(previous.chd, chd, `Fixture source kind changed for ${portId}`);
       return previous.value;
     }
-    const port = command(["catalog", "show", portId]);
+    const port = transportValue("port", command(["catalog", "show", portId]));
     const original = path.join(output, `owned-${portId}`);
     await mkdir(original);
-    for (const relative of [port.executable_hints[host][0], port.setup_executable_hints[host][0]]) {
+    for (const relative of [
+      required(required(port.executable_hints[host])[0]),
+      required(required(port.setup_executable_hints[host])[0]),
+    ]) {
       const destination = path.join(original, relative);
       await mkdir(path.dirname(destination), { recursive: true });
       await copyFile(tool, destination);
     }
     await writeFile(path.join(original, "owned-setup-mode"), mode);
-    const install = command(["adopt", original, "--port", portId, "--yes"]);
+    // Adoption has no exported root schema. Consume only its validated ID,
+    // retaining the complete response without claiming other fields were checked.
+    const adopted = object(command(["adopt", original, "--port", portId, "--yes"]));
+    const id = adopted.id;
+    assert.equal(typeof id, "string");
+    assert.ok(typeof id === "string");
+    const install = { ...adopted, id };
     if (chd) command(["tool", "set-path", "chdman", tool]);
     const source = path.join(output, `${portId}.${chd ? "chd" : "iso"}`);
     await writeFile(source, "owned source awaiting upstream validation");
-    command(["source", "add", port.source_profile, source]);
+    command(["source", "add", required(port.source_profile), source]);
     const value = { port, install };
     seeded.set(portId, { mode, chd, value });
     return value;
   }
-  const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+  const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
   async function dismissApplicationUpdateChoice() {
     const preferences = await invoke("get_application_update_preferences");
     assert.equal(preferences.ok, true);
-    if (preferences.value.choice !== null) return;
+    if (transportValue("desktop_application_update_preferences", preferences.value).choice !== null)
+      return;
     const choice = By.xpath(
       '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]',
     );
@@ -696,7 +928,7 @@ export async function preparationScenarios({
       .click();
     await browser.wait(async () => (await browser.findElements(choice)).length === 0, 15_000);
   }
-  async function open(port, waitForPreparation = true) {
+  async function open(port: PortDefinition, waitForPreparation = true) {
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
@@ -712,21 +944,22 @@ export async function preparationScenarios({
     if (waitForPreparation)
       await browser.wait(until.elementLocated(button("Review game preparation")), 15_000);
   }
-  async function status(portId) {
+  async function status(portId: string) {
     const result = await invoke("get_statuses");
     assert.equal(result.ok, true);
-    return result.value.find((item) => item.port_id === portId);
+    return required(
+      transportValues("status", result.value).find((item) => item.port_id === portId),
+    );
   }
   async function activities() {
     const result = await invoke("get_activities");
     assert.equal(result.ok, true);
-    assert.ok(Array.isArray(result.value.records));
-    return result.value.records;
+    return transportValue("activity", result.value).records;
   }
   await scenario("native-preparation-review-and-play", async () => {
     const { port, install } = await seed("opengoal-jak1", "success");
     await open(port);
-    assert.equal((await status(port.id)).readiness.launchable, false);
+    assert.equal(required((await status(port.id)).readiness).launchable, false);
     const outputLocationInput = await browser.findElement(By.id(`output-location-path-${port.id}`));
     const reviewedOutput = path.join(output, "reviewed-future-output");
     await outputLocationInput.sendKeys(
@@ -774,12 +1007,20 @@ export async function preparationScenarios({
       5_000,
       "Output location review trigger did not regain focus after Escape",
     );
-    assert.equal((await status(port.id)).active.id, install.id, "review must not move versions");
+    assert.equal(
+      required((await status(port.id)).active).id,
+      install.id,
+      "review must not move versions",
+    );
     await browser.findElement(button("Review game preparation")).click();
     const preparationDialog = By.css('[aria-labelledby="preparation-review-title"]');
     await browser.wait(until.elementLocated(preparationDialog), 15_000);
     await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
-    assert.equal((await status(port.id)).active.id, install.id, "review must not prepare");
+    assert.equal(
+      required((await status(port.id)).active).id,
+      install.id,
+      "review must not prepare",
+    );
     const preparationText = await browser.findElement(preparationDialog).getText();
     for (const expected of [
       "Prepare game data",
@@ -834,15 +1075,19 @@ export async function preparationScenarios({
       5_000,
       "Preparation review trigger did not regain focus after Escape",
     );
-    assert.equal((await status(port.id)).active.id, install.id, "dismissal must not prepare");
+    assert.equal(
+      required((await status(port.id)).active).id,
+      install.id,
+      "dismissal must not prepare",
+    );
     await browser.findElement(button("Review game preparation")).click();
     await browser.wait(until.elementLocated(preparationDialog), 15_000);
     await browser.findElement(button("Prepare game data")).click();
-    await browser.wait(async () => (await status(port.id)).readiness.launchable, 15_000);
+    await browser.wait(async () => required((await status(port.id)).readiness).launchable, 15_000);
     const prepared = await status(port.id);
-    assert.notEqual(prepared.active.id, install.id);
-    assert.equal(prepared.previous.id, install.id);
-    const log = path.join(prepared.active.path, "data/log/setup.log");
+    assert.notEqual(required(prepared.active).id, install.id);
+    assert.equal(required(prepared.previous).id, install.id);
+    const log = path.join(required(prepared.active).path, "data/log/setup.log");
     await writeFile(log, "setup must not run during desktop Play");
     await browser.wait(until.elementLocated(button("Play")), 15_000);
     await browser.wait(until.elementIsEnabled(await browser.findElement(button("Play"))), 15_000);
@@ -857,7 +1102,11 @@ export async function preparationScenarios({
     const readinessText = await readinessSummary.getText();
     const libraryStatuses = await invoke("get_statuses");
     assert.equal(libraryStatuses.ok, true);
-    assertPreparedLibrarySummary(readinessText, libraryStatuses.value, port.id);
+    assertPreparedLibrarySummary(
+      readinessText,
+      transportValues("status", libraryStatuses.value),
+      port.id,
+    );
     assert.doesNotMatch(readinessText, /0 (?:needs? attention|updates? downloaded)/iu);
     const card = await browser.wait(
       until.elementLocated(
@@ -870,12 +1119,16 @@ export async function preparationScenarios({
     const cardActions = await executeBrowserScript(
       browser,
       (element) => {
-        const details = element.querySelector('[data-detail-origin^="library:card:"]');
+        const details = element.querySelector<HTMLButtonElement>(
+          '[data-detail-origin^="library:card:"]',
+        );
         const play = [...element.querySelectorAll("button")].find(
           (button) => button.textContent?.trim() === "Play",
         );
         const more = element.querySelector('button[aria-label^="More actions for "]');
         const workspace = element.closest("main");
+        if (!details || !play || !more || !workspace)
+          throw new Error("Library card controls are missing");
         const cardBounds = element.getBoundingClientRect();
         const detailsBounds = details.getBoundingClientRect();
         const playBounds = play.getBoundingClientRect();
@@ -884,7 +1137,7 @@ export async function preparationScenarios({
         details.focus();
         return {
           tag: element.tagName,
-          details: details.textContent.trim(),
+          details: (details.textContent ?? "").trim(),
           details_slot: details.getAttribute("data-slot"),
           details_variant: details.getAttribute("data-variant"),
           play: play.textContent.trim(),
@@ -1000,9 +1253,9 @@ export async function preparationScenarios({
     );
   });
   await scenario("native-ready-detail-composition", async () => {
-    const port = command(["catalog", "show", "opengoal-jak1"]);
+    const port = transportValue("port", command(["catalog", "show", "opengoal-jak1"]));
     const readyStatus = await status(port.id);
-    assert.equal(readyStatus.readiness.launchable, true);
+    assert.equal(required(readyStatus.readiness).launchable, true);
     assert.ok(readyStatus.active);
     assert.equal(readyStatus.channel, "stable");
     assert.equal(readyStatus.active.channel, "stable");
@@ -1071,7 +1324,7 @@ export async function preparationScenarios({
           });
           artifacts.push(screenshot);
           assert.equal(hierarchy.title, port.name);
-          assert.match(hierarchy.state, /Ready to play/);
+          assert.match(required(hierarchy.state), /Ready to play/);
           assert.deepEqual(hierarchy.groups, [
             "Status and actions",
             "Requirements",
@@ -1124,9 +1377,9 @@ export async function preparationScenarios({
     }
   });
   await scenario("native-game-return-continuity", async () => {
-    const port = command(["catalog", "show", "opengoal-jak1"]);
+    const port = transportValue("port", command(["catalog", "show", "opengoal-jak1"]));
     const before = await status(port.id);
-    assert.equal(before.readiness.launchable, true);
+    assert.equal(required(before.readiness).launchable, true);
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
@@ -1157,10 +1410,11 @@ export async function preparationScenarios({
         (element) => element.scrollIntoView({ block: "center" }),
         play,
       );
-      const scrollBefore = await executeBrowserScript(
-        browser,
-        "return document.querySelector('main[data-focus-region=workspace]').scrollTop;",
-      );
+      const scrollBefore = await executeBrowserScript(browser, () => {
+        const workspace = document.querySelector('main[data-focus-region="workspace"]');
+        if (!workspace) throw new Error("Library workspace is missing");
+        return workspace.scrollTop;
+      });
       assert.ok(scrollBefore > 0, "The compact Library fixture must exercise a real scroll");
       await play.click();
       await browser.wait(
@@ -1172,7 +1426,7 @@ export async function preparationScenarios({
           executeBrowserScript(
             browser,
             (portName, launches) => {
-              const recent = document.querySelector(".continue-card");
+              const recent = document.querySelector<HTMLElement>(".continue-card");
               return (
                 recent?.getAttribute("aria-label") === `Continue ${portName}` &&
                 Number(recent.dataset.successfulLaunches ?? 0) > launches
@@ -1188,7 +1442,7 @@ export async function preparationScenarios({
         browser,
         (element) => {
           const workspace = document.querySelector('main[data-focus-region="workspace"]');
-          const search = document.getElementById("port-search");
+          const search = document.querySelector<HTMLInputElement>("#port-search");
           const ready = document.querySelector(
             '[aria-label="Library filters"] button[aria-pressed="true"]',
           );
@@ -1215,7 +1469,7 @@ export async function preparationScenarios({
       assert.equal(returned.playFocused, true);
       assert.equal(returned.cardVisible, true);
       assert.ok(
-        Math.abs(returned.scrollTop - scrollBefore) <= 2,
+        Math.abs(required(returned.scrollTop) - scrollBefore) <= 2,
         `Library scroll changed after game return: ${scrollBefore} -> ${returned.scrollTop}`,
       );
       const screenshot = path.join(output, "native-game-return-continuity.png");
@@ -1257,17 +1511,15 @@ export async function preparationScenarios({
       "Game update review did not show its release confirmation",
     );
     const reviewText = await review.getText();
-    const bootstrap = await invoke("get_bootstrap_status");
-    assert.equal(bootstrap.ok, true);
-    const candidate = await invoke("plan_game_update", {
+    const bootstrap = await read("desktop_bootstrap_status", "get_bootstrap_status");
+    const candidate = await read("game_update_plan", "plan_game_update", {
       portId: port.id,
       activate: false,
-      generation: bootstrap.value.generation,
+      generation: bootstrap.generation,
     });
-    assert.equal(candidate.ok, true);
     assert.ok(reviewText.includes("Confirm the release"));
-    assert.ok(reviewText.includes(candidate.value.plan.release.version));
-    if (["download", "use_staged", "reuse_retained"].includes(candidate.value.plan.action))
+    assert.ok(reviewText.includes(candidate.plan.release.version));
+    if (["download", "use_staged", "reuse_retained"].includes(candidate.plan.action))
       assert.ok(
         reviewText.includes(
           "This keeps the verified update for later. Your current version stays unchanged.",
@@ -1304,8 +1556,8 @@ export async function preparationScenarios({
     await assertReviewedUpdateOutcomes({
       browser,
       port,
-      candidate: candidate.value,
-      generation: bootstrap.value.generation,
+      candidate,
+      generation: bootstrap.generation,
       command,
       invoke,
       output,
@@ -1355,8 +1607,14 @@ export async function preparationScenarios({
             ["Installed", "Latest eligible"],
           );
           assert.ok(comparison.blocks.every(({ visible, value }) => visible && value));
-          if (width === 960) assert.ok(comparison.blocks[0].bottom <= comparison.blocks[1].top + 1);
-          else assert.ok(comparison.blocks[0].right <= comparison.blocks[1].left + 1);
+          if (width === 960)
+            assert.ok(
+              required(comparison.blocks[0]).bottom <= required(comparison.blocks[1]).top + 1,
+            );
+          else
+            assert.ok(
+              required(comparison.blocks[0]).right <= required(comparison.blocks[1]).left + 1,
+            );
           await assertActivityLabelSeparation(browser, width);
           const comparisonScreenshot = path.join(
             output,
@@ -1383,17 +1641,17 @@ export async function preparationScenarios({
     open,
   });
   await scenario("native-retained-contract-repair-state", async () => {
-    const port = command(["catalog", "show", "opengoal-jak1"]);
-    const active = (await status(port.id)).active;
+    const port = transportValue("port", command(["catalog", "show", "opengoal-jak1"]));
+    const active = required((await status(port.id)).active);
     const manifest = path.join(active.path, ".portcove-manifest.json");
     const original = await readFile(manifest);
-    assert.equal(JSON.parse(original).schema_version, 6);
+    assert.equal(object(JSON.parse(original.toString("utf8"))).schema_version, 6);
     try {
       await writeFile(manifest, "owned corrupt contract fixture");
       await open(port, false);
       const damaged = await status(port.id);
-      assert.equal(damaged.readiness.launchable, false);
-      assert.deepEqual(damaged.readiness.blockers, ["invalid_installation"]);
+      assert.equal(required(damaged.readiness).launchable, false);
+      assert.deepEqual(required(damaged.readiness).blockers, ["invalid_installation"]);
       await browser.wait(
         until.elementLocated(By.xpath('//*[normalize-space(.)="Installation needs repair"]')),
         15_000,
@@ -1414,8 +1672,13 @@ export async function preparationScenarios({
         async () => (await browser.findElement(By.css(".primary-actions button"))).isEnabled(),
         5_000,
       );
-      assert.deepEqual((await status(port.id)).readiness.blockers, ["invalid_installation"]);
-      assert.deepEqual(command(["status", port.id]).readiness, damaged.readiness);
+      assert.deepEqual(required((await status(port.id)).readiness).blockers, [
+        "invalid_installation",
+      ]);
+      assert.deepEqual(
+        transportValue("status", command(["status", port.id])).readiness,
+        damaged.readiness,
+      );
       const report = path.join(output, "retained-contract-accessibility.json");
       await captureAccessibilityReport(browser, report, artifacts);
       const screenshot = path.join(output, "native-retained-contract-repair.png");
@@ -1428,27 +1691,27 @@ export async function preparationScenarios({
       await writeFile(manifest, original);
     }
     await open(port, false);
-    assert.equal((await status(port.id)).readiness.launchable, true);
+    assert.equal(required((await status(port.id)).readiness).launchable, true);
 
-    const before = command(["status", port.id]);
+    const before = transportValue("status", command(["status", port.id]));
     assert.ok(before.previous, "The preparation dependency must retain the original version");
-    const previousManifest = path.join(before.previous.path, ".portcove-manifest.json");
+    const previousManifest = path.join(required(before.previous).path, ".portcove-manifest.json");
     const previousOriginal = await readFile(previousManifest);
     const retainedManifest = path.join(output, "rollback-previous-manifest.before.json");
     await writeFile(retainedManifest, previousOriginal, { flag: "wx" });
     artifacts.push(retainedManifest);
-    const sources = command(["source", "list"]);
-    const paths = command(["paths", port.id]);
+    const sources = transportValues("source", command(["source", "list"]));
+    const paths = transportValue("port_paths", command(["paths", port.id]));
     const activityBefore = await activities();
     assert.ok(port.persistent_paths.length > 0);
     const save = path.join(
       paths.user_data_root,
-      port.persistent_paths[0],
+      required(port.persistent_paths[0]),
       "owned-rollback-preserved.bin",
     );
     const activeSave = path.join(
-      before.active.path,
-      port.persistent_paths[0],
+      required(before.active).path,
+      required(port.persistent_paths[0]),
       "owned-rollback-preserved.bin",
     );
     for (const owned of [save, activeSave, previousManifest])
@@ -1461,23 +1724,54 @@ export async function preparationScenarios({
     await writeFile(save, "owned rollback preservation witness");
     await writeFile(activeSave, "owned rollback preservation witness");
     const witness = await Promise.all(
-      [save, path.join(output, `${port.id}.iso`)].map(fileIdentity),
+      [save, path.join(output, `${port.id}.iso`)].map((file) => fileIdentity(file)),
     );
     const originalActiveSave = await fileIdentity(activeSave);
-    assert.equal(originalActiveSave.bytes, witness[0].bytes);
-    assert.equal(originalActiveSave.sha256, witness[0].sha256);
-    async function restoredActiveSave(value) {
+    assert.equal(originalActiveSave.bytes, required(witness[0]).bytes);
+    assert.equal(originalActiveSave.sha256, required(witness[0]).sha256);
+    async function restoredActiveSave(value: PortStatus) {
       const restored = await fileIdentity(
-        path.join(value.active.path, port.persistent_paths[0], "owned-rollback-preserved.bin"),
+        path.join(
+          required(value.active).path,
+          required(port.persistent_paths[0]),
+          "owned-rollback-preserved.bin",
+        ),
       );
-      assert.equal(restored.bytes, witness[0].bytes);
-      assert.equal(restored.sha256, witness[0].sha256);
+      assert.equal(restored.bytes, required(witness[0]).bytes);
+      assert.equal(restored.sha256, required(witness[0]).sha256);
       return restored;
     }
-    const rollbackDecision = (value) =>
-      value.port_actions.find((item) => item.action === "rollback");
-    const observations = {
-      before: { active: before.active.id, previous: before.previous.id },
+    const rollbackDecision = (value: PortStatus) =>
+      required(value.port_actions).find((item) => item.action === "rollback");
+    type Rectangle = Pick<
+      DOMRectReadOnly,
+      "x" | "y" | "width" | "height" | "top" | "right" | "bottom" | "left"
+    >;
+    interface Geometry {
+      bounds: Rectangle;
+      fragments: Rectangle[];
+      clipping: { left: number; top: number; right: number; bottom: number };
+      settled: boolean;
+    }
+    const observations: {
+      before: { active: string; previous: string };
+      witness: FileIdentity[];
+      original_active_save: FileIdentity;
+      sources: SourceRecord[];
+      held?: {
+        decision: ReturnType<typeof rollbackDecision>;
+        window: IRectangle;
+        viewport: { width: number; height: number; device_scale: number };
+        action: Geometry;
+        reason: Geometry;
+      };
+      refusal?: Record<string, unknown>;
+      previous_active_save?: FileIdentity;
+      returned_active_save?: FileIdentity;
+      after?: PortStatus;
+      activity?: ActivityRecord[];
+    } = {
+      before: { active: required(before.active).id, previous: required(before.previous).id },
       witness,
       original_active_save: originalActiveSave,
       sources,
@@ -1501,7 +1795,10 @@ export async function preparationScenarios({
         availability: "held",
         reason: "invalid_installation",
       });
-      assert.deepEqual(rollbackDecision(command(["status", port.id])), rollbackDecision(held));
+      assert.deepEqual(
+        rollbackDecision(transportValue("status", command(["status", port.id]))),
+        rollbackDecision(held),
+      );
       const target = await rollbackButton();
       assert.equal(await target.isEnabled(), false);
       const reason = await browser.findElement(By.css("[data-rollback-assessment]"));
@@ -1522,7 +1819,7 @@ export async function preparationScenarios({
             height: innerHeight,
             device_scale: devicePixelRatio,
           };
-          const measure = (element) => {
+          const measure = (element: Element) => {
             const clipping = {
               left: 0,
               top: 0,
@@ -1530,7 +1827,7 @@ export async function preparationScenarios({
               bottom: document.documentElement.clientHeight,
             };
             let settled = element.isConnected;
-            for (let current = element; current; current = current.parentElement) {
+            for (let current: Element | null = element; current; current = current.parentElement) {
               const style = getComputedStyle(current);
               settled &&=
                 style.display !== "none" &&
@@ -1561,8 +1858,9 @@ export async function preparationScenarios({
               }
             }
             return {
-              bounds: element.getBoundingClientRect().toJSON(),
-              fragments: [...element.getClientRects()].map((rect) => rect.toJSON()),
+              // lib.dom declares toJSON as any; DOMRect owns this fixed numeric projection.
+              bounds: element.getBoundingClientRect().toJSON() as Rectangle,
+              fragments: [...element.getClientRects()].map((rect) => rect.toJSON() as Rectangle),
               clipping,
               settled,
             };
@@ -1607,14 +1905,14 @@ export async function preparationScenarios({
         },
       );
       assert.notEqual(refused.status, 0);
-      const refusal = JSON.parse(refused.stdout);
+      const refusal = object(JSON.parse(refused.stdout));
       assert.equal(refusal.ok, false);
-      assert.equal(refusal.error.code, "verification");
+      assert.equal(object(refusal.error).code, "verification");
       observations.refusal = refusal;
-      const unchanged = command(["status", port.id]);
-      assert.equal(unchanged.active.id, before.active.id);
-      assert.equal(unchanged.previous.id, before.previous.id);
-      assert.deepEqual(command(["source", "list"]), sources);
+      const unchanged = transportValue("status", command(["status", port.id]));
+      assert.equal(required(unchanged.active).id, required(before.active).id);
+      assert.equal(required(unchanged.previous).id, required(before.previous).id);
+      assert.deepEqual(transportValues("source", command(["source", "list"])), sources);
       assert.deepEqual(await Promise.all(witness.map((item) => fileIdentity(item.path))), witness);
     } finally {
       await writeFile(previousManifest, previousOriginal);
@@ -1627,7 +1925,7 @@ export async function preparationScenarios({
     });
     await clickVisible(browser, await rollbackButton());
     await browser.wait(
-      async () => (await status(port.id)).active.id === before.previous.id,
+      async () => required((await status(port.id)).active).id === required(before.previous).id,
       15_000,
     );
     observations.previous_active_save = await restoredActiveSave(await status(port.id));
@@ -1638,12 +1936,15 @@ export async function preparationScenarios({
       reason: "available",
     });
     await clickVisible(browser, await rollbackButton());
-    await browser.wait(async () => (await status(port.id)).active.id === before.active.id, 15_000);
+    await browser.wait(
+      async () => required((await status(port.id)).active).id === required(before.active).id,
+      15_000,
+    );
     observations.returned_active_save = await restoredActiveSave(await status(port.id));
     assert.deepEqual(observations.returned_active_save, originalActiveSave);
-    assert.deepEqual(command(["source", "list"]), sources);
+    assert.deepEqual(transportValues("source", command(["source", "list"])), sources);
     assert.deepEqual(await Promise.all(witness.map((item) => fileIdentity(item.path))), witness);
-    observations.after = command(["status", port.id]);
+    observations.after = transportValue("status", command(["status", port.id]));
     observations.activity = await activities();
     const oldIds = new Set(activityBefore.map((item) => item.id));
     const rollbacks = observations.activity.filter(
@@ -1659,14 +1960,33 @@ export async function preparationScenarios({
   await scenario("native-preparation-cancellation", async () => {
     const { port, install } = await seed("opengoal-jak2", "wait", true);
     await open(port);
-    const observations = { port_id: port.id, phases: [], inputs: [] };
-    const preparationIds = (items) =>
+    interface PhaseObservation {
+      phase: string;
+      observed_at: string;
+      bootstrap_response?: Record<string, unknown>;
+      bootstrap?: TransportOutputs["desktop_bootstrap_status"];
+      activities?: ActivityRecord[];
+      status?: PortStatus;
+    }
+    const observations: {
+      port_id: string;
+      phases: PhaseObservation[];
+      inputs: {
+        path: string;
+        retained: string;
+        size: number;
+        sha256: string;
+        after_sha256?: string;
+      }[];
+      failure?: { message: string; observed_at: string };
+    } = { port_id: port.id, phases: [], inputs: [] };
+    const preparationIds = (items: readonly ActivityRecord[]) =>
       items
         .filter((item) => item.operation === "prepare" && item.target_id === port.id)
         .map((item) => item.id)
         .sort();
-    const observe = async (phase) => {
-      const observation = {
+    const observe = async (phase: string) => {
+      const observation: PhaseObservation = {
         phase,
         observed_at: new Date().toISOString(),
       };
@@ -1674,22 +1994,30 @@ export async function preparationScenarios({
       const bootstrap = await invoke("get_bootstrap_status");
       observation.bootstrap_response = bootstrap;
       assert.equal(bootstrap.ok, true);
-      assert.equal(bootstrap.value.ready, true);
-      observation.bootstrap = bootstrap.value;
-      observation.activities = await activities();
-      observation.status = await status(port.id);
-      return observation;
+      const checkedBootstrap = transportValue("desktop_bootstrap_status", bootstrap.value);
+      assert.equal(checkedBootstrap.ready, true);
+      observation.bootstrap = checkedBootstrap;
+      const activityRecords = await activities();
+      observation.activities = activityRecords;
+      const currentStatus = await status(port.id);
+      observation.status = currentStatus;
+      return {
+        ...observation,
+        bootstrap: checkedBootstrap,
+        activities: activityRecords,
+        status: currentStatus,
+      };
     };
     let originalFailure;
     let evidenceFailure;
     try {
       const before = await observe("before-start");
       const baselineIds = preparationIds(before.activities);
-      const activePath = before.status.active.path;
+      const activePath = required(before.status.active).path;
       for (const [index, input] of [
         path.join(output, `${port.id}.chd`),
-        path.join(activePath, port.executable_hints[host][0]),
-        path.join(activePath, port.setup_executable_hints[host][0]),
+        path.join(activePath, required(required(port.executable_hints[host])[0])),
+        path.join(activePath, required(required(port.setup_executable_hints[host])[0])),
         path.join(activePath, "owned-setup-mode"),
         path.join(activePath, ".portcove-manifest.json"),
       ].entries()) {
@@ -1707,7 +2035,7 @@ export async function preparationScenarios({
       await browser.findElement(button("Review game preparation")).click();
       await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
       await browser.findElement(button("Prepare game data")).click();
-      let activity;
+      let activity: ActivityRecord | undefined;
       await browser.wait(
         async () => {
           activity = (await activities()).find(
@@ -1730,15 +2058,24 @@ export async function preparationScenarios({
         "Preparation must reach its owned cancellation checkpoint",
       );
       const running = await observe("live-before-reload");
-      assert.equal(running.activities.find((item) => item.id === activity.id)?.status, "running");
+      assert.equal(
+        running.activities.find((item) => item.id === required(activity).id)?.status,
+        "running",
+      );
       await open(port, false);
       const restored = await observe("live-after-reload");
       assert.equal(restored.bootstrap.library_root, before.bootstrap.library_root);
       assert.equal(restored.bootstrap.generation, before.bootstrap.generation);
-      assert.equal(restored.status.active.id, install.id);
-      assert.deepEqual(preparationIds(restored.activities), [...baselineIds, activity.id].sort());
-      assert.equal(restored.activities.find((item) => item.id === activity.id)?.status, "running");
-      assert.equal(restored.status.readiness.launchable, false);
+      assert.equal(required(restored.status.active).id, install.id);
+      assert.deepEqual(
+        preparationIds(restored.activities),
+        [...baselineIds, required(activity).id].sort(),
+      );
+      assert.equal(
+        restored.activities.find((item) => item.id === required(activity).id)?.status,
+        "running",
+      );
+      assert.equal(required(restored.status.readiness).launchable, false);
       const cancel = await browser.wait(
         async () => {
           const candidates = await browser.findElements(
@@ -1747,7 +2084,7 @@ export async function preparationScenarios({
             ),
           );
           if (candidates.length !== 1) return false;
-          const candidate = candidates[0];
+          const candidate = required(candidates[0]);
           return (await candidate.isDisplayed()) && (await candidate.isEnabled())
             ? candidate
             : false;
@@ -1760,20 +2097,25 @@ export async function preparationScenarios({
         (item) => item.target_id === port.id && item.cancellation,
       );
       assert.equal(cancellable.length, 1);
-      assert.equal(cancellable[0].id, activity.id);
-      assert.equal(cancellable[0].status, "running");
+      assert.equal(required(cancellable[0]).id, required(activity).id);
+      assert.equal(required(cancellable[0]).status, "running");
+      assert.ok(cancel);
       await cancel.click();
       await browser.wait(
         async () => {
           return (
-            (await activities()).find((item) => item.id === activity.id)?.status === "cancelled"
+            (await activities()).find((item) => item.id === required(activity).id)?.status ===
+            "cancelled"
           );
         },
         15_000,
         "Preparation cancellation must become durable",
       );
       const terminal = await observe("terminal-cancelled");
-      assert.deepEqual(preparationIds(terminal.activities), [...baselineIds, activity.id].sort());
+      assert.deepEqual(
+        preparationIds(terminal.activities),
+        [...baselineIds, required(activity).id].sort(),
+      );
       for (const input of observations.inputs) {
         const bytes = await readFile(input.path);
         input.after_sha256 = createHash("sha256").update(bytes).digest("hex");
@@ -1795,13 +2137,16 @@ export async function preparationScenarios({
       const cancelledText = await cancelledRow.getText();
       assert.ok(cancelledText.includes(port.name));
       assert.match(cancelledText, /Cancelled/i);
-      assert.equal((await status(port.id)).active.id, install.id);
-      assert.equal((await status(port.id)).readiness.launchable, false);
-      const recorded = (await activities()).find((item) => item.id === activity.id);
-      assert.equal(recorded.failure.code, "cancelled");
-      assert.equal(recorded.failure.presentation.tone, "neutral");
-      assert.equal(recorded.failure.presentation.mutation_state, "recovery_required");
-      assert.equal(recorded.failure.presentation.phase, "preparation.setup");
+      assert.equal(required((await status(port.id)).active).id, install.id);
+      assert.equal(required((await status(port.id)).readiness).launchable, false);
+      const recorded = (await activities()).find((item) => item.id === required(activity).id);
+      assert.equal(required(required(recorded).failure).code, "cancelled");
+      assert.equal(required(required(recorded).failure).presentation.tone, "neutral");
+      assert.equal(
+        required(required(recorded).failure).presentation.mutation_state,
+        "recovery_required",
+      );
+      assert.equal(required(required(recorded).failure).presentation.phase, "preparation.setup");
       await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
       await browser.wait(
         until.elementLocated(By.xpath('//h1[normalize-space(.)="Settings"]')),
@@ -1821,8 +2166,8 @@ export async function preparationScenarios({
         15_000,
       );
       assert.deepEqual(
-        (await activities()).find((item) => item.id === activity.id).failure,
-        recorded.failure,
+        required((await activities()).find((item) => item.id === required(activity).id)).failure,
+        required(recorded).failure,
       );
       await browser
         .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
@@ -1835,30 +2180,30 @@ export async function preparationScenarios({
       assert.match(await row.getText(), /An earlier attempt left unfinished work/);
       assert.doesNotMatch(await row.getText(), /No files were changed/);
       await row.findElement(By.css("summary")).click();
-      const generation = (await invoke("get_bootstrap_status")).value.generation;
-      const retained = await invoke("get_activity_diagnostic", {
-        activityId: activity.id,
+      const generation = (await read("desktop_bootstrap_status", "get_bootstrap_status"))
+        .generation;
+      const retained = await read("activity_diagnostic", "get_activity_diagnostic", {
+        activityId: required(activity).id,
         generation,
       });
-      assert.equal(retained.ok, true);
       assert.deepEqual(
-        retained.value.map((item) => item.phase),
+        retained.map((item) => item.phase),
         ["preparation.extract", "preparation.setup"],
       );
-      assert.equal(retained.value[0].complete, true);
-      assert.match(retained.value[0].stdout.text, /owned conversion began/);
-      assert.doesNotMatch(JSON.stringify(retained.value), /owned-conversion-secret/);
-      assert.equal(retained.value[1].complete, true);
-      assert.match(retained.value[1].stdout.text, /owned setup began/);
-      assert.match(retained.value[1].stderr.text, /owned setup diagnostic on stderr/);
-      assert.doesNotMatch(JSON.stringify(retained.value), /owned-fixture-private-value/);
-      assert.deepEqual(command(["activity", "log", activity.id]), retained.value);
+      assert.equal(required(retained[0]).complete, true);
+      assert.match(required(retained[0]).stdout.text, /owned conversion began/);
+      assert.doesNotMatch(JSON.stringify(retained), /owned-conversion-secret/);
+      assert.equal(required(retained[1]).complete, true);
+      assert.match(required(retained[1]).stdout.text, /owned setup began/);
+      assert.match(required(retained[1]).stderr.text, /owned setup diagnostic on stderr/);
+      assert.doesNotMatch(JSON.stringify(retained), /owned-fixture-private-value/);
+      assert.deepEqual(command(["activity", "log", required(activity).id]), retained);
       const staleLog = await invoke("get_activity_diagnostic", {
-        activityId: activity.id,
+        activityId: required(activity).id,
         generation: generation + 1,
       });
       assert.equal(staleLog.ok, false);
-      assert.equal(staleLog.error.code, "conflict");
+      assert.equal(object(staleLog.error).code, "conflict");
       await row
         .findElement(By.xpath('.//summary[normalize-space(.)="View preparation log"]'))
         .click();
@@ -1875,9 +2220,10 @@ export async function preparationScenarios({
       );
       const bundle = await invoke("create_support_bundle");
       assert.equal(bundle.ok, true);
+      assert.ok(typeof bundle.value === "string");
       artifacts.push(bundle.value);
       const capture = path.join(output, "retained-preparation-log.json");
-      await writeFile(capture, JSON.stringify(retained.value, null, 2), {
+      await writeFile(capture, JSON.stringify(retained, null, 2), {
         flag: "wx",
       });
       artifacts.push(capture);
@@ -1893,7 +2239,10 @@ export async function preparationScenarios({
       artifacts.push(screenshot);
     } catch (error) {
       originalFailure = error;
-      observations.failure = { message: String(error), observed_at: new Date().toISOString() };
+      observations.failure = {
+        message: errorMessage(error),
+        observed_at: new Date().toISOString(),
+      };
       throw error;
     } finally {
       const capture = path.join(output, "live-preparation-reload-observations.json");
@@ -1906,7 +2255,7 @@ export async function preparationScenarios({
         if (!originalFailure) evidenceFailure = error;
       }
     }
-    if (evidenceFailure) throw evidenceFailure;
+    if (evidenceFailure) rethrowFailure(evidenceFailure);
   });
   browser = await interruptedPreparationScenario({
     browser,
@@ -1963,14 +2312,14 @@ export async function preparationScenarios({
     captureLivePreparation,
   });
   await scenario("native-update-settings-save-without-execution", async () => {
-    const port = command(["catalog", "show", "opengoal-jak1"]);
-    const cliBefore = command(["status", port.id]);
-    const cliActivities = command(["activity"]);
-    const cliSaved = command(["policy", "set", port.id, "stage"]);
+    const port = transportValue("port", command(["catalog", "show", "opengoal-jak1"]));
+    const cliBefore = transportValue("status", command(["status", port.id]));
+    const cliActivities = transportValue("activity", command(["activity"]));
+    const cliSaved = transportValue("status", command(["policy", "set", port.id, "stage"]));
     assert.equal(cliSaved.update_policy, "stage");
-    for (const key of ["active", "staged", "previous"])
+    for (const key of ["active", "staged", "previous"] as const)
       assert.deepEqual(cliSaved[key], cliBefore[key]);
-    assert.deepEqual(command(["activity"]), cliActivities);
+    assert.deepEqual(transportValue("activity", command(["activity"])), cliActivities);
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
@@ -2026,6 +2375,7 @@ export async function preparationScenarios({
       5_000,
       "saved update policy trigger must regain focus after Escape",
     );
+    assert.ok(restoredPolicyTrigger);
     await restoredPolicyTrigger.sendKeys(Key.ENTER);
     const automaticOption = By.xpath(
       '//*[@role="option" and normalize-space(.)="Install when I run updates"]',
@@ -2073,8 +2423,8 @@ export async function preparationScenarios({
   await scenario("native-release-channel-selection-and-restart", async () => {
     await browser.findElement(By.css(".detail-back")).click();
     await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
-    const openCatalogPort = async (id) => {
-      const port = command(["catalog", "show", id]);
+    const openCatalogPort = async (id: string) => {
+      const port = transportValue("port", command(["catalog", "show", id]));
       const search = await browser.findElement(By.id("port-search"));
       await search.sendKeys(
         Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
@@ -2112,21 +2462,21 @@ export async function preparationScenarios({
     command(["channel", "set", "re-blue", "stable"]);
     const multi = await openCatalogPort("re-blue");
     const before = await status("re-blue");
-    const generation = (await invoke("get_bootstrap_status")).value.generation;
+    const generation = (await read("desktop_bootstrap_status", "get_bootstrap_status")).generation;
     const stale = await invoke("set_channel", {
       portId: "re-blue",
       channel: "rolling",
       generation: generation + 1,
     });
     assert.equal(stale.ok, false);
-    assert.equal(stale.error.code, "conflict");
+    assert.equal(object(stale.error).code, "conflict");
     assert.equal((await status("re-blue")).channel, "stable");
     const staleCheck = await invoke("check_port", {
       portId: "re-blue",
       generation: generation + 1,
     });
     assert.equal(staleCheck.ok, false);
-    assert.equal(staleCheck.error.code, "conflict");
+    assert.equal(object(staleCheck.error).code, "conflict");
     const trigger = await multi.findElement(By.css('button[data-slot="select-trigger"]'));
     await trigger.sendKeys(Key.ENTER);
     const popup = By.css('[data-slot="select-content"][data-open]');
@@ -2186,8 +2536,9 @@ export async function preparationScenarios({
       90_000,
       "release-channel trigger did not re-enable after refresh",
     );
-    const after = command(["status", "re-blue"]);
-    for (const key of ["active", "staged", "previous"]) assert.deepEqual(after[key], before[key]);
+    const after = transportValue("status", command(["status", "re-blue"]));
+    for (const key of ["active", "staged", "previous"] as const)
+      assert.deepEqual(after[key], before[key]);
     assert.equal(after.channel, "rolling");
     await browser.navigate().refresh();
     await browser.wait(
@@ -2242,7 +2593,6 @@ export async function preparationScenarios({
     output,
     artifacts,
     command,
-    open,
     confirmNative,
   });
   await removalReviewScenario({
@@ -2333,17 +2683,52 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const plan = planDesktopExecution(
     resolveDesktopSelection({ profile: "full", platform: "win32" }),
   );
-  const attempts = [];
+  const attempts: string[] = [];
   const context = {
-    browser: {},
+    browser: new WebDriver(new Session("context-preflight", new Capabilities()), {
+      execute: async () => assert.fail("Context preflight must not execute WebDriver commands"),
+    }),
     invoke: async () => assert.fail("Context preflight must not invoke IPC"),
-    scenario: async (id) => attempts.push(id),
+    scenario: async (id: string, _execute: () => Promise<void>) => {
+      attempts.push(id);
+    },
     library: "<preflight-library>",
     output: "<preflight-output>",
     artifacts: [],
     cli: "<preflight-cli>",
     tool: "<preflight-tool>",
     inputs: [],
+    // Registration passes this sentinel unchanged. Accessing any fixture member
+    // proves a scenario escaped its non-executing preflight callback.
+    // Absent optional journeys retain their owning null/false discriminants.
+    installFixture: {
+      get artifact(): never {
+        return assert.fail("Preflight must not read fixture artifacts");
+      },
+      get artifactPath(): never {
+        return assert.fail("Preflight must not read fixture paths");
+      },
+      get catalogPath(): never {
+        return assert.fail("Preflight must not read fixture catalogs");
+      },
+      get port(): never {
+        return assert.fail("Preflight must not read fixture ports");
+      },
+      get refreshPort(): never {
+        return assert.fail("Preflight must not read fixture ports");
+      },
+      get requests(): never {
+        return assert.fail("Preflight must not read fixture requests");
+      },
+      sourceJourney: null,
+      preliminaryJourney: null,
+      completionJourney: false,
+      get url(): never {
+        return assert.fail("Preflight must not read fixture URLs");
+      },
+      publishRelease: async () => assert.fail("Preflight must not publish fixtures"),
+      close: async () => assert.fail("Preflight must not close fixtures"),
+    },
     restartApplication: async () => assert.fail("Context preflight must not restart"),
     interruptApplication: async () => assert.fail("Context preflight must not interrupt"),
     closeApplication: async () => assert.fail("Context preflight must not close"),
@@ -2368,7 +2753,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   assert(attempts.includes("install-progress-cancellation"));
   assert(attempts.includes("native-preparation-review-and-play"));
   for (const family of plan.fixtureFamilies.filter((entry) => entry.family))
-    for (const member of family.members) assert(attempts.includes(member.id), member.id);
+    for (const member of required(family.members)) assert(attempts.includes(member.id), member.id);
   const { verifyOwnedProbeTransport } = await import("./desktop-owned-ipc-probe-check.mts");
   await verifyOwnedProbeTransport();
   console.log("Native scenario context preflight and pinned probe transport passed.");

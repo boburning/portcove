@@ -1,3 +1,15 @@
+import type { WebDriver } from "selenium-webdriver";
+import type { FixtureCommand } from "./desktop-scenario-state.mts";
+import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
+import { transportValue } from "./transport-values.mts";
+interface PrimaryPickerContext {
+  browser: WebDriver;
+  scenario: (name: string, execute: () => Promise<void>) => Promise<unknown>;
+  output: string;
+  artifacts: string[];
+  command: FixtureCommand;
+  confirmNative: ReturnType<typeof nativeConfirmation>;
+}
 import { executeBrowserScript } from "./browser-script.mts";
 // Actual-Tauri proof that the primary setup action owns the Windows file pickers.
 import assert from "node:assert/strict";
@@ -13,9 +25,9 @@ export async function primaryFilePickerScenario({
   artifacts,
   command,
   confirmNative,
-}) {
+}: PrimaryPickerContext) {
   await scenario("native-primary-file-pickers", async () => {
-    const port = command(["catalog", "show", "mortal-kombat-4-recompiled"]);
+    const port = transportValue("port", command(["catalog", "show", "mortal-kombat-4-recompiled"]));
     const { button, click } = reviewControls(browser);
     await click(By.xpath('//nav//button[contains(., "Port catalog")]'));
     await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
