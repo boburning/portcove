@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { constants } from "node:fs";
 import path from "node:path";
-import { copyFile, lstat, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, lstat, mkdir, opendir, readFile, writeFile } from "node:fs/promises";
 import type { WebDriver } from "selenium-webdriver";
 import { By, Key, until } from "selenium-webdriver";
 import { isRecord } from "../../../scripts/runtime-values.mts";
@@ -81,11 +81,10 @@ async function files(root: string): Promise<FileIdentity[]> {
   let entries = 0;
   async function visit(directory: string, depth: number) {
     assert.ok(depth <= 64, "Runtime directory depth exceeds the pilot bound");
-    const names = await readdir(directory);
-    entries += names.length;
-    assert.ok(entries <= 10_000, "Runtime directory entry bound exceeded");
-    for (const name of names.sort()) {
-      const file = path.join(directory, name);
+    for await (const entry of await opendir(directory)) {
+      entries += 1;
+      assert.ok(entries <= 10_000, "Runtime directory entry bound exceeded");
+      const file = path.join(directory, entry.name);
       const metadata = await lstat(file);
       assert.ok(!metadata.isSymbolicLink(), "Real runtime inputs must not contain symbolic links");
       if (metadata.isDirectory()) await visit(file, depth + 1);
@@ -101,7 +100,7 @@ async function files(root: string): Promise<FileIdentity[]> {
     }
   }
   await visit(root, 0);
-  return found;
+  return found.sort((left, right) => left.path.localeCompare(right.path, "en"));
 }
 
 async function noLinkedAncestors(file: string) {
@@ -158,8 +157,6 @@ export async function prepareRealRuntimeInputs({
   assert.equal(sourceCopy.bytes, sourceIdentity.bytes);
   command(["source", "add", "wave-race-64", source]);
   command(["source", "verify", "wave-race-64"]);
-  const parent = path.join(output, "real-prepared-runtimes");
-  await mkdir(parent);
   const packages = [];
   const inputs: FileIdentity[] = [manifestIdentity, sourceIdentity, sourceCopy];
   for (const request of input.packages) {
@@ -173,7 +170,7 @@ export async function prepareRealRuntimeInputs({
     assert.equal(archiveIdentity.bytes, spec.archive_size);
     const originals = await files(request.directory);
     assert.ok(originals.length > 1);
-    const directory = path.join(parent, request.port_id);
+    const directory = path.join(output, `real-prepared-runtime-${request.port_id}`);
     await mkdir(directory);
     for (const original of originals) {
       const relative = path.relative(request.directory, original.path);
@@ -563,6 +560,27 @@ async function launchRealRuntime(
       return current?.outcome !== null && current?.finished_at ? current : false;
     }, 30_000);
     assert.ok(terminal);
+    const supervisorExitFile = path.join(output, `${port.id}-supervisor-exit-identity.json`);
+    // Read-only exit observation, derived only from the independently verified
+    // live supervisor identity. This inventory is never used to signal a process.
+    await writeFile(
+      supervisorExitFile,
+      JSON.stringify(
+        {
+          ...supervisor,
+          source_snapshot: supervisorFile,
+          derivation: "verified-supervisor-only-exit-observation",
+          processes: [supervisor.driver],
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(supervisorExitFile);
+    const supervisorExited = native("Wait", supervisorExitFile);
+    assert.equal(supervisorExited.observed_processes, 1);
+    route.natural_supervisor_exit = supervisorExited;
     route.terminal_session = terminal;
     assert.equal(terminal.outcome, "succeeded");
     assert.equal(terminal.exit_code, 0);

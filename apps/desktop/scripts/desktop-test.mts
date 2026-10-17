@@ -512,6 +512,7 @@ function validateBackupFocusInventory(captured: NativeProcessSnapshot, requireQu
     checks.some(
       (check) =>
         [
+          "native-real-prepared-runtime",
           "native-reviewed-backup-restore-and-delete",
           "native-game-update-review",
           "native-selected-setup-completion",
@@ -2140,6 +2141,7 @@ try {
     const pickerContext = {
       application,
       getDriverPid: () => required(required(driver).pid),
+      getDriverIdentity: () => ownedSession.driver,
       output,
       artifacts,
     };
