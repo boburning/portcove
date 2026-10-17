@@ -1961,6 +1961,118 @@ export async function preparationScenarios({
     artifacts.push(report);
   });
 
+  await scenario("native-direct-preparation-recovery", async () => {
+    const { port, install: seededInstall } = await seed("opengoal-jak1", "failure");
+    const install = required((await status(port.id)).active);
+    assert.equal(install.id, seededInstall.id);
+    await open(port);
+    const before = await activities();
+    const observations: {
+      port_id: string;
+      active_installation_id: string;
+      inputs: { path: string; sha256: string; bytes: number }[];
+      failed_activity?: ActivityRecord;
+      after_review?: PortStatus;
+      failure?: string;
+    } = { port_id: port.id, active_installation_id: install.id, inputs: [] };
+    try {
+      for (const input of [
+        path.join(output, `${port.id}.iso`),
+        path.join(install.path, required(port.executable_hints[host]?.[0])),
+        path.join(install.path, required(port.setup_executable_hints[host]?.[0])),
+        path.join(install.path, ".portcove-manifest.json"),
+      ]) {
+        const bytes = await readFile(input);
+        observations.inputs.push({
+          path: input,
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+          bytes: bytes.length,
+        });
+      }
+      await browser.findElement(button("Review game preparation")).click();
+      await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
+      await browser.findElement(button("Prepare game data")).click();
+      let observedFailure: ActivityRecord | undefined;
+      await browser.wait(
+        async () => {
+          observedFailure = (await activities()).find(
+            (item) =>
+              item.operation === "prepare" &&
+              item.target_id === port.id &&
+              !before.some((old) => old.id === item.id) &&
+              item.status === "failed",
+          );
+          return Boolean(observedFailure);
+        },
+        15_000,
+        "The actual owned setup must fail and retain its Core report",
+      );
+      const failed = required(observedFailure);
+      const failure = required(failed.failure);
+      assert.equal(failure.code, "source_invalid");
+      assert.equal(failure.presentation.mutation_state, "recovery_required");
+      assert.equal(failure.presentation.phase, "preparation.setup");
+      assert.deepEqual(failure.presentation.recovery_target, {
+        kind: "preparation",
+        port_id: port.id,
+      });
+      assert.ok(failure.presentation.recovery_actions.includes("review_preparation"));
+      observations.failed_activity = failed;
+      const action = By.css('[data-detail-origin="error:preparation-review"]');
+      await browser.wait(until.elementLocated(action), 15_000);
+      await browser
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .click();
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css("section[data-detail-workspace]"))).length === 0,
+        15_000,
+      );
+      const inventory = await activities();
+      const readOnlyReview = By.xpath(
+        '//div[contains(@class,"error-actions")]//button[normalize-space(.)="Review current state"]',
+      );
+      await browser.findElement(readOnlyReview).click();
+      assert.deepEqual(
+        (await activities()).map((item) => item.id).sort(),
+        inventory.map((item) => item.id).sort(),
+      );
+      await browser.findElement(action).click();
+      await browser.wait(
+        async () => {
+          const titles = await browser.findElements(By.css("#port-detail-title"));
+          return titles.length === 1 && (await required(titles[0]).getText()) === port.name;
+        },
+        15_000,
+        "The direct error action must open its actual affected game",
+      );
+      assert.deepEqual(
+        (await activities()).map((item) => item.id).sort(),
+        inventory.map((item) => item.id).sort(),
+      );
+      assert.equal(required((await status(port.id)).active).id, install.id);
+      assert.deepEqual(
+        required((await activities()).find((item) => item.id === failed.id)).failure,
+        failure,
+      );
+      for (const input of observations.inputs) {
+        const bytes = await readFile(input.path);
+        assert.equal(bytes.length, input.bytes);
+        assert.equal(createHash("sha256").update(bytes).digest("hex"), input.sha256);
+      }
+      observations.after_review = await status(port.id);
+      const image = path.join(output, "native-direct-preparation-recovery.png");
+      await writeFile(image, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+      artifacts.push(image);
+    } catch (error) {
+      observations.failure = String(error);
+      throw error;
+    } finally {
+      const report = path.join(output, "direct-preparation-recovery.json");
+      await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" });
+      artifacts.push(report);
+    }
+  });
   const livePreparationCancellation = async (probeListener = false) => {
     const { port, install } = await seed("opengoal-jak2", "wait", true);
     await open(port);

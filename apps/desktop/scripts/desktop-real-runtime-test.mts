@@ -286,10 +286,13 @@ async function runRealRuntimeRoutes(context: RealContext, report: Record<string,
       assert.ok(matches.length <= 1);
       const dialog = matches[0];
       if (!dialog || !(await dialog.isDisplayed())) return false;
-      const control = await dialog.findElement(
+      const controls = await dialog.findElements(
         By.xpath(`.//button[normalize-space(.)="${action}"]`),
       );
-      return (await control.isEnabled()) ? { dialog, control } : false;
+      assert.ok(controls.length <= 1, "External review action must be unique");
+      const control = controls[0];
+      if (!control || !(await control.isDisplayed()) || !(await control.isEnabled())) return false;
+      return { dialog, control };
     }, 15_000);
   }
   for (const item of fixture.packages) {

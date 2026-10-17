@@ -1027,7 +1027,7 @@ void test(
     });
     await assert.rejects(
       input("refused-selection", output),
-      /Expected values to be strictly equal/,
+      /Exact owned prepared-runtime directory required/,
     );
   },
 );

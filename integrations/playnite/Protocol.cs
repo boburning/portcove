@@ -239,6 +239,31 @@ namespace Portcove.ReferenceClient
 
     internal static class PortActions
     {
+        // This selects a fresh channel check, not permission to activate a candidate.
+        // Core still resolves and validates that candidate under its update guards.
+        internal static string UpdateReviewProblem(object status, long schema)
+        {
+            ValidateStatus(status, schema);
+            DefinitionOperations.RequireEligible(status, "install");
+            if (schema >= 66)
+            {
+                var update = Read(status).Single(value => value.Action == "update");
+                if (update.Availability != "waiting" || update.Reason != "review_required")
+                    return "Portcove update is " + update.Availability.Replace('_', ' ') + ": " +
+                        (update.DefinitionReason ?? update.Reason).Replace('_', ' ') +
+                        ". Refresh readiness after resolving this restriction.";
+            }
+            // Supported older status has no update assessment; retain its checks.
+            return Json.Field(status, "active") == null
+                ? "Install this game before checking for a managed update." : null;
+        }
+
+        internal static void RequireUpdateReview(object status, long schema)
+        {
+            var problem = UpdateReviewProblem(status, schema);
+            if (problem != null) throw new InvalidOperationException(problem);
+        }
+
         internal static bool CanReviewRemoval(object status, bool external)
         {
             var decisions = Read(status);

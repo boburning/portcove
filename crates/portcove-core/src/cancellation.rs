@@ -193,6 +193,7 @@ impl PortcoveService {
             return Err(PortcoveError::conflict(
                 "This operation has finished or passed its cancellation boundary",
             )
+            .with_known_cause(crate::failure::KnownFailureCause::CancellationUnavailable)
             .detail("operation_id", operation_id));
         }
         Ok(CancellationState {

@@ -772,6 +772,16 @@
             },
             "type": "array"
           },
+          "recovery_target": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FailureRecoveryTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "summary": {
             "type": "string"
           },
@@ -799,6 +809,27 @@
           "technical_context"
         ],
         "type": "object"
+      },
+      "FailureRecoveryTarget": {
+        "description": "A known item to inspect, never authorization to resume or change it.",
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "const": "preparation",
+                "type": "string"
+              },
+              "port_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "port_id"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "FailureReport": {
         "properties": {
@@ -995,6 +1026,16 @@
             },
             "type": "array"
           },
+          "recovery_target": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FailureRecoveryTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "summary": {
             "type": "string"
           },
@@ -1022,6 +1063,27 @@
           "technical_context"
         ],
         "type": "object"
+      },
+      "FailureRecoveryTarget": {
+        "description": "A known item to inspect, never authorization to resume or change it.",
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "const": "preparation",
+                "type": "string"
+              },
+              "port_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "port_id"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "FailureTone": {
         "enum": [
@@ -2892,6 +2954,16 @@
             },
             "type": "array"
           },
+          "recovery_target": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FailureRecoveryTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "summary": {
             "type": "string"
           },
@@ -2919,6 +2991,27 @@
           "technical_context"
         ],
         "type": "object"
+      },
+      "FailureRecoveryTarget": {
+        "description": "A known item to inspect, never authorization to resume or change it.",
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "const": "preparation",
+                "type": "string"
+              },
+              "port_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "port_id"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "FailureReport": {
         "properties": {
@@ -3399,6 +3492,16 @@
             },
             "type": "array"
           },
+          "recovery_target": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FailureRecoveryTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "summary": {
             "type": "string"
           },
@@ -3426,6 +3529,27 @@
           "technical_context"
         ],
         "type": "object"
+      },
+      "FailureRecoveryTarget": {
+        "description": "A known item to inspect, never authorization to resume or change it.",
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "const": "preparation",
+                "type": "string"
+              },
+              "port_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "port_id"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "FailureReport": {
         "properties": {
@@ -5559,6 +5683,16 @@
             },
             "type": "array"
           },
+          "recovery_target": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FailureRecoveryTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "summary": {
             "type": "string"
           },
@@ -5586,6 +5720,27 @@
           "technical_context"
         ],
         "type": "object"
+      },
+      "FailureRecoveryTarget": {
+        "description": "A known item to inspect, never authorization to resume or change it.",
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "const": "preparation",
+                "type": "string"
+              },
+              "port_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "port_id"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "FailureReport": {
         "properties": {
@@ -6859,6 +7014,16 @@
             },
             "type": "array"
           },
+          "recovery_target": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/FailureRecoveryTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "summary": {
             "type": "string"
           },
@@ -6886,6 +7051,27 @@
           "technical_context"
         ],
         "type": "object"
+      },
+      "FailureRecoveryTarget": {
+        "description": "A known item to inspect, never authorization to resume or change it.",
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "const": "preparation",
+                "type": "string"
+              },
+              "port_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "port_id"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "FailureReport": {
         "properties": {

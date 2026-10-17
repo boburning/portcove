@@ -2,7 +2,51 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import os from "node:os";
 import { test } from "node:test";
+import { readFile } from "node:fs/promises";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
 import { parseRealRuntimeInput, runtimeMutable } from "./desktop-real-runtime-inputs.mts";
+
+void test("real runtime review waits for the actual visible enabled action after preview", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-real-runtime-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("  async function review(kind:");
+  const end = source.indexOf("  for (const item of fixture.packages)", start);
+  assert.ok(start >= 0 && end > start);
+  let controls: object[] = [];
+  const dialog = {
+    isDisplayed: async () => true,
+    findElements: async () => controls,
+  };
+  let poll: (() => Promise<unknown>) | undefined;
+  const review = runInNewContext(`${stripTypeScriptTypes(source.slice(start, end))}; review`, {
+    assert,
+    By: { css: (value: string) => value, xpath: (value: string) => value },
+    browser: {
+      findElements: async () => [dialog],
+      wait: async (predicate: () => Promise<unknown>, timeout: number) => {
+        assert.equal(timeout, 15_000);
+        poll = predicate;
+        return predicate();
+      },
+    },
+  }) as (kind: string, action: string) => Promise<unknown>;
+  assert.equal(await review("register", "Use this installation"), false);
+  assert.ok(poll);
+  controls = [{ isDisplayed: async () => false, isEnabled: async () => true }];
+  assert.equal(await poll(), false);
+  controls = [{ isDisplayed: async () => true, isEnabled: async () => false }];
+  assert.equal(await poll(), false);
+  const control = { isDisplayed: async () => true, isEnabled: async () => true };
+  controls = [control];
+  const ready = (await poll()) as { dialog: unknown; control: unknown };
+  assert.equal(ready.dialog, dialog);
+  assert.equal(ready.control, control);
+  controls = [control, control];
+  await assert.rejects(poll, /must be unique/);
+});
 
 function input() {
   return {

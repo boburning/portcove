@@ -199,7 +199,12 @@ File/folder buttons remain available for original files without requiring a type
 path. Validation registers only catalog-requested inputs and reports the result;
 original files stay in place. A held or unknown action leads to a review message,
 not an attempted mutation. **Check and update** stays separate from Play and
-resolves the selected channel at execution time. Other manual actions are under
+resolves the selected channel at execution time.
+The update button and its fresh pre-consent check consume Core's current update
+assessment. A held or unavailable update shows its reason; awaiting review permits
+the channel check, while Core still validates the resolved candidate. Supported
+older CLI schemas retain their existing installed-game and definition checks.
+Other manual actions are under
 **Other Portcove actions**. Installation and preparation retain their exact
 review and core validation. Nothing installs or updates as a side effect of Play.
 
