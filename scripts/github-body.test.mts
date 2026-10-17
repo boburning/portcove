@@ -1,5 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { isRecord } from "./runtime-values.mts";
+import type { BodyObservation } from "./github-body.mts";
+function requiredFixture<T>(value: T): NonNullable<T> {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function record(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -7,7 +17,7 @@ import { checkClosureIntent, readClosingRelationships } from "./closure-intent.m
 
 const repository = "boburning/portcove";
 const emptyIntent = { format_version: 1, allowed_targets: [] };
-function closingPage(nodes = [], extra = {}) {
+function closingPage(nodes: unknown[] = [], extra: Record<string, unknown> = {}) {
   return {
     data: {
       repository: {
@@ -28,7 +38,7 @@ function closingPage(nodes = [], extra = {}) {
   };
 }
 
-test("closure permission is independent, canonical and covers variants and hidden text", () => {
+void test("closure permission is independent, canonical and covers variants and hidden text", () => {
   for (const keyword of [
     "close",
     "closes",
@@ -91,7 +101,7 @@ test("closure permission is independent, canonical and covers variants and hidde
   );
 });
 
-test("closing relationships require complete stable opaque identities and cursors", () => {
+void test("closing relationships require complete stable opaque identities and cursors", () => {
   const issue = { id: "opaque-issue", number: 244, repository: { nameWithOwner: repository } };
   assert.deepEqual(
     readClosingRelationships({ graphql: () => closingPage([issue]) }, repository, 7).relationships,
@@ -124,7 +134,7 @@ test("closing relationships require complete stable opaque identities and cursor
   assert.throws(() => readClosingRelationships(api, repository, 7), /changed/);
 });
 
-test("PR writer refuses undeclared intent before mutation", () => {
+void test("PR writer refuses undeclared intent before mutation", () => {
   const api = {
     request() {
       assert.fail("No remote mutation permitted");
@@ -177,14 +187,14 @@ test("PR writer refuses undeclared intent before mutation", () => {
   );
 });
 
-test("PR body edit checks fresh manual links before any write", () => {
+void test("PR body edit checks fresh manual links before any write", () => {
   let writes = 0;
   const page = closingPage([
     { id: "manual", number: 244, repository: { nameWithOwner: repository } },
   ]);
   const api = {
     graphql: () => page,
-    request(method) {
+    request(method: string) {
       if (method !== "GET") writes++;
       return {
         body: { id: 123, number: 7, body: "Related to #244.", head: { sha: "a".repeat(40) } },
@@ -208,7 +218,7 @@ test("PR body edit checks fresh manual links before any write", () => {
   assert.equal(writes, 0);
 });
 
-test("relationship pagination completes multiple pages and refuses repeated cursors", () => {
+void test("relationship pagination completes multiple pages and refuses repeated cursors", () => {
   let page = 0;
   const api = {
     graphql() {
@@ -235,7 +245,7 @@ import {
   parseBodyArguments,
 } from "./github-body.mts";
 
-test("text guard preserves Markdown, Unicode and CRLF but rejects malformed text", (t) => {
+void test("text guard preserves Markdown, Unicode and CRLF but rejects malformed text", (t) => {
   const body = "## Résumé 🎮\r\n\t`roadmap` and $(literal)\n";
   assert.equal(validateGitHubBody(body), body);
   for (const bad of [
@@ -256,7 +266,7 @@ test("text guard preserves Markdown, Unicode and CRLF but rejects malformed text
   assert.throws(() => readGitHubBody(file));
 });
 
-test("text guard preserves every C0 and DEL boundary and the first UTF-16 offset", () => {
+void test("text guard preserves every C0 and DEL boundary and the first UTF-16 offset", () => {
   const prefix = "Résumé 🎮\r\n";
   for (const code of [...Array.from({ length: 32 }, (_, index) => index), 127]) {
     const body = `${prefix}${String.fromCharCode(code)}tail`;
@@ -277,11 +287,11 @@ test("text guard preserves every C0 and DEL boundary and the first UTF-16 offset
   });
 });
 
-test("edits compare fresh preimages and verify exact validated content", () => {
-  const calls = [];
+void test("edits compare fresh preimages and verify exact validated content", () => {
+  const calls: { method: string; endpoint: string; payload?: unknown }[] = [];
   const body = "new `body`\r\n🎮";
   const api = {
-    request(method, endpoint, payload) {
+    request(method: string, endpoint: string, payload?: unknown) {
       calls.push({ method, endpoint, payload });
       return {
         body: {
@@ -302,7 +312,7 @@ test("edits compare fresh preimages and verify exact validated content", () => {
     calls.map((call) => call.method),
     ["GET", "PATCH", "GET"],
   );
-  assert.equal(calls[1].payload.body, body);
+  assert.equal(record(requiredFixture(calls[1]).payload).body, body);
   calls.length = 0;
   assert.throws(
     () =>
@@ -315,11 +325,11 @@ test("edits compare fresh preimages and verify exact validated content", () => {
   assert.equal(calls.length, 1);
 });
 
-test("mutations retain response observations, never retry and refuse bad readback", () => {
+void test("mutations retain response observations, never retry and refuse bad readback", () => {
   let writes = 0;
-  const observations = [];
+  const observations: BodyObservation[] = [];
   const api = {
-    request(method) {
+    request(method: string) {
       if (method === "POST") {
         writes++;
         return { body: { id: 55 } };
@@ -341,10 +351,12 @@ test("mutations retain response observations, never retry and refuse bad readbac
     /readback mismatch/,
   );
   assert.equal(writes, 1);
-  assert.ok(observations.some((entry) => entry.phase === "mutation" && entry.result.id === 55));
+  assert.ok(
+    observations.some((entry) => entry.phase === "mutation" && record(entry.result).id === 55),
+  );
   const timeout = new Error("ambiguous timeout");
   const failing = {
-    request(method) {
+    request(method: string) {
       if (method === "POST") {
         writes++;
         throw timeout;
@@ -359,7 +371,7 @@ test("mutations retain response observations, never retry and refuse bad readbac
   assert.equal(writes, 2);
 });
 
-test("body writer restricts operations and repository identity before mutations", () => {
+void test("body writer restricts operations and repository identity before mutations", () => {
   const api = {
     request() {
       assert.fail("Unexpected API call");
@@ -391,4 +403,32 @@ test("body writer restricts operations and repository identity before mutations"
     ]),
   );
   assert.throws(() => parseBodyArguments(["issue-create", "--body-file", "candidate"]));
+});
+
+void test("PR creation refuses a missing mutation ID even when number and body read back", () => {
+  let reads = 0;
+  const api = {
+    graphql: () => closingPage(),
+    request(method: string) {
+      if (method === "POST") return { body: { number: 7 } };
+      reads++;
+      return { body: { number: 7, body: "Related to #244.", head: { sha: "a".repeat(40) } } };
+    },
+  };
+  assert.throws(
+    () =>
+      writeGitHubBody(
+        {
+          operation: "pr-create",
+          body: "Related to #244.",
+          title: "fix: safe",
+          head: "feature/safe",
+          base: "main",
+          closureIntent: emptyIntent,
+        },
+        api,
+      ),
+    /Created PR identity unavailable/,
+  );
+  assert.equal(reads, 0, "An unidentifiable mutation must stop before a false verified readback");
 });
