@@ -98,6 +98,50 @@ const nativeCompatibilityRunner = await readFile(
   "utf8",
 );
 
+test("ordinary Linux package operation is fixed and isolated from fixture builds and broader dispatch", async () => {
+  const sections = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
+  const block = sections.find((section) => section.startsWith("linux_package_boundary:\n"));
+  assert.ok(block);
+  assert.match(
+    block,
+    /- name: Run the unchanged shipping boundary with synthetic media readiness\n        timeout-minutes: 10\n        env:\n          PORTCOVE_RETAINED_EVIDENCE_DIR: \$\{\{ runner\.temp \}\}\/pcv-package2-retained-inputs\n        run: node scripts\/run-rust-tests\.mjs --guard-command node scripts\/desktop-linux-media\.mjs --run/u,
+  );
+  assert.doesNotMatch(block.split("    steps:")[0], /\$\{\{ runner\./u);
+  assert.match(block, /\$\{\{ runner\.temp \}\}\/pcv-package2-retained-inputs\/\*\*/u);
+  const mediaAdapter = await readFile(
+    new URL("./desktop-linux-media.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(mediaAdapter, /PORTCOVE_RETAINED_EVIDENCE_DIR\s*:/u);
+  assert.match(mediaAdapter, /PORTCOVE_SHARED_TOOL_CACHE: toolCachePaths\(\)\.sharedRoot/u);
+  assert.match(
+    mediaAdapter,
+    /acquireNativeSessionLock\(\{\s*workspace: root,\s*scenarios: \["native-linux-packaged-webview-boundary"\],\s*namespaceDelegation: true,/u,
+  );
+  assert.match(
+    block,
+    /if: \$\{\{ inputs\.operation == 'linux-package-boundary' && inputs\.runner == 'ubuntu-22\.04' && !inputs\.edge_driver_proof \}\}/u,
+  );
+  assert.match(block, /runs-on: ubuntu-22\.04/u);
+  assert.doesNotMatch(
+    block,
+    /VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE|--features|secrets\.|continue-on-error|sysctl|apparmor_parser/u,
+  );
+  assert.deepEqual(
+    sections
+      .filter((section) => /^\w+:\n    if:.*linux-package-boundary/mu.test(section))
+      .map((section) => section.split(":")[0]),
+    ["linux_package_boundary"],
+  );
+  assert.match(
+    block,
+    /desktop-linux-media\.mjs --prepare[\s\S]*desktop-linux-media\.mjs --build[\s\S]*desktop-linux-media\.mjs --run/u,
+  );
+  assert.match(block, /if: always\(\)[\s\S]*desktop-linux-media\.mjs --cleanup/u);
+  assert.match(block, /!\*\*\/private-authority/u);
+  assert.match(block, /!\*\*\/auth\.cookie/u);
+});
+
 test("candidate consumer selects only existing selected, compiled and history jobs", () => {
   const jobs = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
   const consumers = jobs.filter((job) => /^hosted_.*\n    if:.*candidate-consumer/mu.test(job));
@@ -632,7 +676,7 @@ test("ordinary formatting and lint have one quality owner; deep analyzers stay i
   assert.doesNotMatch(frontend, /format:check|pnpm lint/);
 });
 
-test("reusable qualification is read-only, daily, and coalesces without cancelling", () => {
+test("reusable qualification is read-only, daily, and coalesces without cancelling", async () => {
   assert.match(qualificationWorkflow, /^ {2}workflow_call:\r?$/m);
   assert.match(qualificationWorkflow, /^ {2}workflow_dispatch:\r?$/m);
   assert.match(qualificationWorkflow, /cron: "17 5 \* \* \*"/);
@@ -643,6 +687,24 @@ test("reusable qualification is read-only, daily, and coalesces without cancelli
   );
   assert.match(qualificationWorkflow, /uses: \.\/\.github\/workflows\/ci\.yml/);
   assert.match(qualificationWorkflow, /force_qualification: true/);
+  const classifier = workflow.split("\n  classify:")[1].split("\n    name:")[0];
+  const requested = [...classifier.matchAll(/^ {6}([\w-]+): (read|write)$/gm)];
+  assert.equal(requested.length, 3);
+  const release = await readFile(
+    new URL("../.github/workflows/release.yml", import.meta.url),
+    "utf8",
+  );
+  for (const [source, job] of [
+    [qualificationWorkflow, "qualify"],
+    [release, "qualification"],
+  ]) {
+    const caller = source.split(`\n  ${job}:`)[1].split("\n    uses:")[0];
+    for (const [, scope, access] of requested) {
+      assert.equal(access, "read");
+      assert.match(caller, new RegExp(`^ {6}${scope}: ${access}$`, "m"));
+    }
+    assert.doesNotMatch(caller, /: write/);
+  }
   assert.match(qualificationWorkflow, /jobs\.qualify\.outputs\.plan_digest/);
   assert.match(qualificationWorkflow, /provenance_scope:/);
   assert.doesNotMatch(qualificationWorkflow, /secrets:|pull_request_target|contents: write/);
@@ -2598,7 +2660,7 @@ test("deep audit evidence retains audit status without privilege changes", async
   );
   const auditJob = deep.split("  audit:")[1].split(/\n  [a-z_]+:/u)[0];
   assert.match(auditJob, /runs-on: ubuntu-22\.04/u);
-  assert.match(auditJob, /^    timeout-minutes: 45$/m);
+  assert.match(auditJob, /^    timeout-minutes: 55$/m);
   const localJob = deep.split("  local_check:")[1].split(/\n  [a-z_]+:/u)[0];
   assert.match(localJob, /^    timeout-minutes: 30$/m);
   assert.match(auditJob, /shared-key: deep-quality-ubuntu-22\.04/u);

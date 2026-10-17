@@ -39,6 +39,7 @@ function fixture({ publicationError, joinError } = {}) {
     output: "/owned",
     artifacts: [],
     linuxSelectedSession: true,
+    linuxPackagedInspector: false,
     linuxLaunch: launch(),
     linuxLaunchCount: 1,
     linuxStop: undefined,

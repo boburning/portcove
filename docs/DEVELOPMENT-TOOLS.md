@@ -35,11 +35,12 @@ See [the comparison decision](adr/0002-separate-build-reuse-from-qualification.m
 and [delivery terminology](../GLOSSARY.md). Packet stages described in that ADR
 are the chosen boundary for the later package component, not a new global gate.
 
-Before overlapping local Rust or native commands, use `just resource-status` for
-a passive snapshot of existing guard records. It reports recorded identities and
-unknown coverage; the guards still own admission. Sequence conflicting owned
-commands, including focused Rust tests and `local-check`; independent work may
-continue. Missing records do not prove the machine is idle.
+Supported finite heavy commands acquire local resources at execution, including
+Rust tests/builds, full Vite+ checks, UI suites, advisory Fallow runs and the
+Windows Docker adapters. Use those entrypoints concurrently; do not bypass their
+guards or terminate another owner's work. `just resource-status` only observes
+running/queued records and coverage gaps. Missing records never prove machine idle.
+See [shared local resources](#shared-local-resources).
 
 Use `node scripts/checked-git.mjs -- <git arguments>` for a checked call, or
 `node scripts/checked-git.mjs --sequence <owned-json-file>` for dependent calls.
@@ -443,7 +444,7 @@ prove a build, test run, fresh execution task, cold acquisition or native sessio
 
 | Profile          | Required capabilities                                                                                                                                                                                                                                                                                                                  |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `frontend`       | Pinned Node and pnpm, installed root and desktop frontend dependencies.                                                                                                                                                                                                                                                                |
+| `frontend`       | Pinned Node and pnpm, installed root and desktop frontend dependencies; Windows/Linux also use pinned rustc and its platform linker for cached process containment.                                                                                                                                                                    |
 | `core`           | Pinned Rust/Cargo, rustfmt and Clippy components, pinned cargo-nextest. Direct Cargo development does not require Node, frontend dependencies or Tauri.                                                                                                                                                                                |
 | `daily`          | Frontend and Core, Git, PowerShell, pinned Aqua and its verified Ruff/ShellCheck/actionlint payloads, all required Cargo tools from the quality manifest, and PSScriptAnalyzer on Windows.                                                                                                                                             |
 | `native-desktop` | Daily plus platform build prerequisites, tauri-driver and the platform driver; Linux also requires Xvfb. Missing or unverified platform capabilities fail this requested profile. Windows observes installed compiler/linker paths; this does not prove Cargo selection. Linux/macOS driver identity remains unverified by this slice. |
@@ -567,6 +568,22 @@ owns the enforcement mapping, evidence inspection and analysis limits.
 optional local feedback, qualification selection and receipt rules. This file
 owns operation syntax and resource handling. [Development storage](DEVELOPMENT-STORAGE.md)
 owns workspace, cache and cleanup operations.
+
+Ordinary command selection and non-receipt execution live in
+`scripts/ordinary-validation.mjs`; hosted `ci-baseline.mjs` consumes that module
+directly. `local-validation.mjs` owns optional local CLI/preflight and receipt
+composition. `validation-evidence.mjs` shares conservative inventory,
+fingerprint and receipt primitives with the explicit audit; importing ordinary
+hosted planning does not load audit or receipt orchestration.
+
+Local receipt runs observe only runtime fields consumed by their selected reusable
+domains. Repository-only receipts need Git/just identity and do not probe Cargo,
+nextest, rscheck, Aqua, PowerShell or pnpm. Non-reusable-only plans do not collect
+receipt inventories/runtime. This changes prerequisites and setup work, not
+selection or evidence admission: fingerprints retain every applicable field,
+failed stages do not become successful, and explicit audit still inventories all
+tools. Explicit transition/release audit routes and hosted provenance fields
+remain supported; the consumed #1682 transition is not an ordinary prerequisite.
 
 Use `just local-check --plan` to inspect optional complete-diff feedback,
 `--preflight --json` to observe selected prerequisites, and `--fresh` to execute
@@ -799,14 +816,19 @@ by a healthy local-main return with the same library identity and generation.
 This fixture establishes no ordinary-package, media-device, updater or minimum
 environment claim. Its listener stays owned until native cleanup joins.
 
-`node scripts/desktop-linux-x11.mjs --config ABSOLUTE_JSON` reuses the proven uid-1000
+`node scripts/desktop-linux-x11.mjs --config ABSOLUTE_JSON` reuses the
 ext4/private authenticated virtual-X11 route. On Windows it holds the existing
 Windows native slot and Heavy Rust guard while dispatching existing Ubuntu tools;
 Linux holds its own native slot and maintained PID namespace/init controls.
 Stages `gtk` and `harness` permit selected diagnostics without running a whole
 journey. A version-1 configuration declares existing absolute `xvfb`, `xkbcomp`,
 `output_root` and `harness_args`; Windows dispatch additionally requires existing
-absolute Linux `node` and `tool_cache` paths. It installs nothing. For example:
+absolute Linux `node` and `tool_cache` paths. It installs nothing.
+
+The parent binds its actual ordinary caller UID to the bootstrap namespace map;
+public configuration cannot supply that binding. The inner application UID/map
+remains 1000-to-0. A different host UID needs its own actual runtime observation.
+For example:
 
 ```json
 {
@@ -829,6 +851,66 @@ preserves GTK chooser ownership checks. It establishes only actual GTK/WebKit on
 that private virtual display; WSLg, physical display/controller and other Linux
 routes remain separate. Missing or unsupported prerequisites are reported; no
 provisioning or fallback qualification is implied.
+
+For ordinary Linux shipping boundaries, select only
+`native-linux-packaged-webview-boundary` and pass `--package-evidence ABSOLUTE_JSON`.
+The maintained private-X11 route also requires an installed Google Chrome at
+`/usr/bin/google-chrome`. It creates a desktop association and explicit fresh
+browser profile inside its owned XDG directories, retains browser/opener identities,
+and observes the approved destination through the real browser's profile-bound
+DevTools endpoint. Chrome keeps its normal sandbox. This observation covers that
+isolated association; the host's ordinary default-browser configuration remains
+separate. Existing personal browser profiles are not selected. The owned profile
+also retains a default-redaction network log with a 4 MB size budget and ten-second
+capture for failed-navigation diagnosis; it is not destination acceptance.
+The manifest binds the current source, exact ordinary
+`pnpm tauri build --bundles deb` command, empty qualification features,
+package and configuration identities, and the actual `dpkg-deb --extract` receipt
+with its `usr/bin/portcove-desktop` identity. This route uses the existing native
+PID namespace and requires positive join before releasing custody. It observes
+the extracted DEB payload; it supplies no system installation, updater or
+claimed-minimum evidence. Windows current-installed NSIS acceptance keeps its
+separate existing route.
+
+Only this standalone Linux packaged case uses WebKit's nonautomation `WebPage`
+inspector transport. WebKitGTK 2.50.4's automation session can grant media before
+the application's normal permission callback, so a WebDriver media result cannot
+qualify that refusal. The maintained native namespace launches the ordinary
+executable directly with a loopback-only `WEBKIT_INSPECTOR_HTTP_SERVER` child
+environment; `TAURI_WEBVIEW_AUTOMATION` and the legacy inspector variable are
+absent. No production feature, CSP or permission override is added. Other native
+scenarios keep their existing driver routes.
+
+Before executing the unchanged boundary assertions, the observer requires the
+listener's live PID/generation, executable digest and owned namespace ancestry,
+one advertised page target, the actual local main document and
+`navigator.webdriver === false`. WebKit `Runtime.awaitPromise` preserves the
+ten-second script deadline and callback failure; expired replies cannot satisfy
+a later operation. The final listener recheck and ordinary native namespace join
+remain distinct evidence. Inspector discovery or evaluation failure is a failed
+prerequisite, never a permission refusal or a package pass.
+
+The existing manual `native-design-compatibility.yml` workflow also offers the
+fixed `linux-package-boundary` operation on standard `ubuntu-22.04` only. After
+review and ordinary candidate CI, it prepares the distribution's matching
+`linux-modules-extra` Vivid capture-only webcam and a foreground private PulseAudio
+null source. The [Linux 6.8 driver contract](https://www.kernel.org/doc/html/v6.8/admin-guide/media/vivid.html#configuring-the-driver)
+defines the single webcam node; its supported 640×360 format replaces the failed
+DKMS loopback fixture. The outer mapped-user probe is preparation evidence.
+The fixed internal media launcher repeats the bounded positive reads inside the
+application's final user/mount/PID namespace immediately before spawning the
+ordinary executable, with no intervening namespace or credential change. Its
+readiness receipt records namespace links, UID/GID maps, credentials and
+device/socket identities for the wrapper and app. Application start ticks,
+namespace IDs and executable hash must also match the live inspector listener
+before any application assertion. Missing or mismatched readiness fails
+admission. The existing namespace init owns both descendants; final join evidence
+does not imply normal application or wrapper exit.
+Existing devices, missing matching modules, module/signature refusal or unknown
+process joins stop qualification; no custom kernel, reboot, key enrollment or WebKit
+permission override is used. Only the operation's identified quiescent fixture
+may be removed. This route supplies no physical capture, installed GUI or minimum
+claim, and a ready fixture alone does not satisfy the strict media refusal.
 
 ## Native desktop smoke tests
 
@@ -1069,7 +1151,7 @@ Every native run can take focus and send input. The shared lock serializes
 Portcove qualification runners across worktrees, but it cannot prevent unrelated
 user input. Announce the foreground run and establish an uncontended window.
 Malformed or live lock ownership is never removed; a valid lock is reclaimed only
-when its recorded PID is positively absent.
+when its recorded PID is positively absent and the owning operation proves quiescence; unknown native ownership is retained.
 
 When the native runner reports a live owner, treat that as resource contention,
 not a harness timeout: preserve the report, continue noninteractive work, wait for
@@ -1526,7 +1608,7 @@ ordinary-package case through the existing external Tauri/EdgeDriver route.
 Use low-level `desktop-test.mjs --app <retained-installed-executable> --output
 <new-absolute-directory> --scenario native-normal-package-webview-boundary
 --package-evidence <absolute-manifest>`. The manifest binds the clean candidate
-revision, exact ordinary `pnpm tauri build --bundles nsis` invocation,
+revision, exact admitted `pnpm --dir apps/desktop desktop:build --bundles nsis` invocation,
 empty qualification-feature list, hashes of the normal Tauri configuration,
 Windows overlay and Desktop Cargo manifest, installer, and completed
 `test-windows-installer.ps1` evidence. Its retained executable must match the
@@ -1675,3 +1757,107 @@ raw scanner status. `just audit` includes the scanner and development decision;
 no special risk flag is required. The known GLib error stays visible and remains
 a raw failed scan. Release expiry, tags, inventories and native source review
 belong exclusively to Linux release authorization; see [QUALITY](QUALITY.md).
+
+## Shared local resources
+
+Capacity and desktop exclusivity are separate. Participating same-user commands
+share `~/.portcove/resources`, independent of worktree, branch, tool version,
+`PORTCOVE_SHARED_TOOL_CACHE` and XDG cache overrides. Defaults admit two estimated
+units: Rust, browser and analysis phases use one each; container preparation and
+execution use both. These are conservative admission weights, not CPU/RAM
+reservations. Cargo compilation uses at most two jobs; existing nextest limits
+remain; unit and browser projects use two workers each. Git bundle preparation
+uses two pack threads. Preserve headroom for unrelated programs.
+
+`config.json` in that domain accepts `slots` (1..8, default 2), `waitMs`
+(0..3600000, default 900000), absolute `legacyRoots` for additional known shared
+tool-cache roots, and `legacyMode` (`pending` or `coordinated`). Do not edit the
+mode during active work. Lowering capacity does not erase existing reservations.
+The guard queues with operation/worktree diagnostics, keeps queue duration
+separate from execution, and times out admission with exit 75. Cancellation is
+130/143. Neither means a completed test. Execution budgets begin after admission;
+outer callers must allow the bounded queue as well as setup and execution.
+
+The initial `pending` mode admits no new heavy payload: requests wait boundedly
+while older work finishes. An unmodified PID-only native guard cannot safely
+represent independent supervised descendants or remote-engine work. Coordinate a
+finite checkpoint with existing local writers, finish legacy heavy/native/container
+work and resolve unknown retained records. Then run
+`node scripts/resource-command.mjs retire-legacy-entrypoints` from an updated
+checkout. This owner-authorized operation holds the legacy guards, checks the
+drained capacity domain, retains a migration receipt and atomically selects
+`coordinated` mode. Queued requests re-read mode. After cutover, retire all
+unmodified legacy entrypoints: a passive legacy scan cannot protect against an
+unsupported old command starting later. There is no live rollback or cleanup
+override; any return to old tools requires another drained transition.
+
+Rust target directories and mutable frontend outputs use physical-path exclusive
+reservations alongside capacity. Distinct worktrees can execute together; the
+same frontend output cannot be built/restored/tested concurrently. Nested commands
+reuse verified ownership. An upgrade requiring more slots or another output must
+be declared at the outer phase and fails rather than deadlocking. Native journeys
+retain a separate host desktop lock with process creation identity and a legacy
+compatibility record. Unknown/PID-only orphan ownership is retained for positive
+quiescence investigation, never reclaimed merely by age or PID absence.
+
+The supported frontend, native-build, native-verification and container routes
+reuse the existing process supervisor and descendant cleanup. On Windows/Linux,
+heavy frontend and host bundle preparation therefore need the pinned Rust compiler
+for the small cached supervisor; frontend profile setup/doctor includes it.
+Formatting, explicit-file lint, Node contract tests, Git/API reads, editing and
+review do not acquire capacity or provision Rust, browsers or Docker. No validation
+command implicitly installs a missing compiler. `desktop:build` resolves the
+pinned Tauri adapter and declares Rust/frontend output ownership. Interactive
+`desktop:dev` remains a long-lived third-party watcher: its idle lifetime is not a
+finite admitted phase. Do not overlap its compilation/output mutation with finite
+commands in that checkout; use a separate worktree and the native session rules.
+Raw Cargo/Vitest/Tauri commands and independently launched WSL jobs do not gain
+universal host enforcement. Windows-driven WSL verification participates through
+its host guard; a separate Linux user/kernel domain does not share host identity.
+
+Docker browser and builder adapters reserve host capacity before expensive image,
+dependency and bundle preparation, retain it through exact labelled container
+quiescence, and keep guest limits/isolation. The guest receives only a participation
+flag, never host coordination paths/tokens or mounts. Preparation and runtime are
+measured separately from queue time; image inventory is refreshed after admission.
+Recovery retains custody across host exit, uses the exact build name's completed
+Buildx history or the stopped labelled container, and records the release decision
+before removing individual slots. Interrupted cleanup can resume without touching
+a successor's token. Uncertain/missing engine evidence retains capacity and the
+run's `host.json`; use the adapter's existing `export --run UUID` recovery command.
+A budget refusal before dispatched work releases immediately. Successful package
+construction remains distinct from installed/native GUI qualification.
+
+Source custody is checked again after waiting using the existing provenance
+primitive. A changed candidate is refused before payload launch; reusable local
+receipts also verify source after execution. Hosted CI does not consult this local
+domain and retains its runner limits and containment. Optional local audit/Fallow
+feedback, required hosted contexts, review, artifact reuse and explicit native or
+release acceptance retain the current [quality contract](QUALITY.md).
+
+The maintained private-X11 adapter acquires host capacity before entering its
+PID namespaces. Only its explicitly delegated native token crosses that boundary;
+host capacity records and process tokens do not. The existing guest participation
+marker also covers this owned private namespace/Windows-driven WSL route, where
+PID remapping prevents parent-identity observation. The outer owner retains
+capacity and native custody until the maintained namespace join proves quiescence.
+Arbitrary independently started WSL/native processes remain outside this contract.
+
+Repository bootstrap scripts also enter the existing resource executor before
+checkout dependency installation and Cargo tool builds, reserve the checkout's
+mutable outputs and the actual shared tool-cache location, and verify inherited
+ownership before nesting. Setups sharing that writable cache cannot race pinned
+tool receipts or shims; ordinary builds/tests need no cache mutation reservation. Hosted/guest
+setup keeps its existing runner context. The pinned Rust compiler and platform
+linker needed to build the supervisor are explicit initial host prerequisites;
+setup disables Rustup auto-install for that guard. On a new host, install Rustup
+and the pinned compiler (`rustup toolchain install` with the repository channel
+and minimal profile) plus the existing platform linker first, then perform the
+resource handover and requested bootstrap. This initial third-party toolchain
+installation is outside Portcove admission. Normal guarded validation never
+provisions it implicitly. Cold worktree dependencies remain independently owned;
+sharing the download/tool cache does not share generated `node_modules`.
+
+Capacity queues probe at five-second intervals by default. A bounded process-identity
+probe failure keeps work queued within the same admission deadline; it never proves
+availability or starts a payload. Queue and execution failures remain distinct.

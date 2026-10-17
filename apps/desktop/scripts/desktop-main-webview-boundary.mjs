@@ -1,9 +1,201 @@
 import assert from "node:assert/strict";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir, realpath } from "node:fs/promises";
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
+
+export function chromeObserverEndpoint(value) {
+  const lines = value.trim().split("\n");
+  assert.equal(lines.length, 2);
+  const [port, endpoint] = lines;
+  assert.match(port, /^\d{1,5}$/u);
+  assert.ok(Number(port) >= 1024 && Number(port) <= 65535);
+  assert.match(endpoint, /^\/devtools\/browser\/[a-f0-9-]{36}$/u);
+  return `ws://127.0.0.1:${port}${endpoint}`;
+}
+
+export async function prepareLinuxExternalBrowser() {
+  assert.equal(process.platform, "linux");
+  const displayReceipt = process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT;
+  assert.ok(
+    displayReceipt && path.isAbsolute(displayReceipt),
+    "Maintained private X11 route required",
+  );
+  const runtime = path.dirname(displayReceipt);
+  const receipt = JSON.parse(await readFile(displayReceipt, "utf8"));
+  assert.equal(receipt.gtk_readiness?.outcome, "ready");
+  for (const [variable, name] of [
+    ["XDG_CONFIG_HOME", "xdg_config_home"],
+    ["XDG_DATA_HOME", "xdg_data_home"],
+    ["XDG_CACHE_HOME", "xdg_cache_home"],
+  ]) {
+    assert.equal(process.env[variable], path.join(runtime, name));
+    assert.equal(await realpath(process.env[variable]), process.env[variable]);
+  }
+  const profile = path.join(process.env.XDG_CACHE_HOME, "external-browser-profile");
+  // Qualification paths are controlled; never interpolate desktop-entry metacharacters.
+  assert.match(profile, /^\/[A-Za-z0-9_./-]+$/u);
+  await mkdir(profile, { mode: 0o700 });
+  const applications = path.join(process.env.XDG_DATA_HOME, "applications");
+  await mkdir(applications, { mode: 0o700 });
+  const desktop = path.join(applications, "portcove-qualification-browser.desktop");
+  const association = path.join(process.env.XDG_CONFIG_HOME, "mimeapps.list");
+  await writeFile(
+    desktop,
+    `[Desktop Entry]\nType=Application\nName=Portcove isolated qualification browser\nExec=/usr/bin/google-chrome --ozone-platform=x11 --user-data-dir=${profile} --no-first-run --no-default-browser-check --remote-debugging-port=0 --log-net-log=${profile}/network.json --net-log-max-size-mb=4 --net-log-duration=10 %u\nMimeType=x-scheme-handler/https;\nTerminal=false\n`,
+    { flag: "wx", mode: 0o600 },
+  );
+  await writeFile(
+    association,
+    "[Default Applications]\nx-scheme-handler/https=portcove-qualification-browser.desktop;\n",
+    { flag: "wx", mode: 0o600 },
+  );
+  assert.equal(
+    execFileSync("/usr/bin/xdg-mime", ["query", "default", "x-scheme-handler/https"], {
+      encoding: "utf8",
+      timeout: 5000,
+    }).trim(),
+    "portcove-qualification-browser.desktop",
+  );
+  return {
+    profile,
+    networkLog: path.join(profile, "network.json"),
+    identities: await Promise.all(
+      [
+        "/usr/bin/xdg-open",
+        "/usr/bin/xdg-mime",
+        await realpath("/usr/bin/google-chrome"),
+        "/opt/google/chrome/chrome",
+        desktop,
+        association,
+      ].map(fileIdentity),
+    ),
+  };
+}
+
+async function observeLinuxApprovedLink({
+  browser,
+  invoke,
+  library,
+  observations,
+  externalBrowser,
+}) {
+  assert.ok(externalBrowser, "Isolated real browser preparation required");
+  const record = (observations.approvedExternalLink = {
+    url: "https://github.com/boburning/portcove",
+    identities: externalBrowser.identities,
+    networkLog: externalBrowser.networkLog,
+  });
+  record.before = await readyMainContext({ browser, invoke, library });
+  record.windowsBefore = await invoke("plugin:window|get_all_windows");
+  assert.equal(record.windowsBefore.ok, true);
+  const deadline = Date.now() + 15_000;
+  record.request = await invoke("open_external_url", { url: record.url });
+  assert.equal(record.request.ok, true);
+  let ownedBrowser;
+  try {
+    let endpoint;
+    while (!endpoint) {
+      assert.ok(
+        Date.now() < deadline,
+        "Actual browser observer was not ready within the startup budget",
+      );
+      try {
+        endpoint = chromeObserverEndpoint(
+          await readFile(path.join(externalBrowser.profile, "DevToolsActivePort"), "utf8"),
+        );
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+    const { chromium } = await import("playwright");
+    ownedBrowser = await chromium.connectOverCDP(endpoint, {
+      timeout: Math.max(1, deadline - Date.now()),
+    });
+    while (
+      !ownedBrowser
+        .contexts()
+        .flatMap((context) => context.pages())
+        .some((page) => page.url() === record.url)
+    ) {
+      assert.ok(
+        Date.now() < deadline,
+        "Approved destination was not observed in the real external browser",
+      );
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    record.actualBrowserVersion = ownedBrowser.version();
+    record.actualPageUrl = ownedBrowser
+      .contexts()
+      .flatMap((context) => context.pages())
+      .find((page) => page.url() === record.url)
+      .url();
+    record.after = await readyMainContext({ browser, invoke, library });
+    assert.deepEqual(record.after, record.before);
+    record.windowsAfter = await invoke("plugin:window|get_all_windows");
+    assert.equal(record.windowsAfter.ok, true);
+    assert.deepEqual([...record.windowsAfter.value].sort(), [...record.windowsBefore.value].sort());
+    record.interpretation =
+      "Actual browser tab destination under an isolated desktop association/profile; not the host's ordinary default-browser configuration or network content health.";
+  } finally {
+    if (ownedBrowser) await ownedBrowser.close();
+  }
+}
+
+export function assertLocalMainUrl(value, platform = process.platform) {
+  const url = new URL(value);
+  assert.ok(["win32", "linux"].includes(platform), "Qualified native boundary platform required");
+  assert.equal(url.protocol, platform === "linux" ? "tauri:" : "http:");
+  assert.equal(url.hostname, platform === "linux" ? "localhost" : "tauri.localhost");
+  assert.equal(url.port, "");
+  assert.equal(url.username, "");
+  assert.equal(url.password, "");
+}
+
+export async function verifyLinuxPackageEvidence(file, revision, executable, root) {
+  assert.ok(file && path.isAbsolute(file));
+  const manifest = JSON.parse(await readFile(file, "utf8"));
+  assert.equal(manifest.revision, revision);
+  assert.deepEqual(manifest.build_command, ["pnpm", "tauri", "build", "--bundles", "deb"]);
+  assert.deepEqual(manifest.qualification_features, []);
+  assert.equal(manifest.execution_context, "extracted-deb-payload");
+  assert.deepEqual(
+    manifest.configuration.map((entry) => entry.path),
+    [
+      path.join(root, "apps/desktop/src-tauri/tauri.conf.json"),
+      path.join(root, "apps/desktop/src-tauri/Cargo.toml"),
+    ],
+  );
+  const identities = [await fileIdentity(file)];
+  for (const binding of [
+    manifest.package,
+    manifest.extraction_evidence,
+    ...manifest.configuration,
+  ]) {
+    assert.ok(path.isAbsolute(binding.path));
+    const identity = await fileIdentity(binding.path);
+    assert.equal(identity.sha256, binding.sha256, "Linux package input changed");
+    assert.equal(identity.bytes, binding.bytes);
+    identities.push(identity);
+  }
+  const receipt = JSON.parse(await readFile(manifest.extraction_evidence.path, "utf8"));
+  assert.equal(receipt.exit_code, 0);
+  assert.equal(receipt.package_sha256, manifest.package.sha256);
+  assert.deepEqual(receipt.command, [
+    "dpkg-deb",
+    "--extract",
+    manifest.package.path,
+    receipt.payload_root,
+  ]);
+  assert.ok(path.isAbsolute(receipt.payload_root));
+  assert.equal(executable.path, path.join(receipt.payload_root, "usr/bin/portcove-desktop"));
+  assert.equal(receipt.executable_sha256, executable.sha256);
+  assert.equal((await fileIdentity(executable.path)).sha256, executable.sha256);
+  return { manifest, receipt, identities, execution_context: manifest.execution_context };
+}
 
 export async function createOriginBoundaryFixture() {
   const requests = [];
@@ -139,7 +331,14 @@ export async function verifyNormalPackageEvidence(file, revision, executable, ro
   assert.ok(file && path.isAbsolute(file), "Normal package evidence requires an absolute path");
   const manifest = JSON.parse(await readFile(file, "utf8"));
   assert.equal(manifest.revision, revision, "Package source must match the current candidate");
-  assert.deepEqual(manifest.build_command, ["pnpm", "tauri", "build", "--bundles", "nsis"]);
+  assert.deepEqual(manifest.build_command, [
+    "pnpm",
+    "--dir",
+    "apps/desktop",
+    "desktop:build",
+    "--bundles",
+    "nsis",
+  ]);
   assert.deepEqual(manifest.qualification_features, []);
   const identities = [await fileIdentity(file)];
   for (const binding of [
@@ -208,6 +407,7 @@ export async function normalPackageBoundaryScenario({
   output,
   artifacts,
   packageEvidence,
+  externalBrowser,
 }) {
   const observations = { package: packageEvidence };
   const requests = [];
@@ -234,7 +434,7 @@ export async function normalPackageBoundaryScenario({
   });
   try {
     const initialUrl = await browser.getCurrentUrl();
-    assert.equal(new URL(initialUrl).origin, "http://tauri.localhost");
+    assertLocalMainUrl(initialUrl);
     await browser.manage().setTimeouts({ script: 10_000, pageLoad: 10_000 });
     await assertMainWebviewAccess({ browser, invoke, library, observations });
     await assertReviewedLinkRefusals({ browser, invoke, library, observations });
@@ -256,11 +456,19 @@ export async function normalPackageBoundaryScenario({
     );
     assert.ok(observations.assets.length > 0);
     assert.ok(
-      observations.assets.every((source) => new URL(source).origin === new URL(initialUrl).origin),
+      observations.assets.every((source) => {
+        const asset = new URL(source),
+          main = new URL(initialUrl);
+        return asset.protocol === main.protocol && asset.host === main.host;
+      }),
     );
     const fixtureUrl = `http://127.0.0.1:${server.address().port}/untrusted`;
     phase = "frame-csp";
     await assertRemoteFrameCsp({ browser, invoke, library, fixtureUrl, observations });
+    if (process.platform === "linux") {
+      phase = "approved-external-browser";
+      await observeLinuxApprovedLink({ browser, invoke, library, observations, externalBrowser });
+    }
     phase = "main-containment";
     await assertMainWebviewContainment({
       browser,
@@ -292,10 +500,14 @@ export async function normalPackageBoundaryScenario({
     observations.nativePermissionDenials = diagnostics.filter(
       (entry) => entry.fields.operation_id === "webview-permission",
     );
-    assert.ok(
-      observations.nativePermissionDenials.length > 0,
-      "Actual native permission denial is required",
-    );
+    if (process.platform === "win32")
+      assert.ok(
+        observations.nativePermissionDenials.length > 0,
+        "Actual native permission denial is required",
+      );
+    else
+      observations.nativePermissionInterpretation =
+        "Linux engine/API outcomes are recorded separately; Windows COM denial callbacks are inapplicable.";
     // WebView2 NavigationStarting cancellation preserves the page but explicitly
     // permits a speculative GET while the host responds. Do not claim network silence.
   } finally {
@@ -356,7 +568,7 @@ async function assertReviewedLinkRefusals({ browser, invoke, library, observatio
     const record = { ...request };
     observations.reviewedLinkRefusals.push(record);
     record.before = await context();
-    assert.equal(new URL(record.before.url).origin, "http://tauri.localhost");
+    assertLocalMainUrl(record.before.url);
     record.result = await invoke(request.command, request.args);
     assert.equal(record.result.ok, false, "Unreviewed link must be refused");
     assert.equal(record.result.error?.code, request.expected.code, "Require the actual link guard");
@@ -413,7 +625,7 @@ async function captureSecondaryContext({ browser, invoke, library }) {
 
 function assertSecondaryMainContext(snapshot) {
   assert.deepEqual(snapshot.readFailures, {}, "Require every actual native context observation");
-  assert.equal(new URL(snapshot.context.url).origin, "http://tauri.localhost");
+  assertLocalMainUrl(snapshot.context.url);
   assert.deepEqual(snapshot.windows, { ok: true, value: ["main"] });
   assert.deepEqual(snapshot.webviews, {
     ok: true,
@@ -606,28 +818,122 @@ export async function assertMainWebviewContainment({
   });
   assert.equal(observations.cspInline.executed, false);
   assert.equal(observations.cspInline.blockedUri, "inline");
-  observations.permissionRequests = await browser.executeAsyncScript((done) => {
-    Promise.all([
-      Notification.requestPermission().then((value) => ["notifications", value]),
-      new Promise((resolve) =>
-        navigator.geolocation.getCurrentPosition(
-          () => resolve(["geolocation", "unexpected-grant"]),
-          (error) => resolve(["geolocation", { code: error.code }]),
-          { timeout: 5000 },
+  try {
+    observations.permissionRequests = await browser.executeAsyncScript((done) => {
+      const kinds = ["notifications", "geolocation", "media"];
+      const progress = Object.fromEntries(kinds.map((kind) => [kind, "pending"]));
+      window.__portcovePermissionProgress = progress;
+      Promise.all(
+        [
+          Notification.requestPermission().then((value) => ["notifications", value]),
+          new Promise((resolve) =>
+            navigator.geolocation.getCurrentPosition(
+              () => resolve(["geolocation", "unexpected-grant"]),
+              (error) => resolve(["geolocation", { code: error.code }]),
+              { timeout: 5000 },
+            ),
+          ),
+          navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then(
+            (stream) => {
+              stream.getTracks().forEach((track) => track.stop());
+              return ["media", "unexpected-grant"];
+            },
+            (error) => ["media", { name: error.name }],
+          ),
+        ].map((request, index) =>
+          request.then(
+            (entry) => {
+              const value = entry[1];
+              const outcome =
+                typeof value === "string"
+                  ? value
+                  : kinds[index] === "geolocation"
+                    ? `code-${value?.code}`
+                    : value?.name;
+              progress[kinds[index]] = [
+                "denied",
+                "default",
+                "granted",
+                "unexpected-grant",
+                "code-1",
+                "code-2",
+                "code-3",
+                "NotAllowedError",
+                "OverconstrainedError",
+                "NotFoundError",
+                "NotReadableError",
+                "AbortError",
+                "SecurityError",
+                "InvalidStateError",
+                "NotSupportedError",
+                "TypeError",
+              ].includes(outcome)
+                ? outcome
+                : "unclassified";
+              return entry;
+            },
+            (error) => {
+              progress[kinds[index]] = "rejected";
+              throw error;
+            },
+          ),
         ),
-      ),
-      navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then(
-        (stream) => {
-          stream.getTracks().forEach((track) => track.stop());
-          return ["media", "unexpected-grant"];
-        },
-        (error) => ["media", { name: error.name }],
-      ),
-    ]).then((entries) => done(Object.fromEntries(entries)));
-  });
+      ).then((entries) => done(Object.fromEntries(entries)));
+    });
+  } catch (original) {
+    // Read-only failure diagnostics cannot supply acceptance or replace the failure.
+    let timer;
+    const deadline = new Error("Permission progress readback deadline");
+    try {
+      const requests = await Promise.race([
+        browser.executeScript(() => {
+          const progress = window.__portcovePermissionProgress;
+          const allowed = [
+            "pending",
+            "rejected",
+            "denied",
+            "default",
+            "granted",
+            "unexpected-grant",
+            "code-1",
+            "code-2",
+            "code-3",
+            "NotAllowedError",
+            "OverconstrainedError",
+            "NotFoundError",
+            "NotReadableError",
+            "AbortError",
+            "SecurityError",
+            "InvalidStateError",
+            "NotSupportedError",
+            "TypeError",
+            "unclassified",
+          ];
+          return Object.fromEntries(
+            ["notifications", "geolocation", "media"].map((kind) => {
+              const outcome = progress?.[kind];
+              return [kind, allowed.includes(outcome) ? outcome : "unclassified"];
+            }),
+          );
+        }),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(deadline), 1000);
+        }),
+      ]);
+      observations.permissionRequestDiagnostic = { status: "captured", requests };
+    } catch (error) {
+      observations.permissionRequestDiagnostic = {
+        status: "unavailable",
+        reason: error === deadline ? "deadline" : "read-error",
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+    throw original;
+  }
   assert.equal(observations.permissionRequests.notifications, "denied");
   assert.equal(observations.permissionRequests.geolocation.code, 1);
-  assert.equal(observations.permissionRequests.media.name, "NotAllowedError");
+  assert.notEqual(observations.permissionRequests.media, "unexpected-grant");
   const diagnosticPath = path.join(library, "logs", "portcove-desktop.jsonl");
   const navigationRefusals = async () =>
     (await readFile(diagnosticPath, "utf8"))
@@ -640,13 +946,35 @@ export async function assertMainWebviewContainment({
           entry.fields.webview_label === "main",
       );
   observations.navigationRefusals = [];
-  const inactiveAlias = new URL(initialUrl);
-  inactiveAlias.protocol = inactiveAlias.protocol === "http:" ? "https:" : "http:";
+  observations.navigationRequests = [];
+  const inactiveAlias =
+    process.platform === "linux"
+      ? new URL(new URL(initialUrl).pathname, "http://tauri.localhost")
+      : new URL(initialUrl);
+  if (process.platform !== "linux")
+    inactiveAlias.protocol = inactiveAlias.protocol === "http:" ? "https:" : "http:";
   for (const destination of [fixtureUrl, inactiveAlias.href]) {
     onNavigation(destination);
     const previous = (await navigationRefusals()).length;
-    await browser.get(destination);
-    const deadline = Date.now() + 10_000;
+    const request = {
+      destination,
+      trigger: process.platform === "linux" ? "page-location" : "webdriver-get",
+    };
+    observations.navigationRequests.push(request);
+    let deadline;
+    if (process.platform === "linux") {
+      deadline = Date.now() + 10_000;
+      request.scheduled = await browser.executeScript((url) => {
+        setTimeout(() => {
+          window.location.href = url;
+        }, 0);
+        return true;
+      }, destination);
+      assert.equal(request.scheduled, true, "Navigation scheduling acknowledgement is required");
+    } else {
+      await browser.get(destination);
+      deadline = Date.now() + 10_000;
+    }
     while ((await navigationRefusals()).length <= previous) {
       if (Date.now() >= deadline)
         throw new Error("New navigation refusal was not observed by the native host");
@@ -662,4 +990,7 @@ export async function assertMainWebviewContainment({
   }
   observations.mainNavigatedUrl = await browser.getCurrentUrl();
   assert.equal(observations.mainNavigatedUrl, initialUrl);
+  // Constraint rejection can precede permission handling on a device-less host.
+  // Collect independent navigation evidence before retaining the strict failure.
+  assert.equal(observations.permissionRequests.media.name, "NotAllowedError");
 }

@@ -546,6 +546,13 @@ test("direct just recipes initialize a fresh checkout and preserve storage overr
   const root = workspace(t);
   for (const name of ["run-viteplus.mjs", "viteplus-cli.mjs"])
     copyFileSync(new URL(`./${name}`, import.meta.url), path.join(root, "scripts", name));
+  // This storage/recipe fixture runs only the fixed inert vp probe below.
+  // Resolve the real wrapper's import, and refuse any unexpected heavy route;
+  // resource-command controls and native observations own actual admission.
+  writeFileSync(
+    path.join(root, "scripts/resource-command.mjs"),
+    'export const resourceEntrypoint=()=>{throw new Error("Storage fixture unexpectedly requested heavy admission");};',
+  );
   copyFileSync(new URL("../justfile", import.meta.url), path.join(root, "justfile"));
   mkdirSync(path.join(root, "apps/desktop"), { recursive: true });
   writeFileSync(
@@ -823,7 +830,13 @@ test(
       `
 $ErrorActionPreference = "Stop"
 $previousTemp = $env:TEMP
-function pnpm { if ($args[0] -eq '--version') { '12.11.2' }; $global:LASTEXITCODE = 0 }
+function pnpm {
+    if ($args[0] -eq '--version') {
+        $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot "package.json") -Raw | ConvertFrom-Json
+        $manifest.packageManager -replace '^pnpm@', '' -replace '\\+.*$', ''
+    }
+    $global:LASTEXITCODE = 0
+}
 function just {
     if ($env:TEMP -ne (Join-Path $PSScriptRoot "scratch")) { throw "Wrong temporary path" }
     if ($env:pnpm_config_store_dir -ne (Join-Path $PSScriptRoot "store")) { throw "Wrong pnpm store" }

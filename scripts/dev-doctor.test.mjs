@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnCommand } from "./dev-storage.mjs";
 import {
   collectProfileDoctor,
   probeTool,
@@ -241,6 +242,19 @@ console.log(${JSON.stringify(version)});
     frontendDependenciesAvailable: () => true,
     storage: {},
     pnpmDefinition: () => ({ ...pnpmDefinition(version), command: [shim, "--version"] }),
+    // Full frontend profiles need the containment compiler; this pnpm-only
+    // acquisition fixture observes a declared compiler without provisioning it.
+    run(command, args, options) {
+      assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
+      if (command === "rustc") {
+        assert.deepEqual(args, ["--version"]);
+        const { rust } = JSON.parse(
+          readFileSync(new URL("../.github/quality-tools.json", import.meta.url), "utf8"),
+        );
+        return { status: 0, stdout: `rustc ${rust.channel}` };
+      }
+      return spawnCommand(command, args, options);
+    },
   };
   for (const warm of [false, true]) {
     if (warm) writeFileSync(runtime, "verified warm fixture");
@@ -466,13 +480,16 @@ test("requested profile stays failed when one capability is missing; observation
     run(command, args, options) {
       commands.push([command, args]);
       assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
-      return { status: 0, stdout: "24.21.0" };
+      return { status: 0, stdout: command === "rustc" ? "1.98.1" : "24.21.0" };
     },
   });
   assert.equal(report.ok, false);
   assert.equal(report.tools.find((tool) => tool.id === "pnpm").status, "unavailable");
   assert.equal(report.tools.find((tool) => tool.id === "node").status, "ok");
-  assert.equal(commands.length, 1);
+  assert.deepEqual(
+    commands.map(([command]) => command),
+    [process.execPath, ...(["linux", "win32"].includes(process.platform) ? ["rustc"] : [])],
+  );
 });
 
 test("native Windows profile observes installed compiler paths while ordinary validation stays unverified", async () => {

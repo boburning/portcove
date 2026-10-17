@@ -809,17 +809,19 @@ Write-SelectionPhase 'complete'
 'hwnd-contract-passed'
 `,
     );
+    // Include PowerShell/Roslyn compilation within the unchanged 30-second test bound.
+    const invocationTimeout = 25_000;
     const started = performance.now();
     const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
       encoding: "utf8",
       windowsHide: true,
-      timeout: 15_000,
+      timeout: invocationTimeout,
     });
     t.diagnostic(
       JSON.stringify({
         observation: "instrumented HWND selection invocation; not original-cause proof",
         elapsed_ms: performance.now() - started,
-        timeout_ms: 15000,
+        timeout_ms: invocationTimeout,
         status: result.status,
         signal: result.signal,
         error: result.error?.code ?? null,

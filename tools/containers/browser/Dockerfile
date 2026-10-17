@@ -2,7 +2,7 @@ FROM ghcr.io/voidzero-dev/vite-plus:1.2.0@sha256:72da2a35e67d6d73fb5110466ee2174
 
 ARG SOURCE_COMMIT
 ARG SOURCE_TREE
-ENV CI=true VP_GIT_HOOKS=0
+ENV CI=true PORTCOVE_CONTAINER_GUEST=1 VP_GIT_HOOKS=0
 USER root
 RUN mkdir /workspace /portcove && chown vp:vp /workspace /portcove
 COPY --chown=vp:vp source.bundle /portcove/source.bundle
