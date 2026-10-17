@@ -29,6 +29,32 @@ const executableNames = {
   "preparation-tool": "baseline-tool.exe",
 };
 
+void test("publication interruption is standalone, instrumented and positively supervised", () => {
+  const id = "native-host-publication-recovery";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "host-publication");
+  assert.equal(plan.fixtures.install, true);
+  assert.equal(plan.fixtures.owned, true);
+  assert.equal(plan.fixtures.holdFirstDownload, false);
+  assert.deepEqual(plan.build.qualificationFeatures, ["qualification-fixtures"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  assert.ok(
+    plan.receiptInputs.some(
+      (input) =>
+        input.kind === "file" &&
+        input.path === "apps/desktop/scripts/desktop-host-publication-test.mts",
+    ),
+  );
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }));
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/,
+  );
+});
+
 void test("selected completion captures and verifies its serialized focus observer source", async (t) => {
   const source = "apps/desktop/scripts/desktop-completion-focus.mts";
   for (const platform of ["win32", "linux"] as const) {
@@ -208,6 +234,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-preliminary-selected-setup",
             "native-linux-packaged-webview-boundary",
             "native-late-listener-disposal",
+            "native-host-publication-recovery",
           ].includes(id),
       ),
     });
@@ -475,6 +502,7 @@ void test("qualified reviews and a running setup restart reject missing or forei
   const end = source.indexOf("function captureBackupFocusCleanup(", start);
   assert(start >= 0 && end > start);
   for (const { scenario, outcome = "passed", requireQualified = false } of [
+    { scenario: "native-host-publication-recovery" },
     { scenario: "native-reviewed-backup-restore-and-delete" },
     { scenario: "native-preliminary-source-review" },
     { scenario: "native-selected-setup-completion", outcome: "running", requireQualified: true },

@@ -1134,6 +1134,34 @@ The curated profiles are:
 - `full`: smoke, owned lifecycle and artwork. It remains a curated native suite,
   not universal desktop, physical-device, gameplay or human qualification.
 
+`--scenario native-host-publication-recovery` is a standalone instrumented Windows
+journey at existing Core install, restore and whole-library move checkpoints. It
+uses the existing `qualification-fixtures` build feature; ordinary builds keep
+`NoLifecycleFaults` and do not read checkpoint controls. The harness owns a fresh
+`.qualification-lifecycle` directory beside its library, outside every transfer
+payload. Its bounded, nonce-bound `armed.json` selects one exact canonical-equivalent
+library root and one finite checkpoint. Core publishes an exclusive observation
+marker, then waits at most 120 seconds for an explicit matching release; invalid
+controls, collisions and expired waits fail qualification. The marker cannot
+authorize operation recovery or process termination.
+
+The four cases observe install Prepared, install payload Published, restore
+Prepared and whole-library move Published. Install payload publication precedes
+SQLite registration; it is not a post-database-commit crash. Each case independently
+matches its real journal/phase and current application identity before forcing
+only the captured app tree to exit, without deleting the WebDriver session or
+requesting graceful shutdown. Positive application and remaining-driver joins
+precede control disarming and fresh startup. Assertions cover committed install
+identity, original data and archives, verified restore plus its safety backup,
+the move's recovery gate and offered Resume action, one redirected writable
+library, and preservation of newer destination saves across repeated recovery.
+The opt-in harness budget is 600 seconds instead of the generic single-scenario
+180 seconds to contain four bounded checkpoints, joins and fresh hosts. Product
+cancellation, shutdown, lock and network deadlines remain unchanged. The separate
+Core import Published observer is not executed by these four cases. These are
+instrumented fixture process-loss observations, not OS shutdown, installed-release
+or Linux qualification; preserve failed or incomplete captures separately.
+
 `--scenario native-late-listener-disposal` is a standalone Windows qualification
 of actual native operation-listener lifetime during one live Core preparation.
 After a renderer reload, two UI-reviewed owned-folder selections have only their

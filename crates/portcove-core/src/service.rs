@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
+#[cfg(any(test, not(feature = "qualification-fixtures")))]
+use crate::operation::NoLifecycleFaults;
 use crate::{
     ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, AdapterRegistry,
     BackupProblemKind, BackupRecord, Catalog, ChildProcessPolicy, CompositeReleaseProvider,
@@ -31,7 +33,7 @@ use crate::{
     definition_eligibility::DefinitionOperationContext,
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
-        LifecyclePhase, NoLifecycleFaults, OperationStore,
+        LifecyclePhase, OperationStore,
     },
     path::refuse_symlink_ancestors,
 };
@@ -273,6 +275,10 @@ impl PortcoveService {
     pub fn new_read_only(library: Library) -> Result<Self> {
         let releases = Arc::new(CompositeReleaseProvider::for_library(&library)?);
         let (catalog, catalog_provenance) = library.load_catalog()?;
+        #[cfg(feature = "qualification-fixtures")]
+        let faults = crate::qualification_checkpoint::faults(library.root());
+        #[cfg(not(feature = "qualification-fixtures"))]
+        let faults = Arc::new(NoLifecycleFaults);
         Ok(Self {
             cancellation_owner: Uuid::new_v4().to_string(),
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
@@ -281,7 +287,7 @@ impl PortcoveService {
             library,
             releases,
             adapters: AdapterRegistry,
-            faults: Arc::new(NoLifecycleFaults),
+            faults,
         })
     }
 
@@ -297,6 +303,10 @@ impl PortcoveService {
         releases: Arc<dyn ReleaseProvider>,
     ) -> Result<Self> {
         let (catalog, catalog_provenance) = library.load_catalog()?;
+        #[cfg(feature = "qualification-fixtures")]
+        let faults = crate::qualification_checkpoint::faults(library.root());
+        #[cfg(not(feature = "qualification-fixtures"))]
+        let faults = Arc::new(NoLifecycleFaults);
         Ok(Self {
             cancellation_owner: Uuid::new_v4().to_string(),
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
@@ -305,7 +315,7 @@ impl PortcoveService {
             library,
             releases,
             adapters: AdapterRegistry,
-            faults: Arc::new(NoLifecycleFaults),
+            faults,
         })
     }
 
