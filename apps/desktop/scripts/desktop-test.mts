@@ -101,6 +101,8 @@ import {
   nativeGameFileFolderPicker,
 } from "./desktop-native-confirmation.mts";
 import { installScenarios } from "./desktop-install-test.mts";
+import { hostPublicationScenario } from "./desktop-host-publication-test.mts";
+import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mts";
 import { catalogUpdateScenario } from "./desktop-catalog-update-test.mts";
 import { defaultCoverScenario } from "./desktop-default-cover-test.mts";
@@ -123,6 +125,7 @@ import type {
   NativeExitObservation,
   NativeStopObservation,
   NativeProcessSnapshot,
+  CapturedNativeProcess,
 } from "./desktop-owned-native-session.mts";
 type LinuxLaunch = Awaited<ReturnType<typeof launchLinuxNativeSession>>;
 type LinuxCleanup = Awaited<ReturnType<LinuxLaunch["stop"]>>;
@@ -225,6 +228,9 @@ const {
 } = executionPlan.session;
 const savedLibraryRecoverySession =
   bootstrapRecoverySession || librarySwitchRecoverySession || preferencesRecoverySession;
+const hostPublicationSession = selection.selected_scenarios.includes(
+  "native-host-publication-recovery",
+);
 if (selection.prerequisites.includes("owned-fixture") && !values["preparation-cli"])
   throw new Error("Selected fixture scenarios require the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533)
@@ -517,6 +523,7 @@ function validateBackupFocusInventory(captured: NativeProcessSnapshot, requireQu
         [
           "native-real-prepared-runtime",
           "native-reviewed-backup-restore-and-delete",
+          "native-host-publication-recovery",
           "native-game-update-review",
           "native-selected-setup-completion",
           "native-preliminary-source-review",
@@ -565,7 +572,10 @@ function captureBackupFocusCleanup(evidenceName = cleanupName) {
     "Missing initial owned driver identity; refuse unchecked cleanup",
   );
   const suffix =
-    hostInterruptionSession || ordinaryCloseSession || savedLibraryRecoverySession
+    hostInterruptionSession ||
+    ordinaryCloseSession ||
+    savedLibraryRecoverySession ||
+    hostPublicationSession
       ? `-${driver.pid}`
       : "";
   const original = path.join(output, `${evidenceName}-final-processes${suffix}.json`);
@@ -1379,8 +1389,8 @@ async function restartApplication(
     await connect();
     return driverBrowser();
   }
-  if (savedLibraryRecoverySession || selectedSetupRestart) {
-    if (!preferencesRecoverySession)
+  if (savedLibraryRecoverySession || selectedSetupRestart || hostPublicationSession) {
+    if (!preferencesRecoverySession && !hostPublicationSession)
       assert.equal(
         prepareWhileStopped,
         undefined,
@@ -1450,6 +1460,86 @@ function captureLivePreparation(preparationExecutable: string) {
   // Preserve final cleanup's independent current inventory; the worker may
   // legitimately exit after this immutable live checkpoint.
   return { snapshot, ...captured };
+}
+
+async function interruptCheckpointHost(
+  name: string,
+  assertHeld: (application: CapturedNativeProcess) => Promise<void>,
+  afterStopped: () => Promise<void>,
+  bootstrapRecovery: boolean,
+  restartLibrary?: string,
+) {
+  assert.ok(hostPublicationSession && process.platform === "win32");
+  const report: Record<string, unknown> = {
+    name,
+    shutdown_request: "forced-owned-application-only-without-session-delete-or-graceful-handler",
+    started_at: new Date().toISOString(),
+  };
+  try {
+    const inventory = captureBackupFocusCleanup();
+    const captured = readNativeProcessSnapshot(JSON.parse(await readFile(inventory, "utf8")));
+    validateBackupFocusInventory(captured, true);
+    const matches = (file: string) =>
+      captured.processes.filter(
+        (entry) => path.resolve(entry.path).toLowerCase() === path.resolve(file).toLowerCase(),
+      );
+    const apps = matches(application);
+    const parents = matches(nativeDriverPath);
+    assert.equal(apps.length, 1);
+    assert.equal(parents.length, 1);
+    const app = required(apps[0]);
+    const parent = required(parents[0]);
+    const appInventory = path.join(output, `${name}-direct-application.json`);
+    const snapshot = observeNativeSession("SnapshotApplication", appInventory, {
+      applicationPid: app.pid,
+      parentPid: parent.pid,
+      sha256: (await fileIdentity(application)).sha256,
+    });
+    artifacts.push(appInventory);
+    assert.deepEqual(snapshot.driver, app);
+    report.live_application = snapshot;
+    await assertHeld(app);
+    report.application_stop = observeNativeSession("StopApplication", appInventory);
+    report.application_exit = observeNativeSession("Wait", appInventory);
+    // Only after the independently observed app exit may the driver be ended.
+    // Never delete its WebDriver session as a substitute for forced host loss.
+    browser = undefined;
+    stopBackupFocusDriver();
+    report.remaining_driver_cleanup = ownedSession.requireQuiescence();
+    driver = undefined;
+    await afterStopped();
+    report.fixture_disarmed_after_quiescence = true;
+    if (restartLibrary !== undefined) {
+      assert.equal(
+        path.resolve(restartLibrary),
+        path.resolve(output, "published-import-destination"),
+      );
+      const directory = await lstat(restartLibrary);
+      assert.ok(directory.isDirectory() && !directory.isSymbolicLink());
+      publicationRestartRoot = restartLibrary;
+      report.restart_library_root = restartLibrary;
+    }
+    await startDriver();
+    await connectObservedDriver();
+    const current = driverBrowser();
+    await current.manage().setTimeouts({ script: 15_000 });
+    await current.wait(
+      until.elementLocated(
+        By.css(bootstrapRecovery ? ".bootstrap-error" : 'nav[aria-label="Primary navigation"]'),
+      ),
+      30_000,
+    );
+    connectedLaunches++;
+    report.reconnected_at = new Date().toISOString();
+    return current;
+  } catch (error) {
+    report.failure = errorMessage(error);
+    throw error;
+  } finally {
+    const file = path.join(output, `${name}-forced-host-loss.json`);
+    await writeFile(file, JSON.stringify(report, null, 2), { flag: "wx" });
+    artifacts.push(file);
+  }
 }
 
 async function interruptApplication(
@@ -1615,8 +1705,9 @@ interface RestartObservation {
 function observeNativeSession<Mode extends NativeSessionMode>(
   mode: Mode,
   snapshot: string,
+  identity?: { applicationPid: number; parentPid: number; sha256: string },
 ): NativeSessionObservations[Mode] {
-  const driverProcessId = mode === "Wait" ? 0 : required(driver).pid;
+  const driverProcessId = identity?.applicationPid ?? (mode === "Wait" ? 0 : required(driver).pid);
   const result = spawnCommand(
     "pwsh",
     [
@@ -1631,6 +1722,14 @@ function observeNativeSession<Mode extends NativeSessionMode>(
       application,
       "-SnapshotPath",
       snapshot,
+      ...(identity
+        ? [
+            "-ExpectedParentProcessId",
+            String(identity.parentPid),
+            "-ExpectedApplicationSha256",
+            identity.sha256,
+          ]
+        : []),
     ],
     { encoding: "utf8", windowsHide: true, timeout: 10_000 },
   );
@@ -1642,6 +1741,7 @@ function captureBackupFocusDriverLaunch(launchStarted: number) {
   const child = required(driver);
   const suffix =
     hostInterruptionSession ||
+    hostPublicationSession ||
     ordinaryCloseSession ||
     savedLibraryRecoverySession ||
     selection.selected_scenarios.includes("native-real-prepared-runtime") ||
@@ -1676,6 +1776,7 @@ async function driverReady() {
   }
 }
 
+let publicationRestartRoot: string | undefined;
 function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
@@ -1691,7 +1792,16 @@ function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
     ...(selection.prerequisites.includes("steam-fixture")
       ? { PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE: "closed" }
       : {}),
-    PORTCOVE_LIBRARY: library,
+    PORTCOVE_LIBRARY: hostPublicationSession ? (publicationRestartRoot ?? library) : library,
+    ...(hostPublicationSession
+      ? {
+          PORTCOVE_QUALIFICATION_CHECKPOINT: path.join(
+            output,
+            ".qualification-lifecycle",
+            "armed.json",
+          ),
+        }
+      : {}),
     PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
     PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(output, "application-updates.json"),
     PORTCOVE_APPLICATION_UPDATE_SCHEDULE: path.join(output, "application-update-schedule.json"),
@@ -2187,6 +2297,31 @@ try {
     await writeFile(record, JSON.stringify(historyInventory, null, 2), { flag: "wx" });
     artifacts.push(record);
   }
+  await scenario("native-host-publication-recovery", async () => {
+    const fixture = required(installFixture);
+    await hostPublicationScenario({
+      browser: driverBrowser(),
+      output,
+      library,
+      artifacts,
+      fixture,
+      command: ownedFixtureCommand({
+        cli: required(values["preparation-cli"]),
+        library,
+        output,
+        catalogPath: fixture.catalogPath,
+      }),
+      invoke,
+      confirmNative: nativeConfirmation({
+        application,
+        getDriverPid: () => required(required(driver).pid),
+        output,
+        artifacts,
+      }),
+      restartApplication,
+      interruptHost: interruptCheckpointHost,
+    });
+  });
   await scenario("native-real-prepared-runtime", async () => {
     const pickerContext = {
       application,

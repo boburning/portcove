@@ -106,6 +106,17 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-host-publication-recovery",
+    "Instrumented Windows app-only loss at install, restore and whole-library publication boundaries.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "install-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-host-publication-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-real-prepared-runtime",
     "Two reviewed real prepared runtimes use normal Desktop registration, launch and registration-only removal.",
     {
@@ -719,6 +730,11 @@ export function resolveDesktopSelection({
   if (uniqueRequested.includes("native-external-runtime-review") && uniqueRequested.length !== 1)
     throw new Error("native-external-runtime-review requires one exact standalone scenario");
   if (
+    uniqueRequested.includes("native-host-publication-recovery") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-host-publication-recovery requires one standalone Windows scenario");
+  if (
     uniqueRequested.includes("native-real-prepared-runtime") &&
     (uniqueRequested.length !== 1 || platform !== "win32")
   )
@@ -796,6 +812,8 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // Five checkpoints, positive host/driver joins and fresh starts; harness only.
+  if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;
   const ordinary = executed > 8 ? 10 * 60_000 : 3 * 60_000;
   const cacheConditions = selection.selected_scenarios.includes(

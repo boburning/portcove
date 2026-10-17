@@ -31,7 +31,17 @@ impl PortcoveService {
         destination: &Path,
         expected_plan: &str,
     ) -> Result<LibraryImportResult> {
-        start_import(metadata, content, destination, expected_plan, &|_| Ok(()))
+        start_import(metadata, content, destination, expected_plan, &|phase| {
+            #[cfg(feature = "qualification-fixtures")]
+            if phase == TransferPhase::Published {
+                return crate::qualification_checkpoint::observe(
+                    destination,
+                    crate::qualification_checkpoint::Checkpoint::LibraryImportPublished,
+                );
+            }
+            let _ = phase;
+            Ok(())
+        })
     }
 
     pub fn resume_library_import(destination: &Path) -> Result<LibraryImportResult> {

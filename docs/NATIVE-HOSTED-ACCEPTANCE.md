@@ -66,11 +66,11 @@ waiver, merge authority, replacement release gate or permission change.
 
 ## Slice 3 Windows recovery fixtures
 
-Slice 3's fixed `slice3-windows-recovery` manual operation observes two
-separately pinned source/scenario pairs on public standard `windows-2022`:
-host publication recovery and rejected listener registration. Direct preparation
-recovery already passed in run `39062807000`; its retained receipt remains
-separate and this batch does not repeat it. The workflow controller and application
+Slice 3's fixed `slice3-windows-recovery` manual operation observes the remaining
+host-publication source/scenario pair on public standard `windows-2022`.
+Direct preparation recovery passed in run `39062807000` and rejected listener
+registration passed in run `39067493732`; their independently reviewed receipts
+remain separate and this operation does not repeat them. The workflow controller and application
 source remain separate recorded identities. There is no caller-supplied source,
 scenario or command.
 Each isolated job checks the interactive session before provisioning, installs

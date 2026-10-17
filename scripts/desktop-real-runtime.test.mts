@@ -36,6 +36,7 @@ void test("real runtime restarts retain distinct exclusive driver launch receipt
     ownedSession,
     cleanupName: "real-prepared-runtime",
     hostInterruptionSession: false,
+    hostPublicationSession: false,
     ordinaryCloseSession: false,
     savedLibraryRecoverySession: false,
     selection: { selected_scenarios: ["native-real-prepared-runtime"] },

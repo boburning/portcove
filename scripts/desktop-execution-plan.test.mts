@@ -64,6 +64,33 @@ void test("real prepared runtimes use production builds and positive owned closu
   );
 });
 
+void test("publication interruption is standalone, instrumented and positively supervised", () => {
+  const id = "native-host-publication-recovery";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "host-publication");
+  assert.deepEqual(plan.build.cliFeatures, ["portcove-core/qualification-fixtures"]);
+  assert.equal(plan.fixtures.install, true);
+  assert.equal(plan.fixtures.owned, true);
+  assert.equal(plan.fixtures.holdFirstDownload, false);
+  assert.deepEqual(plan.build.qualificationFeatures, ["qualification-fixtures"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 720_000);
+  assert.ok(
+    plan.receiptInputs.some(
+      (input) =>
+        input.kind === "file" &&
+        input.path === "apps/desktop/scripts/desktop-host-publication-test.mts",
+    ),
+  );
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }));
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/,
+  );
+});
+
 void test("selected completion captures and verifies its serialized focus observer source", async (t) => {
   const source = "apps/desktop/scripts/desktop-completion-focus.mts";
   for (const platform of ["win32", "linux"] as const) {
@@ -244,6 +271,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-linux-packaged-webview-boundary",
             "native-direct-preparation-recovery",
             "native-late-listener-disposal",
+            "native-host-publication-recovery",
             "native-real-prepared-runtime",
             "native-linux-interrupted-preparation",
             "native-rejected-listener-registration",
@@ -551,6 +579,7 @@ void test("qualified reviews and a running setup restart reject missing or forei
   const end = source.indexOf("function captureBackupFocusCleanup(", start);
   assert(start >= 0 && end > start);
   for (const { scenario, outcome = "passed", requireQualified = false } of [
+    { scenario: "native-host-publication-recovery" },
     { scenario: "native-real-prepared-runtime" },
     { scenario: "native-reviewed-backup-restore-and-delete" },
     { scenario: "native-preliminary-source-review" },
@@ -920,4 +949,165 @@ void test("Linux interruption is standalone, production-featured and retains nam
     assert.ok(
       !resolveDesktopSelection({ profile, platform: "linux" }).selected_scenarios.includes(id),
     );
+});
+
+void test("publication repeat callback requires the complete owned native quiescence join", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function restartApplication(");
+  const end = source.indexOf("// Interrupt only this harness", start);
+  assert.ok(start >= 0 && end > start);
+  for (const refusesExit of [false, true]) {
+    const events: string[] = [];
+    const exitFailure = new Error("owned native inventory has not fully exited");
+    const restart = callable(
+      runInNewContext(`${source.slice(start, end)}; restartApplication`, {
+        linuxSelectedSession: false,
+        savedLibraryRecoverySession: false,
+        cleanupName: "host-publication",
+        hostPublicationSession: true,
+        preferencesRecoverySession: false,
+        assert,
+        required: (value: unknown) => value,
+        output: "/owned/output",
+        path,
+        artifacts: [],
+        browser: {
+          quit: async () => {
+            events.push("quit");
+          },
+        },
+        captureBackupFocusCleanup: () => {
+          events.push("capture");
+          return "/owned/inventory.json";
+        },
+        readFile: async () => "{}",
+        readNativeProcessSnapshot: (value: unknown) => value,
+        validateBackupFocusInventory: () => {
+          events.push("validate");
+        },
+        stopBackupFocusDriver: () => {
+          events.push("stop");
+        },
+        ownedSession: {
+          requireQuiescence: () => {
+            events.push("join");
+            if (refusesExit) throw exitFailure;
+            return {};
+          },
+        },
+        startDriver: async () => {
+          events.push("start");
+        },
+        connect: async () => {
+          events.push("connect");
+        },
+        driverBrowser: () => ({}),
+        writeFile: async () => {},
+      }),
+    );
+    const execute = async () =>
+      restart("published-move-repeat", async () => {
+        events.push("callback");
+      });
+    if (refusesExit) {
+      await assert.rejects(execute(), (error) => error === exitFailure);
+      assert.deepEqual(events, ["capture", "validate", "quit", "stop", "join"]);
+    } else {
+      await execute();
+      assert.deepEqual(events, [
+        "capture",
+        "validate",
+        "quit",
+        "stop",
+        "join",
+        "callback",
+        "start",
+        "connect",
+      ]);
+    }
+  }
+});
+
+void test("publication redirected backup containment accepts Windows path aliases and rejects escapes", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-host-publication-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("    move.result.redirected_write = redirectedWrite;");
+  const end = source.indexOf("    await assertIdentity(newer);", start);
+  assert.ok(start >= 0 && end > start);
+  const guard = source.slice(start, end);
+  const destination = String.raw`E:\owned\published-move-destination`;
+  const child = path.win32.join(destination, "backups", "port", "backup-id");
+  const run = async (root: string, candidate: string, canonicalCandidate = candidate) => {
+    const observations: string[] = [];
+    const move = { result: {} };
+    await runInNewContext(`(async()=>{${guard}})()`, {
+      assert,
+      path: path.win32,
+      destination: root,
+      redirectedWrite: { path: candidate },
+      move,
+      realpath: async (value: string) => {
+        observations.push(value);
+        return value === root ? root : canonicalCandidate;
+      },
+    });
+    assert.deepEqual(observations, [root, candidate]);
+    return move;
+  };
+  for (const root of [destination, path.win32.toNamespacedPath(destination)]) {
+    for (const candidate of [child, path.win32.toNamespacedPath(child)]) await run(root, candidate);
+    for (const candidate of [
+      destination,
+      String.raw`E:\owned\published-move-destination-other\backup`,
+      String.raw`E:\owned\outside\backup`,
+      String.raw`H:\outside\backup`,
+    ]) {
+      for (const value of [candidate, path.win32.toNamespacedPath(candidate)])
+        await assert.rejects(run(root, value));
+    }
+    await assert.rejects(run(root, child, String.raw`H:\outside\backup`));
+  }
+});
+
+void test("publication import readback derives the expected payload from physical Windows aliases", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-host-publication-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("    const exportedRelative = path.relative(");
+  const end = source.indexOf("    await writeFile(importedSave,", start);
+  assert.ok(start >= 0 && end > start);
+  const guard = source.slice(start, end);
+  const destination = String.raw`E:\owned\published-move-destination`;
+  const importRoot = String.raw`E:\owned\published-import-destination`;
+  const suffix = path.win32.join("versions", "port", "payload");
+  const child = path.win32.join(destination, suffix);
+  const imported = path.win32.toNamespacedPath(path.win32.join(importRoot, suffix));
+  const run = async (exported: string, actual = imported) =>
+    runInNewContext(`(async()=>{${guard}})()`, {
+      assert,
+      path: path.win32,
+      destination,
+      importRoot,
+      exportedInstallation: { path: exported },
+      importedInstallation: { path: actual },
+      realpath: async (value: string) => value,
+      samePath: (a: string, b: string) =>
+        path.win32.toNamespacedPath(a).toLowerCase() ===
+        path.win32.toNamespacedPath(b).toLowerCase(),
+    });
+  await run(child);
+  await run(path.win32.toNamespacedPath(child));
+  for (const escaped of [
+    destination,
+    String.raw`E:\owned\published-move-destination-other\payload`,
+    String.raw`H:\outside\payload`,
+  ])
+    await assert.rejects(run(escaped));
+  await assert.rejects(run(child, String.raw`E:\owned\wrong-import\payload`));
 });
