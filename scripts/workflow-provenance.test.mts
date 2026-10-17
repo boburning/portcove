@@ -1614,7 +1614,7 @@ void test("manual local-check transport preserves the audit and has no mutable e
   assert.ok(audit);
   assert.match(
     audit,
-    /uses: actions\/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6\n {8}with:\n {10}python-version: "3\.12"/,
+    /uses: actions\/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7\n {8}with:\n {10}python-version: "3\.12"/,
   );
   assert.ok(audit.indexOf("actions/setup-python@") < audit.indexOf("just audit --fresh"));
   assert.match(workflow, /contents: read/);
