@@ -1,6 +1,47 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import legacy from "../crates/portcove-core/catalog/catalog-schema1-fixture.json" with { type: "json" };
+import type {
+  SourceRepresentation,
+  SourceIdentityProfile,
+  SourceVariant,
+  DigestIdentity,
+  DigestScope,
+  PortSourceContract,
+  SourceRequirementPresentation,
+  PortPresentation,
+  SourceProfile,
+  SourceMemberProfile,
+} from "../apps/desktop/src/transport-types.generated.d.ts";
+
+type LegacyProfile = (typeof legacy.source_profiles)[number];
+type LegacyHashes = Partial<Pick<SourceProfile, "accepted_sha1" | "accepted_sha256">> & {
+  id?: string;
+  label?: string;
+};
+type LegacyMember = Pick<SourceMemberProfile, "id"> &
+  Partial<Pick<SourceMemberProfile, "accepted_sha1" | "accepted_sha256" | "accepted_crc32">>;
+interface ReviewedSource {
+  evidenceId: string;
+  repository: string;
+  ref: string;
+  tag: string;
+  liveRef: string;
+  path: string;
+  reviewedAt?: string;
+}
+interface PresentationInput {
+  id: string;
+  summary: string;
+  adapter: string;
+  source_profile?: string | null;
+  bios_source_profile?: string | null;
+}
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error("Missing frozen migration relationship");
+  return value;
+}
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const catalogPath = join(
@@ -10,14 +51,6 @@ const catalogPath = join(
   "catalog",
   "catalog-schema2-migration-fixture.json",
 );
-const fixturePath = join(
-  root,
-  "crates",
-  "portcove-core",
-  "catalog",
-  "catalog-schema1-fixture.json",
-);
-const legacy = JSON.parse(readFileSync(fixturePath, "utf8"));
 if (legacy.schema_version !== 1) throw new Error("schema-1 fixture is not schema 1");
 
 const portcoveEvidence = "alpha1-schema1-source-contracts";
@@ -168,7 +201,7 @@ const reviewedSources = {
   },
 };
 
-function upstreamEvidence(source, claim) {
+function upstreamEvidence(source: ReviewedSource, claim: string) {
   return {
     id: source.evidenceId,
     role: "upstream_support",
@@ -433,7 +466,12 @@ const evidence = [
   },
 ];
 
-function digest(scope, sha1, sha256, crc32) {
+function digest(
+  scope: DigestScope,
+  sha1?: string,
+  sha256?: string,
+  crc32?: string,
+): DigestIdentity {
   return {
     scope,
     sha1: sha1 ?? null,
@@ -442,7 +480,7 @@ function digest(scope, sha1, sha256, crc32) {
   };
 }
 
-function legacyIdentities(profile, scope) {
+function legacyIdentities(profile: LegacyHashes, scope: DigestScope) {
   const sha1 = profile.accepted_sha1 ?? [];
   const sha256 = profile.accepted_sha256 ?? [];
   if (sha1.length === 1 && sha256.length === 1) return [digest(scope, sha1[0], sha256[0])];
@@ -458,14 +496,14 @@ function legacyIdentities(profile, scope) {
   ];
 }
 
-function memberIdentities(member) {
+function memberIdentities(member: LegacyMember) {
   const sha1 = member.accepted_sha1 ?? [];
   const sha256 = member.accepted_sha256 ?? [];
   const crc32 = member.accepted_crc32 ?? [];
   if (sha1.length <= 1 && sha256.length <= 1 && crc32.length <= 1) {
     return [digest("file-set-member", sha1[0], sha256[0], crc32[0])];
   }
-  if ((sha1.length > 0) + (sha256.length > 0) + (crc32.length > 0) > 1) {
+  if (Number(sha1.length > 0) + Number(sha256.length > 0) + Number(crc32.length > 0) > 1) {
     throw new Error(`cannot infer file-set digest pairing for ${member.id}`);
   }
   return [
@@ -475,7 +513,7 @@ function memberIdentities(member) {
   ];
 }
 
-function representation(profile) {
+function representation(profile: LegacyProfile): SourceRepresentation {
   const extensions = (profile.accepted_extensions ?? []).map((value: string) =>
     value.toLowerCase(),
   );
@@ -484,7 +522,7 @@ function representation(profile) {
       id: "file-set",
       extensions,
       kind: "file-set",
-      members: profile.members.map((member) => ({
+      members: (profile.members ?? []).map((member) => ({
         id: member.id,
         label: member.label,
         filenames: member.accepted_filenames,
@@ -513,7 +551,7 @@ function representation(profile) {
           id: `disc-${index + 1}`,
           label: disc.label,
           track_counts: disc.track_counts,
-          volume_ids: disc.accepted_volume_ids ?? [],
+          volume_ids: "accepted_volume_ids" in disc ? disc.accepted_volume_ids : [],
           identities: legacyIdentities(disc, "disc-set-member"),
         })),
         evidence_ids: [portcoveEvidence],
@@ -523,7 +561,7 @@ function representation(profile) {
       id: "normalized-track-set",
       extensions,
       kind: "optical-track-set",
-      track_counts: profile.disc.track_counts,
+      track_counts: required(profile.disc ?? undefined).track_counts,
       identities: legacyIdentities(profile, "psx-normalized-track-set"),
       evidence_ids:
         profile.id === "bomberman-party-edition-psx"
@@ -577,43 +615,45 @@ function representation(profile) {
   };
 }
 
-const identities = legacy.source_profiles.map((profile) => {
-  const rep = representation(profile);
-  const informational = rep.kind === "informational-extension";
-  return {
-    id: profile.id,
-    label: profile.label,
-    kind:
-      profile.kind === "file-set"
-        ? "file-set"
-        : profile.kind === "gamecube-disc" ||
-            profile.kind === "psx-disc" ||
-            profile.kind === "upstream-validated-disc"
-          ? "optical-disc"
-          : profile.id === "sotn-xbla"
-            ? "compound"
-            : "file",
-    variants: [
-      {
-        id: "legacy-accepted",
-        title: profile.label,
-        region: null,
-        revision: null,
-        product_codes: [],
-        representations: [rep],
-        evidence_ids:
-          profile.id === "bomberman-party-edition-psx"
-            ? [portcoveEvidence, bombermanEvidence]
-            : [portcoveEvidence],
-      },
-    ],
-    aliases: [],
-    tombstones: [],
-    evidence_gap: informational ? rep.evidence_gap : null,
-  };
-});
+const identities: SourceIdentityProfile[] = legacy.source_profiles.map(
+  (profile): SourceIdentityProfile => {
+    const rep = representation(profile);
+    const informational = rep.kind === "informational-extension";
+    return {
+      id: profile.id,
+      label: profile.label,
+      kind:
+        profile.kind === "file-set"
+          ? "file-set"
+          : profile.kind === "gamecube-disc" ||
+              profile.kind === "psx-disc" ||
+              profile.kind === "upstream-validated-disc"
+            ? "optical-disc"
+            : profile.id === "sotn-xbla"
+              ? "compound"
+              : "file",
+      variants: [
+        {
+          id: "legacy-accepted",
+          title: profile.label,
+          region: null,
+          revision: null,
+          product_codes: [],
+          representations: [rep],
+          evidence_ids:
+            profile.id === "bomberman-party-edition-psx"
+              ? [portcoveEvidence, bombermanEvidence]
+              : [portcoveEvidence],
+        },
+      ],
+      aliases: [],
+      tombstones: [],
+      evidence_gap: informational ? rep.evidence_gap : null,
+    };
+  },
+);
 
-const paperBoatProfile = {
+const paperBoatProfile: SourceIdentityProfile = {
   id: "paperboat-paper-mario-us",
   label: "Paper Mario (North America) source",
   kind: "file",
@@ -652,7 +692,11 @@ const paperMarioIndex = identities.findIndex((profile) => profile.id === "paper-
 if (paperMarioIndex < 0) throw new Error("missing Paper Mario migration anchor");
 identities.splice(paperMarioIndex + 1, 0, paperBoatProfile);
 
-function canonicalN64Representation(id, hashes, evidenceId) {
+function canonicalN64Representation(
+  id: string,
+  hashes: { sha1?: string; sha256?: string }[],
+  evidenceId: string,
+): SourceRepresentation {
   return {
     id,
     extensions: ["z64", "n64", "v64"],
@@ -662,7 +706,15 @@ function canonicalN64Representation(id, hashes, evidenceId) {
   };
 }
 
-function n64Variant(id, title, region, revision, hashes, evidenceId, representations) {
+function n64Variant(
+  id: string,
+  title: string,
+  region: string | null,
+  revision: string | null,
+  hashes: { sha1?: string; sha256?: string }[],
+  evidenceId: string,
+  representations?: SourceRepresentation[],
+): SourceVariant {
   return {
     id,
     title,
@@ -676,10 +728,10 @@ function n64Variant(id, title, region, revision, hashes, evidenceId, representat
   };
 }
 
-function applyReviewedVariants(profileId, variants) {
+function applyReviewedVariants(profileId: string, variants: SourceVariant[]) {
   const profile = identities.find((candidate) => candidate.id === profileId);
   if (!profile) throw new Error(`missing corrected profile ${profileId}`);
-  const legacyVariant = profile.variants[0];
+  const legacyVariant = required(profile.variants[0]);
   legacyVariant.legacy_projection_only = true;
   profile.variants = [legacyVariant, ...variants];
   profile.evidence_gap = null;
@@ -972,7 +1024,7 @@ applyReviewedVariants("banjo-kazooie", [
   ),
 ]);
 
-const shipwrightHashes = [
+const shipwrightHashes: [string, string, string, string, string][] = [
   ["pal-1-0", "PAL 1.0", "PAL", "1.0", "328a1f1beba30ce5e178f031662019eb32c5f3b5"],
   ["pal-1-1", "PAL 1.1", "PAL", "1.1", "cfbb98d392e4a9d39da8285d10cbef3974c2f012"],
   ["pal-gamecube", "PAL GameCube", "PAL", "GameCube", "0227d7c0074f2d0ac935631990da8ec5914597b4"],
@@ -1140,17 +1192,17 @@ const validators = legacy.source_profiles
   }));
 
 const profiles = new Map(identities.map((profile) => [profile.id, profile]));
-const contracts = [];
+const contracts: PortSourceContract[] = [];
 for (const port of legacy.ports) {
   for (const [role, field] of [
     ["game", "source_profile"],
     ["bios", "bios_source_profile"],
-  ]) {
+  ] as const) {
     const profileId = port[field];
     if (!profileId) continue;
     const profile = profiles.get(profileId);
     if (!profile) throw new Error(`${port.id} references missing ${profileId}`);
-    const rep = profile.variants[0].representations[0];
+    const rep = required(required(profile.variants[0]).representations[0]);
     const informational = rep.kind === "informational-extension";
     const validator = rep.kind === "pinned-validator" ? rep.validator_contract_id : null;
     contracts.push({
@@ -1177,7 +1229,7 @@ for (const port of legacy.ports) {
   }
 }
 
-const paperBoatContract = {
+const paperBoatContract: PortSourceContract = {
   id: "paperboat-game-source",
   port_id: "paperboat",
   role: "game",
@@ -1395,7 +1447,12 @@ contracts.push({
   tombstones: [],
 });
 
-function reviewContract(portId, source, supportedVariantIds, extraEvidenceIds = []) {
+function reviewContract(
+  portId: string,
+  source: ReviewedSource,
+  supportedVariantIds: string[],
+  extraEvidenceIds: string[] = [],
+) {
   const contract = contracts.find(
     (candidate) => candidate.port_id === portId && candidate.role === "game",
   );
@@ -1506,7 +1563,7 @@ drMarioContract.applicability = [
   },
 ];
 
-const installationMethods = {
+const installationMethods: Record<string, PortPresentation["installation_method"]> = {
   "libultraship-portable": "portable-package",
   "n64-recomp-portable": "portable-recompilation",
   "staged-source-portable": "staged-game-files",
@@ -1516,7 +1573,7 @@ const installationMethods = {
   "psx-recomp-managed": "managed-recompilation",
 };
 
-const normalizedSummaries = {
+const normalizedSummaries: Record<string, string> = {
   "dkr-r": "Native Diddy Kong Racing recompilation.",
   "extreme-g-recompiled": "Native Extreme-G recompilation.",
   "bomberman-fantasy-race-recompiled": "Native Bomberman Fantasy Race recompilation.",
@@ -1578,7 +1635,11 @@ const normalizedSummaries = {
   "ape-escape-recompiled": "Native Ape Escape recompilation.",
 };
 
-function sourceRequirement(port, role, field) {
+function sourceRequirement(
+  port: PresentationInput,
+  role: SourceRequirementPresentation["role"],
+  field: "source_profile" | "bios_source_profile",
+): SourceRequirementPresentation | null {
   const profileId = port[field];
   if (!profileId) return null;
   const profile = profiles.get(profileId);
@@ -1601,7 +1662,7 @@ function sourceRequirement(port, role, field) {
   };
 }
 
-function withPresentation(port) {
+function withPresentation<Port extends PresentationInput>(port: Port) {
   const installationMethod = installationMethods[port.adapter];
   if (!installationMethod) throw new Error(`missing installation method for ${port.adapter}`);
   return {
@@ -1612,13 +1673,13 @@ function withPresentation(port) {
       source_requirements: [
         sourceRequirement(port, "game", "source_profile"),
         sourceRequirement(port, "bios", "bios_source_profile"),
-      ].filter(Boolean),
+      ].filter((item): item is SourceRequirementPresentation => item !== null),
       saves_and_settings: "portcove-managed",
     },
   };
 }
 
-const linuxAssetHints = {
+const linuxAssetHints: Record<string, string> = {
   "zelda64-recomp": "Linux-X64.zip",
   "banjo-recomp": "Linux-X64.",
   "bm64-recomp": "Linux-X64-Release",
@@ -2168,9 +2229,9 @@ const migrated = {
                 ...port,
                 // v0.5.7 separates player data and launcher caches unless portable mode is
                 // explicit. Remember user selections and ignore only reproducible outputs.
-                persistent_paths: [...port.persistent_paths, "disc.cfg", "bios.cfg"],
+                persistent_paths: [...required(port.persistent_paths), "disc.cfg", "bios.cfg"],
                 runtime_mutable_paths: [
-                  ...port.runtime_mutable_paths,
+                  ...required(port.runtime_mutable_paths),
                   "disc_verified.cfg",
                   "diagnostics/psx_freeze_heartbeat.json",
                 ],
@@ -2184,7 +2245,11 @@ const migrated = {
                   ...port,
                   // The managed runtime creates these player selections and disposable
                   // reports after the frozen schema-1 catalog was recorded.
-                  persistent_paths: [...port.persistent_paths, "input.ini", "keybinds.ini"],
+                  persistent_paths: [
+                    ...required(port.persistent_paths),
+                    "input.ini",
+                    "keybinds.ini",
+                  ],
                   runtime_mutable_paths: [
                     ...(port.runtime_mutable_paths ?? []),
                     "bios.cfg",
@@ -2197,13 +2262,13 @@ const migrated = {
                 ? {
                     ...port,
                     persistent_paths: [
-                      ...port.persistent_paths,
+                      ...required(port.persistent_paths),
                       "keybinds.ini",
                       "disc.cfg",
                       "bios.cfg",
                     ],
                     runtime_mutable_paths: [
-                      ...port.runtime_mutable_paths,
+                      ...required(port.runtime_mutable_paths),
                       "psx_freeze_heartbeat.json",
                     ],
                   }

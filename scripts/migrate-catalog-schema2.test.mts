@@ -1,26 +1,28 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import legacy from "../crates/portcove-core/catalog/catalog-schema1-fixture.json" with { type: "json" };
+import migrated from "../crates/portcove-core/catalog/catalog-schema2-migration-fixture.json" with { type: "json" };
+function identities(value: object): unknown {
+  assert.ok("identities" in value, "Expected an identity-bearing representation");
+  return value.identities;
+}
+function requiredFixture<T>(value: T): NonNullable<T> {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const catalogRoot = join(root, "crates", "portcove-core", "catalog");
 
-test("historical schema-2 migration is deterministic and preserves the frozen schema-1 projection", () => {
+void test("historical schema-2 migration is deterministic and preserves the frozen schema-1 projection", () => {
   const result = spawnSync(process.execPath, ["scripts/migrate-catalog-schema2.mts", "--check"], {
     cwd: root,
     encoding: "utf8",
   });
   assert.equal(result.status, 0, result.stderr);
 
-  const legacy = JSON.parse(
-    readFileSync(join(catalogRoot, "catalog-schema1-fixture.json"), "utf8"),
-  );
-  const migrated = JSON.parse(
-    readFileSync(join(catalogRoot, "catalog-schema2-migration-fixture.json"), "utf8"),
-  );
   assert.equal(migrated.schema_version, 2);
   assert.equal("source_profiles" in migrated, false);
   assert.equal(migrated.source_catalog.identities.length, legacy.source_profiles.length + 8);
@@ -34,11 +36,24 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
     ) + 8,
   );
 
-  const profile = (id) => migrated.source_catalog.identities.find((item) => item.id === id);
-  const contract = (portId) =>
-    migrated.source_catalog.contracts.find(
-      (item) => item.port_id === portId && item.role === "game",
+  type FrozenProfile = (typeof migrated.source_catalog.identities)[number];
+  type FrozenVariant = FrozenProfile["variants"][number];
+  const variants = (profile: FrozenProfile): FrozenVariant[] => profile.variants;
+  const profile = (id: string) => {
+    const found = requiredFixture(
+      migrated.source_catalog.identities.find((item) => item.id === id),
     );
+    return { ...found, variants: variants(found) };
+  };
+  const contract = (portId: string) => {
+    const found = requiredFixture(
+      migrated.source_catalog.contracts.find(
+        (item) => item.port_id === portId && item.role === "game",
+      ),
+    );
+    const supported_variant_ids: string[] = found.supported_variant_ids;
+    return { ...found, supported_variant_ids };
+  };
   assert.deepEqual(
     profile("ghostship-source")
       .variants.slice(1)
@@ -65,23 +80,35 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
   }
   assert.deepEqual(contract("snap64-recomp").supported_variant_ids, ["usa-rev0"]);
   assert.deepEqual(contract("paperboat").supported_variant_ids, ["north-america"]);
-  assert.deepEqual(profile("paperboat-paper-mario-us").variants[0].representations[0].identities, [
-    {
-      scope: "canonical-n64-big-endian",
-      sha1: "3837f44cda784b466c9a2d99df70d77c322b97a0",
-      sha256: null,
-      crc32: null,
-    },
-  ]);
-  const paperBoat = migrated.ports.find((port) => port.id === "paperboat");
+  assert.deepEqual(
+    identities(
+      requiredFixture(
+        requiredFixture(profile("paperboat-paper-mario-us").variants[0]).representations[0],
+      ),
+    ),
+    [
+      {
+        scope: "canonical-n64-big-endian",
+        sha1: "3837f44cda784b466c9a2d99df70d77c322b97a0",
+        sha256: null,
+        crc32: null,
+      },
+    ],
+  );
+  const paperBoat = requiredFixture(migrated.ports.find((port) => port.id === "paperboat"));
   assert.equal(paperBoat.presentation.installation_method, "generated-game-data");
   assert.deepEqual(paperBoat.setup_output_paths, ["pm64.o2r", "torch.hash.yml"]);
-  assert.equal(paperBoat.persistent_paths.includes("pm64.o2r"), false);
-  assert.equal(paperBoat.persistent_paths.includes("saves"), true);
-  assert.equal(profile("pokemon-snap").variants[0].representations[0].kind, "canonical-n64");
+  assert.equal(requiredFixture(paperBoat.persistent_paths).includes("pm64.o2r"), false);
+  assert.equal(requiredFixture(paperBoat.persistent_paths).includes("saves"), true);
+  assert.equal(
+    requiredFixture(requiredFixture(profile("pokemon-snap").variants[0]).representations[0]).kind,
+    "canonical-n64",
+  );
   assert.deepEqual(contract("cvlod-recomp").supported_variant_ids, ["north-america"]);
   assert.equal(
-    profile("castlevania-legacy-of-darkness").variants[0].representations[0].kind,
+    requiredFixture(
+      requiredFixture(profile("castlevania-legacy-of-darkness").variants[0]).representations[0],
+    ).kind,
     "canonical-n64",
   );
   assert.deepEqual(contract("diddy-kong-racing-golden-balloon").supported_variant_ids, [
@@ -92,8 +119,8 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
     profile("diddy-kong-racing-golden-balloon").variants.map((item) => item.id),
     ["usa-rev1", "europe-rev1"],
   );
-  const goldenBalloon = migrated.ports.find(
-    (port) => port.id === "diddy-kong-racing-golden-balloon",
+  const goldenBalloon = requiredFixture(
+    migrated.ports.find((port) => port.id === "diddy-kong-racing-golden-balloon"),
   );
   assert.deepEqual(goldenBalloon.platforms, ["windows-x86-64"]);
   assert.equal(goldenBalloon.runtime_subdirectory, "GoldenBalloon");
@@ -112,7 +139,7 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
       "GoldenBalloon/mdkr64-online-failure.txt",
     ],
   );
-  assert.equal(goldenBalloon.launch_environment.MDKR_APP_PREFS_DIR, ".");
+  assert.equal(requiredFixture(goldenBalloon.launch_environment).MDKR_APP_PREFS_DIR, ".");
   assert.deepEqual(goldenBalloon.launch_arguments, ["--rom", "dkr-v80.z64"]);
   assert.deepEqual(contract("star-fox-enhanced").supported_variant_ids, ["usa-v1-0"]);
   const starFoxProfile = profile("star-fox-enhanced-usa-v1-0");
@@ -120,19 +147,24 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
     starFoxProfile.variants.map((item) => item.id),
     ["usa-v1-0"],
   );
-  assert.deepEqual(starFoxProfile.variants[0].representations[0].identities, [
-    {
-      scope: "normalized-content",
-      sha1: "1f5355534ccfaf26ae6c8f055f3e4768f9d72a7e",
-      sha256: "3857b5294ea8f7468849437bb2d8271564e8a0ff30774622e9c872bcbd53a84d",
-      crc32: null,
-    },
-  ]);
-  const starFoxEnhanced = migrated.ports.find((port) => port.id === "star-fox-enhanced");
+  assert.deepEqual(
+    identities(requiredFixture(requiredFixture(starFoxProfile.variants[0]).representations[0])),
+    [
+      {
+        scope: "normalized-content",
+        sha1: "1f5355534ccfaf26ae6c8f055f3e4768f9d72a7e",
+        sha256: "3857b5294ea8f7468849437bb2d8271564e8a0ff30774622e9c872bcbd53a84d",
+        crc32: null,
+      },
+    ],
+  );
+  const starFoxEnhanced = requiredFixture(
+    migrated.ports.find((port) => port.id === "star-fox-enhanced"),
+  );
   assert.deepEqual(starFoxEnhanced.platforms, ["windows-x86-64"]);
   assert.deepEqual(starFoxEnhanced.channels, ["beta"]);
   assert.equal(starFoxEnhanced.adapter, "staged-source-portable");
-  assert.deepEqual(starFoxEnhanced.release.asset_hints["windows-x86-64"], [
+  assert.deepEqual(requiredFixture(starFoxEnhanced.release.asset_hints)["windows-x86-64"], [
     "StarFoxEnhanced-",
     "windows-x64.zip",
   ]);
@@ -154,14 +186,17 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
     dnzhProfile.variants.map((item) => item.id),
     ["usa"],
   );
-  assert.deepEqual(dnzhProfile.variants[0].representations[0].identities, [
-    {
-      scope: "canonical-n64-big-endian",
-      sha1: "de4db292cc6cf5dd1dd1d3c9700cf8e5c3078410",
-      sha256: "5ba016567c53b0d111eb175347c6eee603c31783cd2bb3fea97f31b5ff74190f",
-      crc32: null,
-    },
-  ]);
+  assert.deepEqual(
+    identities(requiredFixture(requiredFixture(dnzhProfile.variants[0]).representations[0])),
+    [
+      {
+        scope: "canonical-n64-big-endian",
+        sha1: "de4db292cc6cf5dd1dd1d3c9700cf8e5c3078410",
+        sha256: "5ba016567c53b0d111eb175347c6eee603c31783cd2bb3fea97f31b5ff74190f",
+        crc32: null,
+      },
+    ],
+  );
   const dnzhContract = contract("duke-nukem-zero-hour-recompiled");
   assert.deepEqual(dnzhContract.supported_variant_ids, ["usa"]);
   assert.deepEqual(dnzhContract.applicability, [
@@ -170,7 +205,9 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
       artifact_sha256: "ece88320327ffc58ec73e084c23aca274a016e45dd3558a684d59c37f88bdbc3",
     },
   ]);
-  const dnzh = migrated.ports.find((port) => port.id === "duke-nukem-zero-hour-recompiled");
+  const dnzh = requiredFixture(
+    migrated.ports.find((port) => port.id === "duke-nukem-zero-hour-recompiled"),
+  );
   assert.equal(dnzh.release.provider, "gitlab");
   assert.equal(dnzh.release.repository, "sonicdcer/DNZHRecomp");
   assert.equal("version" in dnzh.release, false);
@@ -180,22 +217,28 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
   assert.equal(dnzh.portable_marker, true);
   assert.equal(dnzh.runtime_source_filename, "dnzh.us.z64");
   assert.equal(dnzh.runtime_source_materialization, "n64-big-endian");
-  assert.equal(dnzh.persistent_paths.includes("saves"), true);
-  assert.equal(dnzh.persistent_paths.includes("mod_config"), true);
+  assert.equal(requiredFixture(dnzh.persistent_paths).includes("saves"), true);
+  assert.equal(requiredFixture(dnzh.persistent_paths).includes("mod_config"), true);
   const apeEscapeProfile = profile("ape-escape-psx");
   assert.deepEqual(
     apeEscapeProfile.variants.map((item) => item.id),
     ["usa-rev0"],
   );
-  assert.deepEqual(apeEscapeProfile.variants[0].representations[0].extensions, ["chd"]);
-  assert.deepEqual(apeEscapeProfile.variants[0].representations[0].identities, [
-    {
-      scope: "psx-normalized-track-set",
-      sha1: "466cce4bcd6992f57227abd270323bcdad2fb7fc",
-      sha256: "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a",
-      crc32: null,
-    },
-  ]);
+  assert.deepEqual(
+    requiredFixture(requiredFixture(apeEscapeProfile.variants[0]).representations[0]).extensions,
+    ["chd"],
+  );
+  assert.deepEqual(
+    identities(requiredFixture(requiredFixture(apeEscapeProfile.variants[0]).representations[0])),
+    [
+      {
+        scope: "psx-normalized-track-set",
+        sha1: "466cce4bcd6992f57227abd270323bcdad2fb7fc",
+        sha256: "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a",
+        crc32: null,
+      },
+    ],
+  );
   const apeEscapeContract = contract("ape-escape-recompiled");
   assert.deepEqual(apeEscapeContract.supported_variant_ids, ["usa-rev0"]);
   assert.deepEqual(apeEscapeContract.applicability, [
@@ -204,7 +247,9 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
       artifact_sha256: "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9",
     },
   ]);
-  const apeEscape = migrated.ports.find((port) => port.id === "ape-escape-recompiled");
+  const apeEscape = requiredFixture(
+    migrated.ports.find((port) => port.id === "ape-escape-recompiled"),
+  );
   assert.equal(apeEscape.adapter, "staged-source-portable");
   assert.equal(apeEscape.runtime_source_materialization, "psx-bin-cue");
   assert.deepEqual(apeEscape.runtime_source_hashes, {
@@ -239,15 +284,21 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
     megaManX5Profile.variants.map((item) => item.id),
     ["usa-rev0"],
   );
-  assert.deepEqual(megaManX5Profile.variants[0].representations[0].extensions, ["chd"]);
-  assert.deepEqual(megaManX5Profile.variants[0].representations[0].identities, [
-    {
-      scope: "psx-normalized-track-set",
-      sha1: "10709231f857636b5ccd3cd9acebc91458dcb5fd",
-      sha256: "be731bc4b9d3211b9267a34b8a68c769199a15479b14004ff25b67cdfebe8af4",
-      crc32: null,
-    },
-  ]);
+  assert.deepEqual(
+    requiredFixture(requiredFixture(megaManX5Profile.variants[0]).representations[0]).extensions,
+    ["chd"],
+  );
+  assert.deepEqual(
+    identities(requiredFixture(requiredFixture(megaManX5Profile.variants[0]).representations[0])),
+    [
+      {
+        scope: "psx-normalized-track-set",
+        sha1: "10709231f857636b5ccd3cd9acebc91458dcb5fd",
+        sha256: "be731bc4b9d3211b9267a34b8a68c769199a15479b14004ff25b67cdfebe8af4",
+        crc32: null,
+      },
+    ],
+  );
   const megaManX5Contract = contract("mega-man-x5-recompiled");
   assert.deepEqual(megaManX5Contract.supported_variant_ids, ["usa-rev0"]);
   assert.deepEqual(megaManX5Contract.applicability, [
@@ -256,7 +307,9 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
       artifact_sha256: "3e5dfea86184cb2ff05372e012cef8d94e89119105f7a0268a14f9e24b47e590",
     },
   ]);
-  const megaManX5 = migrated.ports.find((port) => port.id === "mega-man-x5-recompiled");
+  const megaManX5 = requiredFixture(
+    migrated.ports.find((port) => port.id === "mega-man-x5-recompiled"),
+  );
   assert.equal(megaManX5.adapter, "staged-source-portable");
   assert.deepEqual(megaManX5.channels, ["beta"]);
   assert.deepEqual(megaManX5.platforms, ["windows-x86-64"]);
@@ -293,15 +346,21 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
     drMarioProfile.variants.slice(1).map((item) => item.id),
     ["usa-rev0"],
   );
-  assert.equal(drMarioProfile.variants[1].representations[0].kind, "canonical-n64");
-  assert.deepEqual(drMarioProfile.variants[1].representations[0].identities, [
-    {
-      scope: "canonical-n64-big-endian",
-      sha1: "a130d3622ce40e0158db2da4247101f6e92206fc",
-      sha256: "bb2c0dec0a8287ad256929563d0509801c2f239df883c1cf52cab05b23bd77b6",
-      crc32: null,
-    },
-  ]);
+  assert.equal(
+    requiredFixture(requiredFixture(drMarioProfile.variants[1]).representations[0]).kind,
+    "canonical-n64",
+  );
+  assert.deepEqual(
+    identities(requiredFixture(requiredFixture(drMarioProfile.variants[1]).representations[0])),
+    [
+      {
+        scope: "canonical-n64-big-endian",
+        sha1: "a130d3622ce40e0158db2da4247101f6e92206fc",
+        sha256: "bb2c0dec0a8287ad256929563d0509801c2f239df883c1cf52cab05b23bd77b6",
+        crc32: null,
+      },
+    ],
+  );
   const drMarioContract = contract("dr-mario-64-recomp");
   assert.equal(drMarioContract.admission_mode, "enforced");
   assert.deepEqual(drMarioContract.supported_variant_ids, ["usa-rev0"]);
@@ -311,11 +370,11 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
       artifact_sha256: "ba749f48725e23636845c9a79a89e17859172ac80fa7b98bf4523d12c1f0d2cf",
     },
   ]);
-  const drMario = migrated.ports.find((port) => port.id === "dr-mario-64-recomp");
+  const drMario = requiredFixture(migrated.ports.find((port) => port.id === "dr-mario-64-recomp"));
   assert.equal(drMario.project_url, "https://github.com/theboy181/drmario64_recomp_plus");
   assert.equal(drMario.support_tier, "beta");
   assert.equal(drMario.release.repository, "theboy181/drmario64_recomp_plus");
-  assert.deepEqual(drMario.release.asset_hints["windows-x86-64"], [
+  assert.deepEqual(requiredFixture(drMario.release.asset_hints)["windows-x86-64"], [
     "Dr.Mario.64.Recompiled-",
     "-Windows.zip",
   ]);
@@ -328,8 +387,8 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
     "trouble-makers-recomp": "TroubleMakers-x86_64.AppImage",
     "goemon64-recomp": "Linux-X64",
   })) {
-    const port = migrated.ports.find((candidate) => candidate.id === id);
-    assert.deepEqual(port.release.asset_hints["linux-x86-64"], [hint]);
+    const port = requiredFixture(migrated.ports.find((candidate) => candidate.id === id));
+    assert.deepEqual(requiredFixture(port.release.asset_hints)["linux-x86-64"], [hint]);
   }
   assert.deepEqual(drMario.executable_hints["windows-x86-64"], ["drmario64_recomp.exe"]);
   assert.equal(drMario.runtime_subdirectory, "Dr. Mario 64 Recompiled x64-Release");
@@ -340,10 +399,15 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
   });
   assert.deepEqual(drMario.launch_arguments, ["drmario64.us.z64"]);
   assert.equal(
-    drMario.persistent_paths.includes("Dr. Mario 64 Recompiled x64-Release/mod_config"),
+    requiredFixture(drMario.persistent_paths).includes(
+      "Dr. Mario 64 Recompiled x64-Release/mod_config",
+    ),
     true,
   );
-  assert.equal(drMario.presentation.source_requirements[0].verification, "catalog-identity");
+  assert.equal(
+    requiredFixture(drMario.presentation.source_requirements[0]).verification,
+    "catalog-identity",
+  );
   assert.equal(migrated.source_catalog.qualification.length, 18);
   const ygofmQualification = migrated.source_catalog.qualification.filter(
     (record) => record.scope.port_id === "yu-gi-oh-forbidden-memories-recompiled",
@@ -374,19 +438,19 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
     ["327626b154a45f2af52de77ab06fae54c4794ef2", "6bf60b6e0f24a1eef7a7efcfdb181a6cc2692cef"],
   );
   assert.equal(
-    ygofmAutomated[0].evidence_ids.includes(
+    requiredFixture(ygofmAutomated[0]).evidence_ids.includes(
       "yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15",
     ),
     true,
   );
   assert.equal(
-    ygofmAutomated[1].evidence_ids.includes(
+    requiredFixture(ygofmAutomated[1]).evidence_ids.includes(
       "yu-gi-oh-forbidden-memories-recompiled-windows-cross-version-2026-09-15",
     ),
     true,
   );
-  assert.match(ygofmAutomated[1].method, /v0\.5\.7-to-v0\.6\.1 update/);
-  assert.match(ygofmAutomated[1].method, /retained-version reactivation/);
+  assert.match(requiredFixture(ygofmAutomated[1]).method, /v0\.5\.7-to-v0\.6\.1 update/);
+  assert.match(requiredFixture(ygofmAutomated[1]).method, /retained-version reactivation/);
   assert.deepEqual(contract("yu-gi-oh-forbidden-memories-recompiled").applicability, [
     {
       upstream_ref: "v0.6.1",
@@ -428,9 +492,15 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
       ["revelations-persona-recompiled-windows-reinstall-2026-09-15"],
     ],
   );
-  assert.match(personaQualification[2].method, /managed removal/);
-  assert.match(personaQualification[2].method, /clean reinstall with a new identity/);
-  assert.match(personaQualification[2].method, /generated runtime-copy restoration/);
+  assert.match(requiredFixture(personaQualification[2]).method, /managed removal/);
+  assert.match(
+    requiredFixture(personaQualification[2]).method,
+    /clean reinstall with a new identity/,
+  );
+  assert.match(
+    requiredFixture(personaQualification[2]).method,
+    /generated runtime-copy restoration/,
+  );
   assert.deepEqual(contract("revelations-persona-recompiled").applicability, [
     {
       upstream_ref: "v0.1.1",
@@ -475,9 +545,9 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
     ),
     true,
   );
-  assert.match(dnzhQualification[1].method, /live GitLab resolution/);
-  assert.match(dnzhQualification[1].method, /adopted-to-downloaded update/);
-  assert.match(dnzhQualification[1].method, /removal, reinstall/);
+  assert.match(requiredFixture(dnzhQualification[1]).method, /live GitLab resolution/);
+  assert.match(requiredFixture(dnzhQualification[1]).method, /adopted-to-downloaded update/);
+  assert.match(requiredFixture(dnzhQualification[1]).method, /removal, reinstall/);
   assert.equal(
     contract("duke-nukem-zero-hour-recompiled").evidence_ids.includes(
       "duke-nukem-zero-hour-windows-lifecycle-2026-09-16",
@@ -514,9 +584,9 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
     ),
     true,
   );
-  assert.match(apeEscapeQualification[1].method, /bounded dynamic diagnostics/);
-  assert.match(apeEscapeQualification[1].method, /retained reuse/);
-  assert.match(apeEscapeQualification[1].method, /reinstall/);
+  assert.match(requiredFixture(apeEscapeQualification[1]).method, /bounded dynamic diagnostics/);
+  assert.match(requiredFixture(apeEscapeQualification[1]).method, /retained reuse/);
+  assert.match(requiredFixture(apeEscapeQualification[1]).method, /reinstall/);
   assert.equal(
     contract("ape-escape-recompiled").evidence_ids.includes(
       "ape-escape-recompiled-windows-lifecycle-2026-09-16",
@@ -553,9 +623,9 @@ test("historical schema-2 migration is deterministic and preserves the frozen sc
     ),
     true,
   );
-  assert.match(megaManX5Qualification[1].method, /bounded dynamic diagnostics/);
-  assert.match(megaManX5Qualification[1].method, /retained reuse/);
-  assert.match(megaManX5Qualification[1].method, /reinstall/);
+  assert.match(requiredFixture(megaManX5Qualification[1]).method, /bounded dynamic diagnostics/);
+  assert.match(requiredFixture(megaManX5Qualification[1]).method, /retained reuse/);
+  assert.match(requiredFixture(megaManX5Qualification[1]).method, /reinstall/);
   assert.equal(
     contract("mega-man-x5-recompiled").evidence_ids.includes(
       "mega-man-x5-recompiled-windows-lifecycle-2026-09-16",
