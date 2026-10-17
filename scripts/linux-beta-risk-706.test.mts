@@ -9,6 +9,7 @@ import {
   target706,
   decide706,
   candidate706,
+  validateApproval706,
 } from "./linux-beta-risk-706.mts";
 
 import { createHash } from "node:crypto";
@@ -52,10 +53,17 @@ const finding = {
   advisory: { id: "RUSTSEC-2024-0429", package: "glib" },
   labels: [{ span: "glib 0.18.5 registry+https://github.com/rust-lang/crates.io-index" }],
 };
-function output(errors = [finding], fields = summary) {
+function output(errors: readonly unknown[] = [finding], fields: unknown = summary) {
   return [...errors.map((fields) => ({ type: "diagnostic", fields })), { type: "summary", fields }]
-    .map(JSON.stringify)
+    .map((value) => JSON.stringify(value))
     .join("\n");
+}
+interface PublishedReleaseFixture {
+  id: number;
+  draft: boolean;
+  tag_name: string;
+  published_at: string;
+  assets: { name: string }[];
 }
 function input() {
   return {
@@ -66,8 +74,8 @@ function input() {
       lockSha256: candidate.lockSha256,
       completedAt: "2026-10-16T00:00:00.000Z",
       complete: true,
-      signal: null,
-      error: null,
+      signal: null as NodeJS.Signals | null,
+      error: null as string | null,
       exitCode: 1,
       unsoundAll: true,
       configSha256: approval.policySha256,
@@ -79,14 +87,14 @@ function input() {
       stdout: "",
       stderr: output(),
     },
-    releases: [],
+    releases: [] as PublishedReleaseFixture[],
     now: "2026-10-16T00:00:00.000Z",
     purpose: "release",
     publicationTag: "v0.1.0-beta.1",
   };
 }
 
-test("exact approved finding produces a separate decision while retaining failed scan status", () => {
+void test("exact approved finding produces a separate decision while retaining failed scan status", () => {
   const value = input(),
     before = structuredClone(value);
   const result = decide706(value);
@@ -96,9 +104,10 @@ test("exact approved finding produces a separate decision while retaining failed
   assert.deepEqual(value, before);
 });
 
-test("absent, expired, premature and out-of-scope approval cannot authorize a release", () => {
+void test("absent, expired, premature and out-of-scope approval cannot authorize a release", () => {
   for (const mutate of [
     (x) => {
+      // @ts-expect-error Deliberately missing external approval.
       x.approval = null;
     },
     (x) => {
@@ -126,17 +135,75 @@ test("absent, expired, premature and out-of-scope approval cannot authorize a re
       x.publicationTag = "v0.1.0-beta.2";
     },
     (x) => {
+      // @ts-expect-error Deliberately unallocated publication identity.
       x.approval.firstPublicationTag = null;
     },
-  ]) {
+  ] satisfies ((value: ReturnType<typeof input>) => void)[]) {
     const value = input();
     mutate(value);
     assert.throws(() => decide706(value));
   }
 });
 
-test("source/dependency drift requires reassessment; unrelated source head changes do not", () => {
-  for (const field of ["productionChanges", "reviewedHead"]) {
+void test("release decisions reject coercible scalar evidence and publication identities", async (t) => {
+  await t.test("scan timestamp", () => {
+    const value = input();
+    assert.throws(() => decide706({ ...value, scan: { ...value.scan, completedAt: [value.now] } }));
+  });
+  await t.test("approval instant", () => {
+    const value = input();
+    assert.throws(() => validateApproval706(value.approval, [value.now]));
+  });
+  await t.test("published release timestamp", () => {
+    const value = input();
+    assert.throws(() =>
+      decide706({
+        ...value,
+        releases: [
+          {
+            id: 1,
+            draft: false,
+            published_at: [value.now],
+            tag_name: value.publicationTag,
+            assets: [{ name: "Portcove_amd64.AppImage" }],
+          },
+        ],
+      }),
+    );
+  });
+  await t.test("publication tag", () => {
+    const value = input();
+    const tag = [value.publicationTag];
+    assert.throws(() =>
+      decide706({
+        ...value,
+        approval: { ...value.approval, firstPublicationTag: tag },
+        publicationTag: tag,
+      }),
+    );
+  });
+});
+
+void test("malformed published asset records cannot disappear from the release budget", () => {
+  const value = input();
+  assert.throws(() =>
+    decide706({
+      ...value,
+      releases: [
+        {
+          id: 1,
+          draft: false,
+          published_at: value.now,
+          tag_name: value.publicationTag,
+          assets: [null],
+        },
+      ],
+    }),
+  );
+});
+
+void test("source/dependency drift requires reassessment; unrelated source head changes do not", () => {
+  for (const field of ["productionChanges", "reviewedHead"] as const) {
     const value = input();
     value.candidate[field] = "e".repeat(64);
     assert.throws(() => decide706(value), /reassessment/);
@@ -147,12 +214,13 @@ test("source/dependency drift requires reassessment; unrelated source head chang
   assert.equal(decide706(value).candidate, value.candidate.head);
 });
 
-test("execution failure, wrong candidate, green/incomplete coverage and extra errors block", () => {
+void test("execution failure, wrong candidate, green/incomplete coverage and extra errors block", () => {
   for (const mutate of [
     (x) => {
       x.scan.completedAt = "2000-01-01T00:00:00Z";
     },
     (x) => {
+      // @ts-expect-error Deliberately malformed persisted timestamp.
       x.scan.completedAt = null;
     },
     (x) => {
@@ -224,14 +292,14 @@ test("execution failure, wrong candidate, green/incomplete coverage and extra er
         { ...summary, advisories: { ...summary.advisories, warnings: 1 } },
       );
     },
-  ]) {
+  ] satisfies ((value: ReturnType<typeof input>) => void)[]) {
     const value = input();
     mutate(value);
     assert.throws(() => decide706(value));
   }
 });
 
-test("all four scanner checks must complete with consistent summary accounting", () => {
+void test("all four scanner checks must complete with consistent summary accounting", () => {
   assert.equal(parseDependencyScan("", output()).errors.length, 1);
   assert.throws(() =>
     parseDependencyScan("", output() + "\n" + JSON.stringify({ type: "summary", fields: summary })),
@@ -239,7 +307,7 @@ test("all four scanner checks must complete with consistent summary accounting",
   assert.throws(() => parseDependencyScan("", output([], summary)), /mismatch/);
 });
 
-test("qualification cannot allocate a publication and the second tag is always refused", () => {
+void test("qualification cannot allocate a publication and the second tag is always refused", () => {
   const first = {
     id: 1,
     draft: false,
@@ -255,6 +323,7 @@ test("qualification cannot allocate a publication and the second tag is always r
   value.publicationTag = "v0.1.0-beta.2";
   assert.throws(() => decide706(value), /first publication tag/);
   value.purpose = "qualification";
+  // @ts-expect-error Deliberately unallocated publication identity.
   value.approval.firstPublicationTag = null;
   assert.throws(() => decide706(value), /second ordinary Linux/);
   value.releases = []; // Deleted publication still cannot authorize a different pinned tag.
@@ -262,11 +331,12 @@ test("qualification cannot allocate a publication and the second tag is always r
   assert.throws(() => decide706(value), /first publication tag/);
   value.purpose = "qualification";
   assert.throws(() => decide706(value), /purpose/);
+  // @ts-expect-error Deliberately missing complete release inventory.
   value.releases = null;
   assert.throws(() => decide706(value), /inventory/);
 });
 
-test("release source review compares the exact candidate against a named reviewed commit", (t) => {
+void test("release source review compares the exact candidate against a named reviewed commit", (t) => {
   const inheritedSha = process.env.GITHUB_SHA;
   process.env.GITHUB_SHA = candidate.head;
   t.after(() => {
@@ -280,7 +350,7 @@ test("release source review compares the exact candidate against a named reviewe
   writeFileSync(path.join(dir, "Cargo.lock"), "version = 4\n");
   const metadata = {
     packages: [
-      { id: "desktop", name: "portcove-desktop", source: null },
+      { id: "desktop", name: "portcove-desktop", version: "0.1.0-alpha.2", source: null },
       {
         id: "glib",
         name: "glib",
@@ -296,7 +366,7 @@ test("release source review compares the exact candidate against a named reviewe
     },
   };
   let changes = "";
-  const execute = (name, args) => {
+  const execute = (name: string, args: string[]) => {
     if (name === "cargo") return JSON.stringify(metadata);
     if (args[0] === "rev-parse") return candidate.head;
     if (args[0] === "status") return "";
