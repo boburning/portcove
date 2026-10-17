@@ -13,6 +13,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import {
   developmentCapabilityPlan,
   profileCapabilities,
@@ -20,7 +21,7 @@ import {
 } from "./development-capabilities.mts";
 import { selectedPrerequisites } from "./dev-doctor.mts";
 
-test("frontend and direct Core inventories are independent; daily and native are additive", async () => {
+void test("frontend and direct Core inventories are independent; daily and native are additive", async () => {
   const frontend = await developmentCapabilityPlan("frontend");
   const core = await developmentCapabilityPlan("core");
   const daily = await developmentCapabilityPlan("daily");
@@ -54,7 +55,7 @@ test("frontend and direct Core inventories are independent; daily and native are
   assert.throws(() => profileCapabilities("unknown"), /unknown development profile/);
 });
 
-test("validation consumers share the exact mapping and keep Node wrappers and fixture subsets", () => {
+void test("validation consumers share the exact mapping and keep Node wrappers and fixture subsets", () => {
   assert.equal(selectedPrerequisites, validationCapabilities);
   assert.deepEqual(selectedPrerequisites({ id: "repository-lint" }), [
     "node",
@@ -94,7 +95,7 @@ test("validation consumers share the exact mapping and keep Node wrappers and fi
   assert.ok(selectedPrerequisites({ id: "playnite-contract" }, "linux").includes("windows-host"));
 });
 
-function bootstrapFixture(t) {
+function bootstrapFixture(t: TestContext) {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove capability spaces "));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const project = path.join(directory, "checkout with spaces");
@@ -163,7 +164,7 @@ process.exit(73);
     project,
     caller: directory,
     marker,
-    run(command, args, extra = {}, cwd = project) {
+    run(command: string, args: string[], extra: NodeJS.ProcessEnv = {}, cwd = project) {
       return spawnSync(command, args, {
         cwd,
         encoding: "utf8",
@@ -184,12 +185,19 @@ process.exit(73);
       return readFileSync(log, "utf8")
         .trim()
         .split("\n")
-        .map((line) => JSON.parse(line));
+        .map((line) => {
+          const call: unknown = JSON.parse(line);
+          if (!isCommandCall(call)) throw new Error("fixture emitted an invalid command call");
+          return call;
+        });
     },
   };
 }
+function isCommandCall(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((part: unknown) => typeof part === "string");
+}
 
-test(
+void test(
   "POSIX frontend setup in a space-bearing checkout never probes Rust or Aqua",
   { skip: process.platform === "win32" },
   (t) => {
@@ -206,13 +214,13 @@ test(
       calls.map((call) => call[0]),
       ["pnpm", "pnpm", "doctor"],
     );
-    assert.deepEqual(calls[0].slice(1), ["--version"]);
-    assert.deepEqual(calls[1].slice(1), ["install", "--frozen-lockfile"]);
+    assert.deepEqual(calls[0]?.slice(1), ["--version"]);
+    assert.deepEqual(calls[1]?.slice(1), ["install", "--frozen-lockfile"]);
     assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
   },
 );
 
-test(
+void test(
   "POSIX Core warm setup selects only nextest; failed Rust acquisition preserves prior state",
   { skip: process.platform === "win32" },
   (t) => {
@@ -220,7 +228,9 @@ test(
     const result = fixture.run("bash", ["scripts/bootstrap-quality-tools.sh", "--profile", "core"]);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, "");
-    assert.ok(fixture.calls().every((call) => ["rustc", "cargo", "doctor"].includes(call[0])));
+    assert.ok(
+      fixture.calls().every((call) => ["rustc", "cargo", "doctor"].includes(call[0] ?? "")),
+    );
     assert.ok(fixture.calls().some((call) => call[0] === "cargo" && call[1] === "nextest"));
     const failed = fixture.run(
       "bash",
@@ -229,11 +239,11 @@ test(
     );
     assert.equal(failed.status, 73, failed.stderr);
     assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
-    assert.ok(!fixture.calls().some((call) => ["aqua", "pnpm"].includes(call[0])));
+    assert.ok(!fixture.calls().some((call) => ["aqua", "pnpm"].includes(call[0] ?? "")));
   },
 );
 
-test(
+void test(
   "PowerShell frontend setup selects dependencies before unrelated tools",
   { skip: spawnSync("pwsh", ["--version"], { timeout: 5000 }).status !== 0 },
   (t) => {
@@ -260,7 +270,7 @@ test(
   },
 );
 
-test(
+void test(
   "frontend pin drift fails before dependency acquisition and preserves previous state",
   { skip: process.platform === "win32" },
   (t) => {

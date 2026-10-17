@@ -1,24 +1,50 @@
-import { errorMessage } from "./runtime-values.mts";
+import { errorMessage, isRecord } from "./runtime-values.mts";
+import type { QualityManifest } from "./quality-tools.mts";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadQualityManifest } from "./quality-tools.mts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-export const developmentProfiles = Object.freeze(["frontend", "core", "daily", "native-desktop"]);
+export const developmentProfiles = Object.freeze([
+  "frontend",
+  "core",
+  "daily",
+  "native-desktop",
+] as const);
+export type DevelopmentProfile = (typeof developmentProfiles)[number];
+interface ProfileOptions {
+  platform?: string;
+  requiredTools?: readonly string[] | null;
+}
+interface CapabilityPlanOptions {
+  projectRoot?: string;
+  manifest?: QualityManifest;
+  platform?: string;
+}
+export interface ValidationCapabilityEntry {
+  id: string;
+  args?: readonly string[];
+}
+function assertDevelopmentProfile(profile: unknown): asserts profile is DevelopmentProfile {
+  if (!developmentProfiles.some((known) => known === profile))
+    throw new Error(`unknown development profile: ${String(profile)}`);
+}
+function hasRequiredTools(tools: readonly string[] | null): tools is readonly string[] {
+  return Array.isArray(tools) && tools.length > 0;
+}
 
 // Capability names describe requested work, never successful execution evidence.
 export function profileCapabilities(
-  profile,
-  { platform = process.platform, requiredTools = null } = {},
+  profile: unknown,
+  { platform = process.platform, requiredTools = null }: ProfileOptions = {},
 ) {
-  if (!developmentProfiles.includes(profile))
-    throw new Error(`unknown development profile: ${profile}`);
+  assertDevelopmentProfile(profile);
   const frontend = ["node", "pnpm", "frontend-dependencies"];
   const core = ["rustc", "cargo", "rustfmt-component", "clippy-component", "cargo-nextest"];
   if (profile === "frontend") return frontend;
   if (profile === "core") return core;
-  if (!Array.isArray(requiredTools) || requiredTools.length === 0)
+  if (!hasRequiredTools(requiredTools))
     throw new Error("daily capability selection requires the current required-tool inventory");
   const daily = [
     ...new Set([
@@ -46,7 +72,11 @@ export function profileCapabilities(
       ];
 }
 
-export async function developmentCapabilityPlan(profile, options = {}) {
+export async function developmentCapabilityPlan(
+  profile: unknown,
+  options: CapabilityPlanOptions = {},
+) {
+  assertDevelopmentProfile(profile);
   const projectRoot = options.projectRoot ?? root;
   const manifest = options.manifest ?? (await loadQualityManifest());
   const capabilities = profileCapabilities(profile, {
@@ -57,6 +87,9 @@ export async function developmentCapabilityPlan(profile, options = {}) {
   const rust = read("rust-toolchain.toml").match(/^channel\s*=\s*"([^"]+)"/mu)?.[1];
   if (rust !== manifest.rust.channel)
     throw new Error("rust-toolchain.toml drifted from quality-tools.json");
+  const repositoryPackage: unknown = JSON.parse(read("package.json"));
+  if (!isRecord(repositoryPackage) || typeof repositoryPackage.packageManager !== "string")
+    throw new Error("package.json requires its pinned packageManager identity");
   return {
     format_version: 1,
     profile,
@@ -71,14 +104,17 @@ export async function developmentCapabilityPlan(profile, options = {}) {
     },
     pins: {
       node: read(".node-version").trim(),
-      package_manager: JSON.parse(read("package.json")).packageManager,
+      package_manager: repositoryPackage.packageManager,
       rust,
       rust_components: manifest.rust.components,
     },
   };
 }
 
-export function validationCapabilities(entry, platform = process.platform) {
+export function validationCapabilities(
+  entry: ValidationCapabilityEntry,
+  platform: string = process.platform,
+) {
   const ids = new Set(["node"]);
   const rust =
     entry.id === "rustfmt" ||
@@ -121,18 +157,22 @@ export function validationCapabilities(entry, platform = process.platform) {
   }
   if (entry.id === "lint-tool-fixtures") {
     const selected = entry.args?.slice(1) ?? [];
-    const fixtures = {
-      oxfmt: ["npm-vite-plus"],
-      oxlint: ["npm-vite-plus"],
-      stylelint: ["npm-stylelint"],
-      ruff: ["ruff"],
-      shellcheck: ["shellcheck"],
-      actionlint: ["actionlint", "shellcheck"],
-      psscriptanalyzer: platform === "win32" ? ["pwsh", "psscriptanalyzer"] : [],
-    };
-    if (!selected.length || selected.some((name) => !Object.hasOwn(fixtures, name)))
+    const fixtures = new Map<string, readonly string[]>([
+      ["oxfmt", ["npm-vite-plus"]],
+      ["oxlint", ["npm-vite-plus"]],
+      ["stylelint", ["npm-stylelint"]],
+      ["ruff", ["ruff"]],
+      ["shellcheck", ["shellcheck"]],
+      ["actionlint", ["actionlint", "shellcheck"]],
+      ["psscriptanalyzer", platform === "win32" ? ["pwsh", "psscriptanalyzer"] : []],
+    ]);
+    if (!selected.length || selected.some((name) => !fixtures.has(name)))
       throw new Error("lint fixture prerequisite inventory is unavailable");
-    for (const name of selected) for (const id of fixtures[name]) ids.add(id);
+    for (const name of selected) {
+      const required = fixtures.get(name);
+      if (!required) throw new Error("lint fixture prerequisite inventory is unavailable");
+      for (const id of required) ids.add(id);
+    }
     if (["ruff", "shellcheck", "actionlint"].some((id) => ids.has(id))) ids.add("aqua-state");
   }
   if (rust && (entry.id.includes("workspace") || entry.id.includes("portcove-desktop")))
@@ -154,14 +194,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     );
   else {
     try {
-      let profile,
-        platform = process.platform;
+      let profile: string | undefined,
+        platform: string | undefined = process.platform;
       for (let index = 0; index < args.length; index++) {
         if (args[index] === "--profile") profile = args[++index];
         else if (args[index] === "--platform") platform = args[++index];
         else throw new Error(`unknown capability option: ${args[index]}`);
       }
-      if (!["win32", "linux", "darwin"].includes(platform))
+      if (!platform || !["win32", "linux", "darwin"].includes(platform))
         throw new Error(`unsupported capability platform: ${platform}`);
       console.log(JSON.stringify(await developmentCapabilityPlan(profile, { platform })));
     } catch (error) {
