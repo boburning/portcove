@@ -1,3 +1,32 @@
+import type { ChildProcess } from "node:child_process";
+import type { NativeSessionMode } from "../apps/desktop/scripts/desktop-owned-native-session.mts";
+import {
+  readNativeProcessSnapshot,
+  readNativeSessionObservation,
+} from "../apps/desktop/scripts/desktop-owned-native-session.mts";
+import { isRecord } from "./runtime-values.mts";
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function array(value: unknown): unknown[] {
+  assert.ok(Array.isArray(value));
+  return value;
+}
+function json(value: string): unknown {
+  return JSON.parse(value);
+}
+function jsonObject(value: string) {
+  return object(json(value));
+}
+function required<Value>(value: Value | null | undefined): Value {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function naturalPid(value: unknown): number {
+  assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0);
+  return value;
+}
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -15,7 +44,7 @@ const script = fileURLToPath(
 );
 const windows = { skip: process.platform !== "win32", timeout: 20_000 };
 
-test(
+void test(
   "embedded startup root exit cannot claim cleanup of later descendants",
   { ...windows, timeout: 45_000 },
   async () => {
@@ -23,7 +52,7 @@ test(
     const marker = path.join(root, "late-child.json");
     const release = path.join(root, "release-late-child");
     let session;
-    let descendant;
+    let descendant: number | null = null;
     try {
       session = await startEmbeddedInstalledSession(process.execPath, root, [
         "-e",
@@ -44,24 +73,26 @@ const gate=setInterval(()=>{
       // Establish the actual initial inventory before releasing the later
       // descendant. Host/CIM startup speed must not decide this ordering.
       session.startup = session.capture();
-      const rootExited = once(session.child, "exit");
+      const rootExited: Promise<unknown> = once(session.child, "exit");
       await writeFile(release, "initial snapshot retained");
-      let timer;
+      let timer: NodeJS.Timeout | undefined;
       try {
-        const [code] = await Promise.race([
-          rootExited,
-          new Promise((_, reject) => {
-            timer = setTimeout(
-              () => reject(new Error("Fixture root did not exit after release")),
-              5000,
-            );
-          }),
-        ]);
+        const [code] = array(
+          await Promise.race([
+            rootExited,
+            new Promise<never>((_, reject) => {
+              timer = setTimeout(
+                () => reject(new Error("Fixture root did not exit after release")),
+                5000,
+              );
+            }),
+          ]),
+        );
         assert.equal(code, 0);
       } finally {
         clearTimeout(timer);
       }
-      descendant = JSON.parse(await readFile(marker, "utf8")).pid;
+      descendant = naturalPid(jsonObject(await readFile(marker, "utf8")).pid);
       const alive = spawnSync(
         "pwsh",
         [
@@ -72,7 +103,8 @@ const gate=setInterval(()=>{
         { encoding: "utf8", windowsHide: true, timeout: 10_000 },
       );
       assert.equal(alive.status, 0, alive.stderr);
-      const surviving = JSON.parse(alive.stdout);
+      const surviving = jsonObject(alive.stdout);
+      assert.ok(typeof surviving.ExecutablePath === "string");
       assert.equal(surviving.ProcessId, descendant);
       assert.equal(surviving.ParentProcessId, session.child.pid);
       assert.equal(surviving.ExecutablePath.toLowerCase(), process.execPath.toLowerCase());
@@ -91,8 +123,8 @@ const gate=setInterval(()=>{
       // than using an unbound PID termination to hide the missing cleanup proof.
       if (!descendant)
         descendant = await readFile(marker, "utf8")
-          .then(JSON.parse)
-          .then((value) => value.pid)
+          .then(jsonObject)
+          .then((value) => naturalPid(value.pid))
           .catch(() => null);
       if (descendant) {
         const exited = spawnSync(
@@ -111,7 +143,7 @@ const gate=setInterval(()=>{
   },
 );
 
-test(
+void test(
   "embedded installed listener requires the exact direct child and loopback owner",
   { ...windows, timeout: 60_000 },
   async () => {
@@ -125,21 +157,22 @@ net.createServer().listen(0,'127.0.0.1',function(){process.stdout.write(String(t
       ],
       { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
     );
-    const ready = once(child.stdout, "data");
+    const ready: Promise<unknown> = once(child.stdout, "data");
     const foreign = await ownedChild();
     try {
-      const [bytes] = await ready;
-      const port = Number(String(bytes));
+      const [bytes] = array(await ready);
+      assert.ok(Buffer.isBuffer(bytes));
+      const port = Number(bytes.toString("utf8"));
       const sha = createHash("sha256")
         .update(await readFile(process.execPath))
         .digest("hex");
-      const invoke = (mode, target, extra = []) =>
+      const invoke = (mode: NativeSessionMode, target: string, extra: string[] = []) =>
         spawnSync(
           "pwsh",
           ["-NoProfile", "-File", script, "-Mode", mode, "-SnapshotPath", target, ...extra],
           { encoding: "utf8", windowsHide: true, timeout: 15_000 },
         );
-      const args = (pid, parent = process.pid, hash = sha) => [
+      const args = (pid: number | undefined, parent = process.pid, hash = sha) => [
         "-DriverProcessId",
         String(pid),
         "-ApplicationPath",
@@ -155,7 +188,7 @@ net.createServer().listen(0,'127.0.0.1',function(){process.stdout.write(String(t
         [args(child.pid, 0), "invalid-parent-id"],
         [args(child.pid, process.pid, "invalid"), "invalid-expected-hash"],
         [args(child.pid, process.pid, "0".repeat(64)), "executable-hash-mismatch"],
-      ]) {
+      ] as const) {
         const refusal = invoke("SnapshotApplication", rejected, arguments_);
         assert.notEqual(refusal.status, 0, refusal.stdout);
         assert.match(refusal.stderr, new RegExp(`identity rejected: ${reason}\\.`));
@@ -166,12 +199,14 @@ net.createServer().listen(0,'127.0.0.1',function(){process.stdout.write(String(t
       const snapshot = path.join(root, "application.json");
       const captured = invoke("SnapshotApplication", snapshot, args(child.pid));
       assert.equal(captured.status, 0, captured.stderr);
-      const identity = JSON.parse(captured.stdout);
+      const identity = readNativeSessionObservation("SnapshotApplication", json(captured.stdout));
       assert.equal(identity.root_kind, "direct-application");
       assert.equal(identity.application_pid, child.pid);
       const listener = invoke("ApplicationListener", snapshot, ["-Port", String(port)]);
       assert.equal(listener.status, 0, listener.stderr);
-      assert.equal(JSON.parse(listener.stdout).pid, child.pid);
+      const listening = readNativeSessionObservation("ApplicationListener", json(listener.stdout));
+      assert.ok(listening.ready);
+      assert.equal(listening.pid, child.pid);
       const wrong = path.join(root, "foreign.json");
       assert.equal(invoke("SnapshotApplication", wrong, args(foreign.pid)).status, 0);
       const foreignListener = invoke("ApplicationListener", wrong, ["-Port", String(port)]);
@@ -190,7 +225,7 @@ net.createServer().listen(0,'127.0.0.1',function(){process.stdout.write(String(t
     }
   },
 );
-const run = (mode, snapshot) =>
+const run = (mode: NativeSessionMode, snapshot: string) =>
   spawnSync(
     "pwsh",
     [
@@ -219,7 +254,7 @@ async function ownedChild() {
   return child;
 }
 
-async function stop(child) {
+async function stop(child: ChildProcess) {
   if (child.exitCode !== null || child.signalCode !== null) return;
   const exited = once(child, "exit");
   child.kill();
@@ -234,7 +269,7 @@ async function temporaryRoot() {
   return root;
 }
 
-function processRecord(id, parent, seconds) {
+function processRecord(id: number, parent: number, seconds: number) {
   return {
     ProcessId: id,
     ParentProcessId: parent,
@@ -243,7 +278,11 @@ function processRecord(id, parent, seconds) {
   };
 }
 
-async function inspectProcessGraph(records) {
+async function inspectProcessGraph(
+  records: readonly (Omit<ReturnType<typeof processRecord>, "CreationDate"> & {
+    CreationDate: string | null;
+  })[],
+) {
   const root = await temporaryRoot();
   try {
     const fixture = path.join(root, "graph.ps1");
@@ -283,7 +322,7 @@ $tree = Get-OwnedNativeProcessTree 100 $Application
   }
 }
 
-test(
+void test(
   "native ancestry rejects a reused driver PID without selecting the old process",
   windows,
   async () => {
@@ -296,7 +335,7 @@ test(
   },
 );
 
-test(
+void test(
   "native ancestry ignores stale parent references beside the real application",
   windows,
   async () => {
@@ -306,14 +345,14 @@ test(
       processRecord(300, 100, 0),
     ]);
     assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(JSON.parse(result.stdout), {
+    assert.deepEqual(json(result.stdout), {
       application_pid: 200,
       processes: [200],
     });
   },
 );
 
-test(
+void test(
   "native ancestry checks each intermediate parent and child creation time",
   windows,
   async () => {
@@ -338,26 +377,30 @@ test(
       staleHelper,
     ]);
     assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(JSON.parse(result.stdout), {
+    assert.deepEqual(json(result.stdout), {
       application_pid: 200,
       processes: [200, 201],
     });
   },
 );
 
-test("native ancestry refuses missing parent timestamps and cyclic metadata", windows, async () => {
-  for (const records of [
-    [{ ...processRecord(100, 0, 10), CreationDate: null }, processRecord(200, 100, 20)],
-    [processRecord(100, 0, 10), { ...processRecord(200, 100, 20), CreationDate: null }],
-    [processRecord(100, 0, 10), processRecord(200, 300, 20), processRecord(300, 200, 20)],
-  ]) {
-    const result = await inspectProcessGraph(records);
-    assert.notEqual(result.status, 0, result.stdout);
-    assert.match(result.stderr, /exactly one owned application/);
-  }
-});
+void test(
+  "native ancestry refuses missing parent timestamps and cyclic metadata",
+  windows,
+  async () => {
+    for (const records of [
+      [{ ...processRecord(100, 0, 10), CreationDate: null }, processRecord(200, 100, 20)],
+      [processRecord(100, 0, 10), { ...processRecord(200, 100, 20), CreationDate: null }],
+      [processRecord(100, 0, 10), processRecord(200, 300, 20), processRecord(300, 200, 20)],
+    ]) {
+      const result = await inspectProcessGraph(records);
+      assert.notEqual(result.status, 0, result.stdout);
+      assert.match(result.stderr, /exactly one owned application/);
+    }
+  },
+);
 
-test(
+void test(
   "native ancestry accepts equal timestamps without treating the driver as its own child",
   windows,
   async () => {
@@ -366,14 +409,14 @@ test(
       processRecord(200, 100, 10),
     ]);
     assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(JSON.parse(result.stdout), {
+    assert.deepEqual(json(result.stdout), {
       application_pid: 200,
       processes: [200],
     });
   },
 );
 
-test(
+void test(
   "native shutdown wait is bounded, preserves a live process, and accepts its later exit",
   windows,
   async () => {
@@ -383,7 +426,7 @@ test(
       const snapshot = path.join(root, "processes.json");
       const captured = run("Snapshot", snapshot);
       assert.equal(captured.status, 0, captured.stderr);
-      assert.equal(JSON.parse(captured.stdout).application_pid, child.pid);
+      assert.equal(readNativeProcessSnapshot(json(captured.stdout)).application_pid, child.pid);
       const start = performance.now();
       const blocked = run("Wait", snapshot);
       assert.notEqual(blocked.status, 0);
@@ -391,8 +434,8 @@ test(
       assert.ok(performance.now() - start < 9000);
       assert.equal(child.exitCode, null);
       assert.equal(child.signalCode, null);
-      process.kill(child.pid, 0);
-      const recorded = JSON.parse(await readFile(snapshot, "utf8"));
+      process.kill(naturalPid(child.pid), 0);
+      const recorded = readNativeProcessSnapshot(json(await readFile(snapshot, "utf8")));
       for (const record of recorded.processes)
         record.started_filetime = (BigInt(record.started_filetime) - 10_000n).toString();
       const stale = path.join(root, "stale.json");
@@ -403,7 +446,7 @@ test(
         0,
         `A reused PID must not be treated as the captured process: ${staleResult.stderr}; ${JSON.stringify(recorded)}`,
       );
-      process.kill(child.pid, 0);
+      process.kill(naturalPid(child.pid), 0);
       await stop(child);
       const ended = run("Wait", snapshot);
       assert.equal(ended.status, 0, ended.stderr);
@@ -414,14 +457,14 @@ test(
   },
 );
 
-test("isolated driver stop refuses stale identity without acting", windows, async () => {
+void test("isolated driver stop refuses stale identity without acting", windows, async () => {
   const root = await temporaryRoot();
   const child = await ownedChild();
   try {
     const snapshot = path.join(root, "processes.json");
     const captured = run("Snapshot", snapshot);
     assert.equal(captured.status, 0, captured.stderr);
-    const recorded = JSON.parse(await readFile(snapshot, "utf8"));
+    const recorded = readNativeProcessSnapshot(json(await readFile(snapshot, "utf8")));
     recorded.driver.started_filetime = (
       BigInt(recorded.driver.started_filetime) - 10_000n
     ).toString();
@@ -430,14 +473,14 @@ test("isolated driver stop refuses stale identity without acting", windows, asyn
     const result = run("StopDriver", snapshot);
     assert.notEqual(result.status, 0, result.stdout);
     assert.match(result.stderr, /driver identity changed before isolated tree termination/);
-    process.kill(child.pid, 0);
+    process.kill(naturalPid(child.pid), 0);
   } finally {
     await stop(child);
     await rm(root, { recursive: true, force: true });
   }
 });
 
-test(
+void test(
   "ordinary close refuses changed identity or a windowless owned application",
   windows,
   async () => {
@@ -447,13 +490,17 @@ test(
       const snapshot = path.join(root, "close-processes.json");
       const captured = run("Snapshot", snapshot);
       assert.equal(captured.status, 0, captured.stderr);
-      const recorded = JSON.parse(await readFile(snapshot, "utf8"));
+      const recorded = readNativeProcessSnapshot(json(await readFile(snapshot, "utf8")));
       const application = recorded.processes.find((entry) => entry.pid === child.pid);
       assert.ok(application);
       const observed = run("Observe", snapshot);
       assert.equal(observed.status, 0, observed.stderr);
       assert.equal(
-        JSON.parse(observed.stdout).processes.find((entry) => entry.pid === child.pid).state,
+        required(
+          readNativeSessionObservation("Observe", json(observed.stdout)).processes.find(
+            (entry) => entry.pid === child.pid,
+          ),
+        ).state,
         "running",
       );
       application.started_filetime = (BigInt(application.started_filetime) - 10_000n).toString();
@@ -461,42 +508,48 @@ test(
       const reused = run("Observe", snapshot);
       assert.equal(reused.status, 0, reused.stderr);
       assert.equal(
-        JSON.parse(reused.stdout).processes.find((entry) => entry.pid === child.pid).state,
+        required(
+          readNativeSessionObservation("Observe", json(reused.stdout)).processes.find(
+            (entry) => entry.pid === child.pid,
+          ),
+        ).state,
         "exited",
       );
       const stale = run("RequestClose", snapshot);
       assert.notEqual(stale.status, 0);
       assert.match(stale.stderr, /application identity changed before ordinary close/);
-      process.kill(child.pid, 0);
-      application.started_filetime = JSON.parse(captured.stdout).processes.find(
-        (entry) => entry.pid === child.pid,
+      process.kill(naturalPid(child.pid), 0);
+      application.started_filetime = required(
+        readNativeProcessSnapshot(json(captured.stdout)).processes.find(
+          (entry) => entry.pid === child.pid,
+        ),
       ).started_filetime;
       await writeFile(snapshot, JSON.stringify(recorded));
       const windowless = run("RequestClose", snapshot);
       assert.notEqual(windowless.status, 0);
       assert.match(windowless.stderr, /ordinary close message was not sent/);
-      process.kill(child.pid, 0);
+      process.kill(naturalPid(child.pid), 0);
       const driverTime = recorded.driver.started_filetime;
       recorded.driver.started_filetime = (BigInt(driverTime) - 10_000n).toString();
       await writeFile(snapshot, JSON.stringify(recorded));
       const staleDriver = run("RequestClose", snapshot);
       assert.notEqual(staleDriver.status, 0);
       assert.match(staleDriver.stderr, /driver identity changed before ordinary close/);
-      process.kill(child.pid, 0);
+      process.kill(naturalPid(child.pid), 0);
       recorded.driver.started_filetime = driverTime;
       recorded.processes.push({ ...application });
       await writeFile(snapshot, JSON.stringify(recorded));
       const ambiguous = run("RequestClose", snapshot);
       assert.notEqual(ambiguous.status, 0);
       assert.match(ambiguous.stderr, /one captured owned application is required/);
-      process.kill(child.pid, 0);
+      process.kill(naturalPid(child.pid), 0);
       recorded.processes.pop();
       recorded.application_pid = process.pid;
       await writeFile(snapshot, JSON.stringify(recorded));
       const missing = run("RequestClose", snapshot);
       assert.notEqual(missing.status, 0);
       assert.match(missing.stderr, /one captured owned application is required/);
-      process.kill(child.pid, 0);
+      process.kill(naturalPid(child.pid), 0);
     } finally {
       await stop(child);
       await rm(root, { recursive: true, force: true });
@@ -504,21 +557,25 @@ test(
   },
 );
 
-test("native process discovery refuses ambiguous application descendants", windows, async () => {
-  const root = await temporaryRoot();
-  const children = [await ownedChild(), await ownedChild()];
-  try {
-    const result = run("Snapshot", path.join(root, "ambiguous.json"));
-    assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /exactly one owned application/);
-    for (const child of children) process.kill(child.pid, 0);
-  } finally {
-    for (const child of children) await stop(child);
-    await rm(root, { recursive: true, force: true });
-  }
-});
+void test(
+  "native process discovery refuses ambiguous application descendants",
+  windows,
+  async () => {
+    const root = await temporaryRoot();
+    const children = [await ownedChild(), await ownedChild()];
+    try {
+      const result = run("Snapshot", path.join(root, "ambiguous.json"));
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /exactly one owned application/);
+      for (const child of children) process.kill(naturalPid(child.pid), 0);
+    } finally {
+      for (const child of children) await stop(child);
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
 
-test(
+void test(
   "startup inventory error retains a partial trace and fails the observer",
   {
     skip: process.platform !== "win32",
@@ -562,18 +619,20 @@ exit $LASTEXITCODE
         { windowsHide: true, encoding: "utf8", timeout: 10_000 },
       );
       assert.equal(result.status, 1, result.stderr);
-      const records = (await readFile(trace, "utf8")).trim().split("\n").map(JSON.parse);
+      const records = (await readFile(trace, "utf8")).trim().split("\n").map(jsonObject);
       assert.equal(records.length, 2);
-      assert.equal(records[0].driver_identity_present, true);
-      assert.match(records[1].inventory_error, /synthetic inventory unavailable/);
-      assert.equal(records[1].driver_departed, false);
+      assert.equal(required(records[0]).driver_identity_present, true);
+      const inventoryError = required(records[1]).inventory_error;
+      assert.ok(typeof inventoryError === "string");
+      assert.match(inventoryError, /synthetic inventory unavailable/);
+      assert.equal(required(records[1]).driver_departed, false);
     } finally {
       await rm(output, { recursive: true, force: true });
     }
   },
 );
 
-test(
+void test(
   "startup observer retains only owned descendants and missing endpoint evidence",
   {
     skip: process.platform !== "win32",
@@ -597,17 +656,21 @@ test(
       });
       const result = await finish();
       assert.equal(result.successful, true);
-      const records = (await readFile(result.artifacts[0], "utf8"))
+      const records = (await readFile(required(result.artifacts[0]), "utf8"))
         .trim()
         .split("\n")
-        .map(JSON.parse);
-      assert.equal(records[0].driver_identity_present, true);
-      assert.equal(records[0].devtools_active_port_present, false);
-      assert.ok(records[0].processes.some((record) => record.pid === driver.pid));
+        .map(jsonObject);
+      assert.equal(required(records[0]).driver_identity_present, true);
+      assert.equal(required(records[0]).devtools_active_port_present, false);
       assert.ok(
-        records.every((record) => !record.processes.some((entry) => entry.pid === process.pid)),
+        array(required(records[0]).processes).some((record) => object(record).pid === driver.pid),
       );
-      assert.equal(records.at(-1).stop_requested, true);
+      assert.ok(
+        records.every(
+          (record) => !array(record.processes).some((entry) => object(entry).pid === process.pid),
+        ),
+      );
+      assert.equal(required(records.at(-1)).stop_requested, true);
       assert.equal(driver.exitCode, null, "observer must not terminate the owned driver");
     } finally {
       const exited = once(driver, "exit");
@@ -618,7 +681,7 @@ test(
   },
 );
 
-test(
+void test(
   "startup identity mismatch retains error without claiming an empty process inventory",
   {
     skip: process.platform !== "win32",
@@ -629,7 +692,7 @@ test(
     try {
       const finish = await observeStartup({
         driver: { pid: process.pid, exitCode: null, signalCode: null },
-        driverPath: process.env.ComSpec,
+        driverPath: required(process.env.ComSpec),
         profile: output,
         output,
         attempt: 0,
@@ -637,7 +700,7 @@ test(
       const result = await finish();
       assert.equal(result.successful, false);
       assert.equal(result.artifacts.length, 1);
-      assert.match(await readFile(result.artifacts[0], "utf8"), /identity mismatch/);
+      assert.match(await readFile(required(result.artifacts[0]), "utf8"), /identity mismatch/);
     } finally {
       await rm(output, { recursive: true, force: true });
     }
