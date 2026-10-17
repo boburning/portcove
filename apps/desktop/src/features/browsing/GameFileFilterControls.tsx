@@ -1,3 +1,4 @@
+import { GameFileObservationSummary } from "./GameFileObservationSummary";
 import { ChoiceSelect } from "../../components/ChoiceSelect";
 import { OperationCancellation } from "../../components/OperationCancellation";
 import { Button } from "../../components/ui/button";
@@ -58,15 +59,7 @@ export function GameFileFilterControls({ state }: { state: GameFileFilterState }
           label="Cancel game-file filter check"
         />
       )}
-      <p role="status">
-        {state.context
-          ? "Complete route observations available for filtering."
-          : state.pending
-            ? "Checking complete catalog context…"
-            : state.expired
-              ? "Observation expired. Check again to use game-file choices."
-              : "Game-file choices need a current complete observation."}
-      </p>
+      <GameFileObservationSummary observation={state.observation} catalog />
       {state.error && <p role="alert">{state.error}</p>}
     </fieldset>
   );

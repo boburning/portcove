@@ -1,3 +1,5 @@
+import { GameFileObservationSummary } from "../features/browsing/GameFileObservationSummary";
+import type { GameFileObservationPresentation } from "../features/browsing/use-game-file-observation";
 import { cn } from "cn";
 import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
 import { BrowsingMatchDetails } from "../features/browsing/BrowsingMatchDetails";
@@ -123,6 +125,7 @@ interface DetailPanelProps {
   libraryGeneration?: number;
   gameFileQueryContext?: string;
   gameFileFilterContext?: GameFileFilterContext | undefined;
+  gameFileObservation?: GameFileObservationPresentation | undefined;
   browsingMatch?: CatalogQueryResult | undefined;
   browsingBinding?: string | undefined;
   outputLocationChanged?: (() => void) | undefined;
@@ -300,6 +303,13 @@ export function DetailPanel(props: DetailPanelProps) {
             binding={props.browsingBinding}
             gameFiles={props.gameFileFilterContext}
           />
+          {props.gameFileObservation && (
+            <GameFileObservationSummary
+              observation={props.gameFileObservation}
+              catalog
+              portId={port.id}
+            />
+          )}
           {renderQueryControl()}
         </>
       }

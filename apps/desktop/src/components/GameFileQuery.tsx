@@ -1,13 +1,8 @@
-import { useObservationExpired } from "../features/browsing/use-observation-expiry";
-import { useLayoutEffect, useRef, useState } from "react";
-import { desktopApi } from "../api";
-import type { GameFileQuerySnapshot, PortDefinition, ReleaseChannel } from "../types";
-import {
-  defaultPortPlatform,
-  errorText,
-  platformLabel,
-  releaseChannelPresentation,
-} from "../view-model";
+import { useState } from "react";
+import { useGameFileObservation } from "../features/browsing/use-game-file-observation";
+import { GameFileObservationSummary } from "../features/browsing/GameFileObservationSummary";
+import type { PortDefinition, ReleaseChannel } from "../types";
+import { defaultPortPlatform, platformLabel, releaseChannelPresentation } from "../view-model";
 import { Button } from "./ui/button";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { OperationCancellation } from "./OperationCancellation";
@@ -37,89 +32,29 @@ export function GameFileQueryControl({
 }) {
   const [route, setRoute] = useState<Route["route"]>("managed_install");
   const [platform, setPlatform] = useState<Route["platform"]>(() => defaultPortPlatform(port));
-  const [pending, setPending] = useState(false);
-  const [operation, setOperation] = useState<{ epoch: number; id: string }>();
-  type Observation = { epoch: number; snapshot: GameFileQuerySnapshot; deadline: number };
-  const [result, setResult] = useState<Observation>();
-  const [error, setError] = useState<{ epoch: number; message: string }>();
-  const key = JSON.stringify([port.id, channel, generation, context, route, platform]);
-  const [identity, setIdentity] = useState({ key, epoch: 0 });
-  const currentIdentity = identity.key === key ? identity : { key, epoch: identity.epoch + 1 };
-  if (identity.key !== key) setIdentity(currentIdentity);
-  const epoch = currentIdentity.epoch;
-  const owner = useRef({ epoch: 0, closed: false });
-  const processing = useRef(false);
-  useLayoutEffect(() => {
-    const lifecycle = owner.current;
-    lifecycle.epoch = epoch;
-    lifecycle.closed = false;
-    return () => {
-      lifecycle.closed = true;
-    };
-  }, [epoch]);
-  const window = result
-    ? {
-        observedAt: result.snapshot.observed_at,
-        expiresAt: result.snapshot.expires_at,
-        deadline: result.deadline,
-      }
-    : undefined;
-  const windowExpired = useObservationExpired(result, window);
-  const expired = Boolean(result?.epoch === epoch && windowExpired);
-  const current = result?.epoch === epoch && !expired ? result.snapshot : undefined;
-  const check = async () => {
-    if (processing.current || busy || !platform || !port.platforms.includes(platform)) return;
-    processing.current = true;
-    const selected: Route = { port_id: port.id, platform, channel, route };
-    const requestEpoch = epoch;
-    const active = () => !owner.current.closed && owner.current.epoch === requestEpoch;
-    setPending(true);
-    setOperation(undefined);
-    setResult(undefined);
-    setError(undefined);
-    try {
-      const library = await desktopApi.libraryIdentity(generation);
-      if (!active()) return;
-      const snapshot = await desktopApi.refreshGameFileQuery(
-        {
-          routes: [selected],
-          maximum_age_seconds: 300,
-          limits: {
-            max_file_bytes: 2 * 1024 ** 3,
-            max_hash_bytes: 32 * 1024 ** 3,
-            max_elapsed_ms: 30_000,
-          },
-        },
-        generation,
-        (event) => {
-          if (
-            active() &&
-            (event.schema_version === 2 || event.schema_version === 3) &&
-            event.type === "started" &&
-            event.operation === "verify_source"
-          )
-            setOperation({ epoch: requestEpoch, id: event.operation_id });
-        },
-      );
-      if (!active()) return;
-      if (!acceptedGameFileQuery(snapshot, selected, library, Math.floor(Date.now() / 1000)))
+  const selected: Route = { port_id: port.id, platform, channel, route };
+  const observation = useGameFileObservation({
+    contextKey: JSON.stringify([port.id, channel, generation, context, route, platform]),
+    generation,
+    request: () => ({
+      routes: [selected],
+      maximum_age_seconds: 300,
+      limits: {
+        max_file_bytes: 2 * 1024 ** 3,
+        max_hash_bytes: 32 * 1024 ** 3,
+        max_elapsed_ms: 30_000,
+      },
+    }),
+    accept: (snapshot, _request, library, now) => {
+      if (!acceptedGameFileQuery(snapshot, selected, library, now))
         throw new Error("The game-file observation no longer matches this selection. Check again.");
-      setResult({
-        epoch: requestEpoch,
-        snapshot,
-        deadline:
-          performance.now() +
-          Math.max(0, Math.min(300_000, snapshot.expires_at * 1000 - Date.now())),
-      });
-    } catch (value) {
-      if (active()) setError({ epoch: requestEpoch, message: errorText(value) });
-    } finally {
-      processing.current = false;
-      if (!owner.current.closed) {
-        setPending(false);
-        setOperation(undefined);
-      }
-    }
+      return snapshot;
+    },
+  });
+  const { pending, current, operationId, error } = observation;
+  const check = async () => {
+    if (busy || !platform || !port.platforms.includes(platform)) return;
+    await observation.refresh();
   };
   const projection = current?.routes[0];
   return (
@@ -153,24 +88,17 @@ export function GameFileQueryControl({
       >
         {pending ? "Checking game files…" : "Check selected route game files"}
       </Button>
-      {pending && operation?.epoch === epoch && (
+      {pending && operationId && (
         <OperationCancellation
-          key={operation.id}
-          operationId={operation.id}
+          key={operationId}
+          operationId={operationId}
           label="Cancel game-file check"
         />
       )}
-      <p role="status">
-        {projection
-          ? states[projection.state]
-          : pending
-            ? "Checking selected route…"
-            : expired && result?.epoch === epoch
-              ? "Observation expired. Check again."
-              : "No current observation for this selection."}
-      </p>
+      {projection && <p role="status">{states[projection.state]}</p>}
       {projection && <p>{reasons[projection.reason]}</p>}
-      {error?.epoch === epoch && <p role="alert">{error.message}</p>}
+      <GameFileObservationSummary observation={observation.presentation} />
+      {error && <p role="alert">{error}</p>}
     </section>
   );
 }

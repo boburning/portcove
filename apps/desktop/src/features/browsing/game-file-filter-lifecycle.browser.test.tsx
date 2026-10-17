@@ -247,3 +247,30 @@ it("rejects held A-to-B-to-A completions and pre-switch events, without overlapp
   expect(state.context).toBeUndefined();
   expect(state.pending).toBe(false);
 });
+
+it("keeps history while retry and failure make classifications and counts unavailable", async () => {
+  await render();
+  await click("Filters (0)");
+  await click("Check game-file filters");
+  const metadata = state.observation.lastAccepted;
+  let reject!: (value: unknown) => void;
+  vi.mocked(desktopApi.refreshGameFileQuery).mockImplementationOnce(
+    () =>
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      }),
+  );
+  await click("Check game-file filters");
+  expect(state.context).toBeUndefined();
+  expect(state.observation.lastAccepted).toBe(metadata);
+  expect(button("Compatible complete files available (unavailable)").disabled).toBe(true);
+  expect(document.body.textContent).toContain("Previous check");
+  expect(document.body.textContent).toContain("Checking complete catalog context");
+  await act(async () => reject(new Error("offline")));
+  expect(state.context).toBeUndefined();
+  expect(state.observation.lastAccepted).toBe(metadata);
+  expect(button("Compatible complete files available (unavailable)").disabled).toBe(true);
+  expect(document.body.textContent).toContain("latest check failed");
+  expect(document.body.textContent).not.toContain("Last checked");
+  expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(2);
+});

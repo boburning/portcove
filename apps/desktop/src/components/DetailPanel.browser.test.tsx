@@ -59,3 +59,84 @@ for (const width of [1200, 960]) {
     expect(accessibility.violations.map((violation) => violation.id)).toEqual([]);
   });
 }
+
+it.each(["dark", "light"])(
+  "keeps recorded catalog scope in real details without current matches in %s",
+  async (theme) => {
+    document.documentElement.dataset.theme = theme;
+    await page.viewport(520, 780);
+    const port = fixtureValue(
+      catalog.ports.find((port) => port.id === "snap64-recomp"),
+      "Snap64",
+    ) as unknown as PortDefinition;
+    const noop = vi.fn();
+    const actions: DetailActions = {
+      activate: noop,
+      backup: noop,
+      check: async () => undefined,
+      close: noop,
+      deleteBackup: noop,
+      dismissInstallReview: noop,
+      install: noop,
+      launch: noop,
+      openUserData: noop,
+      reviewInstall: noop,
+      restoreBackup: noop,
+      rollback: noop,
+      remove: noop,
+      setChannel: async () => undefined,
+      setPolicy: async () => undefined,
+      verify: noop,
+    };
+    const observation = {
+      lastAccepted: {
+        observedAt: 1700000000,
+        expiresAt: 1700000300,
+        deadline: 12345,
+        routes: [
+          {
+            port_id: port.id,
+            route: "external_registration" as const,
+            platform: "linux-x86-64" as const,
+            channel: "beta" as const,
+          },
+        ],
+      },
+      usable: false,
+      expired: true,
+      outcome: "failed" as const,
+    };
+    const root = await render(
+      <DetailPanel
+        port={port}
+        sourcePath=""
+        setSourcePath={noop}
+        actions={actions}
+        gameFileObservation={observation}
+      />,
+    );
+    for (const details of document.querySelectorAll("details")) details.open = true;
+    const metadata = page.getByLabelText("Catalog check history").element();
+    expect(metadata.textContent).toContain("Previous check");
+    expect(metadata.textContent).toContain("Existing installation setup · Linux · Preview");
+    expect(metadata.textContent).toContain("Filters → Check game-file filters");
+    expect(document.querySelector('[aria-label="Catalog game-file observation"]')).toBeNull();
+    expect(document.body.textContent).not.toContain("Complete set:");
+    await page.screenshot({
+      element: metadata.parentElement!,
+      path: `../../../../outputs/observation-clarity/details-history-${theme}-520.png`,
+    });
+    await root.rerender(
+      <DetailPanel
+        port={{ ...port, id: "outside-request" }}
+        sourcePath=""
+        setSourcePath={noop}
+        actions={actions}
+        gameFileObservation={observation}
+      />,
+    );
+    expect(document.querySelector('[aria-label="Catalog check history"]')).toBeNull();
+    expect(noop).not.toHaveBeenCalled();
+    delete document.documentElement.dataset.theme;
+  },
+);
