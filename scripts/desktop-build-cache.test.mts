@@ -1,3 +1,4 @@
+import type { FrontendBuildIdentityOptions } from "./desktop-build-cache.mts";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -24,7 +25,6 @@ const inputFiles = [
   "apps/desktop/scripts/production-css.mts",
   "scripts/viteplus-cli.mts",
   "scripts/dev-storage.mts",
-  "scripts/dev-storage.d.mts",
   "scripts/tool-cache.mts",
 ];
 
@@ -44,7 +44,7 @@ async function fixture() {
   return { root, outputDirectory, stampPath: path.join(root, "work/frontend.json") };
 }
 
-const identity = (root: string, overrides = {}) =>
+const identity = (root: string, overrides: Partial<FrontendBuildIdentityOptions> = {}) =>
   createFrontendBuildIdentity({
     root,
     packageManager: "pnpm@12.4.1",
@@ -55,7 +55,7 @@ const identity = (root: string, overrides = {}) =>
     ...overrides,
   });
 
-test("profile build provenance excludes documentation/harness changes and never treats versions as native completeness", async (t) => {
+void test("profile build provenance excludes documentation/harness changes and never treats versions as native completeness", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
   for (const name of [
@@ -102,7 +102,7 @@ test("profile build provenance excludes documentation/harness changes and never 
   );
 });
 
-test("frontend output observations bind bytes without granting reuse or fresh acceptance", async (t) => {
+void test("frontend output observations bind bytes without granting reuse or fresh acceptance", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
   const first = await identity(state.root);
@@ -120,7 +120,7 @@ test("frontend output observations bind bytes without granting reuse or fresh ac
   await assert.rejects(observeFrontendBuild({ identity: first, ...state }), /ENOENT/u);
 });
 
-test("input changes and linked inputs fail closed", async (t) => {
+void test("input changes and linked inputs fail closed", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
   const first = await identity(state.root);
@@ -134,7 +134,7 @@ test("input changes and linked inputs fail closed", async (t) => {
   await assert.rejects(identity(state.root), /refuses linked input/u);
 });
 
-test("assertion-only desktop scripts preserve frontend product observations", async (t) => {
+void test("assertion-only desktop scripts preserve frontend product observations", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
   const first = await identity(state.root);
@@ -162,7 +162,7 @@ for (const frontendInput of [
   "scripts/dev-storage.mts",
   "scripts/tool-cache.mts",
 ]) {
-  test(`changing ${frontendInput} changes the frontend observation`, async (t) => {
+  void test(`changing ${frontendInput} changes the frontend observation`, async (t) => {
     const state = await fixture();
     t.after(() => rm(state.root, { recursive: true, force: true }));
     const first = await identity(state.root);
@@ -178,7 +178,7 @@ for (const viteEnvironmentFile of [
   ".env.production",
   ".env.production.local",
 ]) {
-  test(`Vite ${viteEnvironmentFile} presence changes the frontend observation`, async (t) => {
+  void test(`Vite ${viteEnvironmentFile} presence changes the frontend observation`, async (t) => {
     const state = await fixture();
     t.after(() => rm(state.root, { recursive: true, force: true }));
     const first = await identity(state.root);

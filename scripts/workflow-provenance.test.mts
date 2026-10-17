@@ -1378,7 +1378,6 @@ void test("hosted binding rejects frontend validation helper and test-policy cha
     "apps/desktop/scripts/copy-lint-plugin.mts",
     "vite.config.ts",
     "scripts/browser-traces.ts",
-    "scripts/dev-storage.d.mts",
     "tsconfig.json",
     "apps/desktop/vite.config.ts",
     "apps/desktop/stylelint.config.mjs",

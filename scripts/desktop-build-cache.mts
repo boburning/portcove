@@ -1,3 +1,26 @@
+import { errorCode } from "./runtime-values.mts";
+import type { BinaryLike } from "node:crypto";
+import type { FileIdentity } from "./development-evidence.mts";
+type InventoryFile = Pick<FileIdentity, "path" | "bytes" | "sha256">;
+type InventoryEntry = InventoryFile | { path: string; missing: true };
+export interface FrontendBuildIdentityOptions {
+  root: string;
+  packageManager: string;
+  vitePlusVersion: string;
+  environment?: NodeJS.ProcessEnv;
+  platform?: string;
+  architecture?: string;
+}
+export interface VerificationBuildIdentityOptions {
+  root: string;
+  frontendIdentity: { fingerprint: string };
+  frontendOutputFingerprint: string;
+  features: readonly string[];
+  cliFeatures?: readonly string[];
+  environment?: NodeJS.ProcessEnv;
+  platform?: string;
+  compilerProbe?: (options: Parameters<typeof rustSupportCompilerIdentity>[0]) => unknown;
+}
 import { createHash } from "node:crypto";
 import { lstat, readdir, readFile, readlink } from "node:fs/promises";
 import path from "node:path";
@@ -21,7 +44,6 @@ const FRONTEND_INPUTS = [
   "apps/desktop/scripts/production-css.mts",
   "scripts/viteplus-cli.mts",
   "scripts/dev-storage.mts",
-  "scripts/dev-storage.d.mts",
   "scripts/tool-cache.mts",
 ];
 const FRONTEND_OPTIONAL_INPUTS = [
@@ -32,9 +54,9 @@ const FRONTEND_OPTIONAL_INPUTS = [
 ];
 
 const portable = (value: string) => value.split(path.sep).join("/");
-const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+const sha256 = (value: BinaryLike) => createHash("sha256").update(value).digest("hex");
 
-async function inventoryEntry(absolute: string, relative: string, entries) {
+async function inventoryEntry(absolute: string, relative: string, entries: InventoryEntry[]) {
   const details = await lstat(absolute, { bigint: false });
   if (details.isSymbolicLink()) {
     const target = await readlink(absolute);
@@ -61,26 +83,26 @@ async function inventoryEntry(absolute: string, relative: string, entries) {
   }
 }
 
-async function inventory(root: string, names) {
-  const entries = [];
+async function inventory(root: string, names: readonly string[]) {
+  const entries: InventoryFile[] = [];
   for (const name of names) await inventoryEntry(path.join(root, name), name, entries);
   return entries.sort((left, right) => left.path.localeCompare(right.path));
 }
 
-async function optionalInventory(root: string, names) {
-  const entries = [];
+async function optionalInventory(root: string, names: readonly string[]) {
+  const entries: InventoryEntry[] = [];
   for (const name of names) {
     try {
       await inventoryEntry(path.join(root, name), name, entries);
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (errorCode(error) !== "ENOENT") throw error;
       entries.push({ path: portable(name), missing: true });
     }
   }
   return entries.sort((left, right) => left.path.localeCompare(right.path));
 }
 
-function buildEnvironment(environment) {
+function buildEnvironment(environment: NodeJS.ProcessEnv) {
   return Object.fromEntries(
     Object.entries(environment)
       .filter(
@@ -97,7 +119,7 @@ export async function createFrontendBuildIdentity({
   environment = process.env,
   platform = process.platform,
   architecture = process.arch,
-}) {
+}: FrontendBuildIdentityOptions) {
   const identity = {
     format_version: FORMAT_VERSION,
     command: ["node", "apps/desktop/scripts/build-frontend.mts"],
@@ -124,7 +146,13 @@ async function outputInventory(outputDirectory: string) {
 }
 
 /** Observe output bytes after Vite Task executes/restores them; never skip execution here. */
-export async function observeFrontendBuild({ identity, outputDirectory }) {
+export async function observeFrontendBuild({
+  identity,
+  outputDirectory,
+}: {
+  identity: { fingerprint: string };
+  outputDirectory: string;
+}) {
   const outputs = await outputInventory(outputDirectory);
   return {
     execution_owner: "vite-task",
@@ -145,7 +173,7 @@ export async function createVerificationBuildIdentity({
   environment = process.env,
   platform = process.platform,
   compilerProbe = rustSupportCompilerIdentity,
-}) {
+}: VerificationBuildIdentityOptions) {
   if (!["win32", "linux"].includes(platform))
     throw new Error("Only Windows/Linux verification build profiles are supported");
   const sources = await inventory(root, [
@@ -165,7 +193,7 @@ export async function createVerificationBuildIdentity({
     "apps/desktop/src-tauri/tauri.windows.conf.json",
     "apps/desktop/src-tauri/tauri.native-compatibility.conf.json",
   ]);
-  let compiler;
+  let compiler: unknown;
   try {
     compiler = compilerProbe({ runSync: spawnSync, environment, platform });
   } catch {

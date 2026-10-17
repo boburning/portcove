@@ -250,7 +250,6 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   "scripts/run-viteplus.mts",
   "scripts/ui-test-selection.mts",
   "scripts/viteplus-cli.mts",
-  "scripts/dev-storage.d.mts",
   "tsconfig.json",
   "scripts/run-rust-tests.mts",
   "scripts/heavy-rust-test-lock.mts",
