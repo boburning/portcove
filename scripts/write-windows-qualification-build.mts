@@ -15,7 +15,7 @@ const { values } = parseArgs({
     output: { type: "string" },
   },
 });
-for (const name of [
+const requiredArguments = [
   "repository",
   "installer",
   "cli",
@@ -23,12 +23,18 @@ for (const name of [
   "predecessor",
   "predecessor-version",
   "output",
-]) {
-  if (!values[name]) throw new Error(`--${name} is required`);
+] as const;
+function requireArguments(
+  value: typeof values,
+): asserts value is typeof values & Record<(typeof requiredArguments)[number], string> {
+  for (const name of requiredArguments) {
+    if (!value[name]) throw new Error(`--${name} is required`);
+  }
 }
+requireArguments(values);
 
 const repository = path.resolve(values.repository);
-const git = (...args) =>
+const git = (...args: string[]) =>
   execFileSync("git", ["-C", repository, ...args], {
     encoding: "utf8",
     windowsHide: true,
@@ -41,7 +47,7 @@ if (status)
 const commit = git("rev-parse", "HEAD");
 const tree = git("show", "-s", "--format=%T", commit);
 
-function withinRepository(input: string, name) {
+function withinRepository(input: string, name: string) {
   const full = path.resolve(input);
   const relative = path.relative(repository, full);
   if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
@@ -49,7 +55,7 @@ function withinRepository(input: string, name) {
   }
   return { full, relative: relative.replaceAll(path.sep, "/") };
 }
-async function describe(input, name) {
+async function describe(input: string, name: string) {
   const item = withinRepository(input, name);
   if (!(await stat(item.full)).isFile()) throw new Error(`${name} must be a regular file`);
   const bytes = await readFile(item.full);
@@ -60,7 +66,7 @@ async function describe(input, name) {
   };
 }
 
-const tools = {};
+const tools: Record<string, Awaited<ReturnType<typeof describe>>> = {};
 for (const relative of [
   "scripts/windows-qualification-session.ps1",
   "scripts/test-windows-installer.ps1",
