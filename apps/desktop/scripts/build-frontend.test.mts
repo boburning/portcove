@@ -1,5 +1,5 @@
 import { mkdtemp, writeFile, rm, mkdir, symlink } from "node:fs/promises";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, writeSync } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
 import process from "node:process";
 import { runInNewContext } from "node:vm";
@@ -10,7 +10,7 @@ import { isRecord } from "../../../scripts/runtime-values.mts";
 
 import { expect, it, vi } from "vite-plus/test";
 import config from "../vite.config.ts";
-import { frontendEnvironment, buildFrontend } from "./build-frontend.mts";
+import { frontendEnvironment, buildFrontend, parseBuildArguments } from "./build-frontend.mts";
 import { vitePlusCommand } from "../../../scripts/viteplus-cli.mts";
 
 function outputs(result: Awaited<ReturnType<typeof build>>) {
@@ -101,6 +101,121 @@ async function installedCliFixture(directory: string) {
   );
   await writeFile(path.join(installed, "bin/vp"), "#!/usr/bin/env node\nprocess.exit(0);\n");
 }
+
+it.each([
+  ["--config", "other.ts"],
+  ["--root", "elsewhere"],
+  ["--outDir=outside"],
+  ["--profile=../outside"],
+  ["--profile="],
+  ["--profile=CON"],
+  ["--profile", "a", "--profile"],
+  ["--debug="],
+  ["--debug", "config", "--debug"],
+  ["--debug", "bad feature"],
+  ["--debug", "--filter"],
+  ["--filter", "css"],
+  ["--fresh=true"],
+  ["--debug", "--filter=\n"],
+  ["extra"],
+  ["--"],
+])("rejects malformed or unsupported build input before output cleanup: %j", async (...args) => {
+  const fixture = await mkdtemp(
+    fileURLToPath(new URL("../../../work/build-args-", import.meta.url)),
+  );
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    await mkdir(path.join(fixture, "dist"));
+    await writeFile(path.join(fixture, "dist/keep.txt"), "previous build");
+    const run = vi.fn();
+    expect(buildFrontend({}, run, false, fixture, args)).toBe(1);
+    expect(run).not.toHaveBeenCalled();
+    expect(await readFile(path.join(fixture, "dist/keep.txt"), "utf8")).toBe("previous build");
+    expect(log).toHaveBeenCalledWith(expect.stringMatching(/Unsupported|Duplicate|--/));
+  } finally {
+    log.mockRestore();
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
+
+it("normalizes supported optional values without opening arbitrary forwarding", () => {
+  expect(
+    parseBuildArguments([
+      "--profile",
+      "startup",
+      "--debug=config,transform",
+      "--filter=css",
+      "--fresh",
+    ]),
+  ).toEqual({ profile: "startup", debug: "config,transform", filter: "css", fresh: true });
+  expect(parseBuildArguments(["--profile", "--debug"])).toEqual({
+    profile: "build",
+    debug: true,
+    fresh: false,
+  });
+});
+
+it.each([["--profile"], ["--debug=config", "--filter", "css"], ["--profile=sample", "--debug"]])(
+  "executes diagnostics fresh with literal arguments, filtered signing and retained log: %j",
+  async (...args) => {
+    const fixture = await mkdtemp(
+      fileURLToPath(new URL("../../../work/build-diagnostics-", import.meta.url)),
+    );
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    let destination: string | undefined;
+    try {
+      await installedCliFixture(fixture);
+      const run: FrontendRunnerForTest = (_command, forwarded, options) => {
+        expect(
+          forwarded.slice(
+            vitePlusCommand(fixture).args.length,
+            vitePlusCommand(fixture).args.length + 4,
+          ),
+        ).toEqual(["run", "--no-cache", "frontend:bundle", "--"]);
+        expect(options.env?.TAURI_SIGNING_PRIVATE_KEY).toBeUndefined();
+        expect(options.env?.VITE_PUBLIC_LABEL).toBe("kept");
+        expect(options.cwd).toBe(fixture);
+        const message: unknown = log.mock.calls.find(([message]) =>
+          String(message).startsWith("Frontend diagnostics:"),
+        )?.[0];
+        destination = String(message).slice("Frontend diagnostics: ".length);
+        const stdio = options.stdio as [string, number, number];
+        expect(stdio[1]).toBe(stdio[2]);
+        writeSync(stdio[1], "retained child diagnostics\n");
+        if (args.some((arg) => arg.startsWith("--profile"))) {
+          const profile = forwarded[forwarded.indexOf("--profile") + 1]!;
+          assert.equal(path.dirname(path.resolve(fixture, profile)), destination);
+          assert.equal(
+            path.basename(profile),
+            args.includes("--profile=sample") ? "sample" : "build",
+          );
+        }
+        if (args.includes("--debug=config"))
+          assert.deepEqual(forwarded.slice(-4), ["--debug", "config", "--filter", "css"]);
+        return { status: 23 };
+      };
+      expect(
+        buildFrontend(
+          { TAURI_SIGNING_PRIVATE_KEY: "fake", VITE_PUBLIC_LABEL: "kept" },
+          run,
+          false,
+          fixture,
+          args,
+        ),
+      ).toBe(23);
+      assert.ok(destination);
+      expect(await readFile(path.join(destination, "build.log"), "utf8")).toBe(
+        "retained child diagnostics\n",
+      );
+    } finally {
+      log.mockRestore();
+      await rm(fixture, { recursive: true, force: true });
+      if (destination) await rm(destination, { recursive: true, force: true });
+    }
+  },
+);
+
+type FrontendRunnerForTest = NonNullable<Parameters<typeof buildFrontend>[1]>;
 
 it.each([false, true])(
   "refuses an output link before invoking the child (dangling=%s)",
