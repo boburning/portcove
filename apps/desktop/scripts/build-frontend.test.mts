@@ -111,6 +111,7 @@ it.each([
   ["--profile=CON"],
   ["--profile", "a", "--profile"],
   ["--debug="],
+  ["--debug=--config"],
   ["--debug", "config", "--debug"],
   ["--debug", "bad feature"],
   ["--debug", "--filter"],

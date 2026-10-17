@@ -54,7 +54,10 @@ export function parseBuildArguments(args: readonly string[]) {
         );
       options.profile = value ?? "build";
     } else if (flag === "--debug") {
-      if (value !== undefined && !/^[a-zA-Z0-9_*:-]+(?:,[a-zA-Z0-9_*:-]+)*$/u.test(value))
+      if (
+        value !== undefined &&
+        (value.startsWith("-") || !/^[a-zA-Z0-9_*:-]+(?:,[a-zA-Z0-9_*:-]+)*$/u.test(value))
+      )
         throw new Error("--debug expects comma-separated Vite debug features");
       options.debug = value ?? true;
     } else {
