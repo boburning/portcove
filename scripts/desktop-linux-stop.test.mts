@@ -133,3 +133,69 @@ function callable(value: unknown) {
     return Promise.resolve(result);
   };
 }
+
+void test("forced Linux recovery invalidates the session and requires positive join before fresh startup", async () => {
+  const interruption = between(
+    "async function interruptLinuxPreparation(",
+    "async function closeApplication(",
+  );
+  for (const failure of [false, true]) {
+    const calls: string[] = [];
+    const context = {
+      assert,
+      path: path.posix,
+      process: { platform: "linux" },
+      selection: { selected_scenarios: ["native-linux-interrupted-preparation"] },
+      library: "/owned/library",
+      output: "/owned",
+      artifacts: [] as string[],
+      linuxSelectedSession: true,
+      linuxLaunch: { receipt: { nonce: "owned" } },
+      linuxCleanup: undefined as { quiesced: boolean } | undefined,
+      browser: {
+        quit: () => {
+          throw new Error("Graceful session deletion is forbidden");
+        },
+      },
+      required,
+      stopDriver: async () => {
+        assert.equal(Reflect.get(context, "browser"), undefined);
+        calls.push("join");
+        if (failure) throw new Error("join failed");
+        context.linuxCleanup = { quiesced: true };
+      },
+      writeFile: async () => {
+        calls.push("receipt");
+      },
+      startDriver: async () => {
+        calls.push("start");
+      },
+      connect: async () => {
+        calls.push("connect");
+      },
+      driverBrowser: () => "fresh-browser",
+    };
+    runInNewContext(`${interruption}\nglobalThis.interrupt = interruptLinuxPreparation;`, context);
+    const fn: unknown = Reflect.get(context, "interrupt");
+    assert.ok(typeof fn === "function");
+    const invoke = () =>
+      Promise.resolve(
+        Reflect.apply(fn, undefined, [
+          "preparation",
+          "/owned/library/staging/operation/payload/setup",
+          async () => {
+            calls.push("preparing");
+          },
+        ]),
+      );
+    if (failure) {
+      await assert.rejects(invoke(), /join failed/);
+      assert.deepEqual(calls, ["preparing", "join"]);
+      assert.deepEqual(context.artifacts, []);
+    } else {
+      assert.equal(await invoke(), "fresh-browser");
+      assert.deepEqual(calls, ["preparing", "join", "receipt", "start", "connect"]);
+      assert.deepEqual(context.artifacts, ["/owned/preparation-restart.json"]);
+    }
+  }
+});

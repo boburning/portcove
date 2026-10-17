@@ -38,13 +38,14 @@ type CargoMutationFixture = Omit<
 };
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { parse as parseYaml } from "yaml";
+import { recoverBackupEvidence } from "./native-backup-evidence.mts";
 
 import {
   buildWorkflowProvenance,
@@ -1906,4 +1907,142 @@ void test("duplicate provenance entries refuse before decoding a second payload"
   const duplicate = Buffer.concat([local, secondLocal, central, secondCentral, footer]);
   assert.ok(duplicate.length < 4096);
   assert.throws(() => parseProvenanceArchive(duplicate), /must contain one JSON record/);
+});
+
+void test("Linux continuity publishes an outside-checkout store and lossless bounded private-free reports", async (t) => {
+  const workflow: unknown = parseYaml(
+    readFileSync(
+      new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
+      "utf8",
+    ),
+  );
+  const job = record(record(record(workflow).jobs).linux_preparation_continuity);
+  assert.ok(!Object.hasOwn(record(job.env), "PORTCOVE_RETAINED_EVIDENCE_DIR"));
+  assert.ok(Array.isArray(job.steps));
+  const steps: unknown[] = job.steps;
+  const nodeSetup = record(
+    required(steps.find((value) => text(record(value).uses).startsWith("actions/setup-node@"))),
+  );
+  const nodeOptions = record(nodeSetup.with);
+  assert.equal(nodeOptions["package-manager-cache"], false);
+  assert.ok(!Object.hasOwn(nodeOptions, "cache"));
+  assert.ok(!Object.hasOwn(nodeOptions, "cache-dependency-path"));
+  const extract = (name: string) => {
+    const step = record(required(steps.find((value) => record(value).name === name)));
+    return required(
+      text(step.run).match(/^node --input-type=module <<'NODE'\n([\s\S]*)\nNODE\n?$/u)?.[1],
+    );
+  };
+  const environmentProgram = extract(
+    "Retain the exact ordinary hosted environment before preparation",
+  );
+  const collector = extract("Retain bounded Linux reports and images in ordinary job logs");
+  assert.ok(!JSON.stringify(job).includes("actions/upload-artifact"));
+  const temporary = mkdtempSync(path.join(tmpdir(), "portcove-linux-evidence-"));
+  const relative = path.relative(tmpdir(), temporary);
+  assert.ok(relative.startsWith("portcove-linux-evidence-") && !relative.includes(".."));
+  t.after(() => rmSync(temporary, { recursive: true, force: true }));
+  const checkout = path.join(temporary, "checkout");
+  const runnerTemporary = path.join(temporary, "runner-temp");
+  mkdirSync(checkout);
+  mkdirSync(runnerTemporary);
+  const environmentFile = path.join(temporary, "environment");
+  const environment = {
+    ...process.env,
+    RUNNER_TEMP: runnerTemporary,
+    GITHUB_ENV: environmentFile,
+    GITHUB_SHA: "a".repeat(40),
+  };
+  const stubbedEnvironment = [
+    "import cp from 'node:child_process';",
+    "import {syncBuiltinESMExports} from 'node:module';",
+    "cp.execFileSync=(command,args)=>{",
+    " if(command==='git')return args.includes('--porcelain')?'':'a'.repeat(40);",
+    " if(['uname','pnpm','rustc'].includes(command))return 'fixture version';",
+    " throw new Error('Unexpected environment command'); };",
+    "syncBuiltinESMExports();",
+    "await import('data:text/javascript,'+encodeURIComponent(" +
+      JSON.stringify(environmentProgram) +
+      "));",
+  ].join("\n");
+  const observed = spawnSync(
+    process.execPath,
+    ["--input-type=module", "--eval", stubbedEnvironment],
+    {
+      cwd: checkout,
+      env: environment,
+      encoding: "utf8",
+      timeout: 15_000,
+    },
+  );
+  assert.equal(observed.status, 0, observed.stderr);
+  const retained = path.join(runnerTemporary, "slice3-native-retained");
+  assert.equal(
+    readFileSync(environmentFile, "utf8"),
+    "PORTCOVE_RETAINED_EVIDENCE_DIR=" + retained + "\n",
+  );
+  assert.ok(path.relative(checkout, retained).startsWith(".." + path.sep));
+  const root = path.join(checkout, "work/linux-preparation-continuity");
+  assert.equal(
+    record(JSON.parse(readFileSync(path.join(root, "host.json"), "utf8"))).retained_evidence,
+    retained,
+  );
+  const fixture: Record<string, string> = {
+    "driver-help.txt": "exact driver inventory\n",
+    "cancellation/report.json": '{"result":"cancelled"}\n',
+    "cancellation/screenshot.png": "unit fixture image bytes",
+    "interruption/report.json": '{"result":"recovered"}\n',
+    "private-x11-abc123/preflight.json": '{"identity":"owned"}\n',
+    "private-x11-abc123/outer-join.json": '{"closed":true}\n',
+    "cancellation/library/private.json": "private library bytes",
+    "private-x11-abc123/xdg_config_home/private.json": "private profile bytes",
+    "private-x11-abc123/private-authority": "private cookie",
+    "retained.exe": "binary payload",
+  };
+  for (const [name, bytes] of Object.entries(fixture)) {
+    const file = path.join(root, name);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, bytes);
+  }
+  mkdirSync(path.join(checkout, "scripts"));
+  for (const file of ["native-backup-evidence.mts", "runtime-values.mts"])
+    writeFileSync(
+      path.join(checkout, "scripts", file),
+      readFileSync(new URL("./" + file, import.meta.url)),
+    );
+  const collected = spawnSync(process.execPath, ["--input-type=module", "--eval", collector], {
+    cwd: checkout,
+    encoding: "utf8",
+    timeout: 15_000,
+  });
+  assert.equal(collected.status, 0, collected.stderr);
+  const decoded = path.join(temporary, "decoded");
+  await recoverBackupEvidence(collected.stdout, decoded);
+  const inventory = record(
+    JSON.parse(readFileSync(path.join(decoded, "collection.json"), "utf8")),
+  ).inventory;
+  assert.ok(Array.isArray(inventory));
+  assert.deepEqual(
+    inventory
+      .map((value: unknown) => text(record(value).original).split(path.sep).join("/"))
+      .sort(),
+    [
+      "cancellation/report.json",
+      "cancellation/screenshot.png",
+      "driver-help.txt",
+      "host.json",
+      "interruption/report.json",
+      "private-x11-abc123/outer-join.json",
+      "private-x11-abc123/preflight.json",
+    ],
+  );
+  for (const value of inventory) {
+    const entry = record(value);
+    const bytes = readFileSync(
+      path.join(decoded, "desktop-verify/slice3/native", text(entry.retained)),
+    );
+    assert.deepEqual(bytes, readFileSync(path.join(root, text(entry.original))));
+    assert.equal(entry.sha256, createHash("sha256").update(bytes).digest("hex"));
+    assert.equal(entry.bytes, bytes.length);
+  }
 });

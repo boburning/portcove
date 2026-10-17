@@ -237,6 +237,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-direct-preparation-recovery",
             "native-late-listener-disposal",
             "native-host-publication-recovery",
+            "native-linux-interrupted-preparation",
             "native-rejected-listener-registration",
           ].includes(id),
       ),
@@ -890,4 +891,105 @@ void test("main journey dispatch permits smoke without setup inputs but rejects 
       run(resolveDesktopSelection({ scenarios: [id], platform: "win32" })),
       /Required scenario input missing/,
     );
+});
+
+void test("Linux interruption is standalone, production-featured and retains namespace source custody", () => {
+  const id = "native-linux-interrupted-preparation";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "linux" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  const plan = planDesktopExecution(selection, { platform: "linux" });
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  for (const name of ["desktop-linux-native-session.mts", "native-linux-init.mts"])
+    assert.ok(plan.receiptInputs.some((input) => input.path === `apps/desktop/scripts/${name}`));
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "win32" }), /Linux/);
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "linux" }),
+    /standalone/,
+  );
+  for (const profile of ["smoke", "full"])
+    assert.ok(
+      !resolveDesktopSelection({ profile, platform: "linux" }).selected_scenarios.includes(id),
+    );
+});
+
+void test("publication repeat callback requires the complete owned native quiescence join", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function restartApplication(");
+  const end = source.indexOf("// Interrupt only this harness", start);
+  assert.ok(start >= 0 && end > start);
+  for (const refusesExit of [false, true]) {
+    const events: string[] = [];
+    const exitFailure = new Error("owned native inventory has not fully exited");
+    const restart = callable(
+      runInNewContext(`${source.slice(start, end)}; restartApplication`, {
+        linuxSelectedSession: false,
+        savedLibraryRecoverySession: false,
+        cleanupName: "host-publication",
+        hostPublicationSession: true,
+        preferencesRecoverySession: false,
+        assert,
+        required: (value: unknown) => value,
+        output: "/owned/output",
+        path,
+        artifacts: [],
+        browser: {
+          quit: async () => {
+            events.push("quit");
+          },
+        },
+        captureBackupFocusCleanup: () => {
+          events.push("capture");
+          return "/owned/inventory.json";
+        },
+        readFile: async () => "{}",
+        readNativeProcessSnapshot: (value: unknown) => value,
+        validateBackupFocusInventory: () => {
+          events.push("validate");
+        },
+        stopBackupFocusDriver: () => {
+          events.push("stop");
+        },
+        ownedSession: {
+          requireQuiescence: () => {
+            events.push("join");
+            if (refusesExit) throw exitFailure;
+            return {};
+          },
+        },
+        startDriver: async () => {
+          events.push("start");
+        },
+        connect: async () => {
+          events.push("connect");
+        },
+        driverBrowser: () => ({}),
+        writeFile: async () => {},
+      }),
+    );
+    const execute = async () =>
+      restart("published-move-repeat", async () => {
+        events.push("callback");
+      });
+    if (refusesExit) {
+      await assert.rejects(execute(), (error) => error === exitFailure);
+      assert.deepEqual(events, ["capture", "validate", "quit", "stop", "join"]);
+    } else {
+      await execute();
+      assert.deepEqual(events, [
+        "capture",
+        "validate",
+        "quit",
+        "stop",
+        "join",
+        "callback",
+        "start",
+        "connect",
+      ]);
+    }
+  }
 });

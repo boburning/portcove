@@ -156,6 +156,14 @@ export function planDesktopExecution(
   inputs.push(receiptSource(harnessUrl));
   if (selection.selected_scenarios.includes("native-host-publication-recovery"))
     inputs.push(receiptSource(new URL("./desktop-host-publication-test.mts", harnessUrl)));
+  if (
+    platform === "linux" &&
+    selection.selected_scenarios.some((id) =>
+      ["native-preparation-cancellation", "native-linux-interrupted-preparation"].includes(id),
+    )
+  )
+    for (const name of ["desktop-linux-native-session.mts", "native-linux-init.mts"])
+      inputs.push(receiptSource(new URL(name, harnessUrl)));
   if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundary")) {
     inputs.push(receiptSource(new URL("./desktop-main-webview-boundary.mts", harnessUrl)));
     inputs.push({ kind: "file", path: "scripts/desktop-linux-media.mts" });

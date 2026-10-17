@@ -23,6 +23,7 @@ interface Context {
   command: FixtureCommand;
   invoke: BoundaryInvoke;
   confirmNative: ReturnType<typeof nativeConfirmation>;
+  restartApplication: (name: string, whileStopped?: () => Promise<void>) => Promise<WebDriver>;
   interruptHost: (
     name: string,
     assertHeld: (application: CapturedNativeProcess) => Promise<void>,
@@ -76,6 +77,7 @@ function heldActivity(library: string, id: unknown) {
 export async function hostPublicationScenario(context: Context) {
   const { output, library, artifacts, fixture, command, invoke, confirmNative, interruptHost } =
     context;
+  const { restartApplication } = context;
   assert.equal(process.platform, "win32");
   assert.equal(path.resolve(library), path.resolve(output, "library"));
   const controlRoot = path.join(output, ".qualification-lifecycle");
@@ -392,9 +394,23 @@ export async function hostPublicationScenario(context: Context) {
     // Repeated recovery is metadata-only after activation, preserving newer saves.
     await writeFile(copied, "New destination save after successful authority handoff.");
     const newer = await fileIdentity(copied);
-    const repeated = success(
-      await invoke("recover_library_move", { source: library, abort: false }),
-    );
+    // Repeat whole-library recovery only with the owned Desktop positively stopped.
+    // Fresh workspace reads legitimately retain leases after the first UI resume.
+    let repeated: unknown;
+    move.result.recovered = { ready, original, newer };
+    browser = await restartApplication("published-move-repeat", async () => {
+      const current = transportValue(
+        "library_move_result",
+        command(["library", "resume-move"], library),
+      );
+      assert.equal(current.completed, true);
+      assert.ok(samePath(current.active_root, destination));
+      assert.equal(current.transfer_id, moveJournal.transfer_id);
+      repeated = current;
+      move.result.repeated_while_desktop_stopped = current;
+      await assertIdentity(newer);
+      await assertIdentity(original);
+    });
     await assertIdentity(newer);
     await assertIdentity(original);
     const sourceRoute = transportValue(
