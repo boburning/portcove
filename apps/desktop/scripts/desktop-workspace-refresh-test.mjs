@@ -196,6 +196,7 @@ export async function workspaceRefreshScenario({
     }
     const observations = {
       mutation_process: "standalone CLI",
+      commit_convergence_synthetic_desktop_events: 0,
       synthetic_desktop_events: 0,
       intervals_ms: { visible_idle_database: 10_000, visible_filesystem_fallback: 60_000 },
       commands: [],
@@ -217,7 +218,7 @@ export async function workspaceRefreshScenario({
       const started = Date.now();
       const install = command(["adopt", original, "--port", port.id, "--yes"]);
       await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
-      await browser.wait(until.elementLocated(By.css('b[aria-label="1 installed"]')), 15_000);
+      await browser.wait(until.elementLocated(By.css('b[aria-label="1 in library"]')), 15_000);
       const cardLocator = By.xpath(
         `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
       );
@@ -303,6 +304,7 @@ export async function workspaceRefreshScenario({
             );
         }, adoptedActivity)
         .then((result) => assert.equal(result.ok, true, JSON.stringify(result)));
+      observations.synthetic_desktop_events = 1;
       await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
       await browser.executeScript(() => {
         const probe = window.__portcoveExternalReconciliationProbe;
