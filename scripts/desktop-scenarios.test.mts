@@ -1,3 +1,4 @@
+import "../apps/desktop/scripts/desktop-catalog-update.native.test.mts";
 import "../apps/desktop/scripts/desktop-design-compatibility.native.test.mts";
 import type { FileIdentity } from "./development-evidence.mts";
 import type { FixtureSpawn } from "../apps/desktop/scripts/desktop-scenario-state.mts";

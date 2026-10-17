@@ -1,3 +1,9 @@
+import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
+import { transportValue } from "./transport-values.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+interface CatalogContext extends ScenarioContext {
+  invoke: ScenarioInvoke;
+}
 import { executeBrowserScript } from "./browser-script.mts";
 // Actual-Tauri presentation proof for catalog trust and update management.
 import assert from "node:assert/strict";
@@ -11,10 +17,18 @@ import {
   reviewControls,
 } from "./desktop-review-controls.mts";
 
-export async function catalogUpdateScenario({ browser, invoke, scenario, output, artifacts }) {
+export async function catalogUpdateScenario({
+  browser,
+  invoke,
+  scenario,
+  output,
+  artifacts,
+}: CatalogContext) {
   await scenario("native-catalog-update-dialog", async () => {
     const before = await invoke("get_catalog_status");
+    assert.ok(isRecord(before));
     assert.equal(before.ok, true);
+    const catalogStatus = transportValue("catalog_status", before.value);
     const { button, click } = reviewControls(browser);
 
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
@@ -34,18 +48,18 @@ export async function catalogUpdateScenario({ browser, invoke, scenario, output,
     const locationField = await browser.findElement(By.id("catalog-update-location"));
     const fieldPresentation = await executeBrowserScript(
       browser,
-      `const fields = arguments;
-       return [...fields].map((field) => {
-         const style = getComputedStyle(field);
-         return {
-           width: style.width,
-           paddingLeft: style.paddingLeft,
-           borderStyle: style.borderStyle,
-           borderWidth: style.borderWidth,
-           backgroundColor: style.backgroundColor,
-           color: style.color,
-         };
-       });`,
+      (...fields) =>
+        fields.map((field) => {
+          const style = getComputedStyle(field);
+          return {
+            width: style.width,
+            paddingLeft: style.paddingLeft,
+            borderStyle: style.borderStyle,
+            borderWidth: style.borderWidth,
+            backgroundColor: style.backgroundColor,
+            color: style.color,
+          };
+        }),
       publicKeyField,
       locationField,
     );
@@ -114,9 +128,9 @@ export async function catalogUpdateScenario({ browser, invoke, scenario, output,
       report,
       `${JSON.stringify(
         {
-          state_sha256: before.value.state_sha256,
-          catalog_origin: before.value.provenance.origin,
-          trusted_publishers: before.value.trusted_keys.length,
+          state_sha256: catalogStatus.state_sha256,
+          catalog_origin: catalogStatus.provenance.origin,
+          trusted_publishers: catalogStatus.trusted_keys.length,
           catalog_state_unchanged: true,
           nested_select_escape_preserved_dialog: true,
           dialog_escape_restored_focus: true,

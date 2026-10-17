@@ -15,20 +15,36 @@ import {
   reviewControls,
 } from "./desktop-review-controls.mts";
 
-/**
- * @typedef {object} SteamEntryContext
- * @property {import("selenium-webdriver").WebDriver} browser
- * @property {(command: string, args?: object) => Promise<object>} invoke
- * @property {(name: string, run: () => Promise<void>) => Promise<void>} scenario
- * @property {string} output
- * @property {string[]} artifacts
- * @property {(args: string[]) => object} command
- * @property {(portId: string, mode: string) => Promise<{port: object, install: object}>} seed
- * @property {(port: object, waitForPreparation?: boolean) => Promise<void>} open
- * @property {Function} confirmNative
- */
+import type { WebDriver, Locator } from "selenium-webdriver";
+import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
+import type { FixtureCommand } from "./desktop-scenario-state.mts";
+import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
+import type { PortDefinition } from "../src/transport-types.generated.d.ts";
+import { transportValue, transportValues } from "./transport-values.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+interface SteamEntryContext extends ScenarioContext {
+  invoke: ScenarioInvoke;
+  command: FixtureCommand;
+  seed: (portId: string, mode: "success") => Promise<{ port: PortDefinition }>;
+  open: (port: PortDefinition, waitForPreparation?: boolean) => Promise<unknown>;
+  confirmNative: ReturnType<typeof nativeConfirmation>;
+}
+function object(value: unknown) {
+  assert.ok(isRecord(value));
+  return value;
+}
+function success(value: unknown) {
+  const reply = object(value);
+  assert.equal(reply.ok, true);
+  return reply.value;
+}
 
-async function selectLocalProfile(browser, click, profileId, fieldId) {
+async function selectLocalProfile(
+  browser: WebDriver,
+  click: (locator: Locator) => Promise<unknown>,
+  profileId: string,
+  fieldId: string,
+) {
   await click(By.xpath('//button[normalize-space(.)="Find local profiles"]'));
   const choice = By.xpath(
     `//div[@aria-label="Local Steam profiles"]//button[normalize-space(.)="${profileId}"]`,
@@ -38,13 +54,30 @@ async function selectLocalProfile(browser, click, profileId, fieldId) {
   assert.equal(await browser.findElement(By.id(fieldId)).getAttribute("value"), profileId);
 }
 
-/** @param {SteamEntryContext} context */
-export async function steamEntryScenario(context) {
+export async function steamEntryScenario(context: SteamEntryContext) {
   assertSteamEntryContext(context);
-  const { browser, invoke, scenario, output, artifacts, command, open, confirmNative } = context;
+  const {
+    browser,
+    invoke: invokeRaw,
+    scenario,
+    output,
+    artifacts,
+    command,
+    open,
+    confirmNative,
+  } = context;
+  const invoke = async (name: string, args?: Record<string, unknown>) =>
+    object(await invokeRaw(name, args));
+  const generation = async () =>
+    transportValue("desktop_bootstrap_status", success(await invoke("get_bootstrap_status")))
+      .generation;
+  const status = (portId: string) => transportValue("status", command(["status", portId]));
+  const sources = () => transportValues("source", command(["source", "list"]));
+  const backups = (portId: string) =>
+    transportValue("backup_inventory", command(["backup", "list", portId]));
   await scenario("native-reviewed-steam-entry-add-and-remove", async () => {
     const { port } = await context.seed("opengoal-jak1", "success");
-    assert.ok(command(["status", port.id]).active, "setup must leave the fixture port installed");
+    assert.ok(status(port.id).active, "setup must leave the fixture port installed");
     const steamRoot = path.join(output, "controlled Steam ü");
     const steamUserId = "12345";
     const config = path.join(steamRoot, "userdata", steamUserId, "config");
@@ -89,13 +122,15 @@ export async function steamEntryScenario(context) {
     artifacts.push(profileScreenshot);
     const preview = await invoke("preview_steam_entry", {
       request: { portId: port.id, steamRoot, steamUserId, operation: "add_or_repair" },
-      generation: (await invoke("get_bootstrap_status")).value.generation,
+      generation: await generation(),
     });
     assert.equal(preview.ok, true, JSON.stringify(preview));
-    assert.equal(preview.value.plan_sha256.length, 64);
-    assert.equal(preview.value.cli_sha256.length, 64);
-    assert.equal(preview.value.cli_product_version, "0.1.0-alpha.2");
-    assert.equal(preview.value.writes_required, true);
+    const previewValue = transportValue("desktop_steam_entry_review", preview.value);
+    assert.equal(previewValue.plan_sha256.length, 64);
+    assert.ok(previewValue.cli_sha256 !== null);
+    assert.equal(previewValue.cli_sha256.length, 64);
+    assert.equal(previewValue.cli_product_version, "0.1.0-alpha.2");
+    assert.equal(previewValue.writes_required, true);
     await click(button("Review shortcut setup"));
     await browser.wait(until.elementLocated(button("Add or repair shortcut")), 15_000);
     const addActionStyles = await assertPrimaryReviewAction(
@@ -140,23 +175,26 @@ export async function steamEntryScenario(context) {
     const added = await fileIdentity(shortcuts);
     const current = await invoke("preview_steam_entry", {
       request: { portId: port.id, steamRoot, steamUserId, operation: "add_or_repair" },
-      generation: (await invoke("get_bootstrap_status")).value.generation,
+      generation: await generation(),
     });
     assert.equal(current.ok, true);
-    assert.equal(current.value.writes_required, false);
+    const currentValue = transportValue("desktop_steam_entry_review", current.value);
+    assert.equal(currentValue.writes_required, false);
     await click(button("Close"));
-    const sourcesBeforeUninstall = command(["source", "list"]);
-    const backupsBeforeUninstall = command(["backup", "list", port.id]);
-    const savedDataRoot = command(["paths", port.id]).user_data_root;
+    const sourcesBeforeUninstall = sources();
+    const backupsBeforeUninstall = backups(port.id);
+    const savedDataRoot = transportValue("port_paths", command(["paths", port.id])).user_data_root;
     const savedData = path.join(savedDataRoot, "owned-steam-removal-save.bin");
     await mkdir(savedDataRoot, { recursive: true });
     await writeFile(savedData, "owned save must survive game and shortcut removal", { flag: "wx" });
     const savedDataBefore = await fileIdentity(savedData);
     const removedInstall = command(["remove", port.id, "--yes"]);
-    assert.ok(removedInstall.removed.length > 0);
-    assert.equal(command(["status", port.id]).active, null);
-    assert.deepEqual(command(["source", "list"]), sourcesBeforeUninstall);
-    assert.deepEqual(command(["backup", "list", port.id]), backupsBeforeUninstall);
+    const removedPaths = object(removedInstall).removed;
+    assert.ok(Array.isArray(removedPaths));
+    assert.ok(removedPaths.length > 0);
+    assert.equal(status(port.id).active, null);
+    assert.deepEqual(sources(), sourcesBeforeUninstall);
+    assert.deepEqual(backups(port.id), backupsBeforeUninstall);
     assert.deepEqual(await fileIdentity(savedData), savedDataBefore);
     assert.deepEqual(await fileIdentity(shortcuts), added);
     await openCatalogPortAfterRefresh(browser, port, port.name);
@@ -202,13 +240,14 @@ export async function steamEntryScenario(context) {
     assert.notEqual(removed.sha256, added.sha256);
     const absent = await invoke("preview_steam_entry", {
       request: { portId: port.id, steamRoot, steamUserId, operation: "remove" },
-      generation: (await invoke("get_bootstrap_status")).value.generation,
+      generation: await generation(),
     });
     assert.equal(absent.ok, true);
-    assert.equal(absent.value.writes_required, false);
-    assert.equal(command(["status", port.id]).active, null);
-    assert.deepEqual(command(["source", "list"]), sourcesBeforeUninstall);
-    assert.deepEqual(command(["backup", "list", port.id]), backupsBeforeUninstall);
+    const absentValue = transportValue("desktop_steam_entry_review", absent.value);
+    assert.equal(absentValue.writes_required, false);
+    assert.equal(status(port.id).active, null);
+    assert.deepEqual(sources(), sourcesBeforeUninstall);
+    assert.deepEqual(backups(port.id), backupsBeforeUninstall);
     assert.deepEqual(await fileIdentity(savedData), savedDataBefore);
     const report = path.join(output, "steam-entry-result.json");
     await writeFile(
@@ -219,7 +258,7 @@ export async function steamEntryScenario(context) {
           steam_root: steamRoot,
           steam_user_id: steamUserId,
           shortcuts,
-          add_plan_sha256: preview.value.plan_sha256,
+          add_plan_sha256: previewValue.plan_sha256,
           added,
           removed,
           native_add_cancelled_without_write: true,
@@ -245,16 +284,16 @@ export async function steamEntryScenario(context) {
   await scenario("native-reviewed-steam-batch-add", async () => {
     // Remove uninstalls Jak I. A wider profile may have already seeded Jak II
     // in a different preparation mode, so reuse its active install when present.
-    const first = command(["status", "opengoal-jak2"]).active
-      ? { port: command(["catalog", "show", "opengoal-jak2"]) }
+    const first = status("opengoal-jak2").active
+      ? { port: transportValue("port", command(["catalog", "show", "opengoal-jak2"])) }
       : await context.seed("opengoal-jak2", "success");
     const second = await context.seed("opengoal-jak3", "success");
     const steamRoot = path.join(output, "controlled batch Steam ü");
     const steamUserId = "24680";
     const shortcuts = path.join(steamRoot, "userdata", steamUserId, "config", "shortcuts.vdf");
     await mkdir(path.dirname(shortcuts), { recursive: true });
-    const beforeSources = command(["source", "list"]);
-    const beforeBackups = [first, second].map(({ port }) => command(["backup", "list", port.id]));
+    const beforeSources = sources();
+    const beforeBackups = [first, second].map(({ port }) => backups(port.id));
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
@@ -297,24 +336,28 @@ export async function steamEntryScenario(context) {
     const screenshot = path.join(output, "native-steam-batch-add-review.png");
     await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
     artifacts.push(screenshot);
-    const generation = (await invoke("get_bootstrap_status")).value.generation;
+    const selectedGeneration = await generation();
     const request = {
       portIds: [first.port.id, second.port.id],
       steamRoot,
       steamUserId,
     };
-    const preview = await invoke("preview_steam_batch_add", { request, generation });
+    const preview = await invoke("preview_steam_batch_add", {
+      request,
+      generation: selectedGeneration,
+    });
     assert.equal(preview.ok, true, JSON.stringify(preview));
+    const previewValue = transportValue("desktop_steam_batch_review", preview.value);
     assert.deepEqual(
-      preview.value.selected_games.map((game) => game.port_id),
+      previewValue.selected_games.map((game) => game.port_id),
       request.portIds,
     );
-    assert.equal(preview.value.changes.length, 2);
-    assert.equal(preview.value.writes_required, true);
+    assert.equal(previewValue.changes.length, 2);
+    assert.equal(previewValue.writes_required, true);
     const changedSelection = await invoke("apply_steam_batch_add", {
       request: { ...request, portIds: [...request.portIds].reverse() },
-      expectedReviewSha256: preview.value.review_sha256,
-      generation,
+      expectedReviewSha256: previewValue.review_sha256,
+      generation: selectedGeneration,
     });
     assert.equal(changedSelection.ok, false, "a changed batch selection must not open consent");
     await assert.rejects(stat(shortcuts), { code: "ENOENT" });
@@ -340,15 +383,19 @@ export async function steamEntryScenario(context) {
       15_000,
     );
     const written = await fileIdentity(shortcuts);
-    const repeated = await invoke("preview_steam_batch_add", { request, generation });
+    const repeated = await invoke("preview_steam_batch_add", {
+      request,
+      generation: selectedGeneration,
+    });
     assert.equal(repeated.ok, true, JSON.stringify(repeated));
-    assert.equal(repeated.value.writes_required, false);
-    assert.deepEqual(command(["source", "list"]), beforeSources);
+    const repeatedValue = transportValue("desktop_steam_batch_review", repeated.value);
+    assert.equal(repeatedValue.writes_required, false);
+    assert.deepEqual(sources(), beforeSources);
     assert.deepEqual(
-      [first, second].map(({ port }) => command(["backup", "list", port.id])),
+      [first, second].map(({ port }) => backups(port.id)),
       beforeBackups,
     );
-    for (const { port } of [first, second]) assert.ok(command(["status", port.id]).active);
+    for (const { port } of [first, second]) assert.ok(status(port.id).active);
     const report = path.join(output, "steam-batch-result.json");
     await writeFile(
       report,
@@ -358,8 +405,8 @@ export async function steamEntryScenario(context) {
           steam_root: steamRoot,
           steam_user_id: steamUserId,
           shortcuts,
-          review_sha256: preview.value.review_sha256,
-          writer_plan_sha256: preview.value.writer_plan_sha256,
+          review_sha256: previewValue.review_sha256,
+          writer_plan_sha256: previewValue.writer_plan_sha256,
           written,
           changed_selection_rejected: true,
           native_cancel_preserved_original: true,
