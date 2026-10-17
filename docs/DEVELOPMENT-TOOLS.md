@@ -988,6 +988,14 @@ must still refuse cleanup with manual review. This is forced namespace teardown,
 not an application-only kill, graceful close, OS shutdown, installed package or
 minimum Linux environment claim. No qualification feature is required.
 
+The existing manual `Native design compatibility` workflow also offers the fixed
+`linux-preparation-continuity` operation on the standard `ubuntu-22.04` runner in
+this public repository. It builds ordinary app/CLI artifacts in a fresh target,
+compiles the owned probe, and runs both exact scenarios sequentially through the
+same private-X11 adapter. The retained artifact includes failed observations and
+source/binary inputs, excluding WebView profiles and private display cookies.
+Its hosted result remains distinct from local Windows/WSL or minimum-OS proof.
+
 Before executing the unchanged boundary assertions, the observer requires the
 listener's live PID/generation, executable digest and owned namespace ancestry,
 one advertised page target, the actual local main document and
