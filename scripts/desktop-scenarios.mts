@@ -304,6 +304,17 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-rejected-listener-registration",
+    "One live Core preparation survives actual native event registration rejection and a fresh listener owner.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-preparation-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-late-listener-disposal",
     "One live Core preparation survives genuine owner remounts and late native listener disposal.",
     {
@@ -672,10 +683,11 @@ export function resolveDesktopSelection({
   if (uniqueRequested.includes("native-external-runtime-review") && platform !== "win32")
     throw new Error("native-external-runtime-review requires Windows");
   if (
-    uniqueRequested.includes("native-late-listener-disposal") &&
+    (uniqueRequested.includes("native-late-listener-disposal") ||
+      uniqueRequested.includes("native-rejected-listener-registration")) &&
     (uniqueRequested.length !== 1 || platform !== "win32")
   )
-    throw new Error("native-late-listener-disposal requires one standalone Windows scenario");
+    throw new Error("Operation listener qualification requires one standalone Windows scenario");
   if (
     uniqueRequested.includes("native-startup-preferences-recovery") &&
     uniqueRequested.length !== 1

@@ -2381,22 +2381,22 @@ void test("backup success-focus acceptance is isolated and exact-selection-only"
   assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
 });
 
-void test("late operation listener qualification remains standalone and outside ordinary profiles", () => {
-  const id = "native-late-listener-disposal";
-  const selected = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
-  assert.deepEqual(selected.selected_scenarios, [id]);
-  assert.deepEqual(selected.setup_scenarios, []);
-  assert.equal(desktopScenarioById.get(id)?.qualification_only, true);
-  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
-  assert.throws(
-    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
-    /standalone/,
-  );
-  assert.throws(
-    () => resolveDesktopSelection({ scenarios: [id], platform: "linux" }),
-    /Windows|win32/,
-  );
-});
+for (const id of ["native-late-listener-disposal", "native-rejected-listener-registration"])
+  void test(`${id} remains standalone and outside ordinary profiles`, () => {
+    const selected = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+    assert.deepEqual(selected.selected_scenarios, [id]);
+    assert.deepEqual(selected.setup_scenarios, []);
+    assert.equal(desktopScenarioById.get(id)?.qualification_only, true);
+    for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+      /standalone/,
+    );
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id], platform: "linux" }),
+      /Windows|win32/,
+    );
+  });
 
 void test("saved-folder selected setup stays standalone and opt-in", () => {
   const id = "native-saved-folder-selected-setup";
