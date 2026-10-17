@@ -1782,3 +1782,35 @@ void test("a successful payload cannot mint a reusable receipt after source chan
     /source changed during execution; successful receipt withheld/u,
   );
 });
+
+void test("focused native and release selections retain independently executed companion suites", () => {
+  for (const [file, primary, companion] of [
+    [
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/native-compatibility.test.mts",
+    ],
+    [
+      "apps/desktop/scripts/desktop-test.mts",
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/native-compatibility.test.mts",
+    ],
+    [
+      "scripts/release-workflow.test.mts",
+      "scripts/release-workflow.test.mts",
+      "scripts/sign-catalog.test.mts",
+    ],
+    [
+      "scripts/check-release-metadata.mts",
+      "scripts/release-workflow.test.mts",
+      "scripts/sign-catalog.test.mts",
+    ],
+  ] as const) {
+    const selected = classifyChanges([{ status: "M", path: file }], { fileExists: allFilesExist });
+    assert.ok(selected.nodeTests.has(primary), `${file} selects ${primary}`);
+    assert.ok(selected.nodeTests.has(companion), `${file} selects ${companion}`);
+    const commands = buildPlan(selected);
+    const args = commands.flatMap((command) => command.args);
+    assert.equal(args.filter((arg) => arg === companion).length, 1, "run each companion once");
+  }
+});

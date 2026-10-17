@@ -31,13 +31,18 @@ void test("runner metadata stays an observation without contaminating prelaunch 
     new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
     "utf8",
   );
-  const start = source.indexOf("const inputs =");
-  const end = source.indexOf("let installFixture;", start);
+  const start = source.indexOf("const inputs:");
+  const end = source.indexOf("const phases =", start);
+  const objectStart = source.indexOf("function object(");
+  const objectEnd = source.indexOf("function text(", objectStart);
+  assert.ok(objectStart >= 0 && objectEnd > objectStart, "Read the production object guard");
   assert.ok(start >= 0 && end > start, "Read the actual production input/metadata block");
   const result = await runInNewContext(
-    `(async()=>{${source.slice(start, end)}return { inputs, runnerMetadata };})()`,
+    `(async()=>{${source.slice(objectStart, objectEnd)}${source.slice(start, end)}return { inputs, runnerMetadata };})()`,
     {
       custody,
+      assert,
+      isRecord,
       values: { "run-metadata": metadata },
       root: fileURLToPath(new URL("../", import.meta.url)),
       path,

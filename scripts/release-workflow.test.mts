@@ -1,5 +1,4 @@
 import type { SpawnSyncReturns } from "node:child_process";
-import "./sign-catalog.test.mts";
 import { errorCode } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";

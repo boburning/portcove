@@ -611,7 +611,14 @@ function frontendTask(id: string, reason: string, task: string) {
 }
 
 function addNodeTest(selection: ValidationSelection, file: string) {
-  selection.nodeTests.add(normalizePath(file));
+  const normalized = normalizePath(file);
+  selection.nodeTests.add(normalized);
+  // These contracts formerly ran through imports; keep them in focused routes
+  // now that each suite has its own explicit execution entry point.
+  if (normalized === "scripts/desktop-scenarios.test.mts")
+    selection.nodeTests.add("scripts/native-compatibility.test.mts");
+  if (normalized === "scripts/release-workflow.test.mts")
+    selection.nodeTests.add("scripts/sign-catalog.test.mts");
 }
 
 function existingSiblingTest(file: string, fileExists: (file: string) => boolean) {
