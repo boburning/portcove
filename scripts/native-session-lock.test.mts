@@ -26,6 +26,7 @@ void test("private XDG child preserves both host-wide and legacy native ownershi
       JSON.stringify({ legacyMode: "coordinated" }),
     );
     const moduleUrl = new URL("./native-session-lock.mts", import.meta.url).href;
+    const namespaceUrl = new URL("./desktop-linux-x11.mts", import.meta.url).href;
     const childCode = `
       import assert from "node:assert/strict";
       import { readFile } from "node:fs/promises";
@@ -47,13 +48,14 @@ void test("private XDG child preserves both host-wide and legacy native ownershi
       import path from "node:path";
       import { spawnSync } from "node:child_process";
       const { acquireNativeSessionLock, nativeSessionLockPath, legacyNativeSessionLockPath } = await import(${JSON.stringify(moduleUrl)});
-      const owner = await acquireNativeSessionLock();
+      const { linuxNamespaceEnvironment } = await import(${JSON.stringify(namespaceUrl)});
+      const owner = await acquireNativeSessionLock({ namespaceDelegation: true });
       const records = [nativeSessionLockPath(), legacyNativeSessionLockPath()].map(value => path.join(value, "owner.json"));
       try {
         const before = await Promise.all(records.map(value => readFile(value, "utf8")));
         const result = spawnSync(process.execPath, ["--input-type=module", "--eval", ${JSON.stringify(childCode)}], {
           encoding: "utf8", timeout: 15000, windowsHide: true,
-          env: { ...process.env, XDG_CACHE_HOME: ${JSON.stringify(path.join(root, "private-xdg"))}, PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: owner.owner.token }
+          env: { ...linuxNamespaceEnvironment(process.env, owner.owner.token), XDG_CACHE_HOME: ${JSON.stringify(path.join(root, "private-xdg"))} }
         });
         assert.equal(result.error, undefined);
         assert.equal(result.status, 0, result.stderr);
@@ -61,23 +63,26 @@ void test("private XDG child preserves both host-wide and legacy native ownershi
       } finally { await owner.release(); }
       for (const record of records) await assert.rejects(readFile(record), { code: "ENOENT" });
     `;
-    const result = spawnSync(process.execPath, ["--input-type=module", "--eval", ownerCode], {
-      encoding: "utf8",
-      timeout: 25_000,
-      windowsHide: true,
-      env: {
-        ...process.env,
-        HOME: root,
-        USERPROFILE: root,
-        XDG_CACHE_HOME: path.join(root, "outer-xdg"),
-        PORTCOVE_SHARED_TOOL_CACHE: path.join(root, "shared-cache"),
-        PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: undefined,
-        PORTCOVE_CONTAINER_GUEST: undefined,
-        GITHUB_ACTIONS: undefined,
-      },
-    });
-    assert.equal(result.error, undefined);
-    assert.equal(result.status, 0, result.stderr);
+    for (const sharedCache of [path.join(root, "shared-cache"), undefined]) {
+      const result = spawnSync(process.execPath, ["--input-type=module", "--eval", ownerCode], {
+        encoding: "utf8",
+        timeout: 25_000,
+        windowsHide: true,
+        env: {
+          ...process.env,
+          HOME: root,
+          USERPROFILE: root,
+          LOCALAPPDATA: path.join(root, "local-appdata"),
+          XDG_CACHE_HOME: path.join(root, "outer-xdg"),
+          PORTCOVE_SHARED_TOOL_CACHE: sharedCache,
+          PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: undefined,
+          PORTCOVE_CONTAINER_GUEST: undefined,
+          GITHUB_ACTIONS: undefined,
+        },
+      });
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, 0, result.stderr);
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }

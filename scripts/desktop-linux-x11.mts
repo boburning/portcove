@@ -21,6 +21,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { launchLinuxNativeSession } from "../apps/desktop/scripts/desktop-linux-native-session.mts";
 import { acquireNativeSessionLock } from "./native-session-lock.mts";
+import { toolCachePaths } from "./tool-cache.mts";
 import { fileIdentity } from "./development-evidence.mts";
 import {
   retainedEvidenceRoot,
@@ -409,6 +410,29 @@ async function bootstrap(config: X11Configuration & { _caller_uid: number }, run
   process.exitCode = status.code ?? 1;
 }
 
+export function linuxNamespaceEnvironment(
+  environment: NodeJS.ProcessEnv,
+  nativeSessionToken: string,
+): NodeJS.ProcessEnv {
+  return {
+    ...Object.fromEntries(
+      Object.entries(environment).filter(
+        ([key]) =>
+          ![
+            "PORTCOVE_RESOURCE_RESERVATION",
+            "PORTCOVE_HEAVY_RUST_LOCK_TOKEN",
+            "PORTCOVE_HEAVY_RUST_PROCESS_TOKEN",
+          ].includes(key),
+      ),
+    ),
+    PORTCOVE_CONTAINER_GUEST: "1",
+    PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: nativeSessionToken,
+    // Resolve before private XDG isolation, so the delegated legacy lease still
+    // names the exact cache in which the outer owner acquired it.
+    PORTCOVE_SHARED_TOOL_CACHE: toolCachePaths({ environment }).sharedRoot,
+  };
+}
+
 export async function runLinuxX11(file: string) {
   assert.equal(process.platform, "linux", "Private X11 route supports Linux only");
   const callerUid = uid();
@@ -484,20 +508,7 @@ export async function runLinuxX11(file: string) {
         JSON.stringify({ ...config, _caller_uid: callerUid }),
         runtime,
       ],
-      {
-        ...Object.fromEntries(
-          Object.entries(process.env).filter(
-            ([key]) =>
-              ![
-                "PORTCOVE_RESOURCE_RESERVATION",
-                "PORTCOVE_HEAVY_RUST_LOCK_TOKEN",
-                "PORTCOVE_HEAVY_RUST_PROCESS_TOKEN",
-              ].includes(key),
-          ),
-        ),
-        PORTCOVE_CONTAINER_GUEST: "1",
-        PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: lease.owner.token,
-      },
+      linuxNamespaceEnvironment(process.env, lease.owner.token),
     );
     launch.child.stdout.pipe(process.stdout);
     launch.child.stderr.pipe(process.stderr);
