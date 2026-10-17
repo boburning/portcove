@@ -752,8 +752,8 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
-  // Four checkpoints, positive host/driver joins and fresh starts; harness only.
-  if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 600_000;
+  // Five checkpoints, positive host/driver joins and fresh starts; harness only.
+  if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;
   const ordinary = executed > 8 ? 10 * 60_000 : 3 * 60_000;
   const cacheConditions = selection.selected_scenarios.includes(

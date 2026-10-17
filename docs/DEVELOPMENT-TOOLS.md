@@ -1135,7 +1135,7 @@ The curated profiles are:
   not universal desktop, physical-device, gameplay or human qualification.
 
 `--scenario native-host-publication-recovery` is a standalone instrumented Windows
-journey at existing Core install, restore and whole-library move checkpoints. It
+journey at existing Core install, restore, whole-library move and import checkpoints. It
 uses the existing `qualification-fixtures` build feature; ordinary builds keep
 `NoLifecycleFaults` and do not read checkpoint controls. The harness owns a fresh
 `.qualification-lifecycle` directory beside its library, outside every transfer
@@ -1145,8 +1145,8 @@ marker, then waits at most 120 seconds for an explicit matching release; invalid
 controls, collisions and expired waits fail qualification. The marker cannot
 authorize operation recovery or process termination.
 
-The four cases observe install Prepared, install payload Published, restore
-Prepared and whole-library move Published. Install payload publication precedes
+The five cases observe install Prepared, install payload Published, restore
+Prepared, whole-library move Published and whole-library import Published. Install payload publication precedes
 SQLite registration; it is not a post-database-commit crash. Each case independently
 matches its real journal/phase and current application identity before forcing
 only the captured app tree to exit, without deleting the WebDriver session or
@@ -1155,10 +1155,15 @@ precede control disarming and fresh startup. Assertions cover committed install
 identity, original data and archives, verified restore plus its safety backup,
 the move's recovery gate and offered Resume action, one redirected writable
 library, and preservation of newer destination saves across repeated recovery.
-The opt-in harness budget is 600 seconds instead of the generic single-scenario
-180 seconds to contain four bounded checkpoints, joins and fresh hosts. Product
+Import Published instead has a succeeded activity and matching publication receipt;
+the imported destination can already open after forced host loss. The harness
+explicitly restarts that destination and uses supported bookkeeping recovery to
+archive the journal while preserving a newer save and the export inputs. It does
+not claim automatic journal archival or an unfinished mutation at that boundary.
+The opt-in harness budget is 720 seconds instead of the generic single-scenario
+180 seconds to contain five bounded checkpoints, joins and fresh hosts. Product
 cancellation, shutdown, lock and network deadlines remain unchanged. The separate
-Core import Published observer is not executed by these four cases. These are
+Core import Published observer runs only in the fifth case. These are
 instrumented fixture process-loss observations, not OS shutdown, installed-release
 or Linux qualification; preserve failed or incomplete captures separately.
 

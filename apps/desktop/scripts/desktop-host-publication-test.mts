@@ -7,7 +7,7 @@ import { By, Key, until } from "selenium-webdriver";
 import type { WebDriver } from "selenium-webdriver";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
-import { transportValue } from "./transport-values.mts";
+import { transportValue, transportValues } from "./transport-values.mts";
 import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { CapturedNativeProcess } from "./desktop-owned-native-session.mts";
@@ -28,6 +28,7 @@ interface Context {
     assertHeld: (application: CapturedNativeProcess) => Promise<void>,
     afterStopped: () => Promise<void>,
     bootstrapRecovery: boolean,
+    restartLibrary?: string,
   ) => Promise<WebDriver>;
 }
 
@@ -104,12 +105,12 @@ export async function hostPublicationScenario(context: Context) {
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
   }
-  async function arm(checkpoint: string) {
+  async function arm(checkpoint: string, checkpointRoot = library) {
     const nonce = randomUUID();
     const control = {
       format_version: 1,
       nonce,
-      library_root: await realpath(library),
+      library_root: await realpath(checkpointRoot),
       checkpoint,
       expires_unix_ms: Date.now() + 300_000,
     };
@@ -127,7 +128,9 @@ export async function hostPublicationScenario(context: Context) {
       assert.equal(marker.nonce, nonce);
       assert.equal(marker.checkpoint, checkpoint);
       assert.equal(marker.control_sha256, sha256);
-      assert.ok(typeof marker.library_root === "string" && samePath(marker.library_root, library));
+      assert.ok(
+        typeof marker.library_root === "string" && samePath(marker.library_root, checkpointRoot),
+      );
       assert.ok(typeof marker.entered_unix_ms === "number" && marker.entered_unix_ms <= Date.now());
       assert.ok(
         typeof marker.deadline_unix_ms === "number" &&
@@ -292,10 +295,28 @@ export async function hostPublicationScenario(context: Context) {
     assert.equal(safety.length, 1);
     const retainedCurrent = path.join(safety[0]!.path, "data", path.basename(save));
     assert.equal((await fileIdentity(retainedCurrent)).sha256, currentSave.sha256);
+    const backupWitnesses = await Promise.all(
+      [selected, safety[0]!].flatMap((backup) => [
+        fileIdentity(path.join(backup.path, "backup.json")),
+        fileIdentity(path.join(backup.path, "data", path.basename(save))),
+      ]),
+    );
+    const assertBackupCopies = async (root: string) => {
+      const copies = [];
+      for (const witness of backupWitnesses) {
+        await assertIdentity(witness);
+        const copy = await fileIdentity(path.join(root, path.relative(library, witness.path)));
+        assert.equal(copy.sha256, witness.sha256);
+        assert.equal(copy.bytes, witness.bytes);
+        copies.push(copy);
+      }
+      return copies;
+    };
     probe.result.recovered = {
       backupsAfter,
       retainedCurrent: await fileIdentity(retainedCurrent),
       restored: await fileIdentity(save),
+      backupWitnesses,
     };
     await capture("restore-prepared-fresh-start-recovered");
 
@@ -340,6 +361,7 @@ export async function hostPublicationScenario(context: Context) {
         await move.held();
         await assertIdentity(original);
         move.result.activity_after_forced_exit = heldActivity(library, moveJournal.transfer_id);
+        move.result.backups_after_forced_exit = await assertBackupCopies(destination);
         await move.disarm();
       },
       true,
@@ -404,8 +426,198 @@ export async function hostPublicationScenario(context: Context) {
       sourceRoute,
       destinationRoute,
       redirectedWrite,
+      backups: await assertBackupCopies(destination),
     };
     await capture("library-move-recovered-with-newer-save-preserved");
+
+    // Import has already committed its open gate and succeeded activity at Published.
+    // Host loss interrupts observation/bookkeeping, not an unfinished mutation.
+    const metadata = path.join(output, "host-loss-import-export.json");
+    command(["library", "export", "--output", metadata], destination);
+    const exported = await fileIdentity(metadata);
+    const sourceFacts = (value: unknown) =>
+      transportValues("source", value).map(({ profile_id, sha256, size }) => ({
+        profile_id,
+        sha256,
+        size,
+      }));
+    const importSources = sourceFacts(command(["source", "list"], destination));
+    const backupFacts = (root: string) =>
+      transportValue("backup_inventory", command(["backup", "list", port.id], root))
+        .backups.map(({ id, sha256 }) => ({ id, sha256 }))
+        .sort((left, right) => left.id.localeCompare(right.id));
+    const exportedBackups = backupFacts(destination);
+    const exportedInstallation = transportValue(
+      "status",
+      command(["status", port.id], destination),
+    ).active;
+    assert.ok(exportedInstallation);
+    const importRoot = path.join(output, "published-import-destination");
+    await mkdir(importRoot);
+    success(await invoke("set_default_library", { path: importRoot }));
+    await browser.navigate().refresh();
+    await browser.wait(
+      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+      30_000,
+    );
+    const selectedImportRoot = transportValue(
+      "desktop_bootstrap_status",
+      success(await invoke("get_bootstrap_status")),
+    );
+    assert.equal(selectedImportRoot.ready, true);
+    assert.ok(
+      selectedImportRoot.library_root && samePath(selectedImportRoot.library_root, importRoot),
+    );
+    const importProbe = await arm("library_import_published", importRoot);
+    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await browser.findElement(button("Restore from a library copy")).click();
+    await browser.wait(until.elementLocated(By.id("import-metadata")), 15_000);
+    await browser.findElement(By.id("import-metadata")).sendKeys(metadata);
+    await browser.findElement(By.id("import-content")).sendKeys(destination);
+    await browser.findElement(button("Review restore")).click();
+    const importAction = await browser.wait(
+      until.elementLocated(button("Restore this library")),
+      15_000,
+    );
+    await browser.wait(until.elementIsEnabled(importAction), 15_000);
+    await capture("library-import-reviewed-before-host-loss");
+    await importAction.click();
+    await confirmNative(
+      "Confirm library restore",
+      "Restore library",
+      "Only restore a Portcove export you trust.",
+      "host-loss-import-consent",
+    );
+    await importProbe.wait();
+    const importJournalPath = path.join(importRoot, ".portcove-import.json");
+    const importJournal = object(JSON.parse(await readFile(importJournalPath, "utf8")));
+    assert.equal(importJournal.phase, "published");
+    const importId = importJournal.transfer_id;
+    assert.ok(typeof importId === "string");
+    const publication = () => {
+      const database = new DatabaseSync(path.join(importRoot, "portcove.sqlite3"), {
+        readOnly: true,
+      });
+      try {
+        const activity = database
+          .prepare("SELECT * FROM activity_history WHERE id=?")
+          .get(importId);
+        assert.ok(activity);
+        assert.equal(activity.status, "succeeded");
+        assert.equal(activity.operation, "import_library");
+        assert.equal(activity.target_kind, "library");
+        assert.equal(activity.target_id, null);
+        assert.equal(activity.import_receipt_sha256, object(importJournal.plan).plan_sha256);
+        return activity;
+      } finally {
+        database.close();
+      }
+    };
+    importProbe.result.before = importJournal;
+    importProbe.result.committed_activity = publication();
+    const importedSave = path.join(importRoot, path.relative(destination, newer.path));
+    assert.equal((await fileIdentity(importedSave)).sha256, newer.sha256);
+    browser = await interruptHost(
+      "library-import-published",
+      async (application) => {
+        await importProbe.held(application);
+        assert.deepEqual(JSON.parse(await readFile(importJournalPath, "utf8")), importJournal);
+        assert.deepEqual(publication(), importProbe.result.committed_activity);
+      },
+      async () => {
+        await importProbe.held();
+        assert.deepEqual(JSON.parse(await readFile(importJournalPath, "utf8")), importJournal);
+        importProbe.result.activity_after_forced_exit = publication();
+        assert.deepEqual(
+          importProbe.result.activity_after_forced_exit,
+          importProbe.result.committed_activity,
+        );
+        importProbe.result.backups_after_forced_exit = await assertBackupCopies(importRoot);
+        importProbe.result.input_backups_after_forced_exit = await assertBackupCopies(destination);
+        await assertIdentity(exported);
+        await assertIdentity(newer);
+        await assertIdentity(original);
+        await assertIdentity(archive);
+        await importProbe.disarm();
+      },
+      false,
+      importRoot,
+    );
+    const importedBootstrap = transportValue(
+      "desktop_bootstrap_status",
+      success(await invoke("get_bootstrap_status")),
+    );
+    assert.equal(importedBootstrap.ready, true);
+    assert.ok(
+      importedBootstrap.library_root && samePath(importedBootstrap.library_root, importRoot),
+    );
+    assert.deepEqual(JSON.parse(await readFile(importJournalPath, "utf8")), importJournal);
+    assert.deepEqual(publication(), importProbe.result.committed_activity);
+    const importedInstallation = transportValue(
+      "status",
+      command(["status", port.id], importRoot),
+    ).active;
+    assert.ok(importedInstallation);
+    assert.equal(importedInstallation.id, exportedInstallation.id);
+    assert.deepEqual(importedInstallation.artifact, exportedInstallation.artifact);
+    assert.ok(
+      samePath(
+        importedInstallation.path,
+        path.join(importRoot, path.relative(destination, exportedInstallation.path)),
+      ),
+    );
+    await writeFile(importedSave, "New save after published import host restart.");
+    const newImportedSave = await fileIdentity(importedSave);
+    const importRecovered = transportValue(
+      "library_import_result",
+      success(await invoke("recover_library_import", { destination: importRoot, abort: false })),
+    );
+    assert.equal(importRecovered.completed, true);
+    assert.equal(importRecovered.transfer_id, importId);
+    assert.equal(
+      await stat(importJournalPath).then(
+        () => true,
+        (error) => {
+          if (isRecord(error) && error.code === "ENOENT") return false;
+          throw error;
+        },
+      ),
+      false,
+    );
+    const archivedImport = object(
+      JSON.parse(await readFile(path.join(importRoot, "recovery", "library-import.json"), "utf8")),
+    );
+    assert.equal(archivedImport.phase, "complete");
+    assert.equal(archivedImport.transfer_id, importId);
+    const importActivities = transportValue(
+      "activity",
+      command(["activity"], importRoot),
+    ).records.filter((entry) => entry.operation === "import_library");
+    assert.equal(importActivities.length, 1);
+    assert.equal(importActivities[0]?.id, importId);
+    assert.equal(importActivities[0]?.status, "succeeded");
+    assert.deepEqual(sourceFacts(success(await invoke("get_sources"))), importSources);
+    assert.deepEqual(backupFacts(importRoot), exportedBackups);
+    await assertIdentity(newImportedSave);
+    await assertIdentity(exported);
+    await assertIdentity(newer);
+    await assertIdentity(original);
+    await assertIdentity(archive);
+    importProbe.result.recovered = {
+      source_facts: importSources,
+      source_limit:
+        "No original-game-source preservation credit is inferred from an empty fixture source list.",
+      importedInstallation,
+      backups: await assertBackupCopies(importRoot),
+      input_backups: await assertBackupCopies(destination),
+      backup_inventory: exportedBackups,
+      importedBootstrap,
+      importRecovered,
+      archivedImport,
+      importActivities,
+      newImportedSave,
+    };
+    await capture("library-import-published-recovered-with-newer-save-preserved");
   } catch (error) {
     report.failure = errorMessage(error);
     throw error;

@@ -40,7 +40,7 @@ void test("publication interruption is standalone, instrumented and positively s
   assert.equal(plan.fixtures.owned, true);
   assert.equal(plan.fixtures.holdFirstDownload, false);
   assert.deepEqual(plan.build.qualificationFeatures, ["qualification-fixtures"]);
-  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  assert.equal(desktopHarnessDeadlineMs(selection), 720_000);
   assert.ok(
     plan.receiptInputs.some(
       (input) =>

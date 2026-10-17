@@ -1459,6 +1459,7 @@ async function interruptCheckpointHost(
   assertHeld: (application: CapturedNativeProcess) => Promise<void>,
   afterStopped: () => Promise<void>,
   bootstrapRecovery: boolean,
+  restartLibrary?: string,
 ) {
   assert.ok(hostPublicationSession && process.platform === "win32");
   const report: Record<string, unknown> = {
@@ -1500,6 +1501,16 @@ async function interruptCheckpointHost(
     driver = undefined;
     await afterStopped();
     report.fixture_disarmed_after_quiescence = true;
+    if (restartLibrary !== undefined) {
+      assert.equal(
+        path.resolve(restartLibrary),
+        path.resolve(output, "published-import-destination"),
+      );
+      const directory = await lstat(restartLibrary);
+      assert.ok(directory.isDirectory() && !directory.isSymbolicLink());
+      publicationRestartRoot = restartLibrary;
+      report.restart_library_root = restartLibrary;
+    }
     await startDriver();
     await connectObservedDriver();
     const current = driverBrowser();
@@ -1712,6 +1723,7 @@ async function driverReady() {
   }
 }
 
+let publicationRestartRoot: string | undefined;
 function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
@@ -1727,7 +1739,7 @@ function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
     ...(selection.prerequisites.includes("steam-fixture")
       ? { PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE: "closed" }
       : {}),
-    PORTCOVE_LIBRARY: library,
+    PORTCOVE_LIBRARY: hostPublicationSession ? (publicationRestartRoot ?? library) : library,
     ...(hostPublicationSession
       ? {
           PORTCOVE_QUALIFICATION_CHECKPOINT: path.join(
