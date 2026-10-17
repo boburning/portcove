@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { formatViolations, validateArchitecture } from "./check-rust-architecture.mts";
 
-function metadata(overrides = {}) {
+function metadata(overrides: Record<string, string[]> = {}) {
   const dependencies = {
     "portcove-core": ["serde"],
     "portcove-cli": ["clap", "portcove-core"],
@@ -21,24 +21,24 @@ function metadata(overrides = {}) {
   };
 }
 
-test("accepts the intended core and adapter graph", () => {
+void test("accepts the intended core and adapter graph", () => {
   assert.deepEqual(validateArchitecture(metadata()), []);
 });
 
-test("reports forbidden cross-layer dependencies with actionable context", () => {
+void test("reports forbidden cross-layer dependencies with actionable context", () => {
   const violations = validateArchitecture(metadata({ "portcove-core": ["serde", "tauri"] }));
   assert.equal(violations.length, 1);
   assert.match(formatViolations(violations), /portcove-core -> tauri/);
   assert.match(formatViolations(violations), /presentation-layer/);
 });
 
-test("reports missing required adapter dependencies", () => {
+void test("reports missing required adapter dependencies", () => {
   const violations = validateArchitecture(metadata({ "portcove-cli": ["clap"] }));
   assert.equal(violations.length, 1);
   assert.match(formatViolations(violations), /portcove-cli -\/-> portcove-core/);
 });
 
-test("fails closed when a governed workspace package disappears", () => {
+void test("fails closed when a governed workspace package disappears", () => {
   const input = metadata();
   input.packages = input.packages.filter((pkg) => pkg.name !== "portcove-desktop");
   const violations = validateArchitecture(input);
@@ -46,7 +46,7 @@ test("fails closed when a governed workspace package disappears", () => {
   assert.match(formatViolations(violations), /was not found/);
 });
 
-test("keeps catalog signature authority out of presentation adapters", () => {
+void test("keeps catalog signature authority out of presentation adapters", () => {
   const violations = validateArchitecture(
     metadata({
       "portcove-cli": ["clap", "portcove-core", "ed25519-dalek"],
@@ -57,7 +57,7 @@ test("keeps catalog signature authority out of presentation adapters", () => {
   assert.ok(violations.every((item) => item.dependencyName === "ed25519-dalek"));
 });
 
-test("keeps artwork decoding in core while hosts bridge display and file selection", () => {
+void test("keeps artwork decoding in core while hosts bridge display and file selection", () => {
   const violations = validateArchitecture(
     metadata({
       "portcove-core": ["serde", "image"],
@@ -69,7 +69,7 @@ test("keeps artwork decoding in core while hosts bridge display and file selecti
   assert.ok(violations.every((item) => item.dependencyName === "image"));
 });
 
-test("keeps default Cargo builds independent of the desktop package", () => {
+void test("keeps default Cargo builds independent of the desktop package", () => {
   const input = metadata();
   input.workspace_default_members.push("portcove-desktop");
   const violations = validateArchitecture(input);
@@ -77,7 +77,7 @@ test("keeps default Cargo builds independent of the desktop package", () => {
   assert.match(formatViolations(violations), /default Rust build stays independent/);
 });
 
-test("isolates offline release verification from player and library authority", () => {
+void test("isolates offline release verification from player and library authority", () => {
   const violations = validateArchitecture(
     metadata({
       "portcove-release-tools": ["portcove-core", "tauri"],
@@ -87,10 +87,25 @@ test("isolates offline release verification from player and library authority", 
   assert.equal(violations.length, 3);
 });
 
-test("keeps host tracing collectors outside the core failure authority", () => {
+void test("keeps host tracing collectors outside the core failure authority", () => {
   const violations = validateArchitecture(
     metadata({ "portcove-core": ["serde", "tracing-subscriber"] }),
   );
   assert.equal(violations.length, 1);
+  assert.ok(violations[0]);
   assert.equal(violations[0].dependencyName, "tracing-subscriber");
+});
+
+void test("rejects malformed Cargo metadata before evaluating architecture", () => {
+  for (const value of [
+    null,
+    {},
+    { packages: {} },
+    { packages: [null] },
+    { packages: [{ id: [], name: "portcove-core", dependencies: [] }] },
+    { packages: [{ id: "core", name: "portcove-core", dependencies: ["tauri"] }] },
+    { ...metadata(), workspace_default_members: [42] },
+  ]) {
+    assert.throws(() => validateArchitecture(value), TypeError);
+  }
 });

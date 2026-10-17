@@ -13,7 +13,7 @@ const ALLOWED_DIRECT_COMMAND_FILES = new Set([
   "crates/portcove-core/src/tool_process/linux_tests.rs",
 ]);
 
-function rustFiles(directory) {
+function rustFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = resolve(directory, entry.name);
     if (entry.isDirectory()) return rustFiles(path);
@@ -21,8 +21,10 @@ function rustFiles(directory) {
   });
 }
 
-export function findDirectChildProcessCalls(files) {
-  const violations = [];
+export function findDirectChildProcessCalls(
+  files: readonly (readonly [path: string, source: string])[],
+) {
+  const violations: { path: string; line: number }[] = [];
   for (const [path, source] of files) {
     if (ALLOWED_DIRECT_COMMAND_FILES.has(path.replaceAll("\\", "/"))) continue;
     source.split(/\r?\n/u).forEach((line, index) => {
@@ -36,7 +38,7 @@ export function findDirectChildProcessCalls(files) {
 
 export function main() {
   const files = SOURCE_ROOTS.flatMap((root) => rustFiles(resolve(REPOSITORY_ROOT, root))).map(
-    (path) => [relative(REPOSITORY_ROOT, path), readFileSync(path, "utf8")],
+    (path) => [relative(REPOSITORY_ROOT, path), readFileSync(path, "utf8")] as const,
   );
   const violations = findDirectChildProcessCalls(files);
   if (violations.length > 0) {

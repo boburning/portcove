@@ -1,8 +1,52 @@
+import { isRecord } from "./runtime-values.mts";
+interface ArchitectureRule {
+  required?: readonly string[];
+  forbidden?: Readonly<Record<string, string>>;
+}
+interface ArchitectureViolation {
+  packageName: string;
+  dependencyName: string | null;
+  message: string;
+  missing?: boolean;
+}
+interface WorkspacePackage {
+  id: string;
+  name: string;
+  dependencies: { name: string }[];
+}
+function text(value: unknown): string {
+  if (typeof value !== "string")
+    throw new TypeError("Cargo architecture metadata must contain text identities");
+  return value;
+}
+function object(value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) throw new TypeError("Cargo architecture metadata must contain objects");
+  return value;
+}
+function array(value: unknown): unknown[] {
+  if (!Array.isArray(value)) throw new TypeError("Cargo architecture metadata must contain arrays");
+  return value;
+}
+function architectureMetadata(value: unknown) {
+  const raw = object(value);
+  const packages: WorkspacePackage[] = array(raw.packages).map((value) => {
+    const pkg = object(value);
+    return {
+      id: text(pkg.id),
+      name: text(pkg.name),
+      dependencies: array(pkg.dependencies).map((value) => ({ name: text(object(value).name) })),
+    };
+  });
+  return {
+    packages,
+    workspace_default_members: array(raw.workspace_default_members ?? []).map(text),
+  };
+}
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const RULES = {
+const RULES: Readonly<Record<string, ArchitectureRule>> = {
   "portcove-core": {
     forbidden: {
       tauri: "portcove-core must remain independent of presentation-layer dependencies.",
@@ -50,9 +94,13 @@ const RULES = {
   },
 };
 
-export function validateArchitecture(metadata, rules = RULES) {
+export function validateArchitecture(
+  value: unknown,
+  rules: Readonly<Record<string, ArchitectureRule>> = RULES,
+) {
+  const metadata = architectureMetadata(value);
   const packages = new Map(metadata.packages.map((pkg) => [pkg.name, pkg]));
-  const violations = [];
+  const violations: ArchitectureViolation[] = [];
 
   const namesById = new Map(metadata.packages.map((pkg) => [pkg.id, pkg.name]));
   const defaultMembers = (metadata.workspace_default_members ?? [])
@@ -101,7 +149,7 @@ export function validateArchitecture(metadata, rules = RULES) {
   return violations;
 }
 
-export function formatViolations(violations) {
+export function formatViolations(violations: readonly ArchitectureViolation[]) {
   return violations
     .map((violation) => {
       const relation = violation.dependencyName
@@ -120,7 +168,7 @@ export function formatViolations(violations) {
     .join("\n\n");
 }
 
-function loadMetadata() {
+function loadMetadata(): unknown {
   const cargo = process.platform === "win32" ? "cargo.exe" : "cargo";
   const output = execFileSync(cargo, ["metadata", "--format-version", "1", "--no-deps"], {
     cwd: fileURLToPath(new URL("..", import.meta.url)),

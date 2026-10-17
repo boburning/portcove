@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { findDirectChildProcessCalls } from "./check-child-process-policy.mts";
 
-test("accepts the centralized policy and test harness", () => {
+void test("accepts the centralized policy and test harness", () => {
   assert.deepEqual(
     findDirectChildProcessCalls([
       ["crates/portcove-core/src/process.rs", "Command::new(program)"],
@@ -16,7 +16,7 @@ test("accepts the centralized policy and test harness", () => {
   );
 });
 
-test("test-like names do not grant general direct-spawn authority", () => {
+void test("test-like names do not grant general direct-spawn authority", () => {
   assert.equal(
     findDirectChildProcessCalls([
       ["crates/portcove-core/src/tool_process/other_tests.rs", "Command::new(program)"],
@@ -25,7 +25,7 @@ test("test-like names do not grant general direct-spawn authority", () => {
   );
 });
 
-test("reports a production bypass with its source line", () => {
+void test("reports a production bypass with its source line", () => {
   assert.deepEqual(
     findDirectChildProcessCalls([
       ["apps/desktop/src-tauri/src/lib.rs", "fn launch() {\n  Command::new(game);\n}"],
