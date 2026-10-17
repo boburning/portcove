@@ -434,8 +434,16 @@ async function probe(file) {
     `device=${device}`,
     "num-buffers=1",
     "!",
+    // Keep the first readiness read from renegotiating the shared Vivid device
+    // before the identical probe runs in the final application namespace.
+    "video/x-raw,format=YUY2,width=640,height=360,framerate=30/1",
+    "!",
     "fakesink",
   ]);
+  const videoAfterRead = observe("/usr/bin/v4l2-ctl", ["--device", device, "--all"]);
+  assert.match(videoAfterRead, /640\/360/u, "Positive read changed the prepared video mode");
+  assert.match(videoAfterRead, /Pixel Format\s*:\s*'YUYV'/u);
+  assert.match(videoAfterRead, /Frames per second:\s*30\.000 \(30\/1\)/u);
   observe("/usr/bin/gst-launch-1.0", [
     "-q",
     "pulsesrc",
@@ -449,6 +457,7 @@ async function probe(file) {
     uid: process.getuid(),
     uid_map: (await readFile("/proc/self/uid_map", "utf8")).trim(),
     video,
+    video_after_read: videoAfterRead,
     sources,
     positive_reads: { video_buffers: 1, audio_buffers: 1 },
     scope:
