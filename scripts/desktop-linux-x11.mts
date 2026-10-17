@@ -1,8 +1,10 @@
-import { errorMessage } from "./runtime-values.mts";
+import { errorMessage, isRecord } from "./runtime-values.mts";
 import { resourceEntrypoint } from "./resource-command.mts";
 import { frontendOutputResource } from "./resource-capacity.mts";
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
+import type { FileIdentity } from "./development-evidence.mts";
+import type { NamespaceEvent } from "../apps/desktop/scripts/desktop-linux-native-session.mts";
 import { randomBytes } from "node:crypto";
 import {
   chmod,
@@ -34,19 +36,59 @@ const source = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("../", import.meta.url));
 const scope =
   "Linux GTK/WebKit on ext4 with private authenticated virtual X11; no WSLg, physical display/controller or universal Linux qualification";
-export function assertQualificationUidMap(callerUid, mapping) {
-  assert.ok(Number.isSafeInteger(callerUid) && callerUid > 0 && callerUid < 0xffffffff);
-  assert.equal(mapping.trim().replace(/\s+/gu, " "), `0 ${callerUid} 1`);
+type NativeLaunch = Awaited<ReturnType<typeof launchLinuxNativeSession>>;
+type DriverExit = Extract<NamespaceEvent, { kind: "driver-exited" }>;
+type Join = Awaited<ReturnType<NativeLaunch["stop"]>> | { outcome: "unknown"; message: string };
+interface X11Configuration {
+  format_version: 1;
+  stage: "gtk" | "harness";
+  xvfb: string;
+  xkbcomp: string;
+  output_root: string;
+  harness_args: string[];
+  node?: string;
+  tool_cache?: string;
 }
-export async function readLinuxX11Configuration(file) {
-  const config = JSON.parse(await readFile(file, "utf8"));
+interface DisplayReceipt {
+  format_version: number;
+  scope: string;
+  stage: X11Configuration["stage"];
+  authorization: string;
+  prerequisites: FileIdentity[];
+  events: never[];
+  gtk_join?: Join;
+  media_probe_join?: Join;
+  harness_join?: Join;
+  xserver_join?: Join;
+  server_output_exceeded?: boolean;
+  display?: string;
+  gtk_readiness?: { outcome: "ready"; exit: DriverExit };
+  media_readiness?: unknown;
+  harness_exit?: DriverExit;
+  outcome?: "passed" | "failed";
+  failure?: string;
+  server_diagnostics?: { stdout: string; stderr: string };
+}
+function uid() {
+  assert.ok(process.getuid, "Linux UID support required");
+  return process.getuid();
+}
+function configuration(value: unknown, internal = false): X11Configuration {
   if (
-    config.format_version !== 1 ||
-    !["gtk", "harness"].includes(config.stage) ||
-    !["xvfb", "xkbcomp", "output_root"].every((key) => path.isAbsolute(config[key] ?? "")) ||
-    !Array.isArray(config.harness_args) ||
-    !config.harness_args.every((value) => typeof value === "string") ||
-    Object.keys(config).some(
+    !isRecord(value) ||
+    value.format_version !== 1 ||
+    (value.stage !== "gtk" && value.stage !== "harness") ||
+    typeof value.xvfb !== "string" ||
+    !path.isAbsolute(value.xvfb) ||
+    typeof value.xkbcomp !== "string" ||
+    !path.isAbsolute(value.xkbcomp) ||
+    typeof value.output_root !== "string" ||
+    !path.isAbsolute(value.output_root) ||
+    !Array.isArray(value.harness_args) ||
+    !value.harness_args.every((argument: unknown) => typeof argument === "string") ||
+    (value.node !== undefined && typeof value.node !== "string") ||
+    (value.tool_cache !== undefined && typeof value.tool_cache !== "string") ||
+    Object.keys(value).some(
       (key) =>
         ![
           "format_version",
@@ -57,13 +99,33 @@ export async function readLinuxX11Configuration(file) {
           "harness_args",
           "node",
           "tool_cache",
+          ...(internal ? ["_caller_uid"] : []),
         ].includes(key),
     )
   )
     throw new Error("Unsupported private-X11 prerequisites/configuration; install nothing");
+  return {
+    ...value,
+    format_version: 1,
+    stage: value.stage,
+    xvfb: value.xvfb,
+    xkbcomp: value.xkbcomp,
+    output_root: value.output_root,
+    harness_args: value.harness_args,
+    ...(typeof value.node === "string" ? { node: value.node } : {}),
+    ...(typeof value.tool_cache === "string" ? { tool_cache: value.tool_cache } : {}),
+  };
+}
+export function assertQualificationUidMap(callerUid: number, mapping: string) {
+  assert.ok(Number.isSafeInteger(callerUid) && callerUid > 0 && callerUid < 0xffffffff);
+  assert.equal(mapping.trim().replace(/\s+/gu, " "), `0 ${callerUid} 1`);
+}
+export async function readLinuxX11Configuration(file: string) {
+  const value: unknown = JSON.parse(await readFile(file, "utf8"));
+  const config = configuration(value);
   const identities = await Promise.all(
-    [config.xvfb, config.xkbcomp, "/usr/bin/unshare", "/usr/bin/dbus-run-session"].map(
-      fileIdentity,
+    [config.xvfb, config.xkbcomp, "/usr/bin/unshare", "/usr/bin/dbus-run-session"].map((file) =>
+      fileIdentity(file),
     ),
   );
   assert.equal(
@@ -82,29 +144,32 @@ export async function readLinuxX11Configuration(file) {
   return { config, identities };
 }
 
-async function waitExit(launch, timeoutMs) {
+async function waitExit(launch: NativeLaunch, timeoutMs: number): Promise<DriverExit> {
   const end = Date.now() + timeoutMs;
   for (;;) {
     const event = launch.receipt.events.find((item) =>
       ["driver-exited", "driver-error"].includes(item.kind),
     );
-    if (event) return event;
+    if (event) {
+      assert.ok(event.kind === "driver-exited", "Private X11 driver launch failed");
+      return event;
+    }
     if (Date.now() >= end) throw new Error("Private X11 operation deadline expired");
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
 }
 
-async function virtualDisplay(config, runtime: string) {
+async function virtualDisplay(config: X11Configuration, runtime: string) {
   assert.equal(process.pid, 1);
-  assert.equal(process.getuid(), 1000);
+  assert.equal(uid(), 1000);
   assert.equal(
     (await readFile("/proc/self/uid_map", "utf8")).trim().replace(/\s+/gu, " "),
     "1000 0 1",
   );
   const auth = path.join(runtime, "private-authority");
   const cookie = randomBytes(16);
-  function authority(number) {
-    const chunks = [Buffer.from([255, 255])];
+  function authority(number: string) {
+    const chunks: Uint8Array[] = [Buffer.from([255, 255])];
     for (const value of [
       Buffer.alloc(0),
       Buffer.from(number),
@@ -118,25 +183,34 @@ async function virtualDisplay(config, runtime: string) {
     return Buffer.concat(chunks);
   }
   await writeFile(auth, authority("0"), { flag: "wx", mode: 0o600 });
-  const environment = { ...process.env, GDK_BACKEND: "x11", XAUTHORITY: auth };
+  const environment: NodeJS.ProcessEnv = { ...process.env, GDK_BACKEND: "x11", XAUTHORITY: auth };
   for (const name of ["XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME"]) {
-    environment[name] = path.join(runtime, name.toLowerCase());
-    await mkdir(environment[name], { mode: 0o700 });
+    const directory = path.join(runtime, name.toLowerCase());
+    environment[name] = directory;
+    await mkdir(directory, { mode: 0o700 });
   }
-  const receipt = {
+  const receipt: DisplayReceipt = {
     format_version: 1,
     scope,
     stage: config.stage,
     authorization: "private cookie excluded from capture and receipts",
-    prerequisites: await Promise.all([config.xvfb, config.xkbcomp].map(fileIdentity)),
+    prerequisites: await Promise.all(
+      [config.xvfb, config.xkbcomp].map((file) => fileIdentity(file)),
+    ),
     events: [],
   };
   const record = () =>
     writeFile(path.join(runtime, "runtime-receipt.json"), JSON.stringify(receipt, null, 2) + "\n");
-  let server, probe, mediaProbe, program;
+  let server: NativeLaunch | undefined,
+    probe: NativeLaunch | undefined,
+    mediaProbe: NativeLaunch | undefined,
+    program: NativeLaunch | undefined;
   let display = "",
     serverStderr = "";
-  async function close(launch, name) {
+  async function close(
+    launch: NativeLaunch | undefined,
+    name: "gtk_join" | "media_probe_join" | "harness_join" | "xserver_join",
+  ) {
     if (!launch) return;
     try {
       receipt[name] = await launch.stop();
@@ -166,12 +240,12 @@ async function virtualDisplay(config, runtime: string) {
       ],
       environment,
     );
-    server.child.stdout.on("data", (chunk) => {
-      display += chunk;
+    server.child.stdout.on("data", (chunk: Buffer) => {
+      display += chunk.toString();
       if (display.length > 8192) receipt.server_output_exceeded = true;
     });
-    server.child.stderr.on("data", (chunk) => {
-      serverStderr = (serverStderr + chunk).slice(0, 8192);
+    server.child.stderr.on("data", (chunk: Buffer) => {
+      serverStderr = (serverStderr + chunk.toString()).slice(0, 8192);
     });
     server.child.stderr.pipe(process.stderr);
     await server.ready();
@@ -182,6 +256,7 @@ async function virtualDisplay(config, runtime: string) {
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
     const number = display.split("\n")[0];
+    assert.ok(number);
     assert.match(number, /^\d{1,5}$/u);
     environment.DISPLAY = `:${number}`;
     await writeFile(auth, authority(number), { mode: 0o600 });
@@ -198,8 +273,8 @@ async function virtualDisplay(config, runtime: string) {
       environment,
     );
     let result = "";
-    probe.child.stdout.on("data", (chunk) => {
-      if (result.length < 8192) result += chunk;
+    probe.child.stdout.on("data", (chunk: Buffer) => {
+      if (result.length < 8192) result += chunk.toString();
     });
     probe.child.stderr.pipe(process.stderr);
     await probe.ready();
@@ -207,7 +282,9 @@ async function virtualDisplay(config, runtime: string) {
     await close(probe, "gtk_join");
     probe = undefined;
     assert.equal(exited.code, 0);
-    assert.equal(JSON.parse(result).gtk_init, true);
+    const gtk: unknown = JSON.parse(result);
+    assert.ok(isRecord(gtk));
+    assert.equal(gtk.gtk_init, true);
     receipt.gtk_readiness = { outcome: "ready", exit: exited };
     await record();
     if (config.stage === "harness") {
@@ -222,8 +299,8 @@ async function virtualDisplay(config, runtime: string) {
           environment,
         );
         let mediaResult = "";
-        mediaProbe.child.stdout.on("data", (chunk) => {
-          if (mediaResult.length < 16384) mediaResult += chunk;
+        mediaProbe.child.stdout.on("data", (chunk: Buffer) => {
+          if (mediaResult.length < 16384) mediaResult += chunk.toString();
         });
         mediaProbe.child.stderr.pipe(process.stderr);
         await mediaProbe.ready();
@@ -284,9 +361,9 @@ async function virtualDisplay(config, runtime: string) {
   );
 }
 
-async function bootstrap(config, runtime) {
+async function bootstrap(config: X11Configuration & { _caller_uid: number }, runtime: string) {
   assert.equal(process.pid, 1);
-  assert.equal(process.getuid(), 0);
+  assert.equal(uid(), 0);
   assertQualificationUidMap(config._caller_uid, await readFile("/proc/self/uid_map", "utf8"));
   execFileSync("/usr/bin/mount", ["-t", "tmpfs", "-o", "mode=1777,nosuid,nodev", "tmpfs", "/tmp"]);
   await mkdir("/tmp/.X11-unix", { mode: 0o1777 });
@@ -322,17 +399,19 @@ async function bootstrap(config, runtime) {
     ],
     { stdio: "inherit" },
   );
-  const status = await new Promise((resolve, reject) => {
-    child.once("error", reject);
-    child.once("close", (code, signal) => resolve({ code, signal }));
-  });
+  const status = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
+    (resolve, reject) => {
+      child.once("error", reject);
+      child.once("close", (code, signal) => resolve({ code, signal }));
+    },
+  );
   assert.equal(status.signal, null);
   process.exitCode = status.code ?? 1;
 }
 
-export async function runLinuxX11(file) {
+export async function runLinuxX11(file: string) {
   assert.equal(process.platform, "linux", "Private X11 route supports Linux only");
-  const callerUid = process.getuid();
+  const callerUid = uid();
   assertQualificationUidMap(callerUid, `0 ${callerUid} 1`);
   const { config, identities } = await readLinuxX11Configuration(file);
   const runtime = await mkdtemp(path.join(config.output_root, "private-x11-"));
@@ -342,7 +421,7 @@ export async function runLinuxX11(file) {
     scenarios: [`private-x11-${config.stage}`],
     namespaceDelegation: true,
   });
-  let launch;
+  let launch: NativeLaunch | undefined;
   try {
     const retainedRoot = retainedEvidenceRoot(config.output_root);
     const inputs = [];
@@ -452,15 +531,23 @@ export async function runLinuxX11(file) {
   }
 }
 
-export async function runWindowsLinuxX11(file) {
-  const config = JSON.parse(await readFile(file, "utf8"));
-  if (!path.posix.isAbsolute(config.node ?? "") || !path.posix.isAbsolute(config.tool_cache ?? ""))
+export async function runWindowsLinuxX11(file: string) {
+  const value: unknown = JSON.parse(await readFile(file, "utf8"));
+  assert.ok(isRecord(value));
+  const node = value.node,
+    toolCache = value.tool_cache;
+  if (
+    typeof node !== "string" ||
+    !path.posix.isAbsolute(node) ||
+    typeof toolCache !== "string" ||
+    !path.posix.isAbsolute(toolCache)
+  )
     throw new Error("WSL route requires already provisioned absolute Linux node/tool_cache paths");
   const mapped = (value: string) => {
     const absolute = path.resolve(value);
     if (!/^[a-z]:\\/iu.test(absolute))
       throw new Error("Proven WSL route requires a drive-mounted ordinary checkout");
-    return `/mnt/${absolute[0].toLowerCase()}/${absolute.slice(3).replaceAll("\\", "/")}`;
+    return `/mnt/${absolute.slice(0, 1).toLowerCase()}/${absolute.slice(3).replaceAll("\\", "/")}`;
   };
   const lease = await acquireNativeSessionLock({
     workspace: root,
@@ -495,19 +582,21 @@ export async function runWindowsLinuxX11(file) {
         "PORTCOVE_CONTAINER_GUEST=1",
         `GIT_DIR=${mapped(gitDirectory)}`,
         `GIT_WORK_TREE=${mapped(root)}`,
-        `PORTCOVE_SHARED_TOOL_CACHE=${config.tool_cache}`,
-        `PATH=${path.posix.dirname(config.node)}:/home/boburning/.cargo/bin:/usr/bin:/bin`,
-        config.node,
+        `PORTCOVE_SHARED_TOOL_CACHE=${toolCache}`,
+        `PATH=${path.posix.dirname(node)}:/home/boburning/.cargo/bin:/usr/bin:/bin`,
+        node,
         mapped(source),
         "--config",
         mapped(file),
       ],
       { cwd: root, stdio: "inherit", windowsHide: true },
     );
-    const status = await new Promise((resolve, reject) => {
-      child.once("error", reject);
-      child.once("close", (code, signal) => resolve({ code, signal }));
-    });
+    const status = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
+      (resolve, reject) => {
+        child.once("error", reject);
+        child.once("close", (code, signal) => resolve({ code, signal }));
+      },
+    );
     assert.equal(status.signal, null, "Guarded cross-host runner must end normally");
     process.exitCode = status.code ?? 1;
   } finally {
@@ -518,15 +607,21 @@ export async function runWindowsLinuxX11(file) {
 if (process.argv[1] && path.resolve(process.argv[1]) === source) {
   const [mode, value, runtime] = process.argv.slice(2);
   try {
-    if (mode === "--internal-bootstrap") await bootstrap(JSON.parse(value), runtime);
-    else if (mode === "--internal-display") await virtualDisplay(JSON.parse(value), runtime);
-    else if (mode === "--config" && value && !runtime) {
+    if (mode === "--internal-bootstrap" || mode === "--internal-display") {
+      assert.ok(value && runtime);
+      const raw: unknown = JSON.parse(value);
+      const config = configuration(raw, true);
+      if (mode === "--internal-bootstrap") {
+        assert.ok(isRecord(raw) && typeof raw._caller_uid === "number");
+        await bootstrap({ ...config, _caller_uid: raw._caller_uid }, runtime);
+      } else await virtualDisplay(config, runtime);
+    } else if (mode === "--config" && value && !runtime) {
       process.exitCode = await resourceEntrypoint(
         process.platform === "win32" ? "rust" : "browser",
         async () => {
           if (process.platform === "win32") await runWindowsLinuxX11(value);
           else await runLinuxX11(value);
-          return process.exitCode ?? 0;
+          return Number(process.exitCode ?? 0);
         },
         { exclusive: [frontendOutputResource(root)] },
       );
