@@ -1,3 +1,36 @@
+import type { WebDriver, By, until } from "selenium-webdriver";
+import type { ScenarioArtifacts } from "./desktop-scenario-context.mts";
+import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
+import type { DesktopSelection } from "../../../scripts/desktop-scenarios.mts";
+import type {
+  OutputDesktopBootstrapStatus,
+  TransportOutputs,
+} from "../src/transport-types.generated.d.ts";
+import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
+import type { captureAccessibilityReport as captureAccessibility } from "./desktop-review-controls.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+interface SwitchContext extends ScenarioArtifacts {
+  invoke: BoundaryInvoke;
+  By: typeof By;
+  until: typeof until;
+  fixture: Awaited<ReturnType<typeof prepareLibrarySwitchRecoveryFixture>>;
+  captureScreenshot: (name: string) => Promise<unknown>;
+  restart: (name: string) => Promise<WebDriver>;
+  chooseOwnedLibrary: ReturnType<typeof nativeConfirmation>;
+  captureAccessibilityReport: typeof captureAccessibility;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function required<Value>(value: Value | null | undefined): Value {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function text(value: unknown): string {
+  assert.ok(typeof value === "string");
+  return value;
+}
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -6,7 +39,10 @@ import { DatabaseSync } from "node:sqlite";
 
 const librarySwitchRecoveryId = "native-library-switch-recovery";
 
-export function librarySwitchRecoverySelection(selection, platform) {
+export function librarySwitchRecoverySelection(
+  selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
+  platform: string,
+) {
   if (!selection.selected_scenarios.includes(librarySwitchRecoveryId)) return false;
   assert.equal(platform, "win32", "Library switch recovery currently requires Windows");
   assert.deepEqual(selection.selected_scenarios, [librarySwitchRecoveryId]);
@@ -47,13 +83,9 @@ export async function prepareLibrarySwitchRecoveryFixture(output: string) {
     futureMarker: path.join(output, "future-marker-before.bin"),
     preferences: path.join(output, "preferences-before.json"),
   };
-  for (const [key, original] of Object.entries({
-    futureDatabase,
-    currentMarker,
-    futureMarker,
-    preferences,
-  }))
-    await writeFile(before[key], await readFile(original), { flag: "wx" });
+  const originals = { futureDatabase, currentMarker, futureMarker, preferences };
+  for (const key of ["futureDatabase", "currentMarker", "futureMarker", "preferences"] as const)
+    await writeFile(before[key], await readFile(originals[key]), { flag: "wx" });
   return {
     currentRoot,
     futureRoot,
@@ -80,26 +112,49 @@ export async function librarySwitchRecoveryScenario({
   restart,
   output,
   artifacts,
-}) {
-  const read = async (command, args) => {
-    const result = await invoke(command, args);
+}: SwitchContext) {
+  const { transportValue } = await import("./transport-values.mts");
+  function read(
+    command: "get_bootstrap_status",
+    args?: object,
+  ): Promise<OutputDesktopBootstrapStatus>;
+  function read(
+    command: "get_library_identity",
+    args?: object,
+  ): Promise<TransportOutputs["library_identity"]>;
+  function read(
+    command: "get_workspace_snapshot",
+    args?: object,
+  ): Promise<TransportOutputs["desktop_workspace_snapshot"]>;
+  async function read(
+    command: "get_bootstrap_status" | "get_library_identity" | "get_workspace_snapshot",
+    args?: object,
+  ) {
+    const result = object(await invoke(command, args));
     assert.equal(result.ok, true, JSON.stringify(result));
-    return result.value;
-  };
+    switch (command) {
+      case "get_bootstrap_status":
+        return transportValue("desktop_bootstrap_status", result.value);
+      case "get_library_identity":
+        return transportValue("library_identity", result.value);
+      case "get_workspace_snapshot":
+        return transportValue("desktop_workspace_snapshot", result.value);
+    }
+  }
   const before = await read("get_bootstrap_status");
   assert.equal(before.ready, true);
-  assert.equal(canonicalPath(before.library_root), canonicalPath(fixture.currentRoot));
-  assert.equal(before.selection.source, "saved");
+  assert.equal(canonicalPath(required(before.library_root)), canonicalPath(fixture.currentRoot));
+  assert.equal(required(before.selection).source, "saved");
   const originalIdentity = await read("get_library_identity", { generation: before.generation });
   const originalPreferences = await readFile(fixture.preferences);
   const assertPreservation = async () => {
-    for (const key of ["futureDatabase", "currentMarker", "futureMarker"])
+    for (const key of ["futureDatabase", "currentMarker", "futureMarker"] as const)
       assert.deepEqual(await readFile(fixture[key]), await readFile(fixture.before[key]), key);
   };
   await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
   const trigger = By.xpath('//button[normalize-space(.)="Choose another library"]');
   const dialog = By.css('[aria-labelledby="library-selection-review-title"]');
-  const selectAndReview = async (target, name) => {
+  const selectAndReview = async (target: string, name: string) => {
     await browser.wait(until.elementLocated(trigger), 15_000);
     await browser.findElement(trigger).click();
     const picker = await chooseOwnedLibrary(
@@ -110,7 +165,7 @@ export async function librarySwitchRecoveryScenario({
       undefined,
       target,
     );
-    assert.equal(canonicalPath(picker.selected_directory), canonicalPath(target));
+    assert.equal(canonicalPath(text(object(picker).selected_directory)), canonicalPath(target));
     const review = await browser.wait(until.elementLocated(dialog), 15_000);
     await browser.wait(until.elementIsVisible(review), 5_000);
     assert.ok((await review.getText()).includes(target));
@@ -169,18 +224,20 @@ export async function librarySwitchRecoveryScenario({
   await browser.wait(async () => {
     const status = await read("get_bootstrap_status");
     return (
-      status.ready && canonicalPath(status.library_root) === canonicalPath(fixture.healthyRoot)
+      status.ready &&
+      canonicalPath(required(status.library_root)) === canonicalPath(fixture.healthyRoot)
     );
   }, 15_000);
   const recovered = await read("get_bootstrap_status");
   assert.ok(recovered.generation > before.generation);
-  assert.equal(recovered.selection.source, "saved");
+  assert.equal(required(recovered.selection).source, "saved");
   const recoveredIdentity = await read("get_library_identity", {
     generation: recovered.generation,
   });
   const recoveredPreferences = await readFile(fixture.preferences);
+  const savedPreferences: unknown = JSON.parse(recoveredPreferences.toString("utf8"));
   assert.equal(
-    canonicalPath(JSON.parse(recoveredPreferences).library_root),
+    canonicalPath(text(object(savedPreferences).library_root)),
     canonicalPath(fixture.healthyRoot),
   );
   await assertPreservation();
@@ -188,8 +245,8 @@ export async function librarySwitchRecoveryScenario({
   browser = await restart("library-switch-recovered");
   const restarted = await read("get_bootstrap_status");
   assert.equal(restarted.ready, true);
-  assert.equal(canonicalPath(restarted.library_root), canonicalPath(fixture.healthyRoot));
-  assert.equal(restarted.selection.source, "saved");
+  assert.equal(canonicalPath(required(restarted.library_root)), canonicalPath(fixture.healthyRoot));
+  assert.equal(required(restarted.selection).source, "saved");
   assert.deepEqual(
     await read("get_library_identity", { generation: restarted.generation }),
     recoveredIdentity,
