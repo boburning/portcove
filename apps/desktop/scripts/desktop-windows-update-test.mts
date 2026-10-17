@@ -7,6 +7,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { By } from "selenium-webdriver";
+import type { WebDriver } from "selenium-webdriver";
+import type { EmbeddedSession, EmbeddedCleanup } from "./desktop-windows-embedded-session.mts";
+import type { InstalledUpdateFailure } from "./desktop-installed-update-harness.mts";
+import type {
+  NativeSessionMode,
+  NativeSessionObservations,
+  NativeProcessSnapshot,
+} from "./desktop-owned-native-session.mts";
+import { readNativeSessionObservation } from "./desktop-owned-native-session.mts";
 import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mts";
 import { driveInstalledUpdateToRestart } from "./desktop-application-update-journey.mts";
 import { startEmbeddedInstalledSession } from "./desktop-windows-embedded-session.mts";
@@ -35,98 +44,217 @@ const { values } = parseArgs({
       "candidate-executable-sha",
       "candidate-version",
       "transport",
-    ].map((name) => [name, { type: "string" }]),
+    ].map((name) => [name, { type: "string" }] as const),
   ),
 });
-for (const name of [
-  "app",
-  "output",
-  "staging",
-  "stage-marker",
-  "helper-process-marker",
-  "relaunch-process-marker",
-])
-  assert.ok(values[name] && path.isAbsolute(values[name]), `--${name} must be absolute`);
-for (const name of ["candidate-installer-sha", "candidate-executable-sha"])
-  assert.match(values[name] ?? "", /^[0-9a-f]{64}$/u);
-assert.ok(values["candidate-version"]);
+function requiredOption(name: string): string {
+  const value = values[name];
+  assert.ok(typeof value === "string" && value.length > 0, `--${name} is required`);
+  return value;
+}
+function absoluteOption(name: string): string {
+  const value = requiredOption(name);
+  assert.ok(path.isAbsolute(value), `--${name} must be absolute`);
+  return value;
+}
+const app = absoluteOption("app"),
+  output = absoluteOption("output"),
+  staging = absoluteOption("staging");
+const stageMarker = absoluteOption("stage-marker"),
+  helperMarker = absoluteOption("helper-process-marker"),
+  relaunchMarker = absoluteOption("relaunch-process-marker");
+const installerSha = requiredOption("candidate-installer-sha"),
+  executableSha = requiredOption("candidate-executable-sha"),
+  candidateVersion = requiredOption("candidate-version");
+for (const sha of [installerSha, executableSha]) assert.match(sha, /^[0-9a-f]{64}$/u);
 const embedded = values.transport === "embedded";
-assert.ok(!values.transport || ["official", "embedded"].includes(values.transport));
+assert.ok(
+  !values.transport ||
+    (typeof values.transport === "string" && ["official", "embedded"].includes(values.transport)),
+);
 const drivers = embedded ? null : cachedDesktopDrivers();
 assert.ok(embedded || drivers, "Pinned Tauri and WebView2 drivers are unavailable");
-await mkdir(values.output, { recursive: false });
-const report = {
+await mkdir(output, { recursive: false });
+interface ProcessMarker {
+  schema_version: 1;
+  process_id: number;
+  executable: string;
+}
+interface MarkedObservation {
+  status: "captured" | "exited" | "prior-process-exited" | "stopped";
+  pid: number;
+  path?: string;
+}
+interface MarkedExit {
+  capture: MarkedObservation;
+  exit: MarkedObservation;
+}
+interface MarkedCleanup {
+  capture: MarkedObservation;
+  stop: MarkedObservation | null;
+}
+type ProcessLabel = "candidate" | "helper";
+interface WindowsUpdateReport extends InstalledUpdateFailure {
+  schema_version: 1;
+  source_commit: string;
+  app: string;
+  initial_executable_sha256: string | null;
+  candidate_installer_sha256: string;
+  candidate_executable_sha256: string;
+  candidate_version: string;
+  actions: string[];
+  transport: "embedded" | "official";
+  embedded_listener?: EmbeddedSession["listener"];
+  embedded_startup?: EmbeddedSession["startup"];
+  staged?: Awaited<ReturnType<typeof verifyInstalledUpdateStaging>>;
+  native_processes_before_restart?: NativeProcessSnapshot;
+  bootstrap_before_restart?: unknown;
+  restart_action_attempted?: boolean;
+  restart_click?: string;
+  helper_process_marker?: ProcessMarker;
+  relaunch_process_marker?: ProcessMarker;
+  restart?: {
+    marker: Record<string, unknown>;
+    apply_phase: unknown;
+    installed_executable_sha256: string;
+  };
+  helper_result?: Record<string, unknown>;
+  natural_process_exit?: Record<ProcessLabel, MarkedExit>;
+  restart_command?: unknown;
+  failure_capture?: string;
+  native_processes_at_failure?: NativeProcessSnapshot;
+  native_snapshot_failure?: string;
+  driver_only_snapshot?: NativeProcessSnapshot;
+  driver_snapshot_failure?: string;
+  updater_process_cleanup?: Partial<
+    Record<ProcessLabel, MarkedCleanup | { status: "marker-absent" } | string>
+  >;
+  embedded_cleanup?: EmbeddedCleanup;
+  driver_cleanup?: NativeSessionObservations["StopDriver"] | string;
+  native_processes_after_stop?: NativeSessionObservations["Wait"];
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
+  return value as Record<string, unknown>;
+}
+function positivePid(value: unknown): number {
+  assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0);
+  return value;
+}
+function processMarker(value: unknown): ProcessMarker {
+  const marker = object(value);
+  assert.equal(marker.schema_version, 1);
+  assert.ok(typeof marker.executable === "string" && path.win32.isAbsolute(marker.executable));
+  return {
+    ...marker,
+    schema_version: 1,
+    process_id: positivePid(marker.process_id),
+    executable: marker.executable,
+  };
+}
+function markedObservation(value: unknown): MarkedObservation {
+  const observation = object(value);
+  const status = observation.status;
+  assert.ok(
+    status === "captured" ||
+      status === "exited" ||
+      status === "prior-process-exited" ||
+      status === "stopped",
+  );
+  const result: MarkedObservation = { ...observation, status, pid: positivePid(observation.pid) };
+  if (observation.path !== undefined) {
+    assert.ok(typeof observation.path === "string" && path.win32.isAbsolute(observation.path));
+    result.path = observation.path;
+  }
+  return result;
+}
+const report: WindowsUpdateReport = {
   schema_version: 1,
   phase: "started",
   source_commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
-  app: values.app,
+  app,
   initial_executable_sha256: null,
-  candidate_installer_sha256: values["candidate-installer-sha"],
-  candidate_executable_sha256: values["candidate-executable-sha"],
-  candidate_version: values["candidate-version"],
+  candidate_installer_sha256: installerSha,
+  candidate_executable_sha256: executableSha,
+  candidate_version: candidateVersion,
   actions: [],
   transport: embedded ? "embedded" : "official",
   failure: null,
 };
-const evidencePath = path.join(values.output, "renderer-update-evidence.json");
-const snapshotPath = path.join(values.output, "native-processes-before-restart.json");
-const driverOnlySnapshotPath = path.join(values.output, "native-driver-at-failure.json");
+const evidencePath = path.join(output, "renderer-update-evidence.json");
+const snapshotPath = path.join(output, "native-processes-before-restart.json");
+const driverOnlySnapshotPath = path.join(output, "native-driver-at-failure.json");
 const nativeSession = fileURLToPath(new URL("./native-session.ps1", import.meta.url));
 const markedProcess = fileURLToPath(new URL("./native-marked-update-process.ps1", import.meta.url));
-const webviewProfile = path.join(values.output, "webview2-profile");
-let driver;
-let browser;
-let driverSession;
-let snapshot;
+const webviewProfile = path.join(output, "webview2-profile");
+let driver: ReturnType<typeof startInstalledUpdateDriver>["driver"] | undefined;
+let browser: WebDriver | undefined;
+let driverSession: ReturnType<typeof startInstalledUpdateDriver> | undefined;
+let snapshot: NativeProcessSnapshot | undefined;
 let activeSnapshotPath = snapshotPath;
-let restartStarted;
-let embeddedSession;
+let restartStarted: string | undefined;
+let embeddedSession: EmbeddedSession | undefined;
 
 async function save() {
   await writeFile(evidencePath, `${JSON.stringify(report, null, 2)}\n`);
 }
-function nativeSessionCommand(mode) {
+function nativeSessionCommand<Mode extends NativeSessionMode>(
+  mode: Mode,
+): NativeSessionObservations[Mode] {
   const target = mode === "SnapshotDriver" ? driverOnlySnapshotPath : activeSnapshotPath;
   const args = ["-NoProfile", "-File", nativeSession, "-Mode", mode, "-SnapshotPath", target];
-  if (mode === "Snapshot" || mode === "SnapshotDriver")
+  if (mode === "Snapshot" || mode === "SnapshotDriver") {
+    assert.ok(driver?.pid, "Owned driver PID required");
     args.push("-DriverProcessId", String(driver.pid));
-  if (mode === "Snapshot") args.push("-ApplicationPath", values.app);
-  return JSON.parse(
-    execFileSync("pwsh", args, {
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 20_000,
-    }),
+  }
+  if (mode === "Snapshot") args.push("-ApplicationPath", app);
+  return readNativeSessionObservation(
+    mode,
+    JSON.parse(
+      execFileSync("pwsh", args, {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 20_000,
+      }),
+    ),
   );
 }
-function markedProcessCommand(mode, args) {
-  return JSON.parse(
-    execFileSync("pwsh", ["-NoProfile", "-File", markedProcess, "-Mode", mode, ...args], {
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 25_000,
-    }),
+function markedProcessCommand(
+  mode: "Capture" | "Wait" | "Stop",
+  args: string[],
+): MarkedObservation {
+  return markedObservation(
+    JSON.parse(
+      execFileSync("pwsh", ["-NoProfile", "-File", markedProcess, "-Mode", mode, ...args], {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 25_000,
+      }),
+    ),
   );
 }
-function workerRelativePath(executable) {
+function workerRelativePath(executable: string) {
   return path.win32
-    .relative(path.win32.toNamespacedPath(values.staging), path.win32.toNamespacedPath(executable))
+    .relative(path.win32.toNamespacedPath(staging), path.win32.toNamespacedPath(executable))
     .replaceAll("\\", "/");
 }
-async function cleanupMarkedProcess(markerPath, label) {
-  const marker = await readJson(markerPath).catch(() => null);
-  if (!marker) return { status: "marker-absent" };
-  assert.equal(marker.schema_version, 1);
-  assert.ok(Number.isInteger(marker.process_id) && marker.process_id > 0);
-  const expected = label === "candidate" ? values.app : marker.executable;
+async function cleanupMarkedProcess(
+  markerPath: string,
+  label: ProcessLabel,
+): Promise<MarkedCleanup | { status: "marker-absent" }> {
+  const rawMarker = await readJson(markerPath).catch(() => null);
+  if (!rawMarker) return { status: "marker-absent" };
+  const marker = processMarker(rawMarker);
+  const expected = label === "candidate" ? app : marker.executable;
   if (label === "helper") {
     const relative = workerRelativePath(expected);
     assert.match(relative, /^workers\/revision-\d+\/attempt-[^/]+\/portcove-update-worker\.exe$/iu);
   }
-  const identityPath = path.join(values.output, `${label}-process-identity.json`);
+  const identityPath = path.join(output, `${label}-process-identity.json`);
   const capturedEarlier = await readJson(identityPath).catch(() => null);
-  const capture = capturedEarlier
-    ? { status: "captured", pid: capturedEarlier.pid }
+  assert.ok(restartStarted, "Restart timestamp required for marked-process capture");
+  const capture: MarkedObservation = capturedEarlier
+    ? { status: "captured", pid: positivePid(object(capturedEarlier).pid) }
     : markedProcessCommand("Capture", [
         "-MarkerPath",
         markerPath,
@@ -146,16 +274,20 @@ async function cleanupMarkedProcess(markerPath, label) {
         : null,
   };
 }
-async function awaitMarkedProcessExit(markerPath, label) {
-  const marker = await readJson(markerPath);
-  const identityPath = path.join(values.output, `${label}-process-identity.json`);
+async function awaitMarkedProcessExit(
+  markerPath: string,
+  label: ProcessLabel,
+): Promise<MarkedExit> {
+  const marker = processMarker(await readJson(markerPath));
+  assert.ok(restartStarted, "Restart timestamp required for marked-process capture");
+  const identityPath = path.join(output, `${label}-process-identity.json`);
   const capture = markedProcessCommand("Capture", [
     "-MarkerPath",
     markerPath,
     "-IdentityPath",
     identityPath,
     "-ExpectedPath",
-    label === "candidate" ? values.app : marker.executable,
+    label === "candidate" ? app : marker.executable,
     "-EarliestStart",
     restartStarted,
     ...(label === "helper" ? ["-Helper"] : []),
@@ -169,14 +301,15 @@ async function awaitMarkedProcessExit(markerPath, label) {
 }
 
 try {
-  report.initial_executable_sha256 = (await hashFile(values.app)).sha256;
+  report.initial_executable_sha256 = (await hashFile(app)).sha256;
   if (embedded) {
-    embeddedSession = await startEmbeddedInstalledSession(values.app, values.output);
+    embeddedSession = await startEmbeddedInstalledSession(app, output);
     browser = await embeddedSession.connect();
     report.embedded_listener = embeddedSession.listener;
     report.embedded_startup = embeddedSession.startup;
     assert.equal(embeddedSession.identity.sha256, report.initial_executable_sha256);
   } else {
+    assert.ok(drivers);
     driverSession = startInstalledUpdateDriver(drivers.driver, drivers.nativeDriver, {
       windowsHide: true,
       env: {
@@ -186,49 +319,75 @@ try {
     });
     driver = driverSession.driver;
     await awaitInstalledUpdateDriver(driver);
-    browser = await connectInstalledUpdateDriver(values.app, webviewProfile);
+    browser = await connectInstalledUpdateDriver(app, webviewProfile);
   }
   await driveInstalledUpdateToRestart(browser, report.actions);
   const staged = await verifyInstalledUpdateStaging({
-    stagingRoot: values.staging,
+    stagingRoot: staging,
     payloadName: "candidate-installer.exe",
-    candidateSha: values["candidate-installer-sha"],
-    candidateVersion: values["candidate-version"],
-    application: values.app,
+    candidateSha: installerSha,
+    candidateVersion,
+    application: app,
     initialSha: report.initial_executable_sha256,
   });
   report.staged = staged;
   report.actions.push("renderer-downloaded-and-verified");
-  await writeFile(path.join(values.output, "before-restart.png"), await browser.takeScreenshot(), {
+  await writeFile(path.join(output, "before-restart.png"), await browser.takeScreenshot(), {
     encoding: "base64",
   });
-  snapshot = embedded ? embeddedSession.capture() : nativeSessionCommand("Snapshot");
+  snapshot = embeddedSession ? embeddedSession.capture() : nativeSessionCommand("Snapshot");
   report.native_processes_before_restart = snapshot;
   report.bootstrap_before_restart = JSON.parse(
-    await browser.executeAsyncScript((done) => {
-      window.__TAURI_INTERNALS__.invoke("get_bootstrap_status").then(
+    await browser.executeAsyncScript<string>((done: (value: string) => void) => {
+      const runtime = window as Window & {
+        __TAURI_INTERNALS__?: { invoke(command: string): Promise<unknown> };
+      };
+      if (!runtime.__TAURI_INTERNALS__) throw new Error("Native bridge unavailable");
+      void runtime.__TAURI_INTERNALS__.invoke("get_bootstrap_status").then(
         (value) => done(JSON.stringify({ ok: true, value })),
-        (error) => done(JSON.stringify({ ok: false, error })),
+        (error: unknown) => done(JSON.stringify({ ok: false, error })),
       );
     }),
   );
   await executeBrowserScript(browser, () => {
-    const internals = window.__TAURI_INTERNALS__;
+    const runtime = window as Window & {
+      __TAURI_INTERNALS__?: {
+        invoke(command: string, args?: unknown, options?: unknown): Promise<unknown>;
+      };
+      __portcoveRestartResult?: unknown;
+    };
+    const internals = runtime.__TAURI_INTERNALS__;
+    if (!internals) throw new Error("Native bridge unavailable");
     const original = internals.invoke.bind(internals);
-    window.__portcoveRestartResult = null;
+    runtime.__portcoveRestartResult = null;
     internals.invoke = (command, args, options) => {
       const result = original(command, args, options);
       if (command === "restart_to_apply_application_update") {
-        result.then(
+        void result.then(
           () => {
-            window.__portcoveRestartResult = { ok: true };
+            runtime.__portcoveRestartResult = { ok: true };
           },
-          (error) => {
-            window.__portcoveRestartResult = {
+          (error: unknown) => {
+            runtime.__portcoveRestartResult = {
               ok: false,
-              code: error?.code,
-              message: error?.message,
-              details: error?.details,
+              code:
+                error !== null &&
+                (typeof error === "object" || typeof error === "function") &&
+                "code" in error
+                  ? error.code
+                  : undefined,
+              message:
+                error !== null &&
+                (typeof error === "object" || typeof error === "function") &&
+                "message" in error
+                  ? error.message
+                  : undefined,
+              details:
+                error !== null &&
+                (typeof error === "object" || typeof error === "function") &&
+                "details" in error
+                  ? error.details
+                  : undefined,
             };
           },
         );
@@ -245,10 +404,8 @@ try {
   } catch (error) {
     report.restart_click = `session-ended: ${String(errorMessage(error)).slice(0, 300)}`;
   }
-  const helper = await waitFor(
-    () => readJson(values["helper-process-marker"]),
-    "parent-owned helper process marker",
-    20_000,
+  const helper = processMarker(
+    await waitFor(() => readJson(helperMarker), "parent-owned helper process marker", 20_000),
   );
   assert.equal(helper.schema_version, 1);
   assert.ok(Number.isInteger(helper.process_id) && helper.process_id > 0);
@@ -259,46 +416,46 @@ try {
   );
   assert.equal((await hashFile(helper.executable)).sha256, report.initial_executable_sha256);
   report.helper_process_marker = helper;
-  const relaunch = await waitFor(
-    () => readJson(values["relaunch-process-marker"]),
-    "helper-owned candidate process marker",
-    90_000,
+  const relaunch = processMarker(
+    await waitFor(() => readJson(relaunchMarker), "helper-owned candidate process marker", 90_000),
   );
   assert.equal(relaunch.schema_version, 1);
   assert.ok(Number.isInteger(relaunch.process_id) && relaunch.process_id > 0);
   assert.equal(
     path.win32.toNamespacedPath(relaunch.executable).toLowerCase(),
-    path.win32.toNamespacedPath(values.app).toLowerCase(),
+    path.win32.toNamespacedPath(app).toLowerCase(),
   );
   report.relaunch_process_marker = relaunch;
   report.restart = await waitFor(
     async () => {
-      const marker = await readJson(values["stage-marker"]);
+      const marker = object(await readJson(stageMarker));
       if (marker.stage !== "Tauri setup" || marker.process_id !== relaunch.process_id) return null;
-      if ((await hashFile(values.app)).sha256 !== values["candidate-executable-sha"]) return null;
-      const apply = await readJson(path.join(values.staging, "apply.json"));
+      if ((await hashFile(app)).sha256 !== executableSha) return null;
+      const apply = object(await readJson(path.join(staging, "apply.json")));
       if (apply.intent !== null) return null;
       return {
         marker,
         apply_phase: apply.phase,
-        installed_executable_sha256: values["candidate-executable-sha"],
+        installed_executable_sha256: executableSha,
       };
     },
     "renderer-driven installed NSIS restart and reconciliation",
     90_000,
   );
-  const helperResult = await waitFor(
-    () => readJson(path.join(path.dirname(values["helper-process-marker"]), "helper-result.json")),
-    "revision-bound helper result marker",
-    20_000,
+  const helperResult = object(
+    await waitFor(
+      () => readJson(path.join(path.dirname(helperMarker), "helper-result.json")),
+      "revision-bound helper result marker",
+      20_000,
+    ),
   );
   assert.equal(helperResult.schema_version, 1);
   assert.equal(helperResult.process_id, helper.process_id);
   assert.equal(helperResult.exit_code, 0);
   report.helper_result = helperResult;
   report.natural_process_exit = {
-    candidate: await awaitMarkedProcessExit(values["relaunch-process-marker"], "candidate"),
-    helper: await awaitMarkedProcessExit(values["helper-process-marker"], "helper"),
+    candidate: await awaitMarkedProcessExit(relaunchMarker, "candidate"),
+    helper: await awaitMarkedProcessExit(helperMarker, "helper"),
   };
   report.actions.push("candidate-restarted-and-reconciled");
   report.phase = "complete";
@@ -307,18 +464,18 @@ try {
     try {
       report.restart_command = await executeBrowserScript(
         browser,
-        () => window.__portcoveRestartResult,
+        () => (window as Window & { __portcoveRestartResult?: unknown }).__portcoveRestartResult,
       );
       await Promise.race([
         Promise.all([
           browser
             .takeScreenshot()
             .then((png) =>
-              writeFile(path.join(values.output, "failure.png"), png, { encoding: "base64" }),
+              writeFile(path.join(output, "failure.png"), png, { encoding: "base64" }),
             ),
           browser
             .getPageSource()
-            .then((html) => writeFile(path.join(values.output, "failure.html"), html)),
+            .then((html) => writeFile(path.join(output, "failure.html"), html)),
         ]),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error("failure capture timed out")), 5_000),
@@ -328,7 +485,7 @@ try {
       report.failure_capture = String(errorMessage(captureError)).slice(0, 300);
     }
   }
-  await recordInstalledUpdateFailure(report, error, values["helper-process-marker"]);
+  await recordInstalledUpdateFailure(report, error, helperMarker);
   process.exitCode = 1;
 } finally {
   if (!snapshot && driver?.exitCode === null) {
@@ -354,18 +511,20 @@ try {
   if (restartStarted) {
     report.updater_process_cleanup = {};
     for (const [label, markerPath] of [
-      ["candidate", values["relaunch-process-marker"]],
-      ["helper", values["helper-process-marker"]],
-    ]) {
+      ["candidate", relaunchMarker],
+      ["helper", helperMarker],
+    ] as const) {
       if (report.natural_process_exit?.[label]) {
         report.updater_process_cleanup[label] = "exited naturally before cleanup";
         continue;
       }
       try {
-        report.updater_process_cleanup[label] = await cleanupMarkedProcess(markerPath, label);
+        const cleanup = await cleanupMarkedProcess(markerPath, label);
+        report.updater_process_cleanup[label] = cleanup;
         if (
           report.phase === "complete" &&
-          report.updater_process_cleanup[label].stop?.status === "stopped"
+          "stop" in cleanup &&
+          cleanup.stop?.status === "stopped"
         ) {
           report.phase = "failed";
           report.failure = `${label} process required forced cleanup after reported success`;
@@ -383,9 +542,10 @@ try {
   if (embeddedSession) {
     if (report.phase === "complete") {
       try {
+        const installedPredecessor = embeddedSession.child;
         await waitFor(
           async () =>
-            embeddedSession.child.exitCode !== null || embeddedSession.child.signalCode !== null,
+            installedPredecessor.exitCode !== null || installedPredecessor.signalCode !== null,
           "installed predecessor natural exit",
           5000,
         );
@@ -410,7 +570,7 @@ try {
   } else if (snapshot) {
     try {
       report.driver_cleanup =
-        driver.exitCode === null ? nativeSessionCommand("StopDriver") : "driver-exited";
+        driver?.exitCode === null ? nativeSessionCommand("StopDriver") : "driver-exited";
       report.native_processes_after_stop = nativeSessionCommand("Wait");
     } catch (error) {
       report.phase = "failed";
@@ -421,7 +581,7 @@ try {
     driver.kill();
     report.driver_cleanup = "direct owned driver stop before native snapshot";
   }
-  await writeFile(path.join(values.output, "driver.log"), driverSession?.log ?? "");
+  await writeFile(path.join(output, "driver.log"), driverSession?.log ?? "");
   await save();
 }
 if (report.phase !== "complete")
