@@ -2410,3 +2410,4 @@ import "../apps/desktop/scripts/desktop-readiness.native.test.mts";
 
 import "./native-compatibility.test.mts";
 import "../apps/desktop/scripts/desktop-default-cover.native.test.mts";
+import "../apps/desktop/scripts/desktop-workspace-refresh.native.test.mts";
