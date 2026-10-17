@@ -1,3 +1,5 @@
+import { isRecord, errorCode } from "./runtime-values.mts";
+import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, readlinkSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -17,7 +19,77 @@ const allReusableDomains = [
   "development",
   "release",
   "rscheck",
-];
+] as const;
+
+export type ValidationDomain = (typeof allReusableDomains)[number];
+export interface StageIdentity {
+  id: string;
+  recipe: string;
+  domain: ValidationDomain;
+}
+interface GitEntry {
+  mode: string;
+  blob: string;
+}
+interface ContentIdentity {
+  kind: "missing" | "symlink" | "other" | "file";
+  worktreeMode: string | null;
+  sha256: string | null;
+  gitBlob: string | null;
+  canonicalTextBlob?: string | null;
+}
+export interface InventoryFile extends ContentIdentity {
+  path: string;
+  headBlob: string | null;
+  headMode: string | null;
+  indexBlob: string | null;
+  indexMode: string | null;
+  domains: ValidationDomain[];
+  ambiguous: boolean;
+  untracked: boolean;
+}
+export interface RepositoryInventory {
+  head: string;
+  objectFormat: "sha1" | "sha256";
+  files: InventoryFile[];
+}
+export interface ValidationRuntime {
+  platform: string;
+  architecture: string;
+  osRelease: string;
+  node: string;
+  git: string;
+  just: string;
+  environment: Record<string, string | null>;
+  rustc?: string;
+  cargo?: string;
+  cargoNextest?: string;
+  cargoShear?: string;
+  rscheck?: string;
+  aqua?: string;
+  powershell?: string;
+  packageManager?: string;
+  packageManagerVersion?: string;
+}
+interface RuntimeOptions {
+  domains?: readonly ValidationDomain[];
+  environment?: NodeJS.ProcessEnv;
+  commandVersion?: (command: string, args: string[]) => string;
+}
+export interface SuccessfulStageReceipt {
+  format: 1;
+  kind: "successful-stage";
+  success: true;
+  stageId: string;
+  fingerprint: string;
+  originatingHead: string;
+  completedAt: string;
+  recipe?: string;
+  durationMs?: number;
+}
+type ReceiptValidation =
+  | { valid: false; reason: string }
+  | { valid: true; payload: SuccessfulStageReceipt };
 
 const environmentWhitelist = Object.freeze([
   "CI",
@@ -38,7 +110,7 @@ const oxfmtExcludedPath =
 const oxfmtExcludedFile =
   /(?:\.generated\.[^/]+$|(?:^|\/)pnpm-lock\.yaml$|integrations\/playnite\/(?:tests\/)?packages\.lock\.json$)/u;
 
-function isFormatInput(file) {
+function isFormatInput(file: string) {
   if (file.endsWith(".toml") && !file.startsWith("apps/desktop/src-tauri/gen/")) return true;
   return (
     oxfmtSupportedExtension.test(file) &&
@@ -47,20 +119,20 @@ function isFormatInput(file) {
   );
 }
 
-function normalizeRepositoryPath(value) {
+function normalizeRepositoryPath(value: string) {
   const normalized = String(value).replaceAll("\\", "/").replace(/^\.\//u, "");
   if (!normalized || normalized.startsWith("/") || normalized.includes("../"))
     throw new Error(`unsafe repository path: ${value}`);
   return normalized;
 }
 
-function add(domains, ...values) {
+function add(domains: Set<ValidationDomain>, ...values: ValidationDomain[]) {
   for (const value of values) domains.add(value);
 }
 
-export function domainsForPath(input) {
+export function domainsForPath(input: string) {
   const file = normalizeRepositoryPath(input);
-  const domains = new Set();
+  const domains = new Set<ValidationDomain>();
   let recognized = false;
   // Hosted policy classification is deliberately broader than command inputs.
   // The release handbook is read by documentation/release contracts, not by
@@ -149,7 +221,7 @@ export function domainsForPath(input) {
   }
 
   if (["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"].includes(file)) {
-    for (const domain of ["format", "ui", "release"]) add(domains, domain);
+    for (const domain of ["format", "ui", "release"] as const) add(domains, domain);
     recognized = true;
   }
 
@@ -243,7 +315,11 @@ export function domainsForPath(input) {
   return { domains, ambiguous: !recognized };
 }
 
-function run(command, args, options = {}) {
+function run(
+  command: string,
+  args: string[],
+  options: Pick<SpawnSyncOptionsWithStringEncoding, "cwd" | "env" | "stdio"> = {},
+) {
   const result = spawnSync(command, args, {
     cwd: options.cwd ?? projectRoot,
     encoding: "utf8",
@@ -257,12 +333,12 @@ function run(command, args, options = {}) {
   return String(result.stdout ?? "");
 }
 
-function git(root, args) {
+function git(root: string, args: string[]) {
   return run("git", args, { cwd: root });
 }
 
-function parseTree(buffer) {
-  const result = new Map();
+function parseTree(buffer: string) {
+  const result = new Map<string, GitEntry>();
   for (const record of buffer.split("\0").filter(Boolean)) {
     const delimiter = record.indexOf("\t");
     const [mode, type, blob, ...extra] = record.slice(0, delimiter).split(/\s+/u);
@@ -274,8 +350,8 @@ function parseTree(buffer) {
   return result;
 }
 
-export function parseIndex(buffer) {
-  const result = new Map();
+export function parseIndex(buffer: string) {
+  const result = new Map<string, GitEntry>();
   for (const record of buffer.split("\0").filter(Boolean)) {
     const delimiter = record.indexOf("\t");
     const [mode, blob, stage, ...extra] = record.slice(0, delimiter).split(/\s+/u);
@@ -289,19 +365,23 @@ export function parseIndex(buffer) {
   return result;
 }
 
-function gitBlobIdentity(contents, objectFormat) {
+function gitBlobIdentity(contents: Buffer, objectFormat: string) {
   return createHash(objectFormat)
     .update(Buffer.from(`blob ${contents.length}\0`))
     .update(contents)
     .digest("hex");
 }
 
-export function canonicalTextBlob(contents, objectFormat, attributes) {
+export function canonicalTextBlob(
+  contents: Buffer,
+  objectFormat: string,
+  attributes: Readonly<Record<string, string | undefined>>,
+) {
   if (
-    !["set", "auto"].includes(attributes.text) ||
+    !["set", "auto"].includes(attributes.text ?? "") ||
     attributes.eol !== "lf" ||
-    !["unset", "unspecified"].includes(attributes.filter) ||
-    !["unset", "unspecified"].includes(attributes["working-tree-encoding"]) ||
+    !["unset", "unspecified"].includes(attributes.filter ?? "") ||
+    !["unset", "unspecified"].includes(attributes["working-tree-encoding"] ?? "") ||
     contents.includes(0)
   )
     return null;
@@ -310,7 +390,7 @@ export function canonicalTextBlob(contents, objectFormat, attributes) {
   return gitBlobIdentity(Buffer.from(text.replaceAll("\r\n", "\n"), "utf8"), objectFormat);
 }
 
-function textAttributes(root, file) {
+function textAttributes(root: string, file: string) {
   const values = git(root, [
     "check-attr",
     "-z",
@@ -321,15 +401,24 @@ function textAttributes(root, file) {
     "--",
     file,
   ]).split("\0");
-  const attributes = {};
+  const attributes: Record<string, string> = {};
   for (let offset = 0; offset + 2 < values.length; offset += 3) {
     if (values[offset] !== file) throw new Error(`Unexpected Git attribute path for ${file}`);
-    attributes[values[offset + 1]] = values[offset + 2];
+    const name = values[offset + 1],
+      value = values[offset + 2];
+    if (name === undefined || value === undefined)
+      throw new Error(`Incomplete Git attribute record for ${file}`);
+    attributes[name] = value;
   }
   return attributes;
 }
 
-function contentIdentity(root, file, objectFormat, expectedBlob) {
+function contentIdentity(
+  root: string,
+  file: string,
+  objectFormat: string,
+  expectedBlob: string | undefined,
+): ContentIdentity {
   const absolute = path.join(root, ...file.split("/"));
   if (!existsSync(absolute))
     return { kind: "missing", worktreeMode: null, sha256: null, gitBlob: null };
@@ -361,20 +450,20 @@ function contentIdentity(root, file, objectFormat, expectedBlob) {
   };
 }
 
-function nulPaths(buffer) {
+function nulPaths(buffer: string) {
   return buffer.split("\0").filter(Boolean).map(normalizeRepositoryPath);
 }
 
-export function assertNoSplitIndex(stagedPaths, unstagedPaths) {
+export function assertNoSplitIndex(stagedPaths: string[], unstagedPaths: string[]) {
   const unstaged = new Set(unstagedPaths);
   const split = [...new Set(stagedPaths.filter((file) => unstaged.has(file)))].sort();
   if (split.length) throw new Error(`cannot audit partially staged paths: ${split.join(", ")}`);
 }
 
-export function repositoryInventory(root = projectRoot) {
+export function repositoryInventory(root = projectRoot): RepositoryInventory {
   const head = git(root, ["rev-parse", "HEAD"]).trim();
   const objectFormat = git(root, ["rev-parse", "--show-object-format"]).trim();
-  if (!["sha1", "sha256"].includes(objectFormat))
+  if (objectFormat !== "sha1" && objectFormat !== "sha256")
     throw new Error(`unsupported Git object format: ${objectFormat}`);
   const headTree = parseTree(git(root, ["ls-tree", "-r", "-z", "HEAD"]));
   const index = parseIndex(git(root, ["ls-files", "-s", "-z"]));
@@ -397,7 +486,9 @@ export function repositoryInventory(root = projectRoot) {
         indexBlob: index.get(file)?.blob ?? null,
         indexMode: index.get(file)?.mode ?? null,
         ...contentIdentity(root, file, objectFormat, headTree.get(file)?.blob),
-        domains: [...ownership.domains].sort(),
+        domains: [...ownership.domains].sort((left, right) =>
+          left < right ? -1 : left > right ? 1 : 0,
+        ),
         ambiguous: ownership.ambiguous,
         untracked: !index.has(file),
       };
@@ -405,26 +496,29 @@ export function repositoryInventory(root = projectRoot) {
   return { head, objectFormat, files };
 }
 
-function commandVersion(command, args, root) {
+function commandVersion(command: string, args: string[], root: string) {
   const result = spawnSync(command, args, {
     cwd: root,
     encoding: "utf8",
     windowsHide: true,
     env: process.env,
   });
-  if (result.error) return `unavailable:${result.error.code ?? result.error.message}`;
+  if (result.error) return `unavailable:${errorCode(result.error) ?? result.error.message}`;
   if (result.status !== 0) return `error:${result.status}`;
   return String(result.stdout || result.stderr).trim();
 }
 
 /** Observe only runtime fields consumed by the selected receipt domains. */
-export function validationRuntime(root = projectRoot, options = {}) {
+export function validationRuntime(
+  root = projectRoot,
+  options: RuntimeOptions = {},
+): ValidationRuntime {
   const domains = options.domains ?? allReusableDomains;
   const environment = options.environment ?? process.env;
   const version =
     options.commandVersion ?? ((command, args) => commandVersion(command, args, root));
-  const includes = (...names) => names.some((name) => domains.includes(name));
-  const runtime = {
+  const includes = (...names: ValidationDomain[]) => names.some((name) => domains.includes(name));
+  const runtime: ValidationRuntime = {
     platform: process.platform,
     architecture: process.arch,
     osRelease: os.release(),
@@ -449,9 +543,10 @@ export function validationRuntime(root = projectRoot, options = {}) {
     runtime.powershell = version("pwsh", ["--version"]);
   }
   if (includes("format", "ui", "lint", "release")) {
-    runtime.packageManager = JSON.parse(
-      readFileSync(path.join(root, "package.json"), "utf8"),
-    ).packageManager;
+    const manifest: unknown = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+    if (!isRecord(manifest) || typeof manifest.packageManager !== "string")
+      throw new Error("Validation runtime requires the declared packageManager identity");
+    runtime.packageManager = manifest.packageManager;
     runtime.packageManagerVersion = version("pnpm", ["--version"]);
   }
   return runtime;
@@ -460,7 +555,7 @@ export function validationRuntime(root = projectRoot, options = {}) {
 // Exhaustive audit retains the complete historical runtime inventory.
 export const auditRuntime = validationRuntime;
 
-function stable(value) {
+function stable(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stable);
   if (value && typeof value === "object")
     return Object.fromEntries(
@@ -471,24 +566,36 @@ function stable(value) {
   return value;
 }
 
-function digest(value) {
+function digest(value: unknown) {
   return createHash("sha256")
     .update(JSON.stringify(stable(value)))
     .digest("hex");
 }
 
-export function fingerprintInputs(stage, inventory, runtime) {
+export function fingerprintInputs(
+  stage: StageIdentity,
+  inventory: Pick<RepositoryInventory, "objectFormat" | "files">,
+  runtime: ValidationRuntime,
+) {
   const inputs = inventory.files
     .filter((file) => file.domains.includes(stage.domain))
     .map((file) => ({
       path: file.path,
       kind: file.kind,
       modes: [
-        ...new Set([file.headMode, file.indexMode, file.worktreeMode].filter(Boolean)),
-      ].sort(),
+        ...new Set(
+          [file.headMode, file.indexMode, file.worktreeMode].filter(
+            (value): value is string => typeof value === "string" && value.length > 0,
+          ),
+        ),
+      ].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0)),
       contentIdentities: [
-        ...new Set([file.headBlob, file.indexBlob, file.gitBlob].filter(Boolean)),
-      ].sort(),
+        ...new Set(
+          [file.headBlob, file.indexBlob, file.gitBlob].filter(
+            (value): value is string => typeof value === "string" && value.length > 0,
+          ),
+        ),
+      ].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0)),
       sha256: file.sha256,
       domains: file.domains,
       ambiguous: file.ambiguous,
@@ -525,17 +632,24 @@ export function fingerprintInputs(stage, inventory, runtime) {
   };
 }
 
-export function fingerprintStage(stage, inventory, runtime) {
+export function fingerprintStage(
+  stage: StageIdentity,
+  inventory: Pick<RepositoryInventory, "objectFormat" | "files">,
+  runtime: ValidationRuntime,
+) {
   return digest(fingerprintInputs(stage, inventory, runtime));
 }
 
-export function receiptEnvelope(payload) {
+export function receiptEnvelope<Payload>(payload: Payload) {
   return { payload, integrity: digest(payload) };
 }
 
-export function validateReceipt(receipt, expected = {}) {
-  if (!receipt || typeof receipt !== "object") return { valid: false, reason: "missing receipt" };
-  if (!receipt.payload || receipt.integrity !== digest(receipt.payload))
+export function validateReceipt(
+  receipt: unknown,
+  expected: { stageId?: string; fingerprint?: string } = {},
+): ReceiptValidation {
+  if (!isRecord(receipt)) return { valid: false, reason: "missing receipt" };
+  if (!isRecord(receipt.payload) || receipt.integrity !== digest(receipt.payload))
     return { valid: false, reason: "receipt integrity mismatch" };
   const payload = receipt.payload;
   if (payload.format !== receiptFormat || payload.kind !== "successful-stage")
@@ -546,5 +660,29 @@ export function validateReceipt(receipt, expected = {}) {
     return { valid: false, reason: "receipt stage does not match" };
   if (expected.fingerprint && payload.fingerprint !== expected.fingerprint)
     return { valid: false, reason: "stage fingerprint changed" };
+  if (!isSuccessfulStageReceipt(payload))
+    return { valid: false, reason: "receipt stage identity is incomplete or malformed" };
   return { valid: true, payload };
+}
+
+function isSuccessfulStageReceipt(payload: unknown): payload is SuccessfulStageReceipt {
+  return (
+    isRecord(payload) &&
+    payload.format === receiptFormat &&
+    payload.kind === "successful-stage" &&
+    payload.success === true &&
+    typeof payload.stageId === "string" &&
+    payload.stageId.length > 0 &&
+    typeof payload.fingerprint === "string" &&
+    payload.fingerprint.length > 0 &&
+    typeof payload.originatingHead === "string" &&
+    payload.originatingHead.length > 0 &&
+    typeof payload.completedAt === "string" &&
+    payload.completedAt.length > 0 &&
+    (payload.recipe === undefined || typeof payload.recipe === "string") &&
+    (payload.durationMs === undefined ||
+      (typeof payload.durationMs === "number" &&
+        Number.isFinite(payload.durationMs) &&
+        payload.durationMs >= 0))
+  );
 }

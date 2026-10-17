@@ -1,13 +1,27 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
-import { fingerprintStage, validationRuntime } from "./validation-evidence.mts";
+import type {
+  RepositoryInventory,
+  StageIdentity,
+  ValidationDomain,
+  SuccessfulStageReceipt,
+} from "./validation-evidence.mts";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import {
+  fingerprintStage,
+  validationRuntime,
+  receiptEnvelope,
+  validateReceipt,
+} from "./validation-evidence.mts";
 
-test("selected runtime observes exactly the fields used by the existing domain fingerprint", () => {
-  const observe = (domains) => {
-    const calls = [];
+void test("selected runtime observes exactly the fields used by the existing domain fingerprint", () => {
+  const observe = (domains: readonly ValidationDomain[] | undefined) => {
+    const calls: string[] = [];
     const runtime = validationRuntime(undefined, {
-      domains,
+      ...(domains === undefined ? {} : { domains }),
       commandVersion(command, args) {
         calls.push([command, ...args].join(" "));
         return `version:${command}:${args.join(" ")}`;
@@ -26,10 +40,13 @@ test("selected runtime observes exactly the fields used by the existing domain f
     "rscheck",
     "lint",
     "release",
-  ]) {
+  ] as const) {
     const selected = observe([domain]);
-    const stage = { id: "control", recipe: "unchanged", domain };
-    const inventory = { objectFormat: "sha1", files: [] };
+    const stage: StageIdentity = { id: "control", recipe: "unchanged", domain };
+    const inventory: Pick<RepositoryInventory, "objectFormat" | "files"> = {
+      objectFormat: "sha1",
+      files: [],
+    };
     assert.equal(
       fingerprintStage(stage, inventory, selected.runtime),
       fingerprintStage(stage, inventory, full.runtime),
@@ -42,7 +59,7 @@ test("selected runtime observes exactly the fields used by the existing domain f
   assert.equal(full.calls.length, 10);
 });
 
-test("ordinary hosted planning imports and executes without loading audit or receipt orchestration", () => {
+void test("ordinary hosted planning imports and executes without loading audit or receipt orchestration", () => {
   execFileSync(
     process.execPath,
     [
@@ -66,4 +83,50 @@ test("ordinary hosted planning imports and executes without loading audit or rec
     ],
     { cwd: new URL("../", import.meta.url), windowsHide: true, timeout: 10_000 },
   );
+});
+
+void test("successful receipt requires validated identity and preserves the original metadata", () => {
+  const payload: SuccessfulStageReceipt = {
+    format: 1,
+    kind: "successful-stage",
+    success: true,
+    stageId: "owned-stage",
+    fingerprint: "f".repeat(64),
+    originatingHead: "a".repeat(40),
+    completedAt: "2026-10-16T00:00:00Z",
+  };
+  const result = validateReceipt(receiptEnvelope(payload));
+  assert(result.valid);
+  assert.equal(result.payload, payload);
+  for (const invalid of [
+    { format: 1, kind: "successful-stage", success: true },
+    { ...payload, stageId: [] },
+    { ...payload, fingerprint: null },
+    { ...payload, originatingHead: {} },
+    { ...payload, completedAt: 123 },
+    { ...payload, recipe: [] },
+    { ...payload, durationMs: "100" },
+    { ...payload, durationMs: Infinity },
+    { ...payload, durationMs: -1 },
+  ])
+    assert.equal(validateReceipt(receiptEnvelope(invalid)).valid, false);
+  assert.equal(
+    validateReceipt(receiptEnvelope({ ...payload, durationMs: 0, recipe: "owned" })).valid,
+    true,
+  );
+});
+
+void test("runtime identity rejects malformed packageManager data before claiming a measurement", (t) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "pcv-validation-runtime-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const options = { domains: ["ui"] as const, commandVersion: () => "fixture-version" };
+  for (const manifest of [null, {}, { packageManager: 123 }]) {
+    writeFileSync(path.join(directory, "package.json"), JSON.stringify(manifest));
+    assert.throws(() => validationRuntime(directory, options), /declared packageManager identity/u);
+  }
+  writeFileSync(
+    path.join(directory, "package.json"),
+    JSON.stringify({ packageManager: "pnpm@fixture" }),
+  );
+  assert.equal(validationRuntime(directory, options).packageManager, "pnpm@fixture");
 });
