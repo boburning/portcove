@@ -1,4 +1,28 @@
-import { errorMessage } from "../../../scripts/runtime-values.mts";
+import type { ScenarioContext } from "./desktop-scenario-context.mts";
+import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
+import type { FixtureCommand } from "./desktop-scenario-state.mts";
+import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
+import type { ArtworkSlot, GeneratedArtworkFallback } from "../src/transport-types.generated.d.ts";
+import { transportValue } from "./transport-values.mts";
+interface ArtworkContext extends ScenarioContext {
+  invoke: BoundaryInvoke;
+  command: FixtureCommand;
+  confirmNative: ReturnType<typeof nativeConfirmation>;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function required<Value>(value: Value | null | undefined): Value {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function success(value: unknown) {
+  const reply = object(value);
+  assert.equal(reply.ok, true, JSON.stringify(reply));
+  return reply.value;
+}
+import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 // Owned local artwork exercises real file selection, core IPC and rendered images.
 import assert from "node:assert/strict";
@@ -21,20 +45,26 @@ export async function artworkScenario({
   artifacts,
   command,
   confirmNative,
-}) {
+}: ArtworkContext) {
   await scenario("native-local-artwork-picker-and-recovery", async () => {
     const observations = artworkObservations({ browser, output, artifacts });
     let failure;
     try {
-      const bootstrap = (await invoke("get_bootstrap_status")).value;
-      const libraryRoot = await realpath(bootstrap.library_root);
+      const bootstrap = transportValue(
+        "desktop_bootstrap_status",
+        success(await invoke("get_bootstrap_status")),
+      );
+      const libraryRoot = await realpath(required(bootstrap.library_root));
       const ownedRelative = path.relative(await realpath(output), libraryRoot);
       assert.ok(
         ownedRelative && !ownedRelative.startsWith("..") && !path.isAbsolute(ownedRelative),
         "Artwork tests require the owned qualification library",
       );
       const portId = "zelda64-recomp";
-      const port = command(["catalog", "show", portId], bootstrap.library_root);
+      const port = transportValue(
+        "port",
+        command(["catalog", "show", portId], required(bootstrap.library_root)),
+      );
       const source = path.join(output, "owned-local-artwork.png");
       const bytes = Buffer.from(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGOQCFgAAAGMAQm4OT/aAAAAAElFTkSuQmCC",
@@ -43,24 +73,24 @@ export async function artworkScenario({
       await writeFile(source, bytes, { flag: "wx" });
       const digest = createHash("sha256").update(bytes).digest("hex");
       const { click } = reviewControls(browser);
-      const control = (slot, label) =>
+      const control = (slot: ArtworkSlot, label: string) =>
         By.xpath(
           `//section[@aria-label="${slot === "cover" ? "Cover" : "Detail"} image"]//button[normalize-space(.)="${label}"]`,
         );
-      const state = async (slot) => {
+      const state = async (slot: ArtworkSlot) => {
         const result = await invoke("get_artwork", {
           portId,
           slot,
           generation: bootstrap.generation,
         });
-        assert.equal(result.ok, true, JSON.stringify(result));
-        return result.value;
+        return transportValue("artwork_state", success(result));
       };
-      const fallbackVisual = async (selector) =>
+      const fallbackVisual = async (selector: string) =>
         executeBrowserScript(
           browser,
           (selector) => {
-            const frame = document.querySelector(selector);
+            const frame = document.querySelector<HTMLElement>(selector);
+            if (!frame) throw new Error("Artwork frame unavailable");
             const palette = [...frame.classList].find((name: string) =>
               name.startsWith("palette-"),
             );
@@ -72,7 +102,7 @@ export async function artworkScenario({
           },
           selector,
         );
-      const expectFallbackVisual = async (selector, fallback) => {
+      const expectFallbackVisual = async (selector: string, fallback: GeneratedArtworkFallback) => {
         const expected = {
           source: "generated_fallback",
           initials: fallback.initials,
@@ -102,9 +132,11 @@ export async function artworkScenario({
           until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
           15_000,
         );
-        const preferences = await invoke("get_application_update_preferences");
-        assert.equal(preferences.ok, true);
-        if (preferences.value.choice === null) {
+        const preferences = transportValue(
+          "desktop_application_update_preferences",
+          success(await invoke("get_application_update_preferences")),
+        );
+        if (preferences.choice === null) {
           const choice = By.xpath(
             '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]',
           );
@@ -151,7 +183,7 @@ export async function artworkScenario({
             executeBrowserScript(
               browser,
               (selector) => {
-                const image = document.querySelector(selector);
+                const image = document.querySelector<HTMLImageElement>(selector);
                 return Boolean(image?.complete && image.naturalWidth > 0);
               },
               selector,
@@ -168,14 +200,16 @@ export async function artworkScenario({
       assert.ok(before.generated_fallback.palette_index >= 0);
       assert.ok(before.generated_fallback.palette_index < 6);
       await expectFallbackVisual(".detail-cover", before.generated_fallback);
-      const stale = await invoke("reset_artwork", {
-        portId,
-        slot: "cover",
-        expectedRevision: before.choice.revision,
-        generation: bootstrap.generation + 1,
-      });
+      const stale = object(
+        await invoke("reset_artwork", {
+          portId,
+          slot: "cover",
+          expectedRevision: before.choice.revision,
+          generation: bootstrap.generation + 1,
+        }),
+      );
       assert.equal(stale.ok, false);
-      assert.equal(stale.error.code, "conflict");
+      assert.equal(object(stale.error).code, "conflict");
       await click(control("cover", "Choose local image"));
       await confirmNative(
         "Choose local artwork",
@@ -196,7 +230,7 @@ export async function artworkScenario({
           ),
         5000,
       );
-      for (const slot of ["cover", "detail"]) {
+      for (const slot of ["cover", "detail"] as const) {
         await click(control(slot, "Choose local image"));
         await confirmNative(
           "Choose local artwork",
@@ -221,20 +255,25 @@ export async function artworkScenario({
       const cover = await state("cover"),
         detail = await state("detail");
       assert.equal(cover.choice.revision, before.choice.revision + 1);
-      const oldChoice = await invoke("reset_artwork", {
-        portId,
-        slot: "cover",
-        expectedRevision: before.choice.revision,
-        generation: bootstrap.generation,
-      });
+      const oldChoice = object(
+        await invoke("reset_artwork", {
+          portId,
+          slot: "cover",
+          expectedRevision: before.choice.revision,
+          generation: bootstrap.generation,
+        }),
+      );
       assert.equal(oldChoice.ok, false);
-      assert.equal(oldChoice.error.code, "conflict");
+      assert.equal(object(oldChoice.error).code, "conflict");
       const geometry = await executeBrowserScript(browser, () => {
         const frame = document.querySelector(".detail-cover");
+        if (!frame) throw new Error("Artwork frame unavailable");
+        const image = frame.querySelector("img");
+        if (!image) throw new Error("Artwork image unavailable");
         const bounds = frame.getBoundingClientRect();
         return {
           ratio: bounds.width / bounds.height,
-          fit: getComputedStyle(frame.querySelector("img")).objectFit,
+          fit: getComputedStyle(image).objectFit,
           titleOutsideImage: !frame.contains(document.querySelector("#port-detail-title")),
         };
       });
@@ -242,7 +281,9 @@ export async function artworkScenario({
       assert.equal(geometry.fit, "contain");
       assert.equal(geometry.titleOutsideImage, true);
       await executeBrowserScript(browser, () => {
-        document.querySelector("#port-detail-title").textContent =
+        const title = document.querySelector("#port-detail-title");
+        if (!title) throw new Error("Port detail title unavailable");
+        title.textContent =
           "Owned long-title layout fixture with a deliberately lengthy game name and edition description";
       });
       await assertCompactReview(browser, ".detail-panel");
@@ -286,13 +327,13 @@ export async function artworkScenario({
         assert.equal(unavailable.resolved_source.kind, "generated_fallback");
         await expectFallbackVisual(".wide-artwork", unavailable.generated_fallback);
         assert.ok(
-          Array.isArray(command(["status"], bootstrap.library_root)),
+          Array.isArray(command(["status"], required(bootstrap.library_root))),
           "Unavailable artwork must not prevent ordinary game status reads",
         );
       } finally {
         await rename(retained, original);
       }
-      command(["artwork", "clear-cache"], bootstrap.library_root);
+      command(["artwork", "clear-cache"], required(bootstrap.library_root));
       await open();
       await waitImage(".wide-artwork img");
       assert.equal((await state("cover")).choice.asset_sha256, null);
