@@ -1,18 +1,35 @@
+import toolBootstrap from "../.config/tool-bootstrap.json" with { type: "json" };
+import cargoReplay from "./fixtures/serde-json-renovate-44.156.3.json" with { type: "json" };
+import renovateConfig from "../renovate.json" with { type: "json" };
+import desktopPackageManifest from "../apps/desktop/package.json" with { type: "json" };
+import rootPackage from "../package.json" with { type: "json" };
+import qualityManifest from "../.github/quality-tools.json" with { type: "json" };
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { isRecord, errorCode } from "./runtime-values.mts";
+
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function record(value: unknown) {
+  assert.ok(isRecord(value));
+  return value;
+}
+
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (name: string) => readFile(path.join(root, name), "utf8");
 
-test("Rust Node and pnpm authorities are exact and workflow consumers do not copy them", async () => {
-  const quality = JSON.parse(await read(".github/quality-tools.json"));
+void test("Rust Node and pnpm authorities are exact and workflow consumers do not copy them", async () => {
+  const quality = qualityManifest;
   const toolchain = await read("rust-toolchain.toml");
   const cargo = await read("Cargo.toml");
   const node = (await read(".node-version")).trim();
-  const repositoryPackage = JSON.parse(await read("package.json"));
+  const repositoryPackage = rootPackage;
   const justfile = await read("justfile");
   assert.equal(toolchain.match(/^channel\s*=\s*"([^"]+)"/mu)?.[1], quality.rust.channel);
   assert.equal(
@@ -39,9 +56,9 @@ test("Rust Node and pnpm authorities are exact and workflow consumers do not cop
   }
 });
 
-test("the root owns the only pnpm workspace lock and repository tool dependencies", async () => {
-  const repositoryPackage = JSON.parse(await read("package.json"));
-  const desktopPackage = JSON.parse(await read("apps/desktop/package.json"));
+void test("the root owns the only pnpm workspace lock and repository tool dependencies", async () => {
+  const repositoryPackage = rootPackage;
+  const desktopPackage = desktopPackageManifest;
   const workspace = await read("pnpm-workspace.yaml");
   const lockfile = await read("pnpm-lock.yaml");
 
@@ -51,6 +68,8 @@ test("the root owns the only pnpm workspace lock and repository tool dependencie
   assert.ok(Object.keys(desktopPackage.devDependencies).length > 0);
   assert.deepEqual(Object.keys(repositoryPackage.devDependencies).sort(), [
     "@types/node",
+    "@types/selenium-webdriver",
+    "@types/semver",
     "fallow",
     "vite-plus",
     "yaml",
@@ -68,10 +87,13 @@ test("the root owns the only pnpm workspace lock and repository tool dependencie
   assert.match(workspace, /^storeDir: work\/pnpm-store$/mu);
   assert.match(lockfile, /^  apps\/desktop:$/mu);
   assert.match(lockfile, /^    devDependencies:$/mu);
-  await assert.rejects(read("apps/desktop/pnpm-lock.yaml"), (error) => error.code === "ENOENT");
+  await assert.rejects(
+    read("apps/desktop/pnpm-lock.yaml"),
+    (error: unknown) => errorCode(error) === "ENOENT",
+  );
   await assert.rejects(
     read("apps/desktop/pnpm-workspace.yaml"),
-    (error) => error.code === "ENOENT",
+    (error: unknown) => errorCode(error) === "ENOENT",
   );
 
   const workflowDirectory = path.join(root, ".github", "workflows");
@@ -87,7 +109,7 @@ test("the root owns the only pnpm workspace lock and repository tool dependencie
   }
 });
 
-test("all external GitHub Actions are immutable SHA references", async () => {
+void test("all external GitHub Actions are immutable SHA references", async () => {
   const workflowFiles = [
     ...(await readdir(path.join(root, ".github", "workflows"))).map(
       (name) => `.github/workflows/${name}`,
@@ -97,14 +119,14 @@ test("all external GitHub Actions are immutable SHA references", async () => {
   for (const file of workflowFiles) {
     const contents = await read(file);
     for (const [, reference] of contents.matchAll(/^\s*-?\s*uses:\s*([^\s#]+)/gmu)) {
-      if (reference.startsWith("./")) continue;
-      assert.match(reference, /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_./-]+@[a-f0-9]{40}$/u, file);
+      if (required(reference).startsWith("./")) continue;
+      assert.match(required(reference), /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_./-]+@[a-f0-9]{40}$/u, file);
     }
   }
 });
 
-test("Renovate is the sole conservative routine update authority", async () => {
-  const renovate = JSON.parse(await read("renovate.json"));
+void test("Renovate is the sole conservative routine update authority", async () => {
+  const renovate = renovateConfig;
   assert.equal(renovate.automerge, false);
   assert.equal(renovate.minimumReleaseAge, "1 day");
   assert.equal(renovate.minimumReleaseAgeBehaviour, "timestamp-required");
@@ -114,16 +136,19 @@ test("Renovate is the sole conservative routine update authority", async () => {
   assert.equal(renovate.prHourlyLimit, 0);
   assert.equal(renovate.commitHourlyLimit, 0);
   assert.equal(renovate.rebaseWhen, "conflicted");
-  const npmPresentation = renovate.packageRules.at(-1);
+  const npmPresentation = required(renovate.packageRules.at(-1));
   assert.deepEqual(npmPresentation.matchManagers, ["npm"]);
   for (const column of ["Package", "Type", "Update", "Change"])
-    assert(npmPresentation.prBodyColumns.includes(column), `Required classifier column: ${column}`);
+    assert(
+      required(npmPresentation.prBodyColumns).includes(column),
+      `Required classifier column: ${column}`,
+    );
   assert.equal(renovate.prCreation, "immediate");
   assert.equal(renovate.updateNotScheduled, true);
   assert.equal(renovate.timezone, "America/New_York");
   assert.notEqual(renovate.vulnerabilityAlerts?.enabled, false);
-  assert.equal(renovate.vulnerabilityAlerts?.prConcurrentLimit, undefined);
-  assert.equal(renovate.vulnerabilityAlerts?.branchConcurrentLimit, undefined);
+  assert.equal(record(renovate.vulnerabilityAlerts).prConcurrentLimit, undefined);
+  assert.equal(record(renovate.vulnerabilityAlerts).branchConcurrentLimit, undefined);
   for (const manager of [
     "cargo",
     "npm",
@@ -151,31 +176,37 @@ test("Renovate is the sole conservative routine update authority", async () => {
   const powershellAnalyzerManager = renovate.customManagers.find((manager) =>
     manager.managerFilePatterns.some((pattern) => pattern.includes("powershell-resources")),
   );
+  assert.ok(powershellAnalyzerManager);
   assert.equal(powershellAnalyzerManager.datasourceTemplate, "nuget");
   assert.equal(
     powershellAnalyzerManager.registryUrlTemplate,
     "https://www.powershellgallery.com/api/v2/",
   );
   assert.equal(powershellAnalyzerManager.versioningTemplate, "nuget");
-  await assert.rejects(read(".github/dependabot.yml"), (error) => error.code === "ENOENT");
+  await assert.rejects(
+    read(".github/dependabot.yml"),
+    (error: unknown) => errorCode(error) === "ENOENT",
+  );
 });
 
-test("pnpm prefers one-day releases without turning the preference into a strict install gate", async () => {
+void test("pnpm prefers one-day releases without turning the preference into a strict install gate", async () => {
   const { parse } = await import("yaml");
-  const workspace = parse(await read("pnpm-workspace.yaml"));
+  const parsedWorkspace: unknown = parse(await read("pnpm-workspace.yaml"));
+  const workspace = record(parsedWorkspace);
   assert.equal(workspace.minimumReleaseAge, 1440);
   assert.equal(workspace.minimumReleaseAgeStrict, false);
   assert.equal(workspace.minimumReleaseAgeExclude, undefined);
   assert.deepEqual(workspace.allowBuilds, { "@swc/core": true });
-  const config = JSON.parse(await read("renovate.json"));
+  const config = renovateConfig;
   const primary = config.packageRules.find((rule) => rule.groupName === "vite-plus");
+  assert.ok(primary);
   assert.equal(primary.enabled, true);
   assert.deepEqual(primary.matchPackageNames, ["vite-plus"]);
-  assert.equal(config.postUpgradeTasks, undefined);
+  assert.equal(record(config).postUpgradeTasks, undefined);
 });
 
-test("Renovate excludes the extracted rusqlite Git dependency identity", async () => {
-  const renovate = JSON.parse(await read("renovate.json"));
+void test("Renovate excludes the extracted rusqlite Git dependency identity", async () => {
+  const renovate = renovateConfig;
   const cargo = await read("Cargo.toml");
   const declaration = cargo.match(
     /^rusqlite\s*=\s*\{\s*git\s*=\s*"([^"]+)",\s*rev\s*=\s*"([a-f0-9]{40})"/mu,
@@ -185,7 +216,7 @@ test("Renovate excludes the extracted rusqlite Git dependency identity", async (
     manager: "cargo",
     datasource: "git-refs",
     depName: "rusqlite",
-    packageName: declaration[1],
+    packageName: required(declaration[1]),
     currentDigest: declaration[2],
   };
   assert.equal(extraction.packageName, "https://github.com/rusqlite/rusqlite");
@@ -198,12 +229,12 @@ test("Renovate excludes the extracted rusqlite Git dependency identity", async (
       rule.matchPackageNames?.includes(extraction.packageName),
   );
   assert.equal(matchingRules.length, 1);
-  assert.equal(matchingRules[0].enabled, false);
+  assert.equal(required(matchingRules[0]).enabled, false);
 });
 
-test("serde_json lock updates are confined to the authorized Cargo crate identity", async () => {
-  const config = JSON.parse(await read("renovate.json"));
-  const fixture = JSON.parse(await read("scripts/fixtures/serde-json-renovate-44.156.3.json"));
+void test("serde_json lock updates are confined to the authorized Cargo crate identity", async () => {
+  const config = renovateConfig;
+  const fixture = cargoReplay;
   const overrides = config.packageRules.filter((rule) => rule.rangeStrategy);
   assert.equal(config.rangeStrategy, "bump");
   assert.equal(overrides.length, 1, "no other dependency range policy is authorized");
@@ -221,7 +252,7 @@ test("serde_json lock updates are confined to the authorized Cargo crate identit
     "rangeStrategy",
   ]);
   const identity = { manager: "cargo", datasource: "crate", packageName: "serde_json" };
-  const matches = (candidate) =>
+  const matches = (candidate: { manager: string; datasource: string; packageName: string }) =>
     rule.matchManagers.includes(candidate.manager) &&
     rule.matchDatasources.includes(candidate.datasource) &&
     rule.matchPackageNames.includes(candidate.packageName);
@@ -232,13 +263,14 @@ test("serde_json lock updates are confined to the authorized Cargo crate identit
   }
 });
 
-test("deployed Cargo replay separates selected lock updates from security and full maintenance", async () => {
-  const fixture = JSON.parse(await read("scripts/fixtures/serde-json-renovate-44.156.3.json"));
+void test("deployed Cargo replay separates selected lock updates from security and full maintenance", async () => {
+  const fixture = cargoReplay;
   const observed = Date.parse(fixture.observedAt);
   const age = 3 * 24 * 60 * 60 * 1000;
   const selected = fixture.lookup.updates[0];
   const serde = fixture.extraction.find((dep) => dep.depName === "serde_json");
   const semver = fixture.extraction.find((dep) => dep.depName === "semver");
+  assert.ok(selected && serde && semver);
   assert.equal(fixture.engine.version, "44.156.3");
   assert.equal(fixture.lookup.updates.length, 1);
   assert.equal(selected.newValue, serde.currentValue);
@@ -265,7 +297,7 @@ test("deployed Cargo replay separates selected lock updates from security and fu
   assert.equal(boundaries.compatibleMinor.newValue, serde.currentValue);
   assert.equal(boundaries.compatibleMinor.isLockfileUpdate, true);
   assert.equal(boundaries.outOfRangeMajor.approval, true);
-  assert.equal(boundaries.outOfRangeMajor.metadata.isLockfileUpdate, undefined);
+  assert.equal(record(boundaries.outOfRangeMajor.metadata).isLockfileUpdate, undefined);
   assert.equal(boundaries.security.minimumReleaseAge, null);
   assert.equal(boundaries.security.majorApproval, false);
   assert.equal(boundaries.security.automerge, false);
@@ -277,8 +309,8 @@ test("deployed Cargo replay separates selected lock updates from security and fu
   assert.equal(boundaries.fullLockfileMaintenance.universalTransitiveAgeGuarantee, false);
 });
 
-test("Renovate admits development tools continuously and suppresses only the Aqua registry authority", async () => {
-  const renovate = JSON.parse(await read("renovate.json"));
+void test("Renovate admits development tools continuously and suppresses only the Aqua registry authority", async () => {
+  const renovate = renovateConfig;
   const aqua = await read("aqua.yaml");
   const toolingSchedule = ["at any time"];
 
@@ -325,8 +357,10 @@ test("Renovate admits development tools continuously and suppresses only the Aqu
       rule.matchPackageNames?.includes("aquaproj/aqua-registry"),
   );
   assert.equal(registryRules.length, 1);
-  assert.equal(registryRules[0].enabled, false);
+  assert.equal(required(registryRules[0]).enabled, false);
 
+  assert.ok(repositoryToolCadence);
+  assert.ok(repositoryToolCadence.matchPackageNames);
   assert.equal(repositoryToolCadence.matchPackageNames.includes("node"), true);
   assert.equal(
     renovate.packageRules.some(
@@ -339,8 +373,8 @@ test("Renovate admits development tools continuously and suppresses only the Aqu
   // prose may move between the daily contract and operation reference.
 });
 
-test("the RPM prerelease hold excludes only the affected npm CLI version", async () => {
-  const config = JSON.parse(await read("renovate.json"));
+void test("the RPM prerelease hold excludes only the affected npm CLI version", async () => {
+  const config = renovateConfig;
   const holds = config.packageRules.filter((rule) => rule.allowedVersions);
   const hold = holds.find((rule) => rule.matchPackageNames?.includes("@tauri-apps/cli"));
   assert.ok(hold);
@@ -357,8 +391,8 @@ test("the RPM prerelease hold excludes only the affected npm CLI version", async
   }
 });
 
-test("every Renovate custom manager matches its committed authority", async () => {
-  const renovate = JSON.parse(await read("renovate.json"));
+void test("every Renovate custom manager matches its committed authority", async () => {
+  const renovate = renovateConfig;
   const authorities = [
     ".github/quality-tools.json",
     ".node-version",
@@ -392,8 +426,8 @@ test("every Renovate custom manager matches its committed authority", async () =
   }
 });
 
-test("compatibility families override inherited groups without coupling unrelated tools", async () => {
-  const config = JSON.parse(await read("renovate.json"));
+void test("compatibility families override inherited groups without coupling unrelated tools", async () => {
+  const config = renovateConfig;
   const expected = {
     react: ["react", "react-dom", "@types/react", "@types/react-dom"],
     tauri: [
@@ -409,7 +443,7 @@ test("compatibility families override inherited groups without coupling unrelate
     tailwind: ["tailwindcss", "@tailwindcss/vite"],
     stylelint: ["stylelint", "stylelint-config-recommended"],
   };
-  const matches = (pattern, name) =>
+  const matches = (pattern: string, name: string) =>
     pattern.startsWith("/") ? new RegExp(pattern.slice(1, -1), "u").test(name) : pattern === name;
   for (const [group, names] of Object.entries(expected)) {
     for (const name of names) {
@@ -421,7 +455,7 @@ test("compatibility families override inherited groups without coupling unrelate
           rule.groupName && rule.matchPackageNames?.some((pattern) => matches(pattern, name)),
       );
       assert.equal(rules.length, 1, `${name} has ambiguous local group ownership`);
-      assert.equal(rules[0].groupName, group, name);
+      assert.equal(required(rules[0]).groupName, group, name);
     }
   }
   assert.equal(
@@ -434,26 +468,29 @@ test("compatibility families override inherited groups without coupling unrelate
     ),
     false,
   );
-  const desktop = JSON.parse(await read("apps/desktop/package.json"));
+  const desktop = desktopPackageManifest;
   const lock = await read("pnpm-lock.yaml");
   const { parse } = await import("yaml");
-  const workspace = parse(await read("pnpm-workspace.yaml"));
-  const core = String(workspace.catalog.vitest);
+  const parsedWorkspace: unknown = parse(await read("pnpm-workspace.yaml"));
+  const workspace = record(parsedWorkspace);
+  const catalog = record(workspace.catalog);
+  assert.equal(typeof catalog.vitest, "string");
+  const core = String(catalog.vitest);
   assert.equal(desktop.devDependencies["@vitest/browser-playwright"], "catalog:");
-  assert.equal(String(workspace.catalog["@vitest/browser-playwright"]), core);
+  assert.equal(String(catalog["@vitest/browser-playwright"]), core);
   assert.match(
     lock,
     new RegExp(`'@vitest/browser-playwright@${core.replaceAll(".", "\\.")}'`, "u"),
   );
 });
 
-test("selective migration intake and security overrides preserve immediate controlled delivery", async () => {
-  const config = JSON.parse(await read("renovate.json"));
-  assert.equal(config.dependencyDashboardApproval, undefined);
+void test("selective migration intake and security overrides preserve immediate controlled delivery", async () => {
+  const config = renovateConfig;
+  assert.equal(record(config).dependencyDashboardApproval, undefined);
   const migrations = config.packageRules.filter((rule) => rule.dependencyDashboardApproval);
   assert.equal(migrations.length, 1);
-  assert.deepEqual(migrations[0].matchUpdateTypes, ["major"]);
-  assert.equal(migrations[0].prPriority, -10);
+  assert.deepEqual(required(migrations[0]).matchUpdateTypes, ["major"]);
+  assert.equal(required(migrations[0]).prPriority, -10);
   assert.deepEqual(config.vulnerabilityAlerts, {
     enabled: true,
     automerge: false,
@@ -463,7 +500,7 @@ test("selective migration intake and security overrides preserve immediate contr
     labels: ["dependencies", "security"],
   });
   assert.equal(
-    config.schedule,
+    record(config).schedule,
     undefined,
     "ordinary dependency candidates remain continuously eligible",
   );
@@ -472,27 +509,36 @@ test("selective migration intake and security overrides preserve immediate contr
     assert.deepEqual(rule.schedule, ["at any time"]);
 });
 
-test("custom extraction records every exact identity once across supported whitespace and line endings", async () => {
-  const config = JSON.parse(await read("renovate.json"));
-  const quality = JSON.parse(await read(".github/quality-tools.json"));
+void test("custom extraction records every exact identity once across supported whitespace and line endings", async () => {
+  const config = renovateConfig;
+  const quality = qualityManifest;
   const expected = [
     ...quality.tools.map((tool) => [tool.crate, tool.version]),
     ["rust", quality.rust.channel],
     ["node", (await read(".node-version")).trim()],
-    ["tauri-driver", JSON.parse(await read(".config/tool-bootstrap.json")).desktop.tauri_driver],
+    ["tauri-driver", toolBootstrap.desktop.tauri_driver],
     ["aquaproj/aqua", (await read(".aqua-version")).trim()],
-    ["aquaproj/aqua-registry", (await read("aqua.yaml")).match(/ref:\s*(\S+)/u)[1]],
+    [
+      "aquaproj/aqua-registry",
+      required(required((await read("aqua.yaml")).match(/ref:\s*(\S+)/u))[1]),
+    ],
     ...[...(await read("aqua.yaml")).matchAll(/- name:\s*([^@\s]+)@(\S+)/gu)].map((match) => [
       match[1],
       match[2],
     ]),
     [
       "PSScriptAnalyzer",
-      (await read(".config/powershell-resources.psd1")).match(/version\s*=\s*'([^']+)'/u)[1],
+      required(
+        required(
+          (await read(".config/powershell-resources.psd1")).match(/version\s*=\s*'([^']+)'/u),
+        )[1],
+      ),
     ],
     [
       "anchore/syft",
-      (await read(".github/workflows/release.yml")).match(/syft-version:\s*v(\S+)/u)[1],
+      required(
+        required((await read(".github/workflows/release.yml")).match(/syft-version:\s*v(\S+)/u))[1],
+      ),
     ],
   ];
   const files = [
@@ -518,13 +564,14 @@ test("custom extraction records every exact identity once across supported white
         for (const pattern of manager.matchStrings) {
           for (const match of contents.matchAll(new RegExp(pattern.replaceAll('\\"', '"'), "gu")))
             actual.push([
-              manager.depNameTemplate ?? match.groups.depName,
-              match.groups.currentValue,
+              manager.depNameTemplate ?? required(match.groups).depName,
+              required(match.groups).currentValue,
             ]);
         }
       }
     }
-    const sort = (values) => values.map((value) => JSON.stringify(value)).sort();
+    const sort = (values: readonly (readonly (string | undefined)[])[]) =>
+      values.map((value) => JSON.stringify(value)).sort();
     assert.equal(
       new Set(actual.map((value) => value[0])).size,
       actual.length,
