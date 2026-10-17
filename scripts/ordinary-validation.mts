@@ -1,3 +1,10 @@
+import type {
+  SpawnSyncOptionsWithStringEncoding,
+  SpawnSyncOptions,
+  SpawnSyncReturns,
+} from "node:child_process";
+import type { ValidationChangeInput, ValidationPlan } from "./validation-plan.mts";
+import { isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -12,6 +19,91 @@ import {
 } from "./native-helper-dependencies.mts";
 import { ordinaryOwnershipForPath } from "./validation-plan.mts";
 import { spawnCommand } from "./dev-storage.mts";
+export interface LocalChange extends ValidationChangeInput {
+  path: string;
+}
+export interface ValidationSelection {
+  scopes: Set<string>;
+  packages: Set<string>;
+  nodeTests: Set<string>;
+  nodeSyntax: Set<string>;
+  oxfmtFiles: Set<string>;
+  uiRelatedFiles: Set<string>;
+  lintToolFixtures: Set<string>;
+  unknown: Set<string>;
+  shellFiles: Set<string>;
+  pythonFiles: Set<string>;
+  rustChanges: (LocalChange & { packageName: string })[];
+  rustfmt: boolean;
+  workspaceRust: boolean;
+  workspaceRustTests: boolean;
+  ui: boolean;
+  browser: boolean;
+  uiFullTests: boolean;
+  oxlint: boolean;
+  repositoryLint: boolean;
+  stylelint: boolean;
+  actionsLint: boolean;
+  powershellLint: boolean;
+  shellLint: boolean;
+  pythonLint: boolean;
+  playnite: boolean;
+  transport: boolean;
+}
+export interface ClassifyOptions {
+  fileExists?: (file: string) => boolean;
+}
+interface PathClassifyOptions {
+  includeFileChecks?: boolean;
+  isDeletion?: boolean;
+  nextestUnchanged?: boolean;
+}
+export interface ValidationCommand {
+  id: string;
+  reason: string;
+  executable: string;
+  args: string[];
+  cwd: string;
+  obligation?: string;
+  rustCoverage?: string[];
+}
+interface RetainedCommand extends ValidationCommand {
+  selectedIds: string[];
+}
+interface CommandOptions {
+  cwd?: string;
+  obligation?: string;
+}
+interface PlanningContext {
+  validationPlan?: ValidationPlan;
+  mergeBase?: string;
+  doctestPackages?: ReadonlySet<string>;
+}
+type CommandRunner = (
+  command: string,
+  args: string[],
+  options: SpawnSyncOptions,
+) => Pick<SpawnSyncReturns<Buffer>, "error" | "status">;
+type MetadataRunner = (
+  command: string,
+  args: string[],
+  options: SpawnSyncOptionsWithStringEncoding,
+) => Partial<Pick<SpawnSyncReturns<string>, "error" | "status" | "signal" | "stdout" | "stderr">>;
+interface MetadataObservation {
+  reason: string;
+  code: string | null;
+  status: number | null;
+  signal: string | null;
+  elapsed_ms: number;
+  observe_only: true;
+  offline: true;
+  locked: true;
+  timeout_ms: number;
+  capture_complete: boolean;
+  stdout: { bytes: number; sha256: string } | null;
+  stderr: { bytes: number; sha256: string } | null;
+}
+
 export function isRepositoryLintInput(file: string) {
   return (
     /^(?:scripts|integrations\/playnite|apps\/desktop\/(?:scripts|src|test|public))\/.*\.(?:[cm]?[jt]sx?)$/u.test(
@@ -45,27 +137,27 @@ const packagePrefixes = new Map([
   ["apps/desktop/src-tauri/", "portcove-desktop"],
 ]);
 
-export function packagesWithDoctests(metadata) {
-  if (!Array.isArray(metadata?.packages))
+export function packagesWithDoctests(metadata: unknown): Set<string> {
+  if (!isRecord(metadata) || !Array.isArray(metadata.packages))
     throw new Error("cargo metadata did not return a package inventory");
-  return new Set(
-    metadata.packages
-      .filter(
-        (pkg) =>
-          typeof pkg?.name === "string" &&
-          Array.isArray(pkg.targets) &&
-          pkg.targets.some((target) => target?.doctest === true),
-      )
-      .map((pkg) => pkg.name),
-  );
+  const packages: unknown[] = metadata.packages;
+  const names = new Set<string>();
+  for (const pkg of packages) {
+    if (!isRecord(pkg) || typeof pkg.name !== "string" || !Array.isArray(pkg.targets)) continue;
+    const targets: unknown[] = pkg.targets;
+    if (targets.some((target) => isRecord(target) && target.doctest === true)) names.add(pkg.name);
+  }
+  return names;
 }
 
-const metadataObservations = new WeakMap();
-const metadataErrorCode = (error) => {
+const metadataObservations = new WeakMap<object, MetadataObservation>();
+const metadataErrorCode = (error: unknown): string | null => {
   try {
-    const code = error?.code;
-    return ["ENOENT", "EACCES", "EPERM", "ETIMEDOUT", "ENOBUFS", "E2BIG", "EIO"].includes(code)
-      ? code
+    const code = isRecord(error) ? error.code : undefined;
+    return ["ENOENT", "EACCES", "EPERM", "ETIMEDOUT", "ENOBUFS", "E2BIG", "EIO"].some(
+      (known) => known === code,
+    )
+      ? String(code)
       : code === undefined
         ? null
         : "UNKNOWN";
@@ -73,7 +165,9 @@ const metadataErrorCode = (error) => {
     return "UNKNOWN";
   }
 };
-export function readDoctestPackages(options = {}) {
+export function readDoctestPackages(
+  options: { spawn?: MetadataRunner; observeOnly?: boolean } = {},
+): Set<string> {
   const started = performance.now();
   const result = (options.spawn ?? spawnSync)(
     "cargo",
@@ -94,10 +188,13 @@ export function readDoctestPackages(options = {}) {
         : process.env,
     },
   );
-  const refuse = (reason, error) => {
+  const refuse = (reason: string, error: unknown): never => {
     try {
-      if (options.observeOnly) {
-        const fingerprint = (value) =>
+      if (
+        options.observeOnly &&
+        ((typeof error === "object" && error !== null) || typeof error === "function")
+      ) {
+        const fingerprint = (value: unknown) =>
           typeof value === "string"
             ? {
                 bytes: Buffer.byteLength(value),
@@ -107,9 +204,14 @@ export function readDoctestPackages(options = {}) {
         metadataObservations.set(error, {
           reason,
           code: metadataErrorCode(error),
-          status: Number.isInteger(result.status) ? result.status : null,
-          signal: ["SIGTERM", "SIGKILL", "SIGINT", "SIGABRT", "SIGSEGV"].includes(result.signal)
-            ? result.signal
+          status:
+            typeof result.status === "number" && Number.isInteger(result.status)
+              ? result.status
+              : null,
+          signal: ["SIGTERM", "SIGKILL", "SIGINT", "SIGABRT", "SIGSEGV"].some(
+            (signal) => signal === result.signal,
+          )
+            ? String(result.signal)
             : result.signal == null
               ? null
               : "UNKNOWN",
@@ -131,17 +233,17 @@ export function readDoctestPackages(options = {}) {
   };
   if (result.error) refuse("spawn-error", result.error);
   if (result.status !== 0)
-    refuse("cargo-exit", new Error(`cargo metadata failed: ${result.stderr.trim()}`));
-  let metadata;
+    refuse("cargo-exit", new Error(`cargo metadata failed: ${String(result.stderr ?? "").trim()}`));
+  let metadata: unknown;
   try {
-    metadata = JSON.parse(result.stdout);
+    metadata = JSON.parse(String(result.stdout));
   } catch (error) {
     refuse("metadata-json", error);
   }
   try {
     return packagesWithDoctests(metadata);
   } catch (error) {
-    refuse("package-inventory", error);
+    return refuse("package-inventory", error);
   }
 }
 
@@ -185,7 +287,7 @@ const selectionContractTests = [
   "scripts/select-ci-plan.test.mts",
 ];
 
-const explicitNodeTests = new Map([
+const explicitNodeTests = new Map<string, readonly string[]>([
   [
     "scripts/validation-evidence.mts",
     [...selectionContractTests, "scripts/validation-evidence.test.mts", "scripts/audit.test.mts"],
@@ -197,7 +299,7 @@ const explicitNodeTests = new Map([
     "scripts/container-build-entry.mts",
     "scripts/container-build-policy.mts",
     "tools/containers/build/Dockerfile",
-  ].map((file) => [
+  ].map((file): [string, string[]] => [
     file,
     ["scripts/container-browser.test.mts", "scripts/container-build.test.mts"],
   ]),
@@ -206,21 +308,23 @@ const explicitNodeTests = new Map([
     "scripts/container-entry.mts",
     "scripts/container-source.mts",
     "tools/containers/browser/Dockerfile",
-  ].map((file) => [file, ["scripts/container-browser.test.mts"]]),
-  ...[...Object.keys(nativeHelperDependencies), nativeHelperRegistryPath].map((file) => [
-    file,
-    [
-      "scripts/native-helper-dependencies.test.mts",
-      "scripts/native-confirmation.test.mts",
-      "scripts/desktop-execution-plan.test.mts",
-      "scripts/windows-helper-checks.test.mts",
+  ].map((file): [string, string[]] => [file, ["scripts/container-browser.test.mts"]]),
+  ...[...Object.keys(nativeHelperDependencies), nativeHelperRegistryPath].map(
+    (file): [string, string[]] => [
+      file,
+      [
+        "scripts/native-helper-dependencies.test.mts",
+        "scripts/native-confirmation.test.mts",
+        "scripts/desktop-execution-plan.test.mts",
+        "scripts/windows-helper-checks.test.mts",
+      ],
     ],
-  ]),
+  ),
   ...[
     "scripts/frontend-command-preflight.mts",
     "apps/desktop/scripts/build-frontend.mts",
     "scripts/viteplus-cli.mts",
-  ].map((file) => [
+  ].map((file): [string, string[]] => [
     file,
     [
       "scripts/frontend-command-preflight.test.mts",
@@ -240,7 +344,7 @@ const explicitNodeTests = new Map([
     "scripts/testdata/desktop-execution-baseline.json",
     "apps/desktop/scripts/desktop-owned-fixture-journeys.mts",
     "apps/desktop/scripts/desktop-test.mts",
-  ].map((file) => [
+  ].map((file): [string, string[]] => [
     file,
     [
       "scripts/desktop-execution-plan.test.mts",
@@ -257,7 +361,7 @@ const explicitNodeTests = new Map([
     "scripts/local-validation.mts",
     "scripts/ordinary-validation.mts",
     "scripts/local-validation.test.mts",
-  ].map((file) => [file, selectionContractTests]),
+  ].map((file): [string, string[]] => [file, selectionContractTests]),
   ["AGENTS.md", ["scripts/repository-settings.test.mts", "scripts/repository-skills.test.mts"]],
   [
     "CONTRIBUTING.md",
@@ -418,14 +522,20 @@ const releaseContractTests = Object.freeze([
   "scripts/windows-qualification-session.test.mts",
 ]);
 
-function normalizePath(value) {
+function normalizePath(value: string) {
   const normalized = String(value).replaceAll("\\", "/").replace(/^\.\//, "");
   if (!normalized || normalized.startsWith("/") || normalized.includes("../"))
     throw new Error(`unsafe repository path: ${value}`);
   return normalized;
 }
 
-export function command(id, reason, executable, args, options = {}) {
+export function command(
+  id: string,
+  reason: string,
+  executable: string,
+  args: string[],
+  options: CommandOptions = {},
+): ValidationCommand {
   return {
     id,
     reason,
@@ -436,14 +546,17 @@ export function command(id, reason, executable, args, options = {}) {
   };
 }
 
-function commandIdentity(entry) {
+function commandIdentity(entry: ValidationCommand) {
   return JSON.stringify([entry.cwd, entry.executable, entry.args]);
 }
 
-export function deduplicateCommands(commands) {
-  const unique = [];
-  const byId = new Map();
-  const byObligation = new Map();
+export function deduplicateCommands(commands: readonly ValidationCommand[]): RetainedCommand[] {
+  const unique: RetainedCommand[] = [];
+  const byId = new Map<
+    string,
+    { identity: string; obligation: string; retained: RetainedCommand }
+  >();
+  const byObligation = new Map<string, RetainedCommand>();
   for (const entry of commands) {
     const identity = commandIdentity(entry);
     const obligation = entry.obligation ?? entry.id;
@@ -473,17 +586,17 @@ export function deduplicateCommands(commands) {
   return unique;
 }
 
-function frontendTask(id, reason, task) {
+function frontendTask(id: string, reason: string, task: string) {
   return command(id, reason, process.execPath, ["scripts/run-viteplus.mts", "run", task], {
     cwd: projectRoot,
   });
 }
 
-function addNodeTest(selection, file) {
+function addNodeTest(selection: ValidationSelection, file: string) {
   selection.nodeTests.add(normalizePath(file));
 }
 
-function existingSiblingTest(file: string, fileExists) {
+function existingSiblingTest(file: string, fileExists: (file: string) => boolean) {
   if (!/\.(?:[cm]?[jt]s)$/.test(file) || /\.test\.[cm]?[jt]s$/u.test(file)) return null;
   const sibling = file.replace(
     /\.[cm]?[jt]s$/u,
@@ -492,7 +605,12 @@ function existingSiblingTest(file: string, fileExists) {
   return fileExists(sibling) ? sibling : null;
 }
 
-function classifyOnePath(selection, input, fileExists, options = {}) {
+function classifyOnePath(
+  selection: ValidationSelection,
+  input: string,
+  fileExists: (file: string) => boolean,
+  options: PathClassifyOptions = {},
+) {
   const file = normalizePath(input);
   if (isRepositoryLintInput(file)) selection.repositoryLint = true;
   const extension = path.posix.extname(file).toLowerCase();
@@ -846,16 +964,19 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   if (!recognized) selection.unknown.add(file);
 }
 
-function packageForPath(input) {
+function packageForPath(input: string) {
   const file = normalizePath(input);
   for (const [prefix, packageName] of packagePrefixes)
     if (file.startsWith(prefix)) return packageName;
   return null;
 }
 
-export function classifyChanges(changes, options = {}) {
+export function classifyChanges(
+  changes: readonly LocalChange[],
+  options: ClassifyOptions = {},
+): ValidationSelection {
   const fileExists = options.fileExists ?? ((file) => existsSync(path.join(projectRoot, file)));
-  const selection = {
+  const selection: ValidationSelection = {
     scopes: new Set(),
     packages: new Set(),
     nodeTests: new Set(),
@@ -901,7 +1022,7 @@ export function classifyChanges(changes, options = {}) {
     const currentPackage = packageForPath(change.path);
     if (currentPackage) selection.rustChanges.push({ ...change, packageName: currentPackage });
     const previousPackage = change.previousPath ? packageForPath(change.previousPath) : null;
-    if (previousPackage && previousPackage !== currentPackage)
+    if (change.previousPath && previousPackage && previousPackage !== currentPackage)
       selection.rustChanges.push({
         status: change.status,
         path: change.previousPath,
@@ -910,7 +1031,9 @@ export function classifyChanges(changes, options = {}) {
       });
   }
   for (const change of changes) {
-    for (const file of [change.path, change.previousPath].filter(Boolean)) {
+    for (const file of [change.path, change.previousPath].filter(
+      (file): file is string => typeof file === "string" && file.length > 0,
+    )) {
       const owned = ordinaryOwnershipForPath(file);
       if (owned.groups.includes("frontend") && !selection.ui) {
         selection.ui = true;
@@ -921,11 +1044,11 @@ export function classifyChanges(changes, options = {}) {
   return selection;
 }
 
-function sorted(set) {
+function sorted(set: ReadonlySet<string>) {
   return [...set].sort((left, right) => left.localeCompare(right));
 }
 
-export function nodeTestCommand(files) {
+export function nodeTestCommand(files: string[]) {
   const serialWindowsQualification = [
     "scripts/updater-artifact-inventory.test.mts",
     "scripts/windows-qualification-session.integration.test.mts",
@@ -946,7 +1069,7 @@ export function nodeTestCommand(files) {
   );
 }
 
-export function uiRelatedCommand(files) {
+export function uiRelatedCommand(files: string[]) {
   return command(
     "ui-related-tests",
     "bundled Vitest import-graph tests across maintained projects",
@@ -960,7 +1083,10 @@ export function uiRelatedCommand(files) {
   );
 }
 
-export function buildPlan(selection, context = {}) {
+export function buildPlan(
+  selection: ValidationSelection,
+  context: PlanningContext = {},
+): RetainedCommand[] {
   const validation = context.validationPlan;
   if (validation) validateValidationPlan(validation);
   if (validation?.mode === "blocked")
@@ -1082,18 +1208,18 @@ export function buildPlan(selection, context = {}) {
   return deduplicateCommands(commands);
 }
 
-function quote(value) {
+function quote(value: string) {
   const text = String(value);
   return /^[A-Za-z0-9_./:=@+-]+$/.test(text) ? text : JSON.stringify(text);
 }
 
-export function formatCommand(entry) {
+export function formatCommand(entry: ValidationCommand) {
   return [entry.executable, ...entry.args].map(quote).join(" ");
 }
 
 // Portable review inventory only; these records are never accepted as shell input.
-export function selectedPlanInventory(plan) {
-  const relative = (value) =>
+export function selectedPlanInventory(plan: readonly ValidationCommand[]) {
+  const relative = (value: string) =>
     typeof value === "string" && value.startsWith(projectRoot)
       ? `$SOURCE/${value.slice(projectRoot.length).replaceAll("\\", "/")}`
       : value;
@@ -1105,7 +1231,10 @@ export function selectedPlanInventory(plan) {
   }));
 }
 
-export function executePlan(plan, options = {}) {
+export function executePlan(
+  plan: readonly ValidationCommand[],
+  options: { spawn?: CommandRunner; env?: NodeJS.ProcessEnv } = {},
+) {
   const spawn = options.spawn ?? spawnCommand;
   const started = Date.now();
   const timings = [];
