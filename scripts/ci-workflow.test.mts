@@ -994,7 +994,7 @@ void test("Linux package ownership rehearsal is focused and preserves managed ex
     assert.ok(rehearsal.includes(`- ${governedPath}`));
   }
   assert.match(rehearsal, /runs-on: ubuntu-22\.04/);
-  assert.match(rehearsal, /container: fedora:42/);
+  assert.match(rehearsal, /container: fedora:44/);
   assert.match(
     rehearsal,
     /PORTCOVE_SOURCE_COMMIT: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/,
