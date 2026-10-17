@@ -121,6 +121,12 @@ test("parses current Renovate tables with and without dependency type columns", 
     .replace("|---|---|---|---|", "|---|---|---|")
     .replace(" | dependencies | patch |", " | patch |");
   assert.equal(parseRenovateUpdates(noType)[0].dependencyType, null);
+  const noUpdate = body()
+    .replace("| Package | Type | Update | Change |", "| Package | Type | Change |")
+    .replace("|---|---|---|---|", "|---|---|---|")
+    .replace(" | dependencies | patch |", " | dependencies |");
+  assert.deepEqual(parseRenovateUpdates(noUpdate), []);
+  assert.equal(classify({ pull: { body: noUpdate } }).verdict, "manual-review-required");
   assert.deepEqual(parseRenovateUpdates("not a Renovate body"), []);
 });
 
@@ -505,15 +511,15 @@ test("current-base manifest workflow and policy interactions stay manual", () =>
     ".github/repository-ruleset.json",
     "scripts/renovate-fast-lane.mts",
     "scripts/pr-delivery.mts",
-    "scripts/ci-result-gate.mjs",
     "scripts/ci-result-gate.mts",
-    "scripts/select-ci-plan.mjs",
+    "scripts/ci-result-gate.mts",
     "scripts/select-ci-plan.mts",
-    "scripts/validation-plan.mjs",
+    "scripts/select-ci-plan.mts",
     "scripts/validation-plan.mts",
-    "scripts/renovate-fast-lane.mjs",
+    "scripts/validation-plan.mts",
     "scripts/renovate-fast-lane.mts",
-    "scripts/pr-delivery.mjs",
+    "scripts/renovate-fast-lane.mts",
+    "scripts/pr-delivery.mts",
   ]) {
     const result = classify({
       baseEvidence: { currentTarget: target, currentMergeBase: base, targetPaths: [targetPath] },

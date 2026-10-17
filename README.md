@@ -153,7 +153,7 @@ Requirements:
 
 - Rust 1.98.1
 - Node.js 24.21.0
-- pnpm 12.8.1
+- pnpm at the version specified by `packageManager` in [`package.json`](package.json)
 - the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)
 
 Development storage defaults are portable: a checkout may use the Windows system drive when its physical paths and free capacity pass preflight. Prefer an SSD for fixture-heavy work. A stricter machine-local policy can impose additional restrictions without changing repository defaults. See [docs/DEVELOPMENT-STORAGE.md](docs/DEVELOPMENT-STORAGE.md) for the storage checks and private-policy boundary.
@@ -166,16 +166,21 @@ node scripts/dev-storage.mts run -- pnpm install --frozen-lockfile
 node scripts/dev-storage.mts run -- pnpm --dir apps/desktop desktop:dev
 ```
 
-Build the CLI:
+Build the CLI using the repository storage wrapper:
 
 ```powershell
 node scripts/dev-storage.mts run -- cargo build -p portcove-cli --release
 ```
 
-This package-selecting Cargo build compiles `portcove-cli` and `portcove-core`;
-it does not build the desktop UI or require Node, pnpm, Tauri CLI, WebView, or
-frontend packages. A released CLI is still an operating-system-native program,
-not a dependency-free universal binary: use the archive matching Windows x64,
+The documented command requires Node.js to run the storage wrapper and preserve
+the repository storage checks and configured paths. The underlying Cargo build
+compiles `portcove-cli` and `portcove-core`; compilation itself does not require
+Node.js, pnpm, Tauri CLI, WebView, or frontend packages, and does not build the
+desktop UI. Keep the storage wrapper for repository development.
+
+Running a released CLI does not require Rust, Node.js, pnpm, Tauri CLI, WebView,
+or frontend packages. It is an operating-system-native program: use the archive
+matching Windows x64,
 GNU/Linux x64, Intel macOS, or Apple-silicon macOS. Linux hosts need their normal
 C runtime and D-Bus/secret-service support when saved credentials are used;
 macOS and Windows use their system credential facilities.

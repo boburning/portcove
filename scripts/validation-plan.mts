@@ -107,6 +107,8 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/check-ci-prose.mts",
   "scripts/ci-result-gate.mts",
   "scripts/local-validation.mts",
+  "scripts/ordinary-validation.mts",
+  "scripts/validation-evidence.mts",
   "scripts/checked-git.mts",
   "scripts/resource-status.mts",
   "scripts/report-summary.mts",
@@ -590,7 +592,8 @@ function classifyAuditPath(file: string) {
         "apps/desktop/.fallowrc.json",
         ".fallow-tooling.json",
         "apps/desktop/eslint.config.mjs",
-        "apps/desktop/stylelint.config.mts",
+        "apps/desktop/stylelint.config.mjs",
+        "apps/desktop/scripts/stylelint-config.mts",
       ].includes(file) ||
       file === "justfile",
     "policy",

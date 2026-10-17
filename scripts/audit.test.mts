@@ -219,6 +219,7 @@ test("maintained hosted routing delegates unchanged suites only with exhaustive 
 test("mixed, unknown and audit authority changes retain the complete transition gate", () => {
   for (const pathname of [
     "scripts/audit.mts",
+    "scripts/validation-evidence.mts",
     "scripts/audit.test.mts",
     "justfile",
     "Cargo.lock",
@@ -260,6 +261,8 @@ test("candidate coverage constants cannot authorize their own reduced transition
   mkdirSync(path.join(root, ".github/workflows"), { recursive: true });
   for (const filename of [
     "scripts/audit.mts",
+    "scripts/validation-evidence.mts",
+    "scripts/runtime-values.mts",
     "scripts/select-ci-plan.mts",
     "scripts/nextest-equivalence.mts",
     "scripts/postmerge-ci.mts",
@@ -275,7 +278,7 @@ test("candidate coverage constants cannot authorize their own reduced transition
   ]) {
     let contents = readFileSync(new URL(`../${filename}`, import.meta.url), "utf8");
     if (filename === "scripts/validation-plan.mts") {
-      contents = contents.replace('  "rust",\n', "").replace('  "windows-x86_64",\n', "");
+      contents = contents.replace(/  "rust",\r?\n/u, "").replace(/  "windows-x86_64",\r?\n/u, "");
     }
     writeFileSync(path.join(root, filename), contents);
   }

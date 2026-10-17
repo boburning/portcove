@@ -251,7 +251,7 @@ async function stylelintFixture() {
   const args = [
     stylelint,
     "--config",
-    path.join(desktop, "stylelint.config.mts"),
+    path.join(desktop, "stylelint.config.mjs"),
     "--max-warnings",
     "0",
     fixture,

@@ -211,3 +211,15 @@ test("generated transport snapshots and declaration inputs retain real Rust drif
     assert.ok(selected.groups.includes("catalog"), file);
   }
 });
+
+test("actual Stylelint loader and typed policy retain protected audit qualification", () => {
+  for (const file of [
+    "apps/desktop/stylelint.config.mjs",
+    "apps/desktop/scripts/stylelint-config.mts",
+  ]) {
+    const ownership = validationOwnershipForPath(file);
+    assert.ok(ownership.areas.includes("policy"), file);
+    assert.equal(ownership.qualificationRequired, true, file);
+    assert.deepEqual(ownership.platforms, [...qualificationPlatforms].sort(), file);
+  }
+});

@@ -32,7 +32,6 @@ import {
   buildExecutionPreflight,
   selectedPlanInventory,
   inspectHostedLocalRoute,
-  inspectPreChangeAudit,
   readDoctestPackages,
   main,
 } from "./local-validation.mts";
@@ -459,61 +458,6 @@ test("normal metadata selection keeps its existing execution contract", () => {
   );
 });
 
-test("preflight keeps policy qualification and Linux audit scope separate from selected local and Windows evidence", () => {
-  const head = "a".repeat(40),
-    base = "b".repeat(40);
-  const name = "scripts/workflow-provenance.mts";
-  const changes = [
-    { status: "M", oldPath: name, newPath: name, oldMode: "100644", newMode: "100644" },
-  ];
-  const context = {
-    headSha: head,
-    baseSha: base,
-    mergeBase: base,
-    changes: [{ status: "M", path: name, oldMode: "100644", newMode: "100644" }],
-  };
-  const validationPlan = buildValidationPlan({
-    changes,
-    eventName: "pull_request",
-    head,
-    base,
-    mergeBase: base,
-    checkout: head,
-  });
-  const inventory = {
-    head,
-    files: [
-      {
-        path: name,
-        kind: "file",
-        headBlob: "same",
-        indexBlob: "same",
-        gitBlob: "same",
-        headMode: "100644",
-        indexMode: "100644",
-      },
-    ],
-  };
-  const command =
-    (diff = "", dirty = "") =>
-    (args) =>
-      args[0] === "status"
-        ? dirty
-        : args[0] === "diff"
-          ? diff
-          : args[0] === "branch"
-            ? "feature/candidate"
-            : "";
-  assert.equal(
-    inspectPreChangeAudit(context, validationPlan, base, base, {
-      inventory,
-      platform: "win32",
-      git: command(),
-    }),
-    null,
-    "ordinary policy changes do not add a fresh exhaustive audit prerequisite",
-  );
-});
 const change = (path, options = {}) => ({ status: "M", path, ...options });
 const ids = (plan) => plan.map((entry) => entry.id);
 
@@ -1749,4 +1693,14 @@ test("live transport stages invalidate receipts when comparator and consumer inp
       input,
     );
   }
+});
+
+test("native TypeScript syntax selection checks stripped JavaScript early errors", () => {
+  const { plan } = planFor(["scripts/heavy-rust-test-lock.mts"]);
+  const syntax = plan.find((entry) => entry.id === "node-syntax:scripts/heavy-rust-test-lock.mts");
+  assert.ok(syntax);
+  assert.deepEqual(syntax.args, [
+    "scripts/check-node-source.mts",
+    "scripts/heavy-rust-test-lock.mts",
+  ]);
 });

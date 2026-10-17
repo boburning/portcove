@@ -3424,3 +3424,16 @@ test("native repository contracts provision pinned Rust before metadata or conta
     assert.ok(contract > section.indexOf("./.github/actions/setup-rust"));
   }
 });
+
+test("extracted validation evidence suite remains in hosted and repository full inventories", async () => {
+  const just = await readFile(new URL("../justfile", import.meta.url), "utf8");
+  assert.match(
+    just.split("development-tools:")[1].split("\n\n")[0],
+    /scripts\/validation-evidence\.test\.mts/u,
+  );
+  assert.match(workflow.split("  catalog_full:")[1], /scripts\/validation-evidence\.test\.mts/u);
+  assert.match(
+    workflow.split("Test development diagnostics and evidence")[1].split("\n")[1],
+    /scripts\/validation-evidence\.test\.mts/u,
+  );
+});
