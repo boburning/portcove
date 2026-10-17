@@ -189,14 +189,14 @@ export async function captureHistorySession(
   return { owner, driver, application, webviews, processes, captured_at: new Date().toISOString() };
 }
 
-export async function historyDriverStillOwned(inventory: HistoryInventory) {
+export async function historyDriverStillOwned(inventory: Pick<HistoryInventory, "driver">) {
   const current = await historyProcess(inventory.driver.pid);
   if (!current || current.state === "Z") return false;
   sameHistoryIdentity(inventory.driver, current);
   return true;
 }
 
-export async function waitHistorySessionExit(inventory: HistoryInventory) {
+export async function waitHistorySessionExit(inventory: Pick<HistoryInventory, "processes">) {
   const deadline = Date.now() + 5_000;
   let remaining: number[];
   do {
