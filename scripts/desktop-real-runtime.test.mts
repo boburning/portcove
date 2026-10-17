@@ -2,10 +2,71 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import os from "node:os";
 import { test } from "node:test";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { writeFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { parseRealRuntimeInput, runtimeMutable } from "./desktop-real-runtime-inputs.mts";
+
+void test("real runtime restarts retain distinct exclusive driver launch receipts", async (t) => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-runtime-launch-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("function captureBackupFocusDriverLaunch(");
+  const end = source.indexOf("async function driverReady()", start);
+  assert.ok(start >= 0 && end > start);
+  const now = Date.now();
+  const driverPath = path.join(output, "selected-driver.exe");
+  const artifacts: string[] = [];
+  const ownedSession: { driver?: unknown } = {};
+  const context = {
+    assert,
+    path,
+    required: (value: unknown) => {
+      assert.ok(value);
+      return value;
+    },
+    driver: { pid: 101 },
+    driverPath,
+    output,
+    artifacts,
+    ownedSession,
+    cleanupName: "real-prepared-runtime",
+    hostInterruptionSession: false,
+    ordinaryCloseSession: false,
+    savedLibraryRecoverySession: false,
+    selection: { selected_scenarios: ["native-real-prepared-runtime"] },
+    observeNativeSession: (mode: string, snapshot: string) => {
+      assert.equal(mode, "SnapshotDriver");
+      const captured = {
+        driver: {
+          pid: context.driver.pid,
+          path: driverPath,
+          started_filetime: String((BigInt(now) + 11_644_473_600_000n) * 10_000n),
+        },
+      };
+      writeFileSync(snapshot, JSON.stringify(captured), { flag: "wx" });
+      return captured;
+    },
+  };
+  const capture = runInNewContext(
+    `${stripTypeScriptTypes(source.slice(start, end))}; captureBackupFocusDriverLaunch`,
+    context,
+  ) as (started: number) => void;
+  for (const pid of [101, 202, 303]) {
+    context.driver = { pid };
+    capture(now);
+  }
+  assert.equal(new Set(artifacts).size, 3);
+  assert.deepEqual(
+    artifacts.map((file) => path.basename(file)),
+    [101, 202, 303].map((pid) => `real-prepared-runtime-driver-startup-${pid}.json`),
+  );
+  assert.throws(() => capture(now), { code: "EEXIST" });
+});
 
 void test("real runtime review waits for the actual visible enabled action after preview", async () => {
   const source = await readFile(

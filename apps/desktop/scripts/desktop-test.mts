@@ -1595,6 +1595,7 @@ function captureBackupFocusDriverLaunch(launchStarted: number) {
     hostInterruptionSession ||
     ordinaryCloseSession ||
     savedLibraryRecoverySession ||
+    selection.selected_scenarios.includes("native-real-prepared-runtime") ||
     selection.selected_scenarios.includes("native-selected-setup-completion")
       ? `-${child.pid}`
       : "";
