@@ -1,3 +1,18 @@
+import type { WebDriver } from "selenium-webdriver";
+import type { FixtureCommand } from "./desktop-scenario-state.mts";
+import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+import { transportValue, transportValues } from "./transport-values.mts";
+interface SourceRemovalContext {
+  browser: WebDriver;
+  invoke: (name: string, args?: Record<string, unknown>) => Promise<unknown>;
+  scenario: (name: string, execute: () => Promise<void>) => Promise<unknown>;
+  library: string;
+  output: string;
+  artifacts: string[];
+  command: FixtureCommand;
+  confirmNative: ReturnType<typeof nativeConfirmation>;
+}
 import { executeBrowserScript } from "./browser-script.mts";
 // Source-reference removal uses the existing owned preparation fixture; no game files are acquired.
 import assert from "node:assert/strict";
@@ -22,16 +37,17 @@ export async function sourceRemovalScenario({
   artifacts,
   command,
   confirmNative,
-}) {
+}: SourceRemovalContext) {
   await scenario("native-reviewed-source-reference-removal", async () => {
     assert.equal(path.resolve(library), path.resolve(output, "library"));
-    const { portId, install } = installedPreservationWitness(command);
-    const port = command(["catalog", "show", portId]);
-    const source = command(["source", "list"]).find(
-      (item) => item.profile_id === port.source_profile,
+    const { portId, install } = installedPreservationWitness((args) =>
+      transportValue("status", command(args)),
     );
+    const port = transportValue("port", command(["catalog", "show", portId]));
+    const sources = () => transportValues("source", command(["source", "list"]));
+    const source = sources().find((item) => item.profile_id === port.source_profile);
     assert.ok(source);
-    const paths = command(["paths", port.id]);
+    const paths = transportValue("port_paths", command(["paths", port.id]));
     const relative = path.relative(library, paths.user_data_root);
     assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
     await mkdir(paths.user_data_root, { recursive: true });
@@ -39,19 +55,23 @@ export async function sourceRemovalScenario({
     await writeFile(save, "source removal must preserve this save", {
       flag: "wx",
     });
-    const backup = command(["backup", "create", port.id]);
+    const backup = transportValue("backup", command(["backup", "create", port.id]));
     const preserved = await Promise.all(
-      [source.path, save, path.join(backup.path, "data/owned-source-review-save.bin")].map(
-        fileIdentity,
+      [source.path, save, path.join(backup.path, "data/owned-source-review-save.bin")].map((file) =>
+        fileIdentity(file),
       ),
     );
-    const others = () =>
-      command(["source", "list"]).filter((item) => item.profile_id !== source.profile_id);
+    const others = () => sources().filter((item) => item.profile_id !== source.profile_id);
     const otherSources = others();
     await browser.navigate().refresh();
     const updatePreference = await invoke("get_application_update_preferences");
+    assert(isRecord(updatePreference));
     assert.equal(updatePreference.ok, true);
-    if (updatePreference.value.choice === null) {
+    const preferences = transportValue(
+      "desktop_application_update_preferences",
+      updatePreference.value,
+    );
+    if (preferences.choice === null) {
       const defer = await browser.wait(
         until.elementLocated(By.xpath('//button[normalize-space(.)="Not now"]')),
         15_000,
@@ -129,7 +149,7 @@ export async function sourceRemovalScenario({
     );
     await click(button("Keep location"));
     assert.deepEqual(
-      command(["source", "list"]).find((item) => item.profile_id === source.profile_id),
+      sources().find((item) => item.profile_id === source.profile_id),
       source,
     );
     await openReview();
@@ -141,7 +161,7 @@ export async function sourceRemovalScenario({
       "source-native-before-consent",
     );
     assert.deepEqual(
-      command(["source", "list"]).find((item) => item.profile_id === source.profile_id),
+      sources().find((item) => item.profile_id === source.profile_id),
       source,
     );
     await confirmNative("Remove saved location?", "Cancel", source.path, "source-native-cancelled");
@@ -155,18 +175,24 @@ export async function sourceRemovalScenario({
     preserved.push(await fileIdentity(replacement));
     await click(button("Continue to removal confirmation"));
     await browser.wait(until.elementLocated(button("Check saved location again")), 15_000);
-    const generation = (await invoke("get_bootstrap_status")).value.generation;
+    const bootstrap = await invoke("get_bootstrap_status");
+    assert(isRecord(bootstrap) && bootstrap.ok === true);
+    const generation = transportValue("desktop_bootstrap_status", bootstrap.value).generation;
     const reviewed = await invoke("preview_source_removal", {
       profileId: source.profile_id,
       generation,
     });
+    assert(isRecord(reviewed));
     assert.equal(reviewed.ok, true);
+    const preview = transportValue("source_removal_preview", reviewed.value);
     const stale = await invoke("remove_source", {
       profileId: source.profile_id,
-      previewSha256: reviewed.value.preview_sha256,
+      previewSha256: preview.preview_sha256,
       generation: generation + 1,
     });
+    assert(isRecord(stale));
     assert.equal(stale.ok, false);
+    assert(isRecord(stale.error));
     assert.equal(stale.error.code, "conflict");
     await click(button("Check saved location again"));
     await browser.wait(until.elementLocated(button("Continue to removal confirmation")), 15_000);
@@ -200,14 +226,18 @@ export async function sourceRemovalScenario({
       "source-native-confirmed",
     );
     await browser.wait(async () => (await browser.findElements(row)).length === 0, 15_000);
-    assert.ok(!command(["source", "list"]).some((item) => item.profile_id === source.profile_id));
+    assert.ok(!sources().some((item) => item.profile_id === source.profile_id));
     assert.deepEqual(others(), otherSources);
     assert.deepEqual(
       await Promise.all(preserved.map((item) => fileIdentity(item.path))),
       preserved,
     );
-    assert.deepEqual(command(["status", port.id]).active, install);
-    assert.ok(command(["backup", "list", port.id]).backups.some((item) => item.id === backup.id));
+    assert.deepEqual(transportValue("status", command(["status", port.id])).active, install);
+    assert.ok(
+      transportValue("backup_inventory", command(["backup", "list", port.id])).backups.some(
+        (item) => item.id === backup.id,
+      ),
+    );
     const result = path.join(output, "source-removal-result.json");
     await writeFile(
       result,

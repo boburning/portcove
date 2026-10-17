@@ -12,7 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
 import { fileIdentity } from "./development-evidence.mts";
-import { planDesktopExecution } from "./desktop-execution-plan.mts";
+import { planDesktopExecution, nativeTransportReceiptSources } from "./desktop-execution-plan.mts";
 import { resolveDesktopSelection, desktopHarnessDeadlineMs } from "./desktop-scenarios.mts";
 import { buildDesktopVerifyPlan } from "./desktop-verify.mts";
 import { runOwnedFixtureJourneys } from "../apps/desktop/scripts/desktop-owned-fixture-journeys.mts";
@@ -161,6 +161,7 @@ test("execution planning preserves the independently reviewed pre-change oracle"
       assert(
         Object.hasOwn(nativeHelperDependencies, added) ||
           nativeHelperSharedSources.includes(added) ||
+          nativeTransportReceiptSources.some((source) => source === added) ||
           added === "apps/desktop/scripts/browser-script.mts" ||
           added === "apps/desktop/scripts/browser-readiness.mts" ||
           added === "scripts/native-readiness.mts" ||

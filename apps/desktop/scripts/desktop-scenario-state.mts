@@ -1,11 +1,35 @@
+import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
+import type { PortStatus } from "../src/transport-types.generated.js";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+export interface OwnedFixtureContext {
+  cli: string;
+  library: string;
+  output: string;
+  catalogPath?: string;
+}
+interface FixtureProcessResult {
+  status: number | null;
+  stdout?: string | null;
+  stderr?: string | null;
+  error?: unknown;
+}
+export type FixtureSpawn = (
+  command: string,
+  args: readonly string[],
+  options: SpawnSyncOptionsWithStringEncoding,
+) => FixtureProcessResult;
+export type FixtureCommand = (args: readonly string[], selectedLibrary?: string) => unknown;
 // Owned native fixture state shared across scenario orderings.
 import assert from "node:assert/strict";
 import path from "node:path";
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
 
 // Optional native fixtures use their own CLI/library, never the application's adapter.
-export function ownedFixtureCommand({ cli, library, output, catalogPath }, spawn = spawnCommand) {
-  return (args, selectedLibrary = library) => {
+export function ownedFixtureCommand(
+  { cli, library, output, catalogPath }: OwnedFixtureContext,
+  spawn: FixtureSpawn = spawnCommand,
+): FixtureCommand {
+  return (args: readonly string[], selectedLibrary = library) => {
     const result = spawn(
       cli,
       ["--library", selectedLibrary, "--json", "--non-interactive", ...args],
@@ -20,14 +44,17 @@ export function ownedFixtureCommand({ cli, library, output, catalogPath }, spawn
         },
       },
     );
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-    const response = JSON.parse(result.stdout);
+    assert.equal(result.status, 0, result.stderr || result.stdout || undefined);
+    assert.equal(typeof result.stdout, "string", "Owned CLI response must contain JSON text");
+    assert(typeof result.stdout === "string");
+    const response: unknown = JSON.parse(result.stdout);
+    assert(isRecord(response), "Owned CLI response must be an object");
     assert.equal(response.ok, true);
     return response.data;
   };
 }
 
-export function installedPreservationWitness(command) {
+export function installedPreservationWitness(command: (args: readonly string[]) => PortStatus) {
   for (const portId of ["opengoal-jak1", "opengoal-jak2"]) {
     const install = command(["status", portId]).active;
     if (install) return { portId, install };

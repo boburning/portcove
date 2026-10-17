@@ -29,7 +29,7 @@ import {
   nativeHelperRoots,
   captureDesktopReceiptInputs,
 } from "./native-helper-dependencies.mts";
-import { planDesktopExecution } from "./desktop-execution-plan.mts";
+import { planDesktopExecution, nativeTransportReceiptSources } from "./desktop-execution-plan.mts";
 import { resolveDesktopSelection } from "./desktop-scenarios.mts";
 import { fileIdentity, writeEvidence } from "./development-evidence.mts";
 
@@ -298,8 +298,8 @@ void test("missing admission source retains failed capture and resource mutation
   const identity = await fileIdentity(source);
   const observed = {
     ...identity,
-    retained: { path: retained },
-    binding: "live-path-checked-cooperative",
+    retained: await fileIdentity(retained),
+    binding: "live-path-checked-cooperative" as const,
   };
   await verifyConsumedInputs([observed]);
   const changed = await readFile(source);
@@ -333,4 +333,89 @@ void test("missing admission source retains failed capture and resource mutation
   );
   assert.equal(failure.failed_path, source);
   assert.equal(failure.complete, false);
+});
+
+void test("native receipt capture binds schema validation and reproduction inputs for every harness selection", async (t) => {
+  const expected = [
+    "apps/desktop/scripts/desktop-scenario-state.mts",
+    "apps/desktop/scripts/transport-values.mts",
+    "apps/desktop/src/transport-schemas.generated.json",
+    "apps/desktop/src/transport-host-output.generated.json",
+    "apps/desktop/package.json",
+    "pnpm-lock.yaml",
+  ];
+  assert.deepEqual(nativeTransportReceiptSources, expected);
+  for (const selection of [
+    resolveDesktopSelection({ profile: "smoke", platform: "win32" }),
+    resolveDesktopSelection({
+      scenarios: ["native-reviewed-source-reference-removal"],
+      platform: "win32",
+    }),
+    resolveDesktopSelection({
+      scenarios: ["native-saved-folder-selected-setup"],
+      platform: "linux",
+    }),
+  ]) {
+    const plan = planDesktopExecution(selection);
+    for (const source of expected)
+      assert.equal(
+        plan.receiptInputs.filter((input) => input.kind === "file" && input.path === source).length,
+        1,
+        source,
+      );
+  }
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-transport-custody-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  for (const source of expected) {
+    const destination = path.join(directory, source);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await copyFile(path.join(root, source), destination);
+  }
+  const output = path.join(directory, "output");
+  await mkdir(output);
+  const receiptInputs = [
+    { kind: "executable", name: "app" } as const,
+    ...expected.map((source) => ({ kind: "file" as const, path: source })),
+  ];
+  const options = {
+    root: directory,
+    values: { app: process.execPath },
+    plan: { receiptInputs, selection: { selected_scenarios: ["native-fixture"] } },
+    output,
+    revision: "a".repeat(40),
+    retainedRoot: path.join(directory, "retained"),
+    // This fixture isolates capture/verification; separate tests execute the full native helper declaration validator.
+    validate: async () => [],
+  };
+  const inputs = await captureDesktopReceiptInputs(options);
+  const retained = inputs.map((input) => {
+    assert("retained" in input);
+    return input;
+  });
+  await verifyConsumedInputs(retained);
+  for (const source of expected) {
+    const file = path.join(directory, source);
+    const original = await readFile(file);
+    const changed = Buffer.from(original);
+    changed[0] = changed[0] === 65 ? 66 : 65;
+    await writeFile(file, changed);
+    await assert.rejects(
+      verifyConsumedInputs(retained),
+      /Live execution input changed after capture/,
+      source,
+    );
+    await writeFile(file, original);
+    await verifyConsumedInputs(retained);
+  }
+  const missing = path.join(directory, "apps/desktop/src/transport-host-output.generated.json");
+  await rm(missing);
+  await assert.rejects(captureDesktopReceiptInputs(options), /ENOENT/);
+  const failure = record(
+    JSON.parse(await readFile(path.join(output, "input-capture-failure.json"), "utf8")),
+  );
+  assert.equal(failure.complete, false);
+  assert.equal(failure.failed_path, missing);
+  const receipt = record(JSON.parse(await readFile(path.join(output, "evidence.json"), "utf8")));
+  assert.equal(receipt.outcome, "failed");
+  assert.equal(receipt.qualification_complete, false);
 });
