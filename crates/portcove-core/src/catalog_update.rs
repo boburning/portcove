@@ -135,7 +135,8 @@ fn plan(
     if verified.payload.sequence <= state.highest_sequence {
         return Err(PortcoveError::verification(
             "catalog sequence has already been seen; replay or downgrade rejected",
-        ));
+        )
+        .with_known_cause(crate::failure::KnownFailureCause::CatalogReplay));
     }
     let (current_catalog, current) = state.resolve(now)?;
     let changed_ports = verified

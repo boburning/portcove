@@ -594,6 +594,7 @@ fn validate_recorded_versions(versions: &[i64]) -> Result<()> {
         return Err(PortcoveError::state(
             "this library was created by a newer Portcove database schema",
         )
+        .with_known_cause(crate::failure::KnownFailureCause::NewerLibrary)
         .detail("library_schema_version", version.to_string())
         .detail(
             "supported_schema_version",
@@ -606,6 +607,7 @@ fn validate_recorded_versions(versions: &[i64]) -> Result<()> {
             return Err(PortcoveError::state(
                 "the library migration history is incomplete or out of order",
             )
+            .with_known_cause(crate::failure::KnownFailureCause::IncompleteLibrary)
             .detail("expected_version", expected.to_string())
             .detail("recorded_version", version.to_string()));
         }
@@ -616,6 +618,7 @@ fn validate_recorded_versions(versions: &[i64]) -> Result<()> {
 fn verify_recorded_migration(connection: &Connection, migration: &Migration) -> Result<()> {
     (migration.verify)(connection).map_err(|error| {
         PortcoveError::state("a recorded database migration is only partially applied")
+            .with_known_cause(crate::failure::KnownFailureCause::IncompleteLibrary)
             .detail("migration_version", migration.version.to_string())
             .detail("migration_name", migration.name)
             .detail("cause", error.to_string())
@@ -1945,6 +1948,14 @@ mod tests {
             error.details["supported_schema_version"],
             CURRENT_SCHEMA_VERSION.to_string()
         );
+        assert_eq!(
+            error.presentation().presentation_key,
+            "library_version_newer"
+        );
+        assert_eq!(
+            error.presentation().mutation_state,
+            crate::MutationState::Unknown
+        );
     }
 
     #[test]
@@ -1966,6 +1977,10 @@ mod tests {
         let error = migrate(temporary.path()).unwrap_err();
         assert_eq!(error.details["migration_version"], "1");
         assert!(error.message.contains("partially applied"));
+        assert_eq!(
+            error.presentation().presentation_key,
+            "library_history_incomplete"
+        );
     }
 
     #[test]

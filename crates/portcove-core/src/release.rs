@@ -732,6 +732,7 @@ impl GithubReleaseProvider {
             PortcoveError::unsupported(
                 "GitHub device login is not configured in this build; use a token or set PORTCOVE_GITHUB_CLIENT_ID",
             )
+            .with_known_cause(crate::failure::KnownFailureCause::DeviceLoginUnavailable)
         })?;
         let url = format!("{}/login/device/code", self.web_root);
         let response = self
@@ -1364,7 +1365,19 @@ fn github_http_error(status: StatusCode, headers: &header::HeaderMap) -> Portcov
     } else {
         format!("GitHub API returned {status}")
     };
-    let mut error = PortcoveError::network(message);
+    let limit = rate_limit_from_headers(headers);
+    let mut error = PortcoveError::network(message).with_known_cause(
+        crate::failure::KnownFailureCause::ProviderRequest {
+            provider: crate::failure::FailureProvider::Github,
+            status: status.as_u16(),
+            rate_limited: status == StatusCode::TOO_MANY_REQUESTS
+                || (status == StatusCode::FORBIDDEN
+                    && limit.as_ref().is_some_and(|limit| limit.remaining == 0)),
+            resets_at: limit
+                .as_ref()
+                .and_then(|limit| i64::try_from(limit.resets_at).ok()),
+        },
+    );
     if let Some(limit) = rate_limit_from_headers(headers) {
         error
             .details
@@ -3632,6 +3645,17 @@ mod tests {
         assert_eq!(
             error.details.get("retry_after").map(String::as_str),
             Some("30")
+        );
+        assert_eq!(
+            error.presentation().presentation_key,
+            "provider_rate_limited"
+        );
+        assert!(error.presentation().summary.contains("GitHub"));
+        assert!(
+            error
+                .presentation()
+                .summary
+                .contains("1970-01-01T00:20:34Z")
         );
     }
 

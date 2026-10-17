@@ -52,7 +52,8 @@ pub(crate) fn extract(source: &Path, destination: &Path) -> Result<()> {
     if expanded > fs2::available_space(parent)? {
         return Err(PortcoveError::state(
             "STFS package cannot fit in the available destination space",
-        ));
+        )
+        .with_known_cause(crate::failure::KnownFailureCause::DestinationCapacity));
     }
 
     std::fs::create_dir(destination)?;
@@ -115,7 +116,8 @@ fn parse_info(input: &mut File, source_size: u64) -> Result<Info> {
     if magic != *b"LIVE" {
         return Err(PortcoveError::source(
             "runtime source is not a read-only Xbox LIVE STFS package",
-        ));
+        )
+        .with_known_cause(crate::failure::KnownFailureCause::UnsupportedStfs));
     }
     let header_size = u32::from_be_bytes(read_at(input, source_size, 0x340)?) as u64;
     let descriptor = 0x379;
@@ -139,7 +141,8 @@ fn parse_info(input: &mut File, source_size: u64) -> Result<Info> {
     {
         return Err(PortcoveError::source(
             "STFS package has an unsupported or invalid volume descriptor",
-        ));
+        )
+        .with_known_cause(crate::failure::KnownFailureCause::UnsupportedStfs));
     }
     Ok(Info {
         table_blocks,
