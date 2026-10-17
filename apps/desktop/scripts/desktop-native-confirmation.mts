@@ -129,7 +129,17 @@ function ownedRuntimePicker(
           button: "Select Folder",
           directoryPath,
         });
-      } else assert.equal(directoryPath, path.join(output, "player-owned-runtime"));
+      } else {
+        const admitted = [
+          "player-owned-runtime",
+          "real-prepared-runtime-dkc3-recomp",
+          "real-prepared-runtime-wave-race-64-racewave46",
+        ].map((name) => path.join(output, name));
+        assert.ok(
+          admitted.includes(directoryPath),
+          "Exact owned prepared-runtime directory required",
+        );
+      }
       const directory = await lstat(directoryPath);
       assert.ok(directory.isDirectory() && !directory.isSymbolicLink());
     } else assert.equal(directoryPath, undefined, "Observation cannot supply directory input");

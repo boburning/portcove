@@ -29,6 +29,41 @@ const executableNames = {
   "preparation-tool": "baseline-tool.exe",
 };
 
+void test("real prepared runtimes use production builds and positive owned closure", () => {
+  const id = "native-real-prepared-runtime";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "real-prepared-runtime");
+  assert.equal(plan.fixtures.owned, true);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.ok(
+    plan.receiptInputs.some(
+      (input) => input.kind === "file" && input.path === "scripts/desktop-real-runtime-inputs.mts",
+    ),
+  );
+  assert.ok(
+    plan.receiptInputs.some(
+      (input) =>
+        input.kind === "file" &&
+        input.path === "apps/desktop/scripts/desktop-real-runtime-test.mts",
+    ),
+  );
+  assert.ok(
+    plan.receiptInputs.some(
+      (input) => input.kind === "executable" && input.name === "preparation-cli",
+    ),
+  );
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }));
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/,
+  );
+});
+
 void test("publication interruption is standalone, instrumented and positively supervised", () => {
   const id = "native-host-publication-recovery";
   const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
@@ -237,6 +272,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-direct-preparation-recovery",
             "native-late-listener-disposal",
             "native-host-publication-recovery",
+            "native-real-prepared-runtime",
             "native-linux-interrupted-preparation",
             "native-rejected-listener-registration",
           ].includes(id),
@@ -544,6 +580,7 @@ void test("qualified reviews and a running setup restart reject missing or forei
   assert(start >= 0 && end > start);
   for (const { scenario, outcome = "passed", requireQualified = false } of [
     { scenario: "native-host-publication-recovery" },
+    { scenario: "native-real-prepared-runtime" },
     { scenario: "native-reviewed-backup-restore-and-delete" },
     { scenario: "native-preliminary-source-review" },
     { scenario: "native-late-listener-disposal" },

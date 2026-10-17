@@ -94,6 +94,7 @@ import {
   externalRuntimePickerObservation,
   externalRuntimeReviewScenario,
 } from "./desktop-external-runtime-test.mts";
+import { prepareRealRuntimeInputs, realRuntimeScenario } from "./desktop-real-runtime-test.mts";
 import {
   nativePickerObservation,
   nativePreparedRuntimePicker,
@@ -297,6 +298,7 @@ let installFixture:
     })
   | undefined;
 let externalFixture: Awaited<ReturnType<typeof createExternalRuntimeFixture>> | undefined;
+let realRuntimeFixture: Awaited<ReturnType<typeof prepareRealRuntimeInputs>> | undefined;
 let bootstrapRecoveryFixture:
   | Awaited<ReturnType<typeof prepareBootstrapRecoveryFixture>>
   | undefined;
@@ -519,6 +521,7 @@ function validateBackupFocusInventory(captured: NativeProcessSnapshot, requireQu
     checks.some(
       (check) =>
         [
+          "native-real-prepared-runtime",
           "native-reviewed-backup-restore-and-delete",
           "native-host-publication-recovery",
           "native-game-update-review",
@@ -1741,6 +1744,7 @@ function captureBackupFocusDriverLaunch(launchStarted: number) {
     hostPublicationSession ||
     ordinaryCloseSession ||
     savedLibraryRecoverySession ||
+    selection.selected_scenarios.includes("native-real-prepared-runtime") ||
     selection.selected_scenarios.includes("native-selected-setup-completion")
       ? `-${child.pid}`
       : "";
@@ -2146,6 +2150,20 @@ try {
     );
     inputs.push(await fileIdentity(externalFixture.catalogPath), ...externalFixture.identities);
   }
+  if (selection.selected_scenarios.includes("native-real-prepared-runtime")) {
+    const manifest = process.env.PORTCOVE_REAL_RUNTIME_INPUTS;
+    assert.ok(
+      manifest && path.isAbsolute(manifest),
+      "Real runtime qualification requires its exact absolute input manifest",
+    );
+    realRuntimeFixture = await prepareRealRuntimeInputs({
+      output,
+      library,
+      cli: required(values["preparation-cli"]),
+      manifest,
+    });
+    inputs.push(...realRuntimeFixture.inputs);
+  }
   if (runnerMetadata.acceptance_bindings) {
     assert.equal(
       custody?.retained_metadata,
@@ -2302,6 +2320,28 @@ try {
       }),
       restartApplication,
       interruptHost: interruptCheckpointHost,
+    });
+  });
+  await scenario("native-real-prepared-runtime", async () => {
+    const pickerContext = {
+      application,
+      getDriverPid: () => required(required(driver).pid),
+      getDriverIdentity: () => ownedSession.driver,
+      output,
+      artifacts,
+    };
+    await realRuntimeScenario({
+      browser: driverBrowser(),
+      invoke,
+      fixture: required(realRuntimeFixture),
+      output,
+      artifacts,
+      confirmNative: nativeConfirmation(pickerContext),
+      selectPicker: nativePreparedRuntimePicker(pickerContext),
+      restartApplication,
+      library,
+      cli: required(values["preparation-cli"]),
+      application,
     });
   });
   await scenario("native-external-runtime-review", async () => {
