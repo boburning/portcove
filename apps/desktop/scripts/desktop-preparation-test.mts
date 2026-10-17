@@ -1959,15 +1959,24 @@ export async function preparationScenarios({
   });
 
   await scenario("native-direct-preparation-recovery", async () => {
-    const { port, install } = await seed("opengoal-jak1", "failure");
+    const { port, install: seededInstall } = await seed("opengoal-jak1", "failure");
+    const install = required((await status(port.id)).active);
+    assert.equal(install.id, seededInstall.id);
     await open(port);
     const before = await activities();
-    const observations = { port_id: port.id, active_installation_id: install.id, inputs: [] };
+    const observations: {
+      port_id: string;
+      active_installation_id: string;
+      inputs: { path: string; sha256: string; bytes: number }[];
+      failed_activity?: ActivityRecord;
+      after_review?: PortStatus;
+      failure?: string;
+    } = { port_id: port.id, active_installation_id: install.id, inputs: [] };
     try {
       for (const input of [
         path.join(output, `${port.id}.iso`),
-        path.join(install.path, port.executable_hints[host][0]),
-        path.join(install.path, port.setup_executable_hints[host][0]),
+        path.join(install.path, required(port.executable_hints[host]?.[0])),
+        path.join(install.path, required(port.setup_executable_hints[host]?.[0])),
         path.join(install.path, ".portcove-manifest.json"),
       ]) {
         const bytes = await readFile(input);
@@ -1980,29 +1989,31 @@ export async function preparationScenarios({
       await browser.findElement(button("Review game preparation")).click();
       await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
       await browser.findElement(button("Prepare game data")).click();
-      let failed;
+      let observedFailure: ActivityRecord | undefined;
       await browser.wait(
         async () => {
-          failed = (await activities()).find(
+          observedFailure = (await activities()).find(
             (item) =>
               item.operation === "prepare" &&
               item.target_id === port.id &&
               !before.some((old) => old.id === item.id) &&
               item.status === "failed",
           );
-          return Boolean(failed);
+          return Boolean(observedFailure);
         },
         15_000,
         "The actual owned setup must fail and retain its Core report",
       );
-      assert.equal(failed.failure.code, "source_invalid");
-      assert.equal(failed.failure.presentation.mutation_state, "recovery_required");
-      assert.equal(failed.failure.presentation.phase, "preparation.setup");
-      assert.deepEqual(failed.failure.presentation.recovery_target, {
+      const failed = required(observedFailure);
+      const failure = required(failed.failure);
+      assert.equal(failure.code, "source_invalid");
+      assert.equal(failure.presentation.mutation_state, "recovery_required");
+      assert.equal(failure.presentation.phase, "preparation.setup");
+      assert.deepEqual(failure.presentation.recovery_target, {
         kind: "preparation",
         port_id: port.id,
       });
-      assert.ok(failed.failure.presentation.recovery_actions.includes("review_preparation"));
+      assert.ok(failure.presentation.recovery_actions.includes("review_preparation"));
       observations.failed_activity = failed;
       const action = By.css('[data-detail-origin="error:preparation-review"]');
       await browser.wait(until.elementLocated(action), 15_000);
@@ -2027,7 +2038,7 @@ export async function preparationScenarios({
       await browser.wait(
         async () => {
           const titles = await browser.findElements(By.css("#port-detail-title"));
-          return titles.length === 1 && (await titles[0].getText()) === port.name;
+          return titles.length === 1 && (await required(titles[0]).getText()) === port.name;
         },
         15_000,
         "The direct error action must open its actual affected game",
@@ -2036,10 +2047,10 @@ export async function preparationScenarios({
         (await activities()).map((item) => item.id).sort(),
         inventory.map((item) => item.id).sort(),
       );
-      assert.equal((await status(port.id)).active.id, install.id);
+      assert.equal(required((await status(port.id)).active).id, install.id);
       assert.deepEqual(
-        (await activities()).find((item) => item.id === failed.id).failure,
-        failed.failure,
+        required((await activities()).find((item) => item.id === failed.id)).failure,
+        failure,
       );
       for (const input of observations.inputs) {
         const bytes = await readFile(input.path);

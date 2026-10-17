@@ -430,7 +430,7 @@ void test("game-update review binds Windows cleanup without first-play or wider 
   }
 });
 
-test("direct preparation recovery qualification is opt-in with positive identity cleanup", () => {
+void test("direct preparation recovery qualification is opt-in with positive identity cleanup", () => {
   const plan = planDesktopExecution(
     resolveDesktopSelection({
       scenarios: ["native-direct-preparation-recovery"],
@@ -439,6 +439,13 @@ test("direct preparation recovery qualification is opt-in with positive identity
   );
   assert.equal(plan.session.identityBoundSession, true);
   assert.equal(plan.session.cleanupName, "direct-preparation-recovery");
+  assert.ok(
+    plan.fixtureFamilies.some(
+      (entry) =>
+        entry.family === "preparation" &&
+        entry.members?.some((member) => member.id === "native-direct-preparation-recovery"),
+    ),
+  );
   assert.deepEqual(plan.selection.setup_scenarios, []);
   assert.throws(
     () =>
