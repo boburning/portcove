@@ -175,7 +175,17 @@ namespace Portcove.ReferenceClient
                     prepareAction.IsEnabled = false;
                 }
                 if (updateAction != null)
-                    updateAction.IsEnabled = !externalRoute && CurrentStatus != null && Json.Field(CurrentStatus, "active") != null;
+                {
+                    string problem = "Refresh readiness before checking for an update.";
+                    if (externalRoute) problem = "Updates to this player-owned runtime are managed outside Portcove.";
+                    else if (CurrentStatus != null)
+                    {
+                        try { problem = PortActions.UpdateReviewProblem(CurrentStatus, cli.ApiSchemaVersion); }
+                        catch (InvalidOperationException error) { problem = error.Message; }
+                    }
+                    updateAction.IsEnabled = problem == null;
+                    updateAction.ToolTip = problem;
+                }
                 UpdatePrimary();
             }
         }
@@ -376,9 +386,9 @@ namespace Portcove.ReferenceClient
         {
             if (externalRoute) throw new InvalidOperationException("This user-prepared runtime is registered and removed through Portcove Desktop or CLI; Playnite cannot install or update its external files.");
             var status = await cli.Read("status", "status", port);
-            DefinitionOperations.RequireEligible(status, "install");
             if (command == "ensure")
             {
+                DefinitionOperations.RequireEligible(status, "install");
                 // Preserve network-free current-install reuse; never review latest
                 // upstream bytes while claiming that this action only reuses them.
                 if (StatusInstallation.Current(status) != null) { await Refresh(); return; }
@@ -397,6 +407,7 @@ namespace Portcove.ReferenceClient
                 await Refresh();
                 return;
             }
+            PortActions.RequireUpdateReview(status, cli.ApiSchemaVersion);
             var sourcePath = source.Text.Trim();
             var biosPath = bios.Text.Trim();
             if (sourcePath.Length != 0) PublicCli.RequireAbsolute(sourcePath);

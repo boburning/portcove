@@ -434,6 +434,7 @@ internal static class ContractTests
         Reject(() => failure.Finish(14), "structured busy-port failure remains a failure");
         DefinitionOperationRecords();
         PortActionRecords();
+        UpdateReviewRecords();
         BackupCreateRecords();
         PreparationCleanupRecords();
         LaunchRecords();
@@ -1577,6 +1578,53 @@ internal static class ContractTests
             restore_assessment = new { action = "backup_create", availability = "allowed", reason = "available" }
         }), "wrong restore action is rejected");
         Reject(() => PortActionDecision.Read(Json.Parse(Json.Print(new { action = "launch", availability = "waiting", reason = "missing_backup" }))), "restore-only reason cannot leak into another action");
+    }
+
+    private static void UpdateReviewRecords()
+    {
+        Func<object[], object> status = actions => Json.Parse(Json.Print(new
+        {
+            active = new { version = "1.0" }, port_actions = actions
+        }));
+        var rollback = new { action = "rollback", availability = "not_offered", reason = "not_installed" };
+        var review = new { action = "update", availability = "waiting", reason = "review_required" };
+        var current = status(new object[] { rollback, review });
+        Check(PortActions.UpdateReviewProblem(current, 66) == null,
+            "current awaiting-review update enables the channel check without authorizing a candidate");
+        PortActions.RequireUpdateReview(current, 66);
+        Check(true, "fresh current update review permits the existing explicit consent route");
+        foreach (var reason in new[] { "unsupported_platform", "route_not_offered", "not_installed" })
+        {
+            var unavailable = status(new object[] { rollback,
+                new { action = "update", availability = "not_offered", reason } });
+            Check(PortActions.UpdateReviewProblem(unavailable, 66).Contains(reason.Replace('_', ' ')),
+                "update selection explains the actual unavailable reason despite a retained active installation");
+            Reject(() => PortActions.RequireUpdateReview(unavailable, 66),
+                "fresh update status refuses an unavailable route before consent");
+        }
+        var held = status(new object[] { rollback,
+            new { action = "update", availability = "held", reason = "definition_ineligible",
+                definition = new { outcome = "hold", reason = "publisher_revoked" } } });
+        Check(PortActions.UpdateReviewProblem(held, 66).Contains("publisher revoked"),
+            "held update selection presents its authoritative definition reason");
+        Reject(() => PortActions.RequireUpdateReview(held, 66), "fresh held update cannot consume earlier allowed selection");
+        Reject(() => PortActions.RequireUpdateReview(status(new object[] { rollback }), 66),
+            "missing modern update assessment is not legacy permission");
+        Reject(() => PortActions.RequireUpdateReview(status(new object[] { rollback, review, review }), 66),
+            "ambiguous update assessments cannot open consent");
+        Reject(() => PortActions.RequireUpdateReview(status(new object[] { rollback,
+            new { action = "update", availability = "allowed", reason = "available" } }), 66),
+            "status cannot substitute candidate activation permission");
+        var legacy = status(new object[] { rollback });
+        Check(PortActions.UpdateReviewProblem(legacy, 65) == null,
+            "supported older installed status preserves explicit update consent compatibility");
+        Json.Object(legacy)["definition_operations"] = Json.Parse(Json.Print(new[] {
+            new { operation = "install", eligibility = new { outcome = "hold", reason = "metadata_stale" }, retained = false }
+        }));
+        Reject(() => PortActions.RequireUpdateReview(legacy, 65), "older definition hold still refuses update");
+        Json.Object(current)["active"] = null;
+        Check(PortActions.UpdateReviewProblem(current, 66) != null,
+            "update review still requires a current installation");
     }
 
     private static void PortActionRecords()
