@@ -1346,7 +1346,17 @@ test("manual local-check transport preserves the audit and has no mutable execut
   );
   const local = workflow.split("\n  local_check:\n")[1];
   assert.ok(local);
-  assert.match(workflow, /default: audit\n {8}options: \[audit, audit-reuse, local-check\]/);
+  assert.match(
+    workflow,
+    /default: audit\n {8}options: \[audit, audit-reuse, local-check, fallow\]/,
+  );
+  const audit = workflow.split("\n  audit:\n")[1]?.split("\n  local_check:\n")[0];
+  assert.ok(audit);
+  assert.match(
+    audit,
+    /uses: actions\/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6\n {8}with:\n {10}python-version: "3\.12"/,
+  );
+  assert.ok(audit.indexOf("actions/setup-python@") < audit.indexOf("just audit --fresh"));
   assert.match(workflow, /contents: read/);
   assert.match(workflow, /just audit --fresh/);
   assert.match(local, /runs-on: ubuntu-24\.04/);
