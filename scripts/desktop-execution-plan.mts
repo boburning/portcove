@@ -63,6 +63,7 @@ export function planDesktopExecution(
     "native-normal-package-webview-boundary",
   );
   const identityBoundSession =
+    selection.selected_scenarios.includes("native-real-prepared-runtime") ||
     selection.selected_scenarios.includes("native-late-listener-disposal") ||
     selection.selected_scenarios.includes("native-preliminary-selected-setup") ||
     selection.selected_scenarios.includes("native-saved-folder-hash-resume") ||
@@ -83,48 +84,50 @@ export function planDesktopExecution(
     preferencesRecoverySession ||
     bootstrapRecoverySession ||
     librarySwitchRecoverySession;
-  const cleanupName = selection.selected_scenarios.includes("native-late-listener-disposal")
-    ? "late-listener-disposal"
-    : selection.selected_scenarios.includes("native-preliminary-selected-setup")
-      ? "preliminary-selected-setup"
-      : selection.selected_scenarios.includes("native-saved-folder-hash-resume")
-        ? "saved-folder-hash-resume"
-        : selection.selected_scenarios.includes("native-preliminary-source-review")
-          ? "preliminary-source-review"
-          : platform === "win32" &&
-              selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")
-            ? "backup-review"
+  const cleanupName = selection.selected_scenarios.includes("native-real-prepared-runtime")
+    ? "real-prepared-runtime"
+    : selection.selected_scenarios.includes("native-late-listener-disposal")
+      ? "late-listener-disposal"
+      : selection.selected_scenarios.includes("native-preliminary-selected-setup")
+        ? "preliminary-selected-setup"
+        : selection.selected_scenarios.includes("native-saved-folder-hash-resume")
+          ? "saved-folder-hash-resume"
+          : selection.selected_scenarios.includes("native-preliminary-source-review")
+            ? "preliminary-source-review"
             : platform === "win32" &&
-                selection.selected_scenarios.includes("native-game-update-review")
-              ? "game-update-review"
-              : selection.selected_scenarios.includes("native-external-runtime-review")
-                ? "external-runtime-review"
-                : selection.selected_scenarios.includes("native-startup-network-diagnostic")
-                  ? "startup-network-diagnostic"
-                  : preferencesRecoverySession
-                    ? "startup-preferences-recovery"
-                    : librarySwitchRecoverySession
-                      ? "library-switch-recovery"
-                      : bootstrapRecoverySession
-                        ? "startup-library-recovery"
-                        : normalPackageSession
-                          ? "normal-package-boundary"
-                          : ordinaryCloseSession
-                            ? "ordinary-close-preparation"
-                            : hostInterruptionSession
-                              ? "host-interruption"
-                              : minimizedPreparationSession
-                                ? "minimized-preparation"
-                                : selection.selected_scenarios.includes(
-                                      "native-selected-setup-completion",
-                                    )
-                                  ? "selected-setup-completion"
-                                  : platform === "win32" &&
-                                      selection.selected_scenarios.includes(
-                                        "native-retained-contract-repair-state",
+                selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")
+              ? "backup-review"
+              : platform === "win32" &&
+                  selection.selected_scenarios.includes("native-game-update-review")
+                ? "game-update-review"
+                : selection.selected_scenarios.includes("native-external-runtime-review")
+                  ? "external-runtime-review"
+                  : selection.selected_scenarios.includes("native-startup-network-diagnostic")
+                    ? "startup-network-diagnostic"
+                    : preferencesRecoverySession
+                      ? "startup-preferences-recovery"
+                      : librarySwitchRecoverySession
+                        ? "library-switch-recovery"
+                        : bootstrapRecoverySession
+                          ? "startup-library-recovery"
+                          : normalPackageSession
+                            ? "normal-package-boundary"
+                            : ordinaryCloseSession
+                              ? "ordinary-close-preparation"
+                              : hostInterruptionSession
+                                ? "host-interruption"
+                                : minimizedPreparationSession
+                                  ? "minimized-preparation"
+                                  : selection.selected_scenarios.includes(
+                                        "native-selected-setup-completion",
                                       )
-                                    ? "retained-contract-repair"
-                                    : "backup-focus";
+                                    ? "selected-setup-completion"
+                                    : platform === "win32" &&
+                                        selection.selected_scenarios.includes(
+                                          "native-retained-contract-repair-state",
+                                        )
+                                      ? "retained-contract-repair"
+                                      : "backup-focus";
   const inputs: ReceiptInput[] = ["app", "driver", "native-driver"].map((name) => ({
     kind: "executable",
     name,
@@ -143,6 +146,10 @@ export function planDesktopExecution(
   inputs.push({ kind: "file", path: "apps/desktop/scripts/browser-readiness.mts" });
   inputs.push({ kind: "file", path: "scripts/acceptance-packet.mts" });
   inputs.push(receiptSource(harnessUrl));
+  if (selection.selected_scenarios.includes("native-real-prepared-runtime")) {
+    inputs.push(receiptSource(new URL("./desktop-real-runtime-test.mts", harnessUrl)));
+    inputs.push({ kind: "file", path: "scripts/desktop-real-runtime-inputs.mts" });
+  }
   if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundary")) {
     inputs.push(receiptSource(new URL("./desktop-main-webview-boundary.mts", harnessUrl)));
     inputs.push({ kind: "file", path: "scripts/desktop-linux-media.mts" });
