@@ -1,38 +1,51 @@
+import { isRecord } from "./runtime-values.mts";
 import { renderBoundedSummary } from "./bounded-summary.mts";
 
 const selectionLimit = 4;
-const list = (value) => (Array.isArray(value) ? value : []);
-const record = (value) =>
-  value !== null && typeof value === "object" && !Array.isArray(value) ? value : {};
-const text = (value, limit = 220) => {
-  const characters = Array.from(String(value ?? "unknown"), (character: string) =>
-    character.codePointAt(0) < 32 ? " " : character,
+const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+const record = (value: unknown): Record<string, unknown> => (isRecord(value) ? value : {});
+function diagnosticString(value: unknown): string {
+  // The presentation adapter preserves JS coercion of foreign diagnostic values.
+  // Evidence validation and acceptance never use this formatter.
+  return String(value);
+}
+const text = (value: unknown, limit = 220): string => {
+  const characters = Array.from(diagnosticString(value ?? "unknown"), (character: string) =>
+    (character.codePointAt(0) ?? 0) < 32 ? " " : character,
   );
   return characters.length > limit
     ? `${characters.slice(0, limit).join("")}…`
     : characters.join("");
 };
-const location = (finding) =>
+const location = (finding: Record<string, unknown>) =>
   `${text(finding.path ?? finding.file ?? finding.from_path)}${(finding.line ?? finding.start_line) ? `:${text(finding.line ?? finding.start_line)}` : ""}`;
-const attribution = (finding) =>
+const attribution = (finding: Record<string, unknown>) =>
   typeof finding.introduced === "boolean"
     ? finding.introduced
       ? "introduced"
       : "inherited"
     : "attribution unavailable";
-const severity = (finding) =>
+const severity = (finding: Record<string, unknown>) =>
   `${text(finding.severity ?? finding.effective_severity ?? "severity unspecified")}${finding.severity && finding.effective_severity ? ` (effective ${text(finding.effective_severity)})` : ""}`;
-const complexityRank = (finding) =>
-  (record(finding).severity === "critical" ? 1_000_000 : 0) + (record(finding).cyclomatic ?? 0);
+const rank = (value: unknown): number => Number(value);
+const complexityRank = (finding: unknown): number => {
+  const item = record(finding);
+  const offset = item.severity === "critical" ? 1_000_000 : 0;
+  const value = item.cyclomatic ?? 0;
+  // Retain the previous addition/subtraction coercion for malformed JSON metrics.
+  return typeof value === "string" || Array.isArray(value)
+    ? Number(`${offset}${diagnosticString(value)}`)
+    : offset + rank(value);
+};
 
-function checkDetail(finding) {
+function checkDetail(finding: unknown) {
   const item = record(finding);
   if (item.from_path && item.to_path)
     return `${location(item)} -> ${text(item.to_path)} (${text(item.from_zone)} -> ${text(item.to_zone)}); import ${text(item.import_specifier)}`;
   if (Array.isArray(item.files))
     return `${item.files
       .slice(0, 6)
-      .map((file) => text(file))
+      .map((file: unknown) => text(file))
       .join(" -> ")}${item.files.length > 6 ? `; +${item.files.length - 6} files` : ""}`;
   const identity =
     item.export_name ??
@@ -48,10 +61,14 @@ function checkDetail(finding) {
  * Bounded presentation of the pinned fallow/types report shapes. This projection
  * does not validate evidence or decide a gate; the adapter owns those decisions.
  */
-export function summarizeFallow(report, reference, title = "Fallow findings") {
+export function summarizeFallow(report: unknown, reference: string, title = "Fallow findings") {
   const root = record(report);
-  const entries = [];
-  const section = (label, findings, describe) => {
+  const entries: string[] = [];
+  const section = (
+    label: string,
+    findings: unknown,
+    describe: (finding: Record<string, unknown>) => string,
+  ) => {
     const items = list(findings);
     if (!items.length) return;
     entries.push(`${label}: ${items.length}; showing ${Math.min(items.length, selectionLimit)}`);
@@ -71,7 +88,7 @@ export function summarizeFallow(report, reference, title = "Fallow findings") {
   if (root.attribution)
     for (const category of ["dead_code", "complexity", "duplication", "styling"])
       entries.push(
-        `${category}: introduced ${text(root.attribution[`${category}_introduced`])}; inherited ${text(root.attribution[`${category}_inherited`])}`,
+        `${category}: introduced ${text(record(root.attribution)[`${category}_introduced`])}; inherited ${text(record(root.attribution)[`${category}_inherited`])}`,
       );
 
   const check = record(root.check ?? root.dead_code);
@@ -96,7 +113,7 @@ export function summarizeFallow(report, reference, title = "Fallow findings") {
   const dupes = record(root.dupes ?? root.duplication);
   if (dupes.stats)
     entries.push(
-      `Duplication: ${text(dupes.stats.duplication_percentage)}% (advisory; no aggregate percentage blocker)`,
+      `Duplication: ${text(record(dupes.stats).duplication_percentage)}% (advisory; no aggregate percentage blocker)`,
     );
   section(
     "Duplicate groups (advisory)",
@@ -109,7 +126,7 @@ export function summarizeFallow(report, reference, title = "Fallow findings") {
         .map((instance) => `${location(record(instance))}-${text(record(instance).end_line)}`)
         .join(
           "; ",
-        )}${list(item.instances).length > 4 ? `; +${list(item.instances).length - 4} locations` : ""}${item.suggested_name ? `; suggested responsibility ${text(item.suggested_name)}` : ""}${record(list(item.instances)[0]).fragment ? `; sample ${text(record(item.instances[0]).fragment, 140)}` : ""}${item.demotion_reason ? `; ${text(item.demotion_reason)}` : ""}`,
+        )}${list(item.instances).length > 4 ? `; +${list(item.instances).length - 4} locations` : ""}${item.suggested_name ? `; suggested responsibility ${text(item.suggested_name)}` : ""}${record(list(item.instances)[0]).fragment ? `; sample ${text(record(list(item.instances)[0]).fragment, 140)}` : ""}${item.demotion_reason ? `; ${text(item.demotion_reason)}` : ""}`,
   );
 
   const health = record(
@@ -123,25 +140,25 @@ export function summarizeFallow(report, reference, title = "Fallow findings") {
   );
   section(
     "Refactoring targets (advisory, ranked priority)",
-    [...list(health.targets)].sort((a, b) => record(b).priority - record(a).priority),
+    [...list(health.targets)].sort((a, b) => rank(record(b).priority) - rank(record(a).priority)),
     (item) =>
       `${location(item)}; priority ${text(item.priority)}; ${text(item.recommendation)}; effort ${text(item.effort)}; confidence ${text(item.confidence)}; ${list(
         item.factors,
       )
         .slice(0, 3)
-        .map((factor) => `${text(factor.metric)}=${text(factor.value)}`)
+        .map((factor) => `${text(record(factor).metric)}=${text(record(factor).value)}`)
         .join(", ")}`,
   );
   section(
     "Hotspots (advisory, ranked score)",
-    [...list(health.hotspots)].sort((a, b) => record(b).score - record(a).score),
+    [...list(health.hotspots)].sort((a, b) => rank(record(b).score) - rank(record(a).score)),
     (item) =>
-      `${location(item)}; score ${text(item.score)}; commits ${text(item.commits)}; fan-in ${text(item.fan_in)}; complexity density ${text(item.complexity_density)}; owner ${text(item.ownership?.declared_owner)}; bus factor ${text(item.ownership?.bus_factor)}`,
+      `${location(item)}; score ${text(item.score)}; commits ${text(item.commits)}; fan-in ${text(item.fan_in)}; complexity density ${text(item.complexity_density)}; owner ${text(record(item.ownership).declared_owner)}; bus factor ${text(record(item.ownership).bus_factor)}`,
   );
   section(
     "File scores (advisory, lowest maintainability first)",
     [...list(health.file_scores)].sort(
-      (a, b) => record(a).maintainability_index - record(b).maintainability_index,
+      (a, b) => rank(record(a).maintainability_index) - rank(record(b).maintainability_index),
     ),
     (item) =>
       `${location(item)}; maintainability ${text(item.maintainability_index)}; fan-in/out ${text(item.fan_in)}/${text(item.fan_out)}; cyclomatic ${text(item.total_cyclomatic)}`,
@@ -167,7 +184,7 @@ export function summarizeFallow(report, reference, title = "Fallow findings") {
       `CSS ${category} (advisory candidate)`,
       css[category],
       (item) =>
-        `${location(item)}; ${text(item.token ?? item.class ?? item.value ?? list(item.classes).join(", "))}${item.nearest_token ? `; nearest ${text(item.nearest_token.name)}` : ""}`,
+        `${location(item)}; ${text(item.token ?? item.class ?? item.value ?? list(item.classes).join(", "))}${item.nearest_token ? `; nearest ${text(record(item.nearest_token).name)}` : ""}`,
     );
   section(
     "CSS duplicate declarations (advisory)",
@@ -181,20 +198,20 @@ export function summarizeFallow(report, reference, title = "Fallow findings") {
         .join("; ")}`,
   );
   const rules = list(css.files).flatMap((file) =>
-    list(record(file).analytics?.notable_rules).map((rule) => ({
+    list(record(record(file).analytics).notable_rules).map((rule) => ({
       ...record(rule),
       path: record(file).path,
     })),
   );
   section(
     "CSS selectors (advisory, ranked complexity)",
-    rules.sort((a, b) => b.complexity - a.complexity),
+    rules.sort((a, b) => rank(record(b).complexity) - rank(record(a).complexity)),
     (item) =>
       `${location(item)}; complexity ${text(item.complexity)}; specificity ${text(item.specificity_a)},${text(item.specificity_b)},${text(item.specificity_c)}; declarations ${text(item.declaration_count)}`,
   );
   section(
     "Review decisions (advisory; independent judgment required)",
-    root.decisions?.decisions,
+    record(root.decisions).decisions,
     (item) =>
       `${text(item.anchor_file)}:${text(item.anchor_line)}; ${text(item.category)}; ${text(item.question)}; blast ${text(item.blast)}; ${text(item.tradeoff)}`,
   );

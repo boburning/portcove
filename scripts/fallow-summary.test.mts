@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { summarizeFallow } from "./fallow-summary.mts";
 
-test("combined projection makes checks, duplicate identity and complexity actionable", () => {
+void test("combined projection makes checks, duplicate identity and complexity actionable", () => {
   const summary = summarizeFallow(
     {
       kind: "combined",
@@ -89,7 +89,7 @@ test("combined projection makes checks, duplicate identity and complexity action
     assert.ok(summary.includes(expected), expected);
 });
 
-test("audit brief retains introduced/inherited context and reviewer questions", () => {
+void test("audit brief retains introduced/inherited context and reviewer questions", () => {
   const summary = summarizeFallow(
     {
       kind: "review-brief",
@@ -143,7 +143,7 @@ test("audit brief retains introduced/inherited context and reviewer questions", 
     assert.ok(summary.includes(expected), expected);
 });
 
-test("existing health sections rank targets, churn and coupling without mutating input", () => {
+void test("existing health sections rank targets, churn and coupling without mutating input", () => {
   const report = {
     health: {
       targets: [
@@ -196,7 +196,7 @@ test("existing health sections rank targets, churn and coupling without mutating
   assert.deepEqual(report, before);
 });
 
-test("dedicated CSS projection identifies candidates without claiming deletion proof", () => {
+void test("dedicated CSS projection identifies candidates without claiming deletion proof", () => {
   const summary = summarizeFallow(
     {
       findings: [],
@@ -269,8 +269,10 @@ test("dedicated CSS projection identifies candidates without claiming deletion p
     assert.ok(summary.includes(expected), expected);
 });
 
-test("per-category selection and UTF-8 byte cap keep large reports bounded", () => {
-  const report = { check: {} };
+void test("per-category selection and UTF-8 byte cap keep large reports bounded", () => {
+  const report: { check: Record<string, { path: string; export_name: string; line: number }[]> } = {
+    check: {},
+  };
   for (let category = 0; category < 80; category++)
     report.check[`category_${category}`] = Array.from({ length: 10 }, (_, line) => ({
       path: "🦀".repeat(1000),
@@ -286,7 +288,7 @@ test("per-category selection and UTF-8 byte cap keep large reports bounded", () 
   assert.match(summary, /Raw evidence: raw.json/);
 });
 
-test("projection tolerates unavailable optional sections without asserting a pass", () => {
+void test("projection tolerates unavailable optional sections without asserting a pass", () => {
   for (const report of [
     null,
     {},
@@ -301,7 +303,7 @@ test("projection tolerates unavailable optional sections without asserting a pas
   }
 });
 
-test("critical functions remain visible ahead of noncritical bulk and snippets stay on one line", () => {
+void test("critical functions remain visible ahead of noncritical bulk and snippets stay on one line", () => {
   const summary = summarizeFallow(
     {
       health: {
