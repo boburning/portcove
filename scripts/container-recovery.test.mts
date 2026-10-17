@@ -70,6 +70,9 @@ void test("native daemon replacement after terminal failure proves only quiescen
 void test("unknown, live, foreign and insufficient restart evidence stays blocked", () => {
   const mutations: Array<(input: ReturnType<typeof fixture>) => void> = [
     (x) => {
+      x.dispatch = `unrelated first line\n${x.dispatch}`;
+    },
+    (x) => {
       x.state.tool = "invalid";
       x.state.build_name = `invalid-${x.state.run}`;
       x.state.failed_command.args[3] = `BUILDKIT_BUILD_NAME=${x.state.build_name}`;

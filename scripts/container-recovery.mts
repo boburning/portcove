@@ -68,11 +68,11 @@ export function restartedNativePreparation(input: {
     !failed.args.includes(`SOURCE_TREE=${source.tree}`)
   )
     return null;
-  const headers = input.dispatch
-    .split(/\r?\n/u)
-    .filter((line) => line.startsWith("#0 building with "));
+  const lines = input.dispatch.split(/\r?\n/u).filter((line) => line.trim());
+  const headers = lines.filter((line) => line.startsWith("#0 building with "));
   if (
     headers.length !== 1 ||
+    lines[0] !== headers[0] ||
     headers[0] !== '#0 building with "desktop-linux" instance using docker driver'
   )
     return null;
