@@ -1,8 +1,24 @@
+import { isRecord } from "./runtime-values.mts";
+import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { copyFile, mkdir, mkdtemp, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runAqua } from "./tool-cache.mts";
+
+export interface AquaChecksumEntry {
+  id: string;
+  checksum: string;
+  algorithm: "sha256";
+}
+export interface AquaChecksumLedger {
+  checksums: AquaChecksumEntry[];
+}
+type AquaConfig = ReturnType<typeof parseAquaConfig>;
+interface AquaInputText {
+  configText: string;
+  ledgerText: string;
+}
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -20,7 +36,7 @@ function actionlintAssets(version: string) {
   ];
 }
 
-function shellcheckAssets(version) {
+function shellcheckAssets(version: string) {
   return [
     `shellcheck-${version}.darwin.aarch64.tar.xz`,
     `shellcheck-${version}.darwin.x86_64.tar.xz`,
@@ -30,7 +46,7 @@ function shellcheckAssets(version) {
   ];
 }
 
-const assetInventories = {
+const assetInventories: Readonly<Record<string, (version: string) => string[]>> = {
   "astral-sh/ruff": () => [
     "ruff-aarch64-apple-darwin.tar.gz",
     "ruff-aarch64-pc-windows-msvc.zip",
@@ -43,7 +59,7 @@ const assetInventories = {
   "koalaman/shellcheck": shellcheckAssets,
 };
 
-function exactUnique(values, label) {
+function exactUnique(values: readonly string[], label: string) {
   if (new Set(values).size !== values.length) throw new Error(`${label} contains duplicates`);
 }
 
@@ -57,8 +73,8 @@ export function parseAquaConfig(contents: string) {
     throw new Error(
       "aqua.yaml must use the maintained standard registry, required checksums, and default package authority only",
     );
-  const packages = [...structure[2].matchAll(/^ {2}- name: ([^@\s]+)@(\S+)$/gmu)].map(
-    ([, name, version]) => ({ name, version }),
+  const packages = [...(structure[2] ?? "").matchAll(/^ {2}- name: ([^@\s]+)@(\S+)$/gmu)].map(
+    ([, name, version]) => ({ name: name ?? "", version: version ?? "" }),
   );
   if (!packages.length) throw new Error("aqua.yaml must define at least one package");
   exactUnique(
@@ -72,6 +88,7 @@ export function parseAquaConfig(contents: string) {
       throw new Error(`${name} must use an exact version`);
     if (!assetInventories[name]) throw new Error(`no maintained platform inventory for ${name}`);
   }
+  if (!structure[1]) throw new Error("Missing standard registry ref");
   return { registryRef: structure[1], packages };
 }
 
@@ -79,20 +96,28 @@ export function parseReleaseChecksumId(id: string) {
   if (!id.startsWith(releasePrefix)) return null;
   const match = /^github_release\/github\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/u.exec(id);
   if (!match) throw new Error(`invalid GitHub release checksum identity: ${id}`);
-  return { name: `${match[1]}/${match[2]}`, version: match[3], asset: match[4] };
+  return { name: `${match[1]}/${match[2]}`, version: match[3] ?? "", asset: match[4] ?? "" };
 }
 
-function expectedReleaseIdentities(config) {
+function expectedReleaseIdentities(config: AquaConfig) {
   return config.packages.flatMap(({ name, version }) =>
-    assetInventories[name](version).map((asset) => `${releasePrefix}${name}/${version}/${asset}`),
+    (
+      assetInventories[name] ??
+      (() => {
+        throw new Error(`no maintained platform inventory for ${name}`);
+      })
+    )(version).map((asset) => `${releasePrefix}${name}/${version}/${asset}`),
   );
 }
 
-function expectedRegistryIdentity(config) {
+function expectedRegistryIdentity(config: AquaConfig) {
   return `registries/github_content/github.com/aquaproj/aqua-registry/${config.registryRef}/registry.yaml`;
 }
 
-export function validateAquaChecksumLedger(config, ledger) {
+export function validateAquaChecksumLedger(
+  config: AquaConfig,
+  ledger: unknown,
+): AquaChecksumEntry[] {
   validateAquaChecksumEntries(ledger);
   const ids = ledger.checksums.map(({ id }) => id);
 
@@ -110,31 +135,54 @@ export function validateAquaChecksumLedger(config, ledger) {
   return ledger.checksums.filter(({ id }) => id.startsWith(releasePrefix));
 }
 
-export function validateAquaChecksumEntries(ledger) {
-  if (!ledger || Object.keys(ledger).length !== 1 || !Array.isArray(ledger.checksums))
+export function validateAquaChecksumEntries(ledger: unknown): asserts ledger is AquaChecksumLedger {
+  if (!isRecord(ledger) || Object.keys(ledger).length !== 1 || !Array.isArray(ledger.checksums))
     throw new Error("aqua-checksums.json must contain only a checksums array");
-  const ids = ledger.checksums.map(({ id }) => id);
+  const entries: unknown[] = ledger.checksums;
+  const ids = entries.map((entry) => {
+    if (!isRecord(entry) || typeof entry.id !== "string" || !entry.id)
+      throw new Error("invalid Aqua checksum identity");
+    return entry.id;
+  });
   exactUnique(ids, "Aqua checksum identities");
-  for (const entry of ledger.checksums) {
-    if (entry.algorithm !== "sha256" || !/^[A-F0-9]{64}$/u.test(entry.checksum))
-      throw new Error(`invalid SHA-256 checksum entry: ${entry.id}`);
+  for (const entry of entries) {
+    if (!isRecord(entry)) throw new Error("invalid Aqua checksum entry");
+    if (
+      entry.algorithm !== "sha256" ||
+      typeof entry.checksum !== "string" ||
+      !/^[A-F0-9]{64}$/u.test(entry.checksum)
+    )
+      throw new Error(`invalid SHA-256 checksum entry: ${String(entry.id)}`);
   }
 }
 
-export function verifyPublisherDigests(entries, releases) {
+export function verifyPublisherDigests(entries: readonly AquaChecksumEntry[], releases: unknown) {
   for (const entry of entries) {
     const identity = parseReleaseChecksumId(entry.id);
-    const release = releases[`${identity.name}@${identity.version}`];
-    if (!release || release.tag_name !== identity.version || !Array.isArray(release.assets))
+    if (!identity) throw new Error("publisher comparison requires a release checksum identity");
+    const release = isRecord(releases)
+      ? releases[`${identity.name}@${identity.version}`]
+      : undefined;
+    if (
+      !isRecord(release) ||
+      release.tag_name !== identity.version ||
+      !Array.isArray(release.assets)
+    )
       throw new Error(
         `publisher release metadata is missing for ${identity.name}@${identity.version}`,
       );
-    const matches = release.assets.filter(({ name }) => name === identity.asset);
+    const assets: unknown[] = release.assets;
+    const matches = assets
+      .map((asset) => {
+        if (!isRecord(asset)) throw new Error("publisher release asset metadata is invalid");
+        return asset;
+      })
+      .filter((asset) => asset.name === identity.asset);
     if (matches.length !== 1)
       throw new Error(
         `publisher asset is missing or ambiguous: ${identity.name}/${identity.asset}`,
       );
-    const digest = matches[0].digest;
+    const digest = matches[0]?.digest;
     if (typeof digest !== "string" || !/^sha256:[a-f0-9]{64}$/u.test(digest))
       throw new Error(`publisher SHA-256 digest is missing for ${identity.name}/${identity.asset}`);
     if (digest.slice("sha256:".length).toUpperCase() !== entry.checksum)
@@ -142,8 +190,12 @@ export function verifyPublisherDigests(entries, releases) {
   }
 }
 
-function run(command, arguments_, options = {}) {
-  const settings = {
+function run(
+  command: string,
+  arguments_: string[],
+  options: Pick<SpawnSyncOptionsWithStringEncoding, "cwd" | "env"> = {},
+) {
+  const settings: SpawnSyncOptionsWithStringEncoding = {
     cwd: options.cwd ?? projectRoot,
     encoding: "utf8",
     env: options.env ?? process.env,
@@ -159,7 +211,7 @@ function run(command, arguments_, options = {}) {
   return result.stdout.trim();
 }
 
-function assertPinnedAquaVersion(expected) {
+function assertPinnedAquaVersion(expected: string) {
   const output = run("aqua", ["-v"]);
   const actual = /^aqua version (\S+)$/mu.exec(output)?.[1];
   if (`v${actual}` !== expected)
@@ -168,7 +220,7 @@ function assertPinnedAquaVersion(expected) {
     );
 }
 
-function releaseMetadata(config) {
+function releaseMetadata(config: AquaConfig) {
   return Object.fromEntries(
     config.packages.map(({ name, version }) => {
       const output = run("gh", [
@@ -177,19 +229,22 @@ function releaseMetadata(config) {
         "GET",
         `repos/${name}/releases/tags/${encodeURIComponent(version)}`,
       ]);
-      return [`${name}@${version}`, JSON.parse(output)];
+      const release: unknown = JSON.parse(output);
+      return [`${name}@${version}`, release];
     }),
   );
 }
 
-function stableNonReleaseEntries(ledger) {
+function stableNonReleaseEntries(ledger: AquaChecksumLedger) {
   return ledger.checksums
     .filter(({ id }) => !id.startsWith(releasePrefix))
     .map(({ id, checksum, algorithm }) => ({ id, checksum, algorithm }))
     .sort((left, right) => left.id.localeCompare(right.id));
 }
 
-export function requireStableNonReleaseEntries(previous, generated) {
+export function requireStableNonReleaseEntries(previous: unknown, generated: unknown) {
+  validateAquaChecksumEntries(previous);
+  validateAquaChecksumEntries(generated);
   if (
     JSON.stringify(stableNonReleaseEntries(previous)) !==
     JSON.stringify(stableNonReleaseEntries(generated))
@@ -197,7 +252,7 @@ export function requireStableNonReleaseEntries(previous, generated) {
     throw new Error("non-release Aqua checksum authority changed; review it separately");
 }
 
-export function requireUnchangedInputs(expected, observed) {
+export function requireUnchangedInputs(expected: AquaInputText, observed: AquaInputText) {
   if (observed.configText !== expected.configText)
     throw new Error(
       "aqua.yaml changed while checksum repair was running; retry from current files",
@@ -212,7 +267,7 @@ async function loadCurrent(validateInventory = true) {
   const configText = await readFile(path.join(projectRoot, "aqua.yaml"), "utf8");
   const ledgerText = await readFile(path.join(projectRoot, "aqua-checksums.json"), "utf8");
   const config = parseAquaConfig(configText);
-  const ledger = JSON.parse(ledgerText);
+  const ledger: unknown = JSON.parse(ledgerText);
   validateAquaChecksumEntries(ledger);
   const releaseEntries = validateInventory ? validateAquaChecksumLedger(config, ledger) : [];
   return { configText, ledgerText, config, ledger, releaseEntries };
@@ -242,7 +297,7 @@ async function update() {
       },
     });
     const generatedText = await readFile(stagedLedger, "utf8");
-    const generated = JSON.parse(generatedText);
+    const generated: unknown = JSON.parse(generatedText);
     const releaseEntries = validateAquaChecksumLedger(current.config, generated);
     requireStableNonReleaseEntries(current.ledger, generated);
     verifyPublisherDigests(releaseEntries, releaseMetadata(current.config));
@@ -262,8 +317,8 @@ async function update() {
   }
 }
 
-async function main(argv) {
-  if (argv.length !== 1 || !["--check", "--update"].includes(argv[0]))
+async function main(argv: string[]) {
+  if (argv.length !== 1 || !["--check", "--update"].includes(argv[0] ?? ""))
     throw new Error("usage: aqua-integrity.mts --check|--update");
   if (argv[0] === "--check") {
     const current = await loadCurrent();

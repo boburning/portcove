@@ -1,12 +1,26 @@
+import type { SpawnSyncOptions } from "node:child_process";
 import { runAqua } from "./tool-cache.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
 
+export type ActionlintOptions = Pick<SpawnSyncOptions, "stdio" | "windowsHide"> & {
+  encoding?: "utf8";
+};
+export type ActionlintRunner = (
+  command: string,
+  args: readonly string[],
+  options: ActionlintOptions,
+) => {
+  status: number | null;
+  stdout?: string | null;
+  error?: Error;
+};
 export function runActionlint(
-  arguments_,
-  run = (_command, args, options) => runAqua(args, options),
+  arguments_: readonly string[],
+  run: ActionlintRunner = (_command, args, options) =>
+    runAqua(args, { ...options, encoding: "utf8" }),
 ) {
   const shellcheck = run("aqua", ["which", "shellcheck"], {
     encoding: "utf8",

@@ -14,14 +14,23 @@ import {
   validateAquaChecksumLedger,
   verifyPublisherDigests,
 } from "./aqua-integrity.mts";
+import { isRecord } from "./runtime-values.mts";
+import type { ActionlintRunner, ActionlintOptions } from "./run-actionlint.mts";
 import { runActionlint } from "./run-actionlint.mts";
 import { readToolPins } from "./tool-cache.mts";
 
-const manifest = JSON.parse(
-  await readFile(new URL("../.github/quality-tools.json", import.meta.url)),
+const manifest: unknown = JSON.parse(
+  await readFile(new URL("../.github/quality-tools.json", import.meta.url), "utf8"),
 );
 
-test("quality manifest owns exact unique Rust pins and workflow outputs", () => {
+validateQualityManifest(manifest);
+function requiredFixture<T>(value: T | undefined): T {
+  assert.notEqual(value, undefined);
+  if (value === undefined) throw new Error("Required fixture value is missing");
+  return value;
+}
+
+void test("quality manifest owns exact unique Rust pins and workflow outputs", () => {
   assert.doesNotThrow(() => validateQualityManifest(manifest));
   assert.deepEqual(githubOutputs(manifest), {
     required_prebuilt: "just@1.58.0,cargo-shear@1.13.4,cargo-deny@0.20.2,cargo-nextest@0.9.100",
@@ -31,7 +40,7 @@ test("quality manifest owns exact unique Rust pins and workflow outputs", () => 
   });
 });
 
-test("quality manifest rejects non-string executable arguments before execution", () => {
+void test("quality manifest rejects non-string executable arguments before execution", () => {
   for (const command of [[42], ["cargo", false], [null]]) {
     const invalid: unknown = {
       ...manifest,
@@ -41,7 +50,7 @@ test("quality manifest rejects non-string executable arguments before execution"
   }
 });
 
-test("stale consumer detection rejects copied current or divergent pins", () => {
+void test("stale consumer detection rejects copied current or divergent pins", () => {
   assert.deepEqual(
     findStaleConsumerPins(manifest, {
       clean: "tool: ${{ steps.pins.outputs.required }}",
@@ -56,15 +65,16 @@ test("stale consumer detection rejects copied current or divergent pins", () => 
   );
 });
 
-test("actionlint receives the exact aqua-managed ShellCheck path", () => {
-  const calls = [];
-  const run = (command, arguments_, options) => {
+void test("actionlint receives the exact aqua-managed ShellCheck path", () => {
+  const calls: { command: string; arguments_: readonly string[]; options: ActionlintOptions }[] =
+    [];
+  const run: ActionlintRunner = (command, arguments_, options) => {
     calls.push({ command, arguments_, options });
     if (arguments_[0] === "which") return { status: 0, stdout: "C:\\aqua\\shellcheck.exe\r\n" };
     return { status: 0 };
   };
   assert.equal(runActionlint(["workflow.yml"], run).status, 0);
-  assert.deepEqual(calls[1].arguments_, [
+  assert.deepEqual(requiredFixture(calls[1]).arguments_, [
     "exec",
     "--",
     "actionlint",
@@ -77,7 +87,7 @@ test("actionlint receives the exact aqua-managed ShellCheck path", () => {
   );
 });
 
-test("standalone lint pins use aqua checksums and PSResourceGet data", async () => {
+void test("standalone lint pins use aqua checksums and PSResourceGet data", async () => {
   const aquaVersion = (await readFile(new URL("../.aqua-version", import.meta.url), "utf8")).trim();
   assert.match(aquaVersion, /^v\d+\.\d+\.\d+$/u);
 
@@ -90,11 +100,12 @@ test("standalone lint pins use aqua checksums and PSResourceGet data", async () 
     packages.map(({ name }) => name),
     ["astral-sh/ruff", "rhysd/actionlint", "koalaman/shellcheck"],
   );
-  for (const { version } of packages) assert.match(version, /^v?\d+\.\d+\.\d+$/u);
+  for (const { version } of packages) assert.match(requiredFixture(version), /^v?\d+\.\d+\.\d+$/u);
 
-  const lock = JSON.parse(
+  const lock: unknown = JSON.parse(
     await readFile(new URL("../aqua-checksums.json", import.meta.url), "utf8"),
   );
+  validateAquaChecksumEntries(lock);
   validateAquaChecksumLedger(parseAquaConfig(aqua), lock);
   const ids = lock.checksums.map(({ id }) => id);
   assert.equal(new Set(ids).size, ids.length);
@@ -127,12 +138,13 @@ test("standalone lint pins use aqua checksums and PSResourceGet data", async () 
   assert.doesNotMatch(manager, /install-managed|PORTCOVE_QUALITY_TOOLS_DIR|managedToolPath/u);
 });
 
-test("Aqua integrity rejects stale, incomplete, unexpected and untrusted package checksums", async () => {
+void test("Aqua integrity rejects stale, incomplete, unexpected and untrusted package checksums", async () => {
   const aqua = await readFile(new URL("../aqua.yaml", import.meta.url), "utf8");
   const config = parseAquaConfig(aqua);
-  const ledger = JSON.parse(
+  const ledger: unknown = JSON.parse(
     await readFile(new URL("../aqua-checksums.json", import.meta.url), "utf8"),
   );
+  validateAquaChecksumEntries(ledger);
   const entries = validateAquaChecksumLedger(config, ledger);
   const ruff = config.packages.find(({ name }) => name === "astral-sh/ruff");
   assert.ok(ruff, "Ruff must remain in the maintained Aqua package inventory");
@@ -163,16 +175,21 @@ test("Aqua integrity rejects stale, incomplete, unexpected and untrusted package
 
   const stale = structuredClone(ledger);
   const staleVersion = "0.0.0";
-  stale.checksums[0].id = stale.checksums[0].id.replace(`/${ruff.version}/`, `/${staleVersion}/`);
+  requiredFixture(stale.checksums[0]).id = requiredFixture(stale.checksums[0]).id.replace(
+    `/${ruff.version}/`,
+    `/${staleVersion}/`,
+  );
   assert.doesNotThrow(() => validateAquaChecksumEntries(stale));
   assert.throws(
     () => validateAquaChecksumLedger(config, stale),
     (error) =>
-      error.message.includes(`/${ruff.version}/`) && error.message.includes(`/${staleVersion}/`),
+      error instanceof Error &&
+      error.message.includes(`/${ruff.version}/`) &&
+      error.message.includes(`/${staleVersion}/`),
   );
 
   const duplicate = structuredClone(ledger);
-  duplicate.checksums.push(structuredClone(duplicate.checksums[0]));
+  duplicate.checksums.push(structuredClone(requiredFixture(duplicate.checksums[0])));
   assert.throws(() => validateAquaChecksumLedger(config, duplicate), /contains duplicates/u);
 
   const unexpected = structuredClone(ledger);
@@ -183,25 +200,28 @@ test("Aqua integrity rejects stale, incomplete, unexpected and untrusted package
   });
   assert.throws(() => validateAquaChecksumLedger(config, unexpected), /unexpected:/u);
 
-  const releases = {};
+  const releases: Record<string, { tag_name: string; assets: { name: string; digest: string }[] }> =
+    {};
   for (const entry of entries) {
     const identity = parseReleaseChecksumId(entry.id);
+    assert.ok(identity);
     const key = `${identity.name}@${identity.version}`;
     releases[key] ??= { tag_name: identity.version, assets: [] };
-    releases[key].assets.push({
+    requiredFixture(releases[key]).assets.push({
       name: identity.asset,
       digest: `sha256:${entry.checksum.toLowerCase()}`,
     });
   }
   assert.doesNotThrow(() => verifyPublisherDigests(entries, releases));
-  releases[`${ruff.name}@${ruff.version}`].assets[0].digest = `sha256:${"0".repeat(64)}`;
+  requiredFixture(requiredFixture(releases[`${ruff.name}@${ruff.version}`]).assets[0]).digest =
+    `sha256:${"0".repeat(64)}`;
   assert.throws(
     () => verifyPublisherDigests(entries, releases),
     /publisher SHA-256 digest differs/u,
   );
 
   const changedRegistry = structuredClone(ledger);
-  changedRegistry.checksums.at(-1).checksum = "B".repeat(64);
+  requiredFixture(changedRegistry.checksums.at(-1)).checksum = "B".repeat(64);
   assert.throws(
     () => requireStableNonReleaseEntries(ledger, changedRegistry),
     /review it separately/u,
@@ -219,8 +239,21 @@ test("Aqua integrity rejects stale, incomplete, unexpected and untrusted package
   );
 });
 
-test("bootstrap pins use verified official Windows download origins", () => {
+void test("Aqua checksum entries reject absent, non-text and empty retained identities", () => {
+  for (const id of [undefined, 1, "", null, {}]) {
+    assert.throws(
+      () =>
+        validateAquaChecksumEntries({
+          checksums: [{ id, algorithm: "sha256", checksum: "A".repeat(64) }],
+        }),
+      /checksum identity/,
+    );
+  }
+});
+
+void test("bootstrap pins use verified official Windows download origins", () => {
   const pins = readToolPins();
+  assert.ok(pins.bootstrap.aqua && pins.bootstrap.desktop);
   assert.equal(
     pins.bootstrap.aqua.release_base,
     "https://github.com/aquaproj/aqua/releases/download",
@@ -231,7 +264,7 @@ test("bootstrap pins use verified official Windows download origins", () => {
     assert.match(artifact.sha256, /^[A-F0-9]{64}$/u);
 });
 
-test("EdgeDriver callers share a signature-first version boundary", async () => {
+void test("EdgeDriver callers share a signature-first version boundary", async () => {
   const source = await readFile(new URL("./bootstrap-quality-tools.ps1", import.meta.url), "utf8");
   const helper = source.slice(
     source.indexOf("function Test-VerifiedEdgeDriver"),
@@ -245,7 +278,7 @@ test("EdgeDriver callers share a signature-first version boundary", async () => 
   assert.doesNotMatch(source, /& \$(?:nativeDriver|candidate) --version/u);
 });
 
-test(
+void test(
   "bootstrap refresh preserves an existing provider shim and its argument forwarding",
   { skip: process.platform !== "win32" },
   () => {
@@ -299,7 +332,7 @@ try {
   },
 );
 
-test(
+void test(
   "cached and downloaded EdgeDriver rejection never reaches the executable probe",
   { skip: process.platform !== "win32", timeout: 20_000 },
   () => {
@@ -394,8 +427,10 @@ $results | ConvertTo-Json -Depth 6 -Compress
       env: { ...process.env, PORTCOVE_EDGE_FIXTURE_SOURCE: script },
     });
     assert.equal(result.status, 0, result.stderr || result.stdout);
-    const cases = JSON.parse(result.stdout);
+    const cases: unknown = JSON.parse(result.stdout);
+    assert.ok(Array.isArray(cases));
+    const observations: unknown[] = cases;
     assert.equal(cases.length, 9);
-    assert.equal(cases.filter((entry) => entry.failed).length, 4);
+    assert.equal(observations.filter((entry) => isRecord(entry) && entry.failed).length, 4);
   },
 );
