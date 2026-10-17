@@ -1,3 +1,29 @@
+import type { Locator } from "selenium-webdriver";
+import type { ScenarioContext } from "./desktop-scenario-context.mts";
+import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
+import type { FixtureCommand } from "./desktop-scenario-state.mts";
+import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
+import { transportValue, transportValues } from "./transport-values.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+interface HandoffContext extends ScenarioContext {
+  invoke: BoundaryInvoke;
+  library: string;
+  command: FixtureCommand;
+  confirmNative: ReturnType<typeof nativeConfirmation>;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function required<Value>(value: Value | null | undefined): Value {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function success(value: unknown) {
+  const result = object(value);
+  assert.equal(result.ok, true, JSON.stringify(result));
+  return result.value;
+}
 import { executeBrowserScript } from "./browser-script.mts";
 // Copy the harness-owned library, preserve its originals, and observe the new desktop generation.
 import assert from "node:assert/strict";
@@ -21,44 +47,52 @@ export async function libraryHandoffScenario({
   artifacts,
   command,
   confirmNative,
-}) {
+}: HandoffContext) {
+  const bootstrap = async () =>
+    transportValue("desktop_bootstrap_status", success(await invoke("get_bootstrap_status")));
   await scenario("native-library-move-invalidates-prior-reviews", async () => {
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     // Existing preparation scenarios retain recovery work intentionally. Use a
     // separate owned library, without clearing or bypassing those journals.
     const source = path.join(output, "handoff-library");
-    const ownedCommand = (args) => command(args, source);
+    const ownedCommand = (args: readonly string[]) => command(args, source);
     const destination = path.join(output, "moved-library");
     const portId = "zelda64-recomp";
     ownedCommand(["adopt", path.join(output, "owned-adoption-review"), "--port", portId, "--yes"]);
-    const paths = ownedCommand(["paths", portId]);
+    const paths = transportValue("port_paths", ownedCommand(["paths", portId]));
     await writeFile(
       path.join(paths.user_data_root, "unrelated-save.bin"),
       "preserved handoff save",
       { flag: "wx" },
     );
-    const backup = ownedCommand(["backup", "create", portId]);
-    const profile = command(["catalog", "show", "opengoal-jak1"]).source_profile;
+    const backup = transportValue("backup", ownedCommand(["backup", "create", portId]));
+    const profile = required(
+      transportValue("port", command(["catalog", "show", "opengoal-jak1"])).source_profile,
+    );
     ownedCommand(["source", "add", profile, path.join(output, "opengoal-jak1.iso")]);
-    const selected = await invoke("set_default_library", { path: source });
+    const selected = object(await invoke("set_default_library", { path: source }));
     assert.equal(selected.ok, true, JSON.stringify(selected));
-    const before = (await invoke("get_bootstrap_status")).value;
-    const identityBefore = await invoke("get_library_identity", {
-      generation: before.generation,
-    });
-    assert.equal(identityBefore.ok, true, JSON.stringify(identityBefore));
-    assert.deepEqual(identityBefore.value, ownedCommand(["library", "identity"]));
-    const active = ownedCommand(["status", portId]).active;
+    const before = await bootstrap();
+    const identityBefore = transportValue(
+      "library_identity",
+      success(
+        await invoke("get_library_identity", {
+          generation: before.generation,
+        }),
+      ),
+    );
+    assert.deepEqual(identityBefore, ownedCommand(["library", "identity"]));
+    const active = required(transportValue("status", ownedCommand(["status", portId])).active);
     const preserved = await Promise.all(
       [
         path.join(paths.user_data_root, "general.json"),
         path.join(paths.user_data_root, "unrelated-save.bin"),
         path.join(backup.path, "data/general.json"),
-      ].map(fileIdentity),
+      ].map((file) => fileIdentity(file)),
     );
-    const sources = ownedCommand(["source", "list"]);
+    const sources = transportValues("source", ownedCommand(["source", "list"]));
     const { click, button } = reviewControls(browser);
-    const assertEscapeRestoresFocus = async (trigger, dialog, name) => {
+    const assertEscapeRestoresFocus = async (trigger: Locator, dialog: Locator, name: string) => {
       await browser.actions().sendKeys(Key.ESCAPE).perform();
       await browser.wait(
         async () => (await browser.findElements(dialog)).length === 0,
@@ -125,40 +159,51 @@ export async function libraryHandoffScenario({
     });
     artifacts.push(reviewImage);
     await click(button("Move to this folder"));
-    let after;
-    await browser.wait(async () => {
-      after = (await invoke("get_bootstrap_status")).value;
-      return after?.ready && after.generation > before.generation;
+    const after = await browser.wait(async () => {
+      const observed = await bootstrap();
+      return observed.ready && observed.generation > before.generation ? observed : false;
     }, 15_000);
-    assert.equal(await realpath(after.library_root), await realpath(destination));
-    const identityAfter = await invoke("get_library_identity", {
-      generation: after.generation,
-    });
-    assert.equal(identityAfter.ok, true);
-    assert.equal(identityAfter.value.id, identityBefore.value.id);
-    assert.equal(await realpath(identityAfter.value.root), await realpath(destination));
-    assert.deepEqual(identityAfter.value, ownedCommand(["library", "identity"]));
-    assert.deepEqual(identityAfter.value, command(["library", "identity"], destination));
-    const staleIdentity = await invoke("get_library_identity", {
-      generation: before.generation,
-    });
+    assert.ok(after);
+    assert.equal(await realpath(required(after.library_root)), await realpath(destination));
+    const identityAfter = transportValue(
+      "library_identity",
+      success(
+        await invoke("get_library_identity", {
+          generation: after.generation,
+        }),
+      ),
+    );
+    assert.equal(identityAfter.id, identityBefore.id);
+    assert.equal(await realpath(identityAfter.root), await realpath(destination));
+    assert.deepEqual(identityAfter, ownedCommand(["library", "identity"]));
+    assert.deepEqual(identityAfter, command(["library", "identity"], destination));
+    const staleIdentity = object(
+      await invoke("get_library_identity", {
+        generation: before.generation,
+      }),
+    );
     assert.equal(staleIdentity.ok, false);
-    assert.equal(staleIdentity.error.code, "conflict");
-    const stale = await invoke("get_output_location", {
-      portId,
-      generation: before.generation,
-    });
+    assert.equal(object(staleIdentity.error).code, "conflict");
+    const stale = object(
+      await invoke("get_output_location", {
+        portId,
+        generation: before.generation,
+      }),
+    );
     assert.equal(stale.ok, false);
-    assert.equal(stale.error.code, "conflict");
-    const current = await invoke("get_output_location", {
-      portId,
-      generation: after.generation,
-    });
-    assert.equal(current.ok, true);
-    assert.equal(await realpath(current.value.library_root), await realpath(destination));
-    const statuses = await invoke("get_statuses");
-    assert.equal(statuses.ok, true);
-    const moved = statuses.value.find((item) => item.port_id === portId).active;
+    assert.equal(object(stale.error).code, "conflict");
+    const current = transportValue(
+      "port_output_location",
+      success(
+        await invoke("get_output_location", {
+          portId,
+          generation: after.generation,
+        }),
+      ),
+    );
+    assert.equal(await realpath(current.library_root), await realpath(destination));
+    const statuses = transportValues("status", success(await invoke("get_statuses")));
+    const moved = required(required(statuses.find((item) => item.port_id === portId)).active);
     assert.equal(moved.id, active.id);
     assert.equal(
       await realpath(moved.path),
@@ -173,17 +218,17 @@ export async function libraryHandoffScenario({
       assert.equal(copy.sha256, original.sha256);
       copied.push(copy);
     }
-    assert.deepEqual((await invoke("get_sources")).value, sources);
+    assert.deepEqual(transportValues("source", success(await invoke("get_sources"))), sources);
 
     const metadata = path.join(output, "library-restore-export.json");
     command(["library", "export", "--output", metadata], destination);
     const exportedMetadata = await fileIdentity(metadata);
     const exportedSave = await fileIdentity(
-      path.join(destination, path.relative(paths.library_root, preserved[0].path)),
+      path.join(destination, path.relative(paths.library_root, required(preserved[0]).path)),
     );
     const restoreRoot = path.join(output, "restored-library");
     await mkdir(restoreRoot);
-    const restoreSelection = await invoke("set_default_library", { path: restoreRoot });
+    const restoreSelection = object(await invoke("set_default_library", { path: restoreRoot }));
     assert.equal(restoreSelection.ok, true, JSON.stringify(restoreSelection));
     await browser.navigate().refresh();
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
@@ -216,7 +261,7 @@ export async function libraryHandoffScenario({
       flag: "wx",
     });
     artifacts.push(restoreImage);
-    const beforeRestore = (await invoke("get_bootstrap_status")).value;
+    const beforeRestore = await bootstrap();
     await click(button("Restore this library"));
     await confirmNative(
       "Confirm library restore",
@@ -232,13 +277,16 @@ export async function libraryHandoffScenario({
       "Only restore a Portcove export you trust.",
       "library-native-restore-confirmed",
     );
-    let afterRestore;
-    await browser.wait(async () => {
-      afterRestore = (await invoke("get_bootstrap_status")).value;
-      return afterRestore?.ready && afterRestore.generation > beforeRestore.generation;
+    const afterRestore = await browser.wait(async () => {
+      const observed = await bootstrap();
+      return observed.ready && observed.generation > beforeRestore.generation ? observed : false;
     }, 15_000);
-    assert.equal(await realpath(afterRestore.library_root), await realpath(restoreRoot));
-    assert.equal(command(["status", portId], restoreRoot).active.id, active.id);
+    assert.ok(afterRestore);
+    assert.equal(await realpath(required(afterRestore.library_root)), await realpath(restoreRoot));
+    assert.equal(
+      required(transportValue("status", command(["status", portId], restoreRoot)).active).id,
+      active.id,
+    );
     assert.deepEqual(await fileIdentity(metadata), exportedMetadata);
     assert.deepEqual(await fileIdentity(exportedSave.path), exportedSave);
 
@@ -248,9 +296,9 @@ export async function libraryHandoffScenario({
     const recoveryDestination = path.join(output, "retained-recovery-copy");
     const recoverySave = path.join(
       restoreRoot,
-      path.relative(paths.library_root, preserved[0].path),
+      path.relative(paths.library_root, required(preserved[0]).path),
     );
-    const recoveryPaths = command(["paths", portId], restoreRoot);
+    const recoveryPaths = transportValue("port_paths", command(["paths", portId], restoreRoot));
     await writeFile(
       path.join(recoveryPaths.user_data_root, "owned-recovery-copy-window.bin"),
       Buffer.alloc(256 * 1024 * 1024, 0x5a),
@@ -261,7 +309,7 @@ export async function libraryHandoffScenario({
     await browser.findElement(By.id("library-destination")).sendKeys(recoveryDestination);
     await click(button("Review move"));
     await browser.wait(until.elementLocated(button("Move to this folder")), 15_000);
-    const beforeRecovery = (await invoke("get_bootstrap_status")).value;
+    const beforeRecovery = await bootstrap();
     await click(button("Move to this folder"));
     await waitForFile(path.join(restoreRoot, ".portcove-authority.json"));
     await writeFile(recoverySave, `${await readFile(recoverySave, "utf8")}\nchanged after review`);
@@ -281,12 +329,12 @@ export async function libraryHandoffScenario({
     });
     artifacts.push(recoveryImage);
     await click(button("Keep using original library"));
-    let afterRecovery;
-    await browser.wait(async () => {
-      afterRecovery = (await invoke("get_bootstrap_status")).value;
-      return afterRecovery?.ready && afterRecovery.generation > beforeRecovery.generation;
+    const afterRecovery = await browser.wait(async () => {
+      const observed = await bootstrap();
+      return observed.ready && observed.generation > beforeRecovery.generation ? observed : false;
     }, 15_000);
-    assert.equal(await realpath(afterRecovery.library_root), await realpath(restoreRoot));
+    assert.ok(afterRecovery);
+    assert.equal(await realpath(required(afterRecovery.library_root)), await realpath(restoreRoot));
     await access(recoveryDestination);
     const result = path.join(output, "library-handoff-result.json");
     await writeFile(
@@ -295,8 +343,8 @@ export async function libraryHandoffScenario({
         {
           before,
           after,
-          identity_before: identityBefore.value,
-          identity_after: identityAfter.value,
+          identity_before: identityBefore,
+          identity_after: identityAfter,
           stale_identity_generation_rejected: true,
           preserved_originals: preserved,
           copied,
@@ -332,7 +380,7 @@ export async function libraryHandoffScenario({
   });
 }
 
-async function waitForFile(file, timeout = 15_000) {
+async function waitForFile(file: string, timeout = 15_000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
     try {
