@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { classifyChanges, buildPlan, executePlan } from "./local-validation.mjs";
+import { classifyChanges, buildPlan, executePlan } from "./ordinary-validation.mjs";
 import { validateValidationPlan } from "./validation-plan.mjs";
 import { spawnCommand } from "./dev-storage.mjs";
 import { createCiMetrics } from "./ci-metrics.mjs";
