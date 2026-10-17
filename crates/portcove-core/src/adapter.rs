@@ -835,6 +835,9 @@ fn prepare_runtime_source_set_member(
         .by_index(index)
         .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP entry: {error}")))?
         .name()
+        .map_err(|error| {
+            PortcoveError::source(format!("invalid file-set ZIP entry name: {error}"))
+        })?
         .to_ascii_lowercase();
     let marker_path = runtime_source_marker_path(destination)?;
     let expected =
