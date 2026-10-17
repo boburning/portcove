@@ -826,6 +826,7 @@ impl Library {
                 return Err(PortcoveError::conflict(format!(
                     "{target} is busy in another Portcove process"
                 ))
+                .with_known_cause(crate::failure::KnownFailureCause::Busy)
                 .detail("resource_id", target)
                 .detail("operation", operation));
             }

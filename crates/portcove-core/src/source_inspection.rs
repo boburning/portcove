@@ -278,6 +278,7 @@ pub(crate) fn verify_registered(catalog: &Catalog, registered: &SourceRecord) ->
             "source changed since registration: {}",
             registered.path.display()
         ))
+        .with_known_cause(crate::failure::KnownFailureCause::SourceChanged)
         .detail("profile_id", profile_id)
         .detail("recorded_sha256", registered.sha256.clone())
         .detail("actual_sha256", actual.sha256)

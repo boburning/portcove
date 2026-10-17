@@ -65,6 +65,149 @@ pub(crate) struct FailureContext {
     pub(crate) recovery_actions: Vec<RecoveryAction>,
     preparation_cause: Option<PreparationFailureCause>,
     preparation_target: Option<PreparationTarget>,
+    known_cause: Option<KnownFailureCause>,
+}
+
+/// Facts attached at the refusing domain branch, never recovered from diagnostics.
+#[derive(Debug)]
+pub(crate) enum KnownFailureCause {
+    CatalogValidity,
+    CatalogReplay,
+    NewerLibrary,
+    IncompleteLibrary,
+    Busy,
+    SourceChanged,
+    AmbiguousAdoption,
+    StaleRemoval,
+    RestoreRecovery,
+    BackupDeletionRecovery,
+    DestinationCapacity,
+    ArchiveLimit,
+    UnicodePath,
+    UnsupportedStfs,
+    DeviceLoginUnavailable,
+    ProviderRequest {
+        provider: FailureProvider,
+        status: u16,
+        rate_limited: bool,
+        resets_at: Option<i64>,
+    },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum FailureProvider {
+    Github,
+    Gitlab,
+}
+
+impl KnownFailureCause {
+    fn presentation(&self) -> (&'static str, String) {
+        let (key, summary) = match self {
+            Self::CatalogValidity => (
+                "catalog_validity_rejected",
+                "The signed catalog sequence or validity period was not accepted. Check the system clock and obtain a current catalog from its configured source.",
+            ),
+            Self::CatalogReplay => (
+                "catalog_replay_rejected",
+                "This catalog revision has already been seen or is older than the recorded revision. Check for a newer catalog; do not reset the library's trust history.",
+            ),
+            Self::NewerLibrary => (
+                "library_version_newer",
+                "This library requires a newer Portcove database version. Open it with a compatible newer Portcove build, or select another library.",
+            ),
+            Self::IncompleteLibrary => (
+                "library_history_incomplete",
+                "The library's recorded database history is incomplete or inconsistent. Preserve the library and review the technical details before recovery; do not delete or edit its database to bypass this check.",
+            ),
+            Self::Busy => (
+                "target_busy",
+                "Another Portcove operation or process is using this target. Wait for it to finish, then review the current state before trying again.",
+            ),
+            Self::SourceChanged => (
+                "registered_source_changed",
+                "The game files have changed since registration. Review and verify the current files, then register the accepted source again before using it.",
+            ),
+            Self::AmbiguousAdoption => (
+                "adoption_ambiguous",
+                "More than one supported port was detected in this folder. Select the intended port explicitly and review the adoption again.",
+            ),
+            Self::StaleRemoval => (
+                "removal_review_stale",
+                "The managed installations changed after removal was reviewed. Review the current removal plan and provide fresh consent.",
+            ),
+            Self::RestoreRecovery => (
+                "restore_recovery_required",
+                "A backup restore is unfinished. Restart Portcove to reconcile it, then review recovery before launching or collecting saves. Preserve the backup and safety copy.",
+            ),
+            Self::BackupDeletionRecovery => (
+                "backup_deletion_recovery_required",
+                "A backup deletion is unfinished. Restart Portcove to retry recovery; if it remains held, review doctor output before further changes.",
+            ),
+            Self::DestinationCapacity => (
+                "destination_space_insufficient",
+                "The prepared files cannot fit in the available destination space. Free space or select a suitable destination, then review the operation again.",
+            ),
+            Self::ArchiveLimit => (
+                "archive_safety_limit",
+                "The archive exceeds a supported extraction safety limit. Obtain a supported package; do not bypass the limit or use its partially extracted files.",
+            ),
+            Self::UnicodePath => (
+                "path_not_representable",
+                "This path cannot be represented by Portcove's Unicode path contract. Select a path with a valid Unicode name; a lossy replacement cannot identify the original files safely.",
+            ),
+            Self::UnsupportedStfs => (
+                "stfs_format_unsupported",
+                "This source is not a supported read-only Xbox LIVE STFS package. Select the required original package format and review the source again.",
+            ),
+            Self::DeviceLoginUnavailable => (
+                "device_login_unavailable",
+                "GitHub device sign-in is unavailable in this build. Use the offered token sign-in, or continue anonymously where supported.",
+            ),
+            Self::ProviderRequest {
+                provider,
+                status,
+                rate_limited,
+                resets_at,
+            } => {
+                let provider = match provider {
+                    FailureProvider::Github => "GitHub",
+                    FailureProvider::Gitlab => "GitLab",
+                };
+                if *status == 401 {
+                    return (
+                        "provider_sign_in_rejected",
+                        format!(
+                            "{provider} rejected the API sign-in (HTTP 401). Review the configured credentials or use anonymous access where supported."
+                        ),
+                    );
+                }
+                if *rate_limited {
+                    let reset = resets_at
+                        .and_then(|seconds| time::OffsetDateTime::from_unix_timestamp(seconds).ok())
+                        .and_then(|time| {
+                            time.format(&time::format_description::well_known::Rfc3339)
+                                .ok()
+                        });
+                    let reset = reset.map_or_else(String::new, |time| {
+                        format!(" The provider reported a reset time of {time}.")
+                    });
+                    return (
+                        "provider_rate_limited",
+                        format!(
+                            "{provider} limited the API request (HTTP {status}).{reset} Wait before retrying and review the provider's current limits."
+                        ),
+                    );
+                }
+                return (
+                    "provider_request_rejected",
+                    format!(
+                        "{provider} rejected the API request (HTTP {status}). Review the technical details and current provider status before retrying."
+                    ),
+                );
+            }
+        };
+        (key, summary.into())
+    }
 }
 
 #[derive(Debug)]
@@ -110,6 +253,11 @@ impl PortcoveError {
 
     pub(crate) fn with_preparation_cause(mut self, cause: PreparationFailureCause) -> Self {
         self.failure.preparation_cause = Some(cause);
+        self
+    }
+
+    pub(crate) fn with_known_cause(mut self, cause: KnownFailureCause) -> Self {
+        self.failure.known_cause = Some(cause);
         self
     }
 
@@ -221,8 +369,12 @@ impl PortcoveError {
                 recovery_actions.push(action);
             }
         }
+        let (key, summary) = self.failure.known_cause.as_ref().map_or_else(
+            || (key, summary.to_owned()),
+            KnownFailureCause::presentation,
+        );
         let summary: String =
-            phase_label.map_or_else(|| summary.into(), |phase| format!("{phase}: {summary}"));
+            phase_label.map_or_else(|| summary.clone(), |phase| format!("{phase}: {summary}"));
         let summary = self.failure.preparation_target.as_ref().map_or_else(
             || summary.clone(),
             |target| {
@@ -366,6 +518,40 @@ fn diagnostic_secret_length(after: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn known_facts_preserve_machine_identity_and_cannot_be_supplied_by_diagnostics() {
+        let error = PortcoveError::conflict("original message: token=private")
+            .with_mutation_state(MutationState::Committed)
+            .detail("known_cause", "StaleRemoval")
+            .detail("presentation_key", "removal_review_stale");
+        let original = error.report();
+        assert_eq!(original.presentation.presentation_key, "selection_changed");
+        let annotated = error
+            .with_known_cause(KnownFailureCause::StaleRemoval)
+            .report();
+        assert_eq!(annotated.code, original.code);
+        assert_eq!(annotated.message, original.message);
+        assert_eq!(annotated.details, original.details);
+        assert_eq!(
+            annotated.presentation.mutation_state,
+            MutationState::Committed
+        );
+        assert_eq!(
+            annotated.presentation.recovery_actions,
+            original.presentation.recovery_actions
+        );
+        assert_eq!(
+            annotated.presentation.technical_message,
+            original.presentation.technical_message
+        );
+        assert_eq!(
+            annotated.presentation.presentation_key,
+            "removal_review_stale"
+        );
+        assert!(!annotated.presentation.summary.contains("private"));
+        assert!(!annotated.presentation.summary.contains("No changes"));
+    }
 
     #[test]
     fn diagnostic_documents_redact_nested_fields_without_corrupting_json() {

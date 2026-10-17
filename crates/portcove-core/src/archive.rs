@@ -154,9 +154,10 @@ fn validate_compressed_size(source: &Path, expected: u64) -> Result<u64> {
 
 fn validate_plan(destination: &Path, plans: &[EntryPlan], compressed_size: u64) -> Result<()> {
     if plans.len() > MAX_ENTRIES {
-        return Err(PortcoveError::verification(
-            "archive contains too many entries",
-        ));
+        return Err(
+            PortcoveError::verification("archive contains too many entries")
+                .with_known_cause(crate::failure::KnownFailureCause::ArchiveLimit),
+        );
     }
     let mut total = 0_u64;
     for plan in plans {
@@ -166,6 +167,7 @@ fn validate_plan(destination: &Path, plans: &[EntryPlan], compressed_size: u64) 
     if total > available {
         return Err(
             PortcoveError::state("archive cannot fit in the available destination space")
+                .with_known_cause(crate::failure::KnownFailureCause::DestinationCapacity)
                 .detail("required", total.to_string())
                 .detail("available", available.to_string()),
         );
@@ -183,21 +185,25 @@ fn validate_declared_entry(
         return Err(PortcoveError::verification(format!(
             "archive entry exceeds its size limit: {}",
             relative.display()
-        )));
+        ))
+        .with_known_cause(crate::failure::KnownFailureCause::ArchiveLimit));
     }
-    *expanded_size = expanded_size
-        .checked_add(size)
-        .ok_or_else(|| PortcoveError::verification("archive expanded size overflowed"))?;
+    *expanded_size = expanded_size.checked_add(size).ok_or_else(|| {
+        PortcoveError::verification("archive expanded size overflowed")
+            .with_known_cause(crate::failure::KnownFailureCause::ArchiveLimit)
+    })?;
     if *expanded_size > MAX_EXPANDED_BYTES {
-        return Err(PortcoveError::verification(
-            "archive exceeds the total expanded size limit",
-        ));
+        return Err(
+            PortcoveError::verification("archive exceeds the total expanded size limit")
+                .with_known_cause(crate::failure::KnownFailureCause::ArchiveLimit),
+        );
     }
     if compressed_size > 0 && *expanded_size > compressed_size.saturating_mul(MAX_COMPRESSION_RATIO)
     {
-        return Err(PortcoveError::verification(
-            "archive exceeds the maximum compression ratio",
-        ));
+        return Err(
+            PortcoveError::verification("archive exceeds the maximum compression ratio")
+                .with_known_cause(crate::failure::KnownFailureCause::ArchiveLimit),
+        );
     }
     Ok(())
 }

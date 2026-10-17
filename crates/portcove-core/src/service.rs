@@ -3431,7 +3431,8 @@ impl PortcoveService {
             _ => Err(PortcoveError::conflict(format!(
                 "multiple ports detected: {}",
                 detected.join(", ")
-            ))),
+            ))
+            .with_known_cause(crate::failure::KnownFailureCause::AmbiguousAdoption)),
         }?;
         let activity = self.library.begin_activity(
             ActivityOperation::Adopt,
@@ -3670,7 +3671,8 @@ impl PortcoveService {
         if preview.preview_sha256 != expected_preview_sha256 {
             return Err(PortcoveError::conflict(
                 "managed installs changed after preview; review removal again",
-            ));
+            )
+            .with_known_cause(crate::failure::KnownFailureCause::StaleRemoval));
         }
         self.library
             .issue_authorization("remove", port_id, &preview.preview_sha256)
@@ -4788,7 +4790,7 @@ impl PortcoveService {
         {
             return Err(PortcoveError::conflict(format!(
                 "{port_id} has an unfinished backup restore; complete recovery before launch or save collection"
-            )));
+            )).with_known_cause(crate::failure::KnownFailureCause::RestoreRecovery));
         }
         Ok(())
     }
@@ -4805,6 +4807,7 @@ impl PortcoveService {
             return Err(PortcoveError::conflict(format!(
                 "{port_id} has an unfinished backup deletion; restart Portcove to retry recovery and review doctor output if it remains"
             ))
+            .with_known_cause(crate::failure::KnownFailureCause::BackupDeletionRecovery)
             .detail("recovery_action", "restart_then_doctor"));
         }
         Ok(())

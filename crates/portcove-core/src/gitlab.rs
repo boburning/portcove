@@ -514,7 +514,16 @@ fn choose_link<'a>(
 }
 
 fn gitlab_http_error(status: StatusCode, headers: &header::HeaderMap) -> PortcoveError {
-    let mut error = PortcoveError::network(format!("GitLab API returned {status}"));
+    let numeric_header = |name: &str| headers.get(name)?.to_str().ok()?.parse::<i64>().ok();
+    let mut error = PortcoveError::network(format!("GitLab API returned {status}"))
+        .with_known_cause(crate::failure::KnownFailureCause::ProviderRequest {
+            provider: crate::failure::FailureProvider::Gitlab,
+            status: status.as_u16(),
+            rate_limited: status == StatusCode::TOO_MANY_REQUESTS
+                || (status == StatusCode::FORBIDDEN
+                    && numeric_header("ratelimit-remaining") == Some(0)),
+            resets_at: numeric_header("ratelimit-reset"),
+        });
     for (header_name, detail_name) in [
         ("ratelimit-limit", "rate_limit"),
         ("ratelimit-remaining", "rate_remaining"),
@@ -903,6 +912,17 @@ mod tests {
         assert_eq!(
             error.details.get("retry_after").map(String::as_str),
             Some("30")
+        );
+        assert_eq!(
+            error.presentation().presentation_key,
+            "provider_rate_limited"
+        );
+        assert!(error.presentation().summary.contains("GitLab"));
+        assert!(
+            error
+                .presentation()
+                .summary
+                .contains("1970-01-01T00:20:34Z")
         );
     }
 
