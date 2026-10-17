@@ -7,11 +7,48 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { isRecord } from "./runtime-values.mts";
+import type { ReleaseEvidenceOptions, EvidenceFileHandle } from "./release-run-evidence.mts";
 import {
   collectReleaseRunEvidence,
   readReleaseEvidenceRequest,
   verifyReleaseArtifactBytes,
 } from "./release-run-evidence.mts";
+
+interface FixtureResponse {
+  status: number;
+  headers: Map<string, string>;
+  body: Record<string, unknown>;
+}
+interface FixtureContext {
+  key: string;
+  url: URL;
+  calls: string[];
+}
+type FixtureTransform = (response: FixtureResponse, context: FixtureContext) => FixtureResponse;
+interface FixtureOptions extends ReleaseEvidenceOptions {
+  api: NonNullable<ReleaseEvidenceOptions["api"]>;
+  calls: string[];
+  elapsed: () => number;
+  now: () => number;
+}
+function requiredFixture<T>(value: T | undefined): T {
+  assert.notEqual(value, undefined);
+  if (value === undefined) throw new Error("Required fixture value is missing");
+  return value;
+}
+function record(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value), "Fixture object is missing");
+  return value;
+}
+function records(value: unknown): Record<string, unknown>[] {
+  assert.ok(Array.isArray(value), "Fixture collection is missing");
+  const items: unknown[] = value;
+  return items.map(record);
+}
+function firstRecord(body: Record<string, unknown>, key: string, index = 0) {
+  return requiredFixture(records(body[key])[index]);
+}
 
 const revision = "1".repeat(40);
 const tree = "2".repeat(40);
@@ -61,8 +98,8 @@ function artifact(id = 21) {
   };
 }
 
-function fixture(transform = (response) => response) {
-  const calls = [];
+function fixture(transform: FixtureTransform = (response) => response): FixtureOptions {
+  const calls: string[] = [];
   const run = {
     id: 7,
     run_attempt: 2,
@@ -77,14 +114,14 @@ function fixture(transform = (response) => response) {
     updated_at: timestamp,
   };
   const api = {
-    request(method, endpoint: string) {
+    request(method: string, endpoint: string) {
       assert.equal(method, "GET");
       const url = new URL(
         endpoint.startsWith("https:") ? endpoint : `https://api.github.com/${endpoint}`,
       );
       calls.push(url.href);
       const key = url.pathname.slice(new URL(root).pathname.length);
-      let body;
+      let body: Record<string, unknown>;
       if (key === runPath || key === `${runPath}/attempts/2`) body = run;
       else if (key === `/git/commits/${revision}`) body = { sha: revision, tree: { sha: tree } };
       else if (key === "/contents/.github/workflows/release.yml")
@@ -107,17 +144,18 @@ function fixture(transform = (response) => response) {
   return { api, calls, elapsed: () => 0, now: () => Date.parse(timestamp) };
 }
 
-function byteFixture(bytes, transform = (response) => response) {
+function byteFixture(bytes: Buffer, transform: FixtureTransform = (response) => response) {
   return fixture((response, context) => {
     if (context.key === artifactPath) {
-      response.body.artifacts[0].size_in_bytes = bytes.length;
-      response.body.artifacts[0].digest = `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+      firstRecord(response.body, "artifacts", 0).size_in_bytes = bytes.length;
+      firstRecord(response.body, "artifacts", 0).digest =
+        `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
     }
     return transform(response, context);
   });
 }
 
-test("retained artifact bytes bind fresh API identity without attributing producer job or attempt", async () => {
+void test("retained artifact bytes bind fresh API identity without attributing producer job or attempt", async () => {
   const bytes = Buffer.alloc(150_001, 37);
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-artifact-bytes-"));
   const filename = path.join(directory, "retained.bin");
@@ -131,7 +169,7 @@ test("retained artifact bytes bind fresh API identity without attributing produc
   assert.equal(receipt.attempt, 2);
   assert.equal(receipt.source_tree, tree);
   assert.equal(options.calls.length, 14);
-  for (const stage of ["before", "after"]) {
+  for (const stage of ["before", "after"] as const) {
     const { evidence_sha256, ...apiEvidence } = receipt[`${stage}_api_evidence`];
     assert.equal(evidence_sha256, receipt[`${stage}_api_evidence_sha256`]);
     assert.equal(
@@ -139,7 +177,7 @@ test("retained artifact bytes bind fresh API identity without attributing produc
       createHash("sha256").update(JSON.stringify(apiEvidence)).digest("hex"),
     );
     assert.equal(apiEvidence.jobs.length, 1);
-    assert.equal(apiEvidence.artifacts[0].id, 21);
+    assert.equal(requiredFixture(apiEvidence.artifacts[0]).id, 21);
   }
   assert.match(receipt.qualification, /package contents.*remain unproven/u);
   await writeFile(filename, Buffer.alloc(bytes.length, 38));
@@ -149,21 +187,21 @@ test("retained artifact bytes bind fresh API identity without attributing produc
   );
 });
 
-test("missing, expired, undigested and oversized artifact identities refuse before local file I/O", async () => {
+void test("missing, expired, undigested and oversized artifact identities refuse before local file I/O", async () => {
   const bytes = Buffer.from("retained");
   for (const change of [
-    (body) => {
+    (body: Record<string, unknown>) => {
       body.artifacts = [];
       body.total_count = 0;
     },
-    (body) => {
-      body.artifacts[0].expired = true;
+    (body: Record<string, unknown>) => {
+      firstRecord(body, "artifacts", 0).expired = true;
     },
-    (body) => {
-      body.artifacts[0].digest = null;
+    (body: Record<string, unknown>) => {
+      firstRecord(body, "artifacts", 0).digest = null;
     },
-    (body) => {
-      body.artifacts[0].size_in_bytes = 512 * 1024 * 1024 + 1;
+    (body: Record<string, unknown>) => {
+      firstRecord(body, "artifacts", 0).size_in_bytes = 512 * 1024 * 1024 + 1;
     },
   ]) {
     const options = byteFixture(bytes, (response, context) => {
@@ -180,7 +218,7 @@ test("missing, expired, undigested and oversized artifact identities refuse befo
   }
 });
 
-test("late API artifact replacement and run changes refuse after byte comparison", async () => {
+void test("late API artifact replacement and run changes refuse after byte comparison", async () => {
   const bytes = Buffer.from("retained");
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-artifact-drift-"));
   const filename = path.join(directory, "retained.bin");
@@ -189,7 +227,7 @@ test("late API artifact replacement and run changes refuse after byte comparison
     const options = byteFixture(bytes, (response, context) => {
       if (context.calls.length > 7) {
         if (change === "artifact" && context.key === artifactPath)
-          response.body.artifacts[0].name = "replacement";
+          firstRecord(response.body, "artifacts", 0).name = "replacement";
         if (change === "run" && context.key.startsWith(runPath) && !context.key.endsWith("jobs"))
           response.body.updated_at = "2026-10-12T07:01:00Z";
       }
@@ -202,7 +240,7 @@ test("late API artifact replacement and run changes refuse after byte comparison
   }
 });
 
-test("artifact growth, same-size mutation and nonregular handles refuse and always close", async () => {
+void test("artifact growth, same-size mutation and nonregular handles refuse and always close", async () => {
   const bytes = Buffer.from("retained");
   for (const mode of ["growth", "mutation", "nonregular", "short", "late"]) {
     let stats = 0,
@@ -241,7 +279,7 @@ test("artifact growth, same-size mutation and nonregular handles refuse and alwa
   }
 });
 
-test("both API collections share one request cap rather than renewing it after local hashing", async () => {
+void test("both API collections share one request cap rather than renewing it after local hashing", async () => {
   const bytes = Buffer.alloc(100, 37);
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-artifact-request-cap-"));
   const filename = path.join(directory, "retained.bin");
@@ -256,7 +294,8 @@ test("both API collections share one request cap rather than renewing it after l
         [key]: Array.from({ length: 100 }, (_, index) => record((page - 1) * 100 + index + 1)),
       };
       if (key === "artifacts" && page === 1) {
-        response.body.artifacts[20].digest = `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+        firstRecord(response.body, "artifacts", 20).digest =
+          `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
       }
       if (page < 16)
         response.headers.set(
@@ -273,7 +312,7 @@ test("both API collections share one request cap rather than renewing it after l
   assert.equal(options.calls.length, 40);
 });
 
-test("collects exact API identities while retaining unproven artifact and execution bindings", () => {
+void test("collects exact API identities while retaining unproven artifact and execution bindings", () => {
   const options = fixture();
   const evidence = collectReleaseRunEvidence(request, options);
   assert.equal(options.calls.length, 7);
@@ -282,17 +321,17 @@ test("collects exact API identities while retaining unproven artifact and execut
   assert.equal(evidence.source_workflow_sha256, workflowDigest);
   assert.match(evidence.execution_workflow_binding, /unproven/u);
   assert.match(evidence.artifact_scope, /across attempts/u);
-  assert.equal(evidence.artifacts[0].producer_attempt, null);
-  assert.equal(evidence.artifacts[0].producer_job_id, null);
+  assert.equal(requiredFixture(evidence.artifacts[0]).producer_attempt, null);
+  assert.equal(requiredFixture(evidence.artifacts[0]).producer_job_id, null);
   assert.match(evidence.qualification, /no artifact-byte/u);
   const { evidence_sha256: digest, ...body } = evidence;
   assert.equal(digest, createHash("sha256").update(JSON.stringify(body)).digest("hex"));
 });
 
-for (const key of ["jobs", "artifacts"]) {
+for (const key of ["jobs", "artifacts"] as const) {
   const endpoint = key === "jobs" ? jobsPath : artifactPath;
   const record = key === "jobs" ? job : artifact;
-  test(`${key}: complete empty and multi-page inventories`, () => {
+  void test(`${key}: complete empty and multi-page inventories`, () => {
     const empty = fixture((response, context) => {
       if (context.key === endpoint) response.body = { total_count: 0, [key]: [] };
       return response;
@@ -316,49 +355,50 @@ for (const key of ["jobs", "artifacts"]) {
   for (const [label, mutate] of [
     [
       "missing total",
-      (body) => {
+      (body: Record<string, unknown>) => {
         delete body.total_count;
       },
     ],
     [
       "negative total",
-      (body) => {
+      (body: Record<string, unknown>) => {
         body.total_count = -1;
       },
     ],
     [
       "missing records",
-      (body) => {
+      (body: Record<string, unknown>) => {
         delete body[key];
       },
     ],
     [
       "truncated records",
-      (body) => {
+      (body: Record<string, unknown>) => {
         body.total_count = 2;
       },
     ],
     [
       "duplicate IDs",
-      (body) => {
+      (body: Record<string, unknown>) => {
         body.total_count = 2;
+        assert.ok(Array.isArray(body[key]));
         body[key].push(body[key][0]);
       },
     ],
     [
       "missing ID",
-      (body) => {
-        delete body[key][0].id;
+      (body: Record<string, unknown>) => {
+        delete firstRecord(body, key).id;
       },
     ],
     [
       "hard cap",
-      (body) => {
+      (body: Record<string, unknown>) => {
         body.total_count = 1601;
       },
     ],
-  ])
-    test(`${key}: rejects ${label}`, () => {
+  ] satisfies [string, (body: Record<string, unknown>) => void][])
+    void test(`${key}: rejects ${label}`, () => {
       assert.throws(() =>
         collectReleaseRunEvidence(
           request,
@@ -370,7 +410,7 @@ for (const key of ["jobs", "artifacts"]) {
       );
     });
 
-  test(`${key}: accepts the complete 1600-record boundary`, () => {
+  void test(`${key}: accepts the complete 1600-record boundary`, () => {
     const options = fixture((response, context) => {
       if (context.key === endpoint) {
         const page = Number(context.url.searchParams.get("page") ?? 1);
@@ -389,7 +429,7 @@ for (const key of ["jobs", "artifacts"]) {
     assert.equal(collectReleaseRunEvidence(request, options)[key].length, 1600);
   });
 
-  test(`${key}: rejects changing totals and stalled cursors`, () => {
+  void test(`${key}: rejects changing totals and stalled cursors`, () => {
     for (const stalled of [false, true])
       assert.throws(() =>
         collectReleaseRunEvidence(
@@ -419,7 +459,7 @@ for (const next of [
   `${root}${artifactPath}?per_page=100&page=0`,
   `${root}/contents/.github/workflows/release.yml`,
 ])
-  test(`refuses pagination outside exact endpoint/query scope: ${next}`, () => {
+  void test(`refuses pagination outside exact endpoint/query scope: ${next}`, () => {
     const options = fixture((response, context) => {
       if (context.key === artifactPath) {
         response.body.total_count = 2;
@@ -435,56 +475,56 @@ for (const [label, key, mutate] of [
   [
     "latest attempt",
     runPath,
-    (body) => {
+    (body: Record<string, unknown>) => {
       body.run_attempt = 3;
     },
   ],
   [
     "nonterminal run",
     runPath,
-    (body) => {
+    (body: Record<string, unknown>) => {
       body.status = "in_progress";
     },
   ],
   [
     "fork run",
     runPath,
-    (body) => {
-      body.head_repository.id = 10;
+    (body: Record<string, unknown>) => {
+      record(body.head_repository).id = 10;
     },
   ],
   [
     "foreign workflow",
     runPath,
-    (body) => {
+    (body: Record<string, unknown>) => {
       body.path = ".github/workflows/ci.yml";
     },
   ],
   [
     "source revision",
     runPath,
-    (body) => {
+    (body: Record<string, unknown>) => {
       body.head_sha = "3".repeat(40);
     },
   ],
   [
     "attempt identity",
     `${runPath}/attempts/2`,
-    (body) => {
+    (body: Record<string, unknown>) => {
       body.workflow_id = 10;
     },
   ],
   [
     "source tree",
     `/git/commits/${revision}`,
-    (body) => {
-      body.tree.sha = "3".repeat(40);
+    (body: Record<string, unknown>) => {
+      record(body.tree).sha = "3".repeat(40);
     },
   ],
   [
     "workflow bytes",
     "/contents/.github/workflows/release.yml",
-    (body) => {
+    (body: Record<string, unknown>) => {
       body.content = "eA==";
       body.size = 1;
     },
@@ -492,61 +532,61 @@ for (const [label, key, mutate] of [
   [
     "workflow size",
     "/contents/.github/workflows/release.yml",
-    (body) => {
+    (body: Record<string, unknown>) => {
       body.size = 262145;
     },
   ],
   [
     "job attempt",
     jobsPath,
-    (body) => {
-      body.jobs[0].run_attempt = 1;
+    (body: Record<string, unknown>) => {
+      firstRecord(body, "jobs", 0).run_attempt = 1;
     },
   ],
   [
     "job source",
     jobsPath,
-    (body) => {
-      body.jobs[0].head_sha = "3".repeat(40);
+    (body: Record<string, unknown>) => {
+      firstRecord(body, "jobs", 0).head_sha = "3".repeat(40);
     },
   ],
   [
     "nonterminal job",
     jobsPath,
-    (body) => {
-      body.jobs[0].status = "in_progress";
+    (body: Record<string, unknown>) => {
+      firstRecord(body, "jobs", 0).status = "in_progress";
     },
   ],
   [
     "artifact repository",
     artifactPath,
-    (body) => {
-      body.artifacts[0].workflow_run.repository_id = 10;
+    (body: Record<string, unknown>) => {
+      record(firstRecord(body, "artifacts", 0).workflow_run).repository_id = 10;
     },
   ],
   [
     "artifact run",
     artifactPath,
-    (body) => {
-      body.artifacts[0].workflow_run.id = 8;
+    (body: Record<string, unknown>) => {
+      record(firstRecord(body, "artifacts", 0).workflow_run).id = 8;
     },
   ],
   [
     "artifact source",
     artifactPath,
-    (body) => {
-      body.artifacts[0].workflow_run.head_sha = "3".repeat(40);
+    (body: Record<string, unknown>) => {
+      record(firstRecord(body, "artifacts", 0).workflow_run).head_sha = "3".repeat(40);
     },
   ],
   [
     "artifact digest",
     artifactPath,
-    (body) => {
-      body.artifacts[0].digest = "md5:bad";
+    (body: Record<string, unknown>) => {
+      firstRecord(body, "artifacts", 0).digest = "md5:bad";
     },
   ],
-])
-  test(`rejects mismatched ${label}`, () => {
+] satisfies [string, string, (body: Record<string, unknown>) => void][])
+  void test(`rejects mismatched ${label}`, () => {
     assert.throws(() =>
       collectReleaseRunEvidence(
         request,
@@ -558,22 +598,22 @@ for (const [label, key, mutate] of [
     );
   });
 
-test("retains expired artifacts and missing digests without inventing usable bytes", () => {
+void test("retains expired artifacts and missing digests without inventing usable bytes", () => {
   const evidence = collectReleaseRunEvidence(
     request,
     fixture((response, context) => {
       if (context.key === artifactPath) {
-        response.body.artifacts[0].expired = true;
-        delete response.body.artifacts[0].digest;
+        firstRecord(response.body, "artifacts", 0).expired = true;
+        delete firstRecord(response.body, "artifacts", 0).digest;
       }
       return response;
     }),
   );
-  assert.equal(evidence.artifacts[0].expired, true);
-  assert.equal(evidence.artifacts[0].archive_sha256, null);
+  assert.equal(requiredFixture(evidence.artifacts[0]).expired, true);
+  assert.equal(requiredFixture(evidence.artifacts[0]).archive_sha256, null);
 });
 
-test("refuses current-run drift after collecting inventory", () => {
+void test("refuses current-run drift after collecting inventory", () => {
   assert.throws(
     () =>
       collectReleaseRunEvidence(
@@ -587,7 +627,7 @@ test("refuses current-run drift after collecting inventory", () => {
   );
 });
 
-test("request and elapsed-time bounds stop collection before another API read", () => {
+void test("request and elapsed-time bounds stop collection before another API read", () => {
   const options = fixture((response, context) => {
     if (context.key === jobsPath) {
       const page = Number(context.url.searchParams.get("page") ?? 1);
@@ -613,7 +653,7 @@ test("request and elapsed-time bounds stop collection before another API read", 
   assert.equal(late.calls.length, 1);
 });
 
-test("rejects extra authority fields and API failures", () => {
+void test("rejects extra authority fields and API failures", () => {
   const options = fixture();
   assert.throws(
     () => collectReleaseRunEvidence({ ...request, publication: true }, options),
@@ -630,7 +670,7 @@ test("rejects extra authority fields and API failures", () => {
   );
 });
 
-test("retains cross-endpoint timestamp differences without relaxing run identity", () => {
+void test("retains cross-endpoint timestamp differences without relaxing run identity", () => {
   const evidence = collectReleaseRunEvidence(
     request,
     fixture((response, context) => {
@@ -643,7 +683,7 @@ test("retains cross-endpoint timestamp differences without relaxing run identity
   assert.equal(evidence.attempt_updated_at, "2026-10-12T07:00:01Z");
 });
 
-test("refuses receipt publication when final construction exceeds the monotonic deadline", () => {
+void test("refuses receipt publication when final construction exceeds the monotonic deadline", () => {
   const options = fixture();
   let elapsed = 0;
   options.elapsed = () => elapsed;
@@ -655,7 +695,7 @@ test("refuses receipt publication when final construction exceeds the monotonic 
   assert.equal(options.calls.length, 7);
 });
 
-test("request reader admits bounded JSON files and rejects oversized, empty and nonregular input", async () => {
+void test("request reader admits bounded JSON files and rejects oversized, empty and nonregular input", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-release-evidence-"));
   const filename = path.join(directory, "request.json");
   await writeFile(filename, JSON.stringify(request));
@@ -667,11 +707,11 @@ test("request reader admits bounded JSON files and rejects oversized, empty and 
   await assert.rejects(readReleaseEvidenceRequest(directory));
 });
 
-test("request reader caps actual growth and closes the same handle on drift", async () => {
+void test("request reader caps actual growth and closes the same handle on drift", async () => {
   let opened = 0;
   let closed = 0;
   let actualRead = 0;
-  const handle = {
+  const handle: EvidenceFileHandle = {
     async stat() {
       return { isFile: () => true, size: 1, mtimeMs: 1, ctimeMs: 1 };
     },
@@ -699,7 +739,7 @@ test("request reader caps actual growth and closes the same handle on drift", as
   assert.equal(closed, 1);
 });
 
-test("request reader opens without following links or blocking on a POSIX FIFO", async () => {
+void test("request reader opens without following links or blocking on a POSIX FIFO", async () => {
   let closed = false;
   await assert.rejects(
     readReleaseEvidenceRequest("fifo", {
@@ -725,7 +765,7 @@ test("request reader opens without following links or blocking on a POSIX FIFO",
   assert.equal(closed, true);
 });
 
-test(
+void test(
   "actual POSIX FIFO is refused without waiting for a writer",
   { skip: process.platform === "win32" },
   async () => {
@@ -747,13 +787,13 @@ test(
   },
 );
 
-test("request reader refuses same-size mutation and never reopens a replaced pathname", async () => {
+void test("request reader refuses same-size mutation and never reopens a replaced pathname", async () => {
   const bytes = Buffer.from(JSON.stringify(request));
   for (const mutate of [false, true]) {
     let opens = 0;
     let stats = 0;
     let consumed = false;
-    const handle = {
+    const handle: EvidenceFileHandle = {
       async stat() {
         stats += 1;
         return {

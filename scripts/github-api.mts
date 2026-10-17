@@ -15,6 +15,9 @@ export interface IncludedResponse {
   headers: ReadonlyMap<string, string>;
   body: unknown;
 }
+export interface GitHubRestReader {
+  request(method: string, endpoint: string): IncludedResponse;
+}
 interface GitHubErrorDetails {
   cause?: unknown;
   operation?: string | null;
@@ -347,6 +350,7 @@ export class GitHubApiClient {
   }
 
   paginateRest(
+    this: GitHubRestReader,
     endpoint: string,
     {
       select = (body) => body,
