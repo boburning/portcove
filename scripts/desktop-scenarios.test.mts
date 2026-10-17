@@ -2417,3 +2417,4 @@ import "../apps/desktop/scripts/desktop-default-cover.native.test.mts";
 import "../apps/desktop/scripts/desktop-workspace-refresh.native.test.mts";
 import "../apps/desktop/scripts/desktop-artwork-correction.native.test.mts";
 import "../apps/desktop/scripts/desktop-artwork.native.test.mts";
+import "../apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts";

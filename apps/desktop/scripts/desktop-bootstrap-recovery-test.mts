@@ -1,3 +1,49 @@
+import type { WebDriver, By, until } from "selenium-webdriver";
+import type { ScenarioArtifacts } from "./desktop-scenario-context.mts";
+import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
+import type { DesktopSelection } from "../../../scripts/desktop-scenarios.mts";
+import type {
+  OutputDesktopBootstrapStatus,
+  TransportOutputs,
+} from "../src/transport-types.generated.d.ts";
+import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
+import type { captureAccessibilityReport as captureAccessibility } from "./desktop-review-controls.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+interface RecoveryContext<Fixture> extends ScenarioArtifacts {
+  invoke: BoundaryInvoke;
+  By: typeof By;
+  until: typeof until;
+  fixture: Fixture;
+  captureScreenshot: (name: string) => Promise<unknown>;
+  restart: (name: string, prepare?: () => Promise<void>) => Promise<WebDriver>;
+}
+type PreferencesContext = RecoveryContext<
+  Awaited<ReturnType<typeof preparePreferencesRecoveryFixture>>
+> & {
+  captureAccessibilityReport: typeof captureAccessibility;
+};
+type BootstrapContext = RecoveryContext<
+  Awaited<ReturnType<typeof prepareBootstrapRecoveryFixture>>
+> & {
+  chooseOwnedLibrary: ReturnType<typeof nativeConfirmation>;
+};
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function required<Value>(value: Value | null | undefined): Value {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function text(value: unknown): string {
+  assert.ok(typeof value === "string");
+  return value;
+}
+function success(value: unknown) {
+  const result = object(value);
+  assert.equal(result.ok, true, JSON.stringify(result));
+  return result.value;
+}
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -6,7 +52,10 @@ import path from "node:path";
 const bootstrapRecoveryScenarioId = "native-startup-library-recovery";
 const preferencesRecoveryScenarioId = "native-startup-preferences-recovery";
 
-export function preferencesRecoverySelection(selection, platform) {
+export function preferencesRecoverySelection(
+  selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
+  platform: string,
+) {
   if (!selection.selected_scenarios.includes(preferencesRecoveryScenarioId)) return false;
   assert.equal(platform, "win32", "Startup preferences recovery currently requires Windows");
   assert.deepEqual(selection.selected_scenarios, [preferencesRecoveryScenarioId]);
@@ -40,12 +89,41 @@ export async function preferencesRecoveryScenario({
   restart,
   output,
   artifacts,
-}) {
-  const read = async (command, args) => {
-    const result = await invoke(command, args);
-    assert.equal(result.ok, true, JSON.stringify(result));
-    return result.value;
-  };
+}: PreferencesContext) {
+  const { transportValue, transportValues } = await import("./transport-values.mts");
+  function read(
+    command: "get_bootstrap_status",
+    args?: object,
+  ): Promise<OutputDesktopBootstrapStatus>;
+  function read(
+    command: "get_library_identity",
+    args?: object,
+  ): Promise<TransportOutputs["library_identity"]>;
+  function read(
+    command: "get_workspace_snapshot",
+    args?: object,
+  ): Promise<TransportOutputs["desktop_workspace_snapshot"]>;
+  function read(command: "get_statuses", args?: object): Promise<TransportOutputs["status"][]>;
+  async function read(
+    command:
+      | "get_bootstrap_status"
+      | "get_library_identity"
+      | "get_workspace_snapshot"
+      | "get_statuses",
+    args?: object,
+  ) {
+    const value = success(await invoke(command, args));
+    switch (command) {
+      case "get_bootstrap_status":
+        return transportValue("desktop_bootstrap_status", value);
+      case "get_library_identity":
+        return transportValue("library_identity", value);
+      case "get_workspace_snapshot":
+        return transportValue("desktop_workspace_snapshot", value);
+      case "get_statuses":
+        return transportValues("status", value);
+    }
+  }
   const before = await read("get_bootstrap_status");
   assert.equal(before.ready, false);
   assert.ok(before.error?.code, "Malformed preferences must expose a typed failure");
@@ -68,6 +146,7 @@ export async function preferencesRecoveryScenario({
       [...root.querySelectorAll("dl > div")].map((row) => {
         const label = row.querySelector("dt");
         const value = row.querySelector("dd");
+        if (!label || !value) throw new Error("Technical detail row unavailable");
         return {
           label: label.textContent,
           value: value.textContent,
@@ -96,9 +175,12 @@ export async function preferencesRecoveryScenario({
   await captureScreenshot("startup-preferences-refused-preserved");
   const accessibilityPath = path.join(output, "startup-preferences-accessibility.json");
   await captureAccessibilityReport(browser, accessibilityPath, artifacts);
-  const accessibility = JSON.parse(await readFile(accessibilityPath, "utf8"));
+  const accessibilityValue: unknown = JSON.parse(await readFile(accessibilityPath, "utf8"));
+  const incomplete = object(accessibilityValue).incomplete;
+  assert.ok(Array.isArray(incomplete));
+  const incompleteItems: unknown[] = incomplete;
   assert.deepEqual(
-    accessibility.incomplete.map((item) => item.id),
+    incompleteItems.map((item) => object(item).id),
     [],
   );
   const repaired = Buffer.from(
@@ -114,8 +196,8 @@ export async function preferencesRecoveryScenario({
   const verifyRecoveredHost = async () => {
     const status = await read("get_bootstrap_status");
     assert.equal(status.ready, true);
-    assert.equal(canonicalPath(status.library_root), canonicalPath(fixture.selectedRoot));
-    assert.equal(status.selection.source, "saved");
+    assert.equal(canonicalPath(required(status.library_root)), canonicalPath(fixture.selectedRoot));
+    assert.equal(required(status.selection).source, "saved");
     const identity = await read("get_library_identity", { generation: status.generation });
     const workspace = await read("get_workspace_snapshot", { generation: status.generation });
     const statuses = await read("get_statuses");
@@ -160,7 +242,10 @@ export async function preferencesRecoveryScenario({
   artifacts.push(evidence);
 }
 
-export function bootstrapRecoverySelection(selection, platform) {
+export function bootstrapRecoverySelection(
+  selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
+  platform: string,
+) {
   if (!selection.selected_scenarios.includes(bootstrapRecoveryScenarioId)) return false;
   assert.equal(platform, "win32", "Startup picker recovery currently requires Windows");
   assert.deepEqual(selection.selected_scenarios, [bootstrapRecoveryScenarioId]);
@@ -207,11 +292,13 @@ export async function bootstrapRecoveryScenario({
   restart,
   output,
   artifacts,
-}) {
+}: BootstrapContext) {
+  const { transportValue, transportValues } = await import("./transport-values.mts");
   const bootstrap = async () => {
-    const result = await invoke("get_bootstrap_status");
-    assert.equal(result.ok, true, JSON.stringify(result));
-    return result.value;
+    return transportValue(
+      "desktop_bootstrap_status",
+      success(await invoke("get_bootstrap_status")),
+    );
   };
   const preferencesBefore = await readFile(fixture.preferencesBefore);
   const invalidBefore = await readFile(fixture.invalidBefore);
@@ -256,26 +343,32 @@ export async function bootstrapRecoveryScenario({
     undefined,
     fixture.selectedRoot,
   );
-  assert.equal(canonicalPath(picker.selected_directory), canonicalPath(fixture.selectedRoot));
+  assert.equal(
+    canonicalPath(text(object(picker).selected_directory)),
+    canonicalPath(fixture.selectedRoot),
+  );
   await browser.wait(async () => (await bootstrap()).ready, 15_000);
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
   const selected = await bootstrap();
   assert.ok(selected.generation > before.generation);
-  const verifyWorkspace = async (status) => {
+  const verifyWorkspace = async (status: OutputDesktopBootstrapStatus) => {
     assert.equal(status.ready, true);
-    assert.equal(canonicalPath(status.library_root), canonicalPath(fixture.selectedRoot));
-    assert.equal(status.selection.source, "saved");
+    assert.equal(canonicalPath(required(status.library_root)), canonicalPath(fixture.selectedRoot));
+    assert.equal(required(status.selection).source, "saved");
     const identity = await invoke("get_library_identity", { generation: status.generation });
     const workspace = await invoke("get_workspace_snapshot", { generation: status.generation });
     const statuses = await invoke("get_statuses");
-    for (const result of [identity, workspace, statuses])
-      assert.equal(result.ok, true, JSON.stringify(result));
-    return { identity: identity.value, workspace: workspace.value, statuses: statuses.value };
+    return {
+      identity: transportValue("library_identity", success(identity)),
+      workspace: transportValue("desktop_workspace_snapshot", success(workspace)),
+      statuses: transportValues("status", success(statuses)),
+    };
   };
   const selectedWorkspace = await verifyWorkspace(selected);
   const preferencesSelected = await readFile(fixture.preferences);
+  const savedPreferences: unknown = JSON.parse(preferencesSelected.toString("utf8"));
   assert.equal(
-    canonicalPath(JSON.parse(preferencesSelected).library_root),
+    canonicalPath(text(object(savedPreferences).library_root)),
     canonicalPath(fixture.selectedRoot),
   );
   await captureScreenshot("startup-library-recovered");
