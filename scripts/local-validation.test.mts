@@ -1756,7 +1756,7 @@ void test("native TypeScript syntax selection checks stripped JavaScript early e
     "scripts/heavy-rust-test-lock.mts",
   ]);
 });
-test("a successful payload cannot mint a reusable receipt after source changes", (t) => {
+void test("a successful payload cannot mint a reusable receipt after source changes", (t) => {
   const receiptRoot = mkdtempSync(path.join(tmpdir(), "portcove-source-change-"));
   t.after(() => rmSync(receiptRoot, { recursive: true, force: true }));
   const inventory = receiptInventory();
