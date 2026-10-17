@@ -12,6 +12,23 @@ import {
   workspaceVersion,
 } from "./release-package-policy.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
+import type { ReleasePackageEntry } from "./release-package-policy.mts";
+
+export interface ReleaseProducerLineage {
+  runId: string;
+  runAttempt: number;
+  revision: string;
+}
+interface ChecksumArguments {
+  projectRoot: string;
+  label?: string;
+  stageRoot?: string;
+  version?: string;
+  runId?: string;
+  runAttempt?: number;
+  revision?: string;
+  targetRoot?: string;
+}
 
 const scriptPath = fileURLToPath(import.meta.url);
 const defaultProjectRoot = path.resolve(path.dirname(scriptPath), "..");
@@ -29,7 +46,11 @@ function isDesktopPackage(filePath: string) {
   return desktopPackageExtensions.has(path.extname(filePath).toLowerCase());
 }
 
-async function collectDesktopPackages(projectRoot, bundleRoot: string, expectedEntries) {
+async function collectDesktopPackages(
+  projectRoot: string,
+  bundleRoot: string,
+  expectedEntries: readonly ReleasePackageEntry[],
+) {
   const packages = [];
   const formats = [
     ...new Set(
@@ -49,9 +70,11 @@ async function collectDesktopPackages(projectRoot, bundleRoot: string, expectedE
   return packages;
 }
 
-function validateLabel(label: string) {
-  if (!label?.match(/^[a-z0-9][a-z0-9._-]*$/i)) {
-    throw new Error(`invalid release platform label: ${label ?? "missing"}`);
+function validateLabel(label: unknown): asserts label is string {
+  if (typeof label !== "string" || !label.match(/^[a-z0-9][a-z0-9._-]*$/i)) {
+    throw new Error(
+      `invalid release platform label: ${typeof label === "string" ? label : "missing"}`,
+    );
   }
 }
 
@@ -85,8 +108,8 @@ export function validateStageRoot(
 
 export async function collectReleaseArtifacts(
   projectRoot: string,
-  label,
-  requestedVersion,
+  label: string,
+  requestedVersion?: string,
   targetRoot = path.join(projectRoot, "target"),
 ) {
   validateLabel(label);
@@ -116,16 +139,20 @@ export async function collectReleaseArtifacts(
   );
 }
 
-async function sha256(filePath) {
+async function sha256(filePath: string) {
   const hash = createHash("sha256");
-  for await (const chunk of createReadStream(filePath)) hash.update(chunk);
+  const bytes: AsyncIterable<unknown> = createReadStream(filePath);
+  for await (const chunk of bytes) {
+    if (!Buffer.isBuffer(chunk)) throw new Error("Release checksum stream did not yield bytes");
+    hash.update(chunk);
+  }
   return hash.digest("hex");
 }
 
 export async function writeReleaseChecksums(
   projectRoot: string,
-  label,
-  requestedVersion,
+  label: string,
+  requestedVersion?: string,
   targetRoot = path.join(projectRoot, "target"),
 ) {
   const artifacts = await collectReleaseArtifacts(projectRoot, label, requestedVersion, targetRoot);
@@ -139,12 +166,13 @@ export async function writeReleaseChecksums(
   return { artifacts, output };
 }
 
-function producerRecord(label, version, lineage) {
+function producerRecord(label: string, version: string, lineage?: ReleaseProducerLineage) {
   if (!lineage) return null;
-  if (!/^\d+$/u.test(lineage.runId ?? "")) throw new Error("release producer run ID is invalid");
+  if (typeof lineage.runId !== "string" || !/^\d+$/u.test(lineage.runId))
+    throw new Error("release producer run ID is invalid");
   if (!Number.isInteger(lineage.runAttempt) || lineage.runAttempt < 1)
     throw new Error("release producer attempt is invalid");
-  if (!/^[a-f0-9]{40}$/u.test(lineage.revision ?? ""))
+  if (typeof lineage.revision !== "string" || !/^[a-f0-9]{40}$/u.test(lineage.revision))
     throw new Error("release producer revision is invalid");
   return {
     schema_version: 1,
@@ -157,11 +185,11 @@ function producerRecord(label, version, lineage) {
 }
 
 export async function stageReleaseArtifacts(
-  projectRoot,
-  label,
-  stageRoot,
-  requestedVersion,
-  lineage,
+  projectRoot: string,
+  label: string,
+  stageRoot: string,
+  requestedVersion?: string,
+  lineage?: ReleaseProducerLineage,
   targetRoot = path.join(projectRoot, "target"),
 ) {
   const stage = validateStageRoot(projectRoot, stageRoot, targetRoot);
@@ -186,8 +214,8 @@ export async function stageReleaseArtifacts(
   };
 }
 
-function parseArguments(argv) {
-  const options = { projectRoot: defaultProjectRoot };
+function parseArguments(argv: readonly string[]) {
+  const options: ChecksumArguments = { projectRoot: defaultProjectRoot };
   for (let index = 0; index < argv.length; index += 1) {
     const name = argv[index];
     if (
@@ -200,7 +228,7 @@ function parseArguments(argv) {
         "--run-attempt",
         "--revision",
         "--target-root",
-      ].includes(name)
+      ].includes(name ?? "")
     )
       throw new Error(`unknown argument: ${name}`);
     const value = argv[index + 1];
@@ -224,13 +252,18 @@ async function main() {
   const lineageValues = [runId, runAttempt, revision].filter((value) => value !== undefined);
   if (lineageValues.length !== 0 && lineageValues.length !== 3)
     throw new Error("--run-id, --run-attempt and --revision must be supplied together");
+  validateLabel(label);
+  const lineage =
+    runId !== undefined && runAttempt !== undefined && revision !== undefined
+      ? { runId, runAttempt, revision }
+      : undefined;
   if (stageRoot) {
     const { artifacts, output, staged } = await stageReleaseArtifacts(
       projectRoot,
       label,
       stageRoot,
       version,
-      lineageValues.length === 3 ? { runId, runAttempt, revision } : undefined,
+      lineage,
       targetRoot,
     );
     console.log(

@@ -12,6 +12,8 @@ import {
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
+import { errorCode } from "./runtime-values.mts";
 
 import {
   collectReleaseArtifacts,
@@ -20,10 +22,13 @@ import {
 } from "./write-release-checksums.mts";
 import { artifactName, loadPackagePolicy, packagesForPlatform } from "./release-package-policy.mts";
 
+function parseJson(text: string): unknown {
+  return JSON.parse(text);
+}
 const policy = await loadPackagePolicy();
 const fixtureVersion = "0.1.0-alpha.2";
 
-async function fixture(t, label = "macos-aarch64") {
+async function fixture(t: TestContext, label = "macos-aarch64") {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-checksums-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "release-assets"), { recursive: true });
@@ -51,7 +56,7 @@ async function fixture(t, label = "macos-aarch64") {
   return root;
 }
 
-test("hashes distributable packages and ignores internal application files", async (t) => {
+void test("hashes distributable packages and ignores internal application files", async (t) => {
   const root = await fixture(t);
   const result = await writeReleaseChecksums(root, "macos-aarch64", fixtureVersion);
   assert.deepEqual(
@@ -64,7 +69,7 @@ test("hashes distributable packages and ignores internal application files", asy
   assert.doesNotMatch(manifest, /icon\.icns/);
 });
 
-test("stages only manifest-covered release files", async (t) => {
+void test("stages only manifest-covered release files", async (t) => {
   const root = await fixture(t);
   const stage = path.join(root, "release-upload");
 
@@ -77,14 +82,14 @@ test("stages only manifest-covered release files", async (t) => {
   assert.equal(result.staged.length, 3);
 });
 
-test("binds staged artifacts to their workflow producer", async (t) => {
+void test("binds staged artifacts to their workflow producer", async (t) => {
   const root = await fixture(t);
   const stage = path.join(root, "release-upload");
   const lineage = { runId: "34727305533", runAttempt: 2, revision: "a".repeat(40) };
 
   const result = await stageReleaseArtifacts(root, "macos-aarch64", stage, fixtureVersion, lineage);
   assert.deepEqual(
-    JSON.parse(await readFile(path.join(stage, "release-producer-macos-aarch64.json"))),
+    parseJson(await readFile(path.join(stage, "release-producer-macos-aarch64.json"), "utf8")),
     {
       schema_version: 1,
       platform_label: "macos-aarch64",
@@ -97,7 +102,7 @@ test("binds staged artifacts to their workflow producer", async (t) => {
   assert.equal(result.staged.length, 4);
 });
 
-test("collects cross-compiled desktop packages from an explicit target root", async (t) => {
+void test("collects cross-compiled desktop packages from an explicit target root", async (t) => {
   const root = await fixture(t);
   const targetRoot = path.join(root, "target/x86_64-apple-darwin");
   await mkdir(path.join(targetRoot, "release/bundle"), { recursive: true });
@@ -116,7 +121,7 @@ test("collects cross-compiled desktop packages from an explicit target root", as
   assert.equal(result.length, 2);
 });
 
-test("ignores internal AppImage links while selecting direct policy-declared packages", async (t) => {
+void test("ignores internal AppImage links while selecting direct policy-declared packages", async (t) => {
   const root = await fixture(t, "linux-x86_64");
   const appDirectory = path.join(root, "target/release/bundle/appimage/Portcove.AppDir");
   await mkdir(appDirectory, { recursive: true });
@@ -142,19 +147,19 @@ test("ignores internal AppImage links while selecting direct policy-declared pac
   );
 });
 
-test("refuses to overwrite an existing release staging directory", async (t) => {
+void test("refuses to overwrite an existing release staging directory", async (t) => {
   const root = await fixture(t);
   const stage = path.join(root, "release-upload");
   await mkdir(stage);
   await writeFile(path.join(stage, "existing.txt"), "preserve");
   await assert.rejects(
     stageReleaseArtifacts(root, "macos-aarch64", stage, fixtureVersion),
-    (error) => error.code === "EEXIST",
+    (error: unknown) => errorCode(error) === "EEXIST",
   );
   assert.equal(await readFile(path.join(stage, "existing.txt"), "utf8"), "preserve");
 });
 
-test("rejects unsafe or overlapping release staging paths", async (t) => {
+void test("rejects unsafe or overlapping release staging paths", async (t) => {
   const root = await fixture(t);
   await assert.rejects(
     stageReleaseArtifacts(root, "macos-aarch64", root, fixtureVersion),
@@ -171,7 +176,7 @@ test("rejects unsafe or overlapping release staging paths", async (t) => {
   );
 });
 
-test("refuses staging through linked ancestry without modifying the link target", async (t) => {
+void test("refuses staging through linked ancestry without modifying the link target", async (t) => {
   const root = await fixture(t);
   const outside = await mkdtemp(path.join(os.tmpdir(), "portcove-stage-outside-"));
   t.after(() => rm(outside, { recursive: true, force: true }));
@@ -191,11 +196,11 @@ test("refuses staging through linked ancestry without modifying the link target"
   assert.equal(await readFile(path.join(outside, "sentinel.txt"), "utf8"), "preserve");
   await assert.rejects(
     readFile(path.join(outside, "release-upload", "SHA256SUMS-macos-aarch64.txt")),
-    (error) => error.code === "ENOENT",
+    (error: unknown) => errorCode(error) === "ENOENT",
   );
 });
 
-test("rejects duplicate package filenames before publishing", async (t) => {
+void test("rejects duplicate package filenames before publishing", async (t) => {
   const root = await fixture(t, "linux-x86_64");
   await writeFile(
     path.join(root, "target/release/bundle/rpm/Portcove_0.1.0-alpha.2_amd64.deb"),
@@ -207,7 +212,7 @@ test("rejects duplicate package filenames before publishing", async (t) => {
   );
 });
 
-test("fails closed for missing, unexpected, or wrong-version packages", async (t) => {
+void test("fails closed for missing, unexpected, or wrong-version packages", async (t) => {
   const root = await fixture(t, "windows-x86_64");
   const cliArchive = path.join(
     root,
@@ -233,5 +238,24 @@ test("fails closed for missing, unexpected, or wrong-version packages", async (t
   await assert.rejects(
     collectReleaseArtifacts(root, "windows-x86_64", "0.1.0-alpha.3"),
     /package set mismatch/,
+  );
+});
+
+void test("producer receipts reject numeric run IDs rather than coercing them into text", async (t) => {
+  const root = await fixture(t);
+  await assert.rejects(
+    stageReleaseArtifacts(
+      root,
+      "macos-aarch64",
+      path.join(root, "release-upload"),
+      fixtureVersion,
+      {
+        // @ts-expect-error Numeric IDs deliberately exercise malformed external lineage.
+        runId: 123,
+        runAttempt: 1,
+        revision: "a".repeat(40),
+      },
+    ),
+    /producer run ID is invalid/,
   );
 });
