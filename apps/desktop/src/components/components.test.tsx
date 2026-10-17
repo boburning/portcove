@@ -283,6 +283,59 @@ const missingRuntimeFixture = (updateAvailable: boolean) => {
 };
 
 describe("desktop components", () => {
+  it("keeps a valid ZIP source distinct from the retained external runtime's required launch format", () => {
+    const runtimePort = currentCatalogPort("wave-race-64-recomp");
+    const source = {
+      profile_id: "wave-race-64",
+      path: "player-owned.zip",
+      sha256: "a".repeat(64),
+      size: 12,
+      storage_sha256: "b".repeat(64),
+      storage_size: 24,
+      updated_at: 1,
+    };
+    const status: PortStatus = {
+      ...portStatus(),
+      port_id: runtimePort.id,
+      external_runtime: {
+        id: "external-format",
+        port_id: runtimePort.id,
+        path: "C:/Player/Runtime",
+        executable: "C:/Player/Runtime/WaveRace64Recomp.exe",
+        version: "v1.0.2",
+        platform: "windows-x86-64",
+        archive_sha256: "c".repeat(64),
+        immutable_tree_sha256: "d".repeat(64),
+        registered_at: 1,
+      },
+      readiness: {
+        launchable: false,
+        pending_setup: false,
+        source: "current",
+        required_source_extension: "z64",
+        blockers: ["incompatible_source"],
+      },
+      port_actions: [{ action: "launch", availability: "waiting", reason: "incompatible_source" }],
+    };
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={runtimePort}
+        source={source}
+        sourcePath={source.path}
+        setSourcePath={vi.fn()}
+        pickSource={vi.fn()}
+        actions={actions}
+        status={status}
+      />,
+    );
+    expect(html).toContain("This runtime requires an uncompressed .z64 game file.");
+    expect(html).toContain("Select and validate that file before playing.");
+    expect(html).toContain("Files are unchanged since they were added");
+    expect(html).not.toContain("Launch availability is unavailable");
+    expect(html).not.toContain("Ready to play");
+    expect(status.readiness?.source).toBe("current");
+  });
+
   it("describes player-prepared registration before and after it joins the library", () => {
     const props = {
       port: preparedPort,
