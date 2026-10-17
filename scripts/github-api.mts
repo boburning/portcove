@@ -1,7 +1,50 @@
+import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
+import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { spawnSync } from "node:child_process";
 
+export interface GitHubRateLimit {
+  resource: string | null;
+  limit: number | null;
+  remaining: number | null;
+  used: number | null;
+  resetAt: string | null;
+  cost?: number | null;
+}
+export interface IncludedResponse {
+  status?: number;
+  headers: ReadonlyMap<string, string>;
+  body: unknown;
+}
+interface GitHubErrorDetails {
+  cause?: unknown;
+  operation?: string | null;
+  status?: number | null;
+  rateLimit?: GitHubRateLimit | null;
+}
+export type GitHubRunner = (args: readonly string[], input?: string) => string;
+export type OperationStatus = "planned" | "succeeded" | "partial" | "unknown" | "failed";
+interface EnvelopeInput {
+  operation: string;
+  status: unknown;
+  summary: string;
+  evidence?: unknown;
+  error?: unknown;
+}
+interface OperationEnvelope<Evidence> {
+  schema_version: 1;
+  operation: string;
+  status: OperationStatus;
+  summary: string;
+  evidence: Evidence;
+  error: ReturnType<typeof sanitizeOperationError> | null;
+}
+
 export class GitHubApiError extends Error {
-  constructor(code, message, details = {}) {
+  readonly code: string;
+  readonly operation: string | null;
+  readonly status: number | null;
+  readonly rateLimit: GitHubRateLimit | null;
+  constructor(code: string, message: string, details: GitHubErrorDetails = {}) {
     super(message, details.cause ? { cause: details.cause } : undefined);
     this.name = "GitHubApiError";
     this.code = code;
@@ -13,51 +56,62 @@ export class GitHubApiError extends Error {
 
 const operationStatuses = new Set(["planned", "succeeded", "partial", "unknown", "failed"]);
 
-export function sanitizeOperationError(error) {
-  const message = String(error?.message ?? error ?? "unknown error")
+export function sanitizeOperationError(error: unknown) {
+  const raw: unknown = (isRecord(error) ? error.message : undefined) ?? error ?? "unknown error";
+  const message = String(raw)
     .replace(/(?:ghp|github_pat)_[A-Za-z0-9_]+/gu, "[REDACTED]")
     .replace(/\b(token|authorization)\s*[:=]\s*\S+/giu, "$1=[REDACTED]")
     .slice(0, 2000);
   return {
-    code: typeof error?.code === "string" ? error.code : "operation_failed",
+    code: errorCode(error) ?? "operation_failed",
     message,
   };
 }
 
+export function githubOperationEnvelope<Evidence>(
+  options: EnvelopeInput & { evidence: Evidence },
+): OperationEnvelope<Evidence>;
+export function githubOperationEnvelope(options: EnvelopeInput): OperationEnvelope<unknown>;
 export function githubOperationEnvelope({
   operation,
   status,
   summary,
   evidence = {},
   error = null,
-}) {
+}: EnvelopeInput): OperationEnvelope<unknown> {
   if (typeof operation !== "string" || !operation) throw new Error("operation is required");
-  if (!operationStatuses.has(status)) throw new Error(`unsupported operation status: ${status}`);
+  if (typeof status !== "string" || !operationStatuses.has(status))
+    throw new Error(`unsupported operation status: ${String(status)}`);
   if (typeof summary !== "string" || !summary) throw new Error("operation summary is required");
+  const checkedStatus =
+    status === "planned" || status === "succeeded" || status === "partial" || status === "failed"
+      ? status
+      : "unknown";
   return {
     schema_version: 1,
     operation,
-    status,
+    status: checkedStatus,
     summary,
     evidence,
     error: error === null ? null : sanitizeOperationError(error),
   };
 }
 
-export function parseIncludedResponse(output) {
-  const text = String(output ?? "").trim();
-  if (!text) return { headers: new Map(), body: null };
+export function parseIncludedResponse(output: unknown): IncludedResponse {
+  const raw: unknown = output ?? "";
+  const text = String(raw).trim();
+  if (!text) return { headers: new Map<string, string>(), body: null };
   if (text.startsWith("{") || text.startsWith("[")) {
-    return { headers: new Map(), body: JSON.parse(text) };
+    return { headers: new Map<string, string>(), body: JSON.parse(text) };
   }
 
   const blocks = [...text.matchAll(/(?:^|\r?\n)(HTTP\/[^\r\n]+\r?\n(?:[^\r\n]*\r?\n)*?)\r?\n/gmu)];
   const block = blocks.at(-1);
   if (!block) throw new Error("GitHub API response did not contain JSON or HTTP headers");
-  const lines = block[1].trim().split(/\r?\n/u);
+  const lines = (block[1] ?? "").trim().split(/\r?\n/u);
   const status = Number(lines.shift()?.match(/^HTTP\/\S+\s+(\d+)/u)?.[1]);
   if (!Number.isInteger(status)) throw new Error("GitHub API response had an invalid HTTP status");
-  const headers = new Map();
+  const headers = new Map<string, string>();
   for (const line of lines) {
     const separator = line.indexOf(":");
     if (separator < 1) throw new Error(`GitHub API response had a malformed header: ${line}`);
@@ -67,14 +121,14 @@ export function parseIncludedResponse(output) {
   return { status, headers, body: bodyText ? JSON.parse(bodyText) : null };
 }
 
-export function numericHeader(headers, name: string) {
+export function numericHeader(headers: ReadonlyMap<string, string>, name: string) {
   const raw = headers.get(name.toLowerCase());
   if (raw === undefined) return null;
   const value = Number(raw);
   return Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
 
-export function rateLimitFromResponse(response) {
+export function rateLimitFromResponse(response: IncludedResponse): GitHubRateLimit {
   const resource = response.headers.get("x-ratelimit-resource") ?? null;
   const resetSeconds = numericHeader(response.headers, "x-ratelimit-reset");
   const headerRate = {
@@ -84,27 +138,43 @@ export function rateLimitFromResponse(response) {
     used: numericHeader(response.headers, "x-ratelimit-used"),
     resetAt: resetSeconds === null ? null : new Date(resetSeconds * 1000).toISOString(),
   };
-  const bodyRate = response.body?.data?.rateLimit;
-  if (!bodyRate) return headerRate;
+  const body = response.body;
+  const bodyRate = isRecord(body) && isRecord(body.data) ? body.data.rateLimit : undefined;
+  if (!isRecord(bodyRate)) return headerRate;
   return {
     resource: resource ?? "graphql",
-    limit: Number.isSafeInteger(bodyRate.limit) ? bodyRate.limit : headerRate.limit,
-    remaining: Number.isSafeInteger(bodyRate.remaining) ? bodyRate.remaining : headerRate.remaining,
-    used: Number.isSafeInteger(bodyRate.used) ? bodyRate.used : headerRate.used,
+    limit:
+      typeof bodyRate.limit === "number" && Number.isSafeInteger(bodyRate.limit)
+        ? bodyRate.limit
+        : headerRate.limit,
+    remaining:
+      typeof bodyRate.remaining === "number" && Number.isSafeInteger(bodyRate.remaining)
+        ? bodyRate.remaining
+        : headerRate.remaining,
+    used:
+      typeof bodyRate.used === "number" && Number.isSafeInteger(bodyRate.used)
+        ? bodyRate.used
+        : headerRate.used,
     resetAt: typeof bodyRate.resetAt === "string" ? bodyRate.resetAt : headerRate.resetAt,
-    cost: Number.isSafeInteger(bodyRate.cost) ? bodyRate.cost : null,
+    cost:
+      typeof bodyRate.cost === "number" && Number.isSafeInteger(bodyRate.cost)
+        ? bodyRate.cost
+        : null,
   };
 }
 
-export function nextLink(headers) {
+export function nextLink(headers: ReadonlyMap<string, string>) {
   const value = headers.get("link");
   if (!value) return null;
   const matches = [...value.matchAll(/<([^>]+)>;\s*rel="([^"]+)"/gu)];
-  const next = matches.find((match) => match[2].split(/\s+/u).includes("next"));
+  const next = matches.find((match) => (match[2] ?? "").split(/\s+/u).includes("next"));
   return next?.[1] ?? null;
 }
 
-export function githubRateLimitMessage(rate, prefix = "GitHub API rate limit") {
+export function githubRateLimitMessage(
+  rate: GitHubRateLimit | null | undefined,
+  prefix = "GitHub API rate limit",
+) {
   const remaining = rate?.remaining ?? "unknown";
   const reset = rate?.resetAt ?? "unknown";
   return `${prefix}: ${remaining} points remain; reset at ${reset}`;
@@ -116,7 +186,17 @@ export function createGitHubRunner({
   spawn = spawnSync,
   maxBuffer = 16 * 1024 * 1024,
   timeoutMs = 15_000,
-} = {}) {
+}: {
+  cwd?: string;
+  command?: string;
+  spawn?: (
+    command: string,
+    args: readonly string[],
+    options: SpawnSyncOptionsWithStringEncoding,
+  ) => { status: number | null; stdout: string; stderr: string; error?: Error | null };
+  maxBuffer?: number;
+  timeoutMs?: number;
+} = {}): GitHubRunner {
   if (!Number.isSafeInteger(maxBuffer) || maxBuffer <= 0)
     throw new RangeError("GitHub API output limit must be a positive safe integer number of bytes");
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647)
@@ -136,7 +216,7 @@ export function createGitHubRunner({
     });
     const operation = `gh ${args.slice(0, 3).join(" ")}`;
     if (result.error) {
-      if (result.error.code === "ETIMEDOUT") {
+      if (errorCode(result.error) === "ETIMEDOUT") {
         // A timed-out mutation may have reached GitHub. Discard even complete
         // output; the caller must reconcile remote state before any retry.
         throw new GitHubApiError(
@@ -150,7 +230,7 @@ export function createGitHubRunner({
           },
         );
       }
-      if (result.error.code === "ENOBUFS") {
+      if (errorCode(result.error) === "ENOBUFS") {
         // Neither partially collected output nor the provider's raw error is
         // trustworthy after overflow. Keep the cause code, not its payload.
         throw new GitHubApiError(
@@ -190,21 +270,22 @@ export function createGitHubRunner({
   };
 }
 
-function responseError(error, operation) {
+function responseError(error: unknown, operation: string) {
   if (error instanceof GitHubApiError) return error;
-  return new GitHubApiError("invalid_response", error.message, { operation, cause: error });
+  return new GitHubApiError("invalid_response", errorMessage(error), { operation, cause: error });
 }
 
 export class GitHubApiClient {
-  constructor(run = createGitHubRunner()) {
+  readonly run: GitHubRunner;
+  constructor(run: GitHubRunner = createGitHubRunner()) {
     this.run = run;
   }
 
-  command(args, input) {
+  command(args: readonly string[], input?: string) {
     return this.run(args, input);
   }
 
-  request(method, endpoint, body = null) {
+  request(method: string, endpoint: string, body: unknown = null) {
     const operation = `${method} ${endpoint}`;
     const input = body === null ? undefined : `${JSON.stringify(body)}\n`;
     let response;
@@ -228,7 +309,7 @@ export class GitHubApiClient {
     return { ...response, rateLimit: rateLimitFromResponse(response) };
   }
 
-  graphql(query, variables = {}) {
+  graphql(query: string, variables: Readonly<Record<string, unknown>> = {}) {
     const operation = "POST graphql";
     let response;
     try {
@@ -242,10 +323,12 @@ export class GitHubApiClient {
       throw responseError(error, operation);
     }
     const rateLimit = rateLimitFromResponse(response);
-    const errors = response.body?.errors;
+    const errors = isRecord(response.body) ? response.body.errors : undefined;
     if (Array.isArray(errors) && errors.length) {
       const message = errors
-        .map((error) => (typeof error?.message === "string" ? error.message : "unknown error"))
+        .map((error: unknown) =>
+          isRecord(error) && typeof error.message === "string" ? error.message : "unknown error",
+        )
         .join("; ");
       throw new GitHubApiError(
         "graphql_error",
@@ -264,15 +347,25 @@ export class GitHubApiClient {
   }
 
   paginateRest(
-    endpoint,
-    { select = (body) => body, identity, totalCount = null, label = "GitHub collection" },
+    endpoint: string,
+    {
+      select = (body) => body,
+      identity,
+      totalCount = null,
+      label = "GitHub collection",
+    }: {
+      select?: (body: unknown) => unknown;
+      identity: (value: unknown) => unknown;
+      totalCount?: ((body: unknown) => number | null) | null;
+      label?: string;
+    },
   ) {
     if (typeof identity !== "function") throw new Error("REST pagination requires identity");
-    const records = [];
-    const identities = new Set();
-    const pages = new Set();
-    let expectedTotal = null;
-    let next = endpoint;
+    const records: unknown[] = [];
+    const identities = new Set<string | number>();
+    const pages = new Set<string>();
+    let expectedTotal: number | null = null;
+    let next: string | null = endpoint;
     while (next) {
       if (pages.has(next)) throw new Error(`${label} pagination did not advance`);
       pages.add(next);
@@ -286,9 +379,10 @@ export class GitHubApiClient {
         expectedTotal ??= reported;
         if (expectedTotal !== reported) throw new Error(`${label} total changed during pagination`);
       }
-      for (const value of values) {
+      const pageRecords: readonly unknown[] = values;
+      for (const value of pageRecords) {
         const id = identity(value);
-        if (!id || identities.has(id))
+        if ((typeof id !== "string" && typeof id !== "number") || !id || identities.has(id))
           throw new Error(`${label} contains a missing or duplicate ID`);
         identities.add(id);
         records.push(value);

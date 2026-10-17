@@ -5278,3 +5278,17 @@ test("Roadmap command help is available without the GitHub executable or operati
     );
   });
 }
+
+void test("configuration validation retains the original Project definitions and rejects malformed view arrays", () => {
+  const candidate = structuredClone(config);
+  const before = structuredClone(candidate);
+  const checked = validateConfig(candidate);
+  assert.equal(checked, candidate);
+  assert.deepEqual(checked, before);
+  for (const views of [undefined, null, {}])
+    assert.throws(() => validateConfig({ ...candidate, views }), /views must be an array/);
+  assert.throws(
+    () => validateConfig({ ...candidate, views: [{ ...candidate.views[0], fields: [42] }] }),
+    /visible fields/,
+  );
+});

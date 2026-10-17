@@ -204,9 +204,8 @@ first verifies the coordinated installed toolchain and also runs Stylelint. The
 shared compiler policy enables strict, exactOptionalPropertyTypes and
 noUncheckedIndexedAccess across application TS/TSX, typed tests/fixtures and
 runtime-specific configuration projects. There is no narrow strict project or
-duplicate compiler task. Untyped Node
-scripts use Node globals and correctness lint; browser and typed code retain
-their actual execution-environment distinctions. Rust formatting,
+duplicate compiler task. Native Node scripts and their tests use Node globals
+and type-aware lint rules; browser callbacks retain their actual DOM environment. Rust formatting,
 Oxlint source policy, Stylelint CSS, localization, deterministic theme tests
 and transport contracts retain their distinct responsibilities. `pnpm verify:frontend`
 (or `vp run frontend:verify`) composes static checks and the runtime group: content/schema,

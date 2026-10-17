@@ -1,4 +1,4 @@
-import { errorMessage } from "./runtime-values.mts";
+import { errorMessage, isRecord } from "./runtime-values.mts";
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { access, readFile } from "node:fs/promises";
@@ -31,7 +31,39 @@ const layouts = new Set(["TABLE_LAYOUT", "BOARD_LAYOUT", "ROADMAP_LAYOUT"]);
 const legacyReleaseSequence = ["Alpha 1", "Alpha 2", "Alpha 3", "Beta 1", "Beta 2", "RC", "V1"];
 export const releaseSequence = [...legacyReleaseSequence, "Public beta", "1.0"];
 
-function includedReleaseTargets(release) {
+export interface RoadmapFieldDefinition {
+  name: string;
+  options: string[];
+}
+export interface RoadmapViewDefinition {
+  name: string;
+  previous_name?: string;
+  layout: string;
+  filter: string;
+  fields: string[];
+  manual_group_by: string | null;
+  manual_sort_by: string;
+}
+export interface RoadmapConfig {
+  schema_version: 1;
+  owner: string;
+  repository: string;
+  active_release: string;
+  delivery_mode?: unknown;
+  runner_coordination?: unknown;
+  outcome_label?: unknown;
+  project: {
+    number: number;
+    title: string;
+    description: string;
+    readme: string;
+    visibility: "PUBLIC";
+  };
+  fields: RoadmapFieldDefinition[];
+  views: RoadmapViewDefinition[];
+}
+
+function includedReleaseTargets(release: string) {
   if (release === "Public beta") return ["Alpha 1", "Alpha 2", "Public beta"];
   if (release === "1.0") return [...legacyReleaseSequence, "Public beta", "1.0"];
   const index = legacyReleaseSequence.indexOf(release);
@@ -389,12 +421,12 @@ function normalizedKey(value) {
     .replace(/[^a-z0-9]/g, "");
 }
 
-function ensureString(value: string, label) {
+function ensureString(value: unknown, label: string): asserts value is string {
   if (typeof value !== "string" || !value.trim())
     throw new Error(`${label} must be a non-empty string`);
 }
 
-function findVolatileKey(value, prefix = "config") {
+function findVolatileKey(value: unknown, prefix = "config"): string | null {
   if (!value || typeof value !== "object") return null;
   for (const [key, child] of Object.entries(value)) {
     const location = `${prefix}.${key}`;
@@ -405,21 +437,36 @@ function findVolatileKey(value, prefix = "config") {
   return null;
 }
 
-export function validateConfig(config, { requireProjectNumber = false } = {}) {
+function assertRoadmapConfig(
+  config: unknown,
+  { requireProjectNumber = false } = {},
+): asserts config is RoadmapConfig {
   deliveryMode(config);
-  if (config?.schema_version !== 1) throw new Error("roadmap schema_version must be 1");
+  if (!isRecord(config) || config.schema_version !== 1)
+    throw new Error("roadmap schema_version must be 1");
   ensureString(config.owner, "roadmap owner");
-  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(config.repository ?? "")) {
+  if (
+    typeof config.repository !== "string" ||
+    !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(config.repository)
+  ) {
     throw new Error("roadmap repository must be owner/name");
   }
-  ensureString(config.project?.title, "project title");
+  if (!isRecord(config.project)) throw new Error("roadmap project is required");
+  ensureString(config.project.title, "project title");
   ensureString(config.project?.description, "project description");
   ensureString(config.project?.readme, "project readme");
-  if (!releaseSequence.includes(config.active_release)) {
+  if (
+    typeof config.active_release !== "string" ||
+    !releaseSequence.includes(config.active_release)
+  ) {
     throw new Error(`active_release must be one of ${releaseSequence.join(", ")}`);
   }
   if (config.project?.visibility !== "PUBLIC") throw new Error("roadmap project must be PUBLIC");
-  if (!Number.isInteger(config.project?.number) || config.project.number < 0) {
+  if (
+    typeof config.project.number !== "number" ||
+    !Number.isInteger(config.project.number) ||
+    config.project.number < 0
+  ) {
     throw new Error("project number must be a non-negative integer");
   }
   if (requireProjectNumber && config.project.number < 1) {
@@ -427,16 +474,20 @@ export function validateConfig(config, { requireProjectNumber = false } = {}) {
       "project number is not recorded; run bootstrap and update .github/roadmap.json",
     );
   }
-  const fieldNames = new Set();
-  for (const field of config.fields ?? []) {
+  const fieldNames = new Set<string>();
+  if (!Array.isArray(config.fields)) throw new Error("roadmap fields must be an array");
+  const inputFields: readonly unknown[] = config.fields;
+  for (const field of inputFields) {
+    if (!isRecord(field)) throw new Error("roadmap field must be an object");
     ensureString(field.name, "field name");
     if (fieldNames.has(field.name)) throw new Error(`duplicate field: ${field.name}`);
     fieldNames.add(field.name);
     if (!Array.isArray(field.options) || field.options.length === 0) {
       throw new Error(`field ${field.name} must define options`);
     }
-    const options = new Set();
-    for (const option of field.options) {
+    const options = new Set<string>();
+    const inputOptions: readonly unknown[] = field.options;
+    for (const option of inputOptions) {
       ensureString(option, `${field.name} option`);
       if (options.has(option)) throw new Error(`duplicate ${field.name} option: ${option}`);
       options.add(option);
@@ -456,9 +507,12 @@ export function validateConfig(config, { requireProjectNumber = false } = {}) {
   ]) {
     if (!fieldNames.has(required)) throw new Error(`missing required roadmap field: ${required}`);
   }
-  const viewNames = new Set();
-  const viewAliases = new Set();
-  for (const view of config.views ?? []) {
+  const viewNames = new Set<string>();
+  const viewAliases = new Set<string>();
+  if (!Array.isArray(config.views)) throw new Error("roadmap views must be an array");
+  const inputViews: readonly unknown[] = config.views;
+  for (const view of inputViews) {
+    if (!isRecord(view)) throw new Error("roadmap view must be an object");
     ensureString(view.name, "view name");
     if (viewNames.has(view.name)) throw new Error(`duplicate view: ${view.name}`);
     viewNames.add(view.name);
@@ -468,11 +522,13 @@ export function validateConfig(config, { requireProjectNumber = false } = {}) {
         throw new Error(`duplicate previous view name: ${view.previous_name}`);
       viewAliases.add(view.previous_name);
     }
-    if (!layouts.has(view.layout)) throw new Error(`view ${view.name} has invalid layout`);
+    if (typeof view.layout !== "string" || !layouts.has(view.layout))
+      throw new Error(`view ${view.name} has invalid layout`);
     if (
       typeof view.filter !== "string" ||
       !Array.isArray(view.fields) ||
-      view.fields.length === 0
+      view.fields.length === 0 ||
+      view.fields.some((field: unknown) => typeof field !== "string")
     ) {
       throw new Error(`view ${view.name} must define a filter and visible fields`);
     }
@@ -494,17 +550,24 @@ export function validateConfig(config, { requireProjectNumber = false } = {}) {
   const volatile = findVolatileKey(config);
   if (volatile)
     throw new Error(`roadmap configuration contains volatile planning data at ${volatile}`);
+}
+
+export function validateConfig(
+  config: unknown,
+  options: { requireProjectNumber?: boolean } = {},
+): RoadmapConfig {
+  assertRoadmapConfig(config, options);
   return config;
 }
 
-export function materializeViews(config) {
+export function materializeViews(config: Pick<RoadmapConfig, "views" | "active_release">) {
   return config.views.map((view) => ({
     ...view,
     filter: view.filter.replaceAll("${active_release}", config.active_release),
   }));
 }
 
-export function validateDurableIssueBody(body) {
+export function validateDurableIssueBody(body: unknown) {
   ensureString(body, "durable issue body");
   validateGitHubBody(body);
   const missing = durableIssueHeadings.filter((heading: string) => {
@@ -512,7 +575,7 @@ export function validateDurableIssueBody(body) {
       new RegExp(`^## ${heading.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\s*$`, "im"),
     );
     if (!match) return true;
-    const start = match.index + match[0].length;
+    const start = (match.index ?? 0) + match[0].length;
     const next = body.slice(start).search(/^##\s/m);
     const content = body.slice(start, next < 0 ? undefined : start + next).trim();
     return !content || /^(?:pending|tbd|todo)[.!]?$/i.test(content.replace(/^[-*]\s*/, ""));
@@ -1426,14 +1489,14 @@ function latestOperationalConsumption(requests) {
   return latest;
 }
 
-export function deliveryMode(config) {
-  const mode = config?.delivery_mode ?? "coordinated";
-  if (!["coordinated", "single-local-runner"].includes(mode))
+export function deliveryMode(config: unknown) {
+  const mode = (isRecord(config) ? config.delivery_mode : undefined) ?? "coordinated";
+  if (mode !== "coordinated" && mode !== "single-local-runner")
     throw new Error("delivery_mode must be coordinated or single-local-runner");
   return mode;
 }
 
-function requireCoordinatedDelivery(config) {
+function requireCoordinatedDelivery(config: unknown) {
   if (deliveryMode(config) === "single-local-runner")
     throw new Error(
       "coordination is retired; preserve history and use the owning issue/PR for delivery evidence",

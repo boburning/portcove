@@ -1,3 +1,5 @@
+import type { SpawnSyncOptionsWithStringEncoding, SpawnSyncReturns } from "node:child_process";
+import { errorCode, isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
@@ -13,7 +15,7 @@ import {
   sanitizeOperationError,
 } from "./github-api.mts";
 
-test("included GitHub responses expose the final headers body and rate limit", () => {
+void test("included GitHub responses expose the final headers body and rate limit", () => {
   const response = parseIncludedResponse(
     "HTTP/2.0 200 OK\r\n" +
       "x-ratelimit-resource: graphql\r\n" +
@@ -24,7 +26,7 @@ test("included GitHub responses expose the final headers body and rate limit", (
       '{"data":{"viewer":{"login":"example"}}}',
   );
   assert.equal(response.status, 200);
-  assert.equal(response.body.data.viewer.login, "example");
+  assert.deepEqual(response.body, { data: { viewer: { login: "example" } } });
   assert.deepEqual(rateLimitFromResponse(response), {
     resource: "graphql",
     limit: 5000,
@@ -34,7 +36,7 @@ test("included GitHub responses expose the final headers body and rate limit", (
   });
 });
 
-test("JSON-only mock responses and paginated Link headers remain supported", () => {
+void test("JSON-only mock responses and paginated Link headers remain supported", () => {
   assert.deepEqual(parseIncludedResponse('{"ok":true}').body, { ok: true });
   const response = parseIncludedResponse(
     'HTTP/2.0 200 OK\nlink: <https://api.example/page/2>; rel="next", <https://api.example/page/9>; rel="last"\n\n[]',
@@ -42,21 +44,21 @@ test("JSON-only mock responses and paginated Link headers remain supported", () 
   assert.equal(nextLink(response.headers), "https://api.example/page/2");
 });
 
-test("malformed included responses fail closed", () => {
+void test("malformed included responses fail closed", () => {
   for (const value of ["not json", "HTTP/2.0 nope\r\n\r\n{}", "HTTP/2.0 200 OK\r\nbad\r\n\r\n{}"]) {
     assert.throws(() => parseIncludedResponse(value), /GitHub API|JSON|status|header/);
   }
 });
 
-test("GraphQL sends shell-sensitive queries and variables only through JSON stdin", () => {
-  const calls = [];
+void test("GraphQL sends shell-sensitive queries and variables only through JSON stdin", () => {
+  const calls: { args: readonly string[]; input: string | undefined }[] = [];
   const client = new GitHubApiClient((args, input) => {
     calls.push({ args, input });
     return JSON.stringify({ data: { node: { id: "opaque" } } });
   });
   const query = 'query($value: String!) { node(id: "quote\\\" `$HOME\n雪") { id } }';
   const variables = { value: '"quoted"\n`literal` $HOME 雪' };
-  assert.equal(client.graphql(query, variables).data.node.id, "opaque");
+  assert.deepEqual(client.graphql(query, variables).data, { node: { id: "opaque" } });
   assert.deepEqual(calls, [
     {
       args: ["api", "graphql", "--include", "--input", "-"],
@@ -65,8 +67,8 @@ test("GraphQL sends shell-sensitive queries and variables only through JSON stdi
   ]);
 });
 
-test("REST requests use JSON stdin and retain response metadata", () => {
-  const calls = [];
+void test("REST requests use JSON stdin and retain response metadata", () => {
+  const calls: { args: readonly string[]; input: string | undefined }[] = [];
   const client = new GitHubApiClient((args, input) => {
     calls.push({ args, input });
     return 'HTTP/2.0 200 OK\r\nx-ratelimit-resource: core\r\nx-ratelimit-remaining: 4999\r\n\r\n{"ok":true}';
@@ -82,7 +84,7 @@ test("REST requests use JSON stdin and retain response metadata", () => {
   ]);
 });
 
-test("REST pagination rejects loops duplicates changing totals and short reads", () => {
+void test("REST pagination rejects loops duplicates changing totals and short reads", () => {
   const pages = new Map([
     [
       "first",
@@ -90,38 +92,62 @@ test("REST pagination rejects loops duplicates changing totals and short reads",
     ],
     ["second", '{"total_count":2,"items":[{"id":"B"}]}'],
   ]);
-  const client = new GitHubApiClient((args) => pages.get(args[2]));
+  const client = new GitHubApiClient((args) => {
+    const result = pages.get(args[2] ?? "");
+    assert(result !== undefined);
+    return result;
+  });
   assert.deepEqual(
     client.paginateRest("first", {
-      select: (body) => body.items,
-      identity: (item) => item.id,
-      totalCount: (body) => body.total_count,
+      select: (body) => {
+        assert(isRecord(body));
+        return body.items;
+      },
+      identity: (item) => {
+        assert(isRecord(item));
+        return item.id;
+      },
+      totalCount: (body) => {
+        assert(isRecord(body) && typeof body.total_count === "number");
+        return body.total_count;
+      },
       label: "items",
     }),
     [{ id: "A" }, { id: "B" }],
   );
 
+  const firstPage = pages.get("first");
+  assert(firstPage !== undefined);
   for (const [first, second, pattern] of [
     [
-      pages.get("first"),
+      firstPage,
       'HTTP/2.0 200 OK\nlink: <first>; rel="next"\n\n{"total_count":2,"items":[{"id":"B"}]}',
       /did not advance/,
     ],
-    [pages.get("first"), '{"total_count":2,"items":[{"id":"A"}]}', /duplicate ID/],
-    [pages.get("first"), '{"total_count":3,"items":[{"id":"B"}]}', /total changed/],
+    [firstPage, '{"total_count":2,"items":[{"id":"A"}]}', /duplicate ID/],
+    [firstPage, '{"total_count":3,"items":[{"id":"B"}]}', /total changed/],
     [
       'HTTP/2.0 200 OK\nlink: <second>; rel="next"\n\n{"total_count":3,"items":[{"id":"A"}]}',
       '{"total_count":3,"items":[{"id":"B"}]}',
       /count does not match/,
     ],
-  ]) {
+  ] satisfies [string, string, RegExp][]) {
     const failing = new GitHubApiClient((args) => (args[2] === "first" ? first : second));
     assert.throws(
       () =>
         failing.paginateRest("first", {
-          select: (body) => body.items,
-          identity: (item) => item.id,
-          totalCount: (body) => body.total_count,
+          select: (body) => {
+            assert(isRecord(body));
+            return body.items;
+          },
+          identity: (item) => {
+            assert(isRecord(item));
+            return item.id;
+          },
+          totalCount: (body) => {
+            assert(isRecord(body) && typeof body.total_count === "number");
+            return body.total_count;
+          },
           label: "items",
         }),
       pattern,
@@ -129,7 +155,7 @@ test("REST pagination rejects loops duplicates changing totals and short reads",
   }
 });
 
-test("GraphQL errors retain safe provider quota evidence", () => {
+void test("GraphQL errors retain safe provider quota evidence", () => {
   const client = new GitHubApiClient(() =>
     JSON.stringify({
       data: { rateLimit: { cost: 1, limit: 5000, remaining: 0, resetAt: "soon", used: 5000 } },
@@ -141,12 +167,12 @@ test("GraphQL errors retain safe provider quota evidence", () => {
     (error) =>
       error instanceof GitHubApiError &&
       error.code === "graphql_error" &&
-      error.rateLimit.remaining === 0 &&
+      error.rateLimit?.remaining === 0 &&
       !error.message.includes("viewer"),
   );
 });
 
-test("the shared runner preserves command failures without echoing stdin", () => {
+void test("the shared runner preserves command failures without echoing stdin", () => {
   const run = createGitHubRunner({
     spawn: (_command, _args, options) => ({
       error: null,
@@ -165,7 +191,14 @@ test("the shared runner preserves command failures without echoing stdin", () =>
   );
 });
 
-function outputFixture(stdout, stderr = "", options = {}) {
+function outputFixture(
+  stdout: string,
+  stderr = "",
+  options: Pick<
+    NonNullable<Parameters<typeof createGitHubRunner>[0]>,
+    "maxBuffer" | "timeoutMs"
+  > = {},
+) {
   return createGitHubRunner({
     ...options,
     spawn: (_command, _args, spawnOptions) =>
@@ -180,15 +213,15 @@ function outputFixture(stdout, stderr = "", options = {}) {
   });
 }
 
-test("the ordinary runner collects complete JSON above the former one MiB limit", () => {
+void test("the ordinary runner collects complete JSON above the former one MiB limit", () => {
   const body = { data: { value: "x".repeat(1100000) } };
   const client = new GitHubApiClient(outputFixture(JSON.stringify(body)));
   assert.deepEqual(client.graphql("query { value }").data, body.data);
 });
 
-test("the runner passes a bounded default and preserves explicit finite overrides", () => {
+void test("the runner passes a bounded default and preserves explicit finite overrides", () => {
   for (const limit of [undefined, 1024, 32 * 1024 * 1024]) {
-    let options;
+    let options: SpawnSyncOptionsWithStringEncoding | undefined;
     const run = createGitHubRunner({
       ...(limit === undefined ? {} : { maxBuffer: limit }),
       spawn: (_command, _args, observed) => {
@@ -197,6 +230,7 @@ test("the runner passes a bounded default and preserves explicit finite override
       },
     });
     assert.equal(run(["api", "graphql", "--include"], "private input"), "{}");
+    assert(options);
     assert.equal(options.maxBuffer, limit ?? 16 * 1024 * 1024);
     assert.equal(options.input, "private input");
     assert.equal(options.encoding, "utf8");
@@ -205,7 +239,7 @@ test("the runner passes a bounded default and preserves explicit finite override
   }
 });
 
-test("invalid output limits fail before any subprocess is started", () => {
+void test("invalid output limits fail before any subprocess is started", () => {
   for (const maxBuffer of [
     null,
     0,
@@ -223,9 +257,11 @@ test("invalid output limits fail before any subprocess is started", () => {
     assert.throws(
       () =>
         createGitHubRunner({
+          // @ts-expect-error -- Malformed boundary inputs must still be rejected before spawn.
           maxBuffer,
           spawn: () => {
             calls += 1;
+            assert.fail("Invalid output limit reached subprocess execution");
           },
         }),
       /positive safe integer/,
@@ -234,7 +270,7 @@ test("invalid output limits fail before any subprocess is started", () => {
   }
 });
 
-test("GitHub subprocesses have a finite default and validated explicit time bounds", () => {
+void test("GitHub subprocesses have a finite default and validated explicit time bounds", () => {
   for (const timeoutMs of [undefined, 1000]) {
     const run = createGitHubRunner({
       ...(timeoutMs === undefined ? {} : { timeoutMs }),
@@ -249,15 +285,23 @@ test("GitHub subprocesses have a finite default and validated explicit time boun
   for (const timeoutMs of [null, 0, -1, 1.5, NaN, Infinity, "1000", 2_147_483_648]) {
     let calls = 0;
     assert.throws(
-      () => createGitHubRunner({ timeoutMs, spawn: () => calls++ }),
+      () =>
+        createGitHubRunner({
+          // @ts-expect-error -- Malformed boundary inputs deliberately include non-number timeouts.
+          timeoutMs,
+          spawn: () => {
+            calls++;
+            assert.fail("Invalid timeout reached subprocess execution");
+          },
+        }),
       /timeout must be a positive integer/,
     );
     assert.equal(calls, 0);
   }
 });
 
-test("an actually running stalled subprocess is terminated and its complete JSON discarded", () => {
-  let observed;
+void test("an actually running stalled subprocess is terminated and its complete JSON discarded", () => {
+  let observed: SpawnSyncReturns<string> | undefined;
   const client = new GitHubApiClient(
     createGitHubRunner({
       timeoutMs: 1000,
@@ -277,20 +321,25 @@ test("an actually running stalled subprocess is terminated and its complete JSON
   assert.throws(
     () => client.graphql("query { privateInput }"),
     (error) => {
+      assert(error instanceof GitHubApiError);
       assert.equal(error.code, "command_failed");
-      assert.equal(error.cause.code, "ETIMEDOUT");
+      assert.equal(errorCode(error.cause), "ETIMEDOUT");
       assert.equal(error.status, null);
       assert.equal(error.rateLimit, null);
-      assert.doesNotMatch(`${error.message} ${error.cause.message}`, /private|accepted/);
+      assert.doesNotMatch(
+        `${error.message} ${error.cause instanceof Error ? error.cause.message : String(error.cause)}`,
+        /private|accepted/,
+      );
       return true;
     },
   );
+  assert(observed);
   assert.equal(observed.stdout, '{"data":{"accepted":true}}');
   assert.equal(observed.stderr, "private-stderr");
-  assert.equal(observed.error.code, "ETIMEDOUT");
+  assert.equal(errorCode(observed.error), "ETIMEDOUT");
 });
 
-test("timeout diagnostics discard raw subprocess errors and do not retry mutations", () => {
+void test("timeout diagnostics discard raw subprocess errors and do not retry mutations", () => {
   let calls = 0;
   const client = new GitHubApiClient(
     createGitHubRunner({
@@ -310,9 +359,10 @@ test("timeout diagnostics discard raw subprocess errors and do not retry mutatio
   assert.throws(
     () => client.request("PUT", "repos/example/project/pulls/1/merge", { sha: "private-input" }),
     (error) => {
-      assert.equal(error.cause.code, "ETIMEDOUT");
+      assert(error instanceof GitHubApiError);
+      assert.equal(errorCode(error.cause), "ETIMEDOUT");
       assert.doesNotMatch(
-        `${error.message} ${error.cause.message}`,
+        `${error.message} ${error.cause instanceof Error ? error.cause.message : String(error.cause)}`,
         /private|authorization|merged/,
       );
       return true;
@@ -321,19 +371,19 @@ test("timeout diagnostics discard raw subprocess errors and do not retry mutatio
   assert.equal(calls, 1);
 });
 
-test("stdout and stderr overflow refuse even valid partial output without exposing payloads", () => {
+void test("stdout and stderr overflow refuse even valid partial output without exposing payloads", () => {
   for (const [stdout, stderr] of [
     [JSON.stringify({ data: { value: "private-output".repeat(1000) } }), ""],
     ['{"data":', "private-stderr".repeat(1000)],
     [JSON.stringify({ data: { value: "complete but untrusted" } }), "private-stderr".repeat(1000)],
-  ]) {
+  ] satisfies [string, string][]) {
     const client = new GitHubApiClient(outputFixture(stdout, stderr, { maxBuffer: 1024 }));
     assert.throws(
       () => client.graphql("query { privateInput }"),
       (error) => {
         assert.ok(error instanceof GitHubApiError);
         assert.equal(error.code, "command_failed");
-        assert.equal(error.cause.code, "ENOBUFS");
+        assert.equal(errorCode(error.cause), "ENOBUFS");
         assert.match(error.message, /1024-byte collection limit/);
         assert.doesNotMatch(error.message, /private|untrusted|data/);
         assert.equal(error.status, null);
@@ -344,7 +394,7 @@ test("stdout and stderr overflow refuse even valid partial output without exposi
   }
 });
 
-test("overflow diagnostics discard the raw subprocess error as well as its output", () => {
+void test("overflow diagnostics discard the raw subprocess error as well as its output", () => {
   const run = createGitHubRunner({
     maxBuffer: 1024,
     spawn: () => ({
@@ -357,10 +407,11 @@ test("overflow diagnostics discard the raw subprocess error as well as its outpu
   assert.throws(
     () => run(["api", "graphql", "--include"], "secret input"),
     (error) => {
+      assert(error instanceof GitHubApiError);
       assert.equal(error.code, "command_failed");
-      assert.equal(error.cause.code, "ENOBUFS");
+      assert.equal(errorCode(error.cause), "ENOBUFS");
       assert.doesNotMatch(
-        `${error.message} ${error.cause.message}`,
+        `${error.message} ${error.cause instanceof Error ? error.cause.message : String(error.cause)}`,
         /private|secret|authorization|token/,
       );
       assert.match(error.message, /1024-byte collection limit/);
@@ -369,11 +420,12 @@ test("overflow diagnostics discard the raw subprocess error as well as its outpu
   );
 });
 
-test("truncated JSON below the cap remains a response failure rather than an overflow", () => {
+void test("truncated JSON below the cap remains a response failure rather than an overflow", () => {
   const client = new GitHubApiClient(outputFixture('{"data":', "", { maxBuffer: 1024 }));
   assert.throws(
     () => client.graphql("query { value }"),
     (error) => {
+      assert(error instanceof GitHubApiError);
       assert.equal(error.code, "invalid_response");
       assert.doesNotMatch(error.message, /collection limit/);
       return true;
@@ -381,7 +433,7 @@ test("truncated JSON below the cap remains a response failure rather than an ove
   );
 });
 
-test("operation envelopes share one stable schema and redact credential-shaped errors", () => {
+void test("operation envelopes share one stable schema and redact credential-shaped errors", () => {
   assert.deepEqual(
     githubOperationEnvelope({
       operation: "roadmap.set-many",
@@ -409,7 +461,7 @@ test("operation envelopes share one stable schema and redact credential-shaped e
   );
 });
 
-test("repository GitHub callers do not spawn gh outside the shared transport", async () => {
+void test("repository GitHub callers do not spawn gh outside the shared transport", async () => {
   for (const file of [
     "roadmap.mts",
     "pr-delivery.mts",
@@ -420,4 +472,20 @@ test("repository GitHub callers do not spawn gh outside the shared transport", a
     const source = await readFile(new URL(file, import.meta.url), "utf8");
     assert.doesNotMatch(source, /(?:spawn|spawnSync|execFile|execFileSync)\(\s*["']gh["']/u, file);
   }
+});
+
+void test("REST pagination refuses object-shaped IDs instead of treating equal values as distinct identities", () => {
+  const client = new GitHubApiClient(() =>
+    JSON.stringify([{ id: { value: "A" } }, { id: { value: "A" } }]),
+  );
+  assert.throws(
+    () =>
+      client.paginateRest("fixture", {
+        identity: (record) => {
+          assert(isRecord(record));
+          return record.id;
+        },
+      }),
+    /missing or duplicate ID/,
+  );
 });
