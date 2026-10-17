@@ -406,6 +406,51 @@ Pages/feed permissions remain disabled pending #534. The checked-in fixture test
 are nonproduction evidence, not proof that a subscription task or production
 credential path is active.
 
+### Durable local coordinator checkpoints
+
+`await checkpointReleaseOpportunity(repository, expectedPrevious, input)` in
+`scripts/release-coordinator-state.mts` persists the existing planner's validated
+input and returns its plan plus an exact checkpoint commit. It executes no plan.
+Use `null` only for explicit first initialization; subsequent calls supply the
+last checkpoint identity. `await recoverReleaseOpportunity(repository, expected)`
+recovers that exact snapshot only if its current ref and prepared receipts still
+agree. Callers must independently authenticate the live inventory, controller,
+checks and publication facts before recording them. Persistence does not
+authenticate supplied evidence or grant execution/publication authority.
+
+One retained Git repository and its linked worktrees share
+`refs/portcove/release-coordinator-state`. Parent-linked commits retain canonical,
+bounded snapshots without changing a checkout, index or branch. State CAS and
+both existing prepared-version/source receipt verifies share one Git transaction.
+The transaction inspects ref types while Git holds those locks, aborting symbolic
+aliases before commit. Preparation notes are strings, so canonical checkpoint
+serialization preserves their exact intent bytes.
+Identical lost-response retries verify that complete receipt set; stale preimages,
+missing or conflicting allocation refs and locked state refuse. Separate clones
+are separate coordinators, so this is not a global or hosted reservation service.
+The activated controller must retain the one repository; it must never treat a
+lost initialized ref as a new empty allocator. Existing immutable allocation refs
+remain in place after completion.
+
+Admission binds the preceding preparation plan, controller identity and exact
+preparation intent. Active source/tree, prepared commit/tree, version and intent
+stay frozen. Recorded phase advances refuse skips; they do not establish actual
+qualification or execution. Failed candidates
+keep their failure classification until a planned bounded retry/repair restarts
+at `prepared` with no run. Counters cannot decrease or jump. A recorded run can
+change only through that recovery. Clearing a `promoting` candidate requires the
+matching version/source in the independently authenticated publication inventory;
+the tool verifies its supplied shape, not remote publication. Pause/capacity
+snapshots retain the active candidate. Recovering an old snapshot does not renew
+its inventory freshness for a future action.
+
+This supplies nonproduction local persistence/refusal controls for #534. Trusted
+execution/principal enforcement, producer-job/attempt/artifact binding, isolated
+candidate runners/caches, protected remote durability, custody, signing/feed
+activation and actual Windows/Linux public recovery proof remain separate.
+
+### Read-only release-run evidence
+
 `node scripts/release-run-evidence.mts REQUEST.json` collects bounded read-only
 API evidence for an exact completed current `Release` run and attempt. The
 request contains only schema version `1`, numeric `repository_id`, `run_id` and

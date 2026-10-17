@@ -1,0 +1,398 @@
+import { execFileSync, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import path from "node:path";
+import { planReleaseOpportunity } from "./release-coordinator.mts";
+import { isRecord } from "./runtime-values.mts";
+import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
+
+// One coordinating Git repository, shared by its linked worktrees. This is not
+// a remote allocator, an authority verifier, or permission to execute a plan.
+export const coordinatorStateRef = "refs/portcove/release-coordinator-state";
+const zero = "0".repeat(40);
+const maximumBytes = 64 * 1024;
+
+function identity(value: unknown): asserts value is string {
+  if (typeof value !== "string" || !/^[a-f0-9]{40}$/u.test(value))
+    throw new Error("coordinator checkpoint requires an exact Git identity");
+}
+
+function canonical(value: unknown): string {
+  function sorted(entry: unknown): unknown {
+    if (Array.isArray(entry)) return entry.map(sorted);
+    if (isRecord(entry))
+      return Object.fromEntries(
+        Object.keys(entry)
+          .sort()
+          .map((key) => [key, sorted(entry[key])]),
+      );
+    return entry;
+  }
+  return JSON.stringify(sorted(value));
+}
+
+function gitRepository(repository: string) {
+  const env = {
+    ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_"))),
+    GIT_NO_REPLACE_OBJECTS: "1",
+    GIT_NO_LAZY_FETCH: "1",
+    GIT_AUTHOR_NAME: "Portcove release coordinator",
+    GIT_AUTHOR_EMAIL: "coordinator@portcove.invalid",
+    GIT_COMMITTER_NAME: "Portcove release coordinator",
+    GIT_COMMITTER_EMAIL: "coordinator@portcove.invalid",
+    GIT_AUTHOR_DATE: "2000-01-01T00:00:00Z",
+    GIT_COMMITTER_DATE: "2000-01-01T00:00:00Z",
+  };
+  const base = [
+    "-C",
+    path.resolve(repository),
+    "-c",
+    `core.hooksPath=${process.platform === "win32" ? "NUL" : "/dev/null"}`,
+    "-c",
+    "core.fsmonitor=false",
+    "-c",
+    "core.createObject=link",
+    "-c",
+    "commit.gpgSign=false",
+    "-c",
+    "core.filesRefLockTimeout=1000",
+  ];
+  const read = (args: readonly string[], input?: string) =>
+    execFileSync("git", [...base, ...args], {
+      input,
+      encoding: "utf8",
+      timeout: 30_000,
+      maxBuffer: maximumBytes * 2,
+      windowsHide: true,
+      stdio: ["pipe", "pipe", "pipe"],
+      env,
+    }).trimEnd();
+  const transaction = (commands: string[]) =>
+    new Promise<void>((resolve, reject) => {
+      const child = spawn("git", [...base, "update-ref", "--no-deref", "--stdin"], {
+        env,
+        windowsHide: true,
+        timeout: 30_000,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      let output = "";
+      let diagnostic = "";
+      let failure: unknown;
+      let prepared = false;
+      child.on("error", (error) => {
+        failure = error;
+      });
+      child.stdin.on("error", (error) => {
+        failure ??= error;
+      });
+      child.stderr.on("data", (data: Buffer) => {
+        diagnostic += data.toString("utf8");
+        if (Buffer.byteLength(diagnostic) > maximumBytes) {
+          failure = new Error("Git transaction output exceeds byte bound");
+          child.kill();
+        }
+      });
+      child.stdout.on("data", (data: Buffer) => {
+        output += data.toString("utf8");
+        if (Buffer.byteLength(output) > maximumBytes) {
+          failure = new Error("Git transaction output exceeds byte bound");
+          child.kill();
+          return;
+        }
+        if (prepared || !output.includes("prepare: ok\n")) return;
+        prepared = true;
+        try {
+          // Git now holds every state/preparation ref lock. Checking before
+          // prepare would allow aliases to appear between inspection and CAS.
+          const refs = commands.map((command) => command.split(" ")[1]!);
+          for (const ref of refs) {
+            let symbolic = true;
+            try {
+              // Unlike for-each-ref, this also observes dangling symbolic refs.
+              read(["symbolic-ref", "--quiet", "--no-recurse", ref]);
+            } catch (error) {
+              if (!isRecord(error) || error.status !== 1) throw error;
+              symbolic = false;
+            }
+            if (symbolic)
+              throw new Error(
+                "symbolic coordinator/preparation refs are refused under the transaction locks",
+              );
+          }
+          child.stdin.end("commit\n");
+        } catch (error) {
+          failure = error;
+          child.stdin.end("abort\n");
+        }
+      });
+      child.on("close", (code) => {
+        if (failure) reject(failure);
+        else if (code !== 0 || !output.includes("commit: ok\n"))
+          reject(new Error(`Git coordinator transaction refused: ${diagnostic.slice(0, 2048)}`));
+        else resolve();
+      });
+      child.stdin.write(`start\n${commands.join("\n")}\nprepare\n`);
+    });
+  return Object.assign(read, { transaction });
+}
+type Git = ReturnType<typeof gitRepository>;
+
+function checkedInput(input: unknown) {
+  const bytes = canonical(input);
+  if (Buffer.byteLength(bytes) > maximumBytes)
+    throw new Error("coordinator checkpoint exceeds byte bound");
+  // Use the existing planner's complete schema, identities and recovery limits.
+  const plan = planReleaseOpportunity(input);
+  if (!isRecord(input)) throw new Error("coordinator input must be an object");
+  const opportunity = input.opportunity;
+  if (
+    isRecord(opportunity) &&
+    isRecord(opportunity.classification) &&
+    opportunity.classification.migration_notes !== undefined &&
+    typeof opportunity.classification.migration_notes !== "string"
+  )
+    throw new Error("coordinator checkpoint migration notes must be a string");
+  return { input, plan };
+}
+
+function readCheckpoint(git: Git, commit: string) {
+  identity(commit);
+  if (git(["cat-file", "-t", commit]) !== "commit") throw new Error("checkpoint is not a commit");
+  const header = git(["cat-file", "commit", commit]);
+  const parents =
+    header
+      .split("\n\n", 1)[0]
+      ?.split("\n")
+      .filter((line) => line.startsWith("parent ")) ?? [];
+  const entries = git(["ls-tree", commit]);
+  if (!/^100644 blob [a-f0-9]{40}\tstate\.json$/u.test(entries))
+    throw new Error("checkpoint must contain only an inert state.json blob");
+  const size = Number(git(["cat-file", "-s", `${commit}:state.json`]));
+  if (!Number.isSafeInteger(size) || size < 1 || size > maximumBytes)
+    throw new Error("stored coordinator checkpoint exceeds byte bound");
+  const raw = git(["cat-file", "blob", `${commit}:state.json`]);
+  const state: unknown = JSON.parse(raw);
+  if (
+    !isRecord(state) ||
+    Object.keys(state).sort().join(",") !== "input,previous,schema_version" ||
+    state.schema_version !== 1
+  )
+    throw new Error("invalid coordinator checkpoint schema");
+  if (state.previous !== null) identity(state.previous);
+  const expectedParents = state.previous === null ? [] : [`parent ${state.previous}`];
+  if (canonical(parents) !== canonical(expectedParents) || canonical(state) !== raw)
+    throw new Error("coordinator checkpoint history or canonical bytes disagree");
+  return { previous: state.previous, ...checkedInput(state.input) };
+}
+
+function active(input: Record<string, unknown>): Record<string, unknown> | null {
+  return isRecord(input.active_candidate) ? input.active_candidate : null;
+}
+
+function transition(previous: ReturnType<typeof readCheckpoint>, next: Record<string, unknown>) {
+  const old = active(previous.input);
+  const candidate = active(next);
+  const controller = next.controller;
+  if ((old || candidate) && canonical(controller) !== canonical(previous.input.controller)) {
+    // Pause/capacity may change, but execution policy identity cannot drift.
+    const before = previous.input.controller;
+    if (
+      !isRecord(before) ||
+      !isRecord(controller) ||
+      before.workflow !== controller.workflow ||
+      before.revision !== controller.revision
+    )
+      throw new Error("active coordinator controller identity changed");
+  }
+  if (!old && candidate) {
+    if (previous.plan.action !== "prepare" || !("proposal" in previous.plan))
+      throw new Error("new active candidate requires the preceding preparation plan");
+    const proposal = previous.plan.proposal;
+    if (
+      candidate.source_commit !== proposal.source_commit ||
+      candidate.source_tree !== previous.plan.authority.opportunity_tree ||
+      candidate.version !== proposal.version ||
+      candidate.phase !== "prepared" ||
+      candidate.transient_retries !== 0 ||
+      candidate.substantive_repairs !== 0 ||
+      candidate.release_run != null
+    )
+      throw new Error("active candidate does not match the frozen preparation plan");
+    const opportunity = previous.input.opportunity;
+    if (!isRecord(opportunity)) throw new Error("missing preparation opportunity");
+    const classification = parseVersionClassification(opportunity.classification);
+    const intent = JSON.stringify({
+      proposal,
+      compatibility: classification.compatibility,
+      migration_notes: classification.migration_notes ?? "",
+    });
+    if (createHash("sha256").update(intent).digest("hex") !== candidate.intent_sha256)
+      throw new Error("prepared intent differs from the preceding reviewed classification");
+  }
+  if (!old) return;
+  if (!candidate) {
+    const publication = next.publication;
+    if (
+      old.phase !== "promoting" ||
+      !isRecord(publication) ||
+      !Array.isArray(publication.published_versions) ||
+      !publication.published_versions.includes(old.version) ||
+      !Array.isArray(publication.published_sources) ||
+      !publication.published_sources.includes(old.source_commit)
+    )
+      throw new Error("cannot discard an active reservation without matching published identity");
+    return;
+  }
+  for (const field of [
+    "source_commit",
+    "source_tree",
+    "prepared_commit",
+    "prepared_tree",
+    "version",
+    "intent_sha256",
+  ])
+    if (old[field] !== candidate[field]) throw new Error(`active reservation ${field} changed`);
+  for (const field of ["transient_retries", "substantive_repairs"]) {
+    const before = old[field];
+    const after = candidate[field];
+    if (
+      typeof before !== "number" ||
+      typeof after !== "number" ||
+      after < before ||
+      after > before + 1
+    )
+      throw new Error("coordinator recovery counters regressed or skipped");
+  }
+  const retriesChanged = old.transient_retries !== candidate.transient_retries;
+  const repairsChanged = old.substantive_repairs !== candidate.substantive_repairs;
+  if (
+    old.phase === "failed" &&
+    candidate.phase === "failed" &&
+    canonical(old) !== canonical(candidate)
+  )
+    throw new Error(
+      "failed reservation cannot be reclassified or edited without starting recovery",
+    );
+  if (retriesChanged || repairsChanged) {
+    if (
+      old.phase !== "failed" ||
+      (retriesChanged && (repairsChanged || previous.plan.action !== "retry-active")) ||
+      (repairsChanged && previous.plan.action !== "dispatch-repair")
+    )
+      throw new Error("coordinator recovery increment lacks its preceding recovery plan");
+  } else if (
+    canonical(old.release_run ?? null) !== canonical(candidate.release_run ?? null) &&
+    old.release_run != null
+  ) {
+    throw new Error("release run changed without a planned recovery increment");
+  }
+  const phases = ["prepared", "qualifying", "building", "publishing", "promoting"];
+  if (candidate.phase === "failed") return;
+  if (old.phase === "failed") {
+    if (!retriesChanged && !repairsChanged && candidate.phase !== "failed")
+      throw new Error("failed candidate requires a planned recovery increment");
+    if (candidate.phase !== "prepared" || candidate.release_run != null)
+      throw new Error(
+        "planned recovery must restart the frozen candidate at prepared without a run",
+      );
+  } else {
+    const before = phases.indexOf(String(old.phase));
+    const after = phases.indexOf(String(candidate.phase));
+    if (after < before || after > before + 1)
+      throw new Error("coordinator phase regressed or skipped");
+  }
+}
+
+function preparationVerifies(git: Git, input: Record<string, unknown>) {
+  const candidate = active(input);
+  if (!candidate) return [];
+  const {
+    source_commit: source,
+    source_tree: sourceTree,
+    prepared_commit: prepared,
+    prepared_tree: preparedTree,
+    version,
+    intent_sha256: intent,
+  } = candidate;
+  identity(source);
+  identity(prepared);
+  if (
+    git(["cat-file", "-t", source]) !== "commit" ||
+    git(["cat-file", "-t", prepared]) !== "commit" ||
+    git(["show", "-s", "--format=%P", prepared]) !== source
+  )
+    throw new Error("preparation requires exact commits with the source as its sole parent");
+  if (
+    git(["rev-parse", "--verify", `${source}^{tree}`]) !== sourceTree ||
+    git(["rev-parse", "--verify", `${prepared}^{tree}`]) !== preparedTree
+  )
+    throw new Error("reserved source or prepared tree disagrees with Git objects");
+  const message = git(["show", "-s", "--format=%B", prepared]);
+  const prefix = `Prepare application ${String(version)}\n\nPortcove-Preparation-SHA256: ${String(intent)}\n`;
+  const payload = message.slice(prefix.length);
+  if (!message.startsWith(prefix) || createHash("sha256").update(payload).digest("hex") !== intent)
+    throw new Error("prepared commit does not bind the reservation intent");
+  if (typeof version !== "string" || !/^[0-9A-Za-z.+-]+$/u.test(version))
+    throw new Error("unsafe reservation version");
+  return [
+    `verify refs/portcove/prepared-versions/v${version} ${prepared}`,
+    `verify refs/portcove/prepared-commits/${source} ${prepared}`,
+  ];
+}
+
+/** Persist one caller-authenticated planner snapshot; no action is executed.
+ * expectedPrevious is null ONLY for explicit first initialization. A missing
+ * prior ref after initialization is a conflict, never a new allocation.
+ */
+export async function checkpointReleaseOpportunity(
+  repository: string,
+  expectedPrevious: string | null,
+  rawInput: unknown,
+) {
+  if (expectedPrevious !== null) identity(expectedPrevious);
+  const { input, plan } = checkedInput(rawInput);
+  const git = gitRepository(repository);
+  const previous = expectedPrevious === null ? null : readCheckpoint(git, expectedPrevious);
+  if (previous) transition(previous, input);
+  else if (active(input))
+    throw new Error("first coordinator checkpoint cannot invent an active reservation");
+  const verifies = preparationVerifies(git, input);
+  // Clearing a completed active candidate still verifies its exact allocation.
+  if (previous && !active(input)) verifies.push(...preparationVerifies(git, previous.input));
+  const raw = canonical({ schema_version: 1, previous: expectedPrevious, input });
+  if (Buffer.byteLength(raw) > maximumBytes)
+    throw new Error("coordinator checkpoint exceeds byte bound");
+  const blob = git(["hash-object", "-w", "--stdin"], raw);
+  const tree = git(["mktree"], `100644 blob ${blob}\tstate.json\n`);
+  const commit = git(
+    ["commit-tree", tree, ...(expectedPrevious ? ["-p", expectedPrevious] : [])],
+    "Portcove release coordinator checkpoint\n",
+  );
+  identity(commit);
+  try {
+    await git.transaction([
+      `update ${coordinatorStateRef} ${commit} ${expectedPrevious ?? zero}`,
+      ...verifies,
+    ]);
+  } catch (writeError) {
+    try {
+      // Lost-response/concurrent-identical retry is accepted only while the
+      // complete state AND prepared receipt pair still match under the locks.
+      await git.transaction([`verify ${coordinatorStateRef} ${commit}`, ...verifies]);
+    } catch (verifyError) {
+      throw new Error("coordinator checkpoint conflict, incomplete allocation, or locked state", {
+        cause: new AggregateError([writeError, verifyError]),
+      });
+    }
+  }
+  return { checkpoint: commit, previous: expectedPrevious, plan };
+}
+
+/** Recover the explicit expected checkpoint, refusing a lost or changed ref. */
+export async function recoverReleaseOpportunity(repository: string, expected: string) {
+  identity(expected);
+  const git = gitRepository(repository);
+  const state = readCheckpoint(git, expected);
+  const verifies = preparationVerifies(git, state.input);
+  await git.transaction([`verify ${coordinatorStateRef} ${expected}`, ...verifies]);
+  return { checkpoint: expected, ...state };
+}

@@ -1104,6 +1104,7 @@ void test("release-script changes select deterministic release contracts without
     "scripts/check-release-metadata.test.mts",
     "scripts/release-package-policy.test.mts",
     "scripts/release-coordinator.test.mts",
+    "scripts/release-coordinator-state.test.mts",
     "scripts/release-workflow.test.mts",
     "scripts/windows-qualification-session.test.mts",
     "scripts/ci-workflow.test.mts",

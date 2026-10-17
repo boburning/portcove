@@ -539,6 +539,7 @@ const releaseContractTests = Object.freeze([
   "scripts/generate-release-downloads.test.mts",
   "scripts/select-release-channel.test.mts",
   "scripts/release-coordinator.test.mts",
+  "scripts/release-coordinator-state.test.mts",
   "scripts/release-run-evidence.test.mts",
   "scripts/reconstruct-application-update-records.test.mts",
   "scripts/release-workflow.test.mts",
