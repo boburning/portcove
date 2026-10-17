@@ -21,6 +21,8 @@ interface RefreshWindow extends Window {
   __portcoveExternalReconciliationProbe?: {
     originalFetch: typeof fetch;
     commands: string[];
+    formatFetch?: typeof fetch;
+    formatInjections?: number;
     supportRequests?: number;
     supportGate?: Promise<void>;
     releaseSupport?: () => void;
@@ -35,7 +37,16 @@ interface RefreshObservations {
   failure?: string;
   probe?: { installed: false } | { injected: number; commands: string[]; restored: boolean };
 }
+interface SourceFormatObservations {
+  injection: string;
+  before: unknown;
+  guidance?: string;
+  injections?: number;
+  after?: unknown;
+  restored?: boolean;
+}
 interface ReconciliationObservations {
+  source_format?: SourceFormatObservations;
   commit_convergence_synthetic_desktop_events: number;
   progress_reconciliation?: {
     injection: string;
@@ -513,6 +524,135 @@ export async function workspaceRefreshScenario({
       });
       assert.ok(observations.commands.includes("get_workspace_changed"));
       assert.ok(observations.commands.includes("get_workspace_snapshot"));
+      // Controlled native presentation only: the real Core status remains
+      // unchanged; actual incompatible-source execution is covered separately.
+      await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
+      const sourceFormatCard = await browser.wait(until.elementLocated(cardLocator), 15_000);
+      await sourceFormatCard.findElement(By.css("button[data-detail-origin]")).click();
+      await browser.wait(until.elementLocated(By.css(".detail-panel")), 15_000);
+      const sourceFormat: SourceFormatObservations = {
+        injection:
+          "replace one rendered launch assessment/readiness with incompatible_source and required extension z64; Core unchanged",
+        before: command(["status", port.id]),
+      };
+      try {
+        await executeBrowserScript(
+          browser,
+          (portId) => {
+            const previous = window.fetch;
+            const runtime = window as RefreshWindow;
+            const probe = runtime.__portcoveExternalReconciliationProbe;
+            const native = runtime.__TAURI_INTERNALS__;
+            if (!probe || !native) throw new Error("Reconciliation probe unavailable");
+            probe.formatFetch = previous;
+            probe.formatInjections = 0;
+            const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
+            window.fetch = async function (input, ...args) {
+              const response = await previous.call(window, input, ...args);
+              const url =
+                typeof input === "string" ? input : "url" in input ? input.url : String(input);
+              if (url !== target || !response.ok) return response;
+              const record = (value: unknown): value is Record<string, unknown> =>
+                value !== null && typeof value === "object" && !Array.isArray(value);
+              const snapshot: unknown = await response.clone().json();
+              if (!record(snapshot) || !Array.isArray(snapshot.statuses))
+                throw new Error("Workspace snapshot statuses unavailable");
+              const statuses: unknown[] = snapshot.statuses;
+              if (!statuses.every(record)) throw new Error("Workspace status must be an object");
+              if (!statuses.some((status) => status.port_id === portId)) return response;
+              if (typeof probe.formatInjections !== "number")
+                throw new Error("Source format probe counter unavailable");
+              probe.formatInjections++;
+              return new Response(
+                JSON.stringify({
+                  ...snapshot,
+                  statuses: statuses.map((status) => {
+                    if (status.port_id !== portId) return status;
+                    if (!record(status.readiness) || !Array.isArray(status.port_actions))
+                      throw new Error("Workspace readiness/actions unavailable");
+                    const assessments: unknown[] = status.port_actions;
+                    if (!assessments.every(record))
+                      throw new Error("Workspace action assessment must be an object");
+                    return {
+                      ...status,
+                      readiness: {
+                        ...status.readiness,
+                        launchable: false,
+                        source: "current",
+                        blockers: ["incompatible_source"],
+                        required_source_extension: "z64",
+                      },
+                      port_actions: assessments.map((assessment) =>
+                        assessment.action === "launch"
+                          ? {
+                              action: "launch",
+                              availability: "waiting",
+                              reason: "incompatible_source",
+                            }
+                          : assessment,
+                      ),
+                    };
+                  }),
+                }),
+                {
+                  status: response.status,
+                  statusText: response.statusText,
+                  headers: response.headers,
+                },
+              );
+            };
+            window.dispatchEvent(new Event("focus"));
+          },
+          port.id,
+        );
+        const expected =
+          "This runtime requires an uncompressed .z64 game file. Select and validate that file before playing.";
+        await browser.wait(
+          async () =>
+            (await browser.findElement(By.css(".detail-panel")).getText()).includes(expected),
+          10_000,
+        );
+        const play = await browser.findElement(By.css(".detail-panel .primary-actions button"));
+        assert.equal(await play.isEnabled(), false);
+        sourceFormat.guidance = expected;
+        sourceFormat.injections = await executeBrowserScript(browser, () => {
+          const probe = (window as RefreshWindow).__portcoveExternalReconciliationProbe;
+          if (typeof probe?.formatInjections !== "number")
+            throw new Error("Source format probe counter unavailable");
+          return probe.formatInjections;
+        });
+        assert.ok(sourceFormat.injections > 0);
+        const screenshot = path.join(output, "native-source-format-guidance.png");
+        await writeFile(screenshot, await browser.takeScreenshot(), {
+          encoding: "base64",
+          flag: "wx",
+        });
+        artifacts.push(screenshot);
+        await captureAccessibilityReport(
+          browser,
+          path.join(output, "source-format-accessibility.json"),
+          artifacts,
+        );
+        sourceFormat.after = command(["status", port.id]);
+        assert.deepEqual(sourceFormat.after, sourceFormat.before);
+      } finally {
+        sourceFormat.restored = await executeBrowserScript(browser, () => {
+          const probe = (window as RefreshWindow).__portcoveExternalReconciliationProbe;
+          if (!probe?.formatFetch) return false;
+          window.fetch = probe.formatFetch;
+          window.dispatchEvent(new Event("focus"));
+          return window.fetch === probe.formatFetch;
+        });
+        observations.source_format = sourceFormat;
+      }
+      assert.equal(sourceFormat.restored, true);
+      await browser.wait(
+        async () =>
+          !(await browser.findElement(By.css(".detail-panel")).getText()).includes(
+            "This runtime requires an uncompressed .z64 game file.",
+          ),
+        10_000,
+      );
     } finally {
       const probe = await executeBrowserScript(browser, () => {
         const runtime = window as RefreshWindow;

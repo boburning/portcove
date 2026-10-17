@@ -225,3 +225,88 @@ for (const kind of ["refresh", "reconciliation"] as const) {
     );
   });
 }
+
+void test("serialized source-format injection preserves unrelated snapshots and restores its exact fetch", async () => {
+  const offset = /const sourceFormat\s*=/u.exec(source)?.index ?? -1;
+  assert.ok(offset >= 0);
+  const installation = segment("await executeBrowserScript(", "        const expected =", offset);
+  const target = "http://ipc.localhost/get_workspace_snapshot";
+  let payload: unknown = {
+    revision: "preserved",
+    statuses: [
+      {
+        port_id: "selected",
+        readiness: { launchable: true, retained: 1 },
+        port_actions: [{ action: "launch" }, { action: "backup", retained: 2 }],
+      },
+      { port_id: "other", retained: 3 },
+    ],
+  };
+  const calls: unknown[][] = [];
+  const original = async (...args: unknown[]) => {
+    calls.push(args);
+    return new Response(JSON.stringify(payload), { headers: { "X-Custody": "original" } });
+  };
+  const window = {
+    fetch: original,
+    dispatchEvent: () => true,
+    __TAURI_INTERNALS__: { convertFileSrc: () => target },
+    __portcoveExternalReconciliationProbe: { originalFetch: original, commands: [] },
+  };
+  const executeBrowserScript = (_browser: unknown, callback: unknown, ...args: unknown[]) => {
+    assert.equal(typeof callback, "function");
+    assert.ok(typeof callback === "function");
+    const result: unknown = runInNewContext(
+      `(${callback.toString()})(...args)`,
+      { window, args, Response, Event },
+      { timeout: 1000 },
+    );
+    return result;
+  };
+  await runInNewContext(`(async()=>{${installation}})()`, {
+    browser: {},
+    executeBrowserScript,
+    port: { id: "selected" },
+  });
+  const init = { method: "POST" };
+  const response = await window.fetch(target, init);
+  assert.equal(response.headers.get("X-Custody"), "original");
+  const modified: unknown = await response.json();
+  const result = object(modified);
+  assert.equal(result.revision, "preserved");
+  assert.ok(Array.isArray(result.statuses));
+  assert.deepEqual(JSON.parse(JSON.stringify(result.statuses)), [
+    {
+      port_id: "selected",
+      readiness: {
+        launchable: false,
+        retained: 1,
+        source: "current",
+        blockers: ["incompatible_source"],
+        required_source_extension: "z64",
+      },
+      port_actions: [
+        { action: "launch", availability: "waiting", reason: "incompatible_source" },
+        { action: "backup", retained: 2 },
+      ],
+    },
+    { port_id: "other", retained: 3 },
+  ]);
+  assert.equal(calls[0]?.[0], target);
+  assert.equal(calls[0]?.[1], init);
+  payload = { statuses: [{ port_id: "other", preserved: true }] };
+  assert.deepEqual(await (await window.fetch(target)).json(), payload);
+  payload = { statuses: [{ port_id: "selected", readiness: null, port_actions: [] }] };
+  await assert.rejects(window.fetch(target), /Workspace readiness/);
+  const restoration = segment(
+    "await executeBrowserScript(browser, () => {",
+    "        observations.source_format",
+    source.indexOf("sourceFormat.restored =", offset),
+  );
+  const restored: unknown = await runInNewContext(`(async()=>{return ${restoration}})()`, {
+    browser: {},
+    executeBrowserScript,
+  });
+  assert.equal(restored, true);
+  assert.equal(window.fetch, original);
+});

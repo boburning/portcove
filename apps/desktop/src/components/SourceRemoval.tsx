@@ -1,3 +1,4 @@
+import { ActionReviewFailure } from "./ActionReviewFailure";
 import { useState } from "react";
 import { desktopApi } from "../api";
 import type { PortDefinition, SourceRecord, SourceRemovalPreview } from "../types";
@@ -126,7 +127,7 @@ export function SourceRemovalDialog({
           <p role="status">Checking the saved location and affected games…</p>
         )}
         {preview && <SourceRemovalDetails preview={preview} ports={ports} />}
-        {error && <p role="alert">{error}</p>}
+        <ActionReviewFailure error={error} />
         <ReviewedRemovalFooter
           hasPreview={Boolean(preview)}
           pending={pending}

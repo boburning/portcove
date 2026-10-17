@@ -33,6 +33,9 @@ export function definitionHoldReason(context: "Setup" | "Launch", reason?: strin
   return `${context} is on hold. ${explanation}`;
 }
 
+const incompatibleSourceFallback =
+  "The selected game-file format cannot be used by this runtime. Select and validate the required format before playing.";
+
 const actionReasons: Record<string, string> = {
   route_not_offered: "This route is unavailable. Check the port details for current requirements.",
   already_registered: "This installation is already in your library.",
@@ -42,6 +45,7 @@ const actionReasons: Record<string, string> = {
   missing_source: "Required game files are missing.",
   unreadable_source: "Portcove cannot read the required game files.",
   changed_source: "The required game files changed. Review them before playing.",
+  incompatible_source: incompatibleSourceFallback,
   missing_bios: "A required BIOS file is missing.",
   unreadable_bios: "Portcove cannot read the required BIOS file.",
   changed_bios: "The required BIOS file changed. Review it before playing.",
@@ -49,6 +53,16 @@ const actionReasons: Record<string, string> = {
   preparation_required: "Prepare game data before playing.",
   invalid_installation: "Portcove could not verify the installed files.",
 };
+
+function sourceFormatReason(status: PortStatus | undefined): string {
+  const extension = status?.readiness?.required_source_extension;
+  return typeof extension === "string" &&
+    extension.length > 0 &&
+    extension.length <= 16 &&
+    !/[^a-zA-Z0-9]/u.test(extension)
+    ? `This runtime requires an uncompressed .${extension} game file. Select and validate that file before playing.`
+    : incompatibleSourceFallback;
+}
 
 function unavailable(action: PresentedAction): ActionPresentation {
   return {
@@ -97,6 +111,7 @@ function presentRollbackAssessment(assessment: Assessment): ActionPresentation {
 function presentAssessment(
   assessment: Assessment,
   action: Exclude<PresentedAction, "rollback">,
+  status: PortStatus | undefined,
 ): ActionPresentation {
   const { availability, reason, definition } = assessment;
   if (
@@ -120,6 +135,8 @@ function presentAssessment(
       blocked: true,
       reason: definitionHoldReason(action === "install" ? "Setup" : "Launch", definition?.reason),
     };
+  if (action === "launch" && reason === "incompatible_source" && definition == null)
+    return { blocked: true, reason: sourceFormatReason(status) };
   const explanation = Object.hasOwn(actionReasons, reason) ? actionReasons[reason] : undefined;
   if (explanation !== undefined) return { blocked: true, reason: explanation };
   return unavailable(action);
@@ -140,7 +157,7 @@ export function portActionPresentation(
   if (matching.length !== 1 || !assessment) return unavailable(action);
   return action === "rollback"
     ? presentRollbackAssessment(assessment)
-    : presentAssessment(assessment, action);
+    : presentAssessment(assessment, action, status);
 }
 
 type SetupRoute = "install" | "register_external";
@@ -275,6 +292,8 @@ export function installedCardInputPresentation(status: PortStatus | undefined) {
       : "View details to select and review the required files.";
     return `${actionReasons[reason]} ${recovery}`;
   });
+  const incompatible = readiness.blockers.includes("incompatible_source");
+  if (incompatible) reasons.push(sourceFormatReason(status));
   const assessments = status.port_actions;
   const launch = Array.isArray(assessments)
     ? assessments.filter((assessment) => assessment?.action === "launch")
@@ -296,12 +315,14 @@ export function installedCardInputPresentation(status: PortStatus | undefined) {
   const [singleInput] = inputs;
   const label = mismatch
     ? "Input edition mismatch"
-    : inputs.length === 1 && singleInput !== undefined
-      ? installedInputLabels[singleInput]
-      : game && bios
-        ? "Game files and BIOS need review"
-        : bios
-          ? "BIOS file needs review"
-          : "Game files need review";
+    : incompatible
+      ? "Game-file format needs review"
+      : inputs.length === 1 && singleInput !== undefined
+        ? installedInputLabels[singleInput]
+        : game && bios
+          ? "Game files and BIOS need review"
+          : bios
+            ? "BIOS file needs review"
+            : "Game files need review";
   return { label, reasons };
 }
