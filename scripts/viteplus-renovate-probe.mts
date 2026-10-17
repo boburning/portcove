@@ -1,39 +1,116 @@
+import { isRecord } from "./runtime-values.mts";
+import { validateGlobalConfig, validatePresetResult } from "./renovate-engine-probe.mts";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 
+// The pinned engine has no installed public types for these internal APIs.
+// Preserve unconsumed fields for the engine while validating every consumed field.
+// Renovate 44.156.3 lib/modules/manager/types.ts PackageDependency permits null currentValue.
+interface Dependency extends Record<string, unknown> {
+  skipReason?: unknown;
+  depName?: string | undefined;
+  packageName?: string | undefined;
+  currentValue?: string | null | undefined;
+  lockedVersion?: string | undefined;
+  currentDigest?: string | undefined;
+  depType?: string | undefined;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function array(value: unknown): unknown[] {
+  assert.ok(Array.isArray(value));
+  return value;
+}
+function stringValue(value: unknown): string {
+  assert.ok(typeof value === "string");
+  return value;
+}
+function required<T>(value: T | undefined): T {
+  assert.ok(value !== undefined);
+  return value;
+}
+function callable(value: unknown) {
+  assert.ok(typeof value === "function");
+  return (...args: unknown[]): unknown => {
+    const result: unknown = Reflect.apply(value, undefined, args);
+    return result;
+  };
+}
+function validateDependency(raw: Record<string, unknown>): asserts raw is Dependency {
+  for (const key of [
+    "depName",
+    "packageName",
+    "currentValue",
+    "lockedVersion",
+    "currentDigest",
+    "depType",
+  ]) {
+    assert.ok(
+      raw[key] === undefined ||
+        typeof raw[key] === "string" ||
+        (key === "currentValue" && raw[key] === null),
+      `Expected engine dependency ${key} text`,
+    );
+  }
+}
+function dependency(value: unknown): Dependency {
+  const raw = object(value);
+  validateDependency(raw);
+  // Keep exact field presence and unconsumed engine metadata when passing it back.
+  return raw;
+}
+function extractedDependencies(value: unknown): Dependency[] {
+  return value == null ? [] : array(object(value).deps).map(dependency);
+}
+
 // Version-bound inspection, not a replacement Renovate implementation. Upgrade
 // this adapter only after checking the installed engine's internal API shape.
 export async function probeVitePlusRules(engine: string, root: string, output: string) {
-  const read = (file) => JSON.parse(readFileSync(file, "utf8"));
+  const read = (file: string) => {
+    const raw: unknown = JSON.parse(readFileSync(file, "utf8"));
+    return object(raw);
+  };
   assert.equal(read(path.join(engine, "package.json")).version, "44.156.3");
-  const mod = (file: string) => import(pathToFileURL(path.join(engine, "dist", file)));
-  const { init } = await mod("logger/index.js");
+  const mod = async (file: string) => {
+    const value: unknown = await import(pathToFileURL(path.join(engine, "dist", file)).href);
+    return object(value);
+  };
+  const init = callable((await mod("logger/index.js")).init);
   await init();
-  const { GlobalConfig } = await mod("config/global.js");
+  const GlobalConfig = validateGlobalConfig((await mod("config/global.js")).GlobalConfig);
   GlobalConfig.set({
     localDir: root.replaceAll("\\", "/"),
     cacheDir: path.join(output, "cache").replaceAll("\\", "/"),
     platform: "github",
     allowScripts: false,
   });
-  const { resolveConfigPresets } = await mod("config/presets/index.js");
-  const { applyPackageRules } = await mod("util/package-rules/index.js");
-  const { extractAllPackageFiles } = await mod("modules/manager/npm/extract/index.js");
+  const resolveConfigPresets = callable(
+    (await mod("config/presets/index.js")).resolveConfigPresets,
+  );
+  const applyPackageRules = callable((await mod("util/package-rules/index.js")).applyPackageRules);
+  const extractAllPackageFiles = callable(
+    (await mod("modules/manager/npm/extract/index.js")).extractAllPackageFiles,
+  );
   const config = read(path.join(root, "renovate.json"));
-  const resolved = await resolveConfigPresets(config);
-  assert(resolved.config && resolved.visitedPresets);
-  const extracted = await extractAllPackageFiles(resolved.config, [
+  const resolved = object(await resolveConfigPresets(config));
+  const resolvedConfig = validatePresetResult(resolved);
+  const extracted = await extractAllPackageFiles(resolvedConfig, [
     "package.json",
     "apps/desktop/package.json",
     "pnpm-workspace.yaml",
   ]);
-  assert(Array.isArray(extracted));
-  const deps = extracted.flatMap((file) =>
-    file.deps.map((dep) => ({ ...dep, manager: "npm", packageFile: file.packageFile })),
-  );
+  const deps = array(extracted)
+    .map(object)
+    .flatMap((file) =>
+      array(file.deps)
+        .map(dependency)
+        .map((dep) => ({ ...dep, manager: "npm", packageFile: stringValue(file.packageFile) })),
+    );
   const names = [
     "vite-plus",
     "@voidzero-dev/vite-plus-core",
@@ -42,69 +119,76 @@ export async function probeVitePlusRules(engine: string, root: string, output: s
     "playwright",
   ];
   const selected = deps
-    .filter((dep) => names.includes(dep.packageName ?? dep.depName) && !dep.skipReason)
-    .map((dep) => ({ ...dep, packageName: dep.packageName ?? dep.depName }));
+    .filter((dep) => names.includes(dep.packageName ?? dep.depName ?? "") && !dep.skipReason)
+    .map((dep) => ({ ...dep, packageName: stringValue(dep.packageName ?? dep.depName) }));
   for (const name of names)
     assert(
       selected.some((dep) => (dep.packageName ?? dep.depName) === name),
       `Missing extracted ${name}`,
     );
-  const { extractPackageFile: extractDockerfile } = await mod(
-    "modules/manager/dockerfile/extract.js",
+  const extractDockerfile = callable(
+    (await mod("modules/manager/dockerfile/extract.js")).extractPackageFile,
   );
   const dockerfile = "tools/containers/browser/Dockerfile";
   const docker = extractDockerfile(
     readFileSync(path.join(root, dockerfile), "utf8"),
     dockerfile,
-    resolved.config,
+    resolvedConfig,
   );
-  const base = docker?.deps.find((dep) => dep.depName === "ghcr.io/voidzero-dev/vite-plus");
+  const base = extractedDependencies(docker).find(
+    (dep) => dep.depName === "ghcr.io/voidzero-dev/vite-plus",
+  );
   assert(base && !base.skipReason, "Dockerfile extractor must discover the actual base pin");
   assert.equal(
     base.currentValue,
-    selected.find((dep) => dep.packageName === "vite-plus").currentValue,
+    required(selected.find((dep) => dep.packageName === "vite-plus")).currentValue,
   );
-  assert.match(base.currentDigest, /^sha256:[a-f0-9]{64}$/u);
+  assert.match(stringValue(base.currentDigest), /^sha256:[a-f0-9]{64}$/u);
   selected.push({
     ...base,
-    packageName: base.packageName ?? base.depName,
+    packageName: stringValue(base.packageName ?? base.depName),
     manager: "dockerfile",
     packageFile: dockerfile,
   });
   const builderFile = "tools/containers/build/Dockerfile";
   if (existsSync(path.join(root, builderFile))) {
     const text = readFileSync(path.join(root, builderFile), "utf8");
-    const builderDeps = extractDockerfile(text, builderFile, resolved.config)?.deps ?? [];
+    const builderDeps = extractedDependencies(extractDockerfile(text, builderFile, resolvedConfig));
     for (const name of ["ghcr.io/voidzero-dev/vite-plus", "rust", "ubuntu"]) {
       const dep = builderDeps.find((item) => item.depName === name);
       assert(dep && !dep.skipReason, `Builder extractor omitted ${name}`);
-      assert.match(dep.currentDigest, /^sha256:[a-f0-9]{64}$/u);
+      assert.match(stringValue(dep.currentDigest), /^sha256:[a-f0-9]{64}$/u);
       if (name === "ubuntu") assert.equal(dep.currentValue, "22.04");
       if (name === "ghcr.io/voidzero-dev/vite-plus")
         assert.equal(dep.currentValue, base.currentValue);
       if (name === "rust")
         assert.equal(
           dep.currentValue,
-          `${/channel\s*=\s*"([^"]+)"/u.exec(readFileSync(path.join(root, "rust-toolchain.toml"), "utf8"))[1]}-slim-bookworm`,
+          `${required(required(/channel\s*=\s*"([^"]+)"/u.exec(readFileSync(path.join(root, "rust-toolchain.toml"), "utf8")) ?? undefined)[1])}-slim-bookworm`,
         );
       selected.push({
         ...dep,
-        packageName: dep.packageName ?? dep.depName,
+        packageName: stringValue(dep.packageName ?? dep.depName),
         manager: "dockerfile",
         packageFile: builderFile,
       });
     }
-    const { extractPackageFile: extractRegex } = await mod("modules/manager/custom/regex/index.js");
-    const manager = resolved.config.customManagers.find(
-      (item) => item.depNameTemplate === "PowerShell/PowerShell",
+    const extractRegex = callable(
+      (await mod("modules/manager/custom/regex/index.js")).extractPackageFile,
     );
+    const manager = array(resolvedConfig.customManagers)
+      .map(object)
+      .find((item) => item.depNameTemplate === "PowerShell/PowerShell");
     assert(manager, "PowerShell update authority missing");
-    const powershell = extractRegex(text, builderFile, manager)?.deps;
+    const powershell = extractedDependencies(extractRegex(text, builderFile, manager));
     assert.equal(powershell?.length, 1);
-    assert.equal(powershell[0].currentValue, /^ARG POWERSHELL_VERSION=(.+)$/mu.exec(text)[1]);
+    assert.equal(
+      required(powershell[0]).currentValue,
+      required(required(/^ARG POWERSHELL_VERSION=(.+)$/mu.exec(text) ?? undefined)[1]),
+    );
     assert.match(text, /^ARG POWERSHELL_SHA256=[a-f0-9]{64}$/mu);
     selected.push({
-      ...powershell[0],
+      ...required(powershell[0]),
       packageName: "PowerShell/PowerShell",
       manager: "custom.regex",
       packageFile: builderFile,
@@ -112,7 +196,7 @@ export async function probeVitePlusRules(engine: string, root: string, output: s
   }
   const effective = [];
   for (const dep of selected) {
-    const rule = await applyPackageRules({ ...resolved.config, ...dep }, "pre-lookup");
+    const rule = object(await applyPackageRules({ ...resolvedConfig, ...dep }, "pre-lookup"));
     assert.equal(rule.minimumReleaseAge, "1 day");
     assert.equal(rule.minimumReleaseAgeBehaviour, "timestamp-required");
     assert.equal(rule.internalChecksFilter, "strict");
@@ -136,20 +220,24 @@ export async function probeVitePlusRules(engine: string, root: string, output: s
     else assert.notEqual(rule.enabled, false);
     // The real vulnerability initializer appends this force rule. Exercise its
     // generated shape with the actual merger rather than reimplementing force.
-    const security = await applyPackageRules(
-      {
-        ...resolved.config,
-        ...dep,
-        packageRules: [
-          ...resolved.config.packageRules,
-          {
-            matchPackageNames: [name],
-            isVulnerabilityAlert: true,
-            force: { ...config.vulnerabilityAlerts },
-          },
-        ],
-      },
-      "pre-lookup",
+    const security = object(
+      await applyPackageRules(
+        {
+          ...resolvedConfig,
+          ...dep,
+          packageRules: [
+            ...array(resolvedConfig.packageRules),
+            {
+              matchPackageNames: [name],
+              isVulnerabilityAlert: true,
+              force: {
+                ...(config.vulnerabilityAlerts == null ? {} : object(config.vulnerabilityAlerts)),
+              },
+            },
+          ],
+        },
+        "pre-lookup",
+      ),
     );
     assert.equal(security.enabled, true);
     assert.equal(security.minimumReleaseAge, null);

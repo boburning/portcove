@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { mkdirSync, readFileSync, existsSync } from "node:fs";
+import { probeVitePlusRules } from "./viteplus-renovate-probe.mts";
 import {
   normalizeExtraction,
   validateGlobalConfig,
@@ -184,6 +186,112 @@ void test("probe failure recording preserves frozen and primitive primary failur
   }
 });
 import { pathToFileURL } from "node:url";
+
+// Inert modules model the pinned engine's consumed export shapes, not Renovate
+// extraction/rule correctness. Real deployed-engine qualification stays separate.
+void test("Vite+ probe loads file-URL engine classes and retains source-bound local reports", async (t) => {
+  for (const malformed of [false, true]) {
+    const root = mkdtempSync(path.join(os.tmpdir(), "viteplus-engine-interop-"));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const engine = path.join(root, "engine"),
+      repo = path.join(root, "repo"),
+      output = path.join(root, "output");
+    const write = (file: string, bytes: string) => {
+      mkdirSync(path.dirname(file), { recursive: true });
+      writeFileSync(file, bytes);
+    };
+    const module = (file: string, bytes: string) => write(path.join(engine, "dist", file), bytes);
+    write(path.join(engine, "package.json"), '{"version":"44.156.3","type":"module"}');
+    module("logger/index.js", "export function init() {}");
+    module(
+      "config/global.js",
+      `export class GlobalConfig {
+      static value; static set(value) { if(this !== GlobalConfig) throw Error('lost receiver'); this.value=value; }
+      static get() { return this.value; }
+    }`,
+    );
+    module(
+      "config/presets/index.js",
+      "export async function resolveConfigPresets(config) { return {config,visitedPresets:{fixture:true}}; }",
+    );
+    const names = [
+      "vite-plus",
+      "@voidzero-dev/vite-plus-core",
+      "vitest",
+      "@vitest/browser-playwright",
+      "playwright",
+    ];
+    module(
+      "modules/manager/npm/extract/index.js",
+      `export async function extractAllPackageFiles() { return [{packageFile:'package.json',deps:${JSON.stringify([...names.map((depName) => ({ depName, currentValue: malformed ? 42 : "1.2.0", fixtureRetained: "passed back" })), { depName: "unrelated", currentValue: null, skipReason: "unknown-version" }])}}]; }`,
+    );
+    const digest = `sha256:${"a".repeat(64)}`;
+    module(
+      "modules/manager/dockerfile/extract.js",
+      `export function extractPackageFile(_text,file) { if(file.endsWith("build/Dockerfile")) return {deps:[{depName:"ghcr.io/voidzero-dev/vite-plus",currentValue:"1.2.0",currentDigest:"${digest}"},{depName:"rust",currentValue:"1.90.0-slim-bookworm",currentDigest:"${digest}"},{depName:"ubuntu",currentValue:"22.04",currentDigest:"${digest}"}]}; return {deps:[{depName:'ghcr.io/voidzero-dev/vite-plus',currentValue:'1.2.0',currentDigest:'${digest}'}]}; }`,
+    );
+    module(
+      "util/package-rules/index.js",
+      `export async function applyPackageRules(config) {
+      if(config.manager === 'npm' && config.fixtureRetained !== 'passed back') throw Error('lost engine fields');
+      const force=config.packageRules.at(-1)?.force;
+      if(force) return force;
+      const bundled=['@voidzero-dev/vite-plus-core','vitest','@vitest/browser-playwright'].includes(config.packageName);
+      const vite=['vite-plus','ghcr.io/voidzero-dev/vite-plus'].includes(config.packageName);
+      return {minimumReleaseAge:'1 day',minimumReleaseAgeBehaviour:'timestamp-required',internalChecksFilter:'strict',automerge:false,enabled:!bundled,groupName:vite?'vite-plus':config.packageName==='rust'?'rust-toolchain':null,schedule:['at any time'],pinDigests:true};
+    }`,
+    );
+    module(
+      "modules/manager/custom/regex/index.js",
+      "export function extractPackageFile() { return {deps:[{depName:'PowerShell/PowerShell',currentValue:'7.5.0'}]}; }",
+    );
+    write(
+      path.join(repo, "tools/containers/build/Dockerfile"),
+      `ARG POWERSHELL_VERSION=7.5.0\nARG POWERSHELL_SHA256=${"b".repeat(64)}\n`,
+    );
+    write(path.join(repo, "rust-toolchain.toml"), 'channel = "1.90.0"\n');
+    module("workers/repository/init/vulnerability.js", "// inert source-custody fixture\n");
+    module("config/utils.js", "// inert source-custody fixture\n");
+    write(
+      path.join(repo, "renovate.json"),
+      JSON.stringify({
+        packageRules: [],
+        customManagers: [{ depNameTemplate: "PowerShell/PowerShell" }],
+        vulnerabilityAlerts: {
+          enabled: true,
+          minimumReleaseAge: null,
+          automerge: false,
+          groupName: null,
+        },
+      }),
+    );
+    for (const file of [
+      "package.json",
+      "apps/desktop/package.json",
+      "pnpm-workspace.yaml",
+      "tools/containers/browser/Dockerfile",
+    ])
+      write(path.join(repo, file), "fixture bytes");
+    if (malformed) {
+      await assert.rejects(
+        probeVitePlusRules(engine, repo, output),
+        /Expected engine dependency currentValue text/u,
+      );
+      assert.equal(existsSync(path.join(output, "report.json")), false);
+    } else {
+      const report = await probeVitePlusRules(engine, repo, output);
+      assert.equal(report.effective.length, 10);
+      assert.equal(report.hostedObservation, false);
+      assert.equal(
+        readFileSync(path.join(output, "report.json"), "utf8"),
+        JSON.stringify(report, null, 2) + "\n",
+      );
+      assert.equal(Object.keys(report.engineSources).length, 6);
+      assert.equal(Object.keys(report.declarationSha256).length, 6);
+      assert.ok(Object.values(report.engineSources).every((hash) => /^[a-f0-9]{64}$/u.test(hash)));
+    }
+  }
+});
 
 void test("pinned engine class export retains static configuration method receivers", async (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "renovate-global-config-"));
