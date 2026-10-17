@@ -335,3 +335,47 @@ test("pending handover queues new payloads without acquiring retirement guards",
   assert.equal(lease.inherited, false);
   await lease.release();
 });
+
+test("unavailable process identity waits conservatively and never becomes capacity", async (t) => {
+  const root = await fixture(t);
+  const messages = [];
+  let probes = 0;
+  const unavailable = () =>
+    Object.assign(new Error("fixture identity probe timed out"), {
+      code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE",
+    });
+  const lease = await acquireResourceCapacity(
+    "browser",
+    {},
+    isolated(root, {
+      pollMs: 10,
+      waitMs: 1000,
+      report: (value) => messages.push(value),
+      legacyBlocker: async () => {
+        if (++probes < 3) throw unavailable();
+        return null;
+      },
+    }),
+  );
+  assert.equal(probes, 3);
+  assert.ok(lease.queueMs >= 20);
+  assert.match(messages.join("\n"), /verified process identity/);
+  await lease.release();
+  await assert.rejects(
+    acquireResourceCapacity(
+      "browser",
+      {},
+      isolated(root, {
+        pollMs: 10,
+        waitMs: 30,
+        report: () => {},
+        legacyBlocker: async () => {
+          throw unavailable();
+        },
+      }),
+    ),
+    { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+  );
+  assert.equal((await observeCapacity({ root })).running.length, 0);
+  assert.deepEqual(await readdir(path.join(root, "queue")), []);
+});

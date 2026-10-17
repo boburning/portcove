@@ -318,64 +318,47 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
   try {
     for (;;) {
       options.signal?.throwIfAborted();
-      const waiting = await queueOwners(root, true, inspectProcessIdentity, {
-        firstOnly: true,
-        deadline: waitMs === 0 ? started + 5_000 : deadline,
-      });
-      const legacy = await (options.legacyBlocker ?? legacyBlocker)(config, environment);
-      const outsideConfiguredCapacity = (await readdir(root)).some(
-        (file) => /^slot-\d+$/u.test(file) && Number(file.slice(5)) >= config.slots,
-      );
-      if (waiting[0]?.name === name && !legacy && !outsideConfiguredCapacity) {
-        const currentConfig = await resourceConfiguration(root);
-        if (currentConfig.legacyMode !== "coordinated") {
-          if (performance.now() >= deadline)
+      try {
+        const waiting = await queueOwners(root, true, inspectProcessIdentity, {
+          firstOnly: true,
+          deadline: waitMs === 0 ? started + 5_000 : deadline,
+        });
+        const legacy = await (options.legacyBlocker ?? legacyBlocker)(config, environment);
+        const outsideConfiguredCapacity = (await readdir(root)).some(
+          (file) => /^slot-\d+$/u.test(file) && Number(file.slice(5)) >= config.slots,
+        );
+        if (waiting[0]?.name === name && !legacy && !outsideConfiguredCapacity) {
+          const currentConfig = await resourceConfiguration(root);
+          if (currentConfig.legacyMode !== "coordinated") {
+            if (performance.now() >= deadline)
+              throw Object.assign(
+                new Error(
+                  "Resource handover is pending; no payload started. Finish legacy work and run retire-legacy-entrypoints from an updated checkout.",
+                ),
+                { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+              );
+            if (performance.now() >= nextReport) {
+              (options.report ?? console.error)(
+                `Resource handover pending; ${profile} queued ${Math.round(performance.now() - started)}ms. Drain old heavy/native/container work, retire old entrypoints, then run resource-command.mjs retire-legacy-entrypoints.`,
+              );
+              nextReport = performance.now() + 30_000;
+            }
+            await delay(
+              Math.min(options.pollMs ?? 5_000, Math.max(1, deadline - performance.now())),
+              undefined,
+              { signal: options.signal },
+            );
+            continue;
+          }
+          if (
+            currentConfig.slots !== config.slots ||
+            JSON.stringify(currentConfig.legacyRoots) !== JSON.stringify(config.legacyRoots)
+          )
             throw Object.assign(
-              new Error(
-                "Resource handover is pending; no payload started. Finish legacy work and run retire-legacy-entrypoints from an updated checkout.",
-              ),
-              { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+              new Error("Resource configuration changed while queued; retry the intended command"),
+              { code: "PORTCOVE_RESOURCE_CONFIGURATION_CHANGED" },
             );
-          if (performance.now() >= nextReport) {
-            (options.report ?? console.error)(
-              `Resource handover pending; ${profile} queued ${Math.round(performance.now() - started)}ms. Drain old heavy/native/container work, retire old entrypoints, then run resource-command.mjs retire-legacy-entrypoints.`,
-            );
-            nextReport = performance.now() + 30_000;
-          }
-          await delay(
-            Math.min(options.pollMs ?? 250, Math.max(1, deadline - performance.now())),
-            undefined,
-            { signal: options.signal },
-          );
-          continue;
-        }
-        if (
-          currentConfig.slots !== config.slots ||
-          JSON.stringify(currentConfig.legacyRoots) !== JSON.stringify(config.legacyRoots)
-        )
-          throw Object.assign(
-            new Error("Resource configuration changed while queued; retry the intended command"),
-            { code: "PORTCOVE_RESOURCE_CONFIGURATION_CHANGED" },
-          );
-        for (let slot = 0; slot < config.slots && acquired.length < units; slot++) {
-          try {
-            acquired.push(
-              await acquireHeavyRustTestLock(
-                {
-                  ...metadata,
-                  command: `${profile}: ${metadata.command ?? "heavy phase"}`,
-                  capacity_aware: true,
-                },
-                { ...common, lockPath: path.join(root, `slot-${slot}`) },
-              ),
-            );
-          } catch (error) {
-            if (error.code !== "PORTCOVE_RESOURCE_BUSY" && error.cause?.code !== "ENOENT")
-              throw error;
-          }
-        }
-        if (acquired.length === units) {
-          for (const name of exclusive) {
+          for (let slot = 0; slot < config.slots && acquired.length < units; slot++) {
             try {
               acquired.push(
                 await acquireHeavyRustTestLock(
@@ -384,46 +367,88 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
                     command: `${profile}: ${metadata.command ?? "heavy phase"}`,
                     capacity_aware: true,
                   },
-                  { ...common, lockPath: path.join(root, name) },
+                  { ...common, lockPath: path.join(root, `slot-${slot}`) },
                 ),
               );
             } catch (error) {
               if (error.code !== "PORTCOVE_RESOURCE_BUSY" && error.cause?.code !== "ENOENT")
                 throw error;
+            }
+          }
+          if (acquired.length === units) {
+            for (const name of exclusive) {
+              try {
+                acquired.push(
+                  await acquireHeavyRustTestLock(
+                    {
+                      ...metadata,
+                      command: `${profile}: ${metadata.command ?? "heavy phase"}`,
+                      capacity_aware: true,
+                    },
+                    { ...common, lockPath: path.join(root, name) },
+                  ),
+                );
+              } catch (error) {
+                if (error.code !== "PORTCOVE_RESOURCE_BUSY" && error.cause?.code !== "ENOENT")
+                  throw error;
+                break;
+              }
+            }
+            if (acquired.length === units + exclusive.length) {
+              if (waitMs > 0 && performance.now() >= deadline)
+                throw Object.assign(
+                  new Error("Resource admission deadline reached; no payload started"),
+                  { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+                );
+              admitted = true;
               break;
             }
           }
-          if (acquired.length === units + exclusive.length) {
-            if (waitMs > 0 && performance.now() >= deadline)
-              throw Object.assign(
-                new Error("Resource admission deadline reached; no payload started"),
-                { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
-              );
-            admitted = true;
-            break;
-          }
+          for (const lock of acquired.splice(0)) await lock.release();
         }
+        const elapsed = Math.round(performance.now() - started);
+        if (performance.now() >= deadline)
+          throw Object.assign(
+            new Error(
+              `Resource admission timed out after ${elapsed}ms; ${profile} has not started`,
+            ),
+            { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+          );
+        if (performance.now() >= nextReport) {
+          const holder =
+            legacy ?? (await observeCapacity({ root })).running.find((entry) => entry.activity);
+          (options.report ?? console.error)(
+            `Waiting for host capacity (${profile}, ${units}/${config.slots} slots); queued ${elapsed}ms; owner ${holder?.workspace ?? waiting[0]?.workspace ?? "unknown"}, command ${holder?.command ?? waiting[0]?.command ?? "unknown"}.`,
+          );
+          nextReport = performance.now() + 30_000;
+        }
+        await delay(
+          Math.min(options.pollMs ?? 5_000, Math.max(1, deadline - performance.now())),
+          undefined,
+          { signal: options.signal },
+        );
+      } catch (error) {
+        if (error.code !== "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE") throw error;
         for (const lock of acquired.splice(0)) await lock.release();
-      }
-      const elapsed = Math.round(performance.now() - started);
-      if (performance.now() >= deadline)
-        throw Object.assign(
-          new Error(`Resource admission timed out after ${elapsed}ms; ${profile} has not started`),
-          { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+        if (performance.now() >= deadline)
+          throw Object.assign(
+            new Error(
+              "Resource admission timed out with process identity unavailable; no payload started",
+            ),
+            { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+          );
+        if (performance.now() >= nextReport) {
+          (options.report ?? console.error)(
+            `Waiting for verified process identity (${profile}); queued ${Math.round(performance.now() - started)}ms; ${error.message}. No payload started.`,
+          );
+          nextReport = performance.now() + 30_000;
+        }
+        await delay(
+          Math.min(options.pollMs ?? 5_000, Math.max(1, deadline - performance.now())),
+          undefined,
+          { signal: options.signal },
         );
-      if (performance.now() >= nextReport) {
-        const holder =
-          legacy ?? (await observeCapacity({ root })).running.find((entry) => entry.activity);
-        (options.report ?? console.error)(
-          `Waiting for host capacity (${profile}, ${units}/${config.slots} slots); queued ${elapsed}ms; owner ${holder?.workspace ?? waiting[0]?.workspace ?? "unknown"}, command ${holder?.command ?? waiting[0]?.command ?? "unknown"}.`,
-        );
-        nextReport = performance.now() + 30_000;
       }
-      await delay(
-        Math.min(options.pollMs ?? 250, Math.max(1, deadline - performance.now())),
-        undefined,
-        { signal: options.signal },
-      );
     }
     const queueMs = Math.round(performance.now() - started);
     const lease = {

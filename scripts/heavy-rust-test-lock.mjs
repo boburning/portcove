@@ -43,9 +43,12 @@ function runIdentityProbe(run, command, args, pid, platform) {
   });
   if (inspected.error) {
     const timedOut = inspected.error.code === "ETIMEDOUT" ? " timed out" : " failed";
-    throw new Error(`Could not inspect ${platform} process ${pid}: identity probe${timedOut}`, {
-      cause: inspected.error,
-    });
+    throw Object.assign(
+      new Error(`Could not inspect ${platform} process ${pid}: identity probe${timedOut}`, {
+        cause: inspected.error,
+      }),
+      { code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE" },
+    );
   }
   return inspected;
 }
@@ -90,8 +93,9 @@ export function readProcessIdentity(pid, options = {}) {
       "Windows",
     );
     if (inspected.status !== 0)
-      throw new Error(
-        `Could not inspect Windows process ${pid}: ${String(inspected.stderr).trim()}`,
+      throw Object.assign(
+        new Error(`Could not inspect Windows process ${pid}: ${String(inspected.stderr).trim()}`),
+        { code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE" },
       );
     const started = String(inspected.stdout).trim();
     return started ? `win32:${pid}:${started}` : null;

@@ -1790,3 +1790,7 @@ resource handover and requested bootstrap. This initial third-party toolchain
 installation is outside Portcove admission. Normal guarded validation never
 provisions it implicitly. Cold worktree dependencies remain independently owned;
 sharing the download/tool cache does not share generated `node_modules`.
+
+Capacity queues probe at five-second intervals by default. A bounded process-identity
+probe failure keeps work queued within the same admission deadline; it never proves
+availability or starts a payload. Queue and execution failures remain distinct.
