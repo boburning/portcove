@@ -148,7 +148,7 @@ fn observe_at(
             "process_id": std::process::id(),
             "entered_unix_ms": now,
             "deadline_unix_ms": deadline,
-            "control_sha256": format!("{:x}", Sha256::digest(&bytes)),
+            "control_sha256": hex::encode(Sha256::digest(&bytes)),
         }),
     )?;
     file.flush()?;
