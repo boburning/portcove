@@ -1,5 +1,9 @@
 // Capture core-owned evidence and prepare an explicitly unassessed checklist.
-import { isRecord } from "./runtime-values.mts";
+// This file is copied alone into hash-bound qualification sessions and must
+// remain executable before repository dependencies or adjacent helpers exist.
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 import type { ExecFileOptions } from "node:child_process";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
