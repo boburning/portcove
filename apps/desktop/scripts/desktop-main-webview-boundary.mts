@@ -9,6 +9,166 @@ import path from "node:path";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import type { FileIdentity } from "../../../scripts/development-evidence.mts";
 
+import type { WebDriver } from "selenium-webdriver";
+import type {
+  LibraryIdentity,
+  LibrarySelection,
+  OutputDesktopBootstrapStatus,
+} from "../src/transport-types.generated.d.ts";
+export type BoundaryInvoke = (
+  command: string,
+  args?: object | null,
+  options?: object,
+) => Promise<unknown>;
+// Both transports execute value-only functions here; remote values stay unknown.
+export interface MainBoundaryBrowser {
+  executeScript<Arguments extends unknown[], Result>(
+    script: (...args: Arguments) => Result,
+    ...args: Arguments
+  ): Promise<unknown>;
+  executeAsyncScript<Arguments extends unknown[]>(
+    script: (...args: [...Arguments, (value: unknown) => void]) => unknown,
+    ...args: Arguments
+  ): Promise<unknown>;
+  getCurrentUrl(): Promise<string>;
+  get?(url: string): Promise<unknown>;
+  manage(): { setTimeouts(values: { script: number; pageLoad: number }): Promise<void> };
+}
+interface MainContext {
+  browser: Pick<WebDriver, "getCurrentUrl">;
+  invoke: BoundaryInvoke;
+  library: string;
+}
+interface MainObservations {
+  permissionPolicy?: unknown;
+  permissionStates?: unknown;
+  main?: unknown;
+  mainMutation?: unknown;
+  preservedLocale?: unknown;
+  popup?: Record<string, unknown>;
+  cspInline?: Record<string, unknown>;
+  permissionRequests?: Record<string, unknown>;
+  permissionRequestDiagnostic?:
+    | { status: "captured"; requests: unknown }
+    | { status: "unavailable"; reason: string };
+  navigationRefusals?: { attempted: string; current: string; native: unknown }[];
+  navigationRequests?: { destination: string; trigger: string; scheduled?: unknown }[];
+  mainNavigatedUrl?: string;
+}
+type MainScenarioContext = Omit<MainContext, "browser"> & {
+  browser: MainBoundaryBrowser;
+  observations: MainObservations;
+};
+
+type MainSnapshot = Awaited<ReturnType<typeof readyMainContext>>;
+interface ApprovedLinkObservation {
+  url: string;
+  identities: FileIdentity[];
+  networkLog: string;
+  before?: MainSnapshot;
+  after?: MainSnapshot;
+  windowsBefore?: Record<string, unknown>;
+  windowsAfter?: Record<string, unknown>;
+  request?: Record<string, unknown>;
+  actualBrowserVersion?: string;
+  actualPageUrl?: string;
+  interpretation?: string;
+}
+interface LinkRefusal {
+  command: string;
+  args: object;
+  expected: { code: string; message: string };
+  before?: MainSnapshot;
+  after?: MainSnapshot;
+  result?: Record<string, unknown>;
+}
+interface SecondarySnapshot {
+  readFailures: Partial<Record<"context" | "locale" | "windows" | "webviews", string>>;
+  context?: unknown;
+  locale?: unknown;
+  windows?: unknown;
+  webviews?: unknown;
+}
+interface CreationObservation {
+  request: { command: string; args: object };
+  before?: SecondarySnapshot;
+  after?: SecondarySnapshot;
+  result?: Record<string, unknown>;
+  invocationFailure?: string;
+}
+interface FrameObservation {
+  attempted: string;
+  before?: MainSnapshot;
+  after?: MainSnapshot;
+  refusal?: Record<string, unknown>;
+}
+interface BoundaryRequest {
+  method: string | undefined;
+  path: string | undefined;
+  user_agent: string | null;
+  observed_at: string;
+  phase: string;
+}
+interface NormalObservations extends MainObservations {
+  package?:
+    | Awaited<ReturnType<typeof verifyLinuxPackageEvidence>>
+    | Awaited<ReturnType<typeof verifyNormalPackageEvidence>>;
+  approvedExternalLink?: ApprovedLinkObservation;
+  navigationPhases?: { destination: string; started_at: string }[];
+  qualificationCommands?: Partial<
+    Record<
+      | "create_boundary_windows"
+      | "queue_boundary_reply"
+      | "recreate_boundary_owner"
+      | "arm_boundary_main_navigation",
+      unknown
+    >
+  >;
+  reviewedLinkRefusals?: LinkRefusal[];
+  secondaryCreation?: CreationObservation;
+  cspFrame?: FrameObservation;
+  assets?: string[];
+  returnedMain?: Record<string, unknown>;
+  remoteMarkerExecuted?: unknown;
+  nativePermissionDenials?: Record<string, unknown>[];
+  nativePermissionInterpretation?: string;
+  fixtureCloseStartedAt?: string;
+  fixtureClosedAt?: string;
+  fixtureRequests?: BoundaryRequest[];
+  remoteExecutionBeacon?: { path: string; requests: BoundaryRequest[] };
+}
+type NormalContext = Omit<MainScenarioContext, "observations"> & {
+  observations: NormalObservations;
+};
+type ExternalBrowser = Awaited<ReturnType<typeof prepareLinuxExternalBrowser>>;
+interface SelectedWebview {
+  label: string | null;
+  ipc: boolean;
+  url: string;
+  handle: string;
+}
+interface OriginRefusal {
+  command: string;
+  args: object;
+  result?: Record<string, unknown>;
+}
+interface OriginObservations {
+  main?: SelectedWebview;
+  secondary?: SelectedWebview;
+  remote?: SelectedWebview;
+  before?: MainSnapshot;
+  returned?: MainSnapshot;
+  positiveMutation?: Record<string, unknown>;
+  created?: Record<string, unknown>;
+  armed?: Record<string, unknown>;
+  sameLabel?: { label: string | null; ipc: boolean; url: string };
+  returnedLocale?: unknown;
+  restoredLocale?: Record<string, unknown>;
+  secondaryRefusals?: OriginRefusal[];
+  remoteRefusals?: OriginRefusal[];
+  sameLabelRefusals?: OriginRefusal[];
+}
+
 function object(value: unknown): Record<string, unknown> {
   assert.ok(isRecord(value), "Boundary evidence must be an object");
   return value;
@@ -119,18 +279,18 @@ async function observeLinuxApprovedLink({
   library,
   observations,
   externalBrowser,
-}) {
+}: NormalContext & { externalBrowser: ExternalBrowser | undefined }) {
   assert.ok(externalBrowser, "Isolated real browser preparation required");
-  const record = (observations.approvedExternalLink = {
+  const record: ApprovedLinkObservation = (observations.approvedExternalLink = {
     url: "https://github.com/boburning/portcove",
     identities: externalBrowser.identities,
     networkLog: externalBrowser.networkLog,
   });
   record.before = await readyMainContext({ browser, invoke, library });
-  record.windowsBefore = await invoke("plugin:window|get_all_windows");
+  record.windowsBefore = object(await invoke("plugin:window|get_all_windows"));
   assert.equal(record.windowsBefore.ok, true);
   const deadline = Date.now() + 15_000;
-  record.request = await invoke("open_external_url", { url: record.url });
+  record.request = object(await invoke("open_external_url", { url: record.url }));
   assert.equal(record.request.ok, true);
   let ownedBrowser;
   try {
@@ -166,16 +326,20 @@ async function observeLinuxApprovedLink({
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     record.actualBrowserVersion = ownedBrowser.version();
-    record.actualPageUrl = ownedBrowser
+    const observedPage = ownedBrowser
       .contexts()
       .flatMap((context) => context.pages())
-      .find((page) => page.url() === record.url)
-      .url();
+      .find((page) => page.url() === record.url);
+    assert.ok(observedPage);
+    record.actualPageUrl = observedPage.url();
     record.after = await readyMainContext({ browser, invoke, library });
     assert.deepEqual(record.after, record.before);
-    record.windowsAfter = await invoke("plugin:window|get_all_windows");
+    record.windowsAfter = object(await invoke("plugin:window|get_all_windows"));
     assert.equal(record.windowsAfter.ok, true);
-    assert.deepEqual([...record.windowsAfter.value].sort(), [...record.windowsBefore.value].sort());
+    assert.deepEqual(
+      strings(record.windowsAfter.value).sort(),
+      strings(record.windowsBefore.value).sort(),
+    );
     record.interpretation =
       "Actual browser tab destination under an isolated desktop association/profile; not the host's ordinary default-browser configuration or network content health.";
   } finally {
@@ -298,18 +462,37 @@ export async function linuxOriginBoundaryScenario({
   output,
   artifacts,
   fixture,
+}: MainContext & {
+  browser: WebDriver;
+  output: string;
+  artifacts: string[];
+  fixture: Awaited<ReturnType<typeof createOriginBoundaryFixture>>;
 }) {
   assert.equal(process.platform, "linux");
-  const report = { outcome: "failed", fixture: fixture.url, observations: {} };
+  const report: {
+    outcome: string;
+    fixture: string;
+    observations: OriginObservations;
+    failure?: { name: string; message: string; stack: string | undefined };
+    fixtureRequests?: (string | undefined)[];
+    interpretation?: string;
+  } = { outcome: "failed", fixture: fixture.url, observations: {} };
   const observations = report.observations;
   const metadata = () =>
     executeBrowserScript(browser, () => ({
-      label: window.__TAURI_INTERNALS__?.metadata?.currentWebview?.label ?? null,
-      ipc: typeof window.__TAURI_INTERNALS__?.invoke === "function",
+      label:
+        (
+          window as Window & {
+            __TAURI_INTERNALS__?: { metadata?: { currentWebview?: { label?: string } } };
+          }
+        ).__TAURI_INTERNALS__?.metadata?.currentWebview?.label ?? null,
+      ipc:
+        typeof (window as Window & { __TAURI_INTERNALS__?: { invoke?: unknown } })
+          .__TAURI_INTERNALS__?.invoke === "function",
       url: location.href,
     }));
-  const select = async (label) => {
-    let selected;
+  const select = async (label: string) => {
+    let selected: SelectedWebview | undefined;
     await browser.wait(
       async () => {
         for (const handle of await browser.getAllWindowHandles()) {
@@ -326,23 +509,27 @@ export async function linuxOriginBoundaryScenario({
       10_000,
       `Owned ${label} webview was not observed`,
     );
+    assert.ok(selected);
     return selected;
   };
-  const refusals = async (name, customGuard) => {
-    const records = (observations[name] = []);
+  const refusals = async (
+    name: "secondaryRefusals" | "remoteRefusals" | "sameLabelRefusals",
+    customGuard: RegExp,
+  ) => {
+    const records: OriginRefusal[] = (observations[name] = []);
     for (const [command, args] of [
       ["get_bootstrap_status", {}],
       ["set_locale_preference", { locale: null }],
       ["plugin:dialog|open", { options: {} }],
       ["arm_boundary_main_navigation", {}],
-    ]) {
-      const record = { command, args };
+    ] as const) {
+      const record: OriginRefusal = { command, args };
       records.push(record);
-      record.result = await invoke(command, args);
+      record.result = object(await invoke(command, args));
       assert.equal(record.result.ok, false, "The actual privileged request must be refused");
       assert.equal(typeof record.result.error, "string");
       assert.match(
-        record.result.error,
+        text(record.result.error),
         command === "plugin:dialog|open" ? /not allowed/i : customGuard,
         "Require the expected host/ACL guard, not malformed arguments or missing IPC",
       );
@@ -353,9 +540,9 @@ export async function linuxOriginBoundaryScenario({
     observations.main = await select("main");
     assert.equal(observations.main.url, "tauri://localhost");
     observations.before = await readyMainContext({ browser, invoke, library });
-    observations.positiveMutation = await invoke("set_locale_preference", { locale: "en" });
+    observations.positiveMutation = object(await invoke("set_locale_preference", { locale: "en" }));
     assert.equal(observations.positiveMutation.ok, true);
-    observations.created = await invoke("create_boundary_windows");
+    observations.created = object(await invoke("create_boundary_windows"));
     assert.equal(
       observations.created.ok,
       true,
@@ -368,7 +555,7 @@ export async function linuxOriginBoundaryScenario({
     assert.equal(observations.remote.url, fixture.url);
     await refusals("remoteRefusals", /not allowed/i);
     await select("main");
-    observations.armed = await invoke("arm_boundary_main_navigation");
+    observations.armed = object(await invoke("arm_boundary_main_navigation"));
     assert.equal(observations.armed.ok, true);
     await browser.get(fixture.url);
     observations.sameLabel = await metadata();
@@ -381,11 +568,15 @@ export async function linuxOriginBoundaryScenario({
     assert.deepEqual(observations.returned, observations.before);
     observations.returnedLocale = await invoke("get_locale_preference");
     assert.deepEqual(observations.returnedLocale, { ok: true, value: { locale: "en" } });
-    observations.restoredLocale = await invoke("set_locale_preference", { locale: null });
+    observations.restoredLocale = object(await invoke("set_locale_preference", { locale: null }));
     assert.equal(observations.restoredLocale.ok, true);
     report.outcome = "passed";
   } catch (error) {
-    report.failure = { name: error.name, message: errorMessage(error), stack: error.stack };
+    report.failure = {
+      name: error instanceof Error ? error.name : "Error",
+      message: errorMessage(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    };
     throw error;
   } finally {
     report.fixtureRequests = [...fixture.requests];
@@ -497,9 +688,14 @@ export async function normalPackageBoundaryScenario({
   artifacts,
   packageEvidence,
   externalBrowser,
+}: Omit<NormalContext, "observations"> & {
+  output: string;
+  artifacts: string[];
+  packageEvidence: NonNullable<NormalObservations["package"]>;
+  externalBrowser?: ExternalBrowser;
 }) {
-  const observations = { package: packageEvidence };
-  const requests = [];
+  const observations: NormalObservations = { package: packageEvidence };
+  const requests: BoundaryRequest[] = [];
   const marker = `__untrustedBoundary_${randomUUID().replaceAll("-", "")}`;
   const beacon = `/untrusted/executed-${marker}`;
   let phase = "main-controls";
@@ -533,15 +729,17 @@ export async function normalPackageBoundaryScenario({
       "queue_boundary_reply",
       "recreate_boundary_owner",
       "arm_boundary_main_navigation",
-    ]) {
-      const result = await invoke(command);
+    ] as const) {
+      const result = object(await invoke(command));
       observations.qualificationCommands[command] = result;
       assert.equal(result.ok, false);
-      assert.match(result.error, /command .* not found/i);
+      assert.match(text(result.error), /command .* not found/i);
     }
     await assertSecondaryCreationRefusal({ browser, invoke, library, observations });
-    observations.assets = await executeBrowserScript(browser, () =>
-      [...document.scripts].filter((script) => script.src).map((script) => script.src),
+    observations.assets = strings(
+      await browser.executeScript(() =>
+        [...document.scripts].filter((script) => script.src).map((script) => script.src),
+      ),
     );
     assert.ok(observations.assets.length > 0);
     assert.ok(
@@ -551,7 +749,9 @@ export async function normalPackageBoundaryScenario({
         return asset.protocol === main.protocol && asset.host === main.host;
       }),
     );
-    const fixtureUrl = `http://127.0.0.1:${server.address().port}/untrusted`;
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const fixtureUrl = `http://127.0.0.1:${address.port}/untrusted`;
     phase = "frame-csp";
     await assertRemoteFrameCsp({ browser, invoke, library, fixtureUrl, observations });
     if (process.platform === "linux") {
@@ -568,16 +768,15 @@ export async function normalPackageBoundaryScenario({
       fixtureUrl,
       onNavigation: (destination) => {
         phase = destination === fixtureUrl ? "navigation-http" : "navigation-alias";
-        observations.navigationPhases.push({ destination, started_at: new Date().toISOString() });
+        observations.navigationPhases?.push({ destination, started_at: new Date().toISOString() });
       },
     });
     phase = "returned-main";
-    observations.returnedMain = await invoke("get_bootstrap_status");
+    observations.returnedMain = object(await invoke("get_bootstrap_status"));
     assert.equal(observations.returnedMain.ok, true);
-    assert.equal(path.resolve(observations.returnedMain.value.library_root), library);
-    observations.remoteMarkerExecuted = await executeBrowserScript(
-      browser,
-      (name) => window[name] === true,
+    assert.equal(path.resolve(text(object(observations.returnedMain.value).library_root)), library);
+    observations.remoteMarkerExecuted = await browser.executeScript(
+      (name) => Reflect.get(window, name) === true,
       marker,
     );
     assert.equal(observations.remoteMarkerExecuted, false);
@@ -586,9 +785,12 @@ export async function normalPackageBoundaryScenario({
     )
       .trim()
       .split("\n")
-      .map((line) => JSON.parse(line));
+      .map((line) => {
+        const value: unknown = JSON.parse(line);
+        return object(value);
+      });
     observations.nativePermissionDenials = diagnostics.filter(
-      (entry) => entry.fields.operation_id === "webview-permission",
+      (entry) => object(entry.fields).operation_id === "webview-permission",
     );
     if (process.platform === "win32")
       assert.ok(
@@ -602,7 +804,7 @@ export async function normalPackageBoundaryScenario({
     // permits a speculative GET while the host responds. Do not claim network silence.
   } finally {
     observations.fixtureCloseStartedAt = new Date().toISOString();
-    await new Promise((resolve, reject) =>
+    await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
     );
     observations.fixtureClosedAt = new Date().toISOString();
@@ -618,7 +820,9 @@ export async function normalPackageBoundaryScenario({
   return requests;
 }
 
-export function assertOwnedBoundaryRequests(requests) {
+export function assertOwnedBoundaryRequests(
+  requests: readonly Pick<BoundaryRequest, "method" | "path" | "phase">[],
+) {
   for (const request of requests) {
     assert.equal(request.method, "GET", "Unexpected fixture request method");
     assert.equal(
@@ -634,7 +838,12 @@ export function assertOwnedBoundaryRequests(requests) {
   }
 }
 
-async function assertReviewedLinkRefusals({ browser, invoke, library, observations }) {
+async function assertReviewedLinkRefusals({
+  browser,
+  invoke,
+  library,
+  observations,
+}: NormalContext) {
   observations.reviewedLinkRefusals = [];
   const context = () => readyMainContext({ browser, invoke, library });
   for (const request of [
@@ -655,56 +864,83 @@ async function assertReviewedLinkRefusals({ browser, invoke, library, observatio
       },
     },
   ]) {
-    const record = { ...request };
+    const record: LinkRefusal = { ...request };
     observations.reviewedLinkRefusals.push(record);
     record.before = await context();
     assertLocalMainUrl(record.before.url);
-    record.result = await invoke(request.command, request.args);
+    record.result = object(await invoke(request.command, request.args));
     assert.equal(record.result.ok, false, "Unreviewed link must be refused");
-    assert.equal(record.result.error?.code, request.expected.code, "Require the actual link guard");
-    assert.equal(record.result.error?.message, request.expected.message);
+    assert.equal(
+      object(record.result.error).code,
+      request.expected.code,
+      "Require the actual link guard",
+    );
+    assert.equal(object(record.result.error).message, request.expected.message);
     record.after = await context();
     assert.deepEqual(record.after, record.before, "Refusal must preserve main and library context");
   }
 }
 
-async function readyMainContext({ browser, invoke, library }) {
-  const bootstrap = await invoke("get_bootstrap_status");
-  assert.equal(bootstrap.ok, true);
-  assert.equal(bootstrap.value.ready, true, "Boundary refusal requires a ready library");
-  assert.equal(bootstrap.value.error, null);
-  assert.equal(path.resolve(bootstrap.value.library_root), path.resolve(library));
-  assert.ok(Number.isSafeInteger(bootstrap.value.generation) && bootstrap.value.generation > 0);
-  assert.equal(path.resolve(bootstrap.value.selection.root), path.resolve(library));
-  const identity = await invoke("get_library_identity", {
-    generation: bootstrap.value.generation,
-  });
-  assert.equal(identity.ok, true, "Library identity must remain available");
-  assert.ok(typeof identity.value?.id === "string" && identity.value.id.length > 0);
+async function readyMainContext({ browser, invoke, library }: MainContext) {
+  const bootstrapReply = object(await invoke("get_bootstrap_status"));
+  assert.equal(bootstrapReply.ok, true);
+  const raw = object(bootstrapReply.value);
+  assert.equal(raw.ready, true, "Boundary refusal requires a ready library");
+  assert.equal(raw.error, null);
+  const library_root = text(raw.library_root);
+  assert.equal(path.resolve(library_root), path.resolve(library));
+  assert.ok(
+    typeof raw.generation === "number" &&
+      Number.isSafeInteger(raw.generation) &&
+      raw.generation > 0,
+  );
+  const selection = object(raw.selection);
+  const selectionRoot = text(selection.root);
+  assert.equal(path.resolve(selectionRoot), path.resolve(library));
+  // This observation consumes a projection of the Rust-owned contract and keeps
+  // all other fields as opaque metadata; it is not full-schema admission.
+  const bootstrap: Pick<
+    OutputDesktopBootstrapStatus,
+    "ready" | "error" | "library_root" | "generation"
+  > & { selection: Pick<LibrarySelection, "root"> } = {
+    ...raw,
+    ready: true,
+    error: null,
+    library_root,
+    generation: raw.generation,
+    selection: { ...selection, root: selectionRoot },
+  };
+  const identityReply = object(
+    await invoke("get_library_identity", { generation: bootstrap.generation }),
+  );
+  assert.equal(identityReply.ok, true, "Library identity must remain available");
+  const identityRaw = object(identityReply.value);
+  const id = text(identityRaw.id),
+    identityRoot = text(identityRaw.root);
+  assert.ok(id.length > 0);
   assert.equal(
-    path.toNamespacedPath(path.resolve(identity.value.root)),
+    path.toNamespacedPath(path.resolve(identityRoot)),
     path.toNamespacedPath(path.resolve(library)),
   );
-  return {
-    bootstrap: bootstrap.value,
-    identity: identity.value,
-    url: await browser.getCurrentUrl(),
-  };
+  const identity: LibraryIdentity = { ...identityRaw, id, root: identityRoot };
+  return { bootstrap, identity, url: await browser.getCurrentUrl() };
 }
 
-async function captureSecondaryContext({ browser, invoke, library }) {
+async function captureSecondaryContext({ browser, invoke, library }: MainContext) {
   const readers = [
     ["context", () => readyMainContext({ browser, invoke, library })],
     ["locale", () => invoke("get_locale_preference")],
     ["windows", () => invoke("plugin:window|get_all_windows")],
     ["webviews", () => invoke("plugin:webview|get_all_webviews")],
-  ];
+  ] as const;
   const outcomes = await Promise.allSettled(
     readers.map(([, read]) => Promise.resolve().then(read)),
   );
-  const snapshot = { readFailures: {} };
+  const snapshot: SecondarySnapshot = { readFailures: {} };
   for (const [index, outcome] of outcomes.entries()) {
-    const [name] = readers[index];
+    const reader = readers[index];
+    assert.ok(reader);
+    const [name] = reader;
     if (outcome.status === "fulfilled") snapshot[name] = outcome.value;
     else
       snapshot.readFailures[name] =
@@ -713,19 +949,24 @@ async function captureSecondaryContext({ browser, invoke, library }) {
   return snapshot;
 }
 
-function assertSecondaryMainContext(snapshot) {
+function assertSecondaryMainContext(snapshot: SecondarySnapshot) {
   assert.deepEqual(snapshot.readFailures, {}, "Require every actual native context observation");
-  assertLocalMainUrl(snapshot.context.url);
+  assertLocalMainUrl(text(object(snapshot.context).url));
   assert.deepEqual(snapshot.windows, { ok: true, value: ["main"] });
   assert.deepEqual(snapshot.webviews, {
     ok: true,
     value: [{ window_label: "main", label: "main" }],
   });
-  assert.equal(snapshot.locale.ok, true);
-  assert.equal(snapshot.locale.value?.locale, "en");
+  assert.equal(object(snapshot.locale).ok, true);
+  assert.equal(object(object(snapshot.locale).value).locale, "en");
 }
 
-async function assertSecondaryCreationRefusal({ browser, invoke, library, observations }) {
+async function assertSecondaryCreationRefusal({
+  browser,
+  invoke,
+  library,
+  observations,
+}: NormalContext) {
   const command = "plugin:webview|create_webview_window";
   // The pinned SDK sends valid WindowConfig options. ACL refusal precedes
   // argument decoding, so it proves refusal of this request, not option parsing.
@@ -737,12 +978,12 @@ async function assertSecondaryCreationRefusal({ browser, invoke, library, observ
       visible: false,
     },
   };
-  const record = { request: { command, args } };
+  const record: CreationObservation = { request: { command, args } };
   observations.secondaryCreation = record;
   record.before = await captureSecondaryContext({ browser, invoke, library });
   assertSecondaryMainContext(record.before);
   try {
-    record.result = await invoke(command, args);
+    record.result = object(await invoke(command, args));
   } catch (error) {
     record.invocationFailure = error instanceof Error ? errorMessage(error) : String(error);
   }
@@ -750,75 +991,97 @@ async function assertSecondaryCreationRefusal({ browser, invoke, library, observ
   // its reply fails, or another observation fails. Existing IPC bounds still apply.
   record.after = await captureSecondaryContext({ browser, invoke, library });
   assert.equal(record.invocationFailure, undefined, record.invocationFailure);
+  assert.ok(record.result);
   assert.equal(record.result.ok, false, "Unauthorized secondary creation must be refused");
   assert.equal(record.result.error, `Command ${command} not allowed by ACL`);
   assertSecondaryMainContext(record.after);
   assert.deepEqual(record.after, record.before, "Creation refusal must preserve native main state");
 }
 
-async function assertRemoteFrameCsp({ browser, invoke, library, fixtureUrl, observations }) {
+async function assertRemoteFrameCsp({
+  browser,
+  invoke,
+  library,
+  fixtureUrl,
+  observations,
+}: NormalContext & { fixtureUrl: string }) {
   // An origin-root URL keeps the expected resource unambiguous even when an
   // engine strips cross-origin report paths. This server is owned by this run.
   const attempted = new URL("/", fixtureUrl).href;
-  const record = { attempted };
+  const record: FrameObservation = { attempted };
   observations.cspFrame = record;
   record.before = await readyMainContext({ browser, invoke, library });
-  record.refusal = await browser.executeAsyncScript((url, done) => {
-    const frame = document.createElement("iframe");
-    frame.hidden = true;
-    frame.title = "Owned untrusted frame boundary fixture";
-    let completed = false;
-    const finish = (result) => {
-      if (completed) return;
-      completed = true;
-      clearTimeout(timer);
-      document.removeEventListener("securitypolicyviolation", onViolation);
-      frame.remove();
-      done({ ...result, frameRemoved: !frame.isConnected });
-    };
-    const onViolation = (event) => {
-      if (
-        !event.isTrusted ||
-        event.effectiveDirective !== "frame-src" ||
-        event.disposition !== "enforce"
-      )
-        return;
-      let blocked;
+  record.refusal = object(
+    await browser.executeAsyncScript((url, done) => {
+      const frame = document.createElement("iframe");
+      frame.hidden = true;
+      frame.title = "Owned untrusted frame boundary fixture";
+      let completed = false;
+      const finish = (
+        result:
+          | { observed: false; reason: string }
+          | {
+              observed: true;
+              trusted: boolean;
+              directive: string;
+              disposition: string;
+              blockedUri: string;
+              documentUri: string;
+              originalPolicy: string;
+              frameConnected: boolean;
+            },
+      ) => {
+        if (completed) return;
+        completed = true;
+        clearTimeout(timer);
+        document.removeEventListener("securitypolicyviolation", onViolation);
+        frame.remove();
+        done({ ...result, frameRemoved: !frame.isConnected });
+      };
+      const onViolation = (event: SecurityPolicyViolationEvent) => {
+        if (
+          !event.isTrusted ||
+          event.effectiveDirective !== "frame-src" ||
+          event.disposition !== "enforce"
+        )
+          return;
+        let blocked;
+        try {
+          blocked = new URL(event.blockedURI).href;
+        } catch {
+          return;
+        }
+        if (blocked !== url) return;
+        finish({
+          observed: true,
+          trusted: event.isTrusted,
+          directive: event.effectiveDirective,
+          disposition: event.disposition,
+          blockedUri: event.blockedURI,
+          documentUri: event.documentURI,
+          originalPolicy: event.originalPolicy,
+          frameConnected: frame.isConnected,
+        });
+      };
+      // Cleanup precedes the existing ten-second WebDriver script deadline.
+      const timer = setTimeout(
+        () => finish({ observed: false, reason: "no-enforced-frame-refusal" }),
+        9000,
+      );
+      document.addEventListener("securitypolicyviolation", onViolation);
       try {
-        blocked = new URL(event.blockedURI).href;
+        frame.src = url;
+        document.body.append(frame);
       } catch {
-        return;
+        finish({ observed: false, reason: "frame-setup-failed" });
       }
-      if (blocked !== url) return;
-      finish({
-        observed: true,
-        trusted: event.isTrusted,
-        directive: event.effectiveDirective,
-        disposition: event.disposition,
-        blockedUri: event.blockedURI,
-        documentUri: event.documentURI,
-        originalPolicy: event.originalPolicy,
-        frameConnected: frame.isConnected,
-      });
-    };
-    // Cleanup precedes the existing ten-second WebDriver script deadline.
-    const timer = setTimeout(
-      () => finish({ observed: false, reason: "no-enforced-frame-refusal" }),
-      9000,
-    );
-    document.addEventListener("securitypolicyviolation", onViolation);
-    try {
-      frame.src = url;
-      document.body.append(frame);
-    } catch {
-      finish({ observed: false, reason: "frame-setup-failed" });
-    }
-  }, attempted);
+    }, attempted),
+  );
   assert.equal(record.refusal.observed, true, "An enforced owned-frame CSP refusal is required");
   assert.equal(record.refusal.trusted, true);
   assert.equal(record.refusal.directive, "frame-src");
   assert.equal(record.refusal.disposition, "enforce");
-  assert.equal(new URL(record.refusal.blockedUri).href, attempted);
+  assert.equal(new URL(text(record.refusal.blockedUri)).href, attempted);
   assert.equal(record.refusal.documentUri, record.before.url);
   assert.equal(record.refusal.frameConnected, true);
   assert.equal(record.refusal.frameRemoved, true);
@@ -830,9 +1093,18 @@ async function assertRemoteFrameCsp({ browser, invoke, library, fixtureUrl, obse
   );
 }
 
-export async function assertMainWebviewAccess({ browser, invoke, library, observations }) {
-  observations.permissionPolicy = await executeBrowserScript(browser, () => {
-    const policy = document.permissionsPolicy ?? document.featurePolicy;
+export async function assertMainWebviewAccess({
+  browser,
+  invoke,
+  library,
+  observations,
+}: MainScenarioContext) {
+  observations.permissionPolicy = await browser.executeScript(() => {
+    const policyDocument = document as Document & {
+      permissionsPolicy?: { allowsFeature(name: string): boolean };
+      featurePolicy?: { allowsFeature(name: string): boolean };
+    };
+    const policy = policyDocument.permissionsPolicy ?? policyDocument.featurePolicy;
     return {
       secureContext: window.isSecureContext,
       features: Object.fromEntries(
@@ -844,8 +1116,8 @@ export async function assertMainWebviewAccess({ browser, invoke, library, observ
     };
   });
   observations.permissionStates = await browser.executeAsyncScript((done) => {
-    Promise.all(
-      ["camera", "microphone", "geolocation", "notifications"].map(async (name) => {
+    void Promise.all(
+      (["camera", "microphone", "geolocation", "notifications"] as const).map(async (name) => {
         try {
           return [name, (await navigator.permissions.query({ name })).state];
         } catch {
@@ -854,14 +1126,13 @@ export async function assertMainWebviewAccess({ browser, invoke, library, observ
       }),
     ).then((entries) => done(Object.fromEntries(entries)));
   });
-  const positive = await invoke("get_bootstrap_status");
+  const positive = object(await invoke("get_bootstrap_status"));
   observations.main = positive;
   assert.equal(positive.ok, true);
-  observations.mainMutation = await invoke("set_locale_preference", {
-    locale: "en",
-  });
-  assert.equal(observations.mainMutation.ok, true);
-  assert.equal(path.resolve(positive.value.library_root), path.resolve(library));
+  const mutation = object(await invoke("set_locale_preference", { locale: "en" }));
+  observations.mainMutation = mutation;
+  assert.equal(mutation.ok, true);
+  assert.equal(path.resolve(text(object(positive.value).library_root)), path.resolve(library));
 }
 
 export async function assertMainWebviewContainment({
@@ -872,51 +1143,66 @@ export async function assertMainWebviewContainment({
   fixtureUrl,
   initialUrl,
   onNavigation = () => {},
+}: MainScenarioContext & {
+  fixtureUrl: string;
+  initialUrl: string;
+  onNavigation?: (destination: string) => void;
 }) {
-  observations.preservedLocale = await invoke("get_locale_preference");
-  assert.equal(observations.preservedLocale.value.locale, "en");
-  observations.popup = await browser.executeAsyncScript((url, done) => {
-    const popup = window.open(`${url}/popup`, "_blank");
-    if (!popup) {
-      done({ refused: true, result: "null" });
-      return;
-    }
-    const deadline = Date.now() + 5000;
-    const timer = setInterval(() => {
-      if (popup.closed || Date.now() >= deadline) {
-        clearInterval(timer);
-        done({ refused: popup.closed, result: "window-proxy" });
+  const preservedLocale = object(await invoke("get_locale_preference"));
+  observations.preservedLocale = preservedLocale;
+  assert.equal(object(preservedLocale.value).locale, "en");
+  observations.popup = object(
+    await browser.executeAsyncScript((url, done) => {
+      const popup = window.open(`${url}/popup`, "_blank");
+      if (!popup) {
+        done({ refused: true, result: "null" });
+        return;
       }
-    }, 100);
-  }, fixtureUrl);
+      const deadline = Date.now() + 5000;
+      const timer = setInterval(() => {
+        if (popup.closed || Date.now() >= deadline) {
+          clearInterval(timer);
+          done({ refused: popup.closed, result: "window-proxy" });
+        }
+      }, 100);
+    }, fixtureUrl),
+  );
   assert.equal(observations.popup.refused, true);
-  observations.cspInline = await browser.executeAsyncScript((done) => {
-    const handler = (event) => {
-      if (event.violatedDirective.startsWith("script-src")) {
-        document.removeEventListener("securitypolicyviolation", handler);
-        done({
-          directive: event.violatedDirective,
-          blockedUri: event.blockedURI,
-          executed: window.__boundaryInline === true,
-        });
-      }
-    };
-    document.addEventListener("securitypolicyviolation", handler);
-    const script = document.createElement("script");
-    script.textContent = "window.__boundaryInline = true";
-    document.body.append(script);
-  });
+  observations.cspInline = object(
+    await browser.executeAsyncScript((done) => {
+      const handler = (event: SecurityPolicyViolationEvent) => {
+        if (event.violatedDirective.startsWith("script-src")) {
+          document.removeEventListener("securitypolicyviolation", handler);
+          done({
+            directive: event.violatedDirective,
+            blockedUri: event.blockedURI,
+            executed: (window as Window & { __boundaryInline?: unknown }).__boundaryInline === true,
+          });
+        }
+      };
+      document.addEventListener("securitypolicyviolation", handler);
+      const script = document.createElement("script");
+      script.textContent = "window.__boundaryInline = true";
+      document.body.append(script);
+    }),
+  );
   assert.equal(observations.cspInline.executed, false);
   assert.equal(observations.cspInline.blockedUri, "inline");
   try {
-    observations.permissionRequests = await browser.executeAsyncScript((done) => {
-      const kinds = ["notifications", "geolocation", "media"];
-      const progress = Object.fromEntries(kinds.map((kind) => [kind, "pending"]));
-      window.__portcovePermissionProgress = progress;
-      Promise.all(
-        [
-          Notification.requestPermission().then((value) => ["notifications", value]),
-          new Promise((resolve) =>
+    observations.permissionRequests = object(
+      await browser.executeAsyncScript((done) => {
+        const kinds = ["notifications", "geolocation", "media"];
+        const progress = Object.fromEntries(kinds.map((kind) => [kind, "pending"]));
+        (
+          window as Window & { __portcovePermissionProgress?: Record<string, string> }
+        ).__portcovePermissionProgress = progress;
+        type PermissionEntry = [string, string | { code: number } | { name: unknown }];
+        const requests: Promise<PermissionEntry>[] = [
+          Notification.requestPermission().then((value): PermissionEntry => [
+            "notifications",
+            value,
+          ]),
+          new Promise<PermissionEntry>((resolve) =>
             navigator.geolocation.getCurrentPosition(
               () => resolve(["geolocation", "unexpected-grant"]),
               (error) => resolve(["geolocation", { code: error.code }]),
@@ -924,60 +1210,81 @@ export async function assertMainWebviewContainment({
             ),
           ),
           navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then(
-            (stream) => {
+            (stream): PermissionEntry => {
               stream.getTracks().forEach((track) => track.stop());
               return ["media", "unexpected-grant"];
             },
-            (error) => ["media", { name: error.name }],
+            (error: unknown): PermissionEntry => [
+              "media",
+              {
+                name:
+                  error !== null && typeof error === "object" && "name" in error
+                    ? error.name
+                    : undefined,
+              },
+            ],
           ),
-        ].map((request, index) =>
-          request.then(
-            (entry) => {
-              const value = entry[1];
-              const outcome =
-                typeof value === "string"
-                  ? value
-                  : kinds[index] === "geolocation"
-                    ? `code-${value?.code}`
-                    : value?.name;
-              progress[kinds[index]] = [
-                "denied",
-                "default",
-                "granted",
-                "unexpected-grant",
-                "code-1",
-                "code-2",
-                "code-3",
-                "NotAllowedError",
-                "OverconstrainedError",
-                "NotFoundError",
-                "NotReadableError",
-                "AbortError",
-                "SecurityError",
-                "InvalidStateError",
-                "NotSupportedError",
-                "TypeError",
-              ].includes(outcome)
-                ? outcome
-                : "unclassified";
-              return entry;
-            },
-            (error) => {
-              progress[kinds[index]] = "rejected";
-              throw error;
-            },
+        ];
+        void Promise.all(
+          requests.map((request, index) =>
+            request.then(
+              (entry) => {
+                const value = entry[1];
+                const kind = kinds[index];
+                if (kind === undefined)
+                  return Promise.reject(new Error("Permission request identity missing"));
+                const outcome =
+                  typeof value === "string"
+                    ? value
+                    : kinds[index] === "geolocation"
+                      ? `code-${"code" in value ? value.code : undefined}`
+                      : "name" in value
+                        ? value.name
+                        : undefined;
+                progress[kind] = [
+                  "denied",
+                  "default",
+                  "granted",
+                  "unexpected-grant",
+                  "code-1",
+                  "code-2",
+                  "code-3",
+                  "NotAllowedError",
+                  "OverconstrainedError",
+                  "NotFoundError",
+                  "NotReadableError",
+                  "AbortError",
+                  "SecurityError",
+                  "InvalidStateError",
+                  "NotSupportedError",
+                  "TypeError",
+                ].includes(typeof outcome === "string" ? outcome : "")
+                  ? typeof outcome === "string"
+                    ? outcome
+                    : "unclassified"
+                  : "unclassified";
+                return entry;
+              },
+              (error: unknown) => {
+                const kind = kinds[index];
+                if (kind !== undefined) progress[kind] = "rejected";
+                return Promise.reject(error);
+              },
+            ),
           ),
-        ),
-      ).then((entries) => done(Object.fromEntries(entries)));
-    });
+        ).then((entries) => done(Object.fromEntries(entries)));
+      }),
+    );
   } catch (original) {
     // Read-only failure diagnostics cannot supply acceptance or replace the failure.
-    let timer;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const deadline = new Error("Permission progress readback deadline");
     try {
       const requests = await Promise.race([
         browser.executeScript(() => {
-          const progress = window.__portcovePermissionProgress;
+          const progress = (
+            window as Window & { __portcovePermissionProgress?: Record<string, unknown> }
+          ).__portcovePermissionProgress;
           const allowed = [
             "pending",
             "rejected",
@@ -1002,7 +1309,10 @@ export async function assertMainWebviewContainment({
           return Object.fromEntries(
             ["notifications", "geolocation", "media"].map((kind) => {
               const outcome = progress?.[kind];
-              return [kind, allowed.includes(outcome) ? outcome : "unclassified"];
+              return [
+                kind,
+                typeof outcome === "string" && allowed.includes(outcome) ? outcome : "unclassified",
+              ];
             }),
           );
         }),
@@ -1022,18 +1332,21 @@ export async function assertMainWebviewContainment({
     throw original;
   }
   assert.equal(observations.permissionRequests.notifications, "denied");
-  assert.equal(observations.permissionRequests.geolocation.code, 1);
+  assert.equal(object(observations.permissionRequests.geolocation).code, 1);
   assert.notEqual(observations.permissionRequests.media, "unexpected-grant");
   const diagnosticPath = path.join(library, "logs", "portcove-desktop.jsonl");
   const navigationRefusals = async () =>
     (await readFile(diagnosticPath, "utf8"))
       .trim()
       .split("\n")
-      .map((line) => JSON.parse(line))
+      .map((line) => {
+        const value: unknown = JSON.parse(line);
+        return object(value);
+      })
       .filter(
         (entry) =>
-          entry.fields.operation_id === "webview-navigation" &&
-          entry.fields.webview_label === "main",
+          object(entry.fields).operation_id === "webview-navigation" &&
+          object(entry.fields).webview_label === "main",
       );
   observations.navigationRefusals = [];
   observations.navigationRequests = [];
@@ -1046,7 +1359,7 @@ export async function assertMainWebviewContainment({
   for (const destination of [fixtureUrl, inactiveAlias.href]) {
     onNavigation(destination);
     const previous = (await navigationRefusals()).length;
-    const request = {
+    const request: { destination: string; trigger: string; scheduled?: unknown } = {
       destination,
       trigger: process.platform === "linux" ? "page-location" : "webdriver-get",
     };
@@ -1062,6 +1375,7 @@ export async function assertMainWebviewContainment({
       }, destination);
       assert.equal(request.scheduled, true, "Navigation scheduling acknowledgement is required");
     } else {
+      assert.ok(typeof browser.get === "function", "WebDriver navigation required");
       await browser.get(destination);
       deadline = Date.now() + 10_000;
     }
@@ -1082,5 +1396,5 @@ export async function assertMainWebviewContainment({
   assert.equal(observations.mainNavigatedUrl, initialUrl);
   // Constraint rejection can precede permission handling on a device-less host.
   // Collect independent navigation evidence before retaining the strict failure.
-  assert.equal(observations.permissionRequests.media.name, "NotAllowedError");
+  assert.equal(object(observations.permissionRequests.media).name, "NotAllowedError");
 }

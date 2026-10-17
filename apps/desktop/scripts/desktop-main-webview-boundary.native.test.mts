@@ -31,6 +31,11 @@ function nestedRequest(value: string) {
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
+import { spawnSync } from "node:child_process";
+import { copyFile, mkdir, mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { assertLocalMainUrl, chromeObserverEndpoint } from "./desktop-main-webview-boundary.mts";
 import {
   inspectorSocketPath,
@@ -42,6 +47,31 @@ import {
 
 // Imported by the maintained desktop-scenarios contract suite. Keep native-only
 // helper consumers adjacent so the frontend graph observes their actual tests.
+void test("native boundary contracts import before desktop dependencies are installed", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-boundary-import-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const desktop = path.join(directory, "apps/desktop/scripts");
+  const scripts = path.join(directory, "scripts");
+  await mkdir(desktop, { recursive: true });
+  await mkdir(scripts);
+  for (const name of ["desktop-main-webview-boundary.mts", "browser-script.mts"])
+    await copyFile(new URL(name, import.meta.url), path.join(desktop, name));
+  for (const name of ["runtime-values.mts", "development-evidence.mts"])
+    await copyFile(new URL(`../../../scripts/${name}`, import.meta.url), path.join(scripts, name));
+  const module = pathToFileURL(path.join(desktop, "desktop-main-webview-boundary.mts")).href;
+  const result = spawnSync(
+    process.execPath,
+    ["--input-type=module", "-e", `await import(${JSON.stringify(module)})`],
+    {
+      cwd: directory,
+      encoding: "utf8",
+      timeout: 5000,
+      windowsHide: true,
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+});
+
 void test("external browser observation uses only the owned Chrome loopback endpoint", () => {
   const id = "12345678-1234-1234-1234-123456789abc";
   assert.equal(
