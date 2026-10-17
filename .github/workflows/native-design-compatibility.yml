@@ -423,6 +423,17 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $pathsJson = node scripts/tool-cache.mts --paths
+          if ($LASTEXITCODE -ne 0) { throw 'Source-pinned tool paths are unavailable.' }
+          $paths = $pathsJson | ConvertFrom-Json
+          $planJson = node scripts/development-capabilities.mts --profile native-desktop
+          if ($LASTEXITCODE -ne 0) { throw 'Native prerequisite selection failed.' }
+          $plan = $planJson | ConvertFrom-Json
+          $cargoBins = @($plan.setup.cargo_tools | ForEach-Object {
+            Join-Path $paths.cargoRoot "$($_.crate)/$($_.version)/bin"
+          })
+          $env:PATH = ($cargoBins -join [IO.Path]::PathSeparator) + [IO.Path]::PathSeparator + $env:PATH
+          $cargoBins | Add-Content -LiteralPath $env:GITHUB_PATH
           pnpm install --frozen-lockfile
           if ($LASTEXITCODE -ne 0) { throw 'Frozen dependency installation failed.' }
           ./scripts/bootstrap-quality-tools.ps1 -Profile native-desktop
