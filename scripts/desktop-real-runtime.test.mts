@@ -146,3 +146,55 @@ void test("mutable file accounting uses declared complete path components", () =
   assert.equal(runtimeMutable("general.json.bak", ["general.json"]), false);
   assert.equal(runtimeMutable("WaveRace64Recompiled.exe", [".runtime"]), false);
 });
+
+void test("ordinary game close retains its real request when the positive exit wait fails", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-real-runtime-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf('    const requested = native("RequestClose", closeFile,');
+  const end = source.indexOf("    const terminal = await browser.wait(", start);
+  assert.ok(start >= 0 && end > start);
+  const requested = {
+    application_pid: 42,
+    main_window_handle: "101",
+    main_window_title: "Owned game",
+    message_sent: true,
+  };
+  const failure = new Error("owned process did not exit");
+  const route: Record<string, unknown> = {};
+  const artifacts: string[] = [];
+  const writes: unknown[] = [];
+  const execute = runInNewContext(
+    `(async () => { ${stripTypeScriptTypes(source.slice(start, end))} })`,
+    {
+      native: (mode: string) => {
+        if (mode === "RequestClose") return requested;
+        assert.equal(mode, "Wait");
+        throw failure;
+      },
+      closeFile: "/owned/identity.json",
+      executable: "/owned/game.exe",
+      route,
+      path,
+      output: "/owned/output",
+      port: { id: "pilot" },
+      writeFile: async (file: string, bytes: string, options: unknown) => {
+        const value: unknown = JSON.parse(bytes);
+        const parsedOptions: unknown = JSON.parse(JSON.stringify(options));
+        writes.push({ file, value, options: parsedOptions });
+      },
+      artifacts,
+    },
+  ) as () => Promise<unknown>;
+  await assert.rejects(execute(), (error) => error === failure);
+  assert.equal((route.ordinary_game_close as { requested: unknown }).requested, requested);
+  assert.deepEqual(writes, [
+    {
+      file: path.join("/owned/output", "pilot-ordinary-close-request.json"),
+      value: requested,
+      options: { flag: "wx" },
+    },
+  ]);
+  assert.deepEqual(artifacts, [path.join("/owned/output", "pilot-ordinary-close-request.json")]);
+});

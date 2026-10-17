@@ -113,10 +113,12 @@ if ($Mode -eq 'RequestClose') {
             -not [string]::Equals($process.MainModule.FileName, $record.path, [StringComparison]::OrdinalIgnoreCase)) {
             throw 'Captured application identity changed before ordinary close.'
         }
+        $mainWindowHandle = $process.MainWindowHandle.ToInt64().ToString()
+        $mainWindowTitle = $process.MainWindowTitle
         if (-not $process.CloseMainWindow()) { throw 'The ordinary close message was not sent; no enabled main window was found.' }
         # A sent native close request is not evidence that the application exited.
         # The caller retains a distinct identity-bound Wait observation.
-        [pscustomobject]@{ requested_at = [DateTime]::UtcNow.ToString('o'); application_pid = $process.Id; started_filetime = $record.started_filetime; method = 'identity-bound-native-main-window-close-request'; message_sent = $true } | ConvertTo-Json -Compress
+        [pscustomobject]@{ requested_at = [DateTime]::UtcNow.ToString('o'); application_pid = $process.Id; started_filetime = $record.started_filetime; method = 'identity-bound-native-main-window-close-request'; message_sent = $true; main_window_handle = $mainWindowHandle; main_window_title = $mainWindowTitle } | ConvertTo-Json -Compress
     } finally { $process.Dispose() }
     exit
 }

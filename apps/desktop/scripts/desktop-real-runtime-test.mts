@@ -521,6 +521,10 @@ async function launchRealRuntime(
     route.live_game = { executableIdentity, supervisor, game, close };
     await screenshot(`${port.id}-desktop-launch-observation`);
     const requested = native("RequestClose", closeFile, ["-ApplicationPath", executable]);
+    route.ordinary_game_close = { requested };
+    const requestFile = path.join(output, `${port.id}-ordinary-close-request.json`);
+    await writeFile(requestFile, JSON.stringify(requested, null, 2), { flag: "wx" });
+    artifacts.push(requestFile);
     const exited = native("Wait", closeFile);
     naturalExit = true;
     route.ordinary_game_close = { requested, exited };
