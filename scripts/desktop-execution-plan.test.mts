@@ -438,6 +438,13 @@ test("late listener qualification binds its imported probe and positive final cl
   assert.equal(plan.session.identityBoundSession, true);
   assert.equal(plan.session.cleanupName, "late-listener-disposal");
   assert.ok(
+    plan.fixtureFamilies.some(
+      (entry) =>
+        entry.family === "preparation" &&
+        entry.members?.some((member) => member.id === "native-late-listener-disposal"),
+    ),
+  );
+  assert.ok(
     plan.receiptInputs.some(
       (input) => input.path === "apps/desktop/scripts/desktop-listener-lifetime-test.mts",
     ),

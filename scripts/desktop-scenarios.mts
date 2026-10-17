@@ -309,7 +309,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     {
       prerequisites: ["desktop", "owned-fixture", "native-dialog"],
       host_resources: [...nativeResources, "native-dialog"],
-      source: "desktop-preparation-test.mjs",
+      source: "desktop-preparation-test.mts",
       qualification_only: true,
       platforms: ["win32"],
     },
