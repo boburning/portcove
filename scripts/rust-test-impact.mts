@@ -1,4 +1,6 @@
-import { errorMessage } from "./runtime-values.mts";
+import { errorMessage, isRecord } from "./runtime-values.mts";
+import type { SpawnSyncOptions } from "node:child_process";
+import type { ValidationPlan, ValidationChangeInput } from "./validation-plan.mts";
 import { readFileSync } from "node:fs";
 import { execFileSync, spawnSync } from "node:child_process";
 import path from "node:path";
@@ -8,26 +10,71 @@ import { createCiMetrics } from "./ci-metrics.mts";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 export const rustTestImpactPath = path.join(projectRoot, ".config", "rust-test-impact.json");
+export interface RustImpactGroup {
+  id: string;
+  reason: string;
+  filter: string;
+  paths: string[];
+}
+interface RustImpactPackage {
+  path_prefix: string;
+  broad_reason: string;
+  groups: RustImpactGroup[];
+}
+export interface RustImpactMap {
+  schema_version: 1;
+  packages: Record<string, RustImpactPackage>;
+}
+interface RustImpactChange extends Pick<ValidationChangeInput, "status" | "previousPath"> {
+  path: string;
+}
+interface ImpactSelection {
+  mode: "broad" | "focused";
+  reason: string;
+  groups: RustImpactGroup[];
+}
+export interface WorkspaceImpactGroup {
+  id: string;
+  filter: string;
+  reason: string;
+  packageName?: string;
+}
+type ImpactRunner = (
+  command: string,
+  args: string[],
+  options: SpawnSyncOptions,
+) => {
+  status?: number | null;
+  error?: Error;
+  stdout?: string | Buffer | null;
+  stderr?: string | Buffer | null;
+};
+interface ImpactDependencies {
+  map?: RustImpactMap | null;
+  spawnSync?: ImpactRunner;
+  report?: (message: string) => void;
+  metrics?: ReturnType<typeof createCiMetrics>;
+}
 
-function normalizePath(value) {
+function normalizePath(value: unknown) {
   const normalized = String(value).replaceAll("\\", "/").replace(/^\.\//, "");
   if (!normalized || normalized.startsWith("/") || normalized.includes("../"))
-    throw new Error(`unsafe Rust test-impact path: ${value}`);
+    throw new Error(`unsafe Rust test-impact path: ${String(value)}`);
   return normalized;
 }
 
-export function validateRustTestImpactMap(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error("Rust test-impact map must be an object");
+function assertRustTestImpactMap(value: unknown): asserts value is RustImpactMap {
+  if (!isRecord(value)) throw new Error("Rust test-impact map must be an object");
   if (value.schema_version !== 1) throw new Error("unsupported Rust test-impact schema version");
-  if (!value.packages || typeof value.packages !== "object" || Array.isArray(value.packages))
-    throw new Error("Rust test-impact map packages must be an object");
+  if (!isRecord(value.packages)) throw new Error("Rust test-impact map packages must be an object");
 
   for (const [packageName, config] of Object.entries(value.packages)) {
     if (!/^[a-z0-9][a-z0-9-]*$/.test(packageName))
       throw new Error(`invalid Rust test-impact package name: ${packageName}`);
-    if (!config || typeof config !== "object" || Array.isArray(config))
+    if (!isRecord(config))
       throw new Error(`Rust test-impact package ${packageName} must be an object`);
+    if (typeof config.path_prefix !== "string")
+      throw new Error(`Rust test-impact package ${packageName} path_prefix must be a string`);
     const prefix = normalizePath(config.path_prefix);
     if (!prefix.endsWith("/"))
       throw new Error(`Rust test-impact package ${packageName} path_prefix must end in /`);
@@ -36,10 +83,11 @@ export function validateRustTestImpactMap(value) {
     if (!Array.isArray(config.groups) || config.groups.length === 0)
       throw new Error(`Rust test-impact package ${packageName} groups are missing`);
 
-    const groupIds = new Set();
-    const ownedPaths = new Set();
-    for (const group of config.groups) {
-      if (!group || typeof group !== "object" || Array.isArray(group))
+    const groupIds = new Set<string>();
+    const ownedPaths = new Set<string>();
+    const groups: unknown[] = config.groups;
+    for (const group of groups) {
+      if (!isRecord(group))
         throw new Error(`Rust test-impact package ${packageName} has an invalid group`);
       if (typeof group.id !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(group.id))
         throw new Error(`Rust test-impact package ${packageName} has an invalid group id`);
@@ -52,7 +100,12 @@ export function validateRustTestImpactMap(value) {
         throw new Error(`Rust test-impact group ${packageName}:${group.id} filter is invalid`);
       if (!Array.isArray(group.paths) || group.paths.length === 0)
         throw new Error(`Rust test-impact group ${packageName}:${group.id} paths are missing`);
-      for (const input of group.paths) {
+      const inputs: unknown[] = group.paths;
+      for (const input of inputs) {
+        if (typeof input !== "string")
+          throw new Error(
+            `Rust test-impact group ${packageName}:${group.id} path must be a string`,
+          );
         const file = normalizePath(input);
         if (!file.startsWith(prefix))
           throw new Error(`Rust test-impact path ${file} is outside ${packageName}`);
@@ -61,6 +114,9 @@ export function validateRustTestImpactMap(value) {
       }
     }
   }
+}
+export function validateRustTestImpactMap(value: unknown): RustImpactMap {
+  assertRustTestImpactMap(value);
   return value;
 }
 
@@ -68,7 +124,7 @@ export function readRustTestImpactMap(file = rustTestImpactPath) {
   return validateRustTestImpactMap(JSON.parse(readFileSync(file, "utf8")));
 }
 
-function broad(config, reasons) {
+function broad(config: RustImpactPackage, reasons: string[]): ImpactSelection {
   return {
     mode: "broad",
     reason: `${config.broad_reason}; ${[...new Set(reasons)].join("; ")}`,
@@ -76,7 +132,11 @@ function broad(config, reasons) {
   };
 }
 
-export function selectRustTestImpact(map, packageName, changes) {
+export function selectRustTestImpact(
+  map: RustImpactMap | null,
+  packageName: string,
+  changes: readonly RustImpactChange[],
+): ImpactSelection {
   if (!map || typeof map !== "object" || !map.packages || typeof map.packages !== "object")
     return {
       mode: "broad",
@@ -91,12 +151,12 @@ export function selectRustTestImpact(map, packageName, changes) {
       groups: [],
     };
 
-  const groupsByPath = new Map();
+  const groupsByPath = new Map<string, RustImpactGroup>();
   for (const group of config.groups)
     for (const file of group.paths) groupsByPath.set(normalizePath(file), group);
 
-  const selected = new Map();
-  const broadReasons = [];
+  const selected = new Map<string, RustImpactGroup>();
+  const broadReasons: string[] = [];
   for (const change of changes) {
     const file = normalizePath(change.path);
     const status = String(change.status ?? "");
@@ -123,35 +183,37 @@ export function selectRustTestImpact(map, packageName, changes) {
   };
 }
 
-export function runnableImpactTests(inventory, packageName) {
+export function runnableImpactTests(inventory: unknown, packageName: string) {
   if (
-    !inventory ||
+    !isRecord(inventory) ||
+    typeof inventory["test-count"] !== "number" ||
     !Number.isSafeInteger(inventory["test-count"]) ||
     inventory["test-count"] < 0 ||
-    !inventory["rust-suites"] ||
-    typeof inventory["rust-suites"] !== "object" ||
-    Array.isArray(inventory["rust-suites"])
+    !isRecord(inventory["rust-suites"])
   )
     throw new Error("Incomplete nextest impact inventory");
-  const matched = new Set();
+  const matched = new Set<string>();
   let total = 0;
   for (const [binaryId, suite] of Object.entries(inventory["rust-suites"])) {
     if (
-      suite?.["package-name"] !== packageName ||
+      !isRecord(suite) ||
+      suite["package-name"] !== packageName ||
       suite["binary-id"] !== binaryId ||
       suite.status !== "listed" ||
-      !suite.testcases ||
-      typeof suite.testcases !== "object" ||
-      Array.isArray(suite.testcases)
+      !isRecord(suite.testcases)
     )
       throw new Error("Unexpected nextest impact suite identity or coverage");
     for (const [name, detail] of Object.entries(suite.testcases)) {
       total++;
-      const status = detail?.["filter-match"]?.status;
+      const status =
+        isRecord(detail) && isRecord(detail["filter-match"])
+          ? detail["filter-match"].status
+          : undefined;
       if (
         !name ||
-        typeof detail?.ignored !== "boolean" ||
-        !["matches", "mismatch"].includes(status)
+        !isRecord(detail) ||
+        typeof detail.ignored !== "boolean" ||
+        (status !== "matches" && status !== "mismatch")
       )
         throw new Error("Invalid nextest impact test record");
       if (status === "matches" && !detail.ignored) matched.add(JSON.stringify([binaryId, name]));
@@ -161,7 +223,11 @@ export function runnableImpactTests(inventory, packageName) {
   return matched;
 }
 
-export function runRustImpactUnion(packageName, groupIds, dependencies = {}) {
+export function runRustImpactUnion(
+  packageName: string,
+  groupIds: string[],
+  dependencies: ImpactDependencies = {},
+) {
   const map = dependencies.map ?? readRustTestImpactMap();
   const config = map.packages[packageName];
   if (!config || groupIds.length < 2 || new Set(groupIds).size !== groupIds.length)
@@ -173,7 +239,7 @@ export function runRustImpactUnion(packageName, groupIds, dependencies = {}) {
   });
   const run = dependencies.spawnSync ?? spawnSync;
   const report = dependencies.report ?? console.log;
-  const inventory = (filter) => {
+  const inventory = (filter: string) => {
     const result = run(
       "cargo-nextest",
       ["nextest", "list", "--locked", "-p", packageName, "-E", filter, "--message-format", "json"],
@@ -185,10 +251,11 @@ export function runRustImpactUnion(packageName, groupIds, dependencies = {}) {
       },
     );
     if (result.error) throw result.error;
-    if (result.status !== 0) throw new Error(`Nextest impact inventory failed: ${result.stderr}`);
-    return runnableImpactTests(JSON.parse(result.stdout), packageName);
+    if (result.status !== 0)
+      throw new Error(`Nextest impact inventory failed: ${String(result.stderr)}`);
+    return runnableImpactTests(JSON.parse(String(result.stdout)), packageName);
   };
-  const expected = new Set();
+  const expected = new Set<string>();
   for (const group of groups) {
     const matches = inventory(group.filter);
     if (!matches.size) throw new Error(`Rust impact group ${group.id} has no runnable tests`);
@@ -216,7 +283,10 @@ export const rustPackagePrefixes = new Map([
   ["apps/desktop/src-tauri/", "portcove-desktop"],
 ]);
 
-export function selectWorkspaceRustImpact(plan, map = readRustTestImpactMap()) {
+export function selectWorkspaceRustImpact(
+  plan: ValidationPlan,
+  map: RustImpactMap | null = readRustTestImpactMap(),
+): WorkspaceImpactGroup[] {
   validateValidationPlan(plan);
   if (plan.mode === "blocked" || !plan.groups.includes("rust"))
     throw new Error("The plan does not authorize Rust execution");
@@ -247,7 +317,7 @@ export function selectWorkspaceRustImpact(plan, map = readRustTestImpactMap()) {
         reason: "shared or unknown inputs require the complete workspace",
       },
     ];
-  const changesByPackage = new Map();
+  const changesByPackage = new Map<string, RustImpactChange[]>();
   for (const change of plan.changes) {
     for (const [prefix, packageName] of rustPackagePrefixes) {
       if (![change.oldPath, change.newPath].some((file: string) => file.startsWith(prefix)))
@@ -271,8 +341,11 @@ export function selectWorkspaceRustImpact(plan, map = readRustTestImpactMap()) {
     )
   )
     return [{ id: "workspace", filter: "all()", reason: "Rust package ownership is uncertain" }];
-  const selected = [];
-  for (const [packageName, changes] of [...changesByPackage].sort()) {
+  const selected: WorkspaceImpactGroup[] = [];
+  // Valid package keys use [a-z0-9-], preserving the old tuple sort's UTF-16 order.
+  for (const [packageName, changes] of [...changesByPackage].sort(([left], [right]) =>
+    left < right ? -1 : left > right ? 1 : 0,
+  )) {
     const impact = selectRustTestImpact(map, packageName, changes);
     if (impact.mode === "broad")
       selected.push({
@@ -319,36 +392,40 @@ export function selectWorkspaceRustImpact(plan, map = readRustTestImpactMap()) {
   return selected;
 }
 
-export function runnableWorkspaceImpactTests(inventory, { allowSkipped = false } = {}) {
+export function runnableWorkspaceImpactTests(inventory: unknown, { allowSkipped = false } = {}) {
   if (
-    !Number.isSafeInteger(inventory?.["test-count"]) ||
+    !isRecord(inventory) ||
+    typeof inventory["test-count"] !== "number" ||
+    !Number.isSafeInteger(inventory["test-count"]) ||
     inventory["test-count"] < 0 ||
-    !inventory["rust-suites"] ||
-    typeof inventory["rust-suites"] !== "object" ||
-    Array.isArray(inventory["rust-suites"])
+    !isRecord(inventory["rust-suites"])
   )
     throw new Error("Incomplete nextest workspace inventory");
   let total = 0;
-  const matched = new Set();
+  const matched = new Set<string>();
   for (const [binaryId, suite] of Object.entries(inventory["rust-suites"])) {
     if (
-      !/^[a-z0-9][a-z0-9-]*$/u.test(suite?.["package-name"] ?? "") ||
+      !isRecord(suite) ||
+      typeof suite["package-name"] !== "string" ||
+      !/^[a-z0-9][a-z0-9-]*$/u.test(suite["package-name"]) ||
       suite["binary-id"] !== binaryId ||
-      !["listed", ...(allowSkipped ? ["skipped"] : [])].includes(suite.status) ||
-      !suite.testcases ||
-      typeof suite.testcases !== "object" ||
-      Array.isArray(suite.testcases)
+      (suite.status !== "listed" && !(allowSkipped && suite.status === "skipped")) ||
+      !isRecord(suite.testcases)
     )
       throw new Error("Unexpected nextest workspace suite identity or coverage");
     if (suite.status === "skipped" && Object.keys(suite.testcases).length)
       throw new Error("Skipped nextest suite contained test records");
     for (const [name, detail] of Object.entries(suite.testcases)) {
       total++;
-      const status = detail?.["filter-match"]?.status;
+      const status =
+        isRecord(detail) && isRecord(detail["filter-match"])
+          ? detail["filter-match"].status
+          : undefined;
       if (
         !name ||
-        typeof detail?.ignored !== "boolean" ||
-        !["matches", "mismatch"].includes(status)
+        !isRecord(detail) ||
+        typeof detail.ignored !== "boolean" ||
+        (status !== "matches" && status !== "mismatch")
       )
         throw new Error("Invalid nextest workspace test record");
       if (status === "matches" && !detail.ignored)
@@ -359,8 +436,11 @@ export function runnableWorkspaceImpactTests(inventory, { allowSkipped = false }
   return matched;
 }
 
-export function runWorkspaceRustImpact(plan, dependencies = {}) {
-  let map;
+export function runWorkspaceRustImpact(
+  plan: ValidationPlan,
+  dependencies: ImpactDependencies = {},
+) {
+  let map: RustImpactMap | null;
   try {
     map = dependencies.map ?? readRustTestImpactMap();
   } catch {
@@ -372,7 +452,7 @@ export function runWorkspaceRustImpact(plan, dependencies = {}) {
   const metrics = dependencies.metrics ?? createCiMetrics();
   let initialInventory = true;
   const scope = ["--locked", "--workspace", "--all-targets"];
-  const list = (filter) => {
+  const list = (filter: string) => {
     const result = metrics.measure(
       initialInventory ? "workspace-build-and-initial-inventory" : "filter-inventory",
       () =>
@@ -385,29 +465,31 @@ export function runWorkspaceRustImpact(plan, dependencies = {}) {
     initialInventory = false;
     if (result.error) throw result.error;
     if (result.status !== 0)
-      throw new Error(`Nextest workspace inventory failed: ${result.stderr}`);
-    return runnableWorkspaceImpactTests(JSON.parse(result.stdout), {
+      throw new Error(`Nextest workspace inventory failed: ${String(result.stderr)}`);
+    return runnableWorkspaceImpactTests(JSON.parse(String(result.stdout)), {
       allowSkipped: filter !== "all()",
     });
   };
   const complete = list("all()");
   if (!complete.size) throw new Error("The complete workspace has no runnable tests");
-  const expected = new Set();
+  const expected = new Set<string>();
   for (const group of groups) {
     const matches = group.filter === "all()" ? complete : list(group.filter);
     if (!matches.size) throw new Error(`Rust impact group ${group.id} has no runnable tests`);
     for (const identity of matches) {
-      if (
-        !complete.has(identity) ||
-        (group.packageName && JSON.parse(identity)[0] !== group.packageName)
-      )
+      if (!complete.has(identity))
         throw new Error("Rust impact group escaped its complete workspace/package inventory");
+      if (group.packageName) {
+        const decoded: unknown = JSON.parse(identity);
+        if (!Array.isArray(decoded) || decoded[0] !== group.packageName)
+          throw new Error("Rust impact group escaped its complete workspace/package inventory");
+      }
       expected.add(identity);
     }
     report(`[rust-impact] ${group.id}: ${matches.size} runnable tests; ${group.reason}`);
   }
   const filter = groups.map((group) => `(${group.filter})`).join(" | ");
-  const union = groups.length === 1 && groups[0].filter === "all()" ? complete : list(filter);
+  const union = groups.length === 1 && groups[0]?.filter === "all()" ? complete : list(filter);
   if (union.size !== expected.size || [...expected].some((identity) => !union.has(identity)))
     throw new Error("Nextest workspace union differs from the complete selected group inventories");
   report(
@@ -443,9 +525,10 @@ export function runWorkspaceRustImpact(plan, dependencies = {}) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     if (process.argv[2] === "--workspace-run") {
-      const plan = JSON.parse(
-        process.env.PORTCOVE_PLAN_JSON ?? readFileSync(process.argv[3], "utf8"),
-      );
+      const planFile = process.argv[3];
+      const planText =
+        process.env.PORTCOVE_PLAN_JSON ?? (planFile ? readFileSync(planFile, "utf8") : "");
+      const plan = validateValidationPlan(JSON.parse(planText));
       const checkout = execFileSync("git", ["rev-parse", "HEAD"], {
         cwd: projectRoot,
         encoding: "utf8",
@@ -456,7 +539,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     } else {
       if (process.argv[2] !== "--run")
         throw new Error("Use the guarded Rust runner for impact unions");
-      process.exitCode = runRustImpactUnion(process.argv[3], process.argv.slice(4));
+      const packageName = process.argv[3];
+      if (!packageName) throw new Error("Rust impact union requires a package name");
+      process.exitCode = runRustImpactUnion(packageName, process.argv.slice(4));
     }
   } catch (error) {
     console.error(errorMessage(error));

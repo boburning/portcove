@@ -14,10 +14,28 @@ import {
 } from "./rust-test-impact.mts";
 import { buildValidationPlan } from "./validation-plan.mts";
 
+interface FixtureTest {
+  ignored: boolean;
+  "filter-match": { status: string };
+}
+interface FixtureSuite {
+  "package-name": string;
+  "binary-id": string;
+  status: string;
+  testcases: Record<string, FixtureTest>;
+}
+interface FixtureInventory {
+  "test-count": number;
+  "rust-suites": { "portcove-core": FixtureSuite } & Record<string, FixtureSuite>;
+}
+function requiredFixture<T>(value: T | null | undefined): T {
+  assert.ok(value !== null && value !== undefined, "expected fixture entry is missing");
+  return value;
+}
 const map = readRustTestImpactMap();
-const modified = (path) => ({ status: "M", path });
+const modified = (path: string) => ({ status: "M", path });
 
-const workspacePlan = (files) =>
+const workspacePlan = (files: string[]) =>
   buildValidationPlan({
     changes: files.map((file) => ({
       status: "M",
@@ -32,12 +50,12 @@ const workspacePlan = (files) =>
     head: "b".repeat(40),
     checkout: "b".repeat(40),
   });
-test("workspace impact preserves package qualification and broad fallback boundaries", () => {
+void test("workspace impact preserves package qualification and broad fallback boundaries", () => {
   const narrow = selectWorkspaceRustImpact(
     workspacePlan(["crates/portcove-core/src/source_report.rs"]),
   );
   assert.equal(narrow.length, 1);
-  assert.match(narrow[0].filter, /package\(=portcove-core\)/u);
+  assert.match(requiredFixture(narrow[0]).filter, /package\(=portcove-core\)/u);
   assert.deepEqual(
     selectWorkspaceRustImpact(workspacePlan(["crates/portcove-core/src/types.rs"])).map(
       (g) => g.filter,
@@ -60,7 +78,7 @@ test("workspace impact preserves package qualification and broad fallback bounda
   const artwork = selectWorkspaceRustImpact(workspacePlan(["crates/portcove-core/src/artwork.rs"]));
   assert.ok(artwork.some((g) => g.packageName === "portcove-cli"));
 });
-test("workspace inventory permits multiple packages but rejects incomplete identity/count records", () => {
+void test("workspace inventory permits multiple packages but rejects incomplete identity/count records", () => {
   const complete = inventory(["core"]);
   complete["rust-suites"]["portcove-cli"] = {
     ...complete["rust-suites"]["portcove-core"],
@@ -70,20 +88,21 @@ test("workspace inventory permits multiple packages but rejects incomplete ident
   complete["test-count"] = 2;
   assert.equal(runnableWorkspaceImpactTests(complete).size, 2);
   const filtered = structuredClone(complete);
-  filtered["rust-suites"]["portcove-cli"].status = "skipped";
-  filtered["rust-suites"]["portcove-cli"].testcases = {};
+  requiredFixture(filtered["rust-suites"]["portcove-cli"]).status = "skipped";
+  requiredFixture(filtered["rust-suites"]["portcove-cli"]).testcases = {};
   filtered["test-count"] = 1;
   assert.throws(() => runnableWorkspaceImpactTests(filtered));
   assert.equal(runnableWorkspaceImpactTests(filtered, { allowSkipped: true }).size, 1);
-  filtered["rust-suites"]["portcove-cli"].testcases =
-    complete["rust-suites"]["portcove-cli"].testcases;
+  requiredFixture(filtered["rust-suites"]["portcove-cli"]).testcases = requiredFixture(
+    complete["rust-suites"]["portcove-cli"],
+  ).testcases;
   assert.throws(() => runnableWorkspaceImpactTests(filtered, { allowSkipped: true }));
   assert.throws(() => runnableWorkspaceImpactTests({ ...complete, "test-count": 3 }));
   complete["rust-suites"]["portcove-cli"]["binary-id"] = "wrong";
   assert.throws(() => runnableWorkspaceImpactTests(complete));
 });
-test("workspace groups and their exact union use identical all-target build scope before guarded execution", () => {
-  const calls = [];
+void test("workspace groups and their exact union use identical all-target build scope before guarded execution", () => {
+  const calls: string[][] = [];
   const responses = [
     inventory(["a", "shared", "b"]),
     inventory(["a", "shared"]),
@@ -129,7 +148,7 @@ test("workspace groups and their exact union use identical all-target build scop
   }
 });
 
-function inventory(names) {
+function inventory(names: string[]): FixtureInventory {
   return {
     "test-count": names.length,
     "rust-suites": {
@@ -151,9 +170,9 @@ function inventory(names) {
   };
 }
 
-test("impact union proves all groups before executing each distinct test once", () => {
-  const calls = [];
-  const reports = [];
+void test("impact union proves all groups before executing each distinct test once", () => {
+  const calls: string[][] = [];
+  const reports: string[] = [];
   const inventories = [
     inventory(["a", "shared"]),
     inventory(["b", "shared"]),
@@ -174,11 +193,14 @@ test("impact union proves all groups before executing each distinct test once", 
     calls.map((call) => call[2]),
     ["list", "list", "list", "run"],
   );
-  assert.equal(calls[2].at(-3), calls[3].at(-1));
+  assert.equal(
+    requiredFixture(requiredFixture(calls[2]).at(-3)),
+    requiredFixture(requiredFixture(calls[3]).at(-1)),
+  );
   assert.match(reports.join("\n"), /union: 3 distinct runnable tests/u);
 });
 
-test("empty groups, incomplete inventories and union drift stop before test execution", () => {
+void test("empty groups, incomplete inventories and union drift stop before test execution", () => {
   for (const inventories of [
     [inventory(["a"]), inventory([])],
     [inventory(["a"]), inventory(["b"]), inventory(["a"])],
@@ -198,12 +220,14 @@ test("empty groups, incomplete inventories and union drift stop before test exec
     );
   }
   const ignored = inventory(["ignored"]);
-  ignored["rust-suites"]["portcove-core"].testcases.ignored.ignored = true;
+  requiredFixture(
+    requiredFixture(ignored["rust-suites"]["portcove-core"]).testcases.ignored,
+  ).ignored = true;
   assert.equal(runnableImpactTests(ignored, "portcove-core").size, 0);
   assert.throws(() => runnableImpactTests(inventory(["a"]), "wrong-package"));
 });
 
-test("impact union rejects unknown or repeated group IDs and preserves inventory errors", () => {
+void test("impact union rejects unknown or repeated group IDs and preserves inventory errors", () => {
   for (const ids of [["unknown", "catalog-contract"], ["catalog-contract", "catalog-contract"], []])
     assert.throws(() =>
       runRustImpactUnion("portcove-core", ids, {
@@ -226,7 +250,7 @@ test("impact union rejects unknown or repeated group IDs and preserves inventory
     );
 });
 
-test("the versioned map owns unique tracked paths and nonempty filters", () => {
+void test("the versioned map owns unique tracked paths and nonempty filters", () => {
   const tracked = new Set(
     execFileSync("git", ["ls-files", "-z"], { cwd: new URL("../", import.meta.url) })
       .toString("utf8")
@@ -240,7 +264,7 @@ test("the versioned map owns unique tracked paths and nonempty filters", () => {
     }
 });
 
-test("module-local changes select their owned groups and union mixed impacts", () => {
+void test("module-local changes select their owned groups and union mixed impacts", () => {
   const selected = selectRustTestImpact(map, "portcove-core", [
     modified("crates/portcove-core/src/source_report.rs"),
     modified("crates/portcove-core/src/release/observation.rs"),
@@ -250,19 +274,19 @@ test("module-local changes select their owned groups and union mixed impacts", (
     selected.groups.map((group) => group.id),
     ["release-discovery", "source-inspection"],
   );
-  assert.match(selected.groups[0].reason, /release discovery/u);
-  assert.match(selected.groups[1].reason, /source discovery/u);
+  assert.match(requiredFixture(selected.groups[0]).reason, /release discovery/u);
+  assert.match(requiredFixture(selected.groups[1]).reason, /source discovery/u);
 });
 
-test("source import selects its complete family and discovery consumers", () => {
+void test("source import selects its complete family and discovery consumers", () => {
   const paths = [
     "crates/portcove-core/src/source_import.rs",
     "crates/portcove-core/src/source_import_tests.rs",
-  ];
+  ] as const;
   const before = structuredClone(map);
-  before.packages["portcove-core"].groups = before.packages["portcove-core"].groups.filter(
-    (group) => group.id !== "source-import",
-  );
+  requiredFixture(before.packages["portcove-core"]).groups = requiredFixture(
+    before.packages["portcove-core"],
+  ).groups.filter((group) => group.id !== "source-import");
   assert.equal(selectRustTestImpact(before, "portcove-core", paths.map(modified)).mode, "broad");
   const selected = selectRustTestImpact(map, "portcove-core", paths.map(modified));
   assert.equal(selected.mode, "focused");
@@ -271,7 +295,7 @@ test("source import selects its complete family and discovery consumers", () => 
     ["source-import"],
   );
   assert.equal(
-    selected.groups[0].filter,
+    requiredFixture(selected.groups[0]).filter,
     "test(/^source_import::tests::/) | test(/^source_discovery::tests::/)",
   );
   for (const shared of ["operation.rs", "service.rs", "database.rs", "types.rs", "lib.rs"]) {
@@ -292,7 +316,7 @@ test("source import selects its complete family and discovery consumers", () => 
     assert.equal(selectRustTestImpact(map, "portcove-core", [change]).mode, "broad");
 });
 
-test("private library-import assertions select their whole module without narrowing implementation", () => {
+void test("private library-import assertions select their whole module without narrowing implementation", () => {
   const path = "crates/portcove-core/src/import_execution_tests.rs";
   for (const status of ["A", "M"]) {
     const selected = selectRustTestImpact(map, "portcove-core", [{ status, path }]);
@@ -301,7 +325,7 @@ test("private library-import assertions select their whole module without narrow
       selected.groups.map((group) => group.id),
       ["library-import-fixtures"],
     );
-    assert.equal(selected.groups[0].filter, "test(/^import_execution::tests::/)");
+    assert.equal(requiredFixture(selected.groups[0]).filter, "test(/^import_execution::tests::/)");
   }
   for (const shared of [
     "import_execution.rs",
@@ -338,7 +362,7 @@ test("private library-import assertions select their whole module without narrow
   );
 });
 
-test("private backup assertions own their complete module without narrowing recovery or service", () => {
+void test("private backup assertions own their complete module without narrowing recovery or service", () => {
   const path = "crates/portcove-core/src/service/tests/backups.rs";
   for (const status of ["A", "M"]) {
     const selected = selectRustTestImpact(map, "portcove-core", [{ status, path }]);
@@ -347,7 +371,7 @@ test("private backup assertions own their complete module without narrowing reco
       selected.groups.map((group) => group.id),
       ["backup-fixtures"],
     );
-    assert.equal(selected.groups[0].filter, "test(/^service::tests::backups::/)");
+    assert.equal(requiredFixture(selected.groups[0]).filter, "test(/^service::tests::backups::/)");
   }
   for (const shared of [
     "service/backups.rs",
@@ -385,7 +409,7 @@ test("private backup assertions own their complete module without narrowing reco
   );
 });
 
-test("artwork resolution owns all direct and transfer consumers with conservative shared fallback", () => {
+void test("artwork resolution owns all direct and transfer consumers with conservative shared fallback", () => {
   const path = "crates/portcove-core/src/artwork.rs";
   const filter =
     "test(/^artwork_tests::/) | test(/^import_execution::tests::/) | test(/^library_move::tests::/) | test(/^library_transfer::tests::/)";
@@ -396,7 +420,7 @@ test("artwork resolution owns all direct and transfer consumers with conservativ
       selected.groups.map((group) => group.id),
       ["artwork-resolution"],
     );
-    assert.equal(selected.groups[0].filter, filter);
+    assert.equal(requiredFixture(selected.groups[0]).filter, filter);
   }
   for (const shared of [
     "artwork_store.rs",
@@ -436,7 +460,7 @@ test("artwork resolution owns all direct and transfer consumers with conservativ
     mixed.groups.map((group) => group.id),
     ["artwork-resolution", "library-import-fixtures"],
   );
-  assert.equal(mixed.groups[0].filter, filter);
+  assert.equal(requiredFixture(mixed.groups[0]).filter, filter);
   const retained = selectRustTestImpact(map, "portcove-core", [
     modified(path),
     modified("crates/portcove-core/src/installed_contract.rs"),
@@ -447,7 +471,7 @@ test("artwork resolution owns all direct and transfer consumers with conservativ
   );
 });
 
-test("source import mixed with inspection preserves both groups and overlapping consumers", () => {
+void test("source import mixed with inspection preserves both groups and overlapping consumers", () => {
   const selected = selectRustTestImpact(map, "portcove-core", [
     modified("crates/portcove-core/src/source_import.rs"),
     modified("crates/portcove-core/src/source_discovery.rs"),
@@ -459,7 +483,7 @@ test("source import mixed with inspection preserves both groups and overlapping 
   for (const group of selected.groups) assert.match(group.filter, /source_discovery::tests::/u);
 });
 
-test("cross-cutting, manifest, unmapped addition, rename, and deletion changes use the broad fallback", () => {
+void test("cross-cutting, manifest, unmapped addition, rename, and deletion changes use the broad fallback", () => {
   for (const change of [
     modified("crates/portcove-core/src/types.rs"),
     modified("crates/portcove-core/Cargo.toml"),
@@ -477,7 +501,7 @@ test("cross-cutting, manifest, unmapped addition, rename, and deletion changes u
   }
 });
 
-test("an explicitly mapped addition uses its reviewed focused group", () => {
+void test("an explicitly mapped addition uses its reviewed focused group", () => {
   const selected = selectRustTestImpact(map, "portcove-core", [
     { status: "A", path: "crates/portcove-core/catalog/catalog-current-authoring.json" },
   ]);
@@ -489,7 +513,7 @@ test("an explicitly mapped addition uses its reviewed focused group", () => {
   assert.match(selected.reason, /added or modified Rust path/u);
 });
 
-test("one unmapped path makes an otherwise focused mixed change broad", () => {
+void test("one unmapped path makes an otherwise focused mixed change broad", () => {
   const selected = selectRustTestImpact(map, "portcove-core", [
     modified("crates/portcove-core/src/source_report.rs"),
     modified("crates/portcove-core/src/service.rs"),
@@ -498,18 +522,20 @@ test("one unmapped path makes an otherwise focused mixed change broad", () => {
   assert.match(selected.reason, /service\.rs is outside the explicit focused map/u);
 });
 
-test("adding explicit ownership turns a representative broad fixture into a focused group", () => {
+void test("adding explicit ownership turns a representative broad fixture into a focused group", () => {
   const fixture = modified("crates/portcove-core/src/source_report.rs");
   const withoutOwnership = structuredClone(map);
-  const sourceGroup = withoutOwnership.packages["portcove-core"].groups.find(
-    (group) => group.id === "source-inspection",
+  const sourceGroup = requiredFixture(
+    requiredFixture(withoutOwnership.packages["portcove-core"]).groups.find(
+      (group) => group.id === "source-inspection",
+    ),
   );
   sourceGroup.paths = sourceGroup.paths.filter((path) => path !== fixture.path);
   assert.equal(selectRustTestImpact(withoutOwnership, "portcove-core", [fixture]).mode, "broad");
   assert.equal(selectRustTestImpact(map, "portcove-core", [fixture]).mode, "focused");
 });
 
-test("missing package ownership and malformed maps fail closed", () => {
+void test("missing package ownership and malformed maps fail closed", () => {
   assert.equal(selectRustTestImpact(null, "portcove-core", [modified("any.rs")]).mode, "broad");
   const selected = selectRustTestImpact(map, "future-package", [modified("future/src/lib.rs")]);
   assert.equal(selected.mode, "broad");
@@ -564,8 +590,8 @@ test("missing package ownership and malformed maps fail closed", () => {
   );
 });
 
-test("the guarded Rust baseline compares live schemas only after selected tests pass", () => {
-  const calls = [];
+void test("the guarded Rust baseline compares live schemas only after selected tests pass", () => {
+  const calls: [string, string[]][] = [];
   const status = runWorkspaceRustImpact(workspacePlan(["Cargo.lock"]), {
     map,
     report() {},
@@ -577,5 +603,8 @@ test("the guarded Rust baseline compares live schemas only after selected tests 
     },
   });
   assert.equal(status, 8);
-  assert.deepEqual(calls.at(-1), [process.execPath, ["scripts/check-transport-contract.mts"]]);
+  assert.deepEqual(requiredFixture(calls.at(-1)), [
+    process.execPath,
+    ["scripts/check-transport-contract.mts"],
+  ]);
 });
