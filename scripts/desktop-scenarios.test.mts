@@ -579,7 +579,7 @@ test("Linux packaged boundary refuses substituted payload, producer and qualific
   );
   const manifest = {
     revision: "a".repeat(40),
-    build_command: ["pnpm", "tauri", "build", "--bundles", "deb"],
+    build_command: ["pnpm", "--dir", "apps/desktop", "desktop:build", "--bundles", "deb"],
     qualification_features: [],
     execution_context: "extracted-deb-payload",
     configuration,

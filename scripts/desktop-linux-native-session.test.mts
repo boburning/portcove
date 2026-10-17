@@ -19,10 +19,12 @@ import {
   verifyApplicationMediaInputs,
 } from "./desktop-linux-media.mts";
 import { fileIdentity } from "./development-evidence.mts";
+import type { ConsumedInput } from "./retained-evidence.mts";
+import { isRecord } from "./runtime-values.mts";
 import { executionAdmission } from "./retained-evidence.mts";
-const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-test("application media verifies mixed retained and raw inputs without downgrading malformed custody", async () => {
+void test("application media verifies mixed retained and raw inputs without downgrading malformed custody", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-mixed-inputs-"));
   const rawFile = path.join(directory, "raw"),
     liveFile = path.join(directory, "live"),
@@ -31,13 +33,14 @@ test("application media verifies mixed retained and raw inputs without downgradi
   await writeFile(liveFile, "held bytes");
   await writeFile(retainedFile, "held bytes");
   const raw = await fileIdentity(rawFile);
-  const retained = {
+  const retained: ConsumedInput = {
     ...(await fileIdentity(liveFile)),
     retained: await fileIdentity(retainedFile),
     binding: "live-path-checked-cooperative",
   };
   const admission = executionAdmission(new Date().toISOString(), 5000);
   // Reproduce the original wrong-API failure using actual mixed records.
+  // @ts-expect-error -- Deliberately reproduce passing a raw identity to the retained-only API.
   await assert.rejects(admission.verify([retained, raw]), TypeError);
   await verifyApplicationMediaInputs([retained, raw], admission);
   await writeFile(rawFile, "bad bytes"); // same size: hashing, not length, must refuse
@@ -69,7 +72,7 @@ test("application media verifies mixed retained and raw inputs without downgradi
   );
 });
 
-test(
+void test(
   "published readiness cannot hide a wrapper failure with failed persistence and a live child",
   { skip: process.platform !== "linux", timeout: 30_000 },
   async () => {
@@ -125,7 +128,7 @@ test(
   },
 );
 
-test("application media readiness waits for atomic publication within the existing startup deadline", async () => {
+void test("application media readiness waits for atomic publication within the existing startup deadline", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-publication-"));
   const file = path.join(directory, "readiness.json");
   const launch = { receipt: { events: [] }, child: { exitCode: null } };
@@ -151,8 +154,9 @@ test("application media readiness waits for atomic publication within the existi
   );
 });
 
-test("wrapper failure packets refuse even without terminal files; deliberate namespace cleanup needs no driver exit", async () => {
-  assertMediaWrapperOutcome([{ kind: "driver-started", pid: 2 }]);
+void test("wrapper failure packets refuse even without terminal files; deliberate namespace cleanup needs no driver exit", async () => {
+  const started = { kind: "driver-started", pid: 2 };
+  assertMediaWrapperOutcome([started]);
   assertMediaWrapperOutcome([{ kind: "driver-exited", code: 0, signal: null }]);
   for (const event of [
     { kind: "driver-error", message: "cannot persist failure" },
@@ -173,7 +177,7 @@ test("wrapper failure packets refuse even without terminal files; deliberate nam
   }
 });
 
-test("media admission requires positive reads and the actual application's namespace, generation and bytes", () => {
+void test("media admission requires positive reads and the actual application's namespace, generation and bytes", () => {
   const namespaces = { user: "user:[10]", mnt: "mnt:[20]", pid: "pid:[30]" };
   const shared = {
     namespaces,
@@ -203,7 +207,8 @@ test("media admission requires positive reads and the actual application's names
   };
   assertApplicationMediaReadiness(receipt, listener);
   assert.throws(() => assertApplicationMediaReadiness(undefined, listener));
-  for (const mutate of [
+  type Receipt = typeof receipt;
+  const mutations: ((value: Receipt) => void)[] = [
     (value) => {
       value.phase = "failed";
     },
@@ -216,12 +221,15 @@ test("media admission requires positive reads and the actual application's names
     (value) => {
       value.probe.positive_reads.audio_buffers = 0;
     },
-    ...["user", "mnt", "pid"].map((name) => (value) => {
+    ...(["user", "mnt", "pid"] as const).map((name) => (value: Receipt) => {
       value.application.namespaces[name] = `${name}:[99]`;
     }),
-    ...["uid_map", "gid_map", "credentials", "device", "socket"].map((name) => (value) => {
-      delete value.wrapper[name];
-    }),
+    ...(["uid_map", "gid_map", "credentials", "device", "socket"] as const).map(
+      (name) => (value: Receipt) => {
+        // Reflect deletion preserves a malformed runtime boundary without weakening the fixture type.
+        assert.ok(Reflect.deleteProperty(value.wrapper, name));
+      },
+    ),
     (value) => {
       value.application.start_ticks = "54321";
     },
@@ -249,7 +257,8 @@ test("media admission requires positive reads and the actual application's names
     (value) => {
       value.executable.path = "/substituted/app";
     },
-  ]) {
+  ];
+  for (const mutate of mutations) {
     const changed = structuredClone(receipt);
     // Keep independent wrapper/application objects for substitution controls.
     changed.application = structuredClone(changed.application);
@@ -265,7 +274,7 @@ test("media admission requires positive reads and the actual application's names
     );
 });
 
-test("private-X11 bootstrap binds the actual ordinary caller rather than another user's UID", () => {
+void test("private-X11 bootstrap binds the actual ordinary caller rather than another user's UID", () => {
   assertQualificationUidMap(1000, "0 1000 1\n");
   assertQualificationUidMap(1001, "         0       1001          1\n");
   for (const [uid, mapping] of [
@@ -274,11 +283,11 @@ test("private-X11 bootstrap binds the actual ordinary caller rather than another
     [-1, "0 -1 1"],
     [1.5, "0 1.5 1"],
     [1001, "0 1001 2"],
-  ])
+  ] as const)
     assert.throws(() => assertQualificationUidMap(uid, mapping));
 });
 
-test("media provisioning refuses a user host, root, other repository or other platform before privileged commands", () => {
+void test("media provisioning refuses a user host, root, other repository or other platform before privileged commands", () => {
   const environment = {
     GITHUB_ACTIONS: "true",
     GITHUB_REPOSITORY: "boburning/portcove",
@@ -293,11 +302,11 @@ test("media provisioning refuses a user host, root, other repository or other pl
     [{ ...environment, RUNNER_ENVIRONMENT: "self-hosted" }, "linux", 1001],
     [environment, "win32", 1001],
     [environment, "linux", 0],
-  ])
+  ] as const)
     assert.throws(() => assertHostedMediaEnvironment(env, platform, uid));
 });
 
-test("media configuration refuses arbitrary commands and device substitution", async () => {
+void test("media configuration refuses arbitrary commands and device substitution", async () => {
   const fs = await import("node:fs/promises");
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "pcv-media-config-"));
   try {
@@ -318,7 +327,7 @@ test("media configuration refuses arbitrary commands and device substitution", a
   }
 });
 
-test(
+void test(
   "namespace startup failure retains bounded actual stderr and cannot establish custody",
   {
     skip: process.platform !== "linux",
@@ -334,19 +343,21 @@ test(
       /Native namespace startup was not acknowledged.*portcove-no-such-option/su,
     );
     await assert.rejects(launch.stop(), /Launch-bound namespace identity/u);
+    assert.ok(launch.receipt.startup_stderr);
+    assert.ok(launch.receipt.exit);
     assert.match(launch.receipt.startup_stderr, /portcove-no-such-option/u);
     assert.ok(launch.receipt.startup_stderr.length <= 4096);
     assert.notEqual(launch.receipt.exit.code, 0);
   },
 );
-async function counter(file) {
+async function counter(file: string) {
   try {
     return Number(await readFile(file, "utf8"));
   } catch {
     return 0;
   }
 }
-async function waitCounter(file, minimum = 0) {
+async function waitCounter(file: string, minimum = 0) {
   const until = Date.now() + 5000;
   while (true) {
     const value = await counter(file);
@@ -356,14 +367,14 @@ async function waitCounter(file, minimum = 0) {
   }
 }
 
-test(
+void test(
   "GTK picker binds the captured namespace and refuses unrelated processes and changed identities",
   { skip: process.platform !== "linux", timeout: 30_000 },
   async () => {
     const launch = await launchLinuxNativeSession("/usr/bin/sleep", ["30"], process.env);
     const sentinel = spawn("/usr/bin/sleep", ["30"], { stdio: "ignore" });
-    const sentinelJoin = new Promise((resolve) =>
-      sentinel.once("close", (code, signal) => resolve({ code, signal })),
+    const sentinelJoin = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
+      (resolve) => sentinel.once("close", (code, signal) => resolve({ code, signal })),
     );
     try {
       await launch.ready();
@@ -463,7 +474,7 @@ print('owned GTK authority controls passed')
   },
 );
 
-test(
+void test(
   "GTK chooser production guards bound queued reads and both button and text inputs",
   { skip: process.platform !== "linux" },
   () => {
@@ -582,7 +593,7 @@ print('GTK production input and inventory guards passed')
   },
 );
 
-test(
+void test(
   "Linux native launches positively join detached descendants before independent restart",
   { skip: process.platform !== "linux", timeout: 30_000 },
   async () => {
@@ -603,8 +614,8 @@ test(
       ],
       { stdio: ["pipe", "ignore", "pipe"] },
     );
-    const sentinelClosed = new Promise((resolve) =>
-      sentinel.once("close", (code, signal) => resolve({ code, signal })),
+    const sentinelClosed = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
+      (resolve) => sentinel.once("close", (code, signal) => resolve({ code, signal })),
     );
     try {
       await waitCounter(sentinelFile);
@@ -633,6 +644,7 @@ test(
         await waitCounter(sentinelFile, sentinelBefore);
         receipts.push(closed);
       }
+      assert.ok(receipts[0] && receipts[1]);
       assert.notEqual(receipts[0].nonce, receipts[1].nonce);
       await writeFile(
         path.join(owned, "positive-join-receipts.json"),
@@ -646,7 +658,7 @@ test(
   },
 );
 
-test(
+void test(
   "Linux native startup refusal cannot establish successful session closure",
   { skip: process.platform !== "linux", timeout: 20_000 },
   async () => {
@@ -659,9 +671,10 @@ test(
     launch.child.stderr.resume();
     await assert.rejects(launch.ready(), /ENOENT/u);
     await assert.rejects(launch.stop(), /normal successful init join/u);
+    assert.ok(launch.receipt.ready && launch.receipt.exit);
     assert.equal(launch.receipt.ready.pid, 1);
     assert.equal(launch.receipt.exit.code, 126);
-    assert.equal(launch.receipt.quiesced, undefined);
+    assert.equal("quiesced" in launch.receipt, false);
     const custody = await launch.custody();
     assert.equal(custody.quiesced, true);
     assert.equal(
@@ -672,7 +685,7 @@ test(
   },
 );
 
-test(
+void test(
   "Malformed private transport after readiness remains a failed qualification after real join",
   { skip: process.platform !== "linux", timeout: 20_000 },
   async () => {
@@ -685,18 +698,21 @@ test(
     launch.child.stderr.resume();
     await launch.ready();
     // Deliberately corrupted parent transport; the decoder cannot inherit fd3.
-    launch.child.stdio[3].emit(
+    const transport = launch.child.stdio[3];
+    assert.ok(transport);
+    transport.emit(
       "data",
       Buffer.from('{"nonce":"wrong-nonce","kind":"driver-started","pid":99}\n'),
     );
     await assert.rejects(launch.stop(), /wrong-nonce/u);
     const custody = await launch.custody();
     assert.equal(custody.quiesced, true);
+    assert.ok(custody.protocol_error);
     assert.match(custody.protocol_error, /wrong-nonce/u);
   },
 );
 
-test("private-X11 configuration refuses missing prerequisites and undeclared authentication fields", async () => {
+void test("private-X11 configuration refuses missing prerequisites and undeclared authentication fields", async () => {
   const fs = await import("node:fs/promises");
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "pcv-x11-config-"));
   try {
@@ -719,7 +735,8 @@ test("private-X11 configuration refuses missing prerequisites and undeclared aut
       }),
     );
     await assert.rejects(readLinuxX11Configuration(file), /Unsupported/u);
-    const publicConfig = JSON.parse(await fs.readFile(file, "utf8"));
+    const publicConfig: unknown = JSON.parse(await fs.readFile(file, "utf8"));
+    assert.ok(isRecord(publicConfig));
     delete publicConfig.cookie;
     publicConfig._caller_uid = 0;
     await fs.writeFile(file, JSON.stringify(publicConfig));

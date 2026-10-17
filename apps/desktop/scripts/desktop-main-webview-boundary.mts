@@ -161,7 +161,14 @@ export async function verifyLinuxPackageEvidence(file, revision, executable, roo
   assert.ok(file && path.isAbsolute(file));
   const manifest = JSON.parse(await readFile(file, "utf8"));
   assert.equal(manifest.revision, revision);
-  assert.deepEqual(manifest.build_command, ["pnpm", "tauri", "build", "--bundles", "deb"]);
+  assert.deepEqual(manifest.build_command, [
+    "pnpm",
+    "--dir",
+    "apps/desktop",
+    "desktop:build",
+    "--bundles",
+    "deb",
+  ]);
   assert.deepEqual(manifest.qualification_features, []);
   assert.equal(manifest.execution_context, "extracted-deb-payload");
   assert.deepEqual(
