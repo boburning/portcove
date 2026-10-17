@@ -459,7 +459,7 @@ void test("hosted backup focus is manual-only, pinned, isolated and retains real
   assert.doesNotMatch(requiredFixture(windows.split("    steps:")[0]), /\$\{\{ runner\./);
   assert.match(windows, /id: native-quality-pins/);
   assert.match(windows, /node scripts\/quality-tools.mts --github-output >> \$env:GITHUB_OUTPUT/);
-  assert.match(windows, /taiki-e\/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063/);
+  assert.match(windows, /taiki-e\/install-action@8cca0918f8471c33515202b73f56ab27f2bed283/);
   assert.match(windows, /tool: \$\{\{ steps.native-quality-pins.outputs.required_prebuilt \}\}/);
   assert.ok(
     windows.indexOf("Provision existing pinned prebuilt quality tools") <
@@ -497,7 +497,7 @@ void test("Windows updater rehearsal adopts manifest-pinned prebuilt tools befor
     reader,
     /run: node scripts\/quality-tools\.mts --github-output >> \$env:GITHUB_OUTPUT/,
   );
-  assert.match(prebuilt, /uses: taiki-e\/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063/);
+  assert.match(prebuilt, /uses: taiki-e\/install-action@8cca0918f8471c33515202b73f56ab27f2bed283/);
   assert.match(
     prebuilt,
     /tool: \$\{\{ steps\.windows-quality-pins\.outputs\.required_prebuilt \}\}/,

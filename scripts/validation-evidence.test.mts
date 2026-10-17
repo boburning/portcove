@@ -11,12 +11,52 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+  domainsForPath,
   isFingerprintRuntime,
   fingerprintStage,
   validationRuntime,
   receiptEnvelope,
   validateReceipt,
 } from "./validation-evidence.mts";
+
+void test("pnpm patch bytes belong to format, UI and release evidence", () => {
+  const patch = "patches/@tauri-apps__api@2.12.4.patch";
+  const selected = domainsForPath(patch);
+  assert.equal(selected.ambiguous, false);
+  assert.ok(selected.domains.has("format"));
+  assert.ok(selected.domains.has("ui"));
+  assert.ok(selected.domains.has("release"));
+  assert.equal(domainsForPath("patches/unowned.txt").ambiguous, true);
+  const runtime = validationRuntime(undefined, {
+    domains: ["format", "ui", "release"],
+    commandVersion: () => "fixture",
+  });
+  const inventory = (identity: string): Pick<RepositoryInventory, "objectFormat" | "files"> => ({
+    objectFormat: "sha1",
+    files: [
+      {
+        path: patch,
+        kind: "file",
+        headBlob: identity,
+        headMode: "100644",
+        indexBlob: identity,
+        indexMode: "100644",
+        worktreeMode: "100644",
+        gitBlob: identity,
+        sha256: identity,
+        domains: [...selected.domains],
+        ambiguous: selected.ambiguous,
+        untracked: false,
+      },
+    ],
+  });
+  for (const domain of ["format", "ui", "release"] as const) {
+    const stage = { id: "patch-consumer", recipe: "unchanged", domain };
+    const before = fingerprintStage(stage, inventory("a".repeat(64)), runtime);
+    assert.notEqual(before, fingerprintStage(stage, inventory("b".repeat(64)), runtime));
+    assert.notEqual(before, fingerprintStage(stage, { objectFormat: "sha1", files: [] }, runtime));
+  }
+});
 
 void test("selected runtime observes exactly the fields used by the existing domain fingerprint", () => {
   const observe = (domains: readonly ValidationDomain[] | undefined) => {
