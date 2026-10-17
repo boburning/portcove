@@ -1,3 +1,53 @@
+import type { WebDriver, By, Key, until } from "selenium-webdriver";
+import type { FileIdentity } from "../../../scripts/development-evidence.mts";
+import type { PortStatus } from "../src/transport-types.generated.d.ts";
+import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
+import type {
+  nativeConfirmation,
+  nativePickerObservation,
+  nativePreparedRuntimePicker,
+} from "./desktop-native-confirmation.mts";
+type ExternalFixture = Awaited<ReturnType<typeof createExternalRuntimeFixture>>;
+interface PickerContext {
+  browser: WebDriver;
+  fixture: ExternalFixture;
+  observePicker: ReturnType<typeof nativePickerObservation>;
+  By: typeof By;
+  Key: typeof Key;
+  until: typeof until;
+}
+interface ReviewContext {
+  browser: WebDriver;
+  fixture: ExternalFixture;
+  pickerObservation: ReturnType<typeof externalRuntimePickerObservation>;
+  selectPicker: ReturnType<typeof nativePreparedRuntimePicker>;
+  confirmNative: ReturnType<typeof nativeConfirmation>;
+  invoke: BoundaryInvoke;
+  output: string;
+  artifacts: string[];
+  By: typeof By;
+  until: typeof until;
+}
+interface ExternalReport {
+  scope: string;
+  steps: string[];
+  picker_cancel?: unknown;
+  before?: PortStatus;
+  stale_generation?: unknown;
+  registered?: PortStatus;
+  protected_files?: FileIdentity[];
+  removed?: PortStatus;
+  error?: string;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
+  return value as Record<string, unknown>;
+}
+function success(value: unknown) {
+  const reply = object(value);
+  assert.equal(reply.ok, true);
+  return reply.value;
+}
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { lstat, mkdir, writeFile } from "node:fs/promises";
@@ -6,7 +56,7 @@ import { fileIdentity } from "../../../scripts/development-evidence.mts";
 
 const EXTERNAL_FIXTURE_ID = "portcove-external-runtime-fixture";
 
-export function externalFixtureTreeDigest(files) {
+export function externalFixtureTreeDigest(files: ReadonlyMap<string, Buffer>) {
   const digest = createHash("sha256").update("portcove-external-tree-v1\n");
   for (const [name, bytes] of [...files].sort(([left], [right]) =>
     Buffer.compare(Buffer.from(left), Buffer.from(right)),
@@ -90,7 +140,7 @@ export async function externalRuntimePickerObservation({
   By,
   Key,
   until,
-}) {
+}: PickerContext) {
   await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
   const search = await browser.findElement(By.id("port-search"));
   await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, fixture.port.name);
@@ -102,7 +152,7 @@ export async function externalRuntimePickerObservation({
   const choose = By.xpath('//button[normalize-space(.)="Choose game folder"]');
   await browser.wait(until.elementLocated(choose), 15_000);
   await browser.findElement(choose).click();
-  const observation = await observePicker("external-runtime-picker-observation");
+  const observation = object(await observePicker("external-runtime-picker-observation"));
   assert.equal(observation.cancelled, true);
   for (const before of fixture.identities) {
     const after = await fileIdentity(before.path);
@@ -113,7 +163,7 @@ export async function externalRuntimePickerObservation({
   return observation;
 }
 
-export async function externalRuntimeReviewScenario(context) {
+export async function externalRuntimeReviewScenario(context: ReviewContext) {
   const {
     browser,
     fixture,
@@ -126,40 +176,43 @@ export async function externalRuntimeReviewScenario(context) {
     By,
     until,
   } = context;
-  const report = {
+  const report: ExternalReport = {
     scope: "Private inert external runtime; no executable launch or production artifact",
     steps: [],
   };
   const choose = By.xpath('//button[normalize-space(.)="Choose game folder"]');
   const stop = By.xpath('//button[normalize-space(.)="Stop using this installation"]');
-  const dialogFor = (kind) =>
+  const dialogFor = (kind: string) =>
     By.css(`[role="dialog"][aria-describedby="external-${kind}-description"]`);
-  const buttonFor = (text) => By.xpath(`.//button[normalize-space(.)="${text}"]`);
+  const buttonFor = (text: string) => By.xpath(`.//button[normalize-space(.)="${text}"]`);
   async function status() {
-    const result = await invoke("get_statuses");
-    assert.equal(result.ok, true);
-    const value = result.value.find((item) => item.port_id === fixture.port.id);
+    const { transportValues } = await import("./transport-values.mts");
+    const statuses = transportValues("status", success(await invoke("get_statuses")));
+    const value = statuses.find((item) => item.port_id === fixture.port.id);
     assert.ok(value);
     assert.equal(value.active, null);
     return value;
   }
-  async function reviewed(kind, action) {
-    return browser.wait(
+  async function reviewed(kind: string, action: string) {
+    const result = await browser.wait(
       async () => {
         const matches = await browser.findElements(dialogFor(kind));
         assert.ok(matches.length <= 1, "External review must be unique");
-        if (!matches.length || !(await matches[0].isDisplayed())) return false;
-        const buttons = await matches[0].findElements(buttonFor(action));
+        const dialog = matches[0];
+        if (!dialog || !(await dialog.isDisplayed())) return false;
+        const buttons = await dialog.findElements(buttonFor(action));
         assert.ok(buttons.length <= 1, "External review action must be unique");
-        if (!buttons.length || !(await buttons[0].isDisplayed()) || !(await buttons[0].isEnabled()))
-          return false;
-        return { dialog: matches[0], action: buttons[0] };
+        const button = buttons[0];
+        if (!button || !(await button.isDisplayed()) || !(await button.isEnabled())) return false;
+        return { dialog, action: button };
       },
       15_000,
       `The ${kind} review must settle on its exact enabled action`,
     );
+    assert.ok(result);
+    return result;
   }
-  async function closed(kind) {
+  async function closed(kind: string) {
     await browser.wait(
       async () => (await browser.findElements(dialogFor(kind))).length === 0,
       15_000,
@@ -172,9 +225,9 @@ export async function externalRuntimeReviewScenario(context) {
       assert.equal(after.sha256, before.sha256);
     }
   }
-  async function selectFolder(name) {
+  async function selectFolder(name: string) {
     await browser.findElement(choose).click();
-    const selection = await selectPicker(name, fixture.directory);
+    const selection = object(await selectPicker(name, fixture.directory));
     assert.equal(selection.selected, true);
     assert.equal(selection.supplied_directory, true);
     assert.equal(selection.cancelled, false);
@@ -184,28 +237,32 @@ export async function externalRuntimeReviewScenario(context) {
     assert.ok(text.includes("game.exe"));
     return review;
   }
-  async function screenshot(name) {
+  async function screenshot(name: string) {
     const file = path.join(output, `${name}.png`);
     await writeFile(file, Buffer.from(await browser.takeScreenshot(), "base64"), { flag: "wx" });
     artifacts.push(file);
   }
-  const sameDirectory = (value) =>
+  const sameDirectory = (value: string) =>
     path.resolve(value.startsWith("\\\\?\\") ? value.slice(4) : value).toLowerCase() ===
     path.resolve(fixture.directory).toLowerCase();
   try {
     report.picker_cancel = await pickerObservation;
-    assert.equal(report.picker_cancel?.cancelled, true);
+    assert.equal(object(report.picker_cancel).cancelled, true);
     report.before = await status();
     assert.ok(!report.before.external_runtime);
-    const bootstrap = await invoke("get_bootstrap_status");
-    assert.equal(bootstrap.ok, true);
+    const { transportValue } = await import("./transport-values.mts");
+    const bootstrap = transportValue(
+      "desktop_bootstrap_status",
+      success(await invoke("get_bootstrap_status")),
+    );
     report.stale_generation = await invoke("preview_external_runtime", {
       portId: fixture.port.id,
       path: fixture.directory,
-      generation: bootstrap.value.generation + 1,
+      generation: bootstrap.generation + 1,
     });
-    assert.equal(report.stale_generation.ok, false);
-    assert.equal(report.stale_generation.error.code, "conflict");
+    const stale = object(report.stale_generation);
+    assert.equal(stale.ok, false);
+    assert.equal(object(stale.error).code, "conflict");
     let review = await selectFolder("external-runtime-review-dismiss-picker");
     await screenshot("external-runtime-register-review");
     await review.dialog.findElement(buttonFor("Cancel")).click();

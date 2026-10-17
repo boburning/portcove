@@ -1,4 +1,4 @@
-import {errorCode} from "./runtime-values.mts";
+import {errorCode, isRecord} from "./runtime-values.mts";
 import "../apps/desktop/scripts/desktop-completion-focus.native.test.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -827,27 +827,31 @@ test("external picker observation leaves immutable Tauri internals untouched and
   }
 });
 
-test("external runtime journey retains a failed dispatcher picker phase before later actions", async (t) => {
+void test("external runtime journey retains a failed dispatcher picker phase before later actions", async (t) => {
   const output = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-phase-failure-"));
   t.after(() => rm(output, { recursive: true, force: true }));
   const failure = new Error("Original owned picker phase failed");
-  const artifacts = [];
+  const artifacts: string[] = [];
+  const interruptedContext = {
+    output,
+    By: { xpath: (value: string) => ({ value }) },
+    artifacts,
+    fixture: await createExternalRuntimeFixture(output),
+    pickerObservation: Promise.reject(failure),
+    invoke: () => {
+      throw new Error("Later native actions must not run after failed picker cancellation");
+    },
+  };
   await assert.rejects(
-    externalRuntimeReviewScenario({
-      output,
-      By: { xpath: (value) => ({ value }) },
-      artifacts,
-      fixture: await createExternalRuntimeFixture(output),
-      pickerObservation: Promise.reject(failure),
-      invoke: () => {
-        throw new Error("Later native actions must not run after failed picker cancellation");
-      },
-    }),
+    // Failed picker cancellation must abort before the deliberately omitted native/UI capabilities.
+    // @ts-expect-error This partial boundary fixture cannot execute later native actions.
+    externalRuntimeReviewScenario(interruptedContext),
     (error) => error === failure,
   );
   const reportPath = path.join(output, "external-runtime-review.json");
   assert.deepEqual(artifacts, [reportPath]);
-  const report = JSON.parse(await readFile(reportPath, "utf8"));
+  const report: unknown = JSON.parse(await readFile(reportPath, "utf8"));
+  assert.ok(isRecord(report));
   assert.equal(report.error, String(failure));
   assert.deepEqual(report.steps, []);
 });
