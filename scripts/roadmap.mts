@@ -4040,7 +4040,7 @@ export function executeConsumption({
       coverage: { complete: boolean };
     };
     coordinationComment(url: string, target: ReturnType<typeof coordinationTarget>): RoadmapComment;
-    api: Pick<GitHubApiClient, "request">;
+    api: { request(method: string, endpoint: string, body: unknown): { body: unknown } };
   };
   config: RoadmapConfig;
   context: {
@@ -4194,7 +4194,7 @@ export function executeCommitmentRename({
   client: {
     fieldList(number: number): ProjectCollection<ProjectField>;
     itemList(number: number): RoadmapIssueItem[];
-    sampleGraphqlRate(): SetManyRate;
+    sampleGraphqlRate(): Pick<SetManyRate, "remaining"> & { resetAt?: string };
     updateField(id: string, options: ProjectFieldOption[]): unknown;
   };
   config: RoadmapConfig;
@@ -5586,7 +5586,7 @@ export class RoadmapClient {
       if (!linked && !linkedUrl)
         throw new Error("explicit coordination PR does not reference the selected work issue");
     }
-    return { ...node, comments: node.comments };
+    return { ...node, number: node.number, comments: node.comments };
   }
 
   coordinationRecords(target: ReturnType<typeof coordinationTarget>) {

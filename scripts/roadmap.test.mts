@@ -1,3 +1,8 @@
+import type { RoadmapIssueItem } from "./roadmap.mts";
+import { validateApproval706 } from "./linux-beta-risk-706.mts";
+import type { GitHubRunner } from "./github-api.mts";
+import type { SetManyClient, SetManyAssignment } from "./roadmap.mts";
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
@@ -77,13 +82,57 @@ import {
   viewMachineDrift,
 } from "./roadmap.mts";
 
-const config = JSON.parse(await readFile(new URL("../.github/roadmap.json", import.meta.url)));
+interface RunnerCall {
+  args: readonly string[];
+  input?: string | undefined;
+}
+function fixtureValue<T>(value: T): NonNullable<T> {
+  assert.ok(value !== undefined && value !== null, "expected present fixture value");
+  return value;
+}
+function fixtureFind<T>(values: readonly T[], predicate: (value: T) => boolean): T {
+  return fixtureValue(values.find(predicate));
+}
+function fixtureElement<T>(values: readonly T[], index: number): T {
+  const value = values[index];
+  assert.ok(value !== undefined, `expected fixture element ${index}`);
+  return value;
+}
+function fixtureObject(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value), "expected a structured fixture boundary value");
+  return value;
+}
+function fixtureJsonObject(input: unknown) {
+  assert.ok(typeof input === "string", "expected serialized fixture input");
+  const value: unknown = JSON.parse(input);
+  return fixtureObject(value);
+}
+function fixtureSelectInput(value: unknown) {
+  const input = fixtureObject(value);
+  const selected = fixtureObject(input.value);
+  assert.ok(typeof input.fieldId === "string" && typeof selected.singleSelectOptionId === "string");
+  return { fieldId: input.fieldId, value: { singleSelectOptionId: selected.singleSelectOptionId } };
+}
+function fixtureGraphql(input: unknown) {
+  const value = fixtureJsonObject(input);
+  assert.ok(typeof value.query === "string" && isRecord(value.variables));
+  return { query: value.query, variables: value.variables };
+}
+const config = validateConfig(
+  JSON.parse(await readFile(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
+);
 const newPortForm = await readFile(
   new URL("../.github/ISSUE_TEMPLATE/new-port.yml", import.meta.url),
   "utf8",
 );
 
-const pickupIssue = (number = 1104, body = "## Acceptance\n- [ ] Preserve recovery.") => ({
+type PickupItem = Parameters<typeof deriveExecutionContext>[1];
+type PickupRelationships = Parameters<typeof deriveExecutionContext>[2];
+type PickupOptions = Parameters<typeof deriveExecutionContext>[3];
+const pickupIssue = (
+  number = 1104,
+  body = "## Acceptance\n- [ ] Preserve recovery.",
+): PickupItem => ({
   id: `item-${number}`,
   status: "Ready",
   priority: "High",
@@ -99,8 +148,21 @@ const pickupIssue = (number = 1104, body = "## Acceptance\n- [ ] Preserve recove
     url: `https://github.com/${config.repository}/issues/${number}`,
   },
 });
-const pickupRelations = () => ({ parent: null, subIssues: [], blockedBy: [], blocking: [] });
-const pickupContext = (item = pickupIssue(), relationships = pickupRelations(), options = {}) =>
+const pickupRelations = (): PickupRelationships => ({
+  parent: null,
+  subIssues: [],
+  blockedBy: [],
+  blocking: [],
+});
+type ContextFixture = ReturnType<typeof deriveExecutionContext> & {
+  operational_baseline?: ReturnType<typeof operationalBaseline>;
+  operational_binding?: NonNullable<ReturnType<typeof bindOperationalAssignment>>;
+};
+const pickupContext = (
+  item = pickupIssue(),
+  relationships = pickupRelations(),
+  options: Partial<PickupOptions> = {},
+): ContextFixture =>
   deriveExecutionContext(config, item, relationships, {
     runner: "Local",
     comments: [],
@@ -125,7 +187,7 @@ const acknowledgmentComment = (context = pickupContext(), runner = "Local") => (
 });
 
 function operationalFixture() {
-  const lanes = ["cloud-a", "cloud-b", "local"];
+  const lanes = ["cloud-a", "cloud-b", "local"] as const;
   const configured = {
     ...config,
     delivery_mode: "coordinated",
@@ -139,7 +201,7 @@ function operationalFixture() {
       checkpoint_comment_ids: { "cloud-a": 101, "cloud-b": 102, local: 103 },
     },
   };
-  const board = {
+  const board: ReturnType<typeof parseOperationalBoard> = {
     repository: config.repository,
     protocol_revision: 1,
     cutover_state: "staged",
@@ -163,10 +225,22 @@ function operationalFixture() {
       },
     })),
   };
-  const format = (kind, value) =>
+  const format = (kind: string, value: unknown) =>
     `<!-- portcove-${kind}:v1 -->\n\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``;
   const issueUrl = `https://github.com/${config.repository}/issues/1800`;
-  const records = {};
+  const records: Record<
+    string,
+    {
+      number?: number;
+      id?: number;
+      html_url: string;
+      comments?: number;
+      user: { login: string; id: number };
+      updated_at: string;
+      body: string;
+      issue_url?: string;
+    }
+  > = {};
   records[`repos/${config.repository}/issues/1800`] = {
     number: 1800,
     html_url: issueUrl,
@@ -175,10 +249,13 @@ function operationalFixture() {
     updated_at: "2026-10-06T16:00:00Z",
     body: format("runner-board", board),
   };
-  const checkpoints = {};
+  const checkpoints: Partial<
+    Record<(typeof lanes)[number], ReturnType<typeof parseRunnerCheckpoint>>
+  > = {};
   for (const [index, lane] of lanes.entries()) {
     const assignment = board.assignments[index];
-    const checkpoint = {
+    assert.ok(assignment);
+    const checkpoint: ReturnType<typeof parseRunnerCheckpoint> = {
       lane,
       runner_instance_id: assignment.runner_instance_id,
       assignment_id: assignment.assignment_id,
@@ -209,31 +286,101 @@ function operationalFixture() {
       body: format("runner-checkpoint", checkpoint),
     };
   }
-  const calls = [];
+  const calls: { method: string; endpoint: string; options: { timeoutMs: number } }[] = [];
   const api = {
-    request(method, endpoint, body, options) {
+    request(method: string, endpoint: string, _body: unknown, options: { timeoutMs: number }) {
       calls.push({ method, endpoint, options });
       assert.equal(method, "GET");
-      assert.ok(records[endpoint], "only fixed endpoints allowed");
-      return { body: records[endpoint] };
+      const record = records[endpoint];
+      assert.ok(record, "only fixed endpoints allowed");
+      return { body: record };
     },
   };
   return { configured, board, checkpoints, records, format, api, calls };
 }
 
-test("ordinary operational snapshot reads exactly four fixed records and measures final model envelope", () => {
+function observedBoard(...args: Parameters<typeof readOperationalBoard>) {
+  const snapshot = readOperationalBoard(...args);
+  assert.ok(
+    snapshot.status === "observed" || snapshot.status === "staged",
+    "expected available operational fixture",
+  );
+  return snapshot;
+}
+function observedSnapshot(snapshot: ReturnType<typeof readOperationalBoard>) {
+  assert.ok(
+    snapshot.status === "observed" || snapshot.status === "staged",
+    "expected observed fixture snapshot",
+  );
+  return snapshot;
+}
+function fixtureBinding(...args: Parameters<typeof bindOperationalAssignment>) {
+  const binding = bindOperationalAssignment(...args);
+  assert.ok(binding, "expected coordinated fixture binding");
+  return binding;
+}
+function checkpointPlan<T extends object>(value: T) {
+  assert.ok("body" in value && typeof value.body === "string");
+  assert.ok("writer_mode" in value && value.writer_mode === "coordinator-only");
+  return { ...value, body: value.body, writer_mode: value.writer_mode };
+}
+function fixtureRecord(
+  fixture: Pick<ReturnType<typeof operationalFixture>, "records">,
+  endpoint: string,
+) {
+  const record = fixture.records[endpoint];
+  assert.ok(record, `expected fixed fixture record ${endpoint}`);
+  return record;
+}
+function fixtureCheckpoint(
+  value: {
+    checkpoints: Partial<
+      Record<"cloud-a" | "cloud-b" | "local", ReturnType<typeof parseRunnerCheckpoint>>
+    >;
+  },
+  lane: "cloud-a" | "cloud-b" | "local",
+) {
+  const checkpoint = value.checkpoints[lane];
+  assert.ok(checkpoint, `expected fixture checkpoint ${lane}`);
+  return checkpoint;
+}
+function fixtureAssignment(board: ReturnType<typeof parseOperationalBoard>, index: number) {
+  const assignment = board.assignments[index];
+  assert.ok(assignment, `expected fixture assignment ${index}`);
+  return assignment;
+}
+function fixtureObservation(
+  value: { observations: NonNullable<ReturnType<typeof operationalBaseline>>["observations"] },
+  index: number,
+) {
+  const observation = value.observations[index];
+  assert.ok(observation, `expected fixture observation ${index}`);
+  return observation;
+}
+function fixtureRequest(checkpoint: ReturnType<typeof parseRunnerCheckpoint>, index: number) {
+  const request = checkpoint.outstanding_requests[index];
+  assert.ok(request, `expected fixture request ${index}`);
+  return request;
+}
+function measuredEnvelope(...args: Parameters<typeof operationalEnvelope>) {
+  const envelope = operationalEnvelope(...args);
+  assert.ok("operational_metrics" in envelope && envelope.operational_metrics);
+  return { ...envelope, operational_metrics: envelope.operational_metrics };
+}
+
+void test("ordinary operational snapshot reads exactly four fixed records and measures final model envelope", () => {
   const fixture = operationalFixture();
-  const snapshot = readOperationalBoard(fixture.configured, fixture.api);
+  const snapshot = observedBoard(fixture.configured, fixture.api);
   assert.equal(snapshot.status, "staged");
   assert.equal(fixture.calls.length, 4);
   assert.ok(
     fixture.calls.every(({ endpoint }) => !endpoint.includes("793") && !endpoint.includes("?")),
   );
   assert.equal(
-    snapshot.checkpoints["cloud-a"].outstanding_requests[0].acknowledgment_state,
+    fixtureRequest(fixtureCheckpoint(snapshot, "cloud-a"), 0).acknowledgment_state,
     "pending",
   );
-  const envelope = operationalEnvelope(snapshot);
+  const envelope = measuredEnvelope(snapshot);
   assert.equal(
     envelope.operational_metrics.model_facing_bytes,
     Buffer.byteLength(JSON.stringify(envelope), "utf8"),
@@ -241,86 +388,99 @@ test("ordinary operational snapshot reads exactly four fixed records and measure
   assert.match(envelope.operational_metrics.estimate_method, /not billed/);
 });
 
-test("edited fixed checkpoints change raw identity while quiet reads never mutate progress", () => {
+void test("edited fixed checkpoints change raw identity while quiet reads never mutate progress", () => {
   const fixture = operationalFixture();
-  const first = readOperationalBoard(fixture.configured, fixture.api);
+  const first = observedBoard(fixture.configured, fixture.api);
   const endpoint = `repos/${config.repository}/issues/comments/101`;
-  const original = fixture.records[endpoint].body;
-  fixture.records[endpoint].body = fixture.format("runner-checkpoint", {
-    ...fixture.checkpoints["cloud-a"],
+  const original = fixtureRecord(fixture, endpoint).body;
+  fixtureRecord(fixture, endpoint).body = fixture.format("runner-checkpoint", {
+    ...fixtureCheckpoint(fixture, "cloud-a"),
     next_action: "A changed action",
   });
-  const changed = readOperationalBoard(fixture.configured, fixture.api);
-  assert.notEqual(first.observations[1].raw_revision, changed.observations[1].raw_revision);
+  const changed = observedBoard(fixture.configured, fixture.api);
+  assert.notEqual(
+    fixtureObservation(first, 1).raw_revision,
+    fixtureObservation(changed, 1).raw_revision,
+  );
   const delta = operationalChanges(changed, operationalBaseline(first));
-  assert.equal(delta.state, "changed");
+  assert.ok(delta.state === "changed");
   assert.equal(delta.original_evidence_manifest, changed.original_evidence_manifest);
   assert.equal(
-    operationalEnvelope(changed, operationalBaseline(first)).operational_snapshot
+    measuredEnvelope(changed, operationalBaseline(first)).operational_snapshot
       .original_evidence_manifest,
     changed.original_evidence_manifest,
   );
   assert.equal(delta.board, null);
   assert.deepEqual(Object.keys(delta.checkpoints), ["cloud-a"]);
   assert.deepEqual(
-    first.checkpoints["cloud-a"].last_meaningful_progress,
-    changed.checkpoints["cloud-a"].last_meaningful_progress,
+    fixtureCheckpoint(first, "cloud-a").last_meaningful_progress,
+    fixtureCheckpoint(changed, "cloud-a").last_meaningful_progress,
   );
-  const quiet = readOperationalBoard(fixture.configured, fixture.api);
+  const quiet = observedBoard(fixture.configured, fixture.api);
   assert.deepEqual(
     { ...changed, original_evidence_manifest: null },
     { ...quiet, original_evidence_manifest: null },
   );
   const quietDelta = operationalChanges(quiet, operationalBaseline(changed));
-  assert.equal(quietDelta.state, "unchanged");
+  assert.ok(quietDelta.state === "unchanged");
   assert.equal(quietDelta.snapshot, undefined);
-  assert.notEqual(original, fixture.records[endpoint].body);
+  assert.notEqual(original, fixtureRecord(fixture, endpoint).body);
   assert.ok(fixture.calls.every(({ method }) => method === "GET"));
 });
 
-test("timestamp-only fixed checkpoint edits are detected and invalid baselines cannot suppress state", () => {
+void test("timestamp-only fixed checkpoint edits are detected and invalid baselines cannot suppress state", () => {
   const fixture = operationalFixture();
-  const first = readOperationalBoard(fixture.configured, fixture.api);
-  fixture.records[`repos/${config.repository}/issues/comments/101`].updated_at =
+  const first = observedBoard(fixture.configured, fixture.api);
+  fixtureRecord(fixture, `repos/${config.repository}/issues/comments/101`).updated_at =
     "2026-10-06T16:01:00Z";
-  const edited = readOperationalBoard(fixture.configured, fixture.api);
-  assert.equal(first.observations[1].raw_revision, edited.observations[1].raw_revision);
+  const edited = observedBoard(fixture.configured, fixture.api);
+  assert.equal(
+    fixtureObservation(first, 1).raw_revision,
+    fixtureObservation(edited, 1).raw_revision,
+  );
   const delta = operationalChanges(edited, operationalBaseline(first));
-  assert.equal(delta.state, "changed");
+  assert.ok(delta.state === "changed");
   assert.deepEqual(Object.keys(delta.checkpoints), ["cloud-a"]);
   assert.deepEqual(
-    first.checkpoints["cloud-a"].last_meaningful_progress,
-    edited.checkpoints["cloud-a"].last_meaningful_progress,
+    fixtureCheckpoint(first, "cloud-a").last_meaningful_progress,
+    fixtureCheckpoint(edited, "cloud-a").last_meaningful_progress,
   );
+  type BaselineFixture = Omit<
+    NonNullable<ReturnType<typeof operationalBaseline>>,
+    "schema_version" | "status"
+  > & { schema_version: number; status: string };
   for (const mutate of [
-    (baseline) => (baseline.schema_version = 2),
-    (baseline) => (baseline.status = "unknown"),
-    (baseline) => (baseline.coordinator_instance_id = "another-coordinator"),
-    (baseline) => (baseline.assignment_generation = 2),
-    (baseline) => (baseline.assignment_binding_revision = "0".repeat(64)),
-    (baseline) => baseline.observations.reverse(),
-    (baseline) => (baseline.observations[0].raw_revision = "invalid"),
-    (baseline) => (baseline.observations[0].edited_at = "invalid"),
+    (baseline: BaselineFixture) => (baseline.schema_version = 2),
+    (baseline: BaselineFixture) => (baseline.status = "unknown"),
+    (baseline: BaselineFixture) => (baseline.coordinator_instance_id = "another-coordinator"),
+    (baseline: BaselineFixture) => (baseline.assignment_generation = 2),
+    (baseline: BaselineFixture) => (baseline.assignment_binding_revision = "0".repeat(64)),
+    (baseline: BaselineFixture) => baseline.observations.reverse(),
+    (baseline: BaselineFixture) => (fixtureObservation(baseline, 0).raw_revision = "invalid"),
+    (baseline: BaselineFixture) => (fixtureObservation(baseline, 0).edited_at = "invalid"),
   ]) {
     const baseline = structuredClone(operationalBaseline(edited));
+    assert.ok(baseline);
     mutate(baseline);
     assert.equal(operationalChanges(edited, baseline).state, "baseline_unavailable");
   }
 });
 
-test("the actual subprocess runner clips its request timeout to the remaining monotonic budget", () => {
+void test("the actual subprocess runner clips its request timeout to the remaining monotonic budget", () => {
   const fixture = operationalFixture();
   let time = 0;
-  const timeouts = [];
-  const client = new RoadmapClient(fixture.configured, fixture.api);
+  const timeouts: number[] = [];
+  const client = new RoadmapClient(fixture.configured);
   const snapshot = client.operationalSnapshot({
     now: () => time,
     runnerFactory: (options) => {
+      assert.ok(options && typeof options.timeoutMs === "number");
       timeouts.push(options.timeoutMs);
-      return (args) => {
+      return (args: readonly string[]) => {
         const endpoint = args[args.indexOf("--include") + 1];
+        assert.ok(endpoint);
         time += timeouts.length === 3 ? 29_500 : 15_000;
-        return `HTTP/2 200 OK\r\ncontent-type: application/json\r\n\r\n${JSON.stringify(fixture.records[endpoint])}`;
+        return `HTTP/2 200 OK\r\ncontent-type: application/json\r\n\r\n${JSON.stringify(fixtureRecord(fixture, endpoint))}`;
       };
     },
   });
@@ -328,10 +488,11 @@ test("the actual subprocess runner clips its request timeout to the remaining mo
   assert.equal(snapshot.status, "unknown");
 });
 
-test("fresh changed and unchanged coordination envelopes include metadata in their measured ceiling", () => {
+void test("fresh changed and unchanged coordination envelopes include metadata in their measured ceiling", () => {
   const fixture = operationalFixture();
-  const snapshot = readOperationalBoard(fixture.configured, fixture.api);
+  const snapshot = observedBoard(fixture.configured, fixture.api);
   const baseline = operationalBaseline(snapshot);
+  assert.ok(baseline);
   for (const old of [
     null,
     baseline,
@@ -342,7 +503,7 @@ test("fresh changed and unchanged coordination envelopes include metadata in the
       ),
     },
   ]) {
-    const envelope = operationalEnvelope(snapshot, old);
+    const envelope = measuredEnvelope(snapshot, old);
     assert.equal(
       envelope.operational_metrics.model_facing_bytes,
       Buffer.byteLength(JSON.stringify(envelope), "utf8"),
@@ -354,7 +515,7 @@ test("fresh changed and unchanged coordination envelopes include metadata in the
   for (let size = 0; size < 1000; size++) {
     const padded = structuredClone(snapshot);
     padded.authority_limit = "x".repeat(size);
-    const envelope = operationalEnvelope(padded);
+    const envelope = measuredEnvelope(padded);
     assert.equal(
       envelope.operational_metrics.model_facing_bytes,
       Buffer.byteLength(JSON.stringify(envelope), "utf8"),
@@ -363,24 +524,25 @@ test("fresh changed and unchanged coordination envelopes include metadata in the
   }
 });
 
-test("missing, oversized, malformed, stale and unavailable operational state stays unknown without fallback", () => {
+void test("missing, oversized, malformed, stale and unavailable operational state stays unknown without fallback", () => {
   const missing = operationalFixture();
+  // @ts-expect-error Missing configured issue identity is deliberate malformed input.
   missing.configured.runner_coordination.board_issue = null;
   assert.equal(readOperationalBoard(missing.configured, missing.api).status, "unknown");
   assert.equal(missing.calls.length, 0);
   for (const replacement of ["not a board", "x".repeat(8193)]) {
     const fixture = operationalFixture();
-    fixture.records[`repos/${config.repository}/issues/1800`].body = replacement;
+    fixtureRecord(fixture, `repos/${config.repository}/issues/1800`).body = replacement;
     const result = readOperationalBoard(fixture.configured, fixture.api);
     assert.equal(result.status, "unknown");
     assert.equal(result.state, null);
     assert.match(result.authority_limit, /not unowned/);
   }
   const stale = operationalFixture();
-  stale.records[`repos/${config.repository}/issues/comments/101`].body = stale.format(
+  fixtureRecord(stale, `repos/${config.repository}/issues/comments/101`).body = stale.format(
     "runner-checkpoint",
     {
-      ...stale.checkpoints["cloud-a"],
+      ...fixtureCheckpoint(stale, "cloud-a"),
       assignment_generation: 2,
     },
   );
@@ -399,14 +561,15 @@ test("missing, oversized, malformed, stale and unavailable operational state sta
   assert.ok(expired.calls.length < 4);
 });
 
-test("operational observations reject coerced timestamps at issue and checkpoint boundaries", () => {
+void test("operational observations reject coerced timestamps at issue and checkpoint boundaries", () => {
   for (const endpoint of [
     `repos/${config.repository}/issues/1800`,
     `repos/${config.repository}/issues/comments/101`,
   ]) {
     for (const timestamp of [0, ["2026-10-06T16:00:00Z"]]) {
       const fixture = operationalFixture();
-      fixture.records[endpoint].updated_at = timestamp;
+      // @ts-expect-error Coercible nonstring timestamps must reach the runtime validator.
+      fixtureRecord(fixture, endpoint).updated_at = timestamp;
       const result = readOperationalBoard(fixture.configured, fixture.api);
       assert.equal(result.status, "unknown");
       assert.equal(result.state, null);
@@ -415,19 +578,19 @@ test("operational observations reject coerced timestamps at issue and checkpoint
   }
 });
 
-test("conflicting assignments and malformed outstanding requests refuse interpretation", () => {
+void test("conflicting assignments and malformed outstanding requests refuse interpretation", () => {
   const fixture = operationalFixture();
   const duplicate = {
     ...fixture.board,
-    assignments: [...fixture.board.assignments, fixture.board.assignments[0]],
+    assignments: [...fixture.board.assignments, fixtureAssignment(fixture.board, 0)],
   };
   assert.throws(
     () => parseOperationalBoard(fixture.format("runner-board", duplicate), fixture.configured),
     /conflicting/,
   );
-  const request = fixture.checkpoints["cloud-a"].outstanding_requests[0];
+  const request = fixtureCheckpoint(fixture, "cloud-a").outstanding_requests[0];
   const checkpoint = {
-    ...fixture.checkpoints["cloud-a"],
+    ...fixtureCheckpoint(fixture, "cloud-a"),
     outstanding_requests: [request, request],
   };
   assert.throws(
@@ -441,33 +604,35 @@ test("conflicting assignments and malformed outstanding requests refuse interpre
   );
 });
 
-test("completed assignments retain their accepted checkpoint and release evidence without an active scope", () => {
+void test("completed assignments retain their accepted checkpoint and release evidence without an active scope", () => {
   const fixture = operationalFixture();
-  const assignment = fixture.board.assignments[1];
+  const assignment = fixtureAssignment(fixture.board, 1);
   const accepted = structuredClone(assignment.accepted_ack);
   assignment.execution_slot = "completed";
   assignment.reserved_scope = null;
   assignment.released_reference = `https://github.com/${config.repository}/issues/1104#issuecomment-6021341506`;
-  const checkpoint = fixture.checkpoints["cloud-b"];
+  const checkpoint = fixtureCheckpoint(fixture, "cloud-b");
   checkpoint.execution_phase = "completed";
   checkpoint.necessary_evidence_pointers = ["issue1104#issuecomment-6021341506"];
-  fixture.records[`repos/${config.repository}/issues/1800`].body = fixture.format(
+  fixtureRecord(fixture, `repos/${config.repository}/issues/1800`).body = fixture.format(
     "runner-board",
     fixture.board,
   );
-  fixture.records[`repos/${config.repository}/issues/comments/102`].body = fixture.format(
+  fixtureRecord(fixture, `repos/${config.repository}/issues/comments/102`).body = fixture.format(
     "runner-checkpoint",
     checkpoint,
   );
-  const snapshot = readOperationalBoard(fixture.configured, fixture.api);
+  const snapshot = observedBoard(fixture.configured, fixture.api);
   assert.equal(snapshot.status, "staged");
-  assert.deepEqual(snapshot.board.assignments[1].accepted_ack, accepted);
-  assert.equal(snapshot.checkpoints["cloud-b"].assignment_id, assignment.assignment_id);
-  const binding = bindOperationalAssignment(snapshot, "fixture-cloud-b", 1104);
+  assert.deepEqual(fixtureAssignment(snapshot.board, 1).accepted_ack, accepted);
+  assert.equal(fixtureCheckpoint(snapshot, "cloud-b").assignment_id, assignment.assignment_id);
+  const binding = fixtureBinding(snapshot, "fixture-cloud-b", 1104);
   assert.equal(binding.execution_slot, "completed");
   assert.equal(binding.reserved_scope, null);
   assert.equal(binding.released_reference, assignment.released_reference);
-  const output = operationalEnvelope(snapshot, null, binding);
+  const output = measuredEnvelope(snapshot, null, binding);
+  assert.ok("details" in output.operational_snapshot);
+  assert.ok(output.operational_binding);
   assert.match(output.operational_snapshot.details, /Scope: none; assignment released/);
   assert.match(output.operational_snapshot.details, /Release: https:\/\/github.com/);
   assert.equal(output.operational_binding.released_reference, assignment.released_reference);
@@ -487,14 +652,15 @@ test("completed assignments retain their accepted checkpoint and release evidenc
     fixture.format("runner-board", withWaiting),
     fixture.configured,
   );
-  assert.equal(preserved.assignments.at(-1).reserved_scope, "four frozen query paths");
+  assert.equal(preserved.assignments.at(-1)?.reserved_scope, "four frozen query paths");
   assert.equal(
     parseRunnerCheckpoint(fixture.format("runner-checkpoint", checkpoint), "cloud-b", preserved)
       .assignment_id,
     assignment.assignment_id,
   );
   const revisedRelease = structuredClone(snapshot);
-  revisedRelease.board.assignments[1].released_reference = "issue1104#issuecomment-6021341507";
+  fixtureAssignment(revisedRelease.board, 1).released_reference =
+    "issue1104#issuecomment-6021341507";
   assert.equal(
     operationalChanges(revisedRelease, operationalBaseline(snapshot)).state,
     "baseline_unavailable",
@@ -505,7 +671,11 @@ test("completed assignments retain their accepted checkpoint and release evidenc
   assert.throws(
     () =>
       prepareOperationalConsumption({
-        client: { operationalSnapshot: () => snapshot },
+        client: {
+          operationalSnapshot: () => snapshot,
+          executionIssue: () =>
+            assert.fail("completed assignment must fail before requirements read"),
+        },
         config: fixture.configured,
         context,
         runner: "fixture-cloud-b",
@@ -522,7 +692,7 @@ test("completed assignments retain their accepted checkpoint and release evidenc
     { intentional_pause: true },
   ]) {
     const board = structuredClone(fixture.board);
-    Object.assign(board.assignments[1], patch);
+    Object.assign(fixtureAssignment(board, 1), patch);
     assert.throws(
       () => parseOperationalBoard(fixture.format("runner-board", board), fixture.configured),
       /conflicting/,
@@ -559,7 +729,11 @@ test("completed assignments retain their accepted checkpoint and release evidenc
   ]) {
     const board = {
       ...fixture.board,
-      assignments: [fixture.board.assignments[0], ...records, fixture.board.assignments[2]],
+      assignments: [
+        fixtureAssignment(fixture.board, 0),
+        ...records,
+        fixtureAssignment(fixture.board, 2),
+      ],
     };
     assert.throws(
       () => parseOperationalBoard(fixture.format("runner-board", board), fixture.configured),
@@ -567,22 +741,23 @@ test("completed assignments retain their accepted checkpoint and release evidenc
     );
   }
   const missingRelease = structuredClone(fixture.board);
-  delete missingRelease.assignments[1].released_reference;
-  fixture.records[`repos/${config.repository}/issues/1800`].body = fixture.format(
+  delete fixtureAssignment(missingRelease, 1).released_reference;
+  fixtureRecord(fixture, `repos/${config.repository}/issues/1800`).body = fixture.format(
     "runner-board",
     missingRelease,
   );
   assert.equal(readOperationalBoard(fixture.configured, fixture.api).status, "unknown");
 });
 
-test("task instance binding and fixed checkpoint planning preserve unresolved requests and preimages", () => {
+void test("task instance binding and fixed checkpoint planning preserve unresolved requests and preimages", () => {
   const fixture = operationalFixture();
-  const snapshot = readOperationalBoard(fixture.configured, fixture.api);
+  const snapshot = observedBoard(fixture.configured, fixture.api);
   const binding = bindOperationalAssignment(snapshot, "fixture-cloud-a", 1104);
+  assert.ok(binding);
   assert.equal(binding.assignment_id, "fixture-task-1");
   assert.throws(() => bindOperationalAssignment(snapshot, "unknown-instance", 1104), /exactly one/);
   assert.throws(() => bindOperationalAssignment(snapshot, "fixture-cloud-a", 1550), /exactly one/);
-  const original = snapshot.checkpoints["cloud-a"];
+  const original = fixtureCheckpoint(snapshot, "cloud-a");
   const expected = snapshot.observations[1];
   const plan = prepareOperationalCheckpoint(
     fixture.configured,
@@ -605,9 +780,9 @@ test("task instance binding and fixed checkpoint planning preserve unresolved re
     /cannot disappear/,
   );
   const resolution = {
-    request_id: original.outstanding_requests[0].request_id,
-    recipient_instance_or_coordinator:
-      original.outstanding_requests[0].recipient_instance_or_coordinator,
+    request_id: fixtureRequest(original, 0).request_id,
+    recipient_instance_or_coordinator: fixtureRequest(original, 0)
+      .recipient_instance_or_coordinator,
     disposition: "cancelled",
     observed_response_reference: "PR1543#issuecomment-6020220069",
   };
@@ -686,14 +861,15 @@ test("task instance binding and fixed checkpoint planning preserve unresolved re
     "planned",
   );
   const missing = structuredClone(fixture.board);
-  delete missing.assignments[0].reserved_scope;
+  // @ts-expect-error Required reservation intentionally removed from external board JSON.
+  delete fixtureAssignment(missing, 0).reserved_scope;
   assert.throws(
     () => parseOperationalBoard(fixture.format("runner-board", missing), fixture.configured),
     /conflicting/,
   );
   const substituted = structuredClone(fixture.board);
   substituted.assignments.push({
-    ...substituted.assignments[0],
+    ...fixtureAssignment(substituted, 0),
     assignment_id: "waiting-assignment",
     runner_instance_id: "substituted-instance",
     execution_slot: "reviewed_waiting",
@@ -702,13 +878,13 @@ test("task instance binding and fixed checkpoint planning preserve unresolved re
     () => parseOperationalBoard(fixture.format("runner-board", substituted), fixture.configured),
     /conflicting/,
   );
-  fixture.records[`repos/${config.repository}/issues/comments/101`].user.id = 1;
+  fixtureRecord(fixture, `repos/${config.repository}/issues/comments/101`).user.id = 1;
   assert.equal(readOperationalBoard(fixture.configured, fixture.api).status, "unknown");
 });
 
 function handoffFixture() {
   const fixture = operationalFixture();
-  const snapshot = readOperationalBoard(fixture.configured, fixture.api);
+  const snapshot = observedBoard(fixture.configured, fixture.api);
   const spec = {
     request_id: "finite-offer",
     runner_instance_id: "fixture-cloud-a",
@@ -720,9 +896,11 @@ function handoffFixture() {
     outcome: "Preserve an actual bounded acknowledgment return",
     evidence: "issue1104#issuecomment-20",
   };
-  const offer = prepareOperationalOffer({ config: fixture.configured, snapshot, spec });
-  const checkpoint = JSON.parse(offer.body.split("```json\n")[1].split("\n```")[0]);
-  fixture.records[`repos/${config.repository}/issues/comments/101`].body = fixture.format(
+  const offer = checkpointPlan(
+    prepareOperationalOffer({ config: fixture.configured, snapshot, spec }),
+  );
+  const checkpoint = parseRunnerCheckpoint(offer.body, "cloud-a", snapshot.board);
+  fixtureRecord(fixture, `repos/${config.repository}/issues/comments/101`).body = fixture.format(
     "runner-checkpoint",
     checkpoint,
   );
@@ -741,12 +919,22 @@ function handoffFixture() {
       edited_at: "2026-10-07T03:00:00Z",
     },
   });
-  return { ...fixture, spec, offer, receipt, current };
+  assert.ok(receipt.receipt.evidence_observation);
+  return {
+    ...fixture,
+    spec,
+    offer,
+    receipt: {
+      ...receipt,
+      receipt: { ...receipt.receipt, evidence_observation: receipt.receipt.evidence_observation },
+    },
+    current,
+  };
 }
 
-test("offer and exact release evidence reject coercible scalar metadata", () => {
+void test("offer and exact release evidence reject coercible scalar metadata", () => {
   const fixture = operationalFixture();
-  const snapshot = readOperationalBoard(fixture.configured, fixture.api);
+  const snapshot = observedBoard(fixture.configured, fixture.api);
   const spec = handoffFixture().spec;
   assert.throws(
     () =>
@@ -797,11 +985,11 @@ test("offer and exact release evidence reject coercible scalar metadata", () => 
   }
 });
 
-test("bounded offers preserve the accepted assignment and reject altered or superseded proposals", () => {
+void test("bounded offers preserve the accepted assignment and reject altered or superseded proposals", () => {
   const f = handoffFixture();
   assert.equal(f.offer.writer_mode, "coordinator-only");
   assert.equal(f.receipt.status, "pending");
-  assert.deepEqual(f.current().board, readOperationalBoard(f.configured, f.api).board);
+  assert.deepEqual(observedSnapshot(f.current()).board, observedBoard(f.configured, f.api).board);
   assert.equal(
     prepareOperationalOffer({ config: f.configured, snapshot: f.current(), spec: f.spec }).status,
     "quiet",
@@ -838,8 +1026,8 @@ test("bounded offers preserve the accepted assignment and reject altered or supe
       /identity|source/,
     );
   }
-  const stale = f.current();
-  stale.board.assignments[0].generation++;
+  const stale = observedSnapshot(f.current());
+  fixtureAssignment(stale.board, 0).generation++;
   assert.throws(
     () =>
       prepareOperationalReturn({
@@ -855,7 +1043,7 @@ test("bounded offers preserve the accepted assignment and reject altered or supe
   );
 });
 
-test("worker receipts cannot authenticate themselves and preserve unavailable delivery as unknown", () => {
+void test("worker receipts cannot authenticate themselves and preserve unavailable delivery as unknown", () => {
   const f = handoffFixture();
   const input = {
     config: f.configured,
@@ -885,9 +1073,11 @@ test("worker receipts cannot authenticate themselves and preserve unavailable de
   );
 });
 
-test("independently established returns preserve other requests and refuse conflicting replay", () => {
+void test("independently established returns preserve other requests and refuse conflicting replay", () => {
   const f = handoffFixture();
-  const verifyDelivery = ({ receipt }) => ({
+  const verifyDelivery: NonNullable<
+    Parameters<typeof prepareOperationalReturnAcceptance>[0]["verifyDelivery"]
+  > = ({ receipt }) => ({
     status: "established",
     runner_instance_id: f.spec.runner_instance_id,
     request_id: f.spec.request_id,
@@ -904,19 +1094,23 @@ test("independently established returns preserve other requests and refuse confl
     verifyDelivery,
     readEvidence,
   };
-  const accepted = prepareOperationalReturnAcceptance(input);
+  const accepted = checkpointPlan(prepareOperationalReturnAcceptance(input));
   assert.equal(accepted.status, "planned");
   assert.equal(accepted.writer_mode, "coordinator-only");
-  const updated = JSON.parse(accepted.body.split("```json\n")[1].split("\n```")[0]);
+  const updated = parseRunnerCheckpoint(
+    accepted.body,
+    "cloud-a",
+    observedSnapshot(input.snapshot).board,
+  );
   assert.deepEqual(
     updated.outstanding_requests[0],
-    f.checkpoints["cloud-a"].outstanding_requests[0],
+    fixtureCheckpoint(f, "cloud-a").outstanding_requests[0],
   );
   assert.deepEqual(
     updated.last_meaningful_progress,
-    f.checkpoints["cloud-a"].last_meaningful_progress,
+    fixtureCheckpoint(f, "cloud-a").last_meaningful_progress,
   );
-  f.records[`repos/${config.repository}/issues/comments/101`].body = f.format(
+  fixtureRecord(f, `repos/${config.repository}/issues/comments/101`).body = f.format(
     "runner-checkpoint",
     updated,
   );
@@ -948,12 +1142,14 @@ test("independently established returns preserve other requests and refuse confl
   );
 });
 
-test("pending offer evidence edits cannot acquire a worker acknowledgment", () => {
+void test("pending offer evidence edits cannot acquire a worker acknowledgment", () => {
   const f = handoffFixture();
-  const snapshot = f.current();
-  snapshot.checkpoints["cloud-a"].outstanding_requests.find((entry) =>
+  const snapshot = observedSnapshot(f.current());
+  const pendingOffer = fixtureCheckpoint(snapshot, "cloud-a").outstanding_requests.find((entry) =>
     entry.request_id.startsWith("OFFER-"),
-  ).disposition_reference = "issue1104#issuecomment-99";
+  );
+  assert.ok(pendingOffer);
+  pendingOffer.disposition_reference = "issue1104#issuecomment-99";
   assert.throws(
     () =>
       prepareOperationalReturn({
@@ -969,9 +1165,9 @@ test("pending offer evidence edits cannot acquire a worker acknowledgment", () =
   );
 });
 
-test("owned PR release fallback pins actual body and source and cannot authenticate itself", () => {
+void test("owned PR release fallback pins actual body and source and cannot authenticate itself", () => {
   const f = operationalFixture();
-  const snapshot = readOperationalBoard(f.configured, f.api);
+  const snapshot = observedBoard(f.configured, f.api);
   const pullRequest = {
     number: 1543,
     html_url: `https://github.com/${config.repository}/pull/1543`,
@@ -988,8 +1184,11 @@ test("owned PR release fallback pins actual body and source and cannot authentic
     source: "a".repeat(40),
     pullRequest,
   };
+  // @ts-expect-error Caller-supplied verification flags cannot establish delivery.
   assert.equal(prepareOperationalReleaseEvidence({ ...input, verified: true }).status, "unknown");
-  const verifyDelivery = ({ receipt }) => ({
+  const verifyDelivery: NonNullable<
+    Parameters<typeof prepareOperationalReleaseEvidence>[0]["verifyDelivery"]
+  > = ({ receipt }) => ({
     status: "established",
     role: "source-owner-release",
     runner_instance_id: input.runner,
@@ -1000,6 +1199,7 @@ test("owned PR release fallback pins actual body and source and cannot authentic
   });
   const proof = prepareOperationalReleaseEvidence({ ...input, verifyDelivery });
   assert.equal(proof.status, "planned");
+  assert.ok("reference" in proof && typeof proof.reference === "string");
   assert.match(proof.reference, /pull\/1543#body-sha256-[a-f0-9]{64}$/);
   assert.equal(proof.receipt.merged, false);
   assert.throws(
@@ -1032,14 +1232,18 @@ test("owned PR release fallback pins actual body and source and cannot authentic
   );
 });
 
-test("receipt acceptance detects same-reference raw edits and cannot replace unavailable reads", () => {
+void test("receipt acceptance detects same-reference raw edits and cannot replace unavailable reads", () => {
   const f = handoffFixture();
   const input = {
     config: f.configured,
     snapshot: f.current(),
     offer: f.offer.offer,
     receipt: f.receipt.receipt,
-    verifyDelivery: ({ receipt }) => ({
+    verifyDelivery: ({
+      receipt,
+    }: Parameters<
+      NonNullable<Parameters<typeof prepareOperationalReturnAcceptance>[0]["verifyDelivery"]>
+    >[0]) => ({
       status: "established",
       runner_instance_id: f.spec.runner_instance_id,
       request_id: f.spec.request_id,
@@ -1065,7 +1269,7 @@ test("receipt acceptance detects same-reference raw edits and cannot replace una
   );
 });
 
-test("return evidence reads only exact bounded references and detects foreign, wrong-source or body edits", () => {
+void test("return evidence reads only exact bounded references and detects foreign, wrong-source or body edits", () => {
   const f = operationalFixture();
   const body = "## Linked issue\nRefs #1104.\n\n## Outcome\nFixture owning PR.";
   const pr = {
@@ -1085,9 +1289,9 @@ test("return evidence reads only exact bounded references and detects foreign, w
     pullRequest: pr,
   });
   const reference = release.receipt.reference;
-  const calls = [];
+  const calls: { method: string; endpoint: string; options: { timeoutMs: number } }[] = [];
   const api = {
-    request(method, endpoint, _body, options) {
+    request(method: string, endpoint: string, _body: unknown, options: { timeoutMs: number }) {
       calls.push({ method, endpoint, options });
       return { body: pr };
     },
@@ -1101,8 +1305,10 @@ test("return evidence reads only exact bounded references and detects foreign, w
   );
   assert.equal(observed.url, reference);
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].endpoint, `repos/${config.repository}/pulls/1543`);
-  assert.equal(calls[0].options.timeoutMs, 15000);
+  const call = calls[0];
+  assert.ok(call);
+  assert.equal(call.endpoint, `repos/${config.repository}/pulls/1543`);
+  assert.equal(call.options.timeoutMs, 15000);
   assert.throws(
     () => readOperationalReturnEvidence(f.configured, api, pr.html_url, 1104, "a".repeat(40)),
     /exact/,
@@ -1150,22 +1356,25 @@ test("return evidence reads only exact bounded references and detects foreign, w
   );
 });
 
-test("hash-pinned PR evidence roundtrips through released checkpoints and return requests", () => {
+void test("hash-pinned PR evidence roundtrips through released checkpoints and return requests", () => {
   const f = operationalFixture();
   const reference = `https://github.com/${config.repository}/pull/1543#body-sha256-${"d".repeat(64)}`;
-  const assignment = f.board.assignments[1];
+  const assignment = fixtureAssignment(f.board, 1);
   assignment.execution_slot = "completed";
   assignment.reserved_scope = null;
   assignment.released_reference = reference;
-  f.checkpoints["cloud-b"].execution_phase = "completed";
-  f.checkpoints["cloud-b"].necessary_evidence_pointers = [reference];
-  f.records[`repos/${config.repository}/issues/1800`].body = f.format("runner-board", f.board);
-  f.records[`repos/${config.repository}/issues/comments/102`].body = f.format(
+  fixtureCheckpoint(f, "cloud-b").execution_phase = "completed";
+  fixtureCheckpoint(f, "cloud-b").necessary_evidence_pointers = [reference];
+  fixtureRecord(f, `repos/${config.repository}/issues/1800`).body = f.format(
+    "runner-board",
+    f.board,
+  );
+  fixtureRecord(f, `repos/${config.repository}/issues/comments/102`).body = f.format(
     "runner-checkpoint",
-    f.checkpoints["cloud-b"],
+    fixtureCheckpoint(f, "cloud-b"),
   );
   assert.equal(readOperationalBoard(f.configured, f.api).status, "staged");
-  assignment.released_reference = reference.split("#")[0];
+  assignment.released_reference = fixtureElement(reference.split("#"), 0);
   assert.throws(
     () => parseOperationalBoard(f.format("runner-board", f.board), f.configured),
     /assignment|release/,
@@ -1203,7 +1412,7 @@ test("hash-pinned PR evidence roundtrips through released checkpoints and return
   assert.equal(accepted.status, "planned");
 });
 
-test("return observations reject raw extra fields and oversized packets without truncation", () => {
+void test("return observations reject raw extra fields and oversized packets without truncation", () => {
   const f = handoffFixture();
   const input = {
     config: f.configured,
@@ -1235,9 +1444,9 @@ test("return observations reject raw extra fields and oversized packets without 
   );
 });
 
-test("receipt tuple edits and pause changes cannot acknowledge or replace current ownership", () => {
+void test("receipt tuple edits and pause changes cannot acknowledge or replace current ownership", () => {
   const f = handoffFixture();
-  const original = f.current();
+  const original = observedSnapshot(f.current());
   const input = {
     config: f.configured,
     snapshot: original,
@@ -1262,16 +1471,16 @@ test("receipt tuple edits and pause changes cannot acknowledge or replace curren
       /conflict/,
     );
   }
-  const paused = f.current();
-  paused.board.assignments[0].intentional_pause = true;
+  const paused = observedSnapshot(f.current());
+  fixtureAssignment(paused.board, 0).intentional_pause = true;
   assert.throws(
     () => prepareOperationalReturnAcceptance({ ...input, snapshot: paused }),
     /superseded|changed/,
   );
-  assert.deepEqual(f.current().board, original.board);
+  assert.deepEqual(observedSnapshot(f.current()).board, original.board);
 });
 
-test("owning PR evidence accepts normal section order and refuses absent wrong or duplicate linked sections", () => {
+void test("owning PR evidence accepts normal section order and refuses absent wrong or duplicate linked sections", () => {
   const f = operationalFixture();
   const input = {
     config: f.configured,
@@ -1302,14 +1511,14 @@ test("owning PR evidence accepts normal section order and refuses absent wrong o
   }
 });
 
-test("normal consumption plans only a fixed checkpoint native handoff, preserving progress and refusing lane writes", () => {
+void test("normal consumption plans only a fixed checkpoint native handoff, preserving progress and refusing lane writes", () => {
   const fixture = operationalFixture();
-  let snapshot = readOperationalBoard(fixture.configured, fixture.api);
+  let snapshot = observedBoard(fixture.configured, fixture.api);
   let item = pickupIssue();
   const relationships = pickupRelations();
   const context = pickupContext(item, relationships, { runner: "fixture-cloud-a" });
   context.operational_baseline = operationalBaseline(snapshot);
-  context.operational_binding = bindOperationalAssignment(snapshot, "fixture-cloud-a", 1104);
+  context.operational_binding = fixtureBinding(snapshot, "fixture-cloud-a", 1104);
   const client = {
     operationalSnapshot: () => snapshot,
     executionIssue: () => ({ item, relationships }),
@@ -1324,13 +1533,13 @@ test("normal consumption plans only a fixed checkpoint native handoff, preservin
     action: "Consumed actual material acceptance",
     evidence: "PR1543#issuecomment-6020220069",
   };
-  const plan = prepareOperationalConsumption(input);
+  const plan = checkpointPlan(prepareOperationalConsumption(input));
   assert.equal(plan.status, "planned");
   assert.equal(plan.request.acknowledgment_state, "pending");
-  const updated = JSON.parse(plan.body.split("```json\n")[1].split("\n```")[0]);
+  const updated = parseRunnerCheckpoint(plan.body, "cloud-a", snapshot.board);
   assert.deepEqual(
     updated.last_meaningful_progress,
-    snapshot.checkpoints["cloud-a"].last_meaningful_progress,
+    fixtureCheckpoint(snapshot, "cloud-a").last_meaningful_progress,
   );
   assert.equal(updated.outstanding_requests.length, 2);
   assert.throws(() => prepareOperationalConsumption({ ...input, apply: true }), /coordinator-only/);
@@ -1345,6 +1554,7 @@ test("normal consumption plans only a fixed checkpoint native handoff, preservin
     /does not bind/,
   );
   const staleBinding = structuredClone(context);
+  assert.ok(staleBinding.operational_binding);
   staleBinding.operational_binding.generation = 2;
   assert.throws(
     () => prepareOperationalConsumption({ ...input, context: staleBinding }),
@@ -1364,31 +1574,32 @@ test("normal consumption plans only a fixed checkpoint native handoff, preservin
   item = { ...pickupIssue(), priority: "Low" };
   const changedContext = pickupContext(item, relationships, { runner: "fixture-cloud-a" });
   changedContext.operational_baseline = operationalBaseline(snapshot);
-  changedContext.operational_binding = bindOperationalAssignment(snapshot, "fixture-cloud-a", 1104);
+  changedContext.operational_binding = fixtureBinding(snapshot, "fixture-cloud-a", 1104);
   assert.equal(changedContext.observation_revision, context.observation_revision);
-  const material = prepareOperationalConsumption({ ...input, context: changedContext });
+  const material = checkpointPlan(
+    prepareOperationalConsumption({ ...input, context: changedContext }),
+  );
   assert.equal(material.status, "planned");
   assert.notEqual(material.request.request_id, oldId);
-  snapshot.checkpoints["cloud-a"] = JSON.parse(
-    material.body.split("```json\n")[1].split("\n```")[0],
-  );
-  snapshot.checkpoints["cloud-a"].outstanding_requests.reverse();
+  snapshot.checkpoints["cloud-a"] = parseRunnerCheckpoint(material.body, "cloud-a", snapshot.board);
+  fixtureCheckpoint(snapshot, "cloud-a").outstanding_requests.reverse();
   item = pickupIssue();
   const revisited = prepareOperationalConsumption(input);
   assert.equal(revisited.status, "planned");
   assert.notEqual(revisited.request.request_id, oldId);
   item = { ...pickupIssue(), priority: "Low" };
-  snapshot.board.assignments[0].generation = 2;
-  snapshot.checkpoints["cloud-a"].assignment_generation = 2;
+  fixtureAssignment(snapshot.board, 0).generation = 2;
+  fixtureCheckpoint(snapshot, "cloud-a").assignment_generation = 2;
   changedContext.operational_baseline = operationalBaseline(snapshot);
-  changedContext.operational_binding = bindOperationalAssignment(snapshot, "fixture-cloud-a", 1104);
+  changedContext.operational_binding = fixtureBinding(snapshot, "fixture-cloud-a", 1104);
   const generation = prepareOperationalConsumption({ ...input, context: changedContext });
   assert.equal(generation.status, "planned");
   assert.notEqual(generation.request.request_id, material.request.request_id);
-  const currentCheckpoint = snapshot.checkpoints["cloud-a"];
+  const currentCheckpoint = fixtureCheckpoint(snapshot, "cloud-a");
   const anchor = currentCheckpoint.outstanding_requests.find(
     (request) => request.request_id === material.request.request_id,
   );
+  assert.ok(anchor);
   const withoutAnchor = {
     ...currentCheckpoint,
     outstanding_requests: currentCheckpoint.outstanding_requests.filter(
@@ -1432,7 +1643,7 @@ test("normal consumption plans only a fixed checkpoint native handoff, preservin
   );
 });
 
-test("requirements comparison ignores formatting, check marks and bare delivered links, not safety text", () => {
+void test("requirements comparison ignores formatting, check marks and bare delivered links, not safety text", () => {
   const first = pickupIssue(
     1104,
     "## Acceptance\n- [ ] Preserve recovery.\n## Delivered evidence\n- [PR](https://github.com/boburning/portcove/pull/1)",
@@ -1459,7 +1670,7 @@ test("requirements comparison ignores formatting, check marks and bare delivered
     );
 });
 
-test("scope, planning, genuine prerequisites and organization are separate comparison facets", () => {
+void test("scope, planning, genuine prerequisites and organization are separate comparison facets", () => {
   const initial = executionSnapshot(config, pickupIssue(), pickupRelations());
   assert.equal(compareExecutionSnapshots(initial).state, "unknown");
   assert.equal(compareExecutionSnapshots(initial, initial).state, "unchanged");
@@ -1517,7 +1728,7 @@ test("scope, planning, genuine prerequisites and organization are separate compa
   );
 });
 
-test("snapshot validation rejects altered hashes, malformed identities and missing facets", () => {
+void test("snapshot validation rejects altered hashes, malformed identities and missing facets", () => {
   const snapshot = pickupContext().snapshot;
   assert.equal(validateExecutionSnapshot(snapshot), snapshot);
   assert.throws(
@@ -1535,16 +1746,19 @@ test("snapshot validation rejects altered hashes, malformed identities and missi
   );
 });
 
-test("snapshot validation rejects coercible scalar identities even with a matching revision", () => {
+void test("snapshot validation rejects coercible scalar identities even with a matching revision", () => {
   const original = pickupContext().snapshot;
   const mutations = [
-    (value) => {
+    (value: typeof original) => {
+      // @ts-expect-error Array-valued identity deliberately crosses the runtime boundary.
       value.repository = [value.repository];
     },
-    (value) => {
+    (value: typeof original) => {
+      // @ts-expect-error Array-valued URL deliberately crosses the runtime boundary.
       value.issue.url = [value.issue.url];
     },
-    (value) => {
+    (value: typeof original) => {
+      // @ts-expect-error Array-valued hash deliberately crosses the runtime boundary.
       value.scope_revision = [value.scope_revision];
     },
   ];
@@ -1557,13 +1771,14 @@ test("snapshot validation rejects coercible scalar identities even with a matchi
   }
 });
 
-test("context distinguishes bounded absence, actual API recorder, reported consumption and worker activity", () => {
+void test("context distinguishes bounded absence, actual API recorder, reported consumption and worker activity", () => {
   const first = pickupContext();
   assert.equal(first.pickup.current_requirements, "unknown");
   assert.equal(first.pickup.invoked, "unknown");
   const comment = acknowledgmentComment(first);
   const consumed = pickupContext(pickupIssue(), pickupRelations(), { comments: [comment] });
   assert.equal(consumed.pickup.current_requirements, "recorded consumed");
+  assert.ok(consumed.pickup.last_record);
   assert.equal(consumed.pickup.last_record.recorder, "recorder");
   assert.equal(consumed.pickup.assigned, "unknown");
   assert.equal(consumed.reservation.assessment, "unknown");
@@ -1575,7 +1790,7 @@ test("context distinguishes bounded absence, actual API recorder, reported consu
   assert.equal(changed.recommendation.execution_capability.startsWith("not assessed"), true);
 });
 
-test("exact older consumption reference is bound to configured repository, runner and task", () => {
+void test("exact older consumption reference is bound to configured repository, runner and task", () => {
   const comment = acknowledgmentComment();
   assert.equal(
     consumedReference(comment, { repository: config.repository, runner: "Local", issue: 1104 })
@@ -1597,12 +1812,13 @@ test("exact older consumption reference is bound to configured repository, runne
     () =>
       new RoadmapClient(config).coordinationComment(
         "https://github.com/other/repo/issues/793#issuecomment-1",
+        coordinationTarget(config, 1104),
       ),
     /this repository/,
   );
 });
 
-test("repeated recorded consumption is quiet, but returning to an earlier revision is a new comparison", () => {
+void test("repeated recorded consumption is quiet, but returning to an earlier revision is a new comparison", () => {
   const context = pickupContext();
   const options = { runner: "Local", action: "Continue", evidence: "actual inspected task" };
   const first = acknowledgmentComment(context);
@@ -1615,12 +1831,13 @@ test("repeated recorded consumption is quiet, but returning to an earlier revisi
   assert.equal(prepareConsumption(context, options, [first, changed]).needed, true);
 });
 
-test("acknowledgment payload roundtrips action and evidence code fences without poisoning later reads", () => {
+void test("acknowledgment payload roundtrips action and evidence code fences without poisoning later reads", () => {
   const context = pickupContext();
   const action = 'Compared example: ```json\n{}\n```; preserve "two  spaces"';
   const evidence = 'Actual recipe:\n```json\n{"observed":true}\n```';
   const prepared = prepareConsumption(context, { runner: "Local", action, evidence }, []);
   const record = parseConsumptionRecord(prepared.body);
+  assert.ok(record);
   assert.equal(record.action, action);
   assert.equal(record.evidence, evidence);
   assert.equal(
@@ -1638,57 +1855,62 @@ function consumptionClient({
   prior = [],
   context = pickupContext(),
   complete = true,
+}: {
+  changed?: boolean;
+  transport?: boolean;
+  readback?: boolean;
+  prior?: Parameters<typeof prepareConsumption>[2];
+  context?: ContextFixture;
+  complete?: boolean;
 } = {}) {
-  const writes = [];
+  const writes: { body: string }[] = [];
   const saved = acknowledgment(context);
-  return {
-    writes,
-    context,
-    client: {
-      coordinationRecords: () => ({
-        nodes: writes.length
-          ? [
-              ...prior,
-              {
-                ...acknowledgmentComment(context),
-                id: 2,
-                body: writes[0].body,
-                url: `${context.coordination_target.url}#issuecomment-2`,
-              },
-            ]
-          : prior,
-        coverage: { complete, count: prior.length, total: complete ? prior.length : 100 },
-      }),
-      executionIssue: () => ({
-        item: changed ? pickupIssue(1104, "Concurrent requirements") : pickupIssue(),
-        relationships: pickupRelations(),
-      }),
-      api: {
-        request(method, endpoint, payload) {
-          assert.equal(method, "POST");
-          assert.equal(
-            endpoint,
-            `repos/${config.repository}/issues/${context.coordination_target.number}/comments`,
-          );
-          writes.push(payload);
-          if (transport) throw new Error("lost POST response");
-          return { body: { id: 2 } };
-        },
-      },
-      coordinationComment: () => {
-        if (!readback) throw new Error("unavailable readback");
-        return {
-          ...acknowledgmentComment(context),
-          id: 2,
-          url: `${context.coordination_target.url}#issuecomment-2`,
-          body: writes[0]?.body ?? saved.body,
-        };
+  const client: Parameters<typeof executeConsumption>[0]["client"] = {
+    coordinationRecords: () => ({
+      nodes: writes.length
+        ? [
+            ...prior,
+            {
+              ...acknowledgmentComment(context),
+              id: 2,
+              body: writes[0]?.body ?? assert.fail("expected recorded fixture write"),
+              url: `${context.coordination_target.url}#issuecomment-2`,
+            },
+          ]
+        : [...prior],
+      coverage: { complete, count: prior.length, total: complete ? prior.length : 100 },
+    }),
+    executionIssue: () => ({
+      item: changed ? pickupIssue(1104, "Concurrent requirements") : pickupIssue(),
+      relationships: pickupRelations(),
+    }),
+    api: {
+      request(method, endpoint, payload) {
+        assert.equal(method, "POST");
+        assert.equal(
+          endpoint,
+          `repos/${config.repository}/issues/${context.coordination_target.number}/comments`,
+        );
+        assert.ok(isRecord(payload) && typeof payload.body === "string");
+        writes.push({ body: payload.body });
+        if (transport) throw new Error("lost POST response");
+        return { body: { id: 2 } };
       },
     },
+    coordinationComment: () => {
+      if (!readback) throw new Error("unavailable readback");
+      return {
+        ...acknowledgmentComment(context),
+        id: 2,
+        url: `${context.coordination_target.url}#issuecomment-2`,
+        body: writes[0]?.body ?? saved.body,
+      };
+    },
   };
+  return { writes, context, client };
 }
 
-test("acknowledgment plans by default and stale requirements cause zero writes", () => {
+void test("acknowledgment plans by default and stale requirements cause zero writes", () => {
   const options = {
     config,
     runner: "Local",
@@ -1709,7 +1931,7 @@ test("acknowledgment plans by default and stale requirements cause zero writes",
   assert.equal(repeated.writes.length, 0);
 });
 
-test("literal blank lines and boundary spaces invalidate stale consumption with zero writes", () => {
+void test("literal blank lines and boundary spaces invalidate stale consumption with zero writes", () => {
   for (const [before, after] of [
     ["```sh\ncat <<'EOF'\na\n\nb\nEOF\n```", "```sh\ncat <<'EOF'\na\nb\nEOF\n```"],
     ["    a\n\n    b", "    a\n    b"],
@@ -1742,7 +1964,7 @@ test("literal blank lines and boundary spaces invalidate stale consumption with 
   }
 });
 
-test("ambiguous acknowledgment POST is read back without retry; unavailable result retains exact pending body", () => {
+void test("ambiguous acknowledgment POST is read back without retry; unavailable result retains exact pending body", () => {
   const options = {
     config,
     runner: "Local",
@@ -1757,29 +1979,39 @@ test("ambiguous acknowledgment POST is read back without retry; unavailable resu
   assert.throws(
     () => executeConsumption({ ...options, ...unavailable }),
     (error) => {
-      assert.equal(error.operationStatus, "unknown");
-      assert.equal(error.operationEvidence.pending_body, unavailable.writes[0].body);
+      assert.equal(fixtureObject(error).operationStatus, "unknown");
+      assert.equal(
+        fixtureObject(fixtureObject(error).operationEvidence).pending_body,
+        fixtureElement(unavailable.writes, 0).body,
+      );
       return true;
     },
   );
   assert.equal(unavailable.writes.length, 1);
 });
 
-test("structured queue preserves Planned recommendations without inferring a grant or execution route", () => {
+void test("structured queue preserves Planned recommendations without inferring a grant or execution route", () => {
   const planned = pickupIssue();
   const required = { ...pickupIssue(925), "release commitment": "Required" };
   const output = executionQueueData([planned, required]);
   assert.equal(output.candidates.length, 2);
-  assert.equal(output.candidates[1].after, output.candidates[0].url);
-  assert.equal(output.candidates[0].reservation, "unknown");
-  assert.equal(output.candidates[0].execution_capability, "not assessed");
+  assert.equal(
+    fixtureElement(output.candidates, 1).after,
+    fixtureElement(output.candidates, 0).url,
+  );
+  assert.equal(fixtureElement(output.candidates, 0).reservation, "unknown");
+  assert.equal(fixtureElement(output.candidates, 0).execution_capability, "not assessed");
 });
 
-test("consumption JSON preserves the planned body and quiet success in the existing operation envelope", () => {
+void test("consumption JSON preserves the planned body and quiet success in the existing operation envelope", () => {
   const planned = consumptionEnvelope({ status: "planned", ...acknowledgment() });
   assert.equal(planned.operation, "roadmap.acknowledge");
   assert.equal(planned.status, "planned");
-  assert.equal(parseConsumptionRecord(planned.evidence.body).snapshot.issue.number, 1104);
+  assert.equal(
+    fixtureValue(parseConsumptionRecord(fixtureObject(planned.evidence).body)).snapshot.issue
+      .number,
+    1104,
+  );
   const quiet = consumptionEnvelope({
     status: "succeeded",
     needed: false,
@@ -1790,13 +2022,13 @@ test("consumption JSON preserves the planned body and quiet success in the exist
   assert.equal(quiet.evidence.needed, false);
 });
 
-test("selected context collects typed relationships completely and matches opaque Project identity", () => {
-  const connection = (nodes, totalCount = nodes.length, hasNextPage = false) => ({
+void test("selected context collects typed relationships completely and matches opaque Project identity", () => {
+  const connection = <T,>(nodes: T[], totalCount = nodes.length, hasNextPage = false) => ({
     nodes,
     totalCount,
     pageInfo: { hasNextPage, endCursor: hasNextPage ? "cursor" : null },
   });
-  const projectItem = (id, project = "PVT-selected") => ({
+  const projectItem = (id: string, project = "PVT-selected") => ({
     id,
     project: { id: project },
     fieldValues: connection([{ name: "Ready", field: { name: "Status" } }]),
@@ -1808,7 +2040,7 @@ test("selected context collects typed relationships completely and matches opaqu
     projectItems: connection([projectItem("selected"), projectItem("other", "PVT-other")]),
     blockedBy: connection([], 1, true),
     blocking: connection([reference]),
-    subIssues: connection([]),
+    subIssues: connection<PickupItem["content"]>([]),
   };
   const client = new RoadmapClient(config);
   client.projectDetails = () => ({ id: "PVT-selected" });
@@ -1825,18 +2057,18 @@ test("selected context collects typed relationships completely and matches opaqu
   const result = client.executionIssue(1104);
   assert.equal(result.item.id, "selected");
   assert.equal(result.relationships.blockedBy.length, 1);
-  assert.equal(result.relationships.blockedBy[0].projectStatus, "Ready");
-  assert.equal(result.relationships.blocking[0].number, 925);
+  assert.equal(fixtureElement(result.relationships.blockedBy, 0).projectStatus, "Ready");
+  assert.equal(fixtureElement(result.relationships.blocking, 0).number, 925);
   issue.blockedBy = connection([]);
   issue.subIssues = connection([reference, reference]);
   client.graphql = () => ({ repository: { issue }, node: { subIssues: issue.subIssues } });
   assert.throws(() => client.executionIssue(1104), /duplicate/);
 });
 
-test("acknowledgment history validates bounded coverage and refuses count changes", () => {
+void test("acknowledgment history validates bounded coverage and refuses count changes", () => {
   const client = new RoadmapClient(config);
   const target = coordinationTarget(config, 1104);
-  client.coordinationBinding = () => ({ comments: 100 });
+  client.coordinationBinding = () => ({ number: 1104, comments: 100 });
   client.graphql = () => ({
     repository: {
       issue: {
@@ -1863,11 +2095,11 @@ test("acknowledgment history validates bounded coverage and refuses count change
   });
   assert.equal(client.coordinationRecords(target).coverage.complete, false);
   let reads = 0;
-  client.coordinationBinding = () => ({ comments: ++reads === 1 ? 100 : 101 });
+  client.coordinationBinding = () => ({ number: 1104, comments: ++reads === 1 ? 100 : 101 });
   assert.throws(() => client.coordinationRecords(target), /incomplete/);
 });
 
-test("selected issue and explicit PR routes bind work/repository and never write legacy793", () => {
+void test("selected issue and explicit PR routes bind work/repository and never write legacy793", () => {
   const target = coordinationTarget(config, 1104, 1543);
   const context = pickupContext(pickupIssue(), pickupRelations(), { target });
   const scenario = consumptionClient({ context });
@@ -1880,7 +2112,6 @@ test("selected issue and explicit PR routes bind work/repository and never write
     apply: true,
   });
   assert.equal(result.url, `${target.url}#issuecomment-2`);
-  const client = new RoadmapClient(config);
   let node = {
     number: 1543,
     html_url: target.url,
@@ -1888,7 +2119,7 @@ test("selected issue and explicit PR routes bind work/repository and never write
     comments: 2,
     body: "Refs #1104.",
   };
-  client.api = { request: () => ({ body: node }) };
+  const client = new RoadmapClient(config, () => JSON.stringify(node));
   assert.equal(client.coordinationBinding(target).number, 1543);
   for (const body of [
     "Refs #11040",
@@ -1918,6 +2149,7 @@ test("selected issue and explicit PR routes bind work/repository and never write
     { coordination_target: { ...target, repository: "other/repo" } },
   ]) {
     const invalid = consumptionClient({ context });
+    // @ts-expect-error Deliberately incomplete or mismatched identity exercises runtime refusal.
     invalid.context = { ...context, ...mutation };
     assert.throws(() =>
       executeConsumption({
@@ -1933,22 +2165,19 @@ test("selected issue and explicit PR routes bind work/repository and never write
   }
 });
 
-test("exact legacy refs are read-only comparison; other work refs and identity substitutions fail", () => {
-  const client = new RoadmapClient(config);
+void test("exact legacy refs are read-only comparison; other work refs and identity substitutions fail", () => {
   const target = coordinationTarget(config, 1104);
   const url = `https://github.com/${config.repository}/issues/793#issuecomment-1`;
-  const requests = [];
+  const requests: string[][] = [];
   let original = {
     html_url: url,
     issue_url: `https://api.github.com/repos/${config.repository}/issues/793`,
     body: acknowledgment().body,
   };
-  client.api = {
-    request: (method, endpoint) => {
-      requests.push([method, endpoint]);
-      return { body: original };
-    },
-  };
+  const client = new RoadmapClient(config, (args) => {
+    requests.push([fixtureElement(args, args.indexOf("--method") + 1), fixtureElement(args, 2)]);
+    return JSON.stringify(original);
+  });
   assert.equal(
     consumedReference(client.coordinationComment(url, target), {
       repository: config.repository,
@@ -1998,25 +2227,30 @@ test("exact legacy refs are read-only comparison; other work refs and identity s
   );
 });
 
-test("incomplete absence refuses new writes while covered quiet repeats and revisited revisions remain correct", () => {
+void test("incomplete absence refuses new writes while covered quiet repeats and revisited revisions remain correct", () => {
   const options = { config, runner: "Local", action: "Consumed", evidence: "actual", apply: true };
   const absent = consumptionClient({ complete: false });
   assert.throws(() => executeConsumption({ ...options, ...absent }), /absence\/latest is unknown/);
   assert.equal(absent.writes.length, 0);
   const outside = consumptionClient({ complete: false });
-  outside.context.consumed_reference = {
-    url: "exact old reference",
-    latest_consumption: "not established",
-  };
+  Object.assign(outside.context, {
+    consumed_reference: {
+      url: "exact old reference",
+      latest_consumption: "not established",
+    },
+  });
   assert.throws(() => executeConsumption({ ...options, ...outside }), /absence\/latest is unknown/);
   const quiet = consumptionClient({ complete: false, prior: [acknowledgmentComment()] });
   assert.equal(executeConsumption({ ...options, ...quiet }).needed, false);
   assert.equal(quiet.writes.length, 0);
-  const reordered = JSON.parse(JSON.stringify(acknowledgmentComment()));
+  const reordered = structuredClone(acknowledgmentComment());
   const prepared = acknowledgment();
-  prepared.record.coordination_target = Object.fromEntries(
-    Object.entries(prepared.record.coordination_target).reverse(),
-  );
+  const preparedRecord = fixtureValue(prepared.record);
+  Object.assign(preparedRecord, {
+    coordination_target: Object.fromEntries(
+      Object.entries(preparedRecord.coordination_target).reverse(),
+    ),
+  });
   reordered.body = `<!-- portcove-roadmap-consumed:v1 -->\n\`\`\`json\n${JSON.stringify(prepared.record)}\n\`\`\``;
   const semanticQuiet = consumptionClient({ complete: false, prior: [reordered] });
   assert.equal(executeConsumption({ ...options, ...semanticQuiet }).needed, false);
@@ -2030,7 +2264,7 @@ test("incomplete absence refuses new writes while covered quiet repeats and revi
   assert.equal(revisited.writes.length, 1);
 });
 
-test("same-count raw history edits and changed raw observations stop before writing", () => {
+void test("same-count raw history edits and changed raw observations stop before writing", () => {
   const scenario = consumptionClient();
   let reads = 0;
   scenario.client.coordinationRecords = () => ({
@@ -2074,14 +2308,14 @@ test("same-count raw history edits and changed raw observations stop before writ
   assert.equal(raw.writes.length, 0);
 });
 
-test("capability milestones preserve history and fail closed during partial migration", () => {
+void test("capability milestones preserve history and fail closed during partial migration", () => {
   const item = (
-    number,
-    target,
+    number: number,
+    target: string,
     status = "Done",
     commitment = "Required",
     state = "CLOSED",
-    dependencies = [],
+    dependencies: number[] = [],
   ) => ({
     id: `item-${number}`,
     status,
@@ -2135,6 +2369,7 @@ test("capability milestones preserve history and fail closed during partial migr
     1,
   );
   assert.equal(analyzeReleaseReadiness([history, beta, unmigrated], "Public beta").ready, false);
+  // @ts-expect-error Missing release target intentionally exercises incomplete planning.
   const missingTarget = item(5, undefined);
   assert.equal(analyzeReleaseReadiness([history, beta, missingTarget], "Public beta").ready, false);
   assert.equal(analyzeReleaseReadiness([item(5, "Unscheduled")], "Public beta").ready, false);
@@ -2180,14 +2415,14 @@ test("capability milestones preserve history and fail closed during partial migr
   );
 });
 
-test("checked-in configuration contains schema rather than volatile item state", () => {
+void test("checked-in configuration contains schema rather than volatile item state", () => {
   assert.doesNotThrow(() => validateConfig(config));
   const invalid = structuredClone(config);
-  invalid.project.items = [{ title: "mutable backlog" }];
+  Object.assign(invalid.project, { items: [{ title: "mutable backlog" }] });
   assert.throws(() => validateConfig(invalid), /volatile planning data/);
 });
 
-test("New Port form requires canonical identity input without a Project-token workflow", () => {
+void test("New Port form requires canonical identity input without a Project-token workflow", () => {
   assert.match(newPortForm, /id: port_key/);
   assert.match(newPortForm, /label: Durable game or target key/);
   assert.match(newPortForm, /lowercase kebab-case/);
@@ -2195,7 +2430,7 @@ test("New Port form requires canonical identity input without a Project-token wo
   assert.doesNotMatch(newPortForm, /(?:PROJECT_TOKEN|personal access token)/i);
 });
 
-test("argument parsing keeps positional item references and named values distinct", () => {
+void test("argument parsing keeps positional item references and named values distinct", () => {
   assert.deepEqual(parseArguments(["set", "#42", "--status", "In progress", "--release=Alpha 1"]), {
     command: "set",
     positionals: ["#42"],
@@ -2209,7 +2444,7 @@ test("argument parsing keeps positional item references and named values distinc
   assert.throws(() => parseArguments(["move", "PVTI_1", "--before"]), /requires a value/);
 });
 
-test("field reconciliation preserves existing option identities and user data", () => {
+void test("field reconciliation preserves existing option identities and user data", () => {
   const desired = [{ name: "Status", options: ["Inbox", "Done"] }];
   const mockedGhFields = {
     fields: [
@@ -2229,35 +2464,42 @@ test("field reconciliation preserves existing option identities and user data", 
     ],
   };
   const existingPlan = planFieldReconciliation(desired, mockedGhFields);
-  assert.equal(existingPlan[0].action, "update");
+  const existingStep = fixtureElement(existingPlan, 0);
+  assert.ok(existingStep.action === "update");
   assert.deepEqual(
-    existingPlan[0].options.map((option) => option.name),
+    existingStep.options.map((option) => option.name),
     ["Custom", "Inbox", "Done"],
   );
-  assert.equal(existingPlan[0].options[0].id, "existing");
+  assert.equal(fixtureElement(existingStep.options, 0).id, "existing");
 
   const freshPlan = planFieldReconciliation(desired, mockedGhFields, {
     freshProject: true,
   });
+  const freshStep = fixtureElement(freshPlan, 0);
+  assert.ok(freshStep.action === "update");
   assert.deepEqual(
-    freshPlan[0].options.map((option) => option.name),
+    freshStep.options.map((option) => option.name),
     ["Inbox", "Done"],
   );
 });
 
-test("view reconciliation reuses matching GraphQL views and creates only missing views", () => {
+void test("view reconciliation reuses matching GraphQL views and creates only missing views", () => {
   const desired = [
     {
       name: "Now Board",
       layout: "BOARD_LAYOUT",
       filter: "horizon:Now",
       fields: ["Title"],
+      manual_group_by: null,
+      manual_sort_by: "manual",
     },
     {
       name: "Port Pipeline",
       layout: "BOARD_LAYOUT",
       filter: "work-type:Port",
       fields: ["Title"],
+      manual_group_by: null,
+      manual_sort_by: "manual",
     },
   ];
   const mockedGraphqlViews = [
@@ -2281,10 +2523,12 @@ test("view reconciliation reuses matching GraphQL views and creates only missing
   );
 });
 
-test("active port work is additive and preserves the complete inventory view", () => {
+void test("active port work is additive and preserves the complete inventory view", () => {
   const inventory = config.views.find((view) => view.name === "Port Pipeline");
+  assert.ok(inventory);
   assert.equal(inventory.filter, "work-type:Port");
   const active = config.views.find((view) => view.name === "Active Port Work");
+  assert.ok(active);
   assert.equal(active.layout, "TABLE_LAYOUT");
   assert.equal(active.filter, "work-type:Port -status:Done -status:Deferred");
   assert.deepEqual(active.fields, [
@@ -2300,16 +2544,22 @@ test("active port work is additive and preserves the complete inventory view", (
   assert.equal(active.manual_sort_by, "Priority,manual");
   const existing = config.views
     .filter((view) => view !== active)
-    .map((view, index) => ({ ...view, id: `V${index}` }));
+    .map((view, index) => ({
+      ...view,
+      id: `V${index}`,
+      fields: { nodes: view.fields.map((name) => ({ name })) },
+    }));
   const plan = planViewReconciliation(config.views, existing);
   assert.deepEqual(
     plan.filter((step) => step.action === "create").map((step) => step.desired.name),
     ["Active Port Work"],
   );
-  assert.equal(plan.find((step) => step.desired.name === inventory.name).actual.id, "V2");
+  const inventoryStep = plan.find((step) => step.desired.name === inventory.name);
+  assert.ok(inventoryStep && inventoryStep.actual);
+  assert.equal(inventoryStep.actual.id, "V2");
 });
 
-test("next work excludes workstreams, completed items, and Later horizon", () => {
+void test("next work excludes workstreams, completed items, and Later horizon", () => {
   const items = [
     {
       title: "Next medium",
@@ -2360,7 +2610,7 @@ test("next work excludes workstreams, completed items, and Later horizon", () =>
   );
 });
 
-test("catalog summary and release snapshot derive qualification data from catalog JSON", () => {
+void test("catalog summary and release snapshot derive qualification data from catalog JSON", () => {
   const catalog = {
     ports: [
       {
@@ -2410,7 +2660,7 @@ test("catalog summary and release snapshot derive qualification data from catalo
   assert.match(document, /This snapshot does not grant qualification/);
 });
 
-test("release snapshots are cumulative and Project Status alone authorizes completion", () => {
+void test("release snapshots are cumulative and Project Status alone authorizes completion", () => {
   const items = [
     {
       title: "Alpha blocker",
@@ -2477,8 +2727,14 @@ test("release snapshots are cumulative and Project Status alone authorizes compl
   assert.match(document, /portcove\/pull\/12/);
 });
 
-test("release readiness separates required, opportunistic, unclassified, and genuine blocking dependencies", () => {
-  const issue = (number, title, fields = {}, blockedBy = [], parent = null) => ({
+void test("release readiness separates required, opportunistic, unclassified, and genuine blocking dependencies", () => {
+  const issue = (
+    number: number,
+    title: string,
+    fields: Record<string, string> = {},
+    blockedBy: number[] = [],
+    parent: number | null = null,
+  ) => ({
     id: `item-${number}`,
     title,
     ...fields,
@@ -2552,30 +2808,47 @@ test("release readiness separates required, opportunistic, unclassified, and gen
     ),
   ];
   const analysis = analyzeReleaseReadiness(items, "Alpha 2");
-  assert.deepEqual(analysis.effectiveRequired.map((item) => item.content.number).sort(), [1, 2, 6]);
-  assert.deepEqual(analysis.opportunistic.map((item) => item.content.number).sort(), [3, 6]);
   assert.deepEqual(
-    analysis.relevantUnclassified.map((item) => item.content.number),
+    analysis.effectiveRequired
+      .map((item) => fixtureValue(item.content).number)
+      .sort((left, right) =>
+        String(left) < String(right) ? -1 : String(left) > String(right) ? 1 : 0,
+      ),
+    [1, 2, 6],
+  );
+  assert.deepEqual(
+    analysis.opportunistic
+      .map((item) => fixtureValue(item.content).number)
+      .sort((left, right) =>
+        String(left) < String(right) ? -1 : String(left) > String(right) ? 1 : 0,
+      ),
+    [3, 6],
+  );
+  assert.deepEqual(
+    analysis.relevantUnclassified.map((item) => fixtureValue(item.content).number),
     [4],
   );
   assert.deepEqual(
-    analysis.safetyConflicts.map((item) => item.content.number),
+    analysis.safetyConflicts.map((item) => fixtureValue(item.content).number),
     [6],
   );
   assert.equal(analysis.dependencyConflicts.length, 1);
-  assert.equal(analysis.dependencyConflicts[0].dependency.content.number, 2);
   assert.equal(
-    analysis.effectiveRequired.some((item) => item.content.number === 7),
+    fixtureValue(fixtureElement(analysis.dependencyConflicts, 0).dependency.content).number,
+    2,
+  );
+  assert.equal(
+    analysis.effectiveRequired.some((item) => fixtureValue(item.content).number === 7),
     false,
   );
   assert.equal(
-    analysis.effectiveRequired.some((item) => item.content.number === 5),
+    analysis.effectiveRequired.some((item) => fixtureValue(item.content).number === 5),
     false,
   );
   assert.equal(analysis.ready, false);
 });
 
-test("dependency analysis reports cycles and Project-missing blockers", () => {
+void test("dependency analysis reports cycles and Project-missing blockers", () => {
   const one = {
     id: "one",
     title: "One",
@@ -2612,11 +2885,14 @@ test("dependency analysis reports cycles and Project-missing blockers", () => {
   assert.deepEqual(dependencyCycles([one, two]), [[1, 2, 1]]);
   const analysis = analyzeReleaseReadiness([one, two], "Alpha 1");
   assert.equal(analysis.missingProjectDependencies.length, 1);
-  assert.equal(analysis.missingProjectDependencies[0].dependency.content.number, 99);
+  assert.equal(
+    fixtureValue(fixtureElement(analysis.missingProjectDependencies, 0).dependency.content).number,
+    99,
+  );
   assert.equal(analysis.ready, false);
 });
 
-test("readiness fails closed when a blocking-dependency page is truncated", () => {
+void test("readiness fails closed when a blocking-dependency page is truncated", () => {
   const item = {
     id: "one",
     title: "One",
@@ -2650,7 +2926,7 @@ test("readiness fails closed when a blocking-dependency page is truncated", () =
   assert.equal(scoped.ready, true);
 });
 
-test("completion evidence excludes ordinary upstream URLs and accepts explicit or typed records", () => {
+void test("completion evidence excludes ordinary upstream URLs and accepts explicit or typed records", () => {
   const links = completionEvidenceLinks([
     {
       body: [
@@ -2671,13 +2947,13 @@ test("completion evidence excludes ordinary upstream URLs and accepts explicit o
   ]);
 });
 
-test("snapshot output is confined to docs/releases", () => {
+void test("snapshot output is confined to docs/releases", () => {
   assert.match(resolveSnapshotOutput("docs/releases/alpha.md"), /docs[\\/]releases[\\/]alpha\.md$/);
   assert.throws(() => resolveSnapshotOutput("docs/alpha.md"), /must be under docs\/releases/);
   assert.throws(() => resolveSnapshotOutput("../outside.md"), /must be under docs\/releases/);
 });
 
-test("durable promotion rejects missing sections and accepts a complete specification", () => {
+void test("durable promotion rejects missing sections and accepts a complete specification", () => {
   assert.throws(() => validateDurableIssueBody("## User outcome\n\nUseful"), /incomplete/);
   const body = [
     "## User outcome\n\nUseful outcome",
@@ -2693,7 +2969,7 @@ test("durable promotion rejects missing sections and accepts a complete specific
   assert.equal(validateDurableIssueBody(body), body);
 });
 
-test("feature intake accepts neutral and explicit planning fields", () => {
+void test("feature intake accepts neutral and explicit planning fields", () => {
   assert.deepEqual(featureIntakeFields(config), {
     Status: "Inbox",
     Priority: "None",
@@ -2722,27 +2998,33 @@ test("feature intake accepts neutral and explicit planning fields", () => {
   );
 });
 
-test("Release commitment field migration is idempotent", () => {
-  const desired = [config.fields.find((field) => field.name === "Release commitment")];
-  assert.equal(planFieldReconciliation(desired, { fields: [] })[0].action, "create");
+void test("Release commitment field migration is idempotent", () => {
+  const desired = [fixtureFind(config.fields, (field) => field.name === "Release commitment")];
+  assert.equal(
+    fixtureElement(planFieldReconciliation(desired, { fields: [] }), 0).action,
+    "create",
+  );
   const actual = {
     fields: [
       {
         id: "commitment",
         name: "Release commitment",
         type: "ProjectV2SingleSelectField",
-        options: desired[0].options.map((name, index) => ({
+        options: fixtureElement(desired, 0).options.map((name, index) => ({
           id: `option-${index}`,
           name,
         })),
       },
     ],
   };
-  assert.equal(planFieldReconciliation(desired, actual)[0].action, "keep");
+  assert.equal(fixtureElement(planFieldReconciliation(desired, actual), 0).action, "keep");
 });
 
-test("active release materialization and manual checklist are explicit", () => {
-  const current = materializeViews(config).find((view) => view.name === "Required for Beta");
+void test("active release materialization and manual checklist are explicit", () => {
+  const current = fixtureFind(
+    materializeViews(config),
+    (view) => view.name === "Required for Beta",
+  );
   assert.equal(
     current.filter,
     `-status:Done target-release:"${config.active_release}" release-commitment:Required`,
@@ -2751,15 +3033,16 @@ test("active release materialization and manual checklist are explicit", () => {
     ...config,
     active_release: "Alpha 1",
   }).find((view) => view.name === "Required for Beta");
+  assert.ok(alpha1);
   assert.equal(alpha1.filter, '-status:Done target-release:"Alpha 1" release-commitment:Required');
   assert.equal(
     manualUiChecklist(config).filter((line) => /^\d+\. .*: group by/.test(line)).length,
     config.views.length,
   );
-  assert.match(manualUiChecklist(config).at(-1), /completion workflows/);
+  assert.match(fixtureValue(manualUiChecklist(config).at(-1)), /completion workflows/);
 });
 
-test("doctor drift covers identity linkage field options and view properties", () => {
+void test("doctor drift covers identity linkage field options and view properties", () => {
   const desiredViews = materializeViews(config);
   const fields = config.fields.map((field, index) => ({
     id: `F${index}`,
@@ -2786,9 +3069,11 @@ test("doctor drift covers identity linkage field options and view properties", (
     }),
     [],
   );
-  views[0].filter = "wrong";
-  fields[0].options = fields[0].options.filter((option) => option.name !== "Done");
-  fields[1].options.push({ id: "unexpected", name: "Unexpected" });
+  fixtureElement(views, 0).filter = "wrong";
+  fixtureElement(fields, 0).options = fixtureElement(fields, 0).options.filter(
+    (option) => option.name !== "Done",
+  );
+  fixtureElement(fields, 1).options.push({ id: "unexpected", name: "Unexpected" });
   views.push({
     id: "extra",
     name: "Unexpected",
@@ -2809,12 +3094,16 @@ test("doctor drift covers identity linkage field options and view properties", (
   assert.ok(drift.some((value) => value.includes("unexpected options")));
   assert.ok(drift.some((value) => value.includes("view Next Queue")));
   assert.ok(drift.some((value) => value.includes("unexpected view")));
-  assert.ok(viewMachineDrift(desiredViews[0], views[0]).some((value) => value.includes("filter")));
+  assert.ok(
+    viewMachineDrift(fixtureElement(desiredViews, 0), fixtureElement(views, 0)).some((value) =>
+      value.includes("filter"),
+    ),
+  );
 });
 
-test("one-port-one-issue coverage rejects missing duplicate grouped and draft authority", () => {
+void test("one-port-one-issue coverage rejects missing duplicate grouped and draft authority", () => {
   const catalog = { ports: [{ id: "one" }, { id: "two" }] };
-  const repositoryIssue = (number, id) => ({
+  const repositoryIssue = (number: number, id: string) => ({
     number,
     title: `[Port] ${id}`,
     type: "Issue",
@@ -2825,7 +3114,7 @@ test("one-port-one-issue coverage rejects missing duplicate grouped and draft au
       catalogId: id,
     }),
   });
-  const projectItem = (issue, workType = "Port") => ({
+  const projectItem = (issue: RoadmapIssueItem, workType = "Port") => ({
     title: issue.title,
     "work type": workType,
     content: issue,
@@ -2893,7 +3182,7 @@ test("one-port-one-issue coverage rejects missing duplicate grouped and draft au
   );
 });
 
-test("intake permits integration completion without inventing gameplay qualification", () => {
+void test("intake permits integration completion without inventing gameplay qualification", () => {
   const body = renderPortIssueBody({
     title: "Fixture",
     upstream: "https://example.test/fixture",
@@ -2907,15 +3196,15 @@ test("intake permits integration completion without inventing gameplay qualifica
   assert.doesNotMatch(body, /required hands-on behavior for each claimed platform/);
 });
 
-test("one-port-one-issue coverage requires unique candidate keys and allows shared upstream multi-game repositories", () => {
-  const issue = (number, title, body) => ({
+void test("one-port-one-issue coverage requires unique candidate keys and allows shared upstream multi-game repositories", () => {
+  const issue = (number: number, title: string, body: string) => ({
     number,
     title,
     type: "Issue",
     url: "https://github.com/boburning/portcove/issues/" + number,
     body,
   });
-  const projectItem = (repositoryIssue) => ({
+  const projectItem = (repositoryIssue: RoadmapIssueItem) => ({
     title: repositoryIssue.title,
     "work type": "Port",
     content: repositoryIssue,
@@ -2981,7 +3270,7 @@ test("one-port-one-issue coverage requires unique candidate keys and allows shar
   );
 });
 
-test("capture-port deduplication normalizes punctuation titles and combines upstream with game identity", () => {
+void test("capture-port deduplication normalizes punctuation titles and combines upstream with game identity", () => {
   const existing = {
     number: 1,
     title: "[Port] Pokémon: Yellow!",
@@ -3018,7 +3307,7 @@ test("capture-port deduplication normalizes punctuation titles and combines upst
   );
 });
 
-test("New Port form parsing requires a canonical key and direct https upstream", () => {
+void test("New Port form parsing requires a canonical key and direct https upstream", () => {
   const body = `### Direct upstream URL
 
 https://github.com/example/shared
@@ -3055,7 +3344,7 @@ Play the game.`;
   );
 });
 
-test("marker reconciliation preserves form content and is repeatable", () => {
+void test("marker reconciliation preserves form content and is repeatable", () => {
   const body = `### Direct upstream URL
 
 https://github.com/example/shared
@@ -3080,12 +3369,12 @@ Contributor evidence stays here.
   });
   assert.equal(once, twice);
   assert.match(once, /Contributor evidence stays here/);
-  assert.equal(once.match(/<!-- portcove-port -->/g).length, 1);
-  assert.equal(once.match(/<!-- portcove-upstream:/g).length, 1);
-  assert.equal(once.match(/<!-- portcove-port-key:/g).length, 1);
+  assert.equal(fixtureValue(once.match(/<!-- portcove-port -->/g)).length, 1);
+  assert.equal(fixtureValue(once.match(/<!-- portcove-upstream:/g)).length, 1);
+  assert.equal(fixtureValue(once.match(/<!-- portcove-port-key:/g)).length, 1);
 });
 
-test("doctor discovers unnormalized open [Port] issues but ignores ordinary body mentions", () => {
+void test("doctor discovers unnormalized open [Port] issues but ignores ordinary body mentions", () => {
   const form = {
     number: 10,
     title: "[Port] Form Candidate",
@@ -3123,7 +3412,7 @@ test("doctor discovers unnormalized open [Port] issues but ignores ordinary body
   );
 });
 
-test("deduplication sees punctuation-equivalent unnormalized form issues and permits distinct shared-upstream targets", () => {
+void test("deduplication sees punctuation-equivalent unnormalized form issues and permits distinct shared-upstream targets", () => {
   const formIssue = {
     number: 10,
     title: "[Port] Pokémon: Yellow!",
@@ -3132,11 +3421,14 @@ test("deduplication sees punctuation-equivalent unnormalized form issues and per
     body: `### Direct upstream URL\n\nhttps://github.com/example/shared\n\n### Durable game or target key\n\npokemon-yellow`,
   };
   assert.ok(
-    findPortIssueDuplicates([formIssue], {
-      title: "Pokemon Yellow",
-      upstream: "https://github.com/example/shared/",
-      portKey: "pokemon-yellow",
-    })[0].reasons.includes("normalized title pokemon-yellow"),
+    fixtureElement(
+      findPortIssueDuplicates([formIssue], {
+        title: "Pokemon Yellow",
+        upstream: "https://github.com/example/shared/",
+        portKey: "pokemon-yellow",
+      }),
+      0,
+    ).reasons.includes("normalized title pokemon-yellow"),
   );
   assert.deepEqual(
     findPortIssueDuplicates([formIssue], {
@@ -3148,7 +3440,7 @@ test("deduplication sees punctuation-equivalent unnormalized form issues and per
   );
 });
 
-test("Port stage validation is evidence-based and platform-scoped", () => {
+void test("Port stage validation is evidence-based and platform-scoped", () => {
   const catalog = {
     ports: [
       {
@@ -3174,7 +3466,7 @@ test("Port stage validation is evidence-based and platform-scoped", () => {
       },
     ],
   };
-  const item = (id, stage, blocker) => ({
+  const item = (id: string, stage: string, blocker?: string) => ({
     id: `item-${id}-${stage}`,
     title: `[Port] ${id}`,
     "port stage": stage,
@@ -3186,7 +3478,7 @@ test("Port stage validation is evidence-based and platform-scoped", () => {
         title: id,
         upstream: `https://example.test/${id}`,
         catalogId: id,
-        blocker,
+        ...(blocker === undefined ? {} : { blocker }),
       }),
     },
   });
@@ -3204,14 +3496,14 @@ test("Port stage validation is evidence-based and platform-scoped", () => {
   const supported = validatePortStageSemantics(catalog, [item("windows-qualified", "Supported")]);
   assert.deepEqual(supported.errors, []);
   assert.deepEqual(qualifiedPlatforms(catalog.ports[2]), ["windows"]);
-  assert.match(supported.diagnostics[0], /qualified platforms = windows/);
+  assert.match(fixtureElement(supported.diagnostics, 0), /qualified platforms = windows/);
   assert.ok(
     validatePortStageSemantics(catalog, [item("windows-qualified", "Cataloged")]).warnings.length >
       0,
   );
 });
 
-function qualificationScope(portId, platform = "windows") {
+function qualificationScope(portId: string, platform = "windows") {
   return {
     port_id: portId,
     platform,
@@ -3230,19 +3522,19 @@ function qualificationScope(portId, platform = "windows") {
   };
 }
 
-test("Port stage validation consumes only passed exact qualification records", () => {
+void test("Port stage validation consumes only passed exact qualification records", () => {
   const port = {
     id: "exact",
     platforms: ["windows", "linux"],
     automated_tested_platforms: [],
     manually_validated_platforms: [],
   };
-  const record = (kind, outcome, platform = "windows") => ({
+  const record = (kind: string, outcome: string, platform = "windows") => ({
     scope: qualificationScope(port.id, platform),
     kind,
     outcome,
   });
-  const item = (stage) => ({
+  const item = (stage: string) => ({
     id: `exact-${stage}`,
     title: "[Port] Exact",
     "port stage": stage,
@@ -3270,7 +3562,7 @@ test("Port stage validation consumes only passed exact qualification records", (
   assert.deepEqual(qualifiedPlatforms(port, records), ["windows"]);
   assert.deepEqual(validatePortStageSemantics(catalog, [item("Supported")]).errors, []);
   assert.match(
-    validatePortStageSemantics(catalog, [item("Supported")]).diagnostics[0],
+    fixtureElement(validatePortStageSemantics(catalog, [item("Supported")]).diagnostics, 0),
     /qualified platforms = windows/,
   );
 
@@ -3317,7 +3609,7 @@ test("Port stage validation consumes only passed exact qualification records", (
   );
 });
 
-test("Supported requires complete matching exact scopes and separate legacy intersections", () => {
+void test("Supported requires complete matching exact scopes and separate legacy intersections", () => {
   const port = {
     id: "scoped",
     platforms: ["windows"],
@@ -3358,9 +3650,14 @@ test("Supported requires complete matching exact scopes and separate legacy inte
     ["check_version"],
   ]) {
     const changed = structuredClone(hands);
-    const parent = path.slice(0, -1).reduce((value, key) => value[key], changed.scope);
+    const parent = fixtureObject(
+      path.slice(0, -1).reduce<unknown>((value, key) => fixtureObject(value)[key], changed.scope),
+    );
     const key = path.at(-1);
-    parent[key] = key === "artifact_sha256" ? "b".repeat(64) : `${parent[key]}-different`;
+    assert.ok(key);
+    const previous = parent[key];
+    assert.ok(typeof previous === "string");
+    parent[key] = key === "artifact_sha256" ? "b".repeat(64) : `${previous}-different`;
     const records = [auto, changed];
     assert.deepEqual(qualifiedPlatforms(port, records), [], path.join("."));
     const result = validatePortStageSemantics(
@@ -3389,18 +3686,28 @@ test("Supported requires complete matching exact scopes and separate legacy inte
     ["variant", "identity", "representation_id"],
   ]) {
     const incomplete = structuredClone(hands);
-    const parent = path.slice(0, -1).reduce((value, key) => value[key], incomplete.scope);
-    delete parent[path.at(-1)];
+    const parent = fixtureObject(
+      path
+        .slice(0, -1)
+        .reduce<unknown>((value, key) => fixtureObject(value)[key], incomplete.scope),
+    );
+    const key = path.at(-1);
+    assert.ok(key);
+    delete parent[key];
     assert.deepEqual(qualifiedPlatforms(port, [auto, incomplete]), [], path.join("."));
     const incompleteAuto = { ...incomplete, kind: "automated_lifecycle" };
     assert.deepEqual(qualifiedPlatforms(port, [incompleteAuto, incomplete]), [], path.join("."));
   }
-  const unknown = structuredClone(hands);
-  unknown.scope.variant = { state: "unknown" };
+  const unknown = {
+    ...structuredClone(hands),
+    scope: { ...hands.scope, variant: { state: "unknown" } },
+  };
   assert.deepEqual(qualifiedPlatforms(port, [auto, unknown]), []);
   for (const digest of [["a".repeat(64)], 42, {}]) {
-    const malformedAuto = structuredClone(auto);
-    malformedAuto.scope.artifact_sha256 = digest;
+    const malformedAuto = {
+      ...structuredClone(auto),
+      scope: { ...auto.scope, artifact_sha256: digest },
+    };
     const malformedHands = { ...structuredClone(malformedAuto), kind: "hands_on" };
     assert.deepEqual(qualifiedPlatforms(port, [malformedAuto, malformedHands]), []);
     const malformedCatalog = {
@@ -3428,7 +3735,7 @@ test("Supported requires complete matching exact scopes and separate legacy inte
   assert.deepEqual(qualifiedPlatforms(port, [hands, auto, hands]), ["windows"]);
 });
 
-test("Port stage validation rejects broken manual evidence non-catalog overclaim and unsupported rejection", () => {
+void test("Port stage validation rejects broken manual evidence non-catalog overclaim and unsupported rejection", () => {
   const invalidManual = {
     id: "manual-only",
     platforms: ["windows"],
@@ -3505,7 +3812,7 @@ test("Port stage validation rejects broken manual evidence non-catalog overclaim
   );
 });
 
-test("Supported reconciliation only downgrades overstatement and becomes idempotent after application", () => {
+void test("Supported reconciliation only downgrades overstatement and becomes idempotent after application", () => {
   const catalog = {
     ports: [
       {
@@ -3528,7 +3835,7 @@ test("Supported reconciliation only downgrades overstatement and becomes idempot
       },
     ],
   };
-  const item = (id) => ({
+  const item = (id: string) => ({
     id,
     title: `[Port] ${id}`,
     "port stage": "Supported",
@@ -3552,11 +3859,11 @@ test("Supported reconciliation only downgrades overstatement and becomes idempot
     ],
   );
   for (const change of plan)
-    items.find((candidate) => candidate.id === change.itemId)["port stage"] = change.to;
+    fixtureFind(items, (candidate) => candidate.id === change.itemId)["port stage"] = change.to;
   assert.deepEqual(planPortStageReconciliation(catalog, items), []);
 });
 
-test("Supported reconciliation planning uses exact automated and hands-on records", () => {
+void test("Supported reconciliation planning uses exact automated and hands-on records", () => {
   const ports = ["none", "auto", "qualified"].map((id) => ({
     id,
     platforms: ["windows"],
@@ -3606,7 +3913,7 @@ test("Supported reconciliation planning uses exact automated and hands-on record
   );
 });
 
-test("normalization initializes only unset neutral fields and always classifies Work type as Port", () => {
+void test("normalization initializes only unset neutral fields and always classifies Work type as Port", () => {
   const existing = {
     status: "Ready",
     priority: "High",
@@ -3632,10 +3939,10 @@ test("normalization initializes only unset neutral fields and always classifies 
   });
 });
 
-test("final UX audit origins require complete unique enumerated canonical ownership", () => {
+void test("final UX audit origins require complete unique enumerated canonical ownership", () => {
   assert.equal(uxAuditOriginIds.length, 178);
   const completeBody = "<!-- portcove-ux-audit-origins: " + uxAuditOriginIds.join(" ") + " -->";
-  const item = (number, body) => ({
+  const item = (number: number, body: string) => ({
     title: "Owner " + number,
     content: {
       type: "Issue",
@@ -3665,16 +3972,16 @@ test("final UX audit origins require complete unique enumerated canonical owners
     ["<!-- portcove-ux-audit-origins: SYS-1 -->", "Malformed UX audit origin"],
     ["<!-- portcove-ux-audit-origins: SYS-01..SYS-14 -->", "range must enumerate"],
     ["<!-- portcove-wording-audit-origins: WORD-01 -->", "Superseded wording audit"],
-  ]) {
+  ] as const) {
     assert.ok(
       validateUxAuditOriginCoverage([item(1, body)]).some((value) => value.includes(expected)),
     );
   }
 });
 
-test("supported-source plan origin has exactly one canonical owner", () => {
+void test("supported-source plan origin has exactly one canonical owner", () => {
   const marker = "<!-- portcove-origins: PCV-PLAN-SUPPORTED-SOURCE-PROVENANCE-2026-09-04 -->";
-  const item = (number, body) => ({
+  const item = (number: number, body: string) => ({
     title: "Owner " + number,
     content: {
       type: "Issue",
@@ -3683,20 +3990,24 @@ test("supported-source plan origin has exactly one canonical owner", () => {
     },
   });
   assert.deepEqual(validatePlanOriginCoverage([item(36, marker)]), []);
-  assert.ok(validatePlanOriginCoverage([])[0].includes("found 0"));
+  assert.ok(fixtureElement(validatePlanOriginCoverage([]), 0).includes("found 0"));
   assert.ok(
-    validatePlanOriginCoverage([item(36, marker), item(99, marker)])[0].includes("found 2"),
+    fixtureElement(validatePlanOriginCoverage([item(36, marker), item(99, marker)]), 0).includes(
+      "found 2",
+    ),
   );
   assert.ok(
-    validatePlanOriginCoverage([item(99, marker)])[0].includes("must be owned by issue #36"),
+    fixtureElement(validatePlanOriginCoverage([item(99, marker)]), 0).includes(
+      "must be owned by issue #36",
+    ),
   );
 });
 
-test("RoadmapClient capture uses mocked gh output and stores planning fields only in Project calls", () => {
-  const calls = [];
+void test("RoadmapClient capture uses mocked gh output and stores planning fields only in Project calls", () => {
+  const calls: RunnerCall[] = [];
   const mockedConfig = structuredClone(config);
   mockedConfig.project.number = 7;
-  const runner = (args, input) => {
+  const runner: GitHubRunner = (args, input) => {
     calls.push({ args, input });
     if (args[1] === "item-create") return JSON.stringify({ id: "PVTI_draft", title: "Candidate" });
     if (args[1] === "view") return JSON.stringify({ id: "PVT_project" });
@@ -3727,9 +4038,12 @@ test("RoadmapClient capture uses mocked gh output and stores planning fields onl
   assert.equal(result.id, "PVTI_draft");
   assert.equal(calls.filter((call) => call.args[1] === "item-create").length, 1);
   const edit = calls.find((call) => call.input?.includes("updateProjectV2ItemFieldValue"));
-  const variables = JSON.parse(edit.input).variables;
+  const variables = fixtureGraphql(edit?.input).variables;
   assert.deepEqual(
-    Object.values(variables).map((input) => [input.fieldId, input.value.singleSelectOptionId]),
+    Object.values(variables).map((value) => {
+      const input = fixtureSelectInput(value);
+      return [input.fieldId, input.value.singleSelectOptionId];
+    }),
     [
       ["PVTSSF_status", "OPT_inbox"],
       ["PVTSSF_priority", "OPT_none"],
@@ -3737,8 +4051,8 @@ test("RoadmapClient capture uses mocked gh output and stores planning fields onl
   );
 });
 
-test("capture-port creates one Project-backed issue without depending on parent capacity", () => {
-  const calls = [];
+void test("capture-port creates one Project-backed issue without depending on parent capacity", () => {
+  const calls: RunnerCall[] = [];
   const mockedConfig = structuredClone(config);
   mockedConfig.project.number = 7;
   const expectedFields = {
@@ -3752,7 +4066,7 @@ test("capture-port creates one Project-backed issue without depending on parent 
     "Port stage": "Watchlist",
     Effort: "Unknown",
   };
-  const runner = (args, input) => {
+  const runner: GitHubRunner = (args, input) => {
     calls.push({ args, input });
     if (args[0] === "api" && args[2] === "repos/boburning/portcove/issues")
       return JSON.stringify({
@@ -3770,8 +4084,11 @@ test("capture-port creates one Project-backed issue without depending on parent 
         })),
       });
     if (args[0] === "api" && args[1] === "graphql") {
-      assert.doesNotMatch(input, /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/);
-      if (input.includes("issues(first: 100"))
+      assert.doesNotMatch(
+        fixtureValue(input),
+        /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/,
+      );
+      if (fixtureValue(input).includes("issues(first: 100"))
         return JSON.stringify({
           data: {
             repository: {
@@ -3783,7 +4100,7 @@ test("capture-port creates one Project-backed issue without depending on parent 
             },
           },
         });
-      if (input.includes("addProjectV2ItemById"))
+      if (fixtureValue(input).includes("addProjectV2ItemById"))
         return JSON.stringify({
           data: { addProjectV2ItemById: { item: { id: "PVTI_new" } } },
         });
@@ -3817,16 +4134,17 @@ test("capture-port creates one Project-backed issue without depending on parent 
   assert.ok(calls.some((call) => call.input?.includes("<!-- portcove-port-key: new-port -->")));
   const fieldEdit = calls.find((call) => call.input?.includes("updateProjectV2ItemFieldValue"));
   assert.ok(
-    Object.values(JSON.parse(fieldEdit.input).variables).some(
-      (input) => input.fieldId === "F6" && input.value.singleSelectOptionId === "O6",
-    ),
+    Object.values(fixtureGraphql(fieldEdit?.input).variables).some((value) => {
+      const input = fixtureSelectInput(value);
+      return input.fieldId === "F6" && input.value.singleSelectOptionId === "O6";
+    }),
   );
   assert.equal(calls.filter((call) => call.input?.includes("addProjectV2ItemById")).length, 1);
 });
 
 for (const parentNumber of [null, 16, 777]) {
-  test(`normalize-port preserves planning and parent ${parentNumber ?? "absence"} idempotently`, () => {
-    const calls = [];
+  void test(`normalize-port preserves planning and parent ${parentNumber ?? "absence"} idempotently`, () => {
+    const calls: RunnerCall[] = [];
     const mockedConfig = structuredClone(config);
     mockedConfig.project.number = 7;
     let body = `### Direct upstream URL
@@ -3862,14 +4180,16 @@ Preserve this contributor text.`;
         ["Port stage", "Researching"],
         ["Effort", "M"],
       ].map(([name, value]) => ({ name: value, field: { name } }));
-    const runner = (args, input) => {
+    const runner: GitHubRunner = (args, input) => {
       calls.push({ args, input });
       if (
         args[0] === "api" &&
         args[2] === "repos/boburning/portcove/issues/42" &&
         args.includes("PATCH")
       ) {
-        body = JSON.parse(input).body;
+        const payload = fixtureJsonObject(input);
+        assert.ok(typeof payload.body === "string");
+        body = payload.body;
         return JSON.stringify(issue());
       }
       if (args[0] === "api" && args[2] === "repos/boburning/portcove/issues/42")
@@ -3886,8 +4206,11 @@ Preserve this contributor text.`;
           ],
         });
       if (args[0] === "api" && args[1] === "graphql") {
-        assert.doesNotMatch(input, /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/);
-        if (input.includes("issues(first: 100"))
+        assert.doesNotMatch(
+          fixtureValue(input),
+          /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/,
+        );
+        if (fixtureValue(input).includes("issues(first: 100"))
           return JSON.stringify({
             data: {
               repository: {
@@ -3899,7 +4222,7 @@ Preserve this contributor text.`;
               },
             },
           });
-        if (input.includes("items(first: 50"))
+        if (fixtureValue(input).includes("items(first: 50"))
           return JSON.stringify({
             data: {
               node: {
@@ -3934,7 +4257,7 @@ Preserve this contributor text.`;
               },
             },
           });
-        if (input.includes("updateProjectV2ItemFieldValue")) {
+        if (fixtureValue(input).includes("updateProjectV2ItemFieldValue")) {
           workType = "Port";
           return JSON.stringify({
             data: { f0: { projectV2Item: { id: "PVTI_form" } } },
@@ -3959,12 +4282,12 @@ Preserve this contributor text.`;
   });
 }
 
-function included(body, headers = {}) {
+function included(body: unknown, headers: Readonly<Record<string, string>> = {}) {
   const lines = Object.entries(headers).map(([name, value]) => `${name}: ${value}`);
   return `HTTP/2.0 200 OK\r\n${lines.join("\r\n")}\r\n\r\n${JSON.stringify(body)}`;
 }
 
-function restIssue(number, overrides = {}) {
+function restIssue(number: number, overrides: Readonly<Record<string, unknown>> = {}) {
   return {
     node_id: `I_${number}`,
     number,
@@ -3976,12 +4299,12 @@ function restIssue(number, overrides = {}) {
   };
 }
 
-test("repository issue inventory follows every REST page and filters pull requests", () => {
-  const calls = [];
+void test("repository issue inventory follows every REST page and filters pull requests", () => {
+  const calls: (readonly string[])[] = [];
   let markers = 0;
-  const runner = (args) => {
+  const runner: GitHubRunner = (args: readonly string[]) => {
     calls.push(args);
-    const endpoint = args[2];
+    const endpoint = fixtureElement(args, 2);
     if (endpoint.includes("direction=desc")) {
       markers += 1;
       return included([restIssue(3, { pull_request: { url: "https://example.test" } })]);
@@ -4001,24 +4324,25 @@ test("repository issue inventory follows every REST page and filters pull reques
   assert.equal(calls.length, 4);
 });
 
-test("repository issue inventory rejects pagination loops duplicates and a changing high-water mark", () => {
+void test("repository issue inventory rejects pagination loops duplicates and a changing high-water mark", () => {
   const scenarios = [
-    (args) => {
-      const endpoint = args[2];
+    (args: readonly string[]) => {
+      const endpoint = fixtureElement(args, 2);
       if (endpoint.includes("direction=desc")) return included([restIssue(1)]);
       return included([restIssue(1)], {
         link: `<${endpoint}>; rel="next"`,
       });
     },
-    (args) => {
-      const endpoint = args[2];
+    (args: readonly string[]) => {
+      const endpoint = fixtureElement(args, 2);
       if (endpoint.includes("direction=desc")) return included([restIssue(1)]);
       return included([restIssue(1), restIssue(1)]);
     },
     (() => {
       let marker = 1;
-      return (args) => {
-        if (args[2].includes("direction=desc")) return included([restIssue(marker++)]);
+      return (args: readonly string[]) => {
+        if (fixtureElement(args, 2).includes("direction=desc"))
+          return included([restIssue(marker++)]);
         return included([restIssue(1)]);
       };
     })(),
@@ -4031,7 +4355,7 @@ test("repository issue inventory rejects pagination loops duplicates and a chang
   }
 });
 
-test("promotion validation happens before any GitHub mutation", () => {
+void test("promotion validation happens before any GitHub mutation", () => {
   let calls = 0;
   const client = new RoadmapClient(config, () => {
     calls += 1;
@@ -4041,10 +4365,10 @@ test("promotion validation happens before any GitHub mutation", () => {
   assert.equal(calls, 0);
 });
 
-test("move refuses ambiguous item references", () => {
+void test("move refuses ambiguous item references", () => {
   const mockedConfig = structuredClone(config);
   mockedConfig.project.number = 7;
-  const runner = (args) => {
+  const runner: GitHubRunner = (args: readonly string[]) => {
     if (args[1] === "view") return JSON.stringify({ id: "PVT_project" });
     if (args[1] === "graphql")
       return JSON.stringify({
@@ -4094,11 +4418,11 @@ test("move refuses ambiguous item references", () => {
   );
 });
 
-test("Project membership refuses malformed or stalled coverage before mutation", () => {
+void test("Project membership refuses malformed or stalled coverage before mutation", () => {
   const cases = [
     () => ({ totalCount: 0, nodes: [], pageInfo: {} }),
     () => ({ totalCount: 1, nodes: [], pageInfo: { hasNextPage: true, endCursor: "" } }),
-    (read) => ({
+    (read: number) => ({
       totalCount: 4,
       nodes: [{ id: `I_${read}`, project: { id: "OTHER" } }],
       pageInfo: { hasNextPage: true, endCursor: "repeated" },
@@ -4122,7 +4446,7 @@ test("Project membership refuses malformed or stalled coverage before mutation",
   }
 });
 
-test("repository marker reserves empty sentinel for an actually empty response", () => {
+void test("repository marker reserves empty sentinel for an actually empty response", () => {
   for (const marker of [
     [{}],
     [null],
@@ -4130,8 +4454,8 @@ test("repository marker reserves empty sentinel for an actually empty response",
     [{ number: 0 }],
     [{ number: 1 }, { number: 2 }],
   ]) {
-    const client = new RoadmapClient(config, (args) =>
-      JSON.stringify(args[2].includes("per_page=1") ? marker : []),
+    const client = new RoadmapClient(config, (args: readonly string[]) =>
+      JSON.stringify(fixtureElement(args, 2).includes("per_page=1") ? marker : []),
     );
     assert.throws(() => client.repositoryIssues(), /invalid repository issue marker/);
   }
@@ -4139,16 +4463,16 @@ test("repository marker reserves empty sentinel for an actually empty response",
   assert.deepEqual(empty.repositoryIssues(), []);
 });
 
-test("RoadmapClient reuses an existing issue item instead of duplicating it", () => {
-  const calls = [];
+void test("RoadmapClient reuses an existing issue item instead of duplicating it", () => {
+  const calls: RunnerCall[] = [];
   const mockedConfig = structuredClone(config);
   mockedConfig.project.number = 7;
-  const runner = (args, input) => {
+  const runner: GitHubRunner = (args, input) => {
     calls.push({ args, input });
     if (args[1] === "view") return JSON.stringify({ id: "PVT_project" });
     if (args[1] === "field-list") return JSON.stringify({ fields: [] });
     if (args[0] === "api" && args[1] === "graphql") {
-      const after = JSON.parse(input).variables.after;
+      const after = fixtureGraphql(input).variables.after;
       return JSON.stringify({
         data: {
           node: {
@@ -4178,11 +4502,11 @@ test("RoadmapClient reuses an existing issue item instead of duplicating it", ()
   assert.equal(calls.filter((call) => call.input?.includes("projectItems(first: 100")).length, 2);
 });
 
-test("GraphQL view pagination reads every page", () => {
-  const calls = [];
-  const runner = (args, input) => {
+void test("GraphQL view pagination reads every page", () => {
+  const calls: RunnerCall[] = [];
+  const runner: GitHubRunner = (args, input) => {
     calls.push({ args, input });
-    const after = JSON.parse(input).variables.after;
+    const after = fixtureGraphql(input).variables.after;
     return JSON.stringify({
       data: {
         node: {
@@ -4209,23 +4533,23 @@ test("GraphQL view pagination reads every page", () => {
   assert.equal(calls.length, 2);
 });
 
-function completeView(id, name) {
-  const empty = () => ({
-    totalCount: 0,
-    nodes: [],
-    pageInfo: { hasNextPage: false, endCursor: null },
-  });
+function completeView(id: string, name: string) {
+  type Field = { id: string; name: string };
+  const empty = <T,>() => {
+    const nodes: T[] = [];
+    return { totalCount: 0, nodes, pageInfo: { hasNextPage: false, endCursor: null } };
+  };
   return {
     id,
     name,
-    fields: empty(),
-    groupByFields: empty(),
-    verticalGroupByFields: empty(),
-    sortByFields: empty(),
+    fields: empty<Field>(),
+    groupByFields: empty<Field>(),
+    verticalGroupByFields: empty<Field>(),
+    sortByFields: empty<{ direction: string; field: Field }>(),
   };
 }
 
-test("view renames retain identity and repeated reconciliation creates no duplicate", () => {
+void test("view renames retain identity and repeated reconciliation creates no duplicate", () => {
   const desired = {
     name: "Product Outcomes",
     previous_name: "Product Roadmap",
@@ -4242,10 +4566,10 @@ test("view renames retain identity and repeated reconciliation creates no duplic
     fields: { nodes: [{ id: "F_title", name: "Title" }] },
   };
   const plan = planViewReconciliation([desired], [original]);
-  assert.equal(plan[0].action, "update");
-  assert.equal(plan[0].actual.id, "V_original");
+  assert.equal(fixtureElement(plan, 0).action, "update");
+  assert.equal(fixtureValue(fixtureElement(plan, 0).actual).id, "V_original");
   const saved = { ...original, name: desired.name };
-  assert.equal(planViewReconciliation([desired], [saved])[0].action, "keep");
+  assert.equal(fixtureElement(planViewReconciliation([desired], [saved]), 0).action, "keep");
   assert.throws(
     () => planViewReconciliation([desired], [original, { ...saved, id: "V_duplicate" }]),
     /ambiguous/,
@@ -4257,28 +4581,38 @@ test("view renames retain identity and repeated reconciliation creates no duplic
   );
 });
 
-test("view inventory refuses incomplete records rather than claiming a complete UI", () => {
+type ViewInventoryFixture = {
+  id: string;
+  views: {
+    totalCount: number;
+    nodes: ReturnType<typeof completeView>[];
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  };
+};
+void test("view inventory refuses incomplete records rather than claiming a complete UI", () => {
   for (const alter of [
-    (node) => {
+    (node: ViewInventoryFixture) => {
       node.id = "wrong";
     },
-    (node) => {
+    (node: ViewInventoryFixture) => {
+      // @ts-expect-error Missing total intentionally exercises incomplete provider data.
       delete node.views.totalCount;
     },
-    (node) => {
+    (node: ViewInventoryFixture) => {
       node.views.totalCount = 2;
     },
-    (node) => {
-      node.views.nodes.push(node.views.nodes[0]);
+    (node: ViewInventoryFixture) => {
+      node.views.nodes.push(fixtureElement(node.views.nodes, 0));
       node.views.totalCount = 2;
     },
-    (node) => {
-      node.views.nodes[0].fields.pageInfo.hasNextPage = true;
+    (node: ViewInventoryFixture) => {
+      fixtureElement(node.views.nodes, 0).fields.pageInfo.hasNextPage = true;
     },
-    (node) => {
-      delete node.views.nodes[0].sortByFields;
+    (node: ViewInventoryFixture) => {
+      // @ts-expect-error Missing sort inventory intentionally exercises unavailable provider data.
+      delete fixtureElement(node.views.nodes, 0).sortByFields;
     },
-    (node) => {
+    (node: ViewInventoryFixture) => {
       node.views.pageInfo.hasNextPage = true;
       node.views.pageInfo.endCursor = null;
     },
@@ -4299,7 +4633,7 @@ test("view inventory refuses incomplete records rather than claiming a complete 
   }
 });
 
-test("Project provider observations reject malformed option scalars before planning", () => {
+void test("Project provider observations reject malformed option scalars before planning", () => {
   const client = new RoadmapClient(config, () =>
     JSON.stringify({
       fields: [{ id: "F_status", name: "Status", options: [{ id: "O_bad", name: 7 }] }],
@@ -4308,10 +4642,10 @@ test("Project provider observations reject malformed option scalars before plann
   assert.throws(() => client.fieldList(config.project.number), /malformed Project option/);
 });
 
-test("coordination history rejects coerced creation and edit timestamps", () => {
+void test("coordination history rejects coerced creation and edit timestamps", () => {
   const client = new RoadmapClient(config, () => assert.fail("unexpected API call"));
   const target = coordinationTarget(config, 1104);
-  client.coordinationBinding = () => ({ comments: 1 });
+  client.coordinationBinding = () => ({ number: target.number, comments: 1 });
   for (const field of ["createdAt", "updatedAt"]) {
     for (const timestamp of [0, ["2026-10-07T03:00:00Z"]]) {
       const record = {
@@ -4339,7 +4673,7 @@ test("coordination history rejects coerced creation and edit timestamps", () => 
   }
 });
 
-test("readable grouping and sorting distinguish empty settings from unavailable evidence", () => {
+void test("readable grouping and sorting distinguish empty settings from unavailable evidence", () => {
   const desired = {
     name: "One",
     layout: "TABLE_LAYOUT",
@@ -4356,14 +4690,14 @@ test("readable grouping and sorting distinguish empty settings from unavailable 
   actual.groupByFields.nodes = [{ id: "F_status", name: "Status" }];
   actual.sortByFields.nodes = [{ direction: "ASC", field: { id: "F_priority", name: "Priority" } }];
   assert.deepEqual(viewMachineDrift(desired, actual), []);
-  actual.sortByFields.nodes[0].direction = "DESC";
+  fixtureElement(actual.sortByFields.nodes, 0).direction = "DESC";
   assert.match(viewMachineDrift(desired, actual).join("\n"), /Priority:DESC/);
-  actual.sortByFields.nodes[0].direction = "ASC";
+  fixtureElement(actual.sortByFields.nodes, 0).direction = "ASC";
   actual.verticalGroupByFields.nodes = [{ id: "F_hidden", name: "Platform" }];
   assert.match(viewMachineDrift(desired, actual).join("\n"), /secondary grouping Platform/);
 });
 
-test("view reconciliation preflights every view and verifies saved identities", () => {
+void test("view reconciliation preflights every view and verifies saved identities", () => {
   const desired = {
     name: "One",
     layout: "TABLE_LAYOUT",
@@ -4385,17 +4719,17 @@ test("view reconciliation preflights every view and verifies saved identities", 
   });
   client.viewList = () => saved;
   const writes = [];
-  client.graphql = (query, variables) => {
-    writes.push(variables.input);
-    Object.assign(
-      saved.find((view) => view.id === variables.input.viewId),
-      { filter: variables.input.filter },
-    );
+  client.graphql = (_query, variables) => {
+    const input = fixtureObject(fixtureValue(variables).input);
+    assert.ok(typeof input.viewId === "string" && typeof input.filter === "string");
+    writes.push(input);
+    const target = fixtureValue(saved.find((view) => view.id === input.viewId));
+    Object.assign(target, { filter: input.filter });
   };
-  saved[1].groupByFields.nodes = [{ id: "Fstatus", name: "Status" }];
+  fixtureElement(saved, 1).groupByFields.nodes = [{ id: "Fstatus", name: "Status" }];
   assert.throws(() => client.reconcileViews("P", [{ id: "Ftitle", name: "Title" }]), /owner UI/);
   assert.equal(writes.length, 0);
-  saved[1].groupByFields.nodes = [];
+  fixtureElement(saved, 1).groupByFields.nodes = [];
   client.reconcileViews("P", [{ id: "Ftitle", name: "Title" }]);
   assert.equal(writes.length, 2);
   assert.equal(
@@ -4404,7 +4738,7 @@ test("view reconciliation preflights every view and verifies saved identities", 
       .every((step) => step.action === "keep"),
     true,
   );
-  saved[0].filter = "old";
+  fixtureElement(saved, 0).filter = "old";
   client.graphql = () => {};
   assert.throws(
     () => client.reconcileViews("P", [{ id: "Ftitle", name: "Title" }]),
@@ -4412,7 +4746,7 @@ test("view reconciliation preflights every view and verifies saved identities", 
   );
 });
 
-test("display outcome markers and release views cannot change gate or execution membership", () => {
+void test("display outcome markers and release views cannot change gate or execution membership", () => {
   const fields = {
     Status: "Ready",
     Horizon: "Next",
@@ -4427,7 +4761,7 @@ test("display outcome markers and release views cannot change gate or execution 
     fieldValues: Object.entries(fields).map(([name, value]) => ({ name: value, field: { name } })),
   };
   const marked = { ...item, labels: [config.outcome_label] };
-  const summarize = (record) => {
+  const summarize = (record: RoadmapIssueItem) => {
     const analysis = analyzeReleaseReadiness([record], "Public beta");
     return {
       ready: analysis.ready,
@@ -4439,21 +4773,21 @@ test("display outcome markers and release views cannot change gate or execution 
   assert.deepEqual(summarize(item), summarize(marked));
   assert.equal(selectNextItems([marked])[0], marked);
   const byName = new Map(materializeViews(config).map((view) => [view.name, view]));
-  assert.match(byName.get("Product Outcomes").filter, /label:roadmap-outcome/);
-  assert.doesNotMatch(byName.get("Product Outcomes").filter, /-status:Done/);
-  assert.match(byName.get("In Progress").filter, /status:/);
-  assert.doesNotMatch(byName.get("In Progress").filter, /horizon:/);
-  assert.equal(byName.get("Port Pipeline").filter, "work-type:Port");
-  assert.match(byName.get("Required for Beta").filter, /release-commitment:Required/);
-  assert.match(byName.get("Planned Additions").filter, /release-commitment:Planned/);
+  assert.match(fixtureValue(byName.get("Product Outcomes")).filter, /label:roadmap-outcome/);
+  assert.doesNotMatch(fixtureValue(byName.get("Product Outcomes")).filter, /-status:Done/);
+  assert.match(fixtureValue(byName.get("In Progress")).filter, /status:/);
+  assert.doesNotMatch(fixtureValue(byName.get("In Progress")).filter, /horizon:/);
+  assert.equal(fixtureValue(byName.get("Port Pipeline")).filter, "work-type:Port");
+  assert.match(fixtureValue(byName.get("Required for Beta")).filter, /release-commitment:Required/);
+  assert.match(fixtureValue(byName.get("Planned Additions")).filter, /release-commitment:Planned/);
 });
 
-test("complete Project context reads every field page with opaque identity checks", () => {
-  const calls = [];
-  const runner = (args, input) => {
+void test("complete Project context reads every field page with opaque identity checks", () => {
+  const calls: RunnerCall[] = [];
+  const runner: GitHubRunner = (args, input) => {
     calls.push({ args, input });
     if (args[2] === "users/boburning") return JSON.stringify({ type: "User" });
-    const request = JSON.parse(input);
+    const request = fixtureGraphql(input);
     const after = request.variables.after;
     return JSON.stringify({
       data: {
@@ -4492,12 +4826,12 @@ test("complete Project context reads every field page with opaque identity check
   assert.equal(calls.filter((call) => call.input).length, 2);
 });
 
-test("GraphQL Project item pagination reads every item with normalized fields", () => {
-  const calls = [];
-  const runner = (args, input) => {
+void test("GraphQL Project item pagination reads every item with normalized fields", () => {
+  const calls: RunnerCall[] = [];
+  const runner: GitHubRunner = (args, input) => {
     calls.push({ args, input });
     if (args[1] === "view") return JSON.stringify({ id: "PVT" });
-    const after = JSON.parse(input).variables.after;
+    const after = fixtureGraphql(input).variables.after;
     const item = after
       ? {
           id: "I2",
@@ -4551,8 +4885,8 @@ test("GraphQL Project item pagination reads every item with normalized fields", 
   assert.equal(calls.filter((call) => call.args[1] === "graphql").length, 2);
 });
 
-test("Project item inventory rejects a truncated nested field connection", () => {
-  const runner = (args) => {
+void test("Project item inventory rejects a truncated nested field connection", () => {
+  const runner: GitHubRunner = (args: readonly string[]) => {
     if (args[1] === "view") return JSON.stringify({ id: "PVT" });
     return JSON.stringify({
       data: {
@@ -4578,8 +4912,8 @@ test("Project item inventory rejects a truncated nested field connection", () =>
   assert.throws(() => new RoadmapClient(config, runner).itemList(1), /fields are truncated/);
 });
 
-test("set-many validates transitions before one mutation and exact readback", () => {
-  const calls = [];
+void test("set-many validates transitions before one mutation and exact readback", () => {
+  const calls: RunnerCall[] = [];
   const mockedConfig = structuredClone(config);
   mockedConfig.project.number = 7;
   let status = "Ready";
@@ -4588,7 +4922,7 @@ test("set-many validates transitions before one mutation and exact readback", ()
     nodes: [{ name: status, field: { name: "Status" } }],
     pageInfo: { hasNextPage: false, endCursor: null },
   });
-  const runner = (args, input) => {
+  const runner: GitHubRunner = (args, input) => {
     calls.push({ args, input });
     if (args[0] === "api" && args[2] === "users/boburning") return JSON.stringify({ type: "User" });
     if (args[0] === "project" && args[1] === "view")
@@ -4606,7 +4940,7 @@ test("set-many validates transitions before one mutation and exact readback", ()
           },
         ],
       });
-    const request = JSON.parse(input);
+    const request = fixtureGraphql(input);
     if (request.query.includes("projectV2(number:"))
       return JSON.stringify({
         data: {
@@ -4688,7 +5022,7 @@ test("set-many validates transitions before one mutation and exact readback", ()
   );
 });
 
-test("set-many specifications fail closed before GitHub access", () => {
+void test("set-many specifications fail closed before GitHub access", () => {
   const invalid = [
     { schema_version: 2, updates: [] },
     { schema_version: 1, updates: [] },
@@ -4724,22 +5058,32 @@ test("set-many specifications fail closed before GitHub access", () => {
     [-1, 1],
     [1, -1],
     [1, 101],
-  ])
-    assert.throws(() => setManyRequiredReserve(...values), /quota inputs/);
+  ] as const)
+    assert.throws(() => setManyRequiredReserve(values[0], values[1]), /quota inputs/);
 });
 
-function adaptiveSetManyFixture(count, { rates = null, mutationError = false } = {}) {
-  const changes = Array.from({ length: count }, (_, index) => ({
+function adaptiveSetManyFixture(
+  count: number,
+  {
+    rates = null,
+    mutationError = false,
+  }: {
+    rates?: readonly ReturnType<SetManyClient["sampleGraphqlRate"]>[] | null;
+    mutationError?: boolean;
+  } = {},
+) {
+  const changes: SetManyAssignment[] = Array.from({ length: count }, (_, index) => ({
     target: `#${index + 1}`,
     itemId: `ITEM_${index + 1}`,
     fieldName: "Status",
     from: "Ready",
     to: "Done",
+    observed: "Ready",
   }));
   const values = new Map(changes.map((change) => [change.itemId, change.from]));
-  const mutations = [];
+  const mutations: string[][] = [];
   let rateIndex = 0;
-  const client = {
+  const client: SetManyClient = {
     sampleGraphqlRate() {
       const rate = rates?.[rateIndex] ?? {
         used: rateIndex,
@@ -4767,7 +5111,7 @@ function adaptiveSetManyFixture(count, { rates = null, mutationError = false } =
   return { changes, client, mutations, values };
 }
 
-test("set-many applies at most 25 assignments per verified adaptive chunk", async () => {
+void test("set-many applies at most 25 assignments per verified adaptive chunk", async () => {
   const fixture = adaptiveSetManyFixture(52);
   const result = await executeSetMany({
     client: fixture.client,
@@ -4787,7 +5131,7 @@ test("set-many applies at most 25 assignments per verified adaptive chunk", asyn
   assert.equal(result.evidence.chunks.length, 3);
 });
 
-test("set-many reconciles an ambiguous mutation response without retrying", async () => {
+void test("set-many reconciles an ambiguous mutation response without retrying", async () => {
   const fixture = adaptiveSetManyFixture(2, { mutationError: true });
   const result = await executeSetMany({
     client: fixture.client,
@@ -4801,7 +5145,7 @@ test("set-many reconciles an ambiguous mutation response without retrying", asyn
   assert.equal(fixture.mutations.length, 1);
 });
 
-test("set-many resumes already-applied assignments with exact readback and no repeated writes", async () => {
+void test("set-many resumes already-applied assignments with exact readback and no repeated writes", async () => {
   const fixture = adaptiveSetManyFixture(2);
   for (const change of fixture.changes) fixture.values.set(change.itemId, change.to);
   fixture.client.planSetMany = () => ({
@@ -4836,8 +5180,8 @@ test("set-many resumes already-applied assignments with exact readback and no re
   assert.equal(doctors, 1);
 });
 
-test("the Project reader preserves full bodies and all pages above the ordinary transport limit", () => {
-  const node = (number) => ({
+void test("the Project reader preserves full bodies and all pages above the ordinary transport limit", () => {
+  const node = (number: number) => ({
     id: `PVTI_${number}`,
     content: { __typename: "Issue", number, body: "x".repeat(22000) },
     fieldValues: { totalCount: 0, nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
@@ -4845,12 +5189,12 @@ test("the Project reader preserves full bodies and all pages above the ordinary 
   const first = Array.from({ length: 50 }, (_, i) => node(i + 1));
   const last = [node(51)];
   for (const failedLastPage of [false, true]) {
-    const cursors = [];
-    const bytes = [];
+    const cursors: unknown[] = [];
+    const bytes: number[] = [];
     const run = createGitHubRunner({
       spawn: (_command, args, options) => {
         assert.equal(args[0], "api");
-        const request = JSON.parse(options.input);
+        const request = fixtureGraphql(options.input);
         assert.match(request.query, /items\(first: 50/);
         assert.doesNotMatch(request.query, /mutation/);
         const cursor = request.variables.after;
@@ -4896,13 +5240,13 @@ test("the Project reader preserves full bodies and all pages above the ordinary 
       );
     }
     assert.deepEqual(cursors, [null, "page-two"]);
-    assert.ok(bytes[0] > 1024 * 1024);
+    assert.ok(fixtureElement(bytes, 0) > 1024 * 1024);
     assert.equal(first.length, 50);
-    assert.equal(first[0].content.body.length, 22000);
+    assert.equal(fixtureElement(first, 0).content.body.length, 22000);
   }
 });
 
-test("set-many stops before the next chunk when preserving quota requires a resume", async () => {
+void test("set-many stops before the next chunk when preserving quota requires a resume", async () => {
   const fixture = adaptiveSetManyFixture(30, {
     rates: [
       { used: 0, remaining: 500, resetAt: "later" },
@@ -4921,14 +5265,14 @@ test("set-many stops before the next chunk when preserving quota requires a resu
         doctor: async () => {},
       }),
     (error) =>
-      error.operationStatus === "partial" &&
-      error.operationEvidence.verified === 25 &&
-      error.operationEvidence.remaining === 5,
+      fixtureObject(error).operationStatus === "partial" &&
+      fixtureObject(fixtureObject(error).operationEvidence).verified === 25 &&
+      fixtureObject(fixtureObject(error).operationEvidence).remaining === 5,
   );
   assert.equal(fixture.mutations.length, 1);
 });
 
-test("set-many refuses unexpected pre-chunk state without mutation", async () => {
+void test("set-many refuses unexpected pre-chunk state without mutation", async () => {
   const fixture = adaptiveSetManyFixture(2);
   fixture.values.set("ITEM_1", "In progress");
   await assert.rejects(
@@ -4940,13 +5284,16 @@ test("set-many refuses unexpected pre-chunk state without mutation", async () =>
         apply: true,
         doctor: async () => {},
       }),
-    (error) => error.operationStatus === "partial" && /stopped before mutation/.test(error.message),
+    (error) =>
+      error instanceof Error &&
+      fixtureObject(error).operationStatus === "partial" &&
+      /stopped before mutation/.test(error.message),
   );
   assert.equal(fixture.mutations.length, 0);
 });
 
-test("GraphQL failures retain provider quota and reset evidence", () => {
-  const runner = () =>
+void test("GraphQL failures retain provider quota and reset evidence", () => {
+  const runner: GitHubRunner = () =>
     included(
       {
         data: null,
@@ -4967,7 +5314,7 @@ test("GraphQL failures retain provider quota and reset evidence", () => {
 });
 
 for (const kind of ["items"]) {
-  const node = (value) => ({
+  const node = (value: number) => ({
     id: `PVTI_${value}`,
     fieldValues: {
       totalCount: 0,
@@ -4975,16 +5322,16 @@ for (const kind of ["items"]) {
       pageInfo: { hasNextPage: false, endCursor: null },
     },
   });
-  const page = (numbers, totalCount, cursor = null) => ({
+  const page = (numbers: readonly number[], totalCount: number, cursor: string | null = null) => ({
     nodes: numbers.map(node),
     totalCount,
     pageInfo: { hasNextPage: cursor !== null, endCursor: cursor },
   });
-  function readPages(pages) {
+  function readPages(pages: readonly unknown[]) {
     let index = 0;
     const client = new RoadmapClient(config, (args, input) => {
       if (args[0] === "project") return JSON.stringify({ id: "PVT" });
-      assert.match(JSON.parse(input).query, /totalCount/);
+      assert.match(fixtureGraphql(input).query, /totalCount/);
       const current = pages[index++];
       if (current instanceof Error) throw current;
       assert.ok(index <= pages.length, "reader must stop before exhausting the fixture");
@@ -4993,10 +5340,10 @@ for (const kind of ["items"]) {
     return client.itemList(1);
   }
 
-  test(`${kind} inventory accepts an empty connection`, () => {
+  void test(`${kind} inventory accepts an empty connection`, () => {
     assert.deepEqual(readPages([page([], 0)]), []);
   });
-  test(`${kind} inventory accepts an exact page boundary`, () => {
+  void test(`${kind} inventory accepts an exact page boundary`, () => {
     const size = 50;
     assert.equal(
       readPages([
@@ -5008,7 +5355,7 @@ for (const kind of ["items"]) {
       size,
     );
   });
-  const failures = [
+  const failures: readonly (readonly [string, readonly unknown[]])[] = [
     ["missing connection", [null]],
     ["missing nodes", [{ totalCount: 0, pageInfo: { hasNextPage: false, endCursor: null } }]],
     ["missing pagination", [{ nodes: [], totalCount: 0 }]],
@@ -5032,14 +5379,14 @@ for (const kind of ["items"]) {
     ["failed final request", [page([1], 2, "next"), new Error("API unavailable")]],
   ];
   for (const [reason, pages] of failures) {
-    test(`${kind} inventory rejects ${reason}`, () => {
+    void test(`${kind} inventory rejects ${reason}`, () => {
       assert.throws(() => readPages(pages), /inventory|API unavailable/);
     });
   }
 }
 
-test("Planned and historical non-gating work share execution without changing Required readiness", () => {
-  const make = (n, commitment, status = "Ready", deps = []) => ({
+void test("Planned and historical non-gating work share execution without changing Required readiness", () => {
+  const make = (n: number, commitment: string | null, status = "Ready", deps: number[] = []) => ({
     id: `i${n}`,
     title: `Work ${n}`,
     status,
@@ -5063,30 +5410,41 @@ test("Planned and historical non-gating work share execution without changing Re
   ];
   assert.equal(analyzeReleaseReadiness(items, "Public beta").ready, true);
   assert.deepEqual(
-    analyzeReleaseReadiness(items, "Public beta").planned.map((i) => i.content.number),
+    analyzeReleaseReadiness(items, "Public beta").planned.map(
+      (i) => fixtureValue(i.content).number,
+    ),
     [2, 3, 4],
   );
   assert.deepEqual(
-    selectNextItems(items).map((i) => i.content.number),
+    selectNextItems(items).map((i) => fixtureValue(i.content).number),
     [2, 3],
   );
   const text = renderExecutionQueue(items);
   assert.match(text, /Planned/);
   assert.match(text, /after: https:\/\/example.test\/2/);
   assert.equal(analyzeReleaseReadiness(items, "Public beta").effectiveRequired.length, 1);
-  items[0].content.blockedBy = { totalCount: 1, nodes: [{ number: 2 }] };
+  fixtureElement(items, 0).content.blockedBy = { totalCount: 1, nodes: [{ number: 2 }] };
   const gates = analyzeReleaseReadiness(items, "Public beta");
   assert.equal(gates.ready, false);
   assert.equal(gates.dependencyConflicts.length, 1);
   assert.equal(gates.effectiveRequired.length, 2);
-  items[0].content.blockedBy = { totalCount: 0, nodes: [] };
-  items[0].content.parent = { number: 2 };
+  fixtureElement(items, 0).content.blockedBy = { totalCount: 0, nodes: [] };
+  Object.assign(fixtureElement(items, 0).content, { parent: { number: 2 } });
   assert.equal(analyzeReleaseReadiness(items, "Public beta").ready, true);
 });
 
-test("commitment rename preserves IDs, assignments and metadata and resumes without mutation", () => {
+void test("commitment rename preserves IDs, assignments and metadata and resumes without mutation", () => {
   const desired = { ...config, project: { ...config.project, number: 1 } };
-  let fields = [
+  let fields: [
+    {
+      id: string;
+      name: string;
+      type: string;
+      options: Parameters<
+        Parameters<typeof executeCommitmentRename>[0]["client"]["updateField"]
+      >[1];
+    },
+  ] = [
     {
       id: "field",
       name: "Release commitment",
@@ -5098,20 +5456,25 @@ test("commitment rename preserves IDs, assignments and metadata and resumes with
     },
   ];
   let writes = 0;
-  const client = {
+  const client: Parameters<typeof executeCommitmentRename>[0]["client"] = {
     fieldList: () => structuredClone(fields),
     sampleGraphqlRate: () => ({ remaining: 2000 }),
     itemList: () => [
       {
         id: "a",
-        fieldValues: [{ field: { name: "Release commitment" }, name: fields[0].options[1].name }],
+        fieldValues: [
+          {
+            field: { name: "Release commitment" },
+            name: fixtureElement(fixtureElement(fields, 0).options, 1).name,
+          },
+        ],
       },
       { id: "b", fieldValues: [] },
     ],
     updateField: (id, options) => {
       assert.equal(id, "field");
       writes++;
-      fields[0].options = options;
+      fixtureElement(fields, 0).options = options;
     },
   };
   assert.equal(executeCommitmentRename({ client, config: desired }).status, "planned");
@@ -5120,14 +5483,14 @@ test("commitment rename preserves IDs, assignments and metadata and resumes with
   assert.equal(result.assignmentsVerified, 2);
   assert.equal(result.option, "planned");
   assert.equal(writes, 1);
-  assert.equal(fields[0].options[1].color, "BLUE");
-  assert.equal(fields[0].options[1].description, "Approved");
+  assert.equal(fixtureElement(fixtureElement(fields, 0).options, 1).color, "BLUE");
+  assert.equal(fixtureElement(fixtureElement(fields, 0).options, 1).description, "Approved");
   assert.equal(
     executeCommitmentRename({ client, config: desired, apply: true }).alreadyApplied,
     true,
   );
   assert.equal(writes, 1);
-  fields[0].options.push({ id: "duplicate", name: "Opportunistic" });
+  fixtureElement(fields, 0).options.push({ id: "duplicate", name: "Opportunistic" });
   assert.throws(
     () => executeCommitmentRename({ client, config: desired, apply: true }),
     /both historical and active/,
@@ -5135,8 +5498,17 @@ test("commitment rename preserves IDs, assignments and metadata and resumes with
   assert.equal(writes, 1);
 });
 
-test("commitment rename refuses divergent assignment readback and reconciles ambiguous transport", () => {
-  const fields = [
+void test("commitment rename refuses divergent assignment readback and reconciles ambiguous transport", () => {
+  const fields: [
+    {
+      id: string;
+      name: string;
+      type: string;
+      options: Parameters<
+        Parameters<typeof executeCommitmentRename>[0]["client"]["updateField"]
+      >[1];
+    },
+  ] = [
     {
       id: "f",
       name: "Release commitment",
@@ -5148,7 +5520,7 @@ test("commitment rename refuses divergent assignment readback and reconciles amb
     },
   ];
   let reads = 0;
-  const client = {
+  const client: Parameters<typeof executeCommitmentRename>[0]["client"] = {
     fieldList: () => structuredClone(fields),
     sampleGraphqlRate: () => ({ remaining: 1000 }),
     itemList: () => [
@@ -5160,28 +5532,33 @@ test("commitment rename refuses divergent assignment readback and reconciles amb
       },
     ],
     updateField: (_id, opts) => {
-      fields[0].options = opts;
+      fixtureElement(fields, 0).options = opts;
     },
   };
   assert.throws(
     () => executeCommitmentRename({ client, config, apply: true }),
     /assignment changed/,
   );
-  fields[0].options[1].name = "Opportunistic";
+  fixtureElement(fixtureElement(fields, 0).options, 1).name = "Opportunistic";
   client.itemList = () => [
     {
       id: "a",
-      fieldValues: [{ field: { name: "Release commitment" }, name: fields[0].options[1].name }],
+      fieldValues: [
+        {
+          field: { name: "Release commitment" },
+          name: fixtureElement(fixtureElement(fields, 0).options, 1).name,
+        },
+      ],
     },
   ];
   client.updateField = (_id, opts) => {
-    fields[0].options = opts;
+    fixtureElement(fields, 0).options = opts;
     throw Error("lost response");
   };
   assert.equal(executeCommitmentRename({ client, config, apply: true }).reconciledAfterError, true);
 });
 
-test("queue displays incomplete dependency coverage instead of an empty prerequisite claim", () => {
+void test("queue displays incomplete dependency coverage instead of an empty prerequisite claim", () => {
   const record = {
     title: "Partial",
     status: "Ready",
@@ -5194,7 +5571,7 @@ test("queue displays incomplete dependency coverage instead of an empty prerequi
   assert.match(renderExecutionQueue([record]), /prerequisite coverage incomplete/);
 });
 
-test("single-local pickup avoids obsolete board reads without claiming writer release", () => {
+void test("single-local pickup avoids obsolete board reads without claiming writer release", () => {
   const single = { ...config, delivery_mode: "single-local-runner", runner_coordination: null };
   const snapshot = readOperationalBoard(single, {
     request: () => assert.fail("retired board must not be read"),
@@ -5204,16 +5581,16 @@ test("single-local pickup avoids obsolete board reads without claiming writer re
   assert.equal(bindOperationalAssignment(snapshot, "Local", 244), null);
   const envelope = operationalEnvelope(snapshot, { status: "observed" });
   assert.equal(envelope.operational_baseline, null);
-  assert.equal(envelope.operational_binding, undefined);
+  assert.equal(fixtureObject(envelope).operational_binding, undefined);
   assert.match(
-    envelope.operational_snapshot.authority_limit,
+    fixtureValue(envelope.operational_snapshot.authority_limit),
     /does not prove release or inactivity/,
   );
   assert.throws(() => bindOperationalAssignment(snapshot, "", 244), /identity/);
   assert.throws(() => bindOperationalAssignment(snapshot, "Local", 0), /positive/);
 });
 
-test("retired coordinator planners cannot revive historical grants or writes", () => {
+void test("retired coordinator planners cannot revive historical grants or writes", () => {
   const single = { ...config, delivery_mode: "single-local-runner" };
   for (const apply of [false, true]) {
     for (const plan of [
@@ -5223,19 +5600,25 @@ test("retired coordinator planners cannot revive historical grants or writes", (
       prepareOperationalReturnAcceptance,
       prepareOperationalReleaseEvidence,
     ])
-      assert.throws(() => plan({ config: single, apply }), /coordination is retired/);
+      assert.throws(() => {
+        // @ts-expect-error Retired entry points must reject before reading missing historical grant inputs.
+        plan({ config: single, apply });
+      }, /coordination is retired/);
   }
-  assert.throws(() => prepareOperationalCheckpoint(single), /coordination is retired/);
+  assert.throws(() => {
+    // @ts-expect-error Retirement must be checked before reading absent checkpoint inputs.
+    prepareOperationalCheckpoint(single);
+  }, /coordination is retired/);
   assert.equal(deliveryMode({}), "coordinated");
   assert.throws(() => validateConfig({ ...config, delivery_mode: "local-ish" }), /delivery_mode/);
 });
 
-test("explicit pickup references do not revive coordinator authority in single mode", () => {
+void test("explicit pickup references do not revive coordinator authority in single mode", () => {
   const reservation = { url: "https://github.com/boburning/portcove/issues/244#issuecomment-1" };
   const options = { runner: "Local", comments: [], coverage: { complete: false }, reservation };
   const context = deriveExecutionContext(config, pickupIssue(244), pickupRelations(), options);
   assert.match(context.reservation.assessment, /actual writer activity, source-owner release/);
-  assert.equal(context.reservation.url, reservation.url);
+  assert.equal(fixtureObject(context.reservation).url, reservation.url);
   const historical = deriveExecutionContext(
     { ...config, delivery_mode: "coordinated" },
     pickupIssue(244),
@@ -5245,21 +5628,23 @@ test("explicit pickup references do not revive coordinator authority in single m
   assert.match(historical.reservation.assessment, /accepted grant.*coordinator/);
 });
 
-test("set help renders every configured field option without live access", async () => {
-  const config = JSON.parse(
-    await readFile(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
+void test("set help renders every configured field option without live access", async () => {
+  const config = validateConfig(
+    JSON.parse(await readFile(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
   );
   const help = roadmapCommandHelp("set", config);
   assert.match(help, /--type:/);
   assert.match(help, /--status: Inbox/);
   for (const name of ["Status", "Work type", "Effort"])
-    for (const value of config.fields.find((field) => field.name === name).options)
+    for (const value of fixtureValue(
+      fixtureFind(config.fields, (field) => field.name === name).options,
+    ))
       assert(help.includes(value));
   assert.match(roadmapCommandHelp("doctor", config), /--summary/);
   assert.throws(() => roadmapCommandHelp("unknown", config), /unknown/);
 });
 
-test("Roadmap command help is available without the GitHub executable or operation lock", () => {
+void test("Roadmap command help is available without the GitHub executable or operation lock", () => {
   for (const command of ["set", "capture-feature", "doctor", "context"]) {
     const result = spawnSync(process.execPath, ["scripts/roadmap.mts", command, "--help"], {
       encoding: "utf8",
@@ -5280,11 +5665,20 @@ test("Roadmap command help is available without the GitHub executable or operati
 });
 
 {
-  const approval = JSON.parse(
-    readFileSync(new URL("../.github/linux-beta-risk-706.json", import.meta.url)),
+  const approval: unknown = JSON.parse(
+    readFileSync(new URL("../.github/linux-beta-risk-706.json", import.meta.url), "utf8"),
   );
+  validateApproval706(approval, "2026-10-15T01:21:44.000Z");
+  assert.ok(
+    typeof approval.reconfirmedHead === "string" && typeof approval.policySha256 === "string",
+  );
+  const canonicalApproval = {
+    ...approval,
+    reconfirmedHead: approval.reconfirmedHead,
+    policySha256: approval.policySha256,
+  };
   const now = "2026-10-16T00:00:00.000Z";
-  const item = (n, deps = []) => ({
+  const item = (n: number, deps: number[] = []) => ({
     id: `i${n}`,
     title: `Remediation ${n}`,
     status: "Blocked",
@@ -5301,7 +5695,7 @@ test("Roadmap command help is available without the GitHub executable or operati
   });
   const items = () => [item(49, [706]), item(706)];
   function evidence() {
-    const policy = { ...approval, firstPublicationTag: "v0.1.0-beta.1" };
+    const policy = { ...canonicalApproval, firstPublicationTag: "v0.1.0-beta.1" };
     const candidate = {
       head: "a".repeat(40),
       lockSha256: "b".repeat(64),
@@ -5347,7 +5741,9 @@ test("Roadmap command help is available without the GitHub executable or operati
           toolVersion: "cargo-deny 0.20.2",
           scope: "workspace-default-all-targets-all-checks",
           stdout: "",
-          stderr: [diagnostic, { type: "summary", fields: summary }].map(JSON.stringify).join("\n"),
+          stderr: [diagnostic, { type: "summary", fields: summary }]
+            .map((value) => JSON.stringify(value))
+            .join("\n"),
         },
         releases: [],
         purpose: "release",
@@ -5355,7 +5751,7 @@ test("Roadmap command help is available without the GitHub executable or operati
       },
     };
   }
-  test("approved remediation planning is valid but never establishes release eligibility", () => {
+  void test("approved remediation planning is valid but never establishes release eligibility", () => {
     assert.deepEqual(
       parseArguments(["readiness", "--release", "Public beta", "--linux-beta-706"]),
       {
@@ -5390,22 +5786,22 @@ test("Roadmap command help is available without the GitHub executable or operati
       );
     }
   });
-  test("only a fully revalidated release candidate can satisfy the scoped pending nodes", () => {
+  void test("only a fully revalidated release candidate can satisfy the scoped pending nodes", () => {
     const options = evidence();
     const result = analyzeReleaseReadiness(items(), "Public beta", options);
     assert.equal(result.ready, true);
-    assert.equal(result.candidateDisposition706.scanPassed, false);
+    assert.equal(fixtureValue(result.candidateDisposition706).scanPassed, false);
     assert.equal(result.effectiveRequired.length, 2);
     assert.equal(result.unfinishedRequired.length, 0);
     assert.ok(items().every((i) => i.content.state === "OPEN"));
     for (const mutate of [
-      (e) => {
+      (e: ReturnType<typeof evidence>["risk706Evidence"]) => {
         e.scan.complete = false;
       },
-      (e) => {
+      (e: ReturnType<typeof evidence>["risk706Evidence"]) => {
         e.candidate.productionChanges = "crates/portcove-core/src/lib.rs";
       },
-      (e) => {
+      (e: ReturnType<typeof evidence>["risk706Evidence"]) => {
         e.purpose = "qualification";
       },
     ]) {
@@ -5415,20 +5811,20 @@ test("Roadmap command help is available without the GitHub executable or operati
     }
     assert.throws(() => analyzeReleaseReadiness(items(), "1.0", options));
   });
-  test("canonical scope and all other dependency checks remain enforced", () => {
+  void test("canonical scope and all other dependency checks remain enforced", () => {
     for (const change of [
-      (i) => {
+      (i: ReturnType<typeof item>) => {
         i.platform = "Steam Deck";
       },
-      (i) => {
+      (i: ReturnType<typeof item>) => {
         i.content.url = "https://example.test/706";
       },
-      (i) => {
+      (i: ReturnType<typeof item>) => {
         i["release commitment"] = "Opportunistic";
       },
     ]) {
       const list = items();
-      change(list[1]);
+      change(fixtureElement(list, 1));
       assert.equal(analyzeReleaseReadiness(list, "Public beta", { now }).safetyConflicts.length, 1);
     }
     assert.equal(analyzeReleaseReadiness(items(), "1.0", { now }).safetyConflicts.length, 2);
@@ -5438,12 +5834,12 @@ test("Roadmap command help is available without the GitHub executable or operati
       1,
     );
     const list = items();
-    list[1].content.blockedBy = { totalCount: 1, nodes: [{ number: 999 }] };
+    fixtureElement(list, 1).content.blockedBy = { totalCount: 1, nodes: [{ number: 999 }] };
     assert.equal(
       analyzeReleaseReadiness(list, "Public beta", evidence()).missingProjectDependencies.length,
       1,
     );
-    list[1].content.blockedBy = { totalCount: 1, nodes: [{ number: 49 }] };
+    fixtureElement(list, 1).content.blockedBy = { totalCount: 1, nodes: [{ number: 49 }] };
     const cycle = analyzeReleaseReadiness(list, "Public beta", evidence());
     assert.equal(cycle.cycles.length, 1);
     assert.equal(cycle.dependencyConflicts.length, 1);
