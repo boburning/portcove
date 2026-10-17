@@ -62,6 +62,15 @@ void test("listener lifetime helper selects its actual callback cleanup regressi
   assert.ok(!classifyChanges([]).nodeTests.has("scripts/desktop-listener-probe.test.mts"));
 });
 
+void test("manual native workflow selects its repository-dependency provenance contracts", () => {
+  const selection = classifyChanges(
+    [{ status: "M", path: ".github/workflows/native-design-compatibility.yml" }],
+    { fileExists: () => false },
+  );
+  assert.ok(selection.nodeTests.has("scripts/workflow-provenance.test.mts"));
+  assert.ok(!classifyChanges([]).nodeTests.has("scripts/workflow-provenance.test.mts"));
+});
+
 void test("removed, renamed-away and non-code frontend inputs retain complete execution", () => {
   for (const change of [
     { status: "D", path: "apps/desktop/src/components/removed.tsx" },

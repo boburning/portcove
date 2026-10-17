@@ -298,6 +298,7 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  [".github/workflows/native-design-compatibility.yml", ["scripts/workflow-provenance.test.mts"]],
   [
     "scripts/validation-evidence.mts",
     [...selectionContractTests, "scripts/validation-evidence.test.mts", "scripts/audit.test.mts"],

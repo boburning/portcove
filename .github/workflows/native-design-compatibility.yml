@@ -217,7 +217,6 @@ jobs:
     timeout-minutes: 60
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
-      PORTCOVE_RETAINED_EVIDENCE_DIR: ${{ github.workspace }}/work/slice3-native-retained
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -229,23 +228,27 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          package-manager-cache: false
       - uses: ./.github/actions/setup-rust
       - name: Retain the exact ordinary hosted environment before preparation
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
+          import path from 'node:path';
           import { execFileSync } from 'node:child_process';
           import assert from 'node:assert/strict';
           const read = (command, args) => execFileSync(command, args, { encoding: 'utf8' }).trim();
           const revision = read('git', ['rev-parse', 'HEAD']);
           assert.equal(revision, process.env.GITHUB_SHA);
           assert.equal(read('git', ['status', '--porcelain']), '');
+          assert.ok(process.env.RUNNER_TEMP && path.isAbsolute(process.env.RUNNER_TEMP));
+          const retained = path.join(process.env.RUNNER_TEMP, 'slice3-native-retained');
+          fs.appendFileSync(process.env.GITHUB_ENV, 'PORTCOVE_RETAINED_EVIDENCE_DIR=' + retained + '\n');
           fs.mkdirSync('work/linux-preparation-continuity', { recursive: true });
           fs.writeFileSync('work/linux-preparation-continuity/host.json', JSON.stringify({
             revision, runner: 'ubuntu-22.04', platform: process.platform,
             architecture: process.arch, kernel: read('uname', ['-r']),
+            retained_evidence: retained,
             image_os: process.env.ImageOS, image_version: process.env.ImageVersion,
             node: process.version, pnpm: read('pnpm', ['--version']),
             rustc: read('rustc', ['--version', '--verbose']),
@@ -311,22 +314,48 @@ jobs:
         run: |
           node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-preparation-continuity/cancellation-config.json"
           node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-preparation-continuity/interruption-config.json"
-      - name: Retain exact Linux continuity evidence and failed observations
+      - name: Retain bounded Linux reports and images in ordinary job logs
         if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: linux-preparation-continuity-${{ github.sha }}-${{ github.run_attempt }}
-          path: |
-            work/linux-preparation-continuity/**
-            work/slice3-native-retained/**
-            !**/webview/**
-            !**/xdg_config_home/**
-            !**/xdg_cache_home/**
-            !**/xdg_data_home/**
-            !**/private-authority
-            !**/auth.cookie
-          if-no-files-found: error
-          retention-days: 14
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          import { encodeBackupEvidence } from './scripts/native-backup-evidence.mts';
+          const root = path.resolve('work/linux-preparation-continuity');
+          assert.ok(fs.lstatSync(root).isDirectory() && !fs.lstatSync(root).isSymbolicLink(), 'Report root must be an owned directory');
+          const encoded = path.resolve('work/linux-continuity-encoded');
+          assert.ok(!fs.existsSync(encoded), 'Never overwrite collected evidence');
+          const native = path.join(encoded, 'desktop-verify', 'slice3', 'native');
+          fs.mkdirSync(native, { recursive: true, mode: 0o700 });
+          const directories = [root];
+          for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+            if (entry.name === 'cancellation' || entry.name === 'interruption' || /^private-x11-[a-zA-Z0-9]+$/.test(entry.name)) {
+              assert.ok(entry.isDirectory() && !entry.isSymbolicLink(), 'Report root must be an owned directory');
+              directories.push(path.join(root, entry.name));
+            }
+          }
+          const inventory = [];
+          for (const directory of directories.sort()) {
+            for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+              if (!/\.(json|jsonl|log|png|txt)$/.test(entry.name)) continue;
+              assert.ok(entry.isFile() && !entry.isSymbolicLink(), 'Report must be a regular file');
+              assert.ok(inventory.length < 126, 'Report inventory exceeds the existing codec bound');
+              const source = path.join(directory, entry.name);
+              assert.ok(fs.statSync(source).size <= 12 * 1024 * 1024, 'Report exceeds the existing codec bound');
+              const bytes = fs.readFileSync(source);
+              const extension = path.extname(entry.name) === '.txt' ? '.log' : path.extname(entry.name);
+              const name = String(inventory.length).padStart(3, '0') + extension;
+              fs.writeFileSync(path.join(native, name), bytes, { flag: 'wx' });
+              inventory.push({ original: path.relative(root, source), retained: name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
+            }
+          }
+          fs.writeFileSync(path.join(encoded, 'collection.json'), JSON.stringify({
+            scope: 'Exact report/image bytes with original-name mapping; no private profiles, cookies, retained executables or full input payloads', inventory,
+          }, null, 2) + '\n', { flag: 'wx' });
+          console.log(await encodeBackupEvidence(encoded));
+          NODE
 
   backup_focus:
     if: ${{ inputs.operation == 'compatibility' && !inputs.edge_driver_proof && inputs.runner == 'windows-2022' }}

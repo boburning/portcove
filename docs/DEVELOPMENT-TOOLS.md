@@ -992,8 +992,12 @@ The existing manual `Native design compatibility` workflow also offers the fixed
 `linux-preparation-continuity` operation on the standard `ubuntu-22.04` runner in
 this public repository. It builds ordinary app/CLI artifacts in a fresh target,
 compiles the owned probe, and runs both exact scenarios sequentially through the
-same private-X11 adapter. The retained artifact includes failed observations and
-source/binary inputs, excluding WebView profiles and private display cookies.
+same private-X11 adapter. Its private input store is outside the checkout under
+the runner's temporary directory. Failed observations, exact report/image bytes
+and their original-name/hash inventory use the existing bounded job-log codec;
+there are no artifact uploads or caches. Collection excludes private profiles,
+display cookies, retained executables and complete input payloads. Source and
+binary identities remain recorded in the actual build and native reports.
 Its hosted result remains distinct from local Windows/WSL or minimum-OS proof.
 
 Before executing the unchanged boundary assertions, the observer requires the
