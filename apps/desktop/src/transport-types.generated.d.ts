@@ -16,6 +16,14 @@ export type ErrorCode =
   | "cancelled";
 export type MutationState = "not_started" | "no_changes" | "committed" | "recovery_required" | "unknown";
 export type RecoveryAction = "review_current_state" | "review_preparation" | "view_technical_details";
+/**
+ * A known item to inspect, never authorization to resume or change it.
+ */
+export type FailureRecoveryTarget = {
+  kind: "preparation";
+  port_id: string;
+  [k: string]: unknown;
+};
 export type FailureTone = "neutral" | "error";
 export type ActivityOperation =
   | "prepare"
@@ -703,6 +711,7 @@ export interface FailurePresentation {
   phase: string | null;
   presentation_key: string;
   recovery_actions: RecoveryAction[];
+  recovery_target?: FailureRecoveryTarget | null;
   summary: string;
   technical_context: {
     [k: string]: string;
