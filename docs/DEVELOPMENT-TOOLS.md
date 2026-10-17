@@ -580,9 +580,9 @@ and unrelated shims remain intact. Git and PowerShell must already be available
 for daily setup; an unavailable prerequisite remains an explicit limitation.
 No ordinary validation command invokes these provisioning routes implicitly.
 
-The active toolchain authorities are [`rust-toolchain.toml`](../rust-toolchain.toml)
-for Rust, [`.node-version`](../.node-version) for Node, and the repository root
-[`package.json`](../package.json) `packageManager` field for pnpm. GitHub workflows derive pnpm from that package manifest
+The active toolchain authorities are `rust-toolchain.toml` for Rust,
+`.node-version` for Node, and the repository root `package.json` `packageManager`
+field for pnpm. GitHub workflows derive pnpm from that package manifest
 instead of copying its version. `scripts/dependency-automation.test.mts` checks
 those relationships together with Renovate coverage for nonstandard pins.
 
