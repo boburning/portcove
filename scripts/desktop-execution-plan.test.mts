@@ -16,9 +16,10 @@ import { planDesktopExecution, nativeTransportReceiptSources } from "./desktop-e
 import { resolveDesktopSelection, desktopHarnessDeadlineMs } from "./desktop-scenarios.mts";
 import { buildDesktopVerifyPlan } from "./desktop-verify.mts";
 import { runOwnedFixtureJourneys } from "../apps/desktop/scripts/desktop-owned-fixture-journeys.mts";
-const baseline = JSON.parse(
-  await readFile(new URL("./testdata/desktop-execution-baseline.json", import.meta.url), "utf8"),
-);
+import baseline from "./testdata/desktop-execution-baseline.json" with { type: "json" };
+import type { DesktopSelection } from "./desktop-scenarios.mts";
+type KnownGap = DesktopSelection["known_gaps"][number];
+import type { OwnedFixtureJourneys } from "../apps/desktop/scripts/desktop-owned-fixture-journeys.mts";
 const executableNames = {
   app: "baseline-app.exe",
   driver: "baseline-driver.exe",
@@ -27,7 +28,7 @@ const executableNames = {
   "preparation-tool": "baseline-tool.exe",
 };
 
-test("Linux origin qualification is explicit, standalone and feature scoped", () => {
+void test("Linux origin qualification is explicit, standalone and feature scoped", () => {
   const id = "native-linux-webview-origin-boundary";
   const selection = resolveDesktopSelection({ scenarios: [id], platform: "linux" });
   const plan = planDesktopExecution(selection, { platform: "linux" });
@@ -51,7 +52,7 @@ test("Linux origin qualification is explicit, standalone and feature scoped", ()
   }
 });
 
-test("hash continuation routes only the isolated selected-setup fixture with positive closure", () => {
+void test("hash continuation routes only the isolated selected-setup fixture with positive closure", () => {
   const selection = resolveDesktopSelection({
     scenarios: ["native-saved-folder-hash-resume"],
     platform: "win32",
@@ -65,16 +66,16 @@ test("hash continuation routes only the isolated selected-setup fixture with pos
   assert.equal(plan.fixtures.sourceJourney, true);
   assert.equal(plan.fixtures.completionJourney, false);
   assert.equal(plan.fixtures.holdFirstDownload, false);
-  assert.deepEqual(plan.fixtureFamilies.find((item) => item.family === "selected-setup").members, [
+  assert.deepEqual(familyMembers(plan, "selected-setup"), [
     { id: "native-saved-folder-hash-resume", role: "selected" },
   ]);
-  assert.deepEqual(plan.fixtureFamilies.find((item) => item.family === "preparation").members, []);
+  assert.deepEqual(familyMembers(plan, "preparation"), []);
   assert.ok(
     plan.receiptInputs.some(
       (item) => item.path === "apps/desktop/scripts/desktop-source-dialog-test.mts",
     ),
   );
-  for (const platform of ["linux", "darwin"])
+  for (const platform of ["linux", "darwin"] as const)
     assert.throws(
       () => resolveDesktopSelection({ scenarios: ["native-saved-folder-hash-resume"], platform }),
       /requires Windows/,
@@ -89,7 +90,7 @@ test("hash continuation routes only the isolated selected-setup fixture with pos
   );
 });
 
-test("execution planning preserves the independently reviewed pre-change oracle", () => {
+void test("execution planning preserves the independently reviewed pre-change oracle", () => {
   assert.equal(baseline.starting_main, "a9e3db4e6cd9fd41111b58705e4fa54790eb57d7");
   assert.equal(baseline.rows.length, 222);
   for (const row of baseline.rows) {
@@ -100,32 +101,49 @@ test("execution planning preserves the independently reviewed pre-change oracle"
         row.platform === "linux" &&
         row.options.scenarios?.length === 1 &&
         ["native-selected-setup-completion", "native-saved-folder-selected-setup"].includes(
-          row.options.scenarios[0],
+          row.options.scenarios[0] ?? "",
         );
       if (linuxOptIn) {
-        const selection = resolveDesktopSelection({ ...row.options, platform: row.platform });
+        const selection = resolveDesktopSelection({
+          ...row.options,
+          platform: baselinePlatform(row.platform),
+        });
         assert.deepEqual(selection.selected_scenarios, row.options.scenarios);
         assert.deepEqual(selection.setup_scenarios, []);
         assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
-        const plan = planDesktopExecution(selection, { platform: row.platform });
+        const plan = planDesktopExecution(selection, { platform: baselinePlatform(row.platform) });
         assert.ok(plan.build.cliFeatures.includes("portcove-core/qualification-fixtures"));
         continue;
       }
-      assert.throws(() => resolveDesktopSelection({ ...row.options, platform: row.platform }), {
-        message:
-          row.options.scenarios?.length === 1 &&
-          ["native-selected-setup-completion", "native-saved-folder-selected-setup"].includes(
-            row.options.scenarios[0],
-          )
-            ? `${row.options.scenarios[0]} requires Windows or Linux`
-            : row.selection_error,
-      });
+      assert.throws(
+        () => resolveDesktopSelection({ ...row.options, platform: baselinePlatform(row.platform) }),
+        {
+          message:
+            row.options.scenarios?.length === 1 &&
+            ["native-selected-setup-completion", "native-saved-folder-selected-setup"].includes(
+              row.options.scenarios[0] ?? "",
+            )
+              ? `${row.options.scenarios[0]} requires Windows or Linux`
+              : row.selection_error,
+        },
+      );
       continue;
     }
-    const selection = resolveDesktopSelection({ ...row.options, platform: row.platform });
+    assert(
+      row.selection &&
+        row.harness_admission &&
+        row.serialized_verify_plan &&
+        row.initial_receipt_inputs,
+    );
+    const selection = resolveDesktopSelection({
+      ...row.options,
+      platform: baselinePlatform(row.platform),
+    });
     // Preserve the frozen oracle. This new opt-in scenario was absent from its
     // inventory and remains excluded from every historical execution.
-    const historicalSelection = (value) => ({
+    const historicalSelection = <Value extends { excluded_scenarios: readonly string[] }>(
+      value: Value,
+    ) => ({
       ...value,
       excluded_scenarios: value.excluded_scenarios.filter(
         (id) =>
@@ -143,12 +161,12 @@ test("execution planning preserves the independently reviewed pre-change oracle"
     assert.ok(!selection.selected_scenarios.includes("native-saved-folder-hash-resume"));
     assert.ok(selection.excluded_scenarios.includes("native-saved-folder-hash-resume"));
     assert.deepEqual(historicalSelection(selection), row.selection);
-    const plan = planDesktopExecution(selection, { platform: row.platform });
+    const plan = planDesktopExecution(selection, { platform: baselinePlatform(row.platform) });
     assert.deepEqual(historicalSelection(plan.selection), row.selection);
     // Frozen oracle retains every historical input. Registry additions and
     // deduplication affect receipt identities only, never dispatch/acceptance.
     const actualInputs = plan.receiptInputs.map((input) =>
-      input.kind === "executable" ? executableNames[input.name] : input.path,
+      input.kind === "executable" ? executableName(input.name) : receiptFilePath(input),
     );
     for (const historical of row.initial_receipt_inputs)
       assert(actualInputs.includes(historical.replace(/\.mjs$/u, ".mts")), historical);
@@ -231,11 +249,14 @@ test("execution planning preserves the independently reviewed pre-change oracle"
         drivers: null,
         source: { revision: "<source>" },
         packages: [],
+        frontendCommand: undefined,
       });
-      const expected = structuredClone(row.serialized_verify_plan);
-      expected.harness_deadline_ms = desktopHarnessDeadlineMs(selection); // Deliberately retained pre-change deadline owner.
+      const expected = {
+        ...structuredClone(row.serialized_verify_plan),
+        harness_deadline_ms: desktopHarnessDeadlineMs(selection),
+      }; // Deliberately retained pre-change deadline owner.
       // This prerequisite now runs before lease/build; preserve the old oracle.
-      delete actual.frontend_command;
+      Reflect.deleteProperty(actual, "frontend_command");
       expected.phases = [
         "workspace-package-preflight",
         "frontend-command-preflight",
@@ -249,7 +270,7 @@ test("execution planning preserves the independently reviewed pre-change oracle"
   }
 });
 
-test("library browsing receipts bind every confirmation helper exactly once", () => {
+void test("library browsing receipts bind every confirmation helper exactly once", () => {
   const plan = planDesktopExecution(
     resolveDesktopSelection({
       scenarios: ["native-library-browsing-context"],
@@ -267,7 +288,7 @@ test("library browsing receipts bind every confirmation helper exactly once", ()
     );
   for (const row of baseline.rows.filter((row) => !row.selection_error)) {
     const inputs = planDesktopExecution(
-      resolveDesktopSelection({ ...row.options, platform: row.platform }),
+      resolveDesktopSelection({ ...row.options, platform: baselinePlatform(row.platform) }),
     ).receiptInputs;
     if (inputs.some((input) => input.path === "apps/desktop/scripts/native-confirmation.ps1"))
       assert.equal(
@@ -278,7 +299,7 @@ test("library browsing receipts bind every confirmation helper exactly once", ()
   }
 });
 
-test("setup-only requirements and membership belong to the execution plan", () => {
+void test("setup-only requirements and membership belong to the execution plan", () => {
   const selection = resolveDesktopSelection({
     scenarios: ["native-reviewed-installed-game-removal"],
     platform: "win32",
@@ -286,15 +307,15 @@ test("setup-only requirements and membership belong to the execution plan", () =
   assert(selection.setup_scenarios.length > 0);
   const plan = planDesktopExecution(selection);
   assert.equal(plan.fixtures.owned, true);
-  const preparation = plan.fixtureFamilies.find((e) => e.family === "preparation");
+  const preparation = familyMembers(plan, "preparation");
   for (const id of selection.setup_scenarios)
-    assert(preparation.members.some((m) => m.id === id && m.role === "setup"));
+    assert(preparation.some((m) => m.id === id && m.role === "setup"));
   const copy = structuredClone(selection);
   planDesktopExecution(selection);
   assert.deepEqual(selection, copy);
 });
 
-test("selected setup completion requires identity-bound positive exit evidence", () => {
+void test("selected setup completion requires identity-bound positive exit evidence", () => {
   const completion = planDesktopExecution(
     resolveDesktopSelection({ scenarios: ["native-selected-setup-completion"], platform: "win32" }),
   );
@@ -310,7 +331,7 @@ test("selected setup completion requires identity-bound positive exit evidence",
   assert.equal(discovery.session.identityBoundSession, false);
 });
 
-test("preliminary review is isolated and retains positive cleanup without setup execution", () => {
+void test("preliminary review is isolated and retains positive cleanup without setup execution", () => {
   const id = "native-preliminary-source-review";
   const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
   const plan = planDesktopExecution(selection, { platform: "win32" });
@@ -335,8 +356,8 @@ test("preliminary review is isolated and retains positive cleanup without setup 
   assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }), /Windows/);
 });
 
-test("game-update review binds Windows cleanup without first-play or wider deadlines", () => {
-  for (const platform of ["win32", "linux"]) {
+void test("game-update review binds Windows cleanup without first-play or wider deadlines", () => {
+  for (const platform of ["win32", "linux"] as const) {
     const selection = resolveDesktopSelection({
       scenarios: ["native-game-update-review"],
       platform,
@@ -352,8 +373,8 @@ test("game-update review binds Windows cleanup without first-play or wider deadl
   }
 });
 
-test("backup review requires identity-bound Windows cleanup under the existing deadline", () => {
-  for (const platform of ["win32", "linux"]) {
+void test("backup review requires identity-bound Windows cleanup under the existing deadline", () => {
+  for (const platform of ["win32", "linux"] as const) {
     const selection = resolveDesktopSelection({
       scenarios: ["native-reviewed-backup-restore-and-delete"],
       platform,
@@ -365,7 +386,7 @@ test("backup review requires identity-bound Windows cleanup under the existing d
   }
 });
 
-test("qualified reviews and a running setup restart reject missing or foreign native identities", async () => {
+void test("qualified reviews and a running setup restart reject missing or foreign native identities", async () => {
   const source = await readFile(
     new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
     "utf8",
@@ -378,13 +399,15 @@ test("qualified reviews and a running setup restart reject missing or foreign na
     { scenario: "native-preliminary-source-review" },
     { scenario: "native-selected-setup-completion", outcome: "running", requireQualified: true },
   ]) {
-    const validate = runInNewContext(`${source.slice(start, end)}; validateBackupFocusInventory`, {
-      assert,
-      path,
-      savedLibraryRecoverySession: false,
-      checks: [{ scenario, outcome }],
-      values: { app: "/owned/app.exe", "native-driver": "/owned/driver.exe" },
-    });
+    const validate = callable(
+      runInNewContext(`${source.slice(start, end)}; validateBackupFocusInventory`, {
+        assert,
+        path,
+        savedLibraryRecoverySession: false,
+        checks: [{ scenario, outcome }],
+        values: { app: "/owned/app.exe", "native-driver": "/owned/driver.exe" },
+      }),
+    );
     const entries = [
       { path: "/owned/app.exe" },
       { path: "/owned/driver.exe" },
@@ -405,7 +428,7 @@ test("qualified reviews and a running setup restart reject missing or foreign na
   }
 });
 
-test("retained rollback repair requires identity-bound cleanup without changing its deadline", () => {
+void test("retained rollback repair requires identity-bound cleanup without changing its deadline", () => {
   const selection = resolveDesktopSelection({
     scenarios: ["native-retained-contract-repair-state"],
     platform: "win32",
@@ -416,7 +439,7 @@ test("retained rollback repair requires identity-bound cleanup without changing 
   assert.equal(desktopHarnessDeadlineMs(selection), 180000);
 });
 
-test("retained rollback Linux coverage keeps its existing portable session", () => {
+void test("retained rollback Linux coverage keeps its existing portable session", () => {
   const selection = resolveDesktopSelection({
     scenarios: ["native-retained-contract-repair-state"],
     platform: "linux",
@@ -428,7 +451,7 @@ test("retained rollback Linux coverage keeps its existing portable session", () 
   assert.equal(desktopHarnessDeadlineMs(selection), 180000);
 });
 
-test("coordinator consumes supplied order and obtains browser at each invocation", async () => {
+void test("coordinator consumes supplied order and obtains browser at each invocation", async () => {
   const plan = planDesktopExecution(
     resolveDesktopSelection({ profile: "full", platform: "win32" }),
   );
@@ -453,13 +476,16 @@ test("coordinator consumes supplied order and obtains browser at each invocation
   };
   const runtime = {
     context: () => ({ ...context, browser }),
-    recordKnownGap: (gap) => trace.push("gap:" + gap.scenario),
+    recordKnownGap: (gap: KnownGap) => trace.push("gap:" + gap.scenario),
     confirmNative: () => {
       confirmationCalls++;
       return () => {};
     },
   };
-  const journeys = {
+  const journeys: OwnedFixtureJourneys<
+    ReturnType<typeof runtime.context>,
+    ReturnType<typeof runtime.confirmNative>
+  > = {
     install: async (c) => {
       assert.equal(c.browser, "first");
       trace.push("install");
@@ -493,10 +519,14 @@ test("coordinator consumes supplied order and obtains browser at each invocation
   assert.equal(confirmationCalls, 1);
   // A supplied order must be consumed verbatim, never recreated from selection.
   const reversed = { fixtureFamilies: [...plan.fixtureFamilies].reverse() };
-  const reversedTrace = [];
-  const handlers = Object.fromEntries(
-    Object.keys(journeys).map((name) => [name, async () => reversedTrace.push(name)]),
-  );
+  const reversedTrace: string[] = [];
+  const dispatch = (name: keyof typeof journeys) => async () => reversedTrace.push(name);
+  const handlers = {
+    install: dispatch("install"),
+    selectedSetup: dispatch("selectedSetup"),
+    selectedSetupCompletion: dispatch("selectedSetupCompletion"),
+    preparation: dispatch("preparation"),
+  };
   await runOwnedFixtureJourneys({ plan: reversed, runtime }, handlers);
   assert.deepEqual(reversedTrace, [
     "preparation",
@@ -506,16 +536,21 @@ test("coordinator consumes supplied order and obtains browser at each invocation
   ]);
 });
 
-test("coordinator preserves gap position and leaves attempt attribution to its caller", async () => {
+void test("coordinator preserves gap position and leaves attempt attribution to its caller", async () => {
   const selection = resolveDesktopSelection({ scenarios: ["empty-library"], platform: "win32" });
   const plan = planDesktopExecution(selection);
-  const calls = [];
+  const calls: ({ id: string; action: () => unknown } | KnownGap)[] = [];
   const runtime = {
-    context: () => ({ scenario: (id, action) => calls.push({ id, action }) }),
+    context: () => ({
+      scenario: (id: string, action: () => unknown) => calls.push({ id, action }),
+    }),
     confirmNative: () => assert.fail("No preparation consent"),
-    recordKnownGap: (gap) => calls.push(gap),
+    recordKnownGap: (gap: KnownGap) => calls.push(gap),
   };
-  const journeys = {
+  const journeys: OwnedFixtureJourneys<
+    ReturnType<typeof runtime.context>,
+    ReturnType<typeof runtime.confirmNative>
+  > = {
     install: async (c) =>
       c.scenario("install-progress-cancellation", () =>
         assert.fail("Attempt owner must gate this"),
@@ -525,7 +560,9 @@ test("coordinator preserves gap position and leaves attempt attribution to its c
     preparation: async () => assert.fail("No owned prerequisite"),
   };
   await runOwnedFixtureJourneys({ plan, runtime }, journeys);
-  assert.equal(calls[0].id, "install-progress-cancellation");
+  const first = calls[0];
+  assert(first && "id" in first);
+  assert.equal(first.id, "install-progress-cancellation");
   await assert.rejects(
     runOwnedFixtureJourneys(
       { plan: { fixtureFamilies: [{ family: "unknown" }] }, runtime },
@@ -535,7 +572,7 @@ test("coordinator preserves gap position and leaves attempt attribution to its c
   );
 });
 
-test("harness hashes preserved inputs and the current planner/coordinator bytes", async (t) => {
+void test("harness hashes preserved inputs and the current planner/coordinator bytes", async (t) => {
   const source = await readFile(
     new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
     "utf8",
@@ -566,7 +603,7 @@ test("harness hashes preserved inputs and the current planner/coordinator bytes"
     revision: "a".repeat(40),
   });
   const expectedFiles = planDesktopExecution(selection).receiptInputs.map((input) =>
-    input.kind === "executable" ? process.execPath : path.join(root, input.path),
+    input.kind === "file" ? path.join(root, input.path) : process.execPath,
   );
   expectedFiles.push(
     ...[
@@ -575,12 +612,14 @@ test("harness hashes preserved inputs and the current planner/coordinator bytes"
       "apps/desktop/scripts/desktop-owned-ipc-probe.mts",
     ].map((file: string) => path.join(root, file)),
   );
-  assert.equal(inputs.length, expectedFiles.length);
+  assert(Array.isArray(inputs));
+  const capturedInputs: unknown[] = inputs;
+  assert.equal(capturedInputs.length, expectedFiles.length);
   for (const [index, file] of expectedFiles.entries())
-    assert.deepEqual(inputs[index], await fileIdentity(file));
+    assert.deepEqual(capturedInputs[index], await fileIdentity(file));
 });
 
-test("preliminary selected setup is standalone, identity-bound and excluded from historical runs", () => {
+void test("preliminary selected setup is standalone, identity-bound and excluded from historical runs", () => {
   const id = "native-preliminary-selected-setup";
   const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
   const plan = planDesktopExecution(selection, { platform: "win32" });
@@ -608,3 +647,27 @@ test("preliminary selected setup is standalone, identity-bound and excluded from
     /standalone/,
   );
 });
+
+function baselinePlatform(value: string): NodeJS.Platform {
+  if (value === "win32" || value === "linux" || value === "darwin") return value;
+  assert.fail(`Unexpected baseline platform ${value}`);
+}
+function executableName(name: string) {
+  const entry = Object.entries(executableNames).find(([key]) => key === name);
+  assert(entry);
+  return entry[1];
+}
+function familyMembers(plan: ReturnType<typeof planDesktopExecution>, family: string) {
+  const entry = plan.fixtureFamilies.find((item) => item.family === family);
+  assert(entry?.members);
+  return entry.members;
+}
+function callable(value: unknown) {
+  assert(typeof value === "function");
+  return (...args: unknown[]): unknown => Reflect.apply(value, undefined, args);
+}
+
+function receiptFilePath(input: import("./native-helper-dependencies.mts").ReceiptInput) {
+  assert(input.kind === "file");
+  return input.path;
+}

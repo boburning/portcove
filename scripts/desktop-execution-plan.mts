@@ -277,7 +277,7 @@ export function planDesktopExecution(
       family: "selected-setup-completion",
       members: roles.filter(({ id }) => id === "native-selected-setup-completion"),
     },
-    { kind: "known-gaps", gaps: selection.known_gaps },
+    { kind: "known-gaps" as const, gaps: selection.known_gaps },
     ...(needs("owned-fixture")
       ? [
           {
