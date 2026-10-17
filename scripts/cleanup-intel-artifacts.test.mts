@@ -21,7 +21,7 @@ const jobs = [
   conclusion: "success",
 }));
 
-test("both successful Intel consumers permit deletion, including reusable calls", () => {
+void test("both successful Intel consumers permit deletion, including reusable calls", () => {
   assert.equal(consumedTransfer(artifact, run, jobs), true);
   assert.equal(
     consumedTransfer(
@@ -32,7 +32,7 @@ test("both successful Intel consumers permit deletion, including reusable calls"
     true,
   );
 });
-test("active, failed, missing, ambiguous, changed-attempt and foreign evidence is preserved", () => {
+void test("active, failed, missing, ambiguous, changed-attempt and foreign evidence is preserved", () => {
   for (const changed of [
     { ...run, status: "in_progress" },
     { ...run, run_attempt: 2 },
@@ -47,11 +47,11 @@ test("active, failed, missing, ambiguous, changed-attempt and foreign evidence i
     assert.equal(consumedTransfer(artifact, run, changed), false);
   assert.equal(consumedTransfer({ ...artifact, name: "release-payload" }, run, jobs), false);
 });
-test("dry run never deletes; apply checks identity and verifies deletion", () => {
+void test("dry run never deletes; apply checks identity and verifies deletion", () => {
   let deleted = false;
   const api = {
-    paginateRest: (endpoint) => (endpoint.includes("/jobs?") ? jobs : [artifact]),
-    request: (method, endpoint: string) => {
+    paginateRest: (endpoint: string) => (endpoint.includes("/jobs?") ? jobs : [artifact]),
+    request: (method: string, endpoint: string) => {
       if (method === "DELETE") {
         deleted = true;
         return { body: null };
@@ -65,8 +65,9 @@ test("dry run never deletes; apply checks identity and verifies deletion", () =>
   assert.equal(deleted, false);
   assert.deepEqual(cleanup(api, { apply: true }).deleted, [10]);
 });
-test("incomplete pagination and a concurrently restarted run block deletion", () => {
+void test("incomplete pagination and a concurrently restarted run block deletion", () => {
   const incomplete = {
+    request: () => assert.fail("Incomplete pagination must abort before provider requests"),
     paginateRest: () => {
       throw new Error("incomplete");
     },
@@ -74,8 +75,8 @@ test("incomplete pagination and a concurrently restarted run block deletion", ()
   assert.throws(() => cleanup(incomplete, { apply: true }), /incomplete/u);
   let reads = 0;
   const api = {
-    paginateRest: (endpoint) => (endpoint.includes("/jobs?") ? jobs : [artifact]),
-    request: (method, endpoint: string) => {
+    paginateRest: (endpoint: string) => (endpoint.includes("/jobs?") ? jobs : [artifact]),
+    request: (method: string, endpoint: string) => {
       assert.notEqual(method, "DELETE");
       if (endpoint.endsWith("/runs/20"))
         return { body: ++reads === 1 ? run : { ...run, status: "in_progress" } };
@@ -83,4 +84,56 @@ test("incomplete pagination and a concurrently restarted run block deletion", ()
     },
   };
   assert.throws(() => cleanup(api, { apply: true }), /changed/u);
+});
+
+void test("unknown artifact expiry cannot authorize cleanup", () => {
+  for (const expired of [undefined, null, 0, "false", true]) {
+    const candidate = { ...artifact, expired };
+    assert.equal(consumedTransfer(candidate, run, jobs), false);
+    let deletions = 0;
+    const api = {
+      paginateRest: (endpoint: string) => (endpoint.includes("/jobs?") ? jobs : [candidate]),
+      request: (method: string) => {
+        if (method === "DELETE") deletions++;
+        return { body: run };
+      },
+    };
+    const result = cleanup(api, { apply: true });
+    assert.equal(deletions, 0);
+    assert.deepEqual(result.eligible, []);
+    assert.equal(result.preserved, 1);
+  }
+});
+void test("uncertain deletion is not retried and readable artifacts retain the original provider failure", () => {
+  for (const failure of [
+    new Error("provider failure"),
+    null,
+    undefined,
+    0,
+    false,
+    "original failure",
+  ]) {
+    let deletions = 0,
+      readbacks = 0;
+    const api = {
+      paginateRest: (endpoint: string) => (endpoint.includes("/jobs?") ? jobs : [artifact]),
+      request: (method: string, endpoint: string) => {
+        if (method === "DELETE") {
+          deletions++;
+          // Deliberately malformed provider rejections must keep their exact identity.
+          // oxlint-disable-next-line typescript/only-throw-error
+          throw failure;
+        }
+        if (endpoint.endsWith("/runs/20")) return { body: run };
+        if (deletions) readbacks++;
+        return { body: artifact };
+      },
+    };
+    assert.throws(
+      () => cleanup(api, { apply: true }),
+      (error: unknown) => error === failure,
+    );
+    assert.equal(deletions, 1);
+    assert.equal(readbacks, 1);
+  }
 });
