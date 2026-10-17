@@ -9,6 +9,16 @@ import type {
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import type { captureAccessibilityReport as captureAccessibility } from "./desktop-review-controls.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
+
+export function technicalDetailHasSeparation(row: {
+  labelRight: number;
+  valueLeft: number;
+  labelBottom: number;
+  valueTop: number;
+}): boolean {
+  return row.labelRight <= row.valueLeft || row.labelBottom <= row.valueTop;
+}
+
 interface RecoveryContext<Fixture> extends ScenarioArtifacts {
   invoke: BoundaryInvoke;
   By: typeof By;
@@ -154,6 +164,8 @@ export async function preferencesRecoveryScenario({
           labelScrollWidth: label.scrollWidth,
           labelRight: label.getBoundingClientRect().right,
           valueLeft: value.getBoundingClientRect().left,
+          labelBottom: label.getBoundingClientRect().bottom,
+          valueTop: value.getBoundingClientRect().top,
         };
       }),
     failure,
@@ -161,7 +173,7 @@ export async function preferencesRecoveryScenario({
   assert.ok(technicalRows.length > 0);
   for (const row of technicalRows) {
     assert.ok(row.labelScrollWidth <= row.labelWidth, `Technical label overflows: ${row.label}`);
-    assert.ok(row.labelRight <= row.valueLeft, `Technical label overlaps value: ${row.label}`);
+    assert.ok(technicalDetailHasSeparation(row), `Technical label overlaps value: ${row.label}`);
   }
   assert.ok(
     technicalRows.some(

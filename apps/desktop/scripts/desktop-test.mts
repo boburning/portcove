@@ -522,6 +522,8 @@ function validateBackupFocusInventory(captured: NativeProcessSnapshot, requireQu
           "native-normal-package-webview-boundary",
           "native-startup-library-recovery",
           "native-library-switch-recovery",
+          "native-late-listener-disposal",
+          "native-rejected-listener-registration",
         ].includes(check.scenario) && check.outcome === "passed",
     )
   ) {

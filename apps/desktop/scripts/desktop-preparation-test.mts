@@ -2073,7 +2073,7 @@ export async function preparationScenarios({
       artifacts.push(report);
     }
   });
-  const livePreparationCancellation = async (probeListener = false) => {
+  const livePreparationCancellation = async (probeListener?: "late" | "reject") => {
     const { port, install } = await seed("opengoal-jak2", "wait", true);
     await open(port);
     interface PhaseObservation {
@@ -2196,6 +2196,7 @@ export async function preparationScenarios({
       if (probeListener) {
         const runningActivity = required(activity);
         observations.listener_lifetime = await listenerLifetimeScenario({
+          mode: probeListener,
           browser,
           invoke,
           output,
@@ -2424,7 +2425,10 @@ export async function preparationScenarios({
     if (evidenceFailure) rethrowFailure(evidenceFailure);
   };
   await scenario("native-preparation-cancellation", () => livePreparationCancellation());
-  await scenario("native-late-listener-disposal", () => livePreparationCancellation(true));
+  await scenario("native-late-listener-disposal", () => livePreparationCancellation("late"));
+  await scenario("native-rejected-listener-registration", () =>
+    livePreparationCancellation("reject"),
+  );
   browser = await interruptedPreparationScenario({
     browser,
     invoke,

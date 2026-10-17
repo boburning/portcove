@@ -2,6 +2,22 @@
 
 ## Verification input and execution identities
 
+`native-rejected-listener-registration` is a standalone Windows qualification
+scenario. While actual Core preparation is running, it changes one owned event
+registration argument to an invalid name containing a space. Tauri itself rejects
+the request; its response is returned unchanged. The harness checks that the
+rejected handler and invoke callbacks settle, degraded live-update guidance and
+read-only refresh remain usable, and a genuine library-generation remount obtains
+a fresh listener without repeating preparation. This controlled invalid-input
+case does not establish natural transport loss or Linux listener qualification.
+
+The version-bound `@tauri-apps/api@2.12.4` patch releases only the callback allocated
+by a rejected `listen()` call and rethrows its original error. ESM and CommonJS
+entrypoints carry the same patch; successful registration and native unlisten
+retain upstream behavior. The maintained adapter regression uses the actual API
+package with an emulated transport. Review the patch and regression when updating
+that dependency; remove the patch only after equivalent upstream cleanup is proven.
+
 The Windows/Linux native CLI wrapper captures declared inputs before importing
 the harness. Supported standalone products and cached drivers execute retained
 bytes; path-sensitive or unestablished layouts retain the original path with
@@ -610,7 +626,7 @@ post-upgrade execution or replace Aqua's install-time checksum and attestation
 verification.
 
 Routine non-security development-tool proposals are eligible throughout the week
-after the existing release-age check, within the two concurrent queue slots.
+after the existing release-age check, within the four concurrent proposal slots.
 Aqua and its managed Ruff, actionlint, and ShellCheck pins are proposed as one
 qualification group. Renovate does not independently advance the standard
 registry ref: if an actual tool update is unavailable in the pinned registry, or
