@@ -209,6 +209,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-linux-packaged-webview-boundary",
             "native-direct-preparation-recovery",
             "native-late-listener-disposal",
+            "native-linux-interrupted-preparation",
             "native-rejected-listener-registration",
           ].includes(id),
       ),
@@ -860,5 +861,26 @@ void test("main journey dispatch permits smoke without setup inputs but rejects 
     await assert.rejects(
       run(resolveDesktopSelection({ scenarios: [id], platform: "win32" })),
       /Required scenario input missing/,
+    );
+});
+
+void test("Linux interruption is standalone, production-featured and retains namespace source custody", () => {
+  const id = "native-linux-interrupted-preparation";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "linux" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  const plan = planDesktopExecution(selection, { platform: "linux" });
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  for (const name of ["desktop-linux-native-session.mts", "native-linux-init.mts"])
+    assert.ok(plan.receiptInputs.some((input) => input.path === `apps/desktop/scripts/${name}`));
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "win32" }), /Linux/);
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "linux" }),
+    /standalone/,
+  );
+  for (const profile of ["smoke", "full"])
+    assert.ok(
+      !resolveDesktopSelection({ profile, platform: "linux" }).selected_scenarios.includes(id),
     );
 });

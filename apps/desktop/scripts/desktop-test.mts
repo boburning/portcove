@@ -311,13 +311,16 @@ const linuxPackagedInspector =
 let historyInventory: Awaited<ReturnType<typeof captureHistoryDriver>> | undefined;
 const linuxSelectedSession =
   process.platform === "linux" &&
-  selection.selected_scenarios.some((name) =>
-    [
-      "native-selected-setup-completion",
-      "native-saved-folder-selected-setup",
-      "native-linux-packaged-webview-boundary",
-      "native-linux-webview-origin-boundary",
-    ].includes(name),
+  selection.selected_scenarios.some(
+    (name) =>
+      [
+        "native-selected-setup-completion",
+        "native-saved-folder-selected-setup",
+        "native-linux-packaged-webview-boundary",
+        "native-linux-webview-origin-boundary",
+        "native-linux-interrupted-preparation",
+      ].includes(name) ||
+      (name === "native-preparation-cancellation" && selection.selected_scenarios.length === 1),
   );
 let linuxLaunch: LinuxLaunch | undefined;
 let linuxCleanup: LinuxCleanup | undefined;
@@ -1481,6 +1484,50 @@ async function interruptApplication(
   const evidence = path.join(output, `${name}-restart.json`);
   await writeFile(evidence, JSON.stringify(observation, null, 2), { flag: "wx" });
   artifacts.push(evidence);
+  return driverBrowser();
+}
+
+async function interruptLinuxPreparation(
+  name: string,
+  preparationExecutable: string,
+  assertStillPreparing: () => Promise<void>,
+) {
+  assert.equal(process.platform, "linux");
+  assert.equal(selection.selected_scenarios.length, 1);
+  assert.equal(selection.selected_scenarios[0], "native-linux-interrupted-preparation");
+  assert.ok(linuxSelectedSession && linuxLaunch);
+  assert.ok(
+    path.resolve(preparationExecutable).startsWith(path.resolve(library, "staging") + path.sep),
+  );
+  await assertStillPreparing();
+  const startedAt = new Date().toISOString();
+  const receipt = linuxLaunch.receipt;
+  // Do not delete the WebDriver session or request an application close. EOF
+  // makes the private PID namespace's init exit; the kernel ends its members.
+  browser = undefined;
+  await stopDriver();
+  assert.equal(required(linuxCleanup).quiesced, true);
+  const evidence = path.join(output, `${name}-restart.json`);
+  await writeFile(
+    evidence,
+    JSON.stringify(
+      {
+        started_at: startedAt,
+        shutdown_request: "private-pid-namespace-init-eof-without-session-delete",
+        launch_receipt: receipt,
+        joined_at: new Date().toISOString(),
+        cleanup: linuxCleanup,
+        limitation:
+          "Namespace teardown; no graceful close, app-only termination, OS shutdown or product quiescence attestation",
+      },
+      null,
+      2,
+    ) + "\n",
+    { flag: "wx" },
+  );
+  artifacts.push(evidence);
+  await startDriver();
+  await connect();
   return driverBrowser();
 }
 
@@ -3825,6 +3872,10 @@ try {
           selectedFixtureFamilies.has("preparation")
             ? preparationScenarios({
                 ...context,
+                interruptApplication:
+                  process.platform === "linux"
+                    ? interruptLinuxPreparation
+                    : context.interruptApplication,
                 cli: required(context.cli),
                 tool: required(context.tool),
               })

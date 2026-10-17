@@ -1249,6 +1249,7 @@ async function observeRecoveredPreparation({
   const command = recoveryCommand(commandRaw);
   const invoke = recoveryInvoke(invokeRaw);
   const recovered = command(["activity"]).records.find((item) => item.id === activity.id);
+  const platform = process.platform === "linux" ? "linux-x86-64" : "windows-x86-64";
   assert.ok(recovered, "Fresh startup must retain the exact operation identity");
   if (ordinaryClose) {
     assert.ok(["failed", "cancelled", "succeeded"].includes(required(recovered).status));
@@ -1288,7 +1289,7 @@ async function observeRecoveredPreparation({
       await digest(
         path.join(
           required(recoveredStatus.active).path,
-          required(required(port.executable_hints["windows-x86-64"])[0]),
+          required(required(port.executable_hints[platform])[0]),
         ),
       ),
       before.original_game_sha256,
@@ -1301,7 +1302,7 @@ async function observeRecoveredPreparation({
     );
   }
   let recoveredWorkspace;
-  if (ordinaryClose) {
+  if (ordinaryClose || process.platform === "linux") {
     const nativeStatus = await status(port.id);
     assert.deepEqual(nativeStatus.active, recoveredStatus.active);
     assert.deepEqual(nativeStatus.readiness, recoveredStatus.readiness);
@@ -1370,7 +1371,14 @@ async function previewRecoveredPreparationCleanup({
 export async function liveInterruptedPreparationScenario(
   context: LiveRecoveryContext,
 ): Promise<WebDriver> {
-  return livePreparationRecoveryScenario(context);
+  return livePreparationRecoveryScenario(
+    process.platform === "linux"
+      ? {
+          ...context,
+          scenarioId: "native-linux-interrupted-preparation",
+        }
+      : context,
+  );
 }
 
 export async function closedPreparationScenario(
@@ -1404,11 +1412,13 @@ async function livePreparationRecoveryScenario({
   const invoke = recoveryInvoke(invokeRaw);
   const command = recoveryCommand(commandRaw);
   await scenario(scenarioId, async () => {
-    assert.equal(process.platform, "win32", "This scenario qualifies Windows only");
+    const linux = scenarioId === "native-linux-interrupted-preparation";
+    assert.equal(process.platform, linux ? "linux" : "win32");
+    const platform = linux ? "linux-x86-64" : "windows-x86-64";
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     const { port } = await seed("opengoal-jak3", "wait");
     const original = path.join(output, `owned-${port.id}`);
-    const executableHint = required(required(port.setup_executable_hints["windows-x86-64"])[0]);
+    const executableHint = required(required(port.setup_executable_hints[platform])[0]);
     const source = path.join(output, `${port.id}.iso`);
     const digest = async (file: string) =>
       createHash("sha256")
@@ -1424,11 +1434,11 @@ async function livePreparationRecoveryScenario({
       source_sha256: await digest(source),
       original_executable_sha256: await digest(originalExecutable),
       original_game_sha256: await digest(
-        path.join(original, required(required(port.executable_hints["windows-x86-64"])[0])),
+        path.join(original, required(required(port.executable_hints[platform])[0])),
       ),
       active_setup_sha256: await digest(path.join(active.path, executableHint)),
       active_game_sha256: await digest(
-        path.join(active.path, required(required(port.executable_hints["windows-x86-64"])[0])),
+        path.join(active.path, required(required(port.executable_hints[platform])[0])),
       ),
       save_sha256: await digest(save),
     };
@@ -1486,9 +1496,7 @@ async function livePreparationRecoveryScenario({
     assert.equal(await digest(originalExecutable), before.original_executable_sha256);
     assert.equal(await digest(path.join(active.path, executableHint)), before.active_setup_sha256);
     assert.equal(
-      await digest(
-        path.join(active.path, required(required(port.executable_hints["windows-x86-64"])[0])),
-      ),
+      await digest(path.join(active.path, required(required(port.executable_hints[platform])[0]))),
       before.active_game_sha256,
     );
     assert.equal(await digest(save), before.save_sha256);
@@ -1534,7 +1542,9 @@ async function livePreparationRecoveryScenario({
         {
           method: ordinaryClose
             ? "ordinary Windows native host close, distinct owned fixture cleanup, then fresh native startup"
-            : "actual Windows owned host and preparation-child termination followed by fresh native startup",
+            : linux
+              ? "owned private Linux PID namespace init EOF, positive namespace join, then fresh native startup"
+              : "actual Windows owned host and preparation-child termination followed by fresh native startup",
           operation_id: activity.id,
           before,
           recovered_activity: recovered,

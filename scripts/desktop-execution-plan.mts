@@ -149,6 +149,14 @@ export function planDesktopExecution(
   inputs.push({ kind: "file", path: "apps/desktop/scripts/browser-readiness.mts" });
   inputs.push({ kind: "file", path: "scripts/acceptance-packet.mts" });
   inputs.push(receiptSource(harnessUrl));
+  if (
+    platform === "linux" &&
+    selection.selected_scenarios.some((id) =>
+      ["native-preparation-cancellation", "native-linux-interrupted-preparation"].includes(id),
+    )
+  )
+    for (const name of ["desktop-linux-native-session.mts", "native-linux-init.mts"])
+      inputs.push(receiptSource(new URL(name, harnessUrl)));
   if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundary")) {
     inputs.push(receiptSource(new URL("./desktop-main-webview-boundary.mts", harnessUrl)));
     inputs.push({ kind: "file", path: "scripts/desktop-linux-media.mts" });
