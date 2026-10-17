@@ -1,0 +1,50 @@
+name: Inactive application-update controller admission
+
+# This grants no production authority. No environment, credential, candidate,
+# signer, publisher or feed is reachable from this workflow. Separately reviewed
+# implementation and explicit owner provisioning/activation remain required.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-update-production-controller
+  cancel-in-progress: false
+
+jobs:
+  admission:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    env:
+      PORTCOVE_CONTROLLER_REVISION: ${{ vars.PORTCOVE_CONTROLLER_REVISION }}
+      PORTCOVE_CONTROLLER_REF: ${{ vars.PORTCOVE_CONTROLLER_REF }}
+      PORTCOVE_CONTROLLER_ADMISSION: ${{ vars.PORTCOVE_CONTROLLER_ADMISSION }}
+    steps:
+      - name: Refuse an unconfigured or different controller before checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PORTCOVE_CONTROLLER_REVISION" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$PORTCOVE_CONTROLLER_REF" =~ ^refs/tags/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]
+          [[ -n "$PORTCOVE_CONTROLLER_ADMISSION" ]]
+          [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]
+          [[ "$GITHUB_REPOSITORY" == boburning/portcove ]]
+          [[ "$GITHUB_REPOSITORY_ID" == 1354613114 ]]
+          [[ "$GITHUB_REF" == "$PORTCOVE_CONTROLLER_REF" ]]
+          [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_PROTECTED" == true ]]
+          [[ "$GITHUB_SHA" == "$PORTCOVE_CONTROLLER_REVISION" ]]
+          [[ "$GITHUB_WORKFLOW_SHA" == "$PORTCOVE_CONTROLLER_REVISION" ]]
+          [[ "$GITHUB_WORKFLOW_REF" == "boburning/portcove/.github/workflows/application-update-production.yml@$PORTCOVE_CONTROLLER_REF" ]]
+          [[ "$GITHUB_RUN_ATTEMPT" == 1 ]]
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Admit only the separately configured exact source and principal
+        run: node scripts/production-controller-admission.mts
