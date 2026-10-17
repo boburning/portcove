@@ -638,6 +638,7 @@ void test("Windows diagnostics serialize file workers without changing coverage 
     "scripts/desktop-execution-plan.test.mts",
     "scripts/desktop-linux-native-session.test.mts",
     "scripts/desktop-linux-stop.test.mts",
+    "scripts/desktop-listener-probe.test.mts",
     "scripts/desktop-verify.test.mts",
     "scripts/dev-doctor.test.mts",
     "scripts/development-capabilities.test.mts",

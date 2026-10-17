@@ -236,7 +236,6 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
-          import os from 'node:os';
           import { execFileSync } from 'node:child_process';
           import assert from 'node:assert/strict';
           const read = (command, args) => execFileSync(command, args, { encoding: 'utf8' }).trim();
@@ -246,7 +245,7 @@ jobs:
           fs.mkdirSync('work/linux-preparation-continuity', { recursive: true });
           fs.writeFileSync('work/linux-preparation-continuity/host.json', JSON.stringify({
             revision, runner: 'ubuntu-22.04', platform: process.platform,
-            architecture: process.arch, kernel: os.release(),
+            architecture: process.arch, kernel: read('uname', ['-r']),
             image_os: process.env.ImageOS, image_version: process.env.ImageVersion,
             node: process.version, pnpm: read('pnpm', ['--version']),
             rustc: read('rustc', ['--version', '--verbose']),
