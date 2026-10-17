@@ -550,7 +550,7 @@ pub(crate) fn single_zip_source_index(
         let name = entry.name().map_err(|error| {
             PortcoveError::source(format!("invalid source ZIP entry name: {error}"))
         })?;
-        let extension = Path::new(name.as_ref())
+        let extension = Path::new(&*name)
             .extension()
             .and_then(|value| value.to_str())
             .unwrap_or_default();
