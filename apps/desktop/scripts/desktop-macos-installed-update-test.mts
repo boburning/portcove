@@ -7,6 +7,7 @@ import { createServer } from "node:net";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { Builder, By } from "selenium-webdriver";
+import type { WebDriver } from "selenium-webdriver";
 import { driveInstalledUpdateToRestart } from "./desktop-application-update-journey.mts";
 import {
   hashFile,
@@ -29,73 +30,169 @@ const { values } = parseArgs({
       "relaunch-marker",
       "stage-marker",
       "library-marker",
-    ].map((name) => [name, { type: "string" }]),
+    ].map((name) => [name, { type: "string" }] as const),
   ),
 });
-for (const name of [
-  "app",
-  "output",
-  "staging",
-  "helper-marker",
-  "relaunch-marker",
-  "stage-marker",
-  "library-marker",
-])
-  assert.ok(values[name] && path.isAbsolute(values[name]), `--${name} must be absolute`);
-assert.match(values["candidate-sha"] ?? "", /^[0-9a-f]{64}$/u);
-assert.match(values["candidate-archive-sha"] ?? "", /^[0-9a-f]{64}$/u);
-assert.ok(values["candidate-version"]);
-await mkdir(values.output, { recursive: false });
-const evidencePath = path.join(values.output, "renderer-update-evidence.json");
-const initialSha = (await hashFile(values.app)).sha256;
-const librarySha = (await hashFile(values["library-marker"])).sha256;
-const report = {
+function requiredOption(name: string): string {
+  const value = values[name];
+  assert.ok(typeof value === "string" && value.length > 0, `--${name} is required`);
+  return value;
+}
+function absoluteOption(name: string): string {
+  const value = requiredOption(name);
+  assert.ok(path.isAbsolute(value), `--${name} must be absolute`);
+  return value;
+}
+const app = absoluteOption("app"),
+  evidenceDirectory = absoluteOption("output"),
+  staging = absoluteOption("staging");
+const helperMarker = absoluteOption("helper-marker"),
+  relaunchMarker = absoluteOption("relaunch-marker"),
+  stageMarker = absoluteOption("stage-marker"),
+  libraryMarker = absoluteOption("library-marker");
+const candidateSha = requiredOption("candidate-sha"),
+  archiveSha = requiredOption("candidate-archive-sha"),
+  candidateVersion = requiredOption("candidate-version");
+for (const sha of [candidateSha, archiveSha]) assert.match(sha, /^[0-9a-f]{64}$/u);
+await mkdir(evidenceDirectory, { recursive: false });
+const evidencePath = path.join(evidenceDirectory, "renderer-update-evidence.json");
+const initialSha = (await hashFile(app)).sha256;
+const librarySha = (await hashFile(libraryMarker)).sha256;
+type ProcessRole = "candidate" | "helper";
+interface ProcessIdentity {
+  pid: number;
+  started: string;
+  command: string;
+  state: string;
+}
+interface ProcessMarker {
+  schema_version: 1;
+  process_id: number;
+  executable: string;
+}
+interface NaturalExit {
+  observed_live: ProcessIdentity | null;
+  no_owned_process_remaining: true;
+}
+interface ApplicationExit {
+  code: number | null;
+  signal: NodeJS.Signals | null;
+}
+interface MacUpdateReport {
+  schema_version: 1;
+  phase: "started" | "failed" | "complete";
+  source_commit: string;
+  platform: NodeJS.Platform;
+  architecture: string;
+  app: string;
+  predecessor_sha256: string;
+  candidate_sha256: string;
+  candidate_archive_sha256: string;
+  candidate_version: string;
+  actions: string[];
+  webdriver_port?: number;
+  failure_dom_capture?: string;
+  failure_screenshot?: string;
+  predecessor_process_id?: number | undefined;
+  predecessor_identity?: ProcessIdentity | null;
+  staged?: Awaited<ReturnType<typeof verifyInstalledUpdateStaging>>;
+  restart_click?: string;
+  predecessor_exit?: ApplicationExit;
+  helper?: ProcessMarker;
+  helper_identity?: ProcessIdentity | null;
+  relaunch?: ProcessMarker;
+  relaunch_identity?: ProcessIdentity | null;
+  startup?: { stage: "Tauri setup"; process_id: number };
+  helper_exit?: NaturalExit;
+  relaunch_exit?: NaturalExit;
+  failure?: string;
+  cleanup_failure?: string;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
+  return value as Record<string, unknown>;
+}
+function positivePid(value: unknown): number {
+  assert.ok(
+    typeof value === "number" && Number.isSafeInteger(value) && value > 0,
+    "Invalid owned process marker PID",
+  );
+  return value;
+}
+function processMarker(value: unknown): ProcessMarker {
+  const marker = object(value);
+  assert.equal(marker.schema_version, 1);
+  assert.equal(marker.executable, app);
+  return {
+    ...marker,
+    schema_version: 1,
+    process_id: positivePid(marker.process_id),
+    executable: app,
+  };
+}
+// Cleanup ignores markers for other executables as before; matching identities
+// must pass the same PID checks used by the observed-process boundary.
+function ownedMarker(value: unknown): ProcessMarker | null {
+  if (!value || (typeof value !== "object" && typeof value !== "function")) return null;
+  if (
+    !("executable" in value) ||
+    value.executable !== app ||
+    !("schema_version" in value) ||
+    value.schema_version !== 1
+  )
+    return null;
+  return processMarker(value);
+}
+const report: MacUpdateReport = {
   schema_version: 1,
   phase: "started",
   source_commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
   platform: process.platform,
   architecture: process.arch,
-  app: values.app,
+  app,
   predecessor_sha256: initialSha,
-  candidate_sha256: values["candidate-sha"],
-  candidate_archive_sha256: values["candidate-archive-sha"],
-  candidate_version: values["candidate-version"],
+  candidate_sha256: candidateSha,
+  candidate_archive_sha256: archiveSha,
+  candidate_version: candidateVersion,
   actions: [],
 };
 const save = () => writeFile(evidencePath, `${JSON.stringify(report, null, 2)}\n`);
 async function availablePort() {
   const server = createServer();
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(0, "127.0.0.1", resolve);
   });
-  const port = server.address().port;
-  await new Promise((resolve, reject) =>
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const port = address.port;
+  await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
   );
   return port;
 }
-function psField(pid, field) {
+function psField(pid: number, field: "lstart" | "command" | "stat") {
   try {
     return execFileSync("/bin/ps", ["-ww", "-p", String(pid), "-o", `${field}=`], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
   } catch (error) {
-    if (error.status === 1) return null;
+    if (error !== null && typeof error === "object" && "status" in error && error.status === 1)
+      return null;
     throw error;
   }
 }
-function processIdentity(pid, role) {
+function processIdentity(pid: number, role: ProcessRole) {
   const identity = readProcessIdentity(pid);
   if (!identity) return null;
-  const expected = role === "helper" ? `${values.app} --portcove-apply-update ` : values.app;
+  const expected = role === "helper" ? `${app} --portcove-apply-update ` : app;
   if (role === "helper" ? !identity.command.startsWith(expected) : identity.command !== expected)
     throw new Error(`Marked ${role} PID does not run the owned installed executable`);
   return identity;
 }
-function readProcessIdentity(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) throw new Error("Invalid owned process marker PID");
+function readProcessIdentity(pid: number) {
+  positivePid(pid);
   const started = psField(pid, "lstart");
   if (!started) return null;
   const command = psField(pid, "command");
@@ -104,15 +201,15 @@ function readProcessIdentity(pid) {
     return null;
   return { pid, started, command, state };
 }
-function matchingChildIdentity(pid, role) {
+function matchingChildIdentity(pid: number, role: ProcessRole) {
   const command = psField(pid, "command");
   if (!command) return null;
-  const expected = role === "helper" ? `${values.app} --portcove-apply-update ` : values.app;
+  const expected = role === "helper" ? `${app} --portcove-apply-update ` : app;
   if (role === "helper" ? !command.startsWith(expected) : command !== expected) return null;
   // A matching child is re-read with its start identity; ambiguity fails.
   return processIdentity(pid, role);
 }
-function listenerPid(port) {
+function listenerPid(port: number) {
   try {
     const value = execFileSync("/usr/sbin/lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"], {
       encoding: "utf8",
@@ -120,11 +217,12 @@ function listenerPid(port) {
     }).trim();
     return /^\d+$/u.test(value) ? Number(value) : null;
   } catch (error) {
-    if (error.status === 1) return null;
+    if (error !== null && typeof error === "object" && "status" in error && error.status === 1)
+      return null;
     throw error;
   }
 }
-function childPids(pid) {
+function childPids(pid: number) {
   try {
     const output = execFileSync("/usr/bin/pgrep", ["-P", String(pid)], {
       encoding: "utf8",
@@ -135,11 +233,12 @@ function childPids(pid) {
       .map(Number)
       .filter((child) => Number.isInteger(child) && child > 0);
   } catch (error) {
-    if (error.status === 1) return [];
+    if (error !== null && typeof error === "object" && "status" in error && error.status === 1)
+      return [];
     throw error;
   }
 }
-async function naturalExit(marker, role) {
+async function naturalExit(marker: ProcessMarker, role: ProcessRole): Promise<NaturalExit> {
   const original = processIdentity(marker.process_id, role);
   await waitFor(
     async () => {
@@ -151,8 +250,9 @@ async function naturalExit(marker, role) {
   );
   return { observed_live: original, no_owned_process_remaining: true };
 }
-async function stopOwned(marker, role) {
-  if (!marker || marker.executable !== values.app || marker.schema_version !== 1) return;
+async function stopOwned(value: unknown, role: ProcessRole) {
+  const marker = ownedMarker(value);
+  if (!marker) return;
   const original = processIdentity(marker.process_id, role);
   if (!original) return;
   process.kill(marker.process_id, "SIGTERM");
@@ -175,11 +275,15 @@ async function stopOwned(marker, role) {
     );
   }
 }
-async function freezeCaptureAndStop(pid, role, childRole) {
+async function freezeCaptureAndStop(
+  pid: number,
+  role: ProcessRole,
+  childRole: ProcessRole,
+): Promise<ProcessIdentity[]> {
   const original = processIdentity(pid, role);
   if (!original) return [];
-  let children = [];
-  let failure;
+  let children: ProcessIdentity[] = [];
+  let failure: { error: unknown } | undefined;
   try {
     process.kill(pid, "SIGSTOP");
     await waitFor(
@@ -189,22 +293,23 @@ async function freezeCaptureAndStop(pid, role, childRole) {
     );
     children = childPids(pid)
       .map((child) => matchingChildIdentity(child, childRole))
-      .filter(Boolean);
+      .filter((child) => child !== null);
   } catch (error) {
-    failure = error;
+    failure = { error };
   } finally {
     try {
       if (processIdentity(pid, role)?.started === original.started) process.kill(pid, "SIGKILL");
       await waitFor(async () => !processIdentity(pid, role), `${role} forced exit`, 5000);
     } catch (error) {
-      failure ??= error;
+      failure ??= { error };
     }
   }
-  if (failure) throw failure;
+  if (failure) throw failure.error;
   return children;
 }
-async function stopHelper(marker) {
-  if (!marker || marker.executable !== values.app || marker.schema_version !== 1) return [];
+async function stopHelper(value: unknown): Promise<ProcessIdentity[]> {
+  const marker = ownedMarker(value);
+  if (!marker) return [];
   const original = processIdentity(marker.process_id, "helper");
   if (!original) return [];
   try {
@@ -224,19 +329,23 @@ async function stopHelper(marker) {
 }
 const port = await availablePort();
 report.webdriver_port = port;
-const application = spawn(values.app, [], {
+const application = spawn(app, [], {
   env: { ...process.env, TAURI_WEBDRIVER_PORT: String(port) },
   stdio: ["ignore", "pipe", "pipe"],
 });
-const applicationExit = new Promise((resolve) => {
+const applicationExit = new Promise<ApplicationExit>((resolve) => {
   application.once("exit", (code, signal) => resolve({ code, signal }));
 });
-async function bounded(promise, label, timeoutMs) {
-  let timer;
+async function bounded<Value>(
+  promise: PromiseLike<Value>,
+  label: string,
+  timeoutMs: number,
+): Promise<Value> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       promise,
-      new Promise((_, reject) => {
+      new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error(`${label} exceeded ${timeoutMs} ms`)), timeoutMs);
       }),
     ]);
@@ -244,7 +353,7 @@ async function bounded(promise, label, timeoutMs) {
     clearTimeout(timer);
   }
 }
-async function captureFailureState(browser) {
+async function captureFailureState(browser: WebDriver | undefined) {
   if (!browser) return;
   try {
     const state = await bounded(
@@ -265,7 +374,7 @@ async function captureFailureState(browser) {
       10_000,
     );
     await writeFile(
-      path.join(values.output, "failure-state.json"),
+      path.join(evidenceDirectory, "failure-state.json"),
       `${JSON.stringify(state, null, 2)}\n`,
     );
   } catch (error) {
@@ -273,7 +382,7 @@ async function captureFailureState(browser) {
   }
   try {
     await writeFile(
-      path.join(values.output, "failure-state.png"),
+      path.join(evidenceDirectory, "failure-state.png"),
       await bounded(browser.takeScreenshot(), "failure screenshot", 10_000),
       "base64",
     );
@@ -284,7 +393,7 @@ async function captureFailureState(browser) {
 let output = "";
 for (const stream of [application.stdout, application.stderr]) {
   stream.setEncoding("utf8");
-  stream.on("data", (chunk) => {
+  stream.on("data", (chunk: string) => {
     output = (output + chunk).slice(-1024 * 1024);
   });
 }
@@ -292,7 +401,7 @@ application.on("error", (error) => {
   output += `\nspawn: ${error.message}`;
 });
 report.predecessor_process_id = application.pid;
-let browser;
+let browser: WebDriver | undefined;
 try {
   await waitFor(
     async () => {
@@ -317,6 +426,7 @@ try {
     "embedded WebDriver session",
     20_000,
   );
+  assert.ok(application.pid);
   report.predecessor_identity = processIdentity(application.pid, "candidate");
   assert.ok(report.predecessor_identity, "Installed predecessor identity was not observed");
   await bounded(
@@ -325,16 +435,16 @@ try {
     180_000,
   );
   report.staged = await verifyInstalledUpdateStaging({
-    stagingRoot: values.staging,
+    stagingRoot: staging,
     payloadName: "candidate.payload",
-    candidateSha: values["candidate-archive-sha"],
-    candidateVersion: values["candidate-version"],
-    application: values.app,
+    candidateSha: archiveSha,
+    candidateVersion,
+    application: app,
     initialSha,
   });
   report.actions.push("installed-renderer-verified-candidate");
   await writeFile(
-    path.join(values.output, "before-restart.png"),
+    path.join(evidenceDirectory, "before-restart.png"),
     await bounded(browser.takeScreenshot(), "pre-restart screenshot", 20_000),
     "base64",
   );
@@ -353,28 +463,26 @@ try {
   const ended = await bounded(applicationExit, "installed predecessor exit", 30_000);
   assert.deepEqual(ended, { code: 0, signal: null });
   report.predecessor_exit = ended;
-  report.helper = await waitFor(
-    () => readJson(values["helper-marker"]),
-    "restart helper marker",
-    30_000,
+  report.helper = processMarker(
+    await waitFor(() => readJson(helperMarker), "restart helper marker", 30_000),
   );
   assert.equal(report.helper.schema_version, 1);
-  assert.equal(report.helper.executable, values.app);
+  assert.equal(report.helper.executable, app);
   assert.ok(Number.isInteger(report.helper.process_id) && report.helper.process_id > 0);
   report.helper_identity = processIdentity(report.helper.process_id, "helper");
-  report.relaunch = await waitFor(
-    () => readJson(values["relaunch-marker"]),
-    "automatic relaunch marker",
-    60_000,
+  report.relaunch = processMarker(
+    await waitFor(() => readJson(relaunchMarker), "automatic relaunch marker", 60_000),
   );
   assert.equal(report.relaunch.schema_version, 1);
-  assert.equal(report.relaunch.executable, values.app);
+  assert.equal(report.relaunch.executable, app);
   assert.ok(Number.isInteger(report.relaunch.process_id) && report.relaunch.process_id > 0);
   report.relaunch_identity = processIdentity(report.relaunch.process_id, "candidate");
   report.startup = await waitFor(
     async () => {
-      const marker = await readJson(values["stage-marker"]);
-      return marker.stage === "Tauri setup" ? marker : null;
+      const marker = object(await readJson(stageMarker));
+      return marker.stage === "Tauri setup"
+        ? { ...marker, stage: "Tauri setup" as const, process_id: positivePid(marker.process_id) }
+        : null;
     },
     "relaunch healthy startup",
     60_000,
@@ -382,29 +490,34 @@ try {
   assert.equal(report.startup.process_id, report.relaunch.process_id);
   await waitFor(
     async () => {
-      const apply = await readJson(path.join(values.staging, "apply.json"));
+      const apply = object(await readJson(path.join(staging, "apply.json")));
       return apply.intent === null && apply.native_launch === null ? true : null;
     },
     "relaunch journal reconciliation",
     30_000,
   );
-  assert.equal((await hashFile(values.app)).sha256, values["candidate-sha"]);
-  assert.equal((await hashFile(values["library-marker"])).sha256, librarySha);
-  await assert.rejects(stat(path.join(values.staging, "candidate.payload")), { code: "ENOENT" });
+  assert.equal((await hashFile(app)).sha256, candidateSha);
+  assert.equal((await hashFile(libraryMarker)).sha256, librarySha);
+  await assert.rejects(stat(path.join(staging, "candidate.payload")), { code: "ENOENT" });
   report.helper_exit = await naturalExit(report.helper, "helper");
   report.relaunch_exit = await naturalExit(report.relaunch, "candidate");
   report.actions.push("installed-helper-relaunched-candidate-and-reconciled");
   report.phase = "complete";
 } catch (error) {
   report.phase = "failed";
-  report.failure = String(error.stack ?? error);
+  const stack =
+    error !== null && (typeof error === "object" || typeof error === "function") && "stack" in error
+      ? error.stack
+      : undefined;
+  report.failure = String(stack ?? error);
   await captureFailureState(browser);
   throw error;
 } finally {
-  await writeFile(path.join(values.output, "application.log"), output);
-  let unmarkedHelper = null;
+  await writeFile(path.join(evidenceDirectory, "application.log"), output);
+  let unmarkedHelper: ProcessIdentity | undefined;
   if (application.exitCode === null && application.signalCode === null) {
     try {
+      assert.ok(application.pid);
       const identity = processIdentity(application.pid, "candidate");
       const identityChanged =
         identity &&
@@ -424,13 +537,13 @@ try {
   }
   const helper =
     report.helper ??
-    (await readJson(values["helper-marker"]).catch(() => null)) ??
+    (await readJson(helperMarker).catch(() => null)) ??
     (unmarkedHelper && {
       schema_version: 1,
       process_id: unmarkedHelper.pid,
-      executable: values.app,
+      executable: app,
     });
-  let unmarkedCandidates = [];
+  let unmarkedCandidates: ProcessIdentity[] = [];
   try {
     unmarkedCandidates = await stopHelper(helper);
   } catch (error) {
@@ -439,20 +552,20 @@ try {
   }
   // The helper is now gone, so it cannot create another candidate after this
   // marker read. Include a child captured while an unresponsive helper was stopped.
-  const candidate =
-    report.relaunch ?? (await readJson(values["relaunch-marker"]).catch(() => null));
+  const candidate = report.relaunch ?? (await readJson(relaunchMarker).catch(() => null));
   const candidateMarkers = [
     candidate,
     ...unmarkedCandidates.map((identity) => ({
       schema_version: 1,
       process_id: identity.pid,
-      executable: values.app,
+      executable: app,
     })),
   ];
   for (const marker of candidateMarkers) {
     try {
       await stopOwned(marker, "candidate");
-      if (marker && processIdentity(marker.process_id, "candidate"))
+      const owned = ownedMarker(marker);
+      if (owned && processIdentity(owned.process_id, "candidate"))
         report.cleanup_failure = "Candidate remained live after owned cleanup";
     } catch (error) {
       report.cleanup_failure = String(error);

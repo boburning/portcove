@@ -2404,3 +2404,4 @@ import "../apps/desktop/scripts/desktop-harness.native.test.mts";
 import "../apps/desktop/scripts/desktop-native-observations.native.test.mts";
 import "../apps/desktop/scripts/desktop-webview-boundary.native.test.mts";
 import "../apps/desktop/scripts/desktop-windows-update.native.test.mts";
+import "../apps/desktop/scripts/desktop-macos-installed-update.native.test.mts";
