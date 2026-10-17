@@ -1,3 +1,6 @@
+import type { TestContext } from "node:test";
+import type { PinnedAquaOptions } from "./tool-cache.mts";
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -15,10 +18,13 @@ import {
   toolCachePaths,
 } from "./tool-cache.mts";
 
-function aquaFixture(t) {
+function aquaFixture(t: TestContext) {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));
-  item.paths.pins.bootstrap.aqua = { artifacts: { "win32-x64": { sha256: "C".repeat(64) } } };
+  const aqua: {
+    artifacts: { "win32-x64": { sha256: string }; "win32-arm64"?: { sha256: string } };
+  } = { artifacts: { "win32-x64": { sha256: "C".repeat(64) } } };
+  item.paths.pins.bootstrap.aqua = aqua;
   mkdirSync(item.paths.shimDirectory, { recursive: true });
   const state = {
     format_version: 1,
@@ -32,13 +38,25 @@ function aquaFixture(t) {
   mkdirSync(path.dirname(item.paths.aquaExecutable), { recursive: true });
   const receipt = { version: item.paths.pins.aquaSemver, archive_sha256: "C".repeat(64) };
   writeFileSync(`${item.paths.aquaExecutable}.receipt.json`, JSON.stringify(receipt));
-  return { ...item, state, receipt };
+  return {
+    ...item,
+    paths: {
+      ...item.paths,
+      pins: { ...item.paths.pins, bootstrap: { ...item.paths.pins.bootstrap, aqua } },
+    },
+    state,
+    receipt,
+  };
 }
 
-test("pinned Aqua ignores a conflicting PATH executable and preserves child-only environment", (t) => {
+void test("pinned Aqua ignores a conflicting PATH executable and preserves child-only environment", (t) => {
   const item = aquaFixture(t);
-  const environment = { Path: "C:\\old-machine-tools", marker: "unchanged" };
-  const calls = [];
+  const environment: NodeJS.ProcessEnv = { Path: "C:\\old-machine-tools", marker: "unchanged" };
+  const calls: {
+    command: string;
+    args: readonly string[];
+    options: Parameters<NonNullable<PinnedAquaOptions["probe"]>>[2];
+  }[] = [];
   const executable = pinnedAquaCommand({
     paths: item.paths,
     platform: "win32",
@@ -50,15 +68,15 @@ test("pinned Aqua ignores a conflicting PATH executable and preserves child-only
     },
   });
   assert.equal(executable, item.paths.aquaExecutable);
-  assert.deepEqual(calls[0].args, ["--version"]);
-  assert.equal(calls[0].command, executable);
-  assert.equal(calls[0].options.cwd, item.paths.projectRoot);
-  assert.equal(calls[0].options.env.AQUA_ROOT_DIR, item.paths.aquaRoot);
+  assert.deepEqual(first(calls).args, ["--version"]);
+  assert.equal(first(calls).command, executable);
+  assert.equal(first(calls).options.cwd, item.paths.projectRoot);
+  assert.equal(first(calls).options.env?.AQUA_ROOT_DIR, item.paths.aquaRoot);
   assert.equal(environment.Path, "C:\\old-machine-tools");
   assert.equal(environment.AQUA_ROOT_DIR, undefined);
 });
 
-test("pinned Aqua fails closed on absent, stale or corrupt cache identities without PATH probing", (t) => {
+void test("pinned Aqua fails closed on absent, stale or corrupt cache identities without PATH probing", (t) => {
   const item = aquaFixture(t);
   let probes = 0;
   const options = {
@@ -95,7 +113,7 @@ test("pinned Aqua fails closed on absent, stale or corrupt cache identities with
   assert.equal(probes, 0);
 });
 
-test("pinned Aqua rejects missing, failed or wrong-version payloads without stale PATH fallback", (t) => {
+void test("pinned Aqua rejects missing, failed or wrong-version payloads without stale PATH fallback", (t) => {
   const item = aquaFixture(t);
   const options = { paths: item.paths, platform: "win32", osArchitecture: "x64" };
   assert.throws(() => pinnedAquaCommand(options), /executable is unavailable/u);
@@ -124,11 +142,11 @@ test("pinned Aqua rejects missing, failed or wrong-version payloads without stal
   );
 });
 
-test("non-Windows Aqua retains the existing executable lookup", () => {
+void test("non-Windows Aqua retains the existing executable lookup", () => {
   for (const platform of ["linux", "darwin"]) assert.equal(pinnedAquaCommand({ platform }), "aqua");
 });
 
-test("Windows ARM64 receipts follow bootstrap OS architecture even with an x64 Node cache path", (t) => {
+void test("Windows ARM64 receipts follow bootstrap OS architecture even with an x64 Node cache path", (t) => {
   const item = aquaFixture(t);
   item.paths.pins.bootstrap.aqua.artifacts["win32-arm64"] = { sha256: "D".repeat(64) };
   writeFileSync(
@@ -152,7 +170,7 @@ test("Windows ARM64 receipts follow bootstrap OS architecture even with an x64 N
   );
 });
 
-test("selected cached native executable preserves Unicode paths and literal arguments despite PATH collision", (t) => {
+void test("selected cached native executable preserves Unicode paths and literal arguments despite PATH collision", (t) => {
   const item = aquaFixture(t);
   // Node stands in for a native payload to inspect argv and executable identity.
   // The injected version probe is fixture evidence, not a live Aqua version claim.
@@ -189,7 +207,7 @@ test("selected cached native executable preserves Unicode paths and literal argu
   );
   assert.ifError(result.error);
   assert.equal(result.status, 0, result.stderr);
-  const observed = JSON.parse(result.stdout);
+  const observed = object(JSON.parse(result.stdout));
   assert.equal(observed.executable, item.paths.aquaExecutable);
   assert.deepEqual(observed.args, arguments_);
   assert.equal(environment[key], staleDirectory);
@@ -218,7 +236,7 @@ function fixture() {
   return { root, paths };
 }
 
-test("shared payload paths are stable while checkout shims remain isolated", (t) => {
+void test("shared payload paths are stable while checkout shims remain isolated", (t) => {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));
   const sibling = toolCachePaths({
@@ -250,7 +268,7 @@ test("shared payload paths are stable while checkout shims remain isolated", (t)
   assert.notEqual(different.aquaRoot, item.paths.aquaRoot);
 });
 
-function pinnedCheckoutFixture(t) {
+function pinnedCheckoutFixture(t: TestContext) {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));
   for (const name of [
@@ -274,13 +292,13 @@ function pinnedCheckoutFixture(t) {
   return { ...item, paths };
 }
 
-function changeJson(contents, change) {
-  const value = JSON.parse(contents);
+function changeJson(contents: string, change: (value: Record<string, unknown>) => void) {
+  const value = object(JSON.parse(contents));
   change(value);
   return JSON.stringify(value);
 }
 
-test("unrelated pins preserve the Aqua root while invalidating checkout state", (t) => {
+void test("unrelated pins preserve the Aqua root while invalidating checkout state", (t) => {
   const item = pinnedCheckoutFixture(t);
   mkdirSync(item.paths.shimDirectory, { recursive: true });
   writeFileSync(
@@ -295,7 +313,7 @@ test("unrelated pins preserve the Aqua root while invalidating checkout state", 
   );
   assert.notEqual(item.paths.pins.aquaFingerprint, item.paths.pins.fingerprint);
   assert.ok(readToolState({ paths: item.paths }));
-  const changes = [
+  const changes: Change[] = [
     [
       "package.json",
       (text) =>
@@ -314,21 +332,21 @@ test("unrelated pins preserve the Aqua root while invalidating checkout state", 
       "package.json",
       (text) =>
         changeJson(text, (value) => {
-          value.scripts.example = "unrelated script";
+          object(value.scripts).example = "unrelated script";
         }),
     ],
     [
       ".github/quality-tools.json",
       (text) =>
         changeJson(text, (value) => {
-          value.tools[0].version = "99.0.0";
+          first(array(value.tools).map(object)).version = "99.0.0";
         }),
     ],
     [
       ".config/tool-bootstrap.json",
       (text) =>
         changeJson(text, (value) => {
-          value.desktop.tauri_driver = "99.0.0";
+          object(value.desktop).tauri_driver = "99.0.0";
         }),
     ],
   ];
@@ -352,28 +370,31 @@ test("unrelated pins preserve the Aqua root while invalidating checkout state", 
   }
 });
 
-test("every Aqua manifest and bootstrap integrity input invalidates its root", (t) => {
+void test("every Aqua manifest and bootstrap integrity input invalidates its root", (t) => {
   const item = pinnedCheckoutFixture(t);
-  const changes = [
+  const changes: Change[] = [
     [".aqua-version", () => "v99.0.0\n"],
     ["aqua.yaml", (text: string) => text.replace(/ref: v\S+/u, "ref: v99.0.0")],
-    ...["astral-sh/ruff", "rhysd/actionlint", "koalaman/shellcheck"].map((name) => [
+    ...["astral-sh/ruff", "rhysd/actionlint", "koalaman/shellcheck"].map((name): Change => [
       "aqua.yaml",
       (text: string) => text.replace(new RegExp(`${name}@\\S+`, "u"), `${name}@v99.0.0`),
     ]),
-    ...["registries/", "github_release/"].map((prefix) => [
+    ...["registries/", "github_release/"].map((prefix): Change => [
       "aqua-checksums.json",
       (text) =>
         changeJson(text, (value) => {
-          const entry = value.checksums.find(({ id }) => id.startsWith(prefix));
+          const entry = array(value.checksums)
+            .map(object)
+            .find((entry) => stringValue(entry.id).startsWith(prefix));
+          assert.ok(entry);
           entry.checksum = entry.checksum === "A".repeat(64) ? "B".repeat(64) : "A".repeat(64);
         }),
     ]),
-    ...["win32-x64", "win32-arm64"].map((architecture) => [
+    ...["win32-x64", "win32-arm64"].map((architecture): Change => [
       ".config/tool-bootstrap.json",
       (text) =>
         changeJson(text, (value) => {
-          const artifact = value.aqua.artifacts[architecture];
+          const artifact = object(object(object(value.aqua).artifacts)[architecture]);
           artifact.sha256 = artifact.sha256 === "A".repeat(64) ? "B".repeat(64) : "A".repeat(64);
         }),
     ]),
@@ -398,26 +419,26 @@ test("every Aqua manifest and bootstrap integrity input invalidates its root", (
   }
 });
 
-test("Aqua cache identity preserves official-origin and bootstrap pin rejection", (t) => {
+void test("Aqua cache identity preserves official-origin and bootstrap pin rejection", (t) => {
   const item = pinnedCheckoutFixture(t);
   const file = path.join(item.paths.projectRoot, ".config/tool-bootstrap.json");
   const original = readFileSync(file, "utf8");
-  for (const [change, expected] of [
+  const invalidChanges: [(value: Record<string, unknown>) => void, RegExp][] = [
     [
       (value) => {
-        value.aqua.release_base = "https://example.invalid/aqua";
+        object(value.aqua).release_base = "https://example.invalid/aqua";
       },
       /official release origin/u,
     ],
     [
       (value) => {
-        value.aqua.artifacts["win32-x64"].archive = "arbitrary.zip";
+        object(object(object(value.aqua).artifacts)["win32-x64"]).archive = "arbitrary.zip";
       },
       /invalid Aqua archive/u,
     ],
     [
       (value) => {
-        value.aqua.artifacts["win32-arm64"].sha256 = "invalid";
+        object(object(object(value.aqua).artifacts)["win32-arm64"]).sha256 = "invalid";
       },
       /invalid Aqua SHA-256/u,
     ],
@@ -427,13 +448,14 @@ test("Aqua cache identity preserves official-origin and bootstrap pin rejection"
       },
       /schema_version must be 1/u,
     ],
-  ]) {
+  ];
+  for (const [change, expected] of invalidChanges) {
     writeFileSync(file, changeJson(original, change));
     assert.throws(() => readToolPins(item.paths.projectRoot), expected);
   }
 });
 
-test("supported hosts share Aqua identity and retain separate Aqua executable paths", (t) => {
+void test("supported hosts share Aqua identity and retain separate Aqua executable paths", (t) => {
   const item = pinnedCheckoutFixture(t);
   const executables = new Set();
   for (const platform of ["win32", "linux", "darwin"]) {
@@ -452,7 +474,7 @@ test("supported hosts share Aqua identity and retain separate Aqua executable pa
   assert.equal(executables.size, 6);
 });
 
-test("historical Aqua roots invalidate checkout state before any executable probe", (t) => {
+void test("historical Aqua roots invalidate checkout state before any executable probe", (t) => {
   const item = aquaFixture(t);
   const legacyRoot = path.join(item.paths.sharedRoot, "aqua-roots", item.paths.pins.fingerprint);
   assert.notEqual(legacyRoot, item.paths.aquaRoot);
@@ -481,7 +503,7 @@ test("historical Aqua roots invalidate checkout state before any executable prob
   assert.ok(readToolState({ paths: item.paths }));
 });
 
-test("checkout environment prepends only the local shims and scopes Aqua", (t) => {
+void test("checkout environment prepends only the local shims and scopes Aqua", (t) => {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));
   const original = { Path: "C:\\Windows", TOKEN: "kept" };
@@ -494,7 +516,7 @@ test("checkout environment prepends only the local shims and scopes Aqua", (t) =
   assert.deepEqual(original, { Path: "C:\\Windows", TOKEN: "kept" });
 });
 
-test("state is rejected after pin drift or missing desktop payloads", (t) => {
+void test("state is rejected after pin drift or missing desktop payloads", (t) => {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));
   mkdirSync(item.paths.shimDirectory, { recursive: true });
@@ -528,7 +550,7 @@ test("state is rejected after pin drift or missing desktop payloads", (t) => {
   assert.equal(readToolState({ paths: item.paths }), null);
 });
 
-test("unsupported platforms and architectures fail before path provisioning", (t) => {
+void test("unsupported platforms and architectures fail before path provisioning", (t) => {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));
   assert.throws(
@@ -543,3 +565,22 @@ test("unsupported platforms and architectures fail before path provisioning", (t
     /unsupported tool-cache platform or architecture/u,
   );
 });
+
+type Change = [string, (text: string) => string];
+function first<T>(values: readonly T[]): T {
+  const value = values[0];
+  assert.ok(value !== undefined);
+  return value;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function array(value: unknown): unknown[] {
+  assert.ok(Array.isArray(value));
+  return value;
+}
+function stringValue(value: unknown): string {
+  assert.ok(typeof value === "string");
+  return value;
+}
