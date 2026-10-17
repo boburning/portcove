@@ -6,7 +6,7 @@ import type {
 import assert from "node:assert/strict";
 import { assertOwnedSelectedSetupPath } from "./desktop-source-dialog-test.mts";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as scheduleRealTime } from "node:timers";
@@ -14,6 +14,7 @@ import { setTimeout as waitRealTime } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { test, vi } from "vite-plus/test";
+import { Session, WebDriver } from "selenium-webdriver";
 import {
   createInstallFixture,
   INSTALL_FIXTURE_PORT_ID,
@@ -271,6 +272,83 @@ test("completion report retains the original error across artifact and fallback-
   );
   assert.deepEqual(saved, report);
   assert.deepEqual(artifacts, ["owned-report.json"]);
+});
+
+test("completion report preserves explicit primitive failures including undefined", async () => {
+  for (const failure of [false, 0, "", null, undefined]) {
+    for (const brokenStorage of [false, true]) {
+      await assert.rejects(
+        retainCompletionReport({
+          file: "owned-report.json",
+          report: {},
+          artifacts: [],
+          failure,
+          write: () =>
+            brokenStorage
+              ? Promise.reject(new Error("secondary storage failure"))
+              : Promise.resolve(),
+          log: () => {},
+        }),
+        (error) => Object.is(error, failure),
+      );
+    }
+    await assert.rejects(
+      retainCompletionReport({
+        file: "owned-report.json",
+        report: {},
+        artifacts: [],
+        write: () => Promise.reject(failure),
+        log: () => {},
+      }),
+      (error) => Object.is(error, failure),
+    );
+  }
+});
+
+test("completion scenario retains primitive IPC failures after checking original inputs", async () => {
+  const output = await mkdtemp(path.join(tmpdir(), "portcove-completion-rejection-"));
+  const tool = path.join(output, "inert-tool");
+  await writeFile(tool, "inert fixture bytes; never executed");
+  const fixture = await createInstallFixture({
+    root,
+    output,
+    completionJourney: true,
+    preparationTool: tool,
+    revision: "a".repeat(40),
+  });
+  const browser = new WebDriver(new Session("completion-refusal-control", {}), {
+    execute: async () => assert.fail("First IPC refusal must precede browser commands"),
+  });
+  try {
+    for (const [index, failure] of [false, 0, "", null, undefined].entries()) {
+      const reportDirectory = path.join(output, `failure-${index}`);
+      await mkdir(reportDirectory);
+      const artifacts: string[] = [];
+      await assert.rejects(
+        selectedSetupCompletionScenario({
+          browser,
+          fixture,
+          output: reportDirectory,
+          artifacts,
+          library: path.join(output, "library"),
+          cli: process.execPath,
+          invoke: () => Promise.reject(failure),
+          scenario: async (_name: string, execute: () => Promise<void>) => execute(),
+          restartApplication: async () => assert.fail("Failed IPC must stop restart"),
+          chooseGameFileFolder: async () => assert.fail("Failed IPC must stop picker"),
+        }),
+        (error) => Object.is(error, failure),
+      );
+      const file = path.join(reportDirectory, "selected-setup-completion.json");
+      const report: unknown = JSON.parse(await readFile(file, "utf8"));
+      assert.equal(object(report).original_inputs_preserved, true);
+      assert.equal(object(object(report).failure).message, String(failure));
+      assert.deepEqual(artifacts, [file]);
+    }
+  } finally {
+    await fixture.close();
+    await rm(output, { recursive: true, force: true });
+  }
 });
 
 async function waitFor(predicate: () => unknown, message: string) {

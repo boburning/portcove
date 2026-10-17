@@ -51,27 +51,22 @@ export interface CompletionReportDiagnostics {
   artifact_write_failure?: string;
   fallback_log_failure?: string;
 }
-export async function retainCompletionReport<T extends object>({
-  file,
-  report,
-  artifacts,
-  failure,
-  write = writeFile,
-  log = console.error,
-}: {
+export async function retainCompletionReport<T extends object>(options: {
   file: string;
   report: T & CompletionReportDiagnostics;
   artifacts: string[];
+  // Presence represents a failed journey, including an explicit undefined throw.
   failure?: unknown;
   write?: (file: string, bytes: string, options: { flag: "wx" }) => Promise<unknown>;
   log?: (message: string) => unknown;
 }) {
-  let artifactFailure;
+  const { file, report, artifacts, write = writeFile, log = console.error } = options;
+  let artifactFailure: { error: unknown } | undefined;
   try {
     await write(file, JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
     artifacts.push(file);
   } catch (error) {
-    artifactFailure = error;
+    artifactFailure = { error };
     report.artifact_write_failure = String(error);
     try {
       log(JSON.stringify({ report, artifact_write_failure: String(error) }));
@@ -80,8 +75,8 @@ export async function retainCompletionReport<T extends object>({
     }
   }
   // Artifact or fallback failures never replace the original journey error.
-  if (failure) throw failure;
-  if (artifactFailure) throw artifactFailure;
+  if (Object.hasOwn(options, "failure")) throw options.failure;
+  if (artifactFailure) throw artifactFailure.error;
 }
 
 export async function selectedSetupCompletionScenario({
@@ -199,7 +194,7 @@ export async function selectedSetupCompletionScenario({
       port_id: port.id,
       observations: {},
     };
-    let failure;
+    let failure: { error: unknown } | undefined;
     try {
       assert.deepEqual(await read("get_sources"), []);
       assert.equal((await status()).active, null, "No adopted installation may seed completion");
@@ -1012,10 +1007,13 @@ export async function selectedSetupCompletionScenario({
         artifacts,
       );
     } catch (error) {
-      failure = error;
-      report.failure = { message: errorMessage(error), stack: error.stack };
+      failure = { error };
+      report.failure = {
+        message: errorMessage(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      };
     }
-    let preservationFailure;
+    let preservationFailure: { error: unknown } | undefined;
     try {
       for (const [actual, original] of [
         ["gamePath", "gameBefore"],
@@ -1028,15 +1026,16 @@ export async function selectedSetupCompletionScenario({
         );
       report.original_inputs_preserved = true;
     } catch (error) {
-      preservationFailure = error;
+      preservationFailure = { error };
       report.preservation_failure = errorMessage(error);
     }
     const file = path.join(output, "selected-setup-completion.json");
+    const primaryFailure = failure ?? preservationFailure;
     await retainCompletionReport({
       file,
       report,
       artifacts,
-      failure: failure ?? preservationFailure,
+      ...(primaryFailure ? { failure: primaryFailure.error } : {}),
     });
   });
 }
