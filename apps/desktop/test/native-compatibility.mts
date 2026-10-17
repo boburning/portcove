@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Builder, By, Key, until } from "selenium-webdriver";
+import type { WebDriver } from "selenium-webdriver";
 import { assertDesignCompatibility } from "../scripts/desktop-design-compatibility-assertions.mts";
 
 const application = process.env.PORTCOVE_NATIVE_COMPATIBILITY_APP;
@@ -31,19 +32,23 @@ const applicationProcess = spawn(application, [], {
 let applicationOutput = "";
 applicationProcess.stdout.setEncoding("utf8");
 applicationProcess.stderr.setEncoding("utf8");
-applicationProcess.stdout.on("data", (chunk) => (applicationOutput += chunk));
-applicationProcess.stderr.on("data", (chunk) => (applicationOutput += chunk));
-let spawnError;
+applicationProcess.stdout.on("data", (chunk: string) => (applicationOutput += chunk));
+applicationProcess.stderr.on("data", (chunk: string) => (applicationOutput += chunk));
+let spawnError: Error | undefined;
 applicationProcess.on("error", (error) => (spawnError = error));
-const applicationExit = new Promise((resolve) => {
+interface ApplicationExit {
+  code: number | null;
+  signal: NodeJS.Signals | null;
+}
+const applicationExit = new Promise<ApplicationExit>((resolve) => {
   applicationProcess.once("exit", (code, signal) => resolve({ code, signal }));
 });
-async function waitForApplicationExit(timeoutMs) {
-  let timer;
+async function waitForApplicationExit(timeoutMs: number) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       applicationExit,
-      new Promise((_, reject) => {
+      new Promise<never>((_, reject) => {
         timer = setTimeout(
           () => reject(new Error(`qualification application did not exit within ${timeoutMs}ms`)),
           timeoutMs,
@@ -55,13 +60,20 @@ async function waitForApplicationExit(timeoutMs) {
   }
 }
 
-let browser;
-let result = {
+interface CompatibilityResult {
+  artifact: typeof artifactIdentity;
+  revision: string | null;
+  status: "failed" | "passed";
+  error?: string;
+  cleanupError?: string;
+}
+let browser: WebDriver | undefined;
+let result: CompatibilityResult = {
   artifact: artifactIdentity,
   revision: process.env.PORTCOVE_NATIVE_COMPATIBILITY_REVISION ?? null,
   status: "failed",
 };
-let failure;
+let failure: { error: unknown } | undefined;
 try {
   const readyDeadline = Date.now() + 60_000;
   while (Date.now() < readyDeadline) {
@@ -117,7 +129,7 @@ try {
   result = { ...result, status: "passed" };
   console.log(`Native compatibility evidence: ${evidenceDirectory}`);
 } catch (error) {
-  failure = error;
+  failure = { error };
   result = {
     ...result,
     error: error instanceof Error ? errorMessage(error) : String(error),
@@ -126,7 +138,7 @@ try {
   try {
     if (browser) await browser.quit();
   } catch (error) {
-    failure ??= error;
+    failure ??= { error };
     result = {
       ...result,
       cleanupError: error instanceof Error ? errorMessage(error) : String(error),
@@ -140,7 +152,7 @@ try {
   try {
     exit = await waitForApplicationExit(10_000);
   } catch (error) {
-    failure ??= error;
+    failure ??= { error };
     result = {
       ...result,
       cleanupError: error instanceof Error ? errorMessage(error) : String(error),
@@ -150,7 +162,7 @@ try {
     try {
       exit = await waitForApplicationExit(5_000);
     } catch (forcedExitError) {
-      failure ??= forcedExitError;
+      failure ??= { error: forcedExitError };
       result = {
         ...result,
         cleanupError:
@@ -169,4 +181,4 @@ try {
     { flag: "wx" },
   );
 }
-if (failure) throw failure;
+if (failure) throw failure.error;
