@@ -46,9 +46,18 @@ install-script, release-age and security policies retain their owners.
 Preparation installs the complete frozen workspace and fetches locked Linux Cargo
 inputs. `install-linux-desktop-prerequisites.sh --include-rpm` owns native libraries;
 headless packaging does not request WebDriver or native GUI prerequisites. The
-builder selects `--install-timeout-seconds=2700` for cold package unpacking/configuration inside
+builder selects `--install-timeout-seconds=3600` for cold package unpacking/configuration inside
 the finite preparation budget. Existing hosted callers retain their 3/5-minute
-installation defaults; package coverage and existing mirror handling are unchanged.
+installation defaults; package coverage is unchanged. An install deadline failure
+stops immediately because a mirror retry cannot repair interrupted dpkg state.
+Other mirror failures retain the existing bounded fallback.
+The disposable image layer installs Ubuntu's `eatmydata` wrapper under separate
+five-minute update/install safeguards. Only the prerequisite helper runs with its
+sync-call interposition; a normal filesystem sync follows before the layer can
+succeed. A failed/interrupted layer is discarded. No preload setting is persisted
+or applied to source preparation, compilation, packaging, smoke tests or runtime.
+This targets package-database sync overhead left by the base image's existing
+`force-unsafe-io`; completion and any timing improvement require real run evidence.
 Installed apt/npm packages and actual Node, pnpm, Vite+, Rust, Cargo and Linux
 PowerShell versions are exported. Mutable apt inputs are observed; preparation
 is not represented as reproducible or offline.
@@ -66,6 +75,16 @@ format stays failed; existing files cannot turn it into success. Compile/archive
 inspection establishes no installed, GUI, minimum-platform, updater, security,
 signing or publication acceptance.
 
+Recovery normally requires the exact terminal BuildKit record. If an incomplete
+pre-runtime native build loses that record, recovery may instead establish actual
+local daemon replacement **after its preserved terminal failure**. It requires the
+original native-driver dispatch log, stopped client custody, a fresh validated
+Desktop/WSL engine and unchanged Docker disk, plus ordered installed-Docker init
+daemon stop/start events. A changed Desktop session or an existing image alone is
+insufficient. Bounded raw lifecycle logs and content hashes are retained with the
+run. Existing dead-owner, token and release-journal checks still control release;
+the failed run stays incomplete. Recovery never restarts the engine itself.
+
 ## Resource and evidence boundaries
 
 The task runs as UID/GID 1000 without sudo, mounts, host home/game libraries,
@@ -76,7 +95,7 @@ It exposes no service or host credential. This trusted build environment is not
 an arbitrary-executable sandbox guarantee.
 
 The builder uses four CPUs, 6 GiB RAM/no extra swap, 1 GiB shared memory and 1024
-PIDs, matching browser limits. Preparation is bounded to 90 minutes and the task
+PIDs, matching browser limits. Preparation is bounded to 120 minutes and the task
 to 90 minutes (`--timeout-ms` may tighten it). Browser deadlines stay at 30 minutes.
 Builder source-bundle export has a ten-minute safeguard, clipped to the remaining
 preparation budget; the browser source-bundle safeguard stays at five minutes.

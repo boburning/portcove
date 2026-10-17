@@ -101,6 +101,8 @@ pub(crate) enum KnownFailureCause {
     NewerLibrary,
     IncompleteLibrary,
     Busy,
+    CancellationUnavailable,
+    RequiredRuntimeUnverified,
     SourceChanged,
     AmbiguousAdoption,
     StaleRemoval,
@@ -151,6 +153,14 @@ impl KnownFailureCause {
             Self::SourceChanged => (
                 "registered_source_changed",
                 "The game files have changed since registration. Review and verify the current files, then register the accepted source again before using it.",
+            ),
+            Self::CancellationUnavailable => (
+                "cancellation_unavailable",
+                "Cancellation is unavailable for this operation's current state. Review its current activity and result before taking another action.",
+            ),
+            Self::RequiredRuntimeUnverified => (
+                "required_runtime_unverified",
+                "This installation's required runtime could not be verified. Review its runtime requirements and current installation; use an offered compatible update or repair when available.",
             ),
             Self::AmbiguousAdoption => (
                 "adoption_ambiguous",

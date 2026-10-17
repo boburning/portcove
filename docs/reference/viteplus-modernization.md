@@ -25,12 +25,36 @@ retain their original source and conditions.
 
 Oxfmt package-manifest sorting is enabled. Import-declaration sorting remains disabled:
 the pinned formatter's `sortSideEffects: false` preserves bare imports' positions but
-can move value imports across them, changing evaluation order. Tailwind sorting
-also remains disabled after testing actual `cn` and `cva` composition: sorting
-`cn("p-4 p-2")` to `cn("p-2 p-4")` changes the winning padding, and
-`cn("px-4 p-2")` gains a different horizontal result after sorting. The same
-merge occurs for classes returned by variants or passed through component
-`className`. These are measured semantic exceptions, not an unimplemented sorter.
+can move value imports across them, changing evaluation order. Keep `sortImports: false`.
+
+### Historical sorting decision and current authoring
+
+The October 15 consolidation initially left Tailwind sorting disabled: sorting
+`cn("p-4 p-2")` to `cn("p-2 p-4")` changed the winning padding, and sorting
+`cn("px-4 p-2")` changed the horizontal result. Those dated observations remain
+valid for conflicting utilities within one literal; the earlier statement that
+sorting remained disabled became stale after the [CSS cutover](css-architecture.md).
+That cutover established utility-based controls, but did not document a mechanical
+fix for literal-order dependence.
+
+Current root configuration enables Oxfmt Tailwind sorting from
+`apps/desktop/src/styles/index.css` for `cn` and `cva`. Author each sorted literal
+without depending on conflicting utility order. Remove the superseded utility,
+or express an intentional override as a later argument/variant/caller value.
+`cn("p-4", "p-2")` and `cn("px-4", "p-2")` preserve argument order through formatting;
+`cn` merges the later override. CVA's base/variant composition and the shared
+`controlClassName(base, className)` wrapper likewise preserve their ordering,
+including Base UI state-resolver callbacks. A conflicting pair _inside_ a variant
+or caller literal has the same sorting hazard as any other single literal.
+
+October 17 bounded recheck at main `5c97e462b1a6dd0938a9d14c6fb0a1ebcabb56f1`,
+Node 24.21.0, pinned Vite+ 1.3.0/Oxfmt 0.73.0, `cn` 0.4.0 and CVA 0.7.1:
+the actual formatter changed the two single-literal results from `p-2` to `p-4`
+and `p-2 px-4`, respectively. Separate-argument, CVA variant, shared caller and
+state-resolver probes all remained `p-2` before/after formatting. Inspection of
+the current shared Button and control wrapper confirms those separate composition
+boundaries. This supports the current authoring choice; it does not establish
+that arbitrary conflicting literals are safe or constitute new visual acceptance.
 
 Normal checks preserve strict/exact-optional/indexed-access typing for production,
 tests and configuration. Pnpm's non-strict 1440-minute policy and Renovate's strict

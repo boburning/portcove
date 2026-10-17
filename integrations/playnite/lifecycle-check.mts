@@ -10,7 +10,6 @@ import type {
   TransportOutputs,
 } from "../../apps/desktop/src/transport-types.generated.d.ts";
 import { isRecord } from "../../scripts/runtime-values.mts";
-import { transportValue } from "../../apps/desktop/scripts/transport-values.mts";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -258,6 +257,7 @@ async function checkReviewedExternal(
   workspace: string,
   env: NodeJS.ProcessEnv,
 ) {
+  const { transportValue } = await import("../../apps/desktop/scripts/transport-values.mts");
   const port = "external-consent-fixture";
   const folder = path.join(workspace, "player-owned external 雪");
   await mkdir(folder);
@@ -430,6 +430,7 @@ async function checkReviewedExternal(
 async function main() {
   if (process.platform !== "win32")
     throw new Error("Playnite lifecycle qualification requires Windows.");
+  const { transportValue } = await import("../../apps/desktop/scripts/transport-values.mts");
   const environment = prepareStorageScope("rust");
   const { cli, temporary } = lifecyclePaths(getPaths("rust"));
   const workspace = await mkdtemp(path.join(temporary, "portcove-playnite-lifecycle-"));

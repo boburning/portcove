@@ -697,6 +697,7 @@ import {
   prepareBootstrapRecoveryFixture,
   preferencesRecoverySelection,
   preparePreferencesRecoveryFixture,
+  technicalDetailHasSeparation,
 } from "../apps/desktop/scripts/desktop-bootstrap-recovery-test.mts";
 import {
   catalogReport,
@@ -1031,6 +1032,21 @@ void test(
     );
   },
 );
+
+void test("technical detail geometry accepts stacked or side-by-side rows and rejects overlap", () => {
+  assert.equal(
+    technicalDetailHasSeparation({ labelRight: 80, valueLeft: 100, labelBottom: 30, valueTop: 10 }),
+    true,
+  );
+  assert.equal(
+    technicalDetailHasSeparation({ labelRight: 80, valueLeft: 10, labelBottom: 30, valueTop: 40 }),
+    true,
+  );
+  assert.equal(
+    technicalDetailHasSeparation({ labelRight: 80, valueLeft: 10, labelBottom: 30, valueTop: 10 }),
+    false,
+  );
+});
 
 void test("preferences recovery is standalone and preserves a malformed original before repair", async (t) => {
   const id = "native-startup-preferences-recovery";
