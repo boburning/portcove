@@ -209,6 +209,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-linux-packaged-webview-boundary",
             "native-direct-preparation-recovery",
             "native-late-listener-disposal",
+            "native-rejected-listener-registration",
           ].includes(id),
       ),
     });
@@ -459,27 +460,37 @@ void test("direct preparation recovery qualification is opt-in with positive ide
   );
 });
 
-void test("late listener qualification binds its imported probe and positive final cleanup", () => {
-  const plan = planDesktopExecution(
-    resolveDesktopSelection({ scenarios: ["native-late-listener-disposal"], platform: "win32" }),
-  );
-  assert.equal(plan.session.identityBoundSession, true);
-  assert.equal(plan.session.cleanupName, "late-listener-disposal");
-  assert.ok(
-    plan.fixtureFamilies.some(
-      (entry) =>
-        entry.family === "preparation" &&
-        entry.members?.some((member) => member.id === "native-late-listener-disposal"),
-    ),
-  );
-  assert.ok(
-    plan.receiptInputs.some(
-      (input) => input.path === "apps/desktop/scripts/desktop-listener-lifetime-test.mts",
-    ),
-  );
-  assert.ok(plan.selection.prerequisites.includes("native-dialog"));
-  assert.ok(plan.selection.host_resources.includes("native-dialog"));
-});
+for (const id of ["native-late-listener-disposal", "native-rejected-listener-registration"])
+  void test(`${id} binds its imported probe and positive final cleanup`, () => {
+    const plan = planDesktopExecution(
+      resolveDesktopSelection({ scenarios: [id], platform: "win32" }),
+    );
+    assert.equal(plan.session.identityBoundSession, true);
+    assert.equal(
+      plan.session.cleanupName,
+      id === "native-late-listener-disposal"
+        ? "late-listener-disposal"
+        : "rejected-listener-registration",
+    );
+    assert.ok(
+      plan.fixtureFamilies.some(
+        (entry) =>
+          entry.family === "preparation" && entry.members?.some((member) => member.id === id),
+      ),
+    );
+    assert.ok(
+      plan.receiptInputs.some(
+        (input) => input.path === "apps/desktop/scripts/desktop-listener-lifetime-test.mts",
+      ),
+    );
+    assert.ok(plan.selection.prerequisites.includes("native-dialog"));
+    assert.ok(plan.selection.host_resources.includes("native-dialog"));
+    if (id === "native-rejected-listener-registration")
+      for (const source of ["pnpm-workspace.yaml", "patches/@tauri-apps__api@2.12.4.patch"])
+        assert.ok(
+          plan.receiptInputs.some((input) => input.kind === "file" && input.path === source),
+        );
+  });
 
 void test("backup review requires identity-bound Windows cleanup under the existing deadline", () => {
   for (const platform of ["win32", "linux"] as const) {
@@ -505,6 +516,8 @@ void test("qualified reviews and a running setup restart reject missing or forei
   for (const { scenario, outcome = "passed", requireQualified = false } of [
     { scenario: "native-reviewed-backup-restore-and-delete" },
     { scenario: "native-preliminary-source-review" },
+    { scenario: "native-late-listener-disposal" },
+    { scenario: "native-rejected-listener-registration" },
     { scenario: "native-selected-setup-completion", outcome: "running", requireQualified: true },
   ]) {
     const validate = callable(

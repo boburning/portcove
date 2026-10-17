@@ -14,6 +14,80 @@ const marker = "function install(";
 assert.equal(source.indexOf(marker), source.lastIndexOf(marker));
 assert.ok(source.indexOf(marker) > 0);
 
+void test("manual refresh arms only an idle unique visible owner and activates it in the same turn", () => {
+  const calls: string[] = [];
+  let busy = true;
+  let duplicates = false;
+  let hidden = false;
+  let visibility = "visible";
+  class Button {
+    textContent = "Refresh now";
+    disabled = false;
+    isConnected = true;
+    closest() {
+      return hidden ? {} : null;
+    }
+    getClientRects() {
+      return [{}];
+    }
+    click() {
+      calls.push("click");
+    }
+  }
+  const button = new Button();
+  const notice = {
+    querySelectorAll(selector: string) {
+      return selector === "strong"
+        ? [{ textContent: "Live workspace updates are unavailable" }]
+        : [button];
+    },
+  };
+  const activation = "function activateManualRefresh(";
+  assert.equal(source.indexOf(activation), source.lastIndexOf(activation));
+  const raw: unknown = runInNewContext(
+    source.slice(source.indexOf(activation), source.indexOf(marker)) + "\nactivateManualRefresh",
+    {
+      document: {
+        querySelectorAll(selector: string) {
+          assert.equal(selector, '[role="status"][aria-busy="false"]');
+          return busy ? [] : duplicates ? [notice, notice] : [notice];
+        },
+      },
+      window: {
+        probe: {
+          armRefresh() {
+            calls.push("arm");
+          },
+        },
+      },
+      HTMLButtonElement: Button,
+      getComputedStyle: () => ({ display: "inline-flex", visibility }),
+    },
+  );
+  assert.equal(typeof raw, "function");
+  const activate = raw as (key: string) => boolean;
+  assert.equal(activate("probe"), false);
+  busy = false;
+  duplicates = true;
+  assert.equal(activate("probe"), false);
+  duplicates = false;
+  button.disabled = true;
+  assert.equal(activate("probe"), false);
+  button.disabled = false;
+  hidden = true;
+  assert.equal(activate("probe"), false);
+  hidden = false;
+  button.isConnected = false;
+  assert.equal(activate("probe"), false);
+  button.isConnected = true;
+  visibility = "hidden";
+  assert.equal(activate("probe"), false);
+  assert.deepEqual(calls, []);
+  visibility = "visible";
+  assert.equal(activate("probe"), true);
+  assert.deepEqual(calls, ["arm", "click"]);
+});
+
 for (const outcome of ["ok", "error"])
   void test(`listener probe distinguishes actual ${outcome} from HTTP200`, async () => {
     const callbacks = new Map<number, (value: unknown) => void>();
