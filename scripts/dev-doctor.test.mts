@@ -476,9 +476,9 @@ void test("Core profile observes only Rust capabilities; missing frontend cannot
       commands.push([command, args]);
       assert.equal(options.env?.RUSTUP_AUTO_INSTALL, "0");
       assert.equal(options.env?.COREPACK_ENABLE_NETWORK, "0");
-      if (command === "rustc") return { status: 0, stdout: "rustc 1.98.1" };
+      if (command === "rustc") return { status: 0, stdout: "rustc 1.99.1" };
       if (args[0] === "nextest") return { status: 0, stdout: "cargo-nextest 0.9.100" };
-      return { status: 0, stdout: "1.98.1" };
+      return { status: 0, stdout: "1.99.1" };
     },
   });
   assert.equal(report.ok, true);

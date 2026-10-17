@@ -123,7 +123,9 @@ function tableCells(line: string) {
 }
 
 function markdownLabel(value: string) {
-  return /^\[([^\]]+)\]\([^)]+\)$/u.exec(value)?.[1] ?? value;
+  // Renovate may append its source link to the package link. Only accept that
+  // complete cell shape; unknown suffixes must retain their unverified identity.
+  return /^\[([^\]]+)\]\([^()\s]+\)(?:\s+\(\[source\]\([^()\s]+\)\))?$/u.exec(value)?.[1] ?? value;
 }
 
 function parseVersion(value: string) {

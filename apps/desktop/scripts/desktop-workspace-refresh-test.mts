@@ -1,5 +1,5 @@
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
-import type { InstallRecord } from "../src/transport-types.generated.d.ts";
+import type { InstallRecord, ActivityRecord } from "../src/transport-types.generated.d.ts";
 import { transportValue } from "./transport-values.mts";
 interface RefreshContext extends ScenarioContext {
   invoke: (command: string) => Promise<unknown>;
@@ -18,7 +18,13 @@ interface RefreshWindow extends Window {
     remaining: number;
     injected: number;
   };
-  __portcoveExternalReconciliationProbe?: { originalFetch: typeof fetch; commands: string[] };
+  __portcoveExternalReconciliationProbe?: {
+    originalFetch: typeof fetch;
+    commands: string[];
+    supportRequests?: number;
+    supportGate?: Promise<void>;
+    releaseSupport?: () => void;
+  };
 }
 interface RefreshObservations {
   injection: string;
@@ -30,6 +36,15 @@ interface RefreshObservations {
   probe?: { installed: false } | { injected: number; commands: string[]; restored: boolean };
 }
 interface ReconciliationObservations {
+  commit_convergence_synthetic_desktop_events: number;
+  progress_reconciliation?: {
+    injection: string;
+    activity_id: string;
+    durable_status: string;
+    next_task_label: string | null;
+    next_task_indeterminate: boolean;
+    support_requests: number;
+  };
   mutation_process: string;
   synthetic_desktop_events: number;
   intervals_ms: { visible_idle_database: number; visible_filesystem_fallback: number };
@@ -283,6 +298,7 @@ export async function workspaceRefreshScenario({
     }
     const observations: ReconciliationObservations = {
       mutation_process: "standalone CLI",
+      commit_convergence_synthetic_desktop_events: 0,
       synthetic_desktop_events: 0,
       intervals_ms: { visible_idle_database: 10_000, visible_filesystem_fallback: 60_000 },
       commands: [],
@@ -315,7 +331,7 @@ export async function workspaceRefreshScenario({
       const install = object(command(["adopt", original, "--port", port.id, "--yes"]));
       assert.ok(typeof install.id === "string" && typeof install.version === "string");
       await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
-      await browser.wait(until.elementLocated(By.css('b[aria-label="1 installed"]')), 15_000);
+      await browser.wait(until.elementLocated(By.css('b[aria-label="1 in library"]')), 15_000);
       const cardLocator = By.xpath(
         `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
       );
@@ -365,18 +381,135 @@ export async function workspaceRefreshScenario({
       const adoptedActivity = activityAfter.records.find(
         (activity) => activity.operation === "adopt" && activity.target_id === port.id,
       );
-      assert.equal(adoptedActivity?.status, "succeeded");
+      assert.ok(adoptedActivity);
+      assert.equal(adoptedActivity.status, "succeeded");
       observations.policy = {
         value: "automatic",
         converged_ms: Date.now() - policyStarted,
         activity_rows_before: activityBefore.records.length,
         activity_rows_after: activityAfter.records.length,
       };
-      observations.commands = await executeBrowserScript(browser, () => {
+      // The preceding commits converge without injected notifications. Separately
+      // replay one delayed progress event for the actual terminal Core activity.
+      await browser
+        .executeAsyncScript<unknown>(
+          (
+            activity: Pick<ActivityRecord, "id" | "operation" | "target_kind" | "target_id">,
+            done: (value: unknown) => void,
+          ) => {
+            const native = (window as RefreshWindow).__TAURI_INTERNALS__;
+            if (!native) throw new Error("Native bridge unavailable");
+            native
+              .invoke("plugin:event|emit", {
+                event: "portcove://operation",
+                payload: {
+                  schema_version: 3,
+                  operation_id: activity.id,
+                  parent_operation_id: null,
+                  sequence: 100,
+                  timestamp_ms: Date.now(),
+                  operation: activity.operation,
+                  target: { kind: activity.target_kind, id: activity.target_id },
+                  type: "progress",
+                  phase: "copy",
+                  completed: 1,
+                  total: 10,
+                },
+              })
+              .then(
+                () => done({ ok: true }),
+                (error: unknown) => done({ error }),
+              );
+          },
+          adoptedActivity,
+        )
+        .then((result) => assert.equal(object(result).ok, true, JSON.stringify(result)));
+      observations.synthetic_desktop_events = 1;
+      await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+      await executeBrowserScript(browser, () => {
         const runtime = window as RefreshWindow;
-        if (!runtime.__portcoveExternalReconciliationProbe)
-          throw new Error("Reconciliation probe unavailable");
-        return runtime.__portcoveExternalReconciliationProbe.commands;
+        const probe = runtime.__portcoveExternalReconciliationProbe;
+        const native = runtime.__TAURI_INTERNALS__;
+        if (!probe || !native) throw new Error("Reconciliation native probe unavailable");
+        const previous = window.fetch;
+        probe.supportRequests = 0;
+        probe.supportGate = new Promise<void>((resolve) => {
+          probe.releaseSupport = resolve;
+        });
+        window.fetch = async function (input, ...args) {
+          const url =
+            typeof input === "string"
+              ? input
+              : ((typeof input === "object" && input !== null && "url" in input
+                  ? input.url
+                  : undefined) ??
+                // Preserve existing request-like URL coercion for cross-realm inputs.
+                // oxlint-disable-next-line typescript/no-base-to-string
+                String(input));
+          if (url === native.convertFileSrc("create_support_bundle", "ipc")) {
+            if (typeof probe.supportRequests !== "number")
+              throw new Error("Support probe counter unavailable");
+            probe.supportRequests++;
+            await probe.supportGate;
+          }
+          return previous.call(window, input, ...args);
+        };
+      });
+      try {
+        await browser
+          .findElement(By.xpath('//button[normalize-space(.)="Create support bundle"]'))
+          .click();
+        await browser.wait(
+          async () =>
+            executeBrowserScript(browser, () => {
+              const probe = (window as RefreshWindow).__portcoveExternalReconciliationProbe;
+              if (!probe) throw new Error("Reconciliation probe unavailable");
+              return probe.supportRequests === 1;
+            }),
+          10_000,
+        );
+        const progress = await browser.wait(
+          until.elementLocated(By.css('.operation-bar [role="progressbar"]')),
+          10_000,
+        );
+        const label = await progress.getAttribute("aria-label");
+        assert.equal(label, "Working");
+        assert.equal(await progress.getAttribute("aria-valuenow"), null);
+        observations.progress_reconciliation = {
+          injection:
+            "one delayed synthetic progress event for an actual Core terminal activity; support-bundle IPC held before dispatch",
+          activity_id: adoptedActivity.id,
+          durable_status: adoptedActivity.status,
+          next_task_label: label,
+          next_task_indeterminate: true,
+          support_requests: 1,
+        };
+        const screenshot = path.join(output, "terminal-snapshot-next-task.png");
+        await writeFile(screenshot, await browser.takeScreenshot(), {
+          encoding: "base64",
+          flag: "wx",
+        });
+        artifacts.push(screenshot);
+      } finally {
+        await executeBrowserScript(browser, () => {
+          const probe = (window as RefreshWindow).__portcoveExternalReconciliationProbe;
+          if (!probe) throw new Error("Reconciliation probe unavailable");
+          probe.releaseSupport?.();
+        });
+      }
+      await browser.wait(
+        async () => (await browser.findElements(By.css(".operation-bar"))).length === 0,
+        15_000,
+      );
+      const reconciledActivity = activity(await invoke("get_activities"));
+      assert.equal(
+        reconciledActivity.records.find((activity) => activity.id === adoptedActivity.id)?.status,
+        "succeeded",
+      );
+      observations.commands = await executeBrowserScript(browser, () => {
+        const probe = (window as RefreshWindow).__portcoveExternalReconciliationProbe;
+        if (!probe) throw new Error("Reconciliation probe unavailable");
+        return probe.commands;
       });
       assert.ok(observations.commands.includes("get_workspace_changed"));
       assert.ok(observations.commands.includes("get_workspace_snapshot"));

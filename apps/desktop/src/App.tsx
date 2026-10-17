@@ -339,6 +339,7 @@ function Workspace({
     refresh: data.retryRefresh,
     refreshActivities: data.refreshActivities,
     invalidateDiagnostics: data.invalidateDiagnostics,
+    activities: data.activities,
   });
   const github = useGithubAuth(operations.perform, operations.setError);
   const updates = useUpdateCenter(operations.perform, data.statuses);
