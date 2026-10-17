@@ -294,6 +294,26 @@ void test("serialized source-format injection preserves unrelated snapshots and 
   ]);
   assert.equal(calls[0]?.[0], target);
   assert.equal(calls[0]?.[1], init);
+  const forwardedInputs: unknown[] = [
+    new URL(target),
+    { url: target },
+    { url: undefined, toString: () => target },
+    { url: null, toString: () => target },
+    runInNewContext("({ toString() { return target; } })", { target }),
+    runInNewContext("Object.assign(function () {}, { url: target })", { target }),
+  ];
+  for (const input of forwardedInputs) {
+    const response = await window.fetch(input, init);
+    const observed = object(await response.json());
+    assert.ok(Array.isArray(observed.statuses));
+    assert.equal(object(object(observed.statuses[0]).readiness).required_source_extension, "z64");
+    assert.equal(calls.at(-1)?.[0], input);
+    assert.equal(calls.at(-1)?.[1], init);
+  }
+  for (const input of [42, true, undefined, null]) {
+    assert.deepEqual(await (await window.fetch(input, init)).json(), payload);
+    assert.equal(calls.at(-1)?.[0], input);
+  }
   payload = { statuses: [{ port_id: "other", preserved: true }] };
   assert.deepEqual(await (await window.fetch(target)).json(), payload);
   payload = { statuses: [{ port_id: "selected", readiness: null, port_actions: [] }] };

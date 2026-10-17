@@ -549,8 +549,18 @@ export async function workspaceRefreshScenario({
             const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
             window.fetch = async function (input, ...args) {
               const response = await previous.call(window, input, ...args);
+              const inputValue: unknown = input;
               const url =
-                typeof input === "string" ? input : "url" in input ? input.url : String(input);
+                typeof inputValue === "string"
+                  ? inputValue
+                  : ((inputValue !== null &&
+                    (typeof inputValue === "object" || typeof inputValue === "function") &&
+                    "url" in inputValue
+                      ? inputValue.url
+                      : undefined) ??
+                    // Preserve fetch's existing coercion of cross-realm request-like values.
+                    // oxlint-disable-next-line typescript/no-base-to-string
+                    String(input));
               if (url !== target || !response.ok) return response;
               const record = (value: unknown): value is Record<string, unknown> =>
                 value !== null && typeof value === "object" && !Array.isArray(value);

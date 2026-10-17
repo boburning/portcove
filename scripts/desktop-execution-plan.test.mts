@@ -729,3 +729,69 @@ function receiptFilePath(input: import("./native-helper-dependencies.mts").Recei
   assert(input.kind === "file");
   return input.path;
 }
+
+void test("main journey dispatch permits smoke without setup inputs but rejects selected missing inputs", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("const selectedFixtureFamilies =");
+  const end = source.indexOf(
+    '    if (selection.selected_scenarios.includes("native-repeated-library-reload"))',
+    start,
+  );
+  assert.ok(start >= 0 && end > start, "read the production dispatch and input guards");
+  const run = async (selection: DesktopSelection) => {
+    const executionPlan = planDesktopExecution(selection);
+    const noop = async () => {};
+    const calls: string[] = [];
+    await runInNewContext(`(async()=>{${source.slice(start, end)}})()`, {
+      runOwnedFixtureJourneys,
+      executionPlan,
+      driverBrowser: () => ({}),
+      invoke: noop,
+      scenario: noop,
+      library: "owned-library",
+      output: "owned-output",
+      artifacts: [],
+      inputs: [],
+      installFixture: {},
+      restartApplication: noop,
+      values: {},
+      interruptApplication: noop,
+      closeApplication: noop,
+      captureLivePreparation: noop,
+      process: { platform: "win32" },
+      nativeGameFileFolderPicker: () => undefined,
+      application: "inert.exe",
+      ownedSession: {},
+      nativeConfirmation: () => undefined,
+      checks: [],
+      required: (value: unknown) => {
+        assert.ok(value !== null && value !== undefined, "Required scenario input missing");
+        return value;
+      },
+      installScenarios: async () => {
+        calls.push("install");
+      },
+      selectedSetupScenario: () => assert.fail("Selected setup must validate missing CLI first"),
+      selectedSetupCompletionScenario: () =>
+        assert.fail("Selected completion must validate missing CLI first"),
+      preparationScenarios: () =>
+        assert.fail("Selected preparation must validate missing CLI first"),
+    });
+    return calls;
+  };
+  assert.deepEqual(await run(resolveDesktopSelection({ profile: "smoke", platform: "win32" })), [
+    "install",
+  ]);
+  for (const id of [
+    "native-saved-folder-selected-setup",
+    "native-selected-setup-completion",
+    "native-preparation-review-and-play",
+  ])
+    await assert.rejects(
+      run(resolveDesktopSelection({ scenarios: [id], platform: "win32" })),
+      /Required scenario input missing/,
+    );
+});

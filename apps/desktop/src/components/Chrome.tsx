@@ -264,7 +264,7 @@ export function PageHeader({
           size="lg"
           className="command-trigger h-[var(--control-height-lg)] min-h-[var(--control-height-lg)] bg-[var(--color-bg-elevated)] p-[0_var(--space-3)] whitespace-nowrap text-[var(--color-text-secondary)]"
           onClick={onOpenCommands}
-          aria-label="Open command palette"
+          aria-label="Commands: open command palette"
         >
           <Icon glyph={Command} />
           <span className="max-[65rem]:hidden">Commands</span>

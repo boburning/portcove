@@ -2315,7 +2315,11 @@ try {
     );
     await captureScenarioScreenshot("empty-library-shared-controls");
     const updateChoice = await browser.wait(
-      until.elementLocated(By.css(".application-update-consent-notice")),
+      until.elementLocated(
+        By.xpath(
+          '//*[@role="status"][.//strong[normalize-space(.)="Choose how Portcove updates"]]',
+        ),
+      ),
       15_000,
     );
     assert.equal(await updateChoice.isDisplayed(), true);
@@ -3745,6 +3749,11 @@ try {
       artifacts,
       captureScreenshot: captureScenarioScreenshot,
     });
+    const selectedFixtureFamilies = new Set(
+      executionPlan.fixtureFamilies
+        .filter((entry) => entry.members?.length)
+        .map((entry) => entry.family),
+    );
     await runOwnedFixtureJourneys(
       {
         plan: executionPlan,
@@ -3788,24 +3797,30 @@ try {
       {
         install: installScenarios,
         selectedSetup: (context) =>
-          selectedSetupScenario({
-            ...context,
-            fixture: required(context.fixture),
-            cli: required(context.cli),
-          }),
+          selectedFixtureFamilies.has("selected-setup")
+            ? selectedSetupScenario({
+                ...context,
+                fixture: required(context.fixture),
+                cli: required(context.cli),
+              })
+            : Promise.resolve(),
         selectedSetupCompletion: ({ chooseGameFileFolder, ...context }) =>
-          selectedSetupCompletionScenario({
-            ...context,
-            fixture: required(context.fixture),
-            cli: required(context.cli),
-            ...(chooseGameFileFolder ? { chooseGameFileFolder } : {}),
-          }),
+          selectedFixtureFamilies.has("selected-setup-completion")
+            ? selectedSetupCompletionScenario({
+                ...context,
+                fixture: required(context.fixture),
+                cli: required(context.cli),
+                ...(chooseGameFileFolder ? { chooseGameFileFolder } : {}),
+              })
+            : Promise.resolve(),
         preparation: (context) =>
-          preparationScenarios({
-            ...context,
-            cli: required(context.cli),
-            tool: required(context.tool),
-          }),
+          selectedFixtureFamilies.has("preparation")
+            ? preparationScenarios({
+                ...context,
+                cli: required(context.cli),
+                tool: required(context.tool),
+              })
+            : Promise.resolve(),
       },
     );
     if (selection.selected_scenarios.includes("native-repeated-library-reload"))

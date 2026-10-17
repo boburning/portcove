@@ -20,7 +20,9 @@ export async function accessibleNavigationScenario({
 }: ScenarioContext) {
   await scenario("native-expanded-navigation-copy", async () => {
     const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
-    const commandTrigger = await browser.findElement(By.css('[aria-label="Open command palette"]'));
+    const commandTrigger = await browser.findElement(
+      By.css('[aria-label="Commands: open command palette"]'),
+    );
     await executeBrowserScript(
       browser,
       (element) => {
