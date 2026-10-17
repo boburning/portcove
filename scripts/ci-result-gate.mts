@@ -1,3 +1,6 @@
+import type { ValidationGroup } from "./validation-plan.mts";
+import { fastGroups } from "./validation-plan.mts";
+import { isRecord, errorMessage } from "./runtime-values.mts";
 import { validatePostmergeReuse } from "./postmerge-ci.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,24 +10,67 @@ import { windowsHelperChecksRequired } from "./windows-helper-checks.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
 
-function resultFailure(message, producer, result, expected = "success") {
-  const error = new Error(message);
+type CiResults = Readonly<Record<string, string | undefined>>;
+interface FailedProducer {
+  name: string;
+  result: string;
+}
+type ResultGateError = Error & { failedProducer?: FailedProducer };
+export interface CiResultInputs {
+  classifier?: string | undefined;
+  plan: unknown;
+  group?: string | undefined;
+  prose?: string | undefined;
+  fast: unknown;
+  targeted?: unknown;
+  qualification: unknown;
+  always?: unknown;
+  reuse?: unknown;
+}
+function isGroup(value: unknown): value is ValidationGroup {
+  return fastGroups.some((group) => group === value);
+}
+function isResults(value: unknown): value is CiResults {
+  return (
+    isRecord(value) &&
+    Object.values(value).every((result) => typeof result === "string" || result === undefined)
+  );
+}
+function optionalResults(value: unknown, label: string): CiResults | null | undefined {
+  if (value === null || value === undefined) return value;
+  if (!isResults(value)) throw new Error(`${label} lane results must be a job-result map`);
+  return value;
+}
+function checkedResults(value: unknown): CiResults {
+  if (!isResults(value)) throw new Error("lane results must be a job-result map");
+  return value;
+}
+
+function resultFailure(
+  message: string,
+  producer: string,
+  result: string | undefined,
+  expected = "success",
+) {
+  const error: ResultGateError = new Error(message);
   if (
     expected === "success" &&
-    ["failure", "timed_out", "cancelled", "startup_failure"].includes(result)
+    ["failure", "timed_out", "cancelled", "startup_failure"].some((failed) => failed === result)
   )
-    error.failedProducer = { name: producer, result };
+    error.failedProducer = { name: producer, result: String(result) };
   return error;
 }
 
-export function formatResultGateFailure(error) {
-  const producer = error.failedProducer;
-  return producer
-    ? `Dependent aggregate failure: producer ${producer.name} was ${producer.result}; cause unknown/unclassified.\n${error.message}`
-    : `Aggregate contract failure (unknown/unclassified): ${error.message}`;
+export function formatResultGateFailure(error: unknown) {
+  const producer = isRecord(error) ? error.failedProducer : undefined;
+  return isRecord(producer) &&
+    typeof producer.name === "string" &&
+    typeof producer.result === "string"
+    ? `Dependent aggregate failure: producer ${producer.name} was ${producer.result}; cause unknown/unclassified.\n${errorMessage(error)}`
+    : `Aggregate contract failure (unknown/unclassified): ${errorMessage(error)}`;
 }
 
-function requireResults(results, expected, label) {
+function requireResults(results: CiResults | null | undefined, expected: string, label: string) {
   if (!results || Object.keys(results).length === 0) throw new Error(`${label} lane plan is empty`);
   for (const [name, result] of Object.entries(results))
     if (result !== expected)
@@ -38,23 +84,24 @@ function requireResults(results, expected, label) {
 
 export function evaluateCiResults({
   classifier,
-  plan,
+  plan: input,
   group,
   prose,
-  fast,
-  targeted,
-  qualification,
-  always = {},
-  reuse = null,
-}) {
+  fast: fastInput,
+  targeted: targetedInput,
+  qualification: qualificationInput,
+  always: alwaysInput = {},
+  reuse: reuseInput = null,
+}: CiResultInputs) {
   if (classifier !== "success")
     throw resultFailure(`classifier result is ${classifier || "missing"}`, "classify", classifier);
-  validateValidationPlan(plan);
-  if (
-    !group ||
-    !["catalog", "dependency-review", "frontend", "rust", "rust-quality"].includes(group)
-  )
-    throw new Error(`protected group is ${group || "missing"}`);
+  const plan = validateValidationPlan(input);
+  if (!isGroup(group)) throw new Error(`protected group is ${group || "missing"}`);
+  const fast = optionalResults(fastInput, "fast");
+  const targeted = optionalResults(targetedInput, "targeted");
+  const qualification = optionalResults(qualificationInput, "qualification");
+  const always = checkedResults(alwaysInput);
+  const reuse = reuseInput == null ? null : validatePostmergeReuse(reuseInput, plan);
   for (const [name, result] of Object.entries(always))
     if (result !== "success")
       throw resultFailure(
@@ -63,8 +110,7 @@ export function evaluateCiResults({
         result,
       );
   const selected = plan.groups.includes(group);
-  if (reuse) validatePostmergeReuse(reuse, plan);
-  const reused = reuse?.groups.includes(group) ?? false;
+  const reused = reuse !== null && reuse.groups.includes(group);
   const targetsAffectedPlatform = group === "catalog" && windowsHelperChecksRequired(plan);
   if (targetsAffectedPlatform && targeted?.windows_helpers !== "success")
     throw resultFailure(
@@ -105,7 +151,7 @@ export function evaluateCiResults({
 }
 
 function main() {
-  let plan, fast, targeted, qualification, always;
+  let plan: unknown, fast: unknown, targeted: unknown, qualification: unknown, always: unknown;
   try {
     plan = JSON.parse(process.env.PORTCOVE_PLAN_JSON ?? "");
     fast = JSON.parse(process.env.PORTCOVE_FAST_RESULTS ?? "");

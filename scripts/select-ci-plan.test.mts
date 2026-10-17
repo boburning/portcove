@@ -14,8 +14,8 @@ import {
 } from "./select-ci-plan.mts";
 import { buildValidationPlan } from "./validation-plan.mts";
 
-const sha = (character) => character.repeat(40);
-test("frontend tooling provisioning follows selected inputs and skips pure Rust and allowlisted prose", async () => {
+const sha = (character: string) => character.repeat(40);
+void test("frontend tooling provisioning follows selected inputs and skips pure Rust and allowlisted prose", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "portcove-tool-provision-"));
   try {
     for (const [file, expected, workspace] of [
@@ -24,7 +24,7 @@ test("frontend tooling provisioning follows selected inputs and skips pure Rust 
       ["Cargo.toml", true, false],
       ["scripts/report-summary.mts", true, true],
       ["apps/desktop/src/styles/index.css", true, true],
-    ]) {
+    ] as const) {
       const plan = buildValidationPlan({
         changes: [
           { status: "M", oldMode: "100644", newMode: "100644", oldPath: file, newPath: file },
@@ -52,18 +52,18 @@ test("frontend tooling provisioning follows selected inputs and skips pure Rust 
     await rm(directory, { recursive: true, force: true });
   }
 });
-const raw = (...records) => Buffer.from(`${records.join("\0")}\0`);
-const modified = (file, modes = ["100644", "100644"]) =>
+const raw = (...records: string[]) => Buffer.from(`${records.join("\0")}\0`);
+const modified = (file: string, modes: readonly [string, string] = ["100644", "100644"]) =>
   `:${modes[0]} ${modes[1]} ${sha("1").slice(0, 7)} ${sha("2").slice(0, 7)} M\0${file}`;
 
-test("informational selection is a category, while policy retains affected contracts", () => {
+void test("informational selection is a category, while policy retains affected contracts", () => {
   for (const file of ["docs/new-guide.md", "docs/media/capture.png"])
     assert.ok(isInformationalPath(file));
   for (const file of ["AGENTS.md", "docs/QUALITY.md", ".agents/skills/example/SKILL.md"])
     assert.equal(isInformationalPath(file), false);
 });
 
-test("parses NUL-delimited additions deletions and both sides of renames", () => {
+void test("parses NUL-delimited additions deletions and both sides of renames", () => {
   const changes = parseRawDiff(
     raw(
       `:000000 100644 ${sha("0").slice(0, 7)} ${sha("1").slice(0, 7)} A`,
@@ -79,12 +79,14 @@ test("parses NUL-delimited additions deletions and both sides of renames", () =>
     changes.map((change) => change.status),
     ["A", "D", "R"],
   );
-  assert.equal(changes[2].oldPath, "docs/README.md");
-  assert.equal(changes[2].newPath, "docs/GUI-COMPETITIVE-REVIEW.md");
+  const renamed = changes[2];
+  assert(renamed);
+  assert.equal(renamed.oldPath, "docs/README.md");
+  assert.equal(renamed.newPath, "docs/GUI-COMPETITIVE-REVIEW.md");
   assert.equal(classifyChanges(changes).mode, "prose");
 });
 
-test("approved prose additions modifications and deletions qualify", () => {
+void test("approved prose additions modifications and deletions qualify", () => {
   for (const contents of [
     raw(`:000000 100644 0000000 1111111 A`, "docs/README.md"),
     raw(modified("docs/README.md")),
@@ -94,7 +96,7 @@ test("approved prose additions modifications and deletions qualify", () => {
   }
 });
 
-test("mixed paths route fast while mode, symlink, and unusual statuses require qualification", () => {
+void test("mixed paths route fast while mode, symlink, and unusual statuses require qualification", () => {
   const cases = [
     raw(modified("docs/README.md"), modified("src/product.rs")),
     raw(modified("docs/new informational file.md")),
@@ -111,14 +113,14 @@ test("mixed paths route fast while mode, symlink, and unusual statuses require q
   assert.equal(classifyChanges(parseRawDiff(cases[4])).mode, "fast");
 });
 
-test("malformed incomplete or empty change discovery fails closed", () => {
+void test("malformed incomplete or empty change discovery fails closed", () => {
   assert.throws(() => parseRawDiff(Buffer.from("not-terminated")), /NUL terminated/u);
   assert.throws(() => parseRawDiff(raw(":bad", "docs/README.md")), /malformed/u);
   assert.equal(classifyChanges([]).mode, "blocked");
 });
 
-test("pull requests compare the complete merge-base range and record tested checkout", () => {
-  const calls = [];
+void test("pull requests compare the complete merge-base range and record tested checkout", () => {
+  const calls: string[][] = [];
   const plan = discoverCiPlan(
     {
       eventName: "pull_request",
@@ -138,7 +140,7 @@ test("pull requests compare the complete merge-base range and record tested chec
   assert.deepEqual(calls[1], ["diff", "--raw", "-z", "--find-renames", sha("d"), sha("b")]);
 });
 
-test("prose selection requires qualification until independently activated", () => {
+void test("prose selection requires qualification until independently activated", () => {
   const plan = discoverCiPlan(
     { eventName: "pull_request", baseSha: sha("a"), headSha: sha("b"), checkoutSha: sha("c") },
     (args) => (args[0] === "merge-base" ? `${sha("d")}\n` : raw(modified("docs/README.md"))),
@@ -148,8 +150,8 @@ test("prose selection requires qualification until independently activated", () 
   assert.deepEqual(plan.changed_files, ["docs/README.md"]);
 });
 
-test("fast routing requires a separate trusted activation change", () => {
-  const run = (fastValidationEnabled) =>
+void test("fast routing requires a separate trusted activation change", () => {
+  const run = (fastValidationEnabled: boolean) =>
     discoverCiPlan(
       {
         eventName: "pull_request",
@@ -175,7 +177,7 @@ test("fast routing requires a separate trusted activation change", () => {
   assert.equal(run(true).mode, "fast");
 });
 
-test("missing refs and Git errors block rather than authorize guessed validation", () => {
+void test("missing refs and Git errors block rather than authorize guessed validation", () => {
   for (const fixture of [
     { baseSha: "missing", runner: () => assert.fail("git must not run") },
     {
@@ -201,8 +203,8 @@ test("missing refs and Git errors block rather than authorize guessed validation
   }
 });
 
-test("main pushes compare the complete before-to-after event diff", () => {
-  const calls = [];
+void test("main pushes compare the complete before-to-after event diff", () => {
+  const calls: string[][] = [];
   const p = discoverCiPlan(
     {
       eventName: "push",
@@ -237,7 +239,7 @@ test("main pushes compare the complete before-to-after event diff", () => {
   ]);
 });
 
-test("reusable qualification forces the exhaustive plan on the exact checkout", () => {
+void test("reusable qualification forces the exhaustive plan on the exact checkout", () => {
   const plan = discoverCiPlan(
     {
       eventName: "workflow_call",
@@ -254,7 +256,7 @@ test("reusable qualification forces the exhaustive plan on the exact checkout", 
   assert.equal(plan.identities.checkout, sha("c"));
 });
 
-test("focused platform plans map only exact maintained runners", () => {
+void test("focused platform plans map only exact maintained runners", () => {
   assert.deepEqual(fastPlatformMatrix({ platforms: ["windows-x86_64"] }), [
     { platform: "windows-x86_64", runner: "windows-latest" },
   ]);
@@ -263,10 +265,11 @@ test("focused platform plans map only exact maintained runners", () => {
     { platform: "macos-x86_64", runner: "macos-15-intel" },
   ]);
   assert.deepEqual(fastPlatformMatrix({ platforms: ["primary-host"] }), []);
+  // @ts-expect-error Deliberately malformed external platform identity.
   assert.throws(() => fastPlatformMatrix({ platforms: ["unknown"] }), /no runner/u);
 });
 
-test("GitHub outputs are complete single-line values", async (t) => {
+void test("GitHub outputs are complete single-line values", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "portcove-ci-plan-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const output = path.join(root, "output");
@@ -306,7 +309,7 @@ test("GitHub outputs are complete single-line values", async (t) => {
     assert.match(contents, new RegExp(`^${key}=`, "m"));
 });
 
-test("containment discovery binds complete protected coverage for both rename sides", () => {
+void test("containment discovery binds complete protected coverage for both rename sides", () => {
   const inputs = [
     "scripts/rust-test-tree-supervisor.mts",
     "scripts/rust-test-tree-supervisor.test.mts",
@@ -337,7 +340,9 @@ test("containment discovery binds complete protected coverage for both rename si
       assert.equal(selected.qualification_required, false, input);
       assert.ok(selected.groups.includes("catalog") && selected.groups.includes("rust-quality"));
       assert.deepEqual(selected.platforms, ["primary-host"]);
-      assert.equal(selected.paths.find((entry) => entry.path === input).unknown, false);
+      const selectedPath = selected.paths.find((entry) => entry.path === input);
+      assert(selectedPath);
+      assert.equal(selectedPath.unknown, false);
       assert.deepEqual(selected.identities, {
         base: sha("a"),
         merge_base: sha("d"),
@@ -345,13 +350,15 @@ test("containment discovery binds complete protected coverage for both rename si
         checkout: sha("c"),
       });
       assert.match(selected.digest, /^[a-f0-9]{64}$/u);
-      if (selected.changed_files.includes(future))
+      if (selected.changed_files.includes(future)) {
+        assert(selected.fallback);
         assert.ok(selected.fallback.paths.includes(future));
+      }
     }
   }
 });
 
-test("missing historical push base falls back to the whole baseline; current head and malformed diff block", () => {
+void test("missing historical push base falls back to the whole baseline; current head and malformed diff block", () => {
   const options = {
     eventName: "push",
     baseSha: sha("a"),
@@ -361,7 +368,7 @@ test("missing historical push base falls back to the whole baseline; current hea
     proseOnlyEnabled: true,
   };
   const missing = discoverCiPlan(options, (args) => {
-    if (args[0] === "cat-file" && args[2].startsWith(sha("a")))
+    if (args[0] === "cat-file" && args[2]?.startsWith(sha("a")))
       throw Object.assign(new Error("missing base"), { status: 128 });
     return Buffer.alloc(0);
   });
@@ -372,12 +379,12 @@ test("missing historical push base falls back to the whole baseline; current hea
     () => {
       throw Object.assign(new Error("missing head"), { status: 128 });
     },
-    (args) => (args[0] === "diff" ? Buffer.from("truncated") : Buffer.alloc(0)),
+    (args: string[]) => (args[0] === "diff" ? Buffer.from("truncated") : Buffer.alloc(0)),
   ])
     assert.equal(discoverCiPlan(options, runner).mode, "blocked");
 });
 
-test("explicit qualification emits tool prerequisites without invoking ordinary-only selection", async () => {
+void test("explicit qualification emits tool prerequisites without invoking ordinary-only selection", async () => {
   const plan = discoverCiPlan({
     eventName: "workflow_call",
     checkoutSha: sha("a"),

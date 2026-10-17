@@ -3,8 +3,10 @@ import type {
   ValidationChange,
   ValidationChangeInput,
   ValidationPlan,
+  ValidationPlatform,
 } from "./validation-plan.mts";
 import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
+import type { PostmergeReuseBinding } from "./postmerge-ci.mts";
 import { discoverPostmergeReuse } from "./postmerge-ci.mts";
 import { annotateNextest } from "./nextest-equivalence.mts";
 import { execFileSync } from "node:child_process";
@@ -37,9 +39,10 @@ const platformRunners = Object.freeze({
 
 export { isInformationalPath };
 
-export function fastPlatformMatrix(plan) {
+export function fastPlatformMatrix(plan: Pick<ValidationPlan, "platforms">) {
   if (!plan || !Array.isArray(plan.platforms)) throw new Error("validation platforms are missing");
-  return plan.platforms
+  const platforms: readonly ValidationPlatform[] = plan.platforms;
+  return platforms
     .filter((platform) => platform !== "primary-host")
     .map((platform) => {
       const runner = platformRunners[platform];
@@ -201,7 +204,11 @@ export function discoverCiPlan(
   }
 }
 
-export async function writeGithubOutputs(outputPath, plan, reuse = null) {
+export async function writeGithubOutputs(
+  outputPath: string | undefined,
+  plan: ValidationPlan,
+  reuse: PostmergeReuseBinding | null = null,
+) {
   if (!outputPath) throw new Error("GITHUB_OUTPUT is required");
   const { classifyChanges: classifyLocalChanges } = await import("./local-validation.mts");
   const selection = classifyLocalChanges(

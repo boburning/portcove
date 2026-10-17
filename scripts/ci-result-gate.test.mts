@@ -1,3 +1,4 @@
+import type { CiResultInputs } from "./ci-result-gate.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
@@ -6,15 +7,15 @@ import { evaluateCiResults, formatResultGateFailure } from "./ci-result-gate.mts
 import { discoverCiPlan } from "./select-ci-plan.mts";
 import { buildValidationPlan } from "./validation-plan.mts";
 
-const sha = (character) => character.repeat(40);
-const changed = (path) => ({
+const sha = (character: string) => character.repeat(40);
+const changed = (path: string) => ({
   status: "M",
   oldMode: "100644",
   newMode: "100644",
   oldPath: path,
   newPath: path,
 });
-const plan = (path) =>
+const plan = (path: string) =>
   buildValidationPlan({
     changes: [changed(path)],
     eventName: "pull_request",
@@ -23,7 +24,7 @@ const plan = (path) =>
     head: sha("c"),
     checkout: sha("d"),
   });
-const evaluate = (overrides = {}) =>
+const evaluate = (overrides: Partial<CiResultInputs> = {}) =>
   evaluateCiResults({
     classifier: "success",
     plan: plan("apps/desktop/src/App.tsx"),
@@ -35,7 +36,7 @@ const evaluate = (overrides = {}) =>
     ...overrides,
   });
 
-test("dependent aggregates name the failed producer without changing acceptance or asserting its cause", () => {
+void test("dependent aggregates name the failed producer without changing acceptance or asserting its cause", () => {
   for (const result of ["failure", "timed_out", "cancelled", "startup_failure"])
     assert.throws(
       () => evaluate({ fast: { fast_frontend: result } }),
@@ -45,6 +46,7 @@ test("dependent aggregates name the failed producer without changing acceptance 
           new RegExp(`Dependent aggregate failure: producer fast_frontend was ${result}`),
         );
         assert.match(formatResultGateFailure(error), /cause unknown\/unclassified/);
+        assert(error instanceof Error);
         assert.match(error.message, /expected success/);
         return true;
       },
@@ -59,7 +61,7 @@ test("dependent aggregates name the failed producer without changing acceptance 
   );
 });
 
-test("real aggregate CLI preserves failed exit and names its producer", () => {
+void test("real aggregate CLI preserves failed exit and names its producer", () => {
   const result = spawnSync(process.execPath, ["scripts/ci-result-gate.mts"], {
     encoding: "utf8",
     env: {
@@ -80,7 +82,7 @@ test("real aggregate CLI preserves failed exit and names its producer", () => {
   assert.equal(result.stdout, "");
 });
 
-test("the prose producer is identified only where success was required", () => {
+void test("the prose producer is identified only where success was required", () => {
   assert.throws(
     () => evaluate({ plan: plan("docs/README.md"), group: "catalog", prose: "failure" }),
     (error) => {
@@ -97,7 +99,7 @@ test("the prose producer is identified only where success was required", () => {
   );
 });
 
-test("fast plans require only selected fast group work", () => {
+void test("fast plans require only selected fast group work", () => {
   assert.match(evaluate(), /Accepted fast/u);
   assert.match(
     evaluate({
@@ -109,7 +111,7 @@ test("fast plans require only selected fast group work", () => {
   );
 });
 
-test("qualification plans require qualification and reject fast execution", () => {
+void test("qualification plans require qualification and reject fast execution", () => {
   const qualificationPlan = discoverCiPlan({
     eventName: "workflow_call",
     checkoutSha: sha("d"),
@@ -134,7 +136,7 @@ test("qualification plans require qualification and reject fast execution", () =
   );
 });
 
-test("ordinary native changes use the Windows lane without secondary producers", () => {
+void test("ordinary native changes use the Windows lane without secondary producers", () => {
   const platformPlan = plan("apps/desktop/src-tauri/src/window_windows.rs");
   const inputs = {
     plan: platformPlan,
@@ -151,7 +153,7 @@ test("ordinary native changes use the Windows lane without secondary producers",
   );
 });
 
-test("prose plans require prose and skip every product lane", () => {
+void test("prose plans require prose and skip every product lane", () => {
   const prosePlan = plan("docs/README.md");
   assert.match(
     evaluate({
@@ -165,7 +167,7 @@ test("prose plans require prose and skip every product lane", () => {
   );
 });
 
-test("failed cancelled timed-out missing or unexpected results fail closed", () => {
+void test("failed cancelled timed-out missing or unexpected results fail closed", () => {
   for (const result of ["failure", "cancelled", "timed_out", "", "skipped"])
     assert.throws(() => evaluate({ fast: { fast_frontend: result } }), /expected success/u);
   assert.throws(() => evaluate({ classifier: "failure" }), /classifier result/u);
@@ -173,7 +175,7 @@ test("failed cancelled timed-out missing or unexpected results fail closed", () 
   assert.throws(() => evaluate({ fast: {} }), /plan is empty/u);
 });
 
-test("stale plan content and protected-group omissions are rejected", () => {
+void test("stale plan content and protected-group omissions are rejected", () => {
   const stale = { ...plan("apps/desktop/src/App.tsx"), reason: "substituted" };
   assert.throws(() => evaluate({ plan: stale }), /digest/u);
   assert.throws(() => evaluate({ group: "unknown" }), /protected group/u);
@@ -184,4 +186,14 @@ test("stale plan content and protected-group omissions are rejected", () => {
   });
   qualificationPlan.groups = qualificationPlan.groups.filter((group) => group !== "frontend");
   assert.throws(() => evaluate({ plan: qualificationPlan }), /digest|omitted/u);
+});
+
+void test("malformed lane result JSON cannot authorize an aggregate", () => {
+  for (const malformed of [[], "success", { producer: null }, { producer: true }]) {
+    assert.throws(() => evaluate({ fast: malformed }), /job-result map/u);
+    assert.throws(() => evaluate({ qualification: malformed }), /job-result map/u);
+    assert.throws(() => evaluate({ targeted: malformed }), /job-result map/u);
+    assert.throws(() => evaluate({ always: malformed }), /job-result map/u);
+  }
+  assert.throws(() => evaluate({ reuse: false }), /postmerge reuse binding/u);
 });

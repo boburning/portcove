@@ -11,7 +11,7 @@ import {
 } from "./postmerge-ci.mts";
 import { evaluateCiResults } from "./ci-result-gate.mts";
 
-const sha = (c) => c.repeat(40),
+const sha = (c: string) => c.repeat(40),
   repository = "boburning/portcove";
 function fixture() {
   const plan = buildValidationPlan({
@@ -31,7 +31,7 @@ function fixture() {
     checkout: sha("b"),
   });
   const workflow = "reviewed workflow bytes\n";
-  const record = buildWorkflowProvenance({
+  const record: unknown = buildWorkflowProvenance({
     workflow: "ci.yml",
     mode: "ci",
     desiredRunner: "ubuntu-latest",
@@ -94,50 +94,60 @@ function fixture() {
     status: "completed",
     conclusion: "success",
   }));
-  const responses = {
-    [`commits/${sha("b")}/pulls?per_page=100`]: [
-      {
-        number: 7,
-        merged_at: "2026-10-16",
-        merge_commit_sha: sha("b"),
-        base: { ref: "main", repo: { full_name: repository } },
-        head: { sha: sha("d"), repo: { full_name: repository } },
-      },
-    ],
-    [`actions/workflows/ci.yml/runs?head_sha=${sha("d")}&event=pull_request&per_page=20`]: {
-      workflow_runs: [run],
-    },
-    "actions/runs/42/jobs?filter=latest&per_page=100": { total_count: jobs.length, jobs },
-    "actions/runs/42/artifacts?per_page=100": {
-      total_count: 1,
-      artifacts: [
+  const artifact = {
+    id: 9,
+    name: "workflow-provenance-ci-42-1",
+    expired: false,
+    size_in_bytes: zip.length,
+    digest: `sha256:${createHash("sha256").update(zip).digest("hex")}`,
+  };
+  // Serialized endpoint bodies are heterogeneous external JSON. Named fixtures
+  // keep concrete contracts for the metadata their callers mutate.
+  const responses = new Map<string, unknown>([
+    [
+      `commits/${sha("b")}/pulls?per_page=100`,
+      [
         {
-          id: 9,
-          name: "workflow-provenance-ci-42-1",
-          expired: false,
-          size_in_bytes: zip.length,
-          digest: `sha256:${createHash("sha256").update(zip).digest("hex")}`,
+          number: 7,
+          merged_at: "2026-10-16",
+          merge_commit_sha: sha("b"),
+          base: { ref: "main", repo: { full_name: repository } },
+          head: { sha: sha("d"), repo: { full_name: repository } },
         },
       ],
-    },
-    "actions/artifacts/9/zip": zip,
-    "actions/runs/42": run,
-  };
-  const invoke = (command, args, binary) => {
+    ],
+    [
+      `actions/workflows/ci.yml/runs?head_sha=${sha("d")}&event=pull_request&per_page=20`,
+      { workflow_runs: [run] },
+    ],
+    ["actions/runs/42/jobs?filter=latest&per_page=100", { total_count: jobs.length, jobs }],
+    ["actions/runs/42/artifacts?per_page=100", { total_count: 1, artifacts: [artifact] }],
+    ["actions/artifacts/9/zip", zip],
+    ["actions/runs/42", run],
+  ]);
+  const invoke = (command: string, args: string[], binary = false): string | Buffer => {
     if (command === "gh") {
-      const value = responses[args[1].replace(`repos/${repository}/`, "")];
+      const route = args[1];
+      assert(route);
+      const value = responses.get(route.replace(`repos/${repository}/`, ""));
       if (value === undefined) throw Error("unexpected route");
-      return binary ? value : JSON.stringify(value);
+      if (binary) {
+        assert(Buffer.isBuffer(value));
+        return value;
+      }
+      const serialized = JSON.stringify(value);
+      assert(typeof serialized === "string");
+      return serialized;
     }
     if (args[0] === "show") return workflow;
     if (args[0] === "rev-parse") return sha("f");
     if (args[0] === "cat-file") return "";
     throw Error("unexpected git");
   };
-  return { plan, invoke, responses, run, jobs, discoverPlan: () => plan };
+  return { plan, invoke, responses, run, jobs, artifact, discoverPlan: () => plan };
 }
 
-test("trusted identical tested composition reuses explicit groups while current aggregates remain honest", () => {
+void test("trusted identical tested composition reuses explicit groups while current aggregates remain honest", () => {
   const f = fixture();
   const reuse = discoverPostmergeReuse(f.plan, {
     event: "push",
@@ -172,20 +182,26 @@ test("trusted identical tested composition reuses explicit groups while current 
     }),
   );
 });
-test("changed composition, direct push, pending/failing or incomplete provenance execute normally", () => {
+void test("changed composition, direct push, pending/failing or incomplete provenance execute normally", () => {
   for (const mutate of [
     (f) => (f.run.conclusion = "failure"),
     (f) => (f.run.status = "in_progress"),
     (f) => f.jobs.pop(),
     (f) => (f.discoverPlan = () => ({ ...f.plan, digest: "0".repeat(64) })),
     (f) => (f.discoverPlan = () => ({ ...f.plan, changes: [] })),
-    (f) => (f.jobs.find((j) => j.name === "fast-frontend (linux-x86_64)").conclusion = "skipped"),
-    (f) => (f.jobs[0].head_sha = sha("a")),
-    (f) => (f.responses[`commits/${sha("b")}/pulls?per_page=100`] = []),
-    (f) =>
-      (f.responses["actions/runs/42/artifacts?per_page=100"].artifacts[0].digest =
-        `sha256:${"0".repeat(64)}`),
-  ]) {
+    (f) => {
+      const job = f.jobs.find((j) => j.name === "fast-frontend (linux-x86_64)");
+      assert(job);
+      job.conclusion = "skipped";
+    },
+    (f) => {
+      const job = f.jobs[0];
+      assert(job);
+      job.head_sha = sha("a");
+    },
+    (f) => f.responses.set(`commits/${sha("b")}/pulls?per_page=100`, []),
+    (f) => (f.artifact.digest = `sha256:${"0".repeat(64)}`),
+  ] satisfies readonly ((candidate: ReturnType<typeof fixture>) => unknown)[]) {
     const f = fixture();
     mutate(f);
     assert.equal(
@@ -203,7 +219,7 @@ test("changed composition, direct push, pending/failing or incomplete provenance
       event: "push",
       discoverPlan: f.discoverPlan,
       invoke: (c, args, b) =>
-        c === "git" && args[0] === "rev-parse" && args[1].startsWith(sha("c"))
+        c === "git" && args[0] === "rev-parse" && args[1]?.startsWith(sha("c"))
           ? sha("e")
           : f.invoke(c, args, b),
     }),
@@ -218,8 +234,42 @@ test("changed composition, direct push, pending/failing or incomplete provenance
     "apps/desktop/src-tauri/src/lib.rs",
   ]) {
     const p = fixture().plan;
-    p.changes[0].oldPath = file;
-    p.changes[0].newPath = file;
+    const changed = p.changes[0];
+    assert(changed);
+    changed.oldPath = file;
+    changed.newPath = file;
     assert.equal(postmergeEligible(p), false);
+  }
+});
+
+void test("malformed provider identities and artifact metadata always retain fresh execution", () => {
+  const runsRoute = `actions/workflows/ci.yml/runs?head_sha=${sha("d")}&event=pull_request&per_page=20`;
+  const mutate: readonly ((candidate: ReturnType<typeof fixture>) => unknown)[] = [
+    (f) => f.responses.set(runsRoute, { workflow_runs: [null] }),
+    (f) => f.responses.set(runsRoute, { workflow_runs: [{ ...f.run, id: "42" }] }),
+    (f) => f.responses.set(runsRoute, { workflow_runs: [{ ...f.run, run_attempt: 1.5 }] }),
+    (f) => f.responses.set(runsRoute, { workflow_runs: [{ ...f.run, head_repository: null }] }),
+    (f) =>
+      f.responses.set("actions/runs/42/artifacts?per_page=100", {
+        total_count: 1,
+        artifacts: [{ ...f.artifact, size_in_bytes: "100" }],
+      }),
+    (f) =>
+      f.responses.set("actions/runs/42/artifacts?per_page=100", {
+        total_count: 1,
+        artifacts: [{ ...f.artifact, id: null }],
+      }),
+  ];
+  for (const alter of mutate) {
+    const f = fixture();
+    alter(f);
+    assert.equal(
+      discoverPostmergeReuse(f.plan, {
+        event: "push",
+        invoke: f.invoke,
+        discoverPlan: f.discoverPlan,
+      }),
+      null,
+    );
   }
 });
