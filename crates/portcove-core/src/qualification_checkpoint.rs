@@ -120,6 +120,7 @@ fn observe_at(
     if control.checkpoint != checkpoint || fs::canonicalize(&control.library_root)? != root {
         return Ok(());
     }
+    let started = Instant::now();
     let now = now_ms()?;
     let remaining = control
         .expires_unix_ms
@@ -152,7 +153,6 @@ fn observe_at(
     )?;
     file.flush()?;
     file.sync_all()?;
-    let started = Instant::now();
     while started.elapsed() < budget {
         match fs::symlink_metadata(&release) {
             Ok(_) => {
@@ -277,6 +277,26 @@ mod tests {
         ] {
             let (_temporary, root, control, _) = fixture();
             fs::write(&control, bytes).unwrap();
+            assert!(
+                observe_at(&root, Checkpoint::InstallPrepared, &control, Duration::ZERO).is_err()
+            );
+        }
+        for (key, invalid) in [
+            ("expires_unix_ms", serde_json::json!(0)),
+            (
+                "expires_unix_ms",
+                serde_json::json!(now_ms().unwrap() + 600_000),
+            ),
+            ("format_version", serde_json::json!(2)),
+            ("nonce", serde_json::json!("../not-a-nonce")),
+            ("checkpoint", serde_json::json!("unreviewed_boundary")),
+            ("unknown_permission", serde_json::json!(true)),
+        ] {
+            let (_temporary, root, control, _) = fixture();
+            let mut value: serde_json::Value =
+                serde_json::from_slice(&fs::read(&control).unwrap()).unwrap();
+            value[key] = invalid;
+            fs::write(&control, serde_json::to_vec(&value).unwrap()).unwrap();
             assert!(
                 observe_at(&root, Checkpoint::InstallPrepared, &control, Duration::ZERO).is_err()
             );
