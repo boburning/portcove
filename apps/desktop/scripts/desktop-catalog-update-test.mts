@@ -1,7 +1,9 @@
 import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
 import { transportValue } from "./transport-values.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
-interface CatalogContext extends ScenarioContext {
+import type { LinuxInspectorProtocol } from "./desktop-linux-webkit-inspector.mts";
+interface CatalogContext extends Omit<ScenarioContext, "browser"> {
+  browser: WebDriver | LinuxInspectorProtocol | undefined;
   invoke: ScenarioInvoke;
 }
 import { executeBrowserScript } from "./browser-script.mts";
@@ -9,7 +11,7 @@ import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { By, Key, until } from "selenium-webdriver";
+import { By, Key, until, WebDriver } from "selenium-webdriver";
 import {
   assertCompactReview,
   assertPrimaryReviewAction,
@@ -25,6 +27,10 @@ export async function catalogUpdateScenario({
   artifacts,
 }: CatalogContext) {
   await scenario("native-catalog-update-dialog", async () => {
+    assert.ok(
+      browser instanceof WebDriver,
+      "Selected catalog scenario requires its connected WebDriver transport",
+    );
     const before = await invoke("get_catalog_status");
     assert.ok(isRecord(before));
     assert.equal(before.ok, true);
