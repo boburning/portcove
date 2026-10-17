@@ -765,7 +765,8 @@ function classifyOnePath(
       "scripts/frontend-tests.ts",
       "scripts/run-ui-tests.mts",
       "scripts/run-viteplus.mts",
-    ].includes(file)
+    ].includes(file) ||
+    /^patches\/[^/]+\.patch$/u.test(file)
   ) {
     selection.ui = true;
     selection.uiFullTests = true;

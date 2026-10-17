@@ -255,6 +255,11 @@ export function domainsForPath(input: string) {
     recognized = true;
   }
 
+  if (/^patches\/[^/]+\.patch$/u.test(file)) {
+    add(domains, "format", "ui", "release");
+    recognized = true;
+  }
+
   if (/^apps\/desktop\/src\/transport-(?:schemas|inputs|host-.+)\.generated\.json$/u.test(file)) {
     add(domains, "rust");
     recognized = true;

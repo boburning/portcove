@@ -898,6 +898,21 @@ void test("retired desktop-local pnpm authorities remain owned on deletion", () 
   }
 });
 
+void test("pnpm package patches select full UI coverage including removal", () => {
+  for (const status of ["A", "M", "D"]) {
+    const { selection, plan } = planFor([
+      { status, path: "patches/@tauri-apps__api@2.12.4.patch" },
+    ]);
+    assert.deepEqual([...selection.unknown], []);
+    assert.equal(selection.uiFullTests, true);
+    assert.ok(ids(plan).includes("ui-tests"));
+    assert.ok(ids(plan).includes("ui-browser-tests"));
+    assert.ok(!ids(plan).includes("ui-related-tests"));
+  }
+  const { selection } = planFor(["patches/unowned.txt"]);
+  assert.ok(selection.unknown.has("patches/unowned.txt"));
+});
+
 void test("the exact Fallow boundary configuration selects the complete UI suite", () => {
   for (const status of ["M", "A", "D"]) {
     const { selection, plan } = planFor([{ status, path: "apps/desktop/.fallowrc.json" }]);
