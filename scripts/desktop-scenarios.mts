@@ -315,6 +315,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-direct-preparation-recovery",
+    "An actual failed owned preparation opens its affected game from the direct error without repeating work.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-preparation-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-late-listener-disposal",
     "One live Core preparation survives genuine owner remounts and late native listener disposal.",
     {
@@ -687,6 +697,11 @@ export function resolveDesktopSelection({
     throw new Error("native-host-publication-recovery requires one standalone Windows scenario");
   if (uniqueRequested.includes("native-external-runtime-review") && platform !== "win32")
     throw new Error("native-external-runtime-review requires Windows");
+  if (
+    uniqueRequested.includes("native-direct-preparation-recovery") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-direct-preparation-recovery requires one standalone Windows scenario");
   if (
     uniqueRequested.includes("native-late-listener-disposal") &&
     (uniqueRequested.length !== 1 || platform !== "win32")

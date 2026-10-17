@@ -216,6 +216,20 @@ management is optional on contributor machines. Use `vp env current` and
 bundle. Installation must not silently replace a contributor's existing manager
 or shell configuration.
 
+VS Code's recommended Vite+ extension pack includes Oxc and Vitest Explorer.
+The workspace selects `vitest.rootConfig: "vite.config.ts"`, so discovery uses
+the root's `unit`, `browser` and `browser-forced-colors` projects rather than
+independently loading the application's production config as another test root.
+Vitest Explorer resolves local Vite+ natively; no global `vp` or package-path
+override is needed. Individual workspace language overrides select Oxfmt even
+when user settings choose another TypeScript formatter. Rust keeps rust-analyzer.
+
+The editor extension launches its own worker. `rootConfig` does not invoke
+`scripts/run-viteplus.mts` or acquire Portcove's terminal resource/output guards.
+Sequence editor tests with other work against the same checkout; use guarded
+package/terminal commands for coordinated execution. Do not inject reservation
+variables into editor workers.
+
 `vp dev`, `vp check`, `vp test` and `vp build` are built-ins. `vp run <name>`
 selects a configured task or package script. At the workspace root, the ordinary
 app dev/build commands select `apps/desktop`; `vp -C apps/desktop <command>` is
@@ -266,6 +280,30 @@ never authorize skipping a task or count as fresh native execution.
 Vite Task owns production bundle execution and `dist/**` restoration. Ordinary
 `pnpm build` and the Tauri/native verification boundary use that task while
 filtering signing inputs. `pnpm build --fresh` forces upstream `--no-cache`.
+For a new CPU profile and Vite configuration logs, run from the repository root:
+
+```sh
+pnpm build --profile --debug config
+```
+
+The adapter accepts only `--fresh`, `--profile [name]`, `--debug [features]` and
+`--filter <substring>`; value options also accept `=value`. Profile names are
+portable basenames of at most 64 letters, digits, underscores or hyphens, beginning
+with a letter or digit, excluding Windows device names (default `build`). Debug features are comma-separated Vite
+names/patterns, for example `config,transform` or `*`; bare `--debug` enables all
+Vite logs. `--filter` requires `--debug`, for example
+`pnpm build --debug config --filter css`. Empty values, duplicate flags, positional
+arguments and all other options are rejected. No configuration/root/output override
+is forwarded.
+
+Every profile/debug request forces task execution with `--no-cache`, retaining
+the signing filter, resource admission, output confinement and supervisor cleanup.
+The printed unique `work/frontend-diagnostics/run-*/` directory owns `build.log`
+(both child streams) and the requested `<name>.cpuprofile`. Logs go to that file;
+failed runs retain their logs and partial outputs. Inspect the log for errors and
+load a completed profile into a CPU-profile viewer. An interrupted build may not
+finish a profile. Ordinary builds retain their existing caching behavior.
+
 Raw `vp build` does not apply the signing filter. Checks and tests execute fresh;
 local/audit UI receipts cannot skip them, and a restored bundle is not a new
 native or acceptance observation. Specialized native code fingerprints actual
@@ -1166,6 +1204,14 @@ cancellation, shutdown, lock and network deadlines remain unchanged. The separat
 Core import Published observer runs only in the fifth case. These are
 instrumented fixture process-loss observations, not OS shutdown, installed-release
 or Linux qualification; preserve failed or incomplete captures separately.
+
+`--scenario native-direct-preparation-recovery` is an opt-in Windows journey
+through a real failed owned setup child. Its original source/runtime inputs and
+active installation remain unchanged; the actual Core failure supplies the
+affected preparation target. The direct error opens that game's existing
+detail review after navigation, with the same activity inventory and no repeated
+preparation. This is native debug/owned-fixture evidence, not an unfamiliar
+upstream failure, installed-release observation or host interruption.
 
 `--scenario native-late-listener-disposal` is a standalone Windows qualification
 of actual native operation-listener lifetime during one live Core preparation.

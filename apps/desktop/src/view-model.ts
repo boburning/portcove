@@ -503,6 +503,33 @@ export function failurePresentation(error: unknown): FailureDisplay | undefined 
   } as FailureDisplay;
 }
 
+/** Read-only navigation within the current workspace, never recovery permission. */
+export function preparationRecoveryPort(
+  error: unknown,
+  ports: readonly PortDefinition[],
+  statuses: readonly PortStatus[],
+): string | undefined {
+  const presentation = failurePresentation(error);
+  const target: unknown = presentation?.recovery_target;
+  if (
+    !presentation?.recovery_actions.includes("review_preparation") ||
+    !target ||
+    typeof target !== "object" ||
+    Array.isArray(target) ||
+    !("kind" in target) ||
+    target.kind !== "preparation" ||
+    !("port_id" in target) ||
+    typeof target.port_id !== "string" ||
+    !/^[a-z0-9-]+$/.test(target.port_id)
+  )
+    return undefined;
+  const id = target.port_id;
+  return ports.filter((port) => port.id === id).length === 1 &&
+    statuses.filter((status) => status.port_id === id).length === 1
+    ? id
+    : undefined;
+}
+
 export function isCancellation(error: unknown) {
   return (
     typeof error === "object" && error !== null && "code" in error && error.code === "cancelled"

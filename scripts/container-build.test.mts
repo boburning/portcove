@@ -51,6 +51,69 @@ void test("canonical APT helper rejects invalid explicit deadlines before instal
       },
     );
 });
+void test("APT install deadlines preserve failure and stop before mirror retry", async () => {
+  const git = await command("git", ["--exec-path"]);
+  const bash =
+    process.platform === "win32"
+      ? path.resolve(git.stdout.trim(), "../../../bin/bash.exe")
+      : "bash";
+  const source = readFileSync("scripts/install-linux-desktop-prerequisites.sh", "utf8");
+  const control = source.slice(
+    source.indexOf("install_from_current_mirror() {"),
+    source.indexOf("# GitHub's Azure-backed Ubuntu mirror"),
+  );
+  for (const status of [0, 124, 137]) {
+    const script = `set -euo pipefail
+packages=(fixture)
+install_deadline=3600s
+run_apt() { echo "apt-call:$2"; if [[ $2 == install ]]; then return ${status}; fi; }
+${control}
+echo unexpected-mirror-retry
+exit 99`;
+    if (status === 0) {
+      const result = await command(bash, ["-c", script]);
+      assert.equal(result.stdout.match(/apt-call:/gu)?.length, 2);
+      assert(!result.stdout.includes("unexpected-mirror-retry"));
+    } else {
+      await assert.rejects(command(bash, ["-c", script]), (error) => {
+        assertCommandFailure(error);
+        assert.equal(error.result.status, status);
+        assert.match(error.result.stderr, /refusing a mirror retry/u);
+        return true;
+      });
+    }
+  }
+  const fullControl = source.slice(source.indexOf("install_from_current_mirror() {"));
+  for (const status of [0, 100, 124, 137]) {
+    const script = `set -euo pipefail
+packages=(fixture)
+privilege=()
+install_deadline=3600s
+fallback_install_deadline=3600s
+installs=0
+sed() { :; }
+run_apt() {
+  echo "apt-call:$2"
+  if [[ $2 == install ]]; then
+    installs=$((installs + 1))
+    if (( installs == 1 )); then return 100; fi
+    return ${status}
+  fi
+}
+${fullControl}`;
+    if (status === 0) {
+      const result = await command(bash, ["-c", script]);
+      assert.equal(result.stdout.match(/apt-call:/gu)?.length, 4);
+    } else {
+      await assert.rejects(command(bash, ["-c", script]), (error) => {
+        assertCommandFailure(error);
+        assert.equal(error.result.status, status);
+        assert.match(error.result.stderr, /either bounded mirror attempt/u);
+        return true;
+      });
+    }
+  }
+});
 void test("package member inspection requires the exact regular executable", () => {
   const deb = "-rwxr-xr-x root/root 123 2026-10-16 00:00 ./usr/bin/portcove-desktop";
   const rpm = "/usr/bin/portcove-desktop 123 1700000000 abcd 0100755 root root 0 0 0 X";
@@ -82,7 +145,7 @@ void test("package member inspection requires the exact regular executable", () 
 void test("builder modes are closed and isolated from browser resources", async () => {
   assert.throws(() => createContainerHost("arbitrary"), /Unknown/u);
   assert.equal(budgets.timeout_ms, 90 * 60000);
-  assert.equal(budgets.setup_ms, 90 * 60000);
+  assert.equal(budgets.setup_ms, 120 * 60000);
   for (const mode of ["suite", "probe", "exact", "arbitrary"])
     // @ts-expect-error Missing commit is deliberate: reject an unsupported mode before source discovery.
     await assert.rejects(browser({ mode }), /Use check or package/u);
