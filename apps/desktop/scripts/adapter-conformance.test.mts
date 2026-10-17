@@ -1,3 +1,5 @@
+import { errorCode } from "../../../scripts/runtime-values.mts";
+import type { SpawnSyncReturns, SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import assert from "node:assert/strict";
 import process from "node:process";
 import { test, vi } from "vite-plus/test";
@@ -8,13 +10,17 @@ import {
   runSync,
 } from "./adapter-conformance.mts";
 
-const spawnObservation = vi.hoisted(() => ({ error: undefined }));
+const spawnObservation = vi.hoisted<{ error: Error | undefined }>(() => ({ error: undefined }));
 vi.mock("node:child_process", async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal<typeof import("node:child_process")>();
   return {
     ...actual,
-    spawnSync(...args) {
-      const result = actual.spawnSync(...args);
+    spawnSync(
+      command: string,
+      args: readonly string[],
+      options: SpawnSyncOptionsWithStringEncoding,
+    ): SpawnSyncReturns<string> {
+      const result = actual.spawnSync(command, args, options);
       spawnObservation.error = result.error;
       return result;
     },
@@ -120,7 +126,7 @@ test("synchronous timeout retains both streams and the original failure", () => 
   try {
     assert.throws(
       () => runSync(process.execPath, timeoutChild, { timeout: 1000 }),
-      (error) => error.code === "ETIMEDOUT" && error === spawnObservation.error,
+      (error: unknown) => errorCode(error) === "ETIMEDOUT" && error === spawnObservation.error,
     );
     assert.equal(stdout.mock.calls.map(([chunk]) => String(chunk)).join(""), "owned-stdout-marker");
     assert.equal(stderr.mock.calls.map(([chunk]) => String(chunk)).join(""), "owned-stderr-marker");
@@ -138,7 +144,7 @@ test("diagnostic write failure still attempts the other stream and retains the t
   try {
     assert.throws(
       () => runSync(process.execPath, timeoutChild, { timeout: 1000 }),
-      (error) => error.code === "ETIMEDOUT" && error === spawnObservation.error,
+      (error: unknown) => errorCode(error) === "ETIMEDOUT" && error === spawnObservation.error,
     );
     assert.equal(stdout.mock.calls.length, 1);
     assert.equal(stderr.mock.calls.map(([chunk]) => String(chunk)).join(""), "owned-stderr-marker");

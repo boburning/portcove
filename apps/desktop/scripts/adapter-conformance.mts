@@ -1,3 +1,10 @@
+import { transportValues } from "./transport-values.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+import type { PortStatus } from "../src/transport-types.generated.js";
+interface ProcessOptions {
+  env?: NodeJS.ProcessEnv;
+  timeout?: number;
+}
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -12,7 +19,11 @@ import { createInstallFixture, INSTALL_FIXTURE_PORT_ID } from "./desktop-install
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const DEFINITION_FIXTURE_PORT_ID = "opengoal-jak1";
 
-export function runSync(command, args, { env = process.env, timeout = 600_000 } = {}) {
+export function runSync(
+  command: string,
+  args: readonly string[],
+  { env = process.env, timeout = 600_000 }: ProcessOptions = {},
+) {
   const result = spawnSync(command, args, {
     cwd: root,
     encoding: "utf8",
@@ -42,17 +53,27 @@ export function runSync(command, args, { env = process.env, timeout = 600_000 } 
   return result.stdout.trim();
 }
 
-function run(command, args, { env = process.env, timeout = 180_000 } = {}) {
-  return new Promise((resolve, reject) => {
+function run(
+  command: string,
+  args: readonly string[],
+  { env = process.env, timeout = 180_000 }: ProcessOptions = {},
+) {
+  return new Promise<string>((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: root,
       env,
       windowsHide: true,
     });
-    const stdout = [];
-    const stderr = [];
-    child.stdout.on("data", (chunk) => stdout.push(chunk));
-    child.stderr.on("data", (chunk) => stderr.push(chunk));
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
+    child.stdout.on("data", (chunk: unknown) => {
+      assert(Buffer.isBuffer(chunk));
+      stdout.push(chunk);
+    });
+    child.stderr.on("data", (chunk: unknown) => {
+      assert(Buffer.isBuffer(chunk));
+      stderr.push(chunk);
+    });
     let timedOut = false;
     const timer = setTimeout(() => {
       timedOut = true;
@@ -83,15 +104,21 @@ function run(command, args, { env = process.env, timeout = 180_000 } = {}) {
   });
 }
 
-export function parseCliStatuses(stdout) {
-  const response = JSON.parse(stdout);
+export function parseCliStatuses(stdout: string) {
+  const response: unknown = JSON.parse(stdout);
+  assert(isRecord(response), "CLI status response must be an object");
   assert.equal(response.ok, true, "CLI status response must succeed");
   assert.equal(response.command, "status", "CLI must identify the status command");
   assert.ok(Array.isArray(response.data), "CLI status response must contain an array");
-  return response.data;
+  const statuses: unknown[] = response.data;
+  return statuses;
 }
 
-export function compareStatusSnapshots(stage, cliStatuses, desktopStatuses) {
+export function compareStatusSnapshots(
+  stage: string,
+  cliStatuses: unknown,
+  desktopStatuses: unknown,
+) {
   try {
     assert.deepEqual(desktopStatuses, cliStatuses);
   } catch (error) {
@@ -99,23 +126,32 @@ export function compareStatusSnapshots(stage, cliStatuses, desktopStatuses) {
   }
 }
 
-function portStatus(statuses, portId) {
+function portStatus(statuses: readonly PortStatus[], portId: string) {
   const status = statuses.find((item) => item.port_id === portId);
   assert.ok(status, `${portId} must be present in the status result`);
   return status;
 }
 
-function assertDefinitionOperation(status, operation, expected) {
+function assertDefinitionOperation(
+  status: PortStatus,
+  operation: NonNullable<PortStatus["definition_operations"]>[number]["operation"],
+  expected: Pick<
+    NonNullable<PortStatus["definition_operations"]>[number],
+    "eligibility" | "retained"
+  >,
+) {
   const assessment = status.definition_operations?.find((item) => item.operation === operation);
   assert.ok(assessment, `${status.port_id} must expose the ${operation} definition assessment`);
   assert.deepEqual(assessment, { operation, ...expected });
 }
 
-function digest(value) {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+function digest(value: unknown) {
+  const serialized = JSON.stringify(value);
+  assert(serialized !== undefined);
+  return createHash("sha256").update(serialized).digest("hex");
 }
 
-export function compareConsumerIdentities(before, after) {
+export function compareConsumerIdentities(before: unknown, after: unknown) {
   assert.deepEqual(after, before, "compiled consumers changed during fixture progression");
 }
 
@@ -167,8 +203,14 @@ async function main() {
     PORTCOVE_PREFERENCES: path.join(workspace, "preferences.json"),
     PORTCOVE_QUALIFICATION_CATALOG: fixture.catalogPath,
   };
-  const stages = [];
-  const setDefinitionState = (action) =>
+  const stages: {
+    stage: string;
+    status_count: number;
+    snapshot_sha256: string;
+    fixture_status: PortStatus;
+    definition_status: PortStatus;
+  }[] = [];
+  const setDefinitionState = (action: string) =>
     runSync(
       "cargo",
       [
@@ -193,14 +235,18 @@ async function main() {
         },
       },
     );
-  const readStatuses = async (stage) => {
-    const cliStatuses = parseCliStatuses(
-      await run(cli, ["--library", library, "--json", "--non-interactive", "status"], { env }),
+  const readStatuses = async (stage: string) => {
+    const cliStatuses = transportValues(
+      "status",
+      parseCliStatuses(
+        await run(cli, ["--library", library, "--json", "--non-interactive", "status"], { env }),
+      ),
     );
-    const desktopStatuses = JSON.parse(
+    const desktopRaw: unknown = JSON.parse(
       await run(desktop, ["--portcove-adapter-conformance-statuses", library], { env }),
     );
-    assert.ok(Array.isArray(desktopStatuses), "Desktop status probe must return an array");
+    assert.ok(Array.isArray(desktopRaw), "Desktop status probe must return an array");
+    const desktopStatuses = transportValues("status", desktopRaw);
     compareStatusSnapshots(stage, cliStatuses, desktopStatuses);
     const selected = portStatus(cliStatuses, INSTALL_FIXTURE_PORT_ID);
     const definition = portStatus(cliStatuses, DEFINITION_FIXTURE_PORT_ID);
@@ -218,22 +264,25 @@ async function main() {
     setDefinitionState("select");
     const initial = await readStatuses("fresh-library");
     assert.equal(initial.fixture.active, null);
+    assert(initial.fixture.readiness);
     assert.equal(initial.fixture.readiness.launchable, false);
     assertDefinitionOperation(initial.definition, "install", {
       eligibility: { outcome: "eligible", reason: "mandatory_checks_passed" },
       retained: false,
     });
 
-    const installed = JSON.parse(
+    const installed: unknown = JSON.parse(
       await run(
         cli,
         ["--library", library, "--json", "--non-interactive", "ensure", INSTALL_FIXTURE_PORT_ID],
         { env },
       ),
     );
+    assert(isRecord(installed));
     assert.equal(installed.ok, true, "qualification fixture installation must succeed");
     const ready = await readStatuses("installed");
     assert.ok(ready.fixture.active, "installed fixture must have an active installation");
+    assert(ready.fixture.readiness);
     assert.equal(ready.fixture.readiness.launchable, true);
 
     setDefinitionState("install");
@@ -243,7 +292,7 @@ async function main() {
       eligibility: { outcome: "eligible", reason: "mandatory_checks_passed" },
       retained: false,
     });
-    for (const operation of ["prepare", "launch"])
+    for (const operation of ["prepare", "launch"] as const)
       assertDefinitionOperation(retained.definition, operation, {
         eligibility: { outcome: "eligible", reason: "mandatory_checks_passed" },
         retained: true,
@@ -251,15 +300,16 @@ async function main() {
 
     setDefinitionState("revoke");
     const revoked = await readStatuses("successor-definition-revoked");
-    for (const operation of ["prepare", "launch"])
+    for (const operation of ["prepare", "launch"] as const)
       assertDefinitionOperation(revoked.definition, operation, {
         eligibility: { outcome: "hold", reason: "publisher_revoked" },
         retained: true,
       });
+    assert(revoked.definition.readiness);
     assert.equal(revoked.definition.readiness.launchable, false);
 
     const managedReport = path.join(workspace, "managed-consumers.json");
-    const managedEnv = { ...env };
+    const managedEnv: NodeJS.ProcessEnv = { ...env };
     delete managedEnv.PORTCOVE_QUALIFICATION_CATALOG;
     runSync(
       process.execPath,
@@ -290,7 +340,7 @@ async function main() {
         },
       },
     );
-    const managedConsumers = JSON.parse(await readFile(managedReport, "utf8"));
+    const managedConsumers: unknown = JSON.parse(await readFile(managedReport, "utf8"));
     compareConsumerIdentities(builtConsumers, await consumerIdentities());
 
     await writeFile(
@@ -298,6 +348,7 @@ async function main() {
       "owned invalid installation manifest",
     );
     const stale = await readStatuses("invalid-installation-manifest");
+    assert(stale.fixture.readiness);
     assert.equal(stale.fixture.readiness.launchable, false);
     assert.ok(
       stale.fixture.readiness.blockers.includes("invalid_installation"),

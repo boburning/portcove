@@ -136,6 +136,14 @@ application/configuration projects retain bundler resolution; native harnesses
 also check the DOM callbacks that Selenium serializes. Node-only tooling does
 not receive browser globals. All projects inherit the strict shared policy.
 
+Native harnesses use `apps/desktop/scripts/transport-values.mts` when consuming
+complete domain payloads. It validates against the existing Rust-exported output
+schemas before exposing their generated types, using the pinned Ajv 2020 loader
+without coercion, defaults, property removal or remote schema loading. Schemars
+numeric format names remain annotations; exported type and numeric keywords
+supply the schema constraints. Core retains semantic validation authority.
+Dependency-free repository/bootstrap helpers keep their existing narrow checks.
+
 The normal root Vite+ check discovers each source file's nearest project; these
 no-emit projects are independent checker inputs, not declaration-build project
 references. The root project checks bundler configurations and the Stylelint
