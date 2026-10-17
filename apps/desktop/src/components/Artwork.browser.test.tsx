@@ -98,6 +98,7 @@ describe("local artwork controls", () => {
     const reset = vi.spyOn(desktopApi, "resetArtwork");
     await render();
     await open();
+    await expect.poll(() => container.querySelector(".artwork-image img")).not.toBeNull();
     const image = container.querySelector<HTMLImageElement>(".artwork-image img")!;
     const src = image.src;
     vi.mocked(desktopApi.artwork).mockRejectedValueOnce(new Error("Artwork read unavailable."));
