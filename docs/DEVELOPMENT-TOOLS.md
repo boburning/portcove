@@ -973,6 +973,21 @@ environment; `TAURI_WEBVIEW_AUTOMATION` and the legacy inspector variable are
 absent. No production feature, CSP or permission override is added. Other native
 scenarios keep their existing driver routes.
 
+For ordinary Linux development continuity, run exact standalone
+`native-preparation-cancellation` and `native-linux-interrupted-preparation`
+selections with the normal WebDriver transport. Both use the maintained private
+PID namespace and positive namespace join. The cancellation selection retains
+the existing renderer reload, same Core operation identity and actual UI cancel
+observations. The interruption selection requires a live owned preparation,
+invalidates its WebDriver session without deleting it, closes the namespace
+init's private control pipe and waits for successful join before fresh startup
+against the same owned library. It records the retained activity, workspace,
+doctor repair item, cleanup preview and hashes of the owned source, runtime and
+save. It never writes a product process-quiescence flag: uncertain Core proof
+must still refuse cleanup with manual review. This is forced namespace teardown,
+not an application-only kill, graceful close, OS shutdown, installed package or
+minimum Linux environment claim. No qualification feature is required.
+
 Before executing the unchanged boundary assertions, the observer requires the
 listener's live PID/generation, executable digest and owned namespace ancestry,
 one advertised page target, the actual local main document and

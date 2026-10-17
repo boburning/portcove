@@ -333,6 +333,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-linux-interrupted-preparation",
+    "Private Linux PID namespace teardown during live preparation preserves owned inputs and exposes authoritative recovery.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-preparation-recovery-test.mts",
+      qualification_only: true,
+      platforms: ["linux"],
+    },
+  ),
+  scenario(
     "native-closed-preparation-recovery",
     "Ordinary Windows host close during live preparation preserves originals and exposes uncertain recovery safely.",
     {
@@ -622,6 +632,11 @@ export function resolveDesktopSelection({
   if (unknown.length)
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
+  if (
+    uniqueRequested.includes("native-linux-interrupted-preparation") &&
+    (uniqueRequested.length !== 1 || platform !== "linux")
+  )
+    throw new Error("native-linux-interrupted-preparation requires one standalone Linux scenario");
   if (uniqueRequested.includes("native-preliminary-selected-setup")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-preliminary-selected-setup requires one exact standalone scenario");
