@@ -1,15 +1,89 @@
-import { errorMessage } from "../../../scripts/runtime-values.mts";
+import type { LinuxInspectorProtocol } from "./desktop-linux-webkit-inspector.mts";
+import type { IRectangle } from "selenium-webdriver";
+import type { PortDefinition, CatalogDocument } from "../src/transport-types.generated.d.ts";
+import type { PreparationContext } from "./desktop-preparation-test.mts";
+import type { Socket } from "node:net";
+import { transportValue } from "./transport-values.mts";
+type CoverContext = Pick<
+  PreparationContext,
+  "scenario" | "invoke" | "output" | "artifacts" | "library"
+> & {
+  browser: WebDriver | LinuxInspectorProtocol | undefined;
+  capture: (name: string, force?: boolean) => Promise<unknown>;
+  setTheme: (theme: "light" | "dark") => Promise<unknown>;
+  restart: PreparationContext["restartApplication"];
+  cacheConditions?: boolean;
+};
+interface WithheldCover {
+  original: string;
+  retained: string;
+}
+interface CoverImage {
+  width: number;
+  height: number;
+  background: string;
+  objectFit: string;
+  fallbackPalette: boolean;
+}
+type CaptureSettled = (name: string, selector: string, browser?: WebDriver) => Promise<void>;
+type Theme = "light" | "dark";
+interface CoverRow {
+  id: string;
+  pass: string;
+  theme: Theme;
+  outer: IRectangle;
+  viewport: { width: number; height: number };
+  cardMs: number;
+  cardImage: CoverImage;
+  detailImage: CoverImage | null;
+  mapping: NonNullable<NonNullable<PortDefinition["presentation"]>["artwork"]>;
+}
+interface InspectContext {
+  browser: WebDriver;
+  ports: PortDefinition[];
+  ids: string[];
+  detailIds: Set<string>;
+  image: (selector: string) => Promise<CoverImage>;
+  captureSettled: CaptureSettled;
+  pass: string;
+  theme: Theme;
+  outer: IRectangle;
+  viewport: { width: number; height: number };
+}
+interface MissingCacheContext extends Pick<
+  CoverContext,
+  "browser" | "output" | "restart" | "invoke"
+> {
+  browser: WebDriver;
+  ports: PortDefinition[];
+  cache: string;
+  offlineEnvironment: NodeJS.ProcessEnv | undefined;
+  refusedOrigins: string[];
+  captureSettled: CaptureSettled;
+  onWithheld: (value: WithheldCover) => void;
+}
+async function catalogValue(invoke: CoverContext["invoke"]): Promise<CatalogDocument> {
+  const reply = await invoke("get_catalog");
+  assert.ok(isRecord(reply));
+  assert.equal(reply.ok, true);
+  return transportValue("catalog", reply.value);
+}
+function required<Value>(value: Value | undefined | null): Value {
+  assert.ok(value !== undefined && value !== null);
+  return value;
+}
+import { errorMessage, errorCode, isRecord } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import { readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import path from "node:path";
-import { By, Key, until } from "selenium-webdriver";
+import { WebDriver, By, Key, until } from "selenium-webdriver";
 
 // Explicit opt-in live CDN exercise; excluded from routine offline qualification.
 export async function defaultCoverScenario({
-  browser,
+  browser: suppliedBrowser,
   scenario,
   invoke,
   output,
@@ -19,19 +93,23 @@ export async function defaultCoverScenario({
   library,
   restart,
   cacheConditions = false,
-}) {
+}: CoverContext) {
   await scenario(
     cacheConditions ? "native-default-cover-cache-conditions" : "native-default-cover-display",
     async () => {
+      assert.ok(
+        suppliedBrowser instanceof WebDriver,
+        "Default cover observation requires WebDriver",
+      );
+      let browser = suppliedBrowser;
       const { cache, refusal, refusedOrigins, offlineEnvironment } = await createCoverConditions(
         library,
         cacheConditions,
       );
-      let withheld;
-      let primaryError;
+      let withheld: WithheldCover | undefined;
+      let primaryFailure: { error: unknown } | undefined;
       try {
-        const catalog = await invoke("get_catalog");
-        assert.equal(catalog.ok, true);
+        const catalog = await catalogValue(invoke);
         const detailIds = new Set([
           "shipwright",
           "2ship2harkinian",
@@ -46,27 +124,31 @@ export async function defaultCoverScenario({
           "open-nectar-pikmin",
           "diddy-kong-racing-golden-balloon",
         ]);
-        const ids = catalog.value.ports
+        const ids = catalog.ports
           .filter((port) => port.presentation?.artwork)
           .map((port) => port.id);
         assert.ok(ids.length > 0, "The actual catalog must have accepted cover mappings");
-        const rows = [];
-        const captureSettled = async (name, selector, currentBrowser = browser) => {
+        const rows: CoverRow[] = [];
+        const captureSettled: CaptureSettled = async (name, selector, currentBrowser = browser) => {
           await currentBrowser.wait(
             () =>
-              currentBrowser.executeScript((selector) => {
-                const element = document.querySelector(selector);
-                return (
-                  element &&
-                  element
-                    .getAnimations({ subtree: true })
-                    .every(
-                      (animation) =>
-                        animation.playState !== "running" ||
-                        !Number.isFinite(animation.effect?.getComputedTiming().endTime),
-                    )
-                );
-              }, selector),
+              executeBrowserScript(
+                currentBrowser,
+                (selector) => {
+                  const element = document.querySelector(selector);
+                  return (
+                    element &&
+                    element
+                      .getAnimations({ subtree: true })
+                      .every(
+                        (animation) =>
+                          animation.playState !== "running" ||
+                          !Number.isFinite(animation.effect?.getComputedTiming().endTime),
+                      )
+                  );
+                },
+                selector,
+              ),
             5_000,
             `Presentation did not settle: ${selector}`,
           );
@@ -79,7 +161,7 @@ export async function defaultCoverScenario({
                 executeBrowserScript(
                   browser,
                   (selector) => {
-                    const frame = document.querySelector(selector);
+                    const frame = document.querySelector<HTMLElement>(selector);
                     const img = frame?.querySelector("img");
                     return (
                       frame?.dataset.artworkSource === "igdb_cover" &&
@@ -122,7 +204,8 @@ export async function defaultCoverScenario({
             browser,
             (selector) => {
               const frame = document.querySelector(selector);
-              const img = frame.querySelector("img");
+              const img = frame?.querySelector("img");
+              if (!frame || !img) throw new Error("Rendered cover elements disappeared");
               return {
                 width: img.naturalWidth,
                 height: img.naturalHeight,
@@ -152,7 +235,7 @@ export async function defaultCoverScenario({
         };
         for (const [pass, theme, size] of coverPasses(cacheConditions)) {
           if (cacheConditions && pass === "offline-cached-restart") {
-            await verifyMappedCache(catalog.value.ports, ids, cache);
+            await verifyMappedCache(catalog.ports, ids, cache);
             browser = await restart("default-cover-offline", undefined, offlineEnvironment);
           }
           await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
@@ -168,7 +251,7 @@ export async function defaultCoverScenario({
           rows.push(
             ...(await inspectCoverPass({
               browser,
-              ports: catalog.value.ports,
+              ports: catalog.ports,
               ids,
               detailIds,
               image,
@@ -183,7 +266,7 @@ export async function defaultCoverScenario({
         const negativeControl = cacheConditions
           ? await missingCacheNegativeControl({
               browser,
-              ports: catalog.value.ports,
+              ports: catalog.ports,
               cache,
               output,
               restart,
@@ -209,7 +292,7 @@ export async function defaultCoverScenario({
                 : "native development app; every mapped catalog cover in both themes, representative details; first/warm same-session CDN display, not cold-request latency or offline",
               negativeControl,
               refusedOrigins,
-              catalogCount: catalog.value.ports.length,
+              catalogCount: catalog.ports.length,
               mappedCount: ids.length,
               rows,
             },
@@ -219,13 +302,13 @@ export async function defaultCoverScenario({
         );
         artifacts.push(report);
       } catch (error) {
-        primaryError = error;
+        primaryFailure = { error };
         throw error;
       } finally {
         await restoreCacheAfterObservation({
           withheld,
           restart,
-          primaryError,
+          primaryFailure,
           output,
           artifacts,
           refusal,
@@ -236,8 +319,8 @@ export async function defaultCoverScenario({
 }
 
 async function createImageRefusal() {
-  const origins = [];
-  const sockets = new Set();
+  const origins: string[] = [];
+  const sockets = new Set<Socket>();
   // Test-only local refusal: never forwards traffic or records headers, paths or credentials.
   const server = createServer((request, response) => {
     origins.push("http-request");
@@ -253,11 +336,13 @@ async function createImageRefusal() {
     origins.push(request.url === "images.igdb.com:443" ? "images.igdb.com" : "other-origin");
     socket.end("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n");
   });
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(0, "127.0.0.1", resolve);
   });
-  const proxy = `http://127.0.0.1:${server.address().port}`;
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const proxy = `http://127.0.0.1:${address.port}`;
   return {
     origins,
     environment: {
@@ -273,7 +358,7 @@ async function createImageRefusal() {
     async close() {
       for (const socket of sockets) socket.destroy();
       server.closeAllConnections();
-      await new Promise((resolve) => server.close(resolve));
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     },
   };
 }
@@ -281,11 +366,19 @@ async function createImageRefusal() {
 async function restoreCacheAfterObservation({
   withheld,
   restart,
-  primaryError,
+  primaryFailure,
   output,
   artifacts,
   refusal,
+}: {
+  withheld: WithheldCover | undefined;
+  restart: CoverContext["restart"];
+  primaryFailure: { error: unknown } | undefined;
+  output: string;
+  artifacts: string[];
+  refusal: Awaited<ReturnType<typeof createImageRefusal>> | null;
 }) {
+  let cleanupFailure: { error: unknown } | undefined;
   try {
     if (withheld) {
       await restart("default-cover-cache-restored", async () => {
@@ -297,31 +390,41 @@ async function restoreCacheAfterObservation({
         await rename(withheld.retained, withheld.original);
       });
     }
-  } catch (cleanupError) {
-    if (!primaryError) throw cleanupError;
-    const diagnostic = path.join(output, "default-cover-cache-cleanup-failure.json");
-    await writeFile(
-      diagnostic,
-      JSON.stringify({ primary: primaryError.message, cleanup: errorMessage(cleanupError) }),
-    )
-      .then(() => artifacts.push(diagnostic))
-      .catch((error) => console.error("Failed to retain cache cleanup diagnostic:", error.message));
-  } finally {
-    await refusal?.close();
+  } catch (error) {
+    cleanupFailure = { error };
   }
+  try {
+    await refusal?.close();
+  } catch (error) {
+    cleanupFailure ??= { error };
+  }
+  if (!cleanupFailure) return;
+  if (!primaryFailure) throw cleanupFailure.error;
+  const diagnostic = path.join(output, "default-cover-cache-cleanup-failure.json");
+  await writeFile(
+    diagnostic,
+    JSON.stringify({
+      primary: errorMessage(primaryFailure.error),
+      cleanup: errorMessage(cleanupFailure.error),
+    }),
+  )
+    .then(() => artifacts.push(diagnostic))
+    .catch((error: unknown) =>
+      console.error("Failed to retain cache cleanup diagnostic:", errorMessage(error)),
+    );
 }
 
-async function assertEmptyCache(cache) {
+async function assertEmptyCache(cache: string) {
   const initial = await readdir(cache).catch((error) => {
-    if (error.code === "ENOENT") return [];
+    if (errorCode(error) === "ENOENT") return [];
     throw error;
   });
   assert.deepEqual(initial, [], "Cold display requires an actually empty isolated artwork cache");
 }
 
-async function verifyMappedCache(ports, ids, cache: string) {
+async function verifyMappedCache(ports: PortDefinition[], ids: string[], cache: string) {
   const mappings = new Map(ports.map((port) => [port.id, port.presentation?.artwork]));
-  for (const digest of new Set(ids.map((id) => mappings.get(id).image_sha256))) {
+  for (const digest of new Set(ids.map((id) => required(mappings.get(id)).image_sha256))) {
     assert.match(digest, /^[a-f0-9]{64}$/);
     const bytes = await readFile(path.join(cache, `${digest}.jpg`));
     assert.equal(
@@ -343,7 +446,7 @@ async function missingCacheNegativeControl({
   invoke,
   captureSettled,
   onWithheld,
-}) {
+}: MissingCacheContext) {
   assert.equal(
     refusedOrigins.filter((origin) => origin === "images.igdb.com").length,
     0,
@@ -379,7 +482,7 @@ async function missingCacheNegativeControl({
       executeBrowserScript(
         browser,
         (selector) => {
-          const frame = document.querySelector(`${selector} .card-art`);
+          const frame = document.querySelector<HTMLElement>(`${selector} .card-art`);
           return (
             frame?.dataset.artworkSource === "generated_fallback" &&
             !frame.querySelector("img") &&
@@ -392,10 +495,9 @@ async function missingCacheNegativeControl({
     "Unavailable image must retain an honest generated fallback",
   );
   await captureSettled("default-cover-missing-cache-offline", selector, browser);
-  const logical = await invoke("get_catalog");
-  assert.equal(logical.ok, true);
+  const logical = await catalogValue(invoke);
   assert.deepEqual(
-    logical.value.ports.find((item) => item.id === port.id).presentation.artwork,
+    required(required(logical.ports.find((item) => item.id === port.id)).presentation).artwork,
     port.presentation.artwork,
     "Missing bytes do not erase the accepted logical mapping",
   );
@@ -407,7 +509,9 @@ async function missingCacheNegativeControl({
   };
 }
 
-function coverPasses(cacheConditions) {
+function coverPasses(
+  cacheConditions: boolean,
+): [string, Theme, { width: number; height: number }][] {
   return [
     [cacheConditions ? "cold-empty-cache" : "first-display", "light", { width: 1280, height: 800 }],
     [cacheConditions ? "offline-cached-restart" : "warm", "dark", { width: 960, height: 640 }],
@@ -425,8 +529,8 @@ async function inspectCoverPass({
   theme,
   outer,
   viewport,
-}) {
-  const observations = [];
+}: InspectContext) {
+  const observations: CoverRow[] = [];
   for (const id of ids) {
     const port = ports.find((port) => port.id === id);
     assert.ok(port?.presentation?.artwork, `Missing maintained mapping: ${id}`);
@@ -462,7 +566,7 @@ async function inspectCoverPass({
   return observations;
 }
 
-async function createCoverConditions(library: string, cacheConditions) {
+async function createCoverConditions(library: string, cacheConditions: boolean) {
   const cache = path.join(library, "artwork-cache");
   if (!cacheConditions)
     return { cache, refusal: null, refusedOrigins: [], offlineEnvironment: undefined };
