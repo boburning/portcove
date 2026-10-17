@@ -577,6 +577,92 @@ mod tests {
     use std::io::Cursor;
 
     #[test]
+    fn zip_unflagged_names_preserve_source_identity_and_fail_extraction_path_policy() {
+        use std::io::Write;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let utf8 = "café.bin".as_bytes();
+        let cp437 = b"caf\x82.bin".as_slice();
+        let payload = b"original source!";
+        for (case, names) in [vec![utf8], vec![cp437], vec![utf8, cp437]]
+            .into_iter()
+            .enumerate()
+        {
+            let path = temporary.path().join(format!("names-{case}.zip"));
+            let mut writer = zip::ZipWriter::new(File::create(&path).unwrap());
+            for (index, name) in names.iter().enumerate() {
+                writer
+                    .start_file(
+                        format!("{}{}.bin", "x".repeat(name.len() - 5), index),
+                        zip::write::SimpleFileOptions::default()
+                            .compression_method(zip::CompressionMethod::Stored),
+                    )
+                    .unwrap();
+                writer.write_all(payload).unwrap();
+            }
+            writer.finish().unwrap();
+            // Model producers that omit the encoding flag. Keep header lengths,
+            // payload CRCs and sizes intact while replacing only raw names/flags.
+            let mut bytes = std::fs::read(&path).unwrap();
+            for (signature, flags_offset, name_offset) in
+                [(b"PK\x03\x04", 6, 30), (b"PK\x01\x02", 8, 46)]
+            {
+                let headers = bytes
+                    .windows(4)
+                    .enumerate()
+                    .filter_map(|(offset, value)| (value == signature).then_some(offset))
+                    .collect::<Vec<_>>();
+                assert_eq!(headers.len(), names.len());
+                for (header, name) in headers.into_iter().zip(&names) {
+                    let offset = header + flags_offset;
+                    let flags = u16::from_le_bytes(bytes[offset..offset + 2].try_into().unwrap());
+                    bytes[offset..offset + 2].copy_from_slice(&(flags & !(1 << 11)).to_le_bytes());
+                    let offset = header + name_offset;
+                    bytes[offset..offset + name.len()].copy_from_slice(name);
+                }
+            }
+            std::fs::write(&path, &bytes).unwrap();
+
+            let mut budget = HashBudget {
+                operation: None,
+                limit: 1_000_000,
+                hashed: 0,
+                max_zip_entries: 8,
+            };
+            let identity = read_zip_identity_from_file(
+                File::open(&path).unwrap(),
+                &["bin".into()],
+                1_000_000,
+                bytes.len() as u64,
+                &mut budget,
+            );
+            if names.len() == 1 {
+                let identity = identity.unwrap();
+                assert_eq!(identity.archive_member_name.as_deref(), Some("café.bin"));
+                assert_eq!(identity.sha256, hex::encode(Sha256::digest(payload)));
+                assert_eq!(identity.storage_sha256, hex::encode(Sha256::digest(&bytes)));
+                assert_eq!(identity.size, payload.len() as u64);
+            } else {
+                // Both raw spellings decode to the same selected extension;
+                // source inspection must still refuse ambiguous alternatives.
+                assert!(identity.err().unwrap().message.contains("found 2"));
+            }
+
+            let output = temporary.path().join(format!("output-{case}"));
+            std::fs::create_dir(&output).unwrap();
+            let error =
+                crate::archive::extract_archive(&path, &output, "names.zip", bytes.len() as u64)
+                    .unwrap_err();
+            assert!(
+                error.message.contains("paths must be ASCII"),
+                "{}",
+                error.message
+            );
+            assert_eq!(std::fs::read_dir(output).unwrap().count(), 0);
+        }
+    }
+
+    #[test]
     fn zip_identity_retains_member_and_storage_from_the_opened_archive() {
         use std::io::Write;
         let temporary = tempfile::tempdir().unwrap();
