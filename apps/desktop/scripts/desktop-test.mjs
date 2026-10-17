@@ -22,7 +22,7 @@ import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mjs";
 import { isUntrustworthyProbeError } from "./desktop-owned-ipc-probe.mjs";
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, lstat } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
@@ -237,6 +237,7 @@ let linuxStop;
 let packageEvidence;
 let originFixture;
 let externalBrowser;
+const applicationMediaEvidence = path.join(output, "linux-app-media-readiness.json");
 if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundary")) {
   assert.equal(process.platform, "linux");
   assert.deepEqual(selection.selected_scenarios, ["native-linux-packaged-webview-boundary"]);
@@ -252,6 +253,8 @@ if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundar
       fileURLToPath(new URL("./desktop-main-webview-boundary.mjs", import.meta.url)),
     ),
   );
+  assert.ok(path.isAbsolute(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG ?? ""));
+  inputs.push(await fileIdentity(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG));
 }
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
@@ -312,9 +315,57 @@ async function stopDriver() {
         const evidence = path.join(output, `linux-native-launch-${launchIndex}-join.json`);
         await writeFile(evidence, JSON.stringify(cleanup, null, 2) + "\n", { flag: "wx" });
         artifacts.push(evidence);
+        let mediaWrapperFailure = false;
+        if (linuxPackagedInspector) {
+          const finalEvidence = `${applicationMediaEvidence}.final.json`;
+          await writeFile(
+            finalEvidence,
+            JSON.stringify(
+              {
+                quiesced: cleanup.quiesced,
+                namespace_join: evidence,
+                limitation: "Namespace closure; no application or wrapper normal-exit inference",
+              },
+              null,
+              2,
+            ) + "\n",
+            { flag: "wx" },
+          );
+          artifacts.push(finalEvidence);
+          for (const suffix of ["", ".failure.json", ".exit.json"]) {
+            const captured = await lstat(`${applicationMediaEvidence}${suffix}`).catch((error) => {
+              if (error.code === "ENOENT") return null;
+              throw error;
+            });
+            if (captured) {
+              assert.ok(captured.isFile() && !captured.isSymbolicLink());
+              artifacts.push(`${applicationMediaEvidence}${suffix}`);
+              if (suffix === ".failure.json") mediaWrapperFailure = true;
+            }
+          }
+        }
         linuxCleanup = cleanup;
         linuxLaunch = undefined;
         driver = undefined;
+        if (linuxPackagedInspector) {
+          assert.equal(
+            mediaWrapperFailure,
+            false,
+            "Application media wrapper failed; preserve its failure receipt",
+          );
+          const exit = await readFile(`${applicationMediaEvidence}.exit.json`, "utf8").catch(
+            (error) => {
+              if (error.code === "ENOENT") return null;
+              throw error;
+            },
+          );
+          if (exit)
+            assert.deepEqual(
+              { code: JSON.parse(exit).code, signal: JSON.parse(exit).signal },
+              { code: 0, signal: null },
+              "Unexpected ordinary app exit before namespace cleanup",
+            );
+        }
       })();
     }
     return linuxStop;
@@ -990,6 +1041,17 @@ async function connectObservedDriver() {
       expectedSha256: inputs[0].sha256,
       evidence,
     });
+    const { assertApplicationMediaReadiness } =
+      await import("../../../scripts/desktop-linux-media.mjs");
+    const readiness = JSON.parse(await readFile(applicationMediaEvidence, "utf8"));
+    await admission.verify(inputs);
+    for (const binding of [readiness.configuration, readiness.source]) {
+      const captured = inputs.find((input) => input.path === binding.path);
+      assert.ok(captured, "Application media readiness requires captured configuration/source");
+      assert.equal(binding.sha256, captured.sha256);
+      assert.equal(binding.bytes, captured.bytes);
+    }
+    assertApplicationMediaReadiness(readiness, browser.ownedProcessIdentity);
     return;
   }
   const finishObservation =
@@ -1336,7 +1398,7 @@ function driverEnvironment(childEnvironment) {
 }
 
 async function startDriver(childEnvironment = {}) {
-  await admission.verify(custody?.inputs ?? []);
+  await admission.verify(linuxPackagedInspector ? inputs : (custody?.inputs ?? []));
   ownedSession.beginLaunch();
   const launchStarted = Date.now();
   const arguments_ = [
@@ -1353,8 +1415,17 @@ async function startDriver(childEnvironment = {}) {
     linuxStop = undefined;
     linuxLaunchCount++;
     linuxLaunch = await launchLinuxNativeSession(
-      linuxPackagedInspector ? values.app : values.driver,
-      linuxPackagedInspector ? [] : arguments_,
+      linuxPackagedInspector ? process.execPath : values.driver,
+      linuxPackagedInspector
+        ? [
+            path.join(root, "scripts/desktop-linux-media.mjs"),
+            "--launch-probed-app",
+            process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG,
+            values.app,
+            inputs[0].sha256,
+            applicationMediaEvidence,
+          ]
+        : arguments_,
       linuxPackagedInspector
         ? linuxInspectorEnvironment(driverEnvironment(childEnvironment), port)
         : driverEnvironment(childEnvironment),

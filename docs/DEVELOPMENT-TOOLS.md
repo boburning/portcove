@@ -896,8 +896,16 @@ review and ordinary candidate CI, it prepares the distribution's matching
 `linux-modules-extra` Vivid capture-only webcam and a foreground private PulseAudio
 null source. The [Linux 6.8 driver contract](https://www.kernel.org/doc/html/v6.8/admin-guide/media/vivid.html#configuring-the-driver)
 defines the single webcam node; its supported 640×360 format replaces the failed
-DKMS loopback fixture. An actual mapped-user readiness probe
-must read both synthetic devices before the unchanged ordinary-DEB scenario.
+DKMS loopback fixture. The outer mapped-user probe is preparation evidence.
+The fixed internal media launcher repeats the bounded positive reads inside the
+application's final user/mount/PID namespace immediately before spawning the
+ordinary executable, with no intervening namespace or credential change. Its
+readiness receipt records namespace links, UID/GID maps, credentials and
+device/socket identities for the wrapper and app. Application start ticks,
+namespace IDs and executable hash must also match the live inspector listener
+before any application assertion. Missing or mismatched readiness fails
+admission. The existing namespace init owns both descendants; final join evidence
+does not imply normal application or wrapper exit.
 Existing devices, missing matching modules, module/signature refusal or unknown
 process joins stop qualification; no custom kernel, reboot, key enrollment or WebKit
 permission override is used. Only the operation's identified quiescent fixture

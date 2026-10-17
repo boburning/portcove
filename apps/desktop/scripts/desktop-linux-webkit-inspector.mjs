@@ -107,9 +107,34 @@ async function listenerIdentity({ port, launch, app, expectedSha256 }, deadline)
   assert.equal(executable, await realpath(app));
   assert.equal(await sha256(`/proc/${owner.pid}/exe`), expectedSha256);
   const namespace = await readlink(`/proc/${owner.pid}/ns/pid`);
+  const namespaces = Object.fromEntries(
+    await Promise.all(
+      ["user", "mnt", "pid"].map(async (name) => [
+        name,
+        await readlink(`/proc/${owner.pid}/ns/${name}`),
+      ]),
+    ),
+  );
+  const status = await readFile(`/proc/${owner.pid}/status`, "utf8");
+  const namespacePids = status
+    .match(/^NSpid:\s+([\d\s]+)$/mu)?.[1]
+    .trim()
+    .split(/\s+/u)
+    .map(Number);
+  assert.ok(
+    namespacePids?.length && namespacePids.every((pid) => Number.isSafeInteger(pid) && pid > 0),
+  );
   assert.notEqual(namespace, await readlink("/proc/self/ns/pid"));
   assert.deepEqual(await processIdentity(owner.pid), owner, "Listener generation must remain live");
-  return { ...owner, inode, executable, sha256: expectedSha256, namespace };
+  return {
+    ...owner,
+    inode,
+    executable,
+    sha256: expectedSha256,
+    namespace,
+    namespaces,
+    namespace_pid: namespacePids.at(-1),
+  };
 }
 
 async function discoveryDocument(port, deadline) {
@@ -408,6 +433,7 @@ export async function connectLinuxInspector({ port, launch, app, expectedSha256,
       return finalEvidence;
     };
     browser.observedRuntime = { transport: report.transport, ...report.document };
+    browser.ownedProcessIdentity = report.listener;
     report.outcome = "connected-nonautomation-main";
   } catch (error) {
     originalFailure = error;

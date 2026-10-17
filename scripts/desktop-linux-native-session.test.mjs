@@ -7,8 +7,104 @@ import { mkdtemp, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { launchLinuxNativeSession } from "../apps/desktop/scripts/desktop-linux-native-session.mjs";
-import { assertHostedMediaEnvironment, readMediaConfiguration } from "./desktop-linux-media.mjs";
+import {
+  assertHostedMediaEnvironment,
+  readMediaConfiguration,
+  assertApplicationMediaReadiness,
+} from "./desktop-linux-media.mjs";
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test("media admission requires positive reads and the actual application's namespace, generation and bytes", () => {
+  const namespaces = { user: "user:[10]", mnt: "mnt:[20]", pid: "pid:[30]" };
+  const shared = {
+    namespaces,
+    uid_map: "1000 1000 1",
+    gid_map: "1000 1000 1",
+    credentials: {
+      Uid: ["1000", "1000", "1000", "1000"],
+      Gid: ["1000", "1000", "1000", "1000"],
+      Groups: ["1000"],
+    },
+    device: { ino: 4, rdev: 5, uid: 1000, gid: 1000, mode: 0o20600, ctime_ms: 1000 },
+    socket: { ino: 6, rdev: 0, uid: 1000, gid: 1000, mode: 0o140600, ctime_ms: 1000 },
+  };
+  const receipt = {
+    phase: "app-launched",
+    probe: { outcome: "ready", uid: 1000, positive_reads: { video_buffers: 1, audio_buffers: 1 } },
+    wrapper: shared,
+    application: { ...shared, pid: 3, start_ticks: "12345" },
+    executable: { path: "/owned/app", sha256: "a".repeat(64) },
+  };
+  const listener = {
+    namespace_pid: 3,
+    start_ticks: "12345",
+    namespaces,
+    executable: "/owned/app",
+    sha256: "a".repeat(64),
+  };
+  assertApplicationMediaReadiness(receipt, listener);
+  assert.throws(() => assertApplicationMediaReadiness(undefined, listener));
+  for (const mutate of [
+    (value) => {
+      value.phase = "failed";
+    },
+    (value) => {
+      value.probe.outcome = "missing-devices";
+    },
+    (value) => {
+      value.probe.positive_reads.video_buffers = 0;
+    },
+    (value) => {
+      value.probe.positive_reads.audio_buffers = 0;
+    },
+    ...["user", "mnt", "pid"].map((name) => (value) => {
+      value.application.namespaces[name] = `${name}:[99]`;
+    }),
+    ...["uid_map", "gid_map", "credentials", "device", "socket"].map((name) => (value) => {
+      delete value.wrapper[name];
+    }),
+    (value) => {
+      value.application.start_ticks = "54321";
+    },
+    (value) => {
+      value.application.pid = 4;
+    },
+    (value) => {
+      value.application.uid_map = "0 0 1";
+    },
+    (value) => {
+      value.application.gid_map = "0 0 1";
+    },
+    (value) => {
+      value.application.credentials.Uid[1] = "0";
+    },
+    (value) => {
+      value.application.device.ino = 99;
+    },
+    (value) => {
+      value.application.socket.ino = 99;
+    },
+    (value) => {
+      value.executable.sha256 = "b".repeat(64);
+    },
+    (value) => {
+      value.executable.path = "/substituted/app";
+    },
+  ]) {
+    const changed = structuredClone(receipt);
+    // Keep independent wrapper/application objects for substitution controls.
+    changed.application = structuredClone(changed.application);
+    mutate(changed);
+    assert.throws(() => assertApplicationMediaReadiness(changed, listener));
+  }
+  for (const name of ["user", "mnt", "pid"])
+    assert.throws(() =>
+      assertApplicationMediaReadiness(receipt, {
+        ...listener,
+        namespaces: { ...namespaces, [name]: `${name}:[99]` },
+      }),
+    );
+});
 
 test("private-X11 bootstrap binds the actual ordinary caller rather than another user's UID", () => {
   assertQualificationUidMap(1000, "0 1000 1\n");

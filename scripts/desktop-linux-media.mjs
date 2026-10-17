@@ -1,8 +1,8 @@
 // Fixed, disposable hosted media prerequisites for the existing ordinary-DEB
 // scenario. This never changes WebKit permission policy or the shipped package.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { execFileSync, spawn } from "node:child_process";
+import { randomBytes, createHash } from "node:crypto";
 import { appendFileSync, constants } from "node:fs";
 import {
   mkdir,
@@ -14,6 +14,7 @@ import {
   realpath,
   copyFile,
   cp,
+  readlink,
 } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -372,17 +373,152 @@ async function probe(file) {
     "!",
     "fakesink",
   ]);
-  console.log(
-    JSON.stringify({
-      outcome: "ready",
-      uid: process.getuid(),
-      uid_map: (await readFile("/proc/self/uid_map", "utf8")).trim(),
-      video,
-      sources,
-      scope:
-        "Synthetic devices readable by mapped app user; not physical capture or permission acceptance",
-    }),
-  );
+  return {
+    outcome: "ready",
+    uid: process.getuid(),
+    uid_map: (await readFile("/proc/self/uid_map", "utf8")).trim(),
+    video,
+    sources,
+    positive_reads: { video_buffers: 1, audio_buffers: 1 },
+    scope:
+      "Synthetic devices readable by mapped app user; not physical capture or permission acceptance",
+  };
+}
+
+async function mediaNamespace(pid, config) {
+  const prefix = `/proc/${pid}`;
+  const stat = await readFile(`${prefix}/stat`, "utf8");
+  const status = await readFile(`${prefix}/status`, "utf8");
+  return {
+    pid: Number(stat.slice(0, stat.indexOf(" "))),
+    start_ticks: stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19],
+    namespaces: Object.fromEntries(
+      await Promise.all(
+        ["user", "mnt", "pid"].map(async (name) => [name, await readlink(`${prefix}/ns/${name}`)]),
+      ),
+    ),
+    uid_map: (await readFile(`${prefix}/uid_map`, "utf8")).trim(),
+    gid_map: (await readFile(`${prefix}/gid_map`, "utf8")).trim(),
+    credentials: Object.fromEntries(
+      ["Uid", "Gid", "Groups"].map((name) => {
+        const match = status.match(new RegExp(`^${name}:([^\\n]+)$`, "mu"));
+        assert.ok(match, `Missing process ${name}`);
+        return [name, match[1].trim().split(/\s+/u)];
+      }),
+    ),
+    device: nodeIdentity(await lstat(config.video)),
+    socket: nodeIdentity(await lstat(config.socket)),
+  };
+}
+
+export function assertApplicationMediaReadiness(receipt, listener) {
+  assert.equal(receipt?.phase, "app-launched");
+  assert.equal(receipt.probe?.outcome, "ready");
+  assert.deepEqual(receipt.probe.positive_reads, { video_buffers: 1, audio_buffers: 1 });
+  assert.ok(Number.isSafeInteger(receipt.probe.uid) && receipt.probe.uid > 0);
+  assert.ok(Number.isSafeInteger(receipt.application?.pid) && receipt.application.pid > 0);
+  assert.match(receipt.application.start_ticks, /^\d+$/u);
+  assert.match(receipt.executable?.sha256, /^[a-f0-9]{64}$/u);
+  assert.ok(path.isAbsolute(receipt.executable.path));
+  for (const field of ["namespaces", "uid_map", "gid_map", "credentials", "device", "socket"]) {
+    assert.ok(receipt.wrapper?.[field], `Missing wrapper ${field}`);
+    assert.deepEqual(
+      receipt.application?.[field],
+      receipt.wrapper[field],
+      `Application changed ${field} after positive media reads`,
+    );
+  }
+  for (const name of ["user", "mnt", "pid"])
+    assert.match(receipt.wrapper.namespaces[name], new RegExp(`^${name}:\\[\\d+\\]$`, "u"));
+  for (const name of ["device", "socket"]) {
+    const node = receipt.wrapper[name];
+    for (const field of ["ino", "rdev", "uid", "gid", "mode"])
+      assert.ok(Number.isSafeInteger(node[field]) && node[field] >= 0, `Invalid ${name} ${field}`);
+    assert.ok(node.ino > 0 && Number.isFinite(node.ctime_ms) && node.ctime_ms > 0);
+    assert.equal(
+      // These receipts describe Linux stat modes even when reviewed on Windows,
+      // whose fs.constants does not expose S_IFSOCK.
+      node.mode & 0o170000,
+      name === "device" ? 0o020000 : 0o140000,
+    );
+  }
+  assert.equal(receipt.wrapper.credentials.Uid.length, 4);
+  assert.equal(receipt.wrapper.credentials.Gid.length, 4);
+  assert.equal(Number(receipt.wrapper.credentials.Uid[1]), receipt.probe.uid);
+  assert.equal(receipt.application.start_ticks, listener.start_ticks);
+  assert.equal(receipt.application.pid, listener.namespace_pid);
+  assert.deepEqual(receipt.application.namespaces, listener.namespaces);
+  assert.equal(receipt.executable.sha256, listener.sha256);
+  assert.equal(receipt.executable.path, listener.executable);
+}
+
+// Fixed qualification-only wrapper: positive reads and the ordinary app share
+// the final user/mount/PID namespaces. No credential or namespace transition
+// occurs between this existing probe and spawn; the existing PID1 owns cleanup.
+async function launchProbedApplication(file, app, expectedSha256, evidence) {
+  assertHostedMediaEnvironment(process.env, process.platform, process.getuid?.());
+  assert.ok(path.isAbsolute(app) && path.isAbsolute(evidence));
+  assert.match(expectedSha256, /^[a-f0-9]{64}$/u);
+  const config = await readMediaConfiguration(file);
+  const report = {
+    phase: "preflight",
+    configuration: await fileIdentity(file),
+    source: await fileIdentity(script),
+  };
+  let child;
+  try {
+    report.executable = await fileIdentity(await realpath(app));
+    assert.equal(report.executable.sha256, expectedSha256);
+    report.wrapper = await mediaNamespace("self", config);
+    report.probe = await probe(file);
+    report.positive_reads_completed_at = new Date().toISOString();
+    child = spawn(app, [], { env: process.env, stdio: "inherit", shell: false });
+    // Register exit/error custody before metadata reads or persistence awaits.
+    const exited = new Promise((resolve, reject) => {
+      child.once("error", reject);
+      child.once("close", (code, signal) => resolve({ code, signal }));
+    });
+    // The owned namespace init remains responsible if readback/persistence fails.
+    // Attach immediately so a failed preflight cannot cause an unhandled rejection.
+    exited.catch(() => {});
+    await new Promise((resolve, reject) => {
+      child.once("spawn", resolve);
+      child.once("error", reject);
+    });
+    report.application = await mediaNamespace(child.pid, config);
+    assert.equal(await realpath(`/proc/${child.pid}/exe`), report.executable.path);
+    assert.equal(
+      createHash("sha256")
+        .update(await readFile(`/proc/${child.pid}/exe`))
+        .digest("hex"),
+      expectedSha256,
+    );
+    report.phase = "app-launched";
+    assertApplicationMediaReadiness(report, {
+      ...report.application,
+      namespace_pid: child.pid,
+      sha256: expectedSha256,
+      executable: report.executable.path,
+    });
+    report.application_observed_at = new Date().toISOString();
+    await save(evidence, report);
+    const status = await exited;
+    await save(`${evidence}.exit.json`, { ...status, observed_at: new Date().toISOString() });
+    assert.equal(status.signal, null, "Ordinary app exited by signal before namespace cleanup");
+    process.exitCode = status.code ?? 1;
+  } catch (error) {
+    try {
+      await save(`${evidence}.failure.json`, {
+        ...report,
+        phase: "failed",
+        failure: { name: error.name, message: error.message },
+      });
+    } catch (secondary) {
+      error.evidenceFailure = secondary.message;
+      console.error(`Application media failure persistence (secondary): ${secondary.message}`);
+    }
+    throw error;
+  }
 }
 
 async function waitReady(launch, check) {
@@ -564,17 +700,23 @@ async function cleanup() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === script) {
   try {
-    const [mode, file, extra] = process.argv.slice(2);
-    assert.equal(extra, undefined);
-    if (mode === "--probe" && file) await probe(file);
-    else if (mode === "--prepare" && !file) await prepare();
-    else if (mode === "--build" && !file) await build();
-    else if (mode === "--run" && !file) await run();
-    else if (mode === "--cleanup" && !file) await cleanup();
-    else
-      throw new Error(
-        "Fixed hosted media operation required: --prepare|--build|--run|--cleanup or internal --probe FILE",
-      );
+    const [mode, file, ...rest] = process.argv.slice(2);
+    if (mode === "--launch-probed-app") {
+      assert.equal(rest.length, 3);
+      await launchProbedApplication(file, ...rest);
+    } else {
+      const [extra] = rest;
+      assert.equal(extra, undefined);
+      if (mode === "--probe" && file) console.log(JSON.stringify(await probe(file)));
+      else if (mode === "--prepare" && !file) await prepare();
+      else if (mode === "--build" && !file) await build();
+      else if (mode === "--run" && !file) await run();
+      else if (mode === "--cleanup" && !file) await cleanup();
+      else
+        throw new Error(
+          "Fixed hosted media operation required: --prepare|--build|--run|--cleanup or internal --probe FILE",
+        );
+    }
   } catch (error) {
     console.error(error);
     process.exitCode = 1;
