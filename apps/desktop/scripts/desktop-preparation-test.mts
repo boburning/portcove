@@ -42,6 +42,7 @@ export interface PreparationContext {
     assertPreparing: () => Promise<void>,
   ) => Promise<WebDriver>;
   captureLivePreparation: (executable: string) => unknown;
+  chooseOwnedLibrary: ReturnType<typeof nativeConfirmation>;
 }
 function object(value: unknown): Record<string, unknown> {
   assert.ok(isRecord(value));
@@ -96,6 +97,7 @@ import { readinessScenario } from "./desktop-readiness-test.mts";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mts";
 import { sourceDialogScenario } from "./desktop-source-dialog-test.mts";
 import { primaryFilePickerScenario } from "./desktop-primary-file-picker-test.mts";
+import { listenerLifetimeScenario } from "./desktop-listener-lifetime-test.mts";
 
 // Qualification witness guard only; Core retains filesystem ownership and symlink authority.
 export function rollbackWitnessWithinLibrary(library: string, owned: string) {
@@ -847,6 +849,7 @@ export async function preparationScenarios({
   interruptApplication,
   closeApplication,
   captureLivePreparation,
+  chooseOwnedLibrary,
 }: PreparationContext) {
   const invoke = async (name: string, args?: Record<string, unknown>) =>
     object(await invokeRaw(name, args));
@@ -1958,7 +1961,7 @@ export async function preparationScenarios({
     artifacts.push(report);
   });
 
-  await scenario("native-preparation-cancellation", async () => {
+  const livePreparationCancellation = async (probeListener = false) => {
     const { port, install } = await seed("opengoal-jak2", "wait", true);
     await open(port);
     interface PhaseObservation {
@@ -1980,6 +1983,7 @@ export async function preparationScenarios({
         after_sha256?: string;
       }[];
       failure?: { message: string; observed_at: string };
+      listener_lifetime?: Awaited<ReturnType<typeof listenerLifetimeScenario>>;
     } = { port_id: port.id, phases: [], inputs: [] };
     const preparationIds = (items: readonly ActivityRecord[]) =>
       items
@@ -2077,6 +2081,55 @@ export async function preparationScenarios({
         "running",
       );
       assert.equal(required(restored.status.readiness).launchable, false);
+      if (probeListener) {
+        const runningActivity = required(activity);
+        observations.listener_lifetime = await listenerLifetimeScenario({
+          browser,
+          invoke,
+          output,
+          artifacts,
+          chooseOwnedLibrary,
+          observeRunning: async (index) => {
+            const current = await observe(`live-listener-generation-${index + 1}`);
+            assert.equal(required(current.status.active).id, install.id);
+            assert.deepEqual(
+              current.activities.map((item) => item.id).sort(),
+              restored.activities.map((item) => item.id).sort(),
+            );
+            assert.equal(
+              current.activities.find((item) => item.id === runningActivity.id)?.status,
+              "running",
+            );
+            return {
+              activity_id: runningActivity.id,
+              active_installation_id: required(current.status.active).id,
+              activity_ids: current.activities.map((item) => item.id).sort(),
+            };
+          },
+        });
+        const remounted = await observe("live-after-listener-disposal");
+        assert.equal(remounted.bootstrap.library_root, before.bootstrap.library_root);
+        assert.equal(remounted.bootstrap.generation, before.bootstrap.generation + 2);
+        assert.equal(required(remounted.status.active).id, install.id);
+        assert.deepEqual(
+          preparationIds(remounted.activities),
+          [...baselineIds, runningActivity.id].sort(),
+        );
+        assert.equal(
+          remounted.activities.find((item) => item.id === runningActivity.id)?.status,
+          "running",
+        );
+        // Same-document navigation preserves interception custody during the probe.
+        await browser
+          .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Library"]]'))
+          .click();
+        const card = By.xpath(
+          `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]//button[@data-detail-origin]`,
+        );
+        await browser.wait(until.elementLocated(card), 15_000);
+        await browser.findElement(card).click();
+        await browser.wait(until.elementLocated(By.css("section[data-detail-workspace]")), 15_000);
+      }
       const cancel = await browser.wait(
         async () => {
           const candidates = await browser.findElements(
@@ -2257,7 +2310,9 @@ export async function preparationScenarios({
       }
     }
     if (evidenceFailure) rethrowFailure(evidenceFailure);
-  });
+  };
+  await scenario("native-preparation-cancellation", () => livePreparationCancellation());
+  await scenario("native-late-listener-disposal", () => livePreparationCancellation(true));
   browser = await interruptedPreparationScenario({
     browser,
     invoke,
@@ -2734,6 +2789,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     interruptApplication: async () => assert.fail("Context preflight must not interrupt"),
     closeApplication: async () => assert.fail("Context preflight must not close"),
     captureLivePreparation: () => assert.fail("Context preflight must not capture"),
+    chooseOwnedLibrary: async () => assert.fail("Context preflight must not choose a library"),
     chooseGameFileFolder: undefined,
   };
   await runOwnedFixtureJourneys(

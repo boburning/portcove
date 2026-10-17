@@ -207,6 +207,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-saved-folder-hash-resume",
             "native-preliminary-selected-setup",
             "native-linux-packaged-webview-boundary",
+            "native-late-listener-disposal",
           ].includes(id),
       ),
     });
@@ -240,6 +241,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             selection.selected_scenarios.includes("native-selected-setup-completion")) ||
           added === "scripts/native-readiness.mts" ||
           added === "scripts/acceptance-packet.mts" ||
+          added === "apps/desktop/scripts/desktop-listener-lifetime-test.mts" ||
           added === nativeHelperRegistryPath,
         added,
       );
@@ -429,6 +431,28 @@ void test("game-update review binds Windows cleanup without first-play or wider 
   }
 });
 
+void test("late listener qualification binds its imported probe and positive final cleanup", () => {
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({ scenarios: ["native-late-listener-disposal"], platform: "win32" }),
+  );
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "late-listener-disposal");
+  assert.ok(
+    plan.fixtureFamilies.some(
+      (entry) =>
+        entry.family === "preparation" &&
+        entry.members?.some((member) => member.id === "native-late-listener-disposal"),
+    ),
+  );
+  assert.ok(
+    plan.receiptInputs.some(
+      (input) => input.path === "apps/desktop/scripts/desktop-listener-lifetime-test.mts",
+    ),
+  );
+  assert.ok(plan.selection.prerequisites.includes("native-dialog"));
+  assert.ok(plan.selection.host_resources.includes("native-dialog"));
+});
+
 void test("backup review requires identity-bound Windows cleanup under the existing deadline", () => {
   for (const platform of ["win32", "linux"] as const) {
     const selection = resolveDesktopSelection({
@@ -529,6 +553,7 @@ void test("coordinator consumes supplied order and obtains browser at each invoc
     interruptApplication() {},
     closeApplication() {},
     captureLivePreparation() {},
+    chooseOwnedLibrary() {},
     chooseGameFileFolder() {},
   };
   const runtime = {
@@ -562,6 +587,7 @@ void test("coordinator consumes supplied order and obtains browser at each invoc
       assert.equal(c.browser, "replacement");
       assert.equal(c.cli, "cli");
       assert.equal(c.tool, "tool");
+      assert.equal(c.chooseOwnedLibrary, context.chooseOwnedLibrary);
       trace.push("preparation");
     },
   };

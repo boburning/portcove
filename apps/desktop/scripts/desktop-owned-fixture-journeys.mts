@@ -15,6 +15,7 @@ interface JourneySlots {
   interruptApplication?: unknown;
   closeApplication?: unknown;
   captureLivePreparation?: unknown;
+  chooseOwnedLibrary?: unknown;
   chooseGameFileFolder?: unknown;
 }
 type Shared<Context extends JourneySlots> = {
@@ -58,6 +59,7 @@ export interface OwnedFixtureJourneys<Context extends JourneySlots, Confirmation
         | "interruptApplication"
         | "closeApplication"
         | "captureLivePreparation"
+        | "chooseOwnedLibrary"
       > & { confirmNative: Confirmation },
   ) => Promise<unknown>;
 }
@@ -115,6 +117,7 @@ export async function runOwnedFixtureJourneys<Context extends JourneySlots, Conf
           interruptApplication: context.interruptApplication,
           closeApplication: context.closeApplication,
           captureLivePreparation: context.captureLivePreparation,
+          chooseOwnedLibrary: context.chooseOwnedLibrary,
         });
         break;
       default:

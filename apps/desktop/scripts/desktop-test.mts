@@ -3773,6 +3773,12 @@ try {
             interruptApplication,
             closeApplication,
             captureLivePreparation,
+            chooseOwnedLibrary: nativeConfirmation({
+              application,
+              getDriverPid: () => required(required(driver).pid),
+              output,
+              artifacts,
+            }),
             chooseGameFileFolder: ["win32", "linux"].includes(process.platform)
               ? nativeGameFileFolderPicker({
                   application: application,

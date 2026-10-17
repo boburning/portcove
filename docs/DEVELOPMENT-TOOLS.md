@@ -1134,6 +1134,20 @@ The curated profiles are:
 - `full`: smoke, owned lifecycle and artwork. It remains a curated native suite,
   not universal desktop, physical-device, gameplay or human qualification.
 
+`--scenario native-late-listener-disposal` is a standalone Windows qualification
+of actual native operation-listener lifetime during one live Core preparation.
+After a renderer reload, two UI-reviewed owned-folder selections have only their
+bridge input redirected to the current owned root. Core returns its real
+generation changes while retaining the worker; no response or generation is
+invented. The probe delays delivery of one completed native listen response
+across the second owner remount, then observes the exact native unlisten and
+callback removal while the current owner's listener remains registered.
+The same preparation ID is cancelled through the current UI and its original
+inputs and durable recovery outcome are checked. This controlled bridge-input
+and response-delay proof is not a natural library move, transport rejection,
+Linux observation, or operating-system shutdown. It is excluded from ordinary
+profiles; uncertain interception cleanup invalidates the session.
+
 `--scenario native-host-interrupted-preparation` is an opt-in Windows proof:
 an owned setup child reaches its live checkpoint, the identified harness tree
 is forcibly terminated without first deleting the WebDriver session, and a new
