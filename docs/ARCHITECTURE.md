@@ -2472,6 +2472,8 @@ Post-exit collection compares canonical install and versions-directory paths aft
 
 Persistent-data synchronization skips a redundant file copy only when lengths and complete SHA-256 content match. Timestamps alone never authorize reuse, and a same-size changed save still replaces its collected copy. Existing ancestor checks, port locking, and deletion propagation remain in force.
 
+ZIP readers decode raw entry names as UTF-8 when valid, otherwise CP437, including archives whose producer omitted the UTF-8 flag. Source inspection retains that decoded member name alongside independently verified content and outer-container identities; multiple matching members remain ambiguous. Installer extraction still rejects every non-ASCII path before writes.
+
 ZIP entry names from Windows producers are normalized from DOS separators to forward slashes before the shared portable validator and collision inventory run. This is one platform-independent output namespace: mixed-separator aliases collide, and traversal, drive/UNC roots, reserved names, links, special files, and resource limits still fail before extraction writes. Catalog and TAR paths retain their forward-slash requirement.
 
 ### Checked backup restore interpretation

@@ -855,7 +855,13 @@ void test(
       `
 $ErrorActionPreference = "Stop"
 $previousTemp = $env:TEMP
-function pnpm { if ($args[0] -eq '--version') { (Get-Content -Raw (Join-Path $PSScriptRoot 'package.json') | ConvertFrom-Json).packageManager -replace '^pnpm@','' }; $global:LASTEXITCODE = 0 }
+function pnpm {
+    if ($args[0] -eq '--version') {
+        $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot "package.json") -Raw | ConvertFrom-Json
+        $manifest.packageManager -replace '^pnpm@', '' -replace '\\+.*$', ''
+    }
+    $global:LASTEXITCODE = 0
+}
 function just {
     if ($env:TEMP -ne (Join-Path $PSScriptRoot "scratch")) { throw "Wrong temporary path" }
     if ($env:pnpm_config_store_dir -ne (Join-Path $PSScriptRoot "store")) { throw "Wrong pnpm store" }
