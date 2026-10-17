@@ -6,14 +6,14 @@ import {
   selectApplicationRelease,
 } from "./release-version-policy.mts";
 
-const released = (version, overrides = {}) => ({
+const released = (version: string, overrides: Record<string, unknown> = {}) => ({
   tag_name: `v${version}`,
   draft: false,
   prerelease: true,
   published_at: "2026-09-01T12:00:00Z",
   ...overrides,
 });
-const approved = (version, overrides = {}) => ({
+const approved = (version: string, overrides: Record<string, unknown> = {}) => ({
   version,
   preview_eligible: true,
   production_eligible: true,
@@ -40,7 +40,10 @@ test("maintained SemVer rejects noncanonical values and compares numeric prerele
     released("0.2.0-beta.9", { published_at: "2026-09-09T12:00:00Z" }),
     released("0.2.0-beta.10"),
   ];
-  assert.equal(selectApplicationRelease(candidates, "preview").tag_name, "v0.2.0-beta.10");
+  assert.equal(
+    selected(selectApplicationRelease(candidates, "preview")).tag_name,
+    "v0.2.0-beta.10",
+  );
 });
 
 test("late maintenance cannot replace a higher preview and drafts stay excluded", () => {
@@ -49,13 +52,14 @@ test("late maintenance cannot replace a higher preview and drafts stay excluded"
     released("0.3.0-beta.1"),
     released("0.4.0", { draft: true }),
   ];
-  assert.equal(selectApplicationRelease(candidates, "preview").tag_name, "v0.3.0-beta.1");
+  assert.equal(selected(selectApplicationRelease(candidates, "preview")).tag_name, "v0.3.0-beta.1");
   assert.equal(
     selectApplicationRelease([released("0.3.0", { prerelease: false })], "stable"),
     null,
   );
   assert.equal(
-    selectApplicationRelease([released("0.3.0", { prerelease: false })], "preview").tag_name,
+    selected(selectApplicationRelease([released("0.3.0", { prerelease: false })], "preview"))
+      .tag_name,
     "v0.3.0",
   );
 });
@@ -88,8 +92,11 @@ test("Preview-to-Stable waits, equal versions do not reinstall and RC-to-final s
   };
   assert.equal(selectApplicationRelease([rc], "stable", options), null);
   assert.equal(
-    selectApplicationRelease([rc, final], "stable", options).artifact_sha256,
-    final.artifact_sha256,
+    fixtureField(
+      selected(selectApplicationRelease([rc, final], "stable", options)),
+      "artifact_sha256",
+    ),
+    fixtureField(final, "artifact_sha256"),
   );
   assert.equal(
     selectApplicationRelease([final], "stable", {
@@ -151,8 +158,17 @@ test("target mismatch, withdrawal and holds cannot manufacture an eligible updat
   );
 });
 
+function fixtureField(value: unknown, key: string): unknown {
+  assert.ok(value !== null && typeof value === "object");
+  return Reflect.get(value, key);
+}
+function selected<T>(value: T | null): T {
+  assert.ok(value !== null);
+  return value;
+}
+
 const commit = "a".repeat(40);
-const classification = (base, change, overrides = {}) => ({
+const classification = (base: string, change: string, overrides: Record<string, unknown> = {}) => ({
   source_commit: commit,
   reviewed_commit: commit,
   base_version: base,
@@ -167,7 +183,7 @@ test("reviewed frozen classifications produce deterministic initial-development 
     ["0.1.0", "minor", "0.2.0"],
     ["0.1.0-alpha.2", "prerelease", "0.1.0-alpha.3"],
     ["0.1.0-alpha.2", "finalize", "0.1.0"],
-  ]) {
+  ] as const) {
     const result = proposeApplicationVersion(classification(base, change), [base]);
     assert.equal(result.version, expected);
     assert.deepEqual(result.channels, ["preview"]);
@@ -280,5 +296,21 @@ test("review explicitly starts new prerelease trains and preserves compatibility
   assert.throws(
     () => selectApplicationRelease([released("0.3.0")], "preview", { target: "" }),
     /target must be/,
+  );
+});
+
+test("release timestamps and classification source identities require scalars", () => {
+  assert.throws(
+    () => selectApplicationRelease([released("0.3.0", { published_at: 0 })], "preview"),
+    /invalid published timestamp/,
+  );
+  const source = [commit];
+  assert.throws(
+    () =>
+      proposeApplicationVersion(
+        { ...classification("0.1.0", "patch"), source_commit: source, reviewed_commit: source },
+        ["0.1.0"],
+      ),
+    /exact source commit/,
   );
 });

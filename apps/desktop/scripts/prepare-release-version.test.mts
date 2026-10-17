@@ -1,3 +1,4 @@
+import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -8,7 +9,7 @@ import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, test } from "vite-plus/test";
 import { prepareReleaseVersion } from "./prepare-release-version.mts";
 
-const roots = [];
+const roots: string[] = [];
 afterEach(async () => {
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
 });
@@ -18,7 +19,7 @@ const execute = promisify(execFile);
 async function fixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-version-fixture-"));
   roots.push(root);
-  const git = (...args) =>
+  const git = (...args: string[]) =>
     execFileSync("git", ["-C", root, ...args], {
       encoding: "utf8",
       windowsHide: true,
@@ -76,8 +77,9 @@ test("prepares exact coordinated metadata and retries without changing working f
     /name = "third-party"\nversion = "0.1.0"/,
   );
   assert.equal(
-    JSON.parse(git("show", `${result.prepared_commit}:apps/desktop/src-tauri/tauri.conf.json`))
-      .version,
+    fixtureJsonObject(
+      git("show", `${result.prepared_commit}:apps/desktop/src-tauri/tauri.conf.json`),
+    ).version,
     "0.2.0",
   );
   assert.equal(
@@ -104,9 +106,19 @@ test("concurrent independent processes allocate one identical preparation", asyn
     ),
   );
   // Keep the fixture until every process exits, including when one fails.
-  for (const result of results) assert.equal(result.status, "fulfilled", result.reason?.message);
-  for (const result of results)
-    assert.deepEqual(JSON.parse(result.value.stdout), JSON.parse(results[0].value.stdout));
+  const successful = results.map((result) => {
+    assert.equal(
+      result.status,
+      "fulfilled",
+      result.status === "rejected" ? errorMessage(result.reason) : undefined,
+    );
+    assert.ok(result.status === "fulfilled");
+    return result.value;
+  });
+  const first = successful[0];
+  assert.ok(first);
+  for (const result of successful)
+    assert.deepEqual(fixtureJsonObject(result.stdout), fixtureJsonObject(first.stdout));
   assert.equal(
     git("for-each-ref", "--format=%(objectname)", "refs/portcove/").trim().split("\n").length,
     2,
@@ -148,7 +160,11 @@ test("rejects changed intent, reused version, stale history and partial receipts
 }, 30_000);
 
 describe("receipt lock contention", () => {
-  let prepared;
+  let prepared:
+    | (Awaited<ReturnType<typeof fixture>> & {
+        result: Awaited<ReturnType<typeof prepareReleaseVersion>>;
+      })
+    | undefined;
   // Repository construction and the first successful allocation are setup, not
   // lock contention. Keep the existing ten-second behavior budget independent
   // of that Git work; setup retains the other preparation fixtures' bound.
@@ -159,6 +175,7 @@ describe("receipt lock contention", () => {
   }, 30_000);
 
   test("fails within its bound and a retry preserves the allocation", async () => {
+    assert.ok(prepared);
     const { root, classification, git, result } = prepared;
     const lock = path.join(root, ".git", `${result.allocation_refs[1]}.lock`);
     await writeFile(lock, "owned contention fixture", { flag: "wx" });
@@ -209,3 +226,9 @@ test("invalid source metadata cannot reserve a version or silently update a depe
   );
   assert.equal(git("for-each-ref", "--format=%(refname)", "refs/portcove/"), "");
 }, 30_000);
+
+function fixtureJsonObject(text: string): Record<string, unknown> {
+  const value: unknown = JSON.parse(text);
+  assert.ok(isRecord(value));
+  return value;
+}

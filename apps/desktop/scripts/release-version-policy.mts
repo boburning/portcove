@@ -1,3 +1,5 @@
+import { isRecord } from "../../../scripts/runtime-values.mts";
+import type { SemVer } from "semver";
 // Offline repository release policy. This module is not imported by the renderer
 // or a runtime updater; authenticated feed ownership remains at the Tauri host.
 import { readFile } from "node:fs/promises";
@@ -5,7 +7,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import semver from "semver";
 
-function exactVersion(value) {
+function diagnosticText(value: unknown): string {
+  return String(value);
+}
+function exactVersion(value: unknown) {
   if (typeof value !== "string") throw new Error("application version must be a SemVer string");
   const parsed = semver.parse(value);
   if (!parsed) throw new Error(`invalid application version: ${value}`);
@@ -14,7 +19,7 @@ function exactVersion(value) {
   return parsed;
 }
 
-export function classifyApplicationVersion(version, productionEligible = false) {
+export function classifyApplicationVersion(version: unknown, productionEligible: unknown = false) {
   const parsed = exactVersion(version);
   if (typeof productionEligible !== "boolean")
     throw new Error("production eligibility must be explicit boolean evidence");
@@ -22,21 +27,21 @@ export function classifyApplicationVersion(version, productionEligible = false) 
     throw new Error("0.x and prerelease versions cannot be production eligible");
   }
   return {
-    version,
+    version: parsed.raw,
     github_prerelease: !productionEligible,
     channels: productionEligible ? ["preview", "stable"] : ["preview"],
   };
 }
 
-export function compareApplicationVersionPrecedence(left, right) {
+export function compareApplicationVersionPrecedence(left: unknown, right: unknown) {
   return semver.compare(exactVersion(left), exactVersion(right));
 }
 
-function field(release, camel, snake) {
-  return release[camel] ?? release[snake];
+function field(release: unknown, camel: string, snake: string) {
+  return isRecord(release) ? (release[camel] ?? release[snake]) : undefined;
 }
 
-function publishedRelease(release) {
+function publishedRelease<Release>(release: Release) {
   if (field(release, "isDraft", "draft") !== false) return null;
   const githubPrerelease = field(release, "isPrerelease", "prerelease");
   if (typeof githubPrerelease !== "boolean")
@@ -47,35 +52,65 @@ function publishedRelease(release) {
   const version = tag.slice(1);
   const parsed = exactVersion(version);
   const publishedAt = field(release, "publishedAt", "published_at");
-  if (Number.isNaN(Date.parse(publishedAt ?? "")))
+  if (typeof publishedAt !== "string" || Number.isNaN(Date.parse(publishedAt)))
     throw new Error(
-      `published release has an invalid published timestamp: ${publishedAt ?? "missing"}`,
+      `published release has an invalid published timestamp: ${diagnosticText(publishedAt ?? "missing")}`,
     );
   return { release, tag, version, parsed, githubPrerelease };
 }
 
-function eligibilityEvidence(candidate, evidence) {
+interface Eligibility {
+  version: string;
+  preview_eligible: boolean;
+  production_eligible: boolean;
+  held?: boolean;
+  withdrawn?: boolean;
+  targets?: unknown;
+}
+type Candidate<Release> = NonNullable<ReturnType<typeof publishedRelease<Release>>>;
+function eligibilityEvidence(
+  candidate: { tag: string; version: string },
+  evidence: unknown,
+): Eligibility | undefined {
   const { tag, version } = candidate;
   if (
     evidence &&
-    (evidence.version !== version ||
+    (!isRecord(evidence) ||
+      evidence.version !== version ||
       typeof evidence.preview_eligible !== "boolean" ||
       typeof evidence.production_eligible !== "boolean")
   ) {
     throw new Error(`invalid release eligibility evidence for ${tag}`);
   }
+  if (!evidence) return undefined;
+  if (!isRecord(evidence)) throw new Error(`invalid release eligibility evidence for ${tag}`);
   if (
-    evidence &&
-    (["held", "withdrawn"].some(
+    ["held", "withdrawn"].some(
       (key) => evidence[key] !== undefined && typeof evidence[key] !== "boolean",
     ) ||
-      (evidence.production_eligible && !evidence.preview_eligible))
+    (evidence.production_eligible && !evidence.preview_eligible)
   )
     throw new Error(`inconsistent release eligibility evidence for ${tag}`);
-  return evidence;
+  if (
+    evidence.version !== version ||
+    typeof evidence.preview_eligible !== "boolean" ||
+    typeof evidence.production_eligible !== "boolean"
+  )
+    throw new Error(`invalid release eligibility evidence for ${tag}`);
+  return {
+    version,
+    preview_eligible: evidence.preview_eligible,
+    production_eligible: evidence.production_eligible,
+    ...(typeof evidence.held === "boolean" ? { held: evidence.held } : {}),
+    ...(typeof evidence.withdrawn === "boolean" ? { withdrawn: evidence.withdrawn } : {}),
+    ...(evidence.targets !== undefined ? { targets: evidence.targets } : {}),
+  };
 }
 
-function eligibleChannels(candidate, evidence) {
+function eligibleChannels(
+  candidate: { version: string; parsed: SemVer; githubPrerelease: boolean },
+  evidence: Eligibility | undefined,
+) {
   const { version, parsed, githubPrerelease } = candidate;
   const classification = classifyApplicationVersion(
     version,
@@ -91,14 +126,18 @@ function eligibleChannels(candidate, evidence) {
   return classification.channels;
 }
 
-function supportsTarget(evidence, target: string) {
+function supportsTarget(evidence: Eligibility | undefined, target: unknown) {
   if (target === undefined) return true;
   if (typeof target !== "string" || !target.trim())
     throw new Error("target must be an explicit nonempty identity");
   return Array.isArray(evidence?.targets) && evidence.targets.includes(target);
 }
 
-function eligibleCandidate(candidate, channel, options) {
+function eligibleCandidate<Release>(
+  candidate: Candidate<Release> | null,
+  channel: string,
+  options: SelectionOptions,
+) {
   if (!candidate) return null;
   const evidence = eligibilityEvidence(candidate, options.eligibility?.[candidate.tag]);
   if (evidence?.withdrawn === true || evidence?.held === true) return null;
@@ -107,24 +146,39 @@ function eligibleCandidate(candidate, channel, options) {
   return { release: candidate.release, version: candidate.version };
 }
 
-function selectionRequest(releases, channel, options) {
-  if (!["preview", "stable"].includes(channel))
-    throw new Error(`unknown release channel: ${channel}`);
+interface SelectionOptions {
+  eligibility?: Record<string, unknown>;
+  currentVersion?: string;
+  target?: unknown;
+}
+function selectionRequest(
+  releases: unknown,
+  channel: unknown,
+  rawOptions: unknown,
+): { channel: string; options: SelectionOptions } {
+  if (typeof channel !== "string" || !["preview", "stable"].includes(channel))
+    throw new Error(`unknown release channel: ${String(channel)}`);
   if (!Array.isArray(releases)) throw new Error("release response must be an array");
-  if (
-    options.eligibility !== undefined &&
-    (!options.eligibility ||
-      typeof options.eligibility !== "object" ||
-      Array.isArray(options.eligibility))
-  )
+  if (!isRecord(rawOptions)) throw new Error("release selection options must be an object");
+  if (rawOptions.eligibility !== undefined && !isRecord(rawOptions.eligibility))
     throw new Error("eligibility must be a separately verified map");
-  if (options.currentVersion !== undefined) exactVersion(options.currentVersion);
+  if (rawOptions.currentVersion !== undefined) exactVersion(rawOptions.currentVersion);
+  return {
+    channel,
+    options: {
+      ...(isRecord(rawOptions.eligibility) ? { eligibility: rawOptions.eligibility } : {}),
+      ...(typeof rawOptions.currentVersion === "string"
+        ? { currentVersion: rawOptions.currentVersion }
+        : {}),
+      ...(rawOptions.target !== undefined ? { target: rawOptions.target } : {}),
+    },
+  };
 }
 
-function uniquePrecedence(versions) {
+function uniquePrecedence(versions: readonly string[]) {
   const sorted = versions.toSorted(semver.compare);
   for (let index = 1; index < sorted.length; index += 1) {
-    if (semver.eq(sorted[index - 1], sorted[index]))
+    if (semver.eq(sorted[index - 1] ?? "", sorted[index] ?? ""))
       throw new Error(
         "ambiguous application releases contain duplicate version precedence (equal SemVer precedence)",
       );
@@ -134,12 +188,28 @@ function uniquePrecedence(versions) {
 /** Eligibility is supplied separately by the trusted caller, never inferred from
  * GitHub's latest marker, date, or a field embedded in an arbitrary release body.
  */
-export function selectApplicationRelease(releases, channel, options = {}) {
-  selectionRequest(releases, channel, options);
-  const candidates = releases
+export function selectApplicationRelease<Release>(
+  releases: readonly Release[],
+  requestedChannel: unknown,
+  rawOptions?: unknown,
+): Release | null;
+export function selectApplicationRelease(
+  releases: unknown,
+  requestedChannel: unknown,
+  rawOptions?: unknown,
+): unknown;
+export function selectApplicationRelease(
+  releases: unknown,
+  requestedChannel: unknown,
+  rawOptions: unknown = {},
+) {
+  const { channel, options } = selectionRequest(releases, requestedChannel, rawOptions);
+  if (!Array.isArray(releases)) throw new Error("release response must be an array");
+  const values: unknown[] = releases;
+  const candidates = values
     .map(publishedRelease)
     .map((candidate) => eligibleCandidate(candidate, channel, options))
-    .filter(Boolean);
+    .filter((candidate) => candidate !== null);
   candidates.sort((left, right) => semver.rcompare(left.version, right.version));
   uniquePrecedence(candidates.map((candidate) => candidate.version));
   const candidate = candidates[0];
@@ -151,43 +221,86 @@ export function selectApplicationRelease(releases, channel, options = {}) {
   return candidate.release;
 }
 
-function reviewedClassification(classification) {
-  if (!/^[a-f0-9]{40}$/.test(classification?.source_commit ?? ""))
-    throw new Error("classification requires an exact source commit");
-  if (classification.reviewed_commit !== classification.source_commit)
-    throw new Error("classification review does not match the frozen source commit");
-  const base = exactVersion(classification.base_version);
-  const change = classification.change;
+const changeKinds = [
+  "patch",
+  "minor",
+  "major",
+  "prepatch",
+  "preminor",
+  "premajor",
+  "prerelease",
+  "finalize",
+] as const;
+type VersionChange = (typeof changeKinds)[number];
+export interface ReviewedClassification {
+  source_commit: string;
+  reviewed_commit: string;
+  base_version: string;
+  change: VersionChange;
+  compatibility: "compatible" | "breaking";
+  migration_notes?: unknown;
+  prerelease_identifier?: unknown;
+}
+export function parseVersionClassification(value: unknown): ReviewedClassification {
   if (
-    ![
-      "patch",
-      "minor",
-      "major",
-      "prepatch",
-      "preminor",
-      "premajor",
-      "prerelease",
-      "finalize",
-    ].includes(change)
+    !isRecord(value) ||
+    typeof value.source_commit !== "string" ||
+    !/^[a-f0-9]{40}$/.test(value.source_commit)
   )
-    throw new Error("unknown reviewed change classification");
-  if (!["compatible", "breaking"].includes(classification.compatibility))
+    throw new Error("classification requires an exact source commit");
+  if (value.reviewed_commit !== value.source_commit)
+    throw new Error("classification review does not match the frozen source commit");
+  exactVersion(value.base_version);
+  if (typeof value.base_version !== "string")
+    throw new Error("application version must be a SemVer string");
+  const change = changeKinds.find((change) => change === value.change);
+  if (!change) throw new Error("unknown reviewed change classification");
+  if (value.compatibility !== "compatible" && value.compatibility !== "breaking")
     throw new Error("compatibility classification is required");
-  return { base, change };
+  return {
+    source_commit: value.source_commit,
+    reviewed_commit: value.reviewed_commit,
+    base_version: value.base_version,
+    change,
+    compatibility: value.compatibility,
+    ...(value.migration_notes !== undefined ? { migration_notes: value.migration_notes } : {}),
+    ...(value.prerelease_identifier !== undefined
+      ? { prerelease_identifier: value.prerelease_identifier }
+      : {}),
+  };
+}
+function reviewedClassification(value: unknown) {
+  const classification = parseVersionClassification(value);
+  return {
+    classification,
+    base: exactVersion(classification.base_version),
+    change: classification.change,
+  };
 }
 
-function publishedHistory(classification, publishedVersions) {
+function publishedHistory(
+  classification: ReviewedClassification,
+  publishedVersions: unknown,
+): asserts publishedVersions is string[] {
   if (!Array.isArray(publishedVersions))
     throw new Error("published version inventory must be complete and explicit");
-  publishedVersions.forEach(exactVersion);
-  uniquePrecedence(publishedVersions);
+  const versions: unknown[] = publishedVersions;
+  versions.forEach(exactVersion);
+  if (!versions.every((version) => typeof version === "string"))
+    throw new Error("published versions must be strings");
+  uniquePrecedence(versions);
   if (!publishedVersions.includes(classification.base_version))
     throw new Error("classification base is absent from published history");
-  if (publishedVersions.some((version) => semver.gt(version, classification.base_version)))
+  if (versions.some((version) => semver.gt(version, classification.base_version)))
     throw new Error("classification base is behind published history");
 }
 
-function compatibilityChange(classification, publishedVersions, base, change) {
+function compatibilityChange(
+  classification: ReviewedClassification,
+  publishedVersions: readonly string[],
+  base: SemVer,
+  change: VersionChange,
+) {
   if (classification.compatibility !== "breaking") return;
   if (typeof classification.migration_notes !== "string" || !classification.migration_notes.trim())
     throw new Error("breaking changes require migration notes");
@@ -208,7 +321,7 @@ function compatibilityChange(classification, publishedVersions, base, change) {
   }
 }
 
-function advanceVersion(base, change, identifier) {
+function advanceVersion(base: SemVer, change: VersionChange, identifier: unknown) {
   if (change === "finalize") {
     if (!base.prerelease.length) throw new Error("only a prerelease can be finalized");
     return `${base.major}.${base.minor}.${base.patch}`;
@@ -231,8 +344,8 @@ function advanceVersion(base, change, identifier) {
 /** Prepare a deterministic proposal from a reviewed classification. This does not
  * allocate a version, edit metadata, grant eligibility or publish anything.
  */
-export function proposeApplicationVersion(classification, publishedVersions) {
-  const { base, change } = reviewedClassification(classification);
+export function proposeApplicationVersion(value: unknown, publishedVersions: unknown) {
+  const { classification, base, change } = reviewedClassification(value);
   publishedHistory(classification, publishedVersions);
   compatibilityChange(classification, publishedVersions, base, change);
   const version = advanceVersion(base, change, classification.prerelease_identifier);
@@ -240,13 +353,15 @@ export function proposeApplicationVersion(classification, publishedVersions) {
     throw new Error("prepared version must increase");
   if (publishedVersions.some((published) => semver.eq(version, published)))
     throw new Error("published version precedence cannot be reused");
+  const classificationResult = classifyApplicationVersion(version);
   return {
     schema_version: 1,
     source_commit: classification.source_commit,
     base_version: classification.base_version,
     version,
     change,
-    ...classifyApplicationVersion(version),
+    github_prerelease: classificationResult.github_prerelease,
+    channels: classificationResult.channels,
   };
 }
 
@@ -254,7 +369,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const [operation, inputPath] = process.argv.slice(2);
   if (process.argv.length !== 4 || !inputPath)
     throw new Error("usage: release-version-policy.mts classify|select|propose INPUT.json");
-  const input = JSON.parse(await readFile(inputPath, "utf8"));
+  const raw: unknown = JSON.parse(await readFile(inputPath, "utf8"));
+  if (!isRecord(raw)) throw new Error("release policy input must be an object");
+  const input = raw;
   let output;
   if (operation === "classify")
     output = classifyApplicationVersion(input.version, input.production_eligible);

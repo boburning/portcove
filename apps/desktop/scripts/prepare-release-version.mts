@@ -1,3 +1,4 @@
+import { isRecord } from "../../../scripts/runtime-values.mts";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -5,9 +6,12 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseWorkspacePackage } from "../../../scripts/check-release-metadata.mts";
-import { proposeApplicationVersion } from "./release-version-policy.mts";
+import {
+  proposeApplicationVersion,
+  parseVersionClassification,
+} from "./release-version-policy.mts";
 
-function repositoryGit(repository, environment = {}) {
+function repositoryGit(repository: string, environment: NodeJS.ProcessEnv = {}) {
   // Candidate contents are read as blobs. No checkout, hooks, filters, build
   // scripts, real index or caller-controlled Git environment is executed.
   const env = Object.fromEntries(
@@ -15,7 +19,7 @@ function repositoryGit(repository, environment = {}) {
   );
   // Link-based object creation preserves existing content when simultaneous
   // preparations write identical objects (including on Windows).
-  return (args, input) =>
+  return (args: readonly string[], input?: string) =>
     execFileSync(
       "git",
       [
@@ -45,37 +49,46 @@ function repositoryGit(repository, environment = {}) {
     );
 }
 
-function sourceFile(git, commit, filename) {
+type Git = ReturnType<typeof repositoryGit>;
+type Proposal = ReturnType<typeof proposeApplicationVersion>;
+function sourceFile(git: Git, commit: string, filename: string) {
   const entry = git(["ls-tree", commit, "--", filename]).trim();
   if (!entry.startsWith("100644 blob ") || !entry.endsWith(`\t${filename}`))
     throw new Error(`version authority must be a regular source blob: ${filename}`);
   return git(["show", `${commit}:${filename}`]);
 }
 
-function replaceOnce(text: string, pattern, replacement, label) {
+function replaceOnce(
+  text: string,
+  pattern: RegExp,
+  replacement: (line: string, capture: string) => string,
+  label: string,
+) {
   let count = 0;
-  const updated = text.replace(pattern, (...args) => {
+  const updated = text.replace(pattern, (line: string, capture: unknown) => {
     count += 1;
-    return replacement(...args);
+    if (typeof capture !== "string") throw new Error(`missing ${label} capture`);
+    return replacement(line, capture);
   });
   if (count !== 1) throw new Error(`expected one ${label}, found ${count}`);
   return updated;
 }
 
-function workspacePackages(git, commit, cargo: string) {
+function workspacePackages(git: Git, commit: string, cargo: string) {
   // Support the repository's explicit member list, rejecting globs, traversal
   // and other TOML forms instead of guessing the version authority.
   const list = cargo.match(/^members\s*=\s*(\[[\s\S]*?\])/m)?.[1];
-  const members = JSON.parse(list?.replace(/,\s*]/, "]") ?? "null");
+  const members: unknown = JSON.parse(list?.replace(/,\s*]/, "]") ?? "null");
   if (!Array.isArray(members) || !members.length)
     throw new Error("explicit workspace members are required");
-  const names = members.map((member) => {
+  const values: unknown[] = members;
+  const names = values.map((member) => {
     if (typeof member !== "string" || !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)+$/.test(member))
       throw new Error("unsupported workspace member path");
     const manifest = sourceFile(git, commit, `${member}/Cargo.toml`);
     const table = manifest.match(/^\[package\]\r?\n([\s\S]*?)(?=^\[|(?![\s\S]))/m)?.[1];
     const name = table?.match(/^name\s*=\s*"([a-zA-Z0-9_-]+)"\s*$/m)?.[1];
-    if (!name || !/^version\.workspace\s*=\s*true\s*$/m.test(table))
+    if (!name || !/^version\.workspace\s*=\s*true\s*$/m.test(table ?? ""))
       throw new Error(`workspace version inheritance is required: ${member}`);
     return name;
   });
@@ -83,13 +96,13 @@ function workspacePackages(git, commit, cargo: string) {
   return names;
 }
 
-function updatedLock(lock: string, names, base, version) {
-  const found = new Set();
+function updatedLock(lock: string, names: readonly string[], base: string, version: string) {
+  const found = new Set<string>();
   const updated = lock.replace(
     /^\[\[package\]\]\r?\n[\s\S]*?(?=^\[\[package\]\]|(?![\s\S]))/gm,
     (block: string) => {
       const name = block.match(/^name = "([^"]+)"$/m)?.[1];
-      if (!names.includes(name)) return block;
+      if (name === undefined || !names.includes(name)) return block;
       if (found.has(name) || /^source\s*=/m.test(block))
         throw new Error(`ambiguous workspace lock identity: ${name}`);
       found.add(name);
@@ -108,13 +121,13 @@ function updatedLock(lock: string, names, base, version) {
   return updated;
 }
 
-function versionedFiles(git, proposal) {
+function versionedFiles(git: Git, proposal: Proposal) {
   const { source_commit: source, base_version: base, version } = proposal;
   const cargo = sourceFile(git, source, "Cargo.toml");
   if (parseWorkspacePackage(cargo).version !== base)
     throw new Error("frozen workspace version differs from reviewed base");
   const names = workspacePackages(git, source, cargo);
-  const files = new Map();
+  const files = new Map<string, string>();
   files.set(
     "Cargo.toml",
     replaceOnce(
@@ -127,7 +140,8 @@ function versionedFiles(git, proposal) {
   files.set("Cargo.lock", updatedLock(sourceFile(git, source, "Cargo.lock"), names, base, version));
   for (const filename of ["apps/desktop/package.json", "apps/desktop/src-tauri/tauri.conf.json"]) {
     const original = sourceFile(git, source, filename);
-    if (JSON.parse(original).version !== base)
+    const metadata: unknown = JSON.parse(original);
+    if (!isRecord(metadata) || metadata.version !== base)
       throw new Error(`frozen version authority drift: ${filename}`);
     files.set(
       filename,
@@ -142,14 +156,19 @@ function versionedFiles(git, proposal) {
   return files;
 }
 
-function allocationRefs(proposal) {
+function allocationRefs(proposal: Proposal): [string, string] {
   return [
     `refs/portcove/prepared-versions/v${proposal.version}`,
     `refs/portcove/prepared-commits/${proposal.source_commit}`,
   ];
 }
 
-function allocationTransaction(git, refs, preparedCommit, operation) {
+function allocationTransaction(
+  git: Git,
+  refs: readonly string[],
+  preparedCommit: string,
+  operation: "create" | "verify",
+) {
   // Readers of multiple loose refs can observe part of a committed transaction.
   // Verify under the same locks used for creation, with bounded lock contention.
   git(
@@ -158,7 +177,7 @@ function allocationTransaction(git, refs, preparedCommit, operation) {
   );
 }
 
-async function preparedTree(repository, proposal) {
+async function preparedTree(repository: string, proposal: Proposal) {
   const temporary = await mkdtemp(path.join(os.tmpdir(), "portcove-version-index-"));
   try {
     const git = repositoryGit(repository, {
@@ -182,7 +201,12 @@ async function preparedTree(repository, proposal) {
  * A protected publisher must provision its own single coordinator and fresh
  * complete published inventory; this offline operation never pushes or tags.
  */
-export async function prepareReleaseVersion(repository: string, classification, publishedVersions) {
+export async function prepareReleaseVersion(
+  repository: string,
+  rawClassification: unknown,
+  publishedVersions: unknown,
+) {
+  const classification = parseVersionClassification(rawClassification);
   const proposal = proposeApplicationVersion(classification, publishedVersions);
   const git = repositoryGit(path.resolve(repository));
   if (
@@ -241,9 +265,10 @@ export async function prepareReleaseVersion(repository: string, classification, 
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [repository, inputPath] = process.argv.slice(2);
-  if (process.argv.length !== 4)
+  if (process.argv.length !== 4 || !repository || !inputPath)
     throw new Error("usage: prepare-release-version.mts REPOSITORY INPUT.json");
-  const input = JSON.parse(await readFile(inputPath, "utf8"));
+  const input: unknown = JSON.parse(await readFile(inputPath, "utf8"));
+  if (!isRecord(input)) throw new Error("version preparation input must be an object");
   console.log(
     JSON.stringify(
       await prepareReleaseVersion(repository, input.classification, input.published_versions),
