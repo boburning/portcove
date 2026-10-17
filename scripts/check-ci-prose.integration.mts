@@ -16,14 +16,26 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnCommand } from "./dev-storage.mts";
+import { isRecord } from "./runtime-values.mts";
+import type { SpawnSyncReturns } from "node:child_process";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const fixture = mkdtempSync(path.join(os.tmpdir(), "portcove-prose-ci-"));
 const evidence = path.join(root, "work", "prose-ci-integration", randomUUID());
 mkdirSync(evidence, { recursive: true });
-const steps = [];
+interface Step {
+  name: string;
+  command: string;
+  args: readonly string[];
+  status: number | null;
+  duration_ms: number;
+}
+type Overlay =
+  | { file: string; sha256: string; deleted?: never }
+  | { file: string; deleted: true; sha256?: never };
+const steps: Step[] = [];
 const source = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
-const env = { ...process.env, CI: "true", VP_GIT_HOOKS: "0" };
+const env: NodeJS.ProcessEnv = { ...process.env, CI: "true", VP_GIT_HOOKS: "0" };
 const inheritedPath = Object.entries(env).find(([key]) => key.toLowerCase() === "path")?.[1] ?? "";
 for (const key of Object.keys(env)) if (key.toLowerCase() === "path") delete env[key];
 // Deliberately exercise Windows' usual Path-only environment, including when a
@@ -34,7 +46,7 @@ delete env.PORTCOVE_CI_METRICS_DIR;
 // The source's job store is not the fixture's installation or evidence owner.
 for (const key of Object.keys(env))
   if (key.toLowerCase() === "pnpm_config_store_dir") delete env[key];
-const git = (...args) =>
+const git = (...args: string[]) =>
   execFileSync("git", args, { cwd: fixture, env, encoding: "utf8", windowsHide: true }).trim();
 const commit = () => {
   git("add", "docs/GUI-COMPETITIVE-REVIEW.md");
@@ -51,7 +63,13 @@ const commit = () => {
   );
   env.PORTCOVE_HEAD_SHA = git("rev-parse", "HEAD");
 };
-function run(name, command, args, environment = env, timeout = 60_000) {
+function run(
+  name: string,
+  command: string,
+  args: readonly string[],
+  environment: NodeJS.ProcessEnv = env,
+  timeout = 60_000,
+) {
   const started = Date.now();
   const result = spawnCommand(command, args, {
     cwd: fixture,
@@ -65,11 +83,16 @@ function run(name, command, args, environment = env, timeout = 60_000) {
   steps.push({ name, command, args, status: result.status, duration_ms: Date.now() - started });
   return result;
 }
-const check = (name, extra = {}, args = []) =>
+const check = (name: string, extra: NodeJS.ProcessEnv = {}, args: string[] = []) =>
   run(name, process.execPath, ["scripts/check-ci-prose.mts", ...args], { ...env, ...extra });
-const output = (result) => `${result.stdout ?? ""}${result.stderr ?? ""}`;
+const output = (result: Pick<SpawnSyncReturns<string>, "stdout" | "stderr">) =>
+  `${result.stdout ?? ""}${result.stderr ?? ""}`;
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
 let passed = false;
-let overlays = [];
+let overlays: Overlay[] = [];
 try {
   execFileSync("git", ["clone", "--shared", "--no-checkout", root, fixture], {
     encoding: "utf8",
@@ -84,7 +107,7 @@ try {
   })
     .split("\0")
     .filter(Boolean)
-    .map((file: string) => {
+    .map((file: string): Overlay => {
       assert(!path.isAbsolute(file) && !file.split("/").includes(".."));
       const from = path.join(root, file);
       const to = path.join(fixture, file);
@@ -134,7 +157,10 @@ try {
     check("invalid-head", { PORTCOVE_HEAD_SHA: "HEAD" }, ["--prerequisites"]).status,
     0,
   );
-  const pin = JSON.parse(readFileSync(path.join(fixture, "package.json"), "utf8")).packageManager;
+  const pin = object(
+    JSON.parse(readFileSync(path.join(fixture, "package.json"), "utf8")),
+  ).packageManager;
+  assert.equal(typeof pin, "string");
   const version = run("pnpm-version", "pnpm", ["--version"]);
   assert.equal(version.status, 0);
   assert.equal(`pnpm@${version.stdout.trim()}`, pin);
@@ -156,8 +182,9 @@ try {
   const packageFile = realpathSync(path.join(fixture, "node_modules/vite-plus/package.json"));
   const packageRelative = path.relative(fixture, packageFile);
   assert(!path.isAbsolute(packageRelative) && !packageRelative.startsWith(".."));
-  const manifest = JSON.parse(readFileSync(packageFile, "utf8"));
-  const bin = typeof manifest.bin === "string" ? manifest.bin : manifest.bin.vp;
+  const manifest = object(JSON.parse(readFileSync(packageFile, "utf8")));
+  const bin = typeof manifest.bin === "string" ? manifest.bin : object(manifest.bin).vp;
+  assert.ok(typeof bin === "string", "installed Vite+ must declare its executable");
   const relocated = path.posix.join(
     path.posix.dirname(bin),
     `declared-prose-vp${path.extname(bin)}`,
@@ -167,7 +194,7 @@ try {
     path.resolve(path.dirname(packageFile), relocated),
   );
   if (typeof manifest.bin === "string") manifest.bin = relocated;
-  else manifest.bin.vp = relocated;
+  else object(manifest.bin).vp = relocated;
   writeFileSync(`${packageFile}.probe`, JSON.stringify(manifest));
   renameSync(`${packageFile}.probe`, packageFile);
   assert(
