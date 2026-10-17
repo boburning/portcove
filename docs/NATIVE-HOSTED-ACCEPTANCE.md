@@ -64,6 +64,27 @@ independent review for substantive native behavior and exact-head hosted checks.
 Native acceptance is a distinct obligation. This manual route supplies no policy
 waiver, merge authority, replacement release gate or permission change.
 
+## Slice 3 Windows recovery fixtures
+
+Slice 3's fixed `slice3-windows-recovery` manual operation observes two
+separately pinned source/scenario pairs on public standard `windows-2022`:
+host publication recovery and rejected listener registration. Direct preparation
+recovery already passed in run `39062807000`; its retained receipt remains
+separate and this batch does not repeat it. The workflow controller and application
+source remain separate recorded identities. There is no caller-supplied source,
+scenario or command.
+Each isolated job checks the interactive session before provisioning, installs
+the source-pinned native prerequisites, uses a fresh application target and runs
+the maintained harness with clean source. The host-publication source also runs
+its four qualification checkpoint unit tests before native execution.
+
+These are feasibility observations until actual native receipts and positive
+process closure are independently reviewed. The 90-minute job allocation changes
+no product or harness child deadline. Lossless reports and images use the existing
+bounded job-log evidence codec, without artifact uploads or caches. No real game
+originals, player libraries, installed packages or minimum environments are used.
+The real prepared-runtime Desktop journeys remain a separate local obligation.
+
 ## Reviewed Cloud validation and Linux history
 
 The manual compatibility workflow also provides fixed `bootstrap`, `selected`,
