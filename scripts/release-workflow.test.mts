@@ -126,7 +126,7 @@ void test("cheap identity unlocks qualification and builds before the explicit r
   assert.match(validateSection, /^ {4}needs: \[identity, qualification\]$/m);
   assert.match(validateSection, /just audit --fresh --profile release/);
   assert.match(validateSection, /needs\.qualification\.outputs\.plan_digest/);
-  assert.match(validateSection, /needs\.qualification\.outputs\.plan_json/);
+  assert.match(validateSection, /needs\.qualification\.outputs\.plan_gzip_base64/);
   assert.match(validateSection, /PORTCOVE_EXPECTED_CHECKOUT: \$\{\{ github\.sha \}\}/);
   assert.match(validateSection, /node scripts\/validation-plan\.mts/);
   assert.match(validateSection, /node scripts\/workflow-provenance\.mts/);

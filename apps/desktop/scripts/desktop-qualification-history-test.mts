@@ -742,6 +742,9 @@ export async function qualificationHistoryScenario({
         .setRect(originalWindow)
         .catch((error: unknown) => {
           observation.window_restoration_error = errorMessage(error);
+          // Preserve the existing nested evidence contract for object replies,
+          // while still retaining malformed replies and independent cleanup.
+          if (isRecord(restored)) restored.window_error = observation.window_restoration_error;
         });
       const nativeRaw: unknown = await invoke("get_sources").catch((error: unknown) => ({
         ok: false,

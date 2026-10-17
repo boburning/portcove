@@ -20,6 +20,10 @@ void test("private namespace protocol preserves exact typed packets and extra ob
   }
 });
 void test("private namespace protocol rejects malformed, foreign and coercible packets", () => {
+  assert.throws(
+    () => parseNamespacePacket({ nonce: "wrong-nonce", kind: "driver-started", pid: 99 }, nonce),
+    /wrong-nonce/u,
+  );
   for (const value of [
     null,
     [],

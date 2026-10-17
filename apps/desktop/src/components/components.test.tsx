@@ -1234,7 +1234,7 @@ describe("desktop components", () => {
     );
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*class="[^"]*bg-transparent/u);
     expect(html).toMatch(
-      /<button[^>]*data-variant="outline"[^>]*aria-label="Commands: open command palette"/u,
+      /<button[^>]*data-variant="outline"[^>]*aria-label="Commands Ctrl K: open command palette"/u,
     );
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*aria-label="Dismiss error"/u);
     expect(html).toContain("Port catalog");
@@ -1301,7 +1301,7 @@ describe("desktop components", () => {
     expect(settings).toContain('<h1 tabindex="-1">Settings</h1>');
     for (const header of [library, catalog, updates, settings]) {
       expect(header).not.toContain('class="eyebrow"');
-      expect(header).toContain('aria-label="Commands: open command palette"');
+      expect(header).toContain('aria-label="Commands Ctrl K: open command palette"');
     }
     for (const header of [library, updates, settings])
       expect(header).not.toContain('class="page-description"');

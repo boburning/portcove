@@ -33,7 +33,8 @@ function rethrowFailure(error: unknown): never {
 }
 export function parseNamespacePacket(value: unknown, nonce: string): NamespaceEvent {
   assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
-  assert.ok("nonce" in value && value.nonce === nonce);
+  assert.ok("nonce" in value);
+  assert.equal(value.nonce, nonce);
   assert.ok("kind" in value);
   const observed_at = new Date().toISOString();
   if (value.kind === "namespace-ready") {
