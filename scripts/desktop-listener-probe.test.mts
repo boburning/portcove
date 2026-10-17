@@ -15,7 +15,7 @@ assert.equal(source.indexOf(marker), source.lastIndexOf(marker));
 assert.ok(source.indexOf(marker) > 0);
 
 for (const outcome of ["ok", "error"])
-  test(`listener probe distinguishes actual ${outcome} from HTTP200`, async () => {
+  void test(`listener probe distinguishes actual ${outcome} from HTTP200`, async () => {
     const callbacks = new Map<number, (value: unknown) => void>();
     let next = 1;
     let eventId = 10;
@@ -49,14 +49,19 @@ for (const outcome of ["ok", "error"])
         ),
     };
     const original = window.fetch;
-    const install = runInNewContext(`${source.slice(source.indexOf(marker))}\ninstall`, {
-      window,
-      Headers,
-      Response,
-      TextDecoder,
-      setTimeout,
-      Map,
-    });
+    const rawInstall: unknown = runInNewContext(
+      `${source.slice(source.indexOf(marker))}\ninstall`,
+      {
+        window,
+        Headers,
+        Response,
+        TextDecoder,
+        setTimeout,
+        Map,
+      },
+    );
+    assert.ok(typeof rawInstall === "function");
+    const install = rawInstall as (key: string, reviewed: string, currentRoot: string) => void;
     install("probe", "owned-reviewed", "owned-current");
     async function invoke(command: string, body: Record<string, unknown>) {
       const success = next++,

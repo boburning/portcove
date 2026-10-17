@@ -2381,7 +2381,7 @@ void test("backup success-focus acceptance is isolated and exact-selection-only"
   assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
 });
 
-test("late operation listener qualification remains standalone and outside ordinary profiles", () => {
+void test("late operation listener qualification remains standalone and outside ordinary profiles", () => {
   const id = "native-late-listener-disposal";
   const selected = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
   assert.deepEqual(selected.selected_scenarios, [id]);

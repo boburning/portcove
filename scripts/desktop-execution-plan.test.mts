@@ -431,7 +431,7 @@ void test("game-update review binds Windows cleanup without first-play or wider 
   }
 });
 
-test("late listener qualification binds its imported probe and positive final cleanup", () => {
+void test("late listener qualification binds its imported probe and positive final cleanup", () => {
   const plan = planDesktopExecution(
     resolveDesktopSelection({ scenarios: ["native-late-listener-disposal"], platform: "win32" }),
   );
