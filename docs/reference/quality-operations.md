@@ -377,7 +377,9 @@ optional deep tools remain outside required PR CI.
 
 Required CI cancels an older in-progress run when a newer commit reaches the same branch or pull request. This keeps obsolete Windows builds from occupying the queue while preserving a complete run for the newest commit.
 
-Routine Renovate traffic is bounded to two concurrent branches and pull requests.
+Routine Renovate traffic is bounded to four concurrent branches and pull requests.
+This provides proposal headroom for blocked updates while the maintenance route
+retains one local implementer; proposal capacity is not execution concurrency.
 Hourly PR and commit caps are disabled (`prHourlyLimit: 0` and
 `commitHourlyLimit: 0`), so eligible proposals and conflict repairs can replenish
 available slots without waiting for the next hour. This does not change the
@@ -861,6 +863,23 @@ Use four delivery paths:
   advisory, locked graph and exposed function. Necessary fixes proceed separately
   from elective upgrades, without the ordinary release-age or intake delay; review,
   signatures, required checks and affected native/installed behavior remain.
+
+Blocked proposals pause that update, not independent maintenance. Record a
+durable maintainer comment on the PR with its exact source head, failure evidence,
+owner, next action and concrete resume condition; retain the comment reference in
+the existing runner checkpoint. Renovate may replace its PR description, so that
+description alone is not the hold record. The classifier remains a recommendation;
+reconcile its output with these current ownership and hold records before pickup.
+Use the existing owning issue for a larger repair rather than another backlog.
+
+Repair a bounded defect through controlled maintenance. Otherwise retain the
+upstream hold and continue independent candidates. Revisit only when the source,
+checks, upstream remedy, eligibility or another recorded resume condition changes;
+a newer version must pass the original reproducer and affected-consumer assessment.
+Do not repeatedly rebase unchanged blockers, disable a whole dependency or close
+a genuine failure to free capacity. Verify a linked replacement's delivery before
+closing its superseded original; an explicit owner decision may reject an update.
+The four-proposal limit does not increase automatically when all slots are occupied.
 
 Frontend resolution uses pnpm 12.11.2's native `minimumReleaseAge: 1440`
 and `minimumReleaseAgeStrict: false`. It prefers eligible versions within a
