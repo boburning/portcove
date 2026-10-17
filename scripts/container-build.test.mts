@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from "node:fs";
 import os from "node:os";
@@ -17,10 +18,11 @@ import {
   command,
 } from "./container-build.mts";
 import { createContainerHost, completedContainerPreparation } from "./container-host.mts";
-test("missing package tools preserve the failed executable and arguments", async () => {
+void test("missing package tools preserve the failed executable and arguments", async () => {
   const missing = path.join(os.tmpdir(), "portcove-missing-tool-parent-does-not-exist", "rpm");
   assert(!existsSync(missing));
   await assert.rejects(command(missing, ["-qp", "literal package;name.rpm"]), (error) => {
+    assertCommandFailure(error);
     assert.match(error.message, /ENOENT/u);
     assert.equal(error.result.command, missing);
     assert.deepEqual(error.result.args, ["-qp", "literal package;name.rpm"]);
@@ -28,7 +30,7 @@ test("missing package tools preserve the failed executable and arguments", async
     return true;
   });
 });
-test("canonical APT helper rejects invalid explicit deadlines before installation", async () => {
+void test("canonical APT helper rejects invalid explicit deadlines before installation", async () => {
   const git = await command("git", ["--exec-path"]);
   const bash =
     process.platform === "win32"
@@ -42,13 +44,14 @@ test("canonical APT helper rejects invalid explicit deadlines before installatio
         `--install-timeout-seconds=${value}`,
       ]),
       (error) => {
+        assertCommandFailure(error);
         assert.equal(error.result.status, 2);
         assert.match(error.result.stderr, /180\.\.3600 seconds/u);
         return true;
       },
     );
 });
-test("package member inspection requires the exact regular executable", () => {
+void test("package member inspection requires the exact regular executable", () => {
   const deb = "-rwxr-xr-x root/root 123 2026-10-16 00:00 ./usr/bin/portcove-desktop";
   const rpm = "/usr/bin/portcove-desktop 123 1700000000 abcd 0100755 root root 0 0 0 X";
   assertPackageExecutable("deb", deb);
@@ -76,11 +79,12 @@ test("package member inspection requires the exact regular executable", () => {
   ])
     assert.throws(() => assertPackageExecutable("rpm", listing), /regular executable/u);
 });
-test("builder modes are closed and isolated from browser resources", async () => {
+void test("builder modes are closed and isolated from browser resources", async () => {
   assert.throws(() => createContainerHost("arbitrary"), /Unknown/u);
   assert.equal(budgets.timeout_ms, 90 * 60000);
   assert.equal(budgets.setup_ms, 90 * 60000);
   for (const mode of ["suite", "probe", "exact", "arbitrary"])
+    // @ts-expect-error Missing commit is deliberate: reject an unsupported mode before source discovery.
     await assert.rejects(browser({ mode }), /Use check or package/u);
   const args = runtimeArguments({
     name: "portcove-build-30000000-0000-4000-8000-000000000000",
@@ -94,15 +98,11 @@ test("builder modes are closed and isolated from browser resources", async () =>
   assert.equal(args[args.indexOf("--network") + 1], "bridge");
   assert(!args.includes("--volume"));
   assert(!args.includes("--mount"));
-  assert.throws(
-    () => runtimeArguments({ name: "portcove-browser-30000000-0000-4000-8000-000000000000" }),
-    /Invalid owned/u,
-  );
-  const fixture = JSON.parse(
-    await import("node:fs").then((fs) =>
-      fs.readFileSync(new URL("./testdata/container-browser-runtime-oracle.json", import.meta.url)),
-    ),
-  ).runtimeValidation.find((item) => item.expected.accepted).input;
+  assert.throws(() => {
+    // @ts-expect-error Deliberately incomplete/foreign runtime identity must be rejected first.
+    runtimeArguments({ name: "portcove-browser-30000000-0000-4000-8000-000000000000" });
+  }, /Invalid owned/u);
+  const fixture = acceptedRuntimeFixture();
   fixture.HostConfig.NetworkMode = "bridge";
   validateRuntime(fixture);
   for (const widened of [
@@ -119,7 +119,7 @@ test("builder modes are closed and isolated from browser resources", async () =>
     assert.throws(() => validateRuntime(bad), /Unexpected runtime/u);
   }
 });
-test("stale outputs and failed format commands cannot become package acceptance", () => {
+void test("stale outputs and failed format commands cannot become package acceptance", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "portcove-builder-policy-"));
   try {
     assertFreshBuildOutputs(root);
@@ -142,7 +142,7 @@ test("stale outputs and failed format commands cannot become package acceptance"
     rmSync(root, { recursive: true });
   }
 });
-test("package identities reject another version or architecture", () => {
+void test("package identities reject another version or architecture", () => {
   assert.equal(
     validatePackageMetadata("deb", "portcove\n0.1.0-alpha.2\namd64\n", "0.1.0-alpha.2")
       .architecture,
@@ -193,7 +193,7 @@ test("package identities reject another version or architecture", () => {
     );
 });
 
-test("pre-container recovery requires exact terminal engine evidence, preserving failed status", () => {
+void test("pre-container recovery requires exact terminal engine evidence, preserving failed status", () => {
   const record = {
     name: "portcove-build-exact-run",
     ref: "desktop-linux/desktop-linux/opaque123",
@@ -207,6 +207,8 @@ test("pre-container recovery requires exact terminal engine evidence, preserving
     { completed_at: null },
     { ref: "foreign/builder/opaque123" },
     { created_at: "unknown" },
+    { created_at: 0 },
+    { completed_at: 0 },
     { completed_at: "2026-10-16T23:00:00Z" },
   ])
     assert.equal(completedContainerPreparation([{ ...record, ...changed }], record.name), null);
@@ -215,12 +217,8 @@ test("pre-container recovery requires exact terminal engine evidence, preserving
   assert.equal(record.status, "Error");
 });
 
-test("builder runtime producer environment preserves guest admission and rejects host state", () => {
-  const fixture = structuredClone(
-    JSON.parse(
-      readFileSync(new URL("./testdata/container-browser-runtime-oracle.json", import.meta.url)),
-    ).runtimeValidation.find((item) => item.expected.accepted).input,
-  );
+void test("builder runtime producer environment preserves guest admission and rejects host state", () => {
+  const fixture = structuredClone(acceptedRuntimeFixture());
   fixture.HostConfig.NetworkMode = "bridge";
   const run = "30000000-0000-4000-8000-000000000000";
   const args = runtimeArguments({
@@ -231,7 +229,8 @@ test("builder runtime producer environment preserves guest admission and rejects
     tree: "b".repeat(40),
     mode: "check",
   });
-  for (let i = 0; i < args.length; i++) if (args[i] === "--env") fixture.Config.Env.push(args[++i]);
+  for (let i = 0; i < args.length; i++)
+    if (args[i] === "--env") fixture.Config.Env.push(runtimeArgument(args, ++i));
   validateRuntime(fixture);
   for (const value of [
     "PORTCOVE_CONTAINER_GUEST=0",
@@ -243,3 +242,53 @@ test("builder runtime producer environment preserves guest admission and rejects
     assert.throws(() => validateRuntime(bad), /Unexpected runtime environment key/);
   }
 });
+
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function acceptedRuntimeFixture() {
+  const raw: unknown = JSON.parse(
+    readFileSync(
+      new URL("./testdata/container-browser-runtime-oracle.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const entries = object(raw).runtimeValidation;
+  assert.ok(Array.isArray(entries));
+  const observations: unknown[] = entries;
+  const selected = observations.find((entry) => object(object(entry).expected).accepted === true);
+  const input = object(object(selected).input),
+    host = object(input.HostConfig),
+    config = object(input.Config);
+  const environment = config.Env;
+  assert.ok(Array.isArray(environment));
+  const variables: unknown[] = environment;
+  assert.ok(variables.every((value) => typeof value === "string"));
+  assert.ok(typeof host.NetworkMode === "string");
+  return {
+    ...input,
+    HostConfig: { ...host, NetworkMode: host.NetworkMode },
+    Config: { ...config, Env: variables },
+  };
+}
+function runtimeArgument(values: readonly unknown[], index: number): string {
+  const value = values[index];
+  assert.ok(typeof value === "string");
+  return value;
+}
+function assertCommandFailure(
+  error: unknown,
+): asserts error is Error & {
+  result: { command: string; args: string[]; status: number | null; stderr: string };
+} {
+  assert.ok(error instanceof Error);
+  const result = object(Reflect.get(error, "result"));
+  assert.ok(
+    typeof result.command === "string" &&
+      Array.isArray(result.args) &&
+      result.args.every((arg: unknown) => typeof arg === "string") &&
+      (result.status === null || typeof result.status === "number") &&
+      typeof result.stderr === "string",
+  );
+}

@@ -1,4 +1,5 @@
-import { errorMessage } from "./runtime-values.mts";
+import type { ResourceLease } from "./resource-capacity.mts";
+import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
 import { runRustTests } from "./run-rust-tests.mts";
 import { EventEmitter } from "node:events";
 import {
@@ -34,25 +35,290 @@ import {
   validateEvidenceStore,
 } from "./retained-evidence.mts";
 
+function object(value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) throw new Error("Container observation must be an object");
+  return value;
+}
+function parseJson(value: string): unknown {
+  return JSON.parse(value);
+}
+function string(value: unknown, label: string): string {
+  if (typeof value !== "string") throw new Error(`Container ${label} must be a string`);
+  return value;
+}
+function array(value: unknown, label: string): unknown[] {
+  if (!Array.isArray(value)) throw new Error(`Container ${label} must be an array`);
+  return value;
+}
+function strings(value: unknown, label: string): string[] {
+  return array(value, label).map((entry) => string(entry, label));
+}
+function firstObservation(value: unknown): Record<string, unknown> {
+  const first = array(value, "inspection")[0];
+  return object(first);
+}
+function diagnosticText(value: unknown): string {
+  return String(value);
+}
+interface DockerState {
+  Running: boolean;
+  ExitCode: number;
+}
+interface DockerContainer {
+  Id: string;
+  State: DockerState;
+}
+function containerObservation(value: unknown): DockerContainer {
+  const info = object(value),
+    state = object(info.State);
+  if (
+    typeof state.Running !== "boolean" ||
+    typeof state.ExitCode !== "number" ||
+    !Number.isInteger(state.ExitCode)
+  )
+    throw new Error("Container execution state is invalid");
+  const Id = string(info.Id, "ID");
+  return { ...info, Id, State: { ...state, Running: state.Running, ExitCode: state.ExitCode } };
+}
+interface DockerImage {
+  Id: string;
+  Size: number;
+  RepoTags?: string[] | null;
+  Created: string;
+  Os: string;
+  Architecture: string;
+  Config: { User: string };
+}
+function imageObservation(value: unknown): DockerImage {
+  const info = object(value),
+    config = object(info.Config);
+  if (typeof info.Size !== "number" || !Number.isFinite(info.Size) || info.Size < 0)
+    throw new Error("Container image size is invalid");
+  return {
+    ...info,
+    Id: string(info.Id, "image ID"),
+    Size: info.Size,
+    Created: string(info.Created, "image creation time"),
+    Os: string(info.Os, "image OS"),
+    Architecture: string(info.Architecture, "image architecture"),
+    Config: { ...config, User: string(config.User, "image user") },
+    ...(info.RepoTags === undefined
+      ? {}
+      : { RepoTags: info.RepoTags === null ? null : strings(info.RepoTags, "image tags") }),
+  };
+}
+export interface ContainerCommandResult {
+  command: string;
+  args: readonly string[];
+  cwd: string;
+  status: number | null;
+  signal: NodeJS.Signals | null;
+  stdout: string;
+  stderr: string;
+  termination?:
+    | {
+        pid: number;
+        status: number | null;
+        signal: NodeJS.Signals | null;
+        error: string | undefined;
+        stdout: string | undefined;
+        stderr: string | undefined;
+      }
+    | undefined;
+}
+function assertFinishedResult(
+  value: unknown,
+): asserts value is Record<string, unknown> & { status: "passed" | "failed" | "interrupted" } {
+  if (
+    !isRecord(value) ||
+    (value.status !== "passed" && value.status !== "failed" && value.status !== "interrupted")
+  )
+    throw new Error("Container report is incomplete; retain it for recovery");
+}
+interface SourceSelection {
+  commit: string;
+  tree: string;
+  checkout_head?: string;
+  excluded_changes: string[];
+}
+interface ArtifactIdentity {
+  path: string;
+  bytes: number;
+  sha256: string;
+}
+interface FailureState {
+  status?: string | undefined;
+  execution_status?: string | null;
+  causal_exit?: number;
+  error?: string;
+  diagnostic_error?: string;
+  failed_command?: Record<string, unknown>;
+}
+interface RunState extends FailureState {
+  format_version: number;
+  tool: string;
+  workspace: string;
+  run: string;
+  created_at: string;
+  source: SourceSelection;
+  host?: unknown;
+  mode?: string;
+  files?: readonly string[];
+  timeout?: number;
+  export_complete: boolean;
+  driver?: unknown;
+  preparation?: string;
+  base?: string | undefined;
+  bases?: (string | undefined)[];
+  selected_bootstrap_sha256?: string;
+  tag?: string;
+  queue_ms?: number;
+  capacity?: unknown;
+  capacity_external?: unknown;
+  capacity_phase?: string;
+  global_images_before_bytes?: number;
+  build_cache_before_bytes?: number;
+  build_cache_after_bytes?: number;
+  build_name?: string;
+  bundle?: { bytes: number; sha256: string };
+  image?: string;
+  image_inspection?: unknown;
+  prepared_reused?: boolean;
+  preparation_ms?: number;
+  container_name?: string;
+  container?: string;
+  runtime_inspection?: unknown;
+  container_exit?: number;
+  interruption?: string;
+  wait_error?: string;
+  wait_failure?: unknown;
+  runtime_ms?: number;
+  capacity_released?: boolean;
+  storage_after?: unknown;
+  export?: string;
+  result?: unknown;
+  creation_readback?: unknown;
+  creation_readback_error?: string;
+  capacity_cleanup_error?: string;
+  capacity_retained?: string;
+  capacity_recovery_journal?: unknown;
+  build_completion?: unknown;
+}
+interface BrowserOptions {
+  commit: unknown;
+  excludeDirty?: boolean;
+  mode?: string | undefined;
+  files?: readonly string[];
+  timeout?: number;
+}
+interface PublicationBinding {
+  run: string;
+  source: { commit: string; tree: string };
+  image?: string;
+}
+function assertRunState(value: unknown): asserts value is RunState {
+  const raw = object(value),
+    source = object(raw.source);
+  if (typeof raw.format_version !== "number" || typeof raw.export_complete !== "boolean")
+    throw new Error("Container state format is incomplete");
+  for (const key of ["tool", "workspace", "run", "created_at"]) string(raw[key], `state ${key}`);
+  for (const key of ["commit", "tree"]) string(source[key], `source ${key}`);
+  strings(source.excluded_changes, "excluded changes");
+  if (source.checkout_head !== undefined) string(source.checkout_head, "checkout head");
+  for (const key of [
+    "status",
+    "error",
+    "diagnostic_error",
+    "mode",
+    "preparation",
+    "base",
+    "selected_bootstrap_sha256",
+    "tag",
+    "capacity_phase",
+    "build_name",
+    "image",
+    "container_name",
+    "container",
+    "interruption",
+    "wait_error",
+    "export",
+    "creation_readback_error",
+    "capacity_cleanup_error",
+    "capacity_retained",
+  ])
+    if (raw[key] !== undefined) string(raw[key], `state ${key}`);
+  if (raw.execution_status !== undefined && raw.execution_status !== null)
+    string(raw.execution_status, "execution status");
+  for (const key of [
+    "causal_exit",
+    "timeout",
+    "queue_ms",
+    "global_images_before_bytes",
+    "build_cache_before_bytes",
+    "build_cache_after_bytes",
+    "preparation_ms",
+    "container_exit",
+    "runtime_ms",
+  ])
+    if (raw[key] !== undefined && typeof raw[key] !== "number")
+      throw new Error(`Container state ${key} must be numeric`);
+  for (const key of ["prepared_reused", "capacity_released"])
+    if (raw[key] !== undefined && typeof raw[key] !== "boolean")
+      throw new Error(`Container state ${key} must be boolean`);
+  for (const key of ["files", "bases"])
+    if (raw[key] !== undefined) strings(raw[key], `state ${key}`);
+  if (raw.bundle !== undefined) {
+    const bundle = object(raw.bundle);
+    string(bundle.sha256, "bundle digest");
+    if (typeof bundle.bytes !== "number") throw new Error("Container bundle size is invalid");
+  }
+  if (raw.failed_command !== undefined) object(raw.failed_command);
+}
+function runState(value: unknown): RunState {
+  assertRunState(value);
+  return value;
+}
+function artifact(value: unknown): ArtifactIdentity {
+  const raw = object(value);
+  if (typeof raw.bytes !== "number" || !Number.isSafeInteger(raw.bytes) || raw.bytes < 0)
+    throw new Error("Container artifact size is invalid");
+  return {
+    ...raw,
+    path: string(raw.path, "artifact path"),
+    bytes: raw.bytes,
+    sha256: string(raw.sha256, "artifact digest"),
+  };
+}
+function requiredState(value: string | undefined, label: string): string {
+  return string(value, label);
+}
+interface CommandOptions {
+  cwd?: string;
+  timeout?: number;
+  signal?: AbortSignal;
+}
 // Completed failures prove quiescence without converting a failed build to success.
-export function completedContainerPreparation(records, name) {
-  const matches = records.filter((item) => item.name === name);
-  const item = matches[0];
-  return matches.length === 1 &&
-    /^desktop-linux\/desktop-linux\/[a-z0-9]+$/u.test(item?.ref ?? "") &&
-    ["completed", "error", "canceled"].includes(String(item?.status).toLowerCase()) &&
-    Number.isFinite(Date.parse(item?.created_at)) &&
-    Number.isFinite(Date.parse(item?.completed_at)) &&
-    Date.parse(item.completed_at) >= Date.parse(item.created_at)
-    ? item
+export function completedContainerPreparation(records: readonly unknown[], name: unknown) {
+  const matches = records.filter((item) => object(item).name === name);
+  const raw = matches[0];
+  if (matches.length !== 1 || !isRecord(raw)) return null;
+  return typeof raw.ref === "string" &&
+    /^desktop-linux\/desktop-linux\/[a-z0-9]+$/u.test(raw.ref) &&
+    ["completed", "error", "canceled"].includes(diagnosticText(raw.status).toLowerCase()) &&
+    typeof raw.created_at === "string" &&
+    typeof raw.completed_at === "string" &&
+    Number.isFinite(Date.parse(raw.created_at)) &&
+    Number.isFinite(Date.parse(raw.completed_at)) &&
+    Date.parse(raw.completed_at) >= Date.parse(raw.created_at)
+    ? raw
     : null;
 }
 
 // Shared Windows transport; profiles are selected only by repository-owned adapters.
-export function createContainerHost(profile) {
+export function createContainerHost(profile: string) {
   if (!["browser", "build"].includes(profile)) throw new Error("Unknown container profile");
   const root = fileURLToPath(new URL("../", import.meta.url));
-  const hash = (value) => createHash("sha256").update(value).digest("hex");
+  const hash = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
   const workspace = hash(resolvePhysicalPath(root).toLowerCase());
   const builder = profile === "build";
   const tool = builder ? "build-v1" : "browser-v1";
@@ -89,7 +355,11 @@ export function createContainerHost(profile) {
     retention_hours: 72,
   });
 
-  function command(commandName, args, { cwd = root, timeout = 15_000, signal } = {}) {
+  function command(
+    commandName: string,
+    args: readonly string[],
+    { cwd = root, timeout = 15_000, signal }: CommandOptions = {},
+  ): Promise<ContainerCommandResult> {
     return new Promise((resolve, reject) => {
       if (signal?.aborted) {
         reject(
@@ -114,17 +384,17 @@ export function createContainerHost(profile) {
         windowsHide: true,
         stdio: ["ignore", "pipe", "pipe"],
       });
-      const chunks = [[], []];
+      const chunks: [Buffer[], Buffer[]] = [[], []];
       let bytes = 0;
-      let problem;
-      let force;
+      let problem: Error | undefined;
+      let force: ReturnType<typeof setTimeout> | undefined;
       let exited = false;
       let stopping = false;
-      let termination;
+      let termination: ContainerCommandResult["termination"];
       child.on("exit", () => {
         exited = true;
       });
-      const stop = (reason) => {
+      const stop = (reason: Error) => {
         problem ??= reason;
         if (exited || stopping) return;
         stopping = true;
@@ -156,11 +426,14 @@ export function createContainerHost(profile) {
       signal?.addEventListener("abort", abort, { once: true });
       if (signal?.aborted) abort();
       for (const [index, stream] of [child.stdout, child.stderr].entries())
-        stream.on("data", (data) => {
+        stream.on("data", (data: Buffer) => {
           bytes += data.length;
           if (bytes > budgets.command_output_bytes)
             stop(new Error(`${commandName} output exceeded 16 MiB`));
-          else chunks[index].push(data);
+          else {
+            const output = chunks[index];
+            if (output) output.push(data);
+          }
         });
       child.on("error", (error) => {
         problem ??= error;
@@ -193,18 +466,21 @@ export function createContainerHost(profile) {
       });
     });
   }
-  const docker = (args, options) =>
+  const docker = (args: readonly string[], options?: CommandOptions) =>
     command("docker", ["--context", "desktop-linux", ...args], options);
-  const json = (file) => JSON.parse(readFileSync(file, "utf8"));
-  const record = (file, value) => {
+  const json = (file: string): unknown => parseJson(readFileSync(file, "utf8"));
+  const record = (file: string, value: unknown) => {
     writeFileSync(`${file}.next`, JSON.stringify(value, null, 2) + "\n", { flag: "wx" });
     renameSync(`${file}.next`, file);
   };
-  const git = async (args, cwd = root) => (await command("git", args, { cwd })).stdout.trim();
+  const git = async (args: readonly string[], cwd = root) =>
+    (await command("git", args, { cwd })).stdout.trim();
 
-  function validateEngine(info, context) {
+  function validateEngine(input: unknown, contextInput: unknown) {
+    const info = object(input),
+      context = object(contextInput);
     if (
-      context?.Endpoints?.docker?.Host?.toLowerCase() !==
+      string(object(object(context.Endpoints).docker).Host, "engine endpoint").toLowerCase() !==
       "npipe:////./pipe/dockerdesktoplinuxengine"
     )
       throw new Error(
@@ -213,13 +489,14 @@ export function createContainerHost(profile) {
     if (
       info.OSType !== "linux" ||
       info.OperatingSystem !== "Docker Desktop" ||
-      !/microsoft.*WSL2/iu.test(info.KernelVersion ?? "") ||
-      !["x86_64", "amd64"].includes(info.Architecture)
+      !(typeof info.KernelVersion === "string" && /microsoft.*WSL2/iu.test(info.KernelVersion)) ||
+      (info.Architecture !== "x86_64" && info.Architecture !== "amd64")
     )
       throw new Error("This browser adapter requires Docker Desktop's WSL 2 Linux x86-64 engine");
   }
 
-  function validateDesktop(status) {
+  function validateDesktop(input: unknown) {
+    const status = object(input);
     if (status?.Status !== "running" || status.PauseType)
       throw new Error(
         "Docker Desktop engine is stopped, paused or in Resource Saver. Explicitly exit Resource Saver in Desktop before execution; starting an already-running UI may not resume the engine. The preflight never wakes it or changes global settings",
@@ -228,12 +505,13 @@ export function createContainerHost(profile) {
 
   // Query the same read-only resolved-settings endpoint used by Desktop's UI.
   // Saved overrides omit defaults; log rotation and startup writes are not authority.
-  function diskFromSettings(current, home) {
+  function diskFromSettings(input: unknown, home: string) {
+    const current = object(input);
     if (current?.["vm.hypervisor.windows"] !== "wsl2")
       throw new Error("Docker Desktop is not configured for WSL 2");
-    let folder = current["vm.resources.wslDataFolder"];
-    if (typeof folder !== "string") throw new Error("Docker did not report its WSL data folder");
-    folder = folder.replace(/^<HOME>/u, home);
+    const rawFolder = current["vm.resources.wslDataFolder"];
+    if (typeof rawFolder !== "string") throw new Error("Docker did not report its WSL data folder");
+    const folder = rawFolder.replace(/^<HOME>/u, home);
     if (!path.win32.isAbsolute(folder) || folder.includes("<"))
       throw new Error("Unknown Docker WSL data-folder form");
     return {
@@ -242,14 +520,14 @@ export function createContainerHost(profile) {
       vhd: path.win32.join(folder, "disk/docker_data.vhdx"),
     };
   }
-  async function desktopSettings() {
+  async function desktopSettings(): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const request = http.get(
         { socketPath: "\\\\.\\pipe\\dockerBackendApiServer", path: "/app/settings/gui" },
         (response) => {
-          const chunks = [];
+          const chunks: Buffer[] = [];
           let bytes = 0;
-          response.on("data", (data) => {
+          response.on("data", (data: Buffer) => {
             bytes += data.length;
             if (bytes > 2 * 1024 ** 2)
               request.destroy(new Error("Desktop settings response exceeds 2 MiB"));
@@ -260,7 +538,7 @@ export function createContainerHost(profile) {
             try {
               if (response.statusCode !== 200)
                 throw new Error("Desktop resolved settings request failed: " + response.statusCode);
-              resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")).settings);
+              resolve(object(parseJson(Buffer.concat(chunks).toString("utf8"))).settings);
             } catch (error) {
               reject(error);
             }
@@ -275,7 +553,7 @@ export function createContainerHost(profile) {
       request.on("close", () => clearTimeout(timer));
     });
   }
-  function size(directory) {
+  function size(directory: string) {
     if (!existsSync(directory)) return 0;
     let total = 0;
     let files = 0;
@@ -294,26 +572,25 @@ export function createContainerHost(profile) {
     return total;
   }
   async function network() {
-    const endpoints = [
+    const endpoints: [string, number[], string?][] = [
       ["https://ghcr.io/v2/", [200, 401], "GET"],
       ["https://registry.npmjs.org/", [200]],
       ["https://nodejs.org/dist/index.json", [200]],
-      ...(builder
-        ? [
-            ["https://github.com/PowerShell/PowerShell/releases", [200]],
-            ["https://archive.ubuntu.com/ubuntu/dists/jammy/Release", [200]],
-            ["https://static.rust-lang.org/dist/channel-rust-stable.toml", [200]],
-            ["https://index.crates.io/config.json", [200]],
-            ["https://registry-1.docker.io/v2/", [200, 401], "GET"],
-          ]
-        : [["https://cdn.playwright.dev/", [400]]]),
-      ...(builder
-        ? []
-        : [
-            ["https://deb.debian.org/debian/dists/bookworm/Release", [200]],
-            ["https://security.debian.org/debian-security/dists/bookworm-security/Release", [200]],
-          ]),
     ];
+    if (builder)
+      endpoints.push(
+        ["https://github.com/PowerShell/PowerShell/releases", [200]],
+        ["https://archive.ubuntu.com/ubuntu/dists/jammy/Release", [200]],
+        ["https://static.rust-lang.org/dist/channel-rust-stable.toml", [200]],
+        ["https://index.crates.io/config.json", [200]],
+        ["https://registry-1.docker.io/v2/", [200, 401], "GET"],
+      );
+    else
+      endpoints.push(
+        ["https://cdn.playwright.dev/", [400]],
+        ["https://deb.debian.org/debian/dists/bookworm/Release", [200]],
+        ["https://security.debian.org/debian-security/dists/bookworm-security/Release", [200]],
+      );
     const observations = await Promise.all(
       endpoints.map(async ([url, allowed, method = "HEAD"]) => {
         try {
@@ -348,7 +625,7 @@ export function createContainerHost(profile) {
       .split(/\r?\n/u)
       .map((line: string) => line.trim().split(/\s+/u))
       .filter((columns) => columns.at(-1) === "/mnt/docker-desktop-disk");
-    const available = matches.length === 1 ? Number(matches[0][3]) * 1024 : NaN;
+    const available = matches.length === 1 ? Number(matches[0]?.[3]) * 1024 : NaN;
     if (!Number.isFinite(available) || available < floor * GiB)
       throw Object.assign(
         new Error("Docker Linux backing filesystem is unknown or below the storage floor"),
@@ -360,11 +637,15 @@ export function createContainerHost(profile) {
     const rows = output
       .trim()
       .split("\n")
-      .map((line) => JSON.parse(line));
+      .map((line) => object(parseJson(line)));
     const row = rows.find((item) => item.Type === kind);
-    const size = /^(\d+(?:\.\d+)?)(B|kB|MB|GB|TB)$/u.exec(row?.Size ?? "");
+    const size = /^(\d+(?:\.\d+)?)(B|kB|MB|GB|TB)$/u.exec(
+      typeof row?.Size === "string" ? row.Size : "",
+    );
     if (!size) throw new Error("Unknown Docker build-cache usage; preparation refused");
-    return Math.ceil(Number(size[1]) * 1000 ** ["B", "kB", "MB", "GB", "TB"].indexOf(size[2]));
+    return Math.ceil(
+      Number(size[1]) * 1000 ** ["B", "kB", "MB", "GB", "TB"].indexOf(size[2] ?? ""),
+    );
   }
   async function doctor({ networkRequired = true } = {}) {
     if (process.versions.node !== readFileSync(path.join(root, ".node-version"), "utf8").trim())
@@ -373,14 +654,16 @@ export function createContainerHost(profile) {
       throw new Error(
         "Run this optional host adapter from Windows; native Linux development remains separate",
       );
-    let info;
-    let context;
-    let desktop;
+    let info: Record<string, unknown>;
+    let context: unknown;
+    let desktop: unknown;
     try {
-      desktop = JSON.parse((await docker(["desktop", "status", "--format", "json"])).stdout);
+      desktop = parseJson((await docker(["desktop", "status", "--format", "json"])).stdout);
       validateDesktop(desktop);
-      info = JSON.parse((await docker(["info", "--format", "json"])).stdout);
-      context = JSON.parse((await docker(["context", "inspect", "desktop-linux"])).stdout)[0];
+      info = object(parseJson((await docker(["info", "--format", "json"])).stdout));
+      context = firstObservation(
+        parseJson((await docker(["context", "inspect", "desktop-linux"])).stdout),
+      );
     } catch (error) {
       throw new Error(
         `Docker Desktop is missing, stopped or inaccessible. Start the installed WSL 2 Linux engine explicitly; this preflight changes no host settings. ${errorMessage(error)}`,
@@ -389,6 +672,7 @@ export function createContainerHost(profile) {
     }
     validateEngine(info, context);
     if (
+      typeof info.SystemTime !== "string" ||
       !Number.isFinite(Date.parse(info.SystemTime)) ||
       Math.abs(Date.now() - Date.parse(info.SystemTime)) > 60_000
     )
@@ -443,8 +727,12 @@ export function createContainerHost(profile) {
     };
   }
 
-  async function selectedSource(commit, excludeDirty = false, repository = root) {
-    if (!/^[0-9a-f]{40}$/u.test(commit ?? ""))
+  async function selectedSource(
+    commit: unknown,
+    excludeDirty = false,
+    repository = root,
+  ): Promise<SourceSelection> {
+    if (typeof commit !== "string" || !/^[0-9a-f]{40}$/u.test(commit))
       throw new Error(
         "Select one full committed SHA with --commit; dirty/current work is not synchronized",
       );
@@ -466,8 +754,10 @@ export function createContainerHost(profile) {
       excluded_changes: excluded.split("\n").filter(Boolean),
     };
   }
-  function owned(info, run) {
-    const labels = info.Config?.Labels ?? info.Labels ?? {};
+  function owned(input: unknown, run?: unknown) {
+    const info = object(input);
+    const config = info.Config == null ? {} : object(info.Config);
+    const labels = object(config.Labels ?? info.Labels ?? {});
     if (
       labels["io.portcove.tool"] !== tool ||
       labels["io.portcove.workspace"] !== workspace ||
@@ -476,12 +766,30 @@ export function createContainerHost(profile) {
       throw new Error("Container/image ownership does not match this workspace and run");
     return labels;
   }
-  async function inspectContainer(id, run) {
-    const info = JSON.parse((await docker(["container", "inspect", id])).stdout)[0];
+  async function inspectContainer(id: string, run?: string) {
+    const info = containerObservation(
+      firstObservation(parseJson((await docker(["container", "inspect", id])).stdout)),
+    );
     owned(info, run);
     return info;
   }
-  function runtimeArguments({ name, run, image, commit, tree, mode, files = [] }) {
+  function runtimeArguments({
+    name,
+    run,
+    image,
+    commit,
+    tree,
+    mode,
+    files = [],
+  }: {
+    name: string;
+    run: string;
+    image: string;
+    commit: string;
+    tree: string;
+    mode: string;
+    files?: readonly string[];
+  }) {
     if (!new RegExp(`^${prefix}-[0-9a-f-]{36}$`, "u").test(name))
       throw new Error("Invalid owned container name");
     return [
@@ -541,25 +849,35 @@ export function createContainerHost(profile) {
     ];
   }
 
-  function validateRuntime(info) {
-    const host = info.HostConfig;
+  function validateRuntime(input: unknown) {
+    const raw = object(input),
+      config = object(raw.Config),
+      host = object(raw.HostConfig);
+    const mounts = array(raw.Mounts, "mounts");
+    const environment = strings(config.Env, "environment");
+    const capAdd = host.CapAdd == null ? null : array(host.CapAdd, "additional capabilities");
+    const devices = host.Devices == null ? null : array(host.Devices, "devices");
+    const capDrop =
+      host.CapDrop == null ? undefined : strings(host.CapDrop, "dropped capabilities");
+    const security =
+      host.SecurityOpt == null ? undefined : strings(host.SecurityOpt, "security options");
     if (
-      info.Config.User !== "1000:1000" ||
-      info.Mounts.length ||
+      config.User !== "1000:1000" ||
+      mounts.length ||
       host.Privileged ||
-      host.CapAdd?.length ||
+      capAdd?.length ||
       host.NetworkMode !== (builder ? "bridge" : "none") ||
       (builder && (Object.keys(host.PortBindings ?? {}).length || host.PublishAllPorts === true)) ||
       host.PidMode ||
       host.IpcMode === "host" ||
-      host.Devices?.length ||
+      devices?.length ||
       host.Memory !== 6 * GiB ||
       host.MemorySwap !== 6 * GiB ||
       host.NanoCpus !== 4e9 ||
       host.ShmSize !== GiB ||
       host.PidsLimit !== budgets.pids ||
-      !host.CapDrop?.includes("ALL") ||
-      !host.SecurityOpt?.includes("no-new-privileges:true")
+      !capDrop?.includes("ALL") ||
+      !security?.includes("no-new-privileges:true")
     )
       throw new Error(
         "Actual container isolation/resource configuration differs from the browser contract",
@@ -577,7 +895,7 @@ export function createContainerHost(profile) {
       "PORTCOVE_CONTAINER_COMMIT",
       "PORTCOVE_CONTAINER_TREE",
     ]);
-    for (const variable of info.Config.Env) {
+    for (const variable of environment) {
       const separator = variable.indexOf("="),
         key = variable.slice(0, separator),
         value = variable.slice(separator + 1);
@@ -585,7 +903,7 @@ export function createContainerHost(profile) {
       if (
         (key === "PORTCOVE_CONTAINER_GUEST" && value === "1") ||
         (key === "HOME" && value === "/home/vp") ||
-        (key === "HOSTNAME" && value === info.Config.Hostname)
+        (key === "HOSTNAME" && value === config.Hostname)
       )
         continue;
       if (!allowed.has(key)) throw new Error(`Unexpected runtime environment key: ${key}`);
@@ -595,7 +913,7 @@ export function createContainerHost(profile) {
   function initializeStage(create = true) {
     const marker = path.join(stageRoot, "owner.json");
     if (existsSync(stageRoot)) {
-      const owner = json(marker);
+      const owner = object(json(marker));
       if (owner.tool !== tool || owner.workspace !== workspace)
         throw new Error("Unknown container staging owner");
     } else {
@@ -623,16 +941,21 @@ export function createContainerHost(profile) {
       .filter(Boolean);
     const images = [];
     for (const id of new Set(ids)) {
-      const info = JSON.parse((await docker(["image", "inspect", id])).stdout)[0];
+      const info = imageObservation(
+        firstObservation(parseJson((await docker(["image", "inspect", id])).stdout)),
+      );
       owned(info);
       images.push(info);
     }
     return { images, bytes: images.reduce((sum, info) => sum + info.Size, 0) };
   }
 
-  async function exportRun(state, directory: string) {
+  async function exportRun(state: RunState, directory: string) {
     await ensureRetainedEvidenceStore(evidenceRoot);
-    const container = await inspectContainer(state.container, state.run);
+    const container = await inspectContainer(
+      requiredState(state.container, "container ID"),
+      state.run,
+    );
     if (container.State.Running)
       throw new Error("Refusing export while the task container is active");
     const destination = path.join(evidenceRoot, state.run);
@@ -640,7 +963,11 @@ export function createContainerHost(profile) {
       throw new Error("An evidence destination already exists; refusing overwrite");
     const partial = path.join(directory, `export-partial-${randomUUID()}`);
     mkdirSync(partial);
-    const logs = await docker(["logs", "--timestamps", state.container]);
+    const logs = await docker([
+      "logs",
+      "--timestamps",
+      requiredState(state.container, "container ID"),
+    ]);
     writeFileSync(path.join(partial, "docker.stdout.log"), logs.stdout);
     writeFileSync(path.join(partial, "docker.stderr.log"), logs.stderr);
     if (existsSync(path.join(directory, "build.log")))
@@ -650,7 +977,7 @@ export function createContainerHost(profile) {
     });
     if (size(partial) > GiB)
       throw new Error("Export exceeds 1 GiB; recover the labelled container and partial directory");
-    const result = json(path.join(partial, "result.json"));
+    const result = object(json(path.join(partial, "result.json")));
     if (
       result.run !== state.run ||
       result.commit !== state.source.commit ||
@@ -658,11 +985,10 @@ export function createContainerHost(profile) {
       result.image !== state.image
     )
       throw new Error("Exported run/source/image identity mismatch");
-    if (!["passed", "failed", "interrupted"].includes(result.status))
-      throw new Error("Container report is incomplete; retain it for recovery");
+    assertFinishedResult(result);
     if (result.export_error)
       throw new Error(
-        `Container evidence capture was incomplete: ${result.export_error}; retain raw task paths for recovery`,
+        `Container evidence capture was incomplete: ${diagnosticText(result.export_error)}; retain raw task paths for recovery`,
       );
     if (
       result.uid !== 1000 ||
@@ -671,16 +997,17 @@ export function createContainerHost(profile) {
       (result.status === "passed" && (!result.fresh_execution || result.command_exit !== 0))
     )
       throw new Error("Container execution identity or fresh-result contract failed");
-    for (const artifact of result.artifacts) {
-      const file = path.resolve(partial, artifact.path);
+    for (const entry of array(result.artifacts, "result artifacts")) {
+      const artifactIdentity = artifact(entry);
+      const file = path.resolve(partial, artifactIdentity.path);
       const relative = path.relative(partial, file);
       if (
         !relative ||
         relative.startsWith("..") ||
         path.isAbsolute(relative) ||
         !lstatSync(file).isFile() ||
-        statSync(file).size !== artifact.bytes ||
-        hash(readFileSync(file)) !== artifact.sha256
+        statSync(file).size !== artifactIdentity.bytes ||
+        hash(readFileSync(file)) !== artifactIdentity.sha256
       )
         throw new Error("Exported artifact identity/containment failed");
     }
@@ -703,7 +1030,7 @@ export function createContainerHost(profile) {
       }
     }
     publish(partial, publishing);
-    const inventory = [];
+    const inventory: ArtifactIdentity[] = [];
     function inventoryFiles(directory: string) {
       for (const item of readdirSync(directory, { withFileTypes: true })) {
         const file = path.join(directory, item.name);
@@ -741,10 +1068,10 @@ export function createContainerHost(profile) {
     return result;
   }
 
-  function verifyPublication(directory: string, expected) {
+  function verifyPublication(directory: string, expected: PublicationBinding) {
     if (lstatSync(directory).isSymbolicLink())
       throw new Error("Published evidence directory is linked");
-    const manifest = json(path.join(directory, "publication.json"));
+    const manifest = object(json(path.join(directory, "publication.json")));
     if (
       manifest.format_version !== 1 ||
       !Array.isArray(manifest.files) ||
@@ -755,7 +1082,8 @@ export function createContainerHost(profile) {
       manifest.image !== expected.image
     )
       throw new Error("Published evidence identity is unavailable or changed");
-    for (const item of manifest.files) {
+    for (const rawItem of array(manifest.files, "publication files")) {
+      const item = artifact(rawItem);
       const file = path.resolve(directory, item.path),
         relative = path.relative(directory, file);
       const physical = path.relative(realpathSync.native(directory), realpathSync.native(file));
@@ -777,27 +1105,28 @@ export function createContainerHost(profile) {
     return manifest;
   }
 
-  function saveFailure(state, error, directory: string, save) {
+  function saveFailure(state: FailureState, error: unknown, directory: string, save: () => void) {
     state.execution_status = state.status ?? null;
     state.status =
-      error.code === "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" ? "admission-failed" : "incomplete";
-    if (error.code === "PORTCOVE_RESOURCE_QUEUE_TIMEOUT") state.causal_exit = 75;
-    state.error = error.message;
-    if (error.result) {
+      errorCode(error) === "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" ? "admission-failed" : "incomplete";
+    if (errorCode(error) === "PORTCOVE_RESOURCE_QUEUE_TIMEOUT") state.causal_exit = 75;
+    state.error = errorMessage(error);
+    const result = isRecord(error) && isRecord(error.result) ? error.result : undefined;
+    if (result) {
       let saved = false;
       try {
         writeFileSync(
           path.join(directory, "failed-command.log"),
-          error.result.stdout + error.result.stderr,
+          diagnosticText(result.stdout) + diagnosticText(result.stderr),
         );
         saved = true;
       } catch (sink) {
         state.diagnostic_error = errorMessage(sink);
       }
       state.failed_command = {
-        ...error.result,
-        stdout: saved ? undefined : error.result.stdout,
-        stderr: saved ? undefined : error.result.stderr,
+        ...result,
+        stdout: saved ? undefined : result.stdout,
+        stderr: saved ? undefined : result.stderr,
       };
     }
     try {
@@ -813,7 +1142,7 @@ export function createContainerHost(profile) {
     mode = builder ? "check" : "suite",
     files = [],
     timeout = budgets.timeout_ms,
-  }) {
+  }: BrowserOptions) {
     if (
       !(builder ? ["check", "package"] : ["suite", "probe", "exact"]).includes(mode) ||
       (mode === "exact" ? !files.length : files.length) ||
@@ -827,6 +1156,7 @@ export function createContainerHost(profile) {
           : "Use suite, probe or exact files and a finite timeout of 100..1800000 ms",
       );
     const source = await selectedSource(commit, excludeDirty);
+    const selectedCommit = source.commit;
     const intendedDriverSource = fallowSource(root, undefined, { includeAll: true });
     if (source.excluded_changes.length)
       console.error(`Excluded dirty work (not tested): ${JSON.stringify(source.excluded_changes)}`);
@@ -836,7 +1166,7 @@ export function createContainerHost(profile) {
     const run = randomUUID();
     const directory = path.join(stageRoot, run);
     mkdirSync(directory);
-    const state = {
+    const state: RunState = {
       format_version: 1,
       tool,
       workspace,
@@ -866,16 +1196,18 @@ export function createContainerHost(profile) {
       entry_sha256: hash(readFileSync(entry)),
       guard_sha256: hash(readFileSync(guard)),
       runtime_values_sha256: hash(readFileSync(path.join(root, "scripts/runtime-values.mts"))),
-      ...(builder ? { policy_sha256: hash(readFileSync(policy)) } : {}),
+      ...(builder
+        ? { policy_sha256: hash(readFileSync(requiredState(policy ?? undefined, "build policy"))) }
+        : {}),
     };
     const stateFile = path.join(directory, "host.json");
     const save = () => record(stateFile, state);
     save();
-    let interrupted;
-    let reservation;
-    let external;
+    let interrupted: string | undefined;
+    let reservation: ResourceLease | null | undefined;
+    let external: unknown;
     const abort = new AbortController();
-    const onInterrupt = (signal) => {
+    const onInterrupt = (signal: string) => {
       interrupted ??= signal;
       abort.abort();
     };
@@ -892,14 +1224,16 @@ export function createContainerHost(profile) {
       ).exec(text);
       if (!base) throw new Error("Browser image requires an exact Vite+ tag and digest");
       const { parse } = await import("yaml");
-      const selectedWorkspace = parse(await git(["show", `${commit}:pnpm-workspace.yaml`]));
-      if (selectedWorkspace.catalog?.["vite-plus"] !== base[2])
+      const selectedWorkspace = object(
+        parse(await git(["show", `${selectedCommit}:pnpm-workspace.yaml`])),
+      );
+      if (object(selectedWorkspace.catalog)["vite-plus"] !== base[2])
         throw new Error(
           "Selected source's Vite+ pin is incompatible with the prepared image; coordinate the upgrade",
         );
       if (builder) {
         const rustPin = /channel\s*=\s*"([^"]+)"/u.exec(
-          await git(["show", `${commit}:rust-toolchain.toml`]),
+          await git(["show", `${selectedCommit}:rust-toolchain.toml`]),
         )?.[1];
         const rustImage = /^FROM rust:([^@]+)-slim-bookworm@sha256:[a-f0-9]{64} AS rust$/mu.exec(
           text,
@@ -913,7 +1247,7 @@ export function createContainerHost(profile) {
         ? (
             await command("git", [
               "show",
-              `${commit}:scripts/install-linux-desktop-prerequisites.sh`,
+              `${selectedCommit}:scripts/install-linux-desktop-prerequisites.sh`,
             ])
           ).stdout
         : null;
@@ -925,8 +1259,12 @@ export function createContainerHost(profile) {
           recipe: hash(text),
           entry: hash(readFileSync(entry)),
           guard: hash(readFileSync(guard)),
-          ...(builder ? { policy: hash(readFileSync(policy)) } : {}),
-          ...(builder ? { bootstrap: hash(bootstrap) } : {}),
+          ...(builder
+            ? { policy: hash(readFileSync(requiredState(policy ?? undefined, "build policy"))) }
+            : {}),
+          ...(builder
+            ? { bootstrap: hash(requiredState(bootstrap ?? undefined, "bootstrap")) }
+            : {}),
           platform: "linux/amd64",
           workspace,
         }),
@@ -936,7 +1274,8 @@ export function createContainerHost(profile) {
       state.base = base[1];
       if (builder)
         state.bases = [...text.matchAll(/^FROM ([^\s]+)(?:\s|$)/gmu)].map((match) => match[1]);
-      if (builder) state.selected_bootstrap_sha256 = hash(bootstrap);
+      if (builder)
+        state.selected_bootstrap_sha256 = hash(requiredState(bootstrap ?? undefined, "bootstrap"));
       state.tag = tag;
       reservation = await acquireSourceBoundCapacity(
         "container",
@@ -993,13 +1332,13 @@ export function createContainerHost(profile) {
         if (cache + budgets.image_bytes > budgets.build_cache_bytes)
           throw new Error("Build-cache admission budget exhausted; no global cache was pruned");
         state.build_cache_before_bytes = cache;
-        console.error(`Preparing ${tag} from committed ${commit}`);
+        console.error(`Preparing ${tag} from committed ${selectedCommit}`);
         const snapshot = path.join(directory, "snapshot");
         await command("git", ["clone", "--shared", "--no-checkout", root, snapshot], {
           timeout: setupTimeout(60_000),
           signal: abort.signal,
         });
-        await git(["update-ref", "refs/heads/container-selected", commit], snapshot);
+        await git(["update-ref", "refs/heads/container-selected", selectedCommit], snapshot);
         const bundle = path.join(directory, "source.bundle");
         state.capacity_phase = "local-preparation";
         save();
@@ -1008,6 +1347,8 @@ export function createContainerHost(profile) {
         const cancel = () => cancellation.emit("SIGTERM");
         const timer = setTimeout(cancel, setupTimeout(builder ? 600_000 : 300_000));
         abort.signal.addEventListener("abort", cancel, { once: true });
+        const bundleLease = reservation;
+        if (!bundleLease) throw new Error("Owned bundle preparation has no capacity reservation");
         let bundled;
         try {
           bundled = await runRustTests(
@@ -1027,7 +1368,7 @@ export function createContainerHost(profile) {
               environment: { ...process.env, ...reservation.childEnvironment },
               signalTarget: cancellation,
               acquireLock: async () => ({
-                ...reservation,
+                ...bundleLease,
                 inherited: false,
                 release: async () => {},
               }),
@@ -1050,8 +1391,16 @@ export function createContainerHost(profile) {
           path.join(root, "scripts/runtime-values.mts"),
           path.join(directory, "runtime-values.mts"),
         );
-        if (builder) copyFileSync(policy, path.join(directory, "container-build-policy.mts"));
-        if (builder) writeFileSync(path.join(directory, "linux-prerequisites.sh"), bootstrap);
+        if (builder)
+          copyFileSync(
+            requiredState(policy ?? undefined, "build policy"),
+            path.join(directory, "container-build-policy.mts"),
+          );
+        if (builder)
+          writeFileSync(
+            path.join(directory, "linux-prerequisites.sh"),
+            requiredState(bootstrap ?? undefined, "bootstrap"),
+          );
         writeFileSync(
           path.join(directory, ".dockerignore"),
           "**\n!Dockerfile\n!source.bundle\n!container-entry.mts\n!container-source.mts\n!runtime-values.mts\n" +
@@ -1075,7 +1424,7 @@ export function createContainerHost(profile) {
             "--tag",
             tag,
             "--build-arg",
-            `SOURCE_COMMIT=${commit}`,
+            `SOURCE_COMMIT=${selectedCommit}`,
             "--build-arg",
             `SOURCE_TREE=${source.tree}`,
             "--build-arg",
@@ -1099,7 +1448,9 @@ export function createContainerHost(profile) {
         state.capacity_phase = "prepared";
         save();
         writeFileSync(path.join(directory, "build.log"), build.stdout + build.stderr);
-        image = JSON.parse((await docker(["image", "inspect", tag])).stdout)[0];
+        image = imageObservation(
+          firstObservation(parseJson((await docker(["image", "inspect", tag])).stdout)),
+        );
         state.image = image.Id;
         state.image_inspection = image;
         save();
@@ -1119,7 +1470,7 @@ export function createContainerHost(profile) {
       } else state.prepared_reused = true;
       const labels = owned(image);
       if (
-        labels["io.portcove.source"] !== commit ||
+        labels["io.portcove.source"] !== selectedCommit ||
         labels["io.portcove.tree"] !== source.tree ||
         labels["io.portcove.preparation"] !== preparation ||
         image.Os !== "linux" ||
@@ -1142,17 +1493,28 @@ export function createContainerHost(profile) {
       save();
       state.container = (
         await docker(
-          runtimeArguments({ name, run, image: image.Id, commit, tree: source.tree, mode, files }),
+          runtimeArguments({
+            name,
+            run,
+            image: image.Id,
+            commit: selectedCommit,
+            tree: source.tree,
+            mode,
+            files,
+          }),
           { timeout: setupTimeout(120_000), signal: abort.signal },
         )
       ).stdout.trim();
       save();
-      state.runtime_inspection = await inspectContainer(state.container, run);
+      state.runtime_inspection = await inspectContainer(
+        requiredState(state.container, "container ID"),
+        run,
+      );
       validateRuntime(state.runtime_inspection);
       save();
       const started = Date.now();
       try {
-        await docker(["start", state.container], {
+        await docker(["start", requiredState(state.container, "container ID")], {
           timeout: Math.min(timeout, 60_000),
           signal: abort.signal,
         });
@@ -1160,7 +1522,10 @@ export function createContainerHost(profile) {
         if (remaining <= 0) throw new Error("Container startup exhausted the execution deadline");
         state.container_exit = Number(
           (
-            await docker(["wait", state.container], { timeout: remaining, signal: abort.signal })
+            await docker(["wait", requiredState(state.container, "container ID")], {
+              timeout: remaining,
+              signal: abort.signal,
+            })
           ).stdout.trim(),
         );
         if (
@@ -1172,14 +1537,18 @@ export function createContainerHost(profile) {
       } catch (error) {
         state.interruption = interrupted ?? "timeout-or-wait-failure";
         state.wait_error = errorMessage(error);
-        state.wait_failure = error.result;
-        const current = await inspectContainer(state.container, run);
+        state.wait_failure = isRecord(error) ? error.result : undefined;
+        const current = await inspectContainer(requiredState(state.container, "container ID"), run);
         if (current.State.Running)
-          await docker(["stop", "--time", "10", state.container], { timeout: 20_000 });
-        state.container_exit = (await inspectContainer(state.container, run)).State.ExitCode;
+          await docker(["stop", "--time", "10", requiredState(state.container, "container ID")], {
+            timeout: 20_000,
+          });
+        state.container_exit = (
+          await inspectContainer(requiredState(state.container, "container ID"), run)
+        ).State.ExitCode;
       }
       state.runtime_ms = Date.now() - started;
-      const stopped = await inspectContainer(state.container, run);
+      const stopped = await inspectContainer(requiredState(state.container, "container ID"), run);
       if (stopped.State.Running)
         throw new Error("Container remains active; retaining host capacity");
       await reservation.release();
@@ -1210,7 +1579,10 @@ export function createContainerHost(profile) {
       }
       if (
         state.capacity_phase === "image-build" &&
-        (error.result?.interruption === "already-aborted" || error.code === "ENOENT")
+        ((isRecord(error) &&
+          isRecord(error.result) &&
+          error.result.interruption === "already-aborted") ||
+          errorCode(error) === "ENOENT")
       )
         state.capacity_phase = "prepared";
       if (reservation) {
@@ -1221,7 +1593,7 @@ export function createContainerHost(profile) {
             state.capacity_released = true;
           }
         } catch (cleanup) {
-          state.capacity_cleanup_error = cleanup.message;
+          state.capacity_cleanup_error = errorMessage(cleanup);
         }
       }
       if (reservation)
@@ -1236,7 +1608,7 @@ export function createContainerHost(profile) {
         new Error(
           `${errorMessage(error)}; recoverable state: ${stateFile}${state.container ? `; container ${state.container}` : ""}`,
         ),
-        { state, code: error.code },
+        { state, code: errorCode(error) },
       );
     } finally {
       process.removeListener("SIGINT", onSigint);
@@ -1256,7 +1628,7 @@ export function createContainerHost(profile) {
     }
   }
 
-  async function cleanup(apply = false, minAgeHours = budgets.retention_hours) {
+  async function cleanup(apply = false, minAgeHours: number = budgets.retention_hours) {
     if (!Number.isFinite(minAgeHours) || minAgeHours < 0 || minAgeHours > 8760)
       throw new Error("Cleanup age must be 0..8760 hours");
     if (!initializeStage(false)) return { apply, candidates: [], images: [] };
@@ -1266,7 +1638,7 @@ export function createContainerHost(profile) {
     for (const name of readdirSync(stageRoot)) {
       if (!/^[0-9a-f-]{36}$/u.test(name)) continue;
       const directory = path.join(stageRoot, name);
-      const state = json(path.join(directory, "host.json"));
+      const state = runState(json(path.join(directory, "host.json")));
       if (state.tool !== tool || state.workspace !== workspace || state.run !== name)
         throw new Error("Unknown run ownership; cleanup refused");
       if (!Number.isFinite(Date.parse(state.created_at)))
@@ -1279,14 +1651,17 @@ export function createContainerHost(profile) {
         protectedImages.add(state.image);
         continue;
       }
-      const info = await inspectContainer(state.container, name);
+      const info = await inspectContainer(requiredState(state.container, "container ID"), name);
       if (info.State.Running || info.State.ExitCode !== 0) {
         protectedImages.add(state.image);
         continue;
       }
-      if (path.resolve(state.export) !== path.join(evidenceRoot, name))
+      if (
+        path.resolve(requiredState(state.export, "published export")) !==
+        path.join(evidenceRoot, name)
+      )
         throw new Error("Unknown published evidence location; cleanup refused");
-      verifyPublication(state.export, state);
+      verifyPublication(requiredState(state.export, "published export"), state);
       candidates.push({
         run: name,
         container: state.container,
@@ -1295,8 +1670,8 @@ export function createContainerHost(profile) {
         evidence_retained: state.export,
       });
       if (apply) {
-        await inspectContainer(state.container, name);
-        await docker(["container", "rm", state.container]);
+        await inspectContainer(requiredState(state.container, "container ID"), name);
+        await docker(["container", "rm", requiredState(state.container, "container ID")]);
         const physical = realpathSync.native(directory);
         if (
           path.dirname(physical) !== realpathSync.native(stageRoot) ||
@@ -1335,7 +1710,11 @@ export function createContainerHost(profile) {
       if (referenced.some((id) => !eligibleContainers.has(id))) continue;
       images.push({ image: image.Id, bytes: image.Size });
       if (apply) {
-        owned(JSON.parse((await docker(["image", "inspect", image.Id])).stdout)[0]);
+        owned(
+          imageObservation(
+            firstObservation(parseJson((await docker(["image", "inspect", image.Id])).stdout)),
+          ),
+        );
         await docker(["image", "rm", image.Id]);
       }
     }
@@ -1348,26 +1727,29 @@ export function createContainerHost(profile) {
     };
   }
 
-  async function preparationStopped(state) {
+  async function preparationStopped(state: RunState) {
     if (state.capacity_phase === "local-preparation")
       return capacityChildrenStopped(state.capacity);
-    if (["admitted", "prepared"].includes(state.capacity_phase)) return true;
+    if (["admitted", "prepared"].includes(state.capacity_phase ?? "")) return true;
     if (state.capacity_phase === "image-build") {
       const result = await docker(
         ["buildx", "history", "ls", "--builder", "desktop-linux", "--format", "json", "--no-trunc"],
         { timeout: 30_000 },
       );
-      const records = result.stdout
+      const records: unknown[] = result.stdout
         .trim()
         .split(/\r?\n/u)
         .filter(Boolean)
-        .map((line) => JSON.parse(line));
+        .map(parseJson);
       const completion = completedContainerPreparation(records, state.build_name);
       if (!completion) return false;
       state.build_completion = completion;
       return true;
     }
-    const inspected = await inspectContainer(state.container ?? state.container_name, state.run);
+    const inspected = await inspectContainer(
+      requiredState(state.container ?? state.container_name, "container identity"),
+      state.run,
+    );
     return !inspected.State.Running;
   }
 
@@ -1376,7 +1758,7 @@ export function createContainerHost(profile) {
     initializeStage(false);
     const directory = path.join(stageRoot, run),
       file = path.join(directory, "host.json");
-    const state = json(file);
+    const state = runState(json(file));
     if (state.tool !== tool || state.workspace !== workspace || state.run !== run)
       throw new Error("Recovery ownership mismatch");
     await doctor({ networkRequired: false });
@@ -1390,7 +1772,7 @@ export function createContainerHost(profile) {
       record(file, state);
     }
     if (state.export_complete) {
-      verifyPublication(state.export, state);
+      verifyPublication(requiredState(state.export, "published export"), state);
       return { run, export: state.export, unchanged: true };
     }
     if (!state.container)
@@ -1420,7 +1802,7 @@ export function createContainerHost(profile) {
     if (action === "doctor" && !args.length) console.log(JSON.stringify(await doctor()));
     else if (action === "clean") {
       let apply = false,
-        age = budgets.retention_hours;
+        age: number = budgets.retention_hours;
       while (args.length) {
         const flag = args.shift();
         if (flag === "--apply") apply = true;
@@ -1429,9 +1811,9 @@ export function createContainerHost(profile) {
       }
       console.log(JSON.stringify(await cleanup(apply, age)));
     } else if (action === "export" && args.length === 2 && args[0] === "--run")
-      console.log(JSON.stringify(await recover(args[1])));
+      console.log(JSON.stringify(await recover(requiredState(args[1], "recovery run"))));
     else if (action === "run") {
-      const options = {};
+      const options: BrowserOptions = { commit: undefined };
       while (args.length) {
         const flag = args.shift();
         if (flag === "--commit") options.commit = args.shift();

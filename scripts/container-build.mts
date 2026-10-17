@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createContainerHost } from "./container-host.mts";
@@ -21,7 +22,9 @@ export const {
   cleanup,
 } = adapter;
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  adapter.main().catch((error) => {
+  adapter.main().catch((failure: unknown) => {
+    const error = isRecord(failure) ? failure : {};
+    const state = isRecord(error.state) ? error.state : {};
     console.error(
       JSON.stringify({
         error: error.message,
@@ -29,5 +32,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         observation: error.observation,
       }),
     );
-    process.exitCode = error.state?.causal_exit || 1;
+    process.exitCode =
+      typeof state.causal_exit === "number" && state.causal_exit ? state.causal_exit : 1;
   });

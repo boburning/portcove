@@ -1,4 +1,4 @@
-import { errorMessage } from "./runtime-values.mts";
+import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
 // Executed only in the prepared, non-root browser container.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -19,12 +19,17 @@ import { assertCommittedWorkspace } from "./container-source.mts";
 const root = "/workspace";
 const output = path.join(root, "work/container-results");
 const id = process.env.PORTCOVE_CONTAINER_RUN;
-if (!/^[0-9a-f-]{36}$/u.test(id ?? "") || process.getuid() === 0)
+if (
+  typeof id !== "string" ||
+  !/^[0-9a-f-]{36}$/u.test(id) ||
+  !process.getuid ||
+  process.getuid() === 0
+)
   throw new Error("A labelled non-root browser task and run ID are required");
 mkdirSync(output);
 const log = path.join(output, "command.log");
 writeFileSync(log, "", { flag: "wx" });
-const git = (...args) => {
+const git = (...args: string[]) => {
   const result = spawnSync("git", args, { cwd: root, encoding: "utf8", timeout: 10_000 });
   if (result.error || result.status !== 0) throw result.error ?? new Error(result.stderr);
   return result.stdout.trim();
@@ -35,9 +40,49 @@ const commands = {
   probe: ["apps/desktop/scripts/browser-runtime.mts", "probe"],
   exact: ["scripts/run-ui-tests.mts", "exact", ...files],
 };
-if (!Object.hasOwn(commands, mode) || (mode === "exact" ? !files.length : files.length))
+if (
+  (mode !== "suite" && mode !== "probe" && mode !== "exact") ||
+  (mode === "exact" ? !files.length : files.length)
+)
   throw new Error("Expected suite, probe, or exact <literal desktop test files>");
-const report = {
+interface PhaseResult {
+  code: number | null;
+  signal: NodeJS.Signals | null;
+}
+interface Phase extends PhaseResult {
+  phase: string;
+  command: string[];
+  output_prefix: string;
+}
+interface Report {
+  format_version: number;
+  run: string;
+  started_at: string;
+  commit: string;
+  tree: string;
+  image: string | undefined;
+  platform: NodeJS.Platform;
+  architecture: string;
+  uid: number;
+  node: string;
+  command: string[];
+  cwd: string;
+  mode: "suite" | "probe" | "exact";
+  files: string[];
+  fresh_execution: boolean;
+  status: "running" | "interrupted" | "passed" | "failed";
+  artifacts: { path: string; bytes: number; sha256: string }[];
+  phases: Phase[];
+  tools?: { node: string; pnpm: string };
+  chromium?: string | undefined;
+  command_exit?: number | null;
+  signal?: NodeJS.Signals | null;
+  interruption?: string | null;
+  error?: string;
+  export_error?: string;
+  finished_at?: string;
+}
+const report: Report = {
   format_version: 1,
   run: id,
   started_at: new Date().toISOString(),
@@ -65,20 +110,21 @@ if (
 const save = () =>
   writeFileSync(path.join(output, "result.json"), JSON.stringify(report, null, 2) + "\n");
 save();
-let child;
-let interrupted;
-let force;
-const stop = (signal) => {
+let child: ReturnType<typeof spawn> | undefined;
+let interrupted: string | undefined;
+let force: ReturnType<typeof setTimeout> | undefined;
+const stop = (signal: string) => {
   interrupted ??= signal;
   if (child?.pid) {
     try {
       process.kill(-child.pid, "SIGTERM");
     } catch (error) {
-      if (error.code !== "ESRCH") throw error;
+      if (errorCode(error) !== "ESRCH") throw error;
     }
+    const pid = child.pid;
     force ??= setTimeout(() => {
       try {
-        process.kill(-child.pid, "SIGKILL");
+        process.kill(-pid, "SIGKILL");
       } catch {}
     }, 5000);
   }
@@ -112,20 +158,21 @@ function capture(directory: string, target: string) {
     }
   }
 }
-async function execute(args, phase) {
+async function execute(args: string[], phase: string) {
   let prefix = "";
-  const result = await new Promise((resolve, reject) => {
+  const result = await new Promise<PhaseResult>((resolve, reject) => {
     child = spawn(process.execPath, args, {
       cwd: root,
       env: process.env,
       detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
-    for (const [stream, destination] of [
+    const streams = [
       [child.stdout, process.stdout],
       [child.stderr, process.stderr],
-    ])
-      stream.on("data", (data) => {
+    ] as const;
+    for (const [stream, destination] of streams)
+      stream?.on("data", (data: Buffer) => {
         bytes += data.length;
         if (bytes > 100 * 1024 ** 2) {
           stop("log-budget");
@@ -165,10 +212,18 @@ try {
     "tool-versions.json",
   ])
     copyFileSync(path.join("/portcove", file), path.join(output, file));
-  report.tools = JSON.parse(readFileSync(path.join(output, "tool-versions.json"), "utf8"));
-  const packageManager = JSON.parse(
-    readFileSync(path.join(root, "package.json"), "utf8"),
-  ).packageManager;
+  const tools: unknown = JSON.parse(readFileSync(path.join(output, "tool-versions.json"), "utf8"));
+  const metadata: unknown = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+  if (
+    !isRecord(tools) ||
+    typeof tools.pnpm !== "string" ||
+    typeof tools.node !== "string" ||
+    !isRecord(metadata) ||
+    typeof metadata.packageManager !== "string"
+  )
+    throw new Error("Prepared tool metadata is invalid");
+  report.tools = { ...tools, pnpm: tools.pnpm, node: tools.node };
+  const packageManager = metadata.packageManager;
   if (
     `pnpm@${report.tools.pnpm}` !== packageManager ||
     report.tools.node !== `v${process.versions.node}`
@@ -181,7 +236,7 @@ try {
   if (bootstrap.code !== 0 || interrupted)
     throw new Error("Contained browser readiness failed or was interrupted");
   report.chromium = /Browser ready: Chromium headless ([^\s]+)/u.exec(
-    report.phases[0].output_prefix,
+    report.phases[0]?.output_prefix ?? "",
   )?.[1];
   if (!report.chromium)
     throw new Error("Canonical bootstrap did not identify the actual Chromium version");

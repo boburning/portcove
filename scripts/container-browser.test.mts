@@ -1,4 +1,4 @@
-import { errorMessage } from "./runtime-values.mts";
+import { errorMessage, isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -27,30 +27,46 @@ import { browserReceiptContract } from "./testdata/browser-receipt-oracle.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
-test("browser adapter retains its independently reviewed pre-extraction contract", async () => {
-  const oracle = JSON.parse(
-    readFileSync(new URL("./testdata/container-browser-runtime-oracle.json", import.meta.url)),
+void test("browser adapter retains its independently reviewed pre-extraction contract", async () => {
+  const oracle = object(
+    JSON.parse(
+      readFileSync(
+        new URL("./testdata/container-browser-runtime-oracle.json", import.meta.url),
+        "utf8",
+      ),
+    ),
   );
   assert.equal(oracle.format_version, 1);
-  const receipts = JSON.parse(
-    readFileSync(new URL("./testdata/container-browser-receipt-oracle.json", import.meta.url)),
+  const receipts = object(
+    JSON.parse(
+      readFileSync(
+        new URL("./testdata/container-browser-receipt-oracle.json", import.meta.url),
+        "utf8",
+      ),
+    ),
   );
   assert.equal(receipts.baseline_commit, oracle.baseline_commit);
   assert.deepEqual(
-    receipts.cases.map(({ name }) => name),
+    array(receipts.cases).map((entry) => object(entry).name),
     ["success", "probe", "timeout", "recovered"],
   );
-  for (const { input, expected, provenance } of receipts.cases) {
+  for (const entry of array(receipts.cases)) {
+    const { expected } = object(entry),
+      input = object(object(entry).input),
+      provenance = object(object(entry).provenance);
+    const host = object(input.host);
     assert.deepEqual(browserReceiptContract(input.host, input.result, input.publication), expected);
-    assert.equal(input.host.run, provenance.run);
-    assert.equal(input.host.driver.host_sha256, oracle.source_sha256);
-    const wrong = structuredClone(input.host);
-    wrong.container_inspection.Config.Labels["io.portcove.tool"] = "foreign";
+    assert.equal(host.run, provenance.run);
+    assert.equal(object(host.driver).host_sha256, oracle.source_sha256);
+    const wrong = structuredClone(host);
+    object(object(object(wrong.container_inspection).Config).Labels)["io.portcove.tool"] =
+      "foreign";
     assert.throws(() => browserReceiptContract(wrong, input.result, input.publication));
   }
   assert.deepEqual(budgets, oracle.budgets);
-  for (const { input, expected } of oracle.runtime) {
-    const actual = runtimeArguments(input).map((argument) =>
+  for (const entry of array(oracle.runtime)) {
+    const { input, expected } = object(entry);
+    const actual = runtimeArguments(runtimeInput(input)).map((argument) =>
       /^io\.portcove\.workspace=[a-f0-9]{64}$/u.test(argument)
         ? "io.portcove.workspace=<physical-workspace-hash>"
         : argument,
@@ -63,7 +79,8 @@ test("browser adapter retains its independently reviewed pre-extraction contract
     actual.splice(guest - 1, 2);
     assert.deepEqual(actual, expected);
   }
-  for (const { name, input, expected } of oracle.runtimeValidation) {
+  for (const entry of array(oracle.runtimeValidation)) {
+    const { name, input, expected } = object(entry);
     let actual;
     try {
       validateRuntime(input);
@@ -71,14 +88,15 @@ test("browser adapter retains its independently reviewed pre-extraction contract
     } catch (error) {
       actual = { accepted: false, error: errorMessage(error) };
     }
-    assert.deepEqual(actual, expected, name);
+    assert.deepEqual(actual, expected, string(name));
   }
-  for (const { args, expected } of oracle.cli) {
+  for (const entry of array(oracle.cli)) {
+    const { args, expected } = object(entry);
     let result;
     try {
-      result = await command(process.execPath, ["scripts/container-browser.mts", ...args]);
+      result = await command(process.execPath, ["scripts/container-browser.mts", ...strings(args)]);
     } catch (error) {
-      assert(error.result);
+      assertCommandFailure(error);
       result = error.result;
     }
     assert.deepEqual(
@@ -87,7 +105,7 @@ test("browser adapter retains its independently reviewed pre-extraction contract
         // The immutable oracle records the historical command spelling.
         stdout: result.stdout
           .replaceAll("\r\n", "\n")
-          .replaceAll("container-browser.mts", "container-browser.mts"),
+          .replaceAll("container-browser.mts", "container-browser.mjs"),
         stderr: result.stderr.replaceAll("\r\n", "\n"),
       },
       expected,
@@ -101,7 +119,7 @@ const info = {
   Architecture: "x86_64",
 };
 const context = { Endpoints: { docker: { Host: "npipe:////./pipe/dockerDesktopLinuxEngine" } } };
-test("Desktop state rejects idle/stopped cached API readiness", () => {
+void test("Desktop state rejects idle/stopped cached API readiness", () => {
   validateDesktop({ Status: "running", PauseType: "" });
   for (const state of [
     { Status: "stopped" },
@@ -111,7 +129,7 @@ test("Desktop state rejects idle/stopped cached API readiness", () => {
   ])
     assert.throws(() => validateDesktop(state), /stopped, paused or in Resource Saver/u);
 });
-test("host admission requires the actual local Desktop WSL 2 Linux x86-64 engine", () => {
+void test("host admission requires the actual local Desktop WSL 2 Linux x86-64 engine", () => {
   validateEngine(info, context);
   for (const patch of [
     { OSType: "windows" },
@@ -125,8 +143,13 @@ test("host admission requires the actual local Desktop WSL 2 Linux x86-64 engine
       () => validateEngine(info, { Endpoints: { docker: { Host } } }),
       /local Docker Desktop/u,
     );
+  for (const Host of [["npipe:////./pipe/dockerdesktoplinuxengine"], null, 1, true, {}])
+    assert.throws(
+      () => validateEngine(info, { Endpoints: { docker: { Host } } }),
+      /engine endpoint/u,
+    );
 });
-test("disk discovery uses resolved settings and refuses unknown backend/folder authority", () => {
+void test("disk discovery uses resolved settings and refuses unknown backend/folder authority", () => {
   const settings = {
     "vm.hypervisor.windows": "wsl2",
     "vm.resources.wslDataFolder": "<HOME>\\AppData\\Local\\Docker\\wsl",
@@ -144,17 +167,17 @@ test("disk discovery uses resolved settings and refuses unknown backend/folder a
     assert.throws(() => diskFromSettings({ ...settings, ...patch }, "C:\\Users\\fixture"));
   assert.throws(() => diskFromSettings({}, "C:\\Users\\fixture"));
 });
-test("Linux capacity uses exactly one actual Docker disk row and retains rejected observations", () => {
+void test("Linux capacity uses exactly one actual Docker disk row and retains rejected observations", () => {
   const valid =
     "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/sde 1000000000 10 900000000 1% /mnt/docker-desktop-disk\n";
   assert.equal(linuxStorage(valid), 900000000 * 1024);
   for (const output of ["", "not a disk", valid + valid, valid.replace("900000000", "1")])
     assert.throws(
       () => linuxStorage(output),
-      (error) => error.observation === output,
+      (error) => isRecord(error) && error.observation === output,
     );
 });
-test("build-cache admission reads actual Docker JSON records and rejects unknown units", () => {
+void test("build-cache admission reads actual Docker JSON records and rejects unknown units", () => {
   assert.equal(
     cacheBytes('{"Type":"Images","Size":"100GB"}\n{"Type":"Build Cache","Size":"1.2GB"}\n'),
     1200000000,
@@ -163,7 +186,7 @@ test("build-cache admission reads actual Docker JSON records and rejects unknown
   assert.throws(() => cacheBytes('{"Type":"Build Cache","Size":"unavailable"}'), /Unknown/u);
   assert.throws(() => cacheBytes('{"Type":"Images","Size":"1GB"}'), /Unknown/u);
 });
-test(
+void test(
   "backing storage follows junctions and enforces the physical system-volume policy",
   {
     skip: process.platform !== "win32" || isWindowsSystemDrivePath(root, process.env.SystemDrive),
@@ -177,7 +200,7 @@ test(
       const accepted = preflight({ docker_disk: path.join(system, "to-non-system") }, 0.001, {
         blockSystemDrive: true,
       });
-      assert.equal(accepted.paths.docker_disk.toLowerCase(), nonSystem.toLowerCase());
+      assert.equal(string(accepted.paths.docker_disk).toLowerCase(), nonSystem.toLowerCase());
       symlinkSync(system, path.join(nonSystem, "to-system"), "junction");
       assert.throws(
         () =>
@@ -202,10 +225,11 @@ test(
     }
   },
 );
-test("an unpushed commit is selected exactly and dirty bytes/refs remain untouched", async () => {
+void test("an unpushed commit is selected exactly and dirty bytes/refs remain untouched", async () => {
   mkdirSync(path.join(root, "work"), { recursive: true });
   const fixture = mkdtempSync(path.join(root, "work/container-source-"));
-  const git = async (...args) => (await command("git", args, { cwd: fixture })).stdout.trim();
+  const git = async (...args: string[]) =>
+    (await command("git", args, { cwd: fixture })).stdout.trim();
   try {
     await git("init");
     writeFileSync(path.join(fixture, "source.txt"), "committed\n");
@@ -251,7 +275,7 @@ test("an unpushed commit is selected exactly and dirty bytes/refs remain untouch
     rmSync(fixture, { recursive: true });
   }
 });
-test("task argv is literal, bounded and excludes host mounts, privileges and proxy credentials", () => {
+void test("task argv is literal, bounded and excludes host mounts, privileges and proxy credentials", () => {
   const run = "30000000-0000-4000-8000-000000000000",
     file = "src/literal $(nope); name.browser.test.tsx";
   const args = runtimeArguments({
@@ -287,7 +311,7 @@ const runtime = () => ({
     User: "1000:1000",
     Env: ["PATH=/known", "VP_HOME=/home/vp/.vite-plus", "HTTP_PROXY=", "CI=true"],
   },
-  Mounts: [],
+  Mounts: [] as { Source: string }[],
   HostConfig: {
     NetworkMode: "none",
     Memory: 6 * 1024 ** 3,
@@ -299,7 +323,7 @@ const runtime = () => ({
     SecurityOpt: ["no-new-privileges:true"],
   },
 });
-test("actual runtime readback rejects widened authority and credential-bearing environments", () => {
+void test("actual runtime readback rejects widened authority and credential-bearing environments", () => {
   validateRuntime(runtime());
   for (const patch of [
     { Privileged: true },
@@ -327,7 +351,7 @@ test("actual runtime readback rejects widened authority and credential-bearing e
   changed.Mounts.push({ Source: "host-home" });
   assert.throws(() => validateRuntime(changed));
 });
-test("published bytes must remain verifiable before recovery resources can be cleaned", () => {
+void test("published bytes must remain verifiable before recovery resources can be cleaned", () => {
   mkdirSync(path.join(root, "work"), { recursive: true });
   const directory = mkdtempSync(path.join(root, "work/container-publication-"));
   const expected = {
@@ -357,10 +381,10 @@ test("published bytes must remain verifiable before recovery resources can be cl
     writeFileSync(path.join(directory, "trace.zip"), "replaced");
     assert.throws(() => verifyPublication(directory, expected), /changed/u);
     writeFileSync(path.join(directory, "trace.zip"), bytes);
-    manifest.files[0].path = "../escaped.zip";
+    manifestFile(manifest.files).path = "../escaped.zip";
     writeFileSync(path.join(directory, "publication.json"), JSON.stringify(manifest));
     assert.throws(() => verifyPublication(directory, expected));
-    manifest.files[0].path = "trace.zip";
+    manifestFile(manifest.files).path = "trace.zip";
     manifest.commit = "c".repeat(40);
     writeFileSync(path.join(directory, "publication.json"), JSON.stringify(manifest));
     assert.throws(() => verifyPublication(directory, expected), /identity/u);
@@ -370,13 +394,14 @@ test("published bytes must remain verifiable before recovery resources can be cl
   }
 });
 
-test("child failures and finite timeout retain original status, arguments and streams", async () => {
+void test("child failures and finite timeout retain original status, arguments and streams", async () => {
   await assert.rejects(
     command(process.execPath, [
       "-e",
       "process.stdout.write('out'); process.stderr.write('cause'); process.exit(23)",
     ]),
     (error) => {
+      assertCommandFailure(error);
       assert.equal(error.result.status, 23);
       assert.equal(error.result.stdout, "out");
       assert.equal(error.result.stderr, "cause");
@@ -386,6 +411,7 @@ test("child failures and finite timeout retain original status, arguments and st
   await assert.rejects(
     command(process.execPath, ["-e", "setInterval(()=>{},1000)"], { timeout: 200 }),
     (error) => {
+      assertCommandFailure(error);
       assert.match(error.message, /exceeded 200 ms/u);
       assert.equal(error.result.command, process.execPath);
       return true;
@@ -394,7 +420,7 @@ test("child failures and finite timeout retain original status, arguments and st
   await assert.rejects(cleanup(false, -1), /Cleanup age/u);
 });
 
-test("a failing diagnostic sink does not replace the actual child failure", async () => {
+void test("a failing diagnostic sink does not replace the actual child failure", async () => {
   mkdirSync(path.join(root, "work"), { recursive: true });
   const directory = mkdtempSync(path.join(root, "work/container-sink-"));
   try {
@@ -409,12 +435,13 @@ test("a failing diagnostic sink does not replace the actual child failure", asyn
     } catch (error) {
       primary = error;
     }
-    assert(primary);
-    const state = {};
+    assertCommandFailure(primary);
+    const state: Parameters<typeof saveFailure>[0] = {};
     saveFailure(state, primary, broken, () => {
       throw new Error("secondary sink control");
     });
     assert.equal(state.error, primary.message);
+    assert.ok(state.failed_command);
     assert.equal(state.failed_command.status, 23);
     assert.equal(state.failed_command.stdout, "partial");
     assert.equal(state.failed_command.stderr, "original cause");
@@ -426,7 +453,7 @@ test("a failing diagnostic sink does not replace the actual child failure", asyn
   }
 });
 
-test(
+void test(
   "Windows timeout drains the owned launcher's actual descendant",
   { skip: process.platform !== "win32" },
   async () => {
@@ -445,10 +472,12 @@ test(
         { timeout: 1500 },
       ),
       (error) => {
+        assertCommandFailure(error);
         const descendant = Number(error.result.stdout.trim());
         assert(Number.isInteger(descendant) && descendant > 0);
         assert.throws(() => process.kill(descendant, 0), { code: "ESRCH" });
         assert.match(error.message, /exceeded 1500 ms/u);
+        assert.ok(error.result.termination);
         assert.equal(error.result.termination.status, 0);
         assert.equal(error.result.termination.signal, null);
         return true;
@@ -457,10 +486,11 @@ test(
   },
 );
 
-test("already-cancelled setup never launches a child", async () => {
+void test("already-cancelled setup never launches a child", async () => {
   const abort = new AbortController();
   abort.abort();
   await assert.rejects(command("does-not-exist-control", [], { signal: abort.signal }), (error) => {
+    assertCommandFailure(error);
     assert.equal(error.result.interruption, "already-aborted");
     assert.equal(error.result.status, null);
     assert.match(error.message, /before launch/u);
@@ -468,7 +498,7 @@ test("already-cancelled setup never launches a child", async () => {
   });
 });
 
-test("runtime producer environment passes readback without admitting host coordination state", () => {
+void test("runtime producer environment passes readback without admitting host coordination state", () => {
   const run = "30000000-0000-4000-8000-000000000000";
   const args = runtimeArguments({
     name: `portcove-browser-${run}`,
@@ -479,7 +509,8 @@ test("runtime producer environment passes readback without admitting host coordi
     mode: "probe",
   });
   const actual = runtime();
-  for (let i = 0; i < args.length; i++) if (args[i] === "--env") actual.Config.Env.push(args[++i]);
+  for (let i = 0; i < args.length; i++)
+    if (args[i] === "--env") actual.Config.Env.push(string(args[++i]));
   validateRuntime(actual);
   for (const value of [
     "PORTCOVE_CONTAINER_GUEST=0",
@@ -492,3 +523,57 @@ test("runtime producer environment passes readback without admitting host coordi
     assert.throws(() => validateRuntime(bad), /Unexpected runtime environment key/);
   }
 });
+
+function object(value: unknown) {
+  assert.ok(isRecord(value));
+  return value;
+}
+function array(value: unknown): unknown[] {
+  assert.ok(Array.isArray(value));
+  return value;
+}
+function string(value: unknown): string {
+  assert.ok(typeof value === "string");
+  return value;
+}
+function strings(value: unknown): string[] {
+  return array(value).map(string);
+}
+function runtimeInput(value: unknown): Parameters<typeof runtimeArguments>[0] {
+  const input = object(value);
+  return {
+    name: string(input.name),
+    run: string(input.run),
+    image: string(input.image),
+    commit: string(input.commit),
+    tree: string(input.tree),
+    mode: string(input.mode),
+    ...(input.files === undefined ? {} : { files: strings(input.files) }),
+  };
+}
+function manifestFile<T>(files: T[]): T {
+  const file = files[0];
+  assert.ok(file);
+  return file;
+}
+function assertCommandFailure(error: unknown): asserts error is Error & {
+  result: {
+    status: number | null;
+    command: string;
+    stdout: string;
+    stderr: string;
+    interruption?: string;
+    termination?: { status: number | null; signal: string | null };
+  };
+} {
+  assert.ok(error instanceof Error);
+  const result = object(Reflect.get(error, "result"));
+  assert.ok(result.status === null || typeof result.status === "number");
+  for (const key of ["command", "stdout", "stderr"]) assert.ok(typeof result[key] === "string");
+  assert.ok(result.interruption === undefined || typeof result.interruption === "string");
+  if (result.termination !== undefined) {
+    const termination = object(result.termination);
+    assert.ok(termination.status === null || typeof termination.status === "number");
+    assert.ok(termination.signal === null || typeof termination.signal === "string");
+  }
+}
