@@ -53,7 +53,7 @@ interface CompletionContext {
   cli: string;
   fixture: Awaited<ReturnType<typeof createInstallFixture>> & { nativeConnectionJourney?: boolean };
   restartApplication: (name: string) => Promise<WebDriver>;
-  chooseGameFileFolder?: Picker;
+  chooseGameFileFolder?: Picker | undefined;
 }
 type CompletionStatus = PortStatus & { readiness: LaunchReadiness };
 type PreparedActivity = Exclude<

@@ -1,3 +1,37 @@
+import type { InstallRecord } from "../src/transport-types.generated.d.ts";
+import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
+import type { FixtureCommand } from "./desktop-scenario-state.mts";
+import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
+import { transportValue, transportValues } from "./transport-values.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function installObservation(value: unknown) {
+  const item = object(value);
+  assert.ok(typeof item.id === "string" && typeof item.path === "string");
+  const checked: Pick<InstallRecord, "id" | "path"> = { id: item.id, path: item.path };
+  return { ...item, ...checked };
+}
+function success(value: unknown) {
+  const reply = object(value);
+  assert.equal(reply.ok, true, JSON.stringify(reply));
+  return reply.value;
+}
+import type { Platform, PortDefinition } from "../src/transport-types.generated.d.ts";
+interface AdoptionContext extends ScenarioContext {
+  invoke: ScenarioInvoke;
+  library: string;
+  command: FixtureCommand;
+  tool: string;
+  host: Platform;
+  confirmNative: ReturnType<typeof nativeConfirmation>;
+}
 import { executeBrowserScript } from "./browser-script.mts";
 // Real adoption of a harmless owned executable; no upstream game or source acquisition.
 import assert from "node:assert/strict";
@@ -23,26 +57,29 @@ export async function adoptionReviewScenario({
   tool,
   host,
   confirmNative,
-}) {
+}: AdoptionContext) {
+  const portFor = (id: string) => transportValue("port", command(["catalog", "show", id]));
+  const hint = (port: PortDefinition) => required(port.executable_hints[host]?.[0]);
+  const status = (id: string) => transportValue("status", command(["status", id]));
   await scenario("native-reviewed-existing-install-copy", async () => {
     assert.equal(path.resolve(library), path.resolve(output, "library"));
-    const port = command(["catalog", "show", "zelda64-recomp"]);
+    const port = portFor("zelda64-recomp");
     const original = path.join(output, "owned-adoption-review");
     await mkdir(original);
-    await copyFile(tool, path.join(original, port.executable_hints[host][0]));
-    const otherPort = command(["catalog", "show", "opengoal-jak1"]);
+    await copyFile(tool, path.join(original, hint(port)));
+    const otherPort = portFor("opengoal-jak1");
     const ambiguous = path.join(output, "owned-adoption-ambiguous");
     await mkdir(ambiguous);
-    await copyFile(tool, path.join(ambiguous, port.executable_hints[host][0]));
-    await copyFile(tool, path.join(ambiguous, otherPort.executable_hints[host][0]));
+    await copyFile(tool, path.join(ambiguous, hint(port)));
+    await copyFile(tool, path.join(ambiguous, hint(otherPort)));
     const incoming = path.join(original, "general.json");
     await writeFile(incoming, "incoming settings", { flag: "wx" });
-    const previous = command(["adopt", original, "--port", port.id, "--yes"]);
-    const backup = command(["backup", "create", port.id]);
+    const previous = installObservation(command(["adopt", original, "--port", port.id, "--yes"]));
+    const backup = transportValue("backup", command(["backup", "create", port.id]));
     await writeFile(path.join(original, "owned-next-version.bin"), "new application version", {
       flag: "wx",
     });
-    const paths = command(["paths", port.id]);
+    const paths = transportValue("port_paths", command(["paths", port.id]));
     const current = path.join(paths.user_data_root, "general.json");
     const unrelated = path.join(paths.user_data_root, "unrelated-save.bin");
     await writeFile(current, "current settings");
@@ -52,12 +89,13 @@ export async function adoptionReviewScenario({
         incoming,
         unrelated,
         path.join(backup.path, "data/general.json"),
-        path.join(previous.path, port.executable_hints[host][0]),
-      ].map(fileIdentity),
+        path.join(previous.path, hint(port)),
+      ].map((file) => fileIdentity(file)),
     );
-    const { portId: otherInstallPortId, install: otherInstall } =
-      installedPreservationWitness(command);
-    const sources = command(["source", "list"]);
+    const { portId: otherInstallPortId, install: otherInstall } = installedPreservationWitness(
+      (args) => transportValue("status", command(args)),
+    );
+    const sources = transportValues("source", command(["source", "list"]));
     await browser.manage().window().setRect({ width: 1440, height: 1000 });
     await browser.navigate().refresh();
     const { button, click } = reviewControls(browser);
@@ -98,9 +136,7 @@ export async function adoptionReviewScenario({
       "Ambiguous detection must not authorize a copy",
     );
     const ambiguousFiles = await Promise.all(
-      [port.executable_hints[host][0], otherPort.executable_hints[host][0]].map((name: string) =>
-        fileIdentity(path.join(ambiguous, name)),
-      ),
+      [hint(port), hint(otherPort)].map((name: string) => fileIdentity(path.join(ambiguous, name))),
     );
     const ambiguousReport = path.join(output, "adoption-ambiguous-accessibility.json");
     await captureAccessibilityReport(browser, ambiguousReport, artifacts);
@@ -150,7 +186,7 @@ export async function adoptionReviewScenario({
       await Promise.all(ambiguousFiles.map((item) => fileIdentity(item.path))),
       ambiguousFiles,
     );
-    assert.equal(command(["status", port.id]).active.id, previous.id);
+    assert.equal(required(status(port.id).active).id, previous.id);
     await browser.manage().window().setRect({ width: 1440, height: 1000 });
     const open = async () => {
       await click(trigger);
@@ -191,7 +227,7 @@ export async function adoptionReviewScenario({
       "adoption-native-before-consent",
     );
     assert.equal(await readFile(current, "utf8"), "current settings");
-    assert.equal(command(["status", port.id]).active.id, previous.id);
+    assert.equal(required(status(port.id).active).id, previous.id);
     await confirmNative(
       "Confirm existing installation copy",
       "Cancel",
@@ -205,21 +241,29 @@ export async function adoptionReviewScenario({
     const reset = await browser.wait(until.elementLocated(button("Review copy plan")), 15_000);
     await browser.wait(until.elementIsEnabled(reset), 15_000);
     assert.equal(await readFile(current, "utf8"), "changed after review");
-    const generation = (await invoke("get_bootstrap_status")).value.generation;
-    const reviewed = await invoke("preview_adoption", {
-      path: original,
-      portId: port.id,
-      generation,
-    });
+    const generation = transportValue(
+      "desktop_bootstrap_status",
+      success(await invoke("get_bootstrap_status")),
+    ).generation;
+    const reviewed = object(
+      await invoke("preview_adoption", {
+        path: original,
+        portId: port.id,
+        generation,
+      }),
+    );
     assert.equal(reviewed.ok, true);
-    const stale = await invoke("adopt_port", {
-      path: original,
-      portId: port.id,
-      generation: generation + 1,
-      planSha256: reviewed.value.plan_sha256,
-    });
+    const preview = transportValue("adoption_preview", reviewed.value);
+    const stale = object(
+      await invoke("adopt_port", {
+        path: original,
+        portId: port.id,
+        generation: generation + 1,
+        planSha256: preview.plan_sha256,
+      }),
+    );
     assert.equal(stale.ok, false);
-    assert.equal(stale.error.code, "conflict");
+    assert.equal(object(stale.error).code, "conflict");
     await click(button("Review copy plan"));
     await browser.wait(until.elementLocated(button("Continue to copy confirmation")), 15_000);
     const report = path.join(output, "adoption-review-accessibility.json");
@@ -234,6 +278,7 @@ export async function adoptionReviewScenario({
     assert.equal(
       await executeBrowserScript(browser, () => {
         const plan = document.querySelector(".adoption-review");
+        if (!plan) throw new Error("required adoption review is missing");
         return plan.scrollHeight > plan.clientHeight + 1;
       }),
       false,
@@ -253,21 +298,23 @@ export async function adoptionReviewScenario({
       "adoption-native-confirmed",
     );
     await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
-    const adopted = command(["status", port.id]).active;
+    const adopted = required(status(port.id).active);
     assert.notEqual(adopted.id, previous.id);
     assert.equal(
       await realpath(path.dirname(adopted.path)),
-      await realpath(reviewed.value.destination.output_location.effective_output_directory),
+      await realpath(required(preview.destination).output_location.effective_output_directory),
     );
     assert.equal(await readFile(current, "utf8"), "incoming settings");
     assert.deepEqual(
       await Promise.all(preserved.map((item) => fileIdentity(item.path))),
       preserved,
     );
-    assert.deepEqual(command(["source", "list"]), sources);
-    assert.equal(command(["status", otherInstallPortId]).active.id, otherInstall.id);
+    assert.deepEqual(transportValues("source", command(["source", "list"])), sources);
+    assert.equal(required(status(otherInstallPortId).active).id, otherInstall.id);
     assert.deepEqual(
-      command(["backup", "list", port.id]).backups.map((item) => item.id),
+      transportValue("backup_inventory", command(["backup", "list", port.id])).backups.map(
+        (item) => item.id,
+      ),
       [backup.id],
     );
     const result = path.join(output, "adoption-review-result.json");
@@ -278,7 +325,7 @@ export async function adoptionReviewScenario({
           preserved_files: preserved,
           previous_install: previous.id,
           adopted_install: adopted,
-          reviewed_destination: reviewed.value.destination,
+          reviewed_destination: preview.destination,
           dismissal_and_native_cancel_preserved_data: true,
           changed_saved_data_rejected: true,
           stale_generation_rejected: true,

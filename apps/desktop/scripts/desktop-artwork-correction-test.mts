@@ -1,13 +1,13 @@
 import type { BinaryLike } from "node:crypto";
 import type { Locator, WebDriver } from "selenium-webdriver";
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
-import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
+import type { ScenarioInvoke } from "./desktop-scenario-context.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 import { transportValue } from "./transport-values.mts";
 interface CorrectionContext extends ScenarioContext {
-  invoke: BoundaryInvoke;
+  invoke: ScenarioInvoke;
   command: FixtureCommand;
   confirmNative: ReturnType<typeof nativeConfirmation>;
   restartApplication: (name: string) => Promise<WebDriver>;

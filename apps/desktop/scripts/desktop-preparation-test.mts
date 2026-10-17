@@ -1,3 +1,4 @@
+import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
 import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import type { Locator, IRectangle, WebElement } from "selenium-webdriver";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
@@ -17,8 +18,8 @@ import type {
 import { transportValue, transportValues } from "./transport-values.mts";
 export interface PreparationContext {
   browser: WebDriver;
-  invoke: (name: string, args?: Record<string, unknown>) => Promise<unknown>;
-  scenario: (name: string, execute: () => Promise<void>) => Promise<unknown>;
+  invoke: ScenarioInvoke;
+  scenario: ScenarioContext["scenario"];
   library: string;
   output: string;
   artifacts: string[];
@@ -2689,7 +2690,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       execute: async () => assert.fail("Context preflight must not execute WebDriver commands"),
     }),
     invoke: async () => assert.fail("Context preflight must not invoke IPC"),
-    scenario: async (id: string, _execute: () => Promise<void>) => {
+    scenario: async (id: string, _execute: () => unknown) => {
       attempts.push(id);
     },
     library: "<preflight-library>",
@@ -2722,7 +2723,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       },
       sourceJourney: null,
       preliminaryJourney: null,
-      completionJourney: false,
+      completionJourney: false as const,
       get url(): never {
         return assert.fail("Preflight must not read fixture URLs");
       },
@@ -2733,6 +2734,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     interruptApplication: async () => assert.fail("Context preflight must not interrupt"),
     closeApplication: async () => assert.fail("Context preflight must not close"),
     captureLivePreparation: () => assert.fail("Context preflight must not capture"),
+    chooseGameFileFolder: undefined,
   };
   await runOwnedFixtureJourneys(
     {

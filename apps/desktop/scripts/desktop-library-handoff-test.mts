@@ -1,12 +1,12 @@
 import type { Locator } from "selenium-webdriver";
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
-import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
+import type { ScenarioInvoke } from "./desktop-scenario-context.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 interface HandoffContext extends ScenarioContext {
-  invoke: BoundaryInvoke;
+  invoke: ScenarioInvoke;
   library: string;
   command: FixtureCommand;
   confirmNative: ReturnType<typeof nativeConfirmation>;

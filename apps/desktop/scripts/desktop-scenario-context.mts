@@ -10,3 +10,6 @@ export interface ScenarioArtifacts {
 export interface ScenarioContext extends ScenarioArtifacts {
   scenario: (id: string, action: () => unknown) => Promise<void>;
 }
+
+/** Named IPC calls used by native scenarios; remote replies require runtime narrowing. */
+export type ScenarioInvoke = (command: string, args?: Record<string, unknown>) => Promise<unknown>;

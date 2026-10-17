@@ -1,3 +1,25 @@
+import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
+import type { FixtureCommand } from "./desktop-scenario-state.mts";
+import { transportValue } from "./transport-values.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function success(value: unknown) {
+  const reply = object(value);
+  assert.equal(reply.ok, true, JSON.stringify(reply));
+  return reply.value;
+}
+interface CliHandoffContext extends ScenarioContext {
+  invoke: ScenarioInvoke;
+  cli: string;
+  command: FixtureCommand;
+}
 import { executeBrowserScript } from "./browser-script.mts";
 // Read-only command handoff from the real native UI after owned move and restore.
 import assert from "node:assert/strict";
@@ -18,26 +40,34 @@ export async function cliHandoffScenario({
   artifacts,
   cli,
   command,
-}) {
+}: CliHandoffContext) {
   await scenario("native-contextual-cli-handoff", async () => {
-    const bootstrap = (await invoke("get_bootstrap_status")).value;
+    const bootstrap = transportValue(
+      "desktop_bootstrap_status",
+      success(await invoke("get_bootstrap_status")),
+    );
     assert.equal(
-      await realpath(bootstrap.library_root),
+      await realpath(required(bootstrap.library_root)),
       await realpath(path.join(output, "restored-library")),
     );
-    const context = await invoke("get_cli_command_context", {
-      generation: bootstrap.generation,
-    });
+    const context = object(
+      await invoke("get_cli_command_context", {
+        generation: bootstrap.generation,
+      }),
+    );
     assert.equal(context.ok, true);
-    assert.equal(await realpath(context.value.executable), await realpath(cli));
-    const stale = await invoke("get_cli_command_context", {
-      generation: bootstrap.generation - 1,
-    });
+    const cliContext = transportValue("desktop_cli_command_context", context.value);
+    assert.equal(await realpath(required(cliContext.executable)), await realpath(cli));
+    const stale = object(
+      await invoke("get_cli_command_context", {
+        generation: bootstrap.generation - 1,
+      }),
+    );
     assert.equal(stale.ok, false);
-    assert.equal(stale.error.code, "conflict");
+    assert.equal(object(stale.error).code, "conflict");
     const { click } = reviewControls(browser);
-    const open = async (portId, view) => {
-      const port = command(["catalog", "show", portId]);
+    const open = async (portId: string, view: "Library" | "Port catalog") => {
+      const port = transportValue("port", command(["catalog", "show", portId]));
       await browser.navigate().refresh();
       await click(By.xpath(`//nav//button[contains(., "${view}")]`));
       const card =
@@ -47,14 +77,13 @@ export async function cliHandoffScenario({
       await click(By.xpath(card));
       const technical = By.css(".detail-body > .advanced-settings > .advanced-summary");
       const technicalControl = await browser.wait(until.elementLocated(technical), 10_000);
-      assert.match(
-        await executeBrowserScript(
-          browser,
-          (element) => element.textContent?.trim(),
-          technicalControl,
-        ),
-        /^Technical details/,
+      const technicalText = await executeBrowserScript(
+        browser,
+        (element) => element.textContent?.trim(),
+        technicalControl,
       );
+      assert.ok(typeof technicalText === "string");
+      assert.match(technicalText, /^Technical details/);
       await click(technical);
     };
     await open("zelda64-recomp", "Library");
@@ -84,17 +113,11 @@ export async function cliHandoffScenario({
     await browser.wait(until.elementLocated(By.css('[aria-label="Copy launch command"]')), 10_000);
     await click(By.xpath('//summary[normalize-space(.)="Separate program and arguments"]'));
     const codes = await browser.findElement(launch).findElements(By.css(".command-line code"));
-    const shell = await codes[0].getText();
-    const program = await codes[1].getText();
-    const args = JSON.parse(await codes[2].getText());
+    const shell = await required(codes[0]).getText();
+    const program = await required(codes[1]).getText();
+    const args: unknown = JSON.parse(await required(codes[2]).getText());
     assert.equal(await realpath(program), await realpath(cli));
-    assert.deepEqual(args, [
-      "--library",
-      context.value.library_root,
-      "exec",
-      "zelda64-recomp",
-      "--",
-    ]);
+    assert.deepEqual(args, ["--library", cliContext.library_root, "exec", "zelda64-recomp", "--"]);
     assert.ok(shell.includes("--library") && shell.includes("restored-library"));
     await assertCompactReview(browser, ".detail-panel");
     const report = path.join(output, "cli-handoff-accessibility.json");
@@ -128,7 +151,7 @@ export async function cliHandoffScenario({
       result,
       JSON.stringify(
         {
-          context: context.value,
+          context: cliContext,
           shell,
           program,
           args,

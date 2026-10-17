@@ -1,11 +1,11 @@
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
-import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
+import type { ScenarioInvoke } from "./desktop-scenario-context.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import type { ArtworkSlot, GeneratedArtworkFallback } from "../src/transport-types.generated.d.ts";
 import { transportValue } from "./transport-values.mts";
 interface ArtworkContext extends ScenarioContext {
-  invoke: BoundaryInvoke;
+  invoke: ScenarioInvoke;
   command: FixtureCommand;
   confirmNative: ReturnType<typeof nativeConfirmation>;
 }
