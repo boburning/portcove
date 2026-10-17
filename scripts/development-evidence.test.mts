@@ -4,6 +4,7 @@ import {
   writeAcceptancePreflight,
   completeAcceptancePacket,
   reusableAcceptanceScenarios,
+  parseAcceptancePreflightContext,
 } from "./acceptance-packet.mts";
 import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
 import {
@@ -37,6 +38,39 @@ import {
   retainedExecutableCanLaunch,
   readPrelaunchCustody,
 } from "./retained-evidence.mts";
+
+import type { TestContext } from "node:test";
+import type { EvidenceOptions } from "./development-evidence.mts";
+import type {
+  AcceptancePreflightContext,
+  AcceptanceCompletionContext,
+} from "./acceptance-packet.mts";
+import type { PreparationObservation } from "./native-readiness.mts";
+type PreparationInput = Parameters<
+  typeof observePreparationCompletion<{ readiness: { launchable: boolean } }>
+>[0];
+function required<Value>(value: Value | null | undefined): Value {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function jsonObject(text: string): Record<string, unknown> {
+  return object(JSON.parse(text));
+}
+function array(value: unknown): unknown[] {
+  assert.ok(Array.isArray(value));
+  return value;
+}
+function deferred() {
+  let complete: (() => void) | undefined;
+  const promise = new Promise<void>((resolve) => {
+    complete = resolve;
+  });
+  return { promise, resolve: () => required(complete)() };
+}
 
 // Load through the actual native runtime before serializing. The Node-only test
 // project does not import DOM implementations, and this VM has no host helpers.
@@ -74,11 +108,11 @@ async function retainedFixture(prefix: string) {
   return mkdtemp(path.join(parent, prefix));
 }
 
-function preparationObservation(overrides = {}) {
+function preparationObservation(overrides: Partial<PreparationInput> = {}): PreparationInput {
   return {
     portId: "owned-port",
     priorPreparationIds: new Set(["previous"]),
-    observation: {},
+    observation: {} satisfies PreparationObservation,
     readActivities: async () => ({
       records: [{ id: "new", operation: "prepare", target_id: "owned-port", status: "succeeded" }],
     }),
@@ -88,7 +122,7 @@ function preparationObservation(overrides = {}) {
   };
 }
 
-test("preparation polling avoids full status hydration before new terminal success", async () => {
+void test("preparation polling avoids full status hydration before new terminal success", async () => {
   const input = preparationObservation({
     readActivities: async () => ({
       records: [
@@ -103,11 +137,11 @@ test("preparation polling avoids full status hydration before new terminal succe
   assert.equal(await observePreparationCompletion(input), false);
   assert.equal(input.observation.activity_reads, 1);
   assert.equal(input.observation.status_reads, undefined);
-  assert.equal(input.observation.last.new_activity_count, 1);
-  assert.equal(input.observation.last.readiness, "not-read-before-terminal");
+  assert.equal(required(input.observation.last).new_activity_count, 1);
+  assert.equal(required(input.observation.last).readiness, "not-read-before-terminal");
 });
 
-test("Core success still requires authoritative readiness and actual review closure", async () => {
+void test("Core success still requires authoritative readiness and actual review closure", async () => {
   let launchable = false;
   let closed = false;
   const input = preparationObservation({
@@ -115,21 +149,22 @@ test("Core success still requires authoritative readiness and actual review clos
     isReviewClosed: async () => closed,
   });
   assert.equal(await observePreparationCompletion(input), false);
-  assert.equal(input.observation.last.review_closed, "not-read-before-readiness");
+  assert.equal(required(input.observation.last).review_closed, "not-read-before-readiness");
   launchable = true;
   assert.equal(await observePreparationCompletion(input), false);
-  assert.equal(input.observation.last.review_closed, false);
+  assert.equal(required(input.observation.last).review_closed, false);
   closed = true;
   const actual = await observePreparationCompletion(input);
+  assert.ok(actual);
   assert.equal(actual.activity.id, "new");
   assert.equal(actual.status.readiness.launchable, true);
   assert.equal(input.observation.samples, 3);
   assert.equal(input.observation.status_reads, 3);
   assert.equal(input.observation.review_reads, 2);
-  assert.equal(input.observation.last.phase, "complete");
+  assert.equal(required(input.observation.last).phase, "complete");
 });
 
-test("preparation observation refuses duplicate new operations", async () => {
+void test("preparation observation refuses duplicate new operations", async () => {
   const input = preparationObservation({
     readActivities: async () => ({
       records: ["first", "second"].map((id) => ({
@@ -141,15 +176,15 @@ test("preparation observation refuses duplicate new operations", async () => {
     }),
   });
   await assert.rejects(observePreparationCompletion(input), /exactly one new operation/);
-  assert.equal(input.observation.last.new_activity_count, 2);
+  assert.equal(required(input.observation.last).new_activity_count, 2);
 });
 
-test("failed preparation reads retain bounded diagnostic phase and propagate failure", async () => {
+void test("failed preparation reads retain bounded diagnostic phase and propagate failure", async () => {
   for (const [phase, callback] of [
     ["activity", "readActivities"],
     ["status", "readStatus"],
     ["review", "isReviewClosed"],
-  ]) {
+  ] as const) {
     const failure = new Error("owned observation failed");
     const input = preparationObservation({
       [callback]: async () => {
@@ -157,12 +192,12 @@ test("failed preparation reads retain bounded diagnostic phase and propagate fai
       },
     });
     await assert.rejects(observePreparationCompletion(input), (error) => error === failure);
-    assert.equal(input.observation.last.phase, phase);
-    assert.equal(Number.isFinite(input.observation.last[`${phase}_ms`]), true);
+    assert.equal(required(input.observation.last).phase, phase);
+    assert.equal(Number.isFinite(required(input.observation.last)[`${phase}_ms`]), true);
   }
 });
 
-test("bounded evidence streams hash and retain the complete multi-buffer tail", async (t) => {
+void test("bounded evidence streams hash and retain the complete multi-buffer tail", async (t) => {
   const directory = await retainedFixture("pcv-stream-tail-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
@@ -195,7 +230,7 @@ test("bounded evidence streams hash and retain the complete multi-buffer tail", 
   );
 });
 
-test("bootstrap verifies late mutation after manifest preparation before importing target bytes", async (t) => {
+void test("bootstrap verifies late mutation after manifest preparation before importing target bytes", async (t) => {
   const directory = await retainedFixture("pcv-bootstrap-guard-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
@@ -210,37 +245,38 @@ test("bootstrap verifies late mutation after manifest preparation before importi
   let imported = false;
   const before = await stat(file);
   await assert.rejects(
-    runInNewContext(`(async()=>{${block}})()`, {
-      assert,
-      inputs: [{ ...input, role: "app", kind: "executable" }],
-      values: { app: file },
-      captureOutput: directory,
-      revision: "a".repeat(40),
-      root: directory,
-      selection: { selected_scenarios: ["test"] },
-      retainedMetadata: false,
-      executionStarted: new Date(),
-      captureSignal: AbortSignal.timeout(10_000),
-      lock: { owner: { token: "fixture-only" } },
-      process: { argv: ["node", "runner"], env: {} },
-      path,
-      writeFile: async (...args) => {
-        await writeFile(...args);
-        await writeFile(file, "modified");
-        await utimes(file, before.atime, before.mtime);
-      },
-      verifyConsumedInputs,
-      importTarget: () => {
-        imported = true;
-      },
-    }),
+    async () =>
+      await runInNewContext(`(async()=>{${block}})()`, {
+        assert,
+        inputs: [{ ...input, role: "app", kind: "executable" }],
+        values: { app: file },
+        captureOutput: directory,
+        revision: "a".repeat(40),
+        root: directory,
+        selection: { selected_scenarios: ["test"] },
+        retainedMetadata: false,
+        executionStarted: new Date(),
+        captureSignal: AbortSignal.timeout(10_000),
+        lock: { owner: { token: "fixture-only" } },
+        process: { argv: ["node", "runner"], env: {} },
+        path,
+        writeFile: async (...args: Parameters<typeof writeFile>) => {
+          await writeFile(...args);
+          await writeFile(file, "modified");
+          await utimes(file, before.atime, before.mtime);
+        },
+        verifyConsumedInputs,
+        importTarget: () => {
+          imported = true;
+        },
+      }),
     /changed after capture/u,
   );
   assert.equal(imported, false);
   assert.ok((await stat(path.join(directory, "prelaunch.json"))).isFile());
 });
 
-test("prelaunch custody accepts native equivalent absolute path separators", async (t) => {
+void test("prelaunch custody accepts native equivalent absolute path separators", async (t) => {
   const directory = await retainedFixture("pcv-prelaunch-path-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "product");
@@ -271,7 +307,7 @@ test("prelaunch custody accepts native equivalent absolute path separators", asy
   });
 });
 
-test("retention rejects absent and untagged cleanup roots before creating them", async (t) => {
+void test("retention rejects absent and untagged cleanup roots before creating them", async (t) => {
   const directory = await retainedFixture("pcv-cleanup-boundary-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   for (const suffix of [
@@ -287,7 +323,7 @@ test("retention rejects absent and untagged cleanup roots before creating them",
   }
 });
 
-test("matching product metadata cannot authorize relocation of a path-sensitive executable", () => {
+void test("matching product metadata cannot authorize relocation of a path-sensitive executable", () => {
   const drivers = { driver: "/trusted/tauri-driver", nativeDriver: "/trusted/native-driver" };
   for (const role of ["app", "preparation-cli", "preparation-tool"]) {
     assert.equal(
@@ -295,6 +331,7 @@ test("matching product metadata cannot authorize relocation of a path-sensitive 
         {
           role,
           path: "/unrelated/product",
+          // @ts-expect-error Extra product metadata must not confer executable relocation authority.
           verification_build: { compiled_source_revision: "a".repeat(40) },
           source_state: { clean: true },
         },
@@ -313,7 +350,7 @@ test("matching product metadata cannot authorize relocation of a path-sensitive 
   );
 });
 
-test("capture/read/verification expiry refuses every later launch", async () => {
+void test("capture/read/verification expiry refuses every later launch", async () => {
   let launches = 0;
   for (const elapsed of [100, 101]) {
     const admission = executionAdmission(new Date(0).toISOString(), 100, () => elapsed);
@@ -335,7 +372,7 @@ test("capture/read/verification expiry refuses every later launch", async () => 
   assert.equal(launches, 0);
 });
 
-test("retained input is published without overwrite, deduplicated and bound before consumption", async (t) => {
+void test("retained input is published without overwrite, deduplicated and bound before consumption", async (t) => {
   const directory = await retainedFixture("pcv-retained-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
@@ -357,7 +394,7 @@ test("retained input is published without overwrite, deduplicated and bound befo
   await verifyConsumedInputs(copies, { livePaths: false });
 });
 
-test("a retained executable is actually consumed through its retained path", async (t) => {
+void test("a retained executable is actually consumed through its retained path", async (t) => {
   const directory = await retainedFixture("pcv-retained-launch-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const captured = await retainEvidenceInput({
@@ -381,7 +418,7 @@ test("a retained executable is actually consumed through its retained path", asy
   await verifyConsumedInputs([captured]);
 });
 
-test("corrupt published evidence and interrupted publication preserve partial failures", async (t) => {
+void test("corrupt published evidence and interrupted publication preserve partial failures", async (t) => {
   const directory = await retainedFixture("pcv-retained-failure-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
@@ -408,7 +445,7 @@ test("corrupt published evidence and interrupted publication preserve partial fa
   assert(partials.some((name: string) => name.endsWith(".failure.json")));
 });
 
-test("deduplication never republishes a discarded copy after published custody changes", async (t) => {
+void test("deduplication never republishes a discarded copy after published custody changes", async (t) => {
   const directory = await retainedFixture("pcv-dedup-race-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
@@ -439,7 +476,7 @@ test("deduplication never republishes a discarded copy after published custody c
   }
 });
 
-test("retained evidence refuses disposable ancestry and unavailable capacity", async (t) => {
+void test("retained evidence refuses disposable ancestry and unavailable capacity", async (t) => {
   const directory = await retainedFixture("pcv-retained-capacity-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
@@ -458,22 +495,16 @@ test("retained evidence refuses disposable ancestry and unavailable capacity", a
   await assert.rejects(validateEvidenceStore(path.join(cache, "nested")), /disposable/);
 });
 
-test("cancellation joins the blocked publication worker and preserves staging without publication", async (t) => {
+void test("cancellation joins the blocked publication worker and preserves staging without publication", async (t) => {
   const directory = await retainedFixture("pcv-retained-cancel-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
   await writeFile(file, "original");
   const controller = new AbortController();
-  let entered, release;
-  const reached = new Promise((resolve) => {
-    entered = resolve;
-  });
-  const blocked = new Promise((resolve) => {
-    release = resolve;
-  });
-  let finished = false,
-    partial,
-    published;
+  const { promise: reached, resolve: entered } = deferred();
+  const { promise: blocked, resolve: release } = deferred();
+  let finished = false;
+  let partial: string | undefined, published: string | undefined;
   const operation = retainEvidenceInput({
     root: path.join(directory, "evidence"),
     file,
@@ -492,14 +523,14 @@ test("cancellation joins the blocked publication worker and preserves staging wi
   controller.abort(new Error("cancel requested"));
   await Promise.resolve();
   assert.equal(finished, false);
-  assert.equal(await readFile(partial, "utf8"), "original");
+  assert.equal(await readFile(required(partial), "utf8"), "original");
   release();
   await rejected;
-  await assert.rejects(stat(published), { code: "ENOENT" });
-  assert.equal(await readFile(partial, "utf8"), "original");
+  await assert.rejects(stat(required(published)), { code: "ENOENT" });
+  assert.equal(await readFile(required(partial), "utf8"), "original");
 });
 
-test("late cancellation preserves already admitted evidence publication", async (t) => {
+void test("late cancellation preserves already admitted evidence publication", async (t) => {
   const directory = await retainedFixture("pcv-retained-late-cancel-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "source");
@@ -518,7 +549,7 @@ test("late cancellation preserves already admitted evidence publication", async 
   await verifyConsumedInputs([captured]);
 });
 
-test("partial and failed evidence cannot become a pass", () => {
+void test("partial and failed evidence cannot become a pass", () => {
   assert.equal(evidenceOutcome([]), "not-run");
   assert.equal(
     evidenceOutcome([
@@ -528,10 +559,15 @@ test("partial and failed evidence cannot become a pass", () => {
     "incomplete",
   );
   assert.equal(evidenceOutcome([{ scenario: "a", outcome: "failed" }]), "failed");
-  assert.throws(() => evidenceOutcome([{ scenario: "a", outcome: "maybe" }]));
+  assert.throws(() =>
+    evidenceOutcome([
+      // @ts-expect-error Keep the malformed runtime outcome rejection test.
+      { scenario: "a", outcome: "maybe" },
+    ]),
+  );
 });
 
-test("a vanished executable can retain its initial identity and failure evidence", async () => {
+void test("a vanished executable can retain its initial identity and failure evidence", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-evidence-"));
   try {
     const executable = path.join(directory, "fixture");
@@ -552,7 +588,7 @@ test("a vanished executable can retain its initial identity and failure evidence
     await rm(directory, { recursive: true, force: true });
   }
 });
-test("version two evidence separates selected scenarios, setup, gaps, and phases", async () => {
+void test("version two evidence separates selected scenarios, setup, gaps, and phases", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-evidence-"));
   try {
     const executable = path.join(directory, "fixture");
@@ -578,18 +614,18 @@ test("version two evidence separates selected scenarios, setup, gaps, and phases
     assert.deepEqual(report.setup_checks, [{ scenario: "setup", outcome: "passed" }]);
     assert.deepEqual(report.selected_scenarios, ["selected"]);
     assert.deepEqual(report.excluded_scenarios, ["other"]);
-    assert.equal(report.phases[0].phase, "build");
+    assert.equal(object(required(report.phases[0])).phase, "build");
     assert.equal(report.harness_deadline_ms, 180_000);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
 });
-test("evidence hashes bytes and never replaces prior observations", async () => {
+void test("evidence hashes bytes and never replaces prior observations", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-evidence-"));
   try {
     const executable = path.join(directory, "fixture");
     await writeFile(executable, "abc");
-    const input = {
+    const input: EvidenceOptions = {
       revision: "a".repeat(40),
       executable,
       checks: [{ scenario: "fixture", outcome: "passed" }],
@@ -606,9 +642,11 @@ test("evidence hashes bytes and never replaces prior observations", async () => 
   }
 });
 
-test("native capability distinguishes API absence, restriction, exposed absence and scoped observations", () => {
-  const observe = (navigator) =>
-    runBrowserProbe(`(${serializedBrowserProbe("observeGamepadCapability")})()`, { navigator });
+void test("native capability distinguishes API absence, restriction, exposed absence and scoped observations", () => {
+  const observe = (navigator: unknown) =>
+    object(
+      runBrowserProbe(`(${serializedBrowserProbe("observeGamepadCapability")})()`, { navigator }),
+    );
   assert.equal(observe({}).outcome, "api-absent");
   assert.equal(
     observe({
@@ -642,23 +680,25 @@ test("native capability distinguishes API absence, restriction, exposed absence 
   );
 });
 
-test("serialized visual target observation rejects absent, loading and offscreen targets", () => {
-  const observe = (rect, loading = 0) =>
-    runBrowserProbe(`(${serializedBrowserProbe("observeVisibleTarget")})("#target")`, {
-      document: {
-        readyState: "complete",
-        querySelectorAll: (selector) =>
-          selector === "#target"
-            ? rect
-              ? [{ getBoundingClientRect: () => rect, closest: () => null }]
-              : []
-            : Array(loading).fill({}),
-      },
-      getComputedStyle: () => ({ display: "block", visibility: "visible", opacity: "1" }),
-      innerWidth: 800,
-      innerHeight: 600,
-      devicePixelRatio: 1,
-    });
+void test("serialized visual target observation rejects absent, loading and offscreen targets", () => {
+  const observe = (rect: unknown, loading = 0) =>
+    object(
+      runBrowserProbe(`(${serializedBrowserProbe("observeVisibleTarget")})("#target")`, {
+        document: {
+          readyState: "complete",
+          querySelectorAll: (selector: string) =>
+            selector === "#target"
+              ? rect
+                ? [{ getBoundingClientRect: () => rect, closest: () => null }]
+                : []
+              : Array.from({ length: loading }, () => ({})),
+        },
+        getComputedStyle: () => ({ display: "block", visibility: "visible", opacity: "1" }),
+        innerWidth: 800,
+        innerHeight: 600,
+        devicePixelRatio: 1,
+      }),
+    );
   assert.equal(observe(null).visible, false);
   assert.equal(
     observe({ x: 900, y: 0, left: 900, top: 0, right: 950, bottom: 20, width: 50, height: 20 })
@@ -666,13 +706,15 @@ test("serialized visual target observation rejects absent, loading and offscreen
     false,
   );
   assert.equal(
-    observe({ x: 0, y: 0, left: 0, top: 0, right: 50, bottom: 20, width: 50, height: 20 }, 1)
-      .application_state.loading,
+    object(
+      observe({ x: 0, y: 0, left: 0, top: 0, right: 50, bottom: 20, width: 50, height: 20 }, 1)
+        .application_state,
+    ).loading,
     1,
   );
 });
 
-test("settled visual binds retained image to semantic state and preserves negative diagnostics", async (t) => {
+void test("settled visual binds retained image to semantic state and preserves negative diagnostics", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-settled-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const state = {
@@ -688,8 +730,11 @@ test("settled visual binds retained image to semantic state and preserves negati
   // Successful publication performs real filesystem writes. Keep short deadlines
   // only for the controls that explicitly exercise expiry.
   const run = (
-    name,
-    readiness = async () => ({ ready: true, phase: "review" }),
+    name: string,
+    readiness: () => Promise<{ ready: boolean; phase?: string }> = async () => ({
+      ready: true,
+      phase: "review",
+    }),
     timeoutMs = 5000,
   ) =>
     captureSettledVisual({
@@ -704,7 +749,7 @@ test("settled visual binds retained image to semantic state and preserves negati
     });
   const captured = await run("positive");
   assert.deepEqual(await fileIdentity(captured.image.path), captured.image);
-  assert.equal(JSON.parse(await readFile(captured.receipt, "utf8")).scenario, "owned-review");
+  assert.equal(jsonObject(await readFile(captured.receipt, "utf8")).scenario, "owned-review");
   await assert.rejects(
     run("loading", async () => ({ ready: false }), 30),
     /timed out/u,
@@ -723,7 +768,7 @@ test("settled visual binds retained image to semantic state and preserves negati
   await assert.rejects(run("changed"), /changed during capture/u);
   for (const name of ["loading", "offscreen", "failed", "changed"]) {
     assert.equal(
-      JSON.parse(await readFile(path.join(directory, `${name}-capture-failure.json`), "utf8"))
+      jsonObject(await readFile(path.join(directory, `${name}-capture-failure.json`), "utf8"))
         .acceptance,
       false,
     );
@@ -731,7 +776,7 @@ test("settled visual binds retained image to semantic state and preserves negati
   }
 });
 
-test("settled capture waits for the actual target geometry without accepting a moving target", async (t) => {
+void test("settled capture waits for the actual target geometry without accepting a moving target", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-capture-layout-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   let observations = 0,
@@ -773,35 +818,29 @@ test("settled capture waits for the actual target geometry without accepting a m
   );
   assert.equal(screenshots, 1, "A moving target never produces an acceptance candidate");
   assert.equal(
-    JSON.parse(await readFile(path.join(directory, "moving-capture-failure.json"), "utf8"))
+    jsonObject(await readFile(path.join(directory, "moving-capture-failure.json"), "utf8"))
       .acceptance,
     false,
   );
 });
 
-test("timed-out capture joins the blocked filesystem worker without publishing a completed receipt", async (t) => {
+void test("timed-out capture joins the blocked filesystem worker without publishing a completed receipt", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-capture-join-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  let enter, release, aborted;
-  const entered = new Promise((resolve) => {
-    enter = resolve;
-  });
-  const blocked = new Promise((resolve) => {
-    release = resolve;
-  });
-  const cancellation = new Promise((resolve) => {
-    aborted = resolve;
-  });
+  const { promise: entered, resolve: enter } = deferred();
+  const { promise: blocked, resolve: release } = deferred();
+  const { promise: cancellation, resolve: aborted } = deferred();
   let settled = false;
+  const browser = {
+    executeScript: async () => ({
+      visible: true,
+      viewport: { width: 800, height: 600 },
+      application_state: { document_ready: "complete", loading: 0 },
+    }),
+    takeScreenshot: async () => Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64"),
+  };
   const operation = captureSettledVisual({
-    browser: {
-      executeScript: async () => ({
-        visible: true,
-        viewport: { width: 800, height: 600 },
-        application_state: { document_ready: "complete", loading: 0 },
-      }),
-      takeScreenshot: async () => Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64"),
-    },
+    browser,
     output: directory,
     observeTarget: async () => ({
       visible: true,
@@ -836,17 +875,17 @@ test("timed-out capture joins the blocked filesystem worker without publishing a
   await rejection;
   await assert.rejects(stat(path.join(directory, "blocked-capture.json")), { code: "ENOENT" });
   assert.equal(
-    JSON.parse(await readFile(path.join(directory, "blocked-capture-failure.json"), "utf8"))
+    jsonObject(await readFile(path.join(directory, "blocked-capture-failure.json"), "utf8"))
       .acceptance,
     false,
   );
   assert.equal(
-    JSON.parse(await readFile(path.join(directory, "blocked-capture.partial"), "utf8")).outcome,
+    jsonObject(await readFile(path.join(directory, "blocked-capture.partial"), "utf8")).outcome,
     "captured",
   );
 });
 
-async function packetFixture(t) {
+async function packetFixture(t: TestContext) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-packet-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const source = path.join(directory, "source");
@@ -857,7 +896,7 @@ async function packetFixture(t) {
   const head = "a".repeat(40),
     target = "b".repeat(40),
     tree = "c".repeat(40);
-  const bindings = {
+  const bindings: AcceptancePreflightContext["bindings"] = {
     source_head: head,
     current_target: target,
     composed_tree: tree,
@@ -881,7 +920,7 @@ async function packetFixture(t) {
     source_head: head,
     outcome: "passed",
   };
-  const create = (name: string, extra = {}) =>
+  const create = (name: string, extra: Partial<AcceptancePreflightContext> = {}) =>
     writeAcceptancePreflight(path.join(directory, name), {
       root: source,
       bindings,
@@ -924,7 +963,7 @@ async function packetFixture(t) {
       node_sha256: "3".repeat(64),
     }),
   );
-  const artifacts = await Promise.all([image, capture, closure].map(fileIdentity));
+  const artifacts = await Promise.all([image, capture, closure].map((file) => fileIdentity(file)));
   const evidenceFile = path.join(directory, "evidence.json");
   await writeFile(
     evidenceFile,
@@ -945,11 +984,15 @@ async function packetFixture(t) {
       artifacts,
     }),
   );
-  const completion = {
+  const completion: AcceptanceCompletionContext = {
     evidence_identity: await fileIdentity(evidenceFile),
     outcomes: [{ scenario: "review", outcome: "passed" }],
     retained_artifacts: artifacts,
-    process_closure: { outcome: "passed", positive_exit: true, artifacts: [artifacts[2]] },
+    process_closure: {
+      outcome: "passed",
+      positive_exit: true,
+      artifacts: [required(artifacts[2])],
+    },
     image_inspections: [
       {
         ...imageIdentity,
@@ -971,8 +1014,11 @@ async function packetFixture(t) {
       review_reference: "isolated fixture delivery record",
     },
   };
-  const rebindEvidence = async (nextPreflight, changes = {}) => {
-    const receipt = JSON.parse(await readFile(evidenceFile, "utf8"));
+  const rebindEvidence = async (
+    nextPreflight: Awaited<ReturnType<typeof writeAcceptancePreflight>>,
+    changes: Record<string, unknown> = {},
+  ) => {
+    const receipt = jsonObject(await readFile(evidenceFile, "utf8"));
     Object.assign(receipt, { acceptance_preflight: nextPreflight.identity }, changes);
     await writeFile(evidenceFile, JSON.stringify(receipt));
     return { ...completion, evidence_identity: await fileIdentity(evidenceFile) };
@@ -989,7 +1035,31 @@ async function packetFixture(t) {
   };
 }
 
-test("preflight freezes prospective bindings without requiring final screenshots or a completed placeholder", async (t) => {
+void test("preflight rejects malformed known criterion IDs before publication", async (t) => {
+  const fixture = await packetFixture(t);
+  for (const id of [42, null, { id: "nested" }]) {
+    const bindings = structuredClone(fixture.bindings);
+    // Deliberately corrupt this typed fixture at the external-data boundary.
+    Reflect.set(required(bindings.execution_qualification.acceptance_criteria[0]), "id", id);
+    const context = {
+      root: fixture.source,
+      bindings,
+      prerequisites: [],
+      source_review: fixture.source_review,
+      author: "fixture-author",
+    };
+    assert.throws(() => parseAcceptancePreflightContext(context), /qualification dependencies/u);
+    await assert.rejects(
+      writeAcceptancePreflight(path.join(fixture.directory, "malformed-criterion"), context),
+      /qualification dependencies/u,
+    );
+    await assert.rejects(stat(path.join(fixture.directory, "malformed-criterion")), {
+      code: "ENOENT",
+    });
+  }
+});
+
+void test("preflight freezes prospective bindings without requiring final screenshots or a completed placeholder", async (t) => {
   const fixture = await packetFixture(t);
   assert.equal(fixture.preflight.packet.stage, "preflight");
   await assert.rejects(stat(path.join(fixture.directory, "first/completed.json")), {
@@ -1016,7 +1086,9 @@ test("preflight freezes prospective bindings without requiring final screenshots
   await assert.rejects(
     completeAcceptancePacket(fixture.preflight.identity, {
       ...fixture.completion,
-      image_inspections: [{ ...fixture.completion.image_inspections[0], sha256: "f".repeat(64) }],
+      image_inspections: [
+        { ...required(fixture.completion.image_inspections[0]), sha256: "f".repeat(64) },
+      ],
     }),
     /exact retained image/u,
   );
@@ -1043,7 +1115,7 @@ test("preflight freezes prospective bindings without requiring final screenshots
   });
 });
 
-test("changed retained image, placeholder source review and unreviewed composition cannot complete", async (t) => {
+void test("changed retained image, placeholder source review and unreviewed composition cannot complete", async (t) => {
   const fixture = await packetFixture(t);
   await assert.rejects(
     completeAcceptancePacket(fixture.preflight.identity, {
@@ -1059,14 +1131,14 @@ test("changed retained image, placeholder source review and unreviewed compositi
     completeAcceptancePacket(placeholder.identity, fixture.completion),
     /placeholder source review/u,
   );
-  await writeFile(fixture.completion.image_inspections[0].path, "mutated image");
+  await writeFile(required(fixture.completion.image_inspections[0]).path, "mutated image");
   await assert.rejects(
     completeAcceptancePacket(fixture.preflight.identity, fixture.completion),
     /artifact bytes changed/u,
   );
 });
 
-test("reuse keeps source provenance separate and conservatively invalidates effective observations", async (t) => {
+void test("reuse keeps source provenance separate and conservatively invalidates effective observations", async (t) => {
   const fixture = await packetFixture(t);
   const previous = (await completeAcceptancePacket(fixture.preflight.identity, fixture.completion))
     .packet;
@@ -1077,20 +1149,23 @@ test("reuse keeps source provenance separate and conservatively invalidates effe
     ["review"],
     "documentation-only source change can retain bound observations",
   );
-  for (const mutate of [
-    (value) => (value.bindings.product_artifacts[0].sha256 = "f".repeat(64)),
+  const mutations: ((value: typeof next) => unknown)[] = [
+    (value) => (required(value.bindings.product_artifacts[0]).sha256 = "f".repeat(64)),
     (value) => (value.harness_identity = "f".repeat(64)),
-    (value) => (value.bindings.harness_inputs[0].sha256 = "f".repeat(64)),
+    (value) => (required(value.bindings.harness_inputs[0]).sha256 = "f".repeat(64)),
     (value) => (value.bindings.execution_qualification.runtime_conditions.display = "physical"),
     (value) => (value.bindings.execution_qualification.initial_state.isolated = false),
     (value) =>
       (value.bindings.execution_qualification.fixture_identities = [
-        { ...fixture.bindings.product_artifacts[0], role: "new-fixture" },
+        { ...required(fixture.bindings.product_artifacts[0]), role: "new-fixture" },
       ]),
     (value) =>
-      (value.bindings.execution_qualification.acceptance_criteria[0].id = "changed-criteria"),
-    (value) => (value.bindings.execution_qualification.requirements[0].id = "changed-requirement"),
-  ]) {
+      (required(value.bindings.execution_qualification.acceptance_criteria[0]).id =
+        "changed-criteria"),
+    (value) =>
+      (required(value.bindings.execution_qualification.requirements[0]).id = "changed-requirement"),
+  ];
+  for (const mutate of mutations) {
     const changed = structuredClone(next);
     mutate(changed);
     assert.deepEqual(reusableAcceptanceScenarios(previous, changed).rerun, ["review"]);
@@ -1098,7 +1173,7 @@ test("reuse keeps source provenance separate and conservatively invalidates effe
   assert.deepEqual(reusableAcceptanceScenarios({}, next).rerun, ["review"]);
 });
 
-test("bound prior completed evidence may be reused without backdating original execution", async (t) => {
+void test("bound prior completed evidence may be reused without backdating original execution", async (t) => {
   const fixture = await packetFixture(t);
   const previous = await completeAcceptancePacket(fixture.preflight.identity, fixture.completion);
   const head = "e".repeat(40);
@@ -1128,7 +1203,74 @@ test("bound prior completed evidence may be reused without backdating original e
   );
 });
 
-test("required gaps and distinct failed/skipped/unsupported outcomes do not waive acceptance", async (t) => {
+void test("completed packets refuse malformed declared fields even with unchanged composition", async (t) => {
+  const fixture = await packetFixture(t);
+  const mutations: ((context: AcceptanceCompletionContext) => void)[] = [
+    (context) => {
+      Reflect.set(context.final_delivery, "review_reference", { reference: "opaque" });
+    },
+    (context) => {
+      Reflect.set(context.process_closure, "positive_exit", "true");
+    },
+    (context) => {
+      context.composition_decision = {
+        reviewer: "reviewer",
+        evidence: "proof",
+        outcome: "unchanged-effective-dependencies",
+      };
+      Reflect.set(context.composition_decision, "reviewer", {});
+    },
+    (context) => {
+      context.composition_decision = {
+        reviewer: "reviewer",
+        evidence: "proof",
+        outcome: "unchanged-effective-dependencies",
+      };
+      Reflect.set(context.composition_decision, "outcome", "unreviewed");
+    },
+  ];
+  for (const mutate of mutations) {
+    const completion = structuredClone(fixture.completion);
+    mutate(completion);
+    await assert.rejects(completeAcceptancePacket(fixture.preflight.identity, completion));
+    await assert.rejects(stat(path.join(fixture.directory, "first", "completed.json")), {
+      code: "ENOENT",
+    });
+  }
+});
+
+void test("reuse requires boolean qualification proof from the retained prior packet", async (t) => {
+  const fixture = await packetFixture(t);
+  const previous = await completeAcceptancePacket(fixture.preflight.identity, fixture.completion);
+  const prior = jsonObject(await readFile(previous.identity.path, "utf8"));
+  prior.qualification_complete = "true";
+  await writeFile(previous.identity.path, JSON.stringify(prior));
+  const head = "e".repeat(40);
+  const next = await fixture.create("invalid-prior-proof", {
+    bindings: { ...fixture.bindings, source_head: head },
+    source_review: { ...fixture.source_review, source_head: head },
+    reusable_evidence: [
+      {
+        evidence: fixture.completion.evidence_identity,
+        packet: await fileIdentity(previous.identity.path),
+      },
+    ],
+  });
+  await assert.rejects(
+    completeAcceptancePacket(next.identity, {
+      ...fixture.completion,
+      outcome_review: { ...fixture.completion.outcome_review, source_head: head },
+      final_delivery: { ...fixture.completion.final_delivery, source_head: head },
+    }),
+    /Effective dependencies require requalification/u,
+  );
+  await assert.rejects(
+    stat(path.join(fixture.directory, "invalid-prior-proof", "completed.json")),
+    { code: "ENOENT" },
+  );
+});
+
+void test("required gaps and distinct failed/skipped/unsupported outcomes do not waive acceptance", async (t) => {
   const fixture = await packetFixture(t);
   const gap = await fixture.create("gap", {
     known_gaps: [{ id: "required-closure-gap", required: true }],
@@ -1138,7 +1280,7 @@ test("required gaps and distinct failed/skipped/unsupported outcomes do not waiv
       .qualification_complete,
     false,
   );
-  for (const outcome of ["failed", "skipped", "unsupported"]) {
+  for (const outcome of ["failed", "skipped", "unsupported"] as const) {
     const preflight = await fixture.create(outcome);
     const completion = await fixture.rebindEvidence(preflight, {
       outcome,
@@ -1148,28 +1290,38 @@ test("required gaps and distinct failed/skipped/unsupported outcomes do not waiv
       ...completion,
       outcomes: [{ scenario: "review", outcome }],
     });
-    assert.equal(completed.packet.outcomes[0].outcome, outcome);
+    assert.equal(required(completed.packet.outcomes[0]).outcome, outcome);
     assert.equal(completed.packet.qualification_complete, false);
   }
 });
 
-test("same-head completion refuses unbound or changed execution dependencies", async (t) => {
+void test("same-head completion refuses unbound or changed execution dependencies", async (t) => {
   const fixture = await packetFixture(t);
-  const original = JSON.parse(await readFile(fixture.completion.evidence_identity.path, "utf8"));
-  for (const mutate of [
+  const original = jsonObject(await readFile(fixture.completion.evidence_identity.path, "utf8"));
+  const mutations: ((value: Record<string, unknown>) => unknown)[] = [
     (value) => delete value.acceptance_preflight,
     (value) => delete value.execution_binding,
-    (value) => (value.execution_binding.product_artifacts[0].sha256 = "e".repeat(64)),
-    (value) => (value.execution_binding.harness_inputs[0].sha256 = "e".repeat(64)),
-    (value) => (value.execution_binding.build_inputs.build_input_fingerprint = "e".repeat(64)),
     (value) =>
-      (value.execution_binding.execution_qualification.runtime_conditions.display = "other"),
+      (object(array(object(value.execution_binding).product_artifacts)[0]).sha256 = "e".repeat(64)),
     (value) =>
-      value.execution_binding.execution_qualification.fixture_identities.push({
-        ...fixture.bindings.product_artifacts[0],
+      (object(array(object(value.execution_binding).harness_inputs)[0]).sha256 = "e".repeat(64)),
+    (value) =>
+      (object(object(value.execution_binding).build_inputs).build_input_fingerprint = "e".repeat(
+        64,
+      )),
+    (value) =>
+      (object(
+        object(object(value.execution_binding).execution_qualification).runtime_conditions,
+      ).display = "other"),
+    (value) =>
+      array(
+        object(object(value.execution_binding).execution_qualification).fixture_identities,
+      ).push({
+        ...required(fixture.bindings.product_artifacts[0]),
         role: "different-fixture",
       }),
-  ]) {
+  ];
+  for (const mutate of mutations) {
     const receipt = structuredClone(original);
     mutate(receipt);
     await writeFile(fixture.completion.evidence_identity.path, JSON.stringify(receipt));
@@ -1192,34 +1344,34 @@ test("same-head completion refuses unbound or changed execution dependencies", a
   );
 });
 
-test("arbitrary retained artifacts cannot assert positive process closure", async (t) => {
+void test("arbitrary retained artifacts cannot assert positive process closure", async (t) => {
   const fixture = await packetFixture(t);
   const completed = await completeAcceptancePacket(fixture.preflight.identity, {
     ...fixture.completion,
     process_closure: {
       outcome: "passed",
       positive_exit: true,
-      artifacts: [fixture.completion.retained_artifacts[0]],
+      artifacts: [required(fixture.completion.retained_artifacts[0])],
     },
   });
   assert.equal(completed.packet.qualification_complete, false);
 });
 
-test("Windows closure binds production consumed app paths and captured process identities", async (t) => {
+void test("Windows closure binds production consumed app paths and captured process identities", async (t) => {
   const fixture = await packetFixture(t);
   const snapshotPath = path.join(fixture.directory, "exit-inventory.json");
   const driverPath = path.join(fixture.directory, "driver.exe");
   const driver = { pid: 42, path: driverPath, started_filetime: "123" };
   const app = {
     pid: 43,
-    path: fixture.bindings.product_artifacts[0].path,
+    path: required(fixture.bindings.product_artifacts[0]).path,
     started_filetime: "124",
   };
   await writeFile(
     snapshotPath,
     JSON.stringify({ captured_at: new Date().toISOString(), driver, processes: [driver, app] }),
   );
-  const closure = fixture.completion.retained_artifacts[2];
+  const closure = required(fixture.completion.retained_artifacts[2]);
   await writeFile(
     closure.path,
     JSON.stringify({
@@ -1232,7 +1384,7 @@ test("Windows closure binds production consumed app paths and captured process i
     await fileIdentity(closure.path),
     await fileIdentity(snapshotPath),
   ];
-  const product = fixture.bindings.product_artifacts[0];
+  const product = required(fixture.bindings.product_artifacts[0]);
   const completion = await fixture.rebindEvidence(fixture.preflight, {
     artifacts,
     execution_binding: {
@@ -1259,20 +1411,24 @@ test("Windows closure binds production consumed app paths and captured process i
       await completeAcceptancePacket(fixture.preflight.identity, {
         ...completion,
         retained_artifacts: artifacts,
-        process_closure: { outcome: "passed", positive_exit: true, artifacts: [artifacts[2]] },
+        process_closure: {
+          outcome: "passed",
+          positive_exit: true,
+          artifacts: [required(artifacts[2])],
+        },
       })
     ).packet.qualification_complete,
     true,
   );
 });
 
-test("a required image must belong to its criterion's scenario", async (t) => {
+void test("a required image must belong to its criterion's scenario", async (t) => {
   const fixture = await packetFixture(t);
   const bindings = structuredClone(fixture.bindings);
   bindings.execution_qualification.scenarios.push("other-selected");
   const preflight = await fixture.create("wrong-scenario", { bindings });
-  const capture = fixture.completion.retained_artifacts[1];
-  const record = JSON.parse(await readFile(capture.path, "utf8"));
+  const capture = required(fixture.completion.retained_artifacts[1]);
+  const record = jsonObject(await readFile(capture.path, "utf8"));
   record.scenario = "other-selected";
   await writeFile(capture.path, JSON.stringify(record));
   const artifacts = [...fixture.completion.retained_artifacts];
@@ -1304,7 +1460,7 @@ test("a required image must belong to its criterion's scenario", async (t) => {
   );
 });
 
-test("retained metadata read binds validated bytes even after the original file changes", async (t) => {
+void test("retained metadata read binds validated bytes even after the original file changes", async (t) => {
   const directory = await retainedFixture("pcv-metadata-read-");
   t.after(() => rm(directory, { recursive: true, force: true }));
   const original = path.join(directory, "original.json");
@@ -1344,7 +1500,7 @@ test("retained metadata read binds validated bytes even after the original file 
     selectedScenarios: [],
     deadlineMs: 60_000,
   });
-  assert.equal(JSON.parse(await readFile(input.retained.path, "utf8")).criteria, "original");
+  assert.equal(jsonObject(await readFile(input.retained.path, "utf8")).criteria, "original");
   assert.equal(
     retainedExecutableCanLaunch(
       { role: "native-driver", path: "/private/WebKitWebDriver" },

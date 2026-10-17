@@ -461,7 +461,7 @@ void test("qualified reviews and a running setup restart reject missing or forei
         path,
         savedLibraryRecoverySession: false,
         checks: [{ scenario, outcome }],
-        values: { app: "/owned/app.exe", "native-driver": "/owned/driver.exe" },
+        application: "/owned/app.exe", nativeDriverPath: "/owned/driver.exe",
       }),
     );
     const entries = [
@@ -633,8 +633,8 @@ void test("harness hashes preserved inputs and the current planner/coordinator b
     new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
     "utf8",
   );
-  const start = source.indexOf("const inputs =");
-  const end = source.indexOf("let runnerMetadata = {}");
+  const start = source.indexOf("const inputs");
+  const end = source.indexOf("let runnerMetadata");
   assert(start > 0 && end > start);
   const root = fileURLToPath(new URL("../", import.meta.url));
   const selection = resolveDesktopSelection({ profile: "smoke", platform: process.platform });
@@ -645,6 +645,7 @@ void test("harness hashes preserved inputs and the current planner/coordinator b
   t.after(() => rm(output, { recursive: true, force: true }));
   const inputs = await runInNewContext(`(async()=>{${source.slice(start, end)}return inputs})()`, {
     selection,
+    application: process.execPath,
     planDesktopExecution,
     values,
     root,

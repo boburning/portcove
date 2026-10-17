@@ -1,10 +1,11 @@
 import { observeVisibleTarget } from "./browser-readiness.mts";
-import { errorMessage } from "../../../scripts/runtime-values.mts";
+import { errorCode, errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import { reenterResourceCommand } from "../../../scripts/resource-command.mts";
 import os from "node:os";
 import {
   writeAcceptancePreflight,
+  parseAcceptancePreflightContext,
   observePacketDeliveryBindings,
 } from "../../../scripts/acceptance-packet.mts";
 import { captureSettledVisual } from "../../../scripts/native-readiness.mts";
@@ -29,7 +30,7 @@ import { mkdir, readFile, writeFile, lstat } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
-import { Builder, By, Key, until } from "selenium-webdriver";
+import { Builder, By, Key, until, WebDriver } from "selenium-webdriver";
 import { writeEvidence, fileIdentity } from "../../../scripts/development-evidence.mts";
 import { captureDesktopReceiptInputs } from "../../../scripts/native-helper-dependencies.mts";
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
@@ -47,6 +48,7 @@ import { OwnedNativeSession, nativeSessionScript } from "./desktop-owned-native-
 import { launchLinuxNativeSession } from "./desktop-linux-native-session.mts";
 import {
   connectLinuxInspector,
+  LinuxInspectorProtocol,
   linuxInspectorEnvironment,
 } from "./desktop-linux-webkit-inspector.mts";
 import { observeStartupNetwork } from "./desktop-startup-network-diagnostic.mts";
@@ -103,21 +105,82 @@ import {
 import { acquireNativeSessionLock } from "../../../scripts/native-session-lock.mts";
 import { observeStartup } from "./desktop-startup-observation.mts";
 
+import type { ChildProcessByStdio } from "node:child_process";
+import type { Readable } from "node:stream";
+import type { FileIdentity, EvidenceCheck } from "../../../scripts/development-evidence.mts";
+import type { ConsumedInput } from "../../../scripts/retained-evidence.mts";
+import type {
+  CapturedNativeProcess,
+  NativeExitObservation,
+  NativeStopObservation,
+  NativeProcessSnapshot,
+} from "./desktop-owned-native-session.mts";
+type LinuxLaunch = Awaited<ReturnType<typeof launchLinuxNativeSession>>;
+type LinuxCleanup = Awaited<ReturnType<LinuxLaunch["stop"]>>;
+type HarnessInput = FileIdentity &
+  Partial<Pick<ConsumedInput, "binding" | "retained">> & { role?: string; kind?: string };
+type ScenarioTarget = { records: EvidenceCheck[]; setup: boolean };
+function required<Value>(value: Value | null | undefined): Value {
+  assert.ok(value !== null && value !== undefined, "Required harness observation missing");
+  return value;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value), "Harness observation must be an object");
+  return value;
+}
+function text(value: unknown): string {
+  assert.ok(typeof value === "string", "Harness text observation required");
+  return value;
+}
+function driverBrowser(): WebDriver {
+  assert.ok(
+    browser instanceof WebDriver,
+    "Selected scenario requires its connected WebDriver transport",
+  );
+  return browser;
+}
+
+function requiredInspector(): LinuxInspectorProtocol {
+  assert.ok(
+    browser instanceof LinuxInspectorProtocol,
+    "Ordinary Linux package requires its owned inspector transport",
+  );
+  return browser;
+}
+
+import type { MainBoundaryBrowser } from "./desktop-main-webview-boundary.mts";
+import type {
+  GameFileRoot,
+  GameFileScanSnapshot,
+  TransportOutputs,
+} from "../src/transport-types.generated.d.ts";
+import { transportValue, transportValues } from "./transport-values.mts";
+type IpcReply<Value> =
+  | { ok: true; value: Value; error?: unknown }
+  | { ok: false; error: unknown; value?: unknown };
+function success<Value>(reply: IpcReply<Value>): Value {
+  assert.ok(reply.ok, JSON.stringify(reply.error));
+  return reply.value;
+}
+
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseDesktopHarnessOptions();
 const cachedDrivers = cachedDesktopDrivers();
-values.driver ??= cachedDrivers?.driver;
-values["native-driver"] ??= cachedDrivers?.nativeDriver;
-for (const name of ["app", "output"]) {
+if (cachedDrivers?.driver) values.driver ??= cachedDrivers.driver;
+if (cachedDrivers?.nativeDriver) values["native-driver"] ??= cachedDrivers.nativeDriver;
+for (const name of ["app", "output"] as const) {
   if (!values[name] || !path.isAbsolute(values[name]))
     throw new Error(`--${name} requires an absolute path`);
 }
-for (const name of ["driver", "native-driver"]) {
+for (const name of ["driver", "native-driver"] as const) {
   if (!values[name] || !path.isAbsolute(values[name]))
     throw new Error(
       `--${name} requires an absolute path or a verified cached driver from ./scripts/bootstrap-quality-tools.ps1 -Desktop`,
     );
 }
+const application = required(values.app);
+const driverPath = required(values.driver);
+const nativeDriverPath = required(values["native-driver"]);
 const port = Number(values.port);
 const restartCycles = Number(values["restart-cycles"]);
 if (!Number.isInteger(restartCycles) || restartCycles < 1 || restartCycles > 10)
@@ -134,7 +197,7 @@ const executionPlan = planDesktopExecution(selection, {
   prelaunchCustody: Boolean(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST),
   retainedMetadata: Boolean(
     process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST &&
-    JSON.parse(await readFile(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST, "utf8"))
+    object(JSON.parse(await readFile(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST, "utf8")))
       .retained_metadata,
   ),
 });
@@ -158,7 +221,7 @@ if (selection.prerequisites.includes("owned-fixture") && !values["preparation-cl
 if (!Number.isInteger(port) || port < 1024 || port > 65533)
   throw new Error("--port must be 1024..65533");
 if (executionPlan.fixtures.owned) {
-  for (const name of ["preparation-cli", "preparation-tool"]) {
+  for (const name of ["preparation-cli", "preparation-tool"] as const) {
     if (!values[name] || !path.isAbsolute(values[name]))
       throw new Error(`--${name} requires an absolute path`);
   }
@@ -168,7 +231,7 @@ const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
   encoding: "utf8",
   windowsHide: true,
 }).stdout.trim();
-const output = path.resolve(values.output);
+const output = path.resolve(required(values.output));
 await mkdir(output); // Existing output is never reused, including after failed runs.
 const custody = process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST
   ? await readPrelaunchCustody(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST, {
@@ -176,15 +239,15 @@ const custody = process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST
       revision,
       deadlineMs: desktopHarnessDeadlineMs(selection),
       plan: executionPlan,
-      values,
+      values: { ...values, app: application },
       selectedScenarios: selection.selected_scenarios,
     })
   : null;
-const inputs = [
+const inputs: HarnessInput[] = [
   ...(custody?.inputs ??
     (await captureDesktopReceiptInputs({
       root,
-      values,
+      values: { ...values, app: application },
       plan: executionPlan,
       output,
       revision,
@@ -196,33 +259,48 @@ for (const name of [
   "apps/desktop/scripts/desktop-owned-ipc-probe.mts",
 ])
   if (!custody) inputs.push(await fileIdentity(path.join(root, name)));
-let runnerMetadata = {};
+let runnerMetadata: Record<string, unknown> = {};
 if (values["run-metadata"]) {
   if (!path.isAbsolute(values["run-metadata"]))
     throw new Error("--run-metadata requires an absolute path");
   inputs.push(await fileIdentity(values["run-metadata"]));
-  runnerMetadata = JSON.parse(await readFile(values["run-metadata"], "utf8"));
+  runnerMetadata = object(JSON.parse(await readFile(values["run-metadata"], "utf8")));
 }
-let acceptancePreflight;
-const packetFixtureIdentities = [];
-let installFixture;
-let externalFixture;
-let bootstrapRecoveryFixture;
+const phases = runnerMetadata.phases;
+assert.ok(phases === undefined || Array.isArray(phases));
+const metadataPhases: object[] =
+  phases === undefined ? [] : phases.map((value: unknown) => object(value));
+let acceptancePreflight: Awaited<ReturnType<typeof writeAcceptancePreflight>> | undefined;
+const packetFixtureIdentities: (FileIdentity & { role: string })[] = [];
+type InstallFixture = Awaited<ReturnType<typeof createInstallFixture>>;
+let installFixture:
+  | (Omit<InstallFixture, "sourceJourney"> & {
+      sourceJourney:
+        | (NonNullable<InstallFixture["sourceJourney"]> & { root?: GameFileRoot })
+        | null;
+      nativeConnectionJourney?: boolean;
+      hashResumeInitial?: GameFileScanSnapshot;
+    })
+  | undefined;
+let externalFixture: Awaited<ReturnType<typeof createExternalRuntimeFixture>> | undefined;
+let bootstrapRecoveryFixture:
+  | Awaited<ReturnType<typeof prepareBootstrapRecoveryFixture>>
+  | undefined;
 let connectedLaunches = 0;
 const library = path.join(output, "library");
 const profile = path.join(output, "webview");
-const checks = [];
-const setupChecks = [];
-const artifacts = [];
-const scenarioOutcomes = new Map();
-let driver;
-let browser;
+const checks: EvidenceCheck[] = [];
+const setupChecks: EvidenceCheck[] = [];
+const artifacts: string[] = [];
+const scenarioOutcomes = new Map<string, EvidenceCheck["outcome"]>();
+let driver: ChildProcessByStdio<null, Readable, Readable> | LinuxLaunch["child"] | undefined;
+let browser: WebDriver | LinuxInspectorProtocol | undefined;
 let driverLog = "";
 let startupAttempt = 0;
 const linuxPackagedInspector =
   process.platform === "linux" &&
   selection.selected_scenarios.includes("native-linux-packaged-webview-boundary");
-let historyInventory;
+let historyInventory: Awaited<ReturnType<typeof captureHistoryDriver>> | undefined;
 const linuxSelectedSession =
   process.platform === "linux" &&
   selection.selected_scenarios.some((name) =>
@@ -233,21 +311,24 @@ const linuxSelectedSession =
       "native-linux-webview-origin-boundary",
     ].includes(name),
   );
-let linuxLaunch;
-let linuxCleanup;
+let linuxLaunch: LinuxLaunch | undefined;
+let linuxCleanup: LinuxCleanup | undefined;
 let linuxLaunchCount = 0;
-let linuxStop;
-let packageEvidence;
-let originFixture;
-let externalBrowser;
+let linuxStop: Promise<void> | undefined;
+let packageEvidence:
+  | Awaited<ReturnType<typeof verifyNormalPackageEvidence>>
+  | Awaited<ReturnType<typeof verifyLinuxPackageEvidence>>
+  | undefined;
+let originFixture: Awaited<ReturnType<typeof createOriginBoundaryFixture>> | undefined;
+let externalBrowser: Awaited<ReturnType<typeof prepareLinuxExternalBrowser>> | undefined;
 const applicationMediaEvidence = path.join(output, "linux-app-media-readiness.json");
 if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundary")) {
   assert.equal(process.platform, "linux");
   assert.deepEqual(selection.selected_scenarios, ["native-linux-packaged-webview-boundary"]);
   packageEvidence = await verifyLinuxPackageEvidence(
-    values["package-evidence"],
+    required(values["package-evidence"]),
     revision,
-    inputs[0],
+    required(inputs[0]),
     root,
   );
   inputs.push(
@@ -257,15 +338,15 @@ if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundar
     ),
   );
   assert.ok(path.isAbsolute(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG ?? ""));
-  inputs.push(await fileIdentity(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG));
+  inputs.push(await fileIdentity(required(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG)));
 }
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
   assert.deepEqual(selection.selected_scenarios, ["native-normal-package-webview-boundary"]);
   packageEvidence = await verifyNormalPackageEvidence(
-    values["package-evidence"],
+    required(values["package-evidence"]),
     revision,
-    inputs[0],
+    required(inputs[0]),
     root,
   );
   inputs.push(
@@ -337,7 +418,7 @@ async function stopDriver() {
           artifacts.push(finalEvidence);
           for (const suffix of ["", ".failure.json", ".exit.json"]) {
             const captured = await lstat(`${applicationMediaEvidence}${suffix}`).catch((error) => {
-              if (error.code === "ENOENT") return null;
+              if (errorCode(error) === "ENOENT") return null;
               throw error;
             });
             if (captured) {
@@ -361,16 +442,18 @@ async function stopDriver() {
           );
           const exit = await readFile(`${applicationMediaEvidence}.exit.json`, "utf8").catch(
             (error) => {
-              if (error.code === "ENOENT") return null;
+              if (errorCode(error) === "ENOENT") return null;
               throw error;
             },
           );
-          if (exit)
+          if (exit) {
+            const observed = object(JSON.parse(exit));
             assert.deepEqual(
-              { code: JSON.parse(exit).code, signal: JSON.parse(exit).signal },
+              { code: observed.code, signal: observed.signal },
               { code: 0, signal: null },
               "Unexpected ordinary app exit before namespace cleanup",
             );
+          }
         }
       })();
     }
@@ -406,13 +489,13 @@ function stopBackupFocusDriver() {
   const stopped =
     driver.exitCode === null
       ? observeNativeSession("StopDriver", snapshot)
-      : { method: "observed-child-exit", exit_code: driver.exitCode };
+      : { method: "observed-child-exit" as const, exit_code: driver.exitCode };
   const exited = observeNativeSession("Wait", snapshot);
   ownedSession.cleanup = { stopped, exited, snapshot };
   driver = undefined;
 }
 
-function validateBackupFocusInventory(captured, requireQualified = false) {
+function validateBackupFocusInventory(captured: NativeProcessSnapshot, requireQualified = false) {
   if (
     requireQualified ||
     savedLibraryRecoverySession ||
@@ -437,7 +520,7 @@ function validateBackupFocusInventory(captured, requireQualified = false) {
     assert.equal(
       captured.processes.filter(
         (entry) =>
-          path.resolve(entry.path).toLowerCase() === path.resolve(values.app).toLowerCase(),
+          path.resolve(entry.path).toLowerCase() === path.resolve(application).toLowerCase(),
       ).length,
       1,
       "Successful native qualification requires one captured application",
@@ -451,8 +534,7 @@ function validateBackupFocusInventory(captured, requireQualified = false) {
     assert.equal(
       captured.processes.filter(
         (entry) =>
-          path.resolve(entry.path).toLowerCase() ===
-          path.resolve(values["native-driver"]).toLowerCase(),
+          path.resolve(entry.path).toLowerCase() === path.resolve(nativeDriverPath).toLowerCase(),
       ).length,
       1,
       "Successful native qualification requires the exact selected native driver identity",
@@ -511,6 +593,7 @@ function captureBackupFocusCleanup(evidenceName = cleanupName) {
   return checked;
 }
 async function verifySettingsRows() {
+  const browser = driverBrowser();
   const savedFolders = await browser.wait(
     until.elementLocated(
       By.xpath(
@@ -572,7 +655,7 @@ async function verifySettingsRows() {
       ]) {
         await setVerifiedWindowSize(size, "Settings");
         const rows = await executeBrowserScript(browser, () => {
-          const rect = (element) => {
+          const rect = (element: Element) => {
             const bounds = element.getBoundingClientRect();
             return {
               left: bounds.left,
@@ -665,8 +748,21 @@ async function verifySettingsRows() {
   }
 }
 
-function assertSettingsRowGeometry(rows, size) {
-  const expectedRows = {
+interface SettingsRect {
+  left: number;
+  top: number;
+  bottom: number;
+  width: number;
+  fits: boolean;
+}
+interface SettingsRows {
+  viewportWidth: number;
+  groups: Record<string, { content: SettingsRect; rows: SettingsRect[] }>;
+  bundlePathFits: boolean;
+  recommendationFits: boolean;
+}
+function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; height: number }) {
+  const expectedRows: Record<string, number> = {
     appearance: 2,
     "library-storage": 2,
     "game-files": 3,
@@ -683,7 +779,8 @@ function assertSettingsRowGeometry(rows, size) {
       );
       assert.ok(Math.abs(row.left - group.content.left) < 3, `${name} row ${index} is misaligned`);
       assert.ok(row.fits, `${name} row ${index} overflows horizontally`);
-      if (index > 0) assert.ok(group.rows[index - 1].bottom <= row.top, `${name} rows overlap`);
+      if (index > 0)
+        assert.ok(required(group.rows[index - 1]).bottom <= row.top, `${name} rows overlap`);
     }
     assert.ok(group.content.fits, `${name} content overflows horizontally`);
   }
@@ -692,7 +789,8 @@ function assertSettingsRowGeometry(rows, size) {
   assert.equal(rows.recommendationFits, true, "recommended update mode label is clipped");
 }
 
-async function verifyLongTitleCatalogDetail(theme) {
+async function verifyLongTitleCatalogDetail(theme: string) {
+  const browser = driverBrowser();
   await executeBrowserScript(browser, () => {
     const card = [...document.querySelectorAll(".port-card-selectable")].find((item) =>
       item.textContent?.includes("Castlevania: Legacy of Darkness Recompiled"),
@@ -775,6 +873,7 @@ async function verifyLongTitleCatalogDetail(theme) {
 }
 
 async function refreshSettings() {
+  const browser = driverBrowser();
   await browser.navigate().refresh();
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
   await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
@@ -783,17 +882,19 @@ async function refreshSettings() {
 // Includes owned native artwork picker/restart coverage in addition to lifecycle reviews.
 const harnessDeadlineMs = desktopHarnessDeadlineMs(selection);
 const deadline = setTimeout(
-  async () => {
-    try {
-      await stopDriver();
-    } catch (error) {
-      checks.push({
-        scenario: "native-backup-watchdog-cleanup",
-        outcome: "failed",
-        message: errorMessage(error),
-      });
-      process.exitCode = 1;
-    }
+  () => {
+    void (async () => {
+      try {
+        await stopDriver();
+      } catch (error) {
+        checks.push({
+          scenario: "native-backup-watchdog-cleanup",
+          outcome: "failed",
+          message: errorMessage(error),
+        });
+        process.exitCode = 1;
+      }
+    })();
   },
   custody
     ? Math.max(0, harnessDeadlineMs - (Date.now() - harnessStarted.getTime()))
@@ -801,51 +902,132 @@ const deadline = setTimeout(
 );
 deadline.unref();
 
-async function requireUnusedPort(number) {
+async function requireUnusedPort(number: number) {
   const server = net.createServer();
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen({ port: number, host: "127.0.0.1", exclusive: true }, resolve);
   });
-  await new Promise((resolve, reject) =>
+  await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
   );
 }
-const invoke = async (command, args = {}) =>
-  JSON.parse(
-    await browser.executeAsyncScript(
-      (name, input, done) => {
-        window.__TAURI_INTERNALS__.invoke(name, input).then(
-          (value) => done(JSON.stringify({ ok: true, value })),
-          (error) => done(JSON.stringify({ ok: false, error })),
-        );
-      },
-      command,
-      args,
-    ),
+function invoke(
+  command: "get_bootstrap_status",
+  args?: object | null,
+): Promise<IpcReply<TransportOutputs["desktop_bootstrap_status"]>>;
+function invoke(
+  command: "get_catalog",
+  args?: object | null,
+): Promise<IpcReply<TransportOutputs["catalog"]>>;
+function invoke(
+  command: "get_locale_preference",
+  args?: object | null,
+): Promise<IpcReply<TransportOutputs["desktop_locale_preference"]>>;
+function invoke(
+  command: "get_activities",
+  args?: object | null,
+): Promise<IpcReply<TransportOutputs["activity"]>>;
+function invoke(
+  command: "get_application_update_preferences",
+  args?: object | null,
+): Promise<IpcReply<TransportOutputs["desktop_application_update_preferences"]>>;
+function invoke(
+  command: "get_application_update_status",
+  args?: object | null,
+): Promise<IpcReply<TransportOutputs["desktop_application_update_status"]>>;
+function invoke(
+  command: "get_statuses",
+  args?: object | null,
+): Promise<IpcReply<TransportOutputs["status"][]>>;
+function invoke(
+  command: "get_default_library_root",
+  args?: object | null,
+): Promise<IpcReply<string>>;
+function invoke(command: string, args?: object | null): Promise<IpcReply<unknown>>;
+async function invoke(command: string, args: object | null = {}): Promise<IpcReply<unknown>> {
+  const observer: MainBoundaryBrowser = required(browser);
+  const serialized = await observer.executeAsyncScript(
+    (name, input, done) => {
+      const native = (
+        window as Window & {
+          __TAURI_INTERNALS__?: { invoke(name: string, input: object | null): Promise<unknown> };
+        }
+      ).__TAURI_INTERNALS__;
+      if (!native) throw new Error("Native IPC bridge is missing");
+      void native.invoke(name, input).then(
+        (value) => done(JSON.stringify({ ok: true, value })),
+        (error: unknown) => done(JSON.stringify({ ok: false, error })),
+      );
+    },
+    command,
+    args,
   );
+  const parsed: unknown = JSON.parse(text(serialized));
+  const reply = object(parsed);
+  assert.ok(typeof reply.ok === "boolean", "Native IPC envelope outcome required");
+  if (!reply.ok) return { ...reply, ok: false, error: reply.error };
+  switch (command) {
+    case "get_bootstrap_status":
+      return { ...reply, ok: true, value: transportValue("desktop_bootstrap_status", reply.value) };
+    case "get_catalog":
+      return { ...reply, ok: true, value: transportValue("catalog", reply.value) };
+    case "get_locale_preference":
+      return {
+        ...reply,
+        ok: true,
+        value: transportValue("desktop_locale_preference", reply.value),
+      };
+    case "get_activities":
+      return { ...reply, ok: true, value: transportValue("activity", reply.value) };
+    case "get_application_update_preferences":
+      return {
+        ...reply,
+        ok: true,
+        value: transportValue("desktop_application_update_preferences", reply.value),
+      };
+    case "get_application_update_status":
+      return {
+        ...reply,
+        ok: true,
+        value: transportValue("desktop_application_update_status", reply.value),
+      };
+    case "get_statuses":
+      return { ...reply, ok: true, value: transportValues("status", reply.value) };
+    case "get_default_library_root":
+      return { ...reply, ok: true, value: text(reply.value) };
+    default:
+      return { ...reply, ok: true, value: reply.value };
+  }
+}
 
-function scenarioTarget(name) {
+function scenarioTarget(name: string): ScenarioTarget | null {
   if (selection.selected_scenarios.includes(name)) return { records: checks, setup: false };
   if (selection.setup_scenarios.includes(name)) return { records: setupChecks, setup: true };
   return null;
 }
 
-function failedScenarioDependency(name) {
+function failedScenarioDependency(name: string) {
   const dependencies = desktopScenarioById.get(name)?.dependencies ?? [];
   return dependencies.find((dependency) => scenarioOutcomes.get(dependency) !== "passed");
 }
 
-function recordScenario(target, name, outcome, details = {}) {
+function recordScenario(
+  target: ScenarioTarget,
+  name: string,
+  outcome: EvidenceCheck["outcome"],
+  details: Pick<EvidenceCheck, "message" | "reason"> = {},
+) {
   target.records.push({ scenario: name, outcome, ...details });
   scenarioOutcomes.set(name, outcome);
 }
 
-async function captureScenarioDiagnostics(name, setup) {
+async function captureScenarioDiagnostics(name: string, setup: boolean) {
   if (!browser) return;
   const report = path.join(output, `${setup ? "setup-" : ""}${name}-diagnostics.json`);
   try {
-    const details = await executeBrowserScript(browser, () =>
+    const observer: MainBoundaryBrowser = browser;
+    const details = await observer.executeScript(() =>
       Array.from(document.querySelectorAll(".error-banner, .bootstrap-error")).map(
         (element) => element.textContent,
       ),
@@ -857,7 +1039,7 @@ async function captureScenarioDiagnostics(name, setup) {
   }
 }
 
-async function captureScenarioScreenshot(name, required = false) {
+async function captureScenarioScreenshot(name: string, required = false) {
   if (!browser) {
     if (required) throw new Error(`Required screenshot ${name} has no browser session`);
     return;
@@ -876,7 +1058,8 @@ async function captureScenarioScreenshot(name, required = false) {
   }
 }
 
-async function selectSettingsTheme(theme) {
+async function selectSettingsTheme(theme: string) {
+  const browser = driverBrowser();
   await browser
     .findElement(
       By.xpath(
@@ -891,7 +1074,8 @@ async function selectSettingsTheme(theme) {
   );
 }
 
-async function setVerifiedWindowSize(size, context) {
+async function setVerifiedWindowSize(size: { width: number; height: number }, context: string) {
+  const browser = driverBrowser();
   await browser.manage().window().setRect(size);
   const actual = await browser.manage().window().getRect();
   assert.deepEqual(
@@ -902,6 +1086,7 @@ async function setVerifiedWindowSize(size, context) {
 }
 
 async function captureApplicationUpdateSettingsComparison() {
+  const browser = driverBrowser();
   const originalWindow = await browser.manage().window().getRect();
   try {
     for (const theme of ["dark", "light"]) {
@@ -944,7 +1129,8 @@ async function captureApplicationUpdateSettingsComparison() {
   }
 }
 
-async function captureOutputDestinationReview(name) {
+async function captureOutputDestinationReview(name: string) {
+  const browser = driverBrowser();
   const outputControl = await browser.wait(
     until.elementLocated(By.css(".output-location-control")),
     15_000,
@@ -1018,7 +1204,7 @@ async function captureOutputDestinationReview(name) {
   );
 }
 
-async function scenario(name, action) {
+async function scenario(name: string, action: () => unknown) {
   const target = scenarioTarget(name);
   if (!target) return;
   const failedDependency = failedScenarioDependency(name);
@@ -1050,36 +1236,40 @@ async function connectObservedDriver() {
       awaitApplicationMediaReadiness,
       verifyApplicationMediaInputs,
     } = await import("../../../scripts/desktop-linux-media.mts");
-    let readiness;
-    browser = await connectLinuxInspector({
+    const launch = required(linuxLaunch);
+    let readiness: unknown;
+    const inspector = await connectLinuxInspector({
       port,
-      launch: linuxLaunch,
-      app: values.app,
-      expectedSha256: inputs[0].sha256,
+      launch,
+      app: application,
+      expectedSha256: required(inputs[0]).sha256,
       evidence,
       beforeConnect: async (deadline) => {
         readiness = await awaitApplicationMediaReadiness(
           applicationMediaEvidence,
-          linuxLaunch,
+          launch,
           deadline,
         );
       },
     });
+    browser = inspector;
     await verifyApplicationMediaInputs(inputs, admission);
-    for (const binding of [readiness.configuration, readiness.source]) {
+    const media = object(readiness);
+    for (const value of [media.configuration, media.source]) {
+      const binding = object(value);
       const captured = inputs.find((input) => input.path === binding.path);
       assert.ok(captured, "Application media readiness requires captured configuration/source");
       assert.equal(binding.sha256, captured.sha256);
       assert.equal(binding.bytes, captured.bytes);
     }
-    assertApplicationMediaReadiness(readiness, browser.ownedProcessIdentity);
+    assertApplicationMediaReadiness(readiness, inspector.ownedProcessIdentity);
     return;
   }
   const finishObservation =
     process.platform === "win32"
       ? await observeStartup({
-          driver,
-          driverPath: values.driver,
+          driver: required(driver),
+          driverPath: driverPath,
           profile,
           output,
           attempt: startupAttempt++,
@@ -1093,7 +1283,7 @@ async function connectObservedDriver() {
       .withCapabilities({
         browserName: process.platform === "win32" ? "webview2" : "wry",
         "tauri:options": {
-          application: values.app,
+          application: application,
           ...(process.platform === "win32" ? { webviewOptions: { userDataFolder: profile } } : {}),
         },
       })
@@ -1114,6 +1304,7 @@ async function connectObservedDriver() {
 async function connect() {
   await connectObservedDriver();
   if (linuxPackagedInspector) {
+    const browser = requiredInspector();
     await browser.wait(
       () =>
         browser.executeScript(
@@ -1126,6 +1317,7 @@ async function connect() {
     connectedLaunches++;
     return;
   }
+  const browser = driverBrowser();
   await browser.manage().setTimeouts({ script: 15_000 });
   const initialRecovery =
     (bootstrapRecoverySession || preferencesRecoverySession) && connectedLaunches === 0;
@@ -1142,8 +1334,8 @@ async function connect() {
   connectedLaunches++;
 }
 
-async function requestApplicationShutdown(snapshot) {
-  await browser.quit();
+async function requestApplicationShutdown(snapshot: string) {
+  await required(browser).quit();
   browser = undefined;
   const driverStop =
     process.platform === "win32" ? observeNativeSession("StopDriver", snapshot) : undefined;
@@ -1151,21 +1343,25 @@ async function requestApplicationShutdown(snapshot) {
   return driverStop;
 }
 
-async function restartApplication(name, prepareWhileStopped, childEnvironment = {}) {
+async function restartApplication(
+  name: string,
+  prepareWhileStopped?: () => Promise<void>,
+  childEnvironment: NodeJS.ProcessEnv = {},
+) {
   const selectedSetupRestart = name === "selected-setup-inputs";
   if (linuxSelectedSession) {
     assert.equal(name, "selected-setup-inputs");
     assert.equal(prepareWhileStopped, undefined, "Selected restart cannot rewrite fixture state");
-    await browser.quit();
+    await required(browser).quit();
     browser = undefined;
     await stopDriver();
-    assert.equal(linuxCleanup.quiesced, true);
+    assert.equal(required(linuxCleanup).quiesced, true);
     const evidence = path.join(output, `${name}-restart.json`);
     await writeFile(evidence, JSON.stringify(linuxCleanup, null, 2) + "\n", { flag: "wx" });
     artifacts.push(evidence);
     await startDriver(childEnvironment);
     await connect();
-    return browser;
+    return driverBrowser();
   }
   if (savedLibraryRecoverySession || selectedSetupRestart) {
     if (!preferencesRecoverySession)
@@ -1176,10 +1372,10 @@ async function restartApplication(name, prepareWhileStopped, childEnvironment = 
       );
     const inventory = captureBackupFocusCleanup(selectedSetupRestart ? name : cleanupName);
     validateBackupFocusInventory(
-      JSON.parse(await readFile(inventory, "utf8")),
+      nativeSnapshot(JSON.parse(await readFile(inventory, "utf8"))),
       selectedSetupRestart,
     );
-    await browser.quit();
+    await required(browser).quit();
     browser = undefined;
     stopBackupFocusDriver();
     const cleanup = ownedSession.requireQuiescence();
@@ -1189,11 +1385,11 @@ async function restartApplication(name, prepareWhileStopped, childEnvironment = 
     if (prepareWhileStopped) await prepareWhileStopped();
     await startDriver(childEnvironment);
     await connect();
-    return browser;
+    return driverBrowser();
   }
   const snapshot = path.join(output, `${name}-processes.json`);
   const restartEvidence = path.join(output, `${name}-restart.json`);
-  const observation = {
+  const observation: RestartObservation = {
     started_at: new Date().toISOString(),
     shutdown_request: "identity-bound-isolated-driver-tree-termination",
   };
@@ -1215,17 +1411,17 @@ async function restartApplication(name, prepareWhileStopped, childEnvironment = 
   observation.reconnected_at = new Date().toISOString();
   await writeFile(restartEvidence, `${JSON.stringify(observation, null, 2)}\n`, { flag: "wx" });
   artifacts.push(restartEvidence);
-  return browser;
+  return driverBrowser();
 }
 
 // Interrupt only this harness's positively identified tree, without first
 // deleting its WebDriver session or requesting graceful application shutdown.
-function captureLivePreparation(preparationExecutable) {
+function captureLivePreparation(preparationExecutable: string) {
   assert.ok(minimizedPreparationSession && ownedSession.driver && driver?.pid);
   const snapshot = path.join(output, "minimized-preparation-live-processes.json");
   const captured = observeNativeSession("Snapshot", snapshot);
   assert.deepEqual(captured.driver, ownedSession.driver);
-  for (const expected of [values.app, preparationExecutable]) {
+  for (const expected of [application, preparationExecutable]) {
     assert.equal(
       captured.processes.filter(
         (entry) => path.resolve(entry.path).toLowerCase() === path.resolve(expected).toLowerCase(),
@@ -1240,24 +1436,29 @@ function captureLivePreparation(preparationExecutable) {
   return { snapshot, ...captured };
 }
 
-async function interruptApplication(name, preparationExecutable, assertStillPreparing) {
+async function interruptApplication(
+  name: string,
+  preparationExecutable: string,
+  assertStillPreparing: () => Promise<void>,
+) {
   assert.equal(process.platform, "win32", "Live host interruption is Windows qualification");
   const inventory = captureBackupFocusCleanup();
-  const captured = JSON.parse(await readFile(inventory, "utf8"));
+  const captured = nativeSnapshot(JSON.parse(await readFile(inventory, "utf8")));
   const matches = (expected: string) =>
     captured.processes.filter(
       (entry) => path.resolve(entry.path).toLowerCase() === path.resolve(expected).toLowerCase(),
     );
-  assert.equal(matches(values.app).length, 1, "Capture the live owned application");
+  assert.equal(matches(application).length, 1, "Capture the live owned application");
   assert.equal(matches(preparationExecutable).length, 1, "Capture the live preparation child");
   await assertStillPreparing();
   const startedAt = new Date().toISOString();
   stopBackupFocusDriver();
-  const observation = {
+  const cleanup = ownedSession.requireQuiescence();
+  const observation: RestartObservation = {
     started_at: startedAt,
     shutdown_request: "forced-owned-tree-termination-without-session-delete",
-    driver_stop: ownedSession.cleanup.stopped,
-    shutdown: ownedSession.cleanup.exited,
+    driver_stop: cleanup.stopped,
+    shutdown: cleanup.exited,
   };
   // The killed session cannot be reused. Recovery runs in a new native host;
   // no durable-state fixture or quiescence flag is written by the harness.
@@ -1270,10 +1471,14 @@ async function interruptApplication(name, preparationExecutable, assertStillPrep
   const evidence = path.join(output, `${name}-restart.json`);
   await writeFile(evidence, JSON.stringify(observation, null, 2), { flag: "wx" });
   artifacts.push(evidence);
-  return browser;
+  return driverBrowser();
 }
 
-async function closeApplication(name, preparationExecutable, assertStillPreparing) {
+async function closeApplication(
+  name: string,
+  preparationExecutable: string,
+  assertStillPreparing: () => Promise<void>,
+) {
   assert.ok(ordinaryCloseSession && process.platform === "win32");
   captureBackupFocusCleanup();
   const inventory = path.join(output, `${name}-live-processes.json`);
@@ -1284,10 +1489,10 @@ async function closeApplication(name, preparationExecutable, assertStillPreparin
     captured.processes.filter(
       (entry) => path.resolve(entry.path).toLowerCase() === path.resolve(expected).toLowerCase(),
     );
-  assert.equal(matches(values.app).length, 1);
+  assert.equal(matches(application).length, 1);
   assert.equal(matches(preparationExecutable).length, 1);
-  const application = matches(values.app)[0];
-  assert.equal(application.pid, captured.application_pid);
+  const applicationProcess = required(matches(application)[0]);
+  assert.equal(applicationProcess.pid, captured.application_pid);
   await assertStillPreparing();
   const appInventory = path.join(output, `${name}-application-exit-inventory.json`);
   await writeFile(
@@ -1297,7 +1502,7 @@ async function closeApplication(name, preparationExecutable, assertStillPreparin
         ...captured,
         source_snapshot: path.basename(inventory),
         derivation: "captured-application-only-natural-exit-observation",
-        processes: [application],
+        processes: [applicationProcess],
       },
       null,
       2,
@@ -1305,7 +1510,12 @@ async function closeApplication(name, preparationExecutable, assertStillPreparin
     { flag: "wx" },
   );
   artifacts.push(appInventory);
-  const observation = { started_at: new Date().toISOString() };
+  const observation: {
+    started_at: string;
+    close_request?: NativeCloseObservation;
+    natural_application_exit?: NativeExitObservation;
+    before_cleanup?: NativeCurrentObservation;
+  } = { started_at: new Date().toISOString() };
   const evidence = path.join(output, `${name}-ordinary-close.json`);
   try {
     observation.close_request = observeNativeSession("RequestClose", inventory);
@@ -1326,11 +1536,83 @@ async function closeApplication(name, preparationExecutable, assertStillPreparin
   artifacts.push(cleanup);
   await startDriver();
   await connect();
-  return browser;
+  return driverBrowser();
 }
 
-function observeNativeSession(mode, snapshot) {
-  const driverProcessId = mode === "Wait" ? 0 : driver.pid;
+interface NativeCloseObservation {
+  requested_at: string;
+  application_pid: number;
+  started_filetime: string;
+  method: "identity-bound-native-main-window-close-request";
+  message_sent: true;
+}
+interface NativeCurrentObservation {
+  observed_at: string;
+  processes: (CapturedNativeProcess & { state: "running" | "exited" })[];
+}
+interface RestartObservation {
+  started_at: string;
+  shutdown_request: string;
+  snapshot?: NativeProcessSnapshot;
+  driver_stop?:
+    | NativeStopObservation
+    | { method: "observed-child-exit"; exit_code: number }
+    | undefined;
+  session_delete_completed_at?: string;
+  shutdown?: NativeExitObservation;
+  fixture_prepared_while_stopped?: boolean;
+  reconnected_at?: string;
+}
+function natural(value: unknown): number {
+  assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value >= 0);
+  return value;
+}
+function nativeProcess(value: unknown): CapturedNativeProcess {
+  const record = object(value);
+  const pid = natural(record.pid);
+  assert.ok(pid > 0, "Captured native PID must be positive");
+  const executable = text(record.path);
+  assert.ok(path.isAbsolute(executable), "Captured native executable must be absolute");
+  const started = text(record.started_filetime);
+  assert.match(started, /^\d+$/u);
+  return { ...record, pid, path: executable, started_filetime: started };
+}
+function nativeSnapshot(value: unknown): NativeProcessSnapshot {
+  const record = object(value);
+  assert.ok(Array.isArray(record.processes));
+  const applicationPid = record.application_pid === null ? null : natural(record.application_pid);
+  assert.ok(applicationPid === null || applicationPid > 0);
+  return {
+    ...record,
+    captured_at: text(record.captured_at),
+    driver: nativeProcess(record.driver),
+    application_pid: applicationPid,
+    processes: record.processes.map(nativeProcess),
+  };
+}
+function observeNativeSession(
+  mode: "Snapshot" | "SnapshotDriver" | "SnapshotDriverTree",
+  snapshot: string,
+): NativeProcessSnapshot;
+function observeNativeSession(mode: "Wait", snapshot: string): NativeExitObservation;
+function observeNativeSession(
+  mode: "StopDriver",
+  snapshot: string,
+): Extract<NativeStopObservation, { method: "identity-bound-isolated-tree-termination" }>;
+function observeNativeSession(mode: "RequestClose", snapshot: string): NativeCloseObservation;
+function observeNativeSession(mode: "Observe", snapshot: string): NativeCurrentObservation;
+function observeNativeSession(
+  mode:
+    | "Snapshot"
+    | "SnapshotDriver"
+    | "SnapshotDriverTree"
+    | "Wait"
+    | "StopDriver"
+    | "RequestClose"
+    | "Observe",
+  snapshot: string,
+) {
+  const driverProcessId = mode === "Wait" ? 0 : required(driver).pid;
   const result = spawnCommand(
     "pwsh",
     [
@@ -1342,31 +1624,79 @@ function observeNativeSession(mode, snapshot) {
       "-DriverProcessId",
       String(driverProcessId),
       "-ApplicationPath",
-      values.app,
+      application,
       "-SnapshotPath",
       snapshot,
     ],
     { encoding: "utf8", windowsHide: true, timeout: 10_000 },
   );
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  return JSON.parse(result.stdout);
+  const record = object(JSON.parse(result.stdout));
+  switch (mode) {
+    case "Snapshot":
+    case "SnapshotDriver":
+    case "SnapshotDriverTree":
+      return nativeSnapshot(record);
+    case "Wait":
+      return {
+        ...record,
+        exited_at: text(record.exited_at),
+        observed_processes: natural(record.observed_processes),
+        wait_ms: natural(record.wait_ms),
+      };
+    case "StopDriver": {
+      assert.equal(record.method, "identity-bound-isolated-tree-termination");
+      assert.ok(Array.isArray(record.terminated_survivors));
+      return {
+        ...record,
+        stopped_at: text(record.stopped_at),
+        driver_pid: natural(record.driver_pid),
+        method: "identity-bound-isolated-tree-termination" as const,
+        terminated_survivors: record.terminated_survivors.map(natural),
+      };
+    }
+    case "RequestClose":
+      assert.equal(record.method, "identity-bound-native-main-window-close-request");
+      assert.equal(record.message_sent, true);
+      return {
+        ...record,
+        requested_at: text(record.requested_at),
+        application_pid: natural(record.application_pid),
+        started_filetime: text(record.started_filetime),
+        method: "identity-bound-native-main-window-close-request" as const,
+        message_sent: true as const,
+      };
+    case "Observe":
+      assert.ok(Array.isArray(record.processes));
+      return {
+        ...record,
+        observed_at: text(record.observed_at),
+        processes: record.processes.map((value: unknown) => {
+          const process = object(value);
+          const state = process.state;
+          assert.ok(state === "running" || state === "exited");
+          return { ...nativeProcess(process), state };
+        }),
+      };
+  }
 }
 
-function captureBackupFocusDriverLaunch(launchStarted) {
+function captureBackupFocusDriverLaunch(launchStarted: number) {
+  const child = required(driver);
   const suffix =
     hostInterruptionSession ||
     ordinaryCloseSession ||
     savedLibraryRecoverySession ||
     selection.selected_scenarios.includes("native-selected-setup-completion")
-      ? `-${driver.pid}`
+      ? `-${child.pid}`
       : "";
   const snapshot = path.join(output, `${cleanupName}-driver-startup${suffix}.json`);
   const captured = observeNativeSession("SnapshotDriver", snapshot);
   artifacts.push(snapshot);
-  assert.equal(captured.driver.pid, driver.pid);
+  assert.equal(captured.driver.pid, child.pid);
   assert.equal(
     path.resolve(captured.driver.path).toLowerCase(),
-    path.resolve(values.driver).toLowerCase(),
+    path.resolve(driverPath).toLowerCase(),
   );
   const created = Number(BigInt(captured.driver.started_filetime) / 10_000n) - 11_644_473_600_000;
   assert.ok(
@@ -1388,8 +1718,8 @@ async function driverReady() {
   }
 }
 
-function driverEnvironment(childEnvironment) {
-  const environment = {
+function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
+  const environment: NodeJS.ProcessEnv = {
     ...process.env,
     ...childEnvironment,
     ...(originFixture
@@ -1418,7 +1748,7 @@ function driverEnvironment(childEnvironment) {
   return savedLibraryRecoverySession ? bootstrapRecoveryEnvironment(environment) : environment;
 }
 
-async function startDriver(childEnvironment = {}) {
+async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
   if (linuxPackagedInspector) {
     const { verifyApplicationMediaInputs } =
       await import("../../../scripts/desktop-linux-media.mts");
@@ -1432,7 +1762,7 @@ async function startDriver(childEnvironment = {}) {
     "--native-port",
     String(port + 1),
     "--native-driver",
-    values["native-driver"],
+    nativeDriverPath,
   ];
   if (linuxSelectedSession) {
     assert.equal(linuxLaunch, undefined, "The previous Linux launch must finish publication");
@@ -1440,14 +1770,14 @@ async function startDriver(childEnvironment = {}) {
     linuxStop = undefined;
     linuxLaunchCount++;
     linuxLaunch = await launchLinuxNativeSession(
-      linuxPackagedInspector ? process.execPath : values.driver,
+      linuxPackagedInspector ? process.execPath : driverPath,
       linuxPackagedInspector
         ? [
             path.join(root, "scripts/desktop-linux-media.mts"),
             "--launch-probed-app",
-            process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG,
-            values.app,
-            inputs[0].sha256,
+            required(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG),
+            application,
+            required(inputs[0]).sha256,
             applicationMediaEvidence,
           ]
         : arguments_,
@@ -1459,25 +1789,26 @@ async function startDriver(childEnvironment = {}) {
     driver = linuxLaunch.child;
   } else {
     admission.assertReady();
-    driver = spawn(values.driver, arguments_, {
+    driver = spawn(driverPath, arguments_, {
       windowsHide: true,
       detached: process.platform !== "win32",
       stdio: ["ignore", "pipe", "pipe"],
       env: driverEnvironment(childEnvironment),
     });
   }
-  let spawnError;
+  let spawnError: Error | undefined;
   driver.on("error", (error) => {
     spawnError = error;
   });
   for (const stream of [driver.stdout, driver.stderr])
-    stream.on("data", (chunk) => {
-      driverLog = (driverLog + chunk).slice(-1024 * 1024);
+    stream.on("data", (chunk: Buffer) => {
+      driverLog = (driverLog + chunk.toString()).slice(-1024 * 1024);
     });
-  if (linuxSelectedSession) await linuxLaunch.ready();
+  if (linuxSelectedSession) await required(linuxLaunch).ready();
   if (linuxPackagedInspector) return;
   await captureSelectedDriverLaunch(launchStarted);
-  if (historySession) historyInventory = await captureHistoryDriver(driver.pid, values.driver);
+  if (historySession)
+    historyInventory = await captureHistoryDriver(required(driver.pid), driverPath);
   for (let attempt = 0; attempt < 40; attempt++) {
     if (spawnError) throw spawnError;
     if (driver.exitCode !== null) throw new Error(`tauri-driver exited: ${driver.exitCode}`);
@@ -1487,17 +1818,19 @@ async function startDriver(childEnvironment = {}) {
   throw new Error("tauri-driver did not become ready within ten seconds");
 }
 
-async function captureSelectedDriverLaunch(launchStarted) {
+async function captureSelectedDriverLaunch(launchStarted: number) {
   if (linuxSelectedSession) return;
   if (!identityBoundSession) return;
-  await new Promise((resolve, reject) => {
-    driver.once("spawn", resolve);
-    driver.once("error", reject);
+  const child = required(driver);
+  await new Promise<void>((resolve, reject) => {
+    child.once("spawn", resolve);
+    child.once("error", reject);
   });
   captureBackupFocusDriverLaunch(launchStarted);
 }
 
 async function verifyCompactSettingsJumps() {
+  const browser = driverBrowser();
   const index = await browser.findElement(By.css('[role="group"][aria-label="Settings sections"]'));
   assert.equal((await index.findElements(By.css('button[data-slot="button"]'))).length, 6);
   await executeBrowserScript(
@@ -1596,6 +1929,7 @@ async function verifyCompactSettingsJumps() {
         visualViewportHeight: window.visualViewport?.height,
       };
     });
+    assert.ok(typeof next.top === "number" && typeof next.bottom === "number");
     assert.ok(next.top >= 0 && next.bottom <= 640, JSON.stringify(next));
     await captureScenarioScreenshot("settings-section-advanced-next-control");
   } finally {
@@ -1631,7 +1965,8 @@ async function verifyCompactSettingsJumps() {
   await captureScenarioScreenshot("settings-about-card-compact", true);
 }
 
-async function verifySettingsIndexTheme(theme) {
+async function verifySettingsIndexTheme(theme: string) {
+  const browser = driverBrowser();
   const index = await browser.findElement(By.css('[role="group"][aria-label="Settings sections"]'));
   const geometry = await executeBrowserScript(
     browser,
@@ -1654,15 +1989,19 @@ async function verifySettingsIndexTheme(theme) {
 }
 
 try {
-  let preferencesRecoveryFixture;
+  let preferencesRecoveryFixture:
+    | Awaited<ReturnType<typeof preparePreferencesRecoveryFixture>>
+    | undefined;
   if (preferencesRecoverySession) {
     preferencesRecoveryFixture = await preparePreferencesRecoveryFixture(output);
-    for (const name of ["preferencesBefore", "markerBefore"]) {
+    for (const name of ["preferencesBefore", "markerBefore"] as const) {
       inputs.push(await fileIdentity(preferencesRecoveryFixture[name]));
       artifacts.push(preferencesRecoveryFixture[name]);
     }
   }
-  let librarySwitchRecoveryFixture;
+  let librarySwitchRecoveryFixture:
+    | Awaited<ReturnType<typeof prepareLibrarySwitchRecoveryFixture>>
+    | undefined;
   if (librarySwitchRecoverySession) {
     librarySwitchRecoveryFixture = await prepareLibrarySwitchRecoveryFixture(output);
     for (const file of Object.values(librarySwitchRecoveryFixture.before)) {
@@ -1673,7 +2012,7 @@ try {
   }
   if (bootstrapRecoverySession) {
     bootstrapRecoveryFixture = await prepareBootstrapRecoveryFixture(output);
-    for (const name of ["invalidBefore", "preferencesBefore"])
+    for (const name of ["invalidBefore", "preferencesBefore"] as const)
       inputs.push(await fileIdentity(bootstrapRecoveryFixture[name]));
     artifacts.push(
       bootstrapRecoveryFixture.invalidBefore,
@@ -1687,23 +2026,23 @@ try {
       revision,
       sourceJourney: executionPlan.fixtures.sourceJourney,
       preliminaryJourney: executionPlan.fixtures.preliminaryJourney,
-      preliminarySetupJourney: executionPlan.fixtures.preliminarySetupJourney,
-      hashResumeJourney: executionPlan.fixtures.hashResumeJourney,
+      preliminarySetupJourney: Boolean(executionPlan.fixtures.preliminarySetupJourney),
+      hashResumeJourney: Boolean(executionPlan.fixtures.hashResumeJourney),
       completionJourney: executionPlan.fixtures.completionJourney,
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
-      preparationTool: values["preparation-tool"],
+      ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
     });
     if (installFixture.sourceJourney) {
       if (installFixture.preliminaryJourney)
-        for (const name of ["path", "before"])
+        for (const name of ["path", "before"] as const)
           inputs.push(await fileIdentity(installFixture.preliminaryJourney[name]));
-      for (const name of ["gameBefore", "gameReplacement", "biosBefore"])
+      for (const name of ["gameBefore", "gameReplacement", "biosBefore"] as const)
         inputs.push(await fileIdentity(installFixture.sourceJourney[name]));
       if (installFixture.completionJourney && ["win32", "linux"].includes(process.platform)) {
         installFixture.nativeConnectionJourney = true;
       } else
         installFixture.sourceJourney.root = seedSelectedSetup({
-          cli: values["preparation-cli"],
+          cli: required(values["preparation-cli"]),
           library,
           output,
           fixture: installFixture,
@@ -1714,14 +2053,21 @@ try {
   }
   if (selection.prerequisites.includes("external-runtime-fixture")) {
     externalFixture = await createExternalRuntimeFixture(output);
-    const declared = JSON.parse(await readFile(externalFixture.catalogPath, "utf8")).ports[0];
+    const catalog = object(JSON.parse(await readFile(externalFixture.catalogPath, "utf8")));
+    assert.ok(Array.isArray(catalog.ports));
+    const declared = object(catalog.ports[0]);
     assert.equal(declared.id, externalFixture.port.id);
-    const prepared = declared.release.user_prepared["windows-x86-64"];
+    const prepared = object(object(object(declared.release).user_prepared)["windows-x86-64"]);
+    assert.ok(Array.isArray(prepared.mutable_paths));
+    const mutablePaths = prepared.mutable_paths.map((entry: unknown) => text(entry));
     const immutableFiles = new Map(
       await Promise.all(
         externalFixture.identities
-          .filter((identity) => !prepared.mutable_paths.includes(path.basename(identity.path)))
-          .map(async (identity) => [path.basename(identity.path), await readFile(identity.path)]),
+          .filter((identity) => !mutablePaths.includes(path.basename(identity.path)))
+          .map(
+            async (identity) =>
+              [path.basename(identity.path), await readFile(identity.path)] as const,
+          ),
       ),
     );
     assert.equal(
@@ -1744,17 +2090,17 @@ try {
     );
     const retainedRoot = retainedEvidenceRoot(output);
     const fixtures = packetFixtureIdentities;
-    for (let index = 0; index < inputs.length; index++)
-      if (!inputs[index].retained) {
+    for (const [index, input] of inputs.entries())
+      if (!input.retained) {
         const retained = await retainEvidenceInput({
           root: retainedRoot,
-          file: inputs[index].path,
+          file: input.path,
           signal: admission.signal,
         });
-        assert.equal(retained.sha256, inputs[index].sha256, "Fixture changed before capture");
+        assert.equal(retained.sha256, input.sha256, "Fixture changed before capture");
         fixtures.push({ ...retained.retained, role: `fixture-${fixtures.length}` });
         inputs[index] = {
-          ...inputs[index],
+          ...input,
           ...retained,
           role: `fixture-${fixtures.length - 1}`,
           kind: "fixture",
@@ -1779,10 +2125,11 @@ try {
       true,
       "Finite packet declarations must be consumed from retained non-secret metadata",
     );
-    const declaration = runnerMetadata.acceptance_bindings;
+    const declaration = object(runnerMetadata.acceptance_bindings);
     const retainedRoot = retainedEvidenceRoot(output);
     const fixtures = packetFixtureIdentities;
-    const capabilities = linuxPackagedInspector ? null : await browser.getCapabilities();
+    const capabilities = linuxPackagedInspector ? null : await driverBrowser().getCapabilities();
+    const capabilityValue = (key: string): unknown => required(capabilities).get(key);
     const nodeIdentity = await fileIdentity(process.execPath, { signal: admission.signal });
     let privateDisplay;
     if (process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT) {
@@ -1800,11 +2147,11 @@ try {
       node_executable: nodeIdentity,
       operating_system: os.release(),
       browser: linuxPackagedInspector
-        ? browser.observedRuntime
+        ? requiredInspector().observedRuntime
         : {
-            name: capabilities.get("browserName") ?? null,
-            version: capabilities.get("browserVersion") ?? null,
-            platform: capabilities.get("platformName") ?? null,
+            name: capabilityValue("browserName") ?? null,
+            version: capabilityValue("browserVersion") ?? null,
+            platform: capabilityValue("platformName") ?? null,
           },
       ...(privateDisplay ? { private_display: privateDisplay.retained } : {}),
       display_route: process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT
@@ -1812,12 +2159,12 @@ try {
         : "native-platform-display",
       physical_controller: "not-qualified",
       driver_inputs: inputs
-        .filter((input) => ["driver", "native-driver"].includes(input.role))
+        .filter((input) => ["driver", "native-driver"].includes(input.role ?? ""))
         .map(({ role, sha256, bytes }) => ({ role, sha256, bytes })),
     };
     acceptancePreflight = await writeAcceptancePreflight(
-      path.join(path.dirname(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST), "packet"),
-      {
+      path.join(path.dirname(required(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST)), "packet"),
+      parseAcceptancePreflightContext({
         root,
         author: declaration.author,
         source_review: declaration.source_review,
@@ -1825,7 +2172,9 @@ try {
           ...observePacketDeliveryBindings(root, revision),
           build_inputs: runnerMetadata.verification_build,
           product_artifacts: inputs
-            .filter((input) => ["app", "preparation-cli", "preparation-tool"].includes(input.role))
+            .filter((input) =>
+              ["app", "preparation-cli", "preparation-tool"].includes(input.role ?? ""),
+            )
             .map((input) => ({ ...input.retained, role: input.role })),
           harness_inputs: inputs
             .filter((input) => input.kind === "file")
@@ -1852,19 +2201,24 @@ try {
         })),
         reusable_evidence: declaration.reusable_evidence ?? [],
         known_gaps: declaration.known_gaps ?? [],
-      },
+      }),
     );
     console.log(JSON.stringify({ acceptance_preflight: acceptancePreflight.identity }));
   }
   if (historySession) {
-    historyInventory = await captureHistorySession(driver.pid, values.driver, values.app);
+    historyInventory = await captureHistorySession(
+      required(required(driver).pid),
+      driverPath,
+      application,
+    );
     const record = path.join(output, "qualification-history-process-identities.json");
     await writeFile(record, JSON.stringify(historyInventory, null, 2), { flag: "wx" });
     artifacts.push(record);
   }
   await scenario("native-external-runtime-review", async () => {
+    const browser = driverBrowser();
     const pickerContext = {
-      application: values.app,
+      application: application,
       getDriverIdentity: () => ownedSession.driver,
       output,
       artifacts,
@@ -1878,8 +2232,8 @@ try {
       artifacts,
       invoke,
       confirmNative: nativeConfirmation({
-        application: values.app,
-        getDriverPid: () => driver.pid,
+        application: application,
+        getDriverPid: () => required(required(driver).pid),
         output,
         artifacts,
       }),
@@ -1895,12 +2249,13 @@ try {
     });
   });
   await scenario("native-startup-preferences-recovery", async () => {
+    const browser = driverBrowser();
     await preferencesRecoveryScenario({
       browser,
       invoke,
       By,
       until,
-      fixture: preferencesRecoveryFixture,
+      fixture: required(preferencesRecoveryFixture),
       captureScreenshot: captureScenarioScreenshot,
       captureAccessibilityReport,
       restart: restartApplication,
@@ -1909,15 +2264,16 @@ try {
     });
   });
   await scenario("native-library-switch-recovery", async () => {
+    const browser = driverBrowser();
     await librarySwitchRecoveryScenario({
       browser,
       invoke,
       By,
       until,
-      fixture: librarySwitchRecoveryFixture,
+      fixture: required(librarySwitchRecoveryFixture),
       chooseOwnedLibrary: nativeConfirmation({
-        application: values.app,
-        getDriverPid: () => driver.pid,
+        application: application,
+        getDriverPid: () => required(required(driver).pid),
         output,
         artifacts,
       }),
@@ -1929,9 +2285,10 @@ try {
     });
   });
   await scenario("native-startup-library-recovery", async () => {
+    const browser = driverBrowser();
     const chooseOwnedLibrary = nativeConfirmation({
-      application: values.app,
-      getDriverPid: () => driver.pid,
+      application: application,
+      getDriverPid: () => required(required(driver).pid),
       output,
       artifacts,
     });
@@ -1940,7 +2297,7 @@ try {
       invoke,
       By,
       until,
-      fixture: bootstrapRecoveryFixture,
+      fixture: required(bootstrapRecoveryFixture),
       chooseOwnedLibrary,
       captureScreenshot: captureScenarioScreenshot,
       restart: restartApplication,
@@ -1949,45 +2306,50 @@ try {
     });
   });
   await scenario("native-normal-package-webview-boundary", async () => {
+    const browser = driverBrowser();
     const requests = await normalPackageBoundaryScenario({
       browser,
       invoke,
       library,
       output,
       artifacts,
-      packageEvidence,
+      packageEvidence: required(packageEvidence),
     });
     assertOwnedBoundaryRequests(requests);
   });
   await scenario("native-linux-packaged-webview-boundary", async () => {
+    const browser = requiredInspector();
     const requests = await normalPackageBoundaryScenario({
       browser,
       invoke,
       library,
       output,
       artifacts,
-      packageEvidence,
-      externalBrowser,
+      packageEvidence: required(packageEvidence),
+      ...(externalBrowser ? { externalBrowser } : {}),
     });
     assertOwnedBoundaryRequests(requests);
+    assert.ok(browser.verifyOwnedListener, "Owned inspector listener verification required");
     artifacts.push(await browser.verifyOwnedListener());
   });
   await scenario("native-linux-webview-origin-boundary", async () => {
+    const browser = driverBrowser();
     await linuxOriginBoundaryScenario({
       browser,
       invoke,
       library,
       output,
       artifacts,
-      fixture: originFixture,
+      fixture: required(originFixture),
     });
   });
   await scenario("empty-library", async () => {
+    const browser = driverBrowser();
     const bootstrap = await invoke("get_bootstrap_status");
-    assert.equal(bootstrap.ok, true);
-    assert.equal(path.resolve(bootstrap.value.library_root), library);
+    assert.ok(bootstrap.ok);
+    assert.equal(path.resolve(required(bootstrap.value.library_root)), library);
     const status = await invoke("get_statuses");
-    assert.equal(status.ok, true);
+    assert.ok(status.ok);
     assert.equal(status.value.filter((item) => item.active).length, 0);
     const firstCatalog = await browser.wait(
       until.elementLocated(By.xpath('//h1[normalize-space(.)="Port catalog"]')),
@@ -1999,26 +2361,38 @@ try {
       By.css('[aria-label="Connect your game files"] button'),
     );
     await browser.wait(until.elementIsVisible(connection), 5_000);
-    const entryState = await browser.executeAsyncScript((control, done) => {
-      control.scrollIntoView({ block: "nearest" });
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          const bounds = control.getBoundingClientRect();
-          done({
-            title: document.querySelector("h1")?.textContent?.trim(),
-            text: control.closest('[aria-label="Connect your game files"]')?.textContent,
-            top: bounds.top,
-            bottom: bounds.bottom,
-            left: bounds.left,
-            right: bounds.right,
-            viewport: { width: innerWidth, height: innerHeight },
-          });
-        }),
-      );
-    }, connection);
+    const entryReply: unknown = await browser.executeAsyncScript<unknown>(
+      (control: Element, done: (result: unknown) => void) => {
+        control.scrollIntoView({ block: "nearest" });
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            const bounds = control.getBoundingClientRect();
+            done({
+              title: document.querySelector("h1")?.textContent?.trim(),
+              text: control.closest('[aria-label="Connect your game files"]')?.textContent,
+              top: bounds.top,
+              bottom: bounds.bottom,
+              left: bounds.left,
+              right: bounds.right,
+              viewport: { width: innerWidth, height: innerHeight },
+            });
+          }),
+        );
+      },
+      connection,
+    );
+    const entryState = object(entryReply);
+    const viewport = object(entryState.viewport);
+    assert.ok(
+      typeof entryState.top === "number" &&
+        typeof entryState.bottom === "number" &&
+        typeof entryState.left === "number" &&
+        typeof entryState.right === "number",
+    );
+    assert.ok(typeof viewport.height === "number" && typeof viewport.width === "number");
     assert.equal(entryState.title, "Port catalog");
-    assert.ok(entryState.top >= 0 && entryState.bottom <= entryState.viewport.height);
-    assert.ok(entryState.left >= 0 && entryState.right <= entryState.viewport.width);
+    assert.ok(entryState.top >= 0 && entryState.bottom <= viewport.height);
+    assert.ok(entryState.left >= 0 && entryState.right <= viewport.width);
     const entryArtifact = path.join(output, "first-use-port-catalog-state.json");
     await writeFile(entryArtifact, JSON.stringify(entryState, null, 2) + "\n", { flag: "wx" });
     artifacts.push(entryArtifact);
@@ -2091,6 +2465,7 @@ try {
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
   });
   await scenario("native-design-system-compatibility", async () => {
+    const browser = driverBrowser();
     const environment = await assertDesignCompatibility({ browser, By, Key, until });
     const environmentArtifact = path.join(output, "design-compatibility-environment.json");
     await writeFile(environmentArtifact, JSON.stringify(environment, null, 2), { flag: "wx" });
@@ -2098,16 +2473,17 @@ try {
   });
   await scenario("native-error-recovery", async () => {
     const bootstrap = await invoke("get_bootstrap_status");
-    assert.equal(bootstrap.ok, true);
+    assert.ok(bootstrap.ok);
     const failed = await invoke("verify_port", {
       portId: "nonexistent-fixture-port",
       generation: bootstrap.value.generation,
     });
     assert.equal(failed.ok, false);
-    assert.ok(failed.error.code);
-    assert.equal((await invoke("get_bootstrap_status")).value.ready, true);
+    assert.ok(object(failed.error).code);
+    assert.equal(success(await invoke("get_bootstrap_status")).ready, true);
   });
   await scenario("native-startup-network-diagnostic", async () => {
+    const browser = driverBrowser();
     inputs.push(
       await fileIdentity(
         fileURLToPath(new URL("./desktop-startup-network-diagnostic.mts", import.meta.url)),
@@ -2128,10 +2504,11 @@ try {
     );
   });
   await scenario("native-library-selection-review", async () => {
+    const browser = driverBrowser();
     const before = await invoke("get_bootstrap_status");
-    assert.equal(before.ok, true);
+    assert.ok(before.ok);
     const defaultRoot = await invoke("get_default_library_root");
-    assert.equal(defaultRoot.ok, true);
+    assert.ok(defaultRoot.ok);
     assert.ok(defaultRoot.value);
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
     const card = await browser.wait(
@@ -2157,7 +2534,7 @@ try {
     assert.ok(reviewText.includes(defaultRoot.value));
     assert.ok(reviewText.includes("Files in the current library will stay where they are"));
     assert.equal(
-      (await invoke("get_bootstrap_status")).value.library_root,
+      success(await invoke("get_bootstrap_status")).library_root,
       before.value.library_root,
     );
     await assertCompactReview(browser, '[aria-labelledby="library-selection-review-title"]');
@@ -2200,30 +2577,31 @@ try {
       5_000,
       "Library selection review trigger did not regain focus after Escape",
     );
-    assert.deepEqual((await invoke("get_bootstrap_status")).value, before.value);
+    assert.deepEqual(success(await invoke("get_bootstrap_status")), before.value);
   });
   await scenario("native-library-browsing-context", async () => {
+    const browser = driverBrowser();
     const chooseOwnedLibrary = nativeConfirmation({
-      application: values.app,
-      getDriverPid: () => driver.pid,
+      application: application,
+      getDriverPid: () => required(required(driver).pid),
       output,
       artifacts,
     });
-    const original = (await invoke("get_bootstrap_status")).value;
-    assert.equal(path.resolve(original.library_root), library);
+    const original = success(await invoke("get_bootstrap_status"));
+    assert.equal(path.resolve(required(original.library_root)), library);
     const alternate = path.join(output, "browsing-alternate-library");
     await mkdir(alternate);
     await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
     let search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     const catalog = await invoke("get_catalog");
-    assert.equal(catalog.ok, true);
-    const channelButton = (channel) =>
+    assert.ok(catalog.ok);
+    const channelButton = (channel: string) =>
       browser.findElement(
         By.xpath(
           `//div[@aria-label="Release channel filters"]//button[normalize-space(.)="${channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling"}"]`,
         ),
       );
-    const expectChannels = async (channels) => {
+    const expectChannels = async (channels: string[]) => {
       const expected = catalog.value.ports
         .filter(
           (port) =>
@@ -2236,7 +2614,11 @@ try {
         async () => {
           const ids = await executeBrowserScript(browser, () =>
             [...document.querySelectorAll('[data-detail-origin^="catalog:card:"]')]
-              .map((card) => card.getAttribute("data-detail-origin").slice("catalog:card:".length))
+              .map((card) => {
+                const origin = card.getAttribute("data-detail-origin");
+                if (origin === null) throw new Error("Catalog card lost its origin identity");
+                return origin.slice("catalog:card:".length);
+              })
               .sort(),
           );
           return JSON.stringify(ids) === JSON.stringify(expected);
@@ -2290,7 +2672,7 @@ try {
       browser,
       (card) => ({
         key: card.getAttribute("data-detail-origin"),
-        scroll: document.querySelector("main").scrollTop,
+        scroll: document.querySelector("main")?.scrollTop,
       }),
       card,
     );
@@ -2310,8 +2692,9 @@ try {
     assert.ok((await browser.findElement(sort).getText()).includes("Name A–Z"));
     assert.ok(
       Math.abs(
-        (await executeBrowserScript(browser, "return document.querySelector('main').scrollTop")) -
-          origin.scroll,
+        required(
+          await executeBrowserScript(browser, () => document.querySelector("main")?.scrollTop),
+        ) - required(origin.scroll),
       ) <= 1,
     );
     await captureScenarioScreenshot("native-catalog-composed-channels");
@@ -2322,7 +2705,7 @@ try {
     );
     await browser.actions().keyDown(Key.CONTROL).sendKeys("4").keyUp(Key.CONTROL).perform();
     await browser.wait(until.elementLocated(By.css(".diagnostics-card")), 15_000);
-    const switchTo = async (target: string, artifactName, previousGeneration) => {
+    const switchTo = async (target: string, artifactName: string, previousGeneration: number) => {
       await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
       await browser.wait(
         async () => {
@@ -2357,7 +2740,7 @@ try {
         undefined,
         target,
       );
-      assert.equal(path.resolve(picker.selected_directory), path.resolve(target));
+      assert.equal(path.resolve(text(object(picker).selected_directory)), path.resolve(target));
       const review = await browser.wait(
         until.elementLocated(By.css('[aria-labelledby="library-selection-review-title"]')),
         15_000,
@@ -2372,19 +2755,26 @@ try {
             status.ok &&
             status.value.ready &&
             status.value.generation > previousGeneration &&
+            status.value.library_root !== null &&
             path.toNamespacedPath(status.value.library_root) === path.toNamespacedPath(target)
           )
             return "switched";
           const alerts = await browser.findElements(
             By.xpath('//article[.//h2[normalize-space(.)="Library at startup"]]//*[@role="alert"]'),
           );
-          return alerts.length ? { error: await alerts[0].getText(), status } : false;
+          return alerts.length ? { error: await required(alerts[0]).getText(), status } : false;
         },
         15_000,
         "Owned library switch did not advance bootstrap generation",
       );
       if (outcome !== "switched") {
-        const diagnostic = { outcome };
+        const diagnostic: {
+          outcome: unknown;
+          technical_text?: string | null;
+          technical_projection?: unknown;
+          parse_error?: string;
+          capture_error?: string;
+        } = { outcome };
         try {
           diagnostic.technical_text = await executeBrowserScript(browser, () => {
             const article = [...document.querySelectorAll("article")].find((element) =>
@@ -2433,7 +2823,7 @@ try {
     );
     assert.equal(await alternateBeta.getAttribute("aria-pressed"), "false");
     assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "false");
-    const alternateStatus = (await invoke("get_bootstrap_status")).value;
+    const alternateStatus = success(await invoke("get_bootstrap_status"));
     await switchTo(library, "library-picker-select-original", alternateStatus.generation);
     await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
     const restoredSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
@@ -2480,6 +2870,7 @@ try {
     });
   }
   await scenario("keyboard-layout", async () => {
+    const browser = driverBrowser();
     const verifySidebarLabels = async () => {
       const labels = await executeBrowserScript(browser, () =>
         [...document.querySelectorAll(".sidebar nav .nav-item")].map((button) => {
@@ -2836,13 +3227,13 @@ try {
       15_000,
     );
     const restored = await executeBrowserScript(browser, () => ({
-      query: document.querySelector("#port-search")?.value,
+      query: document.querySelector<HTMLInputElement>("#port-search")?.value,
       focus: document.activeElement?.getAttribute("data-detail-origin"),
       scrollTop: document.querySelector("main")?.scrollTop,
     }));
     assert.equal(restored.query, "Ghostship");
     assert.equal(restored.focus, origin.originKey);
-    assert.ok(Math.abs(restored.scrollTop - origin.scrollTop) <= 1);
+    assert.ok(Math.abs(required(restored.scrollTop) - origin.scrollTop) <= 1);
     await captureScenarioScreenshot("game-details-workspace-return");
     await browser
       .findElement(By.id("port-search"))
@@ -2865,8 +3256,8 @@ try {
         );
         assert.equal(gameFileCards.length, 2, "Game files settings cards are incomplete");
         const settingsCards = [
-          { name: "saved-folders", card: gameFileCards[0], group: "game-files" },
-          { name: "verification", card: gameFileCards[1], group: "game-files" },
+          { name: "saved-folders", card: required(gameFileCards[0]), group: "game-files" },
+          { name: "verification", card: required(gameFileCards[1]), group: "game-files" },
           {
             name: "capacity",
             card: await browser.findElement(
@@ -2991,15 +3382,16 @@ try {
     }
   });
   await scenario("native-application-update-preferences", async () => {
+    const browser = driverBrowser();
     const before = await invoke("get_application_update_preferences");
-    assert.equal(before.ok, true);
+    assert.ok(before.ok);
     assert.equal(before.value.choice, null);
     const initialStatus = await invoke("get_application_update_status");
-    assert.equal(initialStatus.ok, true);
+    assert.ok(initialStatus.ok);
     assert.equal(initialStatus.value.staged, null);
     assert.deepEqual(initialStatus.value.recovery_required, []);
     const activities = await invoke("get_activities");
-    assert.equal(activities.ok, true);
+    assert.ok(activities.ok);
 
     const choicePrompt = By.xpath(
       '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]',
@@ -3066,7 +3458,7 @@ try {
     await browser.findElement(By.id("pause-application-updates")).click();
 
     assert.equal(
-      (await invoke("get_application_update_preferences")).value.choice,
+      success(await invoke("get_application_update_preferences")).choice,
       null,
       "editing application update settings is not saving",
     );
@@ -3082,7 +3474,7 @@ try {
         result.value.choice?.paused === true
       );
     }, 15_000);
-    assert.deepEqual((await invoke("get_activities")).value, activities.value);
+    assert.deepEqual(success(await invoke("get_activities")), activities.value);
     await browser.wait(
       until.elementLocated(
         By.xpath(
@@ -3126,7 +3518,7 @@ try {
       15_000,
     );
     assert.equal(
-      (await invoke("get_application_update_status")).value.recovery_required[0].area,
+      required(success(await invoke("get_application_update_status")).recovery_required[0]).area,
       "schedule",
     );
     await executeBrowserScript(browser, () =>
@@ -3146,7 +3538,7 @@ try {
       ),
       15_000,
     );
-    assert.deepEqual((await invoke("get_activities")).value, activities.value);
+    assert.deepEqual(success(await invoke("get_activities")), activities.value);
 
     await writeFile(path.join(output, "application-updates.json"), "not-json\n");
     await refreshSettings();
@@ -3189,7 +3581,7 @@ try {
       15_000,
       "application update recovery success notice did not remain visible",
     );
-    assert.deepEqual((await invoke("get_activities")).value, activities.value);
+    assert.deepEqual(success(await invoke("get_activities")), activities.value);
     await browser.wait(
       () =>
         executeBrowserScript(browser, () => {
@@ -3211,16 +3603,27 @@ try {
     await verifySettingsRows();
   });
   await scenario("appearance-restart", async () => {
+    const browser = driverBrowser();
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
     await browser.findElement(By.xpath('//button[normalize-space(.)="Light"]')).click();
     assert.equal(
-      await executeBrowserScript(browser, () => document.documentElement.dataset.theme),
+      await executeBrowserScript(driverBrowser(), () => document.documentElement.dataset.theme),
       "light",
     );
-    const observations = [];
+    interface AppearanceRestartObservation {
+      cycle: number;
+      close_started: string;
+      shutdown_request: string;
+      driver_stop?: NativeStopObservation | undefined;
+      session_delete_completed?: string;
+      shutdown?: NativeExitObservation;
+      connected?: string;
+      preference_preserved?: boolean;
+    }
+    const observations: AppearanceRestartObservation[] = [];
     try {
       for (let cycle = 0; cycle < restartCycles; cycle++) {
-        const observation = {
+        const observation: AppearanceRestartObservation = {
           cycle: cycle + 1,
           close_started: new Date().toISOString(),
           shutdown_request: "identity-bound-isolated-driver-tree-termination",
@@ -3239,7 +3642,7 @@ try {
         await connect();
         observation.connected = new Date().toISOString();
         assert.equal(
-          await executeBrowserScript(browser, () => document.documentElement.dataset.theme),
+          await executeBrowserScript(driverBrowser(), () => document.documentElement.dataset.theme),
           "light",
         );
         observation.preference_preserved = true;
@@ -3253,8 +3656,9 @@ try {
     }
   });
   await scenario("native-localization-foundation", async () => {
+    const browser = driverBrowser();
     const reset = await invoke("set_locale_preference", { locale: "en" });
-    assert.equal(reset.ok, true);
+    assert.ok(reset.ok);
     await refreshSettings();
     const languageTrigger = await browser.wait(
       until.elementLocated(By.xpath('//button[contains(., "Display language")]')),
@@ -3277,7 +3681,7 @@ try {
       .findElement(By.xpath('//*[@role="option" and contains(., "System default")]'))
       .click();
     await browser.wait(
-      async () => (await invoke("get_locale_preference")).value.locale === null,
+      async () => success(await invoke("get_locale_preference")).locale === null,
       15_000,
     );
     assert.ok(
@@ -3287,7 +3691,7 @@ try {
     );
 
     const engineering = await invoke("set_locale_preference", { locale: "ar-XB" });
-    assert.equal(engineering.ok, true);
+    assert.ok(engineering.ok);
     await refreshSettings();
     await browser.wait(async () => {
       const state = await executeBrowserScript(browser, () => ({
@@ -3331,7 +3735,7 @@ try {
       preview: true,
       externalResources: [],
     });
-    assert.deepEqual((await invoke("get_locale_preference")).value, { locale: "ar-XB" });
+    assert.deepEqual(success(await invoke("get_locale_preference")), { locale: "ar-XB" });
     await captureScenarioScreenshot("native-localization-rtl");
     await browser.navigate().refresh();
     await browser.wait(
@@ -3382,7 +3786,7 @@ try {
       true,
       "switching away from the preview lost language-control focus",
     );
-    assert.deepEqual((await invoke("get_locale_preference")).value, { locale: "en" });
+    assert.deepEqual(success(await invoke("get_locale_preference")), { locale: "en" });
 
     const preferencePath = path.join(output, "preferences.json");
     const savedPreferences = await readFile(preferencePath);
@@ -3407,88 +3811,107 @@ try {
     } finally {
       await writeFile(preferencePath, savedPreferences);
     }
-    assert.deepEqual((await invoke("get_locale_preference")).value, { locale: "en" });
+    assert.deepEqual(success(await invoke("get_locale_preference")), { locale: "en" });
     await invoke("set_locale_preference", { locale: null });
   });
   await scenario("accessibility", async () => {
+    const browser = driverBrowser();
     const report = path.join(output, "accessibility.json");
     await captureAccessibilityReport(browser, report, artifacts);
   });
-  await controllerScenario({ browser, scenario, output, artifacts });
-  await accessibleNavigationScenario({ browser, scenario, output, artifacts });
-  await workspaceRefreshScenario({
-    browser,
-    invoke,
-    scenario,
-    library,
-    output,
-    artifacts,
-    cli: values["preparation-cli"],
-    tool: values["preparation-tool"],
-  });
-  await qualificationHistoryScenario({
-    browser,
-    invoke,
-    scenario,
-    output,
-    artifacts,
-    captureScreenshot: captureScenarioScreenshot,
-  });
-  await runOwnedFixtureJourneys(
-    {
-      plan: executionPlan,
-      runtime: {
-        context: () => ({
-          browser,
-          invoke,
-          scenario,
-          library,
-          output,
-          artifacts,
-          inputs,
-          installFixture,
-          restartApplication,
-          cli: values["preparation-cli"],
-          tool: values["preparation-tool"],
-          interruptApplication,
-          closeApplication,
-          captureLivePreparation,
-          chooseGameFileFolder: ["win32", "linux"].includes(process.platform)
-            ? nativeGameFileFolderPicker({
-                application: values.app,
-                getDriverIdentity: () => ownedSession.driver,
-                getLinuxLaunch: () => linuxLaunch,
-                output,
-                artifacts,
-              })
-            : undefined,
-        }),
-        confirmNative: () =>
-          nativeConfirmation({
-            application: values.app,
-            getDriverPid: () => driver.pid,
-            output,
-            artifacts,
-          }),
-        recordKnownGap: (gap) =>
-          checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason }),
-      },
-    },
-    {
-      install: installScenarios,
-      selectedSetup: selectedSetupScenario,
-      selectedSetupCompletion: selectedSetupCompletionScenario,
-      preparation: preparationScenarios,
-    },
-  );
-  if (selection.selected_scenarios.includes("native-repeated-library-reload"))
-    await reloadScenario({
-      browser,
+  await controllerScenario({ browser: required(browser), scenario, output, artifacts });
+  if (!linuxPackagedInspector) {
+    await accessibleNavigationScenario({ browser: driverBrowser(), scenario, output, artifacts });
+    await workspaceRefreshScenario({
+      browser: driverBrowser(),
+      invoke,
+      scenario,
+      library,
+      output,
+      artifacts,
+      cli: values["preparation-cli"],
+      tool: values["preparation-tool"],
+    });
+    await qualificationHistoryScenario({
+      browser: driverBrowser(),
+      invoke,
       scenario,
       output,
       artifacts,
-      cycles: reloadCycles,
+      captureScreenshot: captureScenarioScreenshot,
     });
+    await runOwnedFixtureJourneys(
+      {
+        plan: executionPlan,
+        runtime: {
+          context: () => ({
+            browser: driverBrowser(),
+            invoke,
+            scenario,
+            library,
+            output,
+            artifacts,
+            inputs,
+            installFixture,
+            restartApplication,
+            cli: values["preparation-cli"],
+            tool: values["preparation-tool"],
+            interruptApplication,
+            closeApplication,
+            captureLivePreparation,
+            chooseGameFileFolder: ["win32", "linux"].includes(process.platform)
+              ? nativeGameFileFolderPicker({
+                  application: application,
+                  getDriverIdentity: () => ownedSession.driver,
+                  getLinuxLaunch: () => linuxLaunch,
+                  output,
+                  artifacts,
+                })
+              : undefined,
+          }),
+          confirmNative: () =>
+            nativeConfirmation({
+              application: application,
+              getDriverPid: () => required(required(driver).pid),
+              output,
+              artifacts,
+            }),
+          recordKnownGap: (gap) =>
+            checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason }),
+        },
+      },
+      {
+        install: installScenarios,
+        selectedSetup: (context) =>
+          selectedSetupScenario({
+            ...context,
+            fixture: required(context.fixture),
+            cli: required(context.cli),
+          }),
+        selectedSetupCompletion: ({ chooseGameFileFolder, ...context }) =>
+          selectedSetupCompletionScenario({
+            ...context,
+            fixture: required(context.fixture),
+            cli: required(context.cli),
+            ...(chooseGameFileFolder ? { chooseGameFileFolder } : {}),
+          }),
+        preparation: (context) =>
+          preparationScenarios({
+            ...context,
+            cli: required(context.cli),
+            tool: required(context.tool),
+          }),
+      },
+    );
+    if (selection.selected_scenarios.includes("native-repeated-library-reload"))
+      await reloadScenario({
+        browser: driverBrowser(),
+        scenario,
+        output,
+        artifacts,
+        cycles: reloadCycles,
+      });
+  }
 } catch (error) {
   checks.push({
     scenario: "harness",
@@ -3507,13 +3930,13 @@ try {
 } finally {
   try {
     if (linuxSelectedSession) {
-      let quitError;
-      let cleanupError;
+      let quitFailure: { error: unknown } | undefined;
+      let cleanupError: unknown;
       let cleanupFailed = false;
       try {
         if (browser)
           await browser.quit().catch((error) => {
-            quitError = error;
+            quitFailure = { error };
           });
         browser = undefined;
         await stopDriver();
@@ -3526,29 +3949,30 @@ try {
         cleanupError = error;
         cleanupFailed = true;
       }
-      if (cleanupFailed || quitError) {
-        const failure = cleanupFailed ? cleanupError : quitError;
+      if (cleanupFailed || quitFailure) {
+        const failure = cleanupFailed ? cleanupError : required(quitFailure).error;
         const evidence = path.join(output, `linux-native-launch-${linuxLaunchCount}-unknown.json`);
         await writeFile(
           evidence,
-          JSON.stringify({ error: failure.message, receipt: linuxLaunch?.receipt }, null, 2) + "\n",
+          JSON.stringify({ error: errorMessage(failure), receipt: linuxLaunch?.receipt }, null, 2) +
+            "\n",
           { flag: "wx" },
         );
         artifacts.push(evidence);
         checks.push({
           scenario: "native-linux-owned-cleanup",
           outcome: "failed",
-          message: failure.message,
+          message: errorMessage(failure),
         });
         process.exitCode = 1;
       }
     } else if (identityBoundSession) {
       try {
         if (driver?.pid && !ownedSession.cleanup) captureBackupFocusCleanup();
-        let quitError;
+        let quitFailure: { error: unknown } | undefined;
         if (browser)
           await browser.quit().catch((error) => {
-            quitError = error;
+            quitFailure = { error };
           });
         browser = undefined;
         await stopDriver();
@@ -3557,18 +3981,21 @@ try {
         await writeFile(
           report,
           JSON.stringify(
-            { ...ownedSession.cleanup, session_quit_error: quitError?.message },
+            {
+              ...ownedSession.cleanup,
+              session_quit_error: quitFailure ? errorMessage(quitFailure.error) : undefined,
+            },
             null,
             2,
           ),
           { flag: "wx" },
         );
         artifacts.push(report);
-        if (quitError) {
+        if (quitFailure) {
           checks.push({
             scenario: "native-backup-session-quit",
             outcome: "failed",
-            message: quitError.message,
+            message: errorMessage(quitFailure.error),
           });
           process.exitCode = 1;
         }
@@ -3582,11 +4009,16 @@ try {
         // No PID-only fallback when identity or positive exit could not be proved.
       }
     } else if (historySession) {
-      let quitError;
+      let quitFailure: { error: unknown } | undefined;
       try {
         assert.ok(historyInventory, "History requires captured identities before interaction");
         const finalInventory = (await historyDriverStillOwned(historyInventory))
-          ? await captureHistorySession(driver.pid, values.driver, values.app, "cleanup")
+          ? await captureHistorySession(
+              required(required(driver).pid),
+              driverPath,
+              application,
+              "cleanup",
+            )
           : historyInventory;
         assert.equal(finalInventory.driver.start_ticks, historyInventory.driver.start_ticks);
         const identities = new Map(
@@ -3598,7 +4030,7 @@ try {
         historyInventory.processes = [...identities.values()];
         if (browser)
           await browser.quit().catch((error) => {
-            quitError = error;
+            quitFailure = { error };
           });
         browser = undefined;
         await stopDriver();
@@ -3606,12 +4038,16 @@ try {
         const report = path.join(output, "qualification-history-cleanup.json");
         await writeFile(
           report,
-          JSON.stringify({ ...exited, session_quit_error: quitError?.message ?? null }, null, 2),
+          JSON.stringify(
+            { ...exited, session_quit_error: quitFailure ? errorMessage(quitFailure.error) : null },
+            null,
+            2,
+          ),
           { flag: "wx" },
         );
         artifacts.push(report);
         assert.equal(
-          quitError,
+          quitFailure,
           undefined,
           "History session deletion failed; preserve its cleanup receipt",
         );
@@ -3632,8 +4068,8 @@ try {
     try {
       if (custody) await verifyConsumedInputs(custody.inputs);
       assert.equal(
-        (await fileIdentity(values.app)).sha256,
-        inputs[0].sha256,
+        (await fileIdentity(application)).sha256,
+        required(inputs[0]).sha256,
         "Executable changed during the run; discard its scenario claims.",
       );
     } catch (error) {
@@ -3655,11 +4091,14 @@ try {
           reason: "The harness ended before this selected scenario ran",
         });
     }
+    const runtimeArguments: Record<string, unknown> = values;
     await writeEvidence(output, {
       revision,
-      executable: values.app,
+      executable: application,
       capturedExecutable:
-        custody && inputs[0].binding === "retained-artifact" ? inputs[0].retained : inputs[0],
+        custody && required(inputs[0]).binding === "retained-artifact"
+          ? required(required(inputs[0]).retained)
+          : required(inputs[0]),
       checks,
       setupChecks,
       artifacts,
@@ -3679,18 +4118,18 @@ try {
               captured_at: custody.created_at,
               product_artifacts: custody.inputs
                 .filter((input) =>
-                  ["app", "preparation-cli", "preparation-tool"].includes(input.role),
+                  ["app", "preparation-cli", "preparation-tool"].includes(input.role ?? ""),
                 )
                 .map((input) => ({
                   role: input.role,
-                  consumed_path: values[input.role],
+                  consumed_path: runtimeArguments[input.role],
                   bytes: input.bytes,
                   sha256: input.sha256,
                   binding: input.binding,
                   retained: input.retained,
                 })),
               runtime_tools: custody.inputs.filter((input) =>
-                ["driver", "native-driver"].includes(input.role),
+                ["driver", "native-driver"].includes(input.role ?? ""),
               ),
               harness_inputs: custody.inputs.filter((input) => input.kind === "file"),
               ...(acceptancePreflight
@@ -3714,7 +4153,7 @@ try {
         reload_cycles: reloadCycles,
         harness_deadline_ms: harnessDeadlineMs,
         phases: [
-          ...(runnerMetadata.phases ?? []),
+          ...metadataPhases,
           {
             phase: "native-harness",
             started_at: harnessStarted.toISOString(),

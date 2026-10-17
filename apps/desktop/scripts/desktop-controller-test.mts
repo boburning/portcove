@@ -1,12 +1,12 @@
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
+import type { MainBoundaryBrowser } from "./desktop-main-webview-boundary.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 import { observeGamepadCapability } from "./browser-readiness.mts";
-import { executeBrowserScript } from "./browser-script.mts";
 import { capabilityRequirement } from "../../../scripts/native-readiness.mts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
-import { By } from "selenium-webdriver";
+import { By, WebDriver } from "selenium-webdriver";
 
 interface LayoutCounts {
   getClientRects: number;
@@ -27,12 +27,14 @@ interface ControllerProfile {
 
 /** Native layout/input observations with an injected pad, not physical-controller evidence. */
 export async function controllerScenario({
-  browser,
+  browser: transport,
   scenario,
   output,
   artifacts,
-}: ScenarioContext) {
-  const capability = await executeBrowserScript(browser, observeGamepadCapability);
+}: Omit<ScenarioContext, "browser"> & { browser: MainBoundaryBrowser }) {
+  const raw = await transport.executeScript(observeGamepadCapability);
+  assert.ok(isRecord(raw) && typeof raw.outcome === "string");
+  const capability = { ...raw, outcome: raw.outcome };
   const capabilityFile = path.join(output, "controller-capability.json");
   await writeFile(
     capabilityFile,
@@ -53,6 +55,8 @@ export async function controllerScenario({
     );
   });
   await scenario("native-controller-large-list", async () => {
+    const browser = transport;
+    assert.ok(browser instanceof WebDriver, "Controller input requires its WebDriver transport");
     assert.ok(
       !["api-absent", "api-access-failed-or-restricted"].includes(capability.outcome),
       "Controller injection prerequisite unmet; absence is not controller functionality",

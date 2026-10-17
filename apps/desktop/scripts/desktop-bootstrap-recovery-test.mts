@@ -170,7 +170,7 @@ export function bootstrapRecoverySelection(selection, platform) {
 
 const canonicalPath = (value: string) => path.toNamespacedPath(path.resolve(value));
 
-export function bootstrapRecoveryEnvironment(environment) {
+export function bootstrapRecoveryEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const isolated = { ...environment };
   for (const key of Object.keys(isolated))
     if (key.toUpperCase() === "PORTCOVE_LIBRARY") delete isolated[key];

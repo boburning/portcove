@@ -5,7 +5,7 @@ interface ProcessIdentity {
   start_ticks: string;
 }
 interface InspectorLaunch {
-  child: { pid?: number; exitCode: number | null };
+  child: { pid?: number | undefined; exitCode: number | null };
 }
 interface ListenerOptions {
   port: number;

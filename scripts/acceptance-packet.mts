@@ -4,62 +4,189 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileIdentity } from "./development-evidence.mts";
 
-const hash = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
-const sha = (value) => /^[a-f0-9]{40}$/u.test(value ?? "");
+import { isRecord } from "./runtime-values.mts";
+import type { FileIdentity } from "./development-evidence.mts";
+interface PacketIdentity extends FileIdentity {
+  role?: string;
+}
+type ContentIdentity = Pick<FileIdentity, "bytes" | "sha256"> & { role?: string };
+interface PacketRequirement {
+  id: string;
+  required_scenarios: string[];
+}
+interface PacketCriterion {
+  id?: string;
+  scenarios?: string[];
+  required_images?: string[];
+}
+interface ExecutionQualification {
+  runtime_conditions: Record<string, unknown>;
+  fixture_identities: PacketIdentity[];
+  initial_state: Record<string, unknown>;
+  requirements: PacketRequirement[];
+  scenarios: string[];
+  acceptance_criteria: PacketCriterion[];
+}
+interface PacketBindings {
+  source_head: string;
+  current_target: string;
+  composed_tree: string;
+  product_artifacts: PacketIdentity[];
+  harness_inputs: PacketIdentity[];
+  // Additional build-owner metadata is retained and hashed without interpreting it.
+  build_inputs: { build_input_fingerprint: string; [key: string]: unknown };
+  execution_qualification: ExecutionQualification;
+}
+interface PacketSourceReview {
+  reviewer?: string;
+  reference?: string;
+  source_head?: string;
+  outcome?: string;
+}
+interface ReusableEvidence {
+  evidence: FileIdentity;
+  packet: FileIdentity;
+}
+interface PacketGap {
+  id?: string;
+  required?: boolean;
+}
+export interface AcceptancePreflightContext {
+  root: string;
+  bindings: PacketBindings;
+  prerequisites: readonly object[];
+  reusable_evidence?: readonly ReusableEvidence[];
+  known_gaps?: readonly PacketGap[];
+  source_review: PacketSourceReview;
+  author: string;
+}
+type PacketOutcomeKind = "passed" | "failed" | "skipped" | "unsupported" | "not-run";
+interface PacketOutcome {
+  scenario: string;
+  outcome: PacketOutcomeKind;
+}
+interface PacketReview {
+  reviewer: string;
+  reference: string;
+  source_head: string;
+  outcome: PacketOutcomeKind;
+}
+interface PacketDelivery {
+  source_head: string;
+  current_target: string;
+  composed_tree: string;
+  review_reference: string;
+}
+export interface AcceptanceCompletionContext {
+  evidence_identity: FileIdentity;
+  outcomes: readonly PacketOutcome[];
+  retained_artifacts: readonly FileIdentity[];
+  process_closure: {
+    outcome: PacketOutcomeKind;
+    positive_exit?: boolean;
+    artifacts: readonly FileIdentity[];
+  };
+  image_inspections: readonly (FileIdentity & {
+    inspected_at: string;
+    reviewer: string;
+    findings: unknown;
+  })[];
+  outcome_review: PacketReview;
+  final_delivery: PacketDelivery;
+  composition_decision?: {
+    reviewer: string;
+    evidence: unknown;
+    outcome: "unchanged-effective-dependencies" | "affected-scenarios-requalified";
+  };
+}
+const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+const sha = (value: unknown): value is string =>
+  typeof value === "string" && /^[a-f0-9]{40}$/u.test(value);
 const outcomes = new Set(["passed", "failed", "skipped", "unsupported", "not-run"]);
-const contentIdentities = (inputs) =>
+const contentIdentities = (inputs: readonly ContentIdentity[]) =>
   inputs.map(({ role, sha256, bytes }) => ({ role, sha256, bytes }));
-const harnessIdentity = (bindings) => hash(contentIdentities(bindings.harness_inputs));
-function requireIdentities(inputs) {
+const harnessIdentity = (bindings: PacketBindings) =>
+  hash(contentIdentities(bindings.harness_inputs));
+function strings(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item: unknown) => typeof item === "string");
+}
+function requireIdentities(inputs: unknown): asserts inputs is PacketIdentity[] {
   if (
     !Array.isArray(inputs) ||
     !inputs.length ||
-    inputs.some(
-      (input) =>
-        !/^[a-f0-9]{64}$/u.test(input.sha256 ?? "") ||
-        !Number.isSafeInteger(input.bytes) ||
-        input.bytes < 0 ||
-        !path.isAbsolute(input.path ?? ""),
-    )
+    inputs.some((value: unknown) => {
+      if (!isRecord(value)) return true;
+      return (
+        typeof value.sha256 !== "string" ||
+        !/^[a-f0-9]{64}$/u.test(value.sha256) ||
+        typeof value.bytes !== "number" ||
+        !Number.isSafeInteger(value.bytes) ||
+        value.bytes < 0 ||
+        typeof value.path !== "string" ||
+        !path.isAbsolute(value.path) ||
+        (value.role !== undefined && typeof value.role !== "string")
+      );
+    })
   )
     throw new Error("Packet requires explicit retained/content identities");
 }
-function validateBindings(bindings) {
+function validateBindings(bindings: unknown): asserts bindings is PacketBindings {
   if (
-    !bindings ||
-    !["source_head", "current_target", "composed_tree"].every((key) => sha(bindings[key]))
+    !isRecord(bindings) ||
+    !sha(bindings.source_head) ||
+    !sha(bindings.current_target) ||
+    !sha(bindings.composed_tree)
   )
     throw new Error("Packet source/target/composed-tree bindings are incomplete");
   requireIdentities(bindings.product_artifacts);
   requireIdentities(bindings.harness_inputs);
   const execution = bindings.execution_qualification;
   if (
-    !bindings.build_inputs ||
-    !/^[a-f0-9]{64}$/u.test(bindings.build_inputs.build_input_fingerprint ?? "") ||
-    !execution?.runtime_conditions ||
+    !isRecord(bindings.build_inputs) ||
+    typeof bindings.build_inputs.build_input_fingerprint !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(bindings.build_inputs.build_input_fingerprint) ||
+    !isRecord(execution) ||
+    !isRecord(execution.runtime_conditions) ||
     !Array.isArray(execution.fixture_identities) ||
-    !execution.initial_state ||
+    !isRecord(execution.initial_state) ||
     !Array.isArray(execution.requirements) ||
     !execution.requirements.length ||
-    !Array.isArray(execution.scenarios) ||
+    !strings(execution.scenarios) ||
     !execution.scenarios.length ||
     new Set(execution.scenarios).size !== execution.scenarios.length ||
     !Array.isArray(execution.acceptance_criteria) ||
-    !execution.acceptance_criteria.length ||
+    !execution.acceptance_criteria.length
+  )
+    throw new Error("Packet qualification dependencies/requirements are incomplete");
+  const scenarios = execution.scenarios;
+  if (
     execution.requirements.some(
-      (item) =>
+      (item: unknown) =>
+        !isRecord(item) ||
+        typeof item.id !== "string" ||
         !item.id ||
-        !Array.isArray(item.required_scenarios) ||
+        !strings(item.required_scenarios) ||
         !item.required_scenarios.length ||
-        item.required_scenarios.some((id) => !execution.scenarios.includes(id)),
+        item.required_scenarios.some((id) => !scenarios.includes(id)),
+    ) ||
+    execution.acceptance_criteria.some(
+      (item: unknown) =>
+        !isRecord(item) ||
+        (item.id !== undefined && typeof item.id !== "string") ||
+        (item.scenarios !== undefined && !strings(item.scenarios)) ||
+        (item.required_images !== undefined && !strings(item.required_images)),
     )
   )
     throw new Error("Packet qualification dependencies/requirements are incomplete");
   if (execution.fixture_identities.length) requireIdentities(execution.fixture_identities);
 }
+function object(value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) throw new Error("Packet context must be an object");
+  return value;
+}
 
-export function observePacketDeliveryBindings(root, expectedHead) {
-  const git = (args) => {
+export function observePacketDeliveryBindings(root: string, expectedHead: string) {
+  const git = (args: readonly string[]) => {
     const result = spawnSync("git", args, {
       cwd: root,
       encoding: "utf8",
@@ -83,19 +210,74 @@ export function observePacketDeliveryBindings(root, expectedHead) {
   return { source_head: expectedHead, current_target: remote[0], composed_tree: tree };
 }
 
+function sourceReview(value: unknown): PacketSourceReview {
+  const record = object(value);
+  const review: PacketSourceReview = { ...record };
+  for (const key of ["reviewer", "reference", "source_head", "outcome"] as const) {
+    if (record[key] !== undefined) review[key] = text(record[key]);
+  }
+  return review;
+}
+function knownGaps(value: unknown): PacketGap[] {
+  return records(value).map((record) => {
+    const gap: PacketGap = { ...record };
+    if (record.id !== undefined) gap.id = text(record.id);
+    if (record.required !== undefined) {
+      if (typeof record.required !== "boolean")
+        throw new Error("Packet gap requirement must be boolean");
+      gap.required = record.required;
+    }
+    return gap;
+  });
+}
+/** Narrow metadata once at its external boundary, using the same packet validator. */
+export function parseAcceptancePreflightContext(value: unknown): AcceptancePreflightContext {
+  const {
+    root,
+    bindings,
+    prerequisites,
+    reusable_evidence = [],
+    known_gaps = [],
+    source_review,
+    author,
+  } = object(value);
+  if (typeof root !== "string") throw new Error("Packet source root must be a string");
+  validateBindings(bindings);
+  if (
+    !Array.isArray(prerequisites) ||
+    !Array.isArray(reusable_evidence) ||
+    !Array.isArray(known_gaps) ||
+    !source_review ||
+    typeof author !== "string" ||
+    !author
+  )
+    throw new Error("Packet preflight context is incomplete");
+  return {
+    root,
+    bindings,
+    author,
+    prerequisites: records(prerequisites),
+    reusable_evidence: records(reusable_evidence).map((record) => ({
+      ...record,
+      evidence: identity(record.evidence),
+      packet: identity(record.packet),
+    })),
+    known_gaps: knownGaps(known_gaps),
+    source_review: sourceReview(source_review),
+  };
+}
 export async function writeAcceptancePreflight(
   directory: string,
-  { root, bindings, prerequisites, reusable_evidence = [], known_gaps = [], source_review, author },
+  context: AcceptancePreflightContext,
 ) {
-  validateBindings(bindings);
+  const { root, bindings, prerequisites, reusable_evidence, known_gaps, source_review, author } =
+    parseAcceptancePreflightContext(context);
   const relative = path.relative(path.resolve(root), path.resolve(directory));
   if (
     !relative ||
     (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))
   )
     throw new Error("Runtime packets must live outside the source checkout");
-  if (!Array.isArray(prerequisites) || !Array.isArray(known_gaps) || !source_review || !author)
-    throw new Error("Packet preflight context is incomplete");
   const packet = {
     format_version: 1,
     stage: "preflight",
@@ -103,14 +285,14 @@ export async function writeAcceptancePreflight(
     author,
     bindings: structuredClone(bindings),
     prerequisites,
-    reusable_evidence,
-    known_gaps,
+    reusable_evidence: reusable_evidence ?? [],
+    known_gaps: known_gaps ?? [],
     source_review,
     interpretation:
       "Evidence record only; no acceptance, merge authority or permission to change its verifier",
+    harness_identity: harnessIdentity(bindings),
+    execution_qualification_identity: hash(bindings.execution_qualification),
   };
-  packet.harness_identity = harnessIdentity(bindings);
-  packet.execution_qualification_identity = hash(bindings.execution_qualification);
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const file = path.join(directory, "preflight.json");
   await writeFile(file, JSON.stringify(packet, null, 2) + "\n", { flag: "wx", mode: 0o600 });
@@ -119,29 +301,38 @@ export async function writeAcceptancePreflight(
 
 // Compare effective dependencies and declared requirements, never filenames or
 // source-head equality. Ambiguous/missing declarations require requalification.
-export function reusableAcceptanceScenarios(previous, next) {
+export function reusableAcceptanceScenarios(previousValue: unknown, nextValue: unknown) {
+  const previous = isRecord(previousValue) ? previousValue : {};
+  const next = isRecord(nextValue) ? nextValue : {};
+  const previousBindings = previous.bindings;
+  const nextBindings = next.bindings;
   try {
-    validateBindings(previous.bindings);
-    validateBindings(next.bindings);
+    validateBindings(previousBindings);
+    validateBindings(nextBindings);
   } catch {
     return {
       reusable: [],
-      rerun: next.bindings?.execution_qualification?.scenarios ?? [],
+      rerun:
+        isRecord(nextBindings) &&
+        isRecord(nextBindings.execution_qualification) &&
+        strings(nextBindings.execution_qualification.scenarios)
+          ? nextBindings.execution_qualification.scenarios
+          : [],
       reason: "ambiguous-bindings",
     };
   }
-  const previousExecution = previous.bindings.execution_qualification,
-    nextExecution = next.bindings.execution_qualification;
+  const previousExecution = previousBindings.execution_qualification,
+    nextExecution = nextBindings.execution_qualification;
   const products = contentIdentities;
   const productChanged =
-    hash(products(previous.bindings.product_artifacts)) !==
-    hash(products(next.bindings.product_artifacts));
+    hash(products(previousBindings.product_artifacts)) !==
+    hash(products(nextBindings.product_artifacts));
   const harnessChanged =
-    harnessIdentity(previous.bindings) !== harnessIdentity(next.bindings) ||
-    previous.harness_identity !== harnessIdentity(previous.bindings) ||
-    next.harness_identity !== harnessIdentity(next.bindings);
+    harnessIdentity(previousBindings) !== harnessIdentity(nextBindings) ||
+    previous.harness_identity !== harnessIdentity(previousBindings) ||
+    next.harness_identity !== harnessIdentity(nextBindings);
   const commonChanged =
-    ["runtime_conditions", "initial_state"].some(
+    (["runtime_conditions", "initial_state"] as const).some(
       (key) => hash(previousExecution[key]) !== hash(nextExecution[key]),
     ) ||
     hash(products(previousExecution.fixture_identities)) !==
@@ -149,7 +340,7 @@ export function reusableAcceptanceScenarios(previous, next) {
   const reusable = [],
     rerun = [];
   for (const scenario of nextExecution.scenarios) {
-    const relevant = (execution) => ({
+    const relevant = (execution: ExecutionQualification) => ({
       requirements: execution.requirements.filter((item) =>
         item.required_scenarios.includes(scenario),
       ),
@@ -163,7 +354,11 @@ export function reusableAcceptanceScenarios(previous, next) {
       commonChanged ||
       hash(relevant(previousExecution)) !== hash(relevant(nextExecution)) ||
       previous.stage !== "completed" ||
-      !previous.outcomes?.some((item) => item.scenario === scenario && item.outcome === "passed") ||
+      !Array.isArray(previous.outcomes) ||
+      !previous.outcomes.some(
+        (item: unknown) =>
+          isRecord(item) && item.scenario === scenario && item.outcome === "passed",
+      ) ||
       !previousExecution.scenarios.includes(scenario)
     )
       rerun.push(scenario);
@@ -172,98 +367,214 @@ export function reusableAcceptanceScenarios(previous, next) {
   return { reusable, rerun, reason: "effective-dependencies-and-requirements" };
 }
 
-async function verifyIdentity(identity) {
+async function verifyIdentity(identity: FileIdentity) {
   const actual = await fileIdentity(identity.path, { maxBytes: identity.bytes });
   if (actual.sha256 !== identity.sha256 || actual.bytes !== identity.bytes)
     throw new Error("Packet retained artifact bytes changed");
 }
 
-async function closureProof(identity, retained, evidence) {
-  const record = JSON.parse(await readFile(identity.path, "utf8"));
+interface ClosureProcess {
+  pid: number;
+  path: string;
+  started_filetime: string | number;
+}
+function validProcess(value: unknown): value is ClosureProcess {
+  return (
+    isRecord(value) &&
+    typeof value.pid === "number" &&
+    Number.isInteger(value.pid) &&
+    value.pid > 0 &&
+    typeof value.path === "string" &&
+    path.isAbsolute(value.path) &&
+    (typeof value.started_filetime === "string" || typeof value.started_filetime === "number") &&
+    /^\d+$/u.test(String(value.started_filetime))
+  );
+}
+function equivalentPath(left: unknown, right: unknown) {
+  return (
+    typeof left === "string" &&
+    typeof right === "string" &&
+    left.replaceAll("\\", "/").toLowerCase() === right.replaceAll("\\", "/").toLowerCase()
+  );
+}
+function records(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) throw new Error("Packet records must be an array");
+  return value.map((item: unknown) => object(item));
+}
+async function closureProof(
+  identity: FileIdentity,
+  retained: readonly FileIdentity[],
+  evidence: unknown,
+): Promise<boolean> {
+  const record = object(JSON.parse(await readFile(identity.path, "utf8")));
   if (record.method === "private-pid-namespace-init-normal-unshare-join") {
-    // The normal PID-1 join proves kernel teardown of descendants. A driver
-    // exit event is optional when closing the control pipe initiates teardown.
+    // A normal PID-1 join proves kernel teardown of descendants. Driver exit
+    // remains optional when closing the control pipe initiates teardown.
+    const exit = record.exit,
+      ready = record.ready;
     return (
       record.quiesced === true &&
       !record.protocol_error &&
-      record.exit?.code === 0 &&
-      record.exit.signal === null &&
-      Number.isFinite(Date.parse(record.exit.observed_at)) &&
-      record.ready?.kind === "namespace-ready" &&
-      record.ready.pid === 1 &&
-      /^[a-f0-9-]{36}$/u.test(record.nonce ?? "") &&
-      record.events?.some(
-        (event) =>
+      isRecord(exit) &&
+      exit.code === 0 &&
+      exit.signal === null &&
+      typeof exit.observed_at === "string" &&
+      Number.isFinite(Date.parse(exit.observed_at)) &&
+      isRecord(ready) &&
+      ready.kind === "namespace-ready" &&
+      ready.pid === 1 &&
+      typeof record.nonce === "string" &&
+      /^[a-f0-9-]{36}$/u.test(record.nonce) &&
+      Array.isArray(record.events) &&
+      record.events.some(
+        (event: unknown) =>
+          isRecord(event) &&
           event.kind === "driver-started" &&
           event.nonce === record.nonce &&
+          typeof event.pid === "number" &&
           Number.isInteger(event.pid) &&
           event.pid > 1,
       ) &&
-      ["unshare_sha256", "init_sha256", "node_sha256"].every((key) =>
-        /^[a-f0-9]{64}$/u.test(record[key] ?? ""),
-      )
+      ["unshare_sha256", "init_sha256", "node_sha256"].every((key) => {
+        const value = record[key];
+        return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+      })
     );
   }
-  if (typeof record.snapshot === "string" && record.exited && !record.session_quit_error) {
+  if (
+    typeof record.snapshot === "string" &&
+    isRecord(record.exited) &&
+    !record.session_quit_error
+  ) {
     const snapshotIdentity = retained.find((item) => item.path === record.snapshot);
     if (!snapshotIdentity) return false;
-    const snapshot = JSON.parse(await readFile(snapshotIdentity.path, "utf8"));
-    const validProcess = (process) =>
-      Number.isInteger(process?.pid) &&
-      process.pid > 0 &&
-      path.isAbsolute(process.path ?? "") &&
-      /^\d+$/u.test(String(process.started_filetime ?? ""));
-    const app = evidence.execution_binding.product_artifacts.find((input) => input.role === "app");
-    const driver = evidence.execution_binding.runtime_tools?.find(
-      (input) => input.role === "driver",
-    );
+    const snapshot = object(JSON.parse(await readFile(snapshotIdentity.path, "utf8")));
+    const binding = object(object(evidence).execution_binding);
+    const app = records(binding.product_artifacts).find((input) => input.role === "app");
+    const driver =
+      binding.runtime_tools === undefined
+        ? undefined
+        : records(binding.runtime_tools).find((input) => input.role === "driver");
     const driverPath =
-      driver?.binding === "retained-artifact" ? driver.retained?.path : driver?.path;
-    const equivalentPath = (left: string, right: string) =>
-      typeof left === "string" &&
-      typeof right === "string" &&
-      left.replaceAll("\\", "/").toLowerCase() === right.replaceAll("\\", "/").toLowerCase();
-    const appPath = app?.consumed_path;
+      driver?.binding === "retained-artifact" ? object(driver.retained).path : driver?.path;
+    const root = snapshot.driver;
+    const processes: unknown = snapshot.processes;
+    const exited = record.exited;
     return (
-      validProcess(snapshot.driver) &&
-      equivalentPath(snapshot.driver.path, driverPath) &&
-      ["retained-artifact", "live-path-checked-cooperative"].includes(app?.binding) &&
-      Array.isArray(snapshot.processes) &&
-      snapshot.processes.length > 1 &&
-      snapshot.processes.every(validProcess) &&
-      snapshot.processes.some(
+      validProcess(root) &&
+      equivalentPath(root.path, driverPath) &&
+      (app?.binding === "retained-artifact" || app?.binding === "live-path-checked-cooperative") &&
+      Array.isArray(processes) &&
+      processes.length > 1 &&
+      processes.every(validProcess) &&
+      processes.some(
         (item) =>
-          item.pid === snapshot.driver.pid &&
-          item.started_filetime === snapshot.driver.started_filetime &&
-          item.path === snapshot.driver.path,
+          item.pid === root.pid &&
+          item.started_filetime === root.started_filetime &&
+          item.path === root.path,
       ) &&
-      snapshot.processes.some((item) => equivalentPath(item.path, appPath)) &&
-      record.exited.observed_processes === snapshot.processes.length &&
-      Number.isFinite(Date.parse(record.exited.exited_at)) &&
-      Date.parse(record.exited.exited_at) >= Date.parse(snapshot.captured_at) &&
-      Number.isFinite(record.exited.wait_ms) &&
-      record.exited.wait_ms >= 0 &&
-      record.exited.wait_ms <= 5000
+      processes.some((item) => equivalentPath(item.path, app.consumed_path)) &&
+      exited.observed_processes === processes.length &&
+      typeof exited.exited_at === "string" &&
+      Number.isFinite(Date.parse(exited.exited_at)) &&
+      typeof snapshot.captured_at === "string" &&
+      Date.parse(exited.exited_at) >= Date.parse(snapshot.captured_at) &&
+      typeof exited.wait_ms === "number" &&
+      Number.isFinite(exited.wait_ms) &&
+      exited.wait_ms >= 0 &&
+      exited.wait_ms <= 5000
     );
   }
   return false;
 }
 
+function text(value: unknown): string {
+  if (typeof value !== "string") throw new Error("Packet text field required");
+  return value;
+}
+function identity(value: unknown): PacketIdentity {
+  const identities = [value];
+  requireIdentities(identities);
+  const first = identities[0];
+  if (!first) throw new Error("Packet identity missing");
+  return first;
+}
+function checkedIdentities(value: unknown): PacketIdentity[] {
+  requireIdentities(value);
+  return value;
+}
+function checkedContentIdentities(value: unknown): ContentIdentity[] {
+  return records(value).map((item) => {
+    if (
+      typeof item.sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(item.sha256) ||
+      typeof item.bytes !== "number" ||
+      !Number.isSafeInteger(item.bytes) ||
+      item.bytes < 0 ||
+      (item.role !== undefined && typeof item.role !== "string")
+    )
+      throw new Error("Canonical execution content identity is invalid");
+    return {
+      ...item,
+      sha256: item.sha256,
+      bytes: item.bytes,
+      ...(typeof item.role === "string" ? { role: item.role } : {}),
+    };
+  });
+}
+
+function optionalObject(value: unknown): Record<string, unknown> | undefined {
+  return isRecord(value) ? value : undefined;
+}
+function acceptanceRecord(value: unknown) {
+  const record = object(value);
+  const bindings = record.bindings;
+  validateBindings(bindings);
+  return {
+    ...record,
+    bindings,
+    format_version: record.format_version,
+    stage: record.stage,
+    execution_observation_source_head: record.execution_observation_source_head,
+    qualification_complete: record.qualification_complete,
+    author: text(record.author),
+    source_review: sourceReview(record.source_review),
+    reusable_evidence: records(record.reusable_evidence),
+    known_gaps: knownGaps(record.known_gaps),
+    interpretation: text(record.interpretation),
+    ...(record.evidence === undefined ? {} : { evidence: identity(record.evidence) }),
+    ...(record.preflight === undefined ? {} : { preflight: identity(record.preflight) }),
+    ...(record.execution_preflight === undefined
+      ? {}
+      : { execution_preflight: identity(record.execution_preflight) }),
+  };
+}
+
 export async function completeAcceptancePacket(
-  preflightIdentity,
-  {
-    evidence_identity,
-    outcomes: actualOutcomes,
-    retained_artifacts,
-    process_closure,
-    image_inspections,
-    outcome_review,
-    final_delivery,
-    composition_decision,
-  },
+  preflightIdentity: FileIdentity,
+  context: AcceptanceCompletionContext,
 ) {
+  const {
+    evidence_identity: evidenceValue,
+    outcomes: outcomeValues,
+    retained_artifacts: retainedValue,
+    process_closure: closureValue,
+    image_inspections: inspectionValues,
+    outcome_review: reviewValue,
+    final_delivery: deliveryValue,
+    composition_decision: decisionValue,
+  } = object(context);
+  const evidence_identity = identity(evidenceValue);
+  const retained_artifacts = retainedValue;
+  const actualOutcomes = records(outcomeValues);
+  const process_closure = object(closureValue);
+  const image_inspections = records(inspectionValues);
+  const outcome_review = object(reviewValue);
+  const final_delivery = object(deliveryValue);
+  const composition_decision =
+    decisionValue === undefined || decisionValue === null ? undefined : object(decisionValue);
   await verifyIdentity(preflightIdentity);
-  const preflight = JSON.parse(await readFile(preflightIdentity.path, "utf8"));
+  const preflight = acceptanceRecord(JSON.parse(await readFile(preflightIdentity.path, "utf8")));
   if (preflight.format_version !== 1 || preflight.stage !== "preflight")
     throw new Error("Completion requires an actual preflight packet");
   validateBindings(preflight.bindings);
@@ -271,52 +582,57 @@ export async function completeAcceptancePacket(
     !preflight.source_review.reviewer ||
     !preflight.source_review.reference ||
     preflight.source_review.source_head !== preflight.bindings.source_head ||
+    typeof preflight.source_review.outcome !== "string" ||
     !["passed", "failed", "unsupported"].includes(preflight.source_review.outcome)
   )
     throw new Error("Completed packet cannot retain a placeholder source review");
   await verifyIdentity(evidence_identity);
-  const evidence = JSON.parse(await readFile(evidence_identity.path, "utf8"));
+  const evidence = object(JSON.parse(await readFile(evidence_identity.path, "utf8")));
   const selected = preflight.bindings.execution_qualification.scenarios;
   let observedPreflight = preflight,
     observedPreflightIdentity = preflightIdentity;
   if (evidence.revision !== preflight.bindings.source_head) {
     const reusable = preflight.reusable_evidence.find(
       (item) =>
-        item.evidence?.path === evidence_identity.path &&
-        item.evidence.sha256 === evidence_identity.sha256,
+        optionalObject(item.evidence)?.path === evidence_identity.path &&
+        optionalObject(item.evidence)?.sha256 === evidence_identity.sha256,
     );
     if (!reusable?.packet)
       throw new Error("Different source-head observations require bound reusable evidence");
-    await verifyIdentity(reusable.packet);
-    const prior = JSON.parse(await readFile(reusable.packet.path, "utf8"));
+    const reusablePacket = identity(reusable.packet);
+    await verifyIdentity(reusablePacket);
+    const prior = acceptanceRecord(JSON.parse(await readFile(reusablePacket.path, "utf8")));
     if (
       prior.evidence?.sha256 !== evidence_identity.sha256 ||
       (prior.execution_observation_source_head ?? prior.bindings.source_head) !==
         evidence.revision ||
-      !prior.qualification_complete ||
+      prior.qualification_complete !== true ||
       !selected.every((id) => reusableAcceptanceScenarios(prior, preflight).reusable.includes(id))
     )
       throw new Error("Effective dependencies require requalification");
-    observedPreflightIdentity = prior.execution_preflight ?? prior.preflight;
+    observedPreflightIdentity = identity(prior.execution_preflight ?? prior.preflight);
     await verifyIdentity(observedPreflightIdentity);
-    observedPreflight = JSON.parse(await readFile(observedPreflightIdentity.path, "utf8"));
+    observedPreflight = acceptanceRecord(
+      JSON.parse(await readFile(observedPreflightIdentity.path, "utf8")),
+    );
   }
-  const observed = evidence.execution_binding;
+  const observed = optionalObject(evidence.execution_binding);
+  const evidencePreflight = optionalObject(evidence.acceptance_preflight);
   if (
     evidence.format_version !== 3 ||
     !observed ||
-    evidence.acceptance_preflight?.path !== observedPreflightIdentity.path ||
-    evidence.acceptance_preflight?.sha256 !== observedPreflightIdentity.sha256 ||
-    evidence.acceptance_preflight?.bytes !== observedPreflightIdentity.bytes ||
+    evidencePreflight?.path !== observedPreflightIdentity.path ||
+    evidencePreflight?.sha256 !== observedPreflightIdentity.sha256 ||
+    evidencePreflight?.bytes !== observedPreflightIdentity.bytes ||
     !Array.isArray(evidence.setup_checks) ||
     !Array.isArray(evidence.selected_scenarios) ||
     hash(evidence.selected_scenarios) !==
       hash(observedPreflight.bindings.execution_qualification.scenarios) ||
     !Array.isArray(observed.product_artifacts) ||
     !Array.isArray(observed.harness_inputs) ||
-    hash(contentIdentities(observed.product_artifacts)) !==
+    hash(contentIdentities(checkedContentIdentities(observed.product_artifacts))) !==
       hash(contentIdentities(observedPreflight.bindings.product_artifacts)) ||
-    hash(contentIdentities(observed.harness_inputs)) !==
+    hash(contentIdentities(checkedContentIdentities(observed.harness_inputs))) !==
       hash(contentIdentities(observedPreflight.bindings.harness_inputs)) ||
     hash(observed.build_inputs) !== hash(observedPreflight.bindings.build_inputs) ||
     hash(observed.execution_qualification) !==
@@ -329,10 +645,14 @@ export async function completeAcceptancePacket(
     new Set(actualOutcomes.map((item) => item.scenario)).size !== selected.length ||
     actualOutcomes.some(
       (item) =>
+        typeof item.scenario !== "string" ||
         !selected.includes(item.scenario) ||
+        typeof item.outcome !== "string" ||
         !outcomes.has(item.outcome) ||
-        !evidence.checks?.some(
-          (check) => check.scenario === item.scenario && check.outcome === item.outcome,
+        !Array.isArray(evidence.checks) ||
+        !evidence.checks.some(
+          (check: unknown) =>
+            isRecord(check) && check.scenario === item.scenario && check.outcome === item.outcome,
         ),
     )
   )
@@ -341,8 +661,10 @@ export async function completeAcceptancePacket(
   for (const identity of retained_artifacts) {
     await verifyIdentity(identity);
     if (
-      !evidence.artifacts?.some(
-        (item) =>
+      !Array.isArray(evidence.artifacts) ||
+      !evidence.artifacts.some(
+        (item: unknown) =>
+          isRecord(item) &&
           item.path === identity.path &&
           item.sha256 === identity.sha256 &&
           item.bytes === identity.bytes,
@@ -352,12 +674,16 @@ export async function completeAcceptancePacket(
   }
   if (
     !process_closure ||
+    typeof process_closure.outcome !== "string" ||
     !outcomes.has(process_closure.outcome) ||
+    (process_closure.positive_exit !== undefined &&
+      typeof process_closure.positive_exit !== "boolean") ||
     !Array.isArray(process_closure.artifacts) ||
     !process_closure.artifacts.length
   )
     throw new Error("Actual process closure is required");
-  for (const identity of process_closure.artifacts) {
+  const closureArtifacts = checkedIdentities(process_closure.artifacts);
+  for (const identity of closureArtifacts) {
     if (
       !retained_artifacts.some(
         (item) => item.path === identity.path && item.sha256 === identity.sha256,
@@ -367,7 +693,7 @@ export async function completeAcceptancePacket(
   }
   const positiveClosure = (
     await Promise.all(
-      process_closure.artifacts.map((identity) =>
+      closureArtifacts.map((identity) =>
         closureProof(identity, retained_artifacts, evidence).catch(() => false),
       ),
     )
@@ -392,20 +718,27 @@ export async function completeAcceptancePacket(
     const receiptPath = image.path.replace(/\.png$/u, "-capture.json");
     const receiptIdentity = retained_artifacts.find((item) => item.path === receiptPath);
     if (!receiptIdentity) throw new Error("Required image has no settled capture receipt");
-    const capture = JSON.parse(await readFile(receiptPath, "utf8"));
+    const capture = object(JSON.parse(await readFile(receiptPath, "utf8")));
+    const capturedImage = optionalObject(capture.image);
+    const observation = optionalObject(capture.observation);
+    const semantic = optionalObject(observation?.semantic);
+    const state = optionalObject(observation?.state);
+    const applicationState = optionalObject(state?.application_state);
     if (
       capture.outcome !== "captured" ||
+      typeof capture.scenario !== "string" ||
       !selected.includes(capture.scenario) ||
       !preflight.bindings.execution_qualification.acceptance_criteria.some(
         (criterion) =>
           criterion.required_images?.includes(path.basename(image.path)) &&
+          typeof capture.scenario === "string" &&
           criterion.scenarios?.includes(capture.scenario),
       ) ||
-      capture.image?.sha256 !== image.sha256 ||
-      capture.image?.bytes !== image.bytes ||
-      capture.observation?.semantic?.ready !== true ||
-      capture.observation.state?.visible !== true ||
-      capture.observation.state?.application_state?.loading !== 0
+      capturedImage?.sha256 !== image.sha256 ||
+      capturedImage?.bytes !== image.bytes ||
+      semantic?.ready !== true ||
+      state?.visible !== true ||
+      applicationState?.loading !== 0
     )
       throw new Error("Required image is diagnostic or bound to another scenario/state");
   }
@@ -415,7 +748,9 @@ export async function completeAcceptancePacket(
     new Set(image_inspections.map((item) => item.path)).size !== images.length ||
     image_inspections.some(
       (item) =>
+        typeof item.inspected_at !== "string" ||
         !Number.isFinite(Date.parse(item.inspected_at)) ||
+        typeof item.reviewer !== "string" ||
         !item.reviewer ||
         !item.findings ||
         !images.some(
@@ -426,10 +761,13 @@ export async function completeAcceptancePacket(
   )
     throw new Error("Completion requires actual inspection bound to every exact retained image");
   if (
-    !outcome_review?.reviewer ||
+    typeof outcome_review.reviewer !== "string" ||
+    !outcome_review.reviewer ||
     outcome_review.reviewer === preflight.author ||
+    typeof outcome_review.reference !== "string" ||
     !outcome_review.reference ||
     outcome_review.source_head !== preflight.bindings.source_head ||
+    typeof outcome_review.outcome !== "string" ||
     !outcomes.has(outcome_review.outcome)
   )
     throw new Error("Independent actual outcome review is required");
@@ -438,16 +776,20 @@ export async function completeAcceptancePacket(
       sha(final_delivery?.[key]),
     ) ||
     final_delivery.source_head !== preflight.bindings.source_head ||
+    typeof final_delivery.review_reference !== "string" ||
     !final_delivery.review_reference
   )
     throw new Error("Final delivery binding/source review is incomplete");
   if (
+    composition_decision !== undefined ||
     final_delivery.current_target !== preflight.bindings.current_target ||
     final_delivery.composed_tree !== preflight.bindings.composed_tree
   ) {
     if (
-      !composition_decision?.reviewer ||
+      typeof composition_decision?.reviewer !== "string" ||
+      !composition_decision.reviewer ||
       !composition_decision.evidence ||
+      typeof composition_decision.outcome !== "string" ||
       !["unchanged-effective-dependencies", "affected-scenarios-requalified"].includes(
         composition_decision.outcome,
       )
@@ -457,7 +799,9 @@ export async function completeAcceptancePacket(
   const complete =
     !missingImages.length &&
     evidence.outcome === "passed" &&
-    evidence.setup_checks.every((check) => check.outcome === "passed") &&
+    evidence.setup_checks.every(
+      (check: unknown) => isRecord(check) && check.outcome === "passed",
+    ) &&
     actualOutcomes.every((item) => item.outcome === "passed") &&
     process_closure.outcome === "passed" &&
     process_closure.positive_exit === true &&
@@ -474,14 +818,14 @@ export async function completeAcceptancePacket(
     evidence: evidence_identity,
     execution_observation_source_head: evidence.revision,
     execution_preflight: observedPreflightIdentity,
-    outcomes: actualOutcomes,
-    retained_artifacts,
-    process_closure,
+    outcomes: context.outcomes,
+    retained_artifacts: context.retained_artifacts,
+    process_closure: context.process_closure,
     verified_positive_closure: positiveClosure,
-    image_inspections,
-    outcome_review,
-    final_delivery,
-    composition_decision: composition_decision ?? null,
+    image_inspections: context.image_inspections,
+    outcome_review: context.outcome_review,
+    final_delivery: context.final_delivery,
+    composition_decision: context.composition_decision ?? null,
     missing_required_images: missingImages,
     qualification_complete: complete,
   };

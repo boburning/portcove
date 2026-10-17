@@ -2400,3 +2400,4 @@ test("selected setup identities admit both replacements only in the opt-in catal
   assert.deepEqual(ordinaryCatalog.source_catalog, original.source_catalog);
 });
 import "../apps/desktop/scripts/desktop-qualification-history.native.test.mts";
+import "../apps/desktop/scripts/desktop-harness.native.test.mts";

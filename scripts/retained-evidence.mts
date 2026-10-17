@@ -25,6 +25,7 @@ export interface ConsumedInput extends FileIdentity {
   retained: FileIdentity;
   binding: "retained-artifact" | "retained-metadata-read" | "live-path-checked-cooperative";
   role?: string;
+  kind?: string;
 }
 export interface RetainedInput extends ConsumedInput {
   captured_at: string;
@@ -463,6 +464,8 @@ export async function readPrelaunchCustody(
     execution_started_at: manifest.execution_started_at,
     created_at: manifest.created_at,
     inputs: consumed,
+    retained_metadata: manifest.retained_metadata,
+    limitations: manifest.limitations,
   };
 }
 
@@ -476,6 +479,8 @@ function string(value: unknown): string {
 }
 function consumedInput(input: Record<string, unknown>): ConsumedInput & { role: string } {
   const retained = object(input.retained);
+  if (input.kind !== undefined && typeof input.kind !== "string")
+    throw new Error("Consumed input kind must be a string");
   if (
     typeof input.bytes !== "number" ||
     !Number.isSafeInteger(input.bytes) ||
@@ -492,6 +497,7 @@ function consumedInput(input: Record<string, unknown>): ConsumedInput & { role: 
     throw new Error("Consumed input differs from the prelaunch declaration");
   return {
     ...input,
+    ...(typeof input.kind === "string" ? { kind: input.kind } : {}),
     path: string(input.path),
     bytes: input.bytes,
     sha256: string(input.sha256),
