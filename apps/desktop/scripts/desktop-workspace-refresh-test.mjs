@@ -378,6 +378,10 @@ export async function workspaceRefreshScenario({
       assert.ok(observations.commands.includes("get_workspace_snapshot"));
       // Controlled native presentation only: the real Core status remains
       // unchanged; actual incompatible-source execution is covered separately.
+      await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
+      const sourceFormatCard = await browser.wait(until.elementLocated(cardLocator), 15_000);
+      await sourceFormatCard.findElement(By.css("button[data-detail-origin]")).click();
+      await browser.wait(until.elementLocated(By.css(".detail-panel")), 15_000);
       const sourceFormat = {
         injection:
           "replace one rendered launch assessment/readiness with incompatible_source and required extension z64; Core unchanged",
