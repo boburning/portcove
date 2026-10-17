@@ -63,6 +63,8 @@ mod preparation;
 mod process;
 mod providers;
 mod psx;
+#[cfg(feature = "qualification-fixtures")]
+mod qualification_checkpoint;
 mod recovery;
 mod release;
 mod runtime;
