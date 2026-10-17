@@ -143,7 +143,8 @@ for source in /etc/apt/sources.list /etc/apt/apt-mirrors.txt; do
 done
 if install_from_current_mirror "the archive mirror fallback" 4m "$fallback_install_deadline"; then
   exit 0
+else
+  status=$?
+  echo "Linux desktop prerequisites could not be installed from either bounded mirror attempt." >&2
+  exit "$status"
 fi
-
-echo "Linux desktop prerequisites could not be installed from either bounded mirror attempt." >&2
-exit 1

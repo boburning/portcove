@@ -1307,7 +1307,7 @@ export function createContainerHost(profile: string) {
         if (remaining <= 0)
           throw new Error(
             builder
-              ? "Builder preparation exceeded its 90-minute budget"
+              ? "Builder preparation exceeded its 120-minute budget"
               : "Browser preparation exceeded its 30-minute budget",
           );
         return Math.min(limit, remaining);

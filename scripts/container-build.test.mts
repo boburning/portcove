@@ -83,6 +83,36 @@ exit 99`;
       });
     }
   }
+  const fullControl = source.slice(source.indexOf("install_from_current_mirror() {"));
+  for (const status of [0, 100, 124, 137]) {
+    const script = `set -euo pipefail
+packages=(fixture)
+privilege=()
+install_deadline=3600s
+fallback_install_deadline=3600s
+installs=0
+sed() { :; }
+run_apt() {
+  echo "apt-call:$2"
+  if [[ $2 == install ]]; then
+    installs=$((installs + 1))
+    if (( installs == 1 )); then return 100; fi
+    return ${status}
+  fi
+}
+${fullControl}`;
+    if (status === 0) {
+      const result = await command(bash, ["-c", script]);
+      assert.equal(result.stdout.match(/apt-call:/gu)?.length, 4);
+    } else {
+      await assert.rejects(command(bash, ["-c", script]), (error) => {
+        assertCommandFailure(error);
+        assert.equal(error.result.status, status);
+        assert.match(error.result.stderr, /either bounded mirror attempt/u);
+        return true;
+      });
+    }
+  }
 });
 void test("package member inspection requires the exact regular executable", () => {
   const deb = "-rwxr-xr-x root/root 123 2026-10-16 00:00 ./usr/bin/portcove-desktop";
