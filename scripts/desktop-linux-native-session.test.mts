@@ -1,3 +1,5 @@
+// Keep the dependency-free PID1 packet controls in the maintained broad Node suite.
+import "../apps/desktop/scripts/desktop-linux-native-session.native.test.mts";
 import { readLinuxX11Configuration, assertQualificationUidMap } from "./desktop-linux-x11.mts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
