@@ -348,6 +348,9 @@ async function stopDriver() {
         linuxLaunch = undefined;
         driver = undefined;
         if (linuxPackagedInspector) {
+          const { assertMediaWrapperOutcome } =
+            await import("../../../scripts/desktop-linux-media.mjs");
+          assertMediaWrapperOutcome(cleanup.events);
           assert.equal(
             mediaWrapperFailure,
             false,
@@ -1034,16 +1037,23 @@ async function connectObservedDriver() {
   if (linuxPackagedInspector) {
     const evidence = path.join(output, "linux-webkit-inspector.json");
     artifacts.push(evidence);
+    const { assertApplicationMediaReadiness, awaitApplicationMediaReadiness } =
+      await import("../../../scripts/desktop-linux-media.mjs");
+    let readiness;
     browser = await connectLinuxInspector({
       port,
       launch: linuxLaunch,
       app: values.app,
       expectedSha256: inputs[0].sha256,
       evidence,
+      beforeConnect: async (deadline) => {
+        readiness = await awaitApplicationMediaReadiness(
+          applicationMediaEvidence,
+          linuxLaunch,
+          deadline,
+        );
+      },
     });
-    const { assertApplicationMediaReadiness } =
-      await import("../../../scripts/desktop-linux-media.mjs");
-    const readiness = JSON.parse(await readFile(applicationMediaEvidence, "utf8"));
     await admission.verify(inputs);
     for (const binding of [readiness.configuration, readiness.source]) {
       const captured = inputs.find((input) => input.path === binding.path);

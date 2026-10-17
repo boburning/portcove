@@ -11,8 +11,59 @@ import {
   assertHostedMediaEnvironment,
   readMediaConfiguration,
   assertApplicationMediaReadiness,
+  assertMediaWrapperOutcome,
+  publishApplicationMediaReadiness,
+  awaitApplicationMediaReadiness,
 } from "./desktop-linux-media.mjs";
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test("application media readiness waits for atomic publication within the existing startup deadline", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-publication-"));
+  const file = path.join(directory, "readiness.json");
+  const launch = { receipt: { events: [] }, child: { exitCode: null } };
+  const waiting = awaitApplicationMediaReadiness(file, launch, Date.now() + 2000);
+  await pause(30);
+  const receipt = { phase: "app-launched", marker: "complete" };
+  await publishApplicationMediaReadiness(file, receipt);
+  assert.deepEqual(await waiting, receipt);
+  await assert.rejects(
+    publishApplicationMediaReadiness(file, { marker: "replacement" }),
+    /EEXIST/u,
+  );
+  assert.deepEqual(JSON.parse(await readFile(file, "utf8")), receipt);
+  await assert.rejects(
+    awaitApplicationMediaReadiness(path.join(directory, "absent"), launch, Date.now() - 1),
+    /readiness deadline/u,
+  );
+  const malformed = path.join(directory, "malformed.json");
+  await writeFile(malformed, "{");
+  await assert.rejects(
+    awaitApplicationMediaReadiness(malformed, launch, Date.now() + 2000),
+    SyntaxError,
+  );
+});
+
+test("wrapper failure packets refuse even without terminal files; deliberate namespace cleanup needs no driver exit", async () => {
+  assertMediaWrapperOutcome([{ kind: "driver-started", pid: 2 }]);
+  assertMediaWrapperOutcome([{ kind: "driver-exited", code: 0, signal: null }]);
+  for (const event of [
+    { kind: "driver-error", message: "cannot persist failure" },
+    { kind: "driver-exited", code: 1, signal: null },
+    { kind: "driver-exited", code: null, signal: "SIGTERM" },
+  ]) {
+    assert.throws(() => assertMediaWrapperOutcome([event]));
+    await assert.rejects(
+      awaitApplicationMediaReadiness(
+        "missing-terminal-files",
+        {
+          receipt: { events: [event] },
+          child: { exitCode: null },
+        },
+        Date.now() + 2000,
+      ),
+    );
+  }
+});
 
 test("media admission requires positive reads and the actual application's namespace, generation and bytes", () => {
   const namespaces = { user: "user:[10]", mnt: "mnt:[20]", pid: "pid:[30]" };

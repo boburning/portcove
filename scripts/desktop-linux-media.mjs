@@ -15,6 +15,8 @@ import {
   copyFile,
   cp,
   readlink,
+  link,
+  unlink,
 } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,6 +53,40 @@ const save = (file, value, exclusive = true) =>
     flag: exclusive ? "wx" : "w",
     mode: 0o600,
   });
+
+export function assertMediaWrapperOutcome(events) {
+  for (const event of events) {
+    assert.notEqual(event.kind, "driver-error", "Application media wrapper launch failed");
+    if (event.kind === "driver-exited")
+      assert.deepEqual(
+        { code: event.code, signal: event.signal },
+        { code: 0, signal: null },
+        "Application media wrapper exited unsuccessfully before namespace cleanup",
+      );
+  }
+}
+
+export async function publishApplicationMediaReadiness(file, value) {
+  const pending = `${file}.pending`;
+  await save(pending, value);
+  // A hard link publishes complete bytes atomically and refuses replacement.
+  await link(pending, file);
+  await unlink(pending);
+}
+
+export async function awaitApplicationMediaReadiness(file, launch, deadline) {
+  for (;;) {
+    assert.ok(Date.now() < deadline, "Application media readiness deadline");
+    assertMediaWrapperOutcome(launch.receipt.events);
+    try {
+      return JSON.parse(await readFile(file, "utf8"));
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    assert.equal(launch.child.exitCode, null, "Namespace exited before media readiness");
+    await pause(Math.max(1, Math.min(20, deadline - Date.now())));
+  }
+}
 
 export function assertHostedMediaEnvironment(environment, platform, uid) {
   assert.equal(platform, "linux");
@@ -167,6 +203,7 @@ async function prepare() {
       timeout: 6000,
       stdio: "inherit",
     });
+
     assert.equal((await lstat(device)).isCharacterDevice(), true);
     assert.match(
       await readFile("/sys/class/video4linux/video42/name", "utf8"),
@@ -501,7 +538,7 @@ async function launchProbedApplication(file, app, expectedSha256, evidence) {
       executable: report.executable.path,
     });
     report.application_observed_at = new Date().toISOString();
-    await save(evidence, report);
+    await publishApplicationMediaReadiness(evidence, report);
     const status = await exited;
     await save(`${evidence}.exit.json`, { ...status, observed_at: new Date().toISOString() });
     assert.equal(status.signal, null, "Ordinary app exited by signal before namespace cleanup");

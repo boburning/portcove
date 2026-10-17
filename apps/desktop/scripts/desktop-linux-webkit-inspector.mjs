@@ -335,7 +335,14 @@ export class LinuxInspectorProtocol {
   }
 }
 
-export async function connectLinuxInspector({ port, launch, app, expectedSha256, evidence }) {
+export async function connectLinuxInspector({
+  port,
+  launch,
+  app,
+  expectedSha256,
+  evidence,
+  beforeConnect,
+}) {
   assert.equal(process.platform, "linux");
   const report = {
     transport: "WebKit WebPage inspector",
@@ -347,6 +354,8 @@ export async function connectLinuxInspector({ port, launch, app, expectedSha256,
   let originalFailure;
   try {
     const deadline = Date.now() + 20_000;
+    if (beforeConnect)
+      await bounded(beforeConnect(deadline), deadline, "Application media readiness");
     while (!report.listener) {
       try {
         report.listener = await bounded(
