@@ -67,9 +67,9 @@ export function describeFailure(result: unknown, kind: string = "unknown") {
       else if (code === "EACCES" || code === "EPERM") kind = "executor-provider";
     }
     const facts = [
-      Number.isInteger(result.status) ? `exit ${result.status}` : null,
+      Number.isInteger(result.status) ? `exit ${diagnosticString(result.status)}` : null,
       code ? `error ${code}` : null,
-      result.signal ? `signal ${result.signal}` : null,
+      result.signal ? `signal ${diagnosticString(result.signal)}` : null,
     ].filter(Boolean);
     return {
       kind,
@@ -117,16 +117,71 @@ export function commandFailure(
   return error;
 }
 
-export function summarizeReport(kind, report, reference) {
-  if (!report || typeof report !== "object") throw new Error("Report must be a JSON object");
+function diagnosticString(value: unknown): string {
+  return String(value);
+}
+function fields(value: unknown): Record<string, unknown> {
+  if (value === null || value === undefined) throw new TypeError("Missing report section");
+  if (isRecord(value)) return value;
+  if (Array.isArray(value)) {
+    const items: unknown[] = value;
+    return Object.fromEntries(Object.entries(items));
+  }
+  if (typeof value === "string")
+    return Object.fromEntries(
+      value.split("").map((character, index) => [String(index), character]),
+    );
+  return {};
+}
+function optionalFields(value: unknown): Record<string, unknown> {
+  return value == null ? {} : fields(value);
+}
+function arrayRows(value: unknown): unknown[] {
+  if (!Array.isArray(value)) throw new TypeError("Expected report array");
+  return value;
+}
+function rows(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") return Array.from(value);
+  throw new TypeError("Expected report rows");
+}
+function failureLabel(value: unknown): string {
+  return (
+    Object.entries(failureLabels).find(([name]) => name === value)?.[1] ?? failureLabels.unknown
+  );
+}
+type CountedReportKind = "ci" | "roadmap" | "watch" | "doctor" | "timings" | "renovate" | "ui";
+type CountedSummary = ReturnType<typeof renderBoundedSummary>;
+// Inputs remain untrusted presentation data. This projection does not establish
+// report validity, inventory completeness, acceptance, or a reusable verdict.
+export function summarizeReport(
+  kind: CountedReportKind,
+  report: unknown,
+  reference: string,
+): CountedSummary;
+export function summarizeReport(
+  kind: "fallow",
+  report: unknown,
+  reference: string,
+): { text: string };
+export function summarizeReport(
+  kind: string,
+  report: unknown,
+  reference: string,
+): CountedSummary | { text: string };
+export function summarizeReport(kind: string, report: unknown, reference: string) {
+  if (!isRecord(report)) throw new Error("Report must be a JSON object");
   if (kind === "renovate" && report.evidence) {
-    const entries = report.evidence.candidates
-      ? report.evidence.candidates.map(
-          (entry) =>
-            `#${entry.number} ${entry.head}: ${entry.verdict}; ${entry.reason}; ${entry.next_action}`,
-        )
-      : [`${report.evidence.head}: ${report.evidence.verdict}; ${report.evidence.reason}`];
-    return renderBoundedSummary(report.summary, entries, { reference });
+    const evidence = fields(report.evidence);
+    const entries = evidence.candidates
+      ? arrayRows(evidence.candidates).map((value) => {
+          const entry = fields(value);
+          return `#${diagnosticString(entry.number)} ${diagnosticString(entry.head)}: ${diagnosticString(entry.verdict)}; ${diagnosticString(entry.reason)}; ${diagnosticString(entry.next_action)}`;
+        })
+      : [
+          `${diagnosticString(evidence.head)}: ${diagnosticString(evidence.verdict)}; ${diagnosticString(evidence.reason)}`,
+        ];
+    return renderBoundedSummary(diagnosticString(report.summary), entries, { reference });
   }
   if (
     kind === "ui" &&
@@ -135,14 +190,15 @@ export function summarizeReport(kind, report, reference) {
     Array.isArray(report.executed_files)
   ) {
     return renderBoundedSummary(
-      `UI selection: requested ${report.requested_files.length}; discovered ${report.discovered_files.length}; executed ${report.executed_files.length}; passed ${report.passed}; skipped ${report.skipped}`,
-      report.requested_files,
+      `UI selection: requested ${diagnosticString(report.requested_files.length)}; discovered ${diagnosticString(report.discovered_files.length)}; executed ${diagnosticString(report.executed_files.length)}; passed ${diagnosticString(report.passed)}; skipped ${diagnosticString(report.skipped)}`,
+      rows(report.requested_files).map(diagnosticString),
       { reference },
     );
   }
   if (kind === "timings" && Array.isArray(report.records)) {
-    const failed = report.records.filter((entry) => entry.outcome === "failed");
-    const observed = new Map();
+    const records = rows(report.records).map(fields);
+    const failed = records.filter((entry) => entry.outcome === "failed");
+    const observed = new Map<string, Record<string, unknown>[]>();
     for (const entry of failed) {
       const key = JSON.stringify(entry.context ?? {});
       const entries = observed.get(key) ?? [];
@@ -150,33 +206,36 @@ export function summarizeReport(kind, report, reference) {
       observed.set(key, entries);
     }
     const failures = [...observed.values()].flatMap((entries) => {
-      const ordered = entries.every((entry) => Number.isFinite(Date.parse(entry.recorded_at)));
+      const ordered = entries.every((entry) =>
+        Number.isFinite(Date.parse(diagnosticString(entry.recorded_at))),
+      );
       const earliest = ordered
-        ? entries.reduce((stamp, entry) => Math.min(stamp, Date.parse(entry.recorded_at)), Infinity)
+        ? entries.reduce(
+            (stamp, entry) => Math.min(stamp, Date.parse(diagnosticString(entry.recorded_at))),
+            Infinity,
+          )
         : null;
       const selected = ordered
-        ? entries.filter((entry) => Date.parse(entry.recorded_at) === earliest)
+        ? entries.filter((entry) => Date.parse(diagnosticString(entry.recorded_at)) === earliest)
         : entries;
       return selected.map((entry) => {
-        const failure = entry.failure;
-        const label = Object.hasOwn(failureLabels, failure?.kind)
-          ? failureLabels[failure.kind]
-          : failureLabels.unknown;
+        const failure = optionalFields(entry.failure);
+        const label = failureLabel(failure.kind);
         const order = !ordered
           ? "Order unavailable for"
           : selected.length === 1
             ? "First recorded"
             : "Co-earliest recorded (order ambiguous)";
-        return `${order} failing producer ${entry.context?.job ?? "unknown job"}/${entry.context?.run ?? "unknown run"}/${entry.context?.attempt ?? "unknown attempt"} ${entry.phase}: ${label}; ${failure?.observation ?? "cause not established"}`;
+        return `${diagnosticString(order)} failing producer ${diagnosticString(optionalFields(entry.context).job ?? "unknown job")}/${diagnosticString(optionalFields(entry.context).run ?? "unknown run")}/${diagnosticString(optionalFields(entry.context).attempt ?? "unknown attempt")} ${diagnosticString(entry.phase)}: ${diagnosticString(label)}; ${diagnosticString(failure.observation ?? "cause not established")}`;
       });
     });
     return renderBoundedSummary(
       "CI diagnostic timings (advisory; observed artifact coverage only; not acceptance evidence)",
       [
         ...failures,
-        ...report.records.map(
+        ...records.map(
           (entry) =>
-            `${entry.context?.job ?? "unknown job"}/${entry.context?.run ?? "unknown run"}/${entry.context?.attempt ?? "unknown attempt"} ${entry.phase}: ${entry.elapsed_ms ?? "unmeasured"}ms; ${entry.outcome ?? "observed"}; cache ${entry.cache_outcome ?? "unknown"}${entry.selected_tests === undefined ? "" : `; tests ${entry.selected_tests}/${entry.complete_tests}`}`,
+            `${diagnosticString(optionalFields(entry.context).job ?? "unknown job")}/${diagnosticString(optionalFields(entry.context).run ?? "unknown run")}/${diagnosticString(optionalFields(entry.context).attempt ?? "unknown attempt")} ${diagnosticString(entry.phase)}: ${diagnosticString(entry.elapsed_ms ?? "unmeasured")}ms; ${diagnosticString(entry.outcome ?? "observed")}; cache ${diagnosticString(entry.cache_outcome ?? "unknown")}${diagnosticString(entry.selected_tests === undefined ? "" : `; tests ${diagnosticString(entry.selected_tests)}/${diagnosticString(entry.complete_tests)}`)}`,
         ),
       ],
       { reference },
@@ -184,75 +243,103 @@ export function summarizeReport(kind, report, reference) {
   }
   if (
     kind === "watch" &&
-    (report.evidence?.watch || report.evidence?.contexts || report.kind?.startsWith("delivery-"))
+    (optionalFields(report.evidence).watch ||
+      optionalFields(report.evidence).contexts ||
+      (typeof report.kind === "string" && report.kind.startsWith("delivery-")))
   ) {
-    const watch = report.evidence?.watch ?? report.evidence ?? report;
+    const evidence = optionalFields(report.evidence);
+    const watch = fields(evidence.watch ?? report.evidence ?? report);
     return renderBoundedSummary(
-      report.summary ?? "Delivery watch",
+      diagnosticString(report.summary ?? "Delivery watch"),
       [
-        `Source: ${report.evidence?.head ?? watch.head}; run: ${watch.run}; attempt: ${watch.attempt}; status: ${report.status ?? watch.workflow?.status ?? "unknown"}`,
-        `Queue: ${watch.timings?.queue_ms ?? "unmeasured"}ms; required baseline: ${watch.timings?.baseline_elapsed_ms ?? "unmeasured"}ms`,
-        ...(watch.contexts ?? []).map(
-          (entry) => `${entry.context}: ${entry.outcome ?? entry.conclusion ?? "unknown"}`,
-        ),
+        `Source: ${diagnosticString(evidence.head ?? watch.head)}; run: ${diagnosticString(watch.run)}; attempt: ${diagnosticString(watch.attempt)}; status: ${diagnosticString(report.status ?? optionalFields(watch.workflow).status ?? "unknown")}`,
+        `Queue: ${diagnosticString(optionalFields(watch.timings).queue_ms ?? "unmeasured")}ms; required baseline: ${diagnosticString(optionalFields(watch.timings).baseline_elapsed_ms ?? "unmeasured")}ms`,
+        ...arrayRows(watch.contexts ?? []).map((value) => {
+          const entry = fields(value);
+          return `${diagnosticString(entry.context)}: ${diagnosticString(entry.outcome ?? entry.conclusion ?? "unknown")}`;
+        }),
       ],
       { reference },
     );
   }
   if (kind === "doctor" && report.context) {
+    const context = fields(report.context);
     return renderBoundedSummary(
-      `Roadmap doctor: ${report.status}`,
+      `Roadmap doctor: ${diagnosticString(report.status)}`,
       [
-        `Checkout: ${report.context.root}; HEAD: ${report.context.head}; branch: ${report.context.branch}`,
-        `Catalog: ${report.context.catalog}; SHA-256: ${report.context.catalog_sha256}; modified inputs: ${report.context.input_dirty}`,
-        ...Object.entries(report.counts ?? {}).map(([key, value]) => `${key}: ${value}`),
-        ...(report.errors ?? []),
-        ...(report.warnings ?? []),
+        `Checkout: ${diagnosticString(context.root)}; HEAD: ${diagnosticString(context.head)}; branch: ${diagnosticString(context.branch)}`,
+        `Catalog: ${diagnosticString(context.catalog)}; SHA-256: ${diagnosticString(context.catalog_sha256)}; modified inputs: ${diagnosticString(context.input_dirty)}`,
+        ...Object.entries(optionalFields(report.counts)).map(
+          ([key, value]) => `${diagnosticString(key)}: ${diagnosticString(value)}`,
+        ),
+        ...rows(report.errors ?? []).map(diagnosticString),
+        ...rows(report.warnings ?? []).map(diagnosticString),
       ],
       { reference },
     );
   }
   if (kind === "ci" && Array.isArray(report.jobs)) {
-    const entries = report.jobs
+    const jobs = rows(report.jobs).map(fields);
+    const entries = jobs
       .filter((job) => job.conclusion !== "success" && job.conclusion !== "skipped")
       .map(
         (job) =>
-          `${job.id ?? job.databaseId ?? "unknown ID"}: ${job.name}; ${job.status ?? "unknown"}/${job.conclusion ?? "pending"}`,
+          `${diagnosticString(job.id ?? job.databaseId ?? "unknown ID")}: ${diagnosticString(job.name)}; ${diagnosticString(job.status ?? "unknown")}/${diagnosticString(job.conclusion ?? "pending")}`,
       );
     return renderBoundedSummary(
-      `CI jobs: observed ${report.jobs.length}; provider total ${report.total_count ?? "unknown"}; inventory completeness must be verified separately`,
+      `CI jobs: observed ${diagnosticString(report.jobs.length)}; provider total ${diagnosticString(report.total_count ?? "unknown")}; inventory completeness must be verified separately`,
       entries,
       { reference },
     );
   }
   if (kind === "roadmap" && report.canonical_issue && report.planning) {
+    const issue = fields(report.canonical_issue);
     return renderBoundedSummary(
-      `#${report.canonical_issue.number} ${report.canonical_issue.title}`,
+      `#${diagnosticString(issue.number)} ${diagnosticString(issue.title)}`,
       [
-        `Revision: ${report.snapshot?.revision ?? "unknown"}`,
-        `Comparison: ${report.comparison?.state ?? "unknown"}; reservation: ${report.reservation?.assessment ?? "unknown"}`,
-        ...Object.entries(report.planning).map(([key, value]) => `${key}: ${value ?? "unset"}`),
+        `Revision: ${diagnosticString(optionalFields(report.snapshot).revision ?? "unknown")}`,
+        `Comparison: ${diagnosticString(optionalFields(report.comparison).state ?? "unknown")}; reservation: ${diagnosticString(optionalFields(report.reservation).assessment ?? "unknown")}`,
+        ...Object.entries(fields(report.planning)).map(
+          ([key, value]) => `${diagnosticString(key)}: ${diagnosticString(value ?? "unset")}`,
+        ),
       ],
       { reference },
     );
   }
-  if (kind === "fallow" && report.health?.summary) {
+  if (kind === "fallow" && optionalFields(report.health).summary) {
     return { text: summarizeFallow(report, reference) };
   }
-  throw new Error(`Unsupported or malformed ${kind} report; no result claimed`);
+  throw new Error(`Unsupported or malformed ${diagnosticString(kind)} report; no result claimed`);
 }
 
-export function retainReportSummary(kind, report, directory: string) {
+export function retainReportSummary(
+  kind: CountedReportKind,
+  report: unknown,
+  directory: string,
+): CountedSummary;
+export function retainReportSummary(
+  kind: "fallow",
+  report: unknown,
+  directory: string,
+): { text: string };
+export function retainReportSummary(
+  kind: string,
+  report: unknown,
+  directory: string,
+): CountedSummary | { text: string };
+export function retainReportSummary(kind: string, report: unknown, directory: string) {
   mkdirSync(directory, { recursive: true });
   const reference = path.join(directory, `${randomUUID()}.json`);
-  writeFileSync(reference, JSON.stringify(report), { flag: "wx" });
+  const contents = JSON.stringify(report);
+  if (contents === undefined) throw new TypeError("Report is not JSON serializable");
+  writeFileSync(reference, contents, { flag: "wx" });
   return summarizeReport(kind, report, reference);
 }
 
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   try {
     const [kind, file, ...rest] = process.argv.slice(2);
-    if (!file || rest.length)
+    if (!kind || !file || rest.length)
       throw new Error(
         "usage: report-summary.mts ci|roadmap|fallow|watch|doctor|timings|renovate|ui FILE",
       );

@@ -12,7 +12,7 @@ import {
   retainReportSummary,
 } from "./report-summary.mts";
 
-test("only structured launch facts classify prerequisites; exits, timeouts and signals stay unknown", () => {
+void test("only structured launch facts classify prerequisites; exits, timeouts and signals stay unknown", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "missing-process-"));
   try {
     const missing = spawnSync(path.join(root, "unavailable-tool"), [], { encoding: "utf8" });
@@ -44,7 +44,7 @@ test("only structured launch facts classify prerequisites; exits, timeouts and s
   }
 });
 
-test("evidence collection failure remains secondary to the original failed command", () => {
+void test("evidence collection failure remains secondary to the original failed command", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "failure-evidence-"));
   try {
     const file = path.join(root, "not-a-directory");
@@ -68,7 +68,7 @@ test("evidence collection failure remains secondary to the original failed comma
   }
 });
 
-test("diagnostic summaries show the first recorded producer per job without guessing unknown order", () => {
+void test("diagnostic summaries show the first recorded producer per job without guessing unknown order", () => {
   const context = { job: "contracts", run: "12", attempt: "1" };
   const first = {
     phase: "syntax",
@@ -110,7 +110,7 @@ test("diagnostic summaries show the first recorded producer per job without gues
   }
 });
 
-test("REST and gh IDs remain visible without claiming complete inventories", () => {
+void test("REST and gh IDs remain visible without claiming complete inventories", () => {
   for (const job of [{ id: 12 }, { databaseId: 12 }]) {
     const result = summarizeReport(
       "ci",
@@ -121,7 +121,7 @@ test("REST and gh IDs remain visible without claiming complete inventories", () 
     assert.match(result.text, /completeness must be verified separately/);
   }
 });
-test("timing and raw watch snapshots stay bounded and report unknown measurements", () => {
+void test("timing and raw watch snapshots stay bounded and report unknown measurements", () => {
   const report = {
     records: Array.from({ length: 1000 }, () => ({
       phase: "🎮".repeat(500),
@@ -146,7 +146,7 @@ test("timing and raw watch snapshots stay bounded and report unknown measurement
   assert.match(watch.text, /rust: pending/);
 });
 
-test("oversized Unicode findings retain truthful omission counts within the byte budget", () => {
+void test("oversized Unicode findings retain truthful omission counts within the byte budget", () => {
   const entries = ["small", "🌍".repeat(100_000), "later"];
   const result = renderBoundedSummary("diagnostic", entries, { reference: "raw.json" });
   assert.ok(Buffer.byteLength(result.text) <= 16 * 1024);
@@ -155,7 +155,7 @@ test("oversized Unicode findings retain truthful omission counts within the byte
   assert.match(result.text, /Findings: 3; shown: 1; omitted: 2/);
 });
 
-test("single-line CI JSON remains intact while the CLI emits a bounded summary", () => {
+void test("single-line CI JSON remains intact while the CLI emits a bounded summary", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "report-summary-"));
   try {
     const file = path.join(root, "raw.json");
@@ -180,7 +180,7 @@ test("single-line CI JSON remains intact while the CLI emits a bounded summary",
   }
 });
 
-test("queue summaries retain raw Unicode records before projecting within the stream budget", () => {
+void test("queue summaries retain raw Unicode records before projecting within the stream budget", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "queue-summary-"));
   try {
     const report = {
@@ -198,10 +198,9 @@ test("queue summaries retain raw Unicode records before projecting within the st
     const result = retainReportSummary("renovate", report, root);
     assert(Buffer.byteLength(result.text + "\n") <= 16 * 1024);
     assert(result.omitted > 0);
-    const reference = result.text
-      .split("\n")
-      .find((line: string) => line.startsWith("Raw evidence: "))
-      .slice(14);
+    const referenceLine = result.text.split("\n").find((line) => line.startsWith("Raw evidence: "));
+    assert.ok(referenceLine);
+    const reference = referenceLine.slice(14);
     assert.deepEqual(JSON.parse(readFileSync(reference, "utf8")), report);
     const obstacle = path.join(root, "obstacle");
     writeFileSync(obstacle, "file");
@@ -210,7 +209,7 @@ test("queue summaries retain raw Unicode records before projecting within the st
     rmSync(root, { recursive: true, force: true });
   }
 });
-test("UI projections expose requested/discovered/executed and skips rather than inferring coverage", () => {
+void test("UI projections expose requested/discovered/executed and skips rather than inferring coverage", () => {
   const result = summarizeReport(
     "ui",
     {
