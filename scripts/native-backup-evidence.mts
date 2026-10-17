@@ -1,5 +1,6 @@
 // Lossless bounded retention for the one on-demand backup-focus job, in free job logs.
 import assert from "node:assert/strict";
+import { isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 import { lstat, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -10,10 +11,10 @@ const byteLimit = 12 * 1024 * 1024;
 const payloadLimit = 20 * 1024 * 1024;
 const compressedLimit = 8 * 1024 * 1024;
 const prefix = "PORTCOVE_BACKUP_EVIDENCE_V1";
-const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const ownedName = /^(?:[a-zA-Z0-9_.-]+\/){0,3}[a-zA-Z0-9_.-]+\.(?:png|json|jsonl|log)$/u;
 
-async function filesIn(directory: string, extensions) {
+async function filesIn(directory: string, extensions: ReadonlySet<string>) {
   const result = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (!extensions.has(path.extname(entry.name))) continue;
@@ -31,8 +32,10 @@ export async function encodeBackupEvidence(root: string) {
     assert.ok((await lstat(runs)).isDirectory(), "Owned run root must be a regular directory");
     const entries = await readdir(runs, { withFileTypes: true });
     assert.equal(entries.length, 1, "One manual probe must retain exactly one run");
-    assert.ok(entries[0].isDirectory(), "Run must be a regular directory");
-    const run = path.join(runs, entries[0].name);
+    const entry = entries[0];
+    assert.ok(entry);
+    assert.ok(entry.isDirectory(), "Run must be a regular directory");
+    const run = path.join(runs, entry.name);
     files.push(...(await filesIn(run, new Set([".json", ".log"]))));
     const native = path.join(run, "native");
     if (await lstat(native).catch(() => null)) {
@@ -43,11 +46,11 @@ export async function encodeBackupEvidence(root: string) {
   return encodeFiles(root, files);
 }
 
-async function encodeFiles(root: string, files) {
+async function encodeFiles(root: string, files: string[]) {
   assert.ok(files.length > 0 && files.length <= 128, "Missing or excessive native evidence");
   let total = 0;
   const records = [];
-  for (const file of files.sort()) {
+  for (const file of files.sort((left, right) => (left < right ? -1 : left > right ? 1 : 0))) {
     const name = path.relative(root, file).split(path.sep).join("/");
     assert.ok(
       ownedName.test(name) && !name.split("/").includes(".."),
@@ -82,8 +85,8 @@ async function encodeFiles(root: string, files) {
 // Fixed hosted jobs retain only their isolated reports, raw logs and PNGs.
 // The original one-backup-run inventory remains unchanged above.
 export async function encodeHostedEvidence(root: string) {
-  const files = [];
-  async function visit(directory: string, depth) {
+  const files: string[] = [];
+  async function visit(directory: string, depth: number): Promise<void> {
     assert.ok(depth <= 3 && (await lstat(directory)).isDirectory(), "Unsupported evidence tree");
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const file = path.join(directory, entry.name);
@@ -108,37 +111,55 @@ export async function encodeHostedEvidence(root: string) {
   return encodeFiles(root, files);
 }
 
-export async function recoverHostedEvidence(log, destination: string, expected) {
+const hostedIdentityKeys = [
+  "source",
+  "controller",
+  "base",
+  "run",
+  "attempt",
+  "job",
+  "phase",
+  "binding_sha256",
+] as const;
+export interface HostedEvidenceIdentity {
+  source: string;
+  controller: string;
+  base: string;
+  run: string;
+  attempt: string;
+  job: string;
+  phase: string;
+  binding_sha256: string;
+}
+function assertHostedIdentity(value: unknown): asserts value is HostedEvidenceIdentity {
+  assert.ok(
+    isRecord(value) && hostedIdentityKeys.every((key) => typeof value[key] === "string"),
+    "Invalid expected hosted evidence identity",
+  );
+}
+export async function recoverHostedEvidence(log: string, destination: string, expected: unknown) {
   const names = await recoverBackupEvidence(log, destination);
-  const binding = JSON.parse(await readFile(path.join(destination, "binding.json"), "utf8"));
-  for (const key of [
-    "source",
-    "controller",
-    "base",
-    "run",
-    "attempt",
-    "job",
-    "phase",
-    "binding_sha256",
-  ])
+  assertHostedIdentity(expected);
+  const binding: unknown = JSON.parse(
+    await readFile(path.join(destination, "binding.json"), "utf8"),
+  );
+  assert.ok(isRecord(binding), "Invalid recovered hosted evidence binding");
+  for (const key of hostedIdentityKeys)
     assert.ok(
       expected[key] !== undefined && binding[key] === expected[key],
       `Recovered ${key} differs`,
     );
   assert.ok(names.includes("execution.json"), "No terminal command evidence");
-  const execution = JSON.parse(await readFile(path.join(destination, "execution.json"), "utf8"));
-  for (const key of [
-    "source",
-    "controller",
-    "base",
-    "run",
-    "attempt",
-    "job",
-    "phase",
-    "binding_sha256",
-  ])
+  const execution: unknown = JSON.parse(
+    await readFile(path.join(destination, "execution.json"), "utf8"),
+  );
+  assert.ok(isRecord(execution), "Invalid terminal command evidence");
+  for (const key of hostedIdentityKeys)
     assert.equal(execution[key], expected[key], `Terminal ${key} differs`);
-  assert.ok(Number.isInteger(execution.exit_code), "Missing terminal exit status");
+  assert.ok(
+    typeof execution.exit_code === "number" && Number.isInteger(execution.exit_code),
+    "Missing terminal exit status",
+  );
   if (execution.phase === "audit" && execution.exit_code === 0)
     assert.ok(
       names.includes("complete-audit-receipt.json"),
@@ -149,7 +170,7 @@ export async function recoverHostedEvidence(log, destination: string, expected) 
       names.some((name: string) => name.endsWith(".png")),
       "Native success requires actual PNG bytes",
     );
-  return { names, phase: execution.phase, exit_code: execution.exit_code };
+  return { names, phase: expected.phase, exit_code: execution.exit_code };
 }
 
 export async function recoverBackupEvidence(log: string, destination: string) {
@@ -159,26 +180,33 @@ export async function recoverBackupEvidence(log: string, destination: string) {
     ),
   ];
   assert.ok(matches.length > 0 && matches.length <= 3000, "Missing or excessive evidence records");
-  const count = Number(matches[0][2]);
-  const hash = matches[0][3];
+  const first = matches[0];
+  assert.ok(first);
+  const count = Number(first[2]);
+  const hash = first[3];
   assert.equal(matches.length, count, "Incomplete evidence records");
   for (const [index, match] of matches.entries()) {
     assert.equal(Number(match[1]), index + 1, "Reordered or duplicate evidence records");
     assert.equal(Number(match[2]), count);
     assert.equal(match[3], hash);
-    assert.ok(match[4].length <= 4096);
+    assert.ok(match[4] && match[4].length <= 4096);
   }
   const compressed = Buffer.from(matches.map((match) => match[4]).join(""), "base64");
   assert.ok(compressed.length <= compressedLimit);
   assert.equal(digest(compressed), hash, "Evidence payload hash mismatch");
-  const payload = JSON.parse(gunzipSync(compressed, { maxOutputLength: payloadLimit }));
+  const payload: unknown = JSON.parse(
+    gunzipSync(compressed, { maxOutputLength: payloadLimit }).toString(),
+  );
+  assert.ok(isRecord(payload), "Invalid evidence payload");
   assert.equal(payload.format_version, 1);
   assert.ok(
     Array.isArray(payload.files) && payload.files.length > 0 && payload.files.length <= 128,
   );
   let total = 0;
-  const names = new Set();
-  const decoded = payload.files.map((file) => {
+  const names = new Set<string>();
+  const files: unknown[] = payload.files;
+  const decoded = files.map((file) => {
+    assert.ok(isRecord(file) && typeof file.name === "string", "Invalid evidence record");
     assert.ok(ownedName.test(file.name) && !file.name.split("/").includes(".."));
     assert.ok(!names.has(file.name), "Duplicate evidence path");
     names.add(file.name);
@@ -203,21 +231,29 @@ export async function recoverBackupEvidence(log: string, destination: string) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [mode, input, output] = process.argv.slice(2);
   assert.ok(
-    input &&
+    mode &&
+      input &&
       ((["emit", "emit-hosted"].includes(mode) && !output) ||
         (["recover", "recover-hosted"].includes(mode) && output)),
     "usage: native-backup-evidence.mts emit[-hosted] <owned-root> | recover[-hosted] <job-log> <new-directory> [expected-binding.json]",
   );
   if (mode === "emit") console.log(await encodeBackupEvidence(path.resolve(input)));
   else if (mode === "emit-hosted") console.log(await encodeHostedEvidence(path.resolve(input)));
-  else if (mode === "recover-hosted")
+  else if (mode === "recover-hosted") {
+    const expectedFile = process.argv[5];
+    assert.ok(
+      output && expectedFile,
+      "Hosted recovery requires an output directory and expected binding file",
+    );
     console.log(
       await recoverHostedEvidence(
         await readFile(input, "utf8"),
         path.resolve(output),
-        JSON.parse(await readFile(process.argv[5], "utf8")),
+        JSON.parse(await readFile(expectedFile, "utf8")),
       ),
     );
-  else
+  } else {
+    assert.ok(output);
     console.log(await recoverBackupEvidence(await readFile(input, "utf8"), path.resolve(output)));
+  }
 }

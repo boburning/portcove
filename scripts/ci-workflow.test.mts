@@ -257,6 +257,49 @@ test("decoded hosted evidence recovers exact PNG bytes and rejects wrong run or 
   await assert.rejects(() => encodeHostedEvidence(input), /links/);
 });
 
+void test("hosted evidence rejects malformed matching identities while retaining decoded failure evidence", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "hosted-identity-shape-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const input = path.join(root, "input");
+  await mkdir(input);
+  const identity = {
+    source: "a".repeat(40),
+    controller: "b".repeat(40),
+    base: "c".repeat(40),
+    run: "42",
+    attempt: "1",
+    job: "hosted_compiled",
+    phase: "compiled",
+    binding_sha256: "d".repeat(64),
+  };
+  for (const [index, patch] of [
+    { source: 42 },
+    { controller: null },
+    { phase: 42 },
+    { job: {} },
+  ].entries()) {
+    const malformed = { ...identity, ...patch };
+    await writeFile(path.join(input, "binding.json"), JSON.stringify(malformed));
+    await writeFile(
+      path.join(input, "execution.json"),
+      JSON.stringify({ ...malformed, exit_code: 0 }),
+    );
+    const destination = path.join(root, `failure-${index}`);
+    await assert.rejects(
+      recoverHostedEvidence(await encodeHostedEvidence(input), destination, malformed),
+      /Invalid expected hosted evidence identity/u,
+    );
+    assert.deepEqual(
+      await readFile(path.join(destination, "binding.json")),
+      await readFile(path.join(input, "binding.json")),
+    );
+    assert.deepEqual(
+      await readFile(path.join(destination, "execution.json")),
+      await readFile(path.join(input, "execution.json")),
+    );
+  }
+});
+
 test("hosted backup focus is manual-only, pinned, isolated and retains real evidence without billed storage", async () => {
   const source = await readFile(
     new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
