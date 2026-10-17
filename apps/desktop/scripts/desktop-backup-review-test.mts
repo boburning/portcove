@@ -1,4 +1,41 @@
 import { executeBrowserScript } from "./browser-script.mts";
+import type { WebDriver } from "selenium-webdriver";
+import type {
+  BackupRecord,
+  InstallRecord,
+  PortDefinition,
+} from "../src/transport-types.generated.d.ts";
+import type { FixtureCommand } from "./desktop-scenario-state.mts";
+import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+import { transportValue } from "./transport-values.mts";
+interface BackupReviewContext {
+  browser: WebDriver;
+  invoke: (name: string, args?: Record<string, unknown>) => Promise<unknown>;
+  scenario: (name: string, execute: () => Promise<void>) => Promise<unknown>;
+  library: string;
+  output: string;
+  artifacts: string[];
+  command: FixtureCommand;
+  seed: (
+    portId: string,
+    mode: "success",
+  ) => Promise<{ port: PortDefinition; install: InstallRecord }>;
+  open: (port: PortDefinition, refresh?: boolean) => Promise<unknown>;
+  confirmNative: ReturnType<typeof nativeConfirmation>;
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function text(value: unknown) {
+  assert.ok(typeof value === "string");
+  return value;
+}
+async function consentText(file: string) {
+  const value: unknown = JSON.parse(await readFile(file, "utf8"));
+  return text(object(value).text);
+}
 // Reviewed backup actions in the desktop-test harness's owned library.
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -32,30 +69,36 @@ export async function backupReviewScenario({
   seed,
   open,
   confirmNative,
-}) {
+}: BackupReviewContext) {
+  const ipc = async (name: string, args?: Record<string, unknown>) =>
+    object(await invoke(name, args));
+  const readStatus = (portId: string) => transportValue("status", command(["status", portId]));
+  const inventory = (portId: string) =>
+    transportValue("backup_inventory", command(["backup", "list", portId]));
   await scenario("native-reviewed-backup-restore-and-delete", async () => {
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     const { port, install } = await seed("opengoal-jak3", "success");
-    const paths = command(["paths", port.id]);
+    const paths = transportValue("port_paths", command(["paths", port.id]));
     const relative = path.relative(library, paths.user_data_root);
     assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
     const save = path.join(paths.user_data_root, "owned-review-save.bin");
     await mkdir(paths.user_data_root, { recursive: true });
     await writeFile(save, "selected snapshot data");
-    const selected = command(["backup", "create", port.id]);
+    const selected = transportValue("backup", command(["backup", "create", port.id]));
     await writeFile(save, "other snapshot data");
-    const other = command(["backup", "create", port.id]);
+    const other = transportValue("backup", command(["backup", "create", port.id]));
     await writeFile(save, "current data before review");
     await open(port);
-    const clickVisible = (element) => clickReviewControl(browser, element);
-    const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
-    const row = (id) =>
+    const clickVisible = (element: Parameters<typeof clickReviewControl>[1]) =>
+      clickReviewControl(browser, element);
+    const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+    const row = (id: string) =>
       browser.wait(
         until.elementLocated(By.css(`${backupSectionSelector} [data-backup-id="${id}"]`)),
         15_000,
       );
-    const list = () => command(["backup", "list", port.id]).backups;
-    const degradedInventory = (problemCount) =>
+    const list = () => inventory(port.id).backups;
+    const degradedInventory = (problemCount: number) =>
       waitForDegradedInventory(
         {
           readNotices: () => browser.findElements(By.css(degradedInventorySelector)),
@@ -67,7 +110,7 @@ export async function backupReviewScenario({
     const restoreTrigger = async () =>
       (await row(selected.id)).findElement(By.xpath('.//button[normalize-space(.)="Restore"]'));
     const clickRestore = async () => clickVisible(await restoreTrigger());
-    const capture = async (name, selector = '[aria-labelledby="backup-review-title"]') => {
+    const capture = async (name: string, selector = '[aria-labelledby="backup-review-title"]') => {
       const target = await browser.findElement(By.css(selector));
       await executeBrowserScript(
         browser,
@@ -136,9 +179,9 @@ export async function backupReviewScenario({
       selected.path,
       "backup-native-restore-before-consent",
     );
-    const restoreConsent = JSON.parse(
-      await readFile(path.join(output, "backup-native-restore-before-consent.json"), "utf8"),
-    ).text;
+    const restoreConsent = await consentText(
+      path.join(output, "backup-native-restore-before-consent.json"),
+    );
     for (const expected of [
       new Date(selected.created_at * 1000).toISOString().slice(0, 10),
       port.name,
@@ -163,26 +206,30 @@ export async function backupReviewScenario({
       15_000,
     );
     assert.equal(await readFile(save, "utf8"), "current data before review");
-    const generation = (await invoke("get_bootstrap_status")).value.generation;
+    const generation = transportValue(
+      "desktop_bootstrap_status",
+      (await ipc("get_bootstrap_status")).value,
+    ).generation;
     for (const [commandName, action] of [
       ["restore_backup", "restore"],
       ["delete_backup", "delete"],
-    ]) {
-      const preview = await invoke("preview_backup_action", {
+    ] as const) {
+      const preview = await ipc("preview_backup_action", {
         portId: port.id,
         backupId: selected.id,
         action,
         generation,
       });
       assert.equal(preview.ok, true);
-      const rejected = await invoke(commandName, {
+      const rejected = await ipc(commandName, {
         portId: port.id,
         backupId: selected.id,
-        expectedPreview: preview.value.preview.preview_sha256,
+        expectedPreview: transportValue("desktop_backup_review", preview.value).preview
+          .preview_sha256,
         generation: generation + 1,
       });
       assert.equal(rejected.ok, false);
-      assert.equal(rejected.error.code, "conflict");
+      assert.equal(object(rejected.error).code, "conflict");
     }
     await clickRestore();
     await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
@@ -232,9 +279,9 @@ export async function backupReviewScenario({
       selected.path,
       "backup-native-delete-before-consent",
     );
-    const deleteConsent = JSON.parse(
-      await readFile(path.join(output, "backup-native-delete-before-consent.json"), "utf8"),
-    ).text;
+    const deleteConsent = await consentText(
+      path.join(output, "backup-native-delete-before-consent.json"),
+    );
     for (const expected of [
       new Date(selected.created_at * 1000).toISOString().slice(0, 10),
       port.name,
@@ -272,17 +319,19 @@ export async function backupReviewScenario({
       await readFile(path.join(safety.path, "data/owned-review-save.bin"), "utf8"),
       "changed after review",
     );
-    assert.equal(command(["status", port.id]).active.id, install.id);
+    assert.equal(readStatus(port.id).active?.id, install.id);
     await writeFile(path.join(safety.path, "backup.json"), "{invalid owned backup manifest");
-    const degraded = command(["backup", "list", port.id]);
+    const degraded = inventory(port.id);
     assert.equal(degraded.state, "degraded");
     assert.deepEqual(
       degraded.backups.map((item) => item.id),
       [other.id],
     );
     assert.equal(degraded.problems.length, 1);
+    assert.ok(degraded.problems[0]);
     await open(port);
     const degradedNotice = await degradedInventory(degraded.problems.length);
+    assert.ok(degradedNotice);
     assert.ok((await degradedNotice.getText()).includes("What to do next"));
     assert.ok((await degradedNotice.getText()).includes(degraded.problems[0].proposed_action));
     const usableRow = await row(other.id);
@@ -297,12 +346,14 @@ export async function backupReviewScenario({
     await capture("native-degraded-backup-inventory", degradedInventorySelector);
 
     await writeFile(path.join(other.path, "backup.json"), "{invalid owned backup manifest");
-    const unavailable = command(["backup", "list", port.id]);
+    const unavailable = inventory(port.id);
     assert.equal(unavailable.state, "degraded");
     assert.equal(unavailable.backups.length, 0);
     assert.equal(unavailable.problems.length, 2);
     await open(port);
     const emptyNotice = await degradedInventory(unavailable.problems.length);
+    assert.ok(emptyNotice);
+    assert.ok(unavailable.problems[0]);
     const emptyText = await emptyNotice.getText();
     assert.equal(
       await browser.findElement(By.css(".backup-heading small")).getText(),
@@ -329,8 +380,8 @@ export async function backupReviewScenario({
     );
     // Controlled CLI fixture setup; this does not qualify native uninstall.
     command(["remove", port.id, "--yes"]);
-    assert.equal(command(["status", port.id]).active, null);
-    const retainedAssessment = command(["backup", "list", port.id]).create_assessment;
+    assert.equal(readStatus(port.id).active, null);
+    const retainedAssessment = inventory(port.id).create_assessment;
     assert.deepEqual(retainedAssessment, unavailable.create_assessment);
     await openCatalogPortAfterRefresh(browser, port, port.name);
     const create = await browser.wait(
@@ -352,16 +403,17 @@ export async function backupReviewScenario({
       "Native creation must publish an actual new usable backup",
     );
     const createdFromRetainedData = list()[0];
+    assert.ok(createdFromRetainedData);
     assert.equal(
       await readFile(path.join(createdFromRetainedData.path, "data/owned-review-save.bin"), "utf8"),
       "selected snapshot data",
     );
-    assert.equal(command(["status", port.id]).active, null);
+    assert.equal(readStatus(port.id).active, null);
     assert.equal((await fileIdentity(save)).sha256, preservedSave.sha256);
     for (const identity of damagedManifests) {
       assert.equal((await fileIdentity(identity.path)).sha256, identity.sha256);
     }
-    const createdInventory = command(["backup", "list", port.id]);
+    const createdInventory = inventory(port.id);
     assert.equal(createdInventory.problems.length, 2);
     assert.equal(createdInventory.state, "degraded");
     const createdRow = await row(createdFromRetainedData.id);
@@ -414,27 +466,31 @@ export async function backupReviewScenario({
     const journalBefore = readJournal();
     const heldFiles = await Promise.all(
       [save, stagedSave, path.join(createdFromRetainedData.path, "data/owned-review-save.bin")].map(
-        fileIdentity,
+        (file) => fileIdentity(file),
       ),
     );
-    const heldInventory = await invoke("get_backups", { portId: port.id });
+    const heldInventory = await ipc("get_backups", { portId: port.id });
     assert.equal(heldInventory.ok, true);
-    assert.deepEqual(heldInventory.value.restore_assessment, {
+    const heldBackupInventory = transportValue("backup_inventory", heldInventory.value);
+    assert.deepEqual(heldBackupInventory.restore_assessment, {
       action: "backup_restore",
       availability: "held",
       reason: "recovery_required",
     });
-    assert.equal(heldInventory.value.state, "degraded");
-    const currentGeneration = (await invoke("get_bootstrap_status")).value.generation;
-    const rejectedPreview = await invoke("preview_backup_action", {
+    assert.equal(heldBackupInventory.state, "degraded");
+    const currentGeneration = transportValue(
+      "desktop_bootstrap_status",
+      (await ipc("get_bootstrap_status")).value,
+    ).generation;
+    const rejectedPreview = await ipc("preview_backup_action", {
       portId: port.id,
       backupId: createdFromRetainedData.id,
       action: "restore",
       generation: currentGeneration,
     });
     assert.equal(rejectedPreview.ok, false);
-    assert.equal(rejectedPreview.error.code, "conflict");
-    const deletePreview = await invoke("preview_backup_action", {
+    assert.equal(object(rejectedPreview.error).code, "conflict");
+    const deletePreview = await ipc("preview_backup_action", {
       portId: port.id,
       backupId: createdFromRetainedData.id,
       action: "delete",
@@ -450,6 +506,7 @@ export async function backupReviewScenario({
         );
         return (
           history.length === 1 &&
+          history[0] !== undefined &&
           (await history[0].getText()).includes("Restoring requires recovery to finish")
         );
       },
@@ -474,7 +531,7 @@ export async function backupReviewScenario({
       journalBefore,
       journalAfter: readJournal(),
       heldFiles,
-      assessment: heldInventory.value.restore_assessment,
+      assessment: heldBackupInventory.restore_assessment,
       restore_preview_refused_before_consent: true,
       delete_preview_available: true,
       native_restore_disabled_delete_enabled: true,
@@ -526,21 +583,22 @@ export async function backupReviewScenario({
     assert.equal(process.platform, "win32", "This consent observation requires Windows");
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     const { port, install } = await seed("opengoal-jak3", "success");
-    const paths = command(["paths", port.id]);
+    const paths = transportValue("port_paths", command(["paths", port.id]));
     const relative = path.relative(library, paths.user_data_root);
     assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
     const save = path.join(paths.user_data_root, "owned-focus-save.bin");
     await mkdir(paths.user_data_root, { recursive: true });
     await writeFile(save, "first owned focus snapshot");
-    const first = command(["backup", "create", port.id]);
+    const first = transportValue("backup", command(["backup", "create", port.id]));
     await writeFile(save, "second owned focus snapshot");
-    const second = command(["backup", "create", port.id]);
+    const second = transportValue("backup", command(["backup", "create", port.id]));
     await writeFile(save, "current owned focus data");
     const immutable = await Promise.all(
-      [save, path.join(second.path, "data/owned-focus-save.bin")].map(fileIdentity),
+      [save, path.join(second.path, "data/owned-focus-save.bin")].map((file) => fileIdentity(file)),
     );
-    const list = () => command(["backup", "list", port.id]).backups;
-    const row = (id) => By.css(`[data-backup-id="${id}"]`);
+    assert.ok(immutable[0]);
+    const list = () => inventory(port.id).backups;
+    const row = (id: string) => By.css(`[data-backup-id="${id}"]`);
     const review = By.css('[aria-labelledby="backup-review-title"]');
     const action = By.xpath('//button[normalize-space(.)="Delete this backup permanently"]');
     const focused = () =>
@@ -554,7 +612,7 @@ export async function backupReviewScenario({
           connected: element?.isConnected,
         };
       });
-    const screenshot = async (name) => {
+    const screenshot = async (name: string) => {
       // Read settled state only; never repair focus or scroll after the mutation.
       await browser.wait(
         () =>
@@ -603,7 +661,7 @@ export async function backupReviewScenario({
       artifacts.push(image);
       assert.deepEqual(await focused(), state, "Evidence capture must not change natural focus");
     };
-    const deleteReviewed = async (backup, name) => {
+    const deleteReviewed = async (backup: BackupRecord, name: string) => {
       await browser.wait(until.elementLocated(row(backup.id)), 15_000);
       await (
         await browser.findElement(row(backup.id))
@@ -616,7 +674,9 @@ export async function backupReviewScenario({
         .map((item) => item.id)
         .sort();
       const beforeFiles = await Promise.all(
-        [save, path.join(backup.path, "data/owned-focus-save.bin")].map(fileIdentity),
+        [save, path.join(backup.path, "data/owned-focus-save.bin")].map((file) =>
+          fileIdentity(file),
+        ),
       );
       const beforeReport = path.join(output, `${name}-before-files.json`);
       const beforeCopies = await Promise.all(
@@ -642,7 +702,7 @@ export async function backupReviewScenario({
         true,
       );
       for (const expected of [port.name, port.id, paths.user_data_root, "This cannot be undone"])
-        assert.ok(observed.text.includes(expected), expected);
+        assert.ok(text(object(observed).text).includes(expected), expected);
       assert.deepEqual(
         list()
           .map((item) => item.id)
@@ -683,13 +743,13 @@ export async function backupReviewScenario({
     );
     const remainingFocus = await focused();
     await screenshot("backup-focus-remaining-success");
-    assert.equal(command(["status", port.id]).active.id, install.id);
+    assert.equal(readStatus(port.id).active?.id, install.id);
     for (const identity of immutable)
       assert.equal((await fileIdentity(identity.path)).sha256, identity.sha256);
 
     // Supported core fixture setup, not a native uninstall acceptance claim.
     command(["remove", port.id, "--yes"]);
-    assert.equal(command(["status", port.id]).active, null);
+    assert.equal(readStatus(port.id).active, null);
     assert.deepEqual(
       list().map((item) => item.id),
       [second.id],
@@ -706,7 +766,7 @@ export async function backupReviewScenario({
     );
     assert.equal((await browser.findElements(By.css(".backup-history"))).length, 0);
     assert.deepEqual(list(), []);
-    assert.equal(command(["status", port.id]).active, null);
+    assert.equal(readStatus(port.id).active, null);
     assert.equal((await fileIdentity(save)).sha256, immutable[0].sha256);
     const finalFocus = await focused();
     await screenshot("backup-focus-final-success");
