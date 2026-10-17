@@ -1,3 +1,11 @@
+import { isRecord } from "./runtime-values.mts";
+import type { PrerequisiteObservation } from "./local-validation.mts";
+import type { LocalChange, ValidationCommand } from "./ordinary-validation.mts";
+import type {
+  RepositoryInventory,
+  InventoryFile,
+  ValidationDomain,
+} from "./validation-evidence.mts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
@@ -39,8 +47,12 @@ import { buildValidationPlan } from "./validation-plan.mts";
 import { resolveUiSelection } from "./ui-test-selection.mts";
 
 const allFilesExist = () => true;
+function requiredFixture<T>(value: T | null | undefined): T {
+  assert.ok(value !== null && value !== undefined, "expected fixture entry is missing");
+  return value;
+}
 
-test("removed, renamed-away and non-code frontend inputs retain complete execution", () => {
+void test("removed, renamed-away and non-code frontend inputs retain complete execution", () => {
   for (const change of [
     { status: "D", path: "apps/desktop/src/components/removed.tsx" },
     {
@@ -69,7 +81,7 @@ test("removed, renamed-away and non-code frontend inputs retain complete executi
   }
 });
 
-test("shared browser trace runtime selects full frontend tests and build", () => {
+void test("shared browser trace runtime selects full frontend tests and build", () => {
   const selection = classifyChanges([{ status: "M", path: "scripts/browser-traces.ts" }], {
     fileExists: allFilesExist,
   });
@@ -77,12 +89,12 @@ test("shared browser trace runtime selects full frontend tests and build", () =>
   assert.equal(selection.uiFullTests, true);
   const plan = buildPlan(selection);
   assert.ok(plan.some((entry) => entry.id === "ui-build"));
-  const tests = plan.find((entry) => entry.id === "ui-tests");
+  const tests = requiredFixture(plan.find((entry) => entry.id === "ui-tests"));
   assert.ok(tests.args.includes("frontend:unit"));
   assert.ok(!tests.args.includes("--related"));
 });
 
-test("integrated source lint fails before expensive stages while preserving valid selected obligations", () => {
+void test("integrated source lint fails before expensive stages while preserving valid selected obligations", () => {
   const selection = classifyChanges([{ status: "M", path: "apps/desktop/tsconfig.json" }], {
     fileExists: allFilesExist,
   });
@@ -91,12 +103,12 @@ test("integrated source lint fails before expensive stages while preserving vali
   assert.ok(ids.indexOf("repository-lint") < ids.indexOf("ui-build"));
   assert.ok(ids.indexOf("repository-lint") < ids.indexOf("ui-tests"));
   assert.ok(ids.includes("ui-content"));
-  const started = [];
+  const started: string[] = [];
   assert.throws(
     () =>
       executePlan(plan, {
         spawn: (_executable, args) => {
-          const entry = plan.find((item) => item.args === args);
+          const entry = requiredFixture(plan.find((item) => item.args === args));
           started.push(entry.id);
           return { status: entry.id === "repository-lint" ? 1 : 0 };
         },
@@ -104,18 +116,20 @@ test("integrated source lint fails before expensive stages while preserving vali
     /repository-lint failed/,
   );
   assert.ok(!started.includes("ui-build") && !started.includes("ui-tests"));
-  const successful = [];
+  const successful: string[] = [];
   executePlan(plan, {
     spawn: (_executable, args) => {
-      successful.push(plan.find((item) => item.args === args).id);
+      successful.push(requiredFixture(plan.find((item) => item.args === args)).id);
       return { status: 0 };
     },
   });
   assert.deepEqual(successful, ids);
-  assert.ok(plan.find((entry) => entry.id === "ui-tests").args.includes("frontend:unit"));
+  assert.ok(
+    requiredFixture(plan.find((entry) => entry.id === "ui-tests")).args.includes("frontend:unit"),
+  );
 });
 
-test("hook entrypoints have explicit ownership and executable integration coverage", () => {
+void test("hook entrypoints have explicit ownership and executable integration coverage", () => {
   for (const file of [".vite-hooks/pre-commit", "vite.config.ts", ".vite-hooks/pre-commit"]) {
     const selection = classifyChanges([{ status: "A", path: file }], { fileExists: allFilesExist });
     assert.equal(selection.unknown.size, 0);
@@ -123,10 +137,11 @@ test("hook entrypoints have explicit ownership and executable integration covera
   }
 });
 
-test("review inventory keeps command arguments while making candidate-root paths portable", () => {
+void test("review inventory keeps command arguments while making candidate-root paths portable", () => {
   const source = fileURLToPath(new URL("../", import.meta.url));
   const entry = {
     id: "owned",
+    reason: "review inventory fixture",
     executable: process.execPath,
     args: [source + "scripts/check.mjs", "--all", "/other/input"],
     cwd: source + "apps/desktop",
@@ -170,8 +185,8 @@ function preflightFixture() {
       cwd: "/source",
     },
   ];
-  const prerequisites = ["node", "rustc", "cargo", "clippy-component"]
-    .map((id) => ({ id, status: "ok" }))
+  const prerequisites: PrerequisiteObservation[] = ["node", "rustc", "cargo", "clippy-component"]
+    .map((id): PrerequisiteObservation => ({ id, status: "ok" }))
     .concat({
       id: "native-desktop-build",
       status: "unavailable",
@@ -180,13 +195,13 @@ function preflightFixture() {
   return { context, validationPlan, plan, prerequisites };
 }
 
-test("preflight selects the approved capable route without claiming execution or CI", () => {
+void test("preflight selects the approved capable route without claiming execution or CI", () => {
   const inputs = preflightFixture();
-  const hosted = { status: "eligible", command: "exact frozen hosted dispatch" };
+  const hosted = { status: "eligible" as const, command: "exact frozen hosted dispatch" };
   const report = buildExecutionPreflight({ ...inputs, hosted });
-  assert.equal(report.obligations[0].route, "hosted-local-check");
-  assert.deepEqual(report.obligations[0].missing, ["native-desktop-build"]);
-  assert.equal(report.obligations[0].next_action, hosted.command);
+  assert.equal(requiredFixture(report.obligations[0]).route, "hosted-local-check");
+  assert.deepEqual(requiredFixture(report.obligations[0]).missing, ["native-desktop-build"]);
+  assert.equal(requiredFixture(report.obligations[0]).next_action, hosted.command);
   assert.match(report.local_profile, /full-debug/);
   assert.match(report.hosted_ci.role, /mandatory exact-head CI/);
   assert.match(report.limits, /No dispatch or acceptance/);
@@ -194,14 +209,17 @@ test("preflight selects the approved capable route without claiming execution or
     ...inputs,
     hosted: { status: "blocked", reason: "authority changed" },
   });
-  assert.equal(blocked.obligations[0].route, "blocked");
+  assert.equal(requiredFixture(blocked.obligations[0]).route, "blocked");
   const local = buildExecutionPreflight({
     ...inputs,
     prerequisites: inputs.prerequisites.map((item) => ({ ...item, status: "ok" })),
     hosted,
   });
-  assert.equal(local.obligations[0].route, "local");
-  assert.equal(local.obligations[0].command, formatCommand(inputs.plan[0]));
+  assert.equal(requiredFixture(local.obligations[0]).route, "local");
+  assert.equal(
+    requiredFixture(local.obligations[0]).command,
+    formatCommand(requiredFixture(inputs.plan[0])),
+  );
   assert.throws(
     () =>
       buildExecutionPreflight({
@@ -213,7 +231,7 @@ test("preflight selects the approved capable route without claiming execution or
   );
 });
 
-test("preflight reports local prerequisites of the already selected audit stages", () => {
+void test("preflight reports local prerequisites of the already selected audit stages", () => {
   const inputs = preflightFixture();
   const audit = {
     profile: "complete",
@@ -240,6 +258,7 @@ test("preflight reports local prerequisites of the already selected audit stages
     audit,
     platform: "linux",
   });
+  assert.ok(report.pre_change_audit);
   assert.equal(report.pre_change_audit.profile, "complete");
   assert.equal(report.pre_change_audit.route, "hosted-deep-audit");
   assert.deepEqual(report.pre_change_audit.missing_local_prerequisites, [
@@ -253,15 +272,15 @@ test("preflight reports local prerequisites of the already selected audit stages
   );
 });
 
-test("hosted preflight requires exact available ancestor authorities and a frozen clean source", () => {
+void test("hosted preflight requires exact available ancestor authorities and a frozen clean source", () => {
   const { context } = preflightFixture();
   const sha = "b".repeat(40);
   const invoke =
     (paths = "", dirty = "") =>
-    (args) => {
+    (args: string[]) => {
       if (args[0] === "status") return dirty;
       if (args[0] === "for-each-ref") return "refs/remotes/origin/ci/selected-check";
-      if (args[0] === "rev-parse") return args[1].includes(":") ? "c".repeat(40) : sha;
+      if (args[0] === "rev-parse") return args[1]?.includes(":") ? "c".repeat(40) : sha;
       if (args[0] === "show") return "hosted-local-check controller\nhosted-local-check run";
       if (args[0] === "diff")
         return paths.startsWith(":")
@@ -300,7 +319,9 @@ test("hosted preflight requires exact available ancestor authorities and a froze
     "ci/selected-check",
   );
   assert.equal(eligible.status, "eligible");
+  assert.ok(eligible.command);
   assert.match(eligible.command, new RegExp(`source_sha=${context.headSha}`));
+  assert.ok(eligible.dispatch_authority);
   assert.match(eligible.dispatch_authority, /not established/);
   assert.match(eligible.command, /--ref ci\/selected-check /);
   assert.match(eligible.command, new RegExp(`controller_sha=${sha}`));
@@ -380,7 +401,7 @@ test("hosted preflight requires exact available ancestor authorities and a froze
   );
 });
 
-test("hosted dispatch-ref arguments fail before discovery when missing or outside preflight", async () => {
+void test("hosted dispatch-ref arguments fail before discovery when missing or outside preflight", async () => {
   const options = {
     readContext: () => {
       throw new Error("unexpected discovery");
@@ -397,7 +418,7 @@ test("hosted dispatch-ref arguments fail before discovery when missing or outsid
   );
 });
 
-test("missing Cargo is a bounded non-provisioning planning failure", () => {
+void test("missing Cargo is a bounded non-provisioning planning failure", () => {
   assert.throws(
     () =>
       readDoctestPackages({
@@ -406,6 +427,7 @@ test("missing Cargo is a bounded non-provisioning planning failure", () => {
           assert.equal(command, "cargo");
           assert.ok(args.includes("--offline") && args.includes("--locked"));
           assert.equal(options.timeout, 15000);
+          assert.ok(options.env);
           assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
           assert.equal(options.env.CARGO_NET_OFFLINE, "true");
           return { error: Object.assign(new Error("unavailable fixture"), { code: "ENOENT" }) };
@@ -415,7 +437,7 @@ test("missing Cargo is a bounded non-provisioning planning failure", () => {
   );
 });
 
-test("a missing Windows/MSBuild Playnite capability cannot route to Ubuntu", () => {
+void test("a missing Windows/MSBuild Playnite capability cannot route to Ubuntu", () => {
   const inputs = preflightFixture();
   const plan = [
     {
@@ -439,11 +461,11 @@ test("a missing Windows/MSBuild Playnite capability cannot route to Ubuntu", () 
     platform: "linux",
     hosted: { status: "eligible", command: "Ubuntu dispatch" },
   });
-  assert.equal(report.obligations[0].route, "blocked");
-  assert.ok(report.obligations[0].missing.includes("windows-host"));
+  assert.equal(requiredFixture(report.obligations[0]).route, "blocked");
+  assert.ok(requiredFixture(report.obligations[0]).missing.includes("windows-host"));
 });
 
-test("normal metadata selection keeps its existing execution contract", () => {
+void test("normal metadata selection keeps its existing execution contract", () => {
   assert.deepEqual(
     [
       ...readDoctestPackages({
@@ -458,10 +480,14 @@ test("normal metadata selection keeps its existing execution contract", () => {
   );
 });
 
-const change = (path, options = {}) => ({ status: "M", path, ...options });
-const ids = (plan) => plan.map((entry) => entry.id);
+const change = (path: string, options: Partial<LocalChange> = {}): LocalChange => ({
+  status: "M",
+  path,
+  ...options,
+});
+const ids = (plan: ValidationCommand[]) => plan.map((entry) => entry.id);
 
-function planFor(paths) {
+function planFor(paths: (string | LocalChange)[]) {
   const changes = paths.map((path) => (typeof path === "string" ? change(path) : path));
   const selection = classifyChanges(changes, { fileExists: allFilesExist });
   return {
@@ -487,7 +513,7 @@ function planFor(paths) {
   };
 }
 
-test("execution planning helper and baseline changes select their preservation contracts", () => {
+void test("execution planning helper and baseline changes select their preservation contracts", () => {
   const files = [
     "scripts/desktop-execution-plan.mts",
     "scripts/desktop-execution-plan.test.mts",
@@ -506,40 +532,40 @@ test("execution planning helper and baseline changes select their preservation c
         ),
       );
       assert(ids(plan).includes("node-tests"));
-      assert(!ids(plan).some((id) => id === "rust-workspace-tests"));
+      assert(!ids(plan).some((id: string) => id === "rust-workspace-tests"));
     }
   }
-  const mixed = planFor([files[0], "crates/portcove-core/src/artwork.rs"]);
-  assert(ids(mixed.plan).some((id) => id === "rust-workspace-tests"));
+  const mixed = planFor([requiredFixture(files[0]), "crates/portcove-core/src/artwork.rs"]);
+  assert(ids(mixed.plan).some((id: string) => id === "rust-workspace-tests"));
 });
 
-test("the maintained default-cover harness selects native scenario contracts without Rust execution", () => {
+void test("the maintained default-cover harness selects native scenario contracts without Rust execution", () => {
   const cover = "apps/desktop/scripts/desktop-default-cover-test.mts";
   for (const status of ["A", "M", "D"]) {
     const { selection, plan } = planFor([{ status, path: cover }]);
     assert.ok(selection.nodeTests.has("scripts/desktop-scenarios.test.mts"));
     assert.ok(ids(plan).includes("node-tests"));
-    assert.ok(!ids(plan).some((id) => id === "rust-workspace-tests"));
+    assert.ok(!ids(plan).some((id: string) => id === "rust-workspace-tests"));
     assert.ok(!plan.map(formatCommand).join("\n").includes("desktop-test"));
   }
   const mixed = planFor([cover, "crates/portcove-core/src/artwork.rs"]);
-  assert.ok(ids(mixed.plan).some((id) => id === "rust-workspace-tests"));
+  assert.ok(ids(mixed.plan).some((id: string) => id === "rust-workspace-tests"));
 });
 
-test("source-dialog consumer selects scenario contracts without running native or Rust acceptance", () => {
+void test("source-dialog consumer selects scenario contracts without running native or Rust acceptance", () => {
   const consumer = "apps/desktop/scripts/desktop-source-dialog-test.mts";
   for (const status of ["A", "M", "D"]) {
     const { selection, plan } = planFor([{ status, path: consumer }]);
     assert.ok(selection.nodeTests.has("scripts/desktop-scenarios.test.mts"));
     assert.ok(ids(plan).includes("node-tests"));
-    assert.ok(!ids(plan).some((id) => id === "rust-workspace-tests"));
+    assert.ok(!ids(plan).some((id: string) => id === "rust-workspace-tests"));
     assert.ok(!plan.map(formatCommand).join("\n").includes("desktop-test"));
   }
   const mixed = planFor([consumer, "crates/portcove-core/src/game_file_roots.rs"]);
-  assert.ok(ids(mixed.plan).some((id) => id === "rust-workspace-tests"));
+  assert.ok(ids(mixed.plan).some((id: string) => id === "rust-workspace-tests"));
 });
 
-test("selected local resource scope follows actual commands and mixed or unknown work is conservative", () => {
+void test("selected local resource scope follows actual commands and mixed or unknown work is conservative", () => {
   assert.equal(storageScopeForPlan([{ id: "diff-check" }, { id: "node-tests" }]), "tooling");
   assert.equal(storageScopeForPlan([{ id: "node-syntax:tool.mjs" }]), "tooling");
   assert.equal(storageScopeForPlan(planFor(["docs/QUALITY.md"]).plan), "frontend");
@@ -555,7 +581,7 @@ test("selected local resource scope follows actual commands and mixed or unknown
   assert.equal(storageScopeForPlan([{ id: "new-unclassified-stage" }]), "all");
 });
 
-test("parses modified, deleted, renamed, and copied Git records", () => {
+void test("parses modified, deleted, renamed, and copied Git records", () => {
   const records = parseNameStatus(
     Buffer.from("M\0docs/QUALITY.md\0D\0old.md\0R100\0old.rs\0new.rs\0C090\0a.ts\0b.ts\0"),
   );
@@ -567,13 +593,13 @@ test("parses modified, deleted, renamed, and copied Git records", () => {
   ]);
 });
 
-test("also accepts name-status records with an embedded tab", () => {
+void test("also accepts name-status records with an embedded tab", () => {
   assert.deepEqual(parseNameStatus(Buffer.from("M\tdocs/QUALITY.md\0")), [
     { status: "M", path: "docs/QUALITY.md" },
   ]);
 });
 
-test("incomplete diff discovery fails closed before selecting tests", () => {
+void test("incomplete diff discovery fails closed before selecting tests", () => {
   assert.throws(
     () => parseNameStatus(Buffer.from("R100\0crates/portcove-core/src/old.rs\0")),
     /incomplete git rename\/copy record/u,
@@ -587,7 +613,7 @@ test("incomplete diff discovery fails closed before selecting tests", () => {
   );
 });
 
-test("shared local planning retains raw file modes and both rename paths", () => {
+void test("shared local planning retains raw file modes and both rename paths", () => {
   const raw = Buffer.from(
     ":100644 100755 1111111 2222222 M\0docs/QUALITY.md\0" +
       ":100644 100644 1111111 2222222 R100\0old.rs\0new.rs\0",
@@ -610,7 +636,7 @@ test("shared local planning retains raw file modes and both rename paths", () =>
   ]);
 });
 
-test("active instruction changes run their semantic contracts", () => {
+void test("active instruction changes run their semantic contracts", () => {
   const { selection, plan } = planFor(["docs/QUALITY.md", "AGENTS.md"]);
   assert.deepEqual([...selection.scopes].sort(), ["documentation", "tooling"]);
   assert.deepEqual([...selection.nodeTests].sort(), [
@@ -620,14 +646,14 @@ test("active instruction changes run their semantic contracts", () => {
   assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
 });
 
-test("documentation targets run the dynamic link contract", () => {
+void test("documentation targets run the dynamic link contract", () => {
   const { selection, plan } = planFor(["docs/ARCHITECTURE.md"]);
   assert.deepEqual([...selection.scopes].sort(), ["documentation", "tooling"]);
   assert.deepEqual([...selection.nodeTests], ["scripts/repository-skills.test.mts"]);
   assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
 });
 
-test("archived documents retain checks while native formatting owns their exclusions", () => {
+void test("archived documents retain checks while native formatting owns their exclusions", () => {
   for (const status of ["A", "M"]) {
     const { selection, plan } = planFor([{ status, path: "docs/archive/2026-09-25-audit.md" }]);
     assert.deepEqual([...selection.oxfmtFiles], ["docs/archive/2026-09-25-audit.md"]);
@@ -636,12 +662,12 @@ test("archived documents retain checks while native formatting owns their exclus
   }
 });
 
-test("format selection delegates exclusions to the formatter configuration", () => {
+void test("format selection delegates exclusions to the formatter configuration", () => {
   const active = "docs/ARCHITECTURE.md";
   assert.deepEqual([...planFor([active]).selection.oxfmtFiles], [active]);
   const { selection, plan } = planFor([active, "docs/archive/2026-09-25-audit.md"]);
   assert.deepEqual([...selection.oxfmtFiles], [active, "docs/archive/2026-09-25-audit.md"]);
-  const formatter = plan.find((entry) => entry.id === "oxfmt");
+  const formatter = requiredFixture(plan.find((entry) => entry.id === "oxfmt"));
   assert.ok(formatter);
   assert.ok(formatter.args.some((argument: string) => argument.endsWith("ARCHITECTURE.md")));
   assert.ok(
@@ -651,7 +677,7 @@ test("format selection delegates exclusions to the formatter configuration", () 
   );
 });
 
-test("root, hidden, app and crate TOML share the ordinary formatter route", () => {
+void test("root, hidden, app and crate TOML share the ordinary formatter route", () => {
   const files = [
     "Cargo.toml",
     ".config/nextest.toml",
@@ -664,7 +690,7 @@ test("root, hidden, app and crate TOML share the ordinary formatter route", () =
   assert.ok(!ids(plan).includes("toml-format"));
 });
 
-test("archive renames and deletions keep active formatter ownership precise", () => {
+void test("archive renames and deletions keep active formatter ownership precise", () => {
   const toActive = planFor([
     { status: "R100", previousPath: "docs/archive/old.md", path: "docs/new.md" },
   ]);
@@ -679,7 +705,7 @@ test("archive renames and deletions keep active formatter ownership precise", ()
   assert.deepEqual(ids(deletion.plan), ["diff-check", "node-tests"]);
 });
 
-test("current and historical catalog authorities select their generator contracts", () => {
+void test("current and historical catalog authorities select their generator contracts", () => {
   const current = planFor([
     "crates/portcove-core/catalog/catalog-current-authoring.json",
   ]).selection;
@@ -700,19 +726,19 @@ test("current and historical catalog authorities select their generator contract
   }
 });
 
-test("repository skill changes run the dynamic skill contract", () => {
+void test("repository skill changes run the dynamic skill contract", () => {
   const { selection, plan } = planFor([".agents/skills/portcove-release-validation/SKILL.md"]);
   assert.deepEqual([...selection.nodeTests], ["scripts/repository-skills.test.mts"]);
   assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
 });
 
-test("bin-only Rust packages do not schedule an invalid doctest command", () => {
+void test("bin-only Rust packages do not schedule an invalid doctest command", () => {
   const { plan } = planFor(["crates/portcove-cli/src/main.rs"]);
   assert.ok(ids(plan).includes("rust-workspace-tests"));
   assert.ok(!ids(plan).includes("rust-docs:portcove-cli"));
 });
 
-test("doctest capability comes from Cargo target metadata", () => {
+void test("doctest capability comes from Cargo target metadata", () => {
   const packages = packagesWithDoctests({
     packages: [
       { name: "library", targets: [{ kind: ["lib"], doctest: true }] },
@@ -722,10 +748,10 @@ test("doctest capability comes from Cargo target metadata", () => {
   assert.deepEqual([...packages], ["library"]);
 });
 
-test("all optional workspace Rust execution remains behind the existing admission runner", () => {
+void test("all optional workspace Rust execution remains behind the existing admission runner", () => {
   for (const file of ["crates/portcove-core/src/database.rs", "Cargo.toml"]) {
     const commands = planFor([file]).plan;
-    const rust = commands.find((entry) => entry.id === "rust-workspace-tests");
+    const rust = requiredFixture(commands.find((entry) => entry.id === "rust-workspace-tests"));
     assert.ok(rust);
     assert.equal(rust.executable, process.execPath);
     assert.deepEqual(rust.args.slice(0, 2), ["scripts/run-rust-tests.mts", "--guard-command"]);
@@ -733,7 +759,7 @@ test("all optional workspace Rust execution remains behind the existing admissio
   }
 });
 
-test("UI sources build and run import-related units in optional feedback", () => {
+void test("UI sources build and run import-related units in optional feedback", () => {
   const { plan } = planFor(["apps/desktop/src/view-model.ts"]);
   assert.deepEqual(ids(plan), [
     "diff-check",
@@ -742,22 +768,25 @@ test("UI sources build and run import-related units in optional feedback", () =>
     "ui-build",
     "ui-related-tests",
   ]);
-  assert.equal(plan.find((entry) => entry.id === "ui-build").executable, process.execPath);
+  assert.equal(
+    requiredFixture(plan.find((entry) => entry.id === "ui-build")).executable,
+    process.execPath,
+  );
 });
 
-test("related UI commands preserve validated absolute source paths", () => {
+void test("related UI commands preserve validated absolute source paths", () => {
   const projectRoot = fileURLToPath(new URL("../", import.meta.url));
   const desktopRoot = path.join(projectRoot, "apps/desktop");
   const files = resolveUiSelection(["src/components/ChoiceSelect.tsx"], desktopRoot, "related");
   const { selection } = planFor(["apps/desktop/src/components/ChoiceSelect.tsx"]);
   selection.uiRelatedFiles = new Set(files);
   const plan = buildPlan(selection);
-  const related = plan.find((entry) => entry.id === "ui-related-tests");
+  const related = requiredFixture(plan.find((entry) => entry.id === "ui-related-tests"));
   assert.ok(related);
   assert.deepEqual(related.args.slice(2), files);
 });
 
-test("frontend configuration changes use the complete small UI suite", () => {
+void test("frontend configuration changes use the complete small UI suite", () => {
   for (const path of ["package.json", "pnpm-lock.yaml"]) {
     const { selection, plan } = planFor([path]);
     assert.equal(selection.uiFullTests, true, path);
@@ -770,19 +799,23 @@ test("frontend configuration changes use the complete small UI suite", () => {
   }
   const { selection } = planFor(["package.json"]);
   assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mts"));
-  const scripts = JSON.parse(
+  const manifest: unknown = JSON.parse(
     readFileSync(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
-  ).scripts;
+  );
+  assert.ok(isRecord(manifest) && isRecord(manifest.scripts));
+  const scripts = manifest.scripts;
+  assert.equal(typeof scripts["check:content"], "string");
+  assert.ok(typeof scripts["check:content"] === "string");
   const aggregateCommands = scripts["check:content"].split(/\s*&&\s*/u);
   assert.ok(!aggregateCommands.some((command) => command.includes("check-theme.mjs")));
   assert.ok(!aggregateCommands.some((command) => command.includes("check-copy.mjs")));
 });
 
 for (const manifest of ["package.json", "apps/desktop/package.json"]) {
-  test(`${manifest} selects its direct workflow pin and script contract`, () => {
+  void test(`${manifest} selects its direct workflow pin and script contract`, () => {
     const { selection, plan } = planFor([manifest]);
     assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mts"));
-    const node = plan.find((entry) => entry.id === "node-tests");
+    const node = requiredFixture(plan.find((entry) => entry.id === "node-tests"));
     assert.ok(node.args.includes("scripts/ci-workflow.test.mts"));
     assert.ok(selection.nodeTests.has("scripts/local-validation.test.mts"));
     assert.equal(selection.ui, true);
@@ -799,7 +832,7 @@ for (const manifest of ["package.json", "apps/desktop/package.json"]) {
   });
 }
 
-test("manifest consumers coalesce in mixed plans without widening lock-only contracts", () => {
+void test("manifest consumers coalesce in mixed plans without widening lock-only contracts", () => {
   const { selection, plan } = planFor([
     "package.json",
     "apps/desktop/package.json",
@@ -808,7 +841,7 @@ test("manifest consumers coalesce in mixed plans without widening lock-only cont
   assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mts"));
   assert.ok(selection.nodeTests.has("scripts/quality-tools.test.mts"));
   assert.ok(selection.nodeTests.has("scripts/local-validation.test.mts"));
-  const node = plan.find((entry) => entry.id === "node-tests");
+  const node = requiredFixture(plan.find((entry) => entry.id === "node-tests"));
   assert.equal(node.args.filter((arg) => arg === "scripts/ci-workflow.test.mts").length, 1);
   assert.ok(ids(plan).includes("ui-tests"));
   assert.ok(ids(plan).includes("ui-browser-tests"));
@@ -820,7 +853,7 @@ test("manifest consumers coalesce in mixed plans without widening lock-only cont
   }
 });
 
-test("localization configuration changes use the complete UI and i18n suite", () => {
+void test("localization configuration changes use the complete UI and i18n suite", () => {
   for (const path of ["apps/desktop/i18next.config.ts", "apps/desktop/i18next.invalid.config.ts"]) {
     const { selection, plan } = planFor([path]);
     assert.equal(selection.uiFullTests, true, path);
@@ -829,7 +862,7 @@ test("localization configuration changes use the complete UI and i18n suite", ()
   }
 });
 
-test("retired desktop-local pnpm authorities remain owned on deletion", () => {
+void test("retired desktop-local pnpm authorities remain owned on deletion", () => {
   for (const path of ["apps/desktop/pnpm-lock.yaml", "apps/desktop/pnpm-workspace.yaml"]) {
     const { selection, plan } = planFor([{ status: "D", path }]);
     assert.equal(selection.uiFullTests, true, path);
@@ -846,7 +879,7 @@ test("retired desktop-local pnpm authorities remain owned on deletion", () => {
   }
 });
 
-test("the exact Fallow boundary configuration selects the complete UI suite", () => {
+void test("the exact Fallow boundary configuration selects the complete UI suite", () => {
   for (const status of ["M", "A", "D"]) {
     const { selection, plan } = planFor([{ status, path: "apps/desktop/.fallowrc.json" }]);
     assert.equal(selection.uiFullTests, true);
@@ -857,7 +890,7 @@ test("the exact Fallow boundary configuration selects the complete UI suite", ()
   }
 });
 
-test("advisory tooling configuration selects scope contracts without exhaustive analysis", () => {
+void test("advisory tooling configuration selects scope contracts without exhaustive analysis", () => {
   for (const status of ["M", "A", "D"]) {
     const { selection, plan } = planFor([{ status, path: ".fallow-tooling.json" }]);
     assert.deepEqual([...selection.unknown], []);
@@ -868,7 +901,7 @@ test("advisory tooling configuration selects scope contracts without exhaustive 
   }
 });
 
-test("command-identical obligations execute once while retaining every selection reason", () => {
+void test("command-identical obligations execute once while retaining every selection reason", () => {
   const duplicate = {
     id: "second-lint",
     reason: "second owner",
@@ -883,10 +916,13 @@ test("command-identical obligations execute once while retaining every selection
     { id: "tests", reason: "tests", executable: "test", args: [], cwd: "." },
   ]);
   assert.deepEqual(ids(plan), ["first-lint", "tests"]);
-  assert.deepEqual(plan[0].selectedIds, ["first-lint", "second-lint"]);
-  assert.match(plan[0].reason, /first owner; also selected as second-lint: second owner/u);
+  assert.deepEqual(requiredFixture(plan[0]).selectedIds, ["first-lint", "second-lint"]);
+  assert.match(
+    requiredFixture(plan[0]).reason,
+    /first owner; also selected as second-lint: second owner/u,
+  );
 
-  const seen = [];
+  const seen: string[] = [];
   executePlan(plan, {
     spawn(executable) {
       seen.push(executable);
@@ -896,7 +932,7 @@ test("command-identical obligations execute once while retaining every selection
   assert.deepEqual(seen, ["lint", "test"]);
 });
 
-test("command-identical stages with different evidence roles remain distinct", () => {
+void test("command-identical stages with different evidence roles remain distinct", () => {
   const plan = deduplicateCommands([
     {
       id: "first",
@@ -918,7 +954,7 @@ test("command-identical stages with different evidence roles remain distinct", (
   assert.deepEqual(ids(plan), ["first", "second"]);
 });
 
-test("a reused stage id cannot hide conflicting commands or obligations", () => {
+void test("a reused stage id cannot hide conflicting commands or obligations", () => {
   assert.throws(
     () =>
       deduplicateCommands([
@@ -951,17 +987,17 @@ test("a reused stage id cannot hide conflicting commands or obligations", () => 
   );
 });
 
-test("an exactly repeated stage id retains every selection reason", () => {
+void test("an exactly repeated stage id retains every selection reason", () => {
   const plan = deduplicateCommands([
     { id: "same", reason: "first", executable: "same", args: [], cwd: "." },
     { id: "same", reason: "second", executable: "same", args: [], cwd: "." },
   ]);
   assert.deepEqual(ids(plan), ["same"]);
-  assert.deepEqual(plan[0].selectedIds, ["same"]);
-  assert.match(plan[0].reason, /first; also selected as same: second/u);
+  assert.deepEqual(requiredFixture(plan[0]).selectedIds, ["same"]);
+  assert.match(requiredFixture(plan[0]).reason, /first; also selected as same: second/u);
 });
 
-test("transport changes select both language scopes and contract comparators", () => {
+void test("transport changes select both language scopes and contract comparators", () => {
   const { selection, plan } = planFor([
     "apps/desktop/src/transport-types.generated.d.ts",
     "crates/portcove-core/src/types.rs",
@@ -973,17 +1009,17 @@ test("transport changes select both language scopes and contract comparators", (
   assert.ok(!ids(plan).includes("transport-policy"));
 });
 
-test("workflow and justfile changes select exact contract tests and actionlint", () => {
+void test("workflow and justfile changes select exact contract tests and actionlint", () => {
   const { selection, plan } = planFor([".github/workflows/ci.yml", "justfile"]);
   assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mts"));
   assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mts"));
   assert.ok(selection.nodeTests.has("scripts/local-validation.test.mts"));
   assert.ok(ids(plan).includes("actionlint"));
-  const nodeTests = plan.find((entry) => entry.id === "node-tests");
+  const nodeTests = requiredFixture(plan.find((entry) => entry.id === "node-tests"));
   assert.ok(nodeTests.args.includes("--test-reporter=./scripts/test-duration-reporter.mts"));
 });
 
-test("changed Node implementations select sibling tests and syntax checks", () => {
+void test("changed Node implementations select sibling tests and syntax checks", () => {
   const { selection, plan } = planFor(["scripts/ci-health.mts"]);
   assert.ok(selection.nodeTests.has("scripts/ci-health.test.mts"));
   assert.ok(selection.nodeSyntax.has("scripts/ci-health.mts"));
@@ -992,18 +1028,18 @@ test("changed Node implementations select sibling tests and syntax checks", () =
   assert.ok(ids(plan).includes("node-tests"));
 });
 
-test("competing Windows package lifecycle fixtures run serially", () => {
+void test("competing Windows package lifecycle fixtures run serially", () => {
   const { plan } = planFor([
     "scripts/updater-artifact-inventory.test.mts",
     "scripts/windows-qualification-session.integration.test.mts",
   ]);
-  const nodeTests = plan.find((entry) => entry.id === "node-tests");
+  const nodeTests = requiredFixture(plan.find((entry) => entry.id === "node-tests"));
   assert.ok(nodeTests);
   assert.ok(nodeTests.args.includes("--test-concurrency=1"));
   assert.match(nodeTests.reason, /serialize competing Windows package lifecycle fixtures/u);
 });
 
-test("heavy Rust runner and lock changes select both guarded execution contracts", () => {
+void test("heavy Rust runner and lock changes select both guarded execution contracts", () => {
   const { selection, plan } = planFor([
     "scripts/heavy-rust-test-lock.mts",
     "scripts/run-rust-tests.mts",
@@ -1028,7 +1064,7 @@ test("heavy Rust runner and lock changes select both guarded execution contracts
   assert.ok(hostFixtureOnly.selection.nodeTests.has("scripts/rust-support-cache.test.mts"));
 });
 
-test("release-script changes select deterministic release contracts without packaged qualification", () => {
+void test("release-script changes select deterministic release contracts without packaged qualification", () => {
   const { selection, plan } = planFor(["scripts/release-preflight.ps1"]);
   for (const contract of [
     "scripts/check-release-metadata.test.mts",
@@ -1044,7 +1080,7 @@ test("release-script changes select deterministic release contracts without pack
   assert.ok(!rendered.includes("desktop-test"));
 });
 
-test("bootstrap manifest changes select cache, doctor, and quality contracts", () => {
+void test("bootstrap manifest changes select cache, doctor, and quality contracts", () => {
   const { selection, plan } = planFor([".config/tool-bootstrap.json"]);
   assert.deepEqual([...selection.unknown], []);
   for (const file of [
@@ -1056,7 +1092,7 @@ test("bootstrap manifest changes select cache, doctor, and quality contracts", (
   assert.ok(ids(plan).includes("node-tests"));
 });
 
-test("renames classify both the old and new ownership paths", () => {
+void test("renames classify both the old and new ownership paths", () => {
   const { selection, plan } = planFor([
     change("docs/moved.md", {
       status: "R100",
@@ -1070,14 +1106,14 @@ test("renames classify both the old and new ownership paths", () => {
   assert.ok(!plan.map(formatCommand).join("\n").includes("removed.rs"));
 });
 
-test("deleted files affect scope without becoming command arguments", () => {
+void test("deleted files affect scope without becoming command arguments", () => {
   const { selection, plan } = planFor([{ status: "D", path: "scripts/retired-tool.test.mjs" }]);
   assert.ok(selection.scopes.has("tooling"));
   assert.ok(!selection.nodeTests.has("scripts/retired-tool.test.mjs"));
   assert.ok(!plan.map(formatCommand).join("\n").includes("retired-tool"));
 });
 
-test("retired frontend tool configuration remains owned after deletion", () => {
+void test("retired frontend tool configuration remains owned after deletion", () => {
   const retired = [
     ".prettierignore",
     "prettier.config.mjs",
@@ -1093,7 +1129,7 @@ test("retired frontend tool configuration remains owned after deletion", () => {
   assert.equal(selection.uiFullTests, true);
 });
 
-test("retired GitHub policy JSON remains owned without a file-specific tombstone", () => {
+void test("retired GitHub policy JSON remains owned without a file-specific tombstone", () => {
   const selection = classifyChanges([{ status: "D", path: ".github/retired-policy.json" }], {
     fileExists: () => false,
   });
@@ -1105,7 +1141,7 @@ test("retired GitHub policy JSON remains owned without a file-specific tombstone
   ]);
 });
 
-test("retired root TOML policy remains owned without a file-specific tombstone", () => {
+void test("retired root TOML policy remains owned without a file-specific tombstone", () => {
   const selection = classifyChanges([{ status: "D", path: "retired-policy.toml" }], {
     fileExists: () => false,
   });
@@ -1117,14 +1153,14 @@ test("retired root TOML policy remains owned without a file-specific tombstone",
   ]);
 });
 
-test("non-ignored untracked files use the same deterministic mapping", () => {
+void test("non-ignored untracked files use the same deterministic mapping", () => {
   const selection = classifyChanges([{ status: "?", path: "scripts/local-validation.test.mts" }], {
     fileExists: allFilesExist,
   });
   assert.ok(selection.nodeTests.has("scripts/local-validation.test.mts"));
 });
 
-test("every tracked repository path has an explicit local selection owner", () => {
+void test("every tracked repository path has an explicit local selection owner", () => {
   const files = execFileSync("git", ["ls-files", "-z"], {
     cwd: new URL("../", import.meta.url),
   })
@@ -1135,7 +1171,7 @@ test("every tracked repository path has an explicit local selection owner", () =
   assert.deepEqual([...selection.unknown].sort(), []);
 });
 
-test("the exact development scenario entry selects full UI coverage without admitting other HTML", () => {
+void test("the exact development scenario entry selects full UI coverage without admitting other HTML", () => {
   for (const status of ["M", "A", "D"]) {
     const { selection } = planFor([{ status, path: "apps/desktop/scenarios.html" }]);
     assert.equal(selection.ui, true);
@@ -1156,7 +1192,7 @@ test("the exact development scenario entry selects full UI coverage without admi
   assert.ok(renamed.unknown.has("apps/desktop/unknown.html"));
 });
 
-test("design-system configuration and native compatibility tests have UI owners", () => {
+void test("design-system configuration and native compatibility tests have UI owners", () => {
   const configuration = planFor(["apps/desktop/components.json"]).selection;
   assert.equal(configuration.ui, true);
   assert.equal(configuration.uiFullTests, true);
@@ -1168,7 +1204,7 @@ test("design-system configuration and native compatibility tests have UI owners"
   assert.equal(nativeTest.unknown.size, 0);
 });
 
-function fallbackContext(changes) {
+function fallbackContext(changes: LocalChange[]) {
   const headSha = "a".repeat(40);
   const mergeBase = "b".repeat(40);
   return {
@@ -1187,14 +1223,14 @@ function fallbackContext(changes) {
   };
 }
 
-test("untracked modes preserve executable/type facts rather than treating every non-symlink as regular", () => {
+void test("untracked modes preserve executable/type facts rather than treating every non-symlink as regular", () => {
   const file = { isSymbolicLink: () => false, isFile: () => true, mode: 0o100755 };
   assert.equal(untrackedFileMode(file, "linux"), "100755");
   assert.equal(untrackedFileMode(file, "win32"), "100644");
   assert.equal(untrackedFileMode({ ...file, mode: 0o100644 }, "linux"), "100644");
-  assert.equal(untrackedFileMode({ isSymbolicLink: () => true }, "linux"), "120000");
+  assert.equal(untrackedFileMode({ ...file, isSymbolicLink: () => true }, "linux"), "120000");
   assert.throws(
-    () => untrackedFileMode({ isSymbolicLink: () => false, isFile: () => false }),
+    () => untrackedFileMode({ ...file, isSymbolicLink: () => false, isFile: () => false }),
     /non-regular/,
   );
   const directory = mkdtempSync(path.join(tmpdir(), "portcove-untracked-mode-"));
@@ -1213,7 +1249,7 @@ test("untracked modes preserve executable/type facts rather than treating every 
   }
 });
 
-test("ordinary plans never invoke aggregate, deep, release, installer, or native gates", () => {
+void test("ordinary plans never invoke aggregate, deep, release, installer, or native gates", () => {
   const { plan } = planFor([
     "docs/QUALITY.md",
     "crates/portcove-core/src/database.rs",
@@ -1234,7 +1270,7 @@ test("ordinary plans never invoke aggregate, deep, release, installer, or native
   }
 });
 
-test("focused wrappers require an explicit selection", () => {
+void test("focused wrappers require an explicit selection", () => {
   assert.throws(() => requireFocusedArguments("test-rust", []), /requires an explicit/);
   assert.throws(
     () => requireFocusedArguments("test-node", ["--test-name-pattern", "x"]),
@@ -1245,8 +1281,8 @@ test("focused wrappers require an explicit selection", () => {
   );
 });
 
-test("execution stops on the first failing stage", () => {
-  const seen = [];
+void test("execution stops on the first failing stage", () => {
+  const seen: string[] = [];
   const plan = [
     { id: "one", reason: "first", executable: "one", args: [], cwd: "." },
     { id: "two", reason: "second", executable: "two", args: [], cwd: "." },
@@ -1284,8 +1320,8 @@ const receiptRuntime = Object.freeze({
   environment: {},
 });
 
-function receiptInventory(repositoryIdentity = "repo-a") {
-  const file = (filePath, domain, identity) => ({
+function receiptInventory(repositoryIdentity = "repo-a"): RepositoryInventory {
+  const file = (filePath: string, domain: ValidationDomain, identity: string): InventoryFile => ({
     path: filePath,
     kind: "file",
     headBlob: identity,
@@ -1297,6 +1333,7 @@ function receiptInventory(repositoryIdentity = "repo-a") {
     sha256: identity,
     domains: [domain],
     ambiguous: false,
+    untracked: false,
   });
   return {
     head: "a".repeat(40),
@@ -1308,7 +1345,7 @@ function receiptInventory(repositoryIdentity = "repo-a") {
   };
 }
 
-test("Node receipt fingerprints include the domain of each selected test", () => {
+void test("Node receipt fingerprints include the domain of each selected test", () => {
   const stage = {
     id: "node-tests",
     reason: "selector contract",
@@ -1330,12 +1367,13 @@ test("Node receipt fingerprints include the domain of each selected test", () =>
     sha256: "impact-a",
     domains: ["development", "format"],
     ambiguous: false,
+    untracked: false,
   });
   const second = structuredClone(first);
-  second.files.at(-1).headBlob = "impact-b";
-  second.files.at(-1).indexBlob = "impact-b";
-  second.files.at(-1).gitBlob = "impact-b";
-  second.files.at(-1).sha256 = "impact-b";
+  requiredFixture(second.files.at(-1)).headBlob = "impact-b";
+  requiredFixture(second.files.at(-1)).indexBlob = "impact-b";
+  requiredFixture(second.files.at(-1)).gitBlob = "impact-b";
+  requiredFixture(second.files.at(-1)).sha256 = "impact-b";
 
   assert.notEqual(
     fingerprintLocalStage(stage, first, receiptRuntime),
@@ -1353,7 +1391,7 @@ test("Node receipt fingerprints include the domain of each selected test", () =>
   );
 });
 
-test("local receipts reuse proven independent stages while full repository lint reruns", (t) => {
+void test("local receipts reuse proven independent stages while full repository lint reruns", (t) => {
   const receiptRoot = mkdtempSync(path.join(tmpdir(), "portcove-local-receipts-"));
   t.after(() => rmSync(receiptRoot, { recursive: true, force: true }));
   const plan = [
@@ -1382,7 +1420,7 @@ test("local receipts reuse proven independent stages while full repository lint 
       obligation: "repository-lint",
     },
   ];
-  const first = [];
+  const first: string[] = [];
   executePlanWithReceipts(plan, {
     receiptRoot,
     inventory: receiptInventory(),
@@ -1394,7 +1432,7 @@ test("local receipts reuse proven independent stages while full repository lint 
   });
   assert.deepEqual(first, ["cargo", "node", "corepack"]);
 
-  const second = [];
+  const second: string[] = [];
   const result = executePlanWithReceipts(plan, {
     receiptRoot,
     inventory: receiptInventory("repo-b"),
@@ -1405,12 +1443,12 @@ test("local receipts reuse proven independent stages while full repository lint 
     },
   });
   assert.deepEqual(second, ["node", "corepack"]);
-  assert.equal(result.timings[0].status, "reused");
-  assert.equal(result.timings[1].status, "executed");
-  assert.equal(result.timings[2].status, "executed");
+  assert.equal(requiredFixture(result.timings[0]).status, "reused");
+  assert.equal(requiredFixture(result.timings[1]).status, "executed");
+  assert.equal(requiredFixture(result.timings[2]).status, "executed");
 });
 
-test("failed, interrupted, invalid, missing, and fresh local stages cannot claim reuse", (t) => {
+void test("failed, interrupted, invalid, missing, and fresh local stages cannot claim reuse", (t) => {
   const receiptRoot = mkdtempSync(path.join(tmpdir(), "portcove-local-failure-"));
   t.after(() => rmSync(receiptRoot, { recursive: true, force: true }));
   const stage = {
@@ -1448,9 +1486,11 @@ test("failed, interrupted, invalid, missing, and fresh local stages cannot claim
   run();
   assert.equal(executions, 1);
 
-  const receiptFile = readdirSync(receiptRoot, { recursive: true })
-    .map(String)
-    .find((file: string) => file.endsWith(".json"));
+  const receiptFile = requiredFixture(
+    readdirSync(receiptRoot, { recursive: true })
+      .map(String)
+      .find((file: string) => file.endsWith(".json")),
+  );
   assert.ok(receiptFile);
   writeFileSync(path.join(receiptRoot, receiptFile), "{}\n");
   run();
@@ -1459,7 +1499,7 @@ test("failed, interrupted, invalid, missing, and fresh local stages cannot claim
   assert.equal(executions, 3);
 });
 
-test("selected validation uses the shared capability authority without narrowing Node obligations", async () => {
+void test("selected validation uses the shared capability authority without narrowing Node obligations", async () => {
   const { selectedPrerequisites } = await import("./dev-doctor.mts");
   const { validationCapabilities, profileCapabilities } =
     await import("./development-capabilities.mts");
@@ -1478,7 +1518,7 @@ test("selected validation uses the shared capability authority without narrowing
   ]);
 });
 
-test("containment inputs select every execution contract and preserve unknown refusal", () => {
+void test("containment inputs select every execution contract and preserve unknown refusal", () => {
   const consumers = [
     "scripts/heavy-rust-test-lock.test.mts",
     "scripts/run-rust-tests.test.mts",
@@ -1512,7 +1552,7 @@ test("containment inputs select every execution contract and preserve unknown re
         assert.ok(!commands.some((command) => command.id === "conservative-audit"));
       } else {
         const selected = buildPlan(selection);
-        const contracts = selected.find((command) => command.id === "node-tests");
+        const contracts = requiredFixture(selected.find((command) => command.id === "node-tests"));
         for (const consumer of consumers) assert.ok(contracts.args.includes(consumer));
         if (entry.status === "D") assert.ok(!selection.nodeSyntax.has(input));
       }
@@ -1523,7 +1563,7 @@ test("containment inputs select every execution contract and preserve unknown re
   for (const consumer of consumers) assert.ok(mixed.selection.nodeTests.has(consumer));
 });
 
-test("containment selector changes retain their dependent audit and hosted contracts", () => {
+void test("containment selector changes retain their dependent audit and hosted contracts", () => {
   const consumers = [
     "scripts/validation-plan.test.mts",
     "scripts/local-validation.test.mts",
@@ -1544,7 +1584,7 @@ test("containment selector changes retain their dependent audit and hosted contr
   }
 });
 
-test("approved #706 record has an exact protected test owner without admitting another approval", () => {
+void test("approved #706 record has an exact protected test owner without admitting another approval", () => {
   const owned = planFor([".github/linux-beta-risk-706.json"]);
   assert.equal(owned.selection.unknown.size, 0);
   assert.ok(owned.selection.nodeTests.has("scripts/linux-beta-risk-706.test.mts"));
@@ -1555,7 +1595,7 @@ test("approved #706 record has an exact protected test owner without admitting a
   assert.ok(other.unknown.has(".github/linux-beta-risk-999.json"));
 });
 
-test("reviewed upstream accounting has an exact health-test owner without admitting other configuration", () => {
+void test("reviewed upstream accounting has an exact health-test owner without admitting other configuration", () => {
   const owned = planFor([".github/upstream-health-accounting.json"]);
   assert.equal(owned.selection.unknown.size, 0);
   assert.ok(owned.selection.nodeTests.has("scripts/upstream-observer.test.mts"));
@@ -1567,7 +1607,7 @@ test("reviewed upstream accounting has an exact health-test owner without admitt
   assert.ok(other.unknown.has(".github/unreviewed-health-accounting.json"));
 });
 
-test("optional local baseline compiles workspace tests once without duplicate lint/build stages", () => {
+void test("optional local baseline compiles workspace tests once without duplicate lint/build stages", () => {
   for (const file of [
     "crates/portcove-core/src/source_report.rs",
     "Cargo.lock",
@@ -1576,12 +1616,14 @@ test("optional local baseline compiles workspace tests once without duplicate li
     const p = planFor([file]).plan;
     assert.equal(p.filter((entry) => entry.id === "rust-workspace-tests").length, 1);
     assert.ok(
-      p.find((entry) => entry.id === "rust-workspace-tests").args.includes("--guard-command"),
+      requiredFixture(p.find((entry) => entry.id === "rust-workspace-tests")).args.includes(
+        "--guard-command",
+      ),
     );
     assert.ok(!p.some((entry) => /clippy|rust-docs|audit|fallow/.test(entry.id)));
   }
 });
-test("optional frontend baseline retains full lint, build and related units without deep analyzers", () => {
+void test("optional frontend baseline retains full lint, build and related units without deep analyzers", () => {
   const p = buildPlan(classifyChanges([{ status: "M", path: "apps/desktop/src/App.tsx" }]));
   assert.ok(p.some((entry) => entry.id === "ui-build"));
   assert.ok(p.some((entry) => entry.id === "ui-related-tests"));
@@ -1593,7 +1635,7 @@ test("optional frontend baseline retains full lint, build and related units with
   assert.equal(p.filter((entry) => entry.id === "repository-lint").length, 1);
 });
 
-test("lint follows source/configuration ownership on both rename sides without forcing UI work", () => {
+void test("lint follows source/configuration ownership on both rename sides without forcing UI work", () => {
   for (const change of [
     { status: "M", path: "scripts/tool.mjs" },
     { status: "M", path: "scripts/tool.mts" },
@@ -1626,14 +1668,18 @@ test("lint follows source/configuration ownership on both rename sides without f
     );
 });
 
-test("Rust receipts bind narrower or broader selection even when source inventory is identical", () => {
-  const narrow = planFor(["crates/portcove-core/src/source_report.rs"]).plan.find(
-    (e) => e.id === "rust-workspace-tests",
+void test("Rust receipts bind narrower or broader selection even when source inventory is identical", () => {
+  const narrow = requiredFixture(
+    planFor(["crates/portcove-core/src/source_report.rs"]).plan.find(
+      (e) => e.id === "rust-workspace-tests",
+    ),
   );
-  const broad = planFor([
-    "crates/portcove-core/src/source_report.rs",
-    "crates/portcove-core/src/types.rs",
-  ]).plan.find((e) => e.id === "rust-workspace-tests");
+  const broad = requiredFixture(
+    planFor([
+      "crates/portcove-core/src/source_report.rs",
+      "crates/portcove-core/src/types.rs",
+    ]).plan.find((e) => e.id === "rust-workspace-tests"),
+  );
   assert.deepEqual(narrow.args, broad.args);
   assert.notEqual(
     fingerprintLocalStage(narrow, receiptInventory(), receiptRuntime),
@@ -1642,6 +1688,7 @@ test("Rust receipts bind narrower or broader selection even when source inventor
   assert.throws(
     () =>
       fingerprintLocalStage(
+        // @ts-expect-error Deliberately retain a malformed explicit-undefined coverage field.
         { ...narrow, rustCoverage: undefined },
         receiptInventory(),
         receiptRuntime,
@@ -1650,10 +1697,12 @@ test("Rust receipts bind narrower or broader selection even when source inventor
   );
 });
 
-test("live transport stages invalidate receipts when comparator and consumer inputs change", async () => {
+void test("live transport stages invalidate receipts when comparator and consumer inputs change", async () => {
   const { domainsForPath } = await import("./audit.mts");
-  const stage = planFor(["crates/portcove-core/src/types.rs"]).plan.find(
-    (e) => e.id === "rust-workspace-tests",
+  const stage = requiredFixture(
+    planFor(["crates/portcove-core/src/types.rs"]).plan.find(
+      (e) => e.id === "rust-workspace-tests",
+    ),
   );
   for (const input of [
     "scripts/check-transport-contract.mts",
@@ -1674,9 +1723,10 @@ test("live transport stages invalidate receipts when comparator and consumer inp
       worktreeMode: "100644",
       domains: [...domainsForPath(input).domains],
       ambiguous: false,
+      untracked: false,
     });
     const changed = structuredClone(inventory);
-    Object.assign(changed.files.at(-1), {
+    Object.assign(requiredFixture(changed.files.at(-1)), {
       headBlob: "b",
       indexBlob: "b",
       gitBlob: "b",
@@ -1695,9 +1745,11 @@ test("live transport stages invalidate receipts when comparator and consumer inp
   }
 });
 
-test("native TypeScript syntax selection checks stripped JavaScript early errors", () => {
+void test("native TypeScript syntax selection checks stripped JavaScript early errors", () => {
   const { plan } = planFor(["scripts/heavy-rust-test-lock.mts"]);
-  const syntax = plan.find((entry) => entry.id === "node-syntax:scripts/heavy-rust-test-lock.mts");
+  const syntax = requiredFixture(
+    plan.find((entry) => entry.id === "node-syntax:scripts/heavy-rust-test-lock.mts"),
+  );
   assert.ok(syntax);
   assert.deepEqual(syntax.args, [
     "scripts/check-node-source.mts",

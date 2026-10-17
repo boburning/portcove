@@ -47,7 +47,8 @@ export interface ValidationChangeInput {
   oldPath?: string | null;
   newPath?: string | null;
   path?: string;
-  previousPath?: string;
+  // Raw local change discovery retains this property with undefined for non-renames.
+  previousPath?: string | undefined;
   nextest_equivalence?: NextestProof;
 }
 export interface PathOwnership {

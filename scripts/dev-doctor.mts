@@ -235,7 +235,23 @@ export function existingNpmDefinition(id, base: string, name: string, bin) {
   }
 }
 
-export async function collectSelectedPrerequisites(plan, options = {}) {
+export interface PrerequisiteObservation {
+  id: string;
+  status: string;
+  remediation?: string | undefined;
+  required?: boolean;
+  expected?: string | null | undefined;
+  observed?: string | null | undefined;
+  version_source?: string;
+  observed_bytes?: number;
+  maximum_bytes?: number;
+  interpretation?: string;
+}
+
+export async function collectSelectedPrerequisites(
+  plan,
+  options = {},
+): Promise<PrerequisiteObservation[]> {
   const platform = options.platform ?? process.platform;
   const run = options.run ?? doctorCommand;
   const manifest = await loadQualityManifest();
@@ -324,7 +340,7 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
         : null;
   }
   if (platform === "darwin" && ids.has("native-driver")) definitions["native-driver"] = null;
-  const results = [];
+  const results: PrerequisiteObservation[] = [];
   for (const id of ids) {
     if (id === "windows-host")
       results.push({

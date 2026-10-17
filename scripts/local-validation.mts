@@ -1,4 +1,19 @@
 import { errorMessage } from "./runtime-values.mts";
+import type { Stats } from "node:fs";
+import type { SpawnSyncOptions, SpawnSyncReturns } from "node:child_process";
+import type { ValidationPlan } from "./validation-plan.mts";
+import type {
+  LocalChange,
+  ValidationSelection,
+  ValidationCommand,
+} from "./ordinary-validation.mts";
+import type {
+  RepositoryInventory,
+  ValidationRuntime,
+  ValidationDomain,
+} from "./validation-evidence.mts";
+import type { PrerequisiteObservation } from "./dev-doctor.mts";
+export type { PrerequisiteObservation } from "./dev-doctor.mts";
 import { annotateNextest } from "./nextest-equivalence.mts";
 import { createHash } from "node:crypto";
 import { lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
@@ -48,18 +63,72 @@ export {
   executePlan,
 } from "./ordinary-validation.mts";
 
-function git(args, options = {}) {
-  return runCheckedGit(args, { cwd: projectRoot, encoding: options.encoding });
+interface DiscoveredLocalChange extends LocalChange {
+  oldMode: string | null;
+  newMode: string | null;
+}
+interface ComparisonIdentity {
+  headSha: string;
+  baseSha: string;
+  mergeBase: string;
+}
+interface ChangeContext extends ComparisonIdentity {
+  base: string;
+  changes: LocalChange[];
+}
+interface PreflightAudit {
+  stages?: readonly { id: string }[];
+  local_stages?: readonly { id: string }[];
+}
+interface HostedRouteObservation {
+  status: "eligible" | "blocked" | "unverified";
+  reason?: string;
+  command?: string;
+  next_action?: string;
+  changed?: string[];
+  authority?: string;
+  controller?: string;
+  dispatch_ref?: string;
+  dispatch_authority?: string;
+}
+interface PreflightOptions<A extends PreflightAudit> {
+  context: ComparisonIdentity;
+  plan: ValidationCommand[];
+  validationPlan: ValidationPlan;
+  prerequisites: PrerequisiteObservation[];
+  hosted: HostedRouteObservation;
+  audit?: A | null;
+  platform?: string;
+}
+interface ReceiptExecutionOptions {
+  spawn?: (
+    executable: string,
+    args: string[],
+    options: SpawnSyncOptions,
+  ) => Pick<SpawnSyncReturns<Buffer>, "status" | "error">;
+  root?: string;
+  inventory?: RepositoryInventory;
+  runtime?: ValidationRuntime;
+  receiptRoot?: string;
+  fresh?: boolean;
+  env?: NodeJS.ProcessEnv;
+}
+function git(args: string[], options: { encoding: "buffer" }): Buffer;
+function git(args: string[], options?: { encoding?: "utf8" }): string;
+function git(args: string[], options: { encoding?: "buffer" | "utf8" } = {}): string | Buffer {
+  return options.encoding === "buffer"
+    ? runCheckedGit(args, { cwd: projectRoot, encoding: "buffer" })
+    : runCheckedGit(args, { cwd: projectRoot });
 }
 
-export function parseNameStatus(buffer) {
+export function parseNameStatus(buffer: Buffer): LocalChange[] {
   const tokens = buffer.toString("utf8").split("\0");
   if (tokens.at(-1) === "") tokens.pop();
   const changes = [];
   for (let index = 0; index < tokens.length;) {
     let status = tokens[index++];
     let embeddedPath = null;
-    if (status.includes("\t")) {
+    if (status?.includes("\t")) {
       [status, embeddedPath] = status.split("\t", 2);
     }
     if (!status) throw new Error("empty git name-status record");
@@ -78,7 +147,7 @@ export function parseNameStatus(buffer) {
   return changes;
 }
 
-export function localChangesFromRaw(buffer) {
+export function localChangesFromRaw(buffer: Buffer): DiscoveredLocalChange[] {
   return parseRawDiff(buffer).map((change) => ({
     status: change.status,
     path: change.newPath,
@@ -88,7 +157,10 @@ export function localChangesFromRaw(buffer) {
   }));
 }
 
-export function untrackedFileMode(stat, platform = process.platform) {
+export function untrackedFileMode(
+  stat: Pick<Stats, "isSymbolicLink" | "isFile" | "mode">,
+  platform: string = process.platform,
+) {
   if (stat.isSymbolicLink()) return "120000";
   if (!stat.isFile())
     throw new Error("untracked discovery contains an unsupported non-regular object");
@@ -104,9 +176,12 @@ export function readChangeContext(base = "origin/main") {
       encoding: "buffer",
     }),
   );
-  const untracked = git(["ls-files", "--others", "--exclude-standard", "-z"], {
-    encoding: "buffer",
-  })
+  const untracked: DiscoveredLocalChange[] = git(
+    ["ls-files", "--others", "--exclude-standard", "-z"],
+    {
+      encoding: "buffer",
+    },
+  )
     .toString("utf8")
     .split("\0")
     .filter(Boolean)
@@ -133,9 +208,14 @@ export function readChangeContext(base = "origin/main") {
   };
 }
 
-const sorted = (values) => [...values].sort();
+const sorted = (values: ReadonlySet<string>) => [...values].sort();
 
-function printPlan(context, selection, plan, validationPlan) {
+function printPlan(
+  context: ChangeContext,
+  selection: ValidationSelection,
+  plan: ValidationCommand[],
+  validationPlan: ValidationPlan,
+) {
   console.log("# Focused local validation");
   console.log(`Base: ${context.base} (${context.baseSha})`);
   console.log(`Merge base: ${context.mergeBase}`);
@@ -156,7 +236,7 @@ function printPlan(context, selection, plan, validationPlan) {
   }
 }
 
-export function buildExecutionPreflight({
+export function buildExecutionPreflight<A extends PreflightAudit = PreflightAudit>({
   context,
   plan,
   validationPlan,
@@ -164,7 +244,7 @@ export function buildExecutionPreflight({
   hosted,
   audit = null,
   platform = process.platform,
-}) {
+}: PreflightOptions<A>) {
   validateValidationPlan(validationPlan);
   if (
     validationPlan.discovery !== "complete" ||
@@ -242,12 +322,12 @@ export function buildExecutionPreflight({
 }
 
 export function inspectHostedLocalRoute(
-  context,
-  authority,
-  controller,
-  invokeGit = git,
-  dispatchRef,
-) {
+  context: ComparisonIdentity,
+  authority?: string,
+  controller?: string,
+  invokeGit: (args: string[]) => string = git,
+  dispatchRef?: string,
+): HostedRouteObservation {
   if (!authority || !controller)
     return {
       status: "unverified",
@@ -318,15 +398,16 @@ export function inspectHostedLocalRoute(
       const [name, symbolic = ""] = entry.split("\t");
       return { name, symbolic };
     })
-    .filter((entry) => candidates.includes(entry.name));
-  if (advertised.length !== 1 || advertised[0].symbolic)
+    .filter((entry) => entry.name !== undefined && candidates.includes(entry.name));
+  const advertisedRef = advertised[0];
+  if (advertised.length !== 1 || !advertisedRef || advertisedRef.symbolic)
     return {
       status: "blocked",
       reason:
         "dispatch ref is missing, ambiguous or symbolic in the local origin branch/tag inventory",
       next_action: "fetch the existing approved named ref and resolve branch/tag ambiguity",
     };
-  if (invokeGit(["rev-parse", "--verify", `${advertised[0].name}^{commit}`]).trim() !== controller)
+  if (invokeGit(["rev-parse", "--verify", `${advertisedRef.name}^{commit}`]).trim() !== controller)
     return {
       status: "blocked",
       reason: "dispatch ref does not resolve to the exact trusted controller",
@@ -343,7 +424,7 @@ export function inspectHostedLocalRoute(
   };
 }
 
-function localStageDomains(entry) {
+function localStageDomains(entry: ValidationCommand): ValidationDomain[] {
   if (entry.id === "diff-check") return [];
   // These stages read live native exposure, frontend consumers, and the
   // validator/runner implementation in addition to Rust schema exports.
@@ -369,7 +450,7 @@ function localStageDomains(entry) {
     return ["repository", "rust", "ui"];
   if (entry.id === "playnite-contract") return ["repository"];
   if (entry.id === "node-tests") {
-    const domains = new Set();
+    const domains = new Set<ValidationDomain>();
     for (const file of entry.args.filter((argument) => /\.test\.[cm]?[jt]s$/u.test(argument))) {
       for (const domain of domainsForPath(file).domains) domains.add(domain);
     }
@@ -382,7 +463,7 @@ function localStageDomains(entry) {
   return [];
 }
 
-function localStageReusable(entry) {
+function localStageReusable(entry: ValidationCommand) {
   return (
     localStageDomains(entry).length > 0 &&
     !entry.id.startsWith("ui-") &&
@@ -390,7 +471,11 @@ function localStageReusable(entry) {
   );
 }
 
-export function fingerprintLocalStage(entry, inventory, runtime) {
+export function fingerprintLocalStage(
+  entry: ValidationCommand,
+  inventory: RepositoryInventory,
+  runtime: ValidationRuntime,
+) {
   if (
     entry.id === "rust-workspace-tests" &&
     (!Array.isArray(entry.rustCoverage) ||
@@ -411,12 +496,12 @@ export function fingerprintLocalStage(entry, inventory, runtime) {
   return createHash("sha256").update(JSON.stringify(domainFingerprints)).digest("hex");
 }
 
-function localReceiptPath(receiptRoot: string, entry, fingerprint) {
+function localReceiptPath(receiptRoot: string, entry: ValidationCommand, fingerprint: string) {
   const safeId = entry.id.replace(/[^a-zA-Z0-9._-]/gu, "_");
   return path.join(receiptRoot, "local", safeId, `${fingerprint}.json`);
 }
 
-function readLocalReceipt(file) {
+function readLocalReceipt(file: string): unknown {
   try {
     return JSON.parse(readFileSync(file, "utf8"));
   } catch {
@@ -424,7 +509,7 @@ function readLocalReceipt(file) {
   }
 }
 
-function writeLocalReceipt(file: string, value) {
+function writeLocalReceipt(file: string, value: unknown) {
   mkdirSync(path.dirname(file), { recursive: true });
   const temporary = `${file}.${process.pid}.${Date.now()}.tmp`;
   writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { flag: "wx" });
@@ -432,30 +517,40 @@ function writeLocalReceipt(file: string, value) {
   renameSync(temporary, file);
 }
 
-export function executePlanWithReceipts(plan, options = {}) {
+export function executePlanWithReceipts(
+  plan: ValidationCommand[],
+  options: ReceiptExecutionOptions = {},
+) {
   const spawn = options.spawn ?? spawnCommand;
   const root = options.root ?? projectRoot;
   const reusableDomains = [...new Set(plan.filter(localStageReusable).flatMap(localStageDomains))];
-  const inventory =
-    options.inventory ?? (reusableDomains.length ? repositoryInventory(root) : null);
-  const runtime =
-    options.runtime ??
-    (reusableDomains.length ? validationRuntime(root, { domains: reusableDomains }) : null);
+  const reusableContext = reusableDomains.length
+    ? {
+        inventory: options.inventory ?? repositoryInventory(root),
+        runtime: options.runtime ?? validationRuntime(root, { domains: reusableDomains }),
+      }
+    : null;
   const receiptRoot = options.receiptRoot ?? path.join(root, "work", "validation-receipts");
   const fresh = options.fresh ?? false;
   const started = Date.now();
   const timings = [];
   for (const entry of plan) {
     const reusable = localStageReusable(entry);
-    const fingerprint = reusable ? fingerprintLocalStage(entry, inventory, runtime) : null;
-    const receiptPath = reusable ? localReceiptPath(receiptRoot, entry, fingerprint) : null;
+    const fingerprint =
+      reusable && reusableContext
+        ? fingerprintLocalStage(entry, reusableContext.inventory, reusableContext.runtime)
+        : null;
+    const receiptPath = fingerprint ? localReceiptPath(receiptRoot, entry, fingerprint) : null;
     const validation =
-      reusable && !fresh
+      receiptPath && fingerprint && !fresh
         ? validateReceipt(readLocalReceipt(receiptPath), {
             stageId: `local:${entry.id}`,
             fingerprint,
           })
-        : { valid: false, reason: fresh ? "fresh execution required" : "stage is not reusable" };
+        : {
+            valid: false as const,
+            reason: fresh ? "fresh execution required" : "stage is not reusable",
+          };
     if (validation.valid) {
       console.log(
         `\n[local-check] ${entry.id}: reused matching successful receipt from ${validation.payload.originatingHead}`,
@@ -478,7 +573,7 @@ export function executePlanWithReceipts(plan, options = {}) {
     if (result.error) throw result.error;
     if (result.status !== 0)
       throw new Error(`${entry.id} failed with exit code ${result.status ?? "unknown"}`);
-    if (receiptPath)
+    if (receiptPath && reusableContext)
       writeLocalReceipt(
         receiptPath,
         receiptEnvelope({
@@ -487,7 +582,7 @@ export function executePlanWithReceipts(plan, options = {}) {
           success: true,
           stageId: `local:${entry.id}`,
           fingerprint,
-          originatingHead: inventory.head,
+          originatingHead: reusableContext.inventory.head,
           completedAt: new Date().toISOString(),
         }),
       );
@@ -496,7 +591,7 @@ export function executePlanWithReceipts(plan, options = {}) {
   return { elapsedMs: Date.now() - started, timings };
 }
 
-export function requireFocusedArguments(kind, args) {
+export function requireFocusedArguments(kind: string, args: string[]) {
   const hasSelection =
     kind === "test-node"
       ? args.some((value) => /\.(?:test|integration\.test)\.(?:[cm]?[jt]s)$/.test(value))
@@ -507,7 +602,7 @@ export function requireFocusedArguments(kind, args) {
     throw new Error(`${kind} requires an explicit package, filter, or test path`);
 }
 
-export function storageScopeForPlan(plan) {
+export function storageScopeForPlan(plan: readonly Pick<ValidationCommand, "id">[]) {
   let rust = false;
   let frontend = false;
   for (const { id } of plan) {
@@ -524,7 +619,7 @@ export function storageScopeForPlan(plan) {
   return rust && frontend ? "all" : rust ? "rust" : frontend ? "frontend" : "tooling";
 }
 
-function runFocusedCommand(kind, args) {
+function runFocusedCommand(kind: string, args: string[]) {
   requireFocusedArguments(kind, args);
   let plan;
   if (kind === "test-rust") {
@@ -556,7 +651,7 @@ function runFocusedCommand(kind, args) {
   executePlan(plan, { env: prepareStorageScope(storageScopeForPlan(plan)) });
 }
 
-function parseCheckArgs(args) {
+function parseCheckArgs(args: string[]) {
   let base = "origin/main";
   let planOnly = false;
   let fresh = false;
@@ -578,8 +673,9 @@ function parseCheckArgs(args) {
       if (!dispatchRef || dispatchRef.startsWith("--"))
         throw new Error("--hosted-ref requires a branch or tag name");
     } else if (value === "--base") {
-      base = args[++index];
-      if (!base) throw new Error("--base requires a Git revision");
+      const nextBase = args[++index];
+      if (!nextBase) throw new Error("--base requires a Git revision");
+      base = nextBase;
     } else throw new Error(`unknown local-check option: ${value}`);
   }
   if ((asJson || authority || controller || dispatchRef) && !preflightOnly)
@@ -587,7 +683,10 @@ function parseCheckArgs(args) {
   return { base, planOnly, fresh, preflightOnly, asJson, authority, controller, dispatchRef };
 }
 
-export async function main(argv = process.argv.slice(2), options = {}) {
+export async function main(
+  argv = process.argv.slice(2),
+  options: { readContext?: (base: string) => ChangeContext } = {},
+) {
   if (argv.includes("--help")) {
     console.log(
       "usage: local-validation.mts [check [--base REV] [--plan|--preflight [--json] [--hosted-authority SHA --hosted-controller SHA --hosted-ref NAME]] [--fresh]|test-rust ARGS|test-ui FILES|test-ui-related FILES|test-node TESTS]",
@@ -607,8 +706,8 @@ export async function main(argv = process.argv.slice(2), options = {}) {
     buildValidationPlan({
       changes: context.changes.map((change) => ({
         status: change.status,
-        oldMode: change.oldMode,
-        newMode: change.newMode,
+        ...(change.oldMode === undefined ? {} : { oldMode: change.oldMode }),
+        ...(change.newMode === undefined ? {} : { newMode: change.newMode }),
         oldPath: change.previousPath ?? change.path,
         newPath: change.path,
         ...(change.nextest_equivalence ? { nextest_equivalence: change.nextest_equivalence } : {}),
@@ -625,14 +724,16 @@ export async function main(argv = process.argv.slice(2), options = {}) {
   const plan = buildPlan(selection, planContext);
   if (preflightOnly) {
     const hosted = inspectHostedLocalRoute(context, authority, controller, undefined, dispatchRef);
-    const report = buildExecutionPreflight({
-      context,
-      plan,
-      validationPlan,
-      prerequisites: await collectSelectedPrerequisites(plan),
-      hosted,
-    });
-    report.resources = await collectResourceStatus();
+    const report = {
+      ...buildExecutionPreflight({
+        context,
+        plan,
+        validationPlan,
+        prerequisites: await collectSelectedPrerequisites(plan),
+        hosted,
+      }),
+      resources: await collectResourceStatus(),
+    };
     if (asJson) console.log(JSON.stringify(report, null, 2));
     else {
       printPlan(context, selection, plan, validationPlan);

@@ -28,7 +28,29 @@ function inspectRecord(role, record, inspectIdentity) {
   };
 }
 
-async function observe(resource, lockPath, readOwner, inspect) {
+interface ResourceObservation {
+  resource: string;
+  observedAt: string;
+  verification: string;
+  observation: string;
+  reason?: string;
+  workspace?: string | null;
+  command?: string | null;
+  limits?: string;
+  recordedAt?: string;
+  processes?: (
+    | {
+        role: "wrapper" | "child";
+        pid: number;
+        expectedIdentity: string;
+        observedIdentity: string | null;
+        verification: "verified-live" | "recorded-process-absent" | "identity-mismatch";
+      }
+    | { role: "wrapper"; pid: number; observedPresent: boolean; verification: "pid-only" }
+  )[];
+}
+
+async function observe(resource, lockPath, readOwner, inspect): Promise<ResourceObservation> {
   const base = { resource, observedAt: new Date().toISOString(), verification: "unknown" };
   try {
     try {
@@ -59,7 +81,12 @@ async function observe(resource, lockPath, readOwner, inspect) {
   }
 }
 
-export async function collectResourceStatus(options = {}) {
+interface ResourceStatusOptions {
+  paths?: { heavy: string; native: string };
+  inspectIdentity?: (pid: number, options: { processToken?: string | undefined }) => string | null;
+  isProcessAlive?: (pid: number) => boolean;
+}
+export async function collectResourceStatus(options: ResourceStatusOptions = {}) {
   const paths = options.paths ?? {
     heavy: heavyRustTestLockPath(),
     native: nativeSessionLockPath(),
