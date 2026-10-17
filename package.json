@@ -26,7 +26,7 @@
   "devDependencies": {
     "@types/node": "24.19.2",
     "@types/selenium-webdriver": "4.35.7",
-    "@types/semver": "7.7.1",
+    "@types/semver": "7.8.0",
     "fallow": "3.33.1",
     "vite-plus": "catalog:",
     "yaml": "2.9.1"
