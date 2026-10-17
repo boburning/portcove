@@ -109,3 +109,22 @@ test("child harness can inherit but cannot forge a runner lock", async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("native outer admission cannot hold retirement guards while handover is pending", async () => {
+  let inspected = false;
+  await assert.rejects(
+    acquireNativeSessionLock(
+      {},
+      {
+        lockPath: path.join(os.tmpdir(), "must-not-be-created-portcove-handover"),
+        environment: {},
+        readConfiguration: async () => {
+          inspected = true;
+          return { legacyMode: "pending" };
+        },
+      },
+    ),
+    { code: "PORTCOVE_RESOURCE_HANDOVER_PENDING" },
+  );
+  assert.equal(inspected, true);
+});

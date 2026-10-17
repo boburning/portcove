@@ -8,11 +8,11 @@ import { spawnCommand } from "./dev-storage.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const desktop = path.join(root, "apps", "desktop");
 
-export function nativeBuildCommand(args) {
-  const require = createRequire(path.join(desktop, "package.json"));
+export function nativeBuildCommand(args, options = {}) {
+  const resolve = options.resolve ?? createRequire(path.join(desktop, "package.json")).resolve;
   return {
     executable: process.execPath,
-    args: [require.resolve("@tauri-apps/cli/tauri.js"), "build", ...args],
+    args: [resolve("@tauri-apps/cli/tauri.js"), "build", ...args],
     cwd: desktop,
   };
 }

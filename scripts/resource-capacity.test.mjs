@@ -17,6 +17,7 @@ import {
 async function fixture(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-capacity-"));
   t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, "config.json"), JSON.stringify({ legacyMode: "coordinated" }));
   return root;
 }
 const isolated = (root, extra = {}) => ({
@@ -311,4 +312,26 @@ test("external recovery is proof-bound and resumes partial release without touch
   assert.equal(await readFile(path.join(root, successor.reference.slots[0].name), "utf8"), before);
   assert.equal((await observeCapacity({ root })).running.length, 1);
   await successor.release();
+});
+
+test("pending handover queues new payloads without acquiring retirement guards", async (t) => {
+  const root = await fixture(t);
+  await writeFile(path.join(root, "config.json"), JSON.stringify({ legacyMode: "pending" }));
+  await assert.rejects(
+    acquireResourceCapacity("browser", {}, isolated(root, { waitMs: 0, report: () => {} })),
+    { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+  );
+  assert.equal((await observeCapacity({ root })).running.length, 0);
+  assert.deepEqual(await readdir(path.join(root, "queue")), []);
+  const pending = acquireResourceCapacity(
+    "rust",
+    {},
+    isolated(root, { pollMs: 25, report: () => {} }),
+  );
+  while (!(await readdir(path.join(root, "queue"))).length)
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  await writeFile(path.join(root, "config.json"), JSON.stringify({ legacyMode: "coordinated" }));
+  const lease = await pending;
+  assert.equal(lease.inherited, false);
+  await lease.release();
 });

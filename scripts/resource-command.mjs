@@ -1,3 +1,4 @@
+import { acquireHeavyRustTestLock } from "./heavy-rust-test-lock.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runRustTests, acquireRustResources } from "./run-rust-tests.mjs";
@@ -23,6 +24,8 @@ export async function runResourceCommand(profile, executable, args, options = {}
       environment,
       cwd: options.cwd ?? process.cwd(),
       acquireLock: async (metadata, admission) => {
+        if (environment.GITHUB_ACTIONS === "true" || environment.PORTCOVE_CONTAINER_GUEST === "1")
+          return acquireHeavyRustTestLock(metadata, admission);
         const lease = await (
           profile === "rust"
             ? (ignored, metadata, options) => acquireRustResources(metadata, options)

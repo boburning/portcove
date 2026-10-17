@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { acquireOwnedProcessLock, isProcessAlive } from "./process-lock.mjs";
 import { readProcessLockOwner } from "./process-lock.mjs";
 import { toolCachePaths } from "./tool-cache.mjs";
-import { resourceDomainRoot } from "./resource-paths.mjs";
+import { resourceDomainRoot, resourceConfiguration } from "./resource-paths.mjs";
 
 export function nativeSessionLockPath() {
   return path.join(resourceDomainRoot(), "native-desktop");
@@ -14,8 +14,22 @@ export function legacyNativeSessionLockPath() {
 }
 
 export async function acquireNativeSessionLock(metadata = {}, options = {}) {
+  const environment = options.environment ?? process.env;
+  if (
+    (!options.lockPath || options.readConfiguration) &&
+    !options.retiringLegacy &&
+    environment.GITHUB_ACTIONS !== "true" &&
+    environment.PORTCOVE_CONTAINER_GUEST !== "1" &&
+    (await (options.readConfiguration ?? resourceConfiguration)()).legacyMode !== "coordinated"
+  )
+    throw Object.assign(
+      new Error(
+        "Native admission requires the drained resource handover; no session acquired. Run resource-command.mjs retire-legacy-entrypoints after old work finishes.",
+      ),
+      { code: "PORTCOVE_RESOURCE_HANDOVER_PENDING" },
+    );
   const lockPath = path.resolve(options.lockPath ?? nativeSessionLockPath());
-  const inheritedToken = options.inheritedToken ?? process.env.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN;
+  const inheritedToken = options.inheritedToken ?? environment.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN;
   const details = {
     workspace: metadata.workspace ?? null,
     profile: metadata.profile ?? null,

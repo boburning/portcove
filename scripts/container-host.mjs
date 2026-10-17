@@ -1051,6 +1051,8 @@ export function createContainerHost(profile) {
         );
         if (size(stageRoot) > budgets.staging_bytes)
           throw new Error("Owned staging exceeds its 10 GiB budget");
+        const buildTimeout = setupTimeout();
+        abort.signal.throwIfAborted();
         state.capacity_phase = "image-build";
         state.build_name = `${prefix}-${run}`;
         save();
@@ -1084,7 +1086,7 @@ export function createContainerHost(profile) {
             ].flatMap((key) => ["--build-arg", `${key}=`]),
             directory,
           ],
-          { timeout: setupTimeout(), signal: abort.signal },
+          { timeout: buildTimeout, signal: abort.signal },
         );
         state.capacity_phase = "prepared";
         save();
@@ -1198,6 +1200,11 @@ export function createContainerHost(profile) {
           state.creation_readback_error = readback.message;
         }
       }
+      if (
+        state.capacity_phase === "image-build" &&
+        (error.result?.interruption === "already-aborted" || error.code === "ENOENT")
+      )
+        state.capacity_phase = "prepared";
       if (reservation) {
         try {
           if (await preparationStopped(state)) {

@@ -1,4 +1,4 @@
-import { resourceDomainRoot } from "./resource-paths.mjs";
+import { resourceDomainRoot, resourceConfiguration } from "./resource-paths.mjs";
 import { resolvePhysicalPath } from "./dev-storage.mjs";
 import { fallowSource } from "./fallow-source.mjs";
 import { createHash, randomUUID } from "node:crypto";
@@ -27,39 +27,7 @@ export function frontendOutputResource(workspace) {
     .digest("hex")}`;
 }
 
-export async function resourceConfiguration(root = resourceDomainRoot()) {
-  let supplied = {};
-  try {
-    supplied = JSON.parse(await readFile(path.join(root, "config.json"), "utf8"));
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
-  }
-  const config = {
-    slots: 2,
-    waitMs: 900_000,
-    legacyRoots: [],
-    legacyMode: "exclusive",
-    ...supplied,
-  };
-  if (
-    Object.keys(config).some(
-      (key) => !["slots", "waitMs", "legacyRoots", "legacyMode"].includes(key),
-    ) ||
-    !["exclusive", "coordinated"].includes(config.legacyMode) ||
-    !Number.isInteger(config.slots) ||
-    config.slots < 1 ||
-    config.slots > 8 ||
-    !Number.isInteger(config.waitMs) ||
-    config.waitMs < 0 ||
-    config.waitMs > 3_600_000 ||
-    !Array.isArray(config.legacyRoots) ||
-    config.legacyRoots.some((value) => typeof value !== "string" || !path.isAbsolute(value))
-  )
-    throw new Error(
-      "Resource config requires slots 1..8, waitMs 0..3600000 and absolute legacyRoots",
-    );
-  return config;
-}
+export { resourceConfiguration } from "./resource-paths.mjs";
 
 function legacyRoots(config, environment) {
   const ordinary =
@@ -119,12 +87,10 @@ async function legacyBlocker(config, environment) {
   return null;
 }
 
-// Unmodified guards cannot represent several independent owners. During the
-// bounded handover every heavy phase therefore mirrors both old exclusive guards.
-// Coordinated mode retires those entrypoints instead of inventing a bridge daemon.
+// Handover only: hold the old guards while recording their retirement. No new
+// payload runs under PID-only legacy ownership or a bridge daemon.
 async function legacyBridge(config, environment, metadata, common) {
   const held = [];
-  const childEnvironment = {};
   try {
     const { acquireNativeSessionLock, legacyNativeSessionLockPath } =
       await import("./native-session-lock.mjs");
@@ -137,10 +103,9 @@ async function legacyBridge(config, environment, metadata, common) {
         : undefined);
     const native = await acquireNativeSessionLock(
       { ...metadata, profile: "resource-transition" },
-      { inheritedToken: token },
+      { inheritedToken: token, retiringLegacy: true },
     );
     held.push(native);
-    childEnvironment.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN = native.owner.token;
     for (const root of legacyRoots(config, environment).sort()) {
       const nativePath = path.join(root, "locks", "native-desktop");
       if (path.resolve(nativePath) !== path.resolve(primary))
@@ -169,9 +134,8 @@ async function legacyBridge(config, environment, metadata, common) {
         },
       );
       held.push(lock);
-      Object.assign(childEnvironment, lock.childEnvironment);
     }
-    return { held, childEnvironment };
+    return { held };
   } catch (error) {
     for (const lock of held.reverse()) await lock.release();
     throw error;
@@ -265,10 +229,6 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
     };
   const root = options.root ?? resourceDomainRoot();
   const config = await resourceConfiguration(root);
-  if (profile === "container" && config.legacyMode === "exclusive" && !options.legacyBlocker)
-    throw new Error(
-      "Container admission requires the explicit drained legacy-entrypoint cutover; an unmodified guard cannot retain remote-engine custody after its caller exits",
-    );
   const units = Math.min(config.slots, resourceProfiles[profile]);
   const exclusive = [...new Set(options.exclusive ?? [])].sort();
   if (exclusive.some((name) => !/^exclusive-[a-f0-9]{64}$/u.test(name)))
@@ -331,7 +291,6 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
   const deadline = started + waitMs;
   let nextReport = 0;
   const acquired = [];
-  let bridge = { held: [], childEnvironment: {} };
   let admitted = false;
   try {
     for (;;) {
@@ -346,28 +305,35 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
       );
       if (waiting[0]?.name === name && !legacy && !outsideConfiguredCapacity) {
         const currentConfig = await resourceConfiguration(root);
-        if (currentConfig.legacyMode === "exclusive" && !options.legacyBlocker) {
-          try {
-            bridge = await legacyBridge(currentConfig, environment, metadata, common);
-          } catch (error) {
-            if (error.code !== "PORTCOVE_RESOURCE_BUSY") throw error;
+        if (currentConfig.legacyMode !== "coordinated") {
+          if (performance.now() >= deadline)
+            throw Object.assign(
+              new Error(
+                "Resource handover is pending; no payload started. Finish legacy work and run retire-legacy-entrypoints from an updated checkout.",
+              ),
+              { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+            );
+          if (performance.now() >= nextReport) {
+            (options.report ?? console.error)(
+              `Resource handover pending; ${profile} queued ${Math.round(performance.now() - started)}ms. Drain old heavy/native/container work, retire old entrypoints, then run resource-command.mjs retire-legacy-entrypoints.`,
+            );
+            nextReport = performance.now() + 30_000;
           }
-          if (!bridge.held.length) {
-            if (performance.now() >= deadline)
-              throw Object.assign(
-                new Error("Legacy transition queue timed out; no payload started"),
-                { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
-              );
-            await delay(options.pollMs ?? 250, undefined, { signal: options.signal });
-            continue;
-          }
-          // A queued request crossing an explicit cutover must use the new mode.
-          if ((await resourceConfiguration(root)).legacyMode !== "exclusive") {
-            for (const lock of bridge.held.reverse()) await lock.release();
-            bridge = { held: [], childEnvironment: {} };
-            continue;
-          }
+          await delay(
+            Math.min(options.pollMs ?? 250, Math.max(1, deadline - performance.now())),
+            undefined,
+            { signal: options.signal },
+          );
+          continue;
         }
+        if (
+          currentConfig.slots !== config.slots ||
+          JSON.stringify(currentConfig.legacyRoots) !== JSON.stringify(config.legacyRoots)
+        )
+          throw Object.assign(
+            new Error("Resource configuration changed while queued; retry the intended command"),
+            { code: "PORTCOVE_RESOURCE_CONFIGURATION_CHANGED" },
+          );
         for (let slot = 0; slot < config.slots && acquired.length < units; slot++) {
           try {
             acquired.push(
@@ -413,8 +379,6 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
           }
         }
         for (const lock of acquired.splice(0)) await lock.release();
-        for (const lock of bridge.held.reverse()) await lock.release();
-        bridge = { held: [], childEnvironment: {} };
       }
       const elapsed = Math.round(performance.now() - started);
       if (performance.now() >= deadline)
@@ -455,7 +419,6 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
       queueMs,
       reference: lease,
       childEnvironment: {
-        ...bridge.childEnvironment,
         [inheritedName]: JSON.stringify(lease),
         PORTCOVE_HEAVY_RUST_PROCESS_TOKEN: processToken,
       },
@@ -465,10 +428,6 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
           const current = await lock.registerChild(child, registration);
           if (current === null) return null;
           registered = current;
-        }
-        for (const lock of bridge.held) {
-          if (lock.registerChild && (await lock.registerChild(child, registration)) === null)
-            return null;
         }
         return registered;
       },
@@ -486,7 +445,6 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
         );
         if (external) await releaseExternalRecords(lease, JSON.parse(external), root, false);
         else for (const lock of acquired) await lock.release();
-        for (const lock of bridge.held.reverse()) await lock.release();
         if (process.platform === "darwin") process.title = originalTitle;
       },
     };
@@ -494,7 +452,6 @@ export async function acquireResourceCapacity(profile, metadata = {}, options = 
     await queued.release();
     if (!admitted) {
       for (const lock of acquired) await lock.release();
-      for (const lock of bridge.held.reverse()) await lock.release();
       if (process.platform === "darwin") process.title = originalTitle;
     }
   }

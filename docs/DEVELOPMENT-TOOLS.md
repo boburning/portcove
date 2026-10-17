@@ -1706,25 +1706,25 @@ uses two pack threads. Preserve headroom for unrelated programs.
 
 `config.json` in that domain accepts `slots` (1..8, default 2), `waitMs`
 (0..3600000, default 900000), absolute `legacyRoots` for additional known shared
-tool-cache roots, and `legacyMode` (`exclusive` or `coordinated`). Do not edit the
+tool-cache roots, and `legacyMode` (`pending` or `coordinated`). Do not edit the
 mode during active work. Lowering capacity does not erase existing reservations.
 The guard queues with operation/worktree diagnostics, keeps queue duration
 separate from execution, and times out admission with exit 75. Cancellation is
 130/143. Neither means a completed test. Execution budgets begin after admission;
 outer callers must allow the bounded queue as well as setup and execution.
 
-The initial `exclusive` mode safely mirrors the older Rust and desktop guards;
-heavy phases are serialized during this transition. Container runs require the
-cutover because an unmodified old guard cannot retain remote-engine custody after
-a host caller dies. Coordinate a finite checkpoint with existing local writers,
-finish legacy heavy/native/container work and resolve unknown retained records.
-Then run `node scripts/resource-command.mjs retire-legacy-entrypoints` from an
-updated checkout. This owner-authorized operation holds the legacy guards, checks
-the drained capacity domain, retains a migration receipt and atomically selects
-`coordinated` mode. Queued requests re-read mode. After cutover, retire unmodified
-legacy entrypoints: a passive legacy scan cannot protect against an unsupported
-old command starting later. Returning to compatibility requires another drained
-transition; there is no live mode switch or cleanup override.
+The initial `pending` mode admits no new heavy payload: requests wait boundedly
+while older work finishes. An unmodified PID-only native guard cannot safely
+represent independent supervised descendants or remote-engine work. Coordinate a
+finite checkpoint with existing local writers, finish legacy heavy/native/container
+work and resolve unknown retained records. Then run
+`node scripts/resource-command.mjs retire-legacy-entrypoints` from an updated
+checkout. This owner-authorized operation holds the legacy guards, checks the
+drained capacity domain, retains a migration receipt and atomically selects
+`coordinated` mode. Queued requests re-read mode. After cutover, retire all
+unmodified legacy entrypoints: a passive legacy scan cannot protect against an
+unsupported old command starting later. There is no live rollback or cleanup
+override; any return to old tools requires another drained transition.
 
 Rust target directories and mutable frontend outputs use physical-path exclusive
 reservations alongside capacity. Distinct worktrees can execute together; the
