@@ -1073,3 +1073,41 @@ void test("publication redirected backup containment accepts Windows path aliase
     await assert.rejects(run(root, child, String.raw`H:\outside\backup`));
   }
 });
+
+void test("publication import readback derives the expected payload from physical Windows aliases", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-host-publication-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("    const exportedRelative = path.relative(");
+  const end = source.indexOf("    await writeFile(importedSave,", start);
+  assert.ok(start >= 0 && end > start);
+  const guard = source.slice(start, end);
+  const destination = String.raw`E:\owned\published-move-destination`;
+  const importRoot = String.raw`E:\owned\published-import-destination`;
+  const suffix = path.win32.join("versions", "port", "payload");
+  const child = path.win32.join(destination, suffix);
+  const imported = path.win32.toNamespacedPath(path.win32.join(importRoot, suffix));
+  const run = async (exported: string, actual = imported) =>
+    runInNewContext(`(async()=>{${guard}})()`, {
+      assert,
+      path: path.win32,
+      destination,
+      importRoot,
+      exportedInstallation: { path: exported },
+      importedInstallation: { path: actual },
+      realpath: async (value: string) => value,
+      samePath: (a: string, b: string) =>
+        path.win32.toNamespacedPath(a).toLowerCase() ===
+        path.win32.toNamespacedPath(b).toLowerCase(),
+    });
+  await run(child);
+  await run(path.win32.toNamespacedPath(child));
+  for (const escaped of [
+    destination,
+    String.raw`E:\owned\published-move-destination-other\payload`,
+    String.raw`H:\outside\payload`,
+  ])
+    await assert.rejects(run(escaped));
+  await assert.rejects(run(child, String.raw`E:\owned\wrong-import\payload`));
+});

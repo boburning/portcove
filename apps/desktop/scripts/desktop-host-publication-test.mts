@@ -587,20 +587,38 @@ export async function hostPublicationScenario(context: Context) {
     assert.ok(importedInstallation);
     assert.equal(importedInstallation.id, exportedInstallation.id);
     assert.deepEqual(importedInstallation.artifact, exportedInstallation.artifact);
-    assert.ok(
-      samePath(
-        importedInstallation.path,
-        path.join(importRoot, path.relative(destination, exportedInstallation.path)),
-      ),
+    const exportedRelative = path.relative(
+      path.toNamespacedPath(await realpath(destination)),
+      path.toNamespacedPath(await realpath(exportedInstallation.path)),
     );
+    assert.ok(
+      exportedRelative && !exportedRelative.startsWith("..") && !path.isAbsolute(exportedRelative),
+    );
+    assert.ok(samePath(importedInstallation.path, path.join(importRoot, exportedRelative)));
     await writeFile(importedSave, "New save after published import host restart.");
     const newImportedSave = await fileIdentity(importedSave);
-    const importRecovered = transportValue(
-      "library_import_result",
-      success(await invoke("recover_library_import", { destination: importRoot, abort: false })),
+    // Published import is committed; archive bookkeeping only with the owned host stopped.
+    // The same exclusive-lease contract as move recovery permits in-flight readers to refuse it.
+    let importRecovered: unknown;
+    browser = await restartApplication("published-import-bookkeeping", async () => {
+      const current = transportValue(
+        "library_import_result",
+        command(["library", "resume-import"], importRoot),
+      );
+      assert.equal(current.completed, true);
+      assert.equal(current.transfer_id, importId);
+      importRecovered = current;
+      importProbe.result.bookkeeping_while_desktop_stopped = current;
+      await assertIdentity(newImportedSave);
+    });
+    const bookkeptBootstrap = transportValue(
+      "desktop_bootstrap_status",
+      success(await invoke("get_bootstrap_status")),
     );
-    assert.equal(importRecovered.completed, true);
-    assert.equal(importRecovered.transfer_id, importId);
+    assert.equal(bookkeptBootstrap.ready, true);
+    assert.ok(
+      bookkeptBootstrap.library_root && samePath(bookkeptBootstrap.library_root, importRoot),
+    );
     assert.equal(
       await stat(importJournalPath).then(
         () => true,
@@ -639,6 +657,7 @@ export async function hostPublicationScenario(context: Context) {
       input_backups: await assertBackupCopies(destination),
       backup_inventory: exportedBackups,
       importedBootstrap,
+      bookkeptBootstrap,
       importRecovered,
       archivedImport,
       importActivities,
