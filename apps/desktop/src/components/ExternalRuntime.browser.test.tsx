@@ -4,9 +4,10 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
-import { portDefinition, portStatus } from "../test-fixtures";
+import { failureReport, portDefinition, portStatus } from "../test-fixtures";
 import type { ExternalRuntimeRecord } from "../types";
 import { ExternalRuntimeControl } from "./ExternalRuntime";
+import { ActionReviewFailure } from "./ActionReviewFailure";
 
 vi.mock("../file-picker", () => ({ pickInstallFolder: vi.fn() }));
 
@@ -469,4 +470,82 @@ it.each(
   expect(preview).not.toHaveBeenCalled();
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   expect(document.body.textContent).toContain("Current removal availability is unavailable");
+});
+
+it.each([
+  ["not_started", "This operation did not start."],
+  ["no_changes", "No files were changed by this operation."],
+  ["committed", "The change was saved. Check the result before trying again."],
+  ["recovery_required", "An earlier attempt left unfinished work."],
+  ["unknown", "Portcove couldn't confirm whether anything changed."],
+] as const)(
+  "preserves the reported %s outcome and makes Check again read-only",
+  async (state, text) => {
+    vi.mocked(pickInstallFolder).mockResolvedValue(record.path);
+    const preview = vi
+      .spyOn(desktopApi, "previewExternalRuntime")
+      .mockResolvedValue(runtimePreview());
+    const failure = failureReport();
+    failure.presentation.mutation_state = state;
+    failure.presentation.summary =
+      "Check this runtime's current registration before another attempt.";
+    failure.presentation.phase = "registration_readback";
+    failure.presentation.technical_context = { port_id: port.id };
+    const register = vi.spyOn(desktopApi, "registerExternalRuntime").mockRejectedValue(failure);
+    await root.rerender(
+      <ExternalRuntimeControl port={port} status={portStatus()} generation={7} busy={false} />,
+    );
+    await click("Choose game folder");
+    await click("Use this installation");
+    const alert = document.body.querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain(failure.presentation.summary);
+    expect(alert?.textContent).toContain(text);
+    expect(alert?.textContent).toContain("View technical details");
+    expect(alert?.textContent).toContain("registration_readback");
+    expect(alert?.textContent).toContain(failure.code);
+    expect(document.body.querySelector("button")?.textContent).not.toBe("Use this installation");
+    await click("Check again");
+    expect(preview).toHaveBeenCalledTimes(2);
+    expect(register).toHaveBeenCalledOnce();
+    expect(document.body.querySelector('[role="alert"]')).toBeNull();
+  },
+);
+
+it("announces only a proven neutral cancellation as status", async () => {
+  vi.mocked(pickInstallFolder).mockResolvedValue(record.path);
+  const failure = failureReport();
+  failure.code = "cancelled";
+  failure.presentation.tone = "neutral";
+  failure.presentation.mutation_state = "no_changes";
+  failure.presentation.summary = "The operation was cancelled.";
+  vi.spyOn(desktopApi, "previewExternalRuntime").mockRejectedValue(failure);
+  await root.rerender(
+    <ExternalRuntimeControl port={port} status={portStatus()} generation={7} busy={false} />,
+  );
+  await click("Choose game folder");
+  expect(document.body.querySelector('[role="alert"]')).toBeNull();
+  expect(document.body.querySelector('[role="status"]')?.textContent).toContain(
+    "The operation was cancelled.",
+  );
+  expect(document.body.querySelector('[role="status"]')?.textContent).toContain(
+    "No files were changed",
+  );
+});
+
+it("keeps future and legacy failure outcomes unknown", async () => {
+  const future = failureReport();
+  const value = {
+    ...future,
+    presentation: { ...future.presentation, mutation_state: "future_outcome", tone: "neutral" },
+  };
+  await root.rerender(<ActionReviewFailure error={value} />);
+  expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
+    "Portcove couldn't confirm whether anything changed.",
+  );
+  expect(document.body.textContent).not.toContain("No files were changed");
+  await root.rerender(<ActionReviewFailure error={new Error("Read current state again.")} />);
+  expect(document.body.querySelector('[role="alert"]')?.textContent).toBe(
+    "Read current state again.",
+  );
+  expect(document.body.textContent).not.toContain("No files were changed");
 });

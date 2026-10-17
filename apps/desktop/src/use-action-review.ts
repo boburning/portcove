@@ -1,6 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { LatestRequestGeneration } from "./shared/concurrency-state";
-import { errorText } from "./view-model";
 
 export type ReviewOutcome = boolean | "cancelled";
 
@@ -27,7 +26,7 @@ export function useActionReview<T>({
   const [reviewed, setReviewed] = useState<{ identity: string; value: T }>();
   const preview = reviewed?.identity === identity ? reviewed.value : undefined;
   const [pending, setPending] = useState<"review" | "apply">();
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<unknown>();
   const dismiss = () => {
     if (inFlight.current !== "apply") callbacks.current.close();
   };
@@ -42,7 +41,7 @@ export function useActionReview<T>({
       const value = await callbacks.current.load();
       if (requests.current.isCurrent(request)) setReviewed({ identity, value });
     } catch (value) {
-      if (requests.current.isCurrent(request)) setError(errorText(value));
+      if (requests.current.isCurrent(request)) setError(value);
     } finally {
       if (requests.current.isCurrent(request)) {
         inFlight.current = undefined;
@@ -70,7 +69,7 @@ export function useActionReview<T>({
       if (result) callbacks.current.close();
       else setError(callbacks.current.failureMessage);
     } catch (value) {
-      if (requests.current.isCurrent(request)) setError(errorText(value));
+      if (requests.current.isCurrent(request)) setError(value);
     } finally {
       if (requests.current.isCurrent(request)) {
         inFlight.current = undefined;

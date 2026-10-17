@@ -1,3 +1,4 @@
+import { ActionReviewFailure } from "./ActionReviewFailure";
 import { useState } from "react";
 import { desktopApi } from "../api";
 import type { DoctorReport, PortDefinition, PreparationCleanupPreview } from "../types";
@@ -226,7 +227,7 @@ function PreparationCleanupDialog({
         </DialogDescription>
         {pending === "review" && <p role="status">Checking unfinished setup files…</p>}
         {preview && <PreparationCleanupDetails preview={preview} />}
-        {error && <p role="alert">{error}</p>}
+        <ActionReviewFailure error={error} />
         <DialogFooter className="mt-4">
           <Button
             data-autofocus

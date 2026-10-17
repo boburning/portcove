@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { lstat, mkdir, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 
@@ -233,6 +233,54 @@ export async function externalRuntimeReviewScenario(context) {
     assert.ok(!(await status()).external_runtime);
     await retainFiles();
     report.steps.push("native-registration-consent-cancelled-without-registration");
+    // Real Core preview refusal, rather than a supplied error payload. Only this
+    // scenario's inert immutable fixture is changed, then restored before reuse.
+    const rejectedFile = path.join(fixture.directory, "unknown-save.bin");
+    const originalBytes = await readFile(rejectedFile);
+    try {
+      await writeFile(
+        rejectedFile,
+        Buffer.concat([originalBytes, Buffer.from("changed review\n")]),
+      );
+      const rejected = await invoke("preview_external_runtime", {
+        portId: fixture.port.id,
+        path: fixture.directory,
+        generation: bootstrap.value.generation,
+      });
+      assert.equal(rejected.ok, false);
+      assert.ok(rejected.error.presentation);
+      await browser.findElement(choose).click();
+      const selection = await selectPicker(
+        "external-runtime-rejected-review-picker",
+        fixture.directory,
+      );
+      assert.equal(selection.selected, true);
+      const alert = By.css('[aria-describedby="external-register-description"] [role="alert"]');
+      await browser.wait(until.elementLocated(alert), 15_000);
+      const rendered = await browser.findElement(alert);
+      assert.ok((await rendered.getText()).includes(rejected.error.presentation.summary));
+      await rendered.findElement(By.css("summary")).click();
+      const technical = JSON.parse(await rendered.findElement(By.css("pre")).getText());
+      assert.equal(technical.code, rejected.error.code);
+      assert.equal(technical.mutation_state, rejected.error.presentation.mutation_state);
+      assert.equal(technical.phase, rejected.error.presentation.phase);
+      report.rejected_preview = {
+        code: technical.code,
+        mutation_state: technical.mutation_state,
+        phase: technical.phase,
+      };
+      await screenshot("external-runtime-structured-preview-failure");
+      const dialog = await browser.findElement(dialogFor("register"));
+      await dialog.findElement(buttonFor("Cancel")).click();
+      await closed("register");
+      assert.ok(!(await status()).external_runtime);
+    } finally {
+      await writeFile(rejectedFile, originalBytes);
+    }
+    await retainFiles();
+    report.steps.push(
+      "real-core-preview-refusal-retains-structured-outcome-and-diagnostics-without-registration",
+    );
     review = await selectFolder("external-runtime-register-picker");
     await review.action.click();
     await confirmNative(
