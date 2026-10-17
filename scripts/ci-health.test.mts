@@ -1,11 +1,16 @@
+import type { CiRun, CiJob, CiRequest, AttemptProvenance } from "./ci-health.mts";
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { collectHistory, renderReport, summarizeAttempt, summarizeHistory } from "./ci-health.mts";
 import { buildWorkflowProvenance } from "./workflow-provenance.mts";
 
-const stamp = (seconds) => new Date(Date.UTC(2026, 8, 7) + seconds * 1000).toISOString();
-const run = (overrides) => ({
+const stamp = (seconds: number) => new Date(Date.UTC(2026, 8, 7) + seconds * 1000).toISOString();
+const run = (overrides: Partial<CiRun> = {}): CiRun => ({
   id: 1,
   run_attempt: 1,
   head_sha: "a".repeat(40),
@@ -21,7 +26,7 @@ const run = (overrides) => ({
   name: "CI",
   ...overrides,
 });
-const job = (overrides) => ({
+const job = (overrides: Partial<CiJob> = {}): CiJob => ({
   name: "rust",
   status: "completed",
   conclusion: "success",
@@ -33,8 +38,10 @@ const job = (overrides) => ({
   steps: [],
   ...overrides,
 });
-const attempt = (overrides) => summarizeAttempt(run(overrides), [job()]);
-const provenance = (cohort = "c".repeat(64)) => ({
+const attempt = (overrides: Partial<CiRun> = {}) => summarizeAttempt(run(overrides), [job()]);
+const provenance = (
+  cohort = "c".repeat(64),
+): Extract<AttemptProvenance, { status: "verified" }> => ({
   status: "verified",
   record: {
     equivalent_cohort: cohort,
@@ -46,7 +53,7 @@ const provenance = (cohort = "c".repeat(64)) => ({
   },
 });
 
-test("first attempts include initial queue time and reruns use their own start", () => {
+void test("first attempts include initial queue time and reruns use their own start", () => {
   assert.equal(attempt().seconds, 240);
   assert.equal(
     attempt({
@@ -59,7 +66,7 @@ test("first attempts include initial queue time and reruns use their own start",
   assert.equal(attempt({ status: "in_progress", conclusion: null }).seconds, null);
 });
 
-test("missing or backwards timing is unavailable rather than a zero-duration success", () => {
+void test("missing or backwards timing is unavailable rather than a zero-duration success", () => {
   for (const updated_at of [null, undefined, "not a timestamp", stamp(-1)]) {
     const result = attempt({ updated_at });
     assert.equal(result.seconds, null);
@@ -68,7 +75,7 @@ test("missing or backwards timing is unavailable rather than a zero-duration suc
   }
 });
 
-test("cancelled, failed and running attempts remain visible outside successful percentiles", () => {
+void test("cancelled, failed and running attempts remain visible outside successful percentiles", () => {
   const summary = summarizeHistory([
     attempt(),
     attempt({ id: 2, conclusion: "cancelled" }),
@@ -85,7 +92,7 @@ test("cancelled, failed and running attempts remain visible outside successful p
   });
 });
 
-test("rerun recovery retains the failed jobs and requires the same run and commit", () => {
+void test("rerun recovery retains the failed jobs and requires the same run and commit", () => {
   const failed = summarizeAttempt(run({ conclusion: "failure" }), [
     job({ name: "native Intel", conclusion: "timed_out" }),
   ]);
@@ -116,7 +123,7 @@ test("rerun recovery retains the failed jobs and requires the same run and commi
   assert.equal(summarizeHistory([cancelledWithFailure, passed]).rerunRecoveries.length, 1);
 });
 
-test("percentiles separate first attempts from reruns and require twenty tail samples", () => {
+void test("percentiles separate first attempts from reruns and require twenty tail samples", () => {
   const first = Array.from({ length: 20 }, (_, index) =>
     attempt({ id: index + 1, updated_at: stamp(index + 1) }),
   );
@@ -139,7 +146,7 @@ test("percentiles separate first attempts from reruns and require twenty tail sa
   assert.equal(summarizeHistory(first.slice(0, 19)).successfulFirstAttempts.p95Seconds, null);
 });
 
-test("job and step timings preserve setup costs but do not measure skipped jobs", () => {
+void test("job and step timings preserve setup costs but do not measure skipped jobs", () => {
   const result = summarizeAttempt(run(), [
     job({
       steps: [
@@ -159,18 +166,18 @@ test("job and step timings preserve setup costs but do not measure skipped jobs"
     }),
     job({ name: "dependency-review", conclusion: "skipped" }),
   ]);
-  assert.equal(result.jobs[0].seconds, 225);
-  assert.equal(result.jobs[0].preStartSeconds, 2);
-  assert.equal(result.jobs[0].steps[0].name, "build");
-  assert.equal(result.jobs[1].seconds, null);
+  assert.equal(required(result.jobs[0]).seconds, 225);
+  assert.equal(required(result.jobs[0]).preStartSeconds, 2);
+  assert.equal(required(required(result.jobs[0]).steps[0]).name, "build");
+  assert.equal(required(result.jobs[1]).seconds, null);
   assert.deepEqual(
     summarizeHistory([result]).slowestJobs.map((item) => item.name),
     ["rust"],
   );
 });
 
-test("workflow timing separates only boundaries supported by GitHub timestamps", () => {
-  const result = summarizeAttempt(run(), [
+void test("workflow timing separates only boundaries supported by GitHub timestamps", () => {
+  const rawJobs = [
     job(),
     job({
       name: "frontend",
@@ -179,7 +186,8 @@ test("workflow timing separates only boundaries supported by GitHub timestamps",
       completed_at: stamp(100),
       labels: ["ubuntu-latest"],
     }),
-  ]);
+  ];
+  const result = summarizeAttempt(run(), rawJobs);
   assert.deepEqual(result.timing, {
     workflowSeconds: 240,
     preJobSeconds: 10,
@@ -188,13 +196,13 @@ test("workflow timing separates only boundaries supported by GitHub timestamps",
     summedRunnerSeconds: 295,
   });
   assert.equal(result.cohort, null);
-  const verified = summarizeAttempt(run(), result.jobs, provenance());
-  assert.match(verified.cohort, /exact:c{64}/u);
-  assert.match(verified.cohort, /ubuntu-latest/);
-  assert.match(verified.cohort, /windows-latest/);
+  const verified = summarizeAttempt(run(), rawJobs, provenance());
+  assert.match(required(verified.cohort), /exact:c{64}/u);
+  assert.match(required(verified.cohort), /ubuntu-latest/);
+  assert.match(required(verified.cohort), /windows-latest/);
 });
 
-test("missing job boundaries stay unavailable and never become zero timing", () => {
+void test("missing job boundaries stay unavailable and never become zero timing", () => {
   const result = summarizeAttempt(run(), [
     job({ started_at: null, completed_at: null }),
     job({ name: "skipped", conclusion: "skipped" }),
@@ -209,7 +217,7 @@ test("missing job boundaries stay unavailable and never become zero timing", () 
   assert.equal(summarizeHistory([result]).timing.summedRunner.count, 0);
 });
 
-test("failure leads retain job links and API-identified failed steps", () => {
+void test("failure leads retain job links and API-identified failed steps", () => {
   const failed = summarizeAttempt(run({ conclusion: "failure" }), [
     job({
       conclusion: "failure",
@@ -232,7 +240,7 @@ test("failure leads retain job links and API-identified failed steps", () => {
   ]);
 });
 
-test("failure leads retain the latest ten attempts in collection order", () => {
+void test("failure leads retain the latest ten attempts in collection order", () => {
   const failures = Array.from({ length: 12 }, (_, index) =>
     summarizeAttempt(run({ id: index + 1, conclusion: "failure" }), [
       job({ conclusion: "failure" }),
@@ -244,7 +252,7 @@ test("failure leads retain the latest ten attempts in collection order", () => {
   );
 });
 
-test("slow job evidence distinguishes setup acquisition from command execution", () => {
+void test("slow job evidence distinguishes setup acquisition from command execution", () => {
   const result = summarizeAttempt(run(), [
     job({
       steps: [
@@ -264,7 +272,7 @@ test("slow job evidence distinguishes setup acquisition from command execution",
     }),
   ]);
   assert.deepEqual(
-    summarizeHistory([result]).slowestJobs[0].slowestSteps.map((step) => [
+    required(summarizeHistory([result]).slowestJobs[0]).slowestSteps.map((step) => [
       step.name,
       step.category,
     ]),
@@ -275,13 +283,13 @@ test("slow job evidence distinguishes setup acquisition from command execution",
   );
 });
 
-test("collector retrieves failed earlier attempts and every job page", async () => {
-  const calls = [];
-  const request = async (route: string, paginate) => {
+void test("collector retrieves failed earlier attempts and every job page", async () => {
+  const calls: { route: string; paginate: boolean | undefined }[] = [];
+  const request: CiRequest = async (route, paginate) => {
     calls.push({ route, paginate });
     if (route.includes("/workflows/")) return { workflow_runs: [{ id: 1, run_attempt: 2 }] };
     if (route.includes("/artifacts?")) return [{ total_count: 0, artifacts: [] }];
-    const number = Number(route.match(/attempts\/(\d+)/)[1]);
+    const number = Number(required(route.match(/attempts\/(\d+)/))[1]);
     if (route.includes("/jobs?")) {
       assert.equal(paginate, true);
       return [
@@ -301,17 +309,17 @@ test("collector retrieves failed earlier attempts and every job page", async () 
     limit: 2,
   });
   assert.equal(report.attempts.length, 2);
-  assert.equal(report.attempts[0].conclusion, "failure");
-  assert.equal(report.attempts[0].jobs.length, 2);
+  assert.equal(required(report.attempts[0]).conclusion, "failure");
+  assert.equal(required(report.attempts[0]).jobs.length, 2);
   assert.match(
-    calls[0].route,
+    required(calls[0]).route,
     /workflows\/ci\.yml\/runs\?event=pull_request&per_page=2&branch=feature%2Ftest/,
   );
 });
 
-test("collector can sample all-branch pull requests and a named release workflow", async () => {
-  const calls = [];
-  const request = async (route) => {
+void test("collector can sample all-branch pull requests and a named release workflow", async () => {
+  const calls: string[] = [];
+  const request: CiRequest = async (route) => {
     calls.push(route);
     if (route.includes("/workflows/")) return { workflow_runs: [] };
     assert.fail(`unexpected route: ${route}`);
@@ -324,12 +332,15 @@ test("collector can sample all-branch pull requests and a named release workflow
   });
   assert.equal(report.workflow, "release.yml");
   assert.equal(report.branch, undefined);
-  assert.match(calls[0], /workflows\/release\.yml\/runs\?event=workflow_dispatch&per_page=5$/);
-  assert.doesNotMatch(calls[0], /branch=/);
+  assert.match(
+    required(calls[0]),
+    /workflows\/release\.yml\/runs\?event=workflow_dispatch&per_page=5$/,
+  );
+  assert.doesNotMatch(required(calls[0]), /branch=/);
 });
 
-test("collector rejects incomplete job inventories and API failures", async () => {
-  const request = async (route) =>
+void test("collector rejects incomplete job inventories and API failures", async () => {
+  const request: CiRequest = async (route) =>
     route.includes("/workflows/")
       ? { workflow_runs: [{ id: 1, run_attempt: 1 }] }
       : route.includes("/artifacts?")
@@ -347,15 +358,19 @@ test("collector rejects incomplete job inventories and API failures", async () =
     /Incomplete jobs/,
   );
   await assert.rejects(
-    collectHistory(async () => {
-      throw new Error("API unavailable");
-    }, {}),
+    collectHistory(
+      async () => {
+        throw new Error("API unavailable");
+      },
+      // @ts-expect-error malformed options retain the original API-failure boundary test.
+      {},
+    ),
     /API unavailable/,
   );
 });
 
-test("date cutoff keeps all attempts of eligible runs without mixing an older workflow", async () => {
-  const request = async (route) => {
+void test("date cutoff keeps all attempts of eligible runs without mixing an older workflow", async () => {
+  const request: CiRequest = async (route) => {
     if (route.includes("/workflows/"))
       return {
         workflow_runs: [
@@ -379,13 +394,14 @@ test("date cutoff keeps all attempts of eligible runs without mixing an older wo
   assert.equal(report.since, stamp(5));
 });
 
-test("report makes sample and cache limitations explicit and includes investigation links", () => {
+void test("report makes sample and cache limitations explicit and includes investigation links", () => {
   const attempts = [attempt({ conclusion: "failure" }), attempt({ run_attempt: 2 })];
   const text = renderReport({
     repository: "example/repo",
     branch: "main",
     event: "push",
     generatedAt: stamp(300),
+    requestedRuns: 2,
     attempts,
     summary: summarizeHistory(attempts),
   });
@@ -402,7 +418,7 @@ test("report makes sample and cache limitations explicit and includes investigat
   assert.match(text, /Slowest observed steps/);
 });
 
-function storedZip(contents) {
+function storedZip(contents: string) {
   const data = Buffer.from(contents);
   const name = Buffer.from("workflow-provenance.json");
   const local = Buffer.alloc(30 + name.length);
@@ -426,7 +442,7 @@ function storedZip(contents) {
   return Buffer.concat([local, data, central, end]);
 }
 
-test("collector admits only digest-bound attempt provenance to equivalent cohorts", async () => {
+void test("collector admits only digest-bound attempt provenance to equivalent cohorts", async () => {
   const record = buildWorkflowProvenance({
     workflow: "ci.yml",
     mode: "ci",
@@ -463,7 +479,7 @@ test("collector admits only digest-bound attempt provenance to equivalent cohort
     checkoutSha: "a".repeat(40),
   });
   const archive = storedZip(JSON.stringify(record));
-  const request = async (route, paginate, responseType) => {
+  const request: CiRequest = async (route, paginate, responseType) => {
     if (route.includes("/workflows/")) return { workflow_runs: [{ id: 1, run_attempt: 1 }] };
     if (route.includes("/jobs?")) return [{ total_count: 1, jobs: [job()] }];
     if (route.includes("/artifacts?"))
@@ -496,7 +512,76 @@ test("collector admits only digest-bound attempt provenance to equivalent cohort
   assert.equal(report.summary.provenance.unknown, 0);
   assert.equal(report.summary.cohorts.length, 1);
   assert.match(
-    report.summary.cohorts[0].name,
+    required(report.summary.cohorts[0]).name,
     new RegExp(`exact:${record.equivalent_cohort}`, "u"),
   );
+});
+
+void test("non-text workflow timestamps remain unavailable instead of coerced durations", () => {
+  for (const created_at of [0, [stamp(0)]]) {
+    const result = summarizeAttempt(run({ created_at }), [job()]);
+    assert.equal(result.seconds, null);
+    assert.equal(summarizeHistory([result]).missingCompletedTimings, 1);
+  }
+});
+
+void test("collector rejects changing page totals even when the first-page count matches", async () => {
+  for (const kind of ["jobs", "artifacts"] as const) {
+    const request: CiRequest = async (route) => {
+      if (route.includes("/workflows/")) return { workflow_runs: [{ id: 1, run_attempt: 1 }] };
+      if (route.includes("/jobs?"))
+        return kind === "jobs"
+          ? [
+              { total_count: 1, jobs: [] },
+              { total_count: 2, jobs: [job()] },
+            ]
+          : [{ total_count: 1, jobs: [job()] }];
+      if (route.includes("/artifacts?"))
+        return kind === "artifacts"
+          ? [
+              { total_count: 0, artifacts: [] },
+              { total_count: 9, artifacts: [] },
+            ]
+          : [{ total_count: 0, artifacts: [] }];
+      return run();
+    };
+    await assert.rejects(
+      collectHistory(request, { repository: "example/repo", event: "push", limit: 1 }),
+      new RegExp(`Incomplete ${kind}`),
+    );
+  }
+});
+
+void test("nullable provider links and old artifacts preserve unknown provenance", async () => {
+  for (const [name, expired, workflow_run, expected] of [
+    ["unrelated-old-artifact", false, null, "missing-attempt-artifact"],
+    ["unrelated-partial-run", false, {}, "missing-attempt-artifact"],
+    ["workflow-provenance-ci-1-1", true, null, "expired-attempt-artifact"],
+    ["workflow-provenance-ci-1-1", false, null, /run identity mismatch/],
+    ["workflow-provenance-ci-1-1", false, { id: 1, head_sha: "a".repeat(40) }, /digest mismatch/],
+  ] as const) {
+    const request: CiRequest = async (route) => {
+      if (route.includes("/workflows/")) return { workflow_runs: [{ id: 1, run_attempt: 1 }] };
+      if (route.includes("/jobs?")) return [{ total_count: 1, jobs: [job({ html_url: null })] }];
+      if (route.includes("/artifacts?"))
+        return [
+          { total_count: 1, artifacts: [{ id: 9, name, expired, digest: null, workflow_run }] },
+        ];
+      if (route.includes("/artifacts/9/zip")) return Buffer.from("digest not admitted");
+      return run();
+    };
+    const pending = collectHistory(request, {
+      repository: "example/repo",
+      event: "push",
+      limit: 1,
+    });
+    if (expected instanceof RegExp) {
+      await assert.rejects(pending, expected);
+      continue;
+    }
+    const report = await pending;
+    const result = required(report.attempts[0]);
+    assert.equal(required(result.jobs[0]).url, null);
+    assert.deepEqual(result.provenance, { status: "unknown", reason: expected });
+  }
 });

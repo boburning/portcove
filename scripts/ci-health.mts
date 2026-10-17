@@ -1,23 +1,200 @@
+import { errorMessage, isRecord } from "./runtime-values.mts";
+import type { WorkflowProvenance } from "./workflow-provenance.mts";
+import roadmapConfig from "../.github/roadmap.json" with { type: "json" };
+export interface CiRun {
+  id: number;
+  run_attempt: number;
+  head_sha: string;
+  event: string;
+  head_branch?: string | null;
+  status: string;
+  conclusion?: string | null;
+  // Missing or malformed timestamps remain unavailable observations.
+  created_at?: unknown;
+  run_started_at?: unknown;
+  updated_at?: unknown;
+  html_url: string;
+  workflow_id?: number | null;
+  name?: string | null;
+  pull_requests?: { number?: number; head?: { sha?: string }; base?: { sha?: string } }[];
+}
+export interface CiStep {
+  name: string;
+  status: string;
+  conclusion?: string | null;
+  started_at?: unknown;
+  completed_at?: unknown;
+}
+export interface CiJob {
+  name: string;
+  status: string;
+  conclusion?: string | null;
+  html_url?: string | null;
+  created_at?: unknown;
+  started_at?: unknown;
+  completed_at?: unknown;
+  runner_group_name?: string | null;
+  labels?: string[];
+  steps?: CiStep[];
+}
+export type AttemptProvenance =
+  | { status: "unknown"; reason: string }
+  | {
+      status: "verified";
+      record: Pick<WorkflowProvenance, "equivalent_cohort" | "validation">;
+      reason?: never;
+    };
+export type CiRequest = (
+  route: string,
+  paginate?: boolean,
+  responseType?: "json" | "buffer",
+) => Promise<unknown>;
+export interface HistoryOptions {
+  repository: string;
+  workflow?: string;
+  branch?: string | undefined;
+  event: string;
+  limit: number;
+  since?: string | undefined;
+}
+function optionalText(value: unknown): value is string | null | undefined {
+  return value === undefined || value === null || typeof value === "string";
+}
+function isStep(value: unknown): value is CiStep {
+  return (
+    isRecord(value) &&
+    typeof value.name === "string" &&
+    typeof value.status === "string" &&
+    optionalText(value.conclusion)
+  );
+}
+function isJob(value: unknown): value is CiJob {
+  return (
+    isRecord(value) &&
+    typeof value.name === "string" &&
+    typeof value.status === "string" &&
+    optionalText(value.conclusion) &&
+    (value.html_url == null || typeof value.html_url === "string") &&
+    optionalText(value.runner_group_name) &&
+    (value.labels === undefined ||
+      (Array.isArray(value.labels) &&
+        value.labels.every((label: unknown) => typeof label === "string"))) &&
+    (value.steps === undefined || (Array.isArray(value.steps) && value.steps.every(isStep)))
+  );
+}
+function isPullRequest(value: unknown): value is NonNullable<CiRun["pull_requests"]>[number] {
+  return (
+    isRecord(value) &&
+    (value.number === undefined || typeof value.number === "number") &&
+    [value.head, value.base].every(
+      (ref) =>
+        ref === undefined ||
+        (isRecord(ref) && (ref.sha === undefined || typeof ref.sha === "string")),
+    )
+  );
+}
+function assertRun(value: unknown): asserts value is CiRun {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "number" ||
+    !Number.isSafeInteger(value.id) ||
+    value.id < 1 ||
+    typeof value.run_attempt !== "number" ||
+    !Number.isSafeInteger(value.run_attempt) ||
+    value.run_attempt < 1 ||
+    typeof value.head_sha !== "string" ||
+    typeof value.event !== "string" ||
+    typeof value.status !== "string" ||
+    typeof value.html_url !== "string" ||
+    !optionalText(value.conclusion) ||
+    !optionalText(value.head_branch) ||
+    !optionalText(value.name) ||
+    (value.workflow_id !== undefined &&
+      value.workflow_id !== null &&
+      typeof value.workflow_id !== "number") ||
+    (value.pull_requests !== undefined &&
+      (!Array.isArray(value.pull_requests) || !value.pull_requests.every(isPullRequest)))
+  )
+    throw new Error("Malformed workflow run observation");
+}
+interface ArtifactObservation {
+  id: number;
+  name: string;
+  expired: boolean;
+  digest?: string | null;
+  workflow_run?: { id?: number; head_sha?: string } | null;
+}
+function isArtifact(value: unknown): value is ArtifactObservation {
+  return (
+    isRecord(value) &&
+    typeof value.id === "number" &&
+    Number.isSafeInteger(value.id) &&
+    value.id > 0 &&
+    typeof value.name === "string" &&
+    typeof value.expired === "boolean" &&
+    (value.digest == null || typeof value.digest === "string") &&
+    (value.workflow_run == null ||
+      (isRecord(value.workflow_run) &&
+        (value.workflow_run.id === undefined || typeof value.workflow_run.id === "number") &&
+        (value.workflow_run.head_sha === undefined ||
+          typeof value.workflow_run.head_sha === "string")))
+  );
+}
+function pagedItems<T>(
+  pages: unknown,
+  key: string,
+  predicate: (value: unknown) => value is T,
+  missing: string,
+  incomplete: string,
+): T[] {
+  if (!Array.isArray(pages) || pages.length === 0) throw new Error(missing);
+  let expected: number | undefined;
+  const items: T[] = [];
+  for (const page of pages as unknown[]) {
+    if (!isRecord(page) || !Array.isArray(page[key])) throw new Error(missing);
+    if (
+      typeof page.total_count !== "number" ||
+      !Number.isSafeInteger(page.total_count) ||
+      page.total_count < 0 ||
+      (expected !== undefined && page.total_count !== expected)
+    )
+      throw new Error(incomplete);
+    expected = page.total_count;
+    const entries: unknown[] = page[key];
+    for (const entry of entries) {
+      if (!predicate(entry)) throw new Error(missing);
+      items.push(entry);
+    }
+  }
+  if (items.length !== expected) throw new Error(incomplete);
+  return items;
+}
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
 import { parseArgs, promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 import { parseProvenanceArchive, validateWorkflowProvenance } from "./workflow-provenance.mts";
 
 const execute = promisify(execFile);
 
-function secondsBetween(start, end) {
+function secondsBetween(start: unknown, end: unknown) {
+  if (typeof start !== "string" || typeof end !== "string") return null;
   const seconds = (Date.parse(end) - Date.parse(start)) / 1000;
   return Number.isFinite(seconds) && seconds >= 0 ? seconds : null;
 }
 
-const unknownProvenance = (reason = "missing-attempt-artifact") => ({
+const unknownProvenance = (
+  reason = "missing-attempt-artifact",
+): Extract<AttemptProvenance, { status: "unknown" }> => ({
   status: "unknown",
   reason,
 });
 
-export function summarizeAttempt(run, jobs, provenance = unknownProvenance()) {
+export function summarizeAttempt(
+  run: CiRun,
+  jobs: readonly CiJob[],
+  provenance: AttemptProvenance = unknownProvenance(),
+) {
   // created_at belongs to the original run, even when inspecting a later attempt.
   const start = run.run_attempt === 1 ? run.created_at : run.run_started_at;
   const measuredJobs = jobs.map((job) => ({
@@ -40,11 +217,13 @@ export function summarizeAttempt(run, jobs, provenance = unknownProvenance()) {
         name: step.name,
         seconds: secondsBetween(step.started_at, step.completed_at),
       }))
-      .filter((step) => step.seconds !== null)
+      .filter((step): step is typeof step & { seconds: number } => step.seconds !== null)
       .sort((a, b) => b.seconds - a.seconds)
       .slice(0, 3),
   }));
-  const completed = measuredJobs.filter((job) => job.seconds !== null);
+  const completed = measuredJobs.filter(
+    (job): job is typeof job & { seconds: number } => job.seconds !== null,
+  );
   const completedJobs = jobs.filter(
     (job) =>
       job.status === "completed" &&
@@ -53,15 +232,25 @@ export function summarizeAttempt(run, jobs, provenance = unknownProvenance()) {
   );
   const firstJobStarted = completedJobs
     .map((job) => job.started_at)
-    .filter((stamp) => Number.isFinite(Date.parse(stamp)))
+    .filter(
+      (stamp): stamp is string => typeof stamp === "string" && Number.isFinite(Date.parse(stamp)),
+    )
     .sort((left, right) => Date.parse(left) - Date.parse(right))[0];
   const lastJobCompleted = completedJobs
     .map((job) => job.completed_at)
-    .filter((stamp) => Number.isFinite(Date.parse(stamp)))
+    .filter(
+      (stamp): stamp is string => typeof stamp === "string" && Number.isFinite(Date.parse(stamp)),
+    )
     .sort((left, right) => Date.parse(right) - Date.parse(left))[0];
   const runnerCohort = [
-    ...new Set(measuredJobs.flatMap((job) => [job.runner, ...job.labels].filter(Boolean))),
-  ].sort();
+    ...new Set(
+      measuredJobs.flatMap((job) =>
+        [job.runner, ...job.labels].filter(
+          (label): label is string => typeof label === "string" && label.length > 0,
+        ),
+      ),
+    ),
+  ].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
   const workflowSeconds = run.status === "completed" ? secondsBetween(start, run.updated_at) : null;
   const pullRequest =
     Array.isArray(run.pull_requests) && run.pull_requests.length === 1
@@ -128,9 +317,9 @@ export function summarizeAttempt(run, jobs, provenance = unknownProvenance()) {
   };
 }
 
-function distribution(values) {
+function distribution(values: readonly (number | null)[]) {
   const sorted = values.filter((value) => value !== null).sort((a, b) => a - b);
-  const percentile = (fraction) => sorted[Math.ceil(sorted.length * fraction) - 1] ?? null;
+  const percentile = (fraction: number) => sorted[Math.ceil(sorted.length * fraction) - 1] ?? null;
   return {
     count: sorted.length,
     p50Seconds: percentile(0.5),
@@ -140,14 +329,22 @@ function distribution(values) {
   };
 }
 
-function stepCategory(name) {
+function stepCategory(name: string) {
   if (/checkout|setup|install|cache|restore|download|read .*pin|prepare .*fixture/iu.test(name))
     return "setup/tool acquisition";
   if (/test|build|clippy|lint|check|execute|archive|verify/iu.test(name)) return "execution";
   return "other";
 }
 
-export function summarizeHistory(attempts) {
+function sampleCounts<T>(values: readonly T[], key: (value: T) => string): Record<string, number> {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    const name = key(value);
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return Object.fromEntries(counts);
+}
+export function summarizeHistory(attempts: readonly ReturnType<typeof summarizeAttempt>[]) {
   const successful = attempts.filter(
     (attempt) => attempt.status === "completed" && attempt.conclusion === "success",
   );
@@ -155,7 +352,8 @@ export function summarizeHistory(attempts) {
     .filter(
       (attempt) =>
         attempt.status === "completed" &&
-        (["failure", "timed_out"].includes(attempt.conclusion) || attempt.failedJobs.length > 0),
+        (["failure", "timed_out"].some((conclusion) => conclusion === attempt.conclusion) ||
+          attempt.failedJobs.length > 0),
     )
     .flatMap((failed) => {
       const passed = successful
@@ -179,8 +377,8 @@ export function summarizeHistory(attempts) {
           ]
         : [];
     });
-  const jobSamples = new Map();
-  const stepSamples = new Map();
+  const jobSamples = new Map<string, number[]>();
+  const stepSamples = new Map<string, number[]>();
   for (const attempt of successful.filter((attempt) => attempt.attempt === 1)) {
     for (const job of attempt.jobs) {
       if (job.seconds === null) continue;
@@ -196,7 +394,7 @@ export function summarizeHistory(attempts) {
     }
   }
   const successfulFirst = successful.filter((attempt) => attempt.attempt === 1);
-  const cohorts = new Map();
+  const cohorts = new Map<string, ReturnType<typeof summarizeAttempt>[]>();
   for (const attempt of successfulFirst) {
     if (!attempt.cohort) continue;
     const samples = cohorts.get(attempt.cohort) ?? [];
@@ -207,33 +405,11 @@ export function summarizeHistory(attempts) {
     runs: new Set(attempts.map((attempt) => attempt.runId)).size,
     commits: new Set(attempts.map((attempt) => attempt.sha)).size,
     attempts: attempts.length,
-    outcomes: Object.fromEntries(
-      [
-        ...new Set(
-          attempts.map((attempt) =>
-            attempt.status === "completed" ? attempt.conclusion : attempt.status,
-          ),
-        ),
-      ].map((outcome) => [
-        outcome,
-        attempts.filter(
-          (attempt) =>
-            (attempt.status === "completed" ? attempt.conclusion : attempt.status) === outcome,
-        ).length,
-      ]),
+    outcomes: sampleCounts(attempts, (attempt) =>
+      String(attempt.status === "completed" ? attempt.conclusion : attempt.status),
     ),
-    workClasses: Object.fromEntries(
-      [...new Set(attempts.map((attempt) => attempt.workClass))].map((workClass) => [
-        workClass,
-        attempts.filter((attempt) => attempt.workClass === workClass).length,
-      ]),
-    ),
-    callers: Object.fromEntries(
-      [...new Set(attempts.map((attempt) => attempt.caller))].map((caller) => [
-        caller,
-        attempts.filter((attempt) => attempt.caller === caller).length,
-      ]),
-    ),
+    workClasses: sampleCounts(attempts, (attempt) => attempt.workClass),
+    callers: sampleCounts(attempts, (attempt) => attempt.caller),
     qualificationFailures: attempts
       .filter((attempt) => attempt.workClass === "qualification" && attempt.failures.length > 0)
       .flatMap((attempt) =>
@@ -257,17 +433,10 @@ export function summarizeHistory(attempts) {
     provenance: {
       verified: attempts.filter((attempt) => attempt.provenance.status === "verified").length,
       unknown: attempts.filter((attempt) => attempt.provenance.status !== "verified").length,
-      unknownReasons: Object.fromEntries(
-        [
-          ...new Set(
-            attempts
-              .filter((attempt) => attempt.provenance.status !== "verified")
-              .map((attempt) => attempt.provenance.reason),
-          ),
-        ].map((reason) => [
-          reason,
-          attempts.filter((attempt) => attempt.provenance.reason === reason).length,
-        ]),
+      unknownReasons: sampleCounts(
+        attempts.filter((attempt) => attempt.provenance.status !== "verified"),
+        (attempt) =>
+          attempt.provenance.status === "unknown" ? attempt.provenance.reason : "unknown",
       ),
     },
     slowestJobs: [...jobSamples]
@@ -277,14 +446,14 @@ export function summarizeHistory(attempts) {
         slowestSteps: [...stepSamples]
           .filter(([key]) => key.startsWith(`${name}\0`))
           .map(([key, stepValues]) => ({
-            name: key.split("\0")[1],
-            category: stepCategory(key.split("\0")[1]),
+            name: key.slice(key.indexOf("\0") + 1),
+            category: stepCategory(key.slice(key.indexOf("\0") + 1)),
             ...distribution(stepValues),
           }))
-          .sort((left, right) => right.p50Seconds - left.p50Seconds)
+          .sort((left, right) => (right.p50Seconds ?? 0) - (left.p50Seconds ?? 0))
           .slice(0, 3),
       }))
-      .sort((a, b) => b.p50Seconds - a.p50Seconds)
+      .sort((a, b) => (b.p50Seconds ?? 0) - (a.p50Seconds ?? 0))
       .slice(0, 8),
     rerunRecoveries: recoveries,
     timing: {
@@ -321,18 +490,20 @@ export function summarizeHistory(attempts) {
 }
 
 async function collectAttemptProvenance(
-  request,
+  request: CiRequest,
   root: string,
-  run,
-  reference,
-  { repository, workflow },
-) {
+  run: CiRun,
+  reference: { id: number; attempt: number },
+  { repository, workflow }: { repository: string; workflow: string },
+): Promise<AttemptProvenance> {
   const pages = await request(`${root}/runs/${reference.id}/artifacts?per_page=100`, true);
-  if (!Array.isArray(pages) || !pages.every((page) => Array.isArray(page.artifacts)))
-    throw new Error(`Missing artifact inventory for ${reference.id}/${reference.attempt}`);
-  const artifacts = pages.flatMap((page) => page.artifacts);
-  if (artifacts.length !== pages[0]?.total_count)
-    throw new Error(`Incomplete artifacts for ${reference.id}/${reference.attempt}`);
+  const artifacts = pagedItems(
+    pages,
+    "artifacts",
+    isArtifact,
+    `Missing artifact inventory for ${reference.id}/${reference.attempt}`,
+    `Incomplete artifacts for ${reference.id}/${reference.attempt}`,
+  );
   const scope = workflow.replace(/\.ya?ml$/u, "");
   const expectedName = `workflow-provenance-${scope}-${reference.id}-${reference.attempt}`;
   const matches = artifacts.filter((artifact) => artifact.name === expectedName);
@@ -340,6 +511,7 @@ async function collectAttemptProvenance(
   if (matches.length !== 1)
     throw new Error(`Ambiguous provenance for ${reference.id}/${reference.attempt}`);
   const artifact = matches[0];
+  if (!artifact) throw new Error("Provenance artifact inventory changed");
   if (artifact.expired) return unknownProvenance("expired-attempt-artifact");
   if (
     artifact.workflow_run?.id !== reference.id ||
@@ -353,6 +525,7 @@ async function collectAttemptProvenance(
     false,
     "buffer",
   );
+  if (!Buffer.isBuffer(archive)) throw new Error("Provenance artifact archive is not bytes");
   const expectedDigest = /^sha256:([a-f0-9]{64})$/u.exec(artifact.digest ?? "")?.[1];
   if (!expectedDigest || createHash("sha256").update(archive).digest("hex") !== expectedDigest)
     throw new Error(`Provenance artifact digest mismatch for ${reference.id}/${reference.attempt}`);
@@ -369,26 +542,41 @@ async function collectAttemptProvenance(
 }
 
 export async function collectHistory(
-  request,
-  { repository, workflow = "ci.yml", branch, event, limit, since },
+  request: CiRequest,
+  { repository, workflow = "ci.yml", branch, event, limit, since }: HistoryOptions,
 ) {
   const root = `repos/${repository}/actions`;
   const query = new URLSearchParams({ event, per_page: String(limit) });
   if (branch) query.set("branch", branch);
-  const listing = await request(`${root}/workflows/${workflow}/runs?${query}`);
-  if (!Array.isArray(listing.workflow_runs)) throw new Error("Missing workflow run inventory");
+  const listing = await request(`${root}/workflows/${workflow}/runs?${query.toString()}`);
+  if (!isRecord(listing) || !Array.isArray(listing.workflow_runs))
+    throw new Error("Missing workflow run inventory");
+  const listingRuns: unknown[] = listing.workflow_runs;
   const runs = since
-    ? listing.workflow_runs.filter((run) => {
-        if (!Number.isFinite(Date.parse(run.created_at)))
+    ? listingRuns.filter((run) => {
+        if (
+          !isRecord(run) ||
+          typeof run.created_at !== "string" ||
+          !Number.isFinite(Date.parse(run.created_at))
+        )
           throw new Error("Missing run creation time");
         return Date.parse(run.created_at) >= Date.parse(since);
       })
-    : listing.workflow_runs;
+    : listingRuns;
   const references = runs.flatMap((run) => {
-    if (!Number.isInteger(run.run_attempt) || run.run_attempt < 1)
+    if (
+      !isRecord(run) ||
+      typeof run.id !== "number" ||
+      !Number.isSafeInteger(run.id) ||
+      run.id < 1 ||
+      typeof run.run_attempt !== "number" ||
+      !Number.isInteger(run.run_attempt) ||
+      run.run_attempt < 1
+    )
       throw new Error("Missing attempt count");
+    const id = run.id;
     return Array.from({ length: run.run_attempt }, (_, index) => ({
-      id: run.id,
+      id,
       attempt: index + 1,
     }));
   });
@@ -402,12 +590,14 @@ export async function collectHistory(
           const route = `${root}/runs/${reference.id}/attempts/${reference.attempt}`;
           const run = await request(route);
           const pages = await request(`${route}/jobs?per_page=100`, true);
-          if (!Array.isArray(pages) || !pages.every((page) => Array.isArray(page.jobs))) {
-            throw new Error(`Missing jobs for ${reference.id}/${reference.attempt}`);
-          }
-          const jobs = pages.flatMap((page) => page.jobs);
-          if (jobs.length !== pages[0]?.total_count)
-            throw new Error(`Incomplete jobs for ${reference.id}/${reference.attempt}`);
+          const jobs = pagedItems(
+            pages,
+            "jobs",
+            isJob,
+            `Missing jobs for ${reference.id}/${reference.attempt}`,
+            `Incomplete jobs for ${reference.id}/${reference.attempt}`,
+          );
+          assertRun(run);
           if (run.id !== reference.id || run.run_attempt !== reference.attempt)
             throw new Error("Attempt identity mismatch");
           const provenance = await collectAttemptProvenance(request, root, run, reference, {
@@ -432,13 +622,16 @@ export async function collectHistory(
   };
 }
 
-const duration = (seconds) =>
+const duration = (seconds: number | null) =>
   seconds === null
     ? "unavailable"
     : `${Math.floor(Math.round(seconds) / 60)}m${String(Math.round(seconds) % 60).padStart(2, "0")}s`;
-const cell = (value) => String(value).replaceAll("|", "\\|").replaceAll(/\r?\n/g, " ");
+const cell = (value: unknown) => String(value).replaceAll("|", "\\|").replaceAll(/\r?\n/g, " ");
 
-export function renderReport(report) {
+export function renderReport(
+  report: Omit<Awaited<ReturnType<typeof collectHistory>>, "workflow" | "branch" | "since"> &
+    Partial<Pick<Awaited<ReturnType<typeof collectHistory>>, "workflow" | "branch" | "since">>,
+) {
   const { summary } = report;
   const lines = [
     `# CI health: ${cell(report.repository)} / ${cell(report.workflow ?? "ci.yml")} / ${cell(report.branch ?? "all branches")} / ${cell(report.event)}`,
@@ -454,7 +647,7 @@ export function renderReport(report) {
   for (const [label, stats] of [
     ["First attempts", summary.successfulFirstAttempts],
     ["Reruns", summary.successfulReruns],
-  ]) {
+  ] as const) {
     lines.push(
       `| ${label} | ${stats.count} | ${duration(stats.p50Seconds)} | ${duration(stats.p95Seconds)} | ${duration(stats.maxSeconds)} |`,
     );
@@ -491,7 +684,7 @@ export function renderReport(report) {
     ["First job start through last job completion", summary.timing.observedJobWindow],
     ["After last job through workflow update", summary.timing.aggregation],
     ["Summed runner execution (not elapsed or billing)", summary.timing.summedRunner],
-  ])
+  ] as const)
     lines.push(
       `| ${label} | ${stats.count} | ${duration(stats.p50Seconds)} | ${duration(stats.maxSeconds)} |`,
     );
@@ -582,10 +775,8 @@ async function main() {
   if (values.since && !Number.isFinite(Date.parse(values.since)))
     throw new Error("--since must be a valid ISO date");
   const branch = values.branch ?? (values.event === "push" ? "main" : undefined);
-  const { repository } = JSON.parse(
-    await readFile(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
-  );
-  const request = async (route, paginate = false, responseType = "json") => {
+  const { repository } = roadmapConfig;
+  const request: CiRequest = async (route, paginate = false, responseType = "json") => {
     const args = ["api", "--method", "GET", route];
     if (paginate) args.push("--paginate", "--slurp");
     const { stdout } = await execute("gh", args, {
@@ -594,7 +785,11 @@ async function main() {
       timeout: 30_000,
       maxBuffer: 20 * 1024 * 1024,
     });
-    return responseType === "buffer" ? stdout : JSON.parse(stdout);
+    if (responseType === "buffer") return stdout;
+    const parsed: unknown = JSON.parse(
+      typeof stdout === "string" ? stdout : stdout.toString("utf8"),
+    );
+    return parsed;
   };
   const report = await collectHistory(request, {
     repository,
@@ -608,8 +803,8 @@ async function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error) => {
-    console.error(error.message);
+  void main().catch((error: unknown) => {
+    console.error(errorMessage(error));
     process.exitCode = 1;
   });
 }
