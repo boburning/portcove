@@ -154,6 +154,14 @@ tooling; and `apps/desktop/public` checks the raw theme bootstrap. Keep new file
 inside the appropriate includes and verify them through `pnpm check` (the
 existing Vite+ static workflow).
 
+CI keeps the complete validation plan and digest as workflow outputs. Child
+processes receive the same plan through `PORTCOVE_PLAN_GZIP_BASE64`, bounded to
+64 KiB before environment propagation and 1 MiB after inflation. This avoids
+Linux's per-environment-string execution limit on repository-wide changes.
+Consumers still validate the plan, digest and source bindings; compression is
+only transport. Local legacy `PORTCOVE_PLAN_JSON` input remains supported, while
+ambiguous transports, corrupt data and excessive inflation are rejected.
+
 The compatibility inventory is exactly:
 
 | File                                     | Consumer requirement                                                                                                                      | Checking and validation                                                                           |

@@ -66,6 +66,7 @@ void test("real aggregate CLI preserves failed exit and names its producer", () 
     encoding: "utf8",
     env: {
       ...process.env,
+      PORTCOVE_PLAN_GZIP_BASE64: undefined,
       PORTCOVE_PLAN_JSON: JSON.stringify(plan("apps/desktop/src/App.tsx")),
       PORTCOVE_FAST_RESULTS: JSON.stringify({ fast_frontend: "failure" }),
       PORTCOVE_TARGETED_RESULTS: "{}",

@@ -781,7 +781,7 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
     assert.match(gate, /node scripts\/ci-result-gate\.mts/);
     assert.match(gate, /PORTCOVE_CLASSIFIER_RESULT/);
     assert.match(gate, /PORTCOVE_PROSE_RESULT/);
-    assert.match(gate, /PORTCOVE_PLAN_JSON/);
+    assert.match(gate, /PORTCOVE_PLAN_GZIP_BASE64/);
     assert.match(gate, /PORTCOVE_FAST_RESULTS/);
     assert.match(gate, /PORTCOVE_TARGETED_RESULTS/);
     assert.match(gate, /PORTCOVE_QUALIFICATION_RESULTS/);
@@ -821,7 +821,7 @@ void test("ordinary formatting and lint have one quality owner; deep analyzers s
   assert.doesNotMatch(formatting, /format:check/);
   assert.match(formatting, /cargo fmt/);
   assert.match(formatting, /node scripts\/ci-baseline\.mts lint/);
-  assert.match(formatting, /PORTCOVE_PLAN_JSON:/);
+  assert.match(formatting, /PORTCOVE_PLAN_GZIP_BASE64:/);
   assert.match(formatting, /PORTCOVE_CI_METRICS_DIR:/);
   assert.match(formatting, /ci-metrics\.mts summarize/);
   assert.doesNotMatch(formatting, /cargo clippy|lint:oxlint|run-fallow/);
@@ -3838,4 +3838,19 @@ void test("extracted validation evidence suite remains in hosted and repository 
     ),
     /scripts\/validation-evidence\.test\.mts/u,
   );
+});
+
+void test("hosted plans use bounded transport before checkout and retain the same qualification outputs", async () => {
+  assert.doesNotMatch(workflow, /PORTCOVE_PLAN_JSON:/);
+  assert.match(workflow, /plan_gzip_base64: \$\{\{ steps\.plan\.outputs\.plan_gzip_base64 \}\}/);
+  assert.match(qualificationWorkflow, /jobs\.qualify\.outputs\.plan_gzip_base64/);
+  const release = await readFile(
+    new URL("../.github/workflows/release.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    release,
+    /PORTCOVE_PLAN_GZIP_BASE64: \$\{\{ needs\.qualification\.outputs\.plan_gzip_base64 \}\}/,
+  );
+  assert.doesNotMatch(release, /PORTCOVE_PLAN_JSON:/);
 });

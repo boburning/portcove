@@ -20,6 +20,7 @@ import {
 
 import {
   buildValidationPlan,
+  encodeValidationPlanEnvironment,
   digestValidationPlan,
   fastGroups,
   isInformationalPath,
@@ -244,6 +245,7 @@ export async function writeGithubOutputs(
     qualification_required: String(plan.qualification_required),
     plan_digest: plan.digest,
     plan_json: JSON.stringify(plan),
+    plan_gzip_base64: encodeValidationPlanEnvironment(plan),
     base: plan.identities.base ?? "",
     merge_base: plan.identities.merge_base ?? "",
     head: plan.identities.head ?? "",

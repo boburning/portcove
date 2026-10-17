@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { execFileSync, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateValidationPlan } from "./validation-plan.mts";
+import { validateValidationPlan, readValidationPlanInput } from "./validation-plan.mts";
 import { createCiMetrics } from "./ci-metrics.mts";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -530,9 +530,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exitCode = await resourceEntrypoint("rust", async () => {
       if (process.argv[2] === "--workspace-run") {
         const planFile = process.argv[3];
-        const planText =
-          process.env.PORTCOVE_PLAN_JSON ?? (planFile ? readFileSync(planFile, "utf8") : "");
-        const plan = validateValidationPlan(JSON.parse(planText));
+        const planInput: unknown =
+          process.env.PORTCOVE_PLAN_GZIP_BASE64 !== undefined ||
+          process.env.PORTCOVE_PLAN_JSON !== undefined
+            ? readValidationPlanInput()
+            : JSON.parse(planFile ? readFileSync(planFile, "utf8") : "");
+        const plan = validateValidationPlan(planInput);
         const checkout = execFileSync("git", ["rev-parse", "HEAD"], {
           cwd: projectRoot,
           encoding: "utf8",

@@ -301,6 +301,7 @@ void test("GitHub outputs are complete single-line values", async (t) => {
     "qualification_required",
     "plan_digest",
     "plan_json",
+    "plan_gzip_base64",
     "base",
     "merge_base",
     "head",

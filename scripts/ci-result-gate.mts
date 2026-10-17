@@ -5,7 +5,7 @@ import { validatePostmergeReuse } from "./postmerge-ci.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { validateValidationPlan } from "./validation-plan.mts";
+import { validateValidationPlan, readValidationPlanInput } from "./validation-plan.mts";
 import { windowsHelperChecksRequired } from "./windows-helper-checks.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -153,7 +153,7 @@ export function evaluateCiResults({
 function main() {
   let plan: unknown, fast: unknown, targeted: unknown, qualification: unknown, always: unknown;
   try {
-    plan = JSON.parse(process.env.PORTCOVE_PLAN_JSON ?? "");
+    plan = readValidationPlanInput();
     fast = JSON.parse(process.env.PORTCOVE_FAST_RESULTS ?? "");
     targeted = JSON.parse(process.env.PORTCOVE_TARGETED_RESULTS ?? "");
     qualification = JSON.parse(process.env.PORTCOVE_QUALIFICATION_RESULTS ?? "");

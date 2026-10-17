@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { classifyChanges, buildPlan, executePlan } from "./ordinary-validation.mts";
-import { validateValidationPlan } from "./validation-plan.mts";
+import { validateValidationPlan, readValidationPlanInput } from "./validation-plan.mts";
 import { spawnCommand } from "./dev-storage.mts";
 import { createCiMetrics } from "./ci-metrics.mts";
 
@@ -158,7 +158,7 @@ export function baselineTestEnvironment(environment: NodeJS.ProcessEnv = process
 
 function main() {
   const metrics = createCiMetrics();
-  const plan = validateValidationPlan(JSON.parse(process.env.PORTCOVE_PLAN_JSON ?? ""));
+  const plan = validateValidationPlan(readValidationPlanInput());
   const checkout = execFileSync("git", ["rev-parse", "HEAD"], {
     cwd: root,
     encoding: "utf8",

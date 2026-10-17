@@ -1,8 +1,13 @@
+import { gzipSync } from "node:zlib";
+import { spawnSync } from "node:child_process";
+import { errorCode } from "./runtime-values.mts";
 import type { ValidationChangeInput, ValidationPlan, ValidationGroup } from "./validation-plan.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildValidationPlan,
+  encodeValidationPlanEnvironment,
+  readValidationPlanInput,
   digestValidationPlan,
   fastGroups,
   qualificationPlatforms,
@@ -250,4 +255,95 @@ void test("validation plan rejects malformed retained equivalence proof before t
     });
     assert.throws(() => validateValidationPlan(tampered), /nextest equivalence proof/u);
   }
+});
+
+void test("large plans cross native process environments without losing paths, digest or checking authority", () => {
+  const expected = plan(
+    Array.from({ length: 500 }, (_, index) =>
+      change(`apps/desktop/src/migration-${index.toString().padStart(4, "0")}-contract.tsx`),
+    ),
+  );
+  const raw = JSON.stringify(expected);
+  assert.ok(Buffer.byteLength(raw) > 128 * 1024, "exercise the hosted single-string exec limit");
+  const encoded = encodeValidationPlanEnvironment(expected);
+  assert.ok(encoded.length < 64 * 1024);
+  const script = `import { readValidationPlanInput, validateValidationPlan } from ${JSON.stringify(new URL("./validation-plan.mts", import.meta.url).href)}; console.log(JSON.stringify(validateValidationPlan(readValidationPlanInput())));`;
+  const environment = {
+    ...process.env,
+    PORTCOVE_PLAN_JSON: undefined,
+    PORTCOVE_PLAN_GZIP_BASE64: encoded,
+  };
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+    env: environment,
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 30_000,
+    maxBuffer: 2 * 1024 * 1024,
+  });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  const received = validateValidationPlan(JSON.parse(result.stdout));
+  assert.deepEqual(received, expected);
+  assert.deepEqual(
+    validateValidationPlan(readValidationPlanInput({ PORTCOVE_PLAN_JSON: raw })),
+    expected,
+  );
+  if (process.platform === "linux") {
+    const rejected = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+      env: { ...environment, PORTCOVE_PLAN_GZIP_BASE64: undefined, PORTCOVE_PLAN_JSON: raw },
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 30_000,
+    });
+    assert.equal(
+      errorCode(rejected.error),
+      "E2BIG",
+      "the same raw plan reproduces the hosted failure",
+    );
+  }
+});
+
+void test("plan environment transport rejects ambiguity, corrupt encoding and bounded inflation before validation", () => {
+  const expected = plan([change("apps/desktop/src/App.tsx")]);
+  const encoded = encodeValidationPlanEnvironment(expected);
+  assert.throws(
+    () =>
+      readValidationPlanInput({
+        PORTCOVE_PLAN_JSON: JSON.stringify(expected),
+        PORTCOVE_PLAN_GZIP_BASE64: encoded,
+      }),
+    /ambiguous/,
+  );
+  for (const value of ["", "?", "AAAA", "AA=A", "A".repeat(64 * 1024 + 4)])
+    assert.throws(() => readValidationPlanInput({ PORTCOVE_PLAN_GZIP_BASE64: value }));
+  for (const bytes of [Buffer.from([0xff]), Buffer.from("{invalid")])
+    assert.throws(() =>
+      readValidationPlanInput({ PORTCOVE_PLAN_GZIP_BASE64: gzipSync(bytes).toString("base64") }),
+    );
+  const limit = 1024 * 1024;
+  const exact = { padding: "x".repeat(limit - Buffer.byteLength(JSON.stringify({ padding: "" }))) };
+  const exactJson = JSON.stringify(exact);
+  assert.equal(Buffer.byteLength(exactJson), limit);
+  assert.deepEqual(
+    readValidationPlanInput({ PORTCOVE_PLAN_GZIP_BASE64: gzipSync(exactJson).toString("base64") }),
+    exact,
+  );
+  const oversized = JSON.stringify({ padding: exact.padding + "x" });
+  assert.equal(Buffer.byteLength(oversized), limit + 1);
+  assert.throws(
+    () =>
+      readValidationPlanInput({
+        PORTCOVE_PLAN_GZIP_BASE64: gzipSync(oversized).toString("base64"),
+      }),
+    { code: "ERR_BUFFER_TOO_LARGE" },
+  );
+  const tampered = { ...expected, groups: [] };
+  const input = readValidationPlanInput({
+    PORTCOVE_PLAN_GZIP_BASE64: gzipSync(JSON.stringify(tampered)).toString("base64"),
+  });
+  assert.throws(() => validateValidationPlan(input), /digest|group/);
+  assert.throws(
+    () => readValidationPlanInput({ PORTCOVE_PLAN_JSON: " ".repeat(1024 * 1024 + 1) }),
+    /byte limit/,
+  );
 });

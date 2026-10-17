@@ -33,6 +33,9 @@ on:
       plan_json:
         description: Exact executed validation plan.
         value: ${{ jobs.classify.outputs.plan_json }}
+      plan_gzip_base64:
+        description: Bounded compressed transport of the exact executed plan.
+        value: ${{ jobs.classify.outputs.plan_gzip_base64 }}
       checkout:
         description: Exact checked-out candidate revision.
         value: ${{ jobs.classify.outputs.checkout }}
@@ -78,6 +81,7 @@ jobs:
       qualification_required: ${{ steps.plan.outputs.qualification_required }}
       plan_digest: ${{ steps.plan.outputs.plan_digest }}
       plan_json: ${{ steps.plan.outputs.plan_json }}
+      plan_gzip_base64: ${{ steps.plan.outputs.plan_gzip_base64 }}
       windows_helpers: ${{ steps.plan.outputs.windows_helpers }}
       native_tools: ${{ steps.plan.outputs.native_tools }}
       frontend_tools: ${{ steps.plan.outputs.frontend_tools }}
@@ -186,7 +190,7 @@ jobs:
     runs-on: windows-latest
     env:
       PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
-      PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+      PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -223,7 +227,7 @@ jobs:
         run: node scripts/ci-baseline.mts bootstrap
       - name: Compile workspace targets and test affected families
         env:
-          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
         run: node scripts/run-rust-tests.mts --guard-command node scripts/rust-test-impact.mts --workspace-run
       - name: Summarize diagnostic timings
         if: always()
@@ -247,7 +251,7 @@ jobs:
     if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust-quality') && !contains(fromJSON(needs.classify.outputs.reused_groups), 'rust-quality')
     runs-on: ubuntu-22.04
     env:
-      PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+      PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
       PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -301,7 +305,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
-      PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+      PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
       npm_config_audit: "false"
     defaults:
       run:
@@ -321,7 +325,7 @@ jobs:
         working-directory: apps/desktop
       - name: Build and run affected Node and browser projects
         env:
-          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
         working-directory: .
         run: node scripts/ci-baseline.mts frontend
       - name: Retain failed affected browser diagnostics
@@ -402,7 +406,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
-      PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+      PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: dependency-cache
@@ -424,7 +428,7 @@ jobs:
           python-version: "3.12"
       - name: Check relevant cheap repository contracts
         env:
-          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
         run: node scripts/ci-baseline.mts contracts
       - name: Exercise clean prose setup and execution
         if: contains(needs.classify.outputs.files_json, 'scripts/check-ci-prose') || contains(needs.classify.outputs.files_json, 'scripts/viteplus-cli.mts') || contains(needs.classify.outputs.files_json, '.github/workflows/ci.yml')
@@ -786,7 +790,7 @@ jobs:
       - name: Require every Rust lane
         env:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
-          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
           PORTCOVE_GROUP: rust
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_rust":"${{ needs.fast_rust.result }}"}'
@@ -893,7 +897,7 @@ jobs:
       - name: Require the expected Rust quality lane
         env:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
-          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
           PORTCOVE_REUSE_JSON: ${{ needs.classify.outputs.reuse_json }}
           PORTCOVE_GROUP: rust-quality
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
@@ -998,7 +1002,7 @@ jobs:
       - name: Require the expected frontend lane
         env:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
-          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
           PORTCOVE_REUSE_JSON: ${{ needs.classify.outputs.reuse_json }}
           PORTCOVE_GROUP: frontend
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
@@ -1058,7 +1062,7 @@ jobs:
       - name: Require the expected repository contract lane
         env:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
-          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
           PORTCOVE_GROUP: catalog
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_catalog":"${{ needs.fast_catalog.result }}"}'
@@ -1103,7 +1107,7 @@ jobs:
       - name: Require the expected dependency review lane
         env:
           PORTCOVE_CLASSIFIER_RESULT: ${{ needs.classify.result }}
-          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+          PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
           PORTCOVE_GROUP: dependency-review
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_dependency_review":"${{ needs.fast_dependency_review.result }}"}'

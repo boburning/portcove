@@ -263,6 +263,8 @@ void test("native receipts include the admission runtime and containment reprodu
     "run-rust-tests.mts",
     "rust-support-cache.mts",
     "ci-metrics.mts",
+    "validation-plan.mts",
+    "nextest-equivalence.mts",
     "report-summary.mts",
     "bounded-summary.mts",
     "fallow-summary.mts",
@@ -345,6 +347,8 @@ void test("native receipt capture binds schema validation and reproduction input
     "pnpm-lock.yaml",
   ];
   assert.deepEqual(nativeTransportReceiptSources, expected);
+  // Metrics now decodes the admission plan through these already-loaded verifier sources.
+  expected.push("scripts/validation-plan.mts", "scripts/nextest-equivalence.mts");
   for (const selection of [
     resolveDesktopSelection({ profile: "smoke", platform: "win32" }),
     resolveDesktopSelection({

@@ -1,3 +1,4 @@
+import { gzipSync, gunzipSync } from "node:zlib";
 import type { NextestProof } from "./nextest-equivalence.mts";
 import { errorMessage, isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
@@ -1168,6 +1169,50 @@ function validatePlanSemantics(plan: ValidationPlan): ValidationPlan {
   return plan;
 }
 
+// GitHub outputs may hold the complete plan, but Linux cannot exec a child
+// with a single environment string above MAX_ARG_STRLEN. Bound both transport
+// and inflation; compression never replaces plan/digest/source validation.
+const planJsonByteLimit = 1024 * 1024;
+const planEnvironmentByteLimit = 64 * 1024;
+export function encodeValidationPlanEnvironment(plan: ValidationPlan): string {
+  validateValidationPlan(plan);
+  const json = JSON.stringify(plan);
+  if (Buffer.byteLength(json) > planJsonByteLimit)
+    throw new Error("Validation plan exceeds JSON byte limit");
+  const encoded = gzipSync(json).toString("base64");
+  if (encoded.length > planEnvironmentByteLimit)
+    throw new Error("Validation plan exceeds environment transport limit");
+  return encoded;
+}
+export function readValidationPlanInput(environment: NodeJS.ProcessEnv = process.env): unknown {
+  const encoded = environment.PORTCOVE_PLAN_GZIP_BASE64;
+  const legacy = environment.PORTCOVE_PLAN_JSON;
+  if (encoded !== undefined && legacy !== undefined)
+    throw new Error("Validation plan has ambiguous environment transports");
+  let text: string;
+  if (encoded !== undefined) {
+    if (
+      !encoded.length ||
+      encoded.length > planEnvironmentByteLimit ||
+      encoded.length % 4 !== 0 ||
+      !/^[A-Za-z0-9+/]*={0,2}$/u.test(encoded)
+    )
+      throw new Error("Invalid validation plan base64 transport");
+    const bytes = Buffer.from(encoded, "base64");
+    if (bytes.toString("base64") !== encoded)
+      throw new Error("Noncanonical validation plan base64 transport");
+    text = new TextDecoder("utf-8", { fatal: true }).decode(
+      gunzipSync(bytes, { maxOutputLength: planJsonByteLimit }),
+    );
+  } else {
+    text = legacy ?? "";
+    if (Buffer.byteLength(text) > planJsonByteLimit)
+      throw new Error("Validation plan exceeds JSON byte limit");
+  }
+  const value: unknown = JSON.parse(text);
+  return value;
+}
+
 export function validateQualificationBinding({
   plan: input,
   digest,
@@ -1199,9 +1244,9 @@ export function validateQualificationBinding({
 function main() {
   let input: unknown;
   try {
-    input = JSON.parse(process.env.PORTCOVE_PLAN_JSON ?? "");
+    input = readValidationPlanInput();
   } catch {
-    throw new Error("PORTCOVE_PLAN_JSON must contain the reusable qualification plan");
+    throw new Error("Validation plan environment must contain the reusable qualification plan");
   }
   const plan = validateQualificationBinding({
     plan: input,

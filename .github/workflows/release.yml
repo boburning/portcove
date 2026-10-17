@@ -84,7 +84,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Bind reusable qualification to this release candidate
         env:
-          PORTCOVE_PLAN_JSON: ${{ needs.qualification.outputs.plan_json }}
+          PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.qualification.outputs.plan_gzip_base64 }}
           PORTCOVE_PLAN_DIGEST: ${{ needs.qualification.outputs.plan_digest }}
           PORTCOVE_EXPECTED_CHECKOUT: ${{ github.sha }}
         run: node scripts/validation-plan.mts

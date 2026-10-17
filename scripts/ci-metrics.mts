@@ -1,3 +1,4 @@
+import { readValidationPlanInput } from "./validation-plan.mts";
 import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -90,7 +91,7 @@ export function createCiMetrics({
   const started = now();
   let plan: unknown = null;
   try {
-    plan = JSON.parse(environment.PORTCOVE_PLAN_JSON ?? "null");
+    plan = readValidationPlanInput(environment);
   } catch {
     /* Unknown is reported explicitly. */
   }
