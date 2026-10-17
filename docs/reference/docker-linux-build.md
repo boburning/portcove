@@ -51,6 +51,13 @@ the finite preparation budget. Existing hosted callers retain their 3/5-minute
 installation defaults; package coverage is unchanged. An install deadline failure
 stops immediately because a mirror retry cannot repair interrupted dpkg state.
 Other mirror failures retain the existing bounded fallback.
+The disposable image layer installs Ubuntu's `eatmydata` wrapper under separate
+five-minute update/install safeguards. Only the prerequisite helper runs with its
+sync-call interposition; a normal filesystem sync follows before the layer can
+succeed. A failed/interrupted layer is discarded. No preload setting is persisted
+or applied to source preparation, compilation, packaging, smoke tests or runtime.
+This targets package-database sync overhead left by the base image's existing
+`force-unsafe-io`; completion and any timing improvement require real run evidence.
 Installed apt/npm packages and actual Node, pnpm, Vite+, Rust, Cargo and Linux
 PowerShell versions are exported. Mutable apt inputs are observed; preparation
 is not represented as reproducible or offline.

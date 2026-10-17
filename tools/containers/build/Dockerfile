@@ -16,7 +16,10 @@ ENV CI=true PORTCOVE_CONTAINER_GUEST=1 VP_GIT_HOOKS=0 VP_HOME=/home/vp/.vite-plu
 ENV PATH=/home/vp/.vite-plus/bin:/home/vp/.cargo/bin:$PATH
 # Extracted byte-for-byte from the selected commit, not from dirty current work.
 COPY linux-prerequisites.sh /portcove/linux-prerequisites.sh
-RUN bash /portcove/linux-prerequisites.sh --include-rpm --install-timeout-seconds=3600
+# The rootfs is disposable until this layer succeeds. Suppress per-file/database
+# syncs only in APT's child process, then flush normally before committing it.
+# Do not persist LD_PRELOAD or wrap any source, task, package or runtime process.
+RUN timeout --kill-after=10s 5m apt-get update && timeout --kill-after=10s 5m env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends eatmydata && eatmydata bash /portcove/linux-prerequisites.sh --include-rpm --install-timeout-seconds=3600 && sync -f /var/lib/dpkg/status && test -z "${LD_PRELOAD:-}"
 RUN dpkg-query -W > /portcove/installed-system-packages.txt
 COPY --chown=vp:vp source.bundle /portcove/source.bundle
 USER vp
