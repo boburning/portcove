@@ -822,6 +822,15 @@ Desktop continues to call core directly.
 
 ## Desktop library handoff state
 
+Desktop retires event progress when a current Core activity snapshot explicitly
+reports that exact activity as succeeded, failed or cancelled. Queued events for
+that retired identity remain suppressed until the workspace owner ends, even if
+the activity later leaves the bounded history window. This only removes stale
+progress; it does not synthesize a completion event or mutation outcome. Missing
+records, failed reads, running cancellation requests and parent completion do not
+establish that another operation stopped. Durable reports and existing execution
+guards remain authoritative.
+
 Library selection and transfer share the same adapter initialization lock. Either
 in-flight handoff excludes another switch, move, import or recovery transfer before
 it can replace the active adapter state. Bootstrap captures the library and its

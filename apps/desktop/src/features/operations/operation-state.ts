@@ -1,6 +1,20 @@
-import type { OperationEvent } from "../../types";
+import type { ActivityRecord, OperationEvent } from "../../types";
 
 export type OperationEventState = ReadonlyMap<string, OperationEvent>;
+
+export function activityIsTerminal(activity: ActivityRecord): boolean {
+  return ["succeeded", "failed", "cancelled"].includes(activity.status);
+}
+
+/** Retire only exact durable identities. Absence and parent completion prove nothing about a child. */
+export function reconcileOperationEvents(
+  current: OperationEventState,
+  activities: readonly ActivityRecord[],
+): OperationEventState {
+  const completed = new Set(activities.filter(activityIsTerminal).map((activity) => activity.id));
+  if (![...current.keys()].some((id) => completed.has(id))) return current;
+  return new Map([...current].filter(([id]) => !completed.has(id)));
+}
 
 const RECENT_TERMINAL_LIMIT = 32;
 
