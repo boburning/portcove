@@ -5,11 +5,37 @@ import { evaluateFallowReport } from "./check-fallow-report.mts";
 
 import { report } from "./fallow-test-fixture.mts";
 
-test("accepts a clean report", () => {
+function requiredFixture<T>(value: T | undefined): T {
+  assert.ok(value !== undefined);
+  return value;
+}
+
+void test("accepts a clean report", () => {
   assert.deepEqual(evaluateFallowReport(report()).failures, []);
 });
 
-test("preserves dead-code/dependency and critical gates while duplication is advisory", () => {
+void test("malformed request-outcome containers cannot pass as an empty request inventory", () => {
+  for (const request_outcomes of [false, 0, "", []]) {
+    assert.throws(
+      () => evaluateFallowReport({ ...report(), request_outcomes }),
+      /request_outcomes/,
+    );
+  }
+});
+
+void test("every own gate name retains its enforced failure", () => {
+  const value = report();
+  const result = evaluateFallowReport({
+    ...value,
+    gate_outcomes: {
+      ...value.gate_outcomes,
+      ["__proto__"]: { status: "fail", enforced: true },
+    },
+  });
+  assert.deepEqual(result.failures, ["enforced Fallow gate failed: __proto__"]);
+});
+
+void test("preserves dead-code/dependency and critical gates while duplication is advisory", () => {
   const failures = evaluateFallowReport(
     report({ issues: 2, duplication: 2.1, critical: 1 }),
   ).failures;
@@ -19,7 +45,7 @@ test("preserves dead-code/dependency and critical gates while duplication is adv
   assert.equal(advisory.duplicationPercentage, 99);
 });
 
-test("missing data, incompatible and error envelopes cannot pass", () => {
+void test("missing data, incompatible and error envelopes cannot pass", () => {
   for (const value of [
     null,
     [],
@@ -29,37 +55,43 @@ test("missing data, incompatible and error envelopes cannot pass", () => {
   ])
     assert.throws(() => evaluateFallowReport(value));
   for (const mutate of [
-    (r) => {
+    (r: ReturnType<typeof report>) => {
+      // @ts-expect-error Delete a required count to test untrusted JSON rejection.
       delete r.check.total_issues;
     },
-    (r) => {
+    (r: ReturnType<typeof report>) => {
+      // @ts-expect-error Delete the required duplication metric.
       delete r.dupes.stats.duplication_percentage;
     },
-    (r) => {
+    (r: ReturnType<typeof report>) => {
+      // @ts-expect-error Delete the required critical count.
       delete r.health.summary.severity_critical_count;
     },
-    (r) => {
+    (r: ReturnType<typeof report>) => {
       r.kind = "audit";
     },
-    (r) => {
+    (r: ReturnType<typeof report>) => {
       r.schema_version = 14;
     },
-    (r) => {
+    (r: ReturnType<typeof report>) => {
       r.version = "3.34.0";
     },
-    (r) => {
+    (r: ReturnType<typeof report>) => {
+      // @ts-expect-error Remove required gate coverage.
       delete r.gate_outcomes;
     },
-    (r) => {
+    (r: ReturnType<typeof report>) => {
+      // @ts-expect-error Malformed wire input deliberately replaces the finding array.
       r.health.findings = null;
     },
-    (r) => {
+    (r: ReturnType<typeof report>) => {
+      // @ts-expect-error A string must not masquerade as an enforced boolean.
       r.gate_outcomes["health-findings"].enforced = "false";
     },
-    (r) => {
-      r.request_outcomes = { scope: { status: "fallback" } };
+    (r: ReturnType<typeof report>) => {
+      Object.assign(r, { request_outcomes: { scope: { status: "fallback" } } });
     },
-    (r) => {
+    (r: ReturnType<typeof report>) => {
       r.health.summary.severity_critical_count = 1;
     },
   ]) {
@@ -69,31 +101,39 @@ test("missing data, incompatible and error envelopes cannot pass", () => {
   }
 });
 
-test("decision metrics reject wrong types, nonfinite, negative and fractional counts", () => {
+void test("decision metrics reject wrong types, nonfinite, negative and fractional counts", () => {
   for (const invalid of ["0", null, false, NaN, Infinity, -1, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
     const value = report();
+    // @ts-expect-error Malformed wire counts remain malformed.
     value.check.total_issues = invalid;
     assert.throws(() => evaluateFallowReport(value), String(invalid));
   }
   for (const invalid of ["2", null, false, NaN, Infinity, -1, 101]) {
     const value = report();
+    // @ts-expect-error Malformed wire metrics remain malformed.
     value.dupes.stats.duplication_percentage = invalid;
     assert.throws(() => evaluateFallowReport(value), String(invalid));
   }
 });
 
-test("native enforced failure is distinct from advisory native health findings", () => {
+void test("native enforced failure is distinct from advisory native health findings", () => {
   const value = report();
   value.gate_outcomes["health-findings"] = { status: "fail", enforced: false };
   assert.deepEqual(evaluateFallowReport(value).failures, []);
   value.gate_outcomes["health-findings"].enforced = true;
-  assert.match(evaluateFallowReport(value).failures[0], /enforced.*health-findings/);
+  assert.match(
+    requiredFixture(evaluateFallowReport(value).failures[0]),
+    /enforced.*health-findings/,
+  );
 });
 
-test("warning dead-code, dependency and established boundary findings remain blocking", () => {
+void test("warning dead-code, dependency and established boundary findings remain blocking", () => {
   for (const category of ["unused_files", "unused_dependencies", "boundary_violations"]) {
     const value = report({ issues: 1 });
-    value.check[category] = [{ severity: "warn", path: "src/a.ts" }];
-    assert.match(evaluateFallowReport(value).failures[0], /1 dead-code or dependency/);
+    Object.assign(value.check, { [category]: [{ severity: "warn", path: "src/a.ts" }] });
+    assert.match(
+      requiredFixture(evaluateFallowReport(value).failures[0]),
+      /1 dead-code or dependency/,
+    );
   }
 });
