@@ -1,4 +1,7 @@
-import { errorMessage } from "./runtime-values.mts";
+import type { FileHandle } from "node:fs/promises";
+import type { FileIdentity } from "./development-evidence.mts";
+import type { ReceiptInput } from "./native-helper-dependencies.mts";
+import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
 import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import {
@@ -18,8 +21,34 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { EVIDENCE_READ_CHUNK_BYTES, fileIdentity } from "./development-evidence.mts";
 
-const initializing = new Map();
-const verifiedPrivateRoots = new Set();
+export interface ConsumedInput extends FileIdentity {
+  retained: FileIdentity;
+  binding: "retained-artifact" | "retained-metadata-read" | "live-path-checked-cooperative";
+  role?: string;
+}
+export interface RetainedInput extends ConsumedInput {
+  captured_at: string;
+  deduplicated: boolean;
+}
+interface RetentionOptions {
+  root: string;
+  file: string;
+  executable?: boolean;
+  signal?: AbortSignal;
+  capacity?: (root: string) => Promise<{ bavail: number | bigint; bsize: number | bigint }>;
+  beforePublish?: (input: {
+    partial: string;
+    published: string;
+    identity: FileIdentity;
+  }) => Promise<unknown>;
+  afterPublish?: (input: {
+    published: string;
+    identity: FileIdentity;
+    deduplicated: boolean;
+  }) => Promise<unknown>;
+}
+const initializing = new Map<string, Promise<string>>();
+const verifiedPrivateRoots = new Set<string>();
 const windowsPrivateStore = String.raw`
 $ErrorActionPreference='Stop'
 $directory=[IO.DirectoryInfo]::new($env:PORTCOVE_PRIVATE_EVIDENCE_PATH)
@@ -44,7 +73,8 @@ foreach($rule in $observed.GetAccessRules($true,$true,[Security.Principal.Securi
 
 export async function ensureRetainedEvidenceStore(root: string) {
   root = path.resolve(root);
-  if (initializing.has(root)) return initializing.get(root);
+  const existing = initializing.get(root);
+  if (existing) return existing;
   const task = (async () => {
     await validateEvidenceStore(root);
     let created = false;
@@ -53,19 +83,19 @@ export async function ensureRetainedEvidenceStore(root: string) {
     try {
       await lstat(path.dirname(root));
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (errorCode(error) !== "ENOENT") throw error;
       await mkdir(path.dirname(root), { recursive: true, mode: 0o700 });
     }
     try {
       await mkdir(root, { mode: 0o700 });
       created = true;
     } catch (error) {
-      if (error.code !== "EEXIST") throw error;
+      if (errorCode(error) !== "EEXIST") throw error;
     }
     const marker = path.join(root, "retained-evidence.json");
     if (!created) {
-      const record = JSON.parse(await readFile(marker, "utf8"));
-      if (record.format_version !== 1 || record.kind !== "retained-evidence")
+      const record: unknown = JSON.parse(await readFile(marker, "utf8"));
+      if (!isRecord(record) || record.format_version !== 1 || record.kind !== "retained-evidence")
         throw new Error("Unknown evidence directory; refusing initialization");
     }
     if (!verifiedPrivateRoots.has(root)) {
@@ -154,10 +184,10 @@ export async function validateEvidenceStore(root: string) {
         await lstat(path.join(current, "CACHEDIR.TAG"));
         throw new Error("Retained evidence cannot live in disposable cache ancestry");
       } catch (error) {
-        if (error.code !== "ENOENT") throw error;
+        if (errorCode(error) !== "ENOENT") throw error;
       }
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (errorCode(error) !== "ENOENT") throw error;
     }
     const parent = path.dirname(current);
     if (parent === current) break;
@@ -173,7 +203,7 @@ export async function retainEvidenceInput({
   beforePublish = async () => {},
   afterPublish = async () => {},
   signal,
-}) {
+}: RetentionOptions): Promise<RetainedInput> {
   await ensureRetainedEvidenceStore(root);
   const before = await lstat(file);
   if (!before.isFile() || before.isSymbolicLink())
@@ -189,8 +219,8 @@ export async function retainEvidenceInput({
   await validateEvidenceStore(staging);
   const partial = path.join(staging, `${randomUUID()}.partial`);
   const input = await open(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
-  let output;
-  let identity;
+  let output: FileHandle | null | undefined;
+  let identity: FileIdentity | undefined;
   try {
     const opened = await input.stat();
     if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino)
@@ -204,10 +234,12 @@ export async function retainEvidenceInput({
       signal,
       highWaterMark: EVIDENCE_READ_CHUNK_BYTES,
     })) {
-      hash.update(chunk);
-      bytes += chunk.length;
+      const data: unknown = chunk;
+      if (!Buffer.isBuffer(data)) throw new Error("Retention stream did not produce bytes");
+      hash.update(data);
+      bytes += data.length;
       if (bytes > before.size) throw new Error("Retention input grew during capture");
-      await output.writeFile(chunk);
+      await output.writeFile(data);
     }
     identity = { path: path.resolve(file), bytes, sha256: hash.digest("hex") };
     const after = await fileIdentity(file, { maxBytes: bytes, signal });
@@ -237,7 +269,7 @@ export async function retainEvidenceInput({
         throw new Error("Published evidence is corrupt; refusing overwrite");
       deduplicated = true;
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (errorCode(error) !== "ENOENT") throw error;
     }
     // Only a new object needs this private copy durably flushed. A verified
     // published object already has custody; never publish the unsynced copy
@@ -255,7 +287,7 @@ export async function retainEvidenceInput({
       try {
         await link(partial, published);
       } catch (error) {
-        if (error.code !== "EEXIST") throw error;
+        if (errorCode(error) !== "EEXIST") throw error;
         deduplicated = true;
       }
     }
@@ -296,7 +328,10 @@ export async function retainEvidenceInput({
   }
 }
 
-export async function verifyConsumedInputs(inputs, { livePaths = true, signal } = {}) {
+export async function verifyConsumedInputs(
+  inputs: readonly ConsumedInput[],
+  { livePaths = true, signal }: { livePaths?: boolean; signal?: AbortSignal | undefined } = {},
+) {
   for (const input of inputs) {
     const retained = await fileIdentity(input.retained.path, { maxBytes: input.bytes, signal });
     if (retained.sha256 !== input.sha256 || retained.bytes !== input.bytes)
@@ -309,7 +344,7 @@ export async function verifyConsumedInputs(inputs, { livePaths = true, signal } 
   }
 }
 
-export function executionAdmission(startedAt, budgetMs, now = Date.now) {
+export function executionAdmission(startedAt: string, budgetMs: number, now = Date.now) {
   const expires = Date.parse(startedAt) + budgetMs;
   if (!Number.isFinite(expires) || !Number.isFinite(budgetMs) || budgetMs <= 0)
     throw new Error("Invalid execution deadline");
@@ -322,7 +357,7 @@ export function executionAdmission(startedAt, budgetMs, now = Date.now) {
   return {
     signal,
     assertReady,
-    async verify(inputs) {
+    async verify(inputs: readonly ConsumedInput[]) {
       assertReady();
       await verifyConsumedInputs(inputs, { signal });
       assertReady();
@@ -330,7 +365,11 @@ export function executionAdmission(startedAt, budgetMs, now = Date.now) {
   };
 }
 
-export function retainedExecutableCanLaunch(input, drivers, platform = process.platform) {
+export function retainedExecutableCanLaunch(
+  input: { role: string; path: string },
+  drivers: { driver?: string; nativeDriver?: string } | null | undefined,
+  platform: NodeJS.Platform = process.platform,
+) {
   // Product metadata is provenance, never proof of a relocatable layout.
   // Only the bootstrap's standalone cached driver executables are established.
   return (
@@ -340,11 +379,28 @@ export function retainedExecutableCanLaunch(input, drivers, platform = process.p
 }
 
 export async function readPrelaunchCustody(
-  file,
-  { root, revision, plan, values, selectedScenarios, deadlineMs },
+  file: string,
+  {
+    root,
+    revision,
+    plan,
+    values,
+    selectedScenarios,
+    deadlineMs,
+  }: {
+    root: string;
+    revision: string;
+    plan: { receiptInputs: readonly ReceiptInput[] };
+    values: Record<string, unknown>;
+    selectedScenarios: readonly string[];
+    deadlineMs: number;
+  },
 ) {
-  const manifest = JSON.parse(await readFile(file, "utf8"));
+  const raw: unknown = JSON.parse(await readFile(file, "utf8"));
+  const manifest = object(raw);
   if (
+    typeof manifest.execution_started_at !== "string" ||
+    typeof manifest.created_at !== "string" ||
     !Number.isFinite(Date.parse(manifest.execution_started_at)) ||
     !Number.isFinite(Date.parse(manifest.created_at)) ||
     Date.parse(manifest.execution_started_at) > Date.parse(manifest.created_at) ||
@@ -361,37 +417,91 @@ export async function readPrelaunchCustody(
   )
     throw new Error("Prelaunch input custody does not bind this execution");
   const declared = plan.receiptInputs.map((input) =>
-    ["executable", "argument-file"].includes(input.kind) ? input.name : input.path,
+    input.kind === "file" ? input.path : input.name,
   );
-  const roles = manifest.inputs.map((input) => input.role);
+  const inputs: unknown[] = manifest.inputs;
+  const records = inputs.map(object);
+  const roles = records.map((input) => string(input.role));
   if (
     new Set(roles).size !== roles.length ||
     JSON.stringify([...roles].sort()) !== JSON.stringify([...declared].sort())
   )
     throw new Error("Prelaunch input inventory is incomplete");
-  for (const input of manifest.inputs) {
+  const consumed: (ConsumedInput & { role: string })[] = [];
+  for (const input of records) {
     const expected = plan.receiptInputs.find(
-      (entry) =>
-        (["executable", "argument-file"].includes(entry.kind) ? entry.name : entry.path) ===
-        input.role,
+      (entry) => (entry.kind === "file" ? entry.path : entry.name) === input.role,
     );
     if (
-      !/^[a-f0-9]{64}$/u.test(input.sha256 ?? "") ||
+      !expected ||
+      typeof input.role !== "string" ||
+      typeof input.sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(input.sha256) ||
+      typeof input.bytes !== "number" ||
       !Number.isSafeInteger(input.bytes) ||
       input.bytes < 0 ||
-      !path.isAbsolute(input.retained?.path ?? "") ||
+      !isRecord(input.retained) ||
+      typeof input.retained.path !== "string" ||
+      !path.isAbsolute(input.retained.path) ||
       (expected.kind === "argument-file"
         ? input.binding !== "retained-metadata-read" ||
-          path.resolve(values[expected.name] ?? ".") !== input.retained.path
+          path.resolve(string(values[expected.name] ?? ".")) !== input.retained.path
         : expected.kind === "executable"
-          ? !["retained-artifact", "live-path-checked-cooperative"].includes(input.binding) ||
-            path.resolve(values[expected.name] ?? ".") !==
+          ? (input.binding !== "retained-artifact" &&
+              input.binding !== "live-path-checked-cooperative") ||
+            path.resolve(string(values[expected.name] ?? ".")) !==
               (input.binding === "retained-artifact" ? input.retained.path : input.path)
           : input.binding !== "live-path-checked-cooperative" ||
-            input.path !== path.join(root, expected.path))
+            input.path !== path.join(root, string(expected.path)))
     )
       throw new Error("Consumed input differs from the prelaunch declaration");
+    consumed.push(consumedInput(input));
   }
-  await executionAdmission(manifest.execution_started_at, deadlineMs).verify(manifest.inputs);
-  return manifest;
+  await executionAdmission(manifest.execution_started_at, deadlineMs).verify(consumed);
+  return {
+    ...manifest,
+    execution_started_at: manifest.execution_started_at,
+    created_at: manifest.created_at,
+    inputs: consumed,
+  };
+}
+
+function object(value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) throw new Error("Retained custody must be an object");
+  return value;
+}
+function string(value: unknown): string {
+  if (typeof value !== "string") throw new Error("Retained custody path must be a string");
+  return value;
+}
+function consumedInput(input: Record<string, unknown>): ConsumedInput & { role: string } {
+  const retained = object(input.retained);
+  if (
+    typeof input.bytes !== "number" ||
+    !Number.isSafeInteger(input.bytes) ||
+    input.bytes < 0 ||
+    typeof retained.bytes !== "number" ||
+    !Number.isSafeInteger(retained.bytes) ||
+    retained.bytes < 0 ||
+    typeof retained.sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(retained.sha256) ||
+    (input.binding !== "retained-artifact" &&
+      input.binding !== "retained-metadata-read" &&
+      input.binding !== "live-path-checked-cooperative")
+  )
+    throw new Error("Consumed input differs from the prelaunch declaration");
+  return {
+    ...input,
+    path: string(input.path),
+    bytes: input.bytes,
+    sha256: string(input.sha256),
+    role: string(input.role),
+    binding: input.binding,
+    retained: {
+      ...retained,
+      path: string(retained.path),
+      bytes: retained.bytes,
+      sha256: retained.sha256,
+    },
+  };
 }
