@@ -1,3 +1,5 @@
+import type { SpawnSyncReturns } from "node:child_process";
+import { errorCode } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -35,7 +37,7 @@ const macosVerifier = await readFile(
   "utf8",
 );
 
-function job(name, next) {
+function job(name: string, next?: string) {
   const suffix = next ? `(?=^ {2}${next}:)` : "(?![\\s\\S])";
   return workflow.match(new RegExp(`^ {2}${name}:\\r?\\n([\\s\\S]*?)${suffix}`, "m"))?.[1] ?? "";
 }
@@ -72,7 +74,7 @@ const publicationScript = inlineRunScript(publishSection, "Create or reconcile d
 // this fixture against the same Bash boundary as the privileged job.
 const bashExecutable = process.platform === "win32" ? undefined : "bash";
 
-function mockPublisherArguments(script, bin, ghShim) {
+function mockPublisherArguments(script: string, bin: string, ghShim: string) {
   return [
     "-euo",
     "pipefail",
@@ -93,7 +95,7 @@ function mockPublisherArguments(script, bin, ghShim) {
   ];
 }
 
-test("write authority is split across isolated attestation publication and cleanup jobs", () => {
+void test("write authority is split across isolated attestation publication and cleanup jobs", () => {
   assert.match(workflow, /^permissions:\r?\n {2}contents: read$/m);
   assert.match(buildSection, /^ {4}permissions:\r?\n {6}contents: read$/m);
   assert.match(intelBuildSection, /^ {4}permissions:\r?\n {6}contents: read$/m);
@@ -110,7 +112,7 @@ test("write authority is split across isolated attestation publication and clean
   assert.doesNotMatch(publishSection, /actions\/checkout|setup-node|node scripts/);
 });
 
-test("cheap identity unlocks qualification and builds before the explicit result gate", () => {
+void test("cheap identity unlocks qualification and builds before the explicit result gate", () => {
   assert.match(identitySection, /actions\/setup-node/);
   assert.doesNotMatch(identitySection, /pnpm install|rust-toolchain|just audit/);
   assert.doesNotMatch(
@@ -146,7 +148,7 @@ test("cheap identity unlocks qualification and builds before the explicit result
   assert.match(assembleSection, /^ {4}needs: release_gate$/m);
 });
 
-test("every builder uploads only the staged checksummed payload with short fallback retention", () => {
+void test("every builder uploads only the staged checksummed payload with short fallback retention", () => {
   for (const label of releaseLabels.filter((label) => label !== "macos-x86_64"))
     assert.match(buildSection, new RegExp(`label: ${label}`));
   assert.match(intelBuildSection, /--label macos-x86_64/);
@@ -164,7 +166,7 @@ test("every builder uploads only the staged checksummed payload with short fallb
   assert.doesNotMatch(buildSection, /github\.event_name/);
 });
 
-test("builders package the versioned CLI smoke test it and request explicit Tauri bundles", () => {
+void test("builders package the versioned CLI smoke test it and request explicit Tauri bundles", () => {
   assert.match(buildSection, /scripts\/package-cli\.ps1/);
   assert.match(buildSection, /scripts\/smoke-test-cli-archive\.ps1/);
   assert.match(buildSection, /bundles: nsis/);
@@ -182,7 +184,7 @@ test("builders package the versioned CLI smoke test it and request explicit Taur
   assert.match(buildSection, /shared-key: release-\$\{\{ matrix\.label \}\}/);
 });
 
-test("cross-built Intel artifacts receive native Intel package and launch verification", () => {
+void test("cross-built Intel artifacts receive native Intel package and launch verification", () => {
   assert.match(intelSection, /^ {4}needs: \[identity, build_intel\]$/m);
   assert.match(intelSection, /^ {4}runs-on: macos-15-intel$/m);
   assert.match(intelSection, /name: release-build-macos-x86_64/);
@@ -197,12 +199,12 @@ test("cross-built Intel artifacts receive native Intel package and launch verifi
   assert.doesNotMatch(macosVerifier, /-acceptlicense/);
 });
 
-test("CLI packaging uses the BSD-compatible chmod form required by macOS", () => {
+void test("CLI packaging uses the BSD-compatible chmod form required by macOS", () => {
   assert.match(cliPackager, /& chmod \+x \$temporaryExecutable/);
   assert.doesNotMatch(cliPackager, /& chmod \+x --/);
 });
 
-test("packaged CLI smoke covers the plugin-free launcher path and library contract", () => {
+void test("packaged CLI smoke covers the plugin-free launcher path and library contract", () => {
   assert.match(cliSmoke, /\$unicodeMarker = \[char\]0x03A9/);
   assert.match(cliSmoke, /steam launch \$unicodeMarker/);
   assert.match(cliSmoke, /standalone CLI/);
@@ -216,7 +218,7 @@ test("packaged CLI smoke covers the plugin-free launcher path and library contra
   assert.doesNotMatch(cliSmoke, /Start-Process|cmd(?:\.exe)?|\/bin\/sh/iu);
 });
 
-test("assembler reconciles the full matrix then generates and checksums the release SBOM", () => {
+void test("assembler reconciles the full matrix then generates and checksums the release SBOM", () => {
   assert.match(assembleSection, /^ {4}needs: release_gate$/m);
   assert.match(assembleSection, /pattern: release-build-\*/);
   const reconcile = assembleSection.indexOf("reconcile-release-assets.mts");
@@ -239,7 +241,7 @@ test("assembler reconciles the full matrix then generates and checksums the rele
   assert.doesNotMatch(assembleSection, /releases\/generate-notes/);
 });
 
-test("manual rehearsal verifies every finalized checksum without release write access", () => {
+void test("manual rehearsal verifies every finalized checksum without release write access", () => {
   assert.match(rehearseSection, /^ {4}if: github\.event_name == 'workflow_dispatch'$/m);
   assert.match(rehearseSection, /^ {4}needs: assemble$/m);
   assert.match(rehearseSection, /name: release-final/);
@@ -252,7 +254,7 @@ test("manual rehearsal verifies every finalized checksum without release write a
   assert.doesNotMatch(rehearseSection, /gh release/);
 });
 
-test("tag releases attest exact final bytes and the SBOM before draft mutation", () => {
+void test("tag releases attest exact final bytes and the SBOM before draft mutation", () => {
   assert.match(attestSection, /^ {4}if: github\.event_name == 'push'$/m);
   assert.match(attestSection, /^ {4}needs: assemble$/m);
   assert.equal((attestSection.match(/actions\/attest@/g) ?? []).length, 2);
@@ -270,7 +272,7 @@ test("tag releases attest exact final bytes and the SBOM before draft mutation",
   assert.match(publishSection, /^ {4}needs: \[assemble, attest, authorize_publication\]$/m);
 });
 
-test("publisher mutates drafts only from precomputed metadata and attested assets", () => {
+void test("publisher mutates drafts only from precomputed metadata and attested assets", () => {
   assert.match(publishSection, /^ {4}if: github\.event_name == 'push'$/m);
   assert.match(publishSection, /name: release-final/);
   assert.match(publishSection, /name: release-publication-metadata/);
@@ -291,10 +293,11 @@ test("publisher mutates drafts only from precomputed metadata and attested asset
   assert.doesNotMatch(publishSection, /releases\/latest|latest\/download/);
 });
 
-test(
+void test(
   "mock publisher restores private lookup after startup reorder and refuses functions",
   { skip: !bashExecutable },
   async (t) => {
+    assert.ok(bashExecutable);
     const root = await mkdtemp(path.join(os.tmpdir(), "portcove-mock-path ' $ ; "));
     const evidence = await mkdtemp(path.join(os.tmpdir(), "portcove-mock-path-evidence-"));
     console.log(`Retained synthetic mock lookup evidence: ${evidence}`);
@@ -335,11 +338,13 @@ test(
       MOCK_FUNCTION_MARKER: functionMarker,
       MOCK_STARTUP_MARKER: startupMarker,
     };
-    const run = (args, overrides = {}) => {
+    const run = (args: readonly string[], overrides: NodeJS.ProcessEnv = {}) => {
       // Inject the synthetic reorder after uncontrolled host startup, before the shared repair.
       // The owned control file is positional data, never interpolated shell code.
       const controlledArgs = [...args, startup];
-      controlledArgs[3] = `. "$3"\n${controlledArgs[3]}`;
+      const controlledScript = controlledArgs[3];
+      assert.ok(typeof controlledScript === "string");
+      controlledArgs[3] = `. "$3"\n${controlledScript}`;
       return spawnSync(bashExecutable, controlledArgs, {
         cwd: root,
         env: { ...environment, ...overrides },
@@ -368,10 +373,10 @@ test(
     const refused = run(mockPublisherArguments("gh", bin, ghShim), {
       "BASH_FUNC_gh%%": '() { printf "function\\n" >> "$MOCK_FUNCTION_MARKER"; }',
     });
-    const safeResult = ({ status, signal, error, stdout, stderr }) => ({
+    const safeResult = ({ status, signal, error, stdout, stderr }: SpawnSyncReturns<string>) => ({
       status,
       signal,
-      error: error ? { code: error.code, message: error.message } : null,
+      error: error ? { code: errorCode(error), message: error.message } : null,
       stdout,
       stderr,
     });
@@ -406,10 +411,11 @@ test(
   },
 );
 
-test(
+void test(
   "publisher retries and recovers an interrupted draft without touching a published release",
   { skip: !bashExecutable },
   async (t) => {
+    assert.ok(bashExecutable);
     const root = await mkdtemp(path.join(os.tmpdir(), "portcove-draft-publication-"));
     const evidence = await mkdtemp(path.join(os.tmpdir(), "portcove-draft-publication-evidence-"));
     console.log(`Retained mock publisher diagnostics: ${evidence}`);
@@ -508,7 +514,7 @@ test(
         .digest("hex"),
       executableAccess: await access(ghShim, constants.X_OK).then(
         () => ({ permitted: true, errorCode: null }),
-        (error) => ({ permitted: false, errorCode: error.code }),
+        (error) => ({ permitted: false, errorCode: errorCode(error) }),
       ),
     };
     await writeFile(
@@ -516,11 +522,11 @@ test(
       JSON.stringify(parentFixture, null, 2),
       { mode: 0o600 },
     );
-    const childEvidence = (child) => ({
+    const childEvidence = (child: SpawnSyncReturns<string>) => ({
       status: child.status,
       signal: child.signal,
       error: child.error
-        ? { name: child.error.name, message: child.error.message, code: child.error.code }
+        ? { name: child.error.name, message: child.error.message, code: errorCode(child.error) }
         : null,
       stdout: child.stdout,
       stderr: child.stderr,
@@ -598,7 +604,7 @@ test(
     assert.ok(bashVersion && bashPath, `Missing Bash identity: ${evidence}`);
     assert.equal(ghKind, "file", `gh is not the fixture executable; diagnostics: ${evidence}`);
     assert.equal(ghPath, ghShim, `gh escaped its fixture; diagnostics: ${evidence}`);
-    const runPublisher = (overrides = {}) =>
+    const runPublisher = (overrides: NodeJS.ProcessEnv = {}) =>
       spawnSync(bashExecutable, mockPublisherArguments(publicationScript, bin, ghShim), {
         cwd: root,
         encoding: "utf8",
@@ -661,7 +667,7 @@ test(
   },
 );
 
-test("cleanup deletes transient artifacts only after successful rehearsal or publication", () => {
+void test("cleanup deletes transient artifacts only after successful rehearsal or publication", () => {
   assert.match(cleanupSection, /always\(\).*needs\.assemble\.result == 'success'/);
   assert.match(cleanupSection, /needs\.rehearse\.result == 'success'/);
   assert.match(cleanupSection, /needs\.publish\.result == 'success'/);
