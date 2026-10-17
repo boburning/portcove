@@ -136,6 +136,16 @@ application/configuration projects retain bundler resolution; native harnesses
 also check the DOM callbacks that Selenium serializes. Node-only tooling does
 not receive browser globals. All projects inherit the strict shared policy.
 
+The normal root Vite+ check discovers each source file's nearest project; these
+no-emit projects are independent checker inputs, not declaration-build project
+references. The root project checks bundler configurations and the Stylelint
+bridge; `apps/desktop` checks application source; `scripts` checks Node tooling;
+`apps/desktop/scripts` checks native harnesses and serialized browser callbacks;
+`apps/desktop/test` checks browser setup; `integrations/playnite` checks integration
+tooling; and `apps/desktop/public` checks the raw theme bootstrap. Keep new files
+inside the appropriate includes and verify them through `pnpm check` (the
+existing Vite+ static workflow).
+
 The compatibility inventory is exactly:
 
 | File                                     | Consumer requirement                                                                                                                      | Checking and validation                                                                           |

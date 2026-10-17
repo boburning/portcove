@@ -22,7 +22,7 @@
     "test:browser": "vp -C ../.. run frontend:browser",
     "test:native-compatibility:embedded": "node test/native-compatibility.mts",
     "dev": "vp dev",
-    "typecheck": "node ../../scripts/run-viteplus.mts check --no-fmt --no-lint",
+    "typecheck": "pnpm --dir ../.. exec node scripts/run-viteplus.mts check --no-fmt --no-lint",
     "build": "node scripts/build-frontend.mts",
     "lint:style": "stylelint --config stylelint.config.mjs --max-warnings 0 \"src/**/*.css\"",
     "lint": "vp -C ../.. run frontend:static",

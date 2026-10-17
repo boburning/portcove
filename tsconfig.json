@@ -19,12 +19,5 @@
     "scripts/frontend-tests.ts",
     "scripts/browser-traces.ts"
   ],
-  "extends": "./tsconfig.base.json",
-  "references": [
-    { "path": "./scripts" },
-    { "path": "./apps/desktop/scripts" },
-    { "path": "./apps/desktop/test" },
-    { "path": "./integrations/playnite" },
-    { "path": "./apps/desktop/public" }
-  ]
+  "extends": "./tsconfig.base.json"
 }
