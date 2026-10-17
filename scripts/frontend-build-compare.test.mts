@@ -1,3 +1,5 @@
+import type { ComparisonRunner } from "./frontend-build-compare.mts";
+import { isRecord } from "./runtime-values.mts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -5,7 +7,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, readdirSyn
 import path from "node:path";
 import os from "node:os";
 import { comparisonInputs, compareBuilds } from "./frontend-build-compare.mts";
-const git = (cwd, args) => execFileSync("git", args, { cwd, stdio: "pipe", windowsHide: true });
+const git = (cwd: string, args: readonly string[]) =>
+  execFileSync("git", args, { cwd, stdio: "pipe", windowsHide: true });
 function fixture() {
   const parent = mkdtempSync(path.join(os.tmpdir(), "frontend-compare-"));
   const roots = ["base", "head"].map((name: string, index) => {
@@ -35,9 +38,12 @@ function fixture() {
     git(root, ["commit", "-m", "fixture"]);
     return root;
   });
-  return { parent, roots };
+  const base = roots[0],
+    head = roots[1];
+  assert.ok(base && head);
+  return { parent, roots: [base, head] as const };
 }
-test("comparison rejects dirty, nested, archived and mismatched source/configuration inputs", () => {
+void test("comparison rejects dirty, nested, archived and mismatched source/configuration inputs", () => {
   const { parent, roots } = fixture();
   try {
     assert.equal(comparisonInputs(...roots, "lucide-react").length, 2);
@@ -55,13 +61,13 @@ test("comparison rejects dirty, nested, archived and mismatched source/configura
     rmSync(parent, { recursive: true, force: true });
   }
 });
-test("comparison retains command logs and separates JS/CSS bytes with unique failure evidence", () => {
+void test("comparison retains command logs and separates JS/CSS bytes with unique failure evidence", () => {
   const { parent, roots } = fixture();
   try {
-    const runner = (command, args, { cwd }) => {
+    const runner: ComparisonRunner = (command, args, { cwd }) => {
       assert.equal(command, "pnpm");
       if (args.includes("build")) {
-        const dir = path.join(cwd, "apps/desktop/dist/assets");
+        const dir = path.join(String(cwd), "apps/desktop/dist/assets");
         mkdirSync(dir, { recursive: true });
         writeFileSync(path.join(dir, "main.js"), "const value = 42;");
         writeFileSync(path.join(dir, "main.css"), "body { color: red }");
@@ -77,7 +83,7 @@ test("comparison retains command logs and separates JS/CSS bytes with unique fai
     });
     assert.equal(report.state, "complete");
     assert(report.totals.every((t) => t.js.raw > 0 && t.css.gzip > 0));
-    assert.equal(JSON.parse(readFileSync(reference)).state, "complete");
+    assert.equal(reportState(reference), "complete");
     assert(report.builds.every((b) => b.commands.length === 3));
     assert.throws(() => comparisonInputs(...roots, "lucide-react"), /contaminated|Preexisting/);
     // A separate fresh pair proves failures retain a report and both streams.
@@ -95,8 +101,10 @@ test("comparison retains command logs and separates JS/CSS bytes with unique fai
           }),
         /failed/,
       );
-      const attempt = path.join(evidenceRoot, readdirSync(evidenceRoot)[0]);
-      assert.equal(JSON.parse(readFileSync(path.join(attempt, "report.json"))).state, "failed");
+      const child = readdirSync(evidenceRoot)[0];
+      assert.ok(child);
+      const attempt = path.join(evidenceRoot, child);
+      assert.equal(reportState(path.join(attempt, "report.json")), "failed");
       assert(readdirSync(attempt).some((name: string) => name.endsWith(".stderr.log")));
     } finally {
       rmSync(second.parent, { recursive: true, force: true });
@@ -105,3 +113,9 @@ test("comparison retains command logs and separates JS/CSS bytes with unique fai
     rmSync(parent, { recursive: true, force: true });
   }
 });
+
+function reportState(file: string): unknown {
+  const value: unknown = JSON.parse(readFileSync(file, "utf8"));
+  assert.ok(isRecord(value));
+  return value.state;
+}
