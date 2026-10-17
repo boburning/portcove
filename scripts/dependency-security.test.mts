@@ -236,7 +236,7 @@ void test("policy success cannot cover independent audit failure or become scann
     id,
     recipe: id,
     fingerprint: id,
-    action: "run",
+    action: "run" as const,
     reusable: false,
   }));
   const result = executeAudit(
@@ -244,10 +244,8 @@ void test("policy success cannot cover independent audit failure or become scann
     { execute: () => ({ status: 1 }) },
   );
   const decision = developmentSecurity(scan(), policy);
-  assert.equal(typeof result.report.head, "string");
-  const head: unknown = result.report.head;
+  const head = result.report.head;
   assert.equal(typeof head, "string");
-  assert.ok(typeof head === "string");
   assert.equal(result.success, false);
   assert.equal(
     recordsDevelopmentPolicy({ ...result.report, policyDecision: decision }, head),

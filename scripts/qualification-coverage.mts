@@ -1,3 +1,4 @@
+import { isRecord, errorMessage } from "./runtime-values.mts";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,10 +14,10 @@ const expectedProtectedContexts = [
 ];
 
 export function qualificationJobInventory(workflow: string) {
-  const jobs = [];
-  const pullRequestJobs = [];
-  let current = null;
-  let body = [];
+  const jobs: string[] = [];
+  const pullRequestJobs: string[] = [];
+  let current: string | undefined = undefined;
+  let body: string[] = [];
   const flush = () => {
     if (!current) return;
     const condition = body.find((line) => /^ {4}if:/u.test(line)) ?? "";
@@ -37,20 +38,37 @@ export function qualificationJobInventory(workflow: string) {
   return { jobs: jobs.sort(), pullRequestJobs: pullRequestJobs.sort() };
 }
 
-export function qualificationJobs(workflow) {
+export function qualificationJobs(workflow: string) {
   const observed = qualificationJobInventory(workflow);
   return [...observed.jobs, ...observed.pullRequestJobs].sort();
 }
 
-export function validateQualificationCoverage(inventory, workflow) {
-  if (inventory?.format_version !== 1) throw new Error("unsupported qualification inventory");
+export interface QualificationInventory {
+  format_version: 1;
+  workflow: ".github/workflows/ci.yml";
+  jobs: string[];
+  pull_request_jobs: string[];
+  platforms: string[];
+  protected_contexts: string[];
+}
+export function assertQualificationInventory(
+  inventory: unknown,
+): asserts inventory is QualificationInventory {
+  if (!isRecord(inventory) || inventory.format_version !== 1)
+    throw new Error("unsupported qualification inventory");
   if (inventory.workflow !== ".github/workflows/ci.yml")
     throw new Error("qualification inventory names an unexpected workflow");
-  for (const field of ["jobs", "pull_request_jobs", "platforms", "protected_contexts"])
+  for (const field of ["jobs", "pull_request_jobs", "platforms", "protected_contexts"] as const)
     if (!Array.isArray(inventory[field]) || inventory[field].length === 0)
       throw new Error(`qualification ${field} inventory must be nonzero`);
+    else if (!inventory[field].every((value: unknown) => typeof value === "string"))
+      throw new Error(`qualification ${field} inventory must contain strings`);
     else if (new Set(inventory[field]).size !== inventory[field].length)
       throw new Error(`duplicate qualification ${field} inventory entry`);
+}
+
+export function validateQualificationCoverage(inventory: unknown, workflow: string) {
+  assertQualificationInventory(inventory);
   const declared = [...new Set(inventory.jobs)].sort();
   const declaredPullRequest = [...new Set(inventory.pull_request_jobs)].sort();
   const allDeclared = [...declared, ...declaredPullRequest];
@@ -87,7 +105,7 @@ export function validateQualificationCoverage(inventory, workflow) {
 }
 
 async function main() {
-  const inventory = JSON.parse(
+  const inventory: unknown = JSON.parse(
     await readFile(path.join(root, ".github", "qualification-coverage.json"), "utf8"),
   );
   const workflow = await readFile(path.join(root, ".github", "workflows", "ci.yml"), "utf8");
@@ -99,7 +117,7 @@ async function main() {
 
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   main().catch((error) => {
-    console.error(error.message);
+    console.error(errorMessage(error));
     process.exitCode = 1;
   });
 }

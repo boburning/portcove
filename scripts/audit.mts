@@ -1,4 +1,11 @@
-import { errorCode } from "./runtime-values.mts";
+import type {
+  StageIdentity,
+  RepositoryInventory,
+  ValidationRuntime,
+  SuccessfulStageReceipt,
+} from "./validation-evidence.mts";
+import type { ValidationChange } from "./validation-plan.mts";
+import { isRecord, errorCode } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 import {
   appendFileSync,
@@ -14,10 +21,57 @@ import { fileURLToPath } from "node:url";
 
 import { validateQualificationBinding, validateValidationPlan } from "./validation-plan.mts";
 import { discoverCiPlan, parseRawDiff } from "./select-ci-plan.mts";
-import { validateQualificationCoverage } from "./qualification-coverage.mts";
+import {
+  assertQualificationInventory,
+  validateQualificationCoverage,
+} from "./qualification-coverage.mts";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
-export const AUDIT_STAGES = Object.freeze([
+export interface AuditStage extends StageIdentity {
+  reusable: boolean;
+  platforms?: readonly string[];
+  reason?: string;
+}
+type PlannedStage = Pick<AuditStage, "id" | "recipe" | "reusable"> & {
+  fingerprint: string;
+  rationale?: string | undefined;
+} & ({ action: "run" } | { action: "reuse"; prior: SuccessfulStageReceipt });
+export interface AuditExecutionPlan {
+  head: string;
+  receiptRoot: string;
+  profile?: string;
+  stages: readonly PlannedStage[];
+  inventory?: RepositoryInventory;
+  runtime?: ValidationRuntime;
+}
+interface PlanAuditOptions {
+  root?: string;
+  stages?: readonly AuditStage[];
+  inventory?: RepositoryInventory;
+  runtime?: ValidationRuntime;
+  receiptRoot?: string;
+  fresh?: boolean;
+  profile?: string;
+}
+interface ExecuteAuditOptions {
+  root?: string;
+  captureHosted?: boolean;
+  scan706Path?: string;
+  clock?: () => number;
+  captureInputs?: (plan: AuditExecutionPlan, root: string) => unknown;
+  execute?: (stage: PlannedStage) => { status: number | null; error?: unknown } | undefined;
+}
+interface AuditResult {
+  id: string;
+  recipe: string;
+  status: "reused" | "passed" | "failed";
+  fingerprint: string;
+  originatingHead: string;
+  durationMs: number | undefined;
+  rationale: string | undefined;
+  exitCode?: number | null;
+}
+export const AUDIT_STAGES: readonly AuditStage[] = Object.freeze([
   { id: "fallow", recipe: "fallow", domain: "ui", reusable: false },
   { id: "frontend-static", recipe: "ui-static", domain: "format", reusable: false },
   { id: "rust", recipe: "check-rust", domain: "rust", reusable: true },
@@ -96,8 +150,18 @@ export const TRANSITION_AUDIT_STAGE_IDS = Object.freeze([
   "release-unit",
 ]);
 
-export function selectTransitionAudit({ inventory, validationPlan, changes, workingTreeStatus }) {
-  validateValidationPlan(validationPlan);
+export function selectTransitionAudit({
+  inventory,
+  validationPlan: validationInput,
+  changes,
+  workingTreeStatus,
+}: {
+  inventory: Pick<RepositoryInventory, "head" | "files">;
+  validationPlan: unknown;
+  changes: ValidationChange[];
+  workingTreeStatus: unknown;
+}) {
+  const validationPlan = validateValidationPlan(validationInput);
   if (
     validationPlan.discovery !== "complete" ||
     validationPlan.mode === "blocked" ||
@@ -111,9 +175,10 @@ export function selectTransitionAudit({ inventory, validationPlan, changes, work
     // The plan module is eligible to change, so its own constants/validators
     // cannot establish complete coverage. This preserved authority is excluded
     // from transition eligibility together with its validator and result gates.
-    const coverage = JSON.parse(
+    const coverage: unknown = JSON.parse(
       readFileSync(path.join(projectRoot, ".github/qualification-coverage.json"), "utf8"),
     );
+    assertQualificationInventory(coverage);
     validateQualificationCoverage(
       coverage,
       readFileSync(path.join(projectRoot, coverage.workflow), "utf8"),
@@ -189,6 +254,7 @@ export function auditStagesForProfile(profile = "complete") {
 
 import {
   receiptFormat,
+  isValidationDomain,
   repositoryInventory,
   auditRuntime,
   fingerprintStage,
@@ -209,11 +275,11 @@ export {
   validateReceipt,
 } from "./validation-evidence.mts";
 
-function stageReceiptPath(receiptRoot: string, stage, fingerprint) {
+function stageReceiptPath(receiptRoot: string, stage: { id: string }, fingerprint: string) {
   return path.join(receiptRoot, "stages", stage.id, `${fingerprint}.json`);
 }
 
-function readReceipt(file) {
+function readReceipt(file: string): unknown {
   try {
     return JSON.parse(readFileSync(file, "utf8"));
   } catch {
@@ -221,7 +287,7 @@ function readReceipt(file) {
   }
 }
 
-function writeJsonAtomic(file: string, value) {
+function writeJsonAtomic(file: string, value: unknown) {
   mkdirSync(path.dirname(file), { recursive: true });
   const temporary = `${file}.${process.pid}.${Date.now()}.tmp`;
   writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { flag: "wx" });
@@ -229,7 +295,7 @@ function writeJsonAtomic(file: string, value) {
   renameSync(temporary, file);
 }
 
-export function planAudit(options = {}) {
+export function planAudit(options: PlanAuditOptions = {}) {
   const root = options.root ?? projectRoot;
   const stages = options.stages ?? AUDIT_STAGES;
   const inventory = options.inventory ?? repositoryInventory(root);
@@ -244,7 +310,7 @@ export function planAudit(options = {}) {
     runtime,
     stages: stages
       .filter((stage) => !stage.platforms || stage.platforms.includes(runtime.platform))
-      .map((stage) => {
+      .map((stage): AuditStage & PlannedStage => {
         const fingerprint = fingerprintStage(stage, inventory, runtime);
         if (!stage.reusable)
           return {
@@ -286,7 +352,7 @@ export function planAudit(options = {}) {
   };
 }
 
-function displayPlan(plan) {
+function displayPlan(plan: AuditExecutionPlan) {
   console.log(`# Portcove audit plan`);
   console.log(`Head: ${plan.head}`);
   console.log(`Profile: ${plan.profile ?? "complete"}`);
@@ -296,7 +362,7 @@ function displayPlan(plan) {
     );
 }
 
-export function executeAudit(plan, options = {}) {
+export function executeAudit(plan: AuditExecutionPlan, options: ExecuteAuditOptions = {}) {
   let captureAvailable = false;
   if (options.captureHosted) {
     try {
@@ -304,7 +370,7 @@ export function executeAudit(plan, options = {}) {
       captureAvailable = true;
     } catch (error) {
       console.warn(
-        `[audit] Original input capture unavailable (${/^[A-Z0-9_]+$/.test(errorCode(error)) ? errorCode(error) : "capture-failed"}); audit stages still execute`,
+        `[audit] Original input capture unavailable (${/^[A-Z0-9_]+$/.test(errorCode(error) ?? "") ? errorCode(error) : "capture-failed"}); audit stages still execute`,
       );
     }
   }
@@ -323,7 +389,7 @@ export function executeAudit(plan, options = {}) {
         },
       }));
   const clock = options.clock ?? (() => Date.now());
-  const results = [];
+  const results: AuditResult[] = [];
 
   for (const stage of plan.stages) {
     if (stage.action === "reuse") {
@@ -352,7 +418,7 @@ export function executeAudit(plan, options = {}) {
     }
     const durationMs = Math.max(0, clock() - started);
     const passed = !execution?.error && execution?.status === 0;
-    const result = {
+    const result: AuditResult = {
       id: stage.id,
       recipe: stage.recipe,
       status: passed ? "passed" : "failed",
@@ -404,7 +470,16 @@ export function executeAudit(plan, options = {}) {
   return { success, results, report: reportPayload, captureAvailable };
 }
 
-export function captureHostedAuditInputs(plan, root = projectRoot) {
+function captureStage(stage: PlannedStage): PlannedStage & StageIdentity {
+  if (!("domain" in stage) || !isValidationDomain(stage.domain))
+    throw new Error("Missing audit capture stage domain");
+  return { ...stage, domain: stage.domain };
+}
+export function captureHostedAuditInputs(plan: AuditExecutionPlan, root = projectRoot) {
+  if (!plan.inventory || !plan.runtime) throw new Error("Missing audit capture inventory/runtime");
+  const inventory = plan.inventory;
+  const runtime = plan.runtime;
+  if (!process.env.RUNNER_TEMP) throw new Error("Missing RUNNER_TEMP for hosted audit capture");
   const identity = hostedAuditIdentity(root);
   if (identity.source !== plan.head) throw new Error("Audit input capture source mismatch");
   const captureFile = path.join(
@@ -424,7 +499,7 @@ export function captureHostedAuditInputs(plan, root = projectRoot) {
       stageInputs: Object.fromEntries(
         plan.stages.map((stage) => [
           stage.id,
-          fingerprintInputs(stage, plan.inventory, plan.runtime),
+          fingerprintInputs(captureStage(stage), inventory, runtime),
         ]),
       ),
     }),
@@ -445,6 +520,10 @@ export function hostedAuditIdentity(root = projectRoot) {
   };
   if (
     identity.repository !== "boburning/portcove" ||
+    typeof identity.source !== "string" ||
+    typeof identity.workflowSha !== "string" ||
+    typeof identity.run !== "string" ||
+    typeof identity.attempt !== "string" ||
     !/^[a-f0-9]{40}$/.test(identity.source) ||
     !/^[a-f0-9]{40}$/.test(identity.workflowSha) ||
     !/^[1-9][0-9]{0,12}$/.test(identity.run) ||
@@ -454,7 +533,7 @@ export function hostedAuditIdentity(root = projectRoot) {
   return identity;
 }
 
-function parseArguments(argv) {
+function parseArguments(argv: string[]) {
   let fresh = false;
   let planOnly = false;
   let profile = "complete";
@@ -463,8 +542,9 @@ function parseArguments(argv) {
     if (argument === "--fresh") fresh = true;
     else if (argument === "--plan") planOnly = true;
     else if (argument === "--profile") {
-      profile = argv[++index];
-      if (!profile) throw new Error("--profile requires complete, release or transition");
+      const selected = argv[++index];
+      if (!selected) throw new Error("--profile requires complete, release or transition");
+      profile = selected;
     } else if (argument === "--help")
       return { help: true, fresh: false, planOnly: false, profile: "complete" };
     else throw new Error(`unknown audit option: ${argument}`);
@@ -504,6 +584,7 @@ export async function main(argv = process.argv.slice(2)) {
     validateValidationPlan(validationPlan);
     if (validationPlan.discovery !== "complete" || validationPlan.mode === "blocked")
       throw new Error("transition audit lacks complete hosted discovery");
+    if (!validationPlan.identities.merge_base) throw new Error("Missing transition merge base");
     const changes = parseRawDiff(
       execFileSync(
         "git",
@@ -555,12 +636,13 @@ export async function main(argv = process.argv.slice(2)) {
   });
   const { developmentSecurity, describeDevelopmentSecurity } =
     await import("./dependency-security.mts");
-  const scan = JSON.parse(readFileSync(scan706Path, "utf8"));
+  const scan: unknown = JSON.parse(readFileSync(scan706Path, "utf8"));
   const decision = developmentSecurity(
     scan,
     readFileSync(path.join(projectRoot, "deny.toml"), "utf8"),
   );
-  if (scan.head !== plan.head) throw new Error("dependency scan source mismatch");
+  if (!isRecord(scan) || scan.head !== plan.head)
+    throw new Error("dependency scan source mismatch");
   console.log(describeDevelopmentSecurity(decision));
   if (options.profile === "release") {
     const { releaseSecurity } = await import("./linux-beta-risk-706.mts");
@@ -591,7 +673,7 @@ export async function main(argv = process.argv.slice(2)) {
         receiptEnvelope({ ...result.report, policyDecision: decision }),
       );
       console.log(
-        `Audit raw result FAILED; ${describeDevelopmentSecurity(decision)} Original scan exit ${scan.exitCode}; ${scan706Path}`,
+        `Audit raw result FAILED; ${describeDevelopmentSecurity(decision)} Original scan exit ${decision.scanExitCode}; ${scan706Path}`,
       );
       return;
     }

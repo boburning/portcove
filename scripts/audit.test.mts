@@ -1,3 +1,8 @@
+import { isRecord } from "./runtime-values.mts";
+import type { TestContext } from "node:test";
+import type { InventoryFile, RepositoryInventory } from "./validation-evidence.mts";
+import type { AuditStage } from "./audit.mts";
+import type { ValidationPlan, ValidationChange } from "./validation-plan.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -30,7 +35,7 @@ import {
   qualificationPlatforms,
 } from "./validation-plan.mts";
 
-test("release audit profile delegates source and platform coverage without going empty", () => {
+void test("release audit profile delegates source and platform coverage without going empty", () => {
   const stages = auditStagesForProfile("release");
   assert.ok(stages.length > 0);
   assert.deepEqual(
@@ -59,7 +64,16 @@ const runtime = Object.freeze({
   environment: { CI: null },
 });
 
-function file(pathname, contents, extra = {}) {
+function requiredFixture<T>(value: T | null | undefined): T {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+
+function file(
+  pathname: string,
+  contents: string,
+  extra: Partial<InventoryFile> = {},
+): InventoryFile {
   const ownership = domainsForPath(pathname);
   const gitBlob = createHash("sha1")
     .update(`blob ${Buffer.byteLength(contents)}\0${contents}`)
@@ -80,26 +94,26 @@ function file(pathname, contents, extra = {}) {
   };
 }
 
-function inventory(head, entries) {
-  return { head, files: entries };
+function inventory(head: string, entries: InventoryFile[]): RepositoryInventory {
+  return { head, objectFormat: "sha1", files: entries };
 }
 
-function qualifyAuditFixture(plan) {
+function qualifyAuditFixture(plan: ValidationPlan): ValidationPlan {
   if (plan.mode === "blocked") return plan;
+  const { digest: _digest, ...unsigned } = plan;
   const qualified = {
-    ...plan,
-    mode: "qualification",
+    ...unsigned,
+    mode: "qualification" as const,
     reason: "explicit-test-qualification",
     groups: fastGroups,
     platforms: qualificationPlatforms,
     qualification_required: true,
   };
-  delete qualified.digest;
   return { ...qualified, digest: digestValidationPlan(qualified) };
 }
-function transitionContext(paths, overrides = {}) {
+function transitionContext(paths: string[], overrides: { workingTreeStatus?: string } = {}) {
   const head = "a".repeat(40);
-  const changes = paths.map((pathname) => ({
+  const changes: ValidationChange[] = paths.map((pathname) => ({
     status: "M",
     oldMode: "100644",
     newMode: "100644",
@@ -119,8 +133,6 @@ function transitionContext(paths, overrides = {}) {
         mergeBase: "b".repeat(40),
         head,
         checkout: head,
-        fastValidationEnabled: true,
-        proseOnlyEnabled: true,
       }),
     ),
     changes,
@@ -129,7 +141,7 @@ function transitionContext(paths, overrides = {}) {
   };
 }
 
-test("standalone resource and impact changes retain full local coverage under real hosted routing", () => {
+void test("standalone resource and impact changes retain full local coverage under real hosted routing", () => {
   for (const pathname of [
     "scripts/dev-storage.mts",
     "scripts/dev-storage.test.mts",
@@ -155,11 +167,11 @@ test("standalone resource and impact changes retain full local coverage under re
   }
 });
 
-test("renames retain complete audit coverage and unsupported copies block discovery", () => {
+void test("renames retain complete audit coverage and unsupported copies block discovery", () => {
   for (const status of ["R", "C"]) {
     const context = transitionContext(["scripts/local-validation.mts", "docs/QUALITY.md"]);
     context.changes[0] = {
-      ...context.changes[0],
+      ...requiredFixture(context.changes[0]),
       status,
       newPath: "scripts/renamed-local-validation.mts",
     };
@@ -179,7 +191,7 @@ test("renames retain complete audit coverage and unsupported copies block discov
   }
 });
 
-test("a clean local-policy transition keeps fresh contracts and complete hosted qualification", () => {
+void test("a clean local-policy transition keeps fresh contracts and complete hosted qualification", () => {
   const context = transitionContext(["scripts/local-validation.mts", "docs/QUALITY.md"]);
   const selected = selectTransitionAudit(context);
   assert.equal(selected.profile, "transition");
@@ -193,7 +205,7 @@ test("a clean local-policy transition keeps fresh contracts and complete hosted 
   assert.equal(context.validationPlan.qualification_required, true);
 });
 
-test("maintained hosted routing delegates unchanged suites only with exhaustive qualification", () => {
+void test("maintained hosted routing delegates unchanged suites only with exhaustive qualification", () => {
   for (const pathname of [
     "scripts/validation-plan.mts",
     "scripts/validation-plan.test.mts",
@@ -207,7 +219,6 @@ test("maintained hosted routing delegates unchanged suites only with exhaustive 
     assert.equal(selectTransitionAudit(context).profile, "transition");
     const incomplete = structuredClone(context);
     incomplete.validationPlan.groups = ["frontend"];
-    delete incomplete.validationPlan.digest;
     incomplete.validationPlan.digest = digestValidationPlan(incomplete.validationPlan);
     assert.throws(() => selectTransitionAudit(incomplete));
     const fast = transitionContext([pathname]);
@@ -216,7 +227,7 @@ test("maintained hosted routing delegates unchanged suites only with exhaustive 
   }
 });
 
-test("mixed, unknown and audit authority changes retain the complete transition gate", () => {
+void test("mixed, unknown and audit authority changes retain the complete transition gate", () => {
   for (const pathname of [
     "scripts/audit.mts",
     "scripts/validation-evidence.mts",
@@ -241,7 +252,7 @@ test("mixed, unknown and audit authority changes retain the complete transition 
   }
   for (const status of ["A", "D", "R", "C", "T"]) {
     const context = transitionContext(["scripts/local-validation.mts"]);
-    context.changes[0].status = status;
+    requiredFixture(context.changes[0]).status = status;
     assert.equal(selectTransitionAudit(context).profile, "complete", status);
   }
   for (const extra of [
@@ -255,7 +266,7 @@ test("mixed, unknown and audit authority changes retain the complete transition 
   }
 });
 
-test("candidate coverage constants cannot authorize their own reduced transition", (t) => {
+void test("candidate coverage constants cannot authorize their own reduced transition", (t) => {
   const root = temporaryDirectory(t);
   mkdirSync(path.join(root, "scripts"));
   mkdirSync(path.join(root, ".github/workflows"), { recursive: true });
@@ -306,7 +317,7 @@ test("candidate coverage constants cannot authorize their own reduced transition
   });
 });
 
-test("incomplete transition discovery cannot authorize a shorter audit", () => {
+void test("incomplete transition discovery cannot authorize a shorter audit", () => {
   const context = transitionContext(["docs/QUALITY.md"]);
   assert.throws(
     () => selectTransitionAudit({ ...context, changes: [] }),
@@ -319,8 +330,6 @@ test("incomplete transition discovery cannot authorize a shorter audit", () => {
     mergeBase: "b".repeat(40),
     head: context.inventory.head,
     checkout: context.inventory.head,
-    fastValidationEnabled: true,
-    proseOnlyEnabled: true,
   });
   assert.equal(emptyPlan.mode, "blocked");
   assert.equal(emptyPlan.discovery, "complete");
@@ -354,7 +363,7 @@ test("incomplete transition discovery cannot authorize a shorter audit", () => {
   );
 });
 
-test("partial audit profiles cannot overwrite the complete audit report", (t) => {
+void test("partial audit profiles cannot overwrite the complete audit report", (t) => {
   const root = temporaryDirectory(t);
   const receiptRoot = path.join(root, "receipts");
   const head = "a".repeat(40);
@@ -375,7 +384,7 @@ test("partial audit profiles cannot overwrite the complete audit report", (t) =>
       receiptRoot,
       inventory: inventory(head, []),
       runtime,
-      stages: [smallStages[0]],
+      stages: [requiredFixture(smallStages[0])],
       fresh: true,
       profile,
     });
@@ -386,21 +395,21 @@ test("partial audit profiles cannot overwrite the complete audit report", (t) =>
   }
 });
 
-function temporaryDirectory(t) {
+function temporaryDirectory(t: TestContext) {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-audit-test-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   return directory;
 }
 
-const smallStages = Object.freeze([
+const smallStages: readonly AuditStage[] = Object.freeze([
   { id: "rust", recipe: "check-rust", domain: "rust", reusable: true },
   { id: "ui", recipe: "check-ui", domain: "ui", reusable: true },
   { id: "release", recipe: "release-check", domain: "release", reusable: true },
 ]);
 
-test("repository inventory binds tracked Git blobs to current content", () => {
+void test("repository inventory binds tracked Git blobs to current content", () => {
   const current = repositoryInventory(fileURLToPath(new URL("../", import.meta.url)));
-  const cargo = current.files.find((entry) => entry.path === "Cargo.toml");
+  const cargo = requiredFixture(current.files.find((entry) => entry.path === "Cargo.toml"));
   assert.ok(cargo);
   assert.equal(cargo.headBlob, cargo.indexBlob);
   assert.equal(cargo.headBlob, cargo.gitBlob);
@@ -409,7 +418,7 @@ test("repository inventory binds tracked Git blobs to current content", () => {
   assert.ok(cargo.domains.includes("rust"));
 });
 
-test("canonical text identity permits only explicit UTF-8 LF conversion without filters", () => {
+void test("canonical text identity permits only explicit UTF-8 LF conversion without filters", () => {
   const attributes = {
     text: "auto",
     eol: "lf",
@@ -432,9 +441,9 @@ test("canonical text identity permits only explicit UTF-8 LF conversion without 
   assert.notEqual(canonicalTextBlob(Buffer.from("changed\r\n"), "sha1", attributes), expected);
 });
 
-test("actual clean Git LF-text checkout qualifies while raw fingerprints remain distinct", (t) => {
+void test("actual clean Git LF-text checkout qualifies while raw fingerprints remain distinct", (t) => {
   const root = temporaryDirectory(t);
-  const run = (...args) =>
+  const run = (...args: string[]) =>
     execFileSync("git", ["-C", root, ...args], { encoding: "utf8", windowsHide: true });
   run("init", "-q");
   run("config", "user.name", "Audit fixture");
@@ -449,10 +458,13 @@ test("actual clean Git LF-text checkout qualifies while raw fingerprints remain 
   run("add", "example.md");
   assert.equal(run("status", "--porcelain").trim(), "");
   const crlf = repositoryInventory(root);
-  const entry = crlf.files.find((item) => item.path === "example.md");
+  const entry = requiredFixture(crlf.files.find((item) => item.path === "example.md"));
   assert.notEqual(entry.gitBlob, entry.indexBlob);
   assert.equal(entry.canonicalTextBlob, entry.indexBlob);
-  assert.notEqual(entry.sha256, lf.files.find((item) => item.path === "example.md").sha256);
+  assert.notEqual(
+    entry.sha256,
+    requiredFixture(lf.files.find((item) => item.path === "example.md")).sha256,
+  );
   const context = transitionContext(["docs/QUALITY.md"]);
   context.inventory.files.push(entry);
   assert.equal(selectTransitionAudit(context).profile, "transition");
@@ -460,8 +472,8 @@ test("actual clean Git LF-text checkout qualifies while raw fingerprints remain 
   assert.equal(selectTransitionAudit(context).profile, "complete");
 });
 
-test("domain inventories retain unrelated documentation rebases and invalidate Rust changes", () => {
-  const stage = smallStages[0];
+void test("domain inventories retain unrelated documentation rebases and invalidate Rust changes", () => {
+  const stage = requiredFixture(smallStages[0]);
   const original = inventory("head-a", [
     file("crates/portcove-core/src/lib.rs", "rust-a"),
     file("docs/README.md", "docs-a"),
@@ -484,7 +496,7 @@ test("domain inventories retain unrelated documentation rebases and invalidate R
   );
 });
 
-test("release handbook edits invalidate their consumers without expiring unchanged product receipts", () => {
+void test("release handbook edits invalidate their consumers without expiring unchanged product receipts", () => {
   const handbook = file("docs/RELEASING.md", "selected predecessor and candidate");
   assert.deepEqual(handbook.domains, ["format", "release", "repository", "roadmap"]);
   const before = inventory("before", [handbook]);
@@ -500,7 +512,7 @@ test("release handbook edits invalidate their consumers without expiring unchang
   for (const protectedInput of ["docs/QUALITY.md", "scripts/audit.mts", "unknown-release.bin"])
     for (const stage of AUDIT_STAGES.filter((entry) => entry.reusable))
       assert.ok(file(protectedInput, "changed policy").domains.includes(stage.domain), stage.id);
-  const rust = AUDIT_STAGES.find((entry) => entry.id === "rust");
+  const rust = requiredFixture(AUDIT_STAGES.find((entry) => entry.id === "rust"));
   assert.notEqual(
     fingerprintStage(
       rust,
@@ -516,7 +528,7 @@ test("release handbook edits invalidate their consumers without expiring unchang
 });
 
 for (const pathname of ["scripts/desktop-scenarios.mts", "scripts/desktop-scenarios.test.mts"]) {
-  test(`desktop scenario consumer ${pathname} invalidates only consumed receipts`, (t) => {
+  void test(`desktop scenario consumer ${pathname} invalidates only consumed receipts`, (t) => {
     const stages = AUDIT_STAGES.filter((stage) => stage.reusable);
     const receiptRoot = temporaryDirectory(t);
     const before = inventory("before", [file(pathname, "original scenario contract")]);
@@ -533,7 +545,8 @@ for (const pathname of ["scripts/desktop-scenarios.mts", "scripts/desktop-scenar
       const consumes = ["format", "development-tools"].includes(stage.id);
       assert.equal(stage.action, consumes ? "run" : "reuse", `${pathname}: ${stage.id}`);
       assert.equal(
-        stage.fingerprint !== initial.stages.find((entry) => entry.id === stage.id).fingerprint,
+        stage.fingerprint !==
+          requiredFixture(initial.stages.find((entry) => entry.id === stage.id)).fingerprint,
         consumes,
         `${pathname}: ${stage.id} fingerprint`,
       );
@@ -541,7 +554,7 @@ for (const pathname of ["scripts/desktop-scenarios.mts", "scripts/desktop-scenar
   });
 }
 
-test("formatting and transport inputs invalidate every stage that actually reads them", () => {
+void test("formatting and transport inputs invalidate every stage that actually reads them", () => {
   const documentation = file("docs/README.md", "docs");
   assert.ok(documentation.domains.includes("format"));
   assert.ok(documentation.domains.includes("repository"));
@@ -568,8 +581,8 @@ test("formatting and transport inputs invalidate every stage that actually reads
     for (const stage of AUDIT_STAGES.filter((entry) => entry.reusable))
       assert.ok(file(gitInput, "config").domains.includes(stage.domain));
 
-  const formatStage = AUDIT_STAGES.find((stage) => stage.id === "frontend-static");
-  const uiStage = AUDIT_STAGES.find((stage) => stage.id === "ui");
+  const formatStage = requiredFixture(AUDIT_STAGES.find((stage) => stage.id === "frontend-static"));
+  const uiStage = requiredFixture(AUDIT_STAGES.find((stage) => stage.id === "ui"));
   assert.equal(formatStage.reusable, false);
   assert.equal(uiStage.reusable, false);
   const before = inventory("before", [documentation]);
@@ -584,8 +597,8 @@ test("formatting and transport inputs invalidate every stage that actually reads
   );
 });
 
-test("committing identical working content does not invalidate a content-based stage", () => {
-  const stage = smallStages[0];
+void test("committing identical working content does not invalidate a content-based stage", () => {
+  const stage = requiredFixture(smallStages[0]);
   const working = file("crates/portcove-core/src/lib.rs", "same", {
     untracked: true,
     headBlob: null,
@@ -603,8 +616,8 @@ test("committing identical working content does not invalidate a content-based s
   );
 });
 
-test("staged content and modes participate even when working content is unchanged", () => {
-  const stage = smallStages[0];
+void test("staged content and modes participate even when working content is unchanged", () => {
+  const stage = requiredFixture(smallStages[0]);
   const original = file("crates/portcove-core/src/lib.rs", "working");
   const stagedBlob = createHash("sha1").update("staged").digest("hex");
   const stagedContent = { ...original, indexBlob: stagedBlob };
@@ -619,14 +632,14 @@ test("staged content and modes participate even when working content is unchange
   );
 });
 
-test("unresolved index entries fail closed", () => {
+void test("unresolved index entries fail closed", () => {
   assert.throws(
     () => parseIndex("100644 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 2\tnew-file.txt\0"),
     /cannot audit unresolved index path: new-file\.txt/,
   );
 });
 
-test("partially staged paths fail closed while disjoint changes remain auditable", () => {
+void test("partially staged paths fail closed while disjoint changes remain auditable", () => {
   assert.doesNotThrow(() => assertNoSplitIndex(["staged.txt"], ["unstaged.txt"]));
   assert.throws(
     () => assertNoSplitIndex(["split.txt", "other.txt"], ["split.txt"]),
@@ -634,7 +647,7 @@ test("partially staged paths fail closed while disjoint changes remain auditable
   );
 });
 
-test("untracked and ambiguously classified inputs conservatively invalidate every reusable domain", () => {
+void test("untracked and ambiguously classified inputs conservatively invalidate every reusable domain", () => {
   const unknown = file("new-subsystem/input.bin", "first", {
     untracked: true,
     headBlob: null,
@@ -651,7 +664,7 @@ test("untracked and ambiguously classified inputs conservatively invalidate ever
     "development",
     "release",
     "rscheck",
-  ])
+  ] as const)
     assert.ok(unknown.domains.includes(domain));
   const changed = { ...unknown, sha256: createHash("sha256").update("second").digest("hex") };
   for (const stage of AUDIT_STAGES.filter((entry) => entry.reusable)) {
@@ -662,9 +675,9 @@ test("untracked and ambiguously classified inputs conservatively invalidate ever
   }
 });
 
-test("runtime tool and behavior-environment drift invalidates a matching content inventory", () => {
+void test("runtime tool and behavior-environment drift invalidates a matching content inventory", () => {
   const source = inventory("head", [file("crates/portcove-core/src/lib.rs", "same")]);
-  const stage = smallStages[0];
+  const stage = requiredFixture(smallStages[0]);
   assert.notEqual(
     fingerprintStage(stage, source, runtime),
     fingerprintStage(stage, source, { ...runtime, rustc: "rustc changed" }),
@@ -673,7 +686,7 @@ test("runtime tool and behavior-environment drift invalidates a matching content
     fingerprintStage(stage, source, runtime),
     fingerprintStage(stage, source, { ...runtime, cargoNextest: "nextest changed" }),
   );
-  const uiStage = smallStages[1];
+  const uiStage = requiredFixture(smallStages[1]);
   const uiSource = inventory("head", [file("apps/desktop/src/App.tsx", "same")]);
   assert.equal(
     fingerprintStage(uiStage, uiSource, runtime),
@@ -683,7 +696,7 @@ test("runtime tool and behavior-environment drift invalidates a matching content
     fingerprintStage(uiStage, uiSource, runtime),
     fingerprintStage(uiStage, uiSource, { ...runtime, packageManagerVersion: "changed" }),
   );
-  const lintStage = AUDIT_STAGES.find((entry) => entry.id === "script-lint");
+  const lintStage = requiredFixture(AUDIT_STAGES.find((entry) => entry.id === "script-lint"));
   const lintSource = inventory("head", [file("scripts/check.sh", "same")]);
   assert.notEqual(
     fingerprintStage(lintStage, lintSource, runtime),
@@ -699,7 +712,7 @@ test("runtime tool and behavior-environment drift invalidates a matching content
   );
 });
 
-test("a late failure records successful independent stages and resumes only the failed stage", (t) => {
+void test("a late failure records successful independent stages and resumes only the failed stage", (t) => {
   const receiptRoot = temporaryDirectory(t);
   const source = inventory("first-head", [
     file("crates/portcove-core/src/lib.rs", "rust"),
@@ -713,7 +726,7 @@ test("a late failure records successful independent stages and resumes only the 
     receiptRoot,
     fresh: true,
   });
-  const seen = [];
+  const seen: string[] = [];
   const firstResult = executeAudit(first, {
     execute(stage) {
       seen.push(stage.id);
@@ -741,7 +754,7 @@ test("a late failure records successful independent stages and resumes only the 
       ["release", "reuse"],
     ],
   );
-  const secondSeen = [];
+  const secondSeen: string[] = [];
   const secondResult = executeAudit(resumed, {
     execute(stage) {
       secondSeen.push(stage.id);
@@ -756,24 +769,32 @@ test("a late failure records successful independent stages and resumes only the 
   );
 });
 
-test("tampered and interrupted receipts are rejected and never reused", (t) => {
+void test("tampered and interrupted receipts are rejected and never reused", (t) => {
   const receiptRoot = temporaryDirectory(t);
   const source = inventory("head", [file("crates/portcove-core/src/lib.rs", "rust")]);
-  const stages = [smallStages[0]];
+  const stages = [requiredFixture(smallStages[0])];
   const initial = planAudit({ stages, inventory: source, runtime, receiptRoot, fresh: true });
   executeAudit(initial, { execute: () => ({ status: 0 }) });
   const receiptFile = path.join(
     receiptRoot,
     "stages",
     "rust",
-    `${initial.stages[0].fingerprint}.json`,
+    `${requiredFixture(initial.stages[0]).fingerprint}.json`,
   );
-  const tampered = JSON.parse(readFileSync(receiptFile, "utf8"));
+  const tampered: unknown = JSON.parse(readFileSync(receiptFile, "utf8"));
+  assert.ok(
+    isRecord(tampered) &&
+      isRecord(tampered.payload) &&
+      typeof tampered.payload.durationMs === "number",
+  );
   tampered.payload.durationMs += 1;
   writeFileSync(receiptFile, JSON.stringify(tampered));
   const rejected = planAudit({ stages, inventory: source, runtime, receiptRoot });
-  assert.equal(rejected.stages[0].action, "run");
-  assert.match(rejected.stages[0].rationale, /integrity mismatch/u);
+  assert.equal(requiredFixture(rejected.stages[0]).action, "run");
+  assert.match(
+    requiredFixture(requiredFixture(rejected.stages[0]).rationale),
+    /integrity mismatch/u,
+  );
 
   const interrupted = executeAudit(rejected, {
     execute: () => ({ status: null, error: new Error("interrupted") }),
@@ -783,14 +804,14 @@ test("tampered and interrupted receipts are rejected and never reused", (t) => {
   assert.equal(validateReceipt(null).valid, false);
 });
 
-test("fresh mode executes all stages while stateful observations always run", (t) => {
+void test("fresh mode executes all stages while stateful observations always run", (t) => {
   const receiptRoot = temporaryDirectory(t);
   const source = inventory("head", [
     file("crates/portcove-core/src/lib.rs", "rust"),
     file("release/version.json", "release"),
   ]);
-  const stages = [
-    smallStages[0],
+  const stages: AuditStage[] = [
+    requiredFixture(smallStages[0]),
     {
       id: "dependency-policy",
       recipe: "deny",
@@ -819,20 +840,20 @@ test("fresh mode executes all stages while stateful observations always run", (t
   assert.ok(fresh.stages.every((stage) => stage.action === "run"));
 });
 
-test("plan construction is side-effect free when no receipt directory exists", (t) => {
+void test("plan construction is side-effect free when no receipt directory exists", (t) => {
   const root = temporaryDirectory(t);
   const receiptRoot = path.join(root, "not-created");
   const plan = planAudit({
-    stages: [smallStages[0]],
+    stages: [requiredFixture(smallStages[0])],
     inventory: inventory("head", [file("crates/portcove-core/src/lib.rs", "rust")]),
     runtime,
     receiptRoot,
   });
-  assert.equal(plan.stages[0].action, "run");
+  assert.equal(requiredFixture(plan.stages[0]).action, "run");
   assert.equal(existsSync(receiptRoot), false);
 });
 
-test("containment authorities invalidate every reusable audit receipt domain", () => {
+void test("containment authorities invalidate every reusable audit receipt domain", () => {
   const paths = [
     "scripts/rust-test-tree-supervisor.mts",
     "scripts/rust-test-tree-supervisor.test.mts",

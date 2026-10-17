@@ -22,6 +22,9 @@ const allReusableDomains = [
 ] as const;
 
 export type ValidationDomain = (typeof allReusableDomains)[number];
+export function isValidationDomain(value: unknown): value is ValidationDomain {
+  return allReusableDomains.some((domain) => domain === value);
+}
 export interface StageIdentity {
   id: string;
   recipe: string;

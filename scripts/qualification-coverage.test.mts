@@ -1,3 +1,4 @@
+import inventory from "../.github/qualification-coverage.json" with { type: "json" };
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -8,12 +9,13 @@ import {
   validateQualificationCoverage,
 } from "./qualification-coverage.mts";
 
-const inventory = JSON.parse(
-  await readFile(new URL("../.github/qualification-coverage.json", import.meta.url), "utf8"),
-);
+function requiredFixture<T>(value: T | undefined): T {
+  assert.ok(value !== undefined);
+  return value;
+}
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
 
-test("qualification inventory is nonzero and exactly covers exhaustive jobs", () => {
+void test("qualification inventory is nonzero and exactly covers exhaustive jobs", () => {
   const counts = validateQualificationCoverage(inventory, workflow);
   assert.ok(counts.jobs > 0);
   assert.ok(counts.reusable_jobs > 0);
@@ -30,7 +32,7 @@ test("qualification inventory is nonzero and exactly covers exhaustive jobs", ()
   );
 });
 
-test("missing, extra, duplicate, or zero inventories fail closed", () => {
+void test("missing, extra, duplicate, or zero inventories fail closed", () => {
   assert.throws(
     () => validateQualificationCoverage({ ...inventory, jobs: [] }, workflow),
     /must be nonzero/u,
@@ -47,7 +49,7 @@ test("missing, extra, duplicate, or zero inventories fail closed", () => {
   assert.throws(
     () =>
       validateQualificationCoverage(
-        { ...inventory, jobs: [...inventory.jobs, inventory.jobs[0]] },
+        { ...inventory, jobs: [...inventory.jobs, requiredFixture(inventory.jobs[0])] },
         workflow,
       ),
     /duplicate/u,
@@ -55,7 +57,10 @@ test("missing, extra, duplicate, or zero inventories fail closed", () => {
   assert.throws(
     () =>
       validateQualificationCoverage(
-        { ...inventory, platforms: [...inventory.platforms, inventory.platforms[0]] },
+        {
+          ...inventory,
+          platforms: [...inventory.platforms, requiredFixture(inventory.platforms[0])],
+        },
         workflow,
       ),
     /duplicate/u,
