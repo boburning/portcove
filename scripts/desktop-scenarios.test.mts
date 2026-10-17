@@ -1943,9 +1943,13 @@ test("ordinary preparation close stays isolated from forced and minimized cases"
 
 test("replacement identity failure cannot reuse the former host's exit receipt", () => {
   const session = new OwnedNativeSession();
-  session.driver = { pid: 1 };
+  session.driver = { pid: 1, path: "C:\\fixture\\former-driver.exe", started_filetime: "100" };
   session.inventory = "former-host-inventory";
-  session.cleanup = { exited: { observed_processes: 3 } };
+  session.cleanup = {
+    stopped: { method: "observed-child-exit", exit_code: 0 },
+    exited: { observed_processes: 3, exited_at: "2026-10-17T00:00:00Z", wait_ms: 1 },
+    snapshot: "former-host-inventory",
+  };
   const previous = session.requireQuiescence();
   session.beginLaunch(); // Called before spawning the replacement.
   // Spawn succeeded; its subsequent identity capture failed.
@@ -1953,11 +1957,15 @@ test("replacement identity failure cannot reuse the former host's exit receipt",
   assert.equal(session.inventory, undefined);
   assert.throws(() => session.requireQuiescence(), /Current owned launch identity/);
   assert.equal(previous.exited.observed_processes, 3, "Former receipt stays preserved separately");
-  session.driver = { pid: 2 };
+  session.driver = { pid: 2, path: "C:\\fixture\\replacement-driver.exe", started_filetime: "200" };
   assert.throws(() => session.requireQuiescence(), /Current owned exit inventory/);
   session.inventory = "replacement-host-inventory";
   assert.throws(() => session.requireQuiescence(), /Positive current owned/);
-  session.cleanup = { exited: { observed_processes: 4 } };
+  session.cleanup = {
+    stopped: { method: "observed-child-exit", exit_code: 0 },
+    exited: { observed_processes: 4, exited_at: "2026-10-17T00:00:01Z", wait_ms: 1 },
+    snapshot: "replacement-host-inventory",
+  };
   assert.equal(session.requireQuiescence().exited.observed_processes, 4);
 });
 

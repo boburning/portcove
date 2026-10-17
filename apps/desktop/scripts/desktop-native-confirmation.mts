@@ -1,14 +1,11 @@
 import type { SpawnSyncReturns, ChildProcess } from "node:child_process";
 import { isRecord } from "../../../scripts/runtime-values.mts";
+import type { CapturedNativeProcess } from "./desktop-owned-native-session.mts";
 interface EvidenceContext {
   output: string;
   artifacts: string[];
 }
-interface CapturedDriver {
-  pid: number;
-  path: string;
-  started_filetime: string;
-}
+type CapturedDriver = CapturedNativeProcess;
 interface LinuxPickerLaunch {
   child: Pick<ChildProcess, "pid">;
   receipt: { ready?: unknown; exit?: unknown; nonce: string; events: readonly { kind: string }[] };
