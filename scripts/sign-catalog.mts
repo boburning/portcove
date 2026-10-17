@@ -13,10 +13,16 @@ const { values } = parseArgs({
     "expires-at": { type: "string" },
   },
 });
-for (const name of ["catalog", "key", "output", "sequence", "expires-at"]) {
-  if (!values[name]) throw new Error(`--${name} is required`);
+const requiredArguments = ["catalog", "key", "output", "sequence", "expires-at"] as const;
+function requireArguments(
+  value: typeof values,
+): asserts value is typeof values & Record<(typeof requiredArguments)[number], string> {
+  for (const name of requiredArguments) {
+    if (!value[name]) throw new Error(`--${name} is required`);
+  }
 }
-function readRegular(path, limit) {
+requireArguments(values);
+function readRegular(path: string, limit: number) {
   const metadata = lstatSync(path);
   if (!metadata.isFile() || metadata.size > limit)
     throw new Error("Input must be a bounded regular file");
@@ -57,9 +63,10 @@ const privateKey = createPrivateKey(readRegular(values.key, 64 * 1024));
 if (privateKey.asymmetricKeyType !== "ed25519")
   throw new Error("An Ed25519 private key is required");
 const jwk = createPublicKey(privateKey).export({ format: "jwk" });
+if (typeof jwk.x !== "string") throw new Error("Ed25519 public key must contain its encoded point");
 const publicKey = Buffer.from(jwk.x, "base64url");
 const keyId = createHash("sha256").update(publicKey).digest("hex");
-const catalog = JSON.parse(readRegular(values.catalog, 4 * 1024 * 1024));
+const catalog: unknown = JSON.parse(readRegular(values.catalog, 4 * 1024 * 1024).toString("utf8"));
 const payload = JSON.stringify({
   sequence,
   issued_at: issuedAt,
