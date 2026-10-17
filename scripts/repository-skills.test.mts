@@ -7,6 +7,11 @@ import { fileURLToPath } from "node:url";
 
 import { classifyChanges } from "./local-validation.mts";
 
+function required<T>(value: T | null | undefined): T {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+
 const skillsRoot = new URL("../.agents/skills/", import.meta.url);
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const documentationIndex = await readFile(new URL("../docs/README.md", import.meta.url), "utf8");
@@ -16,30 +21,30 @@ const developmentTools = await readFile(
 );
 const rootGuidance = await readFile(new URL("../AGENTS.md", import.meta.url), "utf8");
 
-function frontmatter(source, label) {
+function frontmatter(source: string, label: string) {
   const match =
     /^---\r?\nname: ([^\r\n]+)\r?\ndescription: ([^\r\n]+)\r?\n(?:metadata:\r?\n(?:[ \t]+[^\r\n]*\r?\n|\r?\n)*)?---\r?\n/u.exec(
       source,
     );
   assert.ok(match, `${label} must start with exact name and description frontmatter`);
-  return { name: match[1].trim(), description: match[2].trim() };
+  return { name: required(match[1]).trim(), description: required(match[2]).trim() };
 }
 
 function localMarkdownLinks(source: string) {
   return [...source.matchAll(/\[[^\]]+\]\(([^)]+)\)/gu)]
-    .map((match) => match[1].trim())
+    .map((match) => required(match[1]).trim())
     .filter((target: string) => target && !target.startsWith("#") && !/^https?:\/\//u.test(target));
 }
 
 function documentedJustRecipes(source: string) {
-  return [...source.matchAll(/`just\s+([a-z0-9][a-z0-9-]*)(?:\s+[^`\r\n]*)?`/giu)].map(
-    (match) => match[1],
+  return [...source.matchAll(/`just\s+([a-z0-9][a-z0-9-]*)(?:\s+[^`\r\n]*)?`/giu)].map((match) =>
+    required(match[1]),
   );
 }
 
 function fencedShellCommands(source: string) {
   return [...source.matchAll(/```(?:powershell|pwsh|bash|sh)\r?\n([\s\S]*?)```/giu)]
-    .flatMap((match) => match[1].split(/\r?\n/u))
+    .flatMap((match) => required(match[1]).split(/\r?\n/u))
     .map((line: string) => line.trim())
     .filter((line: string) => line && !line.startsWith("#"));
 }
@@ -50,7 +55,7 @@ function commandOptions(source: string) {
 
 function documentedPrCommands(source: string) {
   return [...source.matchAll(/`just\s+(pr-(?:watch|merge-rest))(?:\s+([^`\r\n]*))?`/gu)].map(
-    (match) => ({ recipe: match[1], options: commandOptions(match[2] ?? "") }),
+    (match) => ({ recipe: required(match[1]), options: commandOptions(match[2] ?? "") }),
   );
 }
 
@@ -58,10 +63,10 @@ function deliveryUsage(source: string) {
   return new Map(
     [...source.matchAll(/node scripts\/pr-delivery\.mts (watch|merge) ([^"\r\n]+)/gu)].map(
       (match) => [
-        match[1],
+        required(match[1]),
         {
-          allowed: commandOptions(match[2]),
-          required: commandOptions(match[2].split("[", 1)[0]),
+          allowed: commandOptions(required(match[2])),
+          required: commandOptions(required(required(match[2]).split("[", 1)[0])),
         },
       ],
     ),
@@ -71,7 +76,7 @@ function deliveryUsage(source: string) {
 function headingAnchors(source: string) {
   return new Set(
     [...source.matchAll(/^#{1,6}\s+(.+)$/gmu)].map((match) =>
-      match[1]
+      required(match[1])
         .trim()
         .toLowerCase()
         .replace(/[`*_~]/gu, "")
@@ -81,20 +86,20 @@ function headingAnchors(source: string) {
   );
 }
 
-function repositoryPath(file) {
+function repositoryPath(file: URL) {
   const relative = path.relative(projectRoot, fileURLToPath(file)).replaceAll(path.sep, "/");
   assert.ok(relative && !relative.startsWith("../"), `${file.href} must stay in the repository`);
   return relative;
 }
 
-async function assertLocalLinksResolve(file) {
+async function assertLocalLinksResolve(file: URL) {
   const source = await readFile(file, "utf8");
   for (const target of localMarkdownLinks(source)) await assertLocalLinkResolves(file, target);
 }
 
-async function assertLocalLinkResolves(file, target: string) {
+async function assertLocalLinkResolves(file: URL, target: string) {
   const [targetPath, anchor] = target.split("#", 2);
-  const destination = new URL(targetPath, file);
+  const destination = new URL(required(targetPath), file);
   const relative = repositoryPath(destination);
   let current = projectRoot;
   for (const segment of relative.split("/")) {
@@ -115,7 +120,7 @@ async function assertLocalLinkResolves(file, target: string) {
   }
 }
 
-test("repository skills have discoverable triggers, checkout anchoring, and valid links", async () => {
+void test("repository skills have discoverable triggers, checkout anchoring, and valid links", async () => {
   const directories = (await readdir(skillsRoot, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
     .sort((left, right) => left.name.localeCompare(right.name));
@@ -152,14 +157,14 @@ test("repository skills have discoverable triggers, checkout anchoring, and vali
     for (const target of localMarkdownLinks(source)) {
       const [path] = target.split("#", 1);
       await assert.doesNotReject(
-        access(new URL(path, skillFile)),
+        access(new URL(required(path), skillFile)),
         `${directory.name} link must resolve: ${target}`,
       );
     }
   }
 });
 
-test("the documentation index routes development tooling and repository skills", () => {
+void test("the documentation index routes development tooling and repository skills", () => {
   assert.ok(
     localMarkdownLinks(documentationIndex).some(
       (target: string) => target.split("#", 1)[0] === "DEVELOPMENT-TOOLS.md",
@@ -168,7 +173,7 @@ test("the documentation index routes development tooling and repository skills",
   );
 });
 
-test("active instruction entrypoints have valid local links and anchors", async () => {
+void test("active instruction entrypoints have valid local links and anchors", async () => {
   const files = [
     new URL("../AGENTS.md", import.meta.url),
     new URL("../CONTRIBUTING.md", import.meta.url),
@@ -201,7 +206,7 @@ test("active instruction entrypoints have valid local links and anchors", async 
   for (const file of files) await assertLocalLinksResolve(file);
 });
 
-test("local links require exact path spelling on case-insensitive hosts", async () => {
+void test("local links require exact path spelling on case-insensitive hosts", async () => {
   await assert.rejects(
     assertLocalLinkResolves(
       new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url),
@@ -211,7 +216,7 @@ test("local links require exact path spelling on case-insensitive hosts", async 
   );
 });
 
-test("workflow guidance routes to owned contracts without unsafe runnable shortcuts", async () => {
+void test("workflow guidance routes to owned contracts without unsafe runnable shortcuts", async () => {
   const storage = await readFile(
     new URL("../docs/DEVELOPMENT-STORAGE.md", import.meta.url),
     "utf8",
@@ -261,7 +266,7 @@ test("workflow guidance routes to owned contracts without unsafe runnable shortc
   }
 });
 
-test("every instruction dependency selects this contract locally", async () => {
+void test("every instruction dependency selects this contract locally", async () => {
   const files = [
     new URL("../AGENTS.md", import.meta.url),
     new URL("../CONTRIBUTING.md", import.meta.url),
@@ -281,7 +286,7 @@ test("every instruction dependency selects this contract locally", async () => {
     dependencies.add(repositoryPath(file));
     for (const target of localMarkdownLinks(source)) {
       const [targetPath] = target.split("#", 1);
-      dependencies.add(repositoryPath(new URL(targetPath, file)));
+      dependencies.add(repositoryPath(new URL(required(targetPath), file)));
     }
   }
 
@@ -295,7 +300,7 @@ test("every instruction dependency selects this contract locally", async () => {
   assert.deepEqual(missing, [], "every instruction dependency must select this contract locally");
 });
 
-test("documented repository-skill and PR-delivery commands exist", async () => {
+void test("documented repository-skill and PR-delivery commands exist", async () => {
   const portSkill = await readFile(
     new URL("../.agents/skills/portcove-port-qualification/SKILL.md", import.meta.url),
     "utf8",
@@ -305,7 +310,9 @@ test("documented repository-skill and PR-delivery commands exist", async () => {
   );
   const justfile = await readFile(new URL("../justfile", import.meta.url), "utf8");
   const recipes = new Set(
-    [...justfile.matchAll(/^([a-z0-9][a-z0-9-]*)(?:\s+[^:]*)?:/gimu)].map((match) => match[1]),
+    [...justfile.matchAll(/^([a-z0-9][a-z0-9-]*)(?:\s+[^:]*)?:/gimu)].map((match) =>
+      required(match[1]),
+    ),
   );
   const documentedRecipes = [];
   for (const directory of skillDirectories) {
@@ -348,7 +355,7 @@ test("documented repository-skill and PR-delivery commands exist", async () => {
       ...justfile.matchAll(
         /^(pr-(?:watch|merge-rest))\s+\*args:\r?\n\s+.*pr-delivery\.mts\s+(watch|merge)\s+/gmu,
       ),
-    ].map((match) => [match[1], match[2]]),
+    ].map((match) => [required(match[1]), match[2]]),
   );
   const usage = deliveryUsage(deliveryHelp());
   assert.deepEqual([...delegates.keys()].sort(), ["pr-merge-rest", "pr-watch"]);
@@ -361,7 +368,7 @@ test("documented repository-skill and PR-delivery commands exist", async () => {
   );
   for (const documented of documentedCommands) {
     const command = delegates.get(documented.recipe);
-    const contract = usage.get(command);
+    const contract = usage.get(required(command));
     assert.ok(contract, `${documented.recipe} must delegate to a documented delivery command`);
     assert.deepEqual(
       [...documented.options].filter((option) => !contract.allowed.has(option)),

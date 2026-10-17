@@ -1,3 +1,7 @@
+import config from "../.fallow-tooling.json" with { type: "json" };
+import desktopConfig from "../apps/desktop/.fallowrc.json" with { type: "json" };
+import { isRecord } from "./runtime-values.mts";
+import type { UnusedFileFinding } from "fallow/types";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -8,9 +12,8 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const binary = path.join(root, "node_modules/fallow/bin/fallow");
-const config = JSON.parse(readFileSync(path.join(root, ".fallow-tooling.json"), "utf8"));
 
-function analyze(directory: string, args) {
+function analyze(directory: string, args: readonly string[]): unknown {
   const result = spawnSync(
     process.execPath,
     [
@@ -38,9 +41,46 @@ function analyze(directory: string, args) {
   return JSON.parse(result.stdout);
 }
 
+function record(value: unknown) {
+  assert.ok(isRecord(value));
+  return value;
+}
+function values(value: unknown): unknown[] {
+  assert.ok(Array.isArray(value));
+  return value;
+}
+function findingPath(value: unknown): UnusedFileFinding["path"] {
+  const candidate = typeof value === "string" ? value : record(value).path;
+  assert.ok(typeof candidate === "string");
+  return candidate;
+}
+function inventoryReport(value: unknown) {
+  const report = record(value);
+  return {
+    entry_points: values(report.entry_points).map((entry) => ({ path: findingPath(entry) })),
+    files: values(report.files).map(findingPath),
+    plugins: values(report.plugins).map((entry) => {
+      const name = record(entry).name;
+      assert.ok(typeof name === "string");
+      return { name };
+    }),
+  };
+}
+function deadCodeReport(value: unknown) {
+  const report = record(value);
+  const violations = report.boundary_violations;
+  assert.ok(violations === undefined || Array.isArray(violations));
+  return {
+    unused_files: values(report.unused_files).map(findingPath),
+    ...(violations === undefined ? {} : { boundary_violations: values(violations) }),
+  };
+}
+
 // Inventory is inexpensive graph discovery, not the full qualification analysis.
-test("tooling graph includes maintained command entries without promoting helpers to roots", () => {
-  const inventory = analyze(root, ["list", "--entry-points", "--files", "--plugins"]);
+void test("tooling graph includes maintained command entries without promoting helpers to roots", () => {
+  const inventory = inventoryReport(
+    analyze(root, ["list", "--entry-points", "--files", "--plugins"]),
+  );
   const entries = new Set(inventory.entry_points.map((entry) => entry.path));
   const tracked = spawnSync("git", ["ls-files"], { cwd: root, encoding: "utf8" });
   assert.equal(tracked.status, 0, tracked.stderr);
@@ -90,11 +130,7 @@ test("tooling graph includes maintained command entries without promoting helper
     "ordinary imported helper must remain a dependency",
   );
   assert.ok(
-    inventory.files.some(
-      (file) =>
-        (typeof file === "string" ? file : file.path)?.replace(/\.(?:mjs|mts)$/, "") ===
-        "scripts/checked-git",
-    ),
+    inventory.files.some((file) => file.replace(/\.(?:mjs|mts)$/, "") === "scripts/checked-git"),
   );
   for (const plugin of ["vitest", "typescript", "vite", "tailwind"])
     assert.ok(
@@ -103,9 +139,9 @@ test("tooling graph includes maintained command entries without promoting helper
     );
 });
 
-test("tooling graph follows cross-root consumers and still finds an unreferenced module", () => {
+void test("tooling graph follows cross-root consumers and still finds an unreferenced module", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-fallow-scope-"));
-  function put(name: string, contents) {
+  function put(name: string, contents: string) {
     const target = path.join(directory, name);
     mkdirSync(path.dirname(target), { recursive: true });
     writeFileSync(target, contents);
@@ -137,10 +173,8 @@ test("tooling graph follows cross-root consumers and still finds an unreferenced
       'import { shared } from "../../../scripts/cross-root.mjs"; console.log(shared);',
     );
     put("work/generated.mjs", "export const generated = 4;");
-    const report = analyze(directory, ["dead-code"]);
-    const unused = report.unused_files.map((entry) =>
-      typeof entry === "string" ? entry : entry.path,
-    );
+    const report = deadCodeReport(analyze(directory, ["dead-code"]));
+    const unused = report.unused_files;
     assert.ok(unused.includes("scripts/orphan.mjs"), JSON.stringify(report));
     for (const retained of [
       "scripts/helper.mjs",
@@ -154,8 +188,8 @@ test("tooling graph follows cross-root consumers and still finds an unreferenced
   }
 });
 
-test("repository graph preserves the established Desktop shared-to-feature rule", () => {
-  const desktop = JSON.parse(readFileSync(path.join(root, "apps/desktop/.fallowrc.json"), "utf8"));
+void test("repository graph preserves the established Desktop shared-to-feature rule", () => {
+  const desktop = desktopConfig;
   assert.deepEqual(config.boundaries.rules, desktop.boundaries.rules);
   assert.deepEqual(
     config.boundaries.zones,
@@ -181,10 +215,14 @@ test("repository graph preserves the established Desktop shared-to-feature rule"
       path.join(directory, "apps/desktop/src/features/example/model.ts"),
       "export const feature = 1;",
     );
-    const report = analyze(directory, ["dead-code"]);
+    const report = deadCodeReport(analyze(directory, ["dead-code"]));
+    assert.ok(report.boundary_violations);
     assert.equal(report.boundary_violations.length, 1);
     writeFileSync(path.join(directory, "apps/desktop/src/shared/example.ts"), "console.log(1);");
-    assert.equal(analyze(directory, ["dead-code"]).boundary_violations?.length ?? 0, 0);
+    assert.equal(
+      deadCodeReport(analyze(directory, ["dead-code"])).boundary_violations?.length ?? 0,
+      0,
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

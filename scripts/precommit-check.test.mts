@@ -1,3 +1,4 @@
+import { errorCode } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -18,7 +19,7 @@ const env = {
   CI: "false",
   PATH: `${path.join(root, "node_modules/.bin")}${path.delimiter}${process.env.PATH}`,
 };
-function run(cwd, executable, args, ok = true) {
+function run(cwd: string, executable: string, args: readonly string[], ok = true) {
   const result = spawnSync(executable, args, {
     cwd,
     env,
@@ -30,8 +31,8 @@ function run(cwd, executable, args, ok = true) {
   if (ok) assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   return result;
 }
-const git = (cwd, ...args) => run(cwd, "git", args).stdout;
-const cli = (cwd, ...args) => run(cwd, vp.command, [...vp.args, ...args]);
+const git = (cwd: string, ...args: string[]) => run(cwd, "git", args).stdout;
+const cli = (cwd: string, ...args: string[]) => run(cwd, vp.command, [...vp.args, ...args]);
 function fixture() {
   const cwd = mkdtempSync(path.join(base, "staged-"));
   git(cwd, "init", "-q");
@@ -54,7 +55,7 @@ function fixture() {
   return cwd;
 }
 
-test("standard staged autofix preserves partial staging and unrelated work", () => {
+void test("standard staged autofix preserves partial staging and unrelated work", () => {
   const cwd = fixture();
   writeFileSync(path.join(cwd, "sample.js"), "export const value={x:1}\n");
   git(cwd, "add", "sample.js");
@@ -66,7 +67,7 @@ test("standard staged autofix preserves partial staging and unrelated work", () 
   assert.equal(readFileSync(path.join(cwd, "untracked.txt"), "utf8"), "unrelated work\n");
 });
 
-test("a failed staged command restores the index and working changes", () => {
+void test("a failed staged command restores the index and working changes", () => {
   const cwd = fixture();
   writeFileSync(
     path.join(cwd, "vite.config.ts"),
@@ -83,7 +84,7 @@ test("a failed staged command restores the index and working changes", () => {
   assert.equal(git(cwd, "show", ":sample.js"), index);
 });
 
-test("supported hooks work from a linked worktree and noninteractive Git client", () => {
+void test("supported hooks work from a linked worktree and noninteractive Git client", () => {
   const cwd = fixture();
   git(cwd, "config", "extensions.worktreeConfig", "true");
   git(cwd, "config", "--worktree", "core.hooksPath", ".husky/_");
@@ -106,7 +107,7 @@ test("supported hooks work from a linked worktree and noninteractive Git client"
   assert.equal(git(cwd, "status", "--porcelain").trim(), "");
 });
 
-test(
+void test(
   "interrupted staged checks restore partial staging",
   { skip: process.platform === "win32" },
   async (t) => {
@@ -132,14 +133,16 @@ test(
       detached: true,
       stdio: "ignore",
     });
-    const closed = new Promise((resolve) =>
+    const closed = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) =>
       child.once("close", (code, signal) => resolve({ code, signal })),
     );
+    const pid = child.pid;
+    assert.ok(pid !== undefined);
     t.after(() => {
       try {
-        process.kill(-child.pid, "SIGTERM");
+        process.kill(-pid, "SIGTERM");
       } catch (error) {
-        if (error.code !== "ESRCH") throw error;
+        if (errorCode(error) !== "ESRCH") throw error;
       }
     });
     const deadline = Date.now() + 15_000;
@@ -150,7 +153,7 @@ test(
       );
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
-    process.kill(-child.pid, "SIGINT");
+    process.kill(-pid, "SIGINT");
     const result = await closed;
     assert.notEqual(result.code, 0);
     assert.equal(git(cwd, "diff"), before);

@@ -1,3 +1,4 @@
+import type { SpawnSyncReturns } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +12,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 export function configureHooks(directory = root, mode = "install", environment = process.env) {
   if (!["install", "enable", "disable", "status"].includes(mode))
     throw new Error("Unknown hook operation");
-  const invoke = (command, args, cwd = directory) => {
+  const invoke = (command: string, args: readonly string[], cwd = directory) => {
     const result = spawnCommand(command, args, {
       cwd,
       env: environment,
@@ -21,13 +22,13 @@ export function configureHooks(directory = root, mode = "install", environment =
     if (result.error) throw result.error;
     return result;
   };
-  const git = (...args) => invoke("git", args);
-  const vite = (args, cwd = directory) => {
+  const git = (...args: string[]) => invoke("git", args);
+  const vite = (args: readonly string[], cwd = directory) => {
     const cli = vitePlusCommand(root);
     return invoke(cli.command, [...cli.args, ...args], cwd);
   };
-  const get = (...args) => git("config", ...args).stdout?.trim() ?? "";
-  const checked = (result) => {
+  const get = (...args: string[]) => git("config", ...args).stdout?.trim() ?? "";
+  const checked = (result: SpawnSyncReturns<string>) => {
     if (result.status !== 0) throw new Error(result.stderr || result.stdout || "Hook setup failed");
     return result.stdout;
   };

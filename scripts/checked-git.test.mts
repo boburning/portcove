@@ -4,9 +4,10 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { CommandFailure } from "./report-summary.mts";
 import { runCheckedGit, runCheckedGitSequence } from "./checked-git.mts";
 
-test("Unicode Git failures bound the complete diagnostic and retain raw stderr", () => {
+void test("Unicode Git failures bound the complete diagnostic and retain raw stderr", () => {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "git-error-"));
   const stderr = "界".repeat(20_000);
   try {
@@ -16,10 +17,11 @@ test("Unicode Git failures bound the complete diagnostic and retain raw stderr",
           cwd,
           spawn: () => ({ status: 2, stderr }),
         }),
-      (error) => {
+      (error: unknown) => {
+        assert.ok(error instanceof CommandFailure);
         assert.ok(Buffer.byteLength(error.message) <= 16 * 1024);
         assert.equal(error.exitCode, 2);
-        assert.equal(readFileSync(error.evidence.stderr, "utf8"), stderr);
+        assert.equal(readFileSync(required(error.evidence.stderr), "utf8"), stderr);
         return true;
       },
     );
@@ -28,7 +30,7 @@ test("Unicode Git failures bound the complete diagnostic and retain raw stderr",
   }
 });
 
-test("unavailable evidence storage preserves the primary Git failure", () => {
+void test("unavailable evidence storage preserves the primary Git failure", () => {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "git-evidence-"));
   try {
     writeFileSync(path.join(cwd, "work"), "owned blocking fixture");
@@ -39,11 +41,12 @@ test("unavailable evidence storage preserves the primary Git failure", () => {
           cwd,
           spawn: () => ({ status: null, error: cause, stderr: "primary diagnostic" }),
         }),
-      (error) => {
+      (error: unknown) => {
+        assert.ok(error instanceof CommandFailure);
         assert.equal(error.cause, cause);
         assert.equal(error.code, "ENOENT");
         assert.match(error.message, /primary diagnostic/);
-        assert.match(error.evidence.failure, /retention failed/);
+        assert.match(required(error.evidence.failure), /retention failed/);
         return true;
       },
     );
@@ -52,7 +55,7 @@ test("unavailable evidence storage preserves the primary Git failure", () => {
   }
 });
 
-test("a failed revision lookup prevents the following Git mutation", () => {
+void test("a failed revision lookup prevents the following Git mutation", () => {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "checked-git-"));
   try {
     assert.equal(spawnSync("git", ["init", "--quiet"], { cwd }).status, 0);
@@ -73,7 +76,7 @@ test("a failed revision lookup prevents the following Git mutation", () => {
   }
 });
 
-test("exit, timeout and spawn failure stop a dependent sequence", () => {
+void test("exit, timeout and spawn failure stop a dependent sequence", () => {
   for (const first of [
     { status: 2, stderr: "failed" },
     { status: null, error: { code: "ETIMEDOUT" } },
@@ -94,7 +97,7 @@ test("exit, timeout and spawn failure stop a dependent sequence", () => {
   }
 });
 
-test("tree expressions and values with spaces reach Git literally", () => {
+void test("tree expressions and values with spaces reach Git literally", () => {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "git space "));
   try {
     runCheckedGit(["init", "--quiet"], { cwd });
@@ -107,3 +110,8 @@ test("tree expressions and values with spaces reach Git literally", () => {
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+
+function required(value: string | undefined): string {
+  assert.ok(typeof value === "string");
+  return value;
+}
