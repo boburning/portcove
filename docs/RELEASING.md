@@ -406,6 +406,50 @@ Pages/feed permissions remain disabled pending #534. The checked-in fixture test
 are nonproduction evidence, not proof that a subscription task or production
 credential path is active.
 
+### Inactive fixed-controller source admission
+
+`.github/workflows/application-update-production.yml` currently performs only
+source admission. It has no candidate input, schedule, reusable caller, production
+environment, credential, cache, dependency installation, signing or publication
+step. Its only token permission is `contents:read`. Missing configuration refuses
+before checkout. This workflow does not execute the planner or its plans.
+
+The prospective operator configuration consists of three **public identity**
+variables: `PORTCOVE_CONTROLLER_REVISION`, `PORTCOVE_CONTROLLER_REF`, and
+`PORTCOVE_CONTROLLER_ADMISSION`. None is configured or authorized by this change.
+The first two bind an exact commit and a protected tag in the
+`refs/tags/portcove-production-controller-` namespace. No particular production
+tag or principal is selected here; the exhausted disposable canary is excluded.
+The JSON policy has exactly `schema_version:1`, `mode:"admission-only"`,
+`execution_ref`, `revision`, `workflow_sha256`, and string `actor_id`. Its ref and
+revision must match those bootstrap variables. The digest is SHA-256 of the
+reviewed workflow's raw bytes. Policy must come from separately ratified operator
+configuration, never candidate data or a dispatch input.
+
+Before checkout, the workflow compares repository ID/name, event, protected tag,
+source/workflow commit, workflow path/ref and first-attempt identity. It checks
+out that exact workflow commit with credential persistence disabled. The
+dependency-free `scripts/production-controller-admission.mts` then also validates
+the fixed source digest, configured actor, triggering actor, run, job and hosted
+runner identity. Its CLI accepts no candidate or policy-file arguments and reads
+only the fixed workflow file through one bounded regular-file handle.
+GitHub's [default execution variables](https://docs.github.com/en/actions/reference/workflows-and-actions/variables)
+are the source of these execution facts. The gate assumes this bootstrap runs
+from trusted workflow source; arbitrary candidate code can forge a local process
+environment, so its output is not a transferable authorization token.
+
+Contract fixtures execute bootstrap refusal paths and the CLI without installed
+dependencies. They establish source admission only. `GITHUB_REF_PROTECTED=true`
+does not prove immutable tag rules, absence of bypass actors or production secret
+isolation. Actual platform enforcement must be independently provisioned and
+proven before any secret-bearing job is added. This change activates no dispatch,
+environment, variable, credential, protected tag, signing or publication.
+Trusted live inventory/check acquisition, producer job/attempt/artifact binding,
+candidate-runner/cache isolation, protected durable coordination, role operations,
+custody and real Windows/Linux public recovery proof remain under #534. The
+existing canonical owner packet must acquire the separately reviewed controller
+identities and those proofs before an exact production-authority request.
+
 ### Durable local coordinator checkpoints
 
 `await checkpointReleaseOpportunity(repository, expectedPrevious, input)` in
