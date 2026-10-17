@@ -1,5 +1,6 @@
+import type { GitHubRunner } from "./github-api.mts";
 import type { PortDefinition } from "../apps/desktop/src/transport-types.generated.d.ts";
-import { errorMessage, isRecord } from "./runtime-values.mts";
+import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { access, readFile } from "node:fs/promises";
@@ -127,14 +128,14 @@ export interface RoadmapFieldValue {
   option?: { name?: unknown } | null;
 }
 export interface RoadmapIssueItem {
-  id?: string;
-  number?: number | string;
-  type?: string;
-  __typename?: string;
+  id?: string | undefined;
+  number?: number | string | undefined;
+  type?: string | undefined;
+  __typename?: string | undefined;
   title?: string | null | undefined;
-  body?: string | null;
-  url?: string | null;
-  state?: string | null;
+  body?: string | null | undefined;
+  url?: string | null | undefined;
+  state?: string | null | undefined;
   content?: RoadmapIssueItem | null;
   fieldValues?: readonly RoadmapFieldValue[] | undefined;
   blockedBy?:
@@ -921,7 +922,7 @@ export function reconcilePortIssueMarkers(
   return `${retained}\n\n${portMarker}\n<!-- portcove-upstream: ${upstream} -->\n${identityMarker}`;
 }
 
-export function portFieldInitialization(item: RoadmapIssueItem) {
+export function portFieldInitialization(item: RoadmapIssueItem | null) {
   const updates: Record<string, string> = {};
   for (const [field, value] of Object.entries(neutralPortFields)) {
     const current = fieldValue(item, field);
@@ -1162,7 +1163,7 @@ function automatedPlatforms(
 function issueSection(body: unknown, heading: string) {
   const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return (
-    String(body ?? "")
+    diagnosticText(body ?? "")
       .match(new RegExp(`^##\\s+${escaped}\\s*$([\\s\\S]*?)(?=^##\\s|(?![\\s\\S]))`, "im"))?.[1]
       ?.trim() ?? ""
   );
@@ -3383,7 +3384,13 @@ export function coordinationTarget(
   config: Pick<RoadmapConfig, "repository">,
   issue: unknown,
   pullRequest: unknown = null,
-) {
+): {
+  repository: string;
+  work_issue: number;
+  kind: "issue" | "pull_request";
+  number: number;
+  url: string;
+} {
   const positive = (value: unknown): value is number =>
     typeof value === "number" && Number.isSafeInteger(value) && value > 0;
   if (!positive(issue) || (pullRequest !== null && !positive(pullRequest)))
@@ -3411,7 +3418,7 @@ function sameCoordinationTarget(target: unknown, expected: unknown) {
 
 function validateCoordinationTarget(
   target: unknown,
-  snapshot: { repository: string; issue: { id: string; number: number } },
+  snapshot: { repository: string; issue: { number: number } },
 ) {
   const expected = coordinationTarget(
     { repository: snapshot.repository },
@@ -3428,7 +3435,7 @@ interface RoadmapComment {
   body?: unknown;
   html_url?: string;
   url?: string;
-  author?: { login?: string | null };
+  author?: { login?: string | null } | null | undefined;
 }
 function matchingConsumption(
   comment: RoadmapComment,
@@ -3519,7 +3526,7 @@ export function normalizeRequirements(body: unknown) {
   let excludedLevel: number | null = null;
   let fence: string | null = null;
   let indented = false;
-  return String(body ?? "")
+  return diagnosticText(body ?? "")
     .replace(/\r\n?/g, "\n")
     .split("\n")
     .flatMap((line: string) => {
@@ -4391,7 +4398,15 @@ export function analyzeReleaseReadiness(
       throw new Error(
         "#706 candidate disposition applies only to ordinary Public beta release readiness",
       );
-    candidateDisposition706 = decide706({ ...risk706Evidence, approval: risk706Approval, now });
+    candidateDisposition706 = decide706({
+      ...risk706Evidence,
+      candidate: risk706Evidence.candidate,
+      scan: risk706Evidence.scan,
+      releases: risk706Evidence.releases,
+      purpose: "release",
+      approval: risk706Approval,
+      now,
+    });
   }
   const pendingRiskDispositions = candidateDisposition706 ? [] : scopedRemediation706;
   const safetyConflicts = targeted.filter(
@@ -4527,7 +4542,7 @@ export function renderReadinessSummary(analysis: ReturnType<typeof analyzeReleas
     values.length ? values.map(itemLine).join("\n") : "- None recorded.";
   const dependencyConflicts = analysis.dependencyConflicts.map(
     ({ item, dependency, commitment, target }) =>
-      `- ${markdownLink(item)} depends on ${markdownLink(dependency)}, classified ${commitment ?? "Unclassified"} / ${target ?? "Unscheduled"}.`,
+      `- ${markdownLink(item)} depends on ${markdownLink(dependency)}, classified ${diagnosticText(commitment ?? "Unclassified")} / ${diagnosticText(target ?? "Unscheduled")}.`,
   );
   const missing = analysis.missingProjectDependencies.map(
     ({ item, dependency }) =>
@@ -4597,7 +4612,9 @@ function itemLine(item: RoadmapIssueItem) {
     "Workstream",
     "Platform",
   ]
-    .map((name) => (fieldValue(item, name) ? `${name}: ${fieldValue(item, name)}` : null))
+    .map((name) =>
+      fieldValue(item, name) ? `${name}: ${diagnosticText(fieldValue(item, name))}` : null,
+    )
     .filter(Boolean)
     .join("; ");
   return `- ${markdownLink(item)}${details ? ` — ${details}` : ""}`;
@@ -4662,7 +4679,11 @@ export function renderSnapshot({
   const summary = catalogQualificationSummary(catalog);
   const tiers =
     Object.entries(summary.byTier)
-      .sort()
+      .sort((left, right) => {
+        const a = `${left[0]},${left[1]}`;
+        const b = `${right[0]},${right[1]}`;
+        return a < b ? -1 : a > b ? 1 : 0;
+      })
       .map(([name, count]) => `  - ${name}: ${count}`)
       .join("\n") || "  - none";
   const section = (values: readonly RoadmapIssueItem[]) =>
@@ -4670,7 +4691,7 @@ export function renderSnapshot({
   const links = completionEvidenceLinks(matching);
   const conflictLines = readiness.dependencyConflicts.map(
     ({ item, dependency, commitment, target }) =>
-      `- ${markdownLink(item)} depends on ${markdownLink(dependency)}, classified ${commitment ?? "Unclassified"} / ${target ?? "Unscheduled"}.`,
+      `- ${markdownLink(item)} depends on ${markdownLink(dependency)}, classified ${diagnosticText(commitment ?? "Unclassified")} / ${diagnosticText(target ?? "Unscheduled")}.`,
   );
   conflictLines.push(
     ...readiness.migrationConflicts.map((item) => `- Unmigrated active target: ${itemLine(item)}`),
@@ -4704,8 +4725,8 @@ export function renderSnapshot({
 interface ProjectFieldOption {
   id?: string;
   name: string;
-  color?: string;
-  description?: string;
+  color?: string | null;
+  description?: string | null;
 }
 interface ProjectField {
   id?: string;
@@ -4717,19 +4738,22 @@ interface ProjectField {
 }
 type ProjectCollection<T> =
   | readonly T[]
-  | { fields?: readonly T[]; nodes?: readonly T[] }
+  | { fields?: readonly T[]; nodes?: readonly T[]; projects?: readonly T[] }
   | null
   | undefined;
-function unwrapCollection<T>(value: ProjectCollection<T>, key: "fields" | "nodes"): readonly T[] {
-  function isList(input: ProjectCollection<T>): input is readonly T[] {
-    return Array.isArray(input);
-  }
-  if (isList(value)) return value;
-  const selected = value?.[key];
+function unwrapCollection<T>(
+  value: ProjectCollection<T>,
+  key: "fields" | "nodes" | "projects",
+): readonly T[];
+function unwrapCollection(value: unknown, key: string): readonly unknown[];
+function unwrapCollection(value: unknown, key: string): readonly unknown[] {
+  if (Array.isArray(value)) return value;
+  const selected = qualificationField(value, key);
   if (Array.isArray(selected)) return selected;
-  if (Array.isArray(value?.nodes)) return value.nodes;
-  return [];
+  const nodes = qualificationField(value, "nodes");
+  return Array.isArray(nodes) ? nodes : [];
 }
+
 type FieldReconciliation =
   | { action: "create"; desired: RoadmapFieldDefinition }
   | { action: "error"; desired: RoadmapFieldDefinition; actual: ProjectField; reason: string }
@@ -4790,6 +4814,7 @@ export function planFieldReconciliation(
 
 interface ProjectView {
   id?: string;
+  number?: number;
   name: string;
   layout?: string;
   filter?: unknown;
@@ -4845,7 +4870,7 @@ export function viewMachineDrift(
   if (actual?.name !== desired.name) drift.push(`name ${actual?.name} != ${desired.name}`);
   if (actual?.layout !== desired.layout)
     drift.push(`layout ${actual?.layout ?? "missing"} != ${desired.layout}`);
-  if (String(actual?.filter ?? "") !== desired.filter)
+  if (diagnosticText(actual?.filter ?? "") !== desired.filter)
     drift.push(
       `filter ${JSON.stringify(actual?.filter ?? "")} != ${JSON.stringify(desired.filter)}`,
     );
@@ -4894,6 +4919,16 @@ interface ProjectDetails {
   visibility?: unknown;
   url?: string;
   id?: string;
+  closed?: unknown;
+}
+function projectDetailsObservation(value: unknown): ProjectDetails {
+  if (
+    !isRecord(value) ||
+    (value.id !== undefined && typeof value.id !== "string") ||
+    (value.url !== undefined && typeof value.url !== "string")
+  )
+    throw new Error("GitHub Project metadata is malformed");
+  return value;
 }
 export function projectMachineDrift(
   config: RoadmapConfig,
@@ -4913,12 +4948,12 @@ export function projectMachineDrift(
   if (details?.title !== config.project.title)
     drift.push(`project title is ${JSON.stringify(details?.title)}`);
   if (Number(details?.number) !== config.project.number)
-    drift.push(`project number is ${details?.number}`);
+    drift.push(`project number is ${diagnosticText(details?.number)}`);
   const isPublic = details?.public ?? details?.visibility === "PUBLIC";
   if (!isPublic) drift.push("project visibility is not PUBLIC");
   const linked = (repositories ?? []).some(
     (repository) =>
-      `${typeof repository.owner === "string" ? repository.owner : (repository.owner.login ?? repository.owner)}/${repository.name}`.toLowerCase() ===
+      `${diagnosticText(typeof repository.owner === "string" ? repository.owner : (repository.owner.login ?? repository.owner))}/${repository.name}`.toLowerCase() ===
       config.repository.toLowerCase(),
   );
   if (!linked) drift.push(`repository ${config.repository} is not linked`);
@@ -4958,10 +4993,136 @@ function gitHead() {
   return result.stdout.trim();
 }
 
+interface ProjectContext {
+  number: number;
+  details: ProjectDetails;
+  fields: readonly ProjectField[];
+}
+function projectFieldObservation(value: unknown): ProjectField {
+  if (!isRecord(value) || typeof value.name !== "string")
+    throw new Error("incomplete GitHub inventory: malformed Project field");
+  for (const key of ["id", "dataType", "type", "__typename"] as const)
+    if (value[key] !== undefined && typeof value[key] !== "string")
+      throw new Error(`incomplete GitHub inventory: malformed Project field ${key}`);
+  if (value.options !== undefined) {
+    if (!Array.isArray(value.options))
+      throw new Error("incomplete GitHub inventory: malformed Project options");
+    const options: unknown[] = value.options;
+    for (const option of options) {
+      if (
+        !isRecord(option) ||
+        typeof option.name !== "string" ||
+        (option.id !== undefined && typeof option.id !== "string") ||
+        (option.color != null && typeof option.color !== "string") ||
+        (option.description != null && typeof option.description !== "string")
+      )
+        throw new Error("incomplete GitHub inventory: malformed Project option");
+    }
+  }
+  return value as Record<string, unknown> & ProjectField;
+}
+function nestedGitHubField(value: unknown, ...keys: string[]): unknown {
+  return keys.reduce<unknown>((current, key) => qualificationField(current, key), value);
+}
+function issueObservation(value: unknown): RoadmapIssueItem {
+  if (!isRecord(value)) throw new Error("incomplete GitHub inventory: malformed issue observation");
+  for (const name of ["id", "type", "__typename"] as const) {
+    if (value[name] !== undefined && typeof value[name] !== "string")
+      throw new Error(`incomplete GitHub inventory: malformed issue ${name}`);
+  }
+  for (const name of ["title", "body", "url", "state"] as const) {
+    if (value[name] != null && typeof value[name] !== "string")
+      throw new Error(`incomplete GitHub inventory: malformed issue ${name}`);
+  }
+  if (
+    value.number !== undefined &&
+    typeof value.number !== "number" &&
+    typeof value.number !== "string"
+  )
+    throw new Error("incomplete GitHub inventory: malformed issue number");
+  if (value.content != null) issueObservation(value.content);
+  if (value.blockedBy != null) {
+    const blockers = value.blockedBy;
+    if (!Array.isArray(blockers) && !isRecord(blockers))
+      throw new Error("incomplete GitHub inventory: malformed issue dependencies");
+    const nodes: unknown = Array.isArray(blockers)
+      ? blockers
+      : qualificationField(blockers, "nodes");
+    if (nodes !== undefined) {
+      if (!Array.isArray(nodes))
+        throw new Error("incomplete GitHub inventory: malformed issue dependency nodes");
+      const entries: unknown[] = nodes;
+      for (const node of entries) issueObservation(node);
+    }
+    const count = qualificationField(blockers, "totalCount");
+    if (count !== undefined && typeof count !== "number")
+      throw new Error("incomplete GitHub inventory: malformed issue dependency count");
+  }
+  if (value.fieldValues !== undefined && !Array.isArray(value.fieldValues))
+    throw new Error("incomplete GitHub inventory: malformed normalized issue fields");
+  const fields: unknown[] = Array.isArray(value.fieldValues) ? value.fieldValues : [];
+  for (const field of fields) {
+    if (
+      !isRecord(field) ||
+      (field.field != null && !isRecord(field.field)) ||
+      (field.option != null && !isRecord(field.option))
+    )
+      throw new Error("incomplete GitHub inventory: malformed normalized issue field");
+  }
+  // All known fields above have been narrowed; configurable field-name values remain unknown.
+  return value;
+}
+function executionRelationship(value: unknown): ExecutionRelationshipNode {
+  if (
+    !executionReference(value) ||
+    !isRecord(value) ||
+    (value.state !== "OPEN" && value.state !== "CLOSED")
+  )
+    throw new Error("incomplete selected issue identity or state");
+  issueObservation(value);
+  return value as Record<string, unknown> & ExecutionRelationshipNode;
+}
+function identifiedProjectItem(value: unknown) {
+  const item = issueObservation(value);
+  if (!item.id) throw new Error("incomplete GitHub inventory: missing Project item identity");
+  return { ...item, id: item.id };
+}
+interface RepositoryIssueObservation {
+  node_id: string;
+  number: number;
+  html_url: string;
+  title?: string | null | undefined;
+  body?: string | null | undefined;
+  state?: unknown;
+  pull_request?: unknown;
+}
+function repositoryIssueObservation(value: unknown): RepositoryIssueObservation {
+  if (
+    !isRecord(value) ||
+    typeof value.node_id !== "string" ||
+    !value.node_id ||
+    typeof value.number !== "number" ||
+    !Number.isSafeInteger(value.number) ||
+    value.number < 1 ||
+    typeof value.html_url !== "string" ||
+    !value.html_url ||
+    (value.title != null && typeof value.title !== "string") ||
+    (value.body != null && typeof value.body !== "string")
+  )
+    throw new Error("incomplete GitHub inventory: malformed repository issue");
+  return value as Record<string, unknown> & RepositoryIssueObservation;
+}
 export class RoadmapClient {
+  readonly config: RoadmapConfig;
+  readonly api: GitHubApiClient;
+  graphqlRate: unknown = null;
+  _executionProject: ProjectDetails | null | undefined;
+  _projectContext: ProjectContext | undefined;
+  _completeProjectContext: ProjectContext | undefined;
+  _ownerType: "User" | "Organization" | undefined;
   constructor(
-    config,
-    api = new GitHubApiClient(
+    config: RoadmapConfig,
+    api: GitHubApiClient | GitHubRunner = new GitHubApiClient(
       createGitHubRunner({
         cwd: projectRoot,
         command: process.env.PORTCOVE_ROADMAP_GH || "gh",
@@ -4973,8 +5134,11 @@ export class RoadmapClient {
     this.graphqlRate = null;
   }
 
-  operationalSnapshot({ now, runnerFactory = createGitHubRunner } = {}) {
-    const api = {
+  operationalSnapshot({
+    now,
+    runnerFactory = createGitHubRunner,
+  }: { now?: (() => number) | undefined; runnerFactory?: typeof createGitHubRunner } = {}) {
+    const api: OperationalReader = {
       request(method, endpoint, body, { timeoutMs }) {
         const client = new GitHubApiClient(
           runnerFactory({
@@ -4990,55 +5154,74 @@ export class RoadmapClient {
     return readOperationalBoard(this.config, api, { now });
   }
 
-  gh(args, input) {
+  gh(args: readonly string[], input?: string) {
     return this.api.command(args, input);
   }
 
-  json(args, input) {
+  json(args: readonly string[], input?: string): unknown {
     const output = this.gh(args, input);
     return output ? JSON.parse(output) : null;
   }
 
-  graphql(query, variables = {}) {
+  graphql(query: string, variables: Readonly<Record<string, unknown>> = {}): unknown {
     try {
       const result = this.api.graphql(query, variables);
       if (result.rateLimit.remaining !== null || result.rateLimit.used !== null)
         this.graphqlRate = result.rateLimit;
       return result.data;
     } catch (error) {
-      if (error?.rateLimit) this.graphqlRate = error.rateLimit;
+      if (isRecord(error) && error.rateLimit) this.graphqlRate = error.rateLimit;
       throw error;
     }
   }
 
   sampleGraphqlRate() {
-    const rate = this.graphql(
-      "query { rateLimit { cost limit remaining resetAt used } }",
-    )?.rateLimit;
+    const rate = qualificationField(
+      this.graphql("query { rateLimit { cost limit remaining resetAt used } }"),
+      "rateLimit",
+    );
     if (
-      !Number.isSafeInteger(rate?.remaining) ||
-      !Number.isSafeInteger(rate?.used) ||
-      typeof rate?.resetAt !== "string"
+      !isRecord(rate) ||
+      typeof rate.remaining !== "number" ||
+      !Number.isSafeInteger(rate.remaining) ||
+      typeof rate.used !== "number" ||
+      !Number.isSafeInteger(rate.used) ||
+      typeof rate.resetAt !== "string"
     ) {
       throw new Error("GitHub GraphQL rate-limit metadata is unavailable");
     }
-    this.graphqlRate = { resource: "graphql", ...rate };
-    return this.graphqlRate;
+    const observed = {
+      resource: "graphql",
+      ...rate,
+      remaining: rate.remaining,
+      used: rate.used,
+      resetAt: rate.resetAt,
+    };
+    this.graphqlRate = observed;
+    return observed;
   }
 
-  readInventory(query, variables, connection, identity) {
-    const nodes = [];
-    const identities = new Set();
-    const cursors = new Set();
-    let after = null;
-    let totalCount;
+  readInventory(
+    query: string,
+    variables: Readonly<Record<string, unknown>>,
+    connection: (data: unknown) => unknown,
+    identity: (node: unknown) => unknown,
+  ): unknown[] {
+    const nodes: unknown[] = [];
+    const identities = new Set<unknown>();
+    const cursors = new Set<string>();
+    let after: string | null = null;
+    let totalCount: number | undefined;
     for (;;) {
       const page = connection(this.graphql(query, { ...variables, after }));
       if (
-        !Array.isArray(page?.nodes) ||
+        !isRecord(page) ||
+        !Array.isArray(page.nodes) ||
+        typeof page.totalCount !== "number" ||
         !Number.isSafeInteger(page.totalCount) ||
         page.totalCount < 0 ||
-        typeof page.pageInfo?.hasNextPage !== "boolean" ||
+        !isRecord(page.pageInfo) ||
+        typeof page.pageInfo.hasNextPage !== "boolean" ||
         !(page.pageInfo.endCursor === null || typeof page.pageInfo.endCursor === "string")
       ) {
         throw new Error("incomplete GitHub inventory: malformed connection or pagination");
@@ -5046,7 +5229,8 @@ export class RoadmapClient {
       totalCount ??= page.totalCount;
       if (totalCount !== page.totalCount)
         throw new Error("GitHub inventory changed during pagination; retry the read");
-      for (const node of page.nodes) {
+      const pageNodes: unknown[] = page.nodes;
+      for (const node of pageNodes) {
         const key = node && identity(node);
         if (!key || identities.has(key))
           throw new Error("incomplete GitHub inventory: missing or duplicate record identity");
@@ -5080,7 +5264,7 @@ export class RoadmapClient {
         "100",
       ]),
       "projects",
-    );
+    ).map(projectDetailsObservation);
   }
 
   resolveProject({ create = false } = {}) {
@@ -5089,42 +5273,46 @@ export class RoadmapClient {
     );
     if (matches.length > 1)
       throw new Error(`multiple open projects named ${this.config.project.title}`);
-    if (matches.length === 1) return { project: matches[0], created: false };
+    if (matches.length === 1 && matches[0]) return { project: matches[0], created: false };
     if (!create) throw new Error(`${this.config.project.title} does not exist; run bootstrap`);
-    const project = this.json([
-      "project",
-      "create",
-      "--owner",
-      this.config.owner,
-      "--title",
-      this.config.project.title,
-      "--format",
-      "json",
-    ]);
+    const project = projectDetailsObservation(
+      this.json([
+        "project",
+        "create",
+        "--owner",
+        this.config.owner,
+        "--title",
+        this.config.project.title,
+        "--format",
+        "json",
+      ]),
+    );
     return { project, created: true };
   }
 
-  projectNumber(project) {
+  projectNumber(project: ProjectDetails | null | undefined) {
     const number = Number(project?.number ?? this.config.project.number);
     if (!Number.isInteger(number) || number < 1)
       throw new Error("could not determine Project number");
     return number;
   }
 
-  projectDetails(number) {
-    return this.json([
-      "project",
-      "view",
-      String(number),
-      "--owner",
-      this.config.owner,
-      "--format",
-      "json",
-    ]);
+  projectDetails(number: number) {
+    return projectDetailsObservation(
+      this.json([
+        "project",
+        "view",
+        String(number),
+        "--owner",
+        this.config.owner,
+        "--format",
+        "json",
+      ]),
+    );
   }
 
-  fieldList(number) {
-    return this.json([
+  fieldList(number: number): ProjectCollection<ProjectField> {
+    const result = this.json([
       "project",
       "field-list",
       String(number),
@@ -5135,11 +5323,35 @@ export class RoadmapClient {
       "--limit",
       "100",
     ]);
+    if (result !== null && !Array.isArray(result) && !isRecord(result))
+      throw new Error("incomplete GitHub inventory: malformed Project field collection");
+    if (isRecord(result)) {
+      for (const key of ["fields", "nodes", "projects"] as const) {
+        const entries = result[key];
+        if (entries === undefined) continue;
+        if (!Array.isArray(entries))
+          throw new Error("incomplete GitHub inventory: malformed Project field collection");
+        const rawFields: unknown[] = entries;
+        for (const field of rawFields) projectFieldObservation(field);
+      }
+    } else if (Array.isArray(result)) {
+      const rawFields: unknown[] = result;
+      for (const field of rawFields) projectFieldObservation(field);
+    }
+    return result as ProjectCollection<ProjectField>;
   }
 
   itemList(
-    number,
-    { includeDependencies = false, includeBodies = true, details: suppliedDetails = null } = {},
+    number: number,
+    {
+      includeDependencies = false,
+      includeBodies = true,
+      details: suppliedDetails = null,
+    }: {
+      includeDependencies?: boolean;
+      includeBodies?: boolean;
+      details?: ProjectDetails | null;
+    } = {},
   ) {
     const details = suppliedDetails ?? this.projectDetails(number);
     if (!details?.id)
@@ -5152,17 +5364,25 @@ export class RoadmapClient {
     return this.readInventory(
       query,
       { id: details.id },
-      (data) => data?.node?.items,
-      (node) => node.id,
+      (data) => nestedGitHubField(data, "node", "items"),
+      (node) => qualificationField(node, "id"),
     ).map((node) => {
-      const content = node.content ? { ...node.content, type: node.content.__typename } : null;
-      return {
+      if (!isRecord(node) || typeof node.id !== "string")
+        throw new Error("incomplete GitHub inventory: malformed Project item identity");
+      const sourceContent = node.content ? issueObservation(node.content) : null;
+      const content = sourceContent
+        ? {
+            ...sourceContent,
+            ...(sourceContent.__typename === undefined ? {} : { type: sourceContent.__typename }),
+          }
+        : null;
+      return issueObservation({
         ...node,
         title: content?.title,
         type: content?.type,
         content,
         fieldValues: projectFieldValues(node),
-      };
+      });
     });
   }
 
@@ -5174,21 +5394,31 @@ export class RoadmapClient {
       );
       if (!Array.isArray(response.body))
         throw new Error("incomplete GitHub inventory: malformed repository issue marker");
-      const number = response.body[0]?.number ?? 0;
-      if (!Number.isSafeInteger(number) || number < 0)
+      if (response.body.length === 0) return 0;
+      const number: unknown = qualificationField(response.body[0], "number");
+      if (
+        response.body.length !== 1 ||
+        typeof number !== "number" ||
+        !Number.isSafeInteger(number) ||
+        number < 1
+      )
         throw new Error("incomplete GitHub inventory: invalid repository issue marker");
       return number;
     };
     const highWater = marker();
-    const records = this.api.paginateRest(
-      `repos/${this.config.repository}/issues?state=all&sort=created&direction=asc&per_page=100`,
-      {
-        identity: (record) =>
-          typeof record?.node_id === "string" && record.node_id ? record.node_id : null,
-        label: "repository issue inventory",
-      },
-    );
-    const numbers = new Set();
+    const records = this.api
+      .paginateRest(
+        `repos/${this.config.repository}/issues?state=all&sort=created&direction=asc&per_page=100`,
+        {
+          identity: (record) =>
+            isRecord(record) && typeof record.node_id === "string" && record.node_id
+              ? record.node_id
+              : null,
+          label: "repository issue inventory",
+        },
+      )
+      .map(repositoryIssueObservation);
+    const numbers = new Set<number>();
     for (const record of records) {
       if (!Number.isSafeInteger(record.number) || record.number < 1 || numbers.has(record.number)) {
         throw new Error("incomplete GitHub inventory: missing or duplicate record identity");
@@ -5206,20 +5436,25 @@ export class RoadmapClient {
         title: issue.title,
         body: issue.body ?? "",
         url: issue.html_url,
-        state: String(issue.state ?? "").toUpperCase(),
+        state: diagnosticText(issue.state ?? "").toUpperCase(),
         type: "Issue",
       }));
   }
 
-  repositoryIssue(number) {
-    const issue = this.api.request("GET", `repos/${this.config.repository}/issues/${number}`).body;
+  repositoryIssue(number: number) {
+    const issue = repositoryIssueObservation(
+      this.api.request("GET", `repos/${this.config.repository}/issues/${number}`).body,
+    );
     if (!issue?.node_id || !issue?.html_url || issue.pull_request) {
       throw new Error(`repository issue #${number} was not found`);
     }
     return issue;
   }
 
-  executionIssue(number) {
+  executionIssue(number: number): {
+    item: CanonicalProjectIssue;
+    relationships: ExecutionRelationships;
+  } {
     if (!Number.isSafeInteger(number) || number < 1)
       throw new Error("--issue must be a positive issue number");
     const [owner, name] = this.config.repository.split("/");
@@ -5230,69 +5465,97 @@ export class RoadmapClient {
     const projectItems = `projectItems(first:100){totalCount nodes{${fields} project{id}} pageInfo{hasNextPage endCursor}}`;
     const identity = "id number title url state";
     const query = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){issue(number:$number){${identity} body ${projectItems} parent{${identity}} blockedBy(first:100){totalCount nodes{${identity} body ${projectItems}} pageInfo{hasNextPage endCursor}} blocking(first:100){totalCount nodes{${identity}} pageInfo{hasNextPage endCursor}} subIssues(first:100){totalCount nodes{${identity}} pageInfo{hasNextPage endCursor}}}}}`;
-    const issue = this.graphql(query, { owner, name, number })?.repository?.issue;
+    const rawIssue = nestedGitHubField(
+      this.graphql(query, { owner, name, number }),
+      "repository",
+      "issue",
+    );
+    if (!isRecord(rawIssue))
+      throw new Error("selected issue identity is unavailable or mismatched");
+    const issue = executionRelationship(rawIssue);
     if (
       !issue?.id ||
       issue.number !== number ||
       issue.url !== `https://github.com/${this.config.repository}/issues/${number}`
     )
       throw new Error("selected issue identity is unavailable or mismatched");
-    const connection = (initial, field, selection, source = issue) => {
+    const connection = (
+      initial: unknown,
+      field: string,
+      selection: string,
+      source: ExecutionRelationshipNode = issue,
+    ): Record<string, unknown>[] => {
       if (
-        !Number.isSafeInteger(initial?.totalCount) ||
+        !isRecord(initial) ||
+        typeof initial.totalCount !== "number" ||
+        !Number.isSafeInteger(initial.totalCount) ||
         initial.totalCount < 0 ||
         !Array.isArray(initial.nodes) ||
-        typeof initial.pageInfo?.hasNextPage !== "boolean" ||
-        initial.nodes.some((node) => !node?.id)
+        !isRecord(initial.pageInfo) ||
+        typeof initial.pageInfo.hasNextPage !== "boolean"
       )
         throw new Error(`incomplete selected ${field} connection`);
+      const identityNode = (node: unknown): Record<string, unknown> => {
+        if (!isRecord(node) || typeof node.id !== "string" || !node.id)
+          throw new Error(`incomplete selected ${field} connection`);
+        return node;
+      };
+      const rawNodes: unknown[] = initial.nodes;
+      const firstNodes = rawNodes.map(identityNode);
       if (
-        initial?.pageInfo?.hasNextPage === false &&
-        Array.isArray(initial.nodes) &&
-        initial.nodes.length === initial.totalCount &&
-        new Set(initial.nodes.map((node) => node.id)).size === initial.totalCount
+        initial.pageInfo.hasNextPage === false &&
+        firstNodes.length === initial.totalCount &&
+        new Set(firstNodes.map((node) => node.id)).size === initial.totalCount
       )
-        return initial.nodes;
+        return firstNodes;
       const nodes = this.readInventory(
         `query($id:ID!,$after:String){node(id:$id){...on Issue{${field}(first:100,after:$after){totalCount nodes{${selection}} pageInfo{hasNextPage endCursor}}}}}`,
         { id: source.id },
-        (data) => data?.node?.[field],
-        (node) => node.id,
-      );
-      if (nodes.length !== initial?.totalCount)
+        (data) => nestedGitHubField(data, "node", field),
+        (node) => qualificationField(node, "id"),
+      ).map(identityNode);
+      if (nodes.length !== initial.totalCount)
         throw new Error("selected relationships changed during collection");
       return nodes;
     };
-    const projectItem = (source) => {
+
+    const projectItem = (source: ExecutionRelationshipNode) => {
       const records = connection(
         source.projectItems,
         "projectItems",
         `${fields} project{id}`,
         source,
       );
-      const matches = records.filter((node) => node.project?.id === project.id);
+      const matches = records.filter(
+        (node) => qualificationField(node.project, "id") === project.id,
+      );
       if (matches.length > 1) throw new Error("multiple selected-Project items for one issue");
-      return matches[0] ? { ...matches[0], fieldValues: projectFieldValues(matches[0]) } : null;
+      return matches[0]
+        ? issueObservation({ ...matches[0], fieldValues: projectFieldValues(matches[0]) })
+        : null;
     };
     const selected = projectItem(issue);
     if (!selected) throw new Error("selected issue is not in the configured active Project");
-    const blockedBy = connection(
-      issue.blockedBy,
-      "blockedBy",
-      `${identity} body ${projectItems}`,
-    ).map((node) => ({ ...node, projectStatus: fieldValue(projectItem(node), "Status") ?? null }));
+    const blockedBy = connection(issue.blockedBy, "blockedBy", `${identity} body ${projectItems}`)
+      .map(executionRelationship)
+      .map((node) => {
+        const status = fieldValue(projectItem(node), "Status") ?? null;
+        if (status !== null && typeof status !== "string")
+          throw new Error("incomplete selected Project status");
+        return { ...node, projectStatus: status };
+      });
     return {
       item: { ...selected, title: issue.title, content: { ...issue, type: "Issue" } },
       relationships: {
         blockedBy,
-        blocking: connection(issue.blocking, "blocking", identity),
-        parent: issue.parent,
-        subIssues: connection(issue.subIssues, "subIssues", identity),
+        blocking: connection(issue.blocking, "blocking", identity).map(executionRelationship),
+        parent: issue.parent == null ? null : executionRelationship(issue.parent),
+        subIssues: connection(issue.subIssues, "subIssues", identity).map(executionRelationship),
       },
     };
   }
 
-  coordinationBinding(target) {
+  coordinationBinding(target: ReturnType<typeof coordinationTarget>) {
     validateCoordinationTarget(target, {
       repository: this.config.repository,
       issue: { number: target.work_issue },
@@ -5302,65 +5565,99 @@ export class RoadmapClient {
       `repos/${this.config.repository}/issues/${target.number}`,
     ).body;
     if (
-      node?.number !== target.number ||
+      !isRecord(node) ||
+      node.number !== target.number ||
       node.html_url !== target.url ||
       Boolean(node.pull_request) !== (target.kind === "pull_request") ||
+      typeof node.comments !== "number" ||
       !Number.isSafeInteger(node.comments) ||
       node.comments < 0
     )
       throw new Error("coordination issue/PR identity is unavailable or mismatched");
     if (target.kind === "pull_request") {
-      const linked = [...String(node.body ?? "").matchAll(/(?:^|[\s(,])#(\d+)\b/g)].some(
+      const linked = [...diagnosticText(node.body ?? "").matchAll(/(?:^|[\s(,])#(\d+)\b/g)].some(
         (match) => Number(match[1]) === target.work_issue,
       );
       const link = `https://github.com/${this.config.repository}/issues/${target.work_issue}`;
-      const linkedUrl = String(node.body ?? "")
+      const linkedUrl = diagnosticText(node.body ?? "")
         .split(link)
         .slice(1)
         .some((suffix) => suffix === "" || /^[\s)\]>"'`#?]/.test(suffix));
       if (!linked && !linkedUrl)
         throw new Error("explicit coordination PR does not reference the selected work issue");
     }
-    return node;
+    return { ...node, comments: node.comments };
   }
 
-  coordinationRecords(target) {
+  coordinationRecords(target: ReturnType<typeof coordinationTarget>) {
     const before = this.coordinationBinding(target).comments;
     const [owner, name] = this.config.repository.split("/");
     const field = target.kind === "pull_request" ? "pullRequest" : "issue";
-    const observed = this.graphql(
-      `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){${field}(number:$number){url comments(last:50){totalCount nodes{id url body createdAt updatedAt author{login}} pageInfo{hasPreviousPage startCursor}}}}}`,
-      { owner, name, number: target.number },
-    )?.repository?.[field];
-    const result = observed?.comments;
+    const observed = nestedGitHubField(
+      this.graphql(
+        `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){${field}(number:$number){url comments(last:50){totalCount nodes{id url body createdAt updatedAt author{login}} pageInfo{hasPreviousPage startCursor}}}}}`,
+        { owner, name, number: target.number },
+      ),
+      "repository",
+      field,
+    );
+    const result = qualificationField(observed, "comments");
     if (
-      observed?.url !== target.url ||
-      !Array.isArray(result?.nodes) ||
+      qualificationField(observed, "url") !== target.url ||
+      !isRecord(result) ||
+      !Array.isArray(result.nodes) ||
+      typeof result.totalCount !== "number" ||
       !Number.isSafeInteger(result.totalCount) ||
       result.totalCount < 0 ||
       result.nodes.length !== Math.min(50, result.totalCount) ||
-      result.nodes.some(
-        (node) =>
-          !node?.id ||
-          typeof node.body !== "string" ||
-          !node.url?.startsWith(`${target.url}#issuecomment-`) ||
-          !/^[1-9]\d*$/.test(node.url.slice(`${target.url}#issuecomment-`.length)) ||
-          !Number.isFinite(Date.parse(node.createdAt)) ||
-          !Number.isFinite(Date.parse(node.updatedAt)),
-      ) ||
-      new Set(result.nodes.map((node) => node.id)).size !== result.nodes.length ||
-      new Set(result.nodes.map((node) => node.url)).size !== result.nodes.length ||
-      result.nodes.some(
-        (node, index) =>
-          index > 0 && Date.parse(node.createdAt) < Date.parse(result.nodes[index - 1].createdAt),
-      ) ||
-      result.pageInfo?.hasPreviousPage !== result.totalCount > 50 ||
+      !isRecord(result.pageInfo)
+    )
+      throw new Error("coordination read is unavailable or incomplete");
+    const rawNodes: unknown[] = result.nodes;
+    const nodes = rawNodes.map((node) => {
+      if (
+        !isRecord(node) ||
+        typeof node.id !== "string" ||
+        !node.id ||
+        typeof node.body !== "string" ||
+        typeof node.url !== "string" ||
+        !node.url.startsWith(`${target.url}#issuecomment-`) ||
+        !/^[1-9]\d*$/.test(node.url.slice(`${target.url}#issuecomment-`.length)) ||
+        typeof node.createdAt !== "string" ||
+        !Number.isFinite(Date.parse(node.createdAt)) ||
+        typeof node.updatedAt !== "string" ||
+        !Number.isFinite(Date.parse(node.updatedAt)) ||
+        (node.author != null &&
+          (!isRecord(node.author) ||
+            (node.author.login != null && typeof node.author.login !== "string")))
+      )
+        throw new Error("coordination read is unavailable or incomplete");
+      return node as Record<string, unknown> &
+        RoadmapComment & {
+          id: string;
+          url: string;
+          body: string;
+          createdAt: string;
+          updatedAt: string;
+        };
+    });
+    if (
+      new Set(nodes.map((node) => node.id)).size !== nodes.length ||
+      new Set(nodes.map((node) => node.url)).size !== nodes.length ||
+      nodes.some((node, index) => {
+        const previous = nodes[index - 1];
+        return (
+          previous !== undefined && Date.parse(node.createdAt) < Date.parse(previous.createdAt)
+        );
+      }) ||
+      result.pageInfo.hasPreviousPage !== result.totalCount > 50 ||
       result.totalCount !== before ||
       this.coordinationBinding(target).comments !== before
     )
       throw new Error("coordination read is unavailable or incomplete");
+
     return {
-      nodes: result.nodes,
+      nodes,
       coverage: {
         complete: !result.pageInfo.hasPreviousPage,
         count: result.nodes.length,
@@ -5370,8 +5667,13 @@ export class RoadmapClient {
     };
   }
 
-  operationalReturnEvidence(reference, issue, source, { runnerFactory = createGitHubRunner } = {}) {
-    const api = {
+  operationalReturnEvidence(
+    reference: string,
+    issue: number,
+    source: unknown,
+    { runnerFactory = createGitHubRunner }: { runnerFactory?: typeof createGitHubRunner } = {},
+  ) {
+    const api: OperationalReader = {
       request(method, endpoint, body, { timeoutMs }) {
         return new GitHubApiClient(
           runnerFactory({
@@ -5386,7 +5688,7 @@ export class RoadmapClient {
     return readOperationalReturnEvidence(this.config, api, reference, issue, source);
   }
 
-  coordinationComment(url: string, target) {
+  coordinationComment(url: string, target: ReturnType<typeof coordinationTarget>) {
     const match =
       /^https:\/\/github\.com\/([^/]+\/[^/]+)\/(issues|pull)\/(\d+)#issuecomment-(\d+)$/.exec(url);
     if (
@@ -5405,12 +5707,30 @@ export class RoadmapClient {
       `repos/${this.config.repository}/issues/comments/${match[4]}`,
     ).body;
     if (
-      comment?.html_url !== url ||
+      !isRecord(comment) ||
+      comment.html_url !== url ||
       comment.issue_url !==
         `https://api.github.com/repos/${this.config.repository}/issues/${match[3]}`
     )
       throw new Error("coordination comment identity is mismatched");
-    return { ...comment, url: comment.html_url, author: comment.user };
+    if (
+      comment.id !== undefined &&
+      typeof comment.id !== "string" &&
+      typeof comment.id !== "number"
+    )
+      throw new Error("coordination comment identity is malformed");
+    const author = comment.user;
+    if (
+      author != null &&
+      (!isRecord(author) ||
+        (author.login !== undefined && author.login !== null && typeof author.login !== "string"))
+    )
+      throw new Error("coordination comment author is malformed");
+    return {
+      ...comment,
+      url: comment.html_url,
+      author: author as { login?: string | null } | null | undefined,
+    } as RoadmapComment & { url: string };
   }
 
   projectContext(number = this.config.project.number) {
@@ -5424,7 +5744,7 @@ export class RoadmapClient {
   ownerType() {
     if (this._ownerType) return this._ownerType;
     const owner = this.api.request("GET", `users/${this.config.owner}`).body;
-    if (!["User", "Organization"].includes(owner?.type))
+    if (!isRecord(owner) || (owner.type !== "User" && owner.type !== "Organization"))
       throw new Error(`GitHub owner type is unavailable for ${this.config.owner}`);
     this._ownerType = owner.type;
     return this._ownerType;
@@ -5434,21 +5754,25 @@ export class RoadmapClient {
     if (this._completeProjectContext?.number === number) return this._completeProjectContext;
     const root = this.ownerType() === "Organization" ? "organization" : "user";
     const query = `query($login: String!, $number: Int!, $after: String) { ${root}(login: $login) { projectV2(number: $number) { id number title url public closed shortDescription readme fields(first: 100, after: $after) { totalCount nodes { __typename ... on ProjectV2Field { id name dataType } ... on ProjectV2SingleSelectField { id name dataType options { id name color description } } ... on ProjectV2IterationField { id name dataType } } pageInfo { hasNextPage endCursor } } } } }`;
-    const fields = [];
-    const identities = new Set();
-    const cursors = new Set();
-    let after = null;
-    let totalCount = null;
-    let details = null;
+    const fields: ProjectField[] = [];
+    const identities = new Set<string>();
+    const cursors = new Set<string>();
+    let after: string | null = null;
+    let totalCount: number | null = null;
+    let details: ProjectDetails | null = null;
     for (;;) {
-      const project = this.graphql(query, {
-        login: this.config.owner,
-        number,
-        after,
-      })?.[root]?.projectV2;
-      if (!project?.id)
+      const project = nestedGitHubField(
+        this.graphql(query, {
+          login: this.config.owner,
+          number,
+          after,
+        }),
+        root,
+        "projectV2",
+      );
+      if (!isRecord(project) || typeof project.id !== "string" || !project.id)
         throw new Error(`Project #${number} was not found for ${this.config.owner}`);
-      details ??= {
+      details ??= projectDetailsObservation({
         id: project.id,
         number: project.number,
         title: project.title,
@@ -5457,13 +5781,16 @@ export class RoadmapClient {
         closed: project.closed,
         shortDescription: project.shortDescription,
         readme: project.readme,
-      };
+      });
       const connection = project.fields;
       if (
-        !Array.isArray(connection?.nodes) ||
+        !isRecord(connection) ||
+        !Array.isArray(connection.nodes) ||
+        typeof connection.totalCount !== "number" ||
         !Number.isSafeInteger(connection.totalCount) ||
         connection.totalCount < 0 ||
-        typeof connection.pageInfo?.hasNextPage !== "boolean" ||
+        !isRecord(connection.pageInfo) ||
+        typeof connection.pageInfo.hasNextPage !== "boolean" ||
         !(
           connection.pageInfo.endCursor === null ||
           typeof connection.pageInfo.endCursor === "string"
@@ -5474,8 +5801,10 @@ export class RoadmapClient {
       totalCount ??= connection.totalCount;
       if (connection.totalCount !== totalCount)
         throw new Error("GitHub Project fields changed during pagination; retry the read");
-      for (const field of connection.nodes) {
-        if (!field?.id || identities.has(field.id))
+      const rawFields: unknown[] = connection.nodes;
+      for (const rawField of rawFields) {
+        const field = projectFieldObservation(rawField);
+        if (!field.id || identities.has(field.id))
           throw new Error("incomplete GitHub inventory: missing or duplicate Project field");
         identities.add(field.id);
         fields.push(field);
@@ -5488,30 +5817,49 @@ export class RoadmapClient {
     }
     if (fields.length !== totalCount)
       throw new Error("incomplete GitHub inventory: Project field count does not match total");
+    if (!details) throw new Error("incomplete GitHub inventory: Project details are unavailable");
     this._completeProjectContext = { number, details, fields };
     return this._completeProjectContext;
   }
 
-  ensureIssueItem(contentId) {
+  ensureIssueItem(contentId: string) {
     const { details } = this.projectContext();
     const find = () => {
-      let after = null;
-      do {
-        const query = `query($id: ID!, $after: String) { node(id: $id) { ... on Issue { projectItems(first: 100, after: $after) { nodes { id project { id } } pageInfo { hasNextPage endCursor } } } } }`;
-        const page = this.graphql(query, { id: contentId, after })?.node?.projectItems;
-        const match = page?.nodes?.find((item) => item.project?.id === details.id);
-        if (match) return match;
-        after = page?.pageInfo?.hasNextPage ? page.pageInfo.endCursor : null;
-      } while (after);
-      return null;
+      const query = `query($id: ID!, $after: String) { node(id: $id) { ... on Issue { projectItems(first: 100, after: $after) { totalCount nodes { id project { id } } pageInfo { hasNextPage endCursor } } } } }`;
+      const records = this.readInventory(
+        query,
+        { id: contentId },
+        (data) => nestedGitHubField(data, "node", "projectItems"),
+        (item) => qualificationField(item, "id"),
+      );
+      const memberships = records.map((record) => {
+        const item = identifiedProjectItem(record);
+        const project = qualificationField(item, "project");
+        if (!isRecord(project) || typeof project.id !== "string" || !project.id)
+          throw new Error(
+            "incomplete GitHub inventory: Project membership identity is unavailable",
+          );
+        return { item, projectId: project.id };
+      });
+      const matches = memberships.filter((entry) => entry.projectId === details.id);
+      if (matches.length > 1)
+        throw new Error("incomplete GitHub inventory: duplicate selected Project membership");
+      return matches[0]?.item ?? null;
     };
+
     const existing = find();
     if (existing) return existing;
     const mutation = `mutation($input: AddProjectV2ItemByIdInput!) { addProjectV2ItemById(input: $input) { item { id } } }`;
     try {
-      return this.graphql(mutation, {
-        input: { projectId: details.id, contentId },
-      })?.addProjectV2ItemById?.item;
+      return identifiedProjectItem(
+        nestedGitHubField(
+          this.graphql(mutation, {
+            input: { projectId: details.id, contentId },
+          }),
+          "addProjectV2ItemById",
+          "item",
+        ),
+      );
     } catch (error) {
       if (!/already|exists/i.test(errorMessage(error))) throw error;
       const raced = find();
@@ -5520,47 +5868,74 @@ export class RoadmapClient {
     }
   }
 
-  viewList(projectId) {
+  viewList(projectId: string): ProjectView[] {
     const fields = `totalCount nodes { ... on ProjectV2Field { id name } ... on ProjectV2SingleSelectField { id name } ... on ProjectV2IterationField { id name } ... on ProjectV2MultiSelectField { id name } } pageInfo { hasNextPage endCursor }`;
     const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { id views(first: 100, after: $after) { totalCount nodes { id name number layout filter fields(first: 100) { ${fields} } groupByFields(first: 100) { ${fields} } verticalGroupByFields(first: 100) { ${fields} } sortByFields(first: 100) { totalCount nodes { direction field { ... on ProjectV2Field { id name } ... on ProjectV2SingleSelectField { id name } ... on ProjectV2IterationField { id name } } } pageInfo { hasNextPage endCursor } } } pageInfo { hasNextPage endCursor } } } } }`;
     const views = this.readInventory(
       query,
       { id: projectId },
       (data) => {
-        if (data?.node?.id !== projectId)
+        if (nestedGitHubField(data, "node", "id") !== projectId)
           throw new Error("incomplete GitHub inventory: wrong Project view identity");
-        return data.node.views;
+        return nestedGitHubField(data, "node", "views");
       },
-      (view) => view.id,
+      (view) => qualificationField(view, "id"),
     );
-    for (const view of views) {
-      for (const name of ["fields", "groupByFields", "verticalGroupByFields", "sortByFields"]) {
+    return views.map((view) => {
+      if (
+        !isRecord(view) ||
+        typeof view.id !== "string" ||
+        typeof view.name !== "string" ||
+        (view.number !== undefined && typeof view.number !== "number") ||
+        (view.layout !== undefined && typeof view.layout !== "string")
+      )
+        throw new Error("incomplete GitHub inventory: malformed Project view");
+      for (const name of [
+        "fields",
+        "groupByFields",
+        "verticalGroupByFields",
+        "sortByFields",
+      ] as const) {
         const connection = view[name];
         if (
-          !Number.isSafeInteger(connection?.totalCount) ||
+          !isRecord(connection) ||
+          typeof connection.totalCount !== "number" ||
+          !Number.isSafeInteger(connection.totalCount) ||
           connection.totalCount < 0 ||
           !Array.isArray(connection.nodes) ||
           connection.nodes.length !== connection.totalCount ||
-          connection.pageInfo?.hasNextPage !== false
+          qualificationField(connection.pageInfo, "hasNextPage") !== false
         ) {
           throw new Error(`incomplete GitHub inventory: view ${view.name} ${name}`);
         }
-        const ids = connection.nodes.map((field) =>
-          name === "sortByFields" ? field.field?.id : field.id,
+        const entries: unknown[] = connection.nodes;
+        const ids = entries.map((field) =>
+          name === "sortByFields"
+            ? nestedGitHubField(field, "field", "id")
+            : qualificationField(field, "id"),
         );
-        if (ids.some((id) => !id) || new Set(ids).size !== ids.length)
+        if (ids.some((id) => typeof id !== "string" || !id) || new Set(ids).size !== ids.length)
           throw new Error(`incomplete GitHub inventory: view ${view.name} ${name} identities`);
+        for (const entry of entries) {
+          const selected = name === "sortByFields" ? qualificationField(entry, "field") : entry;
+          if (
+            !isRecord(selected) ||
+            typeof selected.name !== "string" ||
+            (name === "sortByFields" && typeof qualificationField(entry, "direction") !== "string")
+          )
+            throw new Error(`incomplete GitHub inventory: view ${view.name} ${name} fields`);
+        }
       }
-    }
-    return views;
+      return view as Record<string, unknown> & ProjectView;
+    });
   }
 
-  projectAudit(projectId) {
+  projectAudit(projectId: string) {
     const query = `query($id: ID!) { node(id: $id) { ... on ProjectV2 { id number title public repositories(first: 100) { nodes { name owner { login } } } } } }`;
-    return this.graphql(query, { id: projectId })?.node;
+    return qualificationField(this.graphql(query, { id: projectId }), "node");
   }
 
-  editProject(number) {
+  editProject(number: number) {
     this.gh([
       "project",
       "edit",
@@ -5578,7 +5953,7 @@ export class RoadmapClient {
     ]);
   }
 
-  updateField(fieldId, options) {
+  updateField(fieldId: string, options: readonly ProjectFieldOption[]) {
     const query = `mutation($input: UpdateProjectV2FieldInput!) { updateProjectV2Field(input: $input) { projectV2Field { ... on ProjectV2SingleSelectField { id name options { id name } } } } }`;
     const singleSelectOptions = options.map((option) => ({
       ...(option.id ? { id: option.id } : {}),
@@ -5589,7 +5964,7 @@ export class RoadmapClient {
     this.graphql(query, { input: { fieldId, singleSelectOptions } });
   }
 
-  reconcileFields(number, { freshProject = false } = {}) {
+  reconcileFields(number: number, { freshProject = false }: { freshProject?: boolean } = {}) {
     const plan = planFieldReconciliation(this.config.fields, this.fieldList(number), {
       freshProject,
     });
@@ -5610,18 +5985,19 @@ export class RoadmapClient {
           step.desired.options.join(","),
         ]);
       } else if (step.action === "update") {
+        if (!step.actual.id) throw new Error("existing Project field identity is unavailable");
         this.updateField(step.actual.id, step.options);
       }
     }
     return plan;
   }
 
-  reconcileViews(projectId, fieldResult) {
+  reconcileViews(projectId: string, fieldResult: ProjectCollection<ProjectField>) {
     const fields = unwrapCollection(fieldResult, "fields");
     const fieldIds = new Map(fields.map((field) => [field.name, field.id]));
     const plan = planViewReconciliation(materializeViews(this.config), this.viewList(projectId));
     for (const step of plan) {
-      if (step.drift?.some((value) => value.includes("UI change required")))
+      if ("drift" in step && step.drift.some((value) => value.includes("UI change required")))
         throw new Error(
           `view ${step.desired.name} needs a grouping/sorting change through the owner UI`,
         );
@@ -5676,17 +6052,20 @@ export class RoadmapClient {
     const failed = remaining.filter((step) => step.action !== "keep");
     if (failed.length) {
       throw new Error(
-        `view readback did not match configuration: ${failed.map((step) => `${step.desired.name}: ${step.drift?.join("; ") ?? step.action}`).join(", ")}`,
+        `view readback did not match configuration: ${failed.map((step) => `${step.desired.name}: ${"drift" in step ? step.drift.join("; ") : step.action}`).join(", ")}`,
       );
     }
-    for (const step of plan.filter((candidate) => candidate.actual)) {
+    for (const step of plan.filter(
+      (candidate): candidate is Extract<ViewReconciliation, { actual: ProjectView }> =>
+        candidate.actual != null,
+    )) {
       if (saved.find((view) => view.name === step.desired.name)?.id !== step.actual.id)
         throw new Error(`view readback changed identity: ${step.desired.name}`);
     }
     return plan;
   }
 
-  removeFreshDefaultView(projectId, created) {
+  removeFreshDefaultView(projectId: string, created: boolean) {
     if (!created) return false;
     const desiredNames = new Set(this.config.views.map((view) => view.name));
     const defaultView = this.viewList(projectId).find(
@@ -5719,8 +6098,10 @@ export class RoadmapClient {
     const fieldPlan = this.reconcileFields(number, { freshProject: created });
     const details = this.projectDetails(number);
     const fields = this.fieldList(number);
-    const viewPlan = this.reconcileViews(details.id ?? project.id, fields);
-    const removedDefaultView = this.removeFreshDefaultView(details.id ?? project.id, created);
+    const projectId = details.id ?? project.id;
+    if (!projectId) throw new Error("Project identity is unavailable after bootstrap");
+    const viewPlan = this.reconcileViews(projectId, fields);
+    const removedDefaultView = this.removeFreshDefaultView(projectId, created);
     return {
       number,
       url:
@@ -5734,7 +6115,7 @@ export class RoadmapClient {
     };
   }
 
-  setFields(reference: string, values) {
+  setFields(reference: string, values: Readonly<Record<string, string>>) {
     const number = this.config.project.number;
     if (number < 1) throw new Error("project number is not recorded in .github/roadmap.json");
     const repositoryUrl = `https://github.com/${this.config.repository}/issues/`;
@@ -5771,7 +6152,10 @@ export class RoadmapClient {
       );
   }
 
-  resolveItemReference(items, reference) {
+  resolveItemReference(
+    items: readonly RoadmapIssueItem[],
+    reference: string,
+  ): RoadmapIssueItem & { id: string } {
     const repositoryUrl = `https://github.com/${this.config.repository}/issues/`;
     const numeric = /^#?(\d+)$/u.exec(reference);
     const urlMatch = reference.startsWith(repositoryUrl)
@@ -5789,10 +6173,13 @@ export class RoadmapClient {
           ? `Project item reference is ambiguous: ${reference}`
           : `Project item was not found: ${reference}`,
       );
-    return matches[0];
+    const selected = matches[0];
+    if (!selected || typeof selected.id !== "string" || !selected.id)
+      throw new Error(`Project item identity is unavailable: ${reference}`);
+    return { ...selected, id: selected.id };
   }
 
-  setItemFields(itemId, values) {
+  setItemFields(itemId: string, values: Readonly<Record<string, string>>) {
     const context = this.projectContext();
     const inputs = [];
     for (const [fieldName, value] of Object.entries(values)) {
@@ -5801,11 +6188,18 @@ export class RoadmapClient {
     this.mutateFieldInputs(inputs);
   }
 
-  fieldMutationInput({ details, fields }, itemId, fieldName, value) {
+  fieldMutationInput(
+    { details, fields }: ProjectContext,
+    itemId: string,
+    fieldName: string,
+    value: unknown,
+  ) {
     const field = fields.find((candidate) => candidate.name === fieldName);
     if (!field) throw new Error(`Project field not found: ${fieldName}`);
     const option = field.options?.find((candidate) => candidate.name === value);
-    if (!option) throw new Error(`Project option not found: ${fieldName}=${value}`);
+    if (!option) throw new Error(`Project option not found: ${fieldName}=${diagnosticText(value)}`);
+    if (!details.id || !field.id || !option.id)
+      throw new Error(`Project field identity is unavailable: ${fieldName}`);
     return {
       projectId: details.id,
       itemId,
@@ -5814,7 +6208,7 @@ export class RoadmapClient {
     };
   }
 
-  mutateFieldInputs(inputs) {
+  mutateFieldInputs(inputs: readonly ReturnType<RoadmapClient["fieldMutationInput"]>[]) {
     if (!inputs.length) return;
     const variables = Object.fromEntries(inputs.map((input, index) => [`input${index}`, input]));
     const declarations = inputs
@@ -5829,16 +6223,16 @@ export class RoadmapClient {
     this.graphql(`mutation(${declarations}) { ${selections} }`, variables);
   }
 
-  planSetMany(spec) {
+  planSetMany(spec: unknown): SetManyPlan<ProjectContext> {
     const validated = validateSetManySpec(this.config, spec);
     const context = this.completeProjectContext();
     const items = this.itemList(context.number, {
       includeDependencies: true,
       details: context.details,
     });
-    const pending = [];
-    const alreadyApplied = [];
-    const itemFields = new Set();
+    const pending: SetManyAssignment[] = [];
+    const alreadyApplied: SetManyAssignment[] = [];
+    const itemFields = new Set<string>();
     for (const update of validated.updates) {
       const item = this.resolveItemReference(items, update.target);
       for (const [fieldName, transition] of Object.entries(update.fields)) {
@@ -5867,38 +6261,47 @@ export class RoadmapClient {
     return { context, pending, alreadyApplied, assignments: validated.assignments };
   }
 
-  applySetMany(plan, changes = plan.pending) {
+  applySetMany(
+    plan: SetManyPlan<ProjectContext>,
+    changes: readonly SetManyAssignment[] = plan.pending,
+  ) {
     const inputs = changes.map((change) =>
       this.fieldMutationInput(plan.context, change.itemId, change.fieldName, change.to),
     );
     this.mutateFieldInputs(inputs);
   }
 
-  readSetManyItems(plan) {
+  readSetManyItems(plan: {
+    pending: readonly { itemId: string }[];
+    alreadyApplied: readonly { itemId: string }[];
+  }): Map<string, RoadmapFieldValue[]> {
     const ids = [
       ...new Set([...plan.pending, ...plan.alreadyApplied].map((change) => change.itemId)),
     ];
     if (!ids.length) return new Map();
     const query = `query($ids: [ID!]!) { nodes(ids: $ids) { ... on ProjectV2Item { id fieldValues(first: 100) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } pageInfo { hasNextPage endCursor } } } } }`;
-    const nodes = this.graphql(query, { ids })?.nodes;
+    const nodes = qualificationField(this.graphql(query, { ids }), "nodes");
     if (!Array.isArray(nodes) || nodes.length !== ids.length)
       throw new Error("incomplete GitHub inventory: set-many readback item count differs");
-    const results = new Map();
-    for (const node of nodes) {
+    const results = new Map<string, RoadmapFieldValue[]>();
+    const rawNodes: unknown[] = nodes;
+    for (const node of rawNodes) {
       if (
-        !node?.id ||
+        !isRecord(node) ||
+        typeof node.id !== "string" ||
+        !node.id ||
         results.has(node.id) ||
-        !Number.isSafeInteger(node.fieldValues?.totalCount) ||
+        !isRecord(node.fieldValues) ||
+        typeof node.fieldValues.totalCount !== "number" ||
+        !Number.isSafeInteger(node.fieldValues.totalCount) ||
         node.fieldValues.totalCount < 0 ||
         !Array.isArray(node.fieldValues.nodes) ||
         node.fieldValues.nodes.length !== node.fieldValues.totalCount ||
-        node.fieldValues.pageInfo?.hasNextPage !== false
+        qualificationField(node.fieldValues.pageInfo, "hasNextPage") !== false
       ) {
         throw new Error("incomplete GitHub inventory: malformed or truncated set-many readback");
       }
-      const fieldValues = node.fieldValues.nodes
-        .map((value) => ({ name: value.name, field: { name: value.field?.name } }))
-        .filter((value) => value.name && value.field.name);
+      const fieldValues = projectFieldValues(node);
       results.set(node.id, fieldValues);
     }
     for (const id of ids) {
@@ -5908,7 +6311,11 @@ export class RoadmapClient {
     return results;
   }
 
-  verifySetMany(plan) {
+  verifySetMany<Change extends Pick<SetManyAssignment, "itemId" | "fieldName" | "to">>(plan: {
+    pending: readonly Change[];
+    alreadyApplied: readonly Change[];
+    context?: unknown;
+  }) {
     const items = this.readSetManyItems(plan);
     return [...plan.pending, ...plan.alreadyApplied].map((change) => {
       const observed =
@@ -5917,27 +6324,49 @@ export class RoadmapClient {
     });
   }
 
-  capture({ title, body, fields }) {
+  capture({
+    title,
+    body,
+    fields,
+  }: {
+    title: string;
+    body: string;
+    fields: Readonly<Record<string, string>>;
+  }) {
     validateGitHubBody(body);
     const number = this.config.project.number;
-    const item = this.json([
-      "project",
-      "item-create",
-      String(number),
-      "--owner",
-      this.config.owner,
-      "--title",
-      title,
-      "--body",
-      body,
-      "--format",
-      "json",
-    ]);
+    const item = identifiedProjectItem(
+      this.json([
+        "project",
+        "item-create",
+        String(number),
+        "--owner",
+        this.config.owner,
+        "--title",
+        title,
+        "--body",
+        body,
+        "--format",
+        "json",
+      ]),
+    );
     this.setFields(item.id, fields);
     return item;
   }
 
-  createPortIssue({ title, upstream, catalogId, portKey, onIssueCreated = () => {} }) {
+  createPortIssue({
+    title,
+    upstream,
+    catalogId,
+    portKey,
+    onIssueCreated = () => {},
+  }: {
+    title: string;
+    upstream: string;
+    catalogId?: string | null | undefined;
+    portKey?: string | null | undefined;
+    onIssueCreated?: (issue: RepositoryIssueObservation) => void;
+  }) {
     const issueTitle = `[Port] ${title}`;
     const issues = this.repositoryIssues();
     const duplicates = findPortIssueDuplicates(issues, {
@@ -5954,10 +6383,12 @@ export class RoadmapClient {
       );
     }
     const body = renderPortIssueBody({ title, upstream, catalogId, portKey });
-    const issue = this.api.request("POST", `repos/${this.config.repository}/issues`, {
-      title: issueTitle,
-      body,
-    }).body;
+    const issue = repositoryIssueObservation(
+      this.api.request("POST", `repos/${this.config.repository}/issues`, {
+        title: issueTitle,
+        body,
+      }).body,
+    );
     if (!issue?.node_id || !issue?.html_url)
       throw new Error("GitHub did not return the created issue identity");
     // Retain canonical identity before a separately fallible Project mutation.
@@ -5969,23 +6400,31 @@ export class RoadmapClient {
     return { ...issue, itemId: item.id };
   }
 
-  normalizePortIssue({ number, catalog }) {
+  normalizePortIssue({
+    number,
+    catalog,
+  }: {
+    number: number;
+    catalog: QualificationCatalogObservation;
+  }) {
     const issue = this.repositoryIssue(number);
-    if (!canonicalPortTitlePrefix.test(issue.title ?? "")) {
+    const issueBody = issue.body ?? "";
+    const issueTitle = issue.title ?? "";
+    if (!canonicalPortTitlePrefix.test(issueTitle)) {
       throw new Error(`issue #${number} title must begin with the canonical [Port] prefix`);
     }
-    const ids = portCatalogMarkers(issue.body);
+    const ids = portCatalogMarkers(issueBody);
     if (ids.length > 1) throw new Error(`issue #${number} claims multiple catalog IDs`);
     const catalogId = ids[0] ?? null;
-    let form;
-    if (/^###\s+(?:Direct upstream URL|Durable game or target key)\s*$/imu.test(issue.body)) {
-      form = parsePortIssueForm(issue.body);
+    let form: { upstream: string; portKey: string | null };
+    if (/^###\s+(?:Direct upstream URL|Durable game or target key)\s*$/imu.test(issueBody)) {
+      form = parsePortIssueForm(issueBody);
     } else {
       // Direct capture emits reviewed canonical markers rather than public-form sections.
-      const upstreams = portUpstreamMarkers(issue.body);
-      const keys = portKeyMarkers(issue.body);
+      const upstreams = portUpstreamMarkers(issueBody);
+      const keys = portKeyMarkers(issueBody);
       if (
-        !/<!--\s*portcove-port\s*-->/u.test(issue.body) ||
+        !/<!--\s*portcove-port\s*-->/u.test(issueBody) ||
         upstreams.length !== 1 ||
         keys.length > 1 ||
         (!keys.length && !catalogId)
@@ -6003,7 +6442,7 @@ export class RoadmapClient {
     const duplicates = findPortIssueDuplicates(
       repositoryIssues.filter((candidate) => issueNumber(candidate) !== number),
       {
-        title: issue.title.replace(portTitlePrefix, ""),
+        title: issueTitle.replace(portTitlePrefix, ""),
         upstream: form.upstream,
         catalogId,
         portKey: form.portKey,
@@ -6027,7 +6466,7 @@ export class RoadmapClient {
         `issue #${number} has multiple Project items; remove the duplicate before normalization`,
       );
     }
-    const body = reconcilePortIssueMarkers(issue.body, {
+    const body = reconcilePortIssueMarkers(issueBody, {
       upstream: form.upstream,
       catalogId,
       portKey: form.portKey,
@@ -6040,6 +6479,7 @@ export class RoadmapClient {
       this.api.request("PATCH", `repos/${this.config.repository}/issues/${number}`, { body });
     }
     const item = existingItem ?? this.ensureIssueItem(issue.node_id);
+    if (!item.id) throw new Error("normalized Project item identity is unavailable");
     if (Object.keys(fieldUpdates).length) this.setItemFields(item.id, fieldUpdates);
     return {
       issue: issue.html_url,
@@ -6050,34 +6490,44 @@ export class RoadmapClient {
     };
   }
 
-  promote(itemId, durableBody) {
+  promote(itemId: string, durableBody: string) {
     validateDurableIssueBody(durableBody);
-    const repository = this.graphql(
-      `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id } }`,
-      {
-        owner: this.config.repository.split("/")[0],
-        name: this.config.repository.split("/")[1],
-      },
-    )?.repository;
-    if (!repository?.id) throw new Error("repository was not found");
+    const repository = qualificationField(
+      this.graphql(
+        `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id } }`,
+        {
+          owner: this.config.repository.split("/")[0],
+          name: this.config.repository.split("/")[1],
+        },
+      ),
+      "repository",
+    );
+    if (!isRecord(repository) || typeof repository.id !== "string" || !repository.id)
+      throw new Error("repository was not found");
     const query = `mutation($input: ConvertProjectV2DraftIssueItemToIssueInput!) { convertProjectV2DraftIssueItemToIssue(input: $input) { item { id content { ... on Issue { number title url } } } } }`;
-    const item = this.graphql(query, {
-      input: { itemId, repositoryId: repository.id },
-    })?.convertProjectV2DraftIssueItemToIssue?.item;
+    const item = identifiedProjectItem(
+      nestedGitHubField(
+        this.graphql(query, {
+          input: { itemId, repositoryId: repository.id },
+        }),
+        "convertProjectV2DraftIssueItemToIssue",
+        "item",
+      ),
+    );
     if (!item?.content?.url) throw new Error("draft conversion did not return an issue URL");
     this.gh(["issue", "edit", item.content.url, "--body-file", "-"], durableBody);
     return item;
   }
 
-  moveBefore(itemReference, beforeReference) {
+  moveBefore(itemReference: string, beforeReference: string) {
     const details = this.projectDetails(this.config.project.number);
     const items = this.itemList(this.config.project.number);
-    const matches = (item, reference: string) =>
+    const matches = (item: RoadmapIssueItem, reference: string) =>
       item.id === reference ||
       itemUrl(item) === reference ||
       itemTitle(item) === reference ||
       String(item?.content?.number ?? "") === reference.replace(/^#/, "");
-    const resolve = (reference) => {
+    const resolve = (reference: string) => {
       const found = items.filter((item) => matches(item, reference));
       if (found.length > 1) throw new Error(`move reference is ambiguous: ${reference}`);
       return found[0];
@@ -6087,7 +6537,7 @@ export class RoadmapClient {
     if (!moving || !before) throw new Error("move could not resolve both items");
     const remaining = items.filter((item) => item.id !== moving.id);
     const beforeIndex = remaining.findIndex((item) => item.id === before.id);
-    const afterId = beforeIndex <= 0 ? null : remaining[beforeIndex - 1].id;
+    const afterId = beforeIndex <= 0 ? null : remaining[beforeIndex - 1]?.id;
     const query = `mutation($input: UpdateProjectV2ItemPositionInput!) { updateProjectV2ItemPosition(input: $input) { items(first: 1) { totalCount } } }`;
     this.graphql(query, {
       input: { projectId: details.id, itemId: moving.id, afterId },
@@ -6096,7 +6546,7 @@ export class RoadmapClient {
 }
 
 async function loadConfig({ requireProjectNumber = false } = {}) {
-  const config = JSON.parse(await readFile(configPath, "utf8"));
+  const config: unknown = JSON.parse(await readFile(configPath, "utf8"));
   return validateConfig(config, { requireProjectNumber });
 }
 
@@ -6107,9 +6557,9 @@ async function offlineCheck() {
     await access(forbiddenLedger);
     throw new Error("docs/project/ledger.json must not exist");
   } catch (error) {
-    if (error.code !== "ENOENT") throw error;
+    if (errorCode(error) !== "ENOENT") throw error;
   }
-  const archives = [
+  const archives: readonly (readonly [string, RegExp])[] = [
     [
       "docs/archive/2026-09-04-supported-source-provenance-implementation-plan.md",
       /Appendix A supersedes Workstream 1/i,
@@ -6142,10 +6592,10 @@ async function offlineCheck() {
       "docs/ROADMAP.md",
       "docs/PROJECT-GOVERNANCE.md",
       "docs/RELEASING.md",
-    ].map(async (relative: string) => [
-      relative,
-      await readFile(path.join(projectRoot, relative), "utf8"),
-    ]),
+    ].map(
+      async (relative: string) =>
+        [relative, await readFile(path.join(projectRoot, relative), "utf8")] as const,
+    ),
   );
   for (const [relative, text] of currentDocs) {
     if (/\b(?:current|all)\s+\d+-port\b/i.test(text) || /\bcurrent\s+\d+\s+ports\b/i.test(text)) {
@@ -6157,7 +6607,7 @@ async function offlineCheck() {
   );
 }
 
-export function manualUiChecklist(config) {
+export function manualUiChecklist(config: RoadmapConfig) {
   const lines = materializeViews(config).map(
     (view, index) =>
       `${index + 1}. ${view.name}: group by ${view.manual_group_by ?? "nothing"}; sort by ${view.manual_sort_by}.`,
@@ -6171,15 +6621,23 @@ export function manualUiChecklist(config) {
   return lines;
 }
 
-function configuredValue(config, fieldName, value, flag) {
+function configuredValue(
+  config: RoadmapConfig,
+  fieldName: string,
+  value: unknown,
+  flag: string,
+): string {
   const field = config.fields.find((candidate) => candidate.name === fieldName);
-  if (!field?.options.includes(value))
-    throw new Error(`${value} is not a valid ${fieldName} option for ${flag}`);
+  if (typeof value !== "string" || !field?.options.includes(value))
+    throw new Error(`${diagnosticText(value)} is not a valid ${fieldName} option for ${flag}`);
   return value;
 }
 
-export function featureIntakeFields(config, options = {}) {
-  const fields = {
+export function featureIntakeFields(
+  config: RoadmapConfig,
+  options: Readonly<Record<string, unknown>> = {},
+) {
+  const fields: Record<string, string> = {
     Status: "Inbox",
     Priority: configuredValue(config, "Priority", options["--priority"] ?? "None", "--priority"),
     Horizon: configuredValue(config, "Horizon", options["--horizon"] ?? "Someday", "--horizon"),
@@ -6221,9 +6679,9 @@ export function resolveSnapshotOutput(output: string) {
   return outputPath;
 }
 
-function requiredOption(options, name) {
+function requiredOption(options: Readonly<Record<string, unknown>>, name: string): string {
   const value = options[name];
-  if (!value) throw new Error(`${name} is required`);
+  if (typeof value !== "string" || !value) throw new Error(`${name} is required`);
   return value;
 }
 
@@ -6240,22 +6698,98 @@ function roadmapLockPath() {
   return path.join(result.stdout.trim(), "portcove-locks", "roadmap");
 }
 
-async function runDoctor(config, client, { quiet = false } = {}) {
+type DoctorClient = Pick<
+  RoadmapClient,
+  "gh" | "completeProjectContext" | "viewList" | "projectAudit" | "itemList" | "repositoryIssues"
+>;
+function isDoctorClient(client: unknown): client is DoctorClient {
+  return (
+    isRecord(client) &&
+    [
+      "gh",
+      "completeProjectContext",
+      "viewList",
+      "projectAudit",
+      "itemList",
+      "repositoryIssues",
+    ].every((name) => typeof client[name] === "function")
+  );
+}
+type LoadedQualificationCatalog = QualificationCatalogObservation & {
+  ports: QualificationPortObservation[];
+};
+function qualificationCatalogObservation(value: unknown): LoadedQualificationCatalog {
+  if (!isRecord(value) || !Array.isArray(value.ports))
+    throw new Error("catalog diagnostic input requires a port array");
+  const ports: unknown[] = value.ports;
+  for (const port of ports) {
+    if (!isRecord(port) || typeof port.id !== "string")
+      throw new Error("catalog diagnostic port identity is malformed");
+    for (const field of [
+      "platforms",
+      "automated_tested_platforms",
+      "manually_validated_platforms",
+    ] as const) {
+      const entries = port[field];
+      if (
+        entries !== undefined &&
+        (!Array.isArray(entries) || !entries.every((entry: unknown) => typeof entry === "string"))
+      )
+        throw new Error(`catalog diagnostic ${field} is malformed`);
+    }
+  }
+  if (
+    value.source_catalog != null &&
+    (!isRecord(value.source_catalog) ||
+      (value.source_catalog.qualification != null &&
+        !Array.isArray(value.source_catalog.qualification)))
+  )
+    throw new Error("catalog diagnostic qualification collection is malformed");
+  // Only consumed diagnostic fields are projected; Core retains catalog admission authority.
+  return value as Record<string, unknown> & LoadedQualificationCatalog;
+}
+function linkedRepositoryObservation(value: unknown): LinkedProjectRepository {
+  if (
+    !isRecord(value) ||
+    typeof value.name !== "string" ||
+    !(
+      typeof value.owner === "string" ||
+      (isRecord(value.owner) &&
+        (value.owner.login === undefined || typeof value.owner.login === "string"))
+    )
+  )
+    throw new Error("Project linked repository identity is malformed");
+  return value as Record<string, unknown> & LinkedProjectRepository;
+}
+async function runDoctor(
+  config: RoadmapConfig,
+  clientInput: unknown,
+  { quiet = false }: { quiet?: boolean } = {},
+) {
+  if (!isDoctorClient(clientInput))
+    throw new Error("Roadmap doctor client capabilities are unavailable");
+  const client = clientInput;
   const log = quiet ? () => {} : console.log;
   client.gh(["auth", "status"]);
   const number = config.project.number;
   const context = client.completeProjectContext(number);
   const { details, fields } = context;
   const projectId = details.id;
+  if (!projectId) throw new Error("Roadmap doctor Project identity is unavailable");
   const views = client.viewList(projectId);
-  const audit = client.projectAudit(projectId);
+  const rawAudit = client.projectAudit(projectId);
+  const audit = projectDetailsObservation(rawAudit);
+  const rawRepositories = nestedGitHubField(rawAudit, "repositories", "nodes");
+  if (rawRepositories != null && !Array.isArray(rawRepositories))
+    throw new Error("Project linked repository inventory is malformed");
+  const repositoryEntries: unknown[] = Array.isArray(rawRepositories) ? rawRepositories : [];
   const drift = projectMachineDrift(config, {
     details: audit,
     fields,
     views,
-    repositories: audit?.repositories?.nodes ?? [],
+    repositories: repositoryEntries.map(linkedRepositoryObservation),
   });
-  const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
+  const catalog = qualificationCatalogObservation(JSON.parse(await readFile(catalogPath, "utf8")));
   const items = client.itemList(number, { includeDependencies: true, details });
   const repositoryIssues = client.repositoryIssues();
   const stage = validatePortStageSemantics(catalog, items);
@@ -6300,8 +6834,7 @@ async function runDoctor(config, client, { quiet = false } = {}) {
     const error = new Error(
       `Project drift:\n${[...drift, ...roadmapErrors].map((value) => `- ${value}`).join("\n")}`,
     );
-    error.doctorErrors = [...drift, ...roadmapErrors];
-    throw error;
+    throw Object.assign(error, { doctorErrors: [...drift, ...roadmapErrors] });
   }
   log(`Portcove Roadmap #${number} is reachable at ${details.url}.`);
   log(
@@ -6334,7 +6867,7 @@ async function runDoctor(config, client, { quiet = false } = {}) {
   };
 }
 
-export function roadmapCommandHelp(command, config) {
+export function roadmapCommandHelp(command: string, config: RoadmapConfig) {
   if (!/^[a-z-]+$/u.test(command)) throw new Error("unknown Roadmap command: " + command);
   const line = roadmapHelp
     .split("\n")
@@ -6363,7 +6896,12 @@ export function roadmapCommandHelp(command, config) {
     line.trim(),
     ...fields.map(
       ([flag, field]) =>
-        flag + ": " + config.fields.find((entry) => entry.name === field).options.join(" | "),
+        flag +
+        ": " +
+        (config.fields.find((entry) => entry.name === field)?.options.join(" | ") ??
+          (() => {
+            throw new Error(`missing configured field ${field}`);
+          })()),
     ),
     command === "context" || command === "doctor"
       ? "--summary: retain raw evidence and display a bounded projection; mutually exclusive with --json"
@@ -6373,10 +6911,10 @@ export function roadmapCommandHelp(command, config) {
     .join("\n");
 }
 
-async function main(argv) {
+async function main(argv: readonly string[]) {
   const parsed = parseArguments(argv);
   if (parsed.options["--help"]) {
-    console.log(roadmapCommandHelp(parsed.command, JSON.parse(await readFile(configPath, "utf8"))));
+    console.log(roadmapCommandHelp(parsed.command, await loadConfig()));
     return;
   }
   if (parsed.options["--summary"] && parsed.options["--json"])
@@ -6403,6 +6941,7 @@ async function main(argv) {
   );
   try {
     if (parsed.command === "rename-commitment") {
+      if (!client || !config) throw new Error("Roadmap operation configuration is unavailable");
       if (
         parsed.positionals.length ||
         Object.keys(parsed.options).some((key) => key !== "--apply") ||
@@ -6429,7 +6968,9 @@ async function main(argv) {
       try {
         const checked = await checkContextualDoctor({
           capture: () => captureCheckoutContext(projectRoot),
-          expectedHead: parsed.options["--expected-head"],
+          ...(parsed.options["--expected-head"] === undefined
+            ? {}
+            : { expectedHead: requiredOption(parsed.options, "--expected-head") }),
           report: (observed) => {
             context = observed;
             if (!parsed.options["--json"] && !parsed.options["--summary"])
@@ -6462,7 +7003,13 @@ async function main(argv) {
           kind: "roadmap-doctor",
           status: "failed",
           context,
-          errors: error.doctorErrors ?? [sanitizeOperationError(error).message],
+          errors: (() => {
+            const errors = qualificationField(error, "doctorErrors");
+            return Array.isArray(errors) &&
+              errors.every((entry: unknown) => typeof entry === "string")
+              ? errors
+              : [sanitizeOperationError(error).message];
+          })(),
         };
         process.exitCode = 1;
       }
@@ -6478,14 +7025,15 @@ async function main(argv) {
       if (parsed.options["--summary"]) {
         if (reference === "retention unavailable")
           throw new Error("Roadmap summary raw retention failed");
-        if (!context) throw new Error(report.errors.join("; "));
+        if (!context) throw new Error((report.errors ?? []).join("; "));
         console.log(summarizeReport("doctor", report, reference).text);
       } else if (parsed.options["--json"])
         console.log(JSON.stringify({ ...report, evidence: reference }));
       else if (context) console.log(summarizeReport("doctor", report, reference).text);
-      else console.error(report.errors.join("\n"));
+      else console.error((report.errors ?? []).join("\n"));
       return;
     }
+    if (!client || !config) throw new Error("Roadmap operation configuration is unavailable");
     if (parsed.command === "bootstrap") {
       const result = client.bootstrap();
       console.log(
@@ -6508,8 +7056,14 @@ async function main(argv) {
       const item = client.createPortIssue({
         title,
         upstream: url,
-        catalogId: parsed.options["--catalog-id"],
-        portKey: parsed.options["--port-key"],
+        catalogId:
+          parsed.options["--catalog-id"] === undefined
+            ? undefined
+            : requiredOption(parsed.options, "--catalog-id"),
+        portKey:
+          parsed.options["--port-key"] === undefined
+            ? undefined
+            : requiredOption(parsed.options, "--port-key"),
         onIssueCreated: (issue) => {
           const directory = path.join(projectRoot, "work", "roadmap-intake");
           mkdirSync(directory, { recursive: true });
@@ -6538,7 +7092,9 @@ async function main(argv) {
       const value = requiredOption(parsed.options, "--issue");
       if (!/^\d+$/.test(value) || Number(value) < 1)
         throw new Error("--issue must be a positive repository issue number");
-      const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
+      const catalog = qualificationCatalogObservation(
+        JSON.parse(await readFile(catalogPath, "utf8")),
+      );
       const result = client.normalizePortIssue({
         number: Number(value),
         catalog,
@@ -6560,14 +7116,17 @@ async function main(argv) {
       return;
     }
     if (parsed.command === "promote") {
-      if (parsed.positionals.length !== 1)
+      if (parsed.positionals.length !== 1 || parsed.positionals[0] === undefined)
         throw new Error("usage: roadmap.mts promote <draft-item-id>");
       const draft = client
         .itemList(config.project.number)
         .find((item) => item.id === parsed.positionals[0]);
       if (!draft) throw new Error(`draft item was not found: ${parsed.positionals[0]}`);
       const durableBody = parsed.options["--spec-file"]
-        ? await readFile(path.resolve(projectRoot, parsed.options["--spec-file"]), "utf8")
+        ? await readFile(
+            path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file")),
+            "utf8",
+          )
         : itemBody(draft);
       validateDurableIssueBody(durableBody);
       const item = client.promote(parsed.positionals[0], durableBody);
@@ -6575,14 +7134,15 @@ async function main(argv) {
       return;
     }
     if (parsed.command === "set") {
-      if (parsed.positionals.length !== 1)
+      if (parsed.positionals.length !== 1 || parsed.positionals[0] === undefined)
         throw new Error("usage: roadmap.mts set <item-or-issue> [field options]");
-      const values = {};
+      const values: Record<string, string> = {};
       for (const [flag, value] of Object.entries(parsed.options)) {
         const field = setFlags.get(flag);
         if (!field) throw new Error(`unsupported set option: ${flag}; use set --help`);
         const definition = config.fields.find((candidate) => candidate.name === field);
-        if (!definition.options.includes(value))
+        if (!definition) throw new Error(`missing configured Project field ${field}`);
+        if (typeof value !== "string" || !definition.options.includes(value))
           throw new Error(
             `${value} is not a valid ${field} option; allowed: ${definition.options.join(" | ")}`,
           );
@@ -6609,13 +7169,13 @@ async function main(argv) {
           throw new Error(`unsupported set-many option: ${option}`);
       }
       const specPath = path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file"));
-      const spec = JSON.parse(await readFile(specPath, "utf8"));
+      const spec: unknown = JSON.parse(await readFile(specPath, "utf8"));
       const result = await executeSetMany({
         client,
         config,
         spec,
         apply: parsed.options["--apply"] === true,
-        onPlan: parsed.options["--json"] ? undefined : (summary) => console.log(summary),
+        ...(parsed.options["--json"] ? {} : { onPlan: (summary: string) => console.log(summary) }),
       });
       if (parsed.options["--json"]) {
         console.log(
@@ -6627,7 +7187,7 @@ async function main(argv) {
       return;
     }
     if (parsed.command === "move") {
-      if (parsed.positionals.length !== 1)
+      if (parsed.positionals.length !== 1 || parsed.positionals[0] === undefined)
         throw new Error("usage: roadmap.mts move <item> --before <item>");
       client.moveBefore(parsed.positionals[0], requiredOption(parsed.options, "--before"));
       console.log(`Moved ${parsed.positionals[0]} before ${parsed.options["--before"]}.`);
@@ -6664,9 +7224,10 @@ async function main(argv) {
       const operational = client.operationalSnapshot();
       if (operational.status === "unknown") {
         const error = new Error(operational.reason);
-        error.operationStatus = "unknown";
-        error.operationEvidence = { operational_snapshot: operational };
-        throw error;
+        throw Object.assign(error, {
+          operationStatus: "unknown",
+          operationEvidence: { operational_snapshot: operational },
+        });
       }
       const binding = bindOperationalAssignment(operational, runner, Number(value));
       const pr = parsed.options["--coordination-pr"];
@@ -6679,19 +7240,27 @@ async function main(argv) {
       );
       if (parsed.options["--consumed-file"] && parsed.options["--consumed-comment"])
         throw new Error("choose one consumed file or comment");
-      let consumed = null;
-      let consumedContext = null;
-      let reference = null;
+      let consumed: ExecutionSnapshot | null = null;
+      let consumedContext: Record<string, unknown> | null = null;
+      let reference: unknown = null;
       if (parsed.options["--consumed-file"]) {
-        const checkpoint = JSON.parse(
-          await readFile(path.resolve(projectRoot, parsed.options["--consumed-file"]), "utf8"),
+        const checkpoint: unknown = JSON.parse(
+          await readFile(
+            path.resolve(projectRoot, requiredOption(parsed.options, "--consumed-file")),
+            "utf8",
+          ),
         );
-        consumed = validateExecutionSnapshot(checkpoint.snapshot ?? checkpoint);
-        consumedContext = checkpoint;
+        consumed = validateExecutionSnapshot(
+          qualificationField(checkpoint, "snapshot") ?? checkpoint,
+        );
+        consumedContext = isRecord(checkpoint) ? checkpoint : null;
         reference = { kind: "disposable checkpoint", latest_consumption: "not established" };
       }
       if (parsed.options["--consumed-comment"]) {
-        const comment = client.coordinationComment(parsed.options["--consumed-comment"], target);
+        const comment = client.coordinationComment(
+          requiredOption(parsed.options, "--consumed-comment"),
+          target,
+        );
         consumed = consumedReference(comment, {
           repository: config.repository,
           runner,
@@ -6705,7 +7274,10 @@ async function main(argv) {
         };
       }
       const reservation = parsed.options["--reservation-comment"]
-        ? client.coordinationComment(parsed.options["--reservation-comment"], target)
+        ? client.coordinationComment(
+            requiredOption(parsed.options, "--reservation-comment"),
+            target,
+          )
         : null;
       const live = client.executionIssue(Number(value));
       const context = deriveExecutionContext(config, live.item, live.relationships, {
@@ -6722,18 +7294,20 @@ async function main(argv) {
         reservation,
         target,
       });
-      context.consumed_reference = reference;
+      Object.assign(context, { consumed_reference: reference });
       Object.assign(
         context,
         operationalEnvelope(operational, consumedContext?.operational_baseline, binding),
       );
       if (
         consumedContext?.observation_revision === context.observation_revision &&
-        consumedContext?.snapshot?.revision === context.snapshot.revision
+        nestedGitHubField(consumedContext, "snapshot", "revision") === context.snapshot.revision
       ) {
         context.current_specification = null;
-        context.specification_disposition =
-          "unchanged from the validated consumed baseline; complete task specification remains bound to its raw observation";
+        Object.assign(context, {
+          specification_disposition:
+            "unchanged from the validated consumed baseline; complete task specification remains bound to its raw observation",
+        });
       }
       if (parsed.options["--summary"]) {
         console.log(
@@ -6751,7 +7325,7 @@ async function main(argv) {
     }
     if (parsed.command === "handoff-offer") {
       executionOptions(parsed, ["--spec-file", "--apply", "--json"]);
-      const spec = JSON.parse(
+      const spec: unknown = JSON.parse(
         await readFile(
           path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file")),
           "utf8",
@@ -6775,22 +7349,40 @@ async function main(argv) {
         "--apply",
         "--json",
       ]);
-      const packet = JSON.parse(
+      const packet: unknown = JSON.parse(
         await readFile(
           path.resolve(projectRoot, requiredOption(parsed.options, "--offer-file")),
           "utf8",
         ),
       );
-      const offer = packet.offer ?? packet;
+      const rawOffer = qualificationField(packet, "offer") ?? packet;
+      if (
+        !isRecord(rawOffer) ||
+        !isRecord(rawOffer.proposed) ||
+        !isRecord(rawOffer.current) ||
+        typeof rawOffer.proposed.owning_issue !== "number" ||
+        !Number.isSafeInteger(rawOffer.proposed.owning_issue) ||
+        rawOffer.proposed.owning_issue < 1
+      )
+        throw new Error("offer packet identity is malformed");
       const evidence = requiredOption(parsed.options, "--evidence");
       const evidenceObservation = client.operationalReturnEvidence(
         evidence,
-        offer.proposed.owning_issue,
-        offer.proposed.source,
+        rawOffer.proposed.owning_issue,
+        rawOffer.proposed.source,
       );
+      const snapshot = client.operationalSnapshot();
+      const offer = operationalOfferPacket(config, snapshot, {
+        ...rawOffer.proposed,
+        current_assignment_id: rawOffer.current.assignment_id,
+      });
+      if (digest(offer) !== digest(rawOffer))
+        throw new Error(
+          "offer source, scope or generation is superseded; preserve the unapplied return",
+        );
       const result = prepareOperationalReturn({
         config,
-        snapshot: client.operationalSnapshot(),
+        snapshot,
         offer,
         runner: requiredOption(parsed.options, "--runner"),
         source: gitHead(),
@@ -6811,16 +7403,28 @@ async function main(argv) {
         "--apply",
         "--json",
       ]);
-      const context = JSON.parse(
+      const context: unknown = JSON.parse(
         await readFile(
           path.resolve(projectRoot, requiredOption(parsed.options, "--context-file")),
           "utf8",
         ),
       );
+      if (!isRecord(context)) throw new Error("execution context packet is malformed");
+      const consumedContext = {
+        snapshot: context.snapshot,
+        observation_revision: context.observation_revision,
+        operational_baseline: context.operational_baseline,
+        ...(isRecord(context.pickup)
+          ? { pickup: { reported_runner: context.pickup.reported_runner } }
+          : {}),
+        ...(isRecord(context.operational_binding)
+          ? { operational_binding: context.operational_binding }
+          : {}),
+      };
       const result = prepareOperationalConsumption({
         client,
         config,
-        context,
+        context: consumedContext,
         runner: requiredOption(parsed.options, "--runner"),
         action: requiredOption(parsed.options, "--action"),
         evidence: requiredOption(parsed.options, "--evidence"),
@@ -6829,7 +7433,7 @@ async function main(argv) {
       console.log(
         parsed.options["--json"]
           ? JSON.stringify(result)
-          : `${result.status}: ${result.url ?? result.body ?? result.reason}`,
+          : `${result.status}: ${diagnosticText(qualificationField(result, "url") ?? qualificationField(result, "body") ?? qualificationField(result, "reason"))}`,
       );
       return;
     }
@@ -6895,7 +7499,9 @@ async function main(argv) {
     if (parsed.command === "snapshot") {
       const release = requiredOption(parsed.options, "--release");
       const output = requiredOption(parsed.options, "--output");
-      if (!config.fields.find((field) => field.name === "Target release").options.includes(release))
+      if (
+        !config.fields.find((field) => field.name === "Target release")?.options.includes(release)
+      )
         throw new Error(`unknown target release: ${release}`);
       const outputPath = resolveSnapshotOutput(output);
       const { writeFile } = await import("node:fs/promises");
@@ -6903,10 +7509,12 @@ async function main(argv) {
         await access(outputPath);
         throw new Error(`snapshot output already exists: ${output}`);
       } catch (error) {
-        if (error.code !== "ENOENT") throw error;
+        if (errorCode(error) !== "ENOENT") throw error;
       }
       const [catalog, commit] = await Promise.all([
-        readFile(catalogPath, "utf8").then(JSON.parse),
+        readFile(catalogPath, "utf8").then((text) =>
+          qualificationCatalogObservation(JSON.parse(text)),
+        ),
         Promise.resolve(gitHead()),
       ]);
       const document = renderSnapshot({
@@ -6934,7 +7542,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
     await main(process.argv.slice(2));
   } catch (error) {
     const json =
-      ["set-many", "context", "acknowledge", "next"].includes(process.argv[2]) &&
+      ["set-many", "context", "acknowledge", "next"].includes(process.argv[2] ?? "") &&
       process.argv.slice(3).includes("--json");
     const safeError = sanitizeOperationError(error);
     if (json) {
@@ -6942,9 +7550,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
         JSON.stringify(
           githubOperationEnvelope({
             operation: `roadmap.${process.argv[2]}`,
-            status: error.operationStatus ?? "failed",
+            status: qualificationField(error, "operationStatus") ?? "failed",
             summary: safeError.message,
-            evidence: error.operationEvidence ?? {},
+            evidence: qualificationField(error, "operationEvidence") ?? {},
             error,
           }),
         ),

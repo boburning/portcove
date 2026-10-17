@@ -3791,6 +3791,7 @@ test("capture-port creates one Project-backed issue without depending on parent 
         data: {
           node: {
             projectItems: {
+              totalCount: 0,
               nodes: [],
               pageInfo: { hasNextPage: false, endCursor: null },
             },
@@ -4093,6 +4094,51 @@ test("move refuses ambiguous item references", () => {
   );
 });
 
+test("Project membership refuses malformed or stalled coverage before mutation", () => {
+  const cases = [
+    () => ({ totalCount: 0, nodes: [], pageInfo: {} }),
+    () => ({ totalCount: 1, nodes: [], pageInfo: { hasNextPage: true, endCursor: "" } }),
+    (read) => ({
+      totalCount: 4,
+      nodes: [{ id: `I_${read}`, project: { id: "OTHER" } }],
+      pageInfo: { hasNextPage: true, endCursor: "repeated" },
+    }),
+  ];
+  for (const page of cases) {
+    let reads = 0,
+      mutations = 0;
+    const client = new RoadmapClient(config, (args, input) => {
+      if (args[0] === "project" && args[1] === "view") return JSON.stringify({ id: "P_selected" });
+      if (args[0] === "project" && args[1] === "field-list") return JSON.stringify({ fields: [] });
+      if (input?.includes("addProjectV2ItemById")) {
+        mutations++;
+        return JSON.stringify({ data: { addProjectV2ItemById: { item: { id: "I_new" } } } });
+      }
+      assert.ok(++reads <= 3, "fixture read budget exceeded");
+      return JSON.stringify({ data: { node: { projectItems: page(reads) } } });
+    });
+    assert.throws(() => client.ensureIssueItem("I_source"), /incomplete GitHub inventory/);
+    assert.equal(mutations, 0);
+  }
+});
+
+test("repository marker reserves empty sentinel for an actually empty response", () => {
+  for (const marker of [
+    [{}],
+    [null],
+    [{ number: null }],
+    [{ number: 0 }],
+    [{ number: 1 }, { number: 2 }],
+  ]) {
+    const client = new RoadmapClient(config, (args) =>
+      JSON.stringify(args[2].includes("per_page=1") ? marker : []),
+    );
+    assert.throws(() => client.repositoryIssues(), /invalid repository issue marker/);
+  }
+  const empty = new RoadmapClient(config, () => "[]");
+  assert.deepEqual(empty.repositoryIssues(), []);
+});
+
 test("RoadmapClient reuses an existing issue item instead of duplicating it", () => {
   const calls = [];
   const mockedConfig = structuredClone(config);
@@ -4108,10 +4154,12 @@ test("RoadmapClient reuses an existing issue item instead of duplicating it", ()
           node: {
             projectItems: after
               ? {
+                  totalCount: 2,
                   nodes: [{ id: "PVTI_existing", project: { id: "PVT_project" } }],
                   pageInfo: { hasNextPage: false, endCursor: null },
                 }
               : {
+                  totalCount: 2,
                   nodes: [{ id: "PVTI_other", project: { id: "OTHER" } }],
                   pageInfo: { hasNextPage: true, endCursor: "page2" },
                 },
@@ -4248,6 +4296,46 @@ test("view inventory refuses incomplete records rather than claiming a complete 
       () => new RoadmapClient(config, () => JSON.stringify({ data: { node } })).viewList("PVT"),
       /incomplete GitHub inventory/,
     );
+  }
+});
+
+test("Project provider observations reject malformed option scalars before planning", () => {
+  const client = new RoadmapClient(config, () =>
+    JSON.stringify({
+      fields: [{ id: "F_status", name: "Status", options: [{ id: "O_bad", name: 7 }] }],
+    }),
+  );
+  assert.throws(() => client.fieldList(config.project.number), /malformed Project option/);
+});
+
+test("coordination history rejects coerced creation and edit timestamps", () => {
+  const client = new RoadmapClient(config, () => assert.fail("unexpected API call"));
+  const target = coordinationTarget(config, 1104);
+  client.coordinationBinding = () => ({ comments: 1 });
+  for (const field of ["createdAt", "updatedAt"]) {
+    for (const timestamp of [0, ["2026-10-07T03:00:00Z"]]) {
+      const record = {
+        id: "IC_1",
+        url: `${target.url}#issuecomment-1`,
+        body: "retained",
+        createdAt: "2026-10-07T03:00:00Z",
+        updatedAt: "2026-10-07T03:00:00Z",
+        [field]: timestamp,
+      };
+      client.graphql = () => ({
+        repository: {
+          issue: {
+            url: target.url,
+            comments: {
+              totalCount: 1,
+              nodes: [record],
+              pageInfo: { hasPreviousPage: false },
+            },
+          },
+        },
+      });
+      assert.throws(() => client.coordinationRecords(target), /unavailable or incomplete/);
+    }
   }
 });
 
