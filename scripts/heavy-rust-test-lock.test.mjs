@@ -654,6 +654,6 @@ test("platform identity probes fail closed on their bounded timeout", () => {
         platform: "win32",
         spawnSync: () => ({ error, status: null, stdout: "", stderr: "" }),
       }),
-    /identity probe timed out/u,
+    { code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE", message: /identity probe timed out/u },
   );
 });

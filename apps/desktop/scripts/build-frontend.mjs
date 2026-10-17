@@ -1,3 +1,4 @@
+import { resourceEntrypoint } from "../../../scripts/resource-command.mjs";
 import { fileURLToPath } from "node:url";
 import { lstatSync, rmSync } from "node:fs";
 import path from "node:path";
@@ -55,4 +56,6 @@ export function buildFrontend(
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url))
-  process.exitCode = buildFrontend(process.env, spawnCommand, process.argv.includes("--fresh"));
+  process.exitCode = await resourceEntrypoint("browser", () =>
+    buildFrontend(process.env, spawnCommand, process.argv.includes("--fresh")),
+  );

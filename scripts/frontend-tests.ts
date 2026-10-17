@@ -29,7 +29,7 @@ const browserProject = {
   },
   test: {
     name: "browser",
-    maxWorkers: 4,
+    maxWorkers: 2,
     sequence: { groupOrder: 1 },
     setupFiles: ["test/browser-setup.mjs"],
     include: ["src/**/*.browser.test.{ts,tsx}"],

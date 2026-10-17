@@ -422,6 +422,7 @@ async function run() {
   const lock = await acquireNativeSessionLock({
     workspace: root,
     scenarios: ["native-linux-packaged-webview-boundary"],
+    namespaceDelegation: true,
   });
   const launches = [];
   const joins = [];

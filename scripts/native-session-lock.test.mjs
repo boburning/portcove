@@ -5,12 +5,78 @@ import path from "node:path";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
 import { acquireNativeSessionLock } from "./native-session-lock.mjs";
-import { toolCachePaths } from "./tool-cache.mjs";
 
 async function fixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-native-lock-"));
   return { root, lockPath: path.join(root, "native-desktop") };
 }
+
+test("private XDG child preserves both host-wide and legacy native ownership", async () => {
+  const { root } = await fixture();
+  try {
+    const domain = path.join(root, ".portcove", "resources");
+    await mkdir(domain, { recursive: true });
+    await writeFile(
+      path.join(domain, "config.json"),
+      JSON.stringify({ legacyMode: "coordinated" }),
+    );
+    const moduleUrl = new URL("./native-session-lock.mjs", import.meta.url).href;
+    const childCode = `
+      import assert from "node:assert/strict";
+      import { readFile } from "node:fs/promises";
+      import path from "node:path";
+      const { acquireNativeSessionLock, nativeSessionLockPath, legacyNativeSessionLockPath } = await import(${JSON.stringify(moduleUrl)});
+      assert.equal(nativeSessionLockPath(), ${JSON.stringify(path.join(domain, "native-desktop"))});
+      const records = [nativeSessionLockPath(), legacyNativeSessionLockPath()].map(value => path.join(value, "owner.json"));
+      const before = await Promise.all(records.map(value => readFile(value, "utf8")));
+      const inherited = await acquireNativeSessionLock();
+      assert.equal(inherited.inherited, true);
+      assert.equal(inherited.host.inherited, true);
+      await inherited.release();
+      assert.deepEqual(await Promise.all(records.map(value => readFile(value, "utf8"))), before);
+      await assert.rejects(acquireNativeSessionLock({}, { inheritedToken: "wrong-token" }), /does not match/);
+    `;
+    const ownerCode = `
+      import assert from "node:assert/strict";
+      import { readFile } from "node:fs/promises";
+      import path from "node:path";
+      import { spawnSync } from "node:child_process";
+      const { acquireNativeSessionLock, nativeSessionLockPath, legacyNativeSessionLockPath } = await import(${JSON.stringify(moduleUrl)});
+      const owner = await acquireNativeSessionLock();
+      const records = [nativeSessionLockPath(), legacyNativeSessionLockPath()].map(value => path.join(value, "owner.json"));
+      try {
+        const before = await Promise.all(records.map(value => readFile(value, "utf8")));
+        const result = spawnSync(process.execPath, ["--input-type=module", "--eval", ${JSON.stringify(childCode)}], {
+          encoding: "utf8", timeout: 15000, windowsHide: true,
+          env: { ...process.env, XDG_CACHE_HOME: ${JSON.stringify(path.join(root, "private-xdg"))}, PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: owner.owner.token }
+        });
+        assert.equal(result.error, undefined);
+        assert.equal(result.status, 0, result.stderr);
+        assert.deepEqual(await Promise.all(records.map(value => readFile(value, "utf8"))), before);
+      } finally { await owner.release(); }
+      for (const record of records) await assert.rejects(readFile(record), { code: "ENOENT" });
+    `;
+    const result = spawnSync(process.execPath, ["--input-type=module", "--eval", ownerCode], {
+      encoding: "utf8",
+      timeout: 25_000,
+      windowsHide: true,
+      env: {
+        ...process.env,
+        HOME: root,
+        USERPROFILE: root,
+        XDG_CACHE_HOME: path.join(root, "outer-xdg"),
+        PORTCOVE_SHARED_TOOL_CACHE: path.join(root, "shared-cache"),
+        PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: undefined,
+        PORTCOVE_CONTAINER_GUEST: undefined,
+        GITHUB_ACTIONS: undefined,
+      },
+    });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("native lock blocks a live owner and reports its identity", async () => {
   const { root, lockPath } = await fixture();
@@ -32,29 +98,47 @@ test("native lock blocks a live owner and reports its identity", async () => {
   }
 });
 
-test("native lock reclaims only a positively stale valid owner", async () => {
+test("native lock preserves PID-only legacy ownership until desktop quiescence is established", async () => {
   const { root, lockPath } = await fixture();
   try {
     await mkdir(lockPath);
-    await writeFile(
-      path.join(lockPath, "owner.json"),
-      JSON.stringify({
-        format_version: 1,
-        token: "stale",
-        pid: 999999,
-        created_at: "2026-01-01T00:00:00.000Z",
-        workspace: "old",
-      }),
+    const bytes = JSON.stringify({
+      format_version: 1,
+      token: "stale",
+      pid: 999999,
+      created_at: "2026-01-01T00:00:00.000Z",
+      workspace: "old",
+    });
+    await writeFile(path.join(lockPath, "owner.json"), bytes);
+    await assert.rejects(
+      acquireNativeSessionLock({ workspace: "new" }, { lockPath, isProcessAlive: () => false }),
+      { code: "PORTCOVE_RESOURCE_RECOVERY_REQUIRED" },
     );
-    const current = await acquireNativeSessionLock(
-      { workspace: "new", scenarios: ["accessibility"] },
-      { lockPath, isProcessAlive: () => false },
+    assert.equal(await readFile(path.join(lockPath, "owner.json"), "utf8"), bytes);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("native inherited token also requires the same process creation identity", async () => {
+  const { root, lockPath } = await fixture();
+  try {
+    const owner = await acquireNativeSessionLock(
+      {},
+      { lockPath, inspectProcessIdentity: () => "first-creation" },
+    );
+    await assert.rejects(
+      acquireNativeSessionLock(
+        {},
+        { lockPath, inheritedToken: owner.owner.token, inspectProcessIdentity: () => "reused-pid" },
+      ),
+      /verified live creation identity/,
     );
     assert.equal(
-      JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8")).token,
-      current.owner.token,
+      JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8")).process_identity,
+      "first-creation",
     );
-    await current.release();
+    await owner.release();
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -94,47 +178,69 @@ test("child harness can inherit but cannot forge a runner lock", async () => {
   }
 });
 
-test("private XDG child inherits the existing shared-root lock without releasing or forging it", async () => {
-  const { root } = await fixture();
-  const sharedRoot = path.join(root, "shared-cache");
-  const paths = toolCachePaths({ environment: { PORTCOVE_SHARED_TOOL_CACHE: sharedRoot } });
-  const lockPath = path.join(paths.sharedRoot, "locks", "native-desktop");
-  const runner = await acquireNativeSessionLock({}, { lockPath });
-  try {
-    const moduleUrl = new URL("./native-session-lock.mjs", import.meta.url).href;
-    const code = `
-      import assert from "node:assert/strict";
-      import { readFile } from "node:fs/promises";
-      import path from "node:path";
-      const { acquireNativeSessionLock, nativeSessionLockPath } = await import(${JSON.stringify(moduleUrl)});
-      const expected = ${JSON.stringify(lockPath)};
-      assert.equal(nativeSessionLockPath(), expected);
-      const before = await readFile(path.join(expected, "owner.json"), "utf8");
-      const child = await acquireNativeSessionLock();
-      assert.equal(child.inherited, true);
-      await child.release();
-      assert.equal(await readFile(path.join(expected, "owner.json"), "utf8"), before);
-      await assert.rejects(acquireNativeSessionLock({}, { inheritedToken: "wrong-token" }), /does not match/);
-    `;
-    const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code], {
-      encoding: "utf8",
-      timeout: 15_000,
-      windowsHide: true,
-      env: {
-        ...process.env,
-        XDG_CACHE_HOME: path.join(root, "private-xdg"),
-        PORTCOVE_SHARED_TOOL_CACHE: paths.sharedRoot,
-        PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: runner.owner.token,
+test("native outer admission cannot hold retirement guards while handover is pending", async () => {
+  let inspected = false;
+  await assert.rejects(
+    acquireNativeSessionLock(
+      {},
+      {
+        lockPath: path.join(os.tmpdir(), "must-not-be-created-portcove-handover"),
+        environment: {},
+        readConfiguration: async () => {
+          inspected = true;
+          return { legacyMode: "pending" };
+        },
       },
-    });
-    assert.equal(result.error, undefined);
-    assert.equal(result.status, 0, result.stderr);
-    assert.equal(
-      JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8")).token,
-      runner.owner.token,
-    );
+    ),
+    { code: "PORTCOVE_RESOURCE_HANDOVER_PENDING" },
+  );
+  assert.equal(inspected, true);
+});
+
+test("private namespace inheritance requires explicit outer delegation and its exact token", async () => {
+  const { root, lockPath } = await fixture();
+  try {
+    const lease = await acquireNativeSessionLock({ namespaceDelegation: true }, { lockPath });
+    try {
+      const inherited = await acquireNativeSessionLock(
+        {},
+        {
+          lockPath,
+          inheritedToken: lease.owner.token,
+          environment: { PORTCOVE_CONTAINER_GUEST: "1" },
+          inspectProcessIdentity: () => {
+            throw new Error("Namespace PID cannot observe outer PID");
+          },
+        },
+      );
+      assert.equal(inherited.inherited, true);
+      await assert.rejects(
+        acquireNativeSessionLock(
+          {},
+          { lockPath, inheritedToken: "foreign", environment: { PORTCOVE_CONTAINER_GUEST: "1" } },
+        ),
+        /does not match/u,
+      );
+    } finally {
+      await lease.release();
+    }
+    const ordinary = await acquireNativeSessionLock({}, { lockPath });
+    try {
+      await assert.rejects(
+        acquireNativeSessionLock(
+          {},
+          {
+            lockPath,
+            inheritedToken: ordinary.owner.token,
+            environment: { PORTCOVE_CONTAINER_GUEST: "1" },
+          },
+        ),
+        /lacks an explicit outer delegation/u,
+      );
+    } finally {
+      await ordinary.release();
+    }
   } finally {
-    await runner.release();
     await rm(root, { recursive: true, force: true });
   }
 });

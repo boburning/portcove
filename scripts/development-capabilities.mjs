@@ -13,7 +13,12 @@ export function profileCapabilities(
 ) {
   if (!developmentProfiles.includes(profile))
     throw new Error(`unknown development profile: ${profile}`);
-  const frontend = ["node", "pnpm", "frontend-dependencies"];
+  const frontend = [
+    "node",
+    "pnpm",
+    "frontend-dependencies",
+    ...(["win32", "linux"].includes(platform) ? ["rustc"] : []),
+  ];
   const core = ["rustc", "cargo", "rustfmt-component", "clippy-component", "cargo-nextest"];
   if (profile === "frontend") return frontend;
   if (profile === "core") return core;
@@ -102,6 +107,13 @@ export function validationCapabilities(entry, platform = process.platform) {
     ids.add("pnpm");
     ids.add("frontend-dependencies");
   }
+  // Heavy local frontend phases reuse the existing containment supervisor.
+  // Hosted runners bypass local admission; cheap formatting/syntax/focused lint do not need it.
+  if (
+    ["win32", "linux"].includes(platform) &&
+    (entry.id.startsWith("ui-") || ["repository-lint", "fallow"].includes(entry.id))
+  )
+    ids.add("rustc");
   if (entry.id === "playnite-contract") {
     ids.add("pwsh");
     ids.add("windows-host");

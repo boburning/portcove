@@ -440,22 +440,28 @@ export function runWorkspaceRustImpact(plan, dependencies = {}) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    if (process.argv[2] === "--workspace-run") {
-      const plan = JSON.parse(
-        process.env.PORTCOVE_PLAN_JSON ?? readFileSync(process.argv[3], "utf8"),
-      );
-      const checkout = execFileSync("git", ["rev-parse", "HEAD"], {
-        cwd: projectRoot,
-        encoding: "utf8",
-      }).trim();
-      if (checkout !== plan.identities.checkout)
-        throw new Error("Rust impact plan checkout mismatch");
-      process.exitCode = runWorkspaceRustImpact(plan);
-    } else {
-      if (process.argv[2] !== "--run")
-        throw new Error("Use the guarded Rust runner for impact unions");
-      process.exitCode = runRustImpactUnion(process.argv[3], process.argv.slice(4));
-    }
+    if (!["--workspace-run", "--run"].includes(process.argv[2]))
+      throw new Error("Use the guarded Rust runner for impact unions");
+    const { resourceEntrypoint } = await import("./resource-command.mjs");
+    process.exitCode = await resourceEntrypoint("rust", async () => {
+      if (process.argv[2] === "--workspace-run") {
+        const plan = JSON.parse(
+          process.env.PORTCOVE_PLAN_JSON ?? readFileSync(process.argv[3], "utf8"),
+        );
+        const checkout = execFileSync("git", ["rev-parse", "HEAD"], {
+          cwd: projectRoot,
+          encoding: "utf8",
+        }).trim();
+        if (checkout !== plan.identities.checkout)
+          throw new Error("Rust impact plan checkout mismatch");
+        process.exitCode = runWorkspaceRustImpact(plan);
+      } else {
+        if (process.argv[2] !== "--run")
+          throw new Error("Use the guarded Rust runner for impact unions");
+        process.exitCode = runRustImpactUnion(process.argv[3], process.argv.slice(4));
+      }
+      return process.exitCode ?? 0;
+    });
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

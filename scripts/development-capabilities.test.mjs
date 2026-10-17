@@ -25,7 +25,19 @@ test("frontend and direct Core inventories are independent; daily and native are
   const core = await developmentCapabilityPlan("core");
   const daily = await developmentCapabilityPlan("daily");
   const native = await developmentCapabilityPlan("native-desktop");
-  assert.deepEqual(frontend.capabilities, ["node", "pnpm", "frontend-dependencies"]);
+  assert.deepEqual(frontend.capabilities, profileCapabilities("frontend"));
+  assert.deepEqual(profileCapabilities("frontend", { platform: "darwin" }), [
+    "node",
+    "pnpm",
+    "frontend-dependencies",
+  ]);
+  for (const platform of ["win32", "linux"])
+    assert.deepEqual(profileCapabilities("frontend", { platform }), [
+      "node",
+      "pnpm",
+      "frontend-dependencies",
+      "rustc",
+    ]);
   assert.deepEqual(core.capabilities, [
     "rustc",
     "cargo",
@@ -39,7 +51,7 @@ test("frontend and direct Core inventories are independent; daily and native are
   );
   assert.equal(core.setup.frontend, false);
   assert.equal(core.setup.aqua, false);
-  assert.equal(frontend.setup.rust, false);
+  assert.equal(frontend.setup.rust, ["win32", "linux"].includes(process.platform));
   assert.equal(frontend.setup.aqua, false);
   assert.equal(frontend.setup.cargo_tools.length, 0);
   for (const capability of [...frontend.capabilities, ...core.capabilities])
@@ -56,11 +68,16 @@ test("frontend and direct Core inventories are independent; daily and native are
 
 test("validation consumers share the exact mapping and keep Node wrappers and fixture subsets", () => {
   assert.equal(selectedPrerequisites, validationCapabilities);
-  assert.deepEqual(selectedPrerequisites({ id: "repository-lint" }), [
+  assert.deepEqual(selectedPrerequisites({ id: "repository-lint" }, "darwin"), [
     "node",
     "pnpm",
     "frontend-dependencies",
   ]);
+  for (const platform of ["win32", "linux"]) {
+    assert(selectedPrerequisites({ id: "repository-lint" }, platform).includes("rustc"));
+    assert(!selectedPrerequisites({ id: "oxfmt" }, platform).includes("rustc"));
+    assert(!selectedPrerequisites({ id: "node-tests" }, platform).includes("rustc"));
+  }
   assert.deepEqual(selectedPrerequisites({ id: "rust-tests:portcove-core" }), [
     "node",
     "rustc",
@@ -138,6 +155,14 @@ import path from "node:path";
 const [command,...args]=process.argv.slice(2);
 const log=x=>appendFileSync(process.env.PCV_TEST_LOG,JSON.stringify(x)+"\\n");
 if(command==="node") {
+ if(path.basename(args[0]??"")==="resource-command.mjs") {
+  if(args[1]==="verify-bootstrap") {if(process.env.PORTCOVE_RESOURCE_RESERVATION!=="fixture-owned")process.exit(95);log(["verify-bootstrap"]);process.exit(0)}
+  if(args[1]!=="rust"||args[2]!=="--bootstrap"||args[3]!=="--")process.exit(96);
+  const scriptIndex=args.indexOf("-File");const script=scriptIndex<0?args[5]:args[scriptIndex+1];
+  if(!path.resolve(script).startsWith(path.resolve(process.env.PCV_TEST_PROJECT)+path.sep))process.exit(97);
+  log(["admission",args[1],args[2]]);
+  const child=spawnSync(args[4],args.slice(5),{stdio:"inherit",env:{...process.env,PORTCOVE_RESOURCE_RESERVATION:"fixture-owned"}});process.exit(child.status??1);
+ }
  if(path.basename(args[0]??"")==="dev-doctor.mjs") {log(["doctor",...args.slice(1)]);process.exit(0)}
  const result=spawnSync(${JSON.stringify(process.execPath)},args,{stdio:"inherit",env:process.env});process.exit(result.status??1);
 }
@@ -170,6 +195,9 @@ process.exit(73);
         env: {
           ...process.env,
           PATH: bin + path.delimiter + process.env.PATH,
+          GITHUB_ACTIONS: "false",
+          PORTCOVE_CONTAINER_GUEST: "",
+          PORTCOVE_RESOURCE_RESERVATION: "",
           PCV_TEST_LOG: log,
           PCV_TEST_PROJECT: project,
           PORTCOVE_SHARED_TOOL_CACHE: path.join(directory, "cache/portcove"),
@@ -189,7 +217,7 @@ process.exit(73);
 }
 
 test(
-  "POSIX frontend setup in a space-bearing checkout never probes Rust or Aqua",
+  "POSIX frontend setup selects only its supervisor compiler without Core components or Aqua",
   { skip: process.platform === "win32" },
   (t) => {
     const fixture = bootstrapFixture(t);
@@ -203,10 +231,18 @@ test(
     const calls = fixture.calls();
     assert.deepEqual(
       calls.map((call) => call[0]),
-      ["pnpm", "pnpm", "doctor"],
+      [
+        "admission",
+        "verify-bootstrap",
+        "pnpm",
+        "pnpm",
+        ...(["win32", "linux"].includes(process.platform) ? ["rustc"] : []),
+        "doctor",
+      ],
     );
-    assert.deepEqual(calls[0].slice(1), ["--version"]);
-    assert.deepEqual(calls[1].slice(1), ["install", "--frozen-lockfile"]);
+    const packages = calls.filter((call) => call[0] === "pnpm");
+    assert.deepEqual(packages[0].slice(1), ["--version"]);
+    assert.deepEqual(packages[1].slice(1), ["install", "--frozen-lockfile"]);
     assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
   },
 );
@@ -219,7 +255,13 @@ test(
     const result = fixture.run("bash", ["scripts/bootstrap-quality-tools.sh", "--profile", "core"]);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, "");
-    assert.ok(fixture.calls().every((call) => ["rustc", "cargo", "doctor"].includes(call[0])));
+    assert.ok(
+      fixture
+        .calls()
+        .every((call) =>
+          ["admission", "verify-bootstrap", "rustc", "cargo", "doctor"].includes(call[0]),
+        ),
+    );
     assert.ok(fixture.calls().some((call) => call[0] === "cargo" && call[1] === "nextest"));
     const failed = fixture.run(
       "bash",
@@ -253,7 +295,14 @@ test(
     assert.equal(result.stderr, "");
     assert.deepEqual(
       fixture.calls().map((call) => call[0]),
-      ["pnpm", "pnpm", "doctor"],
+      [
+        "admission",
+        "verify-bootstrap",
+        "pnpm",
+        "pnpm",
+        ...(["win32", "linux"].includes(process.platform) ? ["rustc"] : []),
+        "doctor",
+      ],
     );
     assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
   },

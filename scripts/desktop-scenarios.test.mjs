@@ -1694,7 +1694,7 @@ test("ordinary package boundary is isolated and rejects stale or substituted evi
   );
   const manifest = {
     revision: "b".repeat(40),
-    build_command: ["pnpm", "tauri", "build", "--bundles", "nsis"],
+    build_command: ["pnpm", "--dir", "apps/desktop", "desktop:build", "--bundles", "nsis"],
     qualification_features: [],
     configuration,
     installer,
@@ -1703,6 +1703,21 @@ test("ordinary package boundary is isolated and rejects stale or substituted evi
   const manifestPath = path.join(root, "package.json");
   await writeFile(manifestPath, JSON.stringify(manifest));
   await verifyNormalPackageEvidence(manifestPath, manifest.revision, executable, root);
+  const ordinaryBuild = manifest.build_command;
+  for (const substituted of [
+    ["pnpm", "tauri", "build", "--bundles", "nsis"],
+    [...ordinaryBuild, "--features", "native-compatibility-qualification"],
+    ordinaryBuild.map((argument) => (argument === "nsis" ? "deb" : argument)),
+    ordinaryBuild.map((argument) => (argument === "desktop:build" ? "desktop:dev" : argument)),
+  ]) {
+    manifest.build_command = substituted;
+    await writeFile(manifestPath, JSON.stringify(manifest));
+    await assert.rejects(
+      verifyNormalPackageEvidence(manifestPath, manifest.revision, executable, root),
+    );
+  }
+  manifest.build_command = ordinaryBuild;
+  await writeFile(manifestPath, JSON.stringify(manifest));
   await assert.rejects(
     verifyNormalPackageEvidence(manifestPath, "c".repeat(40), executable, root),
     /source must match/,

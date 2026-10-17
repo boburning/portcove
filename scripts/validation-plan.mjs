@@ -107,6 +107,11 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/validation-evidence.mjs",
   "scripts/checked-git.mjs",
   "scripts/resource-status.mjs",
+  "scripts/resource-capacity.mjs",
+  "scripts/resource-paths.mjs",
+  "scripts/resource-command.mjs",
+  "scripts/native-build.mjs",
+
   "scripts/report-summary.mjs",
   "scripts/qualification-coverage.mjs",
   "scripts/repository-settings.mjs",

@@ -1,3 +1,4 @@
+import { reenterResourceCommand } from "../../../scripts/resource-command.mjs";
 import os from "node:os";
 import {
   writeAcceptancePreflight,
@@ -288,6 +289,7 @@ if (backupFocusSession) {
     "The bounded backup-focus qualification must run as one exact scenario",
   );
 }
+await reenterResourceCommand("browser", import.meta.url);
 const ownedSession = new OwnedNativeSession();
 const nativeLock = await acquireNativeSessionLock({
   workspace: root,
