@@ -1030,3 +1030,46 @@ void test("publication repeat callback requires the complete owned native quiesc
     }
   }
 });
+
+void test("publication redirected backup containment accepts Windows path aliases and rejects escapes", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-host-publication-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("    move.result.redirected_write = redirectedWrite;");
+  const end = source.indexOf("    await assertIdentity(newer);", start);
+  assert.ok(start >= 0 && end > start);
+  const guard = source.slice(start, end);
+  const destination = String.raw`E:\owned\published-move-destination`;
+  const child = path.win32.join(destination, "backups", "port", "backup-id");
+  const run = async (root: string, candidate: string, canonicalCandidate = candidate) => {
+    const observations: string[] = [];
+    const move = { result: {} };
+    await runInNewContext(`(async()=>{${guard}})()`, {
+      assert,
+      path: path.win32,
+      destination: root,
+      redirectedWrite: { path: candidate },
+      move,
+      realpath: async (value: string) => {
+        observations.push(value);
+        return value === root ? root : canonicalCandidate;
+      },
+    });
+    assert.deepEqual(observations, [root, candidate]);
+    return move;
+  };
+  for (const root of [destination, path.win32.toNamespacedPath(destination)]) {
+    for (const candidate of [child, path.win32.toNamespacedPath(child)]) await run(root, candidate);
+    for (const candidate of [
+      destination,
+      String.raw`E:\owned\published-move-destination-other\backup`,
+      String.raw`E:\owned\outside\backup`,
+      String.raw`H:\outside\backup`,
+    ]) {
+      for (const value of [candidate, path.win32.toNamespacedPath(candidate)])
+        await assert.rejects(run(root, value));
+    }
+    await assert.rejects(run(root, child, String.raw`H:\outside\backup`));
+  }
+});

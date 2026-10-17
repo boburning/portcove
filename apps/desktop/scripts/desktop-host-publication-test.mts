@@ -429,7 +429,17 @@ export async function hostPublicationScenario(context: Context) {
       "backup",
       command(["backup", "create", port.id], library),
     );
-    const relative = path.relative(destination, redirectedWrite.path);
+    move.result.redirected_write = redirectedWrite;
+    const destinationReal = await realpath(destination);
+    const redirectedReal = await realpath(redirectedWrite.path);
+    move.result.redirected_write_realpaths = {
+      destination: destinationReal,
+      backup: redirectedReal,
+    };
+    const relative = path.relative(
+      path.toNamespacedPath(destinationReal),
+      path.toNamespacedPath(redirectedReal),
+    );
     assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
     await assertIdentity(newer);
     await assertIdentity(original);
