@@ -1780,7 +1780,9 @@ Arbitrary independently started WSL/native processes remain outside this contrac
 
 Repository bootstrap scripts also enter the existing resource executor before
 checkout dependency installation and Cargo tool builds, reserve the checkout's
-mutable outputs, and verify inherited ownership before nesting. Hosted/guest
+mutable outputs and the actual shared tool-cache location, and verify inherited
+ownership before nesting. Setups sharing that writable cache cannot race pinned
+tool receipts or shims; ordinary builds/tests need no cache mutation reservation. Hosted/guest
 setup keeps its existing runner context. The pinned Rust compiler and platform
 linker needed to build the supervisor are explicit initial host prerequisites;
 setup disables Rustup auto-install for that guard. On a new host, install Rustup

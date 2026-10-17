@@ -1,3 +1,4 @@
+import { toolCachePaths } from "./tool-cache.mjs";
 import { acquireHeavyRustTestLock } from "./heavy-rust-test-lock.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +10,15 @@ import {
 } from "./resource-capacity.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+
+// Bootstrap publishes shared pinned tools, receipts and shims as well as checkout
+// outputs. The physical cache key varies only when the actual writable location does.
+export function bootstrapOutputResources(environment = process.env) {
+  return [
+    frontendOutputResource(root),
+    frontendOutputResource(toolCachePaths({ environment }).sharedRoot),
+  ];
+}
 
 /** Existing supervisor contains the admitted command, including detached descendants. */
 export async function runResourceCommand(profile, executable, args, options = {}) {
@@ -100,7 +110,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       throw new Error("Bootstrap requires verified outer resource ownership");
     const lease = await acquireRustResources(
       { workspace: root, cwd: root },
-      { exclusive: [frontendOutputResource(root)] },
+      { exclusive: bootstrapOutputResources() },
     );
     if (!lease.inherited)
       throw new Error("Bootstrap verification must not create another reservation");
@@ -125,7 +135,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           ? {
               cwd: root,
               environment: { ...process.env, RUSTUP_AUTO_INSTALL: "0" },
-              exclusive: [frontendOutputResource(root)],
+              exclusive: bootstrapOutputResources(),
             }
           : {},
       );

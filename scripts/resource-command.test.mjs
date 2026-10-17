@@ -1,12 +1,12 @@
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { acquireResourceCapacity } from "./resource-capacity.mjs";
+import { acquireResourceCapacity, frontendOutputResource } from "./resource-capacity.mjs";
 import { acquireRustResources } from "./run-rust-tests.mjs";
 import { vitePlusNeedsCapacity } from "./run-viteplus.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { runResourceCommand } from "./resource-command.mjs";
+import { runResourceCommand, bootstrapOutputResources } from "./resource-command.mjs";
 import { nativeBuildCommand } from "./native-build.mjs";
 
 test("resource command delegates unchanged payload/cwd and failure to the existing supervisor", async () => {
@@ -106,4 +106,57 @@ test("nested Rust cannot bypass output ownership and admitted Cargo jobs remain 
   } finally {
     await rust.release();
   }
+});
+
+test("bootstrap protects the actual shared cache while unrelated heavy work remains concurrent", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-bootstrap-cache-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, "config.json"), JSON.stringify({ legacyMode: "coordinated" }));
+  const cache = path.join(root, "shared-cache");
+  const firstOutputs = bootstrapOutputResources({
+    ...process.env,
+    PORTCOVE_SHARED_TOOL_CACHE: cache,
+  });
+  assert.equal(firstOutputs[1], frontendOutputResource(cache));
+  assert.notEqual(
+    bootstrapOutputResources({
+      ...process.env,
+      PORTCOVE_SHARED_TOOL_CACHE: path.join(root, "other-cache"),
+    })[1],
+    firstOutputs[1],
+  );
+  const options = { root, environment: {}, legacyBlocker: async () => null };
+  const first = await acquireResourceCapacity(
+    "rust",
+    { workspace: "first setup" },
+    { ...options, exclusive: firstOutputs },
+  );
+  try {
+    await assert.rejects(
+      acquireResourceCapacity(
+        "rust",
+        { workspace: "peer setup" },
+        {
+          ...options,
+          waitMs: 0,
+          exclusive: [frontendOutputResource(path.join(root, "peer")), firstOutputs[1]],
+        },
+      ),
+      { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+    );
+    const independent = await acquireResourceCapacity(
+      "analysis",
+      { workspace: "independent heavy work" },
+      options,
+    );
+    await independent.release();
+  } finally {
+    await first.release();
+  }
+  const peer = await acquireResourceCapacity(
+    "rust",
+    { workspace: "peer setup" },
+    { ...options, exclusive: [frontendOutputResource(path.join(root, "peer")), firstOutputs[1]] },
+  );
+  await peer.release();
 });
