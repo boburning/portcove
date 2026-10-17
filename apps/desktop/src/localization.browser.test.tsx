@@ -265,11 +265,27 @@ describe("LocalizationProvider", () => {
     );
     const trigger = host.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')!;
     await userEvent.click(trigger);
+    await expect
+      .poll(() =>
+        document.querySelector('[data-slot="select-content"]')?.hasAttribute("data-starting-style"),
+      )
+      .toBe(false);
+    await expect
+      .poll(() => document.activeElement?.closest('[data-slot="select-content"]') !== null)
+      .toBe(true);
     const english = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
       (item) => item.textContent === "English",
-    );
-    await act(async () => english?.click());
+    )!;
+    expect(english).toBeDefined();
+    english.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(api.setLocalePreference).toHaveBeenCalledExactlyOnceWith("en");
     expect(trigger.disabled).toBe(true);
+    await expect
+      .poll(
+        () => document.querySelector('[data-slot="select-content"]')?.getClientRects().length ?? 0,
+      )
+      .toBe(0);
     await act(async () => resolveWrite({ locale: "en" }));
     expect(trigger.disabled).toBe(false);
     await expect.poll(() => document.activeElement).toBe(trigger);

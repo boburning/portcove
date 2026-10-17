@@ -1,3 +1,4 @@
+import { readProcessIdentity } from "./heavy-rust-test-lock.mjs";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -57,16 +58,24 @@ export async function acquireOwnedProcessLock(lockPath, metadata = {}, options =
   const label = options.label ?? "Process";
   const alive = options.isProcessAlive ?? isProcessAlive;
   const inheritedToken = options.inheritedToken;
+  const inspectIdentity = options.inspectProcessIdentity ?? readProcessIdentity;
+  const verifiedActive = (owner) =>
+    options.verifyIdentity
+      ? typeof owner.process_identity === "string" &&
+        inspectIdentity(owner.pid) === owner.process_identity
+      : alive(owner.pid);
   if (inheritedToken) {
     const owner = await readOwner(resolved, label);
     if (owner.token !== inheritedToken)
       throw new Error(`${label} inherited lock token does not match the active owner`);
+    if (options.verifyIdentity && !verifiedActive(owner))
+      throw new Error(`${label} inherited lock lacks a verified live creation identity`);
     return { lockPath: resolved, owner, inherited: true, release: async () => {} };
   }
 
   await mkdir(path.dirname(resolved), { recursive: true });
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const token = randomUUID();
+    const token = options.ownerToken ?? randomUUID();
     const owner = {
       format_version: 1,
       token,
@@ -74,7 +83,10 @@ export async function acquireOwnedProcessLock(lockPath, metadata = {}, options =
       created_at: new Date().toISOString(),
       process_started_at: new Date(Date.now() - process.uptime() * 1000).toISOString(),
       ...metadata,
+      ...(options.verifyIdentity ? { process_identity: inspectIdentity(process.pid) } : {}),
     };
+    if (options.verifyIdentity && !owner.process_identity)
+      throw new Error(`${label} process creation identity is unavailable`);
     try {
       await mkdir(resolved);
       try {
@@ -94,12 +106,22 @@ export async function acquireOwnedProcessLock(lockPath, metadata = {}, options =
     } catch (error) {
       if (error.code !== "EEXIST") throw error;
       const active = await readOwner(resolved, label);
-      if (alive(active.pid)) {
-        throw new Error(
-          `${label} is already owned by PID ${active.pid} since ${active.created_at}` +
-            (active.workspace ? ` (workspace ${active.workspace})` : ""),
+      if (verifiedActive(active)) {
+        throw Object.assign(
+          new Error(
+            `${label} is already owned by PID ${active.pid} since ${active.created_at}` +
+              (active.workspace ? ` (workspace ${active.workspace})` : ""),
+          ),
+          { code: "PORTCOVE_RESOURCE_BUSY", owner: active },
         );
       }
+      if (options.canReclaim === false)
+        throw Object.assign(
+          new Error(
+            `${label} owner exited or changed identity without quiescence proof; retaining ${resolved}`,
+          ),
+          { code: "PORTCOVE_RESOURCE_RECOVERY_REQUIRED" },
+        );
       const stalePath = `${resolved}.stale-${randomUUID()}`;
       try {
         await rename(resolved, stalePath);

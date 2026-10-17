@@ -121,6 +121,12 @@ test("parses current Renovate tables with and without dependency type columns", 
     .replace("|---|---|---|---|", "|---|---|---|")
     .replace(" | dependencies | patch |", " | patch |");
   assert.equal(parseRenovateUpdates(noType)[0].dependencyType, null);
+  const noUpdate = body()
+    .replace("| Package | Type | Update | Change |", "| Package | Type | Change |")
+    .replace("|---|---|---|---|", "|---|---|---|")
+    .replace(" | dependencies | patch |", " | dependencies |");
+  assert.deepEqual(parseRenovateUpdates(noUpdate), []);
+  assert.equal(classify({ pull: { body: noUpdate } }).verdict, "manual-review-required");
   assert.deepEqual(parseRenovateUpdates("not a Renovate body"), []);
 });
 

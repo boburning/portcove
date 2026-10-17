@@ -1,3 +1,4 @@
+import { resourceEntrypoint } from "../../../scripts/resource-command.mjs";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,7 +29,7 @@ if (
   throw new Error(`Chromium executable is outside the browser cache: ${executable}`);
 }
 
-if (process.argv[2] === "bootstrap") {
+async function bootstrapChromium() {
   const result = spawnCommand(
     process.execPath,
     [
@@ -46,7 +47,9 @@ if (process.argv[2] === "bootstrap") {
   } finally {
     await browser.close();
   }
-} else if (process.argv[2] === "probe") {
+}
+
+async function probeBrowserTrace() {
   process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE = "1";
   let browser;
   try {
@@ -81,6 +84,13 @@ if (process.argv[2] === "bootstrap") {
   );
   if (result.status === 0) rmSync(traceRun, { recursive: true });
   process.exit(result.status ?? 1);
-} else {
-  throw new Error("Usage: browser-runtime.mjs bootstrap|probe");
 }
+
+async function runBrowserRuntime() {
+  if (process.argv[2] === "bootstrap") await bootstrapChromium();
+  else if (process.argv[2] === "probe") await probeBrowserTrace();
+  else throw new Error("Usage: browser-runtime.mjs bootstrap|probe");
+  return process.exitCode ?? 0;
+}
+
+process.exitCode = await resourceEntrypoint("browser", runBrowserRuntime);

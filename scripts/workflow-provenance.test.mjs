@@ -272,6 +272,45 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
       }),
     /inventory differs/,
   );
+  await t.test("bootstrap rejects changes confined to extracted audit authority", async () => {
+    const originalBranch = git(source, ["branch", "--show-current"]);
+    git(source, ["checkout", "--quiet", "-b", "extracted-authority-control"]);
+    write("scripts/validation-evidence.mjs", "changed receipt authority\n");
+    git(source, ["add", "."]);
+    git(source, ["commit", "--quiet", "-m", "changed extracted audit authority"]);
+    const altered = git(source, ["rev-parse", "HEAD"]);
+    git(controller, ["fetch", "--quiet", "origin"]);
+    git(controller, ["checkout", "--quiet", "--detach", altered]);
+    const alteredInventory = git(source, ["diff", "--name-only", "--no-renames", base, altered])
+      .split("\n")
+      .map((name) => ({
+        path: name,
+        base: git(source, ["ls-tree", base, "--", name]),
+        source: git(source, ["ls-tree", altered, "--", name]),
+      }));
+    const alteredRaw = JSON.stringify({
+      ...spec,
+      source: altered,
+      controller: altered,
+      inventory_sha256: bindingDigest(JSON.stringify(alteredInventory)),
+    });
+    await assert.rejects(
+      () =>
+        runHostedValidation("prepare", {
+          ...options,
+          environment: {
+            ...environment,
+            GITHUB_SHA: altered,
+            GITHUB_WORKFLOW_SHA: altered,
+            PORTCOVE_LOCAL_BINDING: alteredRaw,
+            PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(alteredRaw),
+          },
+        }),
+      /preserved recipes, pins, resources or containment/,
+    );
+    git(source, ["checkout", "--quiet", originalBranch]);
+    git(controller, ["checkout", "--quiet", "--detach", head]);
+  });
   write(".github/workflows/unadmitted.yml", "outside scope\n");
   git(source, ["add", "."]);
   git(source, ["commit", "--quiet", "-m", "unadmitted workflow"]);
@@ -1346,7 +1385,17 @@ test("manual local-check transport preserves the audit and has no mutable execut
   );
   const local = workflow.split("\n  local_check:\n")[1];
   assert.ok(local);
-  assert.match(workflow, /default: audit\n {8}options: \[audit, audit-reuse, local-check\]/);
+  assert.match(
+    workflow,
+    /default: audit\n {8}options: \[audit, audit-reuse, local-check, fallow\]/,
+  );
+  const audit = workflow.split("\n  audit:\n")[1]?.split("\n  local_check:\n")[0];
+  assert.ok(audit);
+  assert.match(
+    audit,
+    /uses: actions\/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6\n {8}with:\n {10}python-version: "3\.12"/,
+  );
+  assert.ok(audit.indexOf("actions/setup-python@") < audit.indexOf("just audit --fresh"));
   assert.match(workflow, /contents: read/);
   assert.match(workflow, /just audit --fresh/);
   assert.match(local, /runs-on: ubuntu-24\.04/);

@@ -1,3 +1,4 @@
+import { acquireSourceBoundCapacity, frontendOutputResource } from "./resource-capacity.mjs";
 import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -67,6 +68,7 @@ function waitForChild(child) {
 
 function observeCancellation(target) {
   let requestedSignal = null;
+  const abort = new AbortController();
   let resolveCancellation;
   const pending = new Promise((resolve) => {
     resolveCancellation = resolve;
@@ -77,6 +79,7 @@ function observeCancellation(target) {
       () => {
         if (requestedSignal) return;
         requestedSignal = signal;
+        abort.abort();
         resolveCancellation({ signal });
       },
     ]),
@@ -84,6 +87,7 @@ function observeCancellation(target) {
   for (const [signal, listener] of listeners) target.once(signal, listener);
   return {
     pending,
+    signal: abort.signal,
     requested: () => requestedSignal,
     dispose: () => {
       for (const [signal, listener] of listeners) target.off(signal, listener);
@@ -293,12 +297,39 @@ async function waitForUnixCleanupReceipt(receiptPath, dependencies) {
   }
 }
 
+export async function acquireRustResources(metadata, options = {}) {
+  const environment = options.environment ?? process.env;
+  if (environment.GITHUB_ACTIONS === "true" || environment.PORTCOVE_CONTAINER_GUEST === "1")
+    return acquireHeavyRustTestLock(metadata, options);
+  const capacity = await acquireSourceBoundCapacity("rust", metadata, {
+    ...options,
+    environment,
+    exclusive: [
+      ...(options.exclusive ?? []),
+      frontendOutputResource(
+        path.resolve(
+          metadata.cwd ?? root,
+          environment.CARGO_TARGET_DIR ?? path.join(root, "target"),
+        ),
+      ),
+    ],
+  });
+  const jobs = Number(environment.CARGO_BUILD_JOBS);
+  return {
+    ...capacity,
+    childEnvironment: {
+      ...capacity.childEnvironment,
+      CARGO_BUILD_JOBS: String(Number.isInteger(jobs) && jobs > 0 ? Math.min(jobs, 2) : 2),
+    },
+  };
+}
+
 export async function runRustTests(args, dependencies = {}) {
   const environment = dependencies.environment ?? process.env;
   const metrics = dependencies.metrics ?? createCiMetrics({ environment });
   const runSync = dependencies.spawnSync ?? spawnSync;
   const start = dependencies.spawn ?? spawn;
-  const acquireLock = dependencies.acquireLock ?? acquireHeavyRustTestLock;
+  const acquireLock = dependencies.acquireLock ?? acquireRustResources;
   const prepareSupport = dependencies.prepareSupportArtifact ?? prepareRustSupportArtifact;
   const readCompilerIdentity =
     dependencies.rustSupportCompilerIdentity ?? rustSupportCompilerIdentity;
@@ -307,6 +338,7 @@ export async function runRustTests(args, dependencies = {}) {
   );
   const platform = dependencies.platform ?? process.platform;
   const mode = parseRustRunMode(args);
+  const executionRoot = dependencies.cwd ?? root;
   const directory = mkdtempSync(path.join(base, "portcove-host-tool-fixture-"));
   const relative = path.relative(base, directory);
   if (relative.startsWith("..") || path.isAbsolute(relative))
@@ -351,12 +383,13 @@ export async function runRustTests(args, dependencies = {}) {
     );
   };
   try {
+    cancellation = observeCancellation(dependencies.signalTarget ?? process);
     if (!prepareOnly) {
       lock = await metrics.measureAsync("rust-reservation-wait", () =>
-        acquireLock({
-          workspace: root,
-          command: mode.description,
-        }),
+        acquireLock(
+          { workspace: root, cwd: executionRoot, command: mode.description },
+          { signal: cancellation.signal },
+        ),
       );
     }
     if (mode.kind !== "guarded-command") {
@@ -373,7 +406,7 @@ export async function runRustTests(args, dependencies = {}) {
       retained = true; // The runner owns cleanup after all test steps finish.
       return 0;
     }
-    if (platform === "win32") {
+    if (platform === "win32" && !lock.inherited) {
       prepareSupportProduct({
         product: "windows-process-tree-supervisor",
         source: "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
@@ -383,7 +416,7 @@ export async function runRustTests(args, dependencies = {}) {
     }
     if (lock.inherited) {
       const nested = start(mode.executable, mode.args, {
-        cwd: root,
+        cwd: executionRoot,
         detached: false,
         stdio: "inherit",
         windowsHide: true,
@@ -403,7 +436,6 @@ export async function runRustTests(args, dependencies = {}) {
         rustcArgs: ["--edition=2024", "--crate-name", "portcove_linux_process_tree_reaper"],
       });
     }
-    cancellation = observeCancellation(dependencies.signalTarget ?? process);
     const command =
       platform === "win32" ? supervisor : platform === "linux" ? linuxReaper : process.execPath;
     const commandArgs =
@@ -430,7 +462,7 @@ export async function runRustTests(args, dependencies = {}) {
               ...mode.args,
             ];
     const tested = start(command, commandArgs, {
-      cwd: root,
+      cwd: executionRoot,
       detached: platform !== "win32" && platform !== "linux",
       stdio: platform === "linux" ? ["pipe", "inherit", "inherit"] : "inherit",
       windowsHide: true,
@@ -543,6 +575,9 @@ export async function runRustTests(args, dependencies = {}) {
       }
       throw error;
     }
+  } catch (error) {
+    if (!lock && cancellation?.requested()) return cancellationExitCode(cancellation.requested());
+    throw error;
   } finally {
     cancellation?.dispose();
     if (lock && releaseLock) await lock.release();
@@ -555,7 +590,7 @@ async function main() {
     process.exitCode = await runRustTests(process.argv.slice(2));
   } catch (error) {
     console.error(error.message);
-    process.exitCode = 1;
+    process.exitCode = error.code === "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" ? 75 : 1;
   }
 }
 

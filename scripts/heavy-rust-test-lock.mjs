@@ -43,9 +43,12 @@ function runIdentityProbe(run, command, args, pid, platform) {
   });
   if (inspected.error) {
     const timedOut = inspected.error.code === "ETIMEDOUT" ? " timed out" : " failed";
-    throw new Error(`Could not inspect ${platform} process ${pid}: identity probe${timedOut}`, {
-      cause: inspected.error,
-    });
+    throw Object.assign(
+      new Error(`Could not inspect ${platform} process ${pid}: identity probe${timedOut}`, {
+        cause: inspected.error,
+      }),
+      { code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE" },
+    );
   }
   return inspected;
 }
@@ -90,8 +93,9 @@ export function readProcessIdentity(pid, options = {}) {
       "Windows",
     );
     if (inspected.status !== 0)
-      throw new Error(
-        `Could not inspect Windows process ${pid}: ${String(inspected.stderr).trim()}`,
+      throw Object.assign(
+        new Error(`Could not inspect Windows process ${pid}: ${String(inspected.stderr).trim()}`),
+        { code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE" },
       );
     const started = String(inspected.stdout).trim();
     return started ? `win32:${pid}:${started}` : null;
@@ -195,6 +199,11 @@ async function readOwner(lockPath) {
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
   }
+  try {
+    owner.external = JSON.parse(await readFile(`${lockPath}.external-${owner.token}`, "utf8"));
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
   return owner;
 }
 
@@ -216,6 +225,8 @@ function cleanupReceiptOutcome(record, readReceipt) {
 }
 
 function activeRecord(owner, inspectProcessIdentity, inspectProcessTree, readReceipt) {
+  if (owner.external)
+    return { kind: "external work awaiting quiescence proof", record: owner.process };
   for (const [kind, record] of [
     ["owner", owner.process],
     ["child", owner.child],
@@ -233,6 +244,15 @@ function activeRecord(owner, inspectProcessIdentity, inspectProcessTree, readRec
       return { kind: "legacy child", record };
   }
   return null;
+}
+
+export function heavyRustOwnerActivity(owner, options = {}) {
+  return activeRecord(
+    owner,
+    options.inspectProcessIdentity ?? readProcessIdentity,
+    options.inspectProcessTree ?? processTreeMembers,
+    options.readCleanupReceipt ?? readFileSync,
+  );
 }
 
 function activeMessage(owner, active, waitMilliseconds) {
@@ -275,7 +295,7 @@ async function publishOwner(lockPath, owner) {
   }
 }
 
-async function releaseOwnedLock(lockPath, token) {
+export async function releaseHeavyRustLock(lockPath, token) {
   let owner;
   try {
     owner = await readOwner(lockPath);
@@ -356,13 +376,14 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
   const deadline = started + waitMilliseconds;
   let nextReport = started;
   let reportedOwnerToken = null;
-  const processToken = randomUUID().replaceAll("-", "").slice(0, 16);
+  const processToken = options.processToken ?? randomUUID().replaceAll("-", "").slice(0, 16);
   const originalProcessTitle = process.title;
   process.env[processTokenEnvironmentName] = processToken;
-  if (process.platform === "darwin")
+  if (process.platform === "darwin" && options.manageProcessTitle !== false)
     process.title = `${processTitleMarkerPrefix}${processToken} ${originalProcessTitle}`;
   try {
     for (;;) {
+      options.signal?.throwIfAborted();
       const token = randomUUID();
       const processIdentity = inspectProcessIdentity(process.pid, { processToken });
       if (!processIdentity)
@@ -375,6 +396,7 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
         created_at: new Date().toISOString(),
         workspace: metadata.workspace ?? null,
         command: metadata.command ?? null,
+        capacity_aware: metadata.capacity_aware === true,
       };
       try {
         await publishOwner(lockPath, owner);
@@ -405,9 +427,10 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
             ),
           release: async () => {
             try {
-              await releaseOwnedLock(lockPath, token);
+              await releaseHeavyRustLock(lockPath, token);
             } finally {
-              if (process.platform === "darwin") process.title = originalProcessTitle;
+              if (process.platform === "darwin" && options.manageProcessTitle !== false)
+                process.title = originalProcessTitle;
             }
           },
         };
@@ -432,7 +455,10 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
         if (active) {
           const observedAt = now();
           if (observedAt >= deadline)
-            throw new Error(activeMessage(existing, active, waitMilliseconds));
+            throw Object.assign(new Error(activeMessage(existing, active, waitMilliseconds)), {
+              code: "PORTCOVE_RESOURCE_BUSY",
+              owner: existing,
+            });
           if (
             waitMilliseconds > 0 &&
             (existing.token !== reportedOwnerToken || observedAt >= nextReport)
@@ -451,6 +477,24 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
           await sleep(Math.min(pollMilliseconds, Math.max(1, deadline - observedAt)));
           continue;
         }
+        const reclaim = `${lockPath}.reclaim-${existing.token}`;
+        try {
+          await mkdir(reclaim);
+        } catch (error) {
+          if (error.code !== "EEXIST") throw error;
+          if (now() >= deadline)
+            throw new Error(
+              "Resource recovery is already owned; retain records and retry after recovery completes",
+            );
+          await sleep(Math.min(pollMilliseconds, Math.max(1, deadline - now())));
+          continue;
+        }
+        // A delayed observer must never rename a successor's live reservation.
+        const confirmed = await readOwner(lockPath).catch((error) => {
+          if (error.cause?.code === "ENOENT") return null;
+          throw error;
+        });
+        if (!confirmed || confirmed.token !== existing.token) continue;
         const stalePath = `${lockPath}.stale-${randomUUID()}`;
         try {
           await rename(lockPath, stalePath);
@@ -463,7 +507,8 @@ export async function acquireHeavyRustTestLock(metadata = {}, options = {}) {
       }
     }
   } catch (error) {
-    if (process.platform === "darwin") process.title = originalProcessTitle;
+    if (process.platform === "darwin" && options.manageProcessTitle !== false)
+      process.title = originalProcessTitle;
     throw error;
   }
 }

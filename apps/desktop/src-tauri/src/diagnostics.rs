@@ -433,6 +433,10 @@ mod tests {
         assert!(!log.contains("private-token"));
         assert!(log.contains("[REDACTED]"));
         assert!(log.contains("safe=visible"));
-        assert!(archive.file_names().all(|name| !name.contains("sources/")));
+        assert!(
+            archive
+                .file_names()
+                .all(|name| !name.unwrap().contains("sources/"))
+        );
     }
 }

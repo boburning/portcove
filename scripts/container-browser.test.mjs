@@ -54,6 +54,12 @@ test("browser adapter retains its independently reviewed pre-extraction contract
         ? "io.portcove.workspace=<physical-workspace-hash>"
         : argument,
     );
+    const guest = actual.indexOf("PORTCOVE_CONTAINER_GUEST=1");
+    assert(
+      guest > 0 && actual[guest - 1] === "--env",
+      "guest work must reuse host admission without exposing its records",
+    );
+    actual.splice(guest - 1, 2);
     assert.deepEqual(actual, expected);
   }
   for (const { name, input, expected } of oracle.runtimeValidation) {
@@ -456,4 +462,29 @@ test("already-cancelled setup never launches a child", async () => {
     assert.match(error.message, /before launch/u);
     return true;
   });
+});
+
+test("runtime producer environment passes readback without admitting host coordination state", () => {
+  const run = "30000000-0000-4000-8000-000000000000";
+  const args = runtimeArguments({
+    name: `portcove-browser-${run}`,
+    run,
+    image: "sha256:owned",
+    commit: "a".repeat(40),
+    tree: "b".repeat(40),
+    mode: "probe",
+  });
+  const actual = runtime();
+  for (let i = 0; i < args.length; i++) if (args[i] === "--env") actual.Config.Env.push(args[++i]);
+  validateRuntime(actual);
+  for (const value of [
+    "PORTCOVE_CONTAINER_GUEST=0",
+    "PORTCOVE_CONTAINER_GUEST=",
+    "PORTCOVE_RESOURCE_RESERVATION=host-record",
+    "PORTCOVE_HEAVY_RUST_LOCK_TOKEN=host-token",
+  ]) {
+    const bad = structuredClone(actual);
+    bad.Config.Env.push(value);
+    assert.throws(() => validateRuntime(bad), /Unexpected runtime environment key/);
+  }
 });

@@ -101,6 +101,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     { source: "desktop-main-webview-boundary.mjs", qualification_only: true },
   ),
   scenario(
+    "native-linux-packaged-webview-boundary",
+    "Ordinary Linux DEB payload preserves local assets, IPC, CSP and navigation boundaries; package extraction is not installed-system proof.",
+    {
+      source: "desktop-main-webview-boundary.mjs",
+      qualification_only: true,
+      platforms: ["linux"],
+    },
+  ),
+  scenario(
     "native-linux-webview-origin-boundary",
     "Actual Linux secondary, remote and same-label main contexts enforce IPC authority.",
     {
@@ -591,6 +600,13 @@ export function resolveDesktopSelection({
   }
   if (uniqueRequested.includes("native-startup-network-diagnostic") && uniqueRequested.length !== 1)
     throw new Error("native-startup-network-diagnostic requires one exact standalone scenario");
+  if (
+    uniqueRequested.includes("native-linux-packaged-webview-boundary") &&
+    uniqueRequested.length !== 1
+  )
+    throw new Error(
+      "native-linux-packaged-webview-boundary requires one exact standalone scenario",
+    );
   if (
     uniqueRequested.includes("native-linux-webview-origin-boundary") &&
     uniqueRequested.length !== 1
