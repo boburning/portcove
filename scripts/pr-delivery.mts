@@ -1,4 +1,4 @@
-import { errorMessage } from "./runtime-values.mts";
+import { isRecord, errorMessage } from "./runtime-values.mts";
 import { readFile } from "node:fs/promises";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -7,6 +7,8 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkClosureIntent, readClosingRelationships } from "./closure-intent.mts";
+import type { GitHubRunner, OperationStatus } from "./github-api.mts";
+import type { RenovatePull, RenovateBaseEvidence } from "./renovate-fast-lane.mts";
 import {
   GitHubApiClient,
   createGitHubRunner,
@@ -22,16 +24,337 @@ import {
   renovateSecurityIntent,
 } from "./renovate-fast-lane.mts";
 
+export interface DeliveryPull extends Omit<RenovatePull, "head" | "base" | "body"> {
+  number: number;
+  head: { sha: string; ref?: string };
+  base: { sha: string; ref?: string };
+  body?: string | null;
+  commits?: number;
+  changed_files?: number;
+  html_url?: string;
+  merge_commit_sha?: string | null;
+  assignees?: { login: string }[];
+}
+export interface DeliveryCheckRun {
+  id: number;
+  name: string;
+  status: string;
+  conclusion?: string | null;
+  html_url?: string | null;
+}
+export interface DeliveryStatus {
+  id: number;
+  context: string;
+  state: string;
+  description?: string | null;
+  target_url?: string | null;
+}
+export interface DeliveryWorkflow {
+  id: number;
+  run_attempt: number;
+  head_sha: string;
+  status: string;
+  conclusion?: string | null;
+  name?: string;
+  html_url?: string;
+  created_at?: string | null;
+  run_started_at?: string | null;
+}
+export interface DeliveryJob {
+  id: number;
+  name: string;
+  status: string;
+  run_id: number;
+  run_attempt: number;
+  head_sha: string;
+  conclusion?: string | null;
+  check_run_url?: string;
+  completed_at?: string | null;
+}
+interface CheckObservation {
+  source: "check-run" | "commit-status";
+  check_run_id?: number;
+  outcome: "success" | "failure" | "pending";
+  conclusion: string;
+  url: string | null;
+  description?: string | null;
+}
+export interface RequiredContext {
+  context: string;
+  outcome: "success" | "failure" | "pending";
+  conclusion: string;
+  observations: CheckObservation[];
+  source?: "check-run" | "commit-status";
+  check_run_id?: number;
+}
+interface ConfirmedMergeResult {
+  merged: true;
+  sha: string;
+  [key: string]: unknown;
+}
+function assertMergeResult(value: unknown): asserts value is ConfirmedMergeResult {
+  if (!isRecord(value) || value.merged !== true || typeof value.sha !== "string")
+    throw new Error("Merge result is incomplete");
+}
+type ClassifiedVerdict = ReturnType<typeof classifyRenovateSnapshot>;
+type MetadataEvidence = Extract<ClassifiedVerdict, { verdict: "metadata-required" }>["evidence"];
+type DeliveryVerdict =
+  | ClassifiedVerdict
+  | {
+      verdict: "merge-ready";
+      reason: string;
+      evidence: MetadataEvidence & { metadata: Awaited<ReturnType<typeof runMetadataValidation>> };
+    }
+  | { verdict: "manual-review-required"; reason: string; evidence: MetadataEvidence };
+
+interface DeliveryReceipt {
+  result: { sha: string };
+  [key: string]: unknown;
+}
+export class DeliveryOutcomeError extends Error {
+  readonly code: string;
+  readonly operationStatus: OperationStatus;
+  readonly operationEvidence: unknown;
+  constructor(
+    operationStatus: OperationStatus,
+    message: string,
+    operationEvidence: unknown,
+    cause: unknown,
+  ) {
+    super(message, cause ? { cause } : undefined);
+    this.code = `pr_delivery_${operationStatus}`;
+    this.operationStatus = operationStatus;
+    this.operationEvidence = operationEvidence;
+  }
+}
+function fields(
+  value: unknown,
+  shape: Readonly<
+    Record<string, "string" | "number" | "boolean" | "nullableString" | "nullableBoolean">
+  >,
+): asserts value is Record<string, unknown> {
+  if (!isRecord(value)) throw new Error("GitHub metadata is not an object");
+  for (const [key, type] of Object.entries(shape)) {
+    const field = value[key];
+    if (field === undefined) continue;
+    const valid =
+      type === "nullableString"
+        ? field === null || typeof field === "string"
+        : type === "nullableBoolean"
+          ? field === null || typeof field === "boolean"
+          : typeof field === type;
+    if (!valid) throw new Error(`GitHub ${key} metadata has an invalid type`);
+  }
+}
+function assertPullProjection(
+  value: unknown,
+  number: number,
+): asserts value is DeliveryPull & Record<string, unknown> {
+  fields(value, {
+    title: "string",
+    body: "nullableString",
+    commits: "number",
+    changed_files: "number",
+    html_url: "string",
+    merge_commit_sha: "nullableString",
+    draft: "boolean",
+    mergeable: "nullableBoolean",
+    merged: "boolean",
+    state: "string",
+  });
+  if (
+    !isRecord(value.head) ||
+    typeof value.head.sha !== "string" ||
+    !value.head.sha ||
+    !isRecord(value.base) ||
+    typeof value.base.sha !== "string" ||
+    !value.base.sha ||
+    value.number !== number
+  )
+    throw new Error(`pull request #${number} response is incomplete`);
+  fields(value.head, { ref: "string" });
+  fields(value.base, { ref: "string" });
+  if (value.user !== undefined && value.user !== null) fields(value.user, { login: "string" });
+  if (value.labels !== undefined) {
+    if (!Array.isArray(value.labels)) throw new Error("GitHub labels metadata is invalid");
+    const labels: unknown[] = value.labels;
+    for (const label of labels) fields(label, { name: "string" });
+  }
+  if (value.assignees !== undefined) {
+    if (!Array.isArray(value.assignees)) throw new Error("GitHub assignee metadata is invalid");
+    const assignees: unknown[] = value.assignees;
+    for (const assignee of assignees)
+      if (!isRecord(assignee) || typeof assignee.login !== "string")
+        throw new Error("GitHub assignee login is invalid");
+  }
+  // The above checks admit only the fields consumed by this delivery adapter;
+  // preserve other provider metadata without claiming its schema.
+}
+function pullMetadata(value: unknown, number: number): DeliveryPull {
+  assertPullProjection(value, number);
+  return value;
+}
+function checkMetadata(value: unknown): DeliveryCheckRun {
+  fields(value, { conclusion: "nullableString", html_url: "nullableString" });
+  if (
+    typeof value.id !== "number" ||
+    typeof value.name !== "string" ||
+    typeof value.status !== "string"
+  )
+    throw new Error("GitHub check-run metadata is incomplete");
+  return {
+    ...value,
+    id: value.id,
+    name: value.name,
+    status: value.status,
+    ...optionalCheckFields(value),
+  };
+}
+function optionalCheckFields(value: Record<string, unknown>): {
+  conclusion?: string | null;
+  html_url?: string | null;
+} {
+  const result: { conclusion?: string | null; html_url?: string | null } = {};
+  if (typeof value.conclusion === "string" || value.conclusion === null)
+    result.conclusion = value.conclusion;
+  if (typeof value.html_url === "string" || value.html_url === null)
+    result.html_url = value.html_url;
+  return result;
+}
+
+function statusMetadata(value: unknown): DeliveryStatus {
+  fields(value, { description: "nullableString", target_url: "nullableString" });
+  if (
+    typeof value.id !== "number" ||
+    typeof value.context !== "string" ||
+    typeof value.state !== "string"
+  )
+    throw new Error("GitHub status metadata is incomplete");
+  const result: DeliveryStatus = {
+    ...value,
+    id: value.id,
+    context: value.context,
+    state: value.state,
+  };
+  if (typeof value.description === "string" || value.description === null)
+    result.description = value.description;
+  if (typeof value.target_url === "string" || value.target_url === null)
+    result.target_url = value.target_url;
+  return result;
+}
+function assertWorkflow(value: unknown): asserts value is DeliveryWorkflow {
+  fields(value, {
+    conclusion: "nullableString",
+    name: "string",
+    html_url: "string",
+    created_at: "nullableString",
+    run_started_at: "nullableString",
+  });
+  if (
+    typeof value.id !== "number" ||
+    typeof value.run_attempt !== "number" ||
+    typeof value.head_sha !== "string" ||
+    typeof value.status !== "string"
+  )
+    throw new Error("GitHub workflow metadata is incomplete");
+}
+function assertJob(value: unknown): asserts value is DeliveryJob {
+  fields(value, {
+    conclusion: "nullableString",
+    check_run_url: "string",
+    completed_at: "nullableString",
+  });
+  if (
+    typeof value.id !== "number" ||
+    typeof value.run_id !== "number" ||
+    typeof value.run_attempt !== "number" ||
+    typeof value.head_sha !== "string" ||
+    typeof value.name !== "string" ||
+    typeof value.status !== "string"
+  )
+    throw new Error("GitHub job metadata is incomplete");
+}
+export interface DeliveryQueueSnapshot {
+  pull: DeliveryPull;
+  commits: { sha?: string; author?: { login?: string } | null }[];
+  files: { filename: string; status?: string }[];
+  contexts: WatchContext[];
+  statuses: Omit<DeliveryStatus, "id">[];
+  target: { commit: { sha: string } };
+  checkRuns?: DeliveryCheckRun[];
+}
+export interface DeliveryQueueClient {
+  branch(name: string): { commit: { sha: string } };
+  openRenovatePulls(): { number: number; head?: unknown }[];
+  renovateSnapshot(number: number, head: string, contexts: string[]): DeliveryQueueSnapshot;
+  sourceWorkflowRuns(
+    head: string,
+  ): (Pick<DeliveryWorkflow, "id" | "run_attempt" | "status"> &
+    Partial<Pick<DeliveryWorkflow, "name" | "conclusion" | "run_started_at" | "html_url">>)[];
+}
+
+export interface WatchContext {
+  context: string;
+  outcome: "success" | "failure" | "pending";
+  conclusion: string;
+  source?: "check-run" | "commit-status";
+  check_run_id?: number;
+}
+export interface WatchState {
+  contexts: WatchContext[];
+  pull?: unknown;
+  head?: string;
+}
+export interface WatchClient {
+  beginObservation?: () => void;
+  workflowRun(run: number): DeliveryWorkflow;
+  requiredCheckState(number: number, head: string, contexts: string[]): WatchState;
+  workflowJobs?(run: number, attempt: number): DeliveryJob[];
+}
+export interface WatchObservation {
+  format?: number;
+  recorded_at?: string;
+  kind: string;
+  head?: string;
+  run?: number;
+  attempt?: number;
+  workflow?: {
+    head_sha?: string | undefined;
+    run_attempt?: number | undefined;
+    status?: string | undefined;
+    conclusion?: string | null | undefined;
+  } | null;
+  contexts?: WatchContext[];
+  jobs?: DeliveryJob[];
+}
+export interface WatchOptions {
+  number: number;
+  head: string;
+  requiredContexts: string[];
+  run: number;
+  attempt: number;
+  deadline: string;
+  sleep?: (milliseconds: number) => Promise<unknown>;
+  now?: () => number;
+  observe?: (observation: WatchObservation) => void;
+}
+
+const timestamp = (value: string | null | undefined) => Date.parse(value ?? "");
+
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const repository = "boburning/portcove";
 
-export function baselineTimingWindow(workflow, jobs, contexts) {
-  const start = Date.parse(workflow.run_started_at);
-  const created = Date.parse(workflow.created_at);
+export function baselineTimingWindow(
+  workflow: { run_started_at?: string | null; created_at?: string | null },
+  jobs: ({ name: string; completed_at?: string | null } | undefined)[],
+  contexts: { context: string }[],
+) {
+  const start = timestamp(workflow.run_started_at);
+  const created = timestamp(workflow.created_at);
   const completed = contexts
-    .map((context) => jobs.find((job) => job.name === context.context)?.completed_at)
-    .map(Date.parse);
+    .map((context) => jobs.find((job) => job?.name === context.context)?.completed_at)
+    .map(timestamp);
   const valid =
     Number.isFinite(start) &&
     Number.isFinite(created) &&
@@ -49,15 +372,23 @@ export function baselineTimingWindow(workflow, jobs, contexts) {
   };
 }
 
-function deliveryOutcomeError(status, message, evidence = {}, cause = null) {
-  const error = new Error(message, cause ? { cause } : undefined);
-  error.code = `pr_delivery_${status}`;
-  error.operationStatus = status;
-  error.operationEvidence = evidence;
-  return error;
+function deliveryOutcomeError(
+  status: OperationStatus,
+  message: string,
+  evidence: unknown = {},
+  cause: unknown = null,
+) {
+  return new DeliveryOutcomeError(status, message, evidence, cause);
 }
 
-export function retainMergeReceipt(directory: string, packet, io = { mkdirSync, writeFileSync }) {
+export function retainMergeReceipt(
+  directory: string,
+  packet: DeliveryReceipt,
+  io: {
+    mkdirSync(directory: string, options: { recursive: true }): unknown;
+    writeFileSync(file: string, data: string, options: { flag: "wx" }): unknown;
+  } = { mkdirSync, writeFileSync },
+) {
   const file = path.join(directory, `${randomUUID()}-merge.json`);
   try {
     io.mkdirSync(directory, { recursive: true });
@@ -73,49 +404,66 @@ export function retainMergeReceipt(directory: string, packet, io = { mkdirSync, 
   }
 }
 
-function exactKeys(value, expected, label) {
+function exactKeys(value: object | undefined, expected: string[], label: string) {
   const actual = Object.keys(value ?? {}).sort();
   const wanted = [...expected].sort();
   if (JSON.stringify(actual) !== JSON.stringify(wanted))
     throw new Error(`${label} must contain exactly: ${wanted.join(", ")}`);
 }
 
-export function requiredContextsFromConfigs(ruleset, coverage) {
-  const rule = ruleset.rules?.find((candidate) => candidate.type === "required_status_checks");
-  const contexts = rule?.parameters?.required_status_checks?.map((entry) => entry.context);
+export function requiredContextsFromConfigs(ruleset: unknown, coverage: unknown): string[] {
+  const rules = isRecord(ruleset) && Array.isArray(ruleset.rules) ? ruleset.rules : [];
+  const values: unknown[] = rules;
+  const rule = values.find(
+    (candidate): candidate is Record<string, unknown> =>
+      isRecord(candidate) && candidate.type === "required_status_checks",
+  );
+  const parameters = isRecord(rule?.parameters) ? rule.parameters : undefined;
+  const entries = parameters?.required_status_checks;
+  const contexts: unknown[] = Array.isArray(entries)
+    ? entries.map((entry: unknown) => (isRecord(entry) ? entry.context : undefined))
+    : [];
   if (
-    !Array.isArray(contexts) ||
     !contexts.length ||
-    contexts.some((context) => typeof context !== "string" || !context) ||
+    !contexts.every(
+      (context): context is string => typeof context === "string" && Boolean(context),
+    ) ||
     new Set(contexts).size !== contexts.length
-  ) {
+  )
     throw new Error("repository ruleset required checks are incomplete");
-  }
-  const coverageContexts = coverage?.protected_contexts;
+  const coverageContexts = isRecord(coverage) ? coverage.protected_contexts : undefined;
   if (
     !Array.isArray(coverageContexts) ||
+    !coverageContexts.every((value: unknown): value is string => typeof value === "string") ||
     JSON.stringify([...contexts].sort()) !== JSON.stringify([...coverageContexts].sort())
-  ) {
+  )
     throw new Error("repository ruleset and qualification protected contexts differ");
-  }
   return contexts;
 }
 
-export function parsePullRequestReference(value) {
+export function parsePullRequestReference(value: string | number) {
   const numeric = /^(\d+)$/u.exec(String(value));
   if (numeric && Number(numeric[1]) > 0) return Number(numeric[1]);
   const url = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)\/?$/u.exec(String(value));
-  if (!url || url[1].toLowerCase() !== repository.toLowerCase() || Number(url[2]) < 1)
+  if (!url || (url[1] ?? "").toLowerCase() !== repository.toLowerCase() || Number(url[2]) < 1)
     throw new Error(`invalid ${repository} pull request reference: ${value}`);
   return Number(url[2]);
 }
 
 export class PullRequestDeliveryClient {
-  constructor(api = new GitHubApiClient(createGitHubRunner({ cwd: projectRoot }))) {
+  api: Pick<GitHubApiClient, "request" | "paginateRest" | "graphql">;
+  beginObservation?: () => void;
+  constructor(
+    api:
+      | GitHubRunner
+      | Pick<GitHubApiClient, "request" | "paginateRest" | "graphql"> = new GitHubApiClient(
+      createGitHubRunner({ cwd: projectRoot }),
+    ),
+  ) {
     this.api = typeof api === "function" ? new GitHubApiClient(api) : api;
   }
 
-  request(method, endpoint, body = null) {
+  request(method: string, endpoint: string, body: unknown = null): { body: unknown } {
     return this.api.request(method, endpoint, body);
   }
 
@@ -123,98 +471,168 @@ export class PullRequestDeliveryClient {
     return this.api
       .paginateRest(`repos/${repository}/pulls?state=open&per_page=100`, {
         select: (body) => body,
-        identity: (pull) => (Number.isSafeInteger(pull?.number) ? String(pull.number) : null),
+        identity: (pull) =>
+          isRecord(pull) && Number.isSafeInteger(pull.number) ? String(pull.number) : null,
         label: "open pull requests",
       })
-      .filter((pull) => ["renovate[bot]", "app/renovate"].includes(pull.user?.login));
+      .flatMap((pull) => {
+        if (
+          !isRecord(pull) ||
+          !isRecord(pull.user) ||
+          typeof pull.user.login !== "string" ||
+          !["renovate[bot]", "app/renovate"].includes(pull.user.login)
+        )
+          return [];
+        if (typeof pull.number !== "number") throw new Error("Pull request number is unavailable");
+        return [{ ...pull, number: pull.number }];
+      });
   }
 
-  pull(number) {
-    const body = this.request("GET", `repos/${repository}/pulls/${number}`).body;
-    if (!body?.head?.sha || !body?.base?.sha || body.number !== number)
-      throw new Error(`pull request #${number} response is incomplete`);
-    return body;
+  pull(number: number) {
+    return pullMetadata(this.request("GET", `repos/${repository}/pulls/${number}`).body, number);
   }
 
-  paginatedConnection(endpoint, key, identity) {
+  paginatedConnection(endpoint: string, key: string, identity: (value: unknown) => unknown) {
     return this.api.paginateRest(endpoint, {
-      select: (body) => body?.[key],
+      select: (body) => (isRecord(body) ? body[key] : undefined),
       identity,
-      totalCount: (body) => body?.total_count,
+      totalCount: (body) => {
+        if (!isRecord(body) || typeof body.total_count !== "number")
+          throw new Error(`${key} total is invalid`);
+        return body.total_count;
+      },
       label: key,
     });
   }
 
-  checkRuns(sha) {
+  checkRuns(sha: string) {
     return this.paginatedConnection(
       `repos/${repository}/commits/${sha}/check-runs?filter=latest&per_page=100`,
       "check_runs",
-      (run) => (Number.isSafeInteger(run?.id) ? String(run.id) : null),
-    );
+      (run) => (isRecord(run) && Number.isSafeInteger(run.id) ? String(run.id) : null),
+    ).map(checkMetadata);
   }
 
-  commitStatuses(sha) {
+  commitStatuses(sha: string) {
     return this.paginatedConnection(
       `repos/${repository}/commits/${sha}/status?per_page=100`,
       "statuses",
-      (status) => (Number.isSafeInteger(status?.id) ? String(status.id) : null),
-    );
+      (status) => (isRecord(status) && Number.isSafeInteger(status.id) ? String(status.id) : null),
+    ).map(statusMetadata);
   }
 
-  pullFiles(number) {
-    return this.api.paginateRest(`repos/${repository}/pulls/${number}/files?per_page=100`, {
-      select: (body) => body,
-      identity: (file) => (typeof file?.filename === "string" ? file.filename : null),
-      label: "pull request files",
-    });
+  pullFiles(number: number) {
+    return this.api
+      .paginateRest(`repos/${repository}/pulls/${number}/files?per_page=100`, {
+        select: (body) => body,
+        identity: (file) =>
+          isRecord(file) && typeof file.filename === "string" ? file.filename : null,
+        label: "pull request files",
+      })
+      .map((file) => {
+        if (!isRecord(file) || typeof file.filename !== "string")
+          throw new Error("Pull request file identity is invalid");
+        const result: { filename: string; status?: string } = { ...file, filename: file.filename };
+        if (file.status !== undefined) {
+          if (typeof file.status !== "string")
+            throw new Error("Pull request file status is invalid");
+          result.status = file.status;
+        }
+        return result;
+      });
   }
 
-  pullCommits(number) {
-    return this.api.paginateRest(`repos/${repository}/pulls/${number}/commits?per_page=100`, {
-      select: (body) => body,
-      identity: (commit) =>
-        typeof commit?.sha === "string" && /^[0-9a-f]{40}$/u.test(commit.sha) ? commit.sha : null,
-      label: "pull request commits",
-    });
+  pullCommits(number: number) {
+    return this.api
+      .paginateRest(`repos/${repository}/pulls/${number}/commits?per_page=100`, {
+        select: (body) => body,
+        identity: (commit) =>
+          isRecord(commit) && typeof commit.sha === "string" && /^[0-9a-f]{40}$/u.test(commit.sha)
+            ? commit.sha
+            : null,
+        label: "pull request commits",
+      })
+      .map((commit) => {
+        if (!isRecord(commit) || typeof commit.sha !== "string")
+          throw new Error("Pull request commit identity is invalid");
+        fields(commit, {});
+        if (commit.author !== undefined && commit.author !== null)
+          fields(commit.author, { login: "string" });
+        if (commit.commit !== undefined) fields(commit.commit, { message: "string" });
+        const result: {
+          sha: string;
+          author?: { login?: string } | null;
+          commit?: { message?: string };
+        } = { ...commit, sha: commit.sha };
+        if (isRecord(commit.author))
+          result.author =
+            typeof commit.author.login === "string"
+              ? { ...commit.author, login: commit.author.login }
+              : { ...commit.author };
+        if (isRecord(commit.commit))
+          result.commit =
+            typeof commit.commit.message === "string"
+              ? { ...commit.commit, message: commit.commit.message }
+              : { ...commit.commit };
+        return result;
+      });
   }
 
-  branch(name) {
+  branch(name: string) {
     const body = this.request(
       "GET",
       `repos/${repository}/branches/${encodeURIComponent(name)}`,
     ).body;
-    if (!/^[0-9a-f]{40}$/u.test(body?.commit?.sha ?? ""))
+    if (
+      !isRecord(body) ||
+      !isRecord(body.commit) ||
+      typeof body.commit.sha !== "string" ||
+      !/^[0-9a-f]{40}$/u.test(body.commit.sha)
+    )
       throw new Error(`branch ${name} response is incomplete`);
-    return body;
+    return { ...body, commit: { ...body.commit, sha: body.commit.sha } };
   }
 
-  workflowRun(id) {
+  workflowRun(id: number) {
     const body = this.request("GET", `repos/${repository}/actions/runs/${id}`).body;
-    if (body?.id !== id || body?.repository?.full_name?.toLowerCase() !== repository)
+    if (
+      !isRecord(body) ||
+      body.id !== id ||
+      !isRecord(body.repository) ||
+      typeof body.repository.full_name !== "string" ||
+      body.repository.full_name.toLowerCase() !== repository
+    )
       throw new Error(`workflow run ${id} identity is incomplete or differs`);
+    assertWorkflow(body);
     return body;
   }
 
-  sourceWorkflowRuns(sha) {
+  sourceWorkflowRuns(sha: string) {
     const runs = this.paginatedConnection(
       `repos/${repository}/actions/runs?head_sha=${sha}&per_page=100`,
       "workflow_runs",
-      (run) => (Number.isSafeInteger(run?.id) ? String(run.id) : null),
-    );
+      (run) => (isRecord(run) && Number.isSafeInteger(run.id) ? String(run.id) : null),
+    ).map((run) => {
+      assertWorkflow(run);
+      return run;
+    });
     if (runs.some((run) => run.head_sha !== sha || !Number.isSafeInteger(run.run_attempt)))
       throw new Error("source workflow run inventory differs from the exact queue head");
     return runs;
   }
 
-  workflowJobs(run, _attempt) {
+  workflowJobs(run: number, _attempt: number) {
     return this.paginatedConnection(
       `repos/${repository}/actions/runs/${run}/jobs?filter=all&per_page=100`,
       "jobs",
-      (job) => (Number.isSafeInteger(job?.id) ? String(job.id) : null),
-    );
+      (job) => (isRecord(job) && Number.isSafeInteger(job.id) ? String(job.id) : null),
+    ).map((job) => {
+      assertJob(job);
+      return job;
+    });
   }
 
-  requiredCheckState(number, head, requiredContexts) {
+  requiredCheckState(number: number, head: string, requiredContexts: string[]) {
     const pull = this.pull(number);
     if (pull.head.sha !== head)
       throw new Error(`pull request #${number} head changed: ${pull.head.sha} != ${head}`);
@@ -226,7 +644,7 @@ export class PullRequestDeliveryClient {
     return { pull, head, contexts };
   }
 
-  renovateSnapshot(number, head, requiredContexts) {
+  renovateSnapshot(number: number, head: string, requiredContexts: string[]) {
     const pull = this.pull(number);
     const checkRuns = this.checkRuns(head);
     const statuses = this.commitStatuses(head);
@@ -247,11 +665,17 @@ export class PullRequestDeliveryClient {
       checkRuns,
       statuses,
       contexts: requiredCheckContexts(checkRuns, statuses, requiredContexts),
-      target: this.branch(pull.base.ref),
+      target: this.branch(pull.base.ref ?? ""),
     };
   }
 
-  merge(number, head, requiredContexts, closureIntent, mergeMessage) {
+  merge(
+    number: number,
+    head: string,
+    requiredContexts: string[],
+    closureIntent?: unknown,
+    mergeMessage?: unknown,
+  ) {
     const state = this.requiredCheckState(number, head, requiredContexts);
     if (state.pull.draft) throw new Error(`pull request #${number} is still a draft`);
     if (state.pull.mergeable !== true)
@@ -268,7 +692,7 @@ export class PullRequestDeliveryClient {
           .join(", ")}`,
       );
     if (
-      !mergeMessage ||
+      !isRecord(mergeMessage) ||
       typeof mergeMessage.title !== "string" ||
       !mergeMessage.title.trim() ||
       /[\r\n]/u.test(mergeMessage.title) ||
@@ -293,7 +717,11 @@ export class PullRequestDeliveryClient {
       repository,
       texts: [
         closing.body,
-        ...commits.map((commit) => commit.commit.message),
+        ...commits.map((commit) => {
+          if (typeof commit.commit?.message !== "string")
+            throw new Error("Candidate commit message inventory is incomplete");
+          return commit.commit.message;
+        }),
         mergeMessage.title,
         mergeMessage.body,
       ],
@@ -304,8 +732,8 @@ export class PullRequestDeliveryClient {
       throw new Error(
         "PR body or closing relationships changed before merge; refresh delivery review",
       );
-    let result = null;
-    let requestError = null;
+    let result: unknown = null;
+    let requestError: unknown = null;
     try {
       result = this.request("PUT", `repos/${repository}/pulls/${number}/merge`, {
         merge_method: "squash",
@@ -322,7 +750,7 @@ export class PullRequestDeliveryClient {
     } catch (error) {
       throw deliveryOutcomeError(
         "unknown",
-        `merge outcome is unknown after ${requestError?.message ?? "an unexpected response"}; ` +
+        `merge outcome is unknown after ${requestError ? errorMessage(requestError) : "an unexpected response"}; ` +
           `remote readback failed: ${errorMessage(error)}`,
         { pull_request: number, head },
         error,
@@ -338,11 +766,12 @@ export class PullRequestDeliveryClient {
       result = {
         merged: true,
         sha: readback.merge_commit_sha,
-        message: `merge command reported an error but remote readback confirmed completion: ${requestError.message}`,
+        message: `merge command reported an error but remote readback confirmed completion: ${errorMessage(requestError)}`,
       };
     }
     if (
-      result?.merged !== true ||
+      !isRecord(result) ||
+      result.merged !== true ||
       typeof result.sha !== "string" ||
       readback.merged !== true ||
       readback.state !== "closed" ||
@@ -351,7 +780,7 @@ export class PullRequestDeliveryClient {
     ) {
       throw deliveryOutcomeError(
         "unknown",
-        `merge response is ambiguous${requestError ? ` after ${requestError.message}` : ""}; ` +
+        `merge response is ambiguous${requestError ? ` after ${errorMessage(requestError)}` : ""}; ` +
           `remote readback: merged=${readback.merged}, ` +
           `state=${readback.state}, head=${readback.head.sha}, merge=${readback.merge_commit_sha}`,
         {
@@ -367,7 +796,13 @@ export class PullRequestDeliveryClient {
         requestError,
       );
     }
-    const closureReadback = {
+    assertMergeResult(result);
+    const closureReadback: {
+      mutation: unknown;
+      pull: DeliveryPull;
+      actual_commit: unknown;
+      closing: ReturnType<typeof readClosingRelationships> | null;
+    } = {
       mutation: result,
       pull: readback,
       actual_commit: null,
@@ -383,8 +818,10 @@ export class PullRequestDeliveryClient {
         ? `${mergeMessage.title}\n\n${mergeMessage.body}`
         : mergeMessage.title;
       if (
-        actual?.sha !== readback.merge_commit_sha ||
-        actual.message?.replace(/\n$/u, "") !== expectedMessage.replace(/\n$/u, "")
+        !isRecord(actual) ||
+        actual.sha !== readback.merge_commit_sha ||
+        (typeof actual.message === "string" ? actual.message.replace(/\n$/u, "") : undefined) !==
+          expectedMessage.replace(/\n$/u, "")
       )
         throw new Error("Actual merged commit message differs from the checked squash message");
       const after = readClosingRelationships(this.api, repository, number);
@@ -415,8 +852,14 @@ export class PullRequestDeliveryClient {
   }
 }
 
-export function requiredCheckContexts(checkRuns, statuses, requiredContexts) {
-  const candidates = new Map(requiredContexts.map((context) => [context, []]));
+export function requiredCheckContexts(
+  checkRuns: DeliveryCheckRun[],
+  statuses: (Omit<DeliveryStatus, "id"> & { id?: number })[],
+  requiredContexts: string[],
+): RequiredContext[] {
+  const candidates = new Map<string, CheckObservation[]>(
+    requiredContexts.map((context) => [context, []]),
+  );
   for (const run of checkRuns) {
     if (!candidates.has(run.name)) continue;
     const outcome =
@@ -425,7 +868,7 @@ export function requiredCheckContexts(checkRuns, statuses, requiredContexts) {
           ? "success"
           : "failure"
         : "pending";
-    candidates.get(run.name).push({
+    candidates.get(run.name)?.push({
       source: "check-run",
       check_run_id: run.id,
       outcome,
@@ -437,7 +880,7 @@ export function requiredCheckContexts(checkRuns, statuses, requiredContexts) {
     if (!candidates.has(status.context)) continue;
     const outcome =
       status.state === "success" ? "success" : status.state === "pending" ? "pending" : "failure";
-    candidates.get(status.context).push({
+    candidates.get(status.context)?.push({
       source: "commit-status",
       outcome,
       conclusion: status.state,
@@ -445,18 +888,30 @@ export function requiredCheckContexts(checkRuns, statuses, requiredContexts) {
       url: status.target_url ?? null,
     });
   }
-  const contexts = requiredContexts.map((context) => {
-    const matches = candidates.get(context);
+  const contexts = requiredContexts.map((context): RequiredContext => {
+    const matches = candidates.get(context) ?? [];
     if (matches.length > 1)
       return { context, outcome: "failure", conclusion: "ambiguous", observations: matches };
     if (!matches.length)
       return { context, outcome: "pending", conclusion: "missing", observations: [] };
-    return { context, ...matches[0], observations: matches };
+    const observation = matches[0];
+    if (!observation) throw new Error("Required check observation disappeared");
+    return { context, ...observation, observations: matches };
   });
   return contexts;
 }
 
-export function renovateCheckEnvelope({ number, head, result, snapshot }) {
+export function renovateCheckEnvelope<Evidence extends object>({
+  number,
+  head,
+  result,
+  snapshot,
+}: {
+  number: number;
+  head: string;
+  result: { verdict: string; reason: string; evidence: Evidence };
+  snapshot: { commits: unknown[]; files: unknown[] };
+}) {
   const summary = `Pull request #${number} exact head ${head}: ${fastLaneSummary(result)}.`;
   return githubOperationEnvelope({
     operation: "pr-delivery.renovate-check",
@@ -476,7 +931,13 @@ export function renovateCheckEnvelope({ number, head, result, snapshot }) {
 
 // This read-only client bounds both each gh subprocess and all pages/reads in
 // one observation. Merge and other GitHub consumers keep their existing runner.
-export function createWatchClient({ now = Date.now, spawn = spawnSync } = {}) {
+export function createWatchClient({
+  now = Date.now,
+  spawn = spawnSync,
+}: {
+  now?: () => number;
+  spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+} = {}) {
   let collectionDeadline = 0;
   const api = new GitHubApiClient(
     createGitHubRunner({
@@ -493,15 +954,16 @@ export function createWatchClient({ now = Date.now, spawn = spawnSync } = {}) {
     }),
   );
   const client = new PullRequestDeliveryClient(api);
-  client.beginObservation = () => {
-    collectionDeadline = now() + 60_000;
-  };
-  return client;
+  return Object.assign(client, {
+    beginObservation() {
+      collectionDeadline = now() + 60_000;
+    },
+  });
 }
 
-export function createWatchProgress(write) {
-  let previous;
-  return (observation) => {
+export function createWatchProgress(write: (text: string) => void) {
+  let previous: string | undefined;
+  return (observation: WatchObservation) => {
     if (observation.kind !== "delivery-observation") return;
     const current = {
       head: observation.head,
@@ -541,7 +1003,7 @@ export function createWatchProgress(write) {
 }
 
 export async function watchRequiredChecks(
-  client,
+  client: WatchClient,
   {
     number,
     head,
@@ -552,7 +1014,7 @@ export async function watchRequiredChecks(
     sleep,
     now = Date.now,
     observe = () => {},
-  },
+  }: WatchOptions,
 ) {
   if (!Number.isSafeInteger(run) || run < 1 || !Number.isSafeInteger(attempt) || attempt < 1)
     throw new Error("watch requires a positive run and attempt");
@@ -566,8 +1028,8 @@ export async function watchRequiredChecks(
     throw new Error("watch --deadline must be a valid UTC calendar time");
   const pause =
     sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
-  let observed = null;
-  let state = null;
+  let observed: DeliveryWorkflow | null = null;
+  let state: WatchState | null = null;
   const evidence = () => ({
     pull_request: number,
     head,
@@ -623,8 +1085,8 @@ export async function watchRequiredChecks(
         evidence(),
       );
     if (
-      !Number.isFinite(Date.parse(observed.created_at)) ||
-      deadlineMs <= Date.parse(observed.created_at)
+      !Number.isFinite(timestamp(observed.created_at)) ||
+      deadlineMs <= timestamp(observed.created_at)
     )
       throw deliveryOutcomeError(
         "failed",
@@ -650,6 +1112,7 @@ export async function watchRequiredChecks(
       if (state.contexts.every((context) => context.outcome === "success")) {
         let jobs;
         try {
+          if (!client.workflowJobs) throw new Error("watch job readback is unavailable");
           jobs = client.workflowJobs(run, attempt);
           try {
             observe({ format: 1, kind: "delivery-jobs", ...evidence(), jobs });
@@ -664,8 +1127,8 @@ export async function watchRequiredChecks(
             error,
           );
         }
-        const checks = new Map();
-        const latestJobs = new Map();
+        const checks = new Map<number, DeliveryJob>();
+        const latestJobs = new Map<string, DeliveryJob>();
         const executions = new Set();
         for (const job of jobs) {
           const match =
@@ -690,11 +1153,12 @@ export async function watchRequiredChecks(
             );
           checks.set(checkId, job);
           executions.add(`${job.name}:${job.run_attempt}`);
-          if (!latestJobs.has(job.name) || latestJobs.get(job.name).run_attempt < job.run_attempt)
+          if ((latestJobs.get(job.name)?.run_attempt ?? 0) < job.run_attempt)
             latestJobs.set(job.name, job);
         }
         for (const context of state.contexts) {
-          const job = checks.get(context.check_run_id);
+          const job =
+            context.check_run_id === undefined ? undefined : checks.get(context.check_run_id);
           if (
             context.source !== "check-run" ||
             !job ||
@@ -736,7 +1200,9 @@ export async function watchRequiredChecks(
             ...evidence(),
             timings: baselineTimingWindow(
               observed,
-              state.contexts.map((context) => checks.get(context.check_run_id)),
+              state.contexts.map((context) =>
+                context.check_run_id === undefined ? undefined : checks.get(context.check_run_id),
+              ),
               state.contexts,
             ),
             next_action:
@@ -763,11 +1229,19 @@ export async function watchRequiredChecks(
   }
 }
 
-export function inspectRenovateQueue(client, config, contexts, inspectBase = inspectCurrentBase) {
+export function inspectRenovateQueue(
+  client: DeliveryQueueClient,
+  config: unknown,
+  contexts: string[],
+  inspectBase: (
+    options: Parameters<typeof inspectCurrentBase>[0],
+  ) => RenovateBaseEvidence = inspectCurrentBase,
+) {
   const target = client.branch("main").commit.sha;
   const candidates = client.openRenovatePulls().map((listed) => {
-    const head = listed.head?.sha;
-    if (!/^[0-9a-f]{40}$/u.test(head ?? "")) throw new Error("queue candidate lacks exact head");
+    const head = isRecord(listed.head) ? listed.head.sha : undefined;
+    if (typeof head !== "string" || !/^[0-9a-f]{40}$/u.test(head))
+      throw new Error("queue candidate lacks exact head");
     const snapshot = client.renovateSnapshot(listed.number, head, contexts);
     if (snapshot.pull.head.sha !== head || snapshot.target.commit.sha !== target)
       throw new Error("queue head or target changed; refresh once before selection");
@@ -863,17 +1337,17 @@ export function inspectRenovateQueue(client, config, contexts, inspectBase = ins
   };
 }
 
-const deliveryFlags = {
+const deliveryFlags: Readonly<Record<string, readonly string[]>> = {
   watch: ["--pr", "--head", "--run", "--attempt", "--deadline", "--json", "--progress"],
   "renovate-check": ["--pr", "--head", "--queue", "--json", "--summary"],
   merge: ["--pr", "--head", "--closure-intent-file", "--merge-message-file", "--json"],
 };
-const deliveryRequired = {
+const deliveryRequired: Readonly<Record<string, readonly string[]>> = {
   watch: ["--pr", "--head", "--run", "--attempt", "--deadline"],
   "renovate-check": ["--pr", "--head"],
   merge: ["--pr", "--head", "--closure-intent-file", "--merge-message-file"],
 };
-const deliveryValues = {
+const deliveryValues: Readonly<Record<string, string>> = {
   "--pr": "number-or-url",
   "--head": "40-character-sha",
   "--run": "run-id",
@@ -882,12 +1356,12 @@ const deliveryValues = {
   "--closure-intent-file": "JSON-file",
   "--merge-message-file": "JSON-file",
 };
-export function deliveryHelp(command = null) {
+export function deliveryHelp(command: string | null | undefined = null) {
   const commands = command ? [command] : Object.keys(deliveryFlags);
   const lines = [];
   for (const name of commands) {
     if (!Object.hasOwn(deliveryFlags, name)) throw new Error("unknown command: " + name);
-    const render = (flags, required) =>
+    const render = (flags: readonly string[], required: readonly string[]) =>
       "  node scripts/pr-delivery.mts " +
       name +
       " " +
@@ -901,22 +1375,24 @@ export function deliveryHelp(command = null) {
       lines.push(render(["--queue", "--json", "--summary"], ["--queue"]));
     lines.push(
       render(
-        deliveryFlags[name].filter((flag) => flag !== "--queue"),
-        deliveryRequired[name],
+        (deliveryFlags[name] ?? []).filter((flag) => flag !== "--queue"),
+        deliveryRequired[name] ?? [],
       ),
     );
   }
   return "usage:\n" + lines.join("\n");
 }
 
-export function parseArguments(argv) {
+export function parseArguments(argv: string[]) {
   const command = argv[0];
-  const options = {};
+  const options: Record<string, string | true> = {};
   for (let index = 1; index < argv.length; index += 1) {
     const name = argv[index];
+    if (name === undefined) throw new Error("invalid argument near end of command");
     if (
+      command !== undefined &&
       Object.hasOwn(deliveryFlags, command) &&
-      !deliveryFlags[command].includes(name) &&
+      !(deliveryFlags[command] ?? []).includes(name) &&
       name !== "--help"
     )
       throw new Error(`unsupported ${command} option: ${name}; use ${command} --help`);
@@ -936,17 +1412,25 @@ export function parseArguments(argv) {
 
 async function requiredContexts() {
   const [ruleset, coverage] = await Promise.all([
-    readFile(path.join(projectRoot, ".github", "repository-ruleset.json"), "utf8").then(JSON.parse),
+    readFile(path.join(projectRoot, ".github", "repository-ruleset.json"), "utf8").then(
+      (text): unknown => JSON.parse(text),
+    ),
     readFile(path.join(projectRoot, ".github", "qualification-coverage.json"), "utf8").then(
-      JSON.parse,
+      (text): unknown => JSON.parse(text),
     ),
   ]);
   return requiredContextsFromConfigs(ruleset, coverage);
 }
 
-async function main(argv) {
+function optionText(options: Record<string, string | true>, key: string): string {
+  const value = options[key];
+  if (typeof value !== "string") throw new Error(`${key} requires a value`);
+  return value;
+}
+
+async function main(argv: string[]) {
   const { command, options } = parseArguments(argv);
-  if (["help", "--help"].includes(command) || options["--help"]) {
+  if (["help", "--help"].includes(command ?? "") || options["--help"]) {
     console.log(deliveryHelp(options["--help"] ? command : null));
     return;
   }
@@ -962,7 +1446,9 @@ async function main(argv) {
       ],
       "queue options",
     );
-    const config = JSON.parse(await readFile(path.join(projectRoot, "renovate.json"), "utf8"));
+    const config: unknown = JSON.parse(
+      await readFile(path.join(projectRoot, "renovate.json"), "utf8"),
+    );
     const queue = inspectRenovateQueue(
       new PullRequestDeliveryClient(),
       config,
@@ -1001,22 +1487,25 @@ async function main(argv) {
     );
     return;
   }
-  if (!Object.hasOwn(deliveryRequired, command)) throw new Error("unknown command: " + command);
-  const required = deliveryRequired[command];
+  if (command === undefined || !Object.hasOwn(deliveryRequired, command))
+    throw new Error("unknown command: " + command);
+  const required = deliveryRequired[command] ?? [];
   exactKeys(
     options,
     [...required, ...Object.keys(options).filter((flag) => !required.includes(flag))],
     command + " options",
   );
-  const number = parsePullRequestReference(options["--pr"]);
-  const head = options["--head"];
+  const number = parsePullRequestReference(optionText(options, "--pr"));
+  const head = optionText(options, "--head");
   if (!/^[0-9a-f]{40}$/u.test(head ?? "")) throw new Error("--head must be a 40-character SHA");
   const contexts = await requiredContexts();
   const client = command === "watch" ? createWatchClient() : new PullRequestDeliveryClient();
   if (command === "renovate-check") {
-    const config = JSON.parse(await readFile(path.join(projectRoot, "renovate.json"), "utf8"));
+    const config: unknown = JSON.parse(
+      await readFile(path.join(projectRoot, "renovate.json"), "utf8"),
+    );
     const snapshot = client.renovateSnapshot(number, head, contexts);
-    let baseEvidence;
+    let baseEvidence: RenovateBaseEvidence;
     if (snapshot.pull.head.sha !== head) {
       baseEvidence = {
         changedHead: snapshot.pull.head.sha,
@@ -1036,7 +1525,7 @@ async function main(argv) {
         interactionTerms: packageName ? [packageName, packageName.replaceAll("-", "_")] : [],
       });
     }
-    let result = classifyRenovateSnapshot({
+    let result: DeliveryVerdict = classifyRenovateSnapshot({
       ...snapshot,
       config,
       expectedHead: head,
@@ -1075,7 +1564,12 @@ async function main(argv) {
         };
       }
     }
-    const output = renovateCheckEnvelope({ number, head, result, snapshot });
+    const output = renovateCheckEnvelope<DeliveryVerdict["evidence"]>({
+      number,
+      head,
+      result,
+      snapshot,
+    });
     if (options["--summary"])
       console.log(
         retainReportSummary("renovate", output, path.join(projectRoot, "work/report-summary")).text,
@@ -1087,11 +1581,11 @@ async function main(argv) {
   }
   if (command === "watch") {
     const directory = path.join(projectRoot, "work/pr-delivery");
-    const references = [];
+    const references: string[] = [];
     const progress = options["--progress"]
       ? createWatchProgress((text) => console.error(text))
       : () => {};
-    const retain = (observation) => {
+    const retain = (observation: unknown) => {
       try {
         mkdirSync(directory, { recursive: true });
         const file = path.join(directory, `${randomUUID()}.json`);
@@ -1109,7 +1603,7 @@ async function main(argv) {
       requiredContexts: contexts,
       run: Number(options["--run"]),
       attempt: Number(options["--attempt"]),
-      deadline: options["--deadline"],
+      deadline: optionText(options, "--deadline"),
       observe: (observation) => {
         retain(observation);
         progress(observation);
@@ -1154,8 +1648,8 @@ async function main(argv) {
       number,
       head,
       contexts,
-      JSON.parse(await readFile(options["--closure-intent-file"], "utf8")),
-      JSON.parse(await readFile(options["--merge-message-file"], "utf8")),
+      JSON.parse(await readFile(optionText(options, "--closure-intent-file"), "utf8")),
+      JSON.parse(await readFile(optionText(options, "--merge-message-file"), "utf8")),
     );
     const directory = path.join(projectRoot, "work/pr-delivery");
     const closureReceipt = retainMergeReceipt(directory, { number, head, ...merged });
@@ -1201,9 +1695,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
         JSON.stringify(
           githubOperationEnvelope({
             operation: `pr-delivery.${process.argv[2] ?? "unknown"}`,
-            status: error.operationStatus ?? "failed",
+            status: error instanceof DeliveryOutcomeError ? error.operationStatus : "failed",
             summary: safeError.message,
-            evidence: error.operationEvidence ?? {},
+            evidence: error instanceof DeliveryOutcomeError ? error.operationEvidence : {},
             error,
           }),
         ),
@@ -1216,7 +1710,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
       reference = path.join(directory, `${randomUUID()}.json`);
       writeFileSync(
         reference,
-        JSON.stringify({ error: safeError, evidence: error.operationEvidence ?? {} }),
+        JSON.stringify({
+          error: safeError,
+          evidence: error instanceof DeliveryOutcomeError ? error.operationEvidence : {},
+        }),
         { flag: "wx" },
       );
     } catch {

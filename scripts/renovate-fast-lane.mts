@@ -9,9 +9,9 @@ export interface RenovatePull {
   base?: { sha: string; ref?: string };
   state?: string;
   merged?: boolean;
-  user?: { login?: string };
+  user?: { login?: string } | null;
   title?: string;
-  body?: string;
+  body?: string | null;
   labels?: { name?: string }[];
   draft?: boolean;
   mergeable?: boolean | null;
@@ -25,7 +25,7 @@ export interface RenovateBaseEvidence {
 }
 export interface RenovateSnapshot {
   pull: RenovatePull;
-  commits: { sha?: string; author?: { login?: string } }[];
+  commits: { sha?: string; author?: { login?: string } | null }[];
   files: { filename: string; status?: string }[];
   contexts: { context: string; outcome: string; conclusion?: string | null }[];
   statuses: { context: string; state: string; description?: string | null }[];

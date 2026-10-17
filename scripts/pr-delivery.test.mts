@@ -1,3 +1,15 @@
+import { GitHubApiClient } from "./github-api.mts";
+import { isRecord, errorMessage } from "./runtime-values.mts";
+import type {
+  DeliveryPull,
+  DeliveryWorkflow,
+  DeliveryQueueSnapshot,
+  DeliveryQueueClient,
+  WatchContext,
+  WatchState,
+  DeliveryJob,
+} from "./pr-delivery.mts";
+import { DeliveryOutcomeError } from "./pr-delivery.mts";
 import { spawnSync as spawnHelp } from "node:child_process";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -17,19 +29,42 @@ import {
   retainMergeReceipt,
 } from "./pr-delivery.mts";
 
+function requiredFixture<T>(value: T | undefined | null): T {
+  assert.ok(value !== undefined && value !== null, "Required fixture value is missing");
+  return value;
+}
+function record(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function array(value: unknown): unknown[] {
+  assert.ok(Array.isArray(value));
+  return value;
+}
+function deliveryError(error: unknown): DeliveryOutcomeError {
+  assert.ok(error instanceof DeliveryOutcomeError);
+  return error;
+}
+function evidence(error: unknown) {
+  return record(deliveryError(error).operationEvidence);
+}
+type QueueOverrides = Omit<Partial<DeliveryQueueSnapshot>, "pull"> & {
+  pull?: Partial<DeliveryPull>;
+};
+
 const required = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"];
 const head = "a".repeat(40);
 const base = "b".repeat(40);
 const merge = "c".repeat(40);
 
-test("postmerge receipt retention failure preserves confirmed completion and forbids retry", () => {
+void test("postmerge receipt retention failure preserves confirmed completion and forbids retry", () => {
   const packet = {
     number: 7,
     head,
     result: { merged: true, sha: merge },
     readback: { merged: true, merge_commit_sha: merge },
   };
-  for (const phase of ["mkdirSync", "writeFileSync"]) {
+  for (const phase of ["mkdirSync", "writeFileSync"] as const) {
     const io = { mkdirSync() {}, writeFileSync() {} };
     io[phase] = () => {
       throw new Error("ENOSPC");
@@ -37,10 +72,10 @@ test("postmerge receipt retention failure preserves confirmed completion and for
     assert.throws(
       () => retainMergeReceipt("unused", packet, io),
       (error) =>
-        /Merge completed.*receipt retention failed; do not retry/.test(error.message) &&
-        error.operationEvidence.merge_completed === true &&
-        error.operationEvidence.result.sha === merge &&
-        error.operationEvidence.readback.merge_commit_sha === merge,
+        /Merge completed.*receipt retention failed; do not retry/.test(errorMessage(error)) &&
+        evidence(error).merge_completed === true &&
+        record(evidence(error).result).sha === merge &&
+        record(evidence(error).readback).merge_commit_sha === merge,
     );
   }
 });
@@ -67,7 +102,7 @@ function closingPage(overrides = {}) {
   };
 }
 
-test("baseline timings separate initial queue and all required gate completion", () => {
+void test("baseline timings separate initial queue and all required gate completion", () => {
   const workflow = { created_at: "2026-10-09T00:00:00Z", run_started_at: "2026-10-09T00:00:10Z" };
   const jobs = required.map((name, index) => ({
     name,
@@ -91,7 +126,7 @@ test("baseline timings separate initial queue and all required gate completion",
   assert.equal(baselineTimingWindow({}, jobs, []).measurement, "unavailable");
 });
 
-function included(body, headers = {}) {
+function included(body: unknown, headers: Record<string, string> = {}) {
   return (
     "HTTP/2.0 200 OK\r\n" +
     Object.entries(headers)
@@ -101,7 +136,7 @@ function included(body, headers = {}) {
   );
 }
 
-function pull(overrides = {}) {
+function pull(overrides: Partial<DeliveryPull> = {}): DeliveryPull {
   return {
     number: 7,
     title: "fix: safe delivery",
@@ -129,9 +164,9 @@ function successfulRuns() {
   }));
 }
 
-test("queue inventory follows all open-PR pages and rejects duplicate identities", () => {
+void test("queue inventory follows all open-PR pages and rejects duplicate identities", () => {
   const client = new PullRequestDeliveryClient((args) => {
-    if (args[2].includes("page=2"))
+    if (requiredFixture(args[2]).includes("page=2"))
       return included([{ number: 9, user: { login: "app/renovate" } }]);
     return included(
       [
@@ -148,7 +183,7 @@ test("queue inventory follows all open-PR pages and rejects duplicate identities
   const duplicate = new PullRequestDeliveryClient((args) =>
     included(
       [{ number: 7, user: { login: "renovate[bot]" } }],
-      args[2].includes("page=2")
+      requiredFixture(args[2]).includes("page=2")
         ? {}
         : { link: '<https://api.github.test/pulls?page=2>; rel="next"' },
     ),
@@ -156,9 +191,9 @@ test("queue inventory follows all open-PR pages and rejects duplicate identities
   assert.throws(() => duplicate.openRenovatePulls(), /duplicate/);
 });
 
-function queueClient(overrides = {}) {
+function queueClient(overrides: QueueOverrides = {}): DeliveryQueueClient {
   const age = [{ context: "renovate/stability-days", state: "success" }];
-  const snapshot = {
+  const snapshot: DeliveryQueueSnapshot = {
     pull: pull({
       number: 7,
       user: { login: "renovate[bot]" },
@@ -175,7 +210,7 @@ function queueClient(overrides = {}) {
       { filename: "Cargo.lock", status: "modified" },
     ],
     statuses: age,
-    contexts: required.map((context) => ({ context, outcome: "success", conclusion: "success" })),
+    contexts: requiredCheckContexts(successfulRuns(), [], required),
     target: { commit: { sha: base } },
     checkRuns: successfulRuns(),
   };
@@ -213,13 +248,13 @@ const queueBase = () => ({
   targetDependencyPaths: [],
 });
 
-test("queue recommends only an actionable exact-head candidate and never supplies merge authority", () => {
+void test("queue recommends only an actionable exact-head candidate and never supplies merge authority", () => {
   const queue = inspectRenovateQueue(queueClient(), queueConfig, required, queueBase);
   assert.equal(queue.selected, 7);
-  assert.equal(queue.candidates[0].path, "routine-fast-lane-candidate");
-  assert.match(queue.candidates[0].next_action, /renovate-check --pr 7 --head/);
-  assert.equal(queue.candidates[0].runs[0].id, 42);
-  assert.equal(queue.candidates[0].runs[0].attempt, 1);
+  assert.equal(requiredFixture(queue.candidates[0]).path, "routine-fast-lane-candidate");
+  assert.match(requiredFixture(queue.candidates[0]).next_action, /renovate-check --pr 7 --head/);
+  assert.equal(requiredFixture(requiredFixture(queue.candidates[0]).runs[0]).id, 42);
+  assert.equal(requiredFixture(requiredFixture(queue.candidates[0]).runs[0]).attempt, 1);
   assert.match(
     queue.selection_boundary,
     /Candidate delivery requires actual writer and source-ownership checks/,
@@ -244,7 +279,7 @@ test("queue recommends only an actionable exact-head candidate and never supplie
   );
 });
 
-test("cooldown draft failed CI and rejected targets cannot become actionable controlled candidates", () => {
+void test("cooldown draft failed CI and rejected targets cannot become actionable controlled candidates", () => {
   for (const overrides of [
     {
       statuses: [
@@ -255,15 +290,15 @@ test("cooldown draft failed CI and rejected targets cannot become actionable con
     { contexts: [{ context: "rust", outcome: "failure", conclusion: "failure" }] },
     { pull: { base: { sha: base, ref: "different" } } },
     { pull: { mergeable: null } },
-  ]) {
+  ] satisfies QueueOverrides[]) {
     const queue = inspectRenovateQueue(queueClient(overrides), queueConfig, required, queueBase);
     assert.equal(queue.selected, null);
-    assert.equal(queue.candidates[0].actionable, false);
-    assert.ok(queue.candidates[0].next_action);
+    assert.equal(requiredFixture(queue.candidates[0]).actionable, false);
+    assert.ok(requiredFixture(queue.candidates[0]).next_action);
   }
 });
 
-test("branch-only security intent uses controlled expedited assessment without asserting vulnerability", () => {
+void test("branch-only security intent uses controlled expedited assessment without asserting vulnerability", () => {
   const queue = inspectRenovateQueue(
     queueClient({
       pull: { head: { sha: head, ref: "renovate/security/crc32fast" } },
@@ -273,12 +308,15 @@ test("branch-only security intent uses controlled expedited assessment without a
     required,
     queueBase,
   );
-  assert.equal(queue.candidates[0].path, "urgent-remediation-assessment");
-  assert.equal(queue.candidates[0].verdict, "manual-review-required");
-  assert.match(queue.candidates[0].next_action, /inspect advisory\/graph\/features/);
+  assert.equal(requiredFixture(queue.candidates[0]).path, "urgent-remediation-assessment");
+  assert.equal(requiredFixture(queue.candidates[0]).verdict, "manual-review-required");
+  assert.match(
+    requiredFixture(queue.candidates[0]).next_action,
+    /inspect advisory\/graph\/features/,
+  );
 });
 
-test("required contexts are loaded from both checked-in authorities", () => {
+void test("required contexts are loaded from both checked-in authorities", () => {
   const ruleset = {
     rules: [
       {
@@ -297,14 +335,14 @@ test("required contexts are loaded from both checked-in authorities", () => {
   );
 });
 
-test("pull request references are repository-bound and exact", () => {
+void test("pull request references are repository-bound and exact", () => {
   assert.equal(parsePullRequestReference("7"), 7);
   assert.equal(parsePullRequestReference("https://github.com/boburning/portcove/pull/7"), 7);
   for (const value of ["0", "#7", "https://github.com/other/repo/pull/7"])
     assert.throws(() => parsePullRequestReference(value), /invalid/);
 });
 
-test("delivery arguments accept opt-in JSON without changing required values", () => {
+void test("delivery arguments accept opt-in JSON without changing required values", () => {
   assert.deepEqual(
     parseArguments([
       "watch",
@@ -340,7 +378,7 @@ test("delivery arguments accept opt-in JSON without changing required values", (
   assert.throws(() => parseArguments(["watch", "--run", "42", "--run", "43"]), /duplicate option/);
 });
 
-test("Renovate verdicts have matching human and JSON output", () => {
+void test("Renovate verdicts have matching human and JSON output", () => {
   const result = {
     verdict: "waiting",
     reason: "minimum release age is still pending",
@@ -355,17 +393,21 @@ test("Renovate verdicts have matching human and JSON output", () => {
   assert.match(output.summary, /waiting: minimum release age is still pending/);
   assert.equal(output.evidence.verdict, "waiting");
   assert.equal(output.evidence.release_age.state, "pending");
-  assert.equal(JSON.parse(JSON.stringify(output)).evidence.head, head);
+  const roundTrip: unknown = JSON.parse(JSON.stringify(output));
+  assert.equal(record(record(roundTrip).evidence).head, head);
 });
 
-test("check-run pagination requires complete unique totals", () => {
-  const calls = [];
+void test("check-run pagination requires complete unique totals", () => {
+  const calls: string[] = [];
   const client = new PullRequestDeliveryClient((args) => {
-    calls.push(args[2]);
-    if (args[2].includes("page=2"))
-      return included({ total_count: 2, check_runs: [{ id: 2, name: "two" }] });
+    calls.push(requiredFixture(args[2]));
+    if (requiredFixture(args[2]).includes("page=2"))
+      return included({
+        total_count: 2,
+        check_runs: [{ id: 2, name: "two", status: "completed" }],
+      });
     return included(
-      { total_count: 2, check_runs: [{ id: 1, name: "one" }] },
+      { total_count: 2, check_runs: [{ id: 1, name: "one", status: "completed" }] },
       { link: '<https://api.github.test/checks?page=2>; rel="next"' },
     );
   });
@@ -376,10 +418,64 @@ test("check-run pagination requires complete unique totals", () => {
   assert.equal(calls.length, 2);
 });
 
-test("Renovate snapshot inventories every commit and file page exactly once", () => {
-  const calls = [];
+void test("provider nulls and unconsumed metadata survive the delivery boundary", () => {
+  const retained = { provider_note: "preserved raw metadata" };
   const client = new PullRequestDeliveryClient((args) => {
-    const endpoint = args[2];
+    const endpoint = requiredFixture(args[2]);
+    if (endpoint === "repos/boburning/portcove/pulls/7")
+      return included({ ...pull({ user: null, body: null }), ...retained });
+    if (endpoint.includes("/commits?"))
+      return included([{ sha: head, author: null, commit: { message: "fixture" }, ...retained }]);
+    if (endpoint.includes("/jobs?"))
+      return included({
+        total_count: required.length,
+        jobs: workflowJobs().map((job) => ({ ...job, completed_at: null })),
+      });
+    if (endpoint.includes("/actions/runs/42"))
+      return included({
+        ...workflow({ created_at: null, run_started_at: null }),
+        repository: { full_name: "boburning/portcove" },
+        ...retained,
+      });
+    return included([
+      { number: 7, user: { login: "renovate[bot]" }, head: { sha: head }, ...retained },
+    ]);
+  });
+  const request = client.pull(7);
+  assert.equal(request.user, null);
+  assert.equal(request.body, null);
+  assert.equal(record(request).provider_note, retained.provider_note);
+  const commit = requiredFixture(client.pullCommits(7)[0]);
+  assert.equal(commit.author, null);
+  assert.equal(record(commit).provider_note, retained.provider_note);
+  const run = client.workflowRun(42);
+  assert.equal(run.created_at, null);
+  assert.equal(run.run_started_at, null);
+  assert.equal(record(run).provider_note, retained.provider_note);
+  assert.ok(client.workflowJobs(42, 1).every((job) => job.completed_at === null));
+  assert.equal(
+    record(requiredFixture(client.openRenovatePulls()[0])).provider_note,
+    retained.provider_note,
+  );
+});
+
+void test("delivery response projections reject malformed known metadata without inventing valid facts", () => {
+  for (const malformed of [
+    { user: 7 },
+    { head: { sha: 7 } },
+    { commits: "1" },
+    { mergeable: "true" },
+    { assignees: [{ login: 7 }] },
+  ]) {
+    const client = new PullRequestDeliveryClient(() => included({ ...pull(), ...malformed }));
+    assert.throws(() => client.pull(7));
+  }
+});
+
+void test("Renovate snapshot inventories every commit and file page exactly once", () => {
+  const calls: string[] = [];
+  const client = new PullRequestDeliveryClient((args) => {
+    const endpoint = requiredFixture(args[2]);
     calls.push(endpoint);
     if (endpoint === "repos/boburning/portcove/pulls/7")
       return included(pull({ commits: 2, changed_files: 2, base: { sha: base, ref: "main" } }));
@@ -416,7 +512,7 @@ test("Renovate snapshot inventories every commit and file page exactly once", ()
   );
 });
 
-test("Renovate snapshot rejects incomplete commit and file inventories", () => {
+void test("Renovate snapshot rejects incomplete commit and file inventories", () => {
   for (const mismatch of [
     { commits: 2, changed_files: 2 },
     { commits: 1, changed_files: 3 },
@@ -432,20 +528,23 @@ test("Renovate snapshot rejects incomplete commit and file inventories", () => {
   }
 });
 
-test("required context reduction fails closed on missing and duplicate producers", () => {
+void test("required context reduction fails closed on missing and duplicate producers", () => {
   const successful = requiredCheckContexts(successfulRuns(), [], required);
   assert.ok(successful.every((context) => context.outcome === "success"));
   const missing = requiredCheckContexts(successfulRuns().slice(1), [], required);
-  assert.equal(missing[0].conclusion, "missing");
+  assert.equal(requiredFixture(missing[0]).conclusion, "missing");
   const duplicate = requiredCheckContexts(
     successfulRuns(),
     [{ id: 99, context: "rust", state: "success", target_url: "https://github.test/status" }],
     required,
   );
-  assert.equal(duplicate.find((context) => context.context === "rust").conclusion, "ambiguous");
+  assert.equal(
+    requiredFixture(duplicate.find((context) => context.context === "rust")).conclusion,
+    "ambiguous",
+  );
 });
 
-test("required check observation is exact-head and fails closed on ambiguity", () => {
+void test("required check observation is exact-head and fails closed on ambiguity", () => {
   const client = new PullRequestDeliveryClient();
   client.pull = () => pull();
   client.checkRuns = () => successfulRuns();
@@ -459,8 +558,9 @@ test("required check observation is exact-head and fails closed on ambiguity", (
     { id: 99, context: "rust", state: "success", target_url: "https://github.test/status" },
   ];
   assert.equal(
-    client.requiredCheckState(7, head, required).contexts.find((item) => item.context === "rust")
-      .conclusion,
+    requiredFixture(
+      client.requiredCheckState(7, head, required).contexts.find((item) => item.context === "rust"),
+    ).conclusion,
     "ambiguous",
   );
   client.pull = () => pull({ head: { sha: "d".repeat(40) } });
@@ -476,7 +576,7 @@ const watchOptions = {
   deadline: "2026-10-01T22:00:00Z",
   now: () => Date.parse("2026-10-01T21:00:00Z"),
 };
-function workflow(overrides = {}) {
+function workflow(overrides: Partial<DeliveryWorkflow> = {}): DeliveryWorkflow {
   return {
     id: 42,
     head_sha: head,
@@ -489,7 +589,7 @@ function workflow(overrides = {}) {
     ...overrides,
   };
 }
-function checkState(outcome = "pending") {
+function checkState(outcome: WatchContext["outcome"] = "pending"): WatchState {
   return {
     contexts: required.map((context, index) => ({
       context,
@@ -513,16 +613,16 @@ function workflowJobs() {
   }));
 }
 
-test("watcher waits quietly on one run and requires both terminal success and exact-head gates", async () => {
+void test("watcher waits quietly on one run and requires both terminal success and exact-head gates", async () => {
   let calls = 0;
-  const pauses = [];
+  const pauses: number[] = [];
   const pendingThenSuccess = {
     workflowJobs,
-    workflowRun(id) {
+    workflowRun(id: number) {
       assert.equal(id, 42);
       return workflow(calls >= 1 ? { status: "completed", conclusion: "success" } : {});
     },
-    requiredCheckState() {
+    requiredCheckState(): WatchState {
       calls += 1;
       return {
         contexts: required.map((context, index) => ({
@@ -542,6 +642,7 @@ test("watcher waits quietly on one run and requires both terminal success and ex
   assert.ok(state.contexts.every((context) => context.outcome === "success"));
   assert.deepEqual(pauses, [180_000]);
   assert.equal(state.watch.deadline, watchOptions.deadline);
+  assert.ok(state.watch.workflow);
   assert.equal(state.watch.workflow.created_at, "2026-10-01T20:55:00Z");
   assert.equal(state.watch.workflow.run_started_at, "2026-10-01T21:00:00Z");
   assert.match(state.watch.next_action, /guarded merge/);
@@ -569,7 +670,7 @@ test("watcher waits quietly on one run and requires both terminal success and ex
   }
 });
 
-test("resuming an expired deadline reads evidence once and never creates another wait", async () => {
+void test("resuming an expired deadline reads evidence once and never creates another wait", async () => {
   for (let resume = 0; resume < 2; resume += 1) {
     let reads = 0;
     await assert.rejects(
@@ -588,12 +689,12 @@ test("resuming an expired deadline reads evidence once and never creates another
         },
       ),
       (error) => {
-        assert.match(error.message, /timed out/);
-        assert.equal(error.operationEvidence.run, 42);
-        assert.equal(error.operationEvidence.attempt, 1);
-        assert.equal(error.operationEvidence.deadline, watchOptions.deadline);
-        assert.equal(error.operationEvidence.contexts.length, required.length);
-        assert.match(error.operationEvidence.next_action, /artifacts/);
+        assert.match(errorMessage(error), /timed out/);
+        assert.equal(evidence(error).run, 42);
+        assert.equal(evidence(error).attempt, 1);
+        assert.equal(evidence(error).deadline, watchOptions.deadline);
+        assert.equal(array(evidence(error).contexts).length, required.length);
+        assert.match(String(evidence(error).next_action), /artifacts/);
         return true;
       },
     );
@@ -601,9 +702,9 @@ test("resuming an expired deadline reads evidence once and never creates another
   }
 });
 
-test("watcher caps its final sleep to the retained deadline", async () => {
+void test("watcher caps its final sleep to the retained deadline", async () => {
   let current = Date.parse(watchOptions.deadline) - 2500;
-  const pauses = [];
+  const pauses: number[] = [];
   await assert.rejects(
     watchRequiredChecks(
       { workflowRun: () => workflow(), requiredCheckState: () => checkState() },
@@ -621,7 +722,7 @@ test("watcher caps its final sleep to the retained deadline", async () => {
   assert.deepEqual(pauses, [2500]);
 });
 
-test("watcher stops on replacement identity, failed workflow, absent gates or monitoring failure", async () => {
+void test("watcher stops on replacement identity, failed workflow, absent gates or monitoring failure", async () => {
   for (const [runState, pattern] of [
     [{ head_sha: base }, /run\/source\/attempt changed/],
     [{ run_attempt: 2 }, /run\/source\/attempt changed/],
@@ -631,7 +732,7 @@ test("watcher stops on replacement identity, failed workflow, absent gates or mo
     [{ status: "completed", conclusion: "cancelled" }, /completed with cancelled/],
     [{ status: "completed", conclusion: null }, /no conclusion/],
     [{ status: "completed", conclusion: "success" }, /gates remain missing/],
-  ])
+  ] as const)
     await assert.rejects(
       watchRequiredChecks(
         {
@@ -644,6 +745,7 @@ test("watcher stops on replacement identity, failed workflow, absent gates or mo
     );
   await assert.rejects(
     watchRequiredChecks(
+      // @ts-expect-error Deliberately omit later capabilities; the first read must retain its failure.
       {
         workflowRun: () => {
           throw new Error("403 readback unavailable");
@@ -652,14 +754,14 @@ test("watcher stops on replacement identity, failed workflow, absent gates or mo
       watchOptions,
     ),
     (error) => {
-      assert.match(error.message, /monitoring failed/);
-      assert.equal(error.operationEvidence.head, head);
+      assert.match(errorMessage(error), /monitoring failed/);
+      assert.equal(evidence(error).head, head);
       return true;
     },
   );
 });
 
-test("watcher rejects missing identity/deadline before querying and does not accept old green gates while the run is pending", async () => {
+void test("watcher rejects missing identity/deadline before querying and does not accept old green gates while the run is pending", async () => {
   const client = { workflowRun: () => assert.fail("invalid options must stop before API access") };
   for (const overrides of [
     { run: 0 },
@@ -669,6 +771,7 @@ test("watcher rejects missing identity/deadline before querying and does not acc
     { deadline: "2026-02-30T22:00:00Z" },
     { deadline: "2026-10-01T22:00:00+00:00" },
   ])
+    // @ts-expect-error Deliberately incomplete client and malformed deadline exercise rejection before API access.
     await assert.rejects(watchRequiredChecks(client, { ...watchOptions, ...overrides }));
   await assert.rejects(
     watchRequiredChecks(
@@ -679,10 +782,10 @@ test("watcher rejects missing identity/deadline before querying and does not acc
   );
 });
 
-test("workflow REST readback validates repository and opaque run identity", () => {
+void test("workflow REST readback validates repository and opaque run identity", () => {
   let body = { ...workflow(), repository: { full_name: "boburning/portcove" } };
   const client = new PullRequestDeliveryClient((args) => {
-    assert.equal(args[2], "repos/boburning/portcove/actions/runs/42");
+    assert.equal(requiredFixture(args[2]), "repos/boburning/portcove/actions/runs/42");
     return included(body);
   });
   assert.equal(client.workflowRun(42).id, 42);
@@ -692,17 +795,29 @@ test("workflow REST readback validates repository and opaque run identity", () =
   assert.throws(() => client.workflowRun(42), /identity/);
 });
 
-test("watcher rejects green checks from another run/attempt or incomplete job inventory", async () => {
+void test("watcher rejects green checks from another run/attempt or incomplete job inventory", async () => {
   for (const change of [
-    (jobs) => jobs.slice(1),
-    (jobs) => [{ ...jobs[0], run_id: 43 }, ...jobs.slice(1)],
-    (jobs) => [{ ...jobs[0], run_attempt: 2 }, ...jobs.slice(1)],
-    (jobs) => [{ ...jobs[0], head_sha: base }, ...jobs.slice(1)],
-    (jobs) => [{ ...jobs[0], name: "other" }, ...jobs.slice(1)],
-    (jobs) => [{ ...jobs[0], conclusion: "skipped" }, ...jobs.slice(1)],
-    (jobs) => [{ ...jobs[0], check_run_url: jobs[1].check_run_url }, ...jobs.slice(1)],
-    (jobs) => [
-      { ...jobs[0], check_run_url: "https://api.github.com/repos/other/repo/check-runs/1" },
+    (jobs: DeliveryJob[]) => jobs.slice(1),
+    (jobs: DeliveryJob[]) => [{ ...requiredFixture(jobs[0]), run_id: 43 }, ...jobs.slice(1)],
+    (jobs: DeliveryJob[]) => [{ ...requiredFixture(jobs[0]), run_attempt: 2 }, ...jobs.slice(1)],
+    (jobs: DeliveryJob[]) => [{ ...requiredFixture(jobs[0]), head_sha: base }, ...jobs.slice(1)],
+    (jobs: DeliveryJob[]) => [{ ...requiredFixture(jobs[0]), name: "other" }, ...jobs.slice(1)],
+    (jobs: DeliveryJob[]) => [
+      { ...requiredFixture(jobs[0]), conclusion: "skipped" },
+      ...jobs.slice(1),
+    ],
+    (jobs: DeliveryJob[]) => [
+      {
+        ...requiredFixture(jobs[0]),
+        check_run_url: requiredFixture(requiredFixture(jobs[1]).check_run_url),
+      },
+      ...jobs.slice(1),
+    ],
+    (jobs: DeliveryJob[]) => [
+      {
+        ...requiredFixture(jobs[0]),
+        check_run_url: "https://api.github.com/repos/other/repo/check-runs/1",
+      },
       ...jobs.slice(1),
     ],
   ])
@@ -732,10 +847,10 @@ test("watcher rejects green checks from another run/attempt or incomplete job in
   );
 });
 
-test("workflow attempt job inventory follows pagination and rejects incomplete totals", () => {
+void test("workflow attempt job inventory follows pagination and rejects incomplete totals", () => {
   let incomplete = false;
   const client = new PullRequestDeliveryClient((args) => {
-    const endpoint = args[2];
+    const endpoint = requiredFixture(args[2]);
     assert.match(endpoint, /actions\/runs\/42\/jobs\?filter=all/);
     if (endpoint.includes("page=2"))
       return included({ total_count: 5, jobs: workflowJobs().slice(1) });
@@ -751,9 +866,9 @@ test("workflow attempt job inventory follows pagination and rejects incomplete t
   assert.throws(() => client.workflowJobs(42, 1), /incomplete|total/);
 });
 
-test("watch-only API reads bound subprocess and whole observation without altering merge clients", () => {
+void test("watch-only API reads bound subprocess and whole observation without altering merge clients", () => {
   let time = 1000;
-  const timeouts = [];
+  const timeouts: (number | undefined)[] = [];
   const client = createWatchClient({
     now: () => time,
     spawn: (_command, _args, options) => {
@@ -776,23 +891,28 @@ test("watch-only API reads bound subprocess and whole observation without alteri
   assert.deepEqual(timeouts, [15_000, 500]);
 });
 
-test("subprocess timeout is retained as a failed observation with no retry", async () => {
+void test("subprocess timeout is retained as a failed observation with no retry", async () => {
   let calls = 0;
   const client = createWatchClient({
     spawn: () => {
       calls += 1;
-      return { error: Object.assign(new Error("spawnSync gh ETIMEDOUT"), { code: "ETIMEDOUT" }) };
+      return {
+        status: null,
+        stdout: "",
+        stderr: "",
+        error: Object.assign(new Error("spawnSync gh ETIMEDOUT"), { code: "ETIMEDOUT" }),
+      };
     },
   });
   await assert.rejects(watchRequiredChecks(client, watchOptions), (error) => {
-    assert.match(error.message, /monitoring failed.*ETIMEDOUT/);
-    assert.equal(error.operationEvidence.deadline, watchOptions.deadline);
+    assert.match(errorMessage(error), /monitoring failed.*ETIMEDOUT/);
+    assert.equal(evidence(error).deadline, watchOptions.deadline);
     return true;
   });
   assert.equal(calls, 1);
 });
 
-test("watcher rejects an attempt changed during otherwise successful job collection", async () => {
+void test("watcher rejects an attempt changed during otherwise successful job collection", async () => {
   let reads = 0;
   await assert.rejects(
     watchRequiredChecks(
@@ -809,20 +929,20 @@ test("watcher rejects an attempt changed during otherwise successful job collect
       watchOptions,
     ),
     (error) => {
-      assert.match(error.message, /changed during job collection/);
-      assert.equal(error.operationEvidence.workflow.run_attempt, 2);
+      assert.match(errorMessage(error), /changed during job collection/);
+      assert.equal(record(evidence(error).workflow).run_attempt, 2);
       return true;
     },
   );
   assert.equal(reads, 2);
 });
 
-test("REST merge uses the exact SHA and verifies remote completion", () => {
-  const calls = [];
+void test("REST merge uses the exact SHA and verifies remote completion", () => {
+  const calls: { method: string | undefined; endpoint: string; input: string | undefined }[] = [];
   let merged = false;
   const client = new PullRequestDeliveryClient((args, input) => {
-    const method = args[4];
-    const endpoint = args[1] === "graphql" ? "graphql" : args[2];
+    const method = requiredFixture(args[4]);
+    const endpoint = args[1] === "graphql" ? "graphql" : requiredFixture(args[2]);
     calls.push({ method, endpoint, input });
     if (endpoint === "graphql") return included(closingPage());
     if (endpoint === "repos/boburning/portcove/pulls/7/commits?per_page=100")
@@ -839,7 +959,7 @@ test("REST merge uses the exact SHA and verifies remote completion", () => {
     if (endpoint.includes("/status?")) return included({ total_count: 0, statuses: [] });
     if (endpoint === "repos/boburning/portcove/pulls/7/merge") {
       merged = true;
-      assert.deepEqual(JSON.parse(input), {
+      assert.deepEqual(JSON.parse(input ?? ""), {
         merge_method: "squash",
         sha: head,
         commit_title: squashMessage.title,
@@ -858,10 +978,10 @@ test("REST merge uses the exact SHA and verifies remote completion", () => {
   );
 });
 
-test("merge command errors are reconciled through remote readback before retry", () => {
+void test("merge command errors are reconciled through remote readback before retry", () => {
   let merged = false;
   const client = new PullRequestDeliveryClient((args) => {
-    const endpoint = args[1] === "graphql" ? "graphql" : args[2];
+    const endpoint = args[1] === "graphql" ? "graphql" : requiredFixture(args[2]);
     if (endpoint === "graphql") return included(closingPage());
     if (endpoint === "repos/boburning/portcove/pulls/7/commits?per_page=100")
       return included([{ sha: head, commit: { message: squashMessage.title } }]);
@@ -882,16 +1002,17 @@ test("merge command errors are reconciled through remote readback before retry",
   });
   const result = client.merge(7, head, required, emptyIntent, squashMessage);
   assert.equal(result.result.sha, merge);
-  assert.match(result.result.message, /readback confirmed/);
+  assert.match(String(result.result.message), /readback confirmed/);
 });
 
-test("merge reports unknown when mutation and remote readback are both ambiguous", () => {
+void test("merge reports unknown when mutation and remote readback are both ambiguous", () => {
   const client = new PullRequestDeliveryClient();
-  client.api = { graphql: () => closingPage() };
+  client.api = new GitHubApiClient(() => included(closingPage()));
   client.pullCommits = () => [{ sha: head, commit: { message: squashMessage.title } }];
   client.requiredCheckState = () => ({
+    head,
     pull: pull(),
-    contexts: required.map((context) => ({ context, outcome: "success", conclusion: "success" })),
+    contexts: requiredCheckContexts(successfulRuns(), [], required),
   });
   client.request = () => {
     throw new Error("connection closed");
@@ -902,13 +1023,13 @@ test("merge reports unknown when mutation and remote readback are both ambiguous
   assert.throws(
     () => client.merge(7, head, required, emptyIntent, squashMessage),
     (error) =>
-      error.operationStatus === "unknown" &&
-      error.operationEvidence.pull_request === 7 &&
-      /outcome is unknown/.test(error.message),
+      deliveryError(error).operationStatus === "unknown" &&
+      evidence(error).pull_request === 7 &&
+      /outcome is unknown/.test(errorMessage(error)),
   );
 });
 
-test("merge refuses draft conflict and incomplete-check states before mutation", () => {
+void test("merge refuses draft conflict and incomplete-check states before mutation", () => {
   for (const overrides of [{ draft: true }, { mergeable: false }, { mergeable: null }]) {
     const client = new PullRequestDeliveryClient();
     client.pull = () => pull(overrides);
@@ -924,22 +1045,25 @@ test("merge refuses draft conflict and incomplete-check states before mutation",
 });
 
 function closureGuardClient(
-  pages,
+  pages: unknown[],
   commits = [{ sha: head, commit: { message: "fix: scoped component" } }],
 ) {
   let index = 0;
   const client = new PullRequestDeliveryClient();
-  client.api = { graphql: () => pages[Math.min(index++, pages.length - 1)] };
+  client.api = new GitHubApiClient(() =>
+    included(requiredFixture(pages[Math.min(index++, pages.length - 1)])),
+  );
   client.requiredCheckState = () => ({
+    head,
     pull: pull(),
-    contexts: required.map((context) => ({ context, outcome: "success", conclusion: "success" })),
+    contexts: requiredCheckContexts(successfulRuns(), [], required),
   });
   client.pullCommits = () => commits;
   client.request = () => assert.fail("Closure refusal must precede merge mutation");
   return client;
 }
 
-test("empty component intent refuses keyword-free manual closure relationships", () => {
+void test("empty component intent refuses keyword-free manual closure relationships", () => {
   const page = closingPage({
     closingIssuesReferences: {
       totalCount: 1,
@@ -956,7 +1080,7 @@ test("empty component intent refuses keyword-free manual closure relationships",
   );
 });
 
-test("unchanged source head does not hide PR body or relationship changes", () => {
+void test("unchanged source head does not hide PR body or relationship changes", () => {
   for (const second of [
     closingPage({ body: "Related to #202." }),
     closingPage({
@@ -983,7 +1107,7 @@ test("unchanged source head does not hide PR body or relationship changes", () =
   }
 });
 
-test("candidate commit and actual proposed squash text require explicit closure permission", () => {
+void test("candidate commit and actual proposed squash text require explicit closure permission", () => {
   for (const text of [
     "Fixes https://github.com/boburning/portcove/issues/244",
     "Fixes https://github.com/other/repo/issues/244",
@@ -1030,7 +1154,7 @@ test("candidate commit and actual proposed squash text require explicit closure 
   );
 });
 
-test("unexpected actual squash message preserves a merged outcome without retry", () => {
+void test("unexpected actual squash message preserves a merged outcome without retry", () => {
   const client = closureGuardClient([closingPage()]);
   let writes = 0;
   client.request = (method) => {
@@ -1044,17 +1168,18 @@ test("unexpected actual squash message preserves a merged outcome without retry"
   assert.throws(
     () => client.merge(7, head, required, emptyIntent, squashMessage),
     (error) =>
-      error.operationStatus === "unknown" &&
-      error.operationEvidence.merge_commit_sha === merge &&
-      /Actual merged commit message differs/.test(error.message) &&
-      error.operationEvidence.closure_readback.actual_commit.message === "Unexpected Closes #244" &&
-      error.operationEvidence.closure_readback.mutation.merged === true &&
-      error.operationEvidence.closure_readback.pull.merge_commit_sha === merge,
+      deliveryError(error).operationStatus === "unknown" &&
+      evidence(error).merge_commit_sha === merge &&
+      /Actual merged commit message differs/.test(errorMessage(error)) &&
+      record(record(evidence(error).closure_readback).actual_commit).message ===
+        "Unexpected Closes #244" &&
+      record(record(evidence(error).closure_readback).mutation).merged === true &&
+      record(record(evidence(error).closure_readback).pull).merge_commit_sha === merge,
   );
   assert.equal(writes, 1);
 });
 
-test("delivery help shares supported flags and performs no API work", () => {
+void test("delivery help shares supported flags and performs no API work", () => {
   assert.match(deliveryHelp("watch"), /--progress/);
   assert.match(deliveryHelp("renovate-check"), /--summary/);
   assert.deepEqual(parseArguments(["watch", "--help"]), {
@@ -1064,10 +1189,10 @@ test("delivery help shares supported flags and performs no API work", () => {
   assert.throws(() => parseArguments(["merge", "--progress"]), /unsupported/);
   assert.throws(() => deliveryHelp("unknown"), /unknown command/);
 });
-test("progress is change-only and preserves source/run/attempt identity", () => {
-  const output = [];
+void test("progress is change-only and preserves source/run/attempt identity", () => {
+  const output: string[] = [];
   const progress = createWatchProgress((text) => output.push(text));
-  const observation = {
+  const observation: import("./pr-delivery.mts").WatchObservation = {
     kind: "delivery-observation",
     head,
     run: 42,
@@ -1085,13 +1210,13 @@ test("progress is change-only and preserves source/run/attempt identity", () => 
   assert.equal(output.length, 2);
   progress({ ...observation, workflow: { ...observation.workflow, head_sha: base } });
   assert.equal(output.length, 3);
-  assert.match(output[2], new RegExp(head));
-  assert.match(output[2], new RegExp(base));
-  assert.match(output[2], /42\/1/);
+  assert.match(requiredFixture(output[2]), new RegExp(head));
+  assert.match(requiredFixture(output[2]), new RegExp(base));
+  assert.match(requiredFixture(output[2]), /42\/1/);
   assert(output.every((text) => Buffer.byteLength(text + "\n") <= 16 * 1024));
 });
 
-test("command help and incompatible output modes fail offline before network access", () => {
+void test("command help and incompatible output modes fail offline before network access", () => {
   for (const command of ["watch", "renovate-check", "merge"]) {
     const result = spawnHelp(process.execPath, ["scripts/pr-delivery.mts", command, "--help"], {
       encoding: "utf8",
@@ -1110,23 +1235,23 @@ test("command help and incompatible output modes fail offline before network acc
   assert.equal(incompatible.status, 1);
   assert.match(incompatible.stderr, /mutually exclusive/);
 });
-test("all authored Renovate next-action branches preserve current execution authority", () => {
+void test("all authored Renovate next-action branches preserve current execution authority", () => {
   assert.doesNotMatch(
     inspectRenovateQueue.toString(),
     /configured operational board|Accepted coordinator assignments|Confirm the accepted assignment/,
   );
 });
 
-test("selective retry retains independent success but refuses newer authoritative executions", async () => {
+void test("selective retry retains independent success but refuses newer authoritative executions", async () => {
   const old = workflowJobs();
   const rerun = {
-    ...old[0],
+    ...requiredFixture(old[0]),
     id: 100,
     run_attempt: 2,
     check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/100",
   };
   const state = checkState("success");
-  state.contexts[0].check_run_id = 100;
+  requiredFixture(state.contexts[0]).check_run_id = 100;
   const client = {
     workflowRun: () => workflow({ run_attempt: 2, status: "completed", conclusion: "success" }),
     requiredCheckState: () => state,
