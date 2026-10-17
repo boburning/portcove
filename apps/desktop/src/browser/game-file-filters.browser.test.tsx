@@ -91,6 +91,8 @@ function Session({ library }: { library: string }) {
   useEffect(() => setView("catalog"), [setView]);
   return (
     <main ref={workspace} data-focus-region="workspace" tabIndex={-1}>
+      <button onClick={() => ui.setView("library")}>Go to Library</button>
+      <button onClick={() => ui.setView("catalog")}>Go to Catalog</button>
       <label>
         Search catalog
         <input value={ui.query} onChange={(event) => ui.setQuery(event.target.value)} />
@@ -118,8 +120,8 @@ function Session({ library }: { library: string }) {
         </>
       ) : (
         <PortBrowser
-          view="catalog"
-          ports={filterPorts(ports, empty, "catalog", ui.filter, ui.query, ui.catalogSort, context)}
+          view={ui.view}
+          ports={filterPorts(ports, empty, ui.view, ui.filter, ui.query, ui.catalogSort, context)}
           catalogFilterCandidates={filterPorts(ports, empty, "catalog", "all", ui.query)}
           queryContext={context}
           gameFileQuery={observation}
@@ -348,3 +350,25 @@ it.each(["dark", "light"])(
     noAdditionalChecks();
   },
 );
+
+it("retains catalog history through Catalog/Library section navigation without inspection", async () => {
+  flushSync(() => root.render(<Fixture />));
+  await userEvent.click(button("Filters (0)"));
+  await userEvent.click(button("Check game-file filters"));
+  const recordedTime = page
+    .getByLabelText("Catalog check history")
+    .element()
+    .querySelector("time")!.dateTime;
+  await closeFilters();
+  await userEvent.click(button("Go to Library"));
+  await userEvent.click(button("Filters (0)"));
+  await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
+  expect(
+    page.getByLabelText("Catalog check history").element().querySelector("time")!.dateTime,
+  ).toBe(recordedTime);
+  await closeFilters();
+  await userEvent.click(button("Go to Catalog"));
+  await userEvent.click(button("Filters (0)"));
+  await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
+  noAdditionalChecks();
+});
