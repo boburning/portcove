@@ -11,11 +11,13 @@ on:
           [
             compatibility,
             linux-package-boundary,
+            linux-preparation-continuity,
             bootstrap,
             selected,
             compiled,
             qualification-history,
             candidate-consumer,
+            slice3-windows-recovery,
           ]
       execution_binding:
         description: Exact independently reviewed source/controller/inventory/selected-plan JSON.
@@ -210,6 +212,152 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  linux_preparation_continuity:
+    if: ${{ inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-22.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: ./.github/actions/setup-rust
+      - name: Retain the exact ordinary hosted environment before preparation
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { execFileSync } from 'node:child_process';
+          import assert from 'node:assert/strict';
+          const read = (command, args) => execFileSync(command, args, { encoding: 'utf8' }).trim();
+          const revision = read('git', ['rev-parse', 'HEAD']);
+          assert.equal(revision, process.env.GITHUB_SHA);
+          assert.equal(read('git', ['status', '--porcelain']), '');
+          assert.ok(process.env.RUNNER_TEMP && path.isAbsolute(process.env.RUNNER_TEMP));
+          const retained = path.join(process.env.RUNNER_TEMP, 'slice3-native-retained');
+          fs.appendFileSync(process.env.GITHUB_ENV, 'PORTCOVE_RETAINED_EVIDENCE_DIR=' + retained + '\n');
+          fs.mkdirSync('work/linux-preparation-continuity', { recursive: true });
+          fs.writeFileSync('work/linux-preparation-continuity/host.json', JSON.stringify({
+            revision, runner: 'ubuntu-22.04', platform: process.platform,
+            architecture: process.arch, kernel: read('uname', ['-r']),
+            retained_evidence: retained,
+            image_os: process.env.ImageOS, image_version: process.env.ImageVersion,
+            node: process.version, pnpm: read('pnpm', ['--version']),
+            rustc: read('rustc', ['--version', '--verbose']),
+            scope: 'Ordinary hosted Linux development fixture; no minimum OS, installed package or physical device claim',
+          }, null, 2) + '\n', { flag: 'wx' });
+          NODE
+      - name: Install the existing disposable Linux prerequisites
+        timeout-minutes: 15
+        run: |
+          ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver
+          version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
+          cargo install tauri-driver --locked --version "$version" \
+            --root "$RUNNER_TEMP/slice3-native-driver" \
+            --target-dir "$RUNNER_TEMP/slice3-native-driver-target"
+          "$RUNNER_TEMP/slice3-native-driver/bin/tauri-driver" --help \
+            > work/linux-preparation-continuity/driver-help.txt
+          cargo install --list --root "$RUNNER_TEMP/slice3-native-driver" \
+            > work/linux-preparation-continuity/driver-installation.txt
+          dpkg-query --show --showformat='${Package} ${Version} ${Architecture}\n' \
+            libwebkit2gtk-4.1-0 webkit2gtk-driver xvfb x11-xkb-utils \
+            > work/linux-preparation-continuity/native-packages.txt
+      - run: pnpm install --frozen-lockfile
+      - name: Build fresh ordinary application, CLI and owned probe
+        run: |
+          test ! -e "$CARGO_TARGET_DIR"
+          pnpm build
+          node scripts/run-rust-tests.mts --guard-command \
+            cargo build --locked -p portcove-desktop --features tauri/custom-protocol
+          node scripts/run-rust-tests.mts --guard-command cargo build --locked -p portcove-cli
+          rustc --edition=2024 --crate-name portcove_host_tool_fixture \
+            crates/portcove-core/src/testdata/host_tool_probe.rs.txt \
+            -o "$RUNNER_TEMP/slice3-native-owned-probe"
+      - name: Prepare the two exact private-X11 selections
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const output = path.resolve('work/linux-preparation-continuity');
+          fs.mkdirSync(output, { recursive: true });
+          for (const [name, scenario] of [
+            ['cancellation', 'native-preparation-cancellation'],
+            ['interruption', 'native-linux-interrupted-preparation'],
+          ]) {
+            const config = {
+              format_version: 1, stage: 'harness',
+              xvfb: fs.realpathSync('/usr/bin/Xvfb'),
+              xkbcomp: fs.realpathSync('/usr/bin/xkbcomp'),
+              output_root: output,
+              harness_args: [
+                '--app', fs.realpathSync(path.join(process.env.CARGO_TARGET_DIR, 'debug/portcove-desktop')),
+                '--driver', fs.realpathSync(path.join(process.env.RUNNER_TEMP, 'slice3-native-driver/bin/tauri-driver')),
+                '--native-driver', fs.realpathSync('/usr/bin/WebKitWebDriver'),
+                '--preparation-cli', fs.realpathSync(path.join(process.env.CARGO_TARGET_DIR, 'debug/portcove')),
+                '--preparation-tool', fs.realpathSync(path.join(process.env.RUNNER_TEMP, 'slice3-native-owned-probe')),
+                '--output', path.join(output, name), '--scenario', scenario,
+              ],
+            };
+            fs.writeFileSync(path.join(output, `${name}-config.json`), JSON.stringify(config, null, 2) + '\n', { flag: 'wx' });
+          }
+          NODE
+      - name: Observe reload, actual cancellation and forced namespace recovery
+        timeout-minutes: 10
+        run: |
+          node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-preparation-continuity/cancellation-config.json"
+          node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-preparation-continuity/interruption-config.json"
+      - name: Retain bounded Linux reports and images in ordinary job logs
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          import { encodeBackupEvidence } from './scripts/native-backup-evidence.mts';
+          const root = path.resolve('work/linux-preparation-continuity');
+          assert.ok(fs.lstatSync(root).isDirectory() && !fs.lstatSync(root).isSymbolicLink(), 'Report root must be an owned directory');
+          const encoded = path.resolve('work/linux-continuity-encoded');
+          assert.ok(!fs.existsSync(encoded), 'Never overwrite collected evidence');
+          const native = path.join(encoded, 'desktop-verify', 'slice3', 'native');
+          fs.mkdirSync(native, { recursive: true, mode: 0o700 });
+          const directories = [root];
+          for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+            if (entry.name === 'cancellation' || entry.name === 'interruption' || /^private-x11-[a-zA-Z0-9]+$/.test(entry.name)) {
+              assert.ok(entry.isDirectory() && !entry.isSymbolicLink(), 'Report root must be an owned directory');
+              directories.push(path.join(root, entry.name));
+            }
+          }
+          const inventory = [];
+          for (const directory of directories.sort()) {
+            for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+              if (!/\.(json|jsonl|log|png|txt)$/.test(entry.name)) continue;
+              assert.ok(entry.isFile() && !entry.isSymbolicLink(), 'Report must be a regular file');
+              assert.ok(inventory.length < 126, 'Report inventory exceeds the existing codec bound');
+              const source = path.join(directory, entry.name);
+              assert.ok(fs.statSync(source).size <= 12 * 1024 * 1024, 'Report exceeds the existing codec bound');
+              const bytes = fs.readFileSync(source);
+              const extension = path.extname(entry.name) === '.txt' ? '.log' : path.extname(entry.name);
+              const name = String(inventory.length).padStart(3, '0') + extension;
+              fs.writeFileSync(path.join(native, name), bytes, { flag: 'wx' });
+              inventory.push({ original: path.relative(root, source), retained: name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
+            }
+          }
+          fs.writeFileSync(path.join(encoded, 'collection.json'), JSON.stringify({
+            scope: 'Exact report/image bytes with original-name mapping; no private profiles, cookies, retained executables or full input payloads', inventory,
+          }, null, 2) + '\n', { flag: 'wx' });
+          console.log(await encodeBackupEvidence(encoded));
+          NODE
+
   backup_focus:
     if: ${{ inputs.operation == 'compatibility' && !inputs.edge_driver_proof && inputs.runner == 'windows-2022' }}
     runs-on: windows-2022
@@ -356,6 +504,105 @@ jobs:
               wrong_version_rejected = $true
             } | ConvertTo-Json -Depth 4
           } finally { Remove-Item -LiteralPath $root -Recurse -Force }
+
+  slice3_windows_recovery:
+    if: ${{ inputs.operation == 'slice3-windows-recovery' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
+    runs-on: windows-2022
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: host-publication
+            source: 7613845d66f5c83f089ff03cbeefd1f27ac089dd
+            scenario: native-host-publication-recovery
+          - name: rejected-listener
+            source: 79cb76fcbd2ef73c7be7f66eea1457259d857011
+            scenario: native-rejected-listener-registration
+    env:
+      PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/slice3-native-evidence
+      PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/slice3-native-temp
+      SOURCE_HEAD: ${{ matrix.source }}
+      SCENARIO: ${{ matrix.scenario }}
+      CONTROLLER_HEAD: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.source }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bind the exact source and ordinary interactive hosted environment
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse HEAD).Trim() -ne $env:SOURCE_HEAD) { throw 'Source identity changed.' }
+          if (git status --porcelain) { throw 'Native qualification requires clean source.' }
+          New-Item -ItemType Directory -Path $env:PORTCOVE_OUTPUT_DIR | Out-Null
+          $identity = [ordered]@{
+            controller_head = $env:CONTROLLER_HEAD
+            source_head = $env:SOURCE_HEAD
+            scenario = $env:SCENARIO
+            run_id = '${{ github.run_id }}'
+            run_attempt = '${{ github.run_attempt }}'
+            image_os = $env:ImageOS
+            image_version = $env:ImageVersion
+            os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+            session_id = [Diagnostics.Process]::GetCurrentProcess().SessionId
+            user_interactive = [Environment]::UserInteractive
+            scope = 'Ordinary hosted Windows development fixture; no installed package, minimum OS or physical observation claim.'
+          }
+          $identity | ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/host.json"
+          if (-not $identity.user_interactive -or $identity.session_id -le 0) {
+            throw 'Hosted interactive desktop is unavailable; preserve the feasibility failure.'
+          }
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - uses: ./.github/actions/setup-rust
+      - name: Provision source-pinned packages and native prerequisites
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pathsJson = node scripts/tool-cache.mts --paths
+          if ($LASTEXITCODE -ne 0) { throw 'Source-pinned tool paths are unavailable.' }
+          $paths = $pathsJson | ConvertFrom-Json
+          $planJson = node scripts/development-capabilities.mts --profile native-desktop
+          if ($LASTEXITCODE -ne 0) { throw 'Native prerequisite selection failed.' }
+          $plan = $planJson | ConvertFrom-Json
+          $cargoBins = @($plan.setup.cargo_tools | ForEach-Object {
+            Join-Path $paths.cargoRoot "$($_.crate)/$($_.version)/bin"
+          })
+          $env:PATH = ($cargoBins -join [IO.Path]::PathSeparator) + [IO.Path]::PathSeparator + $env:PATH
+          $cargoBins | Add-Content -LiteralPath $env:GITHUB_PATH
+          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Frozen dependency installation failed.' }
+          ./scripts/bootstrap-quality-tools.ps1 -Profile native-desktop
+          if ($LASTEXITCODE -ne 0) { throw 'Source-pinned native bootstrap failed.' }
+      - name: Compile and observe the one exact owned recovery journey
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:PATH = "$PWD/work/tool-bin;$env:PATH"
+          $env:CARGO_TARGET_DIR = Join-Path $PWD 'work/slice3-native-target'
+          if (Test-Path -LiteralPath $env:CARGO_TARGET_DIR) { throw 'Application target must be fresh.' }
+          node scripts/desktop-verify.mts --scenario $env:SCENARIO --require-clean --plan --json > "$env:PORTCOVE_OUTPUT_DIR/selected-plan.json"
+          if ($LASTEXITCODE -ne 0) { throw 'Exact native plan failed.' }
+          if ($env:SCENARIO -eq 'native-host-publication-recovery') {
+            node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-core --features qualification-fixtures qualification_checkpoint::tests -- --nocapture
+            if ($LASTEXITCODE -ne 0) { throw 'Qualification checkpoint tests failed.' }
+          }
+          node scripts/desktop-verify.mts --scenario $env:SCENARIO --require-clean
+          if ($LASTEXITCODE -ne 0) { throw 'Native acceptance failed; preserve original evidence.' }
+      - name: Retain bounded lossless evidence in ordinary job logs
+        if: always()
+        shell: pwsh
+        run: |
+          node scripts/native-backup-evidence.mts emit "$env:PORTCOVE_OUTPUT_DIR"
+          if ($LASTEXITCODE -ne 0) { throw 'Required evidence retention failed.' }
 
   hosted_selected:
     if: ${{ inputs.operation == 'bootstrap' || inputs.operation == 'selected' || inputs.operation == 'candidate-consumer' }}

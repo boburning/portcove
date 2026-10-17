@@ -21,3 +21,5 @@ peerDependencyRules:
   allowedVersions:
     vite: "*"
     vitest: "*"
+patchedDependencies:
+  "@tauri-apps/api@2.12.4": patches/@tauri-apps__api@2.12.4.patch

@@ -2,6 +2,22 @@
 
 ## Verification input and execution identities
 
+`native-rejected-listener-registration` is a standalone Windows qualification
+scenario. While actual Core preparation is running, it changes one owned event
+registration argument to an invalid name containing a space. Tauri itself rejects
+the request; its response is returned unchanged. The harness checks that the
+rejected handler and invoke callbacks settle, degraded live-update guidance and
+read-only refresh remain usable, and a genuine library-generation remount obtains
+a fresh listener without repeating preparation. This controlled invalid-input
+case does not establish natural transport loss or Linux listener qualification.
+
+The version-bound `@tauri-apps/api@2.12.4` patch releases only the callback allocated
+by a rejected `listen()` call and rethrows its original error. ESM and CommonJS
+entrypoints carry the same patch; successful registration and native unlisten
+retain upstream behavior. The maintained adapter regression uses the actual API
+package with an emulated transport. Review the patch and regression when updating
+that dependency; remove the patch only after equivalent upstream cleanup is proven.
+
 The Windows/Linux native CLI wrapper captures declared inputs before importing
 the harness. Supported standalone products and cached drivers execute retained
 bytes; path-sensitive or unestablished layouts retain the original path with
@@ -610,7 +626,7 @@ post-upgrade execution or replace Aqua's install-time checksum and attestation
 verification.
 
 Routine non-security development-tool proposals are eligible throughout the week
-after the existing release-age check, within the two concurrent queue slots.
+after the existing release-age check, within the four concurrent proposal slots.
 Aqua and its managed Ruff, actionlint, and ShellCheck pins are proposed as one
 qualification group. Renovate does not independently advance the standard
 registry ref: if an actual tool update is unavailable in the pinned registry, or
@@ -972,6 +988,33 @@ executable directly with a loopback-only `WEBKIT_INSPECTOR_HTTP_SERVER` child
 environment; `TAURI_WEBVIEW_AUTOMATION` and the legacy inspector variable are
 absent. No production feature, CSP or permission override is added. Other native
 scenarios keep their existing driver routes.
+
+For ordinary Linux development continuity, run exact standalone
+`native-preparation-cancellation` and `native-linux-interrupted-preparation`
+selections with the normal WebDriver transport. Both use the maintained private
+PID namespace and positive namespace join. The cancellation selection retains
+the existing renderer reload, same Core operation identity and actual UI cancel
+observations. The interruption selection requires a live owned preparation,
+invalidates its WebDriver session without deleting it, closes the namespace
+init's private control pipe and waits for successful join before fresh startup
+against the same owned library. It records the retained activity, workspace,
+doctor repair item, cleanup preview and hashes of the owned source, runtime and
+save. It never writes a product process-quiescence flag: uncertain Core proof
+must still refuse cleanup with manual review. This is forced namespace teardown,
+not an application-only kill, graceful close, OS shutdown, installed package or
+minimum Linux environment claim. No qualification feature is required.
+
+The existing manual `Native design compatibility` workflow also offers the fixed
+`linux-preparation-continuity` operation on the standard `ubuntu-22.04` runner in
+this public repository. It builds ordinary app/CLI artifacts in a fresh target,
+compiles the owned probe, and runs both exact scenarios sequentially through the
+same private-X11 adapter. Its private input store is outside the checkout under
+the runner's temporary directory. Failed observations, exact report/image bytes
+and their original-name/hash inventory use the existing bounded job-log codec;
+there are no artifact uploads or caches. Collection excludes private profiles,
+display cookies, retained executables and complete input payloads. Source and
+binary identities remain recorded in the actual build and native reports.
+Its hosted result remains distinct from local Windows/WSL or minimum-OS proof.
 
 Before executing the unchanged boundary assertions, the observer requires the
 listener's live PID/generation, executable digest and owned namespace ancestry,

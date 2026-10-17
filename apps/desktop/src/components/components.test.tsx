@@ -18,6 +18,7 @@ import { UpdateCenter } from "./UpdateCenter";
 import { RecoveryReview } from "./RecoveryReview";
 import { applyOperationEvent, mostRecentOperation } from "../features/operations/operation-state";
 import { OperationCancellation } from "./OperationCancellation";
+import { commandShortcut } from "../keyboard-shortcuts";
 import embeddedCatalog from "../../../../crates/portcove-core/catalog/catalog.json";
 
 function currentCatalogPort(id: string): PortDefinition {
@@ -1234,7 +1235,10 @@ describe("desktop components", () => {
     );
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*class="[^"]*bg-transparent/u);
     expect(html).toMatch(
-      /<button[^>]*data-variant="outline"[^>]*aria-label="Commands Ctrl K: open command palette"/u,
+      new RegExp(
+        `<button[^>]*data-variant="outline"[^>]*aria-label="Commands ${commandShortcut("K")}: open command palette"`,
+        "u",
+      ),
     );
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*aria-label="Dismiss error"/u);
     expect(html).toContain("Port catalog");
@@ -1301,7 +1305,9 @@ describe("desktop components", () => {
     expect(settings).toContain('<h1 tabindex="-1">Settings</h1>');
     for (const header of [library, catalog, updates, settings]) {
       expect(header).not.toContain('class="eyebrow"');
-      expect(header).toContain('aria-label="Commands Ctrl K: open command palette"');
+      expect(header).toContain(
+        `aria-label="Commands ${commandShortcut("K")}: open command palette"`,
+      );
     }
     for (const header of [library, updates, settings])
       expect(header).not.toContain('class="page-description"');

@@ -18,7 +18,16 @@ interface WorkerEvent {
 }
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, writeFile, readFile, rm, readdir, copyFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  writeFile,
+  readFile,
+  rm,
+  readdir,
+  copyFile,
+  rename,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -362,7 +371,9 @@ void test("pending handover queues new payloads without acquiring retirement gua
   );
   while (!(await readdir(path.join(root, "queue"))).length)
     await new Promise((resolve) => setTimeout(resolve, 10));
-  await writeFile(path.join(root, "config.json"), JSON.stringify({ legacyMode: "coordinated" }));
+  const nextConfig = path.join(root, "config-next.json");
+  await writeFile(nextConfig, JSON.stringify({ legacyMode: "coordinated" }), { flag: "wx" });
+  await rename(nextConfig, path.join(root, "config.json"));
   const lease = await pending;
   assert.equal(lease.inherited, false);
   await lease.release();

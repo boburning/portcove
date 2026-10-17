@@ -32,6 +32,10 @@ $directoryInput = $ast.Find({ param($node) $node -is [Management.Automation.Lang
 $buttonSelection = $ast.Find({ param($node) $node -is [Management.Automation.Language.IfStatementAst] -and $node.Extent.Text.Contains('$buttonDeadline =') }, $true).Extent.Text
 $buttonInput = $ast.Find({ param($node) $node -is [Management.Automation.Language.IfStatementAst] -and $node.Extent.Text.StartsWith('if ($Button -ne') -and $node.Extent.Text.Contains("GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()") }, $true).Extent.Text
 if (-not $discoveryLoop -or -not $directoryInput -or -not $buttonSelection -or -not $buttonInput) { throw 'Production input inventory changed' }
+$discoveryBody = [scriptblock]::Create($discoveryLoop)
+$directoryInputBody = [scriptblock]::Create($directoryInput)
+$buttonSelectionBody = [scriptblock]::Create($buttonSelection)
+$buttonInputBody = [scriptblock]::Create($buttonInput)
 function Get-CimInstance {
     param($ClassName, $Filter)
     if ($Filter -ceq 'ProcessId = 42' -and $script:liveApp.ProcessId -eq 42) { $script:liveApp }
@@ -77,16 +81,25 @@ foreach ($script:case in @('valid', 'native-pane', 'native-late-driver', 'foreig
         if ($script:case -eq 'foreign-pane') { $script:controls[0].Current.ProcessId = 99 }
         if ($script:case -eq 'duplicate-pane') { $script:controls += New-FakeControl 'Folder:' ([System.Windows.Automation.ControlType]::Pane) 42 }
     }
-    $window = $null; $children = @(); $deadline = [DateTime]::UtcNow.AddSeconds(1); $rejected = $false
+    $caseClock = [Diagnostics.Stopwatch]::StartNew()
+    $stage = 'discovery'; $fixtureSetupFailed = $false
+    $window = $null; $children = @(); $deadline = [DateTime]::UtcNow.AddSeconds(5); $rejected = $false
     try {
-        . ([scriptblock]::Create($discoveryLoop))
-        . ([scriptblock]::Create($directoryInput))
+        . $discoveryBody
+        if (-not $window) { $fixtureSetupFailed = $true; throw 'Fixture discovery returned without its exact mock window.' }
+        $stage = 'directory-input'
+        . $directoryInputBody
         $selectedWindowHandle = $window.Current.NativeWindowHandle
-        . ([scriptblock]::Create($buttonSelection))
-        . ([scriptblock]::Create($buttonInput))
+        $stage = 'button-selection'
+        . $buttonSelectionBody
+        $stage = 'button-input'
+        . $buttonInputBody
     } catch { $rejected = $true; $script:failureReason = $_.Exception.Message }
+    $facts = "case=$script:case stage=$stage elapsed_ms=$($caseClock.ElapsedMilliseconds) window_found=$([bool]$window)"
+    if ($fixtureSetupFailed) { throw "Fixture setup failed before any input: $facts" }
+    Write-Output $facts
     if ($script:case -in @('valid', 'native-pane')) {
-        if ($rejected -or $script:values -ne 1 -or $script:invocations -ne 1 -or $script:selected -cne $DirectoryPath) { throw "Valid actual mutation path failed: values=$script:values invocations=$script:invocations reason=$script:failureReason" }
+        if ($rejected -or $script:values -ne 1 -or $script:invocations -ne 1 -or $script:selected -cne $DirectoryPath) { throw "Valid actual mutation path failed: $facts values=$script:values invocations=$script:invocations reason=$script:failureReason" }
     } else {
         $expectedValues = if ($script:case -in @('foreign-button', 'replaced-window', 'native-late-driver')) { 1 } else { 0 }
         if (-not $rejected -or $script:values -ne $expectedValues -or $script:invocations -ne 0) { throw "Unsafe actual input on $script:case" }

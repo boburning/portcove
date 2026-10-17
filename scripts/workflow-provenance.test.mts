@@ -38,11 +38,14 @@ type CargoMutationFixture = Omit<
 };
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { parse as parseYaml } from "yaml";
+import { recoverBackupEvidence } from "./native-backup-evidence.mts";
 
 import {
   buildWorkflowProvenance,
@@ -56,6 +59,151 @@ import {
   assertRetainedSelectedPlan,
   runHostedValidation,
 } from "./workflow-provenance.mts";
+
+void test("slice3 Windows recovery binds fixed sources and scenarios without billed evidence storage", () => {
+  const nativeDesignCompatibilityWorkflow = readFileSync(
+    new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
+    "utf8",
+  );
+  const workflow: unknown = parseYaml(nativeDesignCompatibilityWorkflow);
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs));
+  const job = workflow.jobs.slice3_windows_recovery;
+  assert.ok(isRecord(job));
+  assert.equal(job["runs-on"], "windows-2022");
+  assert.equal(job["timeout-minutes"], 90);
+  assert.match(String(job.if), /inputs.operation == 'slice3-windows-recovery'/);
+  assert.match(String(job.if), /inputs.runner == 'windows-2022'/);
+  assert.match(String(job.if), /github.event.repository.visibility == 'public'/);
+  assert.ok(isRecord(job.strategy) && isRecord(job.strategy.matrix));
+  assert.equal(job.strategy["fail-fast"], false);
+  assert.ok(Array.isArray(job.strategy.matrix.include));
+  assert.deepEqual(
+    job.strategy.matrix.include.map((entry: unknown) => {
+      assert.ok(isRecord(entry));
+      return { source: entry.source, scenario: entry.scenario };
+    }),
+    [
+      {
+        source: "7613845d66f5c83f089ff03cbeefd1f27ac089dd",
+        scenario: "native-host-publication-recovery",
+      },
+      {
+        source: "79cb76fcbd2ef73c7be7f66eea1457259d857011",
+        scenario: "native-rejected-listener-registration",
+      },
+    ],
+  );
+  assert.ok(Array.isArray(job.steps));
+  const checkout: unknown = job.steps.find(
+    (step: unknown) => isRecord(step) && String(step.uses).startsWith("actions/checkout@"),
+  );
+  assert.ok(isRecord(checkout) && isRecord(checkout.with));
+  assert.equal(checkout.with.ref, "${{ matrix.source }}");
+  assert.equal(checkout.with["persist-credentials"], false);
+  const block = nativeDesignCompatibilityWorkflow
+    .split("\n  slice3_windows_recovery:")[1]
+    ?.split("\n  hosted_selected:")[0];
+  assert.ok(block);
+  assert.match(block, /user_interactive -or \$identity.session_id -le 0/);
+  assert.match(block, /bootstrap-quality-tools.ps1 -Profile native-desktop/);
+  assert.match(block, /Application target must be fresh/);
+  assert.match(block, /qualification_checkpoint::tests/);
+  assert.match(block, /--scenario \$env:SCENARIO --require-clean/);
+  assert.match(block, /native-backup-evidence.mts emit/);
+  assert.doesNotMatch(
+    block,
+    /upload-artifact|rust-cache|actions\/cache|cache: pnpm|inputs\.execution_binding/,
+  );
+});
+
+void test(
+  "Windows recovery exposes selected Cargo executables before bootstrap and in later steps",
+  { skip: process.platform !== "win32" },
+  (t) => {
+    const workflow: unknown = parseYaml(
+      readFileSync(
+        new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
+        "utf8",
+      ),
+    );
+    const job = record(record(record(workflow).jobs).slice3_windows_recovery);
+    assert.ok(Array.isArray(job.steps));
+    const steps: unknown[] = job.steps;
+    const provisioning = record(
+      required(
+        steps.find(
+          (step) =>
+            record(step).name === "Provision source-pinned packages and native prerequisites",
+        ),
+      ),
+    );
+    const program = text(provisioning.run);
+    const prefix = required(program.split("pnpm install --frozen-lockfile")[0]);
+    assert.match(prefix, /tool-cache.mts --paths/);
+    assert.match(prefix, /development-capabilities.mts --profile native-desktop/);
+    assert.match(prefix, /\$cargoBins \| Add-Content -LiteralPath \$env:GITHUB_PATH/);
+    const temporary = mkdtempSync(path.join(tmpdir(), "portcove-windows-tool-path-"));
+    const relative = path.relative(tmpdir(), temporary);
+    assert.ok(relative.startsWith("portcove-windows-tool-path-") && !relative.includes(".."));
+    t.after(() => rmSync(temporary, { recursive: true, force: true }));
+    const environment = Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([name]) => !["LOCALAPPDATA", "GITHUB_PATH"].includes(name.toUpperCase()),
+      ),
+    );
+    environment.LOCALAPPDATA = path.join(temporary, "cache");
+    environment.GITHUB_PATH = path.join(temporary, "github-path");
+    writeFileSync(environment.GITHUB_PATH, "");
+    const cwd = fileURLToPath(new URL("..", import.meta.url));
+    const paths = record(
+      JSON.parse(
+        execFileSync(process.execPath, ["scripts/tool-cache.mts", "--paths"], {
+          cwd,
+          env: environment,
+          encoding: "utf8",
+        }),
+      ),
+    );
+    const plan = record(
+      JSON.parse(
+        execFileSync(
+          process.execPath,
+          ["scripts/development-capabilities.mts", "--profile", "native-desktop"],
+          { cwd, env: environment, encoding: "utf8" },
+        ),
+      ),
+    );
+    const selected = record(plan.setup).cargo_tools;
+    assert.ok(Array.isArray(selected) && selected.length > 0);
+    const expected = selected.map((value: unknown) => {
+      const tool = record(value);
+      return path.join(text(paths.cargoRoot), text(tool.crate), text(tool.version), "bin");
+    });
+    const observed: unknown = JSON.parse(
+      execFileSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          prefix + "\n[ordered]@{ path = $env:PATH } | ConvertTo-Json -Compress",
+        ],
+        { cwd, env: environment, encoding: "utf8", timeout: 30_000 },
+      ),
+    );
+    assert.equal(
+      text(record(observed).path)
+        .split(path.delimiter)
+        .slice(0, expected.length)
+        .join(path.delimiter),
+      expected.join(path.delimiter),
+    );
+    assert.deepEqual(
+      readFileSync(environment.GITHUB_PATH, "utf8").trim().split(/\r?\n/u),
+      expected,
+    );
+  },
+);
 
 const reviewedPlan = [
   { id: "diff-check", executable: "git", args: ["diff", "--check"], cwd: "$SOURCE/" },
@@ -1763,4 +1911,142 @@ void test("duplicate provenance entries refuse before decoding a second payload"
   const duplicate = Buffer.concat([local, secondLocal, central, secondCentral, footer]);
   assert.ok(duplicate.length < 4096);
   assert.throws(() => parseProvenanceArchive(duplicate), /must contain one JSON record/);
+});
+
+void test("Linux continuity publishes an outside-checkout store and lossless bounded private-free reports", async (t) => {
+  const workflow: unknown = parseYaml(
+    readFileSync(
+      new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
+      "utf8",
+    ),
+  );
+  const job = record(record(record(workflow).jobs).linux_preparation_continuity);
+  assert.ok(!Object.hasOwn(record(job.env), "PORTCOVE_RETAINED_EVIDENCE_DIR"));
+  assert.ok(Array.isArray(job.steps));
+  const steps: unknown[] = job.steps;
+  const nodeSetup = record(
+    required(steps.find((value) => text(record(value).uses).startsWith("actions/setup-node@"))),
+  );
+  const nodeOptions = record(nodeSetup.with);
+  assert.equal(nodeOptions["package-manager-cache"], false);
+  assert.ok(!Object.hasOwn(nodeOptions, "cache"));
+  assert.ok(!Object.hasOwn(nodeOptions, "cache-dependency-path"));
+  const extract = (name: string) => {
+    const step = record(required(steps.find((value) => record(value).name === name)));
+    return required(
+      text(step.run).match(/^node --input-type=module <<'NODE'\n([\s\S]*)\nNODE\n?$/u)?.[1],
+    );
+  };
+  const environmentProgram = extract(
+    "Retain the exact ordinary hosted environment before preparation",
+  );
+  const collector = extract("Retain bounded Linux reports and images in ordinary job logs");
+  assert.ok(!JSON.stringify(job).includes("actions/upload-artifact"));
+  const temporary = mkdtempSync(path.join(tmpdir(), "portcove-linux-evidence-"));
+  const relative = path.relative(tmpdir(), temporary);
+  assert.ok(relative.startsWith("portcove-linux-evidence-") && !relative.includes(".."));
+  t.after(() => rmSync(temporary, { recursive: true, force: true }));
+  const checkout = path.join(temporary, "checkout");
+  const runnerTemporary = path.join(temporary, "runner-temp");
+  mkdirSync(checkout);
+  mkdirSync(runnerTemporary);
+  const environmentFile = path.join(temporary, "environment");
+  const environment = {
+    ...process.env,
+    RUNNER_TEMP: runnerTemporary,
+    GITHUB_ENV: environmentFile,
+    GITHUB_SHA: "a".repeat(40),
+  };
+  const stubbedEnvironment = [
+    "import cp from 'node:child_process';",
+    "import {syncBuiltinESMExports} from 'node:module';",
+    "cp.execFileSync=(command,args)=>{",
+    " if(command==='git')return args.includes('--porcelain')?'':'a'.repeat(40);",
+    " if(['uname','pnpm','rustc'].includes(command))return 'fixture version';",
+    " throw new Error('Unexpected environment command'); };",
+    "syncBuiltinESMExports();",
+    "await import('data:text/javascript,'+encodeURIComponent(" +
+      JSON.stringify(environmentProgram) +
+      "));",
+  ].join("\n");
+  const observed = spawnSync(
+    process.execPath,
+    ["--input-type=module", "--eval", stubbedEnvironment],
+    {
+      cwd: checkout,
+      env: environment,
+      encoding: "utf8",
+      timeout: 15_000,
+    },
+  );
+  assert.equal(observed.status, 0, observed.stderr);
+  const retained = path.join(runnerTemporary, "slice3-native-retained");
+  assert.equal(
+    readFileSync(environmentFile, "utf8"),
+    "PORTCOVE_RETAINED_EVIDENCE_DIR=" + retained + "\n",
+  );
+  assert.ok(path.relative(checkout, retained).startsWith(".." + path.sep));
+  const root = path.join(checkout, "work/linux-preparation-continuity");
+  assert.equal(
+    record(JSON.parse(readFileSync(path.join(root, "host.json"), "utf8"))).retained_evidence,
+    retained,
+  );
+  const fixture: Record<string, string> = {
+    "driver-help.txt": "exact driver inventory\n",
+    "cancellation/report.json": '{"result":"cancelled"}\n',
+    "cancellation/screenshot.png": "unit fixture image bytes",
+    "interruption/report.json": '{"result":"recovered"}\n',
+    "private-x11-abc123/preflight.json": '{"identity":"owned"}\n',
+    "private-x11-abc123/outer-join.json": '{"closed":true}\n',
+    "cancellation/library/private.json": "private library bytes",
+    "private-x11-abc123/xdg_config_home/private.json": "private profile bytes",
+    "private-x11-abc123/private-authority": "private cookie",
+    "retained.exe": "binary payload",
+  };
+  for (const [name, bytes] of Object.entries(fixture)) {
+    const file = path.join(root, name);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, bytes);
+  }
+  mkdirSync(path.join(checkout, "scripts"));
+  for (const file of ["native-backup-evidence.mts", "runtime-values.mts"])
+    writeFileSync(
+      path.join(checkout, "scripts", file),
+      readFileSync(new URL("./" + file, import.meta.url)),
+    );
+  const collected = spawnSync(process.execPath, ["--input-type=module", "--eval", collector], {
+    cwd: checkout,
+    encoding: "utf8",
+    timeout: 15_000,
+  });
+  assert.equal(collected.status, 0, collected.stderr);
+  const decoded = path.join(temporary, "decoded");
+  await recoverBackupEvidence(collected.stdout, decoded);
+  const inventory = record(
+    JSON.parse(readFileSync(path.join(decoded, "collection.json"), "utf8")),
+  ).inventory;
+  assert.ok(Array.isArray(inventory));
+  assert.deepEqual(
+    inventory
+      .map((value: unknown) => text(record(value).original).split(path.sep).join("/"))
+      .sort(),
+    [
+      "cancellation/report.json",
+      "cancellation/screenshot.png",
+      "driver-help.txt",
+      "host.json",
+      "interruption/report.json",
+      "private-x11-abc123/outer-join.json",
+      "private-x11-abc123/preflight.json",
+    ],
+  );
+  for (const value of inventory) {
+    const entry = record(value);
+    const bytes = readFileSync(
+      path.join(decoded, "desktop-verify/slice3/native", text(entry.retained)),
+    );
+    assert.deepEqual(bytes, readFileSync(path.join(root, text(entry.original))));
+    assert.equal(entry.sha256, createHash("sha256").update(bytes).digest("hex"));
+    assert.equal(entry.bytes, bytes.length);
+  }
 });

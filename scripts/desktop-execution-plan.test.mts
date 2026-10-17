@@ -245,6 +245,8 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-direct-preparation-recovery",
             "native-late-listener-disposal",
             "native-real-prepared-runtime",
+            "native-linux-interrupted-preparation",
+            "native-rejected-listener-registration",
           ].includes(id),
       ),
     });
@@ -495,27 +497,37 @@ void test("direct preparation recovery qualification is opt-in with positive ide
   );
 });
 
-void test("late listener qualification binds its imported probe and positive final cleanup", () => {
-  const plan = planDesktopExecution(
-    resolveDesktopSelection({ scenarios: ["native-late-listener-disposal"], platform: "win32" }),
-  );
-  assert.equal(plan.session.identityBoundSession, true);
-  assert.equal(plan.session.cleanupName, "late-listener-disposal");
-  assert.ok(
-    plan.fixtureFamilies.some(
-      (entry) =>
-        entry.family === "preparation" &&
-        entry.members?.some((member) => member.id === "native-late-listener-disposal"),
-    ),
-  );
-  assert.ok(
-    plan.receiptInputs.some(
-      (input) => input.path === "apps/desktop/scripts/desktop-listener-lifetime-test.mts",
-    ),
-  );
-  assert.ok(plan.selection.prerequisites.includes("native-dialog"));
-  assert.ok(plan.selection.host_resources.includes("native-dialog"));
-});
+for (const id of ["native-late-listener-disposal", "native-rejected-listener-registration"])
+  void test(`${id} binds its imported probe and positive final cleanup`, () => {
+    const plan = planDesktopExecution(
+      resolveDesktopSelection({ scenarios: [id], platform: "win32" }),
+    );
+    assert.equal(plan.session.identityBoundSession, true);
+    assert.equal(
+      plan.session.cleanupName,
+      id === "native-late-listener-disposal"
+        ? "late-listener-disposal"
+        : "rejected-listener-registration",
+    );
+    assert.ok(
+      plan.fixtureFamilies.some(
+        (entry) =>
+          entry.family === "preparation" && entry.members?.some((member) => member.id === id),
+      ),
+    );
+    assert.ok(
+      plan.receiptInputs.some(
+        (input) => input.path === "apps/desktop/scripts/desktop-listener-lifetime-test.mts",
+      ),
+    );
+    assert.ok(plan.selection.prerequisites.includes("native-dialog"));
+    assert.ok(plan.selection.host_resources.includes("native-dialog"));
+    if (id === "native-rejected-listener-registration")
+      for (const source of ["pnpm-workspace.yaml", "patches/@tauri-apps__api@2.12.4.patch"])
+        assert.ok(
+          plan.receiptInputs.some((input) => input.kind === "file" && input.path === source),
+        );
+  });
 
 void test("backup review requires identity-bound Windows cleanup under the existing deadline", () => {
   for (const platform of ["win32", "linux"] as const) {
@@ -542,6 +554,8 @@ void test("qualified reviews and a running setup restart reject missing or forei
     { scenario: "native-real-prepared-runtime" },
     { scenario: "native-reviewed-backup-restore-and-delete" },
     { scenario: "native-preliminary-source-review" },
+    { scenario: "native-late-listener-disposal" },
+    { scenario: "native-rejected-listener-registration" },
     { scenario: "native-selected-setup-completion", outcome: "running", requireQualified: true },
   ]) {
     const validate = callable(
@@ -884,5 +898,26 @@ void test("main journey dispatch permits smoke without setup inputs but rejects 
     await assert.rejects(
       run(resolveDesktopSelection({ scenarios: [id], platform: "win32" })),
       /Required scenario input missing/,
+    );
+});
+
+void test("Linux interruption is standalone, production-featured and retains namespace source custody", () => {
+  const id = "native-linux-interrupted-preparation";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "linux" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  const plan = planDesktopExecution(selection, { platform: "linux" });
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  for (const name of ["desktop-linux-native-session.mts", "native-linux-init.mts"])
+    assert.ok(plan.receiptInputs.some((input) => input.path === `apps/desktop/scripts/${name}`));
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "win32" }), /Linux/);
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "linux" }),
+    /standalone/,
+  );
+  for (const profile of ["smoke", "full"])
+    assert.ok(
+      !resolveDesktopSelection({ profile, platform: "linux" }).selected_scenarios.includes(id),
     );
 });
