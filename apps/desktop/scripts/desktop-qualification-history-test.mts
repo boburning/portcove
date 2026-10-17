@@ -1,41 +1,143 @@
-import { errorMessage } from "../../../scripts/runtime-values.mts";
+import { errorCode, errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 // One normal-app read-response fixture. No game launch, source registration or consent mutation.
 import assert from "node:assert/strict";
 import { readFile, writeFile, readdir, readlink, realpath } from "node:fs/promises";
 import path from "node:path";
 
+import type { WebDriver, WebElement, Locator } from "selenium-webdriver";
+import type {
+  PortDefinition,
+  PortSourceContract,
+  SourceIdentityProfile,
+} from "../src/transport-types.generated.d.ts";
+interface HistoryContext {
+  browser: WebDriver;
+  invoke: (command: string) => Promise<unknown>;
+  scenario: (name: string, action: () => Promise<void>) => Promise<unknown>;
+  output: string;
+  artifacts: string[];
+  captureScreenshot: (name: string, required?: boolean) => Promise<void>;
+}
+interface HistoryProbe {
+  original: typeof fetch;
+  data: HistoryFixture;
+  mode: string;
+  snapshots: number;
+  reports: number;
+  modeSnapshots: Record<string, number>;
+}
+type HistoryWindow = Window & {
+  __portcoveHistoryProbe?: HistoryProbe;
+  __TAURI_INTERNALS__?: {
+    convertFileSrc(command: string, protocol: string): string;
+    invoke(command: string, args: object): Promise<unknown>;
+  };
+};
+type HistoryFixture = ReturnType<typeof qualificationHistoryFixture>;
+interface HistoryView {
+  theme: string;
+  width: number;
+  height: number;
+  font: string;
+}
+interface HistoryLayout {
+  viewport: { width: number; height: number };
+  font_size: string;
+  bounds: { left: number; right: number; top: number; bottom: number };
+  horizontal_overflow: boolean;
+  theme: string | undefined;
+}
+interface HistoryRestoration {
+  restored: boolean;
+  installed?: boolean;
+  snapshots?: number;
+  reports?: number;
+  error?: unknown;
+  window_error?: string;
+}
+interface HistoryObservation {
+  limitation: string;
+  source_response: HistoryFixture;
+  views: (HistoryLayout & {
+    name: string;
+    rendered_branch: string;
+    expected_view: HistoryView;
+    tab_steps: number | null;
+    window: { width: number; height: number; x: number; y: number };
+  })[];
+  failure?: { message: string };
+  restoration?: unknown;
+  native_source_restoration?: unknown;
+  window_restoration_error?: string;
+  restoration_validation_failure?: { message: string };
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value), "Historical fixture observation must be an object");
+  return value;
+}
+function text(value: unknown): string {
+  assert.ok(typeof value === "string", "Historical fixture text field required");
+  return value;
+}
+function required<Value>(value: Value | null | undefined): Value {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function entries(value: unknown): Record<string, unknown>[] {
+  assert.ok(Array.isArray(value));
+  const rows: unknown[] = value;
+  return rows.map(object);
+}
+
 // Linux history uses the harness's existing detached driver group and SIGTERM.
 // These observations add ownership/exit proof; they never signal a process.
-async function historyProcess(pid) {
+interface HistoryProcess {
+  state: string;
+  pid: number;
+  parent: number;
+  group: number;
+  start_ticks: string;
+  executable: string | null;
+}
+interface HistoryInventory {
+  owner: HistoryProcess;
+  driver: HistoryProcess;
+  processes: HistoryProcess[];
+}
+async function historyProcess(pid: string | number): Promise<HistoryProcess | null> {
   const raw = await readFile(`/proc/${pid}/stat`, "utf8").catch((error) => {
     // A process can exit after procfs opens stat but before its contents are read.
-    if (["ENOENT", "ESRCH"].includes(error.code)) return null;
+    if (["ENOENT", "ESRCH"].includes(errorCode(error) ?? "")) return null;
     throw error;
   });
   if (!raw) return null;
   const fields = raw.slice(raw.lastIndexOf(")") + 2).split(" ");
+  const state = fields[0];
+  const startTicks = fields[19];
+  assert.ok(typeof state === "string" && typeof startTicks === "string");
+  assert.match(startTicks, /^\d+$/u);
   const executable = await readlink(`/proc/${pid}/exe`).catch((error) => {
-    if (["ENOENT", "EACCES", "EPERM"].includes(error.code)) return null;
+    if (["ENOENT", "EACCES", "EPERM"].includes(errorCode(error) ?? "")) return null;
     throw error;
   });
   return {
-    state: fields[0],
+    state,
     pid: Number(pid),
     parent: Number(fields[1]),
     group: Number(fields[2]),
-    start_ticks: fields[19],
+    start_ticks: startTicks,
     executable,
   };
 }
 
-function sameHistoryIdentity(expected, actual) {
+function sameHistoryIdentity(expected: HistoryProcess, actual: HistoryProcess | null) {
   assert.ok(actual, `Captured native PID ${expected.pid} exited before identity validation`);
-  for (const key of ["pid", "parent", "group", "start_ticks", "executable"])
+  for (const key of ["pid", "parent", "group", "start_ticks", "executable"] as const)
     assert.equal(actual[key], expected[key], `Captured native ${key} changed`);
 }
 
-export async function captureHistoryDriver(driverPid, driverPath) {
+export async function captureHistoryDriver(driverPid: number, driverPath: string) {
   assert.equal(process.platform, "linux");
   const owner = await historyProcess(process.pid);
   const driver = await historyProcess(driverPid);
@@ -48,9 +150,9 @@ export async function captureHistoryDriver(driverPid, driverPath) {
 }
 
 export async function captureHistorySession(
-  driverPid,
-  driverPath,
-  applicationPath,
+  driverPid: number,
+  driverPath: string,
+  applicationPath: string,
   phase = "interaction",
 ) {
   assert.ok(["interaction", "cleanup"].includes(phase));
@@ -59,10 +161,11 @@ export async function captureHistorySession(
     await Promise.all(
       (await readdir("/proc")).filter((name) => /^\d+$/.test(name)).map(historyProcess),
     )
-  ).filter(Boolean);
+  ).filter((entry) => entry !== null);
   const processes = [driver];
   for (let index = 0; index < processes.length; index++) {
     const parent = processes[index];
+    assert.ok(parent);
     for (const child of all.filter((entry) => entry.parent === parent.pid)) {
       assert.ok(child.executable, "Owned descendant executable identity is unavailable");
       assert.ok(
@@ -76,7 +179,7 @@ export async function captureHistorySession(
   const appExecutable = await realpath(applicationPath);
   const application = processes.find((entry) => entry.executable === appExecutable);
   const webviews = processes.filter(
-    (entry) => path.basename(entry.executable) === "WebKitWebProcess",
+    (entry) => entry.executable !== null && path.basename(entry.executable) === "WebKitWebProcess",
   );
   if (phase === "interaction") {
     assert.ok(application, "Exact history application is not an observed driver descendant");
@@ -86,16 +189,16 @@ export async function captureHistorySession(
   return { owner, driver, application, webviews, processes, captured_at: new Date().toISOString() };
 }
 
-export async function historyDriverStillOwned(inventory) {
+export async function historyDriverStillOwned(inventory: HistoryInventory) {
   const current = await historyProcess(inventory.driver.pid);
   if (!current || current.state === "Z") return false;
   sameHistoryIdentity(inventory.driver, current);
   return true;
 }
 
-export async function waitHistorySessionExit(inventory) {
+export async function waitHistorySessionExit(inventory: HistoryInventory) {
   const deadline = Date.now() + 5_000;
-  let remaining;
+  let remaining: number[];
   do {
     remaining = [];
     for (const entry of inventory.processes) {
@@ -114,15 +217,36 @@ export async function waitHistorySessionExit(inventory) {
 // The repository-level scripts/desktop-scenarios.test.mts consumes this export.
 // Its test root is outside the frontend Fallow graph.
 // fallow-ignore-next-line unused-export
-export function qualificationHistoryFixture(catalog) {
-  const port = catalog.ports.find((entry) => entry.id === "snap64-recomp");
-  const source = catalog.source_catalog;
-  assert.ok(port && source, "Maintained Snap64 source catalog is required");
-  const contract = source.contracts.find(
-    (entry) => entry.port_id === port.id && entry.role === "game",
+export function qualificationHistoryFixture(catalog: unknown) {
+  const raw = object(catalog);
+  const portRecord = required(entries(raw.ports).find((entry) => entry.id === "snap64-recomp"));
+  const port: Pick<PortDefinition, "id" | "name" | "source_profile"> = {
+    ...portRecord,
+    id: text(portRecord.id),
+    name: text(portRecord.name),
+    source_profile: text(portRecord.source_profile),
+  };
+  const source = object(raw.source_catalog);
+  const contractRecord = required(
+    entries(source.contracts).find((entry) => entry.port_id === port.id && entry.role === "game"),
   );
-  const records = source.qualification.filter((entry) => entry.scope.port_id === port.id);
-  assert.ok(port && contract && records.length, "Maintained Snap64 history is required");
+  const contract: Pick<PortSourceContract, "port_id" | "profile_id" | "role"> = {
+    ...contractRecord,
+    port_id: text(contractRecord.port_id),
+    profile_id: text(contractRecord.profile_id),
+    role: "game",
+  };
+  const records = entries(source.qualification).filter(
+    (entry) => object(entry.scope).port_id === port.id,
+  );
+  assert.ok(records.length, "Maintained Snap64 history is required");
+  const identityRecord = required(
+    entries(source.identities).find((entry) => entry.id === port.source_profile),
+  );
+  const identity: Pick<SourceIdentityProfile, "id"> = {
+    ...identityRecord,
+    id: text(identityRecord.id),
+  };
   return {
     port_id: port.id,
     profile_id: port.source_profile,
@@ -133,7 +257,7 @@ export function qualificationHistoryFixture(catalog) {
       state_code: "not_inspected",
       summary: "Synthetic historical read; current files not inspected",
       next_action: "Select files",
-      expected_identity: source.identities.find((entry) => entry.id === port.source_profile),
+      expected_identity: identity,
       applications: [
         {
           port_id: port.id,
@@ -148,7 +272,7 @@ export function qualificationHistoryFixture(catalog) {
             exact_records: records,
           },
         },
-      ],
+      ] as const,
       evidence: [],
       legacy: { registration_identity_not_recorded: false, variant_unspecified_records: [] },
     },
@@ -162,10 +286,10 @@ export async function qualificationHistoryScenario({
   output,
   artifacts,
   captureScreenshot,
-}) {
+}: HistoryContext) {
   await scenario("native-qualification-history", async () => {
     assert.equal(process.platform, "linux", "This bounded fixture is Linux-native evidence only");
-    const catalog = JSON.parse(
+    const catalog: unknown = JSON.parse(
       await readFile(
         new URL("../../../crates/portcove-core/catalog/catalog.json", import.meta.url),
         "utf8",
@@ -181,96 +305,130 @@ export async function qualificationHistoryScenario({
       browser,
       () => getComputedStyle(document.documentElement).fontSize,
     );
-    let expectedView;
-    const observation = {
+    let expectedView: HistoryView | undefined;
+    const observation: HistoryObservation = {
       limitation:
         "Actual Tauri/WebKit presentation with supplied historical read responses and synthetic runtime branches; no current file qualification or physical-controller evidence",
       source_response: fixture,
       views: [],
     };
     async function installFixture() {
-      const installed = await browser.executeAsyncScript((data, done) => {
-        const native = window.__TAURI_INTERNALS__;
-        const original = window.fetch;
-        const snapshotUrl = native.convertFileSrc("get_workspace_snapshot", "ipc");
-        const inspectionUrl = native.convertFileSrc("inspect_source", "ipc");
-        const probe = {
-          original,
-          data,
-          mode: "managed",
-          snapshots: 0,
-          reports: 0,
-          modeSnapshots: {},
-        };
-        window.__portcoveHistoryProbe = probe;
-        function suppliedSnapshot(snapshot) {
-          probe.snapshots++;
-          probe.modeSnapshots[probe.mode] = (probe.modeSnapshots[probe.mode] ?? 0) + 1;
-          snapshot.sources = [
-            {
-              profile_id: data.profile_id,
-              path: "owned-synthetic-history.rom",
-              sha256: "0".repeat(64),
-              size: 0,
-              storage_sha256: "0".repeat(64),
-              storage_size: 0,
-              updated_at: 1,
-            },
-          ];
-          const port = snapshot.catalog.ports.find((entry) => entry.id === data.port_id);
-          if (probe.mode === "user-prepared") {
-            port.release.provider = "user-prepared";
-            port.release.user_prepared = {};
+      const installed = await browser.executeAsyncScript<unknown>(
+        (data: HistoryFixture, done: (result: unknown) => void) => {
+          const host = window as HistoryWindow;
+          const native = host.__TAURI_INTERNALS__;
+          if (!native) throw new Error("Native history bridge missing");
+          const original = window.fetch;
+          const snapshotUrl = native.convertFileSrc("get_workspace_snapshot", "ipc");
+          const inspectionUrl = native.convertFileSrc("inspect_source", "ipc");
+          const probe: HistoryProbe = {
+            original,
+            data,
+            mode: "managed",
+            snapshots: 0,
+            reports: 0,
+            modeSnapshots: {},
+          };
+          host.__portcoveHistoryProbe = probe;
+          function record(value: unknown): Record<string, unknown> {
+            if (!value || typeof value !== "object" || Array.isArray(value))
+              throw new Error("Malformed history response object");
+            return value as Record<string, unknown>;
           }
-          if (probe.mode === "external") {
-            const status = snapshot.statuses.find((entry) => entry.port_id === data.port_id);
-            status.external_runtime = {
-              id: "owned-history-runtime",
-              port_id: data.port_id,
-              path: "owned-history-runtime",
-              executable: "owned-history-runtime/game",
-              version: "1.0.5",
-              platform: "linux-x86-64",
-              archive_sha256: "a".repeat(64),
-              immutable_tree_sha256: "b".repeat(64),
-              registered_at: 1,
-            };
+          function records(value: unknown): Record<string, unknown>[] {
+            if (!Array.isArray(value)) throw new Error("Malformed history response array");
+            return value.map((item: unknown) => record(item));
           }
-          return snapshot;
-        }
-        window.fetch = async function (input, ...args) {
-          const url = typeof input === "string" ? input : input.url;
-          if (url === inspectionUrl) {
-            const body = typeof args[0]?.body === "string" ? JSON.parse(args[0].body) : null;
-            if (body?.profileId !== data.profile_id) return original.call(window, input, ...args);
-            probe.reports++;
-            return new Response(JSON.stringify(data.report), {
-              headers: { "Content-Type": "application/json", "Tauri-Response": "ok" },
+          function suppliedSnapshot(value: unknown) {
+            const snapshot = record(value);
+            probe.snapshots++;
+            probe.modeSnapshots[probe.mode] = (probe.modeSnapshots[probe.mode] ?? 0) + 1;
+            snapshot.sources = [
+              {
+                profile_id: data.profile_id,
+                path: "owned-synthetic-history.rom",
+                sha256: "0".repeat(64),
+                size: 0,
+                storage_sha256: "0".repeat(64),
+                storage_size: 0,
+                updated_at: 1,
+              },
+            ];
+            const port = records(record(snapshot.catalog).ports).find(
+              (entry) => entry.id === data.port_id,
+            );
+            if (!port) throw new Error("History fixture port missing from workspace");
+            const release = record(port.release);
+            if (probe.mode === "user-prepared") {
+              release.provider = "user-prepared";
+              release.user_prepared = {};
+            }
+            if (probe.mode === "external") {
+              const status = records(snapshot.statuses).find(
+                (entry) => entry.port_id === data.port_id,
+              );
+              if (!status) throw new Error("History fixture status missing from workspace");
+              status.external_runtime = {
+                id: "owned-history-runtime",
+                port_id: data.port_id,
+                path: "owned-history-runtime",
+                executable: "owned-history-runtime/game",
+                version: "1.0.5",
+                platform: "linux-x86-64",
+                archive_sha256: "a".repeat(64),
+                immutable_tree_sha256: "b".repeat(64),
+                registered_at: 1,
+              };
+            }
+            return snapshot;
+          }
+          window.fetch = async function (input, ...args) {
+            const url =
+              typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+            if (url === inspectionUrl) {
+              const body: unknown =
+                typeof args[0]?.body === "string" ? JSON.parse(args[0].body) : null;
+              if (
+                !body ||
+                typeof body !== "object" ||
+                Array.isArray(body) ||
+                !("profileId" in body) ||
+                body.profileId !== data.profile_id
+              )
+                return original.call(window, input, ...args);
+              probe.reports++;
+              return new Response(JSON.stringify(data.report), {
+                headers: { "Content-Type": "application/json", "Tauri-Response": "ok" },
+              });
+            }
+            const response = await original.call(window, input, ...args);
+            if (url !== snapshotUrl || !response.ok) return response;
+            const snapshot = suppliedSnapshot(await response.clone().json());
+            return new Response(JSON.stringify(snapshot), {
+              status: response.status,
+              statusText: response.statusText,
+              headers: response.headers,
             });
-          }
-          const response = await original.call(window, input, ...args);
-          if (url !== snapshotUrl || !response.ok) return response;
-          const snapshot = suppliedSnapshot(await response.clone().json());
-          return new Response(JSON.stringify(snapshot), {
-            status: response.status,
-            statusText: response.statusText,
-            headers: response.headers,
-          });
-        };
-        native
-          .invoke("plugin:event|emit", {
-            event: "portcove://library-changed",
-            payload: "history-fixture",
-          })
-          .then(
-            () => done({ ok: true }),
-            (error) => done({ error: String(error) }),
-          );
-      }, fixture);
-      assert.equal(installed.ok, true, JSON.stringify(installed));
+          };
+          native
+            .invoke("plugin:event|emit", {
+              event: "portcove://library-changed",
+              payload: "history-fixture",
+            })
+            .then(
+              () => done({ ok: true }),
+              (error: unknown) => done({ error: String(error) }),
+            );
+        },
+        fixture,
+      );
+      assert.equal(object(installed).ok, true, JSON.stringify(installed));
     }
-    let By, Key, until, technicalSummary;
-    const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+    let By: typeof import("selenium-webdriver").By;
+    let Key: typeof import("selenium-webdriver").Key;
+    let until: typeof import("selenium-webdriver").until;
+    let technicalSummary: Locator;
+    const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
     async function openDetails() {
       await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
       const card = await browser.wait(
@@ -287,7 +445,7 @@ export async function qualificationHistoryScenario({
         "Populated production history did not settle; A16 component composition is required",
       );
     }
-    async function expandTechnical(summary, name) {
+    async function expandTechnical(summary: WebElement, name: string) {
       let tabSteps = null;
       if (name === "default-dark" || ["user-prepared", "external"].includes(name)) {
         for (tabSteps = 0; tabSteps < 80; tabSteps++) {
@@ -309,7 +467,7 @@ export async function qualificationHistoryScenario({
       } else await summary.click();
       return tabSteps;
     }
-    async function captureRecords(details, name) {
+    async function captureRecords(details: WebElement, name: string) {
       // Capture each maintained record at readable viewport scale rather than
       // accepting a single screenshot of a disclosure taller than the window.
       const records = await details.findElements(
@@ -349,7 +507,7 @@ export async function qualificationHistoryScenario({
         }
       }
     }
-    async function assertRenderedBranch(name) {
+    async function assertRenderedBranch(name: string) {
       if (!["user-prepared", "external"].includes(name)) return "managed";
       const required =
         name === "external"
@@ -368,7 +526,8 @@ export async function qualificationHistoryScenario({
       );
       return name;
     }
-    async function checkView(name) {
+    async function checkView(name: string) {
+      const view = required(expectedView);
       const renderedBranch = await assertRenderedBranch(name);
       const panel = await browser.findElement(By.css(".detail-panel"));
       const text = await panel.getText();
@@ -416,15 +575,15 @@ export async function qualificationHistoryScenario({
       );
       assert.equal(layout.horizontal_overflow, false, JSON.stringify(layout));
       assert.ok(layout.bounds.left >= 0 && layout.bounds.right <= layout.viewport.width + 1);
-      assert.equal(layout.theme, expectedView.theme);
-      assert.equal(layout.font_size, expectedView.font);
+      assert.equal(layout.theme, view.theme);
+      assert.equal(layout.font_size, view.font);
       const actualWindow = await browser.manage().window().getRect();
-      assert.equal(actualWindow.width, expectedView.width);
-      assert.equal(actualWindow.height, expectedView.height);
+      assert.equal(actualWindow.width, view.width);
+      assert.equal(actualWindow.height, view.height);
       observation.views.push({
         name,
         rendered_branch: renderedBranch,
-        expected_view: expectedView,
+        expected_view: view,
         tab_steps: tabSteps,
         window: await browser.manage().window().getRect(),
         ...layout,
@@ -446,6 +605,9 @@ export async function qualificationHistoryScenario({
       );
       await captureScreenshot(`qualification-history-${name}-primary`, true);
     }
+    let primaryFailure: { error: unknown } | undefined;
+    let validationFailure: { error: unknown } | undefined;
+    let evidenceFailure: { error: unknown } | undefined;
     try {
       await installFixture();
       // Diagnostics import fixture/process helpers without desktop dependencies.
@@ -455,7 +617,7 @@ export async function qualificationHistoryScenario({
         async () =>
           (await executeBrowserScript(
             browser,
-            () => window.__portcoveHistoryProbe?.snapshots ?? 0,
+            () => (window as HistoryWindow).__portcoveHistoryProbe?.snapshots ?? 0,
           )) > 0,
         15_000,
       );
@@ -463,15 +625,17 @@ export async function qualificationHistoryScenario({
       await openDetails();
       await browser.wait(
         async () =>
-          (await executeBrowserScript(browser, () => window.__portcoveHistoryProbe?.reports ?? 0)) >
-          0,
+          (await executeBrowserScript(
+            browser,
+            () => (window as HistoryWindow).__portcoveHistoryProbe?.reports ?? 0,
+          )) > 0,
         15_000,
       );
       for (const [name, theme, width, height, font] of [
         ["default-dark", "Dark", 1280, 800, originalFont],
         ["compact-light", "Light", 960, 640, originalFont],
         ["text-scaled-light", "Light", 1280, 800, "20px"],
-      ]) {
+      ] as const) {
         await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
         await browser.findElement(button(theme)).click();
         await browser.wait(
@@ -504,26 +668,33 @@ export async function qualificationHistoryScenario({
         },
         originalFont,
       );
-      expectedView = { ...expectedView, font: originalComputedFont };
+      expectedView = { ...required(expectedView), font: originalComputedFont };
       for (const mode of ["user-prepared", "external"]) {
-        const refreshed = await browser.executeAsyncScript((next, done) => {
-          window.__portcoveHistoryProbe.mode = next;
-          window.__TAURI_INTERNALS__
-            .invoke("plugin:event|emit", {
-              event: "portcove://library-changed",
-              payload: `history-${next}`,
-            })
-            .then(
-              () => done(true),
-              (error) => done(String(error)),
-            );
-        }, mode);
+        const refreshed = await browser.executeAsyncScript<unknown>(
+          (next: string, done: (result: unknown) => void) => {
+            const host = window as HistoryWindow;
+            const probe = host.__portcoveHistoryProbe;
+            const native = host.__TAURI_INTERNALS__;
+            if (!probe || !native) throw new Error("Installed history probe missing");
+            probe.mode = next;
+            native
+              .invoke("plugin:event|emit", {
+                event: "portcove://library-changed",
+                payload: `history-${next}`,
+              })
+              .then(
+                () => done(true),
+                (error: unknown) => done(String(error)),
+              );
+          },
+          mode,
+        );
         assert.equal(refreshed, true);
         await browser.wait(
           async () =>
             (await executeBrowserScript(
               browser,
-              (next) => window.__portcoveHistoryProbe.modeSnapshots[next] ?? 0,
+              (next) => (window as HistoryWindow).__portcoveHistoryProbe?.modeSnapshots[next] ?? 0,
               mode,
             )) > 0,
           15_000,
@@ -533,12 +704,13 @@ export async function qualificationHistoryScenario({
         await checkView(mode);
       }
     } catch (error) {
+      primaryFailure = { error };
       observation.failure = { message: errorMessage(error) };
-      throw error;
     } finally {
-      observation.restoration = await browser
-        .executeAsyncScript((font, done) => {
-          const probe = window.__portcoveHistoryProbe;
+      const restored: unknown = await browser
+        .executeAsyncScript<unknown>((font: string, done: (result: unknown) => void) => {
+          const host = window as HistoryWindow;
+          const probe = host.__portcoveHistoryProbe;
           if (!probe) return done({ restored: true, installed: false, snapshots: 0, reports: 0 });
           window.fetch = probe.original;
           document.documentElement.style.fontSize = font;
@@ -547,48 +719,88 @@ export async function qualificationHistoryScenario({
             snapshots: probe.snapshots,
             reports: probe.reports,
           };
-          delete window.__portcoveHistoryProbe;
-          window.__TAURI_INTERNALS__
+          delete host.__portcoveHistoryProbe;
+          const native = host.__TAURI_INTERNALS__;
+          if (!native) throw new Error("Native restoration bridge missing");
+          native
             .invoke("plugin:event|emit", {
               event: "portcove://library-changed",
               payload: "history-restored",
             })
             .then(
               () => done(result),
-              (error) => done({ ...result, error: String(error) }),
+              (error: unknown) => done({ ...result, error: String(error) }),
             );
         }, originalFont)
-        .catch((error) => ({ restored: false, error: error.message }));
+        .catch((error: unknown) => ({ restored: false, error: errorMessage(error) }));
+      // Keep raw replies before checking them: malformed transport results must
+      // not prevent the independent window/source cleanup or its evidence.
+      observation.restoration = restored;
       await browser
         .manage()
         .window()
         .setRect(originalWindow)
-        .catch((error) => {
-          observation.restoration.window_error = error.message;
+        .catch((error: unknown) => {
+          observation.window_restoration_error = errorMessage(error);
         });
-      const nativeSources = await invoke("get_sources").catch((error) => ({
+      const nativeRaw: unknown = await invoke("get_sources").catch((error: unknown) => ({
         ok: false,
-        error: error.message,
+        error: errorMessage(error),
       }));
-      observation.native_source_restoration = {
-        ok: nativeSources.ok,
-        count: nativeSources.value?.length,
-        error: nativeSources.error,
-      };
+      const nativeRecord = isRecord(nativeRaw) ? nativeRaw : undefined;
+      observation.native_source_restoration = nativeRecord
+        ? {
+            ok: nativeRecord.ok,
+            ...(Array.isArray(nativeRecord.value) ? { count: nativeRecord.value.length } : {}),
+            error: nativeRecord.error,
+          }
+        : { raw_reply: nativeRaw };
+      try {
+        const rawRestoration = object(restored);
+        assert.ok(typeof rawRestoration.restored === "boolean");
+        const restoration: HistoryRestoration = {
+          ...rawRestoration,
+          restored: rawRestoration.restored,
+        };
+        if (rawRestoration.installed !== undefined) {
+          assert.ok(typeof rawRestoration.installed === "boolean");
+          restoration.installed = rawRestoration.installed;
+        }
+        for (const key of ["snapshots", "reports"] as const) {
+          const count = rawRestoration[key];
+          if (count !== undefined) {
+            assert.ok(typeof count === "number" && Number.isSafeInteger(count) && count >= 0);
+            restoration[key] = count;
+          }
+        }
+        assert.equal(restoration.restored, true);
+        if (!observation.failure && restoration.installed !== false)
+          assert.ok(required(restoration.snapshots) > 0 && required(restoration.reports) > 0);
+        assert.equal(restoration.error, undefined);
+        assert.equal(observation.window_restoration_error, undefined);
+        const nativeReply = object(nativeRaw);
+        assert.equal(nativeReply.ok, true);
+        assert.ok(Array.isArray(nativeReply.value));
+        assert.equal(
+          nativeReply.value.length,
+          0,
+          "Synthetic responses must not register source data",
+        );
+      } catch (error) {
+        validationFailure = { error };
+        observation.restoration_validation_failure = { message: errorMessage(error) };
+      }
       const report = path.join(output, "qualification-history.json");
-      await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
-      artifacts.push(report);
-      assert.equal(observation.restoration.restored, true);
-      if (!observation.failure && observation.restoration.installed !== false)
-        assert.ok(observation.restoration.snapshots > 0 && observation.restoration.reports > 0);
-      assert.equal(observation.restoration.error, undefined);
-      assert.equal(observation.restoration.window_error, undefined);
-      assert.equal(nativeSources.ok, true);
-      assert.equal(
-        nativeSources.value.length,
-        0,
-        "Synthetic responses must not register source data",
-      );
+      try {
+        await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
+        artifacts.push(report);
+      } catch (error) {
+        evidenceFailure = { error };
+        console.error("Could not retain qualification history evidence:", errorMessage(error));
+      }
     }
+    if (primaryFailure) throw primaryFailure.error;
+    if (validationFailure) throw validationFailure.error;
+    if (evidenceFailure) throw evidenceFailure.error;
   });
 }

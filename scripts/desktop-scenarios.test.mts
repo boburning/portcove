@@ -1,3 +1,4 @@
+import {errorCode} from "./runtime-values.mts";
 import "../apps/desktop/scripts/desktop-completion-focus.native.test.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -112,7 +113,7 @@ test("untrustworthy probe cleanup retains the primary error and reaches outer te
     new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
     "utf8",
   );
-  const start = source.indexOf("async function scenario(name, action)");
+  const start = source.indexOf("async function scenario(");
   const end = source.indexOf("async function connectObservedDriver()", start);
   assert(start >= 0 && end > start);
   const records = [];
@@ -280,12 +281,13 @@ test("history procfs disappearance retains narrow errors and live identities", a
     new URL("../apps/desktop/scripts/desktop-qualification-history-test.mts", import.meta.url),
     "utf8",
   );
-  const start = source.indexOf("async function historyProcess(pid)");
+  const start = source.indexOf("async function historyProcess(");
   const end = source.indexOf("function sameHistoryIdentity", start);
   assert.ok(start >= 0 && end > start);
   for (const code of ["ENOENT", "ESRCH", "EACCES", "EIO"]) {
     const error = Object.assign(new Error(code), { code });
     const action = runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
+      assert, errorCode,
       readFile: async () => {
         throw error;
       },
@@ -298,6 +300,7 @@ test("history procfs disappearance retains narrow errors and live identities", a
   }
   const fields = ["S", "10", "123", ...Array(16).fill("0"), "456"];
   const live = await runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
+      assert, errorCode,
     readFile: async () => `123 (owned child) ${fields.join(" ")}`,
     readlink: async () => "/owned/driver",
   });
@@ -315,6 +318,7 @@ test("history procfs disappearance retains narrow errors and live identities", a
   const error = Object.assign(new Error("exe disappearance"), { code: "ESRCH" });
   await assert.rejects(
     runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
+      assert, errorCode,
       readFile: async () => `123 (owned child) ${fields.join(" ")}`,
       readlink: async () => {
         throw error;
@@ -2395,3 +2399,4 @@ test("selected setup identities admit both replacements only in the opt-in catal
   const ordinaryCatalog = JSON.parse(await readFile(ordinary.catalogPath, "utf8"));
   assert.deepEqual(ordinaryCatalog.source_catalog, original.source_catalog);
 });
+import "../apps/desktop/scripts/desktop-qualification-history.native.test.mts";
