@@ -261,8 +261,10 @@ jobs:
           cargo install tauri-driver --locked --version "$version" \
             --root "$RUNNER_TEMP/slice3-native-driver" \
             --target-dir "$RUNNER_TEMP/slice3-native-driver-target"
-          "$RUNNER_TEMP/slice3-native-driver/bin/tauri-driver" --version \
-            > work/linux-preparation-continuity/driver-version.txt
+          "$RUNNER_TEMP/slice3-native-driver/bin/tauri-driver" --help \
+            > work/linux-preparation-continuity/driver-help.txt
+          cargo install --list --root "$RUNNER_TEMP/slice3-native-driver" \
+            > work/linux-preparation-continuity/driver-installation.txt
           dpkg-query --show --showformat='${Package} ${Version} ${Architecture}\n' \
             libwebkit2gtk-4.1-0 webkit2gtk-driver xvfb x11-xkb-utils \
             > work/linux-preparation-continuity/native-packages.txt
