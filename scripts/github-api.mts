@@ -175,7 +175,7 @@ export function nextLink(headers: ReadonlyMap<string, string>) {
 }
 
 export function githubRateLimitMessage(
-  rate: GitHubRateLimit | null | undefined,
+  rate: Pick<GitHubRateLimit, "remaining" | "resetAt"> | null | undefined,
   prefix = "GitHub API rate limit",
 ) {
   const remaining = rate?.remaining ?? "unknown";

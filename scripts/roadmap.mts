@@ -1,3 +1,4 @@
+import type { PortDefinition } from "../apps/desktop/src/transport-types.generated.d.ts";
 import { errorMessage, isRecord } from "./runtime-values.mts";
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
@@ -63,6 +64,108 @@ export interface RoadmapConfig {
   views: RoadmapViewDefinition[];
 }
 
+export interface RoadmapFieldTransition {
+  from: string | null;
+  to: string;
+}
+export interface SetManySpecification {
+  schema_version: 1;
+  updates: { target: string; fields: Record<string, RoadmapFieldTransition> }[];
+  assignments: number;
+}
+export interface SetManyAssignment extends RoadmapFieldTransition {
+  target: string;
+  itemId: string;
+  fieldName: string;
+  observed: unknown;
+}
+export interface SetManyPlan<Context = unknown> {
+  context: Context;
+  pending: SetManyAssignment[];
+  alreadyApplied: SetManyAssignment[];
+  assignments: number;
+}
+interface SetManyRate {
+  used: number;
+  remaining: number;
+  resetAt: string;
+}
+interface SetManyReadback extends SetManyAssignment {
+  verified: boolean;
+}
+interface SetManyChunk {
+  index: number;
+  assignments: number;
+  attempted: number;
+  verified: number;
+  reconciled_after_error: number;
+}
+interface SetManyState {
+  verified: number;
+  verifiedAfterAttempt: number;
+  reconciled: number;
+  reconciledAfterError: number;
+  processed: number;
+  chunks: SetManyChunk[];
+  rateLimit: SetManyRate | null;
+  doctor: "not_run" | "passed" | "failed";
+}
+export interface SetManyClient<Context = unknown> {
+  sampleGraphqlRate(): SetManyRate;
+  planSetMany(spec: unknown): SetManyPlan<Context>;
+  verifySetMany(plan: SetManyPlan<Context>): SetManyReadback[];
+  applySetMany(plan: SetManyPlan<Context>, changes: SetManyAssignment[]): unknown;
+}
+function diagnosticText(value: unknown): string {
+  return String(value);
+}
+
+export interface RoadmapFieldValue {
+  name?: unknown;
+  value?: unknown;
+  field?: { name?: unknown } | null;
+  option?: { name?: unknown } | null;
+}
+export interface RoadmapIssueItem {
+  id?: string;
+  number?: number | string;
+  type?: string;
+  __typename?: string;
+  title?: string | null | undefined;
+  body?: string | null;
+  url?: string | null;
+  state?: string | null;
+  content?: RoadmapIssueItem | null;
+  fieldValues?: readonly RoadmapFieldValue[] | undefined;
+  blockedBy?:
+    | readonly RoadmapIssueItem[]
+    | { nodes?: readonly RoadmapIssueItem[]; totalCount?: number }
+    | null;
+  // The CLI normalizes configurable Project field names onto the item itself.
+  // Their values remain untrusted and fieldValue preserves direct-key precedence.
+  [fieldName: string]: unknown;
+}
+function captureText(match: RegExpMatchArray, index: number): string {
+  const value = match[index];
+  if (value === undefined) throw new Error("Required issue marker capture is missing");
+  return value;
+}
+// Diagnostic projections only. Core still owns catalog admission; unknown
+// qualification records are narrowed by the exact-scope checks below.
+type QualificationPlatformFields = Pick<
+  PortDefinition,
+  "platforms" | "automated_tested_platforms" | "manually_validated_platforms"
+>;
+export type QualificationPortObservation = Pick<PortDefinition, "id"> & {
+  [K in keyof QualificationPlatformFields]?: readonly string[];
+} & { support_tier?: unknown };
+export interface QualificationCatalogObservation {
+  ports?: readonly QualificationPortObservation[] | null;
+  source_catalog?: { qualification?: readonly unknown[] | null } | null;
+}
+function qualificationField(value: unknown, name: string): unknown {
+  return isRecord(value) ? value[name] : undefined;
+}
 function includedReleaseTargets(release: string) {
   if (release === "Public beta") return ["Alpha 1", "Alpha 2", "Public beta"];
   if (release === "1.0") return [...legacyReleaseSequence, "Public beta", "1.0"];
@@ -99,13 +202,13 @@ const neutralPortFields = Object.freeze({
   "Port stage": "Watchlist",
   Effort: "Unknown",
 });
-const catalogedPortStages = new Set([
+const catalogedPortStages = new Set<unknown>([
   "Cataloged",
   "Automated qualification",
   "Manual qualification",
   "Supported",
 ]);
-const automatedPortStages = new Set([
+const automatedPortStages = new Set<unknown>([
   "Automated qualification",
   "Manual qualification",
   "Supported",
@@ -157,21 +260,26 @@ const setFlags = new Map([
 const maximumBatchAssignments = 100;
 export const maximumMutationChunkAssignments = 25;
 
-function requireExactKeys(value, expected, label) {
+function requireExactKeys(
+  value: unknown,
+  expected: readonly string[],
+  label: string,
+): asserts value is Record<string, unknown> {
   const actual = Object.keys(value ?? {}).sort();
   const wanted = [...expected].sort();
-  if (JSON.stringify(actual) !== JSON.stringify(wanted))
+  if (!isRecord(value) || JSON.stringify(actual) !== JSON.stringify(wanted))
     throw new Error(`${label} must contain exactly: ${wanted.join(", ")}`);
 }
 
-export function validateSetManySpec(config, spec) {
+export function validateSetManySpec(config: RoadmapConfig, spec: unknown): SetManySpecification {
   requireExactKeys(spec, ["schema_version", "updates"], "set-many specification");
   if (spec.schema_version !== 1) throw new Error("set-many schema_version must be 1");
   if (!Array.isArray(spec.updates) || !spec.updates.length)
     throw new Error("set-many updates must be a non-empty array");
   const targets = new Set();
   let assignments = 0;
-  const updates = spec.updates.map((update, updateIndex) => {
+  const suppliedUpdates: unknown[] = spec.updates;
+  const updates = suppliedUpdates.map((update, updateIndex) => {
     requireExactKeys(update, ["fields", "target"], `set-many update ${updateIndex + 1}`);
     ensureString(update.target, `set-many update ${updateIndex + 1} target`);
     if (targets.has(update.target)) throw new Error(`duplicate set-many target: ${update.target}`);
@@ -184,15 +292,22 @@ export function validateSetManySpec(config, spec) {
     ) {
       throw new Error(`set-many update ${update.target} fields must be a non-empty object`);
     }
-    const fields = {};
+    const fields: Record<string, RoadmapFieldTransition> = {};
     for (const [fieldName, transition] of Object.entries(update.fields)) {
       const definition = config.fields.find((field) => field.name === fieldName);
       if (!definition) throw new Error(`Project field not found: ${fieldName}`);
       requireExactKeys(transition, ["from", "to"], `${update.target} ${fieldName} transition`);
-      if (transition.from !== null && !definition.options.includes(transition.from))
-        throw new Error(`${transition.from} is not a valid ${fieldName} source option`);
-      if (!definition.options.includes(transition.to))
-        throw new Error(`${transition.to} is not a valid ${fieldName} target option`);
+      if (
+        transition.from !== null &&
+        (typeof transition.from !== "string" || !definition.options.includes(transition.from))
+      )
+        throw new Error(
+          `${diagnosticText(transition.from)} is not a valid ${fieldName} source option`,
+        );
+      if (typeof transition.to !== "string" || !definition.options.includes(transition.to))
+        throw new Error(
+          `${diagnosticText(transition.to)} is not a valid ${fieldName} target option`,
+        );
       if (transition.from === transition.to)
         throw new Error(`${update.target} ${fieldName} transition does not change the value`);
       fields[fieldName] = { from: transition.from, to: transition.to };
@@ -205,10 +320,12 @@ export function validateSetManySpec(config, spec) {
   return { schema_version: 1, updates, assignments };
 }
 
-export function setManyRequiredReserve(preflightCost, pendingAssignments) {
+export function setManyRequiredReserve(preflightCost: unknown, pendingAssignments: unknown) {
   if (
+    typeof preflightCost !== "number" ||
     !Number.isSafeInteger(preflightCost) ||
     preflightCost < 0 ||
+    typeof pendingAssignments !== "number" ||
     !Number.isSafeInteger(pendingAssignments) ||
     pendingAssignments < 0 ||
     pendingAssignments > maximumBatchAssignments
@@ -218,15 +335,20 @@ export function setManyRequiredReserve(preflightCost, pendingAssignments) {
   return 2 * preflightCost + Math.min(pendingAssignments, maximumMutationChunkAssignments) + 100;
 }
 
-function setManyOutcomeError(status, message, evidence, cause = null) {
-  const error = new Error(message, cause ? { cause } : undefined);
-  error.code = `set_many_${status}`;
-  error.operationStatus = status;
-  error.operationEvidence = evidence;
-  return error;
+function setManyOutcomeError(
+  status: "unknown" | "partial",
+  message: string,
+  evidence: ReturnType<typeof setManyEvidence>,
+  cause: unknown = null,
+) {
+  return Object.assign(new Error(message, cause ? { cause } : undefined), {
+    code: `set_many_${status}`,
+    operationStatus: status,
+    operationEvidence: evidence,
+  });
 }
 
-function setManyEvidence(plan, state) {
+function setManyEvidence(plan: SetManyPlan, state: SetManyState) {
   return {
     assignments: plan.assignments,
     pending_at_start: plan.pending.length,
@@ -244,13 +366,24 @@ function setManyEvidence(plan, state) {
   };
 }
 
-export async function executeSetMany({
+export async function executeSetMany<Context>({
   client,
   config,
   spec,
   apply = false,
   doctor = runDoctor,
   onPlan = () => {},
+}: {
+  client: SetManyClient<Context>;
+  config: RoadmapConfig;
+  spec: unknown;
+  apply?: boolean;
+  doctor?: (
+    config: RoadmapConfig,
+    client: SetManyClient<Context>,
+    options: { quiet: boolean },
+  ) => unknown;
+  onPlan?: (summary: string) => void;
 }) {
   const before = client.sampleGraphqlRate();
   const plan = client.planSetMany(spec);
@@ -258,7 +391,7 @@ export async function executeSetMany({
   if (after.used < before.used)
     throw new Error("GitHub GraphQL rate-limit window changed during set-many preflight; retry");
   const preflightCost = after.used - before.used;
-  const state = {
+  const state: SetManyState = {
     verified: plan.alreadyApplied.length,
     verifiedAfterAttempt: 0,
     reconciled: plan.alreadyApplied.length,
@@ -317,7 +450,7 @@ export async function executeSetMany({
     state.verified += alreadyDesired;
     state.processed += alreadyDesired;
 
-    let mutationError = null;
+    let mutationError: unknown = null;
     if (pending.length) {
       const rate = client.sampleGraphqlRate();
       state.rateLimit = rate;
@@ -415,8 +548,8 @@ export async function executeSetMany({
   };
 }
 
-function normalizedKey(value) {
-  return String(value ?? "")
+function normalizedKey(value: unknown) {
+  return diagnosticText(value ?? "")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 }
@@ -585,26 +718,26 @@ export function validateDurableIssueBody(body: unknown) {
   return body;
 }
 
-function portCatalogMarkers(body) {
-  return [...String(body ?? "").matchAll(/<!--\s*portcove-catalog-id:\s*([^\s>]+)\s*-->/gi)].map(
-    (match) => match[1],
-  );
+function portCatalogMarkers(body: unknown) {
+  return [
+    ...diagnosticText(body ?? "").matchAll(/<!--\s*portcove-catalog-id:\s*([^\s>]+)\s*-->/gi),
+  ].map((match) => captureText(match, 1));
 }
 
-function portUpstreamMarkers(body) {
-  return [...String(body ?? "").matchAll(/<!--\s*portcove-upstream:\s*([^\s>]+)\s*-->/gi)].map(
-    (match) => match[1],
-  );
+function portUpstreamMarkers(body: unknown) {
+  return [
+    ...diagnosticText(body ?? "").matchAll(/<!--\s*portcove-upstream:\s*([^\s>]+)\s*-->/gi),
+  ].map((match) => captureText(match, 1));
 }
 
-function portKeyMarkers(body) {
-  return [...String(body ?? "").matchAll(/<!--\s*portcove-port-key:\s*([^\s>]+)\s*-->/gi)].map(
-    (match) => match[1],
-  );
+function portKeyMarkers(body: unknown) {
+  return [
+    ...diagnosticText(body ?? "").matchAll(/<!--\s*portcove-port-key:\s*([^\s>]+)\s*-->/gi),
+  ].map((match) => captureText(match, 1));
 }
 
-export function normalizePortKey(value) {
-  return String(value ?? "")
+export function normalizePortKey(value: unknown) {
+  return diagnosticText(value ?? "")
     .normalize("NFKD")
     .replace(/\p{Mark}/gu, "")
     .toLowerCase()
@@ -612,17 +745,17 @@ export function normalizePortKey(value) {
     .replace(/^-+|-+$/g, "");
 }
 
-function normalizedPortTitle(value) {
-  return normalizePortKey(String(value ?? "").replace(portTitlePrefix, ""));
+function normalizedPortTitle(value: unknown) {
+  return normalizePortKey(diagnosticText(value ?? "").replace(portTitlePrefix, ""));
 }
 
-function normalizedUpstream(value) {
+function normalizedUpstream(value: unknown) {
   try {
-    const parsed = new URL(String(value));
+    const parsed = new URL(diagnosticText(value));
     const pathname = parsed.pathname.replace(/\/+$/g, "").replace(/\.git$/i, "");
     return `${parsed.protocol.toLowerCase()}//${parsed.host.toLowerCase()}${pathname.toLowerCase()}`;
   } catch {
-    return String(value ?? "")
+    return diagnosticText(value ?? "")
       .trim()
       .replace(/\/+$/g, "")
       .replace(/\.git$/i, "")
@@ -630,40 +763,40 @@ function normalizedUpstream(value) {
   }
 }
 
-function issueNumber(item) {
+function issueNumber(item: RoadmapIssueItem | null | undefined) {
   const direct = Number(item?.content?.number ?? item?.number);
   if (Number.isInteger(direct) && direct > 0) return direct;
   const match = String(itemUrl(item) ?? "").match(/\/issues\/(\d+)(?:$|[?#])/i);
   return match ? Number(match[1]) : null;
 }
 
-function repositoryIssueContent(item) {
+function repositoryIssueContent(item: RoadmapIssueItem): RoadmapIssueItem {
   return item?.content?.type === "Issue" || item?.content?.__typename === "Issue"
     ? item.content
     : item;
 }
 
-function isOpenPortTitleIssue(issue) {
+function isOpenPortTitleIssue(issue: RoadmapIssueItem) {
   return repositoryState(issue) === "open" && portTitlePrefix.test(itemTitle(issue));
 }
 
-function discoveredPortIssues(issues) {
+function discoveredPortIssues(issues: readonly RoadmapIssueItem[] | null | undefined) {
   return (issues ?? [])
     .map(repositoryIssueContent)
     .filter((issue) => itemBody(issue).includes(portMarker) || isOpenPortTitleIssue(issue));
 }
 
-function issueFormSection(body, label: string) {
+function issueFormSection(body: unknown, label: string) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = String(body ?? "").match(
+  const match = diagnosticText(body ?? "").match(
     new RegExp(`^###\\s+${escaped}\\s*$([\\s\\S]*?)(?=^###\\s|(?![\\s\\S]))`, "im"),
   );
   if (!match) return null;
-  const value = match[1].trim();
+  const value = captureText(match, 1).trim();
   return !value || /^_?No response_?$/i.test(value) ? null : value;
 }
 
-export function parsePortIssueForm(body) {
+export function parsePortIssueForm(body: unknown) {
   const upstream = issueFormSection(body, portFormLabels.upstream);
   if (!upstream) throw new Error(`issue form is missing ${portFormLabels.upstream}`);
   let parsedUrl;
@@ -686,9 +819,9 @@ export function parsePortIssueForm(body) {
   return { upstream, portKey };
 }
 
-function portIdentity(issue) {
+function portIdentity(issue: RoadmapIssueItem) {
   const body = itemBody(issue);
-  let form = null;
+  let form: ReturnType<typeof parsePortIssueForm> | null = null;
   if (portTitlePrefix.test(itemTitle(issue))) {
     try {
       form = parsePortIssueForm(body);
@@ -711,7 +844,7 @@ function portIdentity(issue) {
   };
 }
 
-export function sourceProvenancePortIdentity(issue) {
+export function sourceProvenancePortIdentity(issue: RoadmapIssueItem) {
   const identity = portIdentity(repositoryIssueContent(issue));
   return {
     catalogIds: [...identity.ids],
@@ -721,11 +854,24 @@ export function sourceProvenancePortIdentity(issue) {
   };
 }
 
-export function sourceProvenancePortIssues(issues) {
+export function sourceProvenancePortIssues(issues: readonly RoadmapIssueItem[] | null | undefined) {
   return discoveredPortIssues(issues);
 }
 
-export function findPortIssueDuplicates(issues, { title, upstream, catalogId, portKey }) {
+export function findPortIssueDuplicates(
+  issues: readonly RoadmapIssueItem[] | null | undefined,
+  {
+    title,
+    upstream,
+    catalogId,
+    portKey,
+  }: {
+    title: string;
+    upstream: string;
+    catalogId?: string | null | undefined;
+    portKey?: string | null | undefined;
+  },
+) {
   const candidateTitle = normalizedPortTitle(title);
   const candidateUpstream = normalizedUpstream(upstream);
   const candidateKey = portKey ? normalizePortKey(portKey) : null;
@@ -751,8 +897,19 @@ export function findPortIssueDuplicates(issues, { title, upstream, catalogId, po
   return matches;
 }
 
-export function reconcilePortIssueMarkers(body, { upstream, catalogId, portKey }) {
-  const retained = String(body ?? "")
+export function reconcilePortIssueMarkers(
+  body: unknown,
+  {
+    upstream,
+    catalogId,
+    portKey,
+  }: {
+    upstream: string;
+    catalogId?: string | null | undefined;
+    portKey?: string | null | undefined;
+  },
+) {
+  const retained = diagnosticText(body ?? "")
     .replace(/^\s*<!--\s*portcove-port\s*-->\s*$/gim, "")
     .replace(/^\s*<!--\s*portcove-upstream:\s*[^>]*-->\s*$/gim, "")
     .replace(/^\s*<!--\s*portcove-catalog-id:\s*[^>]*-->\s*$/gim, "")
@@ -764,8 +921,8 @@ export function reconcilePortIssueMarkers(body, { upstream, catalogId, portKey }
   return `${retained}\n\n${portMarker}\n<!-- portcove-upstream: ${upstream} -->\n${identityMarker}`;
 }
 
-export function portFieldInitialization(item) {
-  const updates = {};
+export function portFieldInitialization(item: RoadmapIssueItem) {
+  const updates: Record<string, string> = {};
   for (const [field, value] of Object.entries(neutralPortFields)) {
     const current = fieldValue(item, field);
     if (
@@ -779,21 +936,23 @@ export function portFieldInitialization(item) {
   return updates;
 }
 
-export function uxAuditOrigins(body) {
+export function uxAuditOrigins(body: unknown) {
   const markers = [
-    ...String(body ?? "").matchAll(/<!--\s*portcove-ux-audit-origins:\s*([\s\S]*?)-->/gi),
+    ...diagnosticText(body ?? "").matchAll(/<!--\s*portcove-ux-audit-origins:\s*([\s\S]*?)-->/gi),
   ];
   return markers.flatMap((match) =>
-    match[1]
+    captureText(match, 1)
       .trim()
       .split(/[\s,]+/)
       .filter(Boolean),
   );
 }
 
-export function validateUxAuditOriginCoverage(items) {
+export function validateUxAuditOriginCoverage(
+  items: readonly RoadmapIssueItem[] | null | undefined,
+) {
   const errors = [];
-  const owners = new Map();
+  const owners = new Map<string, string[]>();
   for (const item of items ?? []) {
     const body = itemBody(item);
     const url = itemUrl(item) ?? itemTitle(item);
@@ -834,7 +993,7 @@ export function validateUxAuditOriginCoverage(items) {
   return errors;
 }
 
-export function validatePlanOriginCoverage(items) {
+export function validatePlanOriginCoverage(items: readonly RoadmapIssueItem[] | null | undefined) {
   const owners = (items ?? []).filter((item) => itemBody(item).includes(supportedSourcePlanOrigin));
   if (owners.length !== 1) {
     return [
@@ -858,6 +1017,13 @@ export function renderPortIssueBody({
   portKey,
   currentEvidence = "Initial intake; evidence pending triage.",
   blocker = "No current blocker has been established. Exact resume condition pending triage.",
+}: {
+  title: string;
+  upstream: string;
+  catalogId?: string | null | undefined;
+  portKey?: string | null | undefined;
+  currentEvidence?: string;
+  blocker?: string;
 }) {
   const normalizedPortKey = portKey ? normalizePortKey(portKey) : null;
   if (!catalogId && !normalizedPortKey) {
@@ -875,69 +1041,102 @@ export function renderPortIssueBody({
   return `## User outcome\n\n${title} can be researched, prioritized, qualified, advanced, blocked, and closed independently.\n\n## Current behavior and evidence\n\n${currentEvidence}\n\n## Scope\n\n- Direct upstream: ${upstream}\n- Game/title identity: ${title}\n- Catalog ID: ${catalogLine}\n- Durable port key: ${portKeyLine}\n- Supported and candidate platforms: Unknown until evidenced\n- Release assets and integrity: Pending\n- Source requirements and accepted revisions: Pending\n- Executable/setup boundary: Pending\n- Persistence and user-data boundary: Pending\n- Adapter fit and dependencies: Pending\n- Initial Port stage: Watchlist. The live Port stage is maintained in the Portcove Roadmap.\n- Current blocker and exact resume condition: ${blocker}\n- Automated qualification: Not yet recorded\n- Manual qualification: Not yet recorded\n\n## Non-goals\n\nThis issue does not grant support, expand V1 scope, weaken source or artifact validation, or replace shared engineering dependencies.\n\n## Acceptance criteria\n\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n## Documentation impact\n\nUpdate catalog.json only when actual support or qualification changes; keep mutable priority and stage in the Project.\n\n## Dependencies and blockers\n\n${blocker}\n\n## Completion evidence\n\nNo completion evidence yet.\n\n${portMarker}\n<!-- portcove-upstream: ${upstream} -->${catalogMarker}${portKeyMarker}`;
 }
 
-function qualificationScopeKey(port, scope) {
-  const identity = scope?.variant?.identity;
+function qualificationScopeDetails(
+  port: QualificationPortObservation | null | undefined,
+  scope: unknown,
+): { key: string; platform: string } | null {
+  if (!isRecord(scope)) return null;
+  const variant = isRecord(scope.variant) ? scope.variant : undefined;
+  const identity = isRecord(variant?.identity) ? variant.identity : undefined;
   if (
     !port ||
-    scope?.port_id !== port.id ||
+    scope.port_id !== port.id ||
+    typeof scope.platform !== "string" ||
     !(port.platforms ?? []).includes(scope.platform) ||
     typeof scope.artifact_sha256 !== "string" ||
-    !/^[a-f0-9]{64}$/iu.test(scope.artifact_sha256 ?? "") ||
-    scope.variant?.state !== "exact" ||
+    !/^[a-f0-9]{64}$/iu.test(scope.artifact_sha256) ||
+    variant?.state !== "exact" ||
+    !identity ||
     ![
       scope.upstream_ref,
       scope.contract_id,
       scope.check_version,
-      identity?.game_id,
-      identity?.variant_id,
-      identity?.representation_id,
+      identity.game_id,
+      identity.variant_id,
+      identity.representation_id,
     ].every((value) => typeof value === "string" && value.length > 0)
   )
     return null;
-  return JSON.stringify([
-    scope.port_id,
-    scope.platform,
-    scope.artifact_sha256,
-    scope.upstream_ref,
-    scope.contract_id,
-    identity.game_id,
-    identity.variant_id,
-    identity.representation_id,
-    scope.check_version,
-  ]);
+  return {
+    key: JSON.stringify([
+      scope.port_id,
+      scope.platform,
+      scope.artifact_sha256,
+      scope.upstream_ref,
+      scope.contract_id,
+      identity.game_id,
+      identity.variant_id,
+      identity.representation_id,
+      scope.check_version,
+    ]),
+    platform: scope.platform,
+  };
 }
-
-function exactQualificationKeys(port, qualificationRecords, kind) {
-  return new Set(
-    (qualificationRecords ?? [])
-      .filter((record) => record?.kind === kind && record?.outcome === "passed")
-      .map((record) => qualificationScopeKey(port, record.scope))
-      .filter((key) => key !== null),
-  );
+function qualificationScopeKey(
+  port: QualificationPortObservation | null | undefined,
+  scope: unknown,
+): string | null {
+  return qualificationScopeDetails(port, scope)?.key ?? null;
 }
-
-function exactQualificationPlatforms(port, qualificationRecords, kind) {
-  const declared = new Set(port?.platforms ?? []);
+function exactQualificationKeys(
+  port: QualificationPortObservation | null | undefined,
+  qualificationRecords: readonly unknown[] | null | undefined,
+  kind: string,
+): Set<string> {
   return new Set(
     (qualificationRecords ?? [])
       .filter(
         (record) =>
-          qualificationScopeKey(port, record?.scope) !== null &&
-          record?.kind === kind &&
-          record?.outcome === "passed" &&
-          declared.has(record?.scope?.platform),
+          qualificationField(record, "kind") === kind &&
+          qualificationField(record, "outcome") === "passed",
       )
-      .map((record) => record.scope.platform),
+      .map((record) => qualificationScopeKey(port, qualificationField(record, "scope")))
+      .filter((key) => key !== null),
   );
 }
-
-export function qualifiedPlatforms(port, qualificationRecords = []) {
+function exactQualificationPlatforms(
+  port: QualificationPortObservation | null | undefined,
+  qualificationRecords: readonly unknown[] | null | undefined,
+  kind: string,
+): Set<string> {
+  const declared = new Set(port?.platforms ?? []);
+  return new Set(
+    (qualificationRecords ?? []).flatMap((record) => {
+      const exact = qualificationScopeDetails(port, qualificationField(record, "scope"));
+      return exact &&
+        qualificationField(record, "kind") === kind &&
+        qualificationField(record, "outcome") === "passed" &&
+        declared.has(exact.platform)
+        ? [exact.platform]
+        : [];
+    }),
+  );
+}
+export function qualifiedPlatforms(
+  port: QualificationPortObservation | null | undefined,
+  qualificationRecords: readonly unknown[] | null = [],
+): string[] {
   const automated = exactQualificationKeys(port, qualificationRecords, "automated_lifecycle");
   const exact = new Set(
-    (qualificationRecords ?? [])
-      .filter((record) => record?.kind === "hands_on" && record?.outcome === "passed")
-      .filter((record) => automated.has(qualificationScopeKey(port, record.scope)))
-      .map((record) => record.scope.platform),
+    (qualificationRecords ?? []).flatMap((record) => {
+      if (
+        qualificationField(record, "kind") !== "hands_on" ||
+        qualificationField(record, "outcome") !== "passed"
+      )
+        return [];
+      const scope = qualificationScopeDetails(port, qualificationField(record, "scope"));
+      return scope && automated.has(scope.key) ? [scope.platform] : [];
+    }),
   );
   const legacyAutomated = new Set(port?.automated_tested_platforms ?? []);
   const legacyManual = new Set(port?.manually_validated_platforms ?? []);
@@ -946,20 +1145,21 @@ export function qualifiedPlatforms(port, qualificationRecords = []) {
       exact.has(platform) || (legacyAutomated.has(platform) && legacyManual.has(platform)),
   );
 }
-
-function automatedPlatforms(port, qualificationRecords = []) {
+function automatedPlatforms(
+  port: QualificationPortObservation | null | undefined,
+  qualificationRecords: readonly unknown[] | null = [],
+): string[] {
   const automated = new Set(port?.automated_tested_platforms ?? []);
   for (const platform of exactQualificationPlatforms(
     port,
     qualificationRecords,
     "automated_lifecycle",
-  )) {
+  ))
     automated.add(platform);
-  }
   return (port?.platforms ?? []).filter((platform) => automated.has(platform));
 }
 
-function issueSection(body, heading: string) {
+function issueSection(body: unknown, heading: string) {
   const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return (
     String(body ?? "")
@@ -968,7 +1168,7 @@ function issueSection(body, heading: string) {
   );
 }
 
-function hasBlockedEvidence(body) {
+function hasBlockedEvidence(body: unknown) {
   const section =
     issueSection(body, "Dependencies and blockers") ||
     issueSection(body, "Known dependencies and blockers");
@@ -981,11 +1181,14 @@ function hasBlockedEvidence(body) {
   return /\b(?:resume|until|when|needs?|required missing|after)\b/i.test(section);
 }
 
-export function validatePortStageSemantics(catalog, items) {
+export function validatePortStageSemantics(
+  catalog: QualificationCatalogObservation | null | undefined,
+  items: readonly RoadmapIssueItem[] | null | undefined,
+) {
   const errors = [];
   const warnings = [];
   const diagnostics = [];
-  const portsById = new Map((catalog?.ports ?? []).map((port) => [port.id, port]));
+  const portsById = new Map((catalog?.ports ?? []).map((port) => [port.id, port] as const));
   const qualificationRecords = catalog?.source_catalog?.qualification ?? [];
 
   for (const port of portsById.values()) {
@@ -998,19 +1201,22 @@ export function validatePortStageSemantics(catalog, items) {
       ...qualificationRecords
         .filter(
           (record) =>
-            record?.scope?.port_id === port.id &&
-            record?.kind === "hands_on" &&
-            record?.outcome === "passed",
+            qualificationField(qualificationField(record, "scope"), "port_id") === port.id &&
+            qualificationField(record, "kind") === "hands_on" &&
+            qualificationField(record, "outcome") === "passed",
         )
         .map((record) => ({
-          platform: record.scope.platform,
-          matching: automated.has(qualificationScopeKey(port, record.scope)),
+          platform: qualificationField(qualificationField(record, "scope"), "platform"),
+          matching: (() => {
+            const key = qualificationScopeKey(port, qualificationField(record, "scope"));
+            return key !== null && automated.has(key);
+          })(),
         })),
     ];
     for (const { platform, matching } of manualEvidence) {
-      if (!(port.platforms ?? []).includes(platform) || !matching) {
+      if (typeof platform !== "string" || !(port.platforms ?? []).includes(platform) || !matching) {
         errors.push(
-          `Catalog port ${port.id} has manual evidence without matching declared automated qualification for ${platform}`,
+          `Catalog port ${port.id} has manual evidence without matching declared automated qualification for ${diagnosticText(platform)}`,
         );
       }
     }
@@ -1029,10 +1235,12 @@ export function validatePortStageSemantics(catalog, items) {
     const qualified = qualifiedPlatforms(port, qualificationRecords);
 
     if (catalogedPortStages.has(stage) && (!id || !port || ids.length !== 1)) {
-      errors.push(`${stage} port must have exactly one valid catalog ID: ${url}`);
+      errors.push(`${diagnosticText(stage)} port must have exactly one valid catalog ID: ${url}`);
     }
     if (automatedPortStages.has(stage) && port && automated.length === 0) {
-      errors.push(`${stage} port has no automated evidence for a declared platform: ${url}`);
+      errors.push(
+        `${diagnosticText(stage)} port has no automated evidence for a declared platform: ${url}`,
+      );
     }
     if (stage === "Supported") {
       if (id && !port) errors.push(`Supported port claims unknown catalog ID ${id}: ${url}`);
@@ -1054,23 +1262,30 @@ export function validatePortStageSemantics(catalog, items) {
     const understatesQualification =
       (qualified.length > 0 && stage !== "Supported") ||
       (automated.length > 0 && !automatedPortStages.has(stage));
-    if (port && !["Blocked", "Rejected"].includes(stage) && understatesQualification) {
+    if (
+      port &&
+      !["Blocked", "Rejected"].some((value) => value === stage) &&
+      understatesQualification
+    ) {
       warnings.push(
-        `${url} may conservatively understate catalog qualification at Port stage ${stage}; no automatic promotion was made`,
+        `${url} may conservatively understate catalog qualification at Port stage ${diagnosticText(stage)}; no automatic promotion was made`,
       );
     }
   }
   return { errors, warnings, diagnostics };
 }
 
-export function planPortStageReconciliation(catalog, items) {
-  const portsById = new Map((catalog?.ports ?? []).map((port) => [port.id, port]));
+export function planPortStageReconciliation(
+  catalog: QualificationCatalogObservation | null | undefined,
+  items: readonly RoadmapIssueItem[] | null | undefined,
+) {
+  const portsById = new Map((catalog?.ports ?? []).map((port) => [port.id, port] as const));
   const qualificationRecords = catalog?.source_catalog?.qualification ?? [];
   const changes = [];
   for (const item of items ?? []) {
     if (fieldValue(item, "Port stage") !== "Supported") continue;
     const ids = portCatalogMarkers(itemBody(item));
-    const port = ids.length === 1 ? portsById.get(ids[0]) : null;
+    const port = ids.length === 1 ? portsById.get(ids[0] ?? "") : null;
     if (qualifiedPlatforms(port, qualificationRecords).length) continue;
     const next = !port
       ? "Watchlist"
@@ -1089,18 +1304,18 @@ export function planPortStageReconciliation(catalog, items) {
 }
 
 export function validatePortIssueCoverage(
-  catalog,
-  items,
+  catalog: QualificationCatalogObservation | null | undefined,
+  items: readonly RoadmapIssueItem[] | null | undefined,
   repository: string,
-  repositoryIssues = null,
+  repositoryIssues: readonly RoadmapIssueItem[] | null = null,
 ) {
   const errors = [];
   const catalogIds = new Set((catalog?.ports ?? []).map((port) => port.id));
-  const issuesByCatalogId = new Map();
-  const issuesByPortKey = new Map();
-  const issuesByTitle = new Map();
-  const issuesByUpstreamAndIdentity = new Map();
-  const projectItemsByNumber = new Map();
+  const issuesByCatalogId = new Map<string, string[]>();
+  const issuesByPortKey = new Map<string, string[]>();
+  const issuesByTitle = new Map<string, string[]>();
+  const issuesByUpstreamAndIdentity = new Map<string, string[]>();
+  const projectItemsByNumber = new Map<number, RoadmapIssueItem[]>();
   const repositoryIssuePrefix = repository
     ? `https://github.com/${repository.toLowerCase()}/issues/`
     : null;
@@ -1172,6 +1387,7 @@ export function validatePortIssueCoverage(
       errors.push(`One issue claims multiple durable port keys: ${url} (${keys.join(", ")})`);
     if (ids.length === 1) {
       const id = ids[0];
+      if (id === undefined) throw new Error("Required catalog marker is missing");
       if (!catalogIds.has(id)) errors.push(`Port issue claims unknown catalog ID ${id}: ${url}`);
       const matches = issuesByCatalogId.get(id) ?? [];
       matches.push(url);
@@ -1192,6 +1408,7 @@ export function validatePortIssueCoverage(
         );
       } else {
         const key = keys[0];
+        if (key === undefined) throw new Error("Required port key marker is missing");
         const normalized = normalizePortKey(key);
         if (!normalized || normalized !== key) {
           errors.push(`Non-catalog port issue has a non-canonical port key ${key}: ${url}`);
@@ -1203,6 +1420,7 @@ export function validatePortIssueCoverage(
     }
     if (ids.length === 0 && keys.length === 0 && identity.keys.length === 1) {
       const normalized = identity.keys[0];
+      if (normalized === undefined) throw new Error("Required port identity is missing");
       const matches = issuesByPortKey.get(normalized) ?? [];
       matches.push(url);
       issuesByPortKey.set(normalized, matches);
@@ -1246,18 +1464,20 @@ export function validatePortIssueCoverage(
   return errors;
 }
 
-export function parseArguments(argv) {
+export function parseArguments(argv: readonly string[]) {
   const command = argv[0];
   if (!command) throw new Error("missing command; use --help for available commands");
-  const options = {};
-  const positionals = [];
+  const options: Record<string, string | boolean> = {};
+  const positionals: string[] = [];
   for (let index = 1; index < argv.length; index += 1) {
     const token = argv[index];
+    if (token === undefined) throw new Error("argument index is unavailable");
     if (!token.startsWith("--")) {
       positionals.push(token);
       continue;
     }
     const [name, inline] = token.split("=", 2);
+    if (name === undefined) throw new Error("argument name is unavailable");
     if (
       ["--apply", "--json", "--summary", "--help", "--linux-beta-706"].includes(name) &&
       inline === undefined
@@ -1300,7 +1520,7 @@ Use capture-port for direct maintainer intake. Use normalize-port for a public
 New Port form submission; it preserves form content, reconciles canonical
 markers, Project membership and neutral unset fields. Parent relationships are preserved.`;
 
-export function fieldValue(item, fieldName) {
+export function fieldValue(item: RoadmapIssueItem | null | undefined, fieldName: string): unknown {
   const wanted = normalizedKey(fieldName);
   for (const [key, value] of Object.entries(item ?? {})) {
     if (normalizedKey(key) === wanted) return value;
@@ -1313,36 +1533,36 @@ export function fieldValue(item, fieldName) {
   return undefined;
 }
 
-function itemTitle(item) {
+function itemTitle(item: RoadmapIssueItem | null | undefined) {
   return item?.title ?? item?.content?.title ?? "Untitled";
 }
 
-function itemUrl(item) {
+function itemUrl(item: RoadmapIssueItem | null | undefined) {
   return item?.content?.url ?? item?.url;
 }
 
-function itemBody(item) {
+function itemBody(item: RoadmapIssueItem | null | undefined) {
   return item?.content?.body ?? item?.body ?? "";
 }
 
-function itemDone(item) {
-  const status = String(fieldValue(item, "Status") ?? "").toLowerCase();
+function itemDone(item: RoadmapIssueItem | null | undefined) {
+  const status = diagnosticText(fieldValue(item, "Status") ?? "").toLowerCase();
   return status === "done";
 }
 
-function repositoryState(item) {
-  return String(item?.content?.state ?? item?.state ?? "").toLowerCase();
+function repositoryState(item: RoadmapIssueItem | null | undefined) {
+  return diagnosticText(item?.content?.state ?? item?.state ?? "").toLowerCase();
 }
 
-export function selectNextItems(items) {
-  const priority = new Map([
+export function selectNextItems<T extends RoadmapIssueItem>(items: readonly T[]): T[] {
+  const priority = new Map<unknown, number>([
     ["Urgent", 0],
     ["High", 1],
     ["Medium", 2],
     ["Low", 3],
     ["None", 4],
   ]);
-  const horizon = new Map([
+  const horizon = new Map<unknown, number>([
     ["Now", 0],
     ["Next", 1],
   ]);
@@ -1357,9 +1577,10 @@ export function selectNextItems(items) {
         fieldValue(item, "Work type") !== "Workstream",
     )
     .sort((left, right) => {
+      const leftHorizon = horizon.get(fieldValue(left.item, "Horizon"));
+      const rightHorizon = horizon.get(fieldValue(right.item, "Horizon"));
       const horizonOrder =
-        horizon.get(fieldValue(left.item, "Horizon")) -
-        horizon.get(fieldValue(right.item, "Horizon"));
+        leftHorizon === undefined || rightHorizon === undefined ? NaN : leftHorizon - rightHorizon;
       if (horizonOrder) return horizonOrder;
       const priorityOrder =
         (priority.get(fieldValue(left.item, "Priority")) ?? 5) -
@@ -1369,12 +1590,15 @@ export function selectNextItems(items) {
     .map(({ item }) => item);
 }
 
-function blockingNodes(item) {
+function blockingNodes(item: RoadmapIssueItem | null | undefined): readonly RoadmapIssueItem[] {
   const value = item?.content?.blockedBy ?? item?.blockedBy;
-  return Array.isArray(value) ? value : (value?.nodes ?? []);
+  function isList(value: RoadmapIssueItem["blockedBy"]): value is readonly RoadmapIssueItem[] {
+    return Array.isArray(value);
+  }
+  return isList(value) ? value : (value?.nodes ?? []);
 }
 
-export function renderExecutionQueue(items) {
+export function renderExecutionQueue(items: readonly RoadmapIssueItem[]) {
   const queue = selectNextItems(items);
   if (!queue.length) return "No unfinished non-deferred non-workstream items are in Now or Next.";
   return (
@@ -1385,7 +1609,11 @@ export function renderExecutionQueue(items) {
           ? (itemUrl(queue[index - 1]) ?? itemTitle(queue[index - 1]))
           : "queue head";
         const dependencyRecord = item?.content?.blockedBy ?? item?.blockedBy;
-        const incomplete = Number(dependencyRecord?.totalCount ?? 0) > blockingNodes(item).length;
+        const dependencyCount =
+          dependencyRecord && !Array.isArray(dependencyRecord) && "totalCount" in dependencyRecord
+            ? dependencyRecord.totalCount
+            : 0;
+        const incomplete = Number(dependencyCount ?? 0) > blockingNodes(item).length;
         const blockers = blockingNodes(item)
           .filter((node) => {
             const owner = items.find((candidate) => issueNumber(candidate) === issueNumber(node));
@@ -1393,7 +1621,7 @@ export function renderExecutionQueue(items) {
           })
           .map((node) => `#${issueNumber(node)}`)
           .join(", ");
-        return `${index + 1}. ${itemTitle(item)} | ${fieldValue(item, "Priority") ?? "None"} | ${fieldValue(item, "Horizon")} | ${fieldValue(item, "Status") ?? "Unassigned"} | ${commitment === "Opportunistic" ? "Planned" : (commitment ?? "Unclassified")} | after: ${predecessor}${blockers ? ` | prerequisites: ${blockers}` : ""}${incomplete ? " | prerequisite coverage incomplete; collect remaining relationships before selection" : ""}${itemUrl(item) ? ` | ${itemUrl(item)}` : ""}`;
+        return `${index + 1}. ${itemTitle(item)} | ${diagnosticText(fieldValue(item, "Priority") ?? "None")} | ${diagnosticText(fieldValue(item, "Horizon"))} | ${diagnosticText(fieldValue(item, "Status") ?? "Unassigned")} | ${diagnosticText(commitment === "Opportunistic" ? "Planned" : (commitment ?? "Unclassified"))} | after: ${predecessor}${blockers ? ` | prerequisites: ${blockers}` : ""}${incomplete ? " | prerequisite coverage incomplete; collect remaining relationships before selection" : ""}${itemUrl(item) ? ` | ${itemUrl(item)}` : ""}`;
       })
       .join("\n") +
     "\nQueue position is scheduling, not a blocking edge or accepted reservation. Select either Required or Planned; record concrete pass-over reasons in coordination."
@@ -1401,7 +1629,107 @@ export function renderExecutionQueue(items) {
 }
 
 const legacyCoordinationIssue = 793;
-const runnerLanes = ["cloud-a", "cloud-b", "local"];
+const runnerLanes = ["cloud-a", "cloud-b", "local"] as const;
+type RunnerLane = (typeof runnerLanes)[number];
+function isRunnerLane(value: unknown): value is RunnerLane {
+  return runnerLanes.some((lane) => lane === value);
+}
+interface OperationalRequest {
+  request_id: string;
+  recipient_instance_or_coordinator: string;
+  acknowledgment_state: "pending" | "acknowledged" | "unknown" | "not_admitted";
+  disposition_reference: string | null;
+}
+interface OperationalConfiguration {
+  schema_version: 1;
+  board_issue: number;
+  coordinator_github_login: string;
+  coordinator_github_id: number;
+  coordinator_instance_id: string;
+  durable_writer_mode: "coordinator-only";
+  checkpoint_comment_ids: Record<RunnerLane, number>;
+}
+interface OperationalAssignment {
+  lane: RunnerLane;
+  runner_instance_id: string;
+  assignment_id: string;
+  generation: number;
+  accepted_ack: { request_id: string; observed_ack_reference: string };
+  owning_issue: number;
+  pr_and_source: string;
+  reserved_scope: string | null;
+  intentional_pause: boolean | string;
+  execution_slot: "active" | "reviewed_waiting" | "completed";
+  released_reference?: string | null;
+}
+interface OperationalBoard {
+  repository: string;
+  protocol_revision: 1;
+  cutover_state: "staged" | "active";
+  coordinator_instance_id: string;
+  assignment_generation: number;
+  assignments: OperationalAssignment[];
+  pending_transfers: OperationalRequest[];
+  checkpoint_pointers: Record<RunnerLane, number>;
+}
+interface RunnerCheckpoint {
+  lane: RunnerLane;
+  runner_instance_id: string;
+  assignment_id: string;
+  assignment_generation: number;
+  owning_task: number;
+  pr_and_source: string;
+  execution_phase: string;
+  last_meaningful_progress: unknown;
+  next_action: string;
+  outstanding_requests: OperationalRequest[];
+  necessary_evidence_pointers: string[];
+}
+interface OperationalObservation {
+  url: string;
+  raw_revision: string;
+  edited_at: string;
+}
+interface OperationalObserved {
+  status: "observed" | "staged";
+  board: OperationalBoard;
+  checkpoints: Partial<Record<RunnerLane, RunnerCheckpoint>>;
+  observations: OperationalObservation[];
+  original_evidence_manifest: string;
+  authority_limit: string;
+}
+interface OperationalUnavailable {
+  status: "unknown";
+  state: null;
+  source_pointers: string[];
+  original_evidence_manifest: string | null;
+  reason: string;
+  authority_limit: string;
+}
+interface OperationalRetired {
+  status: "retired";
+  delivery_mode: "single-local-runner";
+  active_writer_overlap: string;
+  authority_limit: string;
+}
+type OperationalSnapshot = OperationalObserved | OperationalUnavailable | OperationalRetired;
+interface OperationalReader {
+  request(
+    method: string,
+    endpoint: string,
+    body: null,
+    options: { timeoutMs: number },
+  ): { body: unknown };
+}
+interface OperationalBaseline {
+  schema_version: 1;
+  status: "observed" | "staged";
+  repository: string;
+  coordinator_instance_id: string;
+  assignment_generation: number;
+  assignment_binding_revision: string;
+  observations: OperationalObservation[];
+}
 export const coordinationReadLimits = Object.freeze({
   calls: 4,
   requestMs: 15_000,
@@ -1413,32 +1741,36 @@ export const coordinationReadLimits = Object.freeze({
   modelBytes: 12_000,
 });
 
-function operationalObject(body: string, marker, maximumBytes) {
+function operationalObject(
+  body: unknown,
+  marker: string,
+  maximumBytes: number,
+): Record<string, unknown> {
   if (typeof body !== "string" || Buffer.byteLength(body, "utf8") > maximumBytes)
     throw new Error("operational state is missing or oversized; retain its exact source pointer");
   const normalized = body.replace(/\r\n/g, "\n");
   const prefix = `<!-- ${marker}:v1 -->\n\`\`\`json\n`;
   if (!normalized.startsWith(prefix) || !/\n```\s*$/.test(normalized))
     throw new Error("operational state is malformed; expected the versioned readable JSON record");
-  const value = JSON.parse(normalized.slice(prefix.length).replace(/\n```\s*$/, ""));
-  if (!value || Array.isArray(value) || typeof value !== "object")
-    throw new Error("operational state must be an object");
+  const value: unknown = JSON.parse(normalized.slice(prefix.length).replace(/\n```\s*$/, ""));
+  if (!isRecord(value)) throw new Error("operational state must be an object");
   return value;
 }
 
-function publicIdentity(value) {
+function publicIdentity(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$/.test(value);
 }
 
-function operationalKeys(value, allowed, label) {
+function operationalKeys(value: object, allowed: readonly string[], label: string) {
   if (Object.keys(value).some((key) => !allowed.includes(key)))
     throw new Error(
       `${label} contains unsupported fields; private notes/logs cannot enter operational state`,
     );
 }
 
-function operationalReference(value, repository: string) {
+function operationalReference(value: unknown, repository: string | null): value is string {
   if (typeof value !== "string") return false;
+  if (repository === null) throw new Error("operational references require a repository");
   const escaped = repository.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return (
     new RegExp(
@@ -1451,8 +1783,8 @@ function operationalReference(value, repository: string) {
   );
 }
 
-function operationalRequest(request, repository) {
-  if (!request || typeof request !== "object" || Array.isArray(request)) return false;
+function operationalRequest(request: unknown, repository: string): request is OperationalRequest {
+  if (!isRecord(request)) return false;
   operationalKeys(
     request,
     [
@@ -1466,16 +1798,18 @@ function operationalRequest(request, repository) {
   return (
     publicIdentity(request.request_id) &&
     publicIdentity(request.recipient_instance_or_coordinator) &&
-    ["pending", "acknowledged", "unknown", "not_admitted"].includes(request.acknowledgment_state) &&
+    ["pending", "acknowledged", "unknown", "not_admitted"].some(
+      (state) => state === request.acknowledgment_state,
+    ) &&
     (request.disposition_reference === null ||
       operationalReference(request.disposition_reference, repository)) &&
     (request.acknowledgment_state !== "acknowledged" || request.disposition_reference !== null)
   );
 }
 
-function latestOperationalConsumption(requests) {
-  let latest = null;
-  const sequences = new Set();
+function latestOperationalConsumption(requests: readonly OperationalRequest[]) {
+  let latest: { request: OperationalRequest; sequence: number } | null = null;
+  const sequences = new Set<number>();
   for (const request of requests.filter((entry) => entry.request_id.startsWith("CONSUME-"))) {
     const match = /^CONSUME-[a-f0-9]{64}-([1-9][0-9]*)$/.exec(request.request_id);
     const sequence = match ? Number(match[1]) : NaN;
@@ -1503,31 +1837,41 @@ function requireCoordinatedDelivery(config: unknown) {
     );
 }
 
-export function validateOperationalConfig(config) {
+export function validateOperationalConfig(
+  config: Pick<RoadmapConfig, "runner_coordination">,
+): OperationalConfiguration {
   const board = config.runner_coordination;
-  const positive = (value) => Number.isSafeInteger(value) && value > 0;
+  const positive = (value: unknown): value is number =>
+    typeof value === "number" && Number.isSafeInteger(value) && value > 0;
   if (
-    !board ||
+    !isRecord(board) ||
     board.schema_version !== 1 ||
     !positive(board.board_issue) ||
     board.board_issue === legacyCoordinationIssue ||
     !publicIdentity(board.coordinator_github_login) ||
+    typeof board.coordinator_github_id !== "number" ||
     !Number.isSafeInteger(board.coordinator_github_id) ||
     board.coordinator_github_id < 1 ||
     !publicIdentity(board.coordinator_instance_id) ||
     board.durable_writer_mode !== "coordinator-only" ||
-    !board.checkpoint_comment_ids ||
+    !isRecord(board.checkpoint_comment_ids) ||
     Object.keys(board.checkpoint_comment_ids).length !== runnerLanes.length ||
-    runnerLanes.some((lane) => !positive(board.checkpoint_comment_ids[lane])) ||
+    runnerLanes.some(
+      (lane) =>
+        !positive(
+          isRecord(board.checkpoint_comment_ids) ? board.checkpoint_comment_ids[lane] : undefined,
+        ),
+    ) ||
     new Set(Object.values(board.checkpoint_comment_ids)).size !== runnerLanes.length
   )
     throw new Error(
       "operational board configuration is unavailable; no history or write fallback is permitted",
     );
-  return board;
+  // The complete consumed configuration above has been validated, including every fixed lane.
+  return board as Record<string, unknown> & OperationalConfiguration;
 }
 
-function validOperationalReleaseReference(reference, repository, issue) {
+function validOperationalReleaseReference(reference: unknown, repository: string, issue: number) {
   if (typeof reference !== "string") return false;
   const issuePrefixes = [
     `issue${issue}#issuecomment-`,
@@ -1547,7 +1891,10 @@ function validOperationalReleaseReference(reference, repository, issue) {
   );
 }
 
-export function parseOperationalBoard(body, config) {
+export function parseOperationalBoard(
+  body: unknown,
+  config: Pick<RoadmapConfig, "repository" | "runner_coordination">,
+): OperationalBoard {
   const configured = validateOperationalConfig(config);
   const board = operationalObject(body, "portcove-runner-board", coordinationReadLimits.boardBytes);
   operationalKeys(
@@ -1567,8 +1914,9 @@ export function parseOperationalBoard(body, config) {
   if (
     board.repository !== config.repository ||
     board.protocol_revision !== 1 ||
-    !["staged", "active"].includes(board.cutover_state) ||
+    !["staged", "active"].some((state) => state === board.cutover_state) ||
     board.coordinator_instance_id !== configured.coordinator_instance_id ||
+    typeof board.assignment_generation !== "number" ||
     !Number.isSafeInteger(board.assignment_generation) ||
     board.assignment_generation < 1 ||
     !Array.isArray(board.assignments) ||
@@ -1576,13 +1924,13 @@ export function parseOperationalBoard(body, config) {
     !sameCoordinationTarget(board.checkpoint_pointers, configured.checkpoint_comment_ids)
   )
     throw new Error("operational board identity or assignment structure is malformed");
-  const identifiers = new Set();
-  const active = new Set();
-  const completed = new Set();
-  const instances = new Map();
-  for (const assignment of board.assignments) {
-    if (!assignment || typeof assignment !== "object" || Array.isArray(assignment))
-      throw new Error("operational assignment is malformed");
+  const identifiers = new Set<string>();
+  const active = new Set<RunnerLane>();
+  const completed = new Set<RunnerLane>();
+  const instances = new Map<RunnerLane, string>();
+  const rawAssignments: unknown[] = board.assignments;
+  for (const assignment of rawAssignments) {
+    if (!isRecord(assignment)) throw new Error("operational assignment is malformed");
     operationalKeys(
       assignment,
       [
@@ -1601,16 +1949,20 @@ export function parseOperationalBoard(body, config) {
       "assignment",
     );
     if (
-      !runnerLanes.includes(assignment.lane) ||
+      !isRunnerLane(assignment.lane) ||
       !publicIdentity(assignment.runner_instance_id) ||
       !publicIdentity(assignment.assignment_id) ||
+      typeof assignment.generation !== "number" ||
       !Number.isSafeInteger(assignment.generation) ||
       assignment.generation < 1 ||
-      !["active", "reviewed_waiting", "completed"].includes(assignment.execution_slot) ||
-      !assignment.accepted_ack ||
+      !["active", "reviewed_waiting", "completed"].some(
+        (slot) => slot === assignment.execution_slot,
+      ) ||
+      !isRecord(assignment.accepted_ack) ||
       !publicIdentity(assignment.accepted_ack.request_id) ||
       typeof assignment.accepted_ack.observed_ack_reference !== "string" ||
       !operationalReference(assignment.accepted_ack.observed_ack_reference, config.repository) ||
+      typeof assignment.owning_issue !== "number" ||
       !Number.isSafeInteger(assignment.owning_issue) ||
       assignment.owning_issue < 1 ||
       typeof assignment.pr_and_source !== "string" ||
@@ -1651,18 +2003,24 @@ export function parseOperationalBoard(body, config) {
     if (assignment.execution_slot === "active") active.add(assignment.lane);
     if (assignment.execution_slot === "completed") completed.add(assignment.lane);
   }
-  const transferIds = new Set();
-  for (const transfer of board.pending_transfers) {
+  const transferIds = new Set<string>();
+  const rawTransfers: unknown[] = board.pending_transfers;
+  for (const transfer of rawTransfers) {
     if (!operationalRequest(transfer, config.repository) || transferIds.has(transfer.request_id))
       throw new Error(
         "pending transfer identity is malformed or ambiguous; absence cannot be inferred",
       );
     transferIds.add(transfer.request_id);
   }
-  return board;
+  // Identity, every assignment, request and fixed checkpoint pointer are checked above.
+  return board as Record<string, unknown> & OperationalBoard;
 }
 
-export function parseRunnerCheckpoint(body, lane, board) {
+export function parseRunnerCheckpoint(
+  body: unknown,
+  lane: RunnerLane,
+  board: OperationalBoard,
+): RunnerCheckpoint {
   const checkpoint = operationalObject(
     body,
     "portcove-runner-checkpoint",
@@ -1709,7 +2067,7 @@ export function parseRunnerCheckpoint(body, lane, board) {
       `checkpoint ${lane} is missing, stale or conflicts with its accepted assignment`,
     );
   if (assignment.execution_slot === "completed") {
-    const fullReference = (reference) =>
+    const fullReference = (reference: string) =>
       reference.startsWith("issue")
         ? `https://github.com/${board.repository}/issues/${reference.slice(5)}`
         : reference;
@@ -1718,15 +2076,16 @@ export function parseRunnerCheckpoint(body, lane, board) {
       !checkpoint.necessary_evidence_pointers.some(
         (reference) =>
           typeof reference === "string" &&
-          fullReference(reference) === fullReference(assignment.released_reference),
+          fullReference(reference) === fullReference(assignment.released_reference ?? ""),
       )
     )
       throw new Error(
         `checkpoint ${lane} must retain its delivered phase and verified release evidence`,
       );
   }
-  const requestIds = new Set();
-  for (const request of checkpoint.outstanding_requests) {
+  const requestIds = new Set<string>();
+  const rawRequests: unknown[] = checkpoint.outstanding_requests;
+  for (const request of rawRequests) {
     if (!operationalRequest(request, board.repository) || requestIds.has(request.request_id))
       throw new Error(`checkpoint ${lane} has malformed or ambiguous outstanding requests`);
     requestIds.add(request.request_id);
@@ -1737,11 +2096,13 @@ export function parseRunnerCheckpoint(body, lane, board) {
     )
   )
     throw new Error(`checkpoint ${lane} has an unbound evidence reference`);
-  latestOperationalConsumption(checkpoint.outstanding_requests);
-  return checkpoint;
+  // Every request and reference passed the boundary guards above.
+  const checked = checkpoint as Record<string, unknown> & RunnerCheckpoint;
+  latestOperationalConsumption(checked.outstanding_requests);
+  return checked;
 }
 
-export function coordinationSnapshotMetrics(snapshot) {
+export function coordinationSnapshotMetrics(snapshot: unknown) {
   const bytes = Buffer.byteLength(JSON.stringify(snapshot), "utf8");
   return {
     model_facing_bytes: bytes,
@@ -1751,7 +2112,11 @@ export function coordinationSnapshotMetrics(snapshot) {
   };
 }
 
-export function readOperationalBoard(config, api, { now = () => performance.now() } = {}) {
+export function readOperationalBoard(
+  config: Pick<RoadmapConfig, "repository" | "runner_coordination" | "delivery_mode">,
+  api: OperationalReader,
+  { now = () => performance.now() }: { now?: (() => number) | undefined } = {},
+): OperationalSnapshot {
   if (deliveryMode(config) === "single-local-runner")
     return {
       status: "retired",
@@ -1761,10 +2126,10 @@ export function readOperationalBoard(config, api, { now = () => performance.now(
         "Owner-authorized local delivery needs no coordinator grant. Verify actual writers before overlapping work; retirement does not prove release or inactivity.",
     };
   const started = now();
-  const sourcePointers = [];
-  let originalDirectory = null;
-  const originals = [];
-  const preserve = (endpoint, response) => {
+  const sourcePointers: string[] = [];
+  let originalDirectory: string | null = null;
+  const originals: { endpoint: string; file: string; bytes: number; sha256: string }[] = [];
+  const preserve = (endpoint: string, response: unknown) => {
     originalDirectory ??= mkdtempSync(path.join(tmpdir(), "portcove-board-originals-"));
     const bytes = JSON.stringify(response);
     const file = path.join(
@@ -1784,7 +2149,7 @@ export function readOperationalBoard(config, api, { now = () => performance.now(
     );
   };
   let calls = 0;
-  const get = (endpoint) => {
+  const get = (endpoint: string): Record<string, unknown> => {
     const remainingMs = Math.floor(coordinationReadLimits.totalMs - (now() - started));
     if (++calls > coordinationReadLimits.calls || remainingMs <= 0)
       throw new Error("bounded operational snapshot collection expired");
@@ -1797,6 +2162,7 @@ export function readOperationalBoard(config, api, { now = () => performance.now(
       Buffer.byteLength(JSON.stringify(response), "utf8") > coordinationReadLimits.responseBytes
     )
       throw new Error("operational response expired or exceeded its byte limit");
+    if (!isRecord(response)) throw new Error("operational response must be an object");
     return response;
   };
   try {
@@ -1808,17 +2174,19 @@ export function readOperationalBoard(config, api, { now = () => performance.now(
       issue?.number !== configured.board_issue ||
       issue.html_url !== issueUrl ||
       issue.pull_request ||
+      typeof issue.updated_at !== "string" ||
       !Number.isFinite(Date.parse(issue.updated_at)) ||
       issue.comments !== runnerLanes.length ||
-      issue.user?.login !== configured.coordinator_github_login ||
+      !isRecord(issue.user) ||
+      issue.user.login !== configured.coordinator_github_login ||
       issue.user?.id !== configured.coordinator_github_id
     )
       throw new Error(
         "operational issue identity/writer or fixed-three-comment count is mismatched",
       );
     const board = parseOperationalBoard(issue.body, config);
-    const checkpoints = {};
-    const observations = [
+    const checkpoints: Partial<Record<RunnerLane, RunnerCheckpoint>> = {};
+    const observations: OperationalObservation[] = [
       { url: issueUrl, raw_revision: digest(issue.body), edited_at: issue.updated_at },
     ];
     for (const lane of runnerLanes) {
@@ -1829,17 +2197,19 @@ export function readOperationalBoard(config, api, { now = () => performance.now(
       if (
         comment?.id !== id ||
         comment.html_url !== url ||
+        typeof comment.updated_at !== "string" ||
         !Number.isFinite(Date.parse(comment.updated_at)) ||
         comment.issue_url !==
           `https://api.github.com/repos/${config.repository}/issues/${configured.board_issue}` ||
-        comment.user?.login !== configured.coordinator_github_login ||
+        !isRecord(comment.user) ||
+        comment.user.login !== configured.coordinator_github_login ||
         comment.user?.id !== configured.coordinator_github_id
       )
         throw new Error(`checkpoint ${lane} identity or authorized writer is mismatched`);
       checkpoints[lane] = parseRunnerCheckpoint(comment.body, lane, board);
       observations.push({ url, raw_revision: digest(comment.body), edited_at: comment.updated_at });
     }
-    const snapshot = {
+    const snapshot: Omit<OperationalObserved, "original_evidence_manifest"> = {
       status: board.cutover_state === "active" ? "observed" : "staged",
       board,
       checkpoints,
@@ -1851,7 +2221,13 @@ export function readOperationalBoard(config, api, { now = () => performance.now(
       throw new Error("bounded operational snapshot collection expired");
     return {
       ...snapshot,
-      original_evidence_manifest: path.join(originalDirectory, "inventory.json"),
+      original_evidence_manifest: path.join(
+        originalDirectory ??
+          (() => {
+            throw new Error("operational evidence directory is missing");
+          })(),
+        "inventory.json",
+      ),
     };
   } catch (error) {
     return {
@@ -1868,8 +2244,8 @@ export function readOperationalBoard(config, api, { now = () => performance.now(
   }
 }
 
-export function operationalBaseline(current) {
-  if (!["observed", "staged"].includes(current.status)) return null;
+export function operationalBaseline(current: OperationalSnapshot): OperationalBaseline | null {
+  if (current.status !== "observed" && current.status !== "staged") return null;
   return {
     schema_version: 1,
     status: current.status,
@@ -1899,12 +2275,16 @@ export function operationalBaseline(current) {
   };
 }
 
-export function validOperationalBaseline(baseline, current) {
+export function validOperationalBaseline(
+  baseline: unknown,
+  current: OperationalSnapshot,
+): baseline is OperationalBaseline {
   const expected = operationalBaseline(current);
   if (
-    !baseline ||
+    !expected ||
+    !isRecord(baseline) ||
     baseline.schema_version !== 1 ||
-    !["observed", "staged"].includes(baseline.status) ||
+    !["observed", "staged"].some((status) => status === baseline.status) ||
     baseline.repository !== expected.repository ||
     baseline.coordinator_instance_id !== expected.coordinator_instance_id ||
     baseline.assignment_generation !== expected.assignment_generation ||
@@ -1913,11 +2293,12 @@ export function validOperationalBaseline(baseline, current) {
     baseline.observations.length !== 4
   )
     return false;
-  return baseline.observations.every(
+  const observations: unknown[] = baseline.observations;
+  return observations.every(
     (entry, index) =>
-      entry &&
+      isRecord(entry) &&
       Object.keys(entry).length === 3 &&
-      entry.url === expected.observations[index].url &&
+      entry.url === expected.observations[index]?.url &&
       typeof entry.raw_revision === "string" &&
       /^[a-f0-9]{64}$/.test(entry.raw_revision) &&
       typeof entry.edited_at === "string" &&
@@ -1925,34 +2306,37 @@ export function validOperationalBaseline(baseline, current) {
   );
 }
 
-export function operationalChanges(current, baseline = null) {
-  if (current.status === "unknown") return { state: "unknown", snapshot: current };
-  if (!baseline) return { state: "fresh", snapshot: current };
+export function operationalChanges(
+  current: Exclude<OperationalSnapshot, OperationalRetired>,
+  baseline: unknown = null,
+) {
+  if (current.status === "unknown") return { state: "unknown" as const, snapshot: current };
+  if (!baseline) return { state: "fresh" as const, snapshot: current };
   if (!validOperationalBaseline(baseline, current))
-    return { state: "baseline_unavailable", snapshot: current };
+    return { state: "baseline_unavailable" as const, snapshot: current };
   const changed = current.observations.filter(
     (entry, index) =>
-      entry.raw_revision !== baseline.observations[index].raw_revision ||
-      entry.edited_at !== baseline.observations[index].edited_at,
+      entry.raw_revision !== baseline.observations[index]?.raw_revision ||
+      entry.edited_at !== baseline.observations[index]?.edited_at,
   );
   if (!changed.length)
     return {
-      state: "unchanged",
+      state: "unchanged" as const,
       changed_records: [],
       original_evidence_manifest: current.original_evidence_manifest,
       authority_limit: current.authority_limit,
     };
   return {
-    state: "changed",
+    state: "changed" as const,
     changed_records: changed,
     original_evidence_manifest: current.original_evidence_manifest,
-    board: changed.some((entry) => entry.url === current.observations[0].url)
+    board: changed.some((entry) => entry.url === current.observations[0]?.url)
       ? current.board
       : null,
     checkpoints: Object.fromEntries(
       runnerLanes
         .filter((lane, index) =>
-          changed.some((entry) => entry.url === current.observations[index + 1].url),
+          changed.some((entry) => entry.url === current.observations[index + 1]?.url),
         )
         .map((lane) => [lane, current.checkpoints[lane]]),
     ),
@@ -1960,9 +2344,9 @@ export function operationalChanges(current, baseline = null) {
   };
 }
 
-function renderOperationalState(delta) {
+function renderOperationalState(delta: ReturnType<typeof operationalChanges>) {
   if (delta.state === "unknown" || delta.state === "unchanged") return delta;
-  const state = delta.snapshot ?? delta;
+  const state = "snapshot" in delta ? delta.snapshot : delta;
   const lines = [];
   if (state.board) {
     const board = state.board;
@@ -1982,6 +2366,7 @@ function renderOperationalState(delta) {
     );
   }
   for (const [lane, checkpoint] of Object.entries(state.checkpoints ?? {})) {
+    if (!checkpoint) throw new Error(`checkpoint ${lane} is unavailable`);
     lines.push(
       `${lane} checkpoint: ${checkpoint.runner_instance_id}; ${checkpoint.assignment_id} generation${checkpoint.assignment_generation}; owning issue#${checkpoint.owning_task}; ${checkpoint.pr_and_source}. Phase: ${checkpoint.execution_phase}. Last meaningful progress: ${typeof checkpoint.last_meaningful_progress === "string" ? checkpoint.last_meaningful_progress : JSON.stringify(checkpoint.last_meaningful_progress)}. Next: ${checkpoint.next_action}.`,
     );
@@ -1997,32 +2382,53 @@ function renderOperationalState(delta) {
   return {
     state: delta.state,
     details: lines.join("\n"),
-    ...(delta.changed_records ? { changed_records: delta.changed_records } : {}),
+    ...("changed_records" in delta ? { changed_records: delta.changed_records } : {}),
     original_evidence_manifest: state.original_evidence_manifest ?? null,
     authority_limit: state.authority_limit,
   };
 }
 
-export function operationalEnvelope(current, baseline = null, binding = null) {
+export function operationalEnvelope(
+  current: OperationalSnapshot,
+  baseline: unknown = null,
+  binding: ReturnType<typeof bindOperationalAssignment> = null,
+) {
   if (current.status === "retired")
     return { operational_snapshot: current, operational_baseline: null };
-  const envelope = {
+  const envelope: {
+    operational_snapshot: ReturnType<typeof renderOperationalState>;
+    operational_baseline: OperationalBaseline | null;
+    operational_binding?: Pick<
+      NonNullable<typeof binding>,
+      | "lane"
+      | "runner_instance_id"
+      | "assignment_id"
+      | "generation"
+      | "owning_issue"
+      | "execution_slot"
+    > & { released_reference?: string | null };
+    operational_metrics?: Omit<
+      ReturnType<typeof coordinationSnapshotMetrics>,
+      "over_design_target"
+    > & { over_design_target: number };
+  } = {
     operational_snapshot: renderOperationalState(operationalChanges(current, baseline)),
     operational_baseline: operationalBaseline(current),
   };
-  if (binding)
-    envelope.operational_binding = Object.fromEntries(
-      [
-        "lane",
-        "runner_instance_id",
-        "assignment_id",
-        "generation",
-        "owning_issue",
-        "execution_slot",
-      ].map((key) => [key, binding[key]]),
-    );
-  if (binding?.execution_slot === "completed")
-    envelope.operational_binding.released_reference = binding.released_reference;
+  if (binding) {
+    const { lane, runner_instance_id, assignment_id, generation, owning_issue, execution_slot } =
+      binding;
+    envelope.operational_binding = {
+      lane,
+      runner_instance_id,
+      assignment_id,
+      generation,
+      owning_issue,
+      execution_slot,
+    };
+    if (execution_slot === "completed" && binding.released_reference !== undefined)
+      envelope.operational_binding.released_reference = binding.released_reference;
+  }
   // Include measurement metadata itself in the measured emitted envelope.
   const measure = () => ({
     ...coordinationSnapshotMetrics(envelope),
@@ -2048,13 +2454,22 @@ export function operationalEnvelope(current, baseline = null, binding = null) {
   return envelope;
 }
 
-export function bindOperationalAssignment(snapshot, runner, issue) {
+export function bindOperationalAssignment(
+  snapshot: OperationalSnapshot,
+  runner: unknown,
+  issue: unknown,
+) {
   if (snapshot.status === "retired") {
-    if (!publicIdentity(runner) || !Number.isSafeInteger(issue) || issue < 1)
+    if (
+      !publicIdentity(runner) ||
+      typeof issue !== "number" ||
+      !Number.isSafeInteger(issue) ||
+      issue < 1
+    )
       throw new Error("pickup requires a reported runner identity and positive owning issue");
     return null;
   }
-  if (!["observed", "staged"].includes(snapshot.status))
+  if (snapshot.status !== "observed" && snapshot.status !== "staged")
     throw new Error("assignment snapshot is unavailable; preserve existing ownership");
   const matching = snapshot.board.assignments.filter(
     (assignment) => assignment.runner_instance_id === runner && assignment.owning_issue === issue,
@@ -2064,9 +2479,10 @@ export function bindOperationalAssignment(snapshot, runner, issue) {
       "visible runner instance and owning task do not bind exactly one accepted assignment",
     );
   const assignment = matching[0];
+  if (!assignment) throw new Error("accepted assignment is unavailable");
   return {
     lane: assignment.lane,
-    runner_instance_id: runner,
+    runner_instance_id: assignment.runner_instance_id,
     assignment_id: assignment.assignment_id,
     generation: assignment.generation,
     owning_issue: assignment.owning_issue,
@@ -2082,9 +2498,14 @@ export function bindOperationalAssignment(snapshot, runner, issue) {
   };
 }
 
-export function preserveOperationalRequests(previous, next, resolutions = [], repository = null) {
+export function preserveOperationalRequests(
+  previous: readonly OperationalRequest[],
+  next: readonly OperationalRequest[],
+  resolutions: readonly unknown[] = [],
+  repository: string | null = null,
+) {
   const current = new Map(next.map((request) => [request.request_id, request]));
-  const resolved = new Map();
+  const resolved = new Map<string, Record<string, unknown>>();
   const previousAnchor = latestOperationalConsumption(previous);
   const nextAnchor = latestOperationalConsumption(next);
   if (
@@ -2097,9 +2518,9 @@ export function preserveOperationalRequests(previous, next, resolutions = [], re
     );
   for (const resolution of resolutions) {
     if (
-      !resolution ||
+      !isRecord(resolution) ||
       !publicIdentity(resolution.request_id) ||
-      !["resolved", "cancelled"].includes(resolution.disposition) ||
+      !["resolved", "cancelled"].some((disposition) => disposition === resolution.disposition) ||
       !operationalReference(resolution.observed_response_reference, repository) ||
       resolved.has(resolution.request_id) ||
       !previous.some(
@@ -2132,24 +2553,27 @@ export function preserveOperationalRequests(previous, next, resolutions = [], re
 }
 
 export function prepareOperationalCheckpoint(
-  config,
-  snapshot,
-  lane,
-  replacement,
-  expectedObservation,
-  resolutions = [],
+  config: Pick<RoadmapConfig, "repository" | "runner_coordination" | "delivery_mode">,
+  snapshot: OperationalSnapshot,
+  lane: unknown,
+  replacement: unknown,
+  expectedObservation: unknown,
+  resolutions: readonly unknown[] = [],
 ) {
   requireCoordinatedDelivery(config);
   validateOperationalConfig(config);
-  if (!["observed", "staged"].includes(snapshot.status) || !runnerLanes.includes(lane))
+  if ((snapshot.status !== "observed" && snapshot.status !== "staged") || !isRunnerLane(lane))
     throw new Error("fixed checkpoint state is unavailable");
   const index = runnerLanes.indexOf(lane) + 1;
   if (!sameCoordinationTarget(snapshot.observations[index], expectedObservation))
     throw new Error("fixed checkpoint preimage changed; preserve the unapplied intent");
   const body = `<!-- portcove-runner-checkpoint:v1 -->\n\`\`\`json\n${JSON.stringify(replacement, null, 2)}\n\`\`\``;
   const validated = parseRunnerCheckpoint(body, lane, snapshot.board);
+  const previous = snapshot.checkpoints[lane];
+  const observation = snapshot.observations[index];
+  if (!previous || !observation) throw new Error("fixed checkpoint preimage is unavailable");
   preserveOperationalRequests(
-    snapshot.checkpoints[lane].outstanding_requests,
+    previous.outstanding_requests,
     validated.outstanding_requests,
     resolutions,
     config.repository,
@@ -2158,7 +2582,7 @@ export function prepareOperationalCheckpoint(
     status: "planned",
     writer_mode: "coordinator-only",
     coordinator_instance_id: snapshot.board.coordinator_instance_id,
-    target_url: snapshot.observations[index].url,
+    target_url: observation.url,
     expected_observation: expectedObservation,
     assignment_generation: snapshot.board.assignment_generation,
     body,
@@ -2176,6 +2600,28 @@ export function prepareOperationalConsumption({
   action,
   evidence,
   apply = false,
+}: {
+  client: {
+    operationalSnapshot(): OperationalSnapshot;
+    executionIssue(issue: number): {
+      item: CanonicalProjectIssue;
+      relationships: ExecutionRelationships;
+    };
+  };
+  config: RoadmapConfig;
+  context: {
+    snapshot: unknown;
+    pickup?: { reported_runner?: unknown };
+    operational_binding?: Partial<
+      Record<keyof NonNullable<ReturnType<typeof bindOperationalAssignment>>, unknown>
+    >;
+    operational_baseline?: unknown;
+    observation_revision?: unknown;
+  };
+  runner: unknown;
+  action: unknown;
+  evidence: unknown;
+  apply?: boolean;
 }) {
   requireCoordinatedDelivery(config);
   if (apply)
@@ -2193,20 +2639,24 @@ export function prepareOperationalConsumption({
     );
   const snapshot = client.operationalSnapshot();
   const binding = bindOperationalAssignment(snapshot, runner, consumed.issue.number);
+  if (!binding || snapshot.status === "retired" || snapshot.status === "unknown")
+    throw new Error("operational assignment is unavailable");
   if (binding.execution_slot === "completed")
     throw new Error(
       "completed assignment has no active reservation; it cannot authorize a new consumption or implementation request",
     );
   if (
     context.pickup?.reported_runner !== runner ||
-    [
-      "lane",
-      "runner_instance_id",
-      "assignment_id",
-      "generation",
-      "owning_issue",
-      "execution_slot",
-    ].some((key) => context.operational_binding?.[key] !== binding[key])
+    (
+      [
+        "lane",
+        "runner_instance_id",
+        "assignment_id",
+        "generation",
+        "owning_issue",
+        "execution_slot",
+      ] as const
+    ).some((key) => context.operational_binding?.[key] !== binding[key])
   )
     throw new Error(
       "consumed context does not bind this reported runner, task and assignment generation",
@@ -2229,6 +2679,7 @@ export function prepareOperationalConsumption({
     );
   const requestPrefix = `CONSUME-${digest([binding.assignment_id, binding.generation, consumed.revision, context.observation_revision])}-`;
   const checkpoint = snapshot.checkpoints[binding.lane];
+  if (!checkpoint) throw new Error("fixed checkpoint is unavailable");
   const latest = latestOperationalConsumption(checkpoint.outstanding_requests);
   const previous = latest?.request;
   if (previous?.request_id.startsWith(requestPrefix))
@@ -2279,8 +2730,12 @@ export function prepareOperationalConsumption({
 }
 
 // Offer/return packets are bounded claims, never grants or invocation authentication.
-function operationalOfferBinding(snapshot, runner, assignmentId = null) {
-  if (!["observed", "staged"].includes(snapshot.status))
+function operationalOfferBinding(
+  snapshot: OperationalSnapshot,
+  runner: unknown,
+  assignmentId: unknown = null,
+) {
+  if (snapshot.status !== "observed" && snapshot.status !== "staged")
     throw new Error("offer state is unavailable; preserve accepted ownership");
   const matches = snapshot.board.assignments.filter(
     (entry) =>
@@ -2289,26 +2744,39 @@ function operationalOfferBinding(snapshot, runner, assignmentId = null) {
   );
   if (matches.length !== 1) throw new Error("offer identity does not bind one current assignment");
   const current = matches[0];
+  if (!current) throw new Error("offer assignment is unavailable");
+  const binding = bindOperationalAssignment(snapshot, runner, current.owning_issue);
+  if (!binding) throw new Error("offer assignment is unavailable");
   return {
-    ...bindOperationalAssignment(snapshot, runner, current.owning_issue),
+    ...binding,
     pr_and_source: current.pr_and_source,
   };
 }
 
-function operationalOfferPacket(config, snapshot, spec) {
+function operationalOfferPacket(
+  config: RoadmapConfig,
+  snapshot: OperationalSnapshot,
+  spec: unknown,
+) {
   validateOperationalConfig(config);
   if (
-    !spec ||
+    !isRecord(spec) ||
     !publicIdentity(spec.request_id) ||
     !publicIdentity(spec.runner_instance_id) ||
     !publicIdentity(spec.assignment_id) ||
+    typeof spec.generation !== "number" ||
     !Number.isSafeInteger(spec.generation) ||
+    typeof spec.owning_issue !== "number" ||
     !Number.isSafeInteger(spec.owning_issue) ||
     spec.owning_issue < 1 ||
-    !/^[a-f0-9]{40}$/u.test(spec.source ?? "") ||
-    ![spec.scope, spec.outcome].every(
-      (value: string) => typeof value === "string" && value.trim() && value.length <= 8192,
-    ) ||
+    typeof spec.source !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(spec.source) ||
+    typeof spec.scope !== "string" ||
+    !spec.scope.trim() ||
+    spec.scope.length > 8192 ||
+    typeof spec.outcome !== "string" ||
+    !spec.outcome.trim() ||
+    spec.outcome.length > 8192 ||
     !operationalReference(spec.evidence, config.repository)
   )
     throw new Error("bounded offer request, source, outcome, scope or evidence is malformed");
@@ -2325,40 +2793,49 @@ function operationalOfferPacket(config, snapshot, spec) {
         spec.scope !== current.reserved_scope))
   )
     throw new Error("offer generation or scope conflicts with the accepted assignment");
+  if (snapshot.status !== "observed" && snapshot.status !== "staged")
+    throw new Error("offer state is unavailable");
   const index = runnerLanes.indexOf(current.lane) + 1;
+  const boardObservation = snapshot.observations[0];
+  const checkpointObservation = snapshot.observations[index];
+  if (!boardObservation || !checkpointObservation)
+    throw new Error("offer observations are unavailable");
   const packet = {
-    board_url: snapshot.observations[0].url,
-    checkpoint_url: snapshot.observations[index].url,
+    board_url: boardObservation.url,
+    checkpoint_url: checkpointObservation.url,
     coordinator_instance_id: snapshot.board.coordinator_instance_id,
     current,
-    proposed: Object.fromEntries(
-      [
-        "request_id",
-        "runner_instance_id",
-        "assignment_id",
-        "generation",
-        "owning_issue",
-        "source",
-        "scope",
-        "outcome",
-        "evidence",
-      ].map((key) => [key, spec[key]]),
-    ),
+    proposed: {
+      request_id: spec.request_id,
+      runner_instance_id: spec.runner_instance_id,
+      assignment_id: spec.assignment_id,
+      generation: spec.generation,
+      owning_issue: spec.owning_issue,
+      source: spec.source,
+      scope: spec.scope,
+      outcome: spec.outcome,
+      evidence: spec.evidence,
+    },
   };
   if (Buffer.byteLength(JSON.stringify(packet), "utf8") > coordinationReadLimits.modelBytes)
     throw new Error("offer packet is oversized; preserve its original scope without truncation");
   return { ...packet, offer_digest: digest(packet) };
 }
 
-function operationalToken(value) {
+type OperationalOffer = ReturnType<typeof operationalOfferPacket>;
+function operationalToken(value: unknown) {
   return Buffer.from(digest(value), "hex").toString("base64url");
 }
 
-function operationalOfferRequest(offer) {
+function operationalOfferRequest(offer: OperationalOffer) {
   return `OFFER-${operationalToken(offer.proposed.request_id)}-${operationalToken(offer.offer_digest)}`;
 }
 
-function verifyCurrentOperationalOffer(config, snapshot, offer) {
+function verifyCurrentOperationalOffer(
+  config: RoadmapConfig,
+  snapshot: OperationalSnapshot,
+  offer: OperationalOffer,
+) {
   const rebuilt = operationalOfferPacket(config, snapshot, {
     ...offer?.proposed,
     current_assignment_id: offer?.current?.assignment_id,
@@ -2367,7 +2844,11 @@ function verifyCurrentOperationalOffer(config, snapshot, offer) {
     throw new Error(
       "offer source, scope or generation is superseded; preserve the unapplied return",
     );
-  const request = snapshot.checkpoints[offer.current.lane].outstanding_requests.find(
+  if (snapshot.status !== "observed" && snapshot.status !== "staged")
+    throw new Error("offer state is unavailable");
+  const checkpoint = snapshot.checkpoints[offer.current.lane];
+  if (!checkpoint) throw new Error("offer checkpoint is unavailable");
+  const request = checkpoint.outstanding_requests.find(
     (entry) => entry.request_id === operationalOfferRequest(offer),
   );
   if (!request || request.recipient_instance_or_coordinator !== offer.proposed.runner_instance_id)
@@ -2383,26 +2864,39 @@ function verifyCurrentOperationalOffer(config, snapshot, offer) {
       "offer evidence changed or request is not admitted; preserve pending ownership",
     );
   if (request.acknowledgment_state === "acknowledged") {
-    const anchors = snapshot.checkpoints[offer.current.lane].outstanding_requests.filter((entry) =>
+    const anchors = checkpoint.outstanding_requests.filter((entry) =>
       entry.request_id.startsWith(`RETURN-${operationalToken(offer.offer_digest)}-`),
     );
     if (
       anchors.length !== 1 ||
-      anchors[0].acknowledgment_state !== "acknowledged" ||
-      anchors[0].disposition_reference !== request.disposition_reference
+      anchors[0]?.acknowledgment_state !== "acknowledged" ||
+      anchors[0]?.disposition_reference !== request.disposition_reference
     )
       throw new Error("acknowledged offer evidence conflicts with its preserved return anchor");
   }
   return request;
 }
 
-export function prepareOperationalOffer({ config, snapshot, spec, apply = false }) {
+export function prepareOperationalOffer({
+  config,
+  snapshot,
+  spec,
+  apply = false,
+}: {
+  config: RoadmapConfig;
+  snapshot: OperationalSnapshot;
+  spec: unknown;
+  apply?: boolean;
+}) {
   requireCoordinatedDelivery(config);
   if (apply) throw new Error("offer writes are coordinator-only");
   const offer = operationalOfferPacket(config, snapshot, spec);
+  if (snapshot.status !== "observed" && snapshot.status !== "staged")
+    throw new Error("offer state is unavailable");
   const lane = offer.current.lane;
   const checkpoint = snapshot.checkpoints[lane];
-  const prefix = `OFFER-${operationalToken(spec.request_id)}-`;
+  if (!checkpoint) throw new Error("offer checkpoint is unavailable");
+  const prefix = `OFFER-${operationalToken(offer.proposed.request_id)}-`;
   const previous = checkpoint.outstanding_requests.filter((entry) =>
     entry.request_id.startsWith(prefix),
   );
@@ -2421,9 +2915,9 @@ export function prepareOperationalOffer({ config, snapshot, spec, apply = false 
     };
   const request = {
     request_id: operationalOfferRequest(offer),
-    recipient_instance_or_coordinator: spec.runner_instance_id,
+    recipient_instance_or_coordinator: offer.proposed.runner_instance_id,
     acknowledgment_state: "pending",
-    disposition_reference: spec.evidence,
+    disposition_reference: offer.proposed.evidence,
   };
   return {
     ...prepareOperationalCheckpoint(
@@ -2439,8 +2933,10 @@ export function prepareOperationalOffer({ config, snapshot, spec, apply = false 
   };
 }
 
-function operationalReturnEvidenceReference(reference, repository, issue) {
-  const short = /^(PR|issue)([1-9][0-9]*)#issuecomment-([1-9][0-9]*)$/u.exec(reference ?? "");
+function operationalReturnEvidenceReference(reference: unknown, repository: string, issue: number) {
+  const short = /^(PR|issue)([1-9][0-9]*)#issuecomment-([1-9][0-9]*)$/u.exec(
+    diagnosticText(reference ?? ""),
+  );
   const url = short
     ? `https://github.com/${repository}/${short[1] === "PR" ? "pull" : "issues"}/${short[2]}#issuecomment-${short[3]}`
     : reference;
@@ -2453,8 +2949,13 @@ function operationalReturnEvidenceReference(reference, repository, issue) {
   return match && (match[1] === "pull" || (Number(match[2]) === issue && match[3])) ? url : null;
 }
 
-function operationalReturnRecord(offer, disposition, evidence, evidenceObservation = null) {
-  if (!["accepted", "declined", "pending"].includes(disposition))
+function operationalReturnRecord(
+  offer: OperationalOffer,
+  disposition: unknown,
+  evidence: unknown,
+  evidenceObservation: unknown = null,
+) {
+  if (disposition !== "accepted" && disposition !== "declined" && disposition !== "pending")
     throw new Error("return disposition is unavailable");
   if (evidenceObservation !== null && !validOperationalEvidenceObservation(evidenceObservation))
     throw new Error("return evidence observation has unsupported fields or invalid metadata");
@@ -2482,6 +2983,16 @@ export function prepareOperationalReturn({
   evidence,
   evidenceObservation = null,
   apply = false,
+}: {
+  config: RoadmapConfig;
+  snapshot: OperationalSnapshot;
+  offer: OperationalOffer;
+  runner: unknown;
+  source: unknown;
+  disposition: unknown;
+  evidence: unknown;
+  evidenceObservation?: unknown;
+  apply?: boolean;
 }) {
   requireCoordinatedDelivery(config);
   if (apply) throw new Error("return writes are coordinator-only");
@@ -2508,10 +3019,22 @@ export function prepareOperationalReturnAcceptance({
   verifyDelivery,
   readEvidence,
   apply = false,
+}: {
+  config: RoadmapConfig;
+  snapshot: OperationalSnapshot;
+  offer: OperationalOffer;
+  receipt: unknown;
+  verifyDelivery?: (input: {
+    offer: OperationalOffer;
+    receipt: ReturnType<typeof operationalReturnRecord>;
+  }) => unknown;
+  readEvidence?: (reference: unknown) => unknown;
+  apply?: boolean;
 }) {
   requireCoordinatedDelivery(config);
   if (apply) throw new Error("return acceptance writes are coordinator-only");
   const request = verifyCurrentOperationalOffer(config, snapshot, offer);
+  if (!isRecord(receipt)) throw new Error("return receipt is malformed");
   const expected = operationalReturnRecord(
     offer,
     receipt?.disposition,
@@ -2524,13 +3047,16 @@ export function prepareOperationalReturnAcceptance({
       config.repository,
       offer.proposed.owning_issue,
     ) ||
-    Object.keys(expected).some((key) => receipt[key] !== expected[key])
+    Object.entries(expected).some(([key, value]) => receipt[key] !== value)
   )
     throw new Error(
       "return identity, generation, scope, source or evidence conflicts with the offer",
     );
+  if (snapshot.status !== "observed" && snapshot.status !== "staged")
+    throw new Error("return state is unavailable");
   const lane = offer.current.lane;
   const checkpoint = snapshot.checkpoints[lane];
+  if (!checkpoint) throw new Error("return checkpoint is unavailable");
   const prefix = `RETURN-${operationalToken(offer.offer_digest)}-`;
   const anchorId = `${prefix}${operationalToken(expected.receipt_digest)}`;
   const previous = checkpoint.outstanding_requests.filter((entry) =>
@@ -2568,7 +3094,7 @@ export function prepareOperationalReturnAcceptance({
   // JSON/caller fields (including `verified`) are deliberately never consulted.
   const delivery =
     typeof verifyDelivery === "function" ? verifyDelivery({ offer, receipt: expected }) : null;
-  if (!delivery || delivery.status !== "established")
+  if (!isRecord(delivery) || delivery.status !== "established")
     return {
       status: "unknown",
       acknowledged: false,
@@ -2627,28 +3153,34 @@ export function prepareOperationalReturnAcceptance({
   };
 }
 
-function validOperationalEvidenceObservation(value) {
+interface OperationalEvidenceObservation {
+  url: string;
+  body_sha256: string;
+  edited_at: string;
+}
+function validOperationalEvidenceObservation(
+  value: unknown,
+): value is OperationalEvidenceObservation {
   return (
-    value &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
+    isRecord(value) &&
     Object.keys(value).length === 3 &&
     Object.keys(value).every((key) => ["url", "body_sha256", "edited_at"].includes(key)) &&
     typeof value.url === "string" &&
     value.url.length <= 1024 &&
     typeof value.edited_at === "string" &&
-    /^[a-f0-9]{64}$/u.test(value.body_sha256 ?? "") &&
+    typeof value.body_sha256 === "string" &&
+    /^[a-f0-9]{64}$/u.test(value.body_sha256) &&
     Number.isFinite(Date.parse(value.edited_at))
   );
 }
 
 export function readOperationalReturnEvidence(
-  config,
-  api,
-  reference,
-  issue,
-  source,
-  { now = Date.now } = {},
+  config: Pick<RoadmapConfig, "repository">,
+  api: OperationalReader,
+  reference: string,
+  issue: number,
+  source: unknown,
+  { now = Date.now }: { now?: () => number } = {},
 ) {
   const short = /^(PR|issue)([1-9][0-9]*)#issuecomment-([1-9][0-9]*)$/u.exec(reference);
   const url = short
@@ -2666,7 +3198,7 @@ export function readOperationalReturnEvidence(
     throw new Error("return evidence must be an exact owning-issue comment or bound PR evidence");
   const started = now();
   let calls = 0;
-  const get = (endpoint) => {
+  const get = (endpoint: string): Record<string, unknown> => {
     if (++calls > 2 || now() - started >= 30_000)
       throw new Error("exact evidence collection expired");
     const response = api.request("GET", endpoint, null, {
@@ -2677,9 +3209,10 @@ export function readOperationalReturnEvidence(
       Buffer.byteLength(JSON.stringify(response), "utf8") > coordinationReadLimits.responseBytes
     )
       throw new Error("exact evidence response expired or exceeded its byte limit");
+    if (!isRecord(response)) throw new Error("exact evidence response must be an object");
     return response;
   };
-  let record;
+  let record: Record<string, unknown> | undefined;
   if (match[2] === "pull") {
     const pr = get(`repos/${config.repository}/pulls/${match[3]}`);
     if (pr?.number !== Number(match[3]))
@@ -2698,7 +3231,11 @@ export function readOperationalReturnEvidence(
     )
       throw new Error("exact evidence comment identity is mismatched");
   }
-  if (typeof record?.body !== "string" || !Number.isFinite(Date.parse(record.updated_at)))
+  if (
+    typeof record?.body !== "string" ||
+    typeof record.updated_at !== "string" ||
+    !Number.isFinite(Date.parse(record.updated_at))
+  )
     throw new Error("exact evidence body or timestamp is unavailable");
   return {
     url,
@@ -2707,19 +3244,38 @@ export function readOperationalReturnEvidence(
   };
 }
 
-function operationalPullRequestEvidence(config, issue, source, pr) {
+interface OperationalPullRequest {
+  number: number;
+  html_url: string;
+  head: { sha: string };
+  body: string;
+  merged: boolean;
+  updated_at: string;
+  merge_commit_sha?: unknown;
+}
+function operationalPullRequestEvidence(
+  config: Pick<RoadmapConfig, "repository">,
+  issue: number,
+  source: unknown,
+  pr: unknown,
+): asserts pr is OperationalPullRequest {
   if (
-    !pr ||
+    !isRecord(pr) ||
+    typeof pr.number !== "number" ||
     !Number.isSafeInteger(pr.number) ||
     pr.number < 1 ||
     pr.html_url !== `https://github.com/${config.repository}/pull/${pr.number}` ||
-    !/^[a-f0-9]{40}$/u.test(source ?? "") ||
-    pr.head?.sha !== source ||
+    typeof source !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(source) ||
+    !isRecord(pr.head) ||
+    pr.head.sha !== source ||
     typeof pr.body !== "string" ||
     Buffer.byteLength(pr.body, "utf8") > coordinationReadLimits.responseBytes ||
     typeof pr.merged !== "boolean" ||
+    typeof pr.updated_at !== "string" ||
     !Number.isFinite(Date.parse(pr.updated_at)) ||
-    (pr.merged && !/^[a-f0-9]{40}$/u.test(pr.merge_commit_sha ?? ""))
+    (pr.merged &&
+      (typeof pr.merge_commit_sha !== "string" || !/^[a-f0-9]{40}$/u.test(pr.merge_commit_sha)))
   )
     throw new Error(
       "exact repository PR source, merge state or bounded release evidence is unavailable",
@@ -2728,6 +3284,7 @@ function operationalPullRequestEvidence(config, issue, source, pr) {
   if (headings.length !== 1)
     throw new Error("PR evidence requires one unambiguous owning linked-issue section");
   const heading = headings[0];
+  if (!heading) throw new Error("owning linked-issue section is missing");
   const linked = pr.body.slice(heading.index + heading[0].length).split(/^## /mu)[0];
   if (
     !linked ||
@@ -2745,6 +3302,29 @@ export function prepareOperationalReleaseEvidence({
   verifyDelivery,
   expectedReference,
   apply = false,
+}: {
+  config: RoadmapConfig;
+  snapshot: OperationalSnapshot;
+  runner: unknown;
+  source: unknown;
+  pullRequest: unknown;
+  verifyDelivery?: (input: {
+    receipt: {
+      receipt_digest: string;
+      assignment_id: string;
+      generation: number;
+      owning_issue: number;
+      reference: string;
+      body_sha256: string;
+      source: unknown;
+      runner_instance_id: unknown;
+      edited_at: string;
+      merged: boolean;
+      merge_commit_sha: unknown;
+    };
+  }) => unknown;
+  expectedReference?: unknown;
+  apply?: boolean;
 }) {
   requireCoordinatedDelivery(config);
   if (apply) throw new Error("release writes are coordinator-only");
@@ -2769,7 +3349,7 @@ export function prepareOperationalReleaseEvidence({
   };
   const receipt = { ...record, receipt_digest: digest(record) };
   const delivery = typeof verifyDelivery === "function" ? verifyDelivery({ receipt }) : null;
-  if (!delivery || delivery.status !== "established")
+  if (!isRecord(delivery) || delivery.status !== "established")
     return {
       status: "unknown",
       receipt,
@@ -2799,8 +3379,13 @@ export function prepareOperationalReleaseEvidence({
   };
 }
 
-export function coordinationTarget(config, issue, pullRequest = null) {
-  const positive = (value) => Number.isSafeInteger(value) && value > 0;
+export function coordinationTarget(
+  config: Pick<RoadmapConfig, "repository">,
+  issue: unknown,
+  pullRequest: unknown = null,
+) {
+  const positive = (value: unknown): value is number =>
+    typeof value === "number" && Number.isSafeInteger(value) && value > 0;
   if (!positive(issue) || (pullRequest !== null && !positive(pullRequest)))
     throw new Error("coordination requires a positive work issue and optional PR number");
   const number = pullRequest ?? issue;
@@ -2815,26 +3400,42 @@ export function coordinationTarget(config, issue, pullRequest = null) {
   };
 }
 
-function sameCoordinationTarget(target, expected) {
+function sameCoordinationTarget(target: unknown, expected: unknown) {
   return (
-    Boolean(target) &&
+    isRecord(target) &&
+    isRecord(expected) &&
     Object.keys(target).length === Object.keys(expected).length &&
     Object.entries(expected).every(([key, value]) => target[key] === value)
   );
 }
 
-function validateCoordinationTarget(target, snapshot) {
+function validateCoordinationTarget(
+  target: unknown,
+  snapshot: { repository: string; issue: { id: string; number: number } },
+) {
   const expected = coordinationTarget(
     { repository: snapshot.repository },
     snapshot.issue.number,
-    target?.kind === "pull_request" ? target.number : null,
+    isRecord(target) && target.kind === "pull_request" ? target.number : null,
   );
   if (!sameCoordinationTarget(target, expected))
     throw new Error("coordination target does not match this repository and work issue");
-  return target;
+  return target as Record<string, unknown> & ReturnType<typeof coordinationTarget>;
 }
 
-function matchingConsumption(comment, snapshot, runner, target) {
+interface RoadmapComment {
+  id?: number | string;
+  body?: unknown;
+  html_url?: string;
+  url?: string;
+  author?: { login?: string | null };
+}
+function matchingConsumption(
+  comment: RoadmapComment,
+  snapshot: { repository: string; issue: { id: string; number: number } },
+  runner: unknown,
+  target: ReturnType<typeof coordinationTarget>,
+) {
   const url = comment.html_url ?? comment.url;
   if (
     !url?.startsWith(`${target.url}#issuecomment-`) ||
@@ -2842,7 +3443,8 @@ function matchingConsumption(comment, snapshot, runner, target) {
   )
     return null;
   const record = parseConsumptionRecord(comment.body);
-  return record?.runner === runner &&
+  return record !== null &&
+    record.runner === runner &&
     record.snapshot.repository === snapshot.repository &&
     record.snapshot.issue.id === snapshot.issue.id &&
     sameCoordinationTarget(record.coordination_target, target)
@@ -2861,12 +3463,51 @@ const executionFields = [
   "Platform",
   "Port stage",
   "Effort",
-];
-const digest = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+] as const;
+type ExecutionField = (typeof executionFields)[number];
+interface ExecutionReference {
+  id: string;
+  number: number;
+  url: string;
+}
+interface ExecutionSnapshot {
+  schema_version: 1;
+  repository: string;
+  issue: ExecutionReference & { state: "OPEN" | "CLOSED" };
+  scope_revision: string;
+  planning: Record<ExecutionField, string | null>;
+  prerequisites: (ExecutionReference & {
+    state: "OPEN" | "CLOSED";
+    scope_revision: string;
+    status: string | null;
+  })[];
+  dependents: ExecutionReference[];
+  organization: { parent: ExecutionReference | null; children: ExecutionReference[] };
+  revision: string;
+}
+interface ExecutionRelationshipNode extends RoadmapIssueItem {
+  id: string;
+  number: number;
+  url: string;
+  title?: string | null;
+  body?: string | null;
+  state: "OPEN" | "CLOSED";
+  projectStatus?: string | null;
+}
+interface CanonicalProjectIssue extends RoadmapIssueItem {
+  content: ExecutionRelationshipNode;
+}
+interface ExecutionRelationships {
+  blockedBy: ExecutionRelationshipNode[];
+  blocking: ExecutionRelationshipNode[];
+  parent: ExecutionRelationshipNode | null;
+  subIssues: ExecutionRelationshipNode[];
+}
+const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
 // A comparison aid, never a semantic decision or authority to execute. Keep the
 // complete specification in context output; unknown sections remain significant.
-export function normalizeRequirements(body) {
+export function normalizeRequirements(body: unknown) {
   const evidenceHeadings = new Set([
     "delivered evidence",
     "delivered components",
@@ -2875,8 +3516,8 @@ export function normalizeRequirements(body) {
     "progress",
     "delivery evidence",
   ]);
-  let excludedLevel = null;
-  let fence = null;
+  let excludedLevel: number | null = null;
+  let fence: string | null = null;
   let indented = false;
   return String(body ?? "")
     .replace(/\r\n?/g, "\n")
@@ -2885,12 +3526,16 @@ export function normalizeRequirements(body) {
       const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line);
       if (fence) {
         const closing = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(line);
-        if (closing && closing[1][0] === fence[0] && closing[1].length >= fence.length)
+        if (
+          closing &&
+          captureText(closing, 1)[0] === fence[0] &&
+          captureText(closing, 1).length >= fence.length
+        )
           fence = null;
         return [line];
       }
       if (marker) {
-        fence = marker[1];
+        fence = captureText(marker, 1);
         return [line];
       }
       if (/^(?: {4}|\t)/.test(line)) {
@@ -2901,9 +3546,13 @@ export function normalizeRequirements(body) {
       indented = false;
       const heading = /^(#{1,6})\s+(.+?)\s*#*$/.exec(line.trim());
       if (heading) {
-        if (excludedLevel !== null && heading[1].length <= excludedLevel) excludedLevel = null;
-        if (excludedLevel === null && evidenceHeadings.has(heading[2].trim().toLowerCase()))
-          excludedLevel = heading[1].length;
+        if (excludedLevel !== null && captureText(heading, 1).length <= excludedLevel)
+          excludedLevel = null;
+        if (
+          excludedLevel === null &&
+          evidenceHeadings.has(captureText(heading, 2).trim().toLowerCase())
+        )
+          excludedLevel = captureText(heading, 1).length;
       }
       // Only omit bare evidence links/progress counters, not commands, paths,
       // negations or prose that could contain a changed obligation.
@@ -2923,8 +3572,16 @@ export function normalizeRequirements(body) {
     .join("\n");
 }
 
-export function executionSnapshot(config, item, relationships) {
-  if (!item?.content?.id || !Number.isSafeInteger(item.content.number))
+export function executionSnapshot(
+  config: Pick<RoadmapConfig, "repository">,
+  item: RoadmapIssueItem,
+  relationships: ExecutionRelationships,
+) {
+  if (
+    !item?.content?.id ||
+    typeof item.content.number !== "number" ||
+    !Number.isSafeInteger(item.content.number)
+  )
     throw new Error("execution context requires a canonical repository issue");
   const planning = Object.fromEntries(
     executionFields.map((name) => [name, fieldValue(item, name) ?? null]),
@@ -2975,76 +3632,108 @@ export function executionSnapshot(config, item, relationships) {
   return { ...snapshot, revision: digest(snapshot) };
 }
 
-function projectFieldValues(node) {
+function projectFieldValues(node: unknown): RoadmapFieldValue[] {
+  const fields = qualificationField(node, "fieldValues");
   if (
-    !Number.isSafeInteger(node.fieldValues?.totalCount) ||
-    node.fieldValues.totalCount < 0 ||
-    !Array.isArray(node.fieldValues.nodes) ||
-    node.fieldValues.nodes.length !== node.fieldValues.totalCount ||
-    node.fieldValues.pageInfo?.hasNextPage !== false
+    !isRecord(fields) ||
+    typeof fields.totalCount !== "number" ||
+    !Number.isSafeInteger(fields.totalCount) ||
+    fields.totalCount < 0 ||
+    !Array.isArray(fields.nodes) ||
+    fields.nodes.length !== fields.totalCount ||
+    qualificationField(fields.pageInfo, "hasNextPage") !== false
   )
-    throw new Error(`incomplete GitHub inventory: Project item ${node.id} fields are truncated`);
-  return node.fieldValues.nodes
-    .map((value) => ({ name: value.name, field: { name: value.field?.name } }))
+    throw new Error(
+      `incomplete GitHub inventory: Project item ${diagnosticText(qualificationField(node, "id"))} fields are truncated`,
+    );
+  const values: unknown[] = fields.nodes;
+  return values
+    .map((value) => ({
+      name: qualificationField(value, "name"),
+      field: { name: qualificationField(qualificationField(value, "field"), "name") },
+    }))
     .filter((value) => value.name && value.field.name);
 }
 
-export function validateExecutionSnapshot(snapshot) {
-  const reference = (node) =>
-    typeof node?.id === "string" &&
+function executionReference(node: unknown): node is ExecutionReference {
+  return (
+    isRecord(node) &&
+    typeof node.id === "string" &&
     node.id.length > 0 &&
+    typeof node.number === "number" &&
     Number.isSafeInteger(node.number) &&
     node.number > 0 &&
-    /^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+$/.test(node.url ?? "");
-  const hash = (value) => /^[a-f0-9]{64}$/.test(value ?? "");
-  const unique = (nodes) => new Set(nodes.map((node) => node.id)).size === nodes.length;
+    typeof node.url === "string" &&
+    /^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+$/.test(node.url)
+  );
+}
+function executionHash(value: unknown): value is string {
+  return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+}
+function uniqueExecutionReferences(nodes: readonly unknown[]): boolean {
+  // Shape validation follows; this keeps the original uniqueness-before-shape order.
+  return new Set(nodes.map((node) => qualificationField(node, "id"))).size === nodes.length;
+}
+export function validateExecutionSnapshot(snapshot: unknown): ExecutionSnapshot {
   if (
-    snapshot?.schema_version !== 1 ||
-    !reference(snapshot.issue) ||
-    !/^[^/\s]+\/[^/\s]+$/.test(snapshot.repository ?? "") ||
+    !isRecord(snapshot) ||
+    snapshot.schema_version !== 1 ||
+    !executionReference(snapshot.issue) ||
+    typeof snapshot.repository !== "string" ||
+    !/^[^/\s]+\/[^/\s]+$/.test(snapshot.repository) ||
     snapshot.issue.url !==
       `https://github.com/${snapshot.repository}/issues/${snapshot.issue.number}` ||
-    !["OPEN", "CLOSED"].includes(snapshot.issue.state) ||
-    !hash(snapshot.scope_revision) ||
-    !snapshot.planning ||
+    !isRecord(snapshot.issue) ||
+    !["OPEN", "CLOSED"].some((state) => state === qualificationField(snapshot.issue, "state")) ||
+    !executionHash(snapshot.scope_revision) ||
+    !isRecord(snapshot.planning) ||
     executionFields.some(
       (name) =>
+        !isRecord(snapshot.planning) ||
         !(name in snapshot.planning) ||
         (snapshot.planning[name] !== null && typeof snapshot.planning[name] !== "string"),
     ) ||
     !Array.isArray(snapshot.prerequisites) ||
-    !unique(snapshot.prerequisites) ||
-    snapshot.prerequisites.some(
+    !uniqueExecutionReferences(snapshot.prerequisites) ||
+    !isRecord(snapshot.organization) ||
+    !Array.isArray(snapshot.dependents) ||
+    !uniqueExecutionReferences(snapshot.dependents) ||
+    !Array.isArray(snapshot.organization.children) ||
+    !uniqueExecutionReferences(snapshot.organization.children)
+  )
+    throw new Error("invalid consumed requirements snapshot");
+  const prerequisites: unknown[] = snapshot.prerequisites;
+  const dependents: unknown[] = snapshot.dependents;
+  const children: unknown[] = snapshot.organization.children;
+  if (
+    prerequisites.some(
       (node) =>
-        !reference(node) ||
-        !hash(node.scope_revision) ||
-        !["OPEN", "CLOSED"].includes(node.state) ||
+        !executionReference(node) ||
+        !isRecord(node) ||
+        !executionHash(node.scope_revision) ||
+        !["OPEN", "CLOSED"].some((state) => state === node.state) ||
         (node.status !== null && typeof node.status !== "string"),
     ) ||
-    !snapshot.organization ||
-    !Array.isArray(snapshot.dependents) ||
-    !unique(snapshot.dependents) ||
-    snapshot.dependents.some((node) => !reference(node)) ||
-    !Array.isArray(snapshot.organization.children) ||
-    !unique(snapshot.organization.children) ||
-    snapshot.organization.children.some((node) => !reference(node)) ||
-    (snapshot.organization.parent !== null && !reference(snapshot.organization.parent))
+    dependents.some((node) => !executionReference(node)) ||
+    children.some((node) => !executionReference(node)) ||
+    (snapshot.organization.parent !== null && !executionReference(snapshot.organization.parent))
   )
     throw new Error("invalid consumed requirements snapshot");
   const { revision, ...inputs } = snapshot;
   if (revision !== digest(inputs)) throw new Error("consumed snapshot identity is invalid");
-  return snapshot;
+  // Complete field and nested reference validation above precedes this boundary projection.
+  return snapshot as Record<string, unknown> & ExecutionSnapshot;
 }
 
-export function compareExecutionSnapshots(current, consumed = null) {
-  validateExecutionSnapshot(current);
-  if (!consumed)
+export function compareExecutionSnapshots(currentInput: unknown, consumedInput: unknown = null) {
+  const current = validateExecutionSnapshot(currentInput);
+  if (!consumedInput)
     return {
       state: "unknown",
       changes: [],
       action: "Read current requirements; no consumed revision was established.",
     };
-  validateExecutionSnapshot(consumed);
+  const consumed = validateExecutionSnapshot(consumedInput);
   if (current.repository !== consumed.repository || current.issue.id !== consumed.issue.id)
     throw new Error("consumed revision belongs to another repository or issue");
   const fields = executionFields.filter(
@@ -3069,44 +3758,65 @@ export function compareExecutionSnapshots(current, consumed = null) {
   };
 }
 
-export function parseConsumptionRecord(body) {
+function hasConsumptionRecord<T extends { record: ConsumptionRecord | null }>(
+  entry: T,
+): entry is T & { record: ConsumptionRecord } {
+  return entry.record !== null;
+}
+interface ConsumptionRecord {
+  schema_version: 1;
+  kind: "consumed-requirements";
+  runner: string;
+  action: string;
+  evidence: string;
+  observation_revision: string;
+  snapshot: ExecutionSnapshot;
+  coordination_target?: unknown;
+}
+export function parseConsumptionRecord(body: unknown): ConsumptionRecord | null {
   if (!String(body).startsWith(consumptionMarker)) return null;
   const lines = String(body).replace(/\r\n/g, "\n").split("\n");
   if (lines[0] !== consumptionMarker || lines[1] !== "```json" || lines[3] !== "```")
     throw new Error("incomplete roadmap consumption record");
-  const record = JSON.parse(lines[2]);
+  const json = lines[2];
+  if (json === undefined) throw new Error("incomplete roadmap consumption record");
+  const record: unknown = JSON.parse(json);
   if (
+    !isRecord(record) ||
     record.schema_version !== 1 ||
     record.kind !== "consumed-requirements" ||
-    !/^[a-f0-9]{64}$/.test(record.observation_revision ?? "") ||
+    !executionHash(record.observation_revision) ||
     [record.runner, record.action, record.evidence].some(
-      (value: string) => typeof value !== "string" || !value.trim(),
+      (value) => typeof value !== "string" || !value.trim(),
     )
   )
     throw new Error("invalid roadmap consumption record");
-  validateExecutionSnapshot(record.snapshot);
-  if (record.coordination_target)
-    validateCoordinationTarget(record.coordination_target, record.snapshot);
-  return record;
+  const snapshot = validateExecutionSnapshot(record.snapshot);
+  if (record.coordination_target) validateCoordinationTarget(record.coordination_target, snapshot);
+  return record as Record<string, unknown> & ConsumptionRecord;
 }
 
-export function prepareConsumption(context, { runner, action, evidence }, comments) {
+export function prepareConsumption(
+  context: { snapshot: unknown; coordination_target: unknown; observation_revision: unknown },
+  { runner, action, evidence }: { runner: string; action: string; evidence: string },
+  comments: readonly RoadmapComment[],
+) {
   if (!runner?.trim() || !action?.trim() || !evidence?.trim())
     throw new Error("acknowledgment requires actual runner, action and evidence");
-  validateExecutionSnapshot(context.snapshot);
-  const target = validateCoordinationTarget(context.coordination_target, context.snapshot);
-  if (!/^[a-f0-9]{64}$/.test(context.observation_revision ?? ""))
+  const snapshot = validateExecutionSnapshot(context.snapshot);
+  const target = validateCoordinationTarget(context.coordination_target, snapshot);
+  if (!executionHash(context.observation_revision))
     throw new Error("context requires the full raw observation identity");
   const prior = comments
     .map((comment) => ({
       comment,
-      record: matchingConsumption(comment, context.snapshot, runner, target),
+      record: matchingConsumption(comment, snapshot, runner, target),
     }))
-    .filter(({ record }) => record)
+    .filter(hasConsumptionRecord)
     .at(-1);
   if (
-    prior?.record.snapshot.revision === context.snapshot.revision &&
-    prior.record.observation_revision === context.observation_revision
+    prior?.record?.snapshot.revision === snapshot.revision &&
+    prior?.record?.observation_revision === context.observation_revision
   )
     return {
       needed: false,
@@ -3117,21 +3827,35 @@ export function prepareConsumption(context, { runner, action, evidence }, commen
     schema_version: 1,
     kind: "consumed-requirements",
     runner,
-    snapshot: context.snapshot,
+    snapshot,
     observation_revision: context.observation_revision,
     coordination_target: target,
     action,
     evidence,
   };
-  const body = `${consumptionMarker}\n\`\`\`json\n${JSON.stringify(record)}\n\`\`\`\nObserved #${context.snapshot.issue.number}; ${runner} consumed revision ${context.snapshot.revision.slice(0, 12)}.\nAction: ${action}\nEvidence: ${evidence}\n\nThis records consumption, not a grant, current process activity or merge approval.`;
+  const body = `${consumptionMarker}\n\`\`\`json\n${JSON.stringify(record)}\n\`\`\`\nObserved #${snapshot.issue.number}; ${runner} consumed revision ${snapshot.revision.slice(0, 12)}.\nAction: ${action}\nEvidence: ${evidence}\n\nThis records consumption, not a grant, current process activity or merge approval.`;
   return { needed: true, record, body };
 }
 
 export function deriveExecutionContext(
-  config,
-  item,
-  relationships,
-  { runner, comments, coverage, consumed = null, reservation = null, target = null },
+  config: RoadmapConfig,
+  item: CanonicalProjectIssue,
+  relationships: ExecutionRelationships,
+  {
+    runner,
+    comments,
+    coverage,
+    consumed = null,
+    reservation = null,
+    target = null,
+  }: {
+    runner: unknown;
+    comments: readonly RoadmapComment[];
+    coverage: unknown;
+    consumed?: unknown;
+    reservation?: object | null;
+    target?: ReturnType<typeof coordinationTarget> | null;
+  },
 ) {
   const snapshot = executionSnapshot(config, item, relationships);
   target ??= coordinationTarget(config, snapshot.issue.number);
@@ -3139,7 +3863,7 @@ export function deriveExecutionContext(
   const observation_revision = executionObservation(item, relationships);
   const latest = comments
     .map((comment) => ({ comment, record: matchingConsumption(comment, snapshot, runner, target) }))
-    .filter(({ record }) => record)
+    .filter(hasConsumptionRecord)
     .at(-1);
   const previous = consumed ?? latest?.record.snapshot ?? null;
   const comparison = compareExecutionSnapshots(snapshot, previous);
@@ -3231,7 +3955,7 @@ export function deriveExecutionContext(
   };
 }
 
-function executionObservation(item, relationships) {
+function executionObservation(item: CanonicalProjectIssue, relationships: ExecutionRelationships) {
   return digest({
     scope: [item.content.title, item.content.body],
     prerequisites: relationships.blockedBy
@@ -3240,7 +3964,20 @@ function executionObservation(item, relationships) {
   });
 }
 
-export function consumedReference(comment, { repository, runner, issue, target = null }) {
+export function consumedReference(
+  comment: RoadmapComment,
+  {
+    repository,
+    runner,
+    issue,
+    target = null,
+  }: {
+    repository: string;
+    runner: unknown;
+    issue: number;
+    target?: ReturnType<typeof coordinationTarget> | null;
+  },
+) {
   const record = parseConsumptionRecord(comment.body);
   if (
     !record ||
@@ -3265,7 +4002,7 @@ export function consumedReference(comment, { repository, runner, issue, target =
   return record.snapshot;
 }
 
-function executionOptions(parsed, allowed) {
+function executionOptions(parsed: ReturnType<typeof parseArguments>, allowed: readonly string[]) {
   if (
     parsed.positionals.length ||
     Object.keys(parsed.options).some((flag) => !allowed.includes(flag))
@@ -3285,22 +4022,46 @@ export function executeConsumption({
   action,
   evidence,
   apply = false,
+}: {
+  client: {
+    executionIssue(issue: number): {
+      item: CanonicalProjectIssue;
+      relationships: ExecutionRelationships;
+    };
+    coordinationRecords(target: ReturnType<typeof coordinationTarget>): {
+      nodes: RoadmapComment[];
+      coverage: { complete: boolean };
+    };
+    coordinationComment(url: string, target: ReturnType<typeof coordinationTarget>): RoadmapComment;
+    api: Pick<GitHubApiClient, "request">;
+  };
+  config: RoadmapConfig;
+  context: {
+    snapshot: unknown;
+    observation_revision: unknown;
+    coordination_target: unknown;
+    pickup?: { reported_runner?: unknown };
+  };
+  runner: string;
+  action: string;
+  evidence: string;
+  apply?: boolean;
 }) {
-  validateExecutionSnapshot(context?.snapshot);
-  if (!/^[a-f0-9]{64}$/.test(context.observation_revision ?? ""))
+  const snapshot = validateExecutionSnapshot(context?.snapshot);
+  if (!executionHash(context.observation_revision))
     throw new Error("context requires the full raw observation identity");
-  if (context.snapshot.repository !== config.repository)
+  if (snapshot.repository !== config.repository)
     throw new Error("context belongs to another repository");
   if (context.pickup?.reported_runner !== runner)
     throw new Error(
       "context runner differs from the reported consumer; read that runner's current context",
     );
-  const target = validateCoordinationTarget(context.coordination_target, context.snapshot);
+  const target = validateCoordinationTarget(context.coordination_target, snapshot);
   const comments = client.coordinationRecords(target);
-  const live = client.executionIssue(context.snapshot.issue.number);
+  const live = client.executionIssue(snapshot.issue.number);
   const current = executionSnapshot(config, live.item, live.relationships);
   if (
-    current.revision !== context.snapshot.revision ||
+    current.revision !== snapshot.revision ||
     executionObservation(live.item, live.relationships) !== context.observation_revision
   )
     throw new Error(
@@ -3309,7 +4070,7 @@ export function executeConsumption({
   const planned = prepareConsumption(context, { runner, action, evidence }, comments.nodes);
   if (!planned.needed || !apply) return { status: apply ? "succeeded" : "planned", ...planned };
   const knownLatest = comments.nodes.some((comment) =>
-    matchingConsumption(comment, context.snapshot, runner, target),
+    matchingConsumption(comment, snapshot, runner, target),
   );
   if (!comments.coverage.complete && !knownLatest)
     throw new Error(
@@ -3322,27 +4083,33 @@ export function executeConsumption({
     throw new Error(
       "Coordination history changed before acknowledgment; refresh context before writing",
     );
-  const fresh = client.executionIssue(context.snapshot.issue.number);
+  const fresh = client.executionIssue(snapshot.issue.number);
   if (
     executionSnapshot(config, fresh.item, fresh.relationships).revision !== current.revision ||
     executionObservation(fresh.item, fresh.relationships) !== context.observation_revision
   )
     throw new Error("Consumed snapshot is stale before acknowledgment");
   const endpoint = `repos/${config.repository}/issues/${target.number}/comments`;
-  let transportError = null;
-  let written;
+  let transportError: unknown = null;
+  let written: unknown;
   try {
     written = client.api.request("POST", endpoint, { body: planned.body }).body;
   } catch (error) {
     transportError = error;
   }
-  let saved;
+  let saved: RoadmapComment[];
   try {
-    saved = written?.id
-      ? [client.coordinationComment(`${target.url}#issuecomment-${written.id}`, target)]
-      : client
-          .coordinationRecords(target)
-          .nodes.filter((comment) => !comments.nodes.some((prior) => prior.id === comment.id));
+    saved =
+      isRecord(written) && written.id
+        ? [
+            client.coordinationComment(
+              `${target.url}#issuecomment-${diagnosticText(isRecord(written) ? written.id : undefined)}`,
+              target,
+            ),
+          ]
+        : client
+            .coordinationRecords(target)
+            .nodes.filter((comment) => !comments.nodes.some((prior) => prior.id === comment.id));
   } catch (error) {
     transportError ??= error;
     saved = [];
@@ -3356,24 +4123,25 @@ export function executeConsumption({
     const error = new Error(
       "Acknowledgment write is unconfirmed; retain the exact pending body and read back before retrying.",
     );
-    error.operationStatus = "unknown";
-    error.operationEvidence = {
-      pending_body: planned.body,
-      issue: context.snapshot.issue.number,
-      transport_error: transportError?.message ?? null,
-    };
-    throw error;
+    throw Object.assign(error, {
+      operationStatus: "unknown",
+      operationEvidence: {
+        pending_body: planned.body,
+        issue: snapshot.issue.number,
+        transport_error: transportError == null ? null : errorMessage(transportError),
+      },
+    });
   }
   return {
     status: "succeeded",
     needed: true,
-    url: matching[0].html_url ?? matching[0].url,
+    url: matching[0]?.html_url ?? matching[0]?.url,
     readback: "exact",
     transport: transportError ? "ambiguous response reconciled; no retry" : "success",
   };
 }
 
-export function executionQueueData(items) {
+export function executionQueueData(items: readonly RoadmapIssueItem[]) {
   return {
     schema_version: 1,
     meaning: "Recommendations only; neither runnable, assigned nor active is established.",
@@ -3387,7 +4155,8 @@ export function executionQueueData(items) {
         executionFields.map((name) => [name, fieldValue(item, name) ?? null]),
       ),
       prerequisite_coverage:
-        Number(item.content?.blockedBy?.totalCount ?? 0) === blockingNodes(item).length
+        Number(qualificationField(item.content?.blockedBy, "totalCount") ?? 0) ===
+        blockingNodes(item).length
           ? "complete"
           : "incomplete",
       prerequisites: blockingNodes(item).map((node) => node.number),
@@ -3397,38 +4166,56 @@ export function executionQueueData(items) {
   };
 }
 
-export function consumptionEnvelope(result) {
+export function consumptionEnvelope(result: ReturnType<typeof executeConsumption>) {
   return githubOperationEnvelope({
     operation: "roadmap.acknowledge",
     status: result.status,
     summary: result.needed
       ? "Material consumption acknowledgment prepared or recorded."
-      : result.reason,
+      : "reason" in result
+        ? result.reason
+        : "Material consumption acknowledgment prepared or recorded.",
     evidence: result,
   });
 }
 
-export function executeCommitmentRename({ client, config, apply = false }) {
+export function executeCommitmentRename({
+  client,
+  config,
+  apply = false,
+}: {
+  client: {
+    fieldList(number: number): ProjectCollection<ProjectField>;
+    itemList(number: number): RoadmapIssueItem[];
+    sampleGraphqlRate(): SetManyRate;
+    updateField(id: string, options: ProjectFieldOption[]): unknown;
+  };
+  config: RoadmapConfig;
+  apply?: boolean;
+}) {
   const number = config.project.number;
   const desired = config.fields.find((field) => field.name === "Release commitment");
   if (!desired?.options.includes("Planned") || desired.options.includes("Opportunistic"))
     throw new Error("active configuration must use Required / Planned");
   const fields = unwrapCollection(client.fieldList(number), "fields");
   const step = planFieldReconciliation([desired], fields)[0];
+  if (!step) throw new Error("commitment field plan is unavailable");
   if (step.action === "error") throw new Error(step.reason);
-  if (!["keep", "update"].includes(step.action))
+  if (step.action !== "keep" && step.action !== "update")
     throw new Error("existing commitment field is required");
+  const fieldId = step.actual.id;
+  if (!fieldId) throw new Error("existing commitment field identity is required");
   if (!apply)
     return {
       status: "planned",
-      field: step.actual.id,
+      field: fieldId,
       action: step.action,
-      options: step.options ?? step.actual.options,
+      options: "options" in step ? step.options : step.actual.options,
     };
   const before = client.itemList(number);
-  const assignment = (item) =>
+  const assignment = (item: RoadmapIssueItem) =>
     item.fieldValues?.find((value) => value.field?.name === desired.name);
-  const historical = step.actual.options.find((option) => option.name === "Opportunistic");
+  const historical = step.actual.options?.find((option) => option.name === "Opportunistic");
   const rate = client.sampleGraphqlRate();
   if (rate.remaining < 500)
     throw new Error(`commitment rename requires recovery reserve; reset ${rate.resetAt}`);
@@ -3440,7 +4227,7 @@ export function executeCommitmentRename({ client, config, apply = false }) {
   let mutationError;
   if (step.action === "update") {
     try {
-      client.updateField(step.actual.id, step.options);
+      client.updateField(fieldId, step.options);
     } catch (error) {
       mutationError = error;
     }
@@ -3449,10 +4236,10 @@ export function executeCommitmentRename({ client, config, apply = false }) {
   const afterField = afterFields.find((field) => field.id === step.actual.id);
   if (
     !afterField ||
-    planFieldReconciliation([desired], afterFields)[0].action !== "keep" ||
-    step.actual.options.some(
+    planFieldReconciliation([desired], afterFields)[0]?.action !== "keep" ||
+    (step.actual.options ?? []).some(
       (option) =>
-        !afterField.options.some(
+        !(afterField.options ?? []).some(
           (candidate) =>
             candidate.id === option.id &&
             candidate.name === (option.name === "Opportunistic" ? "Planned" : option.name),
@@ -3460,7 +4247,7 @@ export function executeCommitmentRename({ client, config, apply = false }) {
     )
   )
     throw new Error(
-      `commitment rename readback failed${mutationError ? `: ${mutationError.message}` : ""}`,
+      `commitment rename readback failed${mutationError ? `: ${errorMessage(mutationError)}` : ""}`,
     );
   const after = client.itemList(number);
   if (before.length !== after.length)
@@ -3479,14 +4266,14 @@ export function executeCommitmentRename({ client, config, apply = false }) {
   return {
     status: "succeeded",
     field: afterField.id,
-    option: historical?.id ?? afterField.options.find((option) => option.name === "Planned")?.id,
+    option: historical?.id ?? afterField.options?.find((option) => option.name === "Planned")?.id,
     assignmentsVerified: after.length,
     alreadyApplied: step.action === "keep",
     reconciledAfterError: Boolean(mutationError),
   };
 }
 
-function uniqueItems(items) {
+function uniqueItems<T extends RoadmapIssueItem>(items: readonly T[]): T[] {
   return [
     ...new Map(
       items.map((item) => [item?.id ?? `issue:${issueNumber(item) ?? itemTitle(item)}`, item]),
@@ -3494,16 +4281,18 @@ function uniqueItems(items) {
   ];
 }
 
-export function dependencyCycles(items) {
+export function dependencyCycles(items: readonly RoadmapIssueItem[]) {
   const byNumber = new Map(
-    items.map((item) => [issueNumber(item), item]).filter(([number]) => Number.isInteger(number)),
+    items
+      .map((item) => [issueNumber(item), item] as const)
+      .filter(([number]) => Number.isInteger(number)),
   );
-  const cycles = [];
-  const completed = new Set();
-  const visiting = [];
-  const visit = (item) => {
+  const cycles: number[][] = [];
+  const completed = new Set<number>();
+  const visiting: number[] = [];
+  const visit = (item: RoadmapIssueItem) => {
     const number = issueNumber(item);
-    if (!Number.isInteger(number) || completed.has(number)) return;
+    if (number === null || !Number.isInteger(number) || completed.has(number)) return;
     const activeIndex = visiting.indexOf(number);
     if (activeIndex >= 0) {
       cycles.push([...visiting.slice(activeIndex), number]);
@@ -3522,8 +4311,8 @@ export function dependencyCycles(items) {
 }
 
 export function analyzeReleaseReadiness(
-  items,
-  release,
+  items: readonly RoadmapIssueItem[],
+  release: string,
   {
     candidateIssues = null,
     risk706Approval = JSON.parse(
@@ -3531,6 +4320,11 @@ export function analyzeReleaseReadiness(
     ),
     risk706Evidence = null,
     now = new Date().toISOString(),
+  }: {
+    candidateIssues?: readonly number[] | null;
+    risk706Approval?: unknown;
+    risk706Evidence?: unknown;
+    now?: string;
   } = {},
 ) {
   if (
@@ -3549,18 +4343,21 @@ export function analyzeReleaseReadiness(
   const migrationConflicts = milestone
     ? items.filter(
         (item) =>
-          !itemDone(item) && legacyReleaseSequence.includes(fieldValue(item, "Target release")),
+          !itemDone(item) &&
+          legacyReleaseSequence.some((target) => target === fieldValue(item, "Target release")),
       )
     : [];
   let unassignedRequired = items.filter(
     (item) =>
       fieldValue(item, "Release commitment") === "Required" &&
-      ![...releaseSequence, "Post-V1", "Post-1.0"].includes(fieldValue(item, "Target release")),
+      ![...releaseSequence, "Post-V1", "Post-1.0"].some(
+        (target) => target === fieldValue(item, "Target release"),
+      ),
   );
   const targeted = items.filter((item) =>
     candidateIssues
-      ? candidateIssues.includes(issueNumber(item))
-      : includedReleases.includes(fieldValue(item, "Target release")),
+      ? candidateIssues.some((number) => number === issueNumber(item))
+      : includedReleases.some((target) => target === fieldValue(item, "Target release")),
   );
   const requiredRoots = candidateIssues
     ? targeted
@@ -3569,7 +4366,7 @@ export function analyzeReleaseReadiness(
   let approvedPlanning706 = false;
   try {
     // Planning identity is stable after expiry; only the actual release evaluator checks time.
-    validateApproval706(risk706Approval, risk706Approval?.approvedAt);
+    validateApproval706(risk706Approval, qualificationField(risk706Approval, "approvedAt"));
     approvedPlanning706 = release === "Public beta" && !candidateIssues;
   } catch {
     /* Missing or altered canonical record retains the ordinary safety rules. */
@@ -3577,7 +4374,7 @@ export function analyzeReleaseReadiness(
   const scopedRemediation706 = targeted.filter(
     (item) =>
       approvedPlanning706 &&
-      [49, 706].includes(issueNumber(item)) &&
+      [49, 706].some((number) => number === issueNumber(item)) &&
       itemUrl(item) === `https://github.com/boburning/portcove/issues/${issueNumber(item)}` &&
       fieldValue(item, "Target release") === "Public beta" &&
       fieldValue(item, "Platform") === "Linux" &&
@@ -3588,9 +4385,9 @@ export function analyzeReleaseReadiness(
   );
   // Planning is not candidate eligibility. Only the existing complete release evaluator
   // may satisfy these two still-open remediation nodes for this ordinary Linux candidate.
-  let candidateDisposition706 = null;
+  let candidateDisposition706: ReturnType<typeof decide706> | null = null;
   if (risk706Evidence) {
-    if (!approvedPlanning706 || risk706Evidence.purpose !== "release")
+    if (!approvedPlanning706 || !isRecord(risk706Evidence) || risk706Evidence.purpose !== "release")
       throw new Error(
         "#706 candidate disposition applies only to ordinary Public beta release readiness",
       );
@@ -3606,21 +4403,30 @@ export function analyzeReleaseReadiness(
       !scopedRemediation706.includes(item),
   );
   const planned = targeted.filter((item) =>
-    ["Planned", "Opportunistic"].includes(fieldValue(item, "Release commitment")),
+    ["Planned", "Opportunistic"].some(
+      (commitment) => commitment === fieldValue(item, "Release commitment"),
+    ),
   );
   const byNumber = new Map(
-    items.map((item) => [issueNumber(item), item]).filter(([number]) => Number.isInteger(number)),
+    items
+      .map((item) => [issueNumber(item), item] as const)
+      .filter(([number]) => Number.isInteger(number)),
   );
-  const effective = new Map();
-  const dependencyConflicts = [];
-  const missingProjectDependencies = [];
-  const truncatedDependencies = [];
-  const visit = (item) => {
+  const effective = new Map<string, RoadmapIssueItem>();
+  const dependencyConflicts: {
+    item: RoadmapIssueItem;
+    dependency: RoadmapIssueItem;
+    commitment: unknown;
+    target: unknown;
+  }[] = [];
+  const missingProjectDependencies: { item: RoadmapIssueItem; dependency: RoadmapIssueItem }[] = [];
+  const truncatedDependencies: RoadmapIssueItem[] = [];
+  const visit = (item: RoadmapIssueItem) => {
     const key = item?.id ?? `issue:${issueNumber(item) ?? itemTitle(item)}`;
     if (effective.has(key)) return;
     effective.set(key, item);
     const blockedBy = item?.content?.blockedBy ?? item?.blockedBy;
-    if (Number(blockedBy?.totalCount ?? 0) > blockingNodes(item).length) {
+    if (Number(qualificationField(blockedBy, "totalCount") ?? 0) > blockingNodes(item).length) {
       truncatedDependencies.push(item);
     }
     for (const dependency of blockingNodes(item)) {
@@ -3642,7 +4448,7 @@ export function analyzeReleaseReadiness(
       if (
         candidateIssues
           ? !commitment
-          : commitment !== "Required" || !includedReleases.includes(target)
+          : commitment !== "Required" || !includedReleases.some((release) => release === target)
       ) {
         if (
           !(
@@ -3716,8 +4522,8 @@ export function analyzeReleaseReadiness(
   };
 }
 
-export function renderReadinessSummary(analysis) {
-  const section = (values) =>
+export function renderReadinessSummary(analysis: ReturnType<typeof analyzeReleaseReadiness>) {
+  const section = (values: readonly RoadmapIssueItem[]) =>
     values.length ? values.map(itemLine).join("\n") : "- None recorded.";
   const dependencyConflicts = analysis.dependencyConflicts.map(
     ({ item, dependency, commitment, target }) =>
@@ -3746,15 +4552,19 @@ export function renderReadinessSummary(analysis) {
   return `# ${analysis.release} readiness\n\n- Result: ${analysis.ready ? "READY" : "NOT READY"}\n- Required outcomes including blocking dependencies: ${analysis.effectiveRequired.length}\n- Unfinished required outcomes: ${analysis.unfinishedRequired.length}\n\n## Unfinished required outcomes\n\n${section(analysis.unfinishedRequired)}\n\n## Relevant unclassified work\n\n${section(analysis.relevantUnclassified)}\n\n## Scoped Linux beta disposition\n\n${section(analysis.scopedRemediation706)}\n\n${analysis.candidateDisposition706 ? `Exact candidate ${analysis.candidateDisposition706.candidate}: accepted risk under ${analysis.candidateDisposition706.approvalUrl}; raw scan remains failed.` : analysis.pendingRiskDispositions.length ? 'Pending: run readiness --release "Public beta" --linux-beta-706 against the actual candidate with its reviewed GITHUB_REF_NAME. Planned remediation alone does not establish eligibility.' : "No scoped disposition recorded."}\n\n## Safety commitment conflicts\n\n${section(analysis.safetyConflicts)}\n\n## Dependency classification conflicts\n\n${[...dependencyConflicts, ...missing, ...truncated].join("\n") || "- None recorded."}\n\n## Dependency cycles\n\n${cycles.join("\n") || "- None recorded."}\n\n## Planned work through this release\n\n${section(analysis.planned)}\n`;
 }
 
-export function catalogQualificationSummary(catalog) {
-  const ports = Array.isArray(catalog?.ports) ? catalog.ports : [];
-  const byTier = {};
+export function catalogQualificationSummary(
+  catalog: QualificationCatalogObservation | null | undefined,
+) {
+  const ports: readonly QualificationPortObservation[] = Array.isArray(catalog?.ports)
+    ? catalog.ports
+    : [];
+  const byTier: Record<string, number> = {};
   const declared = new Set();
   const automated = new Set();
   const manual = new Set();
   for (const port of ports) {
-    byTier[port.support_tier ?? "unspecified"] =
-      (byTier[port.support_tier ?? "unspecified"] ?? 0) + 1;
+    byTier[diagnosticText(port.support_tier ?? "unspecified")] =
+      (byTier[diagnosticText(port.support_tier ?? "unspecified")] ?? 0) + 1;
     for (const platform of port.platforms ?? []) declared.add(`${port.id}:${platform}`);
     for (const platform of port.automated_tested_platforms ?? [])
       automated.add(`${port.id}:${platform}`);
@@ -3770,13 +4580,13 @@ export function catalogQualificationSummary(catalog) {
   };
 }
 
-function markdownLink(item) {
+function markdownLink(item: RoadmapIssueItem) {
   const url = itemUrl(item);
   const title = itemTitle(item).replaceAll("[", "\\[").replaceAll("]", "\\]");
   return url ? `[${title}](${url})` : title;
 }
 
-function itemLine(item) {
+function itemLine(item: RoadmapIssueItem) {
   const details = [
     "Status",
     "Priority",
@@ -3793,12 +4603,12 @@ function itemLine(item) {
   return `- ${markdownLink(item)}${details ? ` — ${details}` : ""}`;
 }
 
-export function completionEvidenceLinks(items) {
-  const urls = new Set();
+export function completionEvidenceLinks(items: readonly RoadmapIssueItem[]) {
+  const urls = new Set<string>();
   for (const item of items) {
     const body = itemBody(item);
     const heading = body.match(/^## Completion evidence\s*$/im);
-    const start = heading ? heading.index + heading[0].length : -1;
+    const start = heading ? (heading.index ?? 0) + heading[0].length : -1;
     const following = start >= 0 ? body.slice(start) : "";
     const nextHeading = following.search(/^##\s/m);
     const section = start < 0 ? "" : following.slice(0, nextHeading < 0 ? undefined : nextHeading);
@@ -3816,7 +4626,21 @@ export function completionEvidenceLinks(items) {
   return [...urls].sort();
 }
 
-export function renderSnapshot({ release, generatedAt, commit, projectUrl, items, catalog }) {
+export function renderSnapshot({
+  release,
+  generatedAt,
+  commit,
+  projectUrl,
+  items,
+  catalog,
+}: {
+  release: string;
+  generatedAt: string;
+  commit: string;
+  projectUrl: string;
+  items: readonly RoadmapIssueItem[];
+  catalog: QualificationCatalogObservation;
+}) {
   const readiness = analyzeReleaseReadiness(items, release);
   const { includedReleases } = readiness;
   const matching = uniqueItems([...readiness.effectiveRequired, ...readiness.relevantUnclassified]);
@@ -3833,7 +4657,7 @@ export function renderSnapshot({ release, generatedAt, commit, projectUrl, items
   const deferred = items.filter(
     (item) =>
       fieldValue(item, "Status") === "Deferred" ||
-      ["Post-V1", "Post-1.0"].includes(fieldValue(item, "Target release")),
+      ["Post-V1", "Post-1.0"].some((target) => target === fieldValue(item, "Target release")),
   );
   const summary = catalogQualificationSummary(catalog);
   const tiers =
@@ -3841,7 +4665,7 @@ export function renderSnapshot({ release, generatedAt, commit, projectUrl, items
       .sort()
       .map(([name, count]) => `  - ${name}: ${count}`)
       .join("\n") || "  - none";
-  const section = (values) =>
+  const section = (values: readonly RoadmapIssueItem[]) =>
     values.length ? values.map(itemLine).join("\n") : "- None recorded.";
   const links = completionEvidenceLinks(matching);
   const conflictLines = readiness.dependencyConflicts.map(
@@ -3877,18 +4701,51 @@ export function renderSnapshot({ release, generatedAt, commit, projectUrl, items
   return `# ${release} release readiness\n\n> Immutable snapshot generated from the live Portcove Roadmap and catalog. Project fields and genuine blocking dependencies define readiness after ${generatedAt}.\n\n- Generated: ${generatedAt}\n- Commit: \`${commit}\`\n- Project: ${projectUrl}\n- Target release: ${release}\n- Cumulative required stages: ${includedReleases.join(", ")}\n- Derived readiness: ${readiness.ready ? "READY" : "NOT READY"}\n\n## Open blockers\n\n${section(blockers)}\n\n## Completed required items\n\n${section(complete)}\n\n## Unfinished required items\n\n${section(unfinished)}\n\n## Relevant unclassified work\n\n${section(readiness.relevantUnclassified)}\n\n## Scoped Linux beta disposition\n\n${section(readiness.scopedRemediation706)}\n\nCandidate decision remains separate; Planned remediation alone does not establish eligibility.\n\n## Commitment and dependency conflicts\n\n${[...readiness.safetyConflicts.map(itemLine), ...conflictLines].join("\n") || "- None recorded."}\n\n## Planned work through this release\n\n${section(readiness.planned)}\n\n## Repository closure and Project Status inconsistencies\n\n${section(inconsistencies)}\n\nA closed or not-planned repository issue is not complete unless Project Status is Done. Resolve every inconsistency before release.\n\n## Consciously deferred or postponed\n\n${section(deferred)}\n\n## Catalog qualification summary\n\n- Catalog entries: ${summary.ports}\n- Declared port/platform pairs: ${summary.declaredPlatformPairs}\n- Automated port/platform pairs: ${summary.automatedPlatformPairs}\n- Manually validated port/platform pairs: ${summary.manuallyValidatedPlatformPairs}\n- Support tiers:\n${tiers}\n\n## Completion evidence links\n\n${links.length ? links.map((url) => `- ${url}`).join("\n") : "- No explicit completion evidence links were recorded on matching Project items."}\n\n## Test, CI, rehearsal, signing, and human validation\n\n- Record reviewed test commands and results here.\n- Record required CI runs here.\n- Record release rehearsal evidence here.\n- Record signing/notarization evidence or the explicit unsigned limitation here.\n- Record required human and physical-platform evidence here.\n\n## Explicit limitations\n\n- Review every unfinished, unclassified, conflicting, and deferred item above before publication.\n- This snapshot does not grant qualification or replace catalog evidence.\n- Project fields may change after generation; regenerate rather than editing this snapshot in place.\n`;
 }
 
-function unwrapCollection(value, key) {
-  if (Array.isArray(value)) return value;
-  if (Array.isArray(value?.[key])) return value[key];
+interface ProjectFieldOption {
+  id?: string;
+  name: string;
+  color?: string;
+  description?: string;
+}
+interface ProjectField {
+  id?: string;
+  name: string;
+  dataType?: string;
+  type?: string;
+  __typename?: string;
+  options?: ProjectFieldOption[];
+}
+type ProjectCollection<T> =
+  | readonly T[]
+  | { fields?: readonly T[]; nodes?: readonly T[] }
+  | null
+  | undefined;
+function unwrapCollection<T>(value: ProjectCollection<T>, key: "fields" | "nodes"): readonly T[] {
+  function isList(input: ProjectCollection<T>): input is readonly T[] {
+    return Array.isArray(input);
+  }
+  if (isList(value)) return value;
+  const selected = value?.[key];
+  if (Array.isArray(selected)) return selected;
   if (Array.isArray(value?.nodes)) return value.nodes;
   return [];
 }
+type FieldReconciliation =
+  | { action: "create"; desired: RoadmapFieldDefinition }
+  | { action: "error"; desired: RoadmapFieldDefinition; actual: ProjectField; reason: string }
+  | { action: "keep"; desired: RoadmapFieldDefinition; actual: ProjectField }
+  | {
+      action: "update";
+      desired: RoadmapFieldDefinition;
+      actual: ProjectField;
+      options: ProjectFieldOption[];
+    };
 
 export function planFieldReconciliation(
-  desiredFields,
-  actualResult,
-  { freshProject = false } = {},
-) {
+  desiredFields: readonly RoadmapFieldDefinition[],
+  actualResult: ProjectCollection<ProjectField>,
+  { freshProject = false }: { freshProject?: boolean } = {},
+): FieldReconciliation[] {
   const actualFields = unwrapCollection(actualResult, "fields");
   return desiredFields.map((desired) => {
     const actual = actualFields.find((field) => field.name === desired.name);
@@ -3931,10 +4788,31 @@ export function planFieldReconciliation(
   });
 }
 
-export function planViewReconciliation(desiredViews, actualViews) {
+interface ProjectView {
+  id?: string;
+  name: string;
+  layout?: string;
+  filter?: unknown;
+  fields?: ProjectCollection<{ id?: string; name?: string }>;
+  groupByFields?: { nodes: { name: string }[] };
+  verticalGroupByFields?: { nodes: { name: string }[] };
+  sortByFields?: { nodes: { field: { name: string }; direction: string }[] };
+}
+type ViewReconciliation =
+  | { action: "create"; desired: RoadmapViewDefinition; actual: null | undefined }
+  | {
+      action: "update" | "keep";
+      desired: RoadmapViewDefinition;
+      actual: ProjectView;
+      drift: string[];
+    };
+export function planViewReconciliation(
+  desiredViews: readonly RoadmapViewDefinition[],
+  actualViews: readonly ProjectView[],
+): ViewReconciliation[] {
   const byName = new Map(actualViews.map((view) => [view.name, view]));
   if (byName.size !== actualViews.length) throw new Error("duplicate actual view names");
-  const used = new Set();
+  const used = new Set<string>();
   return desiredViews.map((view) => {
     const current = byName.get(view.name);
     const previous = view.previous_name ? byName.get(view.previous_name) : null;
@@ -3953,13 +4831,16 @@ export function planViewReconciliation(desiredViews, actualViews) {
   });
 }
 
-function visibleFieldNames(view) {
+function visibleFieldNames(view: ProjectView | null | undefined) {
   return unwrapCollection(view?.fields, "fields")
     .map((field) => field.name)
-    .filter(Boolean);
+    .filter((name): name is string => Boolean(name));
 }
 
-export function viewMachineDrift(desired, actual) {
+export function viewMachineDrift(
+  desired: RoadmapViewDefinition,
+  actual: ProjectView | null | undefined,
+) {
   const drift = [];
   if (actual?.name !== desired.name) drift.push(`name ${actual?.name} != ${desired.name}`);
   if (actual?.layout !== desired.layout)
@@ -3974,16 +4855,17 @@ export function viewMachineDrift(desired, actual) {
     drift.push(`visible fields ${actualFields.join(", ")} != ${expectedFields.join(", ")}`);
   }
   if (actual?.groupByFields && actual?.verticalGroupByFields && actual?.sortByFields) {
-    const groups = actual[
-      desired.layout === "BOARD_LAYOUT" ? "verticalGroupByFields" : "groupByFields"
-    ].nodes.map((field) => field.name);
+    const groups = (
+      desired.layout === "BOARD_LAYOUT" ? actual.verticalGroupByFields : actual.groupByFields
+    ).nodes.map((field) => field.name);
     const expectedGroups = desired.manual_group_by ? [desired.manual_group_by] : [];
     if (JSON.stringify(groups) !== JSON.stringify(expectedGroups))
       drift.push(
         `grouping ${groups.join(", ") || "nothing"} != ${expectedGroups.join(", ") || "nothing"} (UI change required)`,
       );
-    const otherGroups =
-      actual[desired.layout === "BOARD_LAYOUT" ? "groupByFields" : "verticalGroupByFields"].nodes;
+    const otherGroups = (
+      desired.layout === "BOARD_LAYOUT" ? actual.groupByFields : actual.verticalGroupByFields
+    ).nodes;
     if (otherGroups.length)
       drift.push(
         `unexpected secondary grouping ${otherGroups.map((field) => field.name).join(", ")} (UI change required)`,
@@ -4001,7 +4883,32 @@ export function viewMachineDrift(desired, actual) {
   return drift;
 }
 
-export function projectMachineDrift(config, { details, fields, views, repositories }) {
+interface LinkedProjectRepository {
+  owner: string | { login?: string };
+  name: string;
+}
+interface ProjectDetails {
+  title?: unknown;
+  number?: unknown;
+  public?: unknown;
+  visibility?: unknown;
+  url?: string;
+  id?: string;
+}
+export function projectMachineDrift(
+  config: RoadmapConfig,
+  {
+    details,
+    fields,
+    views,
+    repositories,
+  }: {
+    details: ProjectDetails | null;
+    fields: readonly ProjectField[];
+    views: readonly ProjectView[];
+    repositories?: readonly LinkedProjectRepository[] | null;
+  },
+) {
   const drift = [];
   if (details?.title !== config.project.title)
     drift.push(`project title is ${JSON.stringify(details?.title)}`);
@@ -4011,13 +4918,13 @@ export function projectMachineDrift(config, { details, fields, views, repositori
   if (!isPublic) drift.push("project visibility is not PUBLIC");
   const linked = (repositories ?? []).some(
     (repository) =>
-      `${repository.owner?.login ?? repository.owner}/${repository.name}`.toLowerCase() ===
+      `${typeof repository.owner === "string" ? repository.owner : (repository.owner.login ?? repository.owner)}/${repository.name}`.toLowerCase() ===
       config.repository.toLowerCase(),
   );
   if (!linked) drift.push(`repository ${config.repository} is not linked`);
   for (const step of planFieldReconciliation(config.fields, { fields })) {
     if (step.action !== "keep")
-      drift.push(`field ${step.desired.name}: ${step.reason ?? step.action}`);
+      drift.push(`field ${step.desired.name}: ${"reason" in step ? step.reason : step.action}`);
   }
   for (const desired of config.fields) {
     const actual = fields.find((field) => field.name === desired.name);
@@ -4029,7 +4936,7 @@ export function projectMachineDrift(config, { details, fields, views, repositori
   for (const step of planViewReconciliation(materializeViews(config), views)) {
     if (step.action !== "keep")
       drift.push(
-        `view ${step.desired.name}: ${step.action}${step.drift?.length ? ` (${step.drift.join("; ")})` : ""}`,
+        `view ${step.desired.name}: ${step.action}${"drift" in step && step.drift.length ? ` (${step.drift.join("; ")})` : ""}`,
       );
   }
   const desiredViewNames = new Set(config.views.map((view) => view.name));

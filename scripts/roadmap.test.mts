@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { createHash } from "node:crypto";
 import { createGitHubRunner } from "./github-api.mts";
 
 import {
@@ -398,6 +399,22 @@ test("missing, oversized, malformed, stale and unavailable operational state sta
   assert.ok(expired.calls.length < 4);
 });
 
+test("operational observations reject coerced timestamps at issue and checkpoint boundaries", () => {
+  for (const endpoint of [
+    `repos/${config.repository}/issues/1800`,
+    `repos/${config.repository}/issues/comments/101`,
+  ]) {
+    for (const timestamp of [0, ["2026-10-06T16:00:00Z"]]) {
+      const fixture = operationalFixture();
+      fixture.records[endpoint].updated_at = timestamp;
+      const result = readOperationalBoard(fixture.configured, fixture.api);
+      assert.equal(result.status, "unknown");
+      assert.equal(result.state, null);
+      assert.ok(result.original_evidence_manifest);
+    }
+  }
+});
+
 test("conflicting assignments and malformed outstanding requests refuse interpretation", () => {
   const fixture = operationalFixture();
   const duplicate = {
@@ -726,6 +743,59 @@ function handoffFixture() {
   });
   return { ...fixture, spec, offer, receipt, current };
 }
+
+test("offer and exact release evidence reject coercible scalar metadata", () => {
+  const fixture = operationalFixture();
+  const snapshot = readOperationalBoard(fixture.configured, fixture.api);
+  const spec = handoffFixture().spec;
+  assert.throws(
+    () =>
+      prepareOperationalOffer({
+        config: fixture.configured,
+        snapshot,
+        spec: { ...spec, source: [spec.source] },
+      }),
+    /malformed/,
+  );
+  const pr = {
+    number: 1543,
+    html_url: `https://github.com/${config.repository}/pull/1543`,
+    head: { sha: spec.source },
+    merged: false,
+    merge_commit_sha: null,
+    updated_at: "2026-10-07T03:00:00Z",
+    body: "## Linked issue\nRefs #1104.",
+  };
+  for (const timestamp of [0, [pr.updated_at]]) {
+    assert.throws(
+      () =>
+        prepareOperationalReleaseEvidence({
+          config: fixture.configured,
+          snapshot,
+          runner: spec.runner_instance_id,
+          source: spec.source,
+          pullRequest: { ...pr, updated_at: timestamp },
+        }),
+      /unavailable/,
+    );
+    const url = `https://github.com/${config.repository}/issues/1104#issuecomment-21`;
+    const api = {
+      request: () => ({
+        body: {
+          id: 21,
+          html_url: url,
+          issue_url: `https://api.github.com/repos/${config.repository}/issues/1104`,
+          body: "retained exact evidence",
+          updated_at: timestamp,
+        },
+      }),
+    };
+    assert.throws(
+      () => readOperationalReturnEvidence(fixture.configured, api, url, 1104, spec.source),
+      /timestamp.*unavailable/,
+    );
+  }
+});
 
 test("bounded offers preserve the accepted assignment and reject altered or superseded proposals", () => {
   const f = handoffFixture();
@@ -1463,6 +1533,28 @@ test("snapshot validation rejects altered hashes, malformed identities and missi
     () => parseConsumptionRecord("<!-- portcove-roadmap-consumed:v1 -->\nmissing JSON"),
     /incomplete/,
   );
+});
+
+test("snapshot validation rejects coercible scalar identities even with a matching revision", () => {
+  const original = pickupContext().snapshot;
+  const mutations = [
+    (value) => {
+      value.repository = [value.repository];
+    },
+    (value) => {
+      value.issue.url = [value.issue.url];
+    },
+    (value) => {
+      value.scope_revision = [value.scope_revision];
+    },
+  ];
+  for (const mutate of mutations) {
+    const value = structuredClone(original);
+    mutate(value);
+    const { revision: _previous, ...inputs } = value;
+    value.revision = createHash("sha256").update(JSON.stringify(inputs)).digest("hex");
+    assert.throws(() => validateExecutionSnapshot(value), /invalid/);
+  }
 });
 
 test("context distinguishes bounded absence, actual API recorder, reported consumption and worker activity", () => {
