@@ -1,3 +1,137 @@
+import type {
+  Platform,
+  AdapterKind,
+  PortDefinition,
+  PortPresentation,
+  DirectReleaseSpec,
+  PortSourceContract,
+  SourceIdentityProfile,
+  SourceVariant,
+  SourceRepresentation,
+  DigestIdentity,
+} from "../src/transport-types.generated.d.ts";
+import type { Server } from "node:http";
+import type { Socket } from "node:net";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+// Authoring projections intentionally omit Core-defaulted fields; Core remains the catalog validator.
+type FixturePort = Pick<
+  PortDefinition,
+  | "id"
+  | "name"
+  | "summary"
+  | "adapter"
+  | "channels"
+  | "platforms"
+  | "executable_hints"
+  | "persistent_paths"
+> & {
+  project_url: string;
+  support_tier: "beta";
+  release: { provider: "direct-manifest"; direct: Partial<Record<Platform, DirectReleaseSpec>> };
+  presentation: Pick<
+    PortPresentation,
+    "installation_method" | "source_requirements" | "saves_and_settings"
+  >;
+  source_profile?: string | null;
+  bios_source_profile?: string | null;
+};
+interface NamedRecord extends Record<string, unknown> {
+  id: string;
+}
+type CatalogContract = Pick<PortSourceContract, "id" | "port_id" | "role"> &
+  Record<string, unknown>;
+type SourceAuthoringContract = Pick<
+  PortSourceContract,
+  | "id"
+  | "port_id"
+  | "role"
+  | "profile_id"
+  | "admission_mode"
+  | "supported_variant_ids"
+  | "validator_contract_id"
+  | "evidence_ids"
+  | "authority_ref"
+  | "reviewed_at"
+  | "immutable_review_url"
+  | "live_review_url"
+  | "evidence_gap"
+>;
+type RawRepresentation = Pick<SourceRepresentation, "id" | "extensions"> & {
+  kind: "raw-file";
+  identities: DigestIdentity[];
+};
+type IdentityAuthoring = Pick<SourceIdentityProfile, "id" | "label" | "kind" | "evidence_gap"> & {
+  variants: (Pick<SourceVariant, "id" | "title" | "region" | "revision"> & {
+    representations: RawRepresentation[];
+  })[];
+};
+type PreliminaryPort = Pick<
+  FixturePort,
+  "id" | "name" | "summary" | "release" | "platforms" | "executable_hints"
+> &
+  Record<string, unknown>;
+interface FixtureCatalog {
+  ports: NamedRecord[];
+  source_catalog: { identities: NamedRecord[]; contracts: CatalogContract[] };
+}
+interface SourceProfile {
+  id: string;
+  label: string;
+  extension: string;
+  payloads: Buffer[];
+}
+interface RequestObservation {
+  index: number;
+  started_at: string;
+  bytes_sent: number;
+  completed: boolean;
+  connection_closed: boolean;
+  finished_at?: string;
+  closed_at?: string;
+}
+interface FixtureOptions {
+  root: string;
+  output: string;
+  holdFirstDownload?: boolean;
+  sourceJourney?: boolean;
+  preliminaryJourney?: boolean;
+  preliminarySetupJourney?: boolean;
+  hashResumeJourney?: boolean;
+  completionJourney?: boolean;
+  preparationTool?: string;
+  revision?: string;
+}
+function object(value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) throw new Error("Fixture catalog record must be an object");
+  return value;
+}
+function array(value: unknown): unknown[] {
+  if (!Array.isArray(value)) throw new Error("Fixture catalog collection must be an array");
+  return value;
+}
+function text(value: unknown): string {
+  if (typeof value !== "string") throw new Error("Fixture catalog identity must be a string");
+  return value;
+}
+function named(value: unknown): NamedRecord {
+  const raw = object(value);
+  return { ...raw, id: text(raw.id) };
+}
+function catalog(value: unknown): FixtureCatalog {
+  const raw = object(value),
+    source = object(raw.source_catalog);
+  const contracts = array(source.contracts).map((value): CatalogContract => {
+    const record = named(value);
+    const role = record.role;
+    if (role !== "game" && role !== "bios") throw new Error("Fixture source role is invalid");
+    return { ...record, port_id: text(record.port_id), role };
+  });
+  return {
+    ...raw,
+    ports: array(raw.ports).map(named),
+    source_catalog: { ...source, identities: array(source.identities).map(named), contracts },
+  };
+}
 import { createHash } from "node:crypto";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -10,7 +144,7 @@ const INSTALL_FIXTURE_NAME = "Portcove Install Fixture";
 const INSTALL_REFRESH_FIXTURE_NAME = "Portcove Install Refresh Fixture";
 const artifactName = "portcove-install-fixture.tar.gz";
 
-function platformContract() {
+function platformContract(): { platform: Platform; executable: string } {
   if (process.platform === "win32")
     return { platform: "windows-x86-64", executable: "portcove-install-fixture.exe" };
   if (process.platform === "linux")
@@ -23,19 +157,19 @@ function platformContract() {
   throw new Error(`Install fixture does not support ${process.platform}/${process.arch}`);
 }
 
-function writeString(buffer, offset, length, value) {
+function writeString(buffer: Buffer, offset: number, length: number, value: string) {
   const bytes = Buffer.from(value);
   if (bytes.length > length) throw new Error(`Tar field exceeds ${length} bytes: ${value}`);
   bytes.copy(buffer, offset);
 }
 
-function writeOctal(buffer, offset, length, value) {
+function writeOctal(buffer: Buffer, offset: number, length: number, value: number) {
   const octal = value.toString(8).padStart(length - 1, "0");
   if (octal.length >= length) throw new Error(`Tar number exceeds ${length} bytes: ${value}`);
   writeString(buffer, offset, length, `${octal}\0`);
 }
 
-function tarEntry(name, contents, mode) {
+function tarEntry(name: string, contents: Buffer, mode: number) {
   const header = Buffer.alloc(512);
   writeString(header, 0, 100, name);
   writeOctal(header, 100, 8, mode);
@@ -65,14 +199,14 @@ function deterministicPayload(size = 3 * 1024 * 1024, seed = 0x6d2b79f5) {
   return payload;
 }
 
-function createInstallArtifact(seed) {
+function createInstallArtifact(seed?: number) {
   const { executable } = platformContract();
   const payload = deterministicPayload(3 * 1024 * 1024, seed);
   const tar = Buffer.concat([tarEntry(executable, payload, 0o755), Buffer.alloc(1024)]);
   return gzipSync(tar, { level: 0 });
 }
 
-async function createCompletionArtifact(tool: string) {
+async function createCompletionArtifact(tool: string | undefined) {
   if (!tool || !path.isAbsolute(tool) || !(await stat(tool)).isFile())
     throw new Error("Selected setup completion requires an absolute owned preparation tool file");
   const executable = await readFile(tool);
@@ -88,7 +222,25 @@ async function createCompletionArtifact(tool: string) {
   );
 }
 
-function fixturePort({ id, name, summary, platform, executable, url, artifact, adapter }) {
+function fixturePort({
+  id,
+  name,
+  summary,
+  platform,
+  executable,
+  url,
+  artifact,
+  adapter,
+}: {
+  id: string;
+  name: string;
+  summary: string;
+  platform: Platform;
+  executable: string;
+  url: string;
+  artifact: Buffer;
+  adapter: AdapterKind;
+}): FixturePort {
   return {
     id,
     name,
@@ -120,17 +272,23 @@ function fixturePort({ id, name, summary, platform, executable, url, artifact, a
   };
 }
 
-async function listen(server) {
-  await new Promise((resolve, reject) => {
+async function listen(server: Server) {
+  await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen({ host: "127.0.0.1", port: 0, exclusive: true }, resolve);
   });
-  return server.address().port;
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Fixture server has no TCP address");
+  return address.port;
 }
 
-function addSourceIdentityProfiles(baseCatalog, profiles, evidenceGap) {
+function addSourceIdentityProfiles(
+  baseCatalog: FixtureCatalog,
+  profiles: SourceProfile[],
+  evidenceGap: string,
+) {
   for (const profile of profiles) {
-    baseCatalog.source_catalog.identities.push({
+    const identity: IdentityAuthoring = {
       id: profile.id,
       label: profile.label,
       kind: "file",
@@ -156,7 +314,8 @@ function addSourceIdentityProfiles(baseCatalog, profiles, evidenceGap) {
           },
         ],
       })),
-    });
+    };
+    baseCatalog.source_catalog.identities.push(identity);
   }
 }
 
@@ -168,6 +327,14 @@ function addSourceContracts({
   revision,
   immutableUrl,
   evidenceGap,
+}: {
+  baseCatalog: FixtureCatalog;
+  portDefinitions: FixturePort[];
+  refreshPortDefinition: FixturePort;
+  profiles: [SourceProfile, SourceProfile];
+  revision: string;
+  immutableUrl: string;
+  evidenceGap: string;
 }) {
   for (const definition of portDefinitions) {
     definition.source_profile = profiles[0].id;
@@ -182,6 +349,7 @@ function addSourceContracts({
       }));
     for (const requirement of definition.presentation.source_requirements) {
       const profile = profiles.find((item) => item.id === requirement.profile_id);
+      if (!profile) throw new Error("Fixture source contract has no profile");
       baseCatalog.source_catalog.contracts.push({
         id: `${definition.id}-${requirement.role}`,
         port_id: definition.id,
@@ -196,7 +364,7 @@ function addSourceContracts({
         immutable_review_url: immutableUrl,
         live_review_url: null,
         evidence_gap: evidenceGap,
-      });
+      } satisfies SourceAuthoringContract);
     }
   }
 }
@@ -209,12 +377,20 @@ async function addSelectedSetupSources({
   output,
   revision,
   completionJourney = false,
+}: {
+  baseCatalog: FixtureCatalog;
+  portDefinitions: FixturePort[];
+  portDefinition: FixturePort;
+  refreshPortDefinition: FixturePort;
+  output: string;
+  revision: string | undefined;
+  completionJourney?: boolean;
 }) {
-  if (!/^[a-f0-9]{40}$/.test(revision ?? ""))
+  if (typeof revision !== "string" || !/^[a-f0-9]{40}$/.test(revision))
     throw new Error("Selected setup requires the actual frozen source revision");
   const directory = path.join(output, "selected-setup-inputs");
   await mkdir(directory);
-  const syntheticN64 = (variant) => {
+  const syntheticN64 = (variant: string) => {
     const bytes = Buffer.alloc(64);
     Buffer.from([0x80, 0x37, 0x12, 0x40]).copy(bytes);
     bytes.write(`Portcove synthetic selected game ${variant}`, 4);
@@ -248,7 +424,7 @@ async function addSelectedSetupSources({
     ? "Owned synthetic valid-header N64 bytes and first-party preparation probe only; no upstream game identity, rights, gameplay or real-game qualification."
     : "Owned inert qualification bytes only; no upstream identity, rights, preparation or runtime qualification.";
   const immutableUrl = `https://github.com/boburning/portcove/blob/${revision}/apps/desktop/scripts/desktop-install-fixture.mts`;
-  const profiles = [
+  const profiles: [SourceProfile, SourceProfile] = [
     {
       id: "selected-setup-game",
       label: "Selected setup inert game",
@@ -273,7 +449,15 @@ async function addSelectedSetupSources({
       setup_arguments: ["--owned-preparation", "--owned-fixture-mode", "success"],
       setup_output_paths: ["data/out", "data/log"],
       setup_marker: "data/out/jak1/iso/0COMMON.TXT",
-    });
+    } satisfies Pick<
+      PortDefinition,
+      | "runtime_source_filename"
+      | "runtime_source_materialization"
+      | "setup_executable_hints"
+      | "setup_arguments"
+      | "setup_output_paths"
+      | "setup_marker"
+    >);
   }
   refreshPortDefinition.adapter = "psx-recomp-managed";
   addSourceContracts({
@@ -299,14 +483,24 @@ async function addSelectedSetupSources({
   };
 }
 
-function createArtifactServer({ artifacts, requests, sockets, holdFirstDownload }) {
+function createArtifactServer({
+  artifacts,
+  requests,
+  sockets,
+  holdFirstDownload,
+}: {
+  artifacts: Map<string, Buffer>;
+  requests: RequestObservation[];
+  sockets: Set<Socket>;
+  holdFirstDownload: boolean;
+}) {
   const server = createServer((request, response) => {
-    const servedArtifact = request.method === "GET" ? artifacts.get(request.url) : null;
+    const servedArtifact = request.method === "GET" ? artifacts.get(request.url ?? "") : null;
     if (!servedArtifact) {
       response.writeHead(404).end();
       return;
     }
-    const observation = {
+    const observation: RequestObservation = {
       index: requests.length + 1,
       started_at: new Date().toISOString(),
       bytes_sent: 0,
@@ -319,7 +513,7 @@ function createArtifactServer({ artifacts, requests, sockets, holdFirstDownload 
       "Content-Type": "application/gzip",
     });
     let offset = 0;
-    let timer;
+    let timer: ReturnType<typeof setInterval> | undefined;
     const finish = () => {
       if (timer) clearInterval(timer);
       if (observation.completed || response.destroyed) return;
@@ -374,11 +568,24 @@ async function writeFixtureCatalog({
   preliminarySetupJourney,
   completionJourney,
   revision,
+}: {
+  root: string;
+  output: string;
+  port: number;
+  artifact: Buffer;
+  sourceJourney: boolean;
+  preliminarySetupJourney: boolean;
+  completionJourney: boolean;
+  revision: string | undefined;
 }) {
-  let url, portDefinition, refreshPortDefinition, artifactPath, catalogPath;
+  let url: string,
+    portDefinition: FixturePort | PreliminaryPort,
+    refreshPortDefinition: FixturePort,
+    artifactPath: string,
+    catalogPath: string;
   url = `http://127.0.0.1:${port}/${artifactName}`;
   const contract = platformContract();
-  portDefinition = fixturePort({
+  const ownedPortDefinition = fixturePort({
     id: INSTALL_FIXTURE_PORT_ID,
     name: INSTALL_FIXTURE_NAME,
     summary: "Isolated checksum-pinned native install and cancellation fixture.",
@@ -387,6 +594,7 @@ async function writeFixtureCatalog({
     artifact,
     adapter: "n64-recomp-portable",
   });
+  portDefinition = ownedPortDefinition;
   refreshPortDefinition = fixturePort({
     id: INSTALL_REFRESH_FIXTURE_PORT_ID,
     name: INSTALL_REFRESH_FIXTURE_NAME,
@@ -396,19 +604,29 @@ async function writeFixtureCatalog({
     artifact,
     adapter: "libultraship-portable",
   });
-  const portDefinitions = [portDefinition, refreshPortDefinition];
-  const baseCatalog = JSON.parse(
-    await readFile(path.join(root, "crates", "portcove-core", "catalog", "catalog.json"), "utf8"),
+  const portDefinitions: (FixturePort | PreliminaryPort)[] = [
+    portDefinition,
+    refreshPortDefinition,
+  ];
+  const baseCatalog = catalog(
+    JSON.parse(
+      await readFile(path.join(root, "crates", "portcove-core", "catalog", "catalog.json"), "utf8"),
+    ),
   );
   for (const definition of portDefinitions) {
     if (baseCatalog.ports.some((item) => item.id === definition.id))
       throw new Error(`${definition.id} unexpectedly exists in the maintained catalog`);
   }
+  let selectedSources:
+    | (Awaited<ReturnType<typeof addSelectedSetupSources>> & {
+        reviewPort?: { id: string; name: string };
+      })
+    | null = null;
   if (sourceJourney || completionJourney)
-    sourceJourney = await addSelectedSetupSources({
+    selectedSources = await addSelectedSetupSources({
       baseCatalog,
-      portDefinitions,
-      portDefinition,
+      portDefinitions: [ownedPortDefinition, refreshPortDefinition],
+      portDefinition: ownedPortDefinition,
       refreshPortDefinition,
       output,
       revision,
@@ -429,7 +647,8 @@ async function writeFixtureCatalog({
         port_id: alternative.id,
       });
     portDefinitions.push(alternative);
-    sourceJourney.reviewPort = { id: alternative.id, name: alternative.name };
+    if (!selectedSources) throw new Error("Completion source fixture is missing");
+    selectedSources.reviewPort = { id: alternative.id, name: alternative.name };
   }
   if (preliminarySetupJourney) {
     const original = baseCatalog.ports.find((item) => item.id === "opengoal-jak1");
@@ -473,7 +692,14 @@ async function writeFixtureCatalog({
     writeFile(artifactPath, artifact, { flag: "wx" }),
     writeFile(catalogPath, `${JSON.stringify(baseCatalog, null, 2)}\n`, { flag: "wx" }),
   ]);
-  return { url, portDefinition, refreshPortDefinition, artifactPath, catalogPath, sourceJourney };
+  return {
+    url,
+    portDefinition,
+    refreshPortDefinition,
+    artifactPath,
+    catalogPath,
+    sourceJourney: selectedSources,
+  };
 }
 
 export async function createInstallFixture({
@@ -487,7 +713,7 @@ export async function createInstallFixture({
   completionJourney = false,
   preparationTool,
   revision,
-}) {
+}: FixtureOptions) {
   if (sourceJourney && completionJourney)
     throw new Error("Discovery and completion fixtures require separate isolated selections");
   if (preliminaryJourney && (!sourceJourney || completionJourney))
@@ -500,8 +726,8 @@ export async function createInstallFixture({
     ? await createCompletionArtifact(preparationTool)
     : createInstallArtifact();
   const artifacts = new Map([[`/${artifactName}`, artifact]]);
-  const requests = [];
-  const sockets = new Set();
+  const requests: RequestObservation[] = [];
+  const sockets = new Set<Socket>();
   const server = createArtifactServer({ artifacts, requests, sockets, holdFirstDownload });
   const port = await listen(server);
   let url;
@@ -509,29 +735,37 @@ export async function createInstallFixture({
   let refreshPortDefinition;
   let artifactPath;
   let catalogPath;
+  let selectedSources: Awaited<ReturnType<typeof writeFixtureCatalog>>["sourceJourney"];
+  let preliminarySelection: { path: string; before: string; profile: string } | null = null;
   try {
-    ({ url, portDefinition, refreshPortDefinition, artifactPath, catalogPath, sourceJourney } =
-      await writeFixtureCatalog({
-        root,
-        output,
-        port,
-        artifact,
-        sourceJourney,
-        preliminarySetupJourney,
-        completionJourney,
-        revision,
-      }));
+    ({
+      url,
+      portDefinition,
+      refreshPortDefinition,
+      artifactPath,
+      catalogPath,
+      sourceJourney: selectedSources,
+    } = await writeFixtureCatalog({
+      root,
+      output,
+      port,
+      artifact,
+      sourceJourney,
+      preliminarySetupJourney,
+      completionJourney,
+      revision,
+    }));
     if (preliminaryJourney) {
       const bytes = Buffer.from("Portcove inert preliminary disc selection; no retail identity\n");
-      const selectedPath = path.join(sourceJourney.directory, "preliminary.iso");
+      const selectedPath = path.join(requiredSources(selectedSources).directory, "preliminary.iso");
       const before = path.join(output, "preliminary-before.iso");
       await writeFile(selectedPath, bytes, { flag: "wx" });
       await writeFile(before, bytes, { flag: "wx" });
-      preliminaryJourney = { path: selectedPath, before, profile: "opengoal-jak1-disc" };
+      preliminarySelection = { path: selectedPath, before, profile: "opengoal-jak1-disc" };
     }
   } catch (error) {
     for (const socket of sockets) socket.destroy();
-    await new Promise((resolve) => server.close(resolve));
+    await new Promise<void>((resolve) => server.close(() => resolve()));
     throw error;
   }
   return {
@@ -543,13 +777,16 @@ export async function createInstallFixture({
     port: portDefinition,
     refreshPort: refreshPortDefinition,
     requests,
-    sourceJourney: sourceJourney || null,
-    preliminaryJourney: preliminaryJourney || null,
+    sourceJourney: selectedSources,
+    preliminaryJourney: preliminarySelection,
     ...(preliminarySetupJourney ? { preliminarySetupJourney: true } : {}),
     ...(hashResumeJourney ? { hashResumeJourney: true } : {}),
     completionJourney,
     url,
-    async publishRelease(portId, { version, publishedAt, seed }) {
+    async publishRelease(
+      portId: string,
+      { version, publishedAt, seed }: { version: string; publishedAt: string; seed: number },
+    ) {
       if (completionJourney)
         throw new Error("Completion probe fixture cannot publish inert upgrades");
       if (![INSTALL_FIXTURE_PORT_ID, INSTALL_REFRESH_FIXTURE_PORT_ID].includes(portId))
@@ -559,14 +796,17 @@ export async function createInstallFixture({
           "Fixture upgrades require a version, publication time, and nonzero integer seed",
         );
       const nextArtifact = createInstallArtifact(seed);
-      const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
-      const definition = catalog.ports.find((value) => value.id === portId);
+      const raw: unknown = JSON.parse(await readFile(catalogPath, "utf8"));
+      const current = catalog(raw);
+      const definition = current.ports.find((value) => value.id === portId);
       if (!definition) throw new Error(`Fixture catalog no longer contains ${portId}`);
-      const releases = Object.values(definition.release.direct);
+      const releases = Object.values(object(object(definition.release).direct)).map(object);
       if (releases.length !== 1) throw new Error("Fixture port must expose one platform release");
       const sha256 = createHash("sha256").update(nextArtifact).digest("hex");
       const publishedUrl = new URL(`/${portId}-${sha256.slice(0, 16)}-${artifactName}`, url).href;
-      Object.assign(releases[0], {
+      const release = releases[0];
+      if (!release) throw new Error("Fixture port has no platform release");
+      Object.assign(release, {
         version,
         url: publishedUrl,
         size: nextArtifact.length,
@@ -577,7 +817,7 @@ export async function createInstallFixture({
       artifacts.set(new URL(publishedUrl).pathname, nextArtifact);
       await Promise.all([
         writeFile(artifactPath, nextArtifact),
-        writeFile(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`),
+        writeFile(catalogPath, `${JSON.stringify(current, null, 2)}\n`),
       ]);
       return { version, url: publishedUrl, size: nextArtifact.length, sha256 };
     },
@@ -586,4 +826,9 @@ export async function createInstallFixture({
       await new Promise((resolve) => server.close(resolve));
     },
   };
+}
+
+function requiredSources<T>(value: T | null): T {
+  if (!value) throw new Error("Selected fixture source is required");
+  return value;
 }

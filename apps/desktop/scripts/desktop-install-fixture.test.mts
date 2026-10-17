@@ -1,3 +1,8 @@
+import { isRecord, errorCode } from "../../../scripts/runtime-values.mts";
+import type {
+  CompletionParityObservations,
+  CompletionReportDiagnostics,
+} from "./desktop-selected-setup-completion-test.mts";
 import assert from "node:assert/strict";
 import { assertOwnedSelectedSetupPath } from "./desktop-source-dialog-test.mts";
 import { createHash } from "node:crypto";
@@ -41,14 +46,15 @@ for (const mismatch of [null, "updated_at", "sha256", "missing", "empty", "extra
         ? undefined
         : mismatch === "empty"
           ? []
-          : [{ ...initial[0], updated_at: 1613 }];
-    if (mismatch === "extra") completed.push({ ...completed[0], id: "unexpected-source" });
+          : [{ ...firstItem(initial), updated_at: 1613 }];
+    if (mismatch === "extra")
+      present(completed).push({ ...firstItem(present(completed)), id: "unexpected-source" });
     const cliSources = structuredClone(completed);
-    if (mismatch === "updated_at") cliSources[0].updated_at = 1605;
-    if (mismatch === "sha256") cliSources[0].sha256 = "b".repeat(64);
-    const observations = { sources: initial };
+    if (mismatch === "updated_at") firstItem(present(cliSources)).updated_at = 1605;
+    if (mismatch === "sha256") firstItem(present(cliSources)).sha256 = "b".repeat(64);
+    const observations: CompletionParityObservations = { sources: initial };
     const prepared = { readiness: "ready" };
-    const reads = [];
+    const reads: string[] = [];
     const comparison = assertCompletionCoreParity({
       read: async (command) => {
         reads.push(command);
@@ -71,7 +77,7 @@ for (const mismatch of [null, "updated_at", "sha256", "missing", "empty", "extra
     assert.deepEqual(reads, ["get_sources"]);
     assert.deepEqual(observations.completed_sources, completed);
     assert.deepEqual(observations.sources, initial);
-    assert.equal(observations.sources[0].updated_at, 1605);
+    assert.equal(firstItem(initial).updated_at, 1605);
   });
 }
 
@@ -89,6 +95,9 @@ test("completion fixture pins the owned executable, valid synthetic source and i
     holdFirstDownload: true,
   });
   try {
+    assert.ok(fixture.sourceJourney);
+    assert.ok(fixture.sourceJourney.reviewPort);
+    const setup = object(fixture.port);
     const archive = gunzipSync(fixture.artifact);
     const size = Number.parseInt(
       archive.subarray(124, 136).toString().replace(/\0.*$/s, "").trim(),
@@ -96,16 +105,16 @@ test("completion fixture pins the owned executable, valid synthetic source and i
     );
     assert.deepEqual(archive.subarray(512, 512 + size), executable);
     assert.ok(fixture.artifact.length > 1024 * 1024);
-    assert.deepEqual(fixture.port.setup_arguments, [
+    assert.deepEqual(setup.setup_arguments, [
       "--owned-preparation",
       "--owned-fixture-mode",
       "success",
     ]);
-    assert.equal(fixture.port.runtime_source_materialization, "n64-big-endian");
-    assert.equal(fixture.port.runtime_source_filename, "source.z64");
+    assert.equal(setup.runtime_source_materialization, "n64-big-endian");
+    assert.equal(setup.runtime_source_filename, "source.z64");
     assert.ok(
-      fixture.port.setup_output_paths.some((prefix) =>
-        fixture.port.setup_marker.startsWith(`${prefix}/`),
+      strings(setup.setup_output_paths).some((prefix) =>
+        text(setup.setup_marker).startsWith(`${prefix}/`),
       ),
     );
     assert.deepEqual(
@@ -123,9 +132,9 @@ test("completion fixture pins the owned executable, valid synthetic source and i
       await readFile(fixture.sourceJourney.gameBefore),
       await readFile(fixture.sourceJourney.gamePath),
     );
-    const catalog = JSON.parse(await readFile(fixture.catalogPath, "utf8"));
+    const catalog = await readFixtureCatalog(fixture.catalogPath);
     const alternative = catalog.ports.find(
-      (item) => item.id === fixture.sourceJourney.reviewPort.id,
+      (item) => item.id === fixture.sourceJourney?.reviewPort?.id,
     );
     assert.ok(alternative, "Independent review choice must have its own catalog identity");
     assert.equal(alternative.source_profile, fixture.port.source_profile);
@@ -150,13 +159,17 @@ test("completion fixture pins the owned executable, valid synthetic source and i
     const identity = catalog.source_catalog.identities.find(
       (item) => item.id === fixture.port.source_profile,
     );
-    assert.deepEqual(identity.variants[0].representations[0].extensions, ["z64"]);
+    assert.ok(identity);
+    const variant = object(firstItem(array(identity.variants)));
+    const representation = object(firstItem(array(variant.representations)));
+    assert.deepEqual(representation.extensions, ["z64"]);
     assert.equal(
-      identity.variants[0].representations[0].identities[0].sha256,
+      object(firstItem(array(representation.identities))).sha256,
       createHash("sha256").update(fixture.sourceJourney.game).digest("hex"),
     );
-    assert.match(identity.evidence_gap, /No upstream|no upstream/i);
+    assert.match(text(identity.evidence_gap), /No upstream|no upstream/i);
     await assert.rejects(
+      // @ts-expect-error Incomplete upgrade inputs must still refuse completion publication first.
       fixture.publishRelease(fixture.port.id, {}),
       /cannot publish inert upgrades/,
     );
@@ -184,8 +197,13 @@ test("completion fixture refuses missing tool inputs and mixed discovery selecti
     createInstallFixture({ root, output: root, sourceJourney: true, completionJourney: true }),
     /separate isolated selections/,
   );
-  const registered = [];
-  await selectedSetupCompletionScenario({ scenario: async (id) => registered.push(id) });
+  const registered: string[] = [];
+  // @ts-expect-error Deliberately omit execution dependencies: an unselected scenario must not consume them.
+  await selectedSetupCompletionScenario({
+    scenario: async (id: string) => {
+      registered.push(id);
+    },
+  });
   assert.deepEqual(registered, ["native-selected-setup-completion"]);
 });
 
@@ -193,9 +211,11 @@ test("completion report retains the original error across artifact and fallback-
   const original = new Error("original journey failure");
   const artifactFailure = new Error("report storage failure");
   for (const brokenLog of [false, true]) {
-    const report = { failure: { message: original.message } },
-      artifacts = [],
-      logged = [];
+    const report: { failure: { message: string } } & CompletionReportDiagnostics = {
+      failure: { message: original.message },
+    };
+    const artifacts: string[] = [],
+      logged: unknown[] = [];
     await assert.rejects(
       retainCompletionReport({
         file: "owned-report.json",
@@ -213,7 +233,10 @@ test("completion report retains the original error across artifact and fallback-
       (error) => error === original,
     );
     assert.deepEqual(artifacts, []);
-    assert.equal(logged[0].report.failure.message, original.message);
+    assert.equal(
+      object(object(object(firstItem(logged)).report).failure).message,
+      original.message,
+    );
     assert.equal(report.artifact_write_failure, String(artifactFailure));
     assert.equal(Boolean(report.fallback_log_failure), brokenLog);
   }
@@ -229,9 +252,9 @@ test("completion report retains the original error across artifact and fallback-
     }),
     (error) => error === artifactFailure,
   );
-  const artifacts = [],
-    report = { failure: original.message };
-  let saved;
+  const artifacts: string[] = [];
+  const report = { failure: original.message };
+  let saved: unknown;
   await assert.rejects(
     retainCompletionReport({
       file: "owned-report.json",
@@ -250,7 +273,7 @@ test("completion report retains the original error across artifact and fallback-
   assert.deepEqual(artifacts, ["owned-report.json"]);
 });
 
-async function waitFor(predicate, message) {
+async function waitFor(predicate: () => unknown, message: string) {
   const deadline = Date.now() + 5_000;
   while (true) {
     const ready = await predicate();
@@ -260,32 +283,41 @@ async function waitFor(predicate, message) {
   }
 }
 
-async function readOwnedProcesses(marker) {
-  return JSON.parse(await readFile(marker, "utf8"));
+interface OwnedProcesses {
+  parent: number;
+  descendant: number;
+}
+async function readOwnedProcesses(marker: string): Promise<OwnedProcesses> {
+  const raw = object(JSON.parse(await readFile(marker, "utf8")));
+  assert.ok(typeof raw.parent === "number" && Number.isInteger(raw.parent) && raw.parent > 0);
+  assert.ok(
+    typeof raw.descendant === "number" && Number.isInteger(raw.descendant) && raw.descendant > 0,
+  );
+  return { parent: raw.parent, descendant: raw.descendant };
 }
 
-async function waitForProcessExit(pid) {
+async function waitForProcessExit(pid: number) {
   await waitFor(() => {
     try {
       process.kill(pid, 0);
       return false;
     } catch (error) {
-      if (error.code === "ESRCH") return true;
+      if (errorCode(error) === "ESRCH") return true;
       throw error;
     }
   }, "owned descendant process survived lifecycle timeout cleanup");
 }
 
-function killIfAlive(pid) {
-  if (!Number.isInteger(pid)) return;
+function killIfAlive(pid: number | undefined) {
+  if (typeof pid !== "number" || !Number.isInteger(pid)) return;
   try {
     process.kill(pid, "SIGKILL");
   } catch (error) {
-    if (error.code !== "ESRCH") throw error;
+    if (errorCode(error) !== "ESRCH") throw error;
   }
 }
 
-async function captureCleanupFailure(failures, action) {
+async function captureCleanupFailure(failures: unknown[], action: () => unknown) {
   try {
     await action();
   } catch (error) {
@@ -293,22 +325,26 @@ async function captureCleanupFailure(failures, action) {
   }
 }
 
-async function readOwnedProcessesIfPresent(marker) {
+async function readOwnedProcessesIfPresent(marker: string) {
   try {
     return await readOwnedProcesses(marker);
   } catch (error) {
-    if (error.code === "ENOENT") return undefined;
+    if (errorCode(error) === "ENOENT") return undefined;
     throw error;
   }
 }
 
-function throwFixtureFailures(failures, message = "Timeout fixture cleanup failed") {
+function throwFixtureFailures(failures: unknown[], message = "Timeout fixture cleanup failed") {
   if (failures.length === 1) throw failures[0];
   if (failures.length > 1) throw new AggregateError(failures, message);
 }
 
-async function cleanUpTimeoutFixture(output, marker, owned) {
-  const failures = [];
+async function cleanUpTimeoutFixture(
+  output: string,
+  marker: string,
+  owned: OwnedProcesses | undefined,
+) {
+  const failures: unknown[] = [];
   await captureCleanupFailure(failures, async () => {
     owned ??= await readOwnedProcessesIfPresent(marker);
   });
@@ -343,7 +379,7 @@ test("install fixture is isolated, pinned, interruptible, and retryable", async 
   const output = await mkdtemp(path.join(tmpdir(), "portcove-install-fixture-"));
   const fixture = await createInstallFixture({ root, output });
   try {
-    const catalog = JSON.parse(await readFile(fixture.catalogPath, "utf8"));
+    const catalog = await readFixtureCatalog(fixture.catalogPath);
     const port = catalog.ports.find((item) => item.id === INSTALL_FIXTURE_PORT_ID);
     const refreshPort = catalog.ports.find((item) => item.id === INSTALL_REFRESH_FIXTURE_PORT_ID);
     assert.ok(port);
@@ -354,18 +390,15 @@ test("install fixture is isolated, pinned, interruptible, and retryable", async 
     assert.equal(refreshPort.adapter, "libultraship-portable");
     assert.notEqual(port.adapter, refreshPort.adapter);
     assert.equal(port.release.provider, "direct-manifest");
-    assert.equal(port.release.direct[port.platforms[0]].url, fixture.url);
-    assert.equal(refreshPort.release.direct[refreshPort.platforms[0]].url, fixture.url);
-    assert.equal(
-      refreshPort.release.direct[refreshPort.platforms[0]].sha256,
-      port.release.direct[port.platforms[0]].sha256,
-    );
+    assert.equal(releaseFor(port).url, fixture.url);
+    assert.equal(releaseFor(refreshPort).url, fixture.url);
+    assert.equal(releaseFor(refreshPort).sha256, releaseFor(port).sha256);
     assert.equal(port.source_profile, undefined);
     assert.equal(refreshPort.source_profile, undefined);
 
     const controller = new AbortController();
     const first = await fetch(fixture.url, { signal: controller.signal });
-    const reader = first.body.getReader();
+    const reader = present(first.body).getReader();
     await reader.read();
     controller.abort();
     await reader.cancel().catch(() => {});
@@ -373,29 +406,26 @@ test("install fixture is isolated, pinned, interruptible, and retryable", async 
       () => fixture.requests[0]?.connection_closed,
       "cancelled fixture connection did not close",
     );
-    assert.equal(fixture.requests[0].completed, false);
-    assert.ok(fixture.requests[0].bytes_sent < fixture.artifact.length);
+    assert.equal(firstItem(fixture.requests).completed, false);
+    assert.ok(firstItem(fixture.requests).bytes_sent < fixture.artifact.length);
 
     const retry = Buffer.from(await (await fetch(fixture.url)).arrayBuffer());
-    assert.equal(
-      createHash("sha256").update(retry).digest("hex"),
-      port.release.direct[port.platforms[0]].sha256,
-    );
-    assert.equal(fixture.requests[1].completed, true);
-    assert.equal(fixture.requests[1].bytes_sent, fixture.artifact.length);
+    assert.equal(createHash("sha256").update(retry).digest("hex"), releaseFor(port).sha256);
+    assert.equal(present(fixture.requests[1]).completed, true);
+    assert.equal(present(fixture.requests[1]).bytes_sent, fixture.artifact.length);
 
     const published = await fixture.publishRelease(INSTALL_FIXTURE_PORT_ID, {
       version: "2.0.0-fixture",
       publishedAt: "2026-09-16T02:00:00Z",
       seed: 0x24300002,
     });
-    const updatedCatalog = JSON.parse(await readFile(fixture.catalogPath, "utf8"));
+    const updatedCatalog = await readFixtureCatalog(fixture.catalogPath);
     const updatedPort = updatedCatalog.ports.find((item) => item.id === INSTALL_FIXTURE_PORT_ID);
-    const updatedRelease = updatedPort.release.direct[updatedPort.platforms[0]];
+    const updatedRelease = releaseFor(present(updatedPort));
     assert.equal(updatedRelease.version, published.version);
     assert.equal(updatedRelease.url, published.url);
     assert.equal(updatedRelease.sha256, published.sha256);
-    assert.notEqual(updatedRelease.sha256, port.release.direct[port.platforms[0]].sha256);
+    assert.notEqual(updatedRelease.sha256, releaseFor(port).sha256);
     assert.equal(
       createHash("sha256")
         .update(await readFile(fixture.artifactPath))
@@ -404,13 +434,13 @@ test("install fixture is isolated, pinned, interruptible, and retryable", async 
     );
     const upgraded = Buffer.from(await (await fetch(published.url)).arrayBuffer());
     assert.equal(createHash("sha256").update(upgraded).digest("hex"), published.sha256);
-    assert.equal(fixture.requests[2].completed, true);
+    assert.equal(present(fixture.requests[2]).completed, true);
     const original = Buffer.from(await (await fetch(fixture.url)).arrayBuffer());
     assert.equal(
       createHash("sha256").update(original).digest("hex"),
-      refreshPort.release.direct[refreshPort.platforms[0]].sha256,
+      releaseFor(refreshPort).sha256,
     );
-    assert.equal(fixture.requests[3].completed, true);
+    assert.equal(present(fixture.requests[3]).completed, true);
   } finally {
     await fixture.close();
   }
@@ -423,23 +453,23 @@ test("held install download cannot outrun delayed conflict and cancellation chec
   vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
   try {
     const first = await fetch(fixture.url, { signal: controller.signal });
-    const reader = first.body.getReader();
+    const reader = present(first.body).getReader();
     await reader.read();
-    assert.equal(fixture.requests[0].bytes_sent, 1024 * 1024);
+    assert.equal(firstItem(fixture.requests).bytes_sent, 1024 * 1024);
     // Advance beyond the entire old 75ms/chunk download. This must remain
     // incomplete regardless of the time taken by consumer CLI readbacks.
     await vi.advanceTimersByTimeAsync(6_000);
-    assert.equal(fixture.requests[0].completed, false);
-    assert.equal(fixture.requests[0].bytes_sent, 1024 * 1024);
+    assert.equal(firstItem(fixture.requests).completed, false);
+    assert.equal(firstItem(fixture.requests).bytes_sent, 1024 * 1024);
     controller.abort();
     await reader.cancel().catch(() => {});
     await waitFor(
-      () => fixture.requests[0].connection_closed,
+      () => firstItem(fixture.requests).connection_closed,
       "held download did not close after cancellation",
     );
     const retry = Buffer.from(await (await fetch(fixture.url)).arrayBuffer());
     assert.deepEqual(retry, fixture.artifact);
-    assert.equal(fixture.requests[1].completed, true);
+    assert.equal(present(fixture.requests[1]).completed, true);
   } finally {
     controller.abort();
     vi.useRealTimers();
@@ -449,9 +479,12 @@ test("held install download cannot outrun delayed conflict and cancellation chec
 });
 
 test("unselected install scenarios do not require an initialized fixture", async () => {
-  const registered = [];
+  const registered: string[] = [];
+  // @ts-expect-error Deliberately omit execution dependencies when all registered scenarios are skipped.
   await installScenarios({
-    scenario: async (id) => registered.push(id),
+    scenario: async (id: string) => {
+      registered.push(id);
+    },
   });
   assert.deepEqual(registered, [
     "install-progress-cancellation",
@@ -479,11 +512,11 @@ test.runIf(process.platform === "win32")(
       "setInterval(() => {}, 1000);",
     ].join(" ");
 
-    let owned;
+    let owned: OwnedProcesses | undefined;
     let primaryFailure;
     let cleanupFailure;
     let timer;
-    let expire;
+    let expire: (() => void) | undefined;
     let timedOut;
     let observationFinished = false;
     let executionExpired = false;
@@ -511,7 +544,7 @@ test.runIf(process.platform === "win32")(
           () => {
             observationFinished = true;
           },
-          (error) => {
+          (error: unknown) => {
             observationFinished = true;
             return error;
           },
@@ -521,14 +554,16 @@ test.runIf(process.platform === "win32")(
         owned = await readOwnedProcessesIfPresent(marker);
         return Boolean(owned);
       }, "owned descendant did not become ready within the existing startup bound");
+      assert.ok(owned);
       assert.ok(Number.isInteger(owned.parent) && Number.isInteger(owned.descendant));
       process.kill(owned.parent, 0);
       process.kill(owned.descendant, 0);
+      assert.ok(expire);
       assert.equal(typeof expire, "function", "execution timeout must remain armed at 250ms");
       const startedAt = Date.now();
       expire();
       const timeoutFailure = await timedOut;
-      if (timeoutFailure) throw timeoutFailure;
+      if (timeoutFailure) throwFixtureFailures([timeoutFailure]);
       assert.ok(Date.now() - startedAt < 8_000, "timeout path exceeded its secondary bound");
       await waitForProcessExit(owned.descendant);
       await waitForProcessExit(owned.parent);
@@ -552,3 +587,77 @@ test.runIf(process.platform === "win32")(
   },
   30_000,
 );
+
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function array(value: unknown): unknown[] {
+  assert.ok(Array.isArray(value));
+  return value;
+}
+function text(value: unknown): string {
+  assert.ok(typeof value === "string");
+  return value;
+}
+function strings(value: unknown): string[] {
+  return array(value).map(text);
+}
+function present<T>(value: T | null | undefined): T {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function firstItem<T>(values: readonly T[]): T {
+  return present(values[0]);
+}
+async function readFixtureCatalog(file: string) {
+  const raw = object(JSON.parse(await readFile(file, "utf8"))),
+    source = object(raw.source_catalog);
+  const ports = array(raw.ports).map((entry) => {
+    const port = object(entry),
+      release = object(port.release);
+    const direct = Object.fromEntries(
+      Object.entries(release.direct === undefined ? {} : object(release.direct)).map(
+        ([platform, value]) => {
+          const item = object(value);
+          return [
+            platform,
+            {
+              ...item,
+              url: text(item.url),
+              sha256: text(item.sha256),
+              version: text(item.version),
+            },
+          ];
+        },
+      ),
+    );
+    return {
+      ...port,
+      id: text(port.id),
+      name: text(port.name),
+      adapter: port.adapter,
+      source_profile: port.source_profile,
+      platforms: strings(port.platforms),
+      release: { ...release, provider: release.provider, direct },
+    };
+  });
+  const contracts = array(source.contracts).map((entry) => {
+    const item = object(entry);
+    return {
+      ...item,
+      id: text(item.id),
+      port_id: text(item.port_id),
+      role: item.role,
+      profile_id: item.profile_id,
+    };
+  });
+  const identities = array(source.identities).map((entry) => {
+    const item = object(entry);
+    return { ...item, id: text(item.id), variants: item.variants, evidence_gap: item.evidence_gap };
+  });
+  return { ...raw, ports, source_catalog: { ...source, contracts, identities } };
+}
+function releaseFor(port: Awaited<ReturnType<typeof readFixtureCatalog>>["ports"][number]) {
+  return present(port.release.direct[firstItem(port.platforms)]);
+}

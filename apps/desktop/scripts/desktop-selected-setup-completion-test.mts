@@ -21,7 +21,23 @@ import {
 
 import { observeCompletionReturnFocus } from "./desktop-completion-focus.mts";
 
-export async function assertCompletionCoreParity({ read, core, portId, prepared, observations }) {
+export interface CompletionParityObservations {
+  sources: unknown;
+  completed_sources?: unknown;
+}
+export async function assertCompletionCoreParity({
+  read,
+  core,
+  portId,
+  prepared,
+  observations,
+}: {
+  read: (command: "get_sources") => Promise<unknown>;
+  core: (args: string[]) => unknown;
+  portId: string;
+  prepared: unknown;
+  observations: CompletionParityObservations;
+}) {
   // Installation reinspects the source; retain both snapshots and compare the current record.
   observations.completed_sources = await read("get_sources");
   assert.ok(Array.isArray(observations.sources) && observations.sources.length > 0);
@@ -31,13 +47,24 @@ export async function assertCompletionCoreParity({ read, core, portId, prepared,
   assert.deepEqual(core(["source", "list"]), observations.completed_sources);
 }
 
-export async function retainCompletionReport({
+export interface CompletionReportDiagnostics {
+  artifact_write_failure?: string;
+  fallback_log_failure?: string;
+}
+export async function retainCompletionReport<T extends object>({
   file,
   report,
   artifacts,
   failure,
   write = writeFile,
   log = console.error,
+}: {
+  file: string;
+  report: T & CompletionReportDiagnostics;
+  artifacts: string[];
+  failure?: unknown;
+  write?: (file: string, bytes: string, options: { flag: "wx" }) => Promise<unknown>;
+  log?: (message: string) => unknown;
 }) {
   let artifactFailure;
   try {
