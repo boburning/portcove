@@ -171,7 +171,10 @@ fn read_zip_identity_from_file(
     let entry = archive
         .by_index(index)
         .map_err(|error| PortcoveError::source(format!("invalid source ZIP entry: {error}")))?;
-    let archive_member_name = entry.name().to_owned();
+    let archive_member_name = entry
+        .name()
+        .map_err(|error| PortcoveError::source(format!("invalid source ZIP entry name: {error}")))?
+        .into_owned();
     let content_extension = Path::new(&archive_member_name)
         .extension()
         .and_then(|value| value.to_str())
@@ -544,7 +547,10 @@ pub(crate) fn single_zip_source_index(
         if entry.is_dir() {
             continue;
         }
-        let extension = Path::new(entry.name())
+        let name = entry.name().map_err(|error| {
+            PortcoveError::source(format!("invalid source ZIP entry name: {error}"))
+        })?;
+        let extension = Path::new(name.as_ref())
             .extension()
             .and_then(|value| value.to_str())
             .unwrap_or_default();
