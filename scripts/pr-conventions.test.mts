@@ -10,15 +10,23 @@ import {
   renderFindings,
   validatePrConventionConfig,
 } from "./pr-conventions.mts";
+import { isRecord } from "./runtime-values.mts";
+import type { PrConventionFinding } from "./pr-conventions.mts";
 import { GitHubApiClient } from "./github-api.mts";
 
-const config = JSON.parse(
-  await readFile(new URL("../.github/pr-conventions.json", import.meta.url)),
+function requiredFixture<T>(value: T | undefined): T {
+  assert.notEqual(value, undefined);
+  if (value === undefined) throw new Error("Required fixture value is missing");
+  return value;
+}
+
+const config = validatePrConventionConfig(
+  JSON.parse(await readFile(new URL("../.github/pr-conventions.json", import.meta.url), "utf8")),
 );
 const headSha = "0123456789abcdef0123456789abcdef01234567";
 
-function body(overrides = {}) {
-  const values = {
+function body(overrides: Record<string, string> = {}) {
+  const values: Record<string, string> = {
     "Linked issue": "Closes #608",
     "Outcome and scope": "Maintainers receive predictable metadata. Product behavior is unchanged.",
     Verification:
@@ -31,7 +39,18 @@ function body(overrides = {}) {
   return config.body.headings.map((heading) => `## ${heading}\n\n${values[heading]}`).join("\n\n");
 }
 
-function pull(overrides = {}) {
+function pull(
+  overrides: Partial<{
+    number: number;
+    title: string;
+    body: string;
+    branch: string;
+    headSha: string;
+    actor: string;
+    isDraft: boolean;
+    commits: { sha: string; message: string }[];
+  }> = {},
+) {
   return {
     number: 608,
     title: "chore(repo): standardize pull request conventions",
@@ -50,16 +69,16 @@ function pull(overrides = {}) {
   };
 }
 
-function codes(findings) {
+function codes(findings: PrConventionFinding[]) {
   return findings.map((item) => item.code);
 }
 
-test("checked-in configuration and a complete ready pull request are valid", () => {
+void test("checked-in configuration and a complete ready pull request are valid", () => {
   assert.equal(validatePrConventionConfig(config), config);
   assert.deepEqual(evaluatePullRequest(pull(), config), []);
 });
 
-test("titles allow optional scopes and breaking markers", () => {
+void test("titles allow optional scopes and breaking markers", () => {
   assert.deepEqual(
     evaluatePullRequest(
       pull({
@@ -72,7 +91,7 @@ test("titles allow optional scopes and breaking markers", () => {
   );
 });
 
-test("title, branch, length and punctuation problems produce advisory findings", () => {
+void test("title, branch, length and punctuation problems produce advisory findings", () => {
   const findings = evaluatePullRequest(
     pull({
       title: `Add ${"very ".repeat(20)}long title.`,
@@ -89,10 +108,10 @@ test("title, branch, length and punctuation problems produce advisory findings",
     "commit subject-format",
     "commit subject-punctuation",
   ]);
-  assert.match(findings.at(-1).message, /^0123456:/);
+  assert.match(requiredFixture(findings.at(-1)).message, /^0123456:/);
 });
 
-test("body headings must be present once, non-empty and in order", () => {
+void test("body headings must be present once, non-empty and in order", () => {
   const malformed = [
     "## Verification\n\n`just audit` passed.",
     "## Linked issue\n\nCloses #608",
@@ -106,7 +125,7 @@ test("body headings must be present once, non-empty and in order", () => {
   assert.ok(result.includes("body-order"));
 });
 
-test("body warnings cover placeholders, missing links and weak verification", () => {
+void test("body warnings cover placeholders, missing links and weak verification", () => {
   const findings = evaluatePullRequest(
     pull({
       body: body({
@@ -121,7 +140,7 @@ test("body warnings cover placeholders, missing links and weak verification", ()
   assert.ok(codes(findings).includes("verification-detail"));
 });
 
-test("negated closing keywords warn before GitHub closes an issue", () => {
+void test("negated closing keywords warn before GitHub closes an issue", () => {
   for (const phrase of [
     "This does not close #917.",
     "This did not close: #917.",
@@ -146,7 +165,7 @@ test("negated closing keywords warn before GitHub closes an issue", () => {
   );
 });
 
-test("drafts may retain pending verification, review and fixup commits", () => {
+void test("drafts may retain pending verification, review and fixup commits", () => {
   const findings = evaluatePullRequest(
     pull({
       isDraft: true,
@@ -158,7 +177,7 @@ test("drafts may retain pending verification, review and fixup commits", () => {
   assert.deepEqual(findings, []);
 });
 
-test("ready pull requests identify pending evidence and a stale reviewed head", () => {
+void test("ready pull requests identify pending evidence and a stale reviewed head", () => {
   const findings = evaluatePullRequest(
     pull({
       body: body({
@@ -173,7 +192,14 @@ test("ready pull requests identify pending evidence and a stale reviewed head", 
   assert.ok(codes(findings).includes("review-head"));
 });
 
-test("bot pull requests keep title checks but exempt generated body and commits", () => {
+void test("ready pull requests with empty or absent head metadata retain the review-head warning", () => {
+  const empty = pull({ headSha: "" });
+  assert.ok(codes(evaluatePullRequest(empty, config)).includes("review-head"));
+  const { headSha: _head, ...missing } = pull();
+  assert.ok(codes(evaluatePullRequest(missing, config)).includes("review-head"));
+});
+
+void test("bot pull requests keep title checks but exempt generated body and commits", () => {
   const botPull = pull({
     actor: "dependabot[bot]",
     branch: "dependabot/npm_and_yarn/apps/desktop/react-20",
@@ -186,7 +212,7 @@ test("bot pull requests keep title checks but exempt generated body and commits"
   ]);
 });
 
-test("Git-generated merge and revert subjects are exempt", () => {
+void test("Git-generated merge and revert subjects are exempt", () => {
   assert.deepEqual(
     evaluatePullRequest(
       pull({
@@ -204,7 +230,7 @@ test("Git-generated merge and revert subjects are exempt", () => {
   );
 });
 
-test("commit pagination must be structured and complete", () => {
+void test("commit pagination must be structured and complete", () => {
   const pages = Array.from({ length: 3 }, (_, page) => ({
     data: {
       repository: {
@@ -230,18 +256,24 @@ test("commit pagination must be structured and complete", () => {
   assert.throws(() => flattenCommitPages([{ data: {} }], 1), /invalid response/);
   assert.throws(() => flattenCommitPages(pages, 252), /251 of 252/);
   const malformed = structuredClone(pages);
-  delete malformed[0].data.repository.pullRequest.commits.nodes[0].commit.message;
+  // Deliberately remove a required wire field to exercise malformed provider data.
+  // @ts-expect-error The fixture is intentionally missing its required commit message.
+  delete requiredFixture(requiredFixture(malformed[0]).data.repository.pullRequest.commits.nodes[0])
+    .commit.message;
   assert.throws(() => flattenCommitPages(malformed, 251), /invalid commit/);
   const duplicate = structuredClone(pages);
-  duplicate[1].data.repository.pullRequest.commits.nodes[0].commit.oid = "0-0";
+  requiredFixture(
+    requiredFixture(duplicate[1]).data.repository.pullRequest.commits.nodes[0],
+  ).commit.oid = "0-0";
   assert.throws(() => flattenCommitPages(duplicate, 251), /invalid commit/);
   const unterminated = structuredClone(pages);
-  unterminated.at(-1).data.repository.pullRequest.commits.pageInfo.hasNextPage = true;
+  requiredFixture(unterminated.at(-1)).data.repository.pullRequest.commits.pageInfo.hasNextPage =
+    true;
   assert.throws(() => flattenCommitPages(unterminated, 251), /terminal page/);
 });
 
-test("live pull request loading uses the shared JSON-stdin GraphQL transport", async () => {
-  const calls = [];
+void test("live pull request loading uses the shared JSON-stdin GraphQL transport", async () => {
+  const calls: { args: readonly string[]; input: string | undefined }[] = [];
   const api = new GitHubApiClient((args, input) => {
     calls.push({ args, input });
     if (args[1] === "--include") {
@@ -256,7 +288,8 @@ test("live pull request loading uses the shared JSON-stdin GraphQL transport", a
         commits: 2,
       });
     }
-    const request = JSON.parse(input);
+    const request: unknown = JSON.parse(input ?? "");
+    assert.ok(isRecord(request) && isRecord(request.variables));
     const second = request.variables.endCursor !== null;
     return JSON.stringify({
       data: {
@@ -289,11 +322,14 @@ test("live pull request loading uses the shared JSON-stdin GraphQL transport", a
   const graphqlCalls = calls.filter((call) => call.args[1] === "graphql");
   assert.equal(graphqlCalls.length, 2);
   assert.ok(graphqlCalls.every((call) => call.args.includes("--input")));
-  assert.equal(JSON.parse(graphqlCalls[0].input).variables.endCursor, null);
-  assert.equal(JSON.parse(graphqlCalls[1].input).variables.endCursor, "next");
+  for (const [index, expected] of [null, "next"].entries()) {
+    const request: unknown = JSON.parse(requiredFixture(graphqlCalls[index]).input ?? "");
+    assert.ok(isRecord(request) && isRecord(request.variables));
+    assert.equal(request.variables.endCursor, expected);
+  }
 });
 
-test("pull request references accept repository numbers and URLs only", () => {
+void test("pull request references accept repository numbers and URLs only", () => {
   assert.equal(parsePullRequestReference("608", config.repository), 608);
   assert.equal(
     parsePullRequestReference("https://github.com/boburning/portcove/pull/608", config.repository),
@@ -306,18 +342,18 @@ test("pull request references accept repository numbers and URLs only", () => {
   );
 });
 
-test("configuration validation rejects unknown, duplicate and malformed values", () => {
+void test("configuration validation rejects unknown, duplicate and malformed values", () => {
   const unknown = { ...structuredClone(config), future: true };
   assert.throws(() => validatePrConventionConfig(unknown), /exactly/);
   const duplicate = structuredClone(config);
-  duplicate.title.types.push(duplicate.title.types[0]);
+  duplicate.title.types.push(requiredFixture(duplicate.title.types[0]));
   assert.throws(() => validatePrConventionConfig(duplicate), /duplicates/);
   const badPrefix = structuredClone(config);
   badPrefix.branch.prefixes[0] = "Feature/";
   assert.throws(() => validatePrConventionConfig(badPrefix), /lowercase kebab-case/);
 });
 
-test("rendered findings clearly identify advisory success and warnings", () => {
+void test("rendered findings clearly identify advisory success and warnings", () => {
   assert.match(renderFindings(pull(), []), /follows the advisory/);
   assert.match(
     renderFindings(pull(), [{ code: "sample", message: "Example." }]),
@@ -325,7 +361,7 @@ test("rendered findings clearly identify advisory success and warnings", () => {
   );
 });
 
-test("pull request template headings exactly match the configured contract", async () => {
+void test("pull request template headings exactly match the configured contract", async () => {
   const template = await readFile(
     new URL("../.github/PULL_REQUEST_TEMPLATE.md", import.meta.url),
     "utf8",
@@ -334,7 +370,7 @@ test("pull request template headings exactly match the configured contract", asy
   assert.deepEqual(headings, config.body.headings);
 });
 
-test("advisory workflow executes only trusted base metadata with read permissions", async () => {
+void test("advisory workflow executes only trusted base metadata with read permissions", async () => {
   const workflow = await readFile(
     new URL("../.github/workflows/pr-conventions.yml", import.meta.url),
     "utf8",

@@ -1,42 +1,74 @@
-import { errorMessage } from "./runtime-values.mts";
+import { isRecord, errorMessage } from "./runtime-values.mts";
 import { appendFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { hasHazardousClosingNegation } from "./closure-intent.mts";
 
+export interface PrConventionConfig {
+  schema_version: 1;
+  repository: string;
+  title: { types: string[]; max_length: number };
+  branch: { prefixes: string[]; bot_prefixes: string[] };
+  body: { headings: string[]; issue_keywords: string[] };
+  bot_actors: string[];
+}
+export interface PrConventionFinding {
+  code: string;
+  message: string;
+}
+interface PullMetadata {
+  title: string;
+  body: string;
+  branch: string;
+  actor: string;
+  isDraft: boolean;
+  commits: unknown[];
+  headSha?: unknown;
+}
+interface CommitConnection {
+  totalCount: number;
+  nodes: unknown[];
+  pageInfo: { hasNextPage: boolean; endCursor: string | null };
+}
+
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const configPath = new URL("../.github/pr-conventions.json", import.meta.url);
 
-function exactKeys(value, expected, label) {
-  const actual = Object.keys(value ?? {}).sort();
+function exactKeys(
+  value: unknown,
+  expected: string[],
+  label: string,
+): asserts value is Record<string, unknown> {
+  const actual = isRecord(value) ? Object.keys(value).sort() : [];
   const wanted = [...expected].sort();
-  if (JSON.stringify(actual) !== JSON.stringify(wanted)) {
+  if (!isRecord(value) || JSON.stringify(actual) !== JSON.stringify(wanted)) {
     throw new Error(`${label} must contain exactly: ${wanted.join(", ")}`);
   }
 }
 
-function stringList(value, label) {
-  if (
-    !Array.isArray(value) ||
-    !value.length ||
-    value.some((item) => typeof item !== "string" || !item)
-  ) {
+function stringList(value: unknown, label: string): string[] {
+  if (!Array.isArray(value) || !value.length)
     throw new Error(`${label} must be a non-empty string array`);
-  }
-  if (new Set(value).size !== value.length) throw new Error(`${label} must not contain duplicates`);
-  return value;
+  const items: unknown[] = value;
+  if (!items.every((item): item is string => typeof item === "string" && item.length > 0))
+    throw new Error(`${label} must be a non-empty string array`);
+  if (new Set(items).size !== items.length) throw new Error(`${label} must not contain duplicates`);
+  return items;
 }
 
-export function validatePrConventionConfig(config) {
+function assertPrConventionConfig(config: unknown): asserts config is PrConventionConfig {
   exactKeys(
     config,
     ["schema_version", "repository", "title", "branch", "body", "bot_actors"],
     "PR conventions config",
   );
   if (config.schema_version !== 1) throw new Error("PR conventions schema_version must be 1");
-  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(config.repository ?? "")) {
+  if (
+    typeof config.repository !== "string" ||
+    !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(config.repository)
+  ) {
     throw new Error("PR conventions repository must be owner/name");
   }
 
@@ -45,7 +77,11 @@ export function validatePrConventionConfig(config) {
   if (types.some((type) => !/^[a-z]+$/.test(type))) {
     throw new Error("title types must use lowercase ASCII letters");
   }
-  if (!Number.isInteger(config.title.max_length) || config.title.max_length < 40) {
+  if (
+    typeof config.title.max_length !== "number" ||
+    !Number.isInteger(config.title.max_length) ||
+    config.title.max_length < 40
+  ) {
     throw new Error("title max_length must be an integer of at least 40");
   }
 
@@ -60,6 +96,9 @@ export function validatePrConventionConfig(config) {
   stringList(config.body.headings, "body headings");
   stringList(config.body.issue_keywords, "issue keywords");
   stringList(config.bot_actors, "bot actors");
+}
+export function validatePrConventionConfig(config: unknown): PrConventionConfig {
+  assertPrConventionConfig(config);
   return config;
 }
 
@@ -67,11 +106,11 @@ function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function finding(code, message) {
+function finding(code: string, message: string): PrConventionFinding {
   return { code, message };
 }
 
-function titleFindings(subject: string, config, label) {
+function titleFindings(subject: string, config: PrConventionConfig, label: string) {
   const findings = [];
   const types = config.title.types.map(escapeRegex).join("|");
   const pattern = new RegExp(`^(?:${types})(?:\\([a-z0-9]+(?:-[a-z0-9]+)*\\))?!?: \\S.*$`);
@@ -97,7 +136,7 @@ function titleFindings(subject: string, config, label) {
   return findings;
 }
 
-function branchFindings(branch, config, bot) {
+function branchFindings(branch: string, config: PrConventionConfig, bot: boolean) {
   if (bot && config.branch.bot_prefixes.some((prefix) => branch.startsWith(prefix))) return [];
   const prefix = config.branch.prefixes.find((candidate) => branch.startsWith(candidate));
   if (!prefix || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(branch.slice(prefix?.length ?? 0))) {
@@ -115,18 +154,17 @@ function stripComments(value: string) {
   return value.replace(/<!--[\s\S]*?-->/g, "").trim();
 }
 
-function bodySections(body, headings) {
+function bodySections(body: string, headings: string[]) {
   const matches = [...body.matchAll(/^##\s+(.+?)\s*$/gm)];
-  const sections = new Map();
+  const sections = new Map<string, { content: string; index: number }[]>();
   for (let index = 0; index < matches.length; index += 1) {
-    const heading = matches[index][1];
+    const match = matches[index];
+    if (!match) throw new Error("Heading match disappeared");
+    const heading = match[1] ?? "";
     if (!headings.includes(heading)) continue;
     const entry = {
-      content: body.slice(
-        matches[index].index + matches[index][0].length,
-        matches[index + 1]?.index ?? body.length,
-      ),
-      index: matches[index].index,
+      content: body.slice(match.index + match[0].length, matches[index + 1]?.index ?? body.length),
+      index: match.index,
     };
     const existing = sections.get(heading) ?? [];
     existing.push(entry);
@@ -135,11 +173,11 @@ function bodySections(body, headings) {
   return sections;
 }
 
-function bodyFindings(pull, config) {
+function bodyFindings(pull: PullMetadata, config: PrConventionConfig) {
   const findings = [];
   const body = pull.body ?? "";
   const sections = bodySections(body, config.body.headings);
-  const positions = [];
+  const positions: number[] = [];
   for (const heading of config.body.headings) {
     const entries = sections.get(heading) ?? [];
     if (!entries.length) {
@@ -151,14 +189,18 @@ function bodyFindings(pull, config) {
     if (entries.length > 1) {
       findings.push(finding("body-heading", `pull request body repeats the '${heading}' section.`));
     }
-    positions.push(entries[0].index);
-    if (!stripComments(entries[0].content)) {
+    const entry = entries[0];
+    if (!entry) throw new Error("Heading entry disappeared");
+    positions.push(entry.index);
+    if (!stripComments(entry.content)) {
       findings.push(
         finding("body-empty", `pull request body has no visible content under '${heading}'.`),
       );
     }
   }
-  if (positions.some((position, index) => index > 0 && position < positions[index - 1])) {
+  if (
+    positions.some((position, index) => index > 0 && position < (positions[index - 1] ?? position))
+  ) {
     findings.push(
       finding("body-order", "pull request body sections must remain in the configured order."),
     );
@@ -236,7 +278,9 @@ function bodyFindings(pull, config) {
       );
     }
     const reviewedHead =
-      pull.headSha && (review.includes(pull.headSha) || review.includes(pull.headSha.slice(0, 7)));
+      typeof pull.headSha === "string" &&
+      pull.headSha.length > 0 &&
+      (review.includes(pull.headSha) || review.includes(pull.headSha.slice(0, 7)));
     if (review && !reviewedHead) {
       findings.push(
         finding("review-head", "Review and risk should identify the exact reviewed head commit."),
@@ -246,11 +290,16 @@ function bodyFindings(pull, config) {
   return findings;
 }
 
-function commitFindings(pull, config) {
+// Preserve the existing advisory text coercion; this does not admit provider data.
+const diagnosticText = (value: unknown) => String(value);
+
+function commitFindings(pull: PullMetadata, config: PrConventionConfig) {
   if (config.bot_actors.includes(pull.actor)) return [];
   const findings = [];
   for (const commit of pull.commits) {
-    const subject = String(commit.message ?? "").split(/\r?\n/, 1)[0];
+    if (!isRecord(commit) || typeof commit.sha !== "string")
+      throw new Error("pull request commit identity is incomplete");
+    const subject = diagnosticText(commit.message ?? "").split(/\r?\n/, 1)[0] ?? "";
     if (/^Merge\b/.test(subject) || /^Revert\s+"/.test(subject)) continue;
     if (pull.isDraft && /^(?:fixup|squash)!\s*/.test(subject)) continue;
     for (const result of titleFindings(subject, config, "commit subject")) {
@@ -260,10 +309,10 @@ function commitFindings(pull, config) {
   return findings;
 }
 
-export function evaluatePullRequest(pull, unvalidatedConfig) {
+export function evaluatePullRequest(pull: unknown, unvalidatedConfig: unknown) {
   const config = validatePrConventionConfig(unvalidatedConfig);
   if (
-    !pull ||
+    !isRecord(pull) ||
     typeof pull.title !== "string" ||
     typeof pull.body !== "string" ||
     typeof pull.branch !== "string" ||
@@ -273,54 +322,73 @@ export function evaluatePullRequest(pull, unvalidatedConfig) {
   ) {
     throw new Error("pull request metadata is incomplete");
   }
+  const metadata: PullMetadata = {
+    title: pull.title,
+    body: pull.body,
+    branch: pull.branch,
+    actor: pull.actor,
+    isDraft: pull.isDraft,
+    commits: pull.commits,
+    headSha: pull.headSha,
+  };
   const bot = config.bot_actors.includes(pull.actor);
   return [
     ...titleFindings(pull.title, config, "pull request title"),
     ...branchFindings(pull.branch, config, bot),
-    ...(bot ? [] : bodyFindings(pull, config)),
-    ...commitFindings(pull, config),
+    ...(bot ? [] : bodyFindings(metadata, config)),
+    ...commitFindings(metadata, config),
   ];
 }
 
-export function flattenCommitPages(value, expectedCount) {
+function commitConnection(page: unknown): CommitConnection {
+  const data = isRecord(page) ? page.data : undefined;
+  const repository = isRecord(data) ? data.repository : undefined;
+  const pull = isRecord(repository) ? repository.pullRequest : undefined;
+  const connection = isRecord(pull) ? pull.commits : undefined;
   if (
-    !Array.isArray(value) ||
-    value.some((page) => {
-      const connection = page?.data?.repository?.pullRequest?.commits;
-      return (
-        !connection ||
-        !Array.isArray(connection.nodes) ||
-        !Number.isSafeInteger(connection.totalCount) ||
-        connection.totalCount < 0 ||
-        typeof connection.pageInfo?.hasNextPage !== "boolean" ||
-        !(
-          connection.pageInfo.endCursor === null ||
-          typeof connection.pageInfo.endCursor === "string"
-        )
-      );
-    })
-  ) {
+    !isRecord(connection) ||
+    !Array.isArray(connection.nodes) ||
+    typeof connection.totalCount !== "number" ||
+    !Number.isSafeInteger(connection.totalCount) ||
+    connection.totalCount < 0 ||
+    !isRecord(connection.pageInfo) ||
+    typeof connection.pageInfo.hasNextPage !== "boolean" ||
+    !(connection.pageInfo.endCursor === null || typeof connection.pageInfo.endCursor === "string")
+  )
     throw new Error("GitHub commit pagination returned an invalid response");
-  }
+  return {
+    totalCount: connection.totalCount,
+    nodes: connection.nodes,
+    pageInfo: {
+      hasNextPage: connection.pageInfo.hasNextPage,
+      endCursor: connection.pageInfo.endCursor,
+    },
+  };
+}
+export function flattenCommitPages(value: unknown, expectedCount: number) {
+  if (!Array.isArray(value))
+    throw new Error("GitHub commit pagination returned an invalid response");
+  const pages: unknown[] = value;
+  const connections = pages.map(commitConnection);
   const identities = new Set();
-  let reportedTotal = null;
-  const commits = value.flatMap((page, pageIndex) => {
-    const connection = page.data.repository.pullRequest.commits;
+  let reportedTotal: number | null = null;
+  const commits = connections.flatMap((connection, pageIndex) => {
     reportedTotal ??= connection.totalCount;
     if (reportedTotal !== connection.totalCount) {
       throw new Error("GitHub commit total changed during pagination");
     }
-    const terminal = pageIndex === value.length - 1;
+    const terminal = pageIndex === connections.length - 1;
     if (connection.pageInfo.hasNextPage === terminal) {
       throw new Error("GitHub commit pagination returned an invalid terminal page");
     }
     return connection.nodes.map((node) => {
-      const commit = node?.commit;
+      const commit = isRecord(node) ? node.commit : undefined;
       if (
-        typeof commit?.oid !== "string" ||
+        !isRecord(commit) ||
+        typeof commit.oid !== "string" ||
         !commit.oid ||
         identities.has(commit.oid) ||
-        typeof commit?.message !== "string"
+        typeof commit.message !== "string"
       ) {
         throw new Error("GitHub commit pagination returned an invalid commit");
       }
@@ -334,7 +402,7 @@ export function flattenCommitPages(value, expectedCount) {
   return commits;
 }
 
-export function parsePullRequestReference(value, repository: string) {
+export function parsePullRequestReference(value: string, repository: string) {
   if (/^[1-9]\d*$/.test(value)) return Number(value);
   let url;
   try {
@@ -348,7 +416,7 @@ export function parsePullRequestReference(value, repository: string) {
     url.hostname !== "github.com" ||
     parts.length !== 4 ||
     parts[2] !== "pull" ||
-    !/^[1-9]\d*$/.test(parts[3]) ||
+    !/^[1-9]\d*$/.test(parts[3] ?? "") ||
     `${parts[0]}/${parts[1]}`.toLowerCase() !== repository.toLowerCase()
   ) {
     throw new Error(`--pr must identify a pull request in ${repository}`);
@@ -356,7 +424,7 @@ export function parsePullRequestReference(value, repository: string) {
   return Number(parts[3]);
 }
 
-function ghCommitPages(repository: string, number, api) {
+function ghCommitPages(repository: string, number: number, api: Pick<GitHubApiClient, "graphql">) {
   const [owner, name] = repository.split("/");
   const query = `
     query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
@@ -373,10 +441,10 @@ function ghCommitPages(repository: string, number, api) {
   `;
   const pages = [];
   const cursors = new Set();
-  let endCursor = null;
+  let endCursor: string | null = null;
   for (;;) {
     const data = api.graphql(query, { owner, name, number, endCursor }).data;
-    const connection = data?.repository?.pullRequest?.commits;
+    const connection = commitConnection({ data });
     pages.push({ data });
     if (connection?.pageInfo?.hasNextPage !== true) break;
     endCursor = connection.pageInfo.endCursor;
@@ -388,22 +456,30 @@ function ghCommitPages(repository: string, number, api) {
   return pages;
 }
 
+function providerText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value !== "string") throw new Error("pull request metadata contains non-text fields");
+  return value;
+}
+
 export async function loadLivePullRequest(
-  reference,
-  config,
+  reference: string,
+  config: PrConventionConfig,
   api = new GitHubApiClient(createGitHubRunner({ cwd: projectRoot })),
 ) {
   const number = parsePullRequestReference(reference, config.repository);
   const pull = api.request("GET", `repos/${config.repository}/pulls/${number}`).body;
+  if (!isRecord(pull) || typeof pull.commits !== "number")
+    throw new Error("pull request metadata is incomplete");
   const commits = flattenCommitPages(ghCommitPages(config.repository, number, api), pull.commits);
   return {
     number,
-    url: pull.html_url,
-    title: pull.title ?? "",
-    body: pull.body ?? "",
-    branch: pull.head?.ref ?? "",
-    headSha: pull.head?.sha ?? "",
-    actor: pull.user?.login ?? "",
+    url: providerText(pull.html_url),
+    title: providerText(pull.title),
+    body: providerText(pull.body),
+    branch: providerText(isRecord(pull.head) ? pull.head.ref : undefined),
+    headSha: providerText(isRecord(pull.head) ? pull.head.sha : undefined),
+    actor: providerText(isRecord(pull.user) ? pull.user.login : undefined),
     isDraft: pull.draft === true,
     commits,
   };
@@ -417,7 +493,7 @@ function markdownEscape(value: string) {
   return value.replaceAll("|", "\\|").replaceAll("\r", " ").replaceAll("\n", " ");
 }
 
-export function renderFindings(pull, findings) {
+export function renderFindings(pull: { number: number }, findings: PrConventionFinding[]) {
   if (!findings.length) return `PR #${pull.number} follows the advisory contribution conventions.`;
   return [
     `PR #${pull.number} has ${findings.length} advisory convention finding${findings.length === 1 ? "" : "s"}:`,
@@ -425,7 +501,7 @@ export function renderFindings(pull, findings) {
   ].join("\n");
 }
 
-async function writeGithubOutput(pull, findings) {
+async function writeGithubOutput(pull: { number: number }, findings: PrConventionFinding[]) {
   if (process.env.GITHUB_ACTIONS === "true") {
     for (const item of findings) {
       console.log(
@@ -455,12 +531,12 @@ async function writeGithubOutput(pull, findings) {
   await appendFile(summaryPath, `${lines.join("\n")}\n`, "utf8");
 }
 
-async function main(argv) {
+async function main(argv: string[]) {
   if (argv.length !== 2 || argv[0] !== "--pr") {
     throw new Error("usage: node scripts/pr-conventions.mts --pr <number-or-url>");
   }
   const config = validatePrConventionConfig(JSON.parse(await readFile(configPath, "utf8")));
-  const pull = await loadLivePullRequest(argv[1], config);
+  const pull = await loadLivePullRequest(argv[1] ?? "", config);
   const findings = evaluatePullRequest(pull, config);
   console.log(renderFindings(pull, findings));
   await writeGithubOutput(pull, findings);
