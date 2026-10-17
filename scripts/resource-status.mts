@@ -1,4 +1,8 @@
-import { errorMessage } from "./runtime-values.mts";
+import type { HeavyProcessRecord } from "./heavy-rust-test-lock.mts";
+function diagnosticText(value: unknown): string {
+  return String(value);
+}
+import { errorMessage, errorCode } from "./runtime-values.mts";
 import { observeCapacity } from "./resource-capacity.mts";
 import { lstat } from "node:fs/promises";
 import path from "node:path";
@@ -12,7 +16,14 @@ import { nativeSessionLockPath } from "./native-session-lock.mts";
 import { readProcessLockOwner, isProcessAlive } from "./process-lock.mts";
 import { renderBoundedSummary } from "./report-summary.mts";
 
-function inspectRecord(role, record, inspectIdentity) {
+function inspectRecord(
+  role: "wrapper" | "child",
+  record: HeavyProcessRecord | null,
+  inspectIdentity: typeof readProcessIdentity,
+): Extract<
+  NonNullable<ResourceObservation["processes"]>[number],
+  { expectedIdentity: string }
+> | null {
   if (!record) return null;
   const observedIdentity = inspectIdentity(record.pid, { processToken: record.process_token });
   return {
@@ -30,12 +41,12 @@ function inspectRecord(role, record, inspectIdentity) {
 }
 
 interface ResourceObservation {
-  resource: string;
-  observedAt: string;
+  resource: "heavy-rust" | "native-desktop";
+  observedAt?: string;
   verification: string;
   observation: string;
   reason?: string;
-  workspace?: string | null;
+  workspace?: unknown;
   command?: string | null;
   limits?: string;
   recordedAt?: string;
@@ -47,17 +58,27 @@ interface ResourceObservation {
         observedIdentity: string | null;
         verification: "verified-live" | "recorded-process-absent" | "identity-mismatch";
       }
-    | { role: "wrapper"; pid: number; observedPresent: boolean; verification: "pid-only" }
+    | {
+        role: "wrapper";
+        pid: number;
+        observedPresent: boolean;
+        verification: "pid-only" | "creation-identity";
+      }
   )[];
 }
 
-async function observe(resource, lockPath, readOwner, inspect): Promise<ResourceObservation> {
+async function observe<T extends { created_at: string; workspace?: unknown; command?: unknown }>(
+  resource: ResourceObservation["resource"],
+  lockPath: string,
+  readOwner: (file: string) => Promise<T>,
+  inspect: (owner: T) => Partial<ResourceObservation>,
+): Promise<ResourceObservation> {
   const base = { resource, observedAt: new Date().toISOString(), verification: "unknown" };
   try {
     try {
       await lstat(lockPath);
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (errorCode(error) !== "ENOENT") throw error;
       return {
         ...base,
         observation: "missing",
@@ -84,7 +105,8 @@ async function observe(resource, lockPath, readOwner, inspect): Promise<Resource
 
 interface ResourceStatusOptions {
   paths?: { heavy: string; native: string };
-  inspectIdentity?: (pid: number, options: { processToken?: string | undefined }) => string | null;
+  capacityRoot?: string;
+  inspectIdentity?: typeof readProcessIdentity;
   isProcessAlive?: (pid: number) => boolean;
 }
 export async function collectResourceStatus(options: ResourceStatusOptions = {}) {
@@ -98,7 +120,7 @@ export async function collectResourceStatus(options: ResourceStatusOptions = {})
     const processes = [
       inspectRecord("wrapper", owner.process, inspectIdentity),
       inspectRecord("child", owner.child, inspectIdentity),
-    ].filter(Boolean);
+    ].filter((entry) => entry !== null);
     const verification = processes.some((entry) => entry.verification === "verified-live")
       ? "verified-live"
       : processes.some((entry) => entry.verification === "identity-mismatch")
@@ -133,21 +155,27 @@ export async function collectResourceStatus(options: ResourceStatusOptions = {})
         : "This legacy record does not bind an exact process creation identity",
     }),
   );
-  let capacity;
+  type CapacityObservation = Omit<ResourceObservation, "resource" | "observation"> & {
+    resource: "host-capacity";
+  } & (
+      | ({ observation: "recorded" } & Awaited<ReturnType<typeof observeCapacity>>)
+      | { observation: "unavailable"; reason: string }
+    );
+  let capacity: CapacityObservation | undefined;
   if (!options.paths || options.capacityRoot) {
     try {
       capacity = {
         resource: "host-capacity",
         observation: "recorded",
         verification: "observational-only",
-        ...(await observeCapacity({ root: options.capacityRoot })),
+        ...(await observeCapacity(options.capacityRoot ? { root: options.capacityRoot } : {})),
       };
     } catch (error) {
       capacity = {
         resource: "host-capacity",
         observation: "unavailable",
         verification: "unknown",
-        reason: error.message,
+        reason: errorMessage(error),
       };
     }
   }
@@ -171,7 +199,7 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
           report.limits,
           report.resources.map(
             (entry) =>
-              `${entry.resource}: ${entry.observation}; ${entry.verification}; workspace ${entry.workspace ?? "unknown"}; command ${entry.command ?? "unknown"}; ${entry.reason ?? entry.limits ?? ""}`,
+              `${entry.resource}: ${entry.observation}; ${entry.verification}; workspace ${diagnosticText(entry.workspace ?? "unknown")}; command ${entry.command ?? "unknown"}; ${entry.reason ?? entry.limits ?? ""}`,
           ),
         ).text,
   );

@@ -101,3 +101,21 @@ void test("missing, malformed, changing and unavailable records never produce an
     await rm(root, { recursive: true, force: true });
   }
 });
+
+void test("capacity observations retain their checked payload contract", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "resource-capacity-status-"));
+  try {
+    const report = await collectResourceStatus({
+      paths: { heavy: path.join(root, "heavy"), native: path.join(root, "native") },
+      capacityRoot: root,
+    });
+    const capacity = report.resources.find((entry) => entry.resource === "host-capacity");
+    assert.ok(capacity?.resource === "host-capacity" && capacity.observation === "recorded");
+    assert.equal(capacity.root, root);
+    assert.equal(capacity.config.slots, 2);
+    assert.deepEqual(capacity.running, []);
+    assert.deepEqual(capacity.queued, []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
