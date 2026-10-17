@@ -33,7 +33,7 @@ const inventory = {
   }),
 };
 
-test("renders desktop first with readable labels and exact tag-bound links", () => {
+void test("renders desktop first with readable labels and exact tag-bound links", () => {
   const section = renderDownloadSection(inventory);
   assert(section.indexOf("## Download the desktop app") < section.indexOf("## Command-line tools"));
   assert(section.indexOf("## Command-line tools") < section.indexOf("## Verify your download"));
@@ -48,7 +48,7 @@ test("renders desktop first with readable labels and exact tag-bound links", () 
   assert.doesNotMatch(section, /releases\/latest|latest\/download/);
 });
 
-test("explains independent desktop, CLI, source, AppImage, checksum, SBOM, and attestation boundaries", () => {
+void test("explains independent desktop, CLI, source, AppImage, checksum, SBOM, and attestation boundaries", () => {
   const section = renderDownloadSection(inventory);
   assert.match(section, /desktop app is complete on its own/);
   assert.match(section, /not a portable graphical app/);
@@ -59,7 +59,7 @@ test("explains independent desktop, CLI, source, AppImage, checksum, SBOM, and a
   assert.match(section, /An attestation binds those bytes to a workflow identity/);
 });
 
-test("generation is idempotent and preserves reviewed prose and categorized changes", () => {
+void test("generation is idempotent and preserves reviewed prose and categorized changes", () => {
   const body =
     "# Portcove 0.1.0-alpha.2\n\nReviewed introduction.\n\n## Features\n\n- Kept change.\n\n## Known limitations\n\n- Kept limitation.\n";
   const once = mergeDownloadSection(body, inventory);
@@ -71,7 +71,7 @@ test("generation is idempotent and preserves reviewed prose and categorized chan
   assert.match(once, /## Known limitations\n\n- Kept limitation/);
 });
 
-test("regeneration removes only the marked section and preserves historical links", () => {
+void test("regeneration removes only the marked section and preserves historical links", () => {
   const historical =
     "Historical Alpha 1: https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.1\n";
   const merged = mergeDownloadSection(
@@ -82,7 +82,7 @@ test("regeneration removes only the marked section and preserves historical link
   assert.equal((merged.match(/portcove-downloads:start/g) ?? []).length, 1);
 });
 
-test("refuses malformed or duplicate generated sections instead of discarding reviewed prose", () => {
+void test("refuses malformed or duplicate generated sections instead of discarding reviewed prose", () => {
   assert.throws(
     () =>
       mergeDownloadSection(`Reviewed.\n${"<!-- portcove-downloads:start -->"}\npartial`, inventory),
@@ -93,4 +93,21 @@ test("refuses malformed or duplicate generated sections instead of discarding re
     () => mergeDownloadSection(`${section}\n\nReviewed.\n\n${section}`, inventory),
     /incomplete or duplicate/,
   );
+});
+
+void test("rejects malformed external inventory fields without rendering coerced values", () => {
+  for (const malformed of [
+    { ...inventory, repository: [inventory.repository] },
+    { ...inventory, checksum_manifest: [inventory.checksum_manifest] },
+    { ...inventory, sbom: { ...inventory.sbom, sha256: [inventory.sbom.sha256] } },
+    {
+      ...inventory,
+      packages: inventory.packages.map((entry) => ({
+        ...entry,
+        display_label: [entry.display_label],
+      })),
+    },
+    { ...inventory, packages: inventory.packages.map((entry) => ({ ...entry, filename: {} })) },
+  ])
+    assert.throws(() => renderDownloadSection(malformed), /release inventory/);
 });

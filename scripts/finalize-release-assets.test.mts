@@ -3,14 +3,19 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
+import { isRecord } from "./runtime-values.mts";
 
 import { finalizeReleaseAssets, releaseSbomName } from "./finalize-release-assets.mts";
 
-test("direct Linux desktop finalization cannot bypass missing release evidence", async (t) => {
+void test("direct Linux desktop finalization cannot bypass missing release evidence", async (t) => {
   const item = await fixture(t);
-  const inventory = JSON.parse(await readFile(item.inventoryPath, "utf8"));
-  inventory.packages[0].filename = "Portcove_1.2.3_amd64.AppImage";
+  const inventory: unknown = JSON.parse(await readFile(item.inventoryPath, "utf8"));
+  assert(isRecord(inventory) && Array.isArray(inventory.packages));
+  const packages: unknown[] = inventory.packages;
+  const first = packages[0];
+  assert(isRecord(first));
+  first.filename = "Portcove_1.2.3_amd64.AppImage";
   await writeFile(item.inventoryPath, JSON.stringify(inventory));
   const before = await readFile(path.join(item.assets, "SHA256SUMS.txt"));
   // This isolated fixture has no candidate repository/scanner. Authorization must
@@ -25,11 +30,11 @@ test("direct Linux desktop finalization cannot bypass missing release evidence",
   assert.deepEqual(await readFile(path.join(item.assets, "SHA256SUMS.txt")), before);
 });
 
-function sha256(contents) {
+function sha256(contents: string | Buffer) {
   return createHash("sha256").update(contents).digest("hex");
 }
 
-async function fixture(t) {
+async function fixture(t: TestContext) {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-final-release-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const assets = path.join(root, "assets");
@@ -74,7 +79,7 @@ async function fixture(t) {
   return { root, assets, inventoryPath, sbomSubjectChecksums, packages };
 }
 
-test("binds the SBOM publicly while limiting SBOM attestation subjects to packages", async (t) => {
+void test("binds the SBOM publicly while limiting SBOM attestation subjects to packages", async (t) => {
   const item = await fixture(t);
   const first = await finalizeReleaseAssets(item.assets, item.inventoryPath, {
     projectRoot: item.root,
@@ -100,7 +105,7 @@ test("binds the SBOM publicly while limiting SBOM attestation subjects to packag
   assert.deepEqual(second, first);
 });
 
-test("rejects undeclared final files and malformed or empty SBOMs", async (t) => {
+void test("rejects undeclared final files and malformed or empty SBOMs", async (t) => {
   const extra = await fixture(t);
   await writeFile(path.join(extra.assets, "unexpected.txt"), "unexpected");
   await assert.rejects(
@@ -122,7 +127,7 @@ test("rejects undeclared final files and malformed or empty SBOMs", async (t) =>
   );
 });
 
-test("refuses to place internal SBOM subject checksums in public release assets", async (t) => {
+void test("refuses to place internal SBOM subject checksums in public release assets", async (t) => {
   const item = await fixture(t);
   await assert.rejects(
     finalizeReleaseAssets(item.assets, item.inventoryPath, {
@@ -131,4 +136,27 @@ test("refuses to place internal SBOM subject checksums in public release assets"
     }),
     /must remain outside public release assets/u,
   );
+});
+
+void test("rejects malformed persisted inventory before rewriting checksums", async (t) => {
+  for (const overrides of [
+    { repository: ["boburning/portcove"] },
+    { checksum_manifest: ["SHA256SUMS.txt"] },
+    { packages: [{ filename: {}, bytes: 1, sha256: "f".repeat(64) }] },
+    { workflow_producers: [{ platform_label: "linux-x86_64", revision: ["a".repeat(40)] }] },
+  ]) {
+    const item = await fixture(t);
+    const inventory: unknown = JSON.parse(await readFile(item.inventoryPath, "utf8"));
+    assert(isRecord(inventory));
+    await writeFile(item.inventoryPath, JSON.stringify({ ...inventory, ...overrides }));
+    const before = await readFile(path.join(item.assets, "SHA256SUMS.txt"));
+    await assert.rejects(
+      finalizeReleaseAssets(item.assets, item.inventoryPath, {
+        projectRoot: item.root,
+        sbomSubjectChecksums: item.sbomSubjectChecksums,
+      }),
+      /release inventory identity is incomplete/,
+    );
+    assert.deepEqual(await readFile(path.join(item.assets, "SHA256SUMS.txt")), before);
+  }
 });

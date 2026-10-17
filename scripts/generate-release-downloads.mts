@@ -1,3 +1,29 @@
+import { isRecord } from "./runtime-values.mts";
+import type { reconcileReleaseAssets } from "./reconcile-release-assets.mts";
+type ReconciledInventory = Awaited<ReturnType<typeof reconcileReleaseAssets>>["inventory"];
+// The renderer consumes textual metadata, without claiming policy admission.
+type DownloadPackage = {
+  [
+    Key in keyof Pick<
+      ReconciledInventory["packages"][number],
+      "id" | "interface" | "display_label" | "format_label" | "download_url" | "filename"
+    >
+  ]: string;
+} & {
+  experimental?: boolean;
+  os?: string;
+  format?: string;
+  architecture?: string;
+};
+interface DownloadInventory extends Pick<
+  ReconciledInventory,
+  "schema_version" | "tag" | "version" | "checksum_url"
+> {
+  repository: string;
+  checksum_manifest: string;
+  packages: DownloadPackage[];
+  sbom: { format: "SPDX-2.3 JSON"; filename: string; download_url: string; sha256: string };
+}
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,12 +32,18 @@ const scriptPath = fileURLToPath(import.meta.url);
 const startMarker = "<!-- portcove-downloads:start -->";
 const endMarker = "<!-- portcove-downloads:end -->";
 
-function validateInventory(inventory) {
+function validateInventory(inventory: unknown): asserts inventory is DownloadInventory {
   if (
-    inventory?.schema_version !== 1 ||
-    !inventory?.repository ||
-    !inventory?.tag ||
-    !inventory?.version
+    !isRecord(inventory) ||
+    inventory.schema_version !== 1 ||
+    typeof inventory.repository !== "string" ||
+    !inventory.repository ||
+    typeof inventory.tag !== "string" ||
+    !inventory.tag ||
+    typeof inventory.version !== "string" ||
+    !inventory.version ||
+    typeof inventory.checksum_manifest !== "string" ||
+    typeof inventory.checksum_url !== "string"
   ) {
     throw new Error("release inventory identity is incomplete");
   }
@@ -20,35 +52,54 @@ function validateInventory(inventory) {
   if (!Array.isArray(inventory.packages) || inventory.packages.length === 0)
     throw new Error("release inventory has no packages");
   if (
-    inventory.sbom?.format !== "SPDX-2.3 JSON" ||
+    !isRecord(inventory.sbom) ||
+    inventory.sbom.format !== "SPDX-2.3 JSON" ||
+    typeof inventory.sbom.filename !== "string" ||
     !inventory.sbom.filename ||
+    typeof inventory.sbom.download_url !== "string" ||
     !inventory.sbom.download_url ||
-    !/^[a-f0-9]{64}$/u.test(inventory.sbom.sha256 ?? "")
+    typeof inventory.sbom.sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(inventory.sbom.sha256)
   ) {
     throw new Error("release inventory has no finalized SPDX SBOM");
   }
   const names = new Set();
-  for (const entry of inventory.packages) {
+  for (const rawEntry of inventory.packages) {
+    const entry: unknown = rawEntry;
     if (
+      !isRecord(entry) ||
+      typeof entry.id !== "string" ||
       !entry.id ||
+      typeof entry.interface !== "string" ||
       !entry.interface ||
+      typeof entry.display_label !== "string" ||
       !entry.display_label ||
+      typeof entry.format_label !== "string" ||
       !entry.format_label ||
-      !entry.download_url
+      typeof entry.download_url !== "string" ||
+      !entry.download_url ||
+      (entry.experimental !== undefined && typeof entry.experimental !== "boolean") ||
+      [entry.os, entry.format, entry.architecture].some(
+        (value) => value !== undefined && typeof value !== "string",
+      )
     ) {
       throw new Error("release inventory package metadata is incomplete");
     }
-    const name = entry.filename?.toLowerCase();
+    const name = typeof entry.filename === "string" ? entry.filename.toLowerCase() : undefined;
     if (!name || names.has(name))
       throw new Error(
-        `release inventory has a missing or duplicate filename: ${entry.filename ?? "missing"}`,
+        `release inventory has a missing or duplicate filename: ${typeof entry.filename === "string" ? entry.filename : "missing"}`,
       );
     names.add(name);
   }
 }
 
-function groupedDownloadLines(packages) {
-  const groups = [];
+function groupedDownloadLines(packages: readonly DownloadPackage[]) {
+  const groups: {
+    display_label: string;
+    experimental: boolean | undefined;
+    entries: DownloadPackage[];
+  }[] = [];
   for (const entry of packages) {
     let group = groups.find((item) => item.display_label === entry.display_label);
     if (!group) {
@@ -74,7 +125,7 @@ function groupedDownloadLines(packages) {
     .join("\n");
 }
 
-function powershellExample(asset, manifest) {
+function powershellExample(asset: string, manifest: string) {
   return `\`\`\`powershell
 $asset = '${asset}'
 $lines = @(Get-Content -LiteralPath '${manifest}' | Where-Object {
@@ -89,7 +140,7 @@ if ($actual -cne $expected) { throw "SHA-256 mismatch for $asset" }
 \`\`\``;
 }
 
-function unixExample(asset, manifest, command) {
+function unixExample(asset: string, manifest: string, command: string) {
   return `\`\`\`bash
 asset='${asset}'
 line="$(awk -v name="$asset" '$2 == name { print }' '${manifest}')"
@@ -98,7 +149,7 @@ printf '%s\\n' "$line" | ${command}
 \`\`\``;
 }
 
-export function renderDownloadSection(inventory) {
+export function renderDownloadSection(inventory: unknown) {
   validateInventory(inventory);
   const desktop = inventory.packages.filter((entry) => entry.interface === "desktop");
   const cli = inventory.packages.filter((entry) => entry.interface === "cli");
@@ -149,7 +200,7 @@ A checksum proves that your bytes agree with the bytes listed in this release. A
 ${endMarker}`;
 }
 
-export function mergeDownloadSection(reviewedBody: string, inventory) {
+export function mergeDownloadSection(reviewedBody: string, inventory: unknown) {
   const startCount = reviewedBody.split(startMarker).length - 1;
   const endCount = reviewedBody.split(endMarker).length - 1;
   if (startCount !== endCount || startCount > 1) {
@@ -162,31 +213,34 @@ export function mergeDownloadSection(reviewedBody: string, inventory) {
   ).trim();
   const section = renderDownloadSection(inventory);
   const title = withoutGenerated.match(/^(# [^\r\n]+)(?:\r?\n+)([\s\S]*)$/);
-  if (title) return `${title[1]}\n\n${section}\n\n${title[2].trim()}\n`;
+  if (title?.[1] !== undefined && title[2] !== undefined)
+    return `${title[1]}\n\n${section}\n\n${title[2].trim()}\n`;
   return `${section}${withoutGenerated ? `\n\n${withoutGenerated}` : ""}\n`;
 }
 
-function parseArguments(argv) {
-  const options = {};
+function parseArguments(argv: readonly string[]) {
+  const options: { inventory?: string; body?: string; output?: string } = {};
   for (let index = 0; index < argv.length; index += 2) {
     const name = argv[index];
     const value = argv[index + 1];
-    if (!["--inventory", "--body", "--output"].includes(name) || !value) {
+    if (name === undefined || !["--inventory", "--body", "--output"].includes(name) || !value) {
       throw new Error(
         "usage: generate-release-downloads.mts --inventory PATH --body PATH --output PATH",
       );
     }
-    options[name.slice(2)] = path.resolve(value);
+    const key = name === "--inventory" ? "inventory" : name === "--body" ? "body" : "output";
+    options[key] = path.resolve(value);
   }
   if (!options.inventory || !options.body || !options.output)
     throw new Error("--inventory, --body, and --output are required");
-  return options;
+  return { inventory: options.inventory, body: options.body, output: options.output };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   const options = parseArguments(process.argv.slice(2));
-  const inventory = JSON.parse(await readFile(options.inventory, "utf8"));
+  const inventory: unknown = JSON.parse(await readFile(options.inventory, "utf8"));
   const body = await readFile(options.body, "utf8");
+  validateInventory(inventory);
   const merged = mergeDownloadSection(body, inventory);
   await writeFile(options.output, merged, "utf8");
   console.log(

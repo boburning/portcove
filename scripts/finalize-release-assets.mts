@@ -1,3 +1,51 @@
+import { isRecord } from "./runtime-values.mts";
+import type { reconcileReleaseAssets } from "./reconcile-release-assets.mts";
+type ReconciledInventory = Awaited<ReturnType<typeof reconcileReleaseAssets>>["inventory"];
+type FinalizationInventory = Pick<ReconciledInventory, "schema_version" | "version" | "tag"> & {
+  repository: string;
+  checksum_manifest: string;
+  packages: Pick<ReconciledInventory["packages"][number], "filename" | "bytes" | "sha256">[];
+  workflow_producers?: Pick<
+    ReconciledInventory["workflow_producers"][number],
+    "platform_label" | "revision"
+  >[];
+};
+export interface FinalizeOptions {
+  projectRoot?: string;
+  sbomSubjectChecksums?: string;
+}
+
+function assertInventory(value: unknown): asserts value is FinalizationInventory {
+  if (
+    !isRecord(value) ||
+    value.schema_version !== 1 ||
+    typeof value.repository !== "string" ||
+    !value.repository ||
+    typeof value.version !== "string" ||
+    typeof value.tag !== "string" ||
+    value.tag !== `v${value.version}` ||
+    typeof value.checksum_manifest !== "string" ||
+    !Array.isArray(value.packages) ||
+    !value.packages.length ||
+    !value.packages.every(
+      (entry: unknown) =>
+        isRecord(entry) &&
+        typeof entry.filename === "string" &&
+        typeof entry.bytes === "number" &&
+        typeof entry.sha256 === "string",
+    ) ||
+    (value.workflow_producers !== undefined &&
+      (!Array.isArray(value.workflow_producers) ||
+        !value.workflow_producers.every(
+          (entry: unknown) =>
+            isRecord(entry) &&
+            typeof entry.platform_label === "string" &&
+            typeof entry.revision === "string",
+        )))
+  ) {
+    throw new Error("release inventory identity is incomplete");
+  }
+}
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -10,7 +58,7 @@ const scriptPath = fileURLToPath(import.meta.url);
 const defaultProjectRoot = fileURLToPath(new URL("..", import.meta.url));
 export const releaseSbomName = "Portcove-SBOM.spdx.json";
 
-async function identity(file) {
+async function identity(file: string) {
   const contents = await readFile(file);
   return {
     bytes: contents.length,
@@ -25,13 +73,15 @@ function parseChecksums(contents: string) {
     .filter(Boolean)
     .map((line: string) => {
       const match = line.match(/^([a-f0-9]{64}) {2}([^/\\]+)$/u);
-      if (!match) throw new Error(`invalid aggregate checksum line: ${line}`);
+      if (!match || !match[1] || !match[2])
+        throw new Error(`invalid aggregate checksum line: ${line}`);
       return { sha256: match[1], filename: match[2] };
     });
 }
 
-function validateSbom(sbom) {
-  if (sbom?.spdxVersion !== "SPDX-2.3") throw new Error("release SBOM must be SPDX 2.3 JSON");
+function validateSbom(sbom: unknown) {
+  if (!isRecord(sbom) || sbom.spdxVersion !== "SPDX-2.3")
+    throw new Error("release SBOM must be SPDX 2.3 JSON");
   if (sbom.dataLicense !== "CC0-1.0")
     throw new Error("release SBOM must use the SPDX CC0-1.0 data license");
   if (!Array.isArray(sbom.packages) || sbom.packages.length === 0)
@@ -49,7 +99,7 @@ function contains(parent: string, child: string) {
 export async function finalizeReleaseAssets(
   assetRoot: string,
   inventoryFile: string,
-  options = {},
+  options: FinalizeOptions = {},
 ) {
   const projectRoot = path.resolve(options.projectRoot ?? defaultProjectRoot);
   const assets = path.resolve(assetRoot);
@@ -68,16 +118,8 @@ export async function finalizeReleaseAssets(
   if (sbomSubjectChecksumsPath === inventoryPath)
     throw new Error("SBOM subject checksum output must not replace the release inventory");
 
-  const inventory = JSON.parse(await readFile(inventoryPath, "utf8"));
-  if (
-    inventory?.schema_version !== 1 ||
-    !inventory.repository ||
-    inventory.tag !== `v${inventory.version}` ||
-    !Array.isArray(inventory.packages) ||
-    inventory.packages.length === 0
-  ) {
-    throw new Error("release inventory identity is incomplete");
-  }
+  const inventory: unknown = JSON.parse(await readFile(inventoryPath, "utf8"));
+  assertInventory(inventory);
   if (
     inventory.packages.some((entry) =>
       /(?:\.AppImage$|amd64\.deb$|x86_64\.rpm$)/iu.test(entry.filename),
@@ -140,38 +182,48 @@ export async function finalizeReleaseAssets(
     .join("\n");
   await mkdir(path.dirname(sbomSubjectChecksumsPath), { recursive: true });
   await writeFile(sbomSubjectChecksumsPath, `${sbomSubjects}\n`, "utf8");
-  inventory.sbom = {
+  const sbom = {
     format: "SPDX-2.3 JSON",
     filename: releaseSbomName,
     ...sbomIdentity,
     download_url: `https://github.com/${inventory.repository}/releases/download/${inventory.tag}/${releaseSbomName}`,
   };
-  await writeFile(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`, "utf8");
-  return { assets: expectedNames.sort(), inventory };
+  const finalizedInventory = { ...inventory, sbom };
+  await writeFile(inventoryPath, `${JSON.stringify(finalizedInventory, null, 2)}\n`, "utf8");
+  return { assets: expectedNames.sort(), inventory: finalizedInventory };
 }
 
-function parseArguments(argv) {
-  const options = {};
+function parseArguments(argv: readonly string[]) {
+  const options: FinalizeOptions & { assets?: string; inventory?: string } = {};
   for (let index = 0; index < argv.length; index += 2) {
     const name = argv[index];
     const value = argv[index + 1];
     if (
+      name === undefined ||
       !["--assets", "--inventory", "--project-root", "--sbom-subject-checksums"].includes(name) ||
       !value
     )
       throw new Error(
         "usage: finalize-release-assets.mts --assets PATH --inventory PATH --sbom-subject-checksums PATH [--project-root PATH]",
       );
-    options[
-      name
-        .slice(2)
-        .replace("project-root", "projectRoot")
-        .replace("sbom-subject-checksums", "sbomSubjectChecksums")
-    ] = path.resolve(value);
+    const key =
+      name === "--assets"
+        ? "assets"
+        : name === "--inventory"
+          ? "inventory"
+          : name === "--project-root"
+            ? "projectRoot"
+            : "sbomSubjectChecksums";
+    options[key] = path.resolve(value);
   }
   if (!options.assets || !options.inventory || !options.sbomSubjectChecksums)
     throw new Error("--assets, --inventory and --sbom-subject-checksums are required");
-  return options;
+  return {
+    ...options,
+    assets: options.assets,
+    inventory: options.inventory,
+    sbomSubjectChecksums: options.sbomSubjectChecksums,
+  };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
