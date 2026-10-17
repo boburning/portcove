@@ -1,3 +1,51 @@
+import type { BinaryLike } from "node:crypto";
+import type { Locator, WebDriver } from "selenium-webdriver";
+import type { ScenarioContext } from "./desktop-scenario-context.mts";
+import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
+import type { FixtureCommand } from "./desktop-scenario-state.mts";
+import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+import { transportValue } from "./transport-values.mts";
+interface CorrectionContext extends ScenarioContext {
+  invoke: BoundaryInvoke;
+  command: FixtureCommand;
+  confirmNative: ReturnType<typeof nativeConfirmation>;
+  restartApplication: (name: string) => Promise<WebDriver>;
+}
+interface CorrectionWindow extends Window {
+  __TAURI_INTERNALS__?: {
+    transformCallback(callback: () => void): number;
+    unregisterCallback(callback: number): void;
+    invoke(command: string, args: unknown): Promise<unknown>;
+  };
+}
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function text(value: unknown): string {
+  assert.ok(typeof value === "string");
+  return value;
+}
+function required<Value>(value: Value | null | undefined): Value {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+function jsonObject(value: string) {
+  const parsed: unknown = JSON.parse(value);
+  return object(parsed);
+}
+function success(value: unknown) {
+  const reply = object(value);
+  assert.equal(reply.ok, true, JSON.stringify(reply));
+  return reply.value;
+}
+function ports(value: unknown) {
+  const entries = object(value).ports;
+  assert.ok(Array.isArray(entries));
+  const items: unknown[] = entries;
+  return items.map(object);
+}
 import { executeBrowserScript } from "./browser-script.mts";
 // Opt-in signed metadata proof. Test key/solid-color images are public fixtures;
 // all trust, catalog mutation and cached bytes belong to this run's owned library.
@@ -9,7 +57,7 @@ import { fileURLToPath } from "node:url";
 import { By, Key, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
 
-const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const digest = (bytes: BinaryLike) => createHash("sha256").update(bytes).digest("hex");
 
 export async function artworkCorrectionScenario({
   browser,
@@ -20,22 +68,27 @@ export async function artworkCorrectionScenario({
   command,
   confirmNative,
   restartApplication,
-}) {
+}: CorrectionContext) {
   await scenario("native-artwork-catalog-correction", async () => {
-    const bootstrap = (await invoke("get_bootstrap_status")).value;
-    const library = await realpath(bootstrap.library_root);
+    const bootstrap = transportValue(
+      "desktop_bootstrap_status",
+      success(await invoke("get_bootstrap_status")),
+    );
+    const library = await realpath(required(bootstrap.library_root));
     const relative = path.relative(await realpath(output), library);
     assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
     const portId = "shipwright";
-    const baseline = await invoke("get_catalog");
-    assert.equal(baseline.ok, true);
-    const catalog = JSON.parse(
+    const baseline = transportValue("catalog", success(await invoke("get_catalog")));
+    const catalog = jsonObject(
       await readFile(
         new URL("../../../crates/portcove-core/catalog/catalog.json", import.meta.url),
         "utf8",
       ),
     );
-    const originalPort = structuredClone(catalog.ports.find((port) => port.id === portId));
+    const originalPort = structuredClone(
+      required(ports(catalog).find((port) => port.id === portId)),
+    );
+    const originalName = text(originalPort.name);
     const keyPath = path.join(output, "public-test-signing-key.pem");
     // Reuse signed_catalog_tests.rs's [7;32] public test seed, never a publisher key.
     const privateKey = createPrivateKey({
@@ -49,22 +102,27 @@ export async function artworkCorrectionScenario({
     await writeFile(keyPath, privateKey.export({ format: "pem", type: "pkcs8" }), { flag: "wx" });
     const cache = path.join(library, "artwork-cache");
     await mkdir(cache, { recursive: true });
-    const mappings = {};
+    const mappings = new Map<string, Record<string, unknown>>();
     for (const color of ["red", "blue"]) {
       const bytes = await readFile(
         new URL(`testdata/catalog-artwork-${color}.jpg`, import.meta.url),
       );
       const identity = digest(bytes);
       await writeFile(path.join(cache, `${identity}.jpg`), bytes, { flag: "wx" });
-      mappings[color] = {
-        ...originalPort.presentation.artwork,
+      mappings.set(color, {
+        ...object(object(originalPort.presentation).artwork),
         image_id: `portcovetest${color}`,
         image_sha256: identity,
-      };
+      });
     }
-    const signed = async (sequence, mapping, name) => {
+    const signed = async (
+      sequence: number,
+      mapping: Record<string, unknown> | null,
+      name: string,
+    ) => {
       const document = structuredClone(catalog);
-      document.ports.find((port) => port.id === portId).presentation.artwork = mapping;
+      object(required(ports(document).find((port) => port.id === portId)).presentation).artwork =
+        mapping;
       const source = path.join(output, `${name}-catalog.json`);
       const envelope = path.join(output, `${name}-signed.json`);
       await writeFile(source, JSON.stringify(document), { flag: "wx" });
@@ -90,17 +148,20 @@ export async function artworkCorrectionScenario({
       );
       assert.equal(result.status, 0, result.stderr);
       artifacts.push(source, envelope);
-      return { envelope, ...JSON.parse(result.stdout) };
+      const resultValue = jsonObject(result.stdout);
+      return {
+        envelope,
+        public_key: text(resultValue.public_key),
+        key_id: text(resultValue.key_id),
+      };
     };
-    const red = await signed(1, mappings.red, "red");
-    const blue = await signed(2, mappings.blue, "blue");
+    const red = await signed(1, required(mappings.get("red")), "red");
+    const blue = await signed(2, required(mappings.get("blue")), "blue");
     const status = async () => {
-      const result = await invoke("get_catalog_status");
-      assert.equal(result.ok, true, JSON.stringify(result));
-      return result.value;
+      return transportValue("catalog_status", success(await invoke("get_catalog_status")));
     };
-    const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
-    const click = async (locator) => {
+    const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+    const click = async (locator: Locator) => {
       const element = await browser.wait(until.elementLocated(locator), 10000);
       await executeBrowserScript(
         browser,
@@ -121,12 +182,12 @@ export async function artworkCorrectionScenario({
       await click(button("Close"));
       await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5000);
     };
-    const review = async (file) => {
+    const review = async (file: string) => {
       const field = await browser.findElement(By.id("catalog-update-location"));
       await field.sendKeys(Key.CONTROL, "a", Key.NULL, file);
       await click(button("Review update"));
     };
-    const apply = async (file, sequence) => {
+    const apply = async (file: string, sequence: number) => {
       await open();
       await review(file);
       await browser.wait(
@@ -134,22 +195,22 @@ export async function artworkCorrectionScenario({
         10000,
       );
       const affected = await browser.findElement(By.css('[aria-label="Affected ports"]')).getText();
-      assert.ok(affected.includes(originalPort.name));
+      assert.ok(affected.includes(originalName));
       await click(button("Apply catalog update"));
       await browser.wait(async () => (await status()).provenance.sequence === sequence, 10000);
       await close();
     };
-    const render = async (source) => {
+    const render = async (source: string) => {
       await click(By.xpath('//nav//button[contains(., "Port catalog")]'));
       const search = await browser.wait(until.elementLocated(By.id("port-search")), 10000);
-      await search.sendKeys(Key.CONTROL, "a", Key.NULL, originalPort.name);
+      await search.sendKeys(Key.CONTROL, "a", Key.NULL, originalName);
       const selector = `[data-detail-origin="catalog:card:${portId}"] .card-art`;
       await browser.wait(
         () =>
           executeBrowserScript(
             browser,
             (selector, source) => {
-              const frame = document.querySelector(selector);
+              const frame = document.querySelector<HTMLElement>(selector);
               const image = frame?.querySelector("img");
               return (
                 frame?.dataset.artworkSource === source &&
@@ -167,26 +228,30 @@ export async function artworkCorrectionScenario({
       return executeBrowserScript(
         browser,
         (selector) => {
-          const frame = document.querySelector(selector);
+          const frame = document.querySelector<HTMLElement>(selector);
+          if (!frame) throw new Error("Artwork frame unavailable");
           const image = frame.querySelector("img");
-          let pixel = null;
+          let pixel: number[] | null = null;
           if (image) {
             const canvas = document.createElement("canvas");
             canvas.width = canvas.height = 1;
-            canvas.getContext("2d").drawImage(image, 0, 0, 1, 1);
-            pixel = [...canvas.getContext("2d").getImageData(0, 0, 1, 1).data];
+            const context = canvas.getContext("2d");
+            if (!context) throw new Error("Canvas context unavailable");
+            context.drawImage(image, 0, 0, 1, 1);
+            pixel = [...context.getImageData(0, 0, 1, 1).data];
           }
           return { source: frame.dataset.artworkSource, image: image?.src ?? null, pixel };
         },
         selector,
       );
     };
-    const capture = async (name) => {
+    const capture = async (name: string) => {
       const filename = path.join(output, `${name}.png`);
       await writeFile(filename, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
       artifacts.push(filename);
     };
-    const artwork = () => command(["artwork", "show", portId], library);
+    const artwork = () =>
+      transportValue("artwork_state", command(["artwork", "show", portId], library));
     await open();
     await browser.findElement(By.id("catalog-public-key")).sendKeys(red.public_key);
     await click(button("Trust publisher"));
@@ -200,8 +265,8 @@ export async function artworkCorrectionScenario({
     await close();
     await apply(red.envelope, 1);
     const first = await render("igdb_cover");
-    assert.ok(first.pixel[0] > first.pixel[2] + 100);
-    assert.deepEqual(artwork().resolved_source.artwork, mappings.red);
+    assert.ok(required(required(first.pixel)[0]) > required(required(first.pixel)[2]) + 100);
+    assert.deepEqual(object(artwork().resolved_source).artwork, required(mappings.get("red")));
     await capture("artwork-correction-red-fixture");
     const localPath = path.join(output, "owned-override.png");
     const localBytes = Buffer.from(
@@ -209,9 +274,9 @@ export async function artworkCorrectionScenario({
       "base64",
     );
     await writeFile(localPath, localBytes, { flag: "wx" });
-    const imported = command(
-      ["artwork", "import", portId, localPath, "--expected-revision", "0"],
-      library,
+    const imported = transportValue(
+      "artwork_state",
+      command(["artwork", "import", portId, localPath, "--expected-revision", "0"], library),
     );
     await apply(blue.envelope, 2);
     const local = await render("local_import");
@@ -220,9 +285,11 @@ export async function artworkCorrectionScenario({
     command(["artwork", "reset", portId, "--expected-revision", "1"], library);
     await browser.navigate().refresh();
     const corrected = await render("igdb_cover");
-    assert.ok(corrected.pixel[2] > corrected.pixel[0] + 100);
+    assert.ok(
+      required(required(corrected.pixel)[2]) > required(required(corrected.pixel)[0]) + 100,
+    );
     assert.notEqual(corrected.image, first.image);
-    assert.deepEqual(artwork().resolved_source.artwork, mappings.blue);
+    assert.deepEqual(object(artwork().resolved_source).artwork, required(mappings.get("blue")));
     await capture("artwork-correction-blue-fixture");
     browser = await restartApplication("artwork-correction");
     assert.deepEqual(
@@ -232,8 +299,8 @@ export async function artworkCorrectionScenario({
     );
     const before = (await status()).state_sha256;
     const invalid = path.join(output, "invalid-signature.json");
-    const fresh = await signed(3, mappings.red, "fresh-signature");
-    const tampered = JSON.parse(await readFile(fresh.envelope, "utf8"));
+    const fresh = await signed(3, required(mappings.get("red")), "fresh-signature");
+    const tampered = jsonObject(await readFile(fresh.envelope, "utf8"));
     tampered.signature = "00".repeat(64);
     await writeFile(invalid, JSON.stringify(tampered), { flag: "wx" });
     artifacts.push(invalid);
@@ -245,24 +312,30 @@ export async function artworkCorrectionScenario({
     );
     // The UI intentionally presents a general summary. Independently attribute
     // the same immutable rejected input through the existing read-only command.
-    const signatureResult = await invoke("plan_catalog_update", {
-      source: { kind: "file", value: invalid },
-    });
+    const signatureResult = object(
+      await invoke("plan_catalog_update", {
+        source: { kind: "file", value: invalid },
+      }),
+    );
     assert.equal(signatureResult.ok, false);
-    const signatureError = signatureResult.error;
+    const signatureError = object(signatureResult.error);
     assert.equal(signatureError.code, "verification");
-    assert.match(signatureError.message, /catalog signature verification failed/i);
+    assert.match(text(signatureError.message), /catalog signature verification failed/i);
     assert.equal((await status()).state_sha256, before);
     await close();
-    const stale = await signed(3, mappings.red, "stale");
+    const stale = await signed(3, required(mappings.get("red")), "stale");
     await open();
     await review(stale.envelope);
     await browser.wait(until.elementLocated(By.css('[aria-label="Catalog update review"]')), 10000);
-    const reviewedPlan = await invoke("plan_catalog_update", {
-      source: { kind: "file", value: stale.envelope },
-    });
-    assert.equal(reviewedPlan.ok, true);
-    const replacement = await signed(4, mappings.red, "replacement");
+    const reviewedPlan = transportValue(
+      "catalog_update_plan",
+      success(
+        await invoke("plan_catalog_update", {
+          source: { kind: "file", value: stale.envelope },
+        }),
+      ),
+    );
+    const replacement = await signed(4, required(mappings.get("red")), "replacement");
     const reviewedBytes = await readFile(stale.envelope);
     const reviewedCopy = path.join(output, "stale-reviewed-envelope.json");
     await writeFile(reviewedCopy, reviewedBytes, { flag: "wx" });
@@ -275,31 +348,34 @@ export async function artworkCorrectionScenario({
     );
     // Repeat only the exact rejected stale intent to retain its machine reason;
     // the valid replacement is never supplied with fresh mutation authorization.
-    const staleResult = JSON.parse(
-      await browser.executeAsyncScript(
-        (source, expectedPlan, done) => {
-          const internals = window.__TAURI_INTERNALS__;
-          const callback = internals.transformCallback(() => {});
-          internals
-            .invoke("apply_catalog_update", {
-              source,
-              expectedPlan,
-              onEvent: `__CHANNEL__:${callback}`,
-            })
-            .then(
-              (value) => done(JSON.stringify({ ok: true, value })),
-              (error) => done(JSON.stringify({ ok: false, error })),
-            )
-            .finally(() => internals.unregisterCallback(callback));
-        },
-        reviewedPlan.value.source,
-        reviewedPlan.value.plan_sha256,
+    const staleResult = jsonObject(
+      text(
+        await browser.executeAsyncScript<unknown>(
+          (source: unknown, expectedPlan: string, done: (value: string) => void) => {
+            const internals = (window as CorrectionWindow).__TAURI_INTERNALS__;
+            if (!internals) throw new Error("Native bridge unavailable");
+            const callback = internals.transformCallback(() => {});
+            void internals
+              .invoke("apply_catalog_update", {
+                source,
+                expectedPlan,
+                onEvent: `__CHANNEL__:${callback}`,
+              })
+              .then(
+                (value: unknown) => done(JSON.stringify({ ok: true, value })),
+                (error: unknown) => done(JSON.stringify({ ok: false, error })),
+              )
+              .finally(() => internals.unregisterCallback(callback));
+          },
+          reviewedPlan.source,
+          reviewedPlan.plan_sha256,
+        ),
       ),
     );
     assert.equal(staleResult.ok, false);
-    const staleError = staleResult.error;
+    const staleError = object(staleResult.error);
     assert.equal(staleError.code, "conflict");
-    assert.match(staleError.message, /catalog candidate or trust changed/i);
+    assert.match(text(staleError.message), /catalog candidate or trust changed/i);
     assert.equal((await status()).state_sha256, before);
     await close();
     assert.deepEqual(await render("igdb_cover"), corrected);
@@ -309,19 +385,22 @@ export async function artworkCorrectionScenario({
     assert.equal(artwork().resolved_source.kind, "generated_fallback");
     assert.deepEqual(await readFile(localPath), localBytes);
     assert.deepEqual(
-      await readFile(path.join(library, "artwork", imported.choice.asset_sha256)),
+      await readFile(path.join(library, "artwork", required(imported.choice.asset_sha256))),
       localBytes,
     );
     await capture("artwork-correction-withdrawn-fallback");
-    const finalCatalog = (await invoke("get_catalog")).value;
-    const finalPort = finalCatalog.ports.find((port) => port.id === portId);
-    assert.equal(Object.hasOwn(finalPort.presentation, "artwork"), false);
-    finalPort.presentation.artwork = baseline.value.ports.find(
-      (port) => port.id === portId,
-    ).presentation.artwork;
+    const finalCatalog = transportValue("catalog", success(await invoke("get_catalog")));
+    const finalPort = required(finalCatalog.ports.find((port) => port.id === portId));
+    const finalPresentation = required(finalPort.presentation);
+    assert.equal(Object.hasOwn(finalPresentation, "artwork"), false);
+    const baselineArtwork = required(
+      required(baseline.ports.find((port) => port.id === portId)).presentation,
+    ).artwork;
+    assert.ok(baselineArtwork !== undefined);
+    finalPresentation.artwork = baselineArtwork;
     assert.deepEqual(
       finalCatalog,
-      baseline.value,
+      baseline,
       "Artwork correction must preserve every non-artwork catalog contract",
     );
     const report = path.join(output, "artwork-correction-result.json");
