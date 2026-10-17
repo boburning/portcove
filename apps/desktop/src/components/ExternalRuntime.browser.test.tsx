@@ -432,6 +432,46 @@ it("keeps a cancelled current folder choice out of review", async () => {
   expect(document.body.querySelector('[data-slot="dialog-content"]')).toBeNull();
 });
 
+it.each(
+  [
+    [{ action: "launch", availability: "allowed", reason: "available" }],
+    [
+      {
+        action: "remove_external",
+        availability: "waiting",
+        reason: "review_required",
+        definition: { outcome: "hold", reason: "publisher_revoked" },
+      },
+    ],
+    [{ action: "remove_external", availability: "allowed", reason: "available" }],
+    [
+      { action: "remove_external", availability: "waiting", reason: "review_required" },
+      { action: "remove_external", availability: "not_offered", reason: "not_installed" },
+    ],
+  ].map((actions, index) => ({
+    name: ["missing route", "definition hold", "wrong tuple", "duplicate"][index],
+    actions,
+  })),
+)("does not open removal for $name", async ({ actions }) => {
+  const preview = vi.spyOn(desktopApi, "previewExternalRemoval");
+  await root.rerender(
+    <ExternalRuntimeControl
+      port={port}
+      status={{ ...portStatus(), external_runtime: record, port_actions: actions as never }}
+      generation={7}
+      busy={false}
+    />,
+  );
+  const stop = [...document.body.querySelectorAll("button")].find(
+    (button) => button.textContent === "Stop using this installation",
+  );
+  expect(stop?.disabled).toBe(true);
+  await click("Stop using this installation");
+  expect(preview).not.toHaveBeenCalled();
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(document.body.textContent).toContain("Current removal availability is unavailable");
+});
+
 it.each([
   ["not_started", "This operation did not start."],
   ["no_changes", "No files were changed by this operation."],
