@@ -1,3 +1,7 @@
+import { fileURLToPath } from "node:url";
+import type { RoadmapIssueItem } from "./roadmap.mts";
+import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -11,9 +15,9 @@ import {
   runSourceProvenanceAudit,
 } from "./source-provenance-audit.mts";
 
-const sha = (character) => character.repeat(40);
+const sha = (character: string) => character.repeat(40);
 
-function included(body, headers = {}) {
+function included(body: unknown, headers: Record<string, string> = {}) {
   return (
     "HTTP/2.0 200 OK\r\n" +
     Object.entries(headers)
@@ -57,24 +61,28 @@ function catalog() {
         },
       ],
       validators: [],
-      qualification: [],
+      qualification: [] as unknown[],
     },
     ports: [
       {
         id: "sample",
         name: "Sample",
         platforms: ["windows-x86-64"],
-        automated_tested_platforms: [],
-        manually_validated_platforms: [],
+        automated_tested_platforms: [] as string[],
+        manually_validated_platforms: [] as string[],
       },
     ],
   };
 }
 
 function issue(
-  number,
-  title,
-  { catalogId, portKey, upstream = `https://example.test/${number}` } = {},
+  number: number,
+  title: string,
+  {
+    catalogId,
+    portKey,
+    upstream = `https://example.test/${number}`,
+  }: { catalogId?: string; portKey?: string; upstream?: string } = {},
 ) {
   return {
     number,
@@ -91,7 +99,7 @@ function issue(
   };
 }
 
-function projectItem(value, stage) {
+function projectItem(value: ReturnType<typeof issue>, stage: string) {
   return {
     content: { ...value, type: "Issue" },
     title: value.title,
@@ -104,7 +112,36 @@ function projectItem(value, stage) {
   };
 }
 
-function fixture() {
+type IssueFixture = ReturnType<typeof issue>;
+type ProjectFixture = RoadmapIssueItem & { content: RoadmapIssueItem };
+interface InputFixture extends Omit<
+  Parameters<typeof buildSourceProvenanceAudit>[0],
+  "issues" | "projectItems"
+> {
+  issues: IssueFixture[];
+  projectItems: ProjectFixture[];
+}
+function fixtureValue<T>(value: T): NonNullable<T> {
+  assert.ok(value != null);
+  return value;
+}
+function fixtureElement<T>(values: readonly T[], index: number): T {
+  const value = values[index];
+  assert.ok(value !== undefined);
+  return value;
+}
+function fixtureObject(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+function fixtureGraphql(input: unknown) {
+  assert.ok(typeof input === "string");
+  const value: unknown = JSON.parse(input);
+  const object = fixtureObject(value);
+  assert.ok(typeof object.query === "string");
+  return { query: object.query, variables: fixtureObject(object.variables) };
+}
+function fixture(): InputFixture {
   const catalogIssue = issue(1, "Sample", { catalogId: "sample" });
   const researchIssue = issue(2, "Research", { portKey: "research" });
   return {
@@ -118,7 +155,7 @@ function fixture() {
   };
 }
 
-test("identical offline fixtures produce byte-identical ordered evidence", () => {
+void test("identical offline fixtures produce byte-identical ordered evidence", () => {
   const first = buildSourceProvenanceAudit(fixture());
   const second = buildSourceProvenanceAudit(fixture());
   assert.deepEqual(first, second);
@@ -137,16 +174,16 @@ test("identical offline fixtures produce byte-identical ordered evidence", () =>
     researchIssues: 1,
   });
   assert.deepEqual(first.observations, []);
-  assert.equal(first.research[0].sourceEvidence, "Gap recorded");
+  assert.equal(fixtureElement(first.research, 0).sourceEvidence, "Gap recorded");
   assert.equal(
-    first.cataloged[0].qualification,
+    fixtureElement(first.cataloged, 0).qualification,
     "No exact records; legacy automated=0, hands-on=0",
   );
 });
 
-test("provenance reports mismatched Supported qualification scopes without promoting historical counts", () => {
+void test("provenance reports mismatched Supported qualification scopes without promoting historical counts", () => {
   const input = fixture();
-  const parsed = JSON.parse(input.catalogText);
+  const parsed = catalog();
   const scope = {
     port_id: "sample",
     platform: "windows-x86-64",
@@ -161,10 +198,13 @@ test("provenance reports mismatched Supported qualification scopes without promo
   };
   const auto = { scope, kind: "automated_lifecycle", outcome: "passed" };
   const hands = { ...structuredClone(auto), kind: "hands_on" };
-  input.projectItems[1]["port stage"] = "Supported";
-  const auditFor = (records, legacy = {}) => {
+  fixtureElement(input.projectItems, 1)["port stage"] = "Supported";
+  const auditFor = (
+    records: unknown[],
+    legacy: Partial<ReturnType<typeof catalog>["ports"][number]> = {},
+  ) => {
     parsed.source_catalog.qualification = records;
-    Object.assign(parsed.ports[0], legacy);
+    Object.assign(fixtureElement(parsed.ports, 0), legacy);
     return buildSourceProvenanceAudit({ ...input, catalogText: JSON.stringify(parsed) });
   };
   assert.deepEqual(auditFor([auto, hands]).observations, []);
@@ -184,7 +224,7 @@ test("provenance reports mismatched Supported qualification scopes without promo
     );
     assert.equal(audit.counts.qualificationRecords, 2);
     assert.match(
-      audit.cataloged[0].qualification,
+      fixtureElement(audit.cataloged, 0).qualification,
       /automated_lifecycle:passed=1, hands_on:passed=1/,
     );
     assert.match(
@@ -203,7 +243,7 @@ test("provenance reports mismatched Supported qualification scopes without promo
   );
 });
 
-test("Project context never joins a foreign same-number issue to a local Port", () => {
+void test("Project context never joins a foreign same-number issue to a local Port", () => {
   const baseline = buildSourceProvenanceAudit(fixture());
   for (const reverse of [false, true]) {
     const input = fixture();
@@ -211,7 +251,7 @@ test("Project context never joins a foreign same-number issue to a local Port", 
       ...item,
       content: {
         ...item.content,
-        url: item.content.url.replace("boburning/portcove", "another/repository"),
+        url: fixtureValue(item.content.url).replace("boburning/portcove", "another/repository"),
       },
       status: "Blocked",
       "port stage": "Supported",
@@ -229,37 +269,47 @@ test("Project context never joins a foreign same-number issue to a local Port", 
   }
 });
 
-test("only a matching repository Issue supplies provenance Project context", () => {
+void test("only a matching repository Issue supplies provenance Project context", () => {
   for (const kind of ["foreign", "wrong-number", "PullRequest", "DraftIssue", "url-only"]) {
     const input = fixture();
-    const item = input.projectItems[0];
+    const item = fixtureElement(input.projectItems, 0);
     input.projectItems = [item];
     if (kind === "foreign") item.content.url = "https://github.com/another/repo/issues/2";
-    else if (kind === "wrong-number") item.content.url = item.content.url.replace("/2", "/3");
+    else if (kind === "wrong-number")
+      item.content.url = fixtureValue(item.content.url).replace("/2", "/3");
     else if (kind === "url-only") item.content.number = undefined;
     else item.content.type = kind;
     const audit = buildSourceProvenanceAudit(input);
-    assert.equal(audit.research[0].projectContext, "Unavailable", kind);
-    assert.equal(audit.cataloged[0].projectContext, "Unavailable", kind);
+    assert.equal(fixtureElement(audit.research, 0).projectContext, "Unavailable", kind);
+    assert.equal(fixtureElement(audit.cataloged, 0).projectContext, "Unavailable", kind);
     assert.equal(audit.project.itemCount, 1, kind);
   }
 });
 
-test("scoped Project joins accept canonical Issue forms without trusting malformed URLs", () => {
-  const baseline = buildSourceProvenanceAudit(fixture()).research[0].projectContext;
+void test("scoped Project joins accept canonical Issue forms without trusting malformed URLs", () => {
+  const baseline = fixtureElement(buildSourceProvenanceAudit(fixture()).research, 0).projectContext;
   for (const kind of ["graphql", "flat", "repository-case", "trailing-slash"]) {
     const input = fixture();
-    const item = input.projectItems[0];
+    const item = fixtureElement(input.projectItems, 0);
     if (kind === "graphql") {
       delete item.content.type;
       item.content.__typename = "Issue";
     } else if (kind === "flat") {
+      // @ts-expect-error Flat provider input intentionally omits the nested-content fixture contract.
       input.projectItems[0] = { ...item, ...item.content };
-      delete input.projectItems[0].content;
+      // @ts-expect-error Deliberately remove nested content to exercise the supported flat issue form.
+      delete fixtureElement(input.projectItems, 0).content;
     } else if (kind === "repository-case") {
-      item.content.url = item.content.url.replace("boburning/portcove", "Boburning/Portcove");
+      item.content.url = fixtureValue(item.content.url).replace(
+        "boburning/portcove",
+        "Boburning/Portcove",
+      );
     } else item.content.url += "/";
-    assert.equal(buildSourceProvenanceAudit(input).research[0].projectContext, baseline, kind);
+    assert.equal(
+      fixtureElement(buildSourceProvenanceAudit(input).research, 0).projectContext,
+      baseline,
+      kind,
+    );
   }
   for (const url of [
     "not a URL",
@@ -272,29 +322,36 @@ test("scoped Project joins accept canonical Issue forms without trusting malform
     "https://github.com:444/boburning/portcove/issues/2",
   ]) {
     const input = fixture();
-    input.projectItems[0].content.url = url;
-    assert.equal(buildSourceProvenanceAudit(input).research[0].projectContext, "Unavailable", url);
+    fixtureElement(input.projectItems, 0).content.url = url;
+    assert.equal(
+      fixtureElement(buildSourceProvenanceAudit(input).research, 0).projectContext,
+      "Unavailable",
+      url,
+    );
   }
   const contradictory = fixture();
-  contradictory.projectItems[0].content.__typename = "PullRequest";
-  assert.equal(buildSourceProvenanceAudit(contradictory).research[0].projectContext, "Unavailable");
+  fixtureElement(contradictory.projectItems, 0).content.__typename = "PullRequest";
+  assert.equal(
+    fixtureElement(buildSourceProvenanceAudit(contradictory).research, 0).projectContext,
+    "Unavailable",
+  );
 });
 
-function researchBlockerInput(body) {
+function researchBlockerInput(body: string) {
   const input = fixture();
-  const identity = input.issues[0].body
-    .replace(/^\s*- Current blocker and exact resume condition:.*$/gmu, "")
+  const identity = fixtureElement(input.issues, 0)
+    .body.replace(/^\s*- Current blocker and exact resume condition:.*$/gmu, "")
     .replace(/^## Dependencies and blockers\s*$[\s\S]*?(?=^##\s|(?![\s\S]))/gmu, "");
-  input.issues[0].body = `${body}\n${identity}`;
-  input.projectItems[0].content.body = input.issues[0].body;
+  fixtureElement(input.issues, 0).body = `${body}\n${identity}`;
+  fixtureElement(input.projectItems, 0).content.body = fixtureElement(input.issues, 0).body;
   return input;
 }
 
-function researchBlocker(body) {
-  return buildSourceProvenanceAudit(researchBlockerInput(body)).research[0].gap;
+function researchBlocker(body: string) {
+  return fixtureElement(buildSourceProvenanceAudit(researchBlockerInput(body)).research, 0).gap;
 }
 
-function mergedBlockerFixture(blocker, overrides = {}) {
+function mergedBlockerFixture(blocker: string, overrides: Record<string, unknown> = {}) {
   const input = researchBlockerInput(`- Current blocker and exact resume condition: ${blocker}`);
   input.projectItems.push({
     content: {
@@ -309,13 +366,13 @@ function mergedBlockerFixture(blocker, overrides = {}) {
   return input;
 }
 
-function mergedReferenceObservations(input) {
+function mergedReferenceObservations(input: Parameters<typeof buildSourceProvenanceAudit>[0]) {
   return buildSourceProvenanceAudit(input).observations.filter((value: string) =>
     value.startsWith("Active blocker references merged PR"),
   );
 }
 
-test("known merged references in active blockers are reported without resolving acceptance", async (t) => {
+void test("known merged references in active blockers are reported without resolving acceptance", async (t) => {
   for (const reference of [
     "PR #31",
     "boburning/portcove#31",
@@ -331,7 +388,7 @@ test("known merged references in active blockers are reported without resolving 
       const second = buildSourceProvenanceAudit(input);
       assert.equal(mergedReferenceObservations(input).length, 1);
       assert.match(first.observations.join("\n"), /Review remaining acceptance/);
-      assert.match(first.research[0].gap, /reviewed manifest/);
+      assert.match(fixtureElement(first.research, 0).gap, /reviewed manifest/);
       assert.deepEqual(first, second);
       assert.deepEqual(input, before);
       assert.equal(first.schemaVersion, 1);
@@ -343,7 +400,7 @@ test("known merged references in active blockers are reported without resolving 
   }
 });
 
-test("merged findings require actual same-repository unambiguous PR facts", async (t) => {
+void test("merged findings require actual same-repository unambiguous PR facts", async (t) => {
   for (const [label, overrides] of [
     ["closed unmerged", { state: "CLOSED", merged: false }],
     ["closed alone", { state: "CLOSED", merged: undefined }],
@@ -356,7 +413,7 @@ test("merged findings require actual same-repository unambiguous PR facts", asyn
     ["bare fact URL", { url: "PR #31" }],
     ["scoped fact URL", { url: "boburning/portcove#31" }],
     ["wrong number", { url: "https://github.com/boburning/portcove/pull/32" }],
-  ])
+  ] as const)
     await t.test(label, () =>
       assert.deepEqual(
         mergedReferenceObservations(
@@ -367,7 +424,11 @@ test("merged findings require actual same-repository unambiguous PR facts", asyn
     );
   const conflicting = mergedBlockerFixture("Waiting for PR #31 to merge.");
   conflicting.projectItems.push({
-    content: { ...conflicting.projectItems.at(-1).content, state: "OPEN", merged: false },
+    content: {
+      ...fixtureValue(conflicting.projectItems.at(-1)).content,
+      state: "OPEN",
+      merged: false,
+    },
   });
   assert.deepEqual(mergedReferenceObservations(conflicting), []);
   const missing = mergedBlockerFixture("Waiting for PR #31 to merge.");
@@ -377,15 +438,18 @@ test("merged findings require actual same-repository unambiguous PR facts", asyn
   unavailable.projectState = "unavailable";
   assert.deepEqual(mergedReferenceObservations(unavailable), []);
   const partial = mergedBlockerFixture("Waiting for PR #31 to merge.");
-  partial.projectItems = {
-    items: partial.projectItems,
-    totalCount: 9,
-    pageInfo: { hasNextPage: true },
+  const partialInput = {
+    ...partial,
+    projectItems: {
+      items: partial.projectItems,
+      totalCount: 9,
+      pageInfo: { hasNextPage: true },
+    },
   };
-  assert.deepEqual(mergedReferenceObservations(partial), []);
+  assert.deepEqual(mergedReferenceObservations(partialInput), []);
 });
 
-test("completed, cross-repository and ambiguous prose is not a merge prerequisite", async (t) => {
+void test("completed, cross-repository and ambiguous prose is not a merge prerequisite", async (t) => {
   for (const blocker of [
     "Waiting for PR #99 to merge.",
     "Waiting for other/portcove#31 to merge.",
@@ -404,59 +468,64 @@ test("completed, cross-repository and ambiguous prose is not a merge prerequisit
       assert.deepEqual(mergedReferenceObservations(mergedBlockerFixture(blocker)), []),
     );
   const closed = mergedBlockerFixture("Waiting for PR #31 to merge.");
-  closed.issues[0].state = "CLOSED";
+  fixtureElement(closed.issues, 0).state = "CLOSED";
   assert.deepEqual(mergedReferenceObservations(closed), []);
 });
 
-test("merged-reference reporting reuses current history scope and groups known prerequisites", () => {
+void test("merged-reference reporting reuses current history scope and groups known prerequisites", () => {
   const input = mergedBlockerFixture(
     "Waiting for PR #31 and PR #32 to merge. Resume when reviewed evidence exists.",
   );
   input.projectItems.push({
     content: {
-      ...input.projectItems.at(-1).content,
+      ...fixtureValue(input.projectItems.at(-1)).content,
       number: 32,
       url: "https://github.com/boburning/portcove/pull/32",
     },
   });
   assert.equal(mergedReferenceObservations(input).length, 2);
   const history = `<details><summary>Superseded history</summary>\n- Current blocker and exact resume condition: Waiting for PR #31 to merge.\n</details>`;
-  input.issues[0].body = `${history}\n- Current blocker and exact resume condition: Waiting for PR #99 to merge.\n`;
+  fixtureElement(input.issues, 0).body =
+    `${history}\n- Current blocker and exact resume condition: Waiting for PR #99 to merge.\n`;
   assert.deepEqual(mergedReferenceObservations(input), []);
-  input.issues[0].body = `<details><summary>Current blocker details</summary>\n- Current blocker and exact resume condition: Waiting for PR #31 to merge.\n</details>`;
+  fixtureElement(input.issues, 0).body =
+    `<details><summary>Current blocker details</summary>\n- Current blocker and exact resume condition: Waiting for PR #31 to merge.\n</details>`;
   assert.equal(mergedReferenceObservations(input).length, 1);
 });
 
-test("cataloged specifications and complete fixture metadata retain the same advisory boundary", () => {
+void test("cataloged specifications and complete fixture metadata retain the same advisory boundary", () => {
   const input = mergedBlockerFixture("Waiting for PR #31 to merge.");
-  input.issues[0].body = input.issues[0].body.replace(
+  fixtureElement(input.issues, 0).body = fixtureElement(input.issues, 0).body.replace(
     "Waiting for PR #31 to merge.",
     "Source evidence still needs review.",
   );
-  input.issues[1].body = input.issues[1].body.replace(
+  fixtureElement(input.issues, 1).body = fixtureElement(input.issues, 1).body.replace(
     "Source evidence is pending. Resume when the reviewed manifest is available.",
     "Waiting for PR #31 to merge. Resume when reviewed evidence exists.",
   );
-  input.projectItems.push(structuredClone(input.projectItems.at(-1)));
+  input.projectItems.push(structuredClone(fixtureValue(input.projectItems.at(-1))));
   input.projectState = "fixture";
-  input.projectItems = {
-    items: input.projectItems,
-    totalCount: input.projectItems.length,
-    pageInfo: { hasNextPage: false },
+  const completeInput = {
+    ...input,
+    projectItems: {
+      items: input.projectItems,
+      totalCount: input.projectItems.length,
+      pageInfo: { hasNextPage: false as boolean | string },
+    },
   };
-  const result = buildSourceProvenanceAudit(input);
-  assert.equal(mergedReferenceObservations(input).length, 1);
-  assert.match(mergedReferenceObservations(input)[0], /issues\/1/);
-  assert.equal(result.cataloged[0].deterministicIdentity, true);
+  const result = buildSourceProvenanceAudit(completeInput);
+  assert.equal(mergedReferenceObservations(completeInput).length, 1);
+  assert.match(fixtureElement(mergedReferenceObservations(completeInput), 0), /issues\/1/);
+  assert.equal(fixtureElement(result.cataloged, 0).deterministicIdentity, true);
   assert.equal(
-    result.cataloged[0].qualification,
+    fixtureElement(result.cataloged, 0).qualification,
     "No exact records; legacy automated=0, hands-on=0",
   );
-  input.projectItems.pageInfo.hasNextPage = "unknown";
-  assert.deepEqual(mergedReferenceObservations(input), []);
+  completeInput.projectItems.pageInfo.hasNextPage = "unknown";
+  assert.deepEqual(mergedReferenceObservations(completeInput), []);
 });
 
-test("superseded collapsed history does not replace the current research blocker", () => {
+void test("superseded collapsed history does not replace the current research blocker", () => {
   const history = `<details>
 <summary>Superseded historical scope</summary>
 - Current blocker and exact resume condition: Wait for an already completed historical PR.
@@ -466,27 +535,33 @@ test("superseded collapsed history does not replace the current research blocker
     const input = researchBlockerInput(body);
     const first = buildSourceProvenanceAudit(input);
     const second = buildSourceProvenanceAudit(input);
-    assert.equal(first.research[0].gap, "Accepted-source review is still outstanding.");
+    assert.equal(
+      fixtureElement(first.research, 0).gap,
+      "Accepted-source review is still outstanding.",
+    );
     assert.equal(renderSourceProvenanceAudit(first), renderSourceProvenanceAudit(second));
     assert.deepEqual(first.observations, []);
     const baseline = buildSourceProvenanceAudit(fixture());
     assert.deepEqual(first.cataloged, baseline.cataloged);
     assert.deepEqual(first.counts, baseline.counts);
-    assert.deepEqual({ ...first.research[0], gap: baseline.research[0].gap }, baseline.research[0]);
+    assert.deepEqual(
+      { ...fixtureElement(first.research, 0), gap: fixtureElement(baseline.research, 0).gap },
+      fixtureElement(baseline.research, 0),
+    );
   }
 });
 
-function researchEvidenceInput(body) {
+function researchEvidenceInput(body: string) {
   const input = fixture();
-  const identity = input.issues[0].body
-    .replace(/^\s*- Source requirements and accepted revisions:.*$/gmu, "")
+  const identity = fixtureElement(input.issues, 0)
+    .body.replace(/^\s*- Source requirements and accepted revisions:.*$/gmu, "")
     .replace(/^\s*- Release assets and integrity:.*$/gmu, "");
-  input.issues[0].body = `${body}\n${identity}`;
-  input.projectItems[0].content.body = input.issues[0].body;
+  fixtureElement(input.issues, 0).body = `${body}\n${identity}`;
+  fixtureElement(input.projectItems, 0).content.body = fixtureElement(input.issues, 0).body;
   return input;
 }
 
-test("research evidence summaries ignore explicitly superseded history", async (t) => {
+void test("research evidence summaries ignore explicitly superseded history", async (t) => {
   for (const example of [
     {
       name: "obsolete accepted source cannot replace current pending evidence",
@@ -519,7 +594,7 @@ test("research evidence summaries ignore explicitly superseded history", async (
         const input = researchEvidenceInput(body);
         const first = buildSourceProvenanceAudit(input);
         const second = buildSourceProvenanceAudit(input);
-        const row = first.research[0];
+        const row = fixtureElement(first.research, 0);
         assert.deepEqual(
           { sourceEvidence: row.sourceEvidence, releaseIntegrity: row.releaseIntegrity },
           example.expected,
@@ -532,17 +607,17 @@ test("research evidence summaries ignore explicitly superseded history", async (
         assert.deepEqual(
           {
             ...row,
-            sourceEvidence: baseline.research[0].sourceEvidence,
-            releaseIntegrity: baseline.research[0].releaseIntegrity,
+            sourceEvidence: fixtureElement(baseline.research, 0).sourceEvidence,
+            releaseIntegrity: fixtureElement(baseline.research, 0).releaseIntegrity,
           },
-          baseline.research[0],
+          fixtureElement(baseline.research, 0),
         );
       }
     });
   }
 });
 
-test("active ambiguous and malformed research evidence remains visible", () => {
+void test("active ambiguous and malformed research evidence remains visible", () => {
   const facts =
     "- Source requirements and accepted revisions: Reviewed current revision.\nRelease integrity: pending";
   const bodies = [
@@ -561,13 +636,13 @@ test("active ambiguous and malformed research evidence remains visible", () => {
     `\`\`\`html\n<details><summary>Superseded history</summary>\n${facts}\n</details>\n\`\`\``,
   ];
   for (const body of bodies) {
-    const row = buildSourceProvenanceAudit(researchEvidenceInput(body)).research[0];
+    const row = fixtureElement(buildSourceProvenanceAudit(researchEvidenceInput(body)).research, 0);
     assert.equal(row.sourceEvidence, "Evidence mentioned in issue");
     assert.equal(row.releaseIntegrity, "Gap recorded");
   }
 });
 
-test("active and unlabeled collapsed details remain authoritative blockers", () => {
+void test("active and unlabeled collapsed details remain authoritative blockers", () => {
   for (const summary of [
     "Current blocker details",
     "Historical context still applicable",
@@ -596,7 +671,7 @@ test("active and unlabeled collapsed details remain authoritative blockers", () 
   );
 });
 
-test("section blockers before and after active details are retained", () => {
+void test("section blockers before and after active details are retained", () => {
   const gap = researchBlocker(`## Dependencies and blockers
 Current source review remains required.
 <details><summary>Current exact resume evidence</summary>
@@ -609,7 +684,7 @@ Fresh accepted records are still required.`);
   );
 });
 
-test("supersession follows balanced nested boundaries and leaves current neighbors", () => {
+void test("supersession follows balanced nested boundaries and leaves current neighbors", () => {
   const history = `<DETAILS open>
 <SUMMARY><strong>Superseded</strong> historical scope</SUMMARY>
 <details><summary>Previous exact blocker</summary>
@@ -630,7 +705,7 @@ Active evidence remains missing.
   assert.equal(nested, "Current evidence Active evidence remains missing.");
 });
 
-test("malformed or code/comment examples do not establish a superseded boundary", () => {
+void test("malformed or code/comment examples do not establish a superseded boundary", () => {
   for (const body of [
     "<details><summary>Superseded historical scope</summary>\n- Current blocker and exact resume condition: Unclosed evidence remains visible.",
     "<details><summary>Current scope</summary><details><summary>Superseded history</summary>\n- Current blocker and exact resume condition: Unclosed evidence remains visible.\n</details>",
@@ -639,10 +714,10 @@ test("malformed or code/comment examples do not establish a superseded boundary"
   ])
     assert.equal(researchBlocker(body), "Unclosed evidence remains visible.");
   for (const wrapper of [
-    (text) => `\`\`\`html\n${text}\n\`\`\``,
-    (text) => `~~~~html\n${text}\n~~~~`,
-    (text) => `<!-- ${text} -->`,
-    (text) => `\`${text}\``,
+    (text: string) => `\`\`\`html\n${text}\n\`\`\``,
+    (text: string) => `~~~~html\n${text}\n~~~~`,
+    (text: string) => `<!-- ${text} -->`,
+    (text: string) => `\`${text}\``,
   ]) {
     const example = wrapper(
       "<details><summary>Superseded historical scope</summary>Example facts remain visible.</details>",
@@ -655,7 +730,7 @@ test("malformed or code/comment examples do not establish a superseded boundary"
   }
 });
 
-test("negative fixtures expose missing tickets, duplicate catalog IDs, stale hashes, and missing evidence", () => {
+void test("negative fixtures expose missing tickets, duplicate catalog IDs, stale hashes, and missing evidence", () => {
   const missingIssue = fixture();
   missingIssue.issues = missingIssue.issues.filter((value) => value.number !== 1);
   missingIssue.projectItems = missingIssue.projectItems.filter(
@@ -668,8 +743,8 @@ test("negative fixtures expose missing tickets, duplicate catalog IDs, stale has
   );
 
   const duplicateId = fixture();
-  const parsed = JSON.parse(duplicateId.catalogText);
-  parsed.ports.push({ ...parsed.ports[0] });
+  const parsed = catalog();
+  parsed.ports.push({ ...fixtureElement(parsed.ports, 0) });
   duplicateId.catalogText = JSON.stringify(parsed);
   assert.ok(
     buildSourceProvenanceAudit(duplicateId).observations.includes(
@@ -686,8 +761,8 @@ test("negative fixtures expose missing tickets, duplicate catalog IDs, stale has
   );
 
   const missingEvidence = fixture();
-  const missingCatalog = JSON.parse(missingEvidence.catalogText);
-  missingCatalog.source_catalog.contracts[0].evidence_ids = ["absent"];
+  const missingCatalog = catalog();
+  fixtureElement(missingCatalog.source_catalog.contracts, 0).evidence_ids = ["absent"];
   missingEvidence.catalogText = JSON.stringify(missingCatalog);
   assert.ok(
     buildSourceProvenanceAudit(missingEvidence).observations.includes(
@@ -696,7 +771,7 @@ test("negative fixtures expose missing tickets, duplicate catalog IDs, stale has
   );
 });
 
-test("duplicate candidate keys and titles fail while one shared upstream can serve distinct targets", () => {
+void test("duplicate candidate keys and titles fail while one shared upstream can serve distinct targets", () => {
   const input = fixture();
   const second = issue(3, "Another Game", {
     portKey: "another-game",
@@ -708,8 +783,8 @@ test("duplicate candidate keys and titles fail while one shared upstream can ser
   });
   input.issues.push(second);
   input.projectItems = [
-    projectItem(input.issues[0], "Watchlist"),
-    projectItem(input.issues[1], "Cataloged"),
+    projectItem(fixtureElement(input.issues, 0), "Watchlist"),
+    projectItem(fixtureElement(input.issues, 1), "Cataloged"),
     projectItem(second, "Watchlist"),
   ];
   assert.equal(
@@ -751,9 +826,9 @@ test("duplicate candidate keys and titles fail while one shared upstream can ser
   );
 });
 
-test("misclassified Project state is surfaced as drift", () => {
+void test("misclassified Project state is surfaced as drift", () => {
   const input = fixture();
-  input.projectItems[0]["port stage"] = "Cataloged";
+  fixtureElement(input.projectItems, 0)["port stage"] = "Cataloged";
   assert.ok(
     buildSourceProvenanceAudit(input).observations.some((value) =>
       value.includes("must have exactly one valid catalog ID"),
@@ -761,14 +836,14 @@ test("misclassified Project state is surfaced as drift", () => {
   );
 });
 
-test("live enrichment calls only bounded read commands and API errors do not expose tokens", () => {
-  const calls = [];
+void test("live enrichment calls only bounded read commands and API errors do not expose tokens", () => {
+  const calls: { args: readonly string[]; input?: string }[] = [];
   const result = readLiveSourceProvenance({
     repository: "boburning/portcove",
     owner: "boburning",
     projectNumber: 1,
     run(args, input) {
-      calls.push({ args, input });
+      calls.push({ args, ...(input !== undefined ? { input } : {}) });
       if (args[0] === "project") return { id: "PVT" };
       if (args[0] === "api" && args[1] === "--include" && !input) return included([]);
       const page = {
@@ -798,10 +873,10 @@ test("live enrichment calls only bounded read commands and API errors do not exp
   assert.ok(
     calls
       .filter(({ args }) => args[0] === "api" && args[1] === "--include" && args[2])
-      .every(({ args }) => args[2].includes("/issues?state=all")),
+      .every(({ args }) => fixtureElement(args, 2).includes("/issues?state=all")),
   );
   for (const { input } of calls.filter((call) => call.input)) {
-    const query = JSON.parse(input).query;
+    const query = fixtureGraphql(input).query;
     assert.match(query, /^query\(/);
     assert.match(query, /(?:issues\(first: 100|items\(first: 50)/);
     assert.match(query, /totalCount/);
@@ -819,12 +894,14 @@ test("live enrichment calls only bounded read commands and API errors do not exp
           throw new Error(secret);
         },
       }),
-    (error) => !error.message.includes(secret),
+    (error) => error instanceof Error && !error.message.includes(secret),
   );
 });
 
-test("live GitHub reads allow the full bounded Project payload", () => {
-  let invocation;
+void test("live GitHub reads allow the full bounded Project payload", () => {
+  let invocation:
+    | { command: string; args: readonly string[]; options: SpawnSyncOptionsWithStringEncoding }
+    | undefined;
   const value = runReadOnlyGitHubCommand(
     ["api", "graphql", "--input", "-"],
     '{"query":"query { viewer { login } }"}',
@@ -834,13 +911,14 @@ test("live GitHub reads allow the full bounded Project payload", () => {
     },
   );
   assert.deepEqual(value, { items: [] });
+  assert.ok(invocation);
   assert.equal(invocation.command, "gh");
   assert.deepEqual(invocation.args, ["api", "graphql", "--input", "-"]);
   assert.equal(invocation.options.input, '{"query":"query { viewer { login } }"}');
   assert.equal(invocation.options.maxBuffer, 32 * 1024 * 1024);
 });
 
-test("rendered output labels evidence authority and catalog versus research scope", () => {
+void test("rendered output labels evidence authority and catalog versus research scope", () => {
   const report = renderSourceProvenanceAudit(buildSourceProvenanceAudit(fixture()));
   assert.match(report, /Dated read-only evidence/);
   assert.match(report, /not a roadmap, priority authority/);
@@ -849,11 +927,30 @@ test("rendered output labels evidence authority and catalog versus research scop
   assert.match(report, /Exact qualification counts only artifact\/source-variant-scoped records/);
 });
 
-function paginatedLiveRunner(issues, projectItems, intercept = () => {}) {
+type LiveIssueFixture = {
+  number: number;
+  title?: string;
+  body?: string;
+  state?: string;
+  __typename?: string;
+  url?: string;
+  html_url?: string;
+  node_id?: string;
+};
+type ReadCommand = NonNullable<Parameters<typeof readLiveSourceProvenance>[0]["run"]>;
+interface PageCall {
+  isIssues: boolean;
+  offset: number;
+}
+function paginatedLiveRunner(
+  issues: readonly LiveIssueFixture[],
+  projectItems: readonly unknown[],
+  intercept: (call: PageCall) => void = () => {},
+): ReadCommand {
   return (args, input) => {
     if (args[0] === "project") return { id: "PVT" };
     if (args[0] === "api" && args[1] === "--include" && !input) {
-      const endpoint = args[2];
+      const endpoint = fixtureElement(args, 2);
       if (endpoint.includes("direction=desc")) {
         const latest = issues.reduce(
           (current, issue) => (issue.number > current.number ? issue : current),
@@ -881,7 +978,7 @@ function paginatedLiveRunner(issues, projectItems, intercept = () => {}) {
           : {},
       );
     }
-    const { variables } = JSON.parse(input);
+    const { variables } = fixtureGraphql(input);
     const values = projectItems;
     const size = 50;
     const offset = Number(variables.after ?? 0);
@@ -942,9 +1039,9 @@ function largeLiveFixture() {
   return { input, issues, projectItems };
 }
 
-test("live provenance includes canonical ports beyond 1000 records with deterministic output", () => {
+void test("live provenance includes canonical ports beyond 1000 records with deterministic output", () => {
   const { input, issues, projectItems } = largeLiveFixture();
-  const calls = [];
+  const calls: PageCall[] = [];
   const run = paginatedLiveRunner(issues, projectItems, (call) => calls.push(call));
   const live = readLiveSourceProvenance({
     repository: "boburning/portcove",
@@ -956,7 +1053,7 @@ test("live provenance includes canonical ports beyond 1000 records with determin
   assert.equal(live.projectItems.length, 1003);
   assert.equal(calls.filter((call) => call.isIssues).length, 11);
   assert.equal(calls.filter((call) => !call.isIssues).length, 21);
-  assert.equal(live.projectItems.at(-1).content.number, 1);
+  assert.equal(fixtureValue(fixtureValue(live.projectItems.at(-1)).content).number, 1);
   const first = buildSourceProvenanceAudit({ ...input, ...live });
   const second = buildSourceProvenanceAudit({
     ...input,
@@ -974,13 +1071,15 @@ test("live provenance includes canonical ports beyond 1000 records with determin
   assert.equal(renderSourceProvenanceAudit(first), renderSourceProvenanceAudit(second));
 });
 
-test("failed live collection phases preserve snapshots without exposing raw failures", async (t) => {
-  const directory = await mkdtemp(new URL("../docs/archive/provenance-test-", import.meta.url));
+void test("failed live collection phases preserve snapshots without exposing raw failures", async (t) => {
+  const directory = await mkdtemp(
+    fileURLToPath(new URL("../docs/archive/provenance-test-", import.meta.url)),
+  );
   const existing = `${directory}/existing.md`;
   const absent = `${directory}/absent.md`;
   const secret = "github_pat_private_test_value";
   const { issues, projectItems } = largeLiveFixture();
-  const cases = [];
+  const cases: { label: string; phase: string; run: ReadCommand }[] = [];
   for (const isIssues of [true, false]) {
     const phase = isIssues ? "reading the issue inventory" : "reading the Project inventory";
     for (const offset of [0, isIssues ? 100 : 50])
@@ -1009,7 +1108,7 @@ test("failed live collection phases preserve snapshots without exposing raw fail
       label: `resolving referenced PRs, ${malformed ? "malformed response" : "request failure"}`,
       phase: "resolving referenced PRs",
       run(args, payload) {
-        if (payload && JSON.parse(payload).query.includes("pullRequest(number:")) {
+        if (payload && fixtureGraphql(payload).query.includes("pullRequest(number:")) {
           if (!malformed) throw new Error(secret);
           return included({ data: { repository: { pullRequest: { invalid: secret } } } });
         }
@@ -1018,9 +1117,9 @@ test("failed live collection phases preserve snapshots without exposing raw fail
     });
   }
   const boundedIssues = Array.from({ length: 101 }, (_, i) => ({
-    ...referenced.issues[0],
+    ...fixtureElement(referenced.issues, 0),
     number: i + 1,
-    body: referenced.issues[0].body.replaceAll("PR #31", `PR #${i + 1}`),
+    body: fixtureElement(referenced.issues, 0).body.replaceAll("PR #31", `PR #${i + 1}`),
   }));
   const boundedRun = paginatedLiveRunner(boundedIssues, []);
   let prRequests = 0;
@@ -1028,7 +1127,7 @@ test("failed live collection phases preserve snapshots without exposing raw fail
     label: "discovering active PR references, bound exceeded",
     phase: "discovering active PR references",
     run(args, payload) {
-      if (payload && JSON.parse(payload).query.includes("pullRequest(number:")) prRequests++;
+      if (payload && fixtureGraphql(payload).query.includes("pullRequest(number:")) prRequests++;
       return boundedRun(args, payload);
     },
   });
@@ -1053,6 +1152,7 @@ test("failed live collection phases preserve snapshots without exposing raw fail
               { run },
             ),
             (error) =>
+              error instanceof Error &&
               error.message ===
                 `read-only GitHub enrichment failed while ${phase}; no snapshot was written` &&
               !error.message.includes(secret) &&
@@ -1067,15 +1167,17 @@ test("failed live collection phases preserve snapshots without exposing raw fail
   }
 });
 
-test("incomplete offline collections preserve previous provenance snapshots", async (t) => {
-  const directory = await mkdtemp(new URL("../docs/archive/provenance-test-", import.meta.url));
+void test("incomplete offline collections preserve previous provenance snapshots", async (t) => {
+  const directory = await mkdtemp(
+    fileURLToPath(new URL("../docs/archive/provenance-test-", import.meta.url)),
+  );
   const input = fixture();
   const catalogPath = `${directory}/catalog.json`;
   const issuesPath = `${directory}/issues.json`;
   const projectPath = `${directory}/project.json`;
   const existing = `${directory}/existing.md`;
   const absent = `${directory}/absent.md`;
-  const args = (output) => [
+  const args = (output: string) => [
     "--catalog",
     catalogPath,
     "--issues",
@@ -1117,7 +1219,7 @@ test("incomplete offline collections preserve previous provenance snapshots", as
       ],
       ["issues without pagination metadata", "issues", {}],
       ["Project without a declared total", "projectItems", { pageInfo: { hasNextPage: false } }],
-    ])
+    ] as const)
       await t.test(label, async () => {
         const issues =
           collection === "issues" ? { items: input.issues, ...metadata } : input.issues;
@@ -1133,16 +1235,16 @@ test("incomplete offline collections preserve previous provenance snapshots", as
         await assert.rejects(readFile(absent), { code: "ENOENT" });
       });
     for (const [label, wrap] of [
-      ["complete arrays", (items) => items],
+      ["complete arrays", (items: readonly unknown[]) => items],
       [
         "complete envelopes",
-        (items) => ({
+        (items: readonly unknown[]) => ({
           items,
           totalCount: items.length,
           pageInfo: { hasNextPage: false },
         }),
       ],
-    ])
+    ] as const)
       await t.test(label, async () => {
         await writeFile(issuesPath, JSON.stringify(wrap(input.issues)));
         await writeFile(projectPath, JSON.stringify(wrap(input.projectItems)));
@@ -1155,7 +1257,7 @@ test("incomplete offline collections preserve previous provenance snapshots", as
   }
 });
 
-test("live blockers resolve referenced PRs independently of Project membership", async (t) => {
+void test("live blockers resolve referenced PRs independently of Project membership", async (t) => {
   for (const [label, response, expected] of [
     [
       "merged",
@@ -1180,19 +1282,19 @@ test("live blockers resolve referenced PRs independently of Project membership",
       0,
     ],
     ["unknown", null, 0],
-  ])
+  ] as const)
     await t.test(label, () => {
       const input = mergedBlockerFixture("Waiting for PR #31 and PR #31 to merge.");
       input.projectItems.pop();
       const baseRun = paginatedLiveRunner(input.issues, []);
-      const requests = [];
+      const requests: Record<string, unknown>[] = [];
       const live = readLiveSourceProvenance({
         repository: "boburning/portcove",
         owner: "boburning",
         projectNumber: 1,
         run(args, payload) {
-          if (payload && JSON.parse(payload).query.includes("pullRequest(number:")) {
-            requests.push(JSON.parse(payload).variables);
+          if (payload && fixtureGraphql(payload).query.includes("pullRequest(number:")) {
+            requests.push(fixtureGraphql(payload).variables);
             return included({ data: { repository: { pullRequest: response } } });
           }
           return baseRun(args, payload);
@@ -1204,7 +1306,7 @@ test("live blockers resolve referenced PRs independently of Project membership",
     });
 });
 
-test("referenced PR reads fail closed on partial or contradictory facts", async (t) => {
+void test("referenced PR reads fail closed on partial or contradictory facts", async (t) => {
   for (const response of [
     undefined,
     {},
@@ -1227,7 +1329,7 @@ test("referenced PR reads fail closed on partial or contradictory facts", async 
             owner: "boburning",
             projectNumber: 1,
             run(args, payload) {
-              if (payload && JSON.parse(payload).query.includes("pullRequest(number:"))
+              if (payload && fixtureGraphql(payload).query.includes("pullRequest(number:"))
                 return included({ data: { repository: { pullRequest: response } } });
               return baseRun(args, payload);
             },
@@ -1238,7 +1340,7 @@ test("referenced PR reads fail closed on partial or contradictory facts", async 
   }
 });
 
-test("live reference lookup bounds work before requesting any PR", () => {
+void test("live reference lookup bounds work before requesting any PR", () => {
   const input = researchBlockerInput(
     "- Current blocker and exact resume condition: Waiting for " +
       Array.from({ length: 101 }, (_, i) => `PR #${i + 1}`).join(", "),
@@ -1246,9 +1348,9 @@ test("live reference lookup bounds work before requesting any PR", () => {
   // The explicit gap deliberately truncates prose at 500 characters. Use one
   // short reference per issue to exercise the complete collector bound.
   const issues = Array.from({ length: 101 }, (_, i) => ({
-    ...input.issues[0],
+    ...fixtureElement(input.issues, 0),
     number: i + 1,
-    body: input.issues[0].body.replace(
+    body: fixtureElement(input.issues, 0).body.replace(
       /^- Current blocker and exact resume condition:.*$/mu,
       `- Current blocker and exact resume condition: Waiting for PR #${i + 1} to merge.`,
     ),
@@ -1262,11 +1364,20 @@ test("live reference lookup bounds work before requesting any PR", () => {
         owner: "boburning",
         projectNumber: 1,
         run(args, payload) {
-          if (payload && JSON.parse(payload).query.includes("pullRequest(number:")) prRequests++;
+          if (payload && fixtureGraphql(payload).query.includes("pullRequest(number:"))
+            prRequests++;
           return baseRun(args, payload);
         },
       }),
     /enrichment failed/,
   );
   assert.equal(prRequests, 0);
+});
+
+void test("provenance rejects unchecked typed issue structures before reporting", () => {
+  for (const malformed of [{ id: null }, { type: null }, { __typename: null }, { fieldValues: 42 }, { fieldValues: [{ field: 42 }] }, { blockedBy: { nodes: [false] } }]) {
+    const input = fixture();
+    const item = fixtureElement(input.projectItems, 0);
+    assert.throws(() => buildSourceProvenanceAudit({ ...input, projectItems: [{ ...item, ...malformed }] }), /issue/);
+  }
 });
