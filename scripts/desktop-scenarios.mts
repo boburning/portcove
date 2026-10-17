@@ -106,6 +106,17 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-real-prepared-runtime",
+    "Two reviewed real prepared runtimes use normal Desktop registration, launch and registration-only removal.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-real-runtime-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-startup-preferences-recovery",
     "Malformed saved preferences remain intact until an owned stopped-host repair, then reopen reliably.",
     {
@@ -707,6 +718,11 @@ export function resolveDesktopSelection({
   }
   if (uniqueRequested.includes("native-external-runtime-review") && uniqueRequested.length !== 1)
     throw new Error("native-external-runtime-review requires one exact standalone scenario");
+  if (
+    uniqueRequested.includes("native-real-prepared-runtime") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-real-prepared-runtime requires one exact standalone Windows scenario");
   if (uniqueRequested.includes("native-external-runtime-review") && platform !== "win32")
     throw new Error("native-external-runtime-review requires Windows");
   if (

@@ -1218,6 +1218,27 @@ The curated profiles are:
 - `full`: smoke, owned lifecycle and artwork. It remains a curated native suite,
   not universal desktop, physical-device, gameplay or human qualification.
 
+`--scenario native-real-prepared-runtime` is an opt-in standalone Windows journey
+for the two selected real user-prepared definitions, `dkc3-recomp` and
+`wave-race-64-racewave46`. Set `PORTCOVE_REAL_RUNTIME_INPUTS` to an absolute JSON
+file containing `format_version: 2` and
+`packages` with exactly those two `port_id` values and absolute `source`, `directory` and
+`archive` paths. Each source profile and argument extension comes from Core's catalog;
+the two games may use different originals. Archives must match the normal catalog's size and SHA-256.
+The bounded regular-file inventory rejects linked paths, copies source and
+runtime bytes into the fresh owned output, and records original identities.
+The production CLI verifies source and runtime eligibility; no fixture catalog
+or qualification feature supplies permission. Desktop then reviews native
+folder selection, cancellation, consent, registration, read-only revalidation,
+restart/readback, actual launch and ordinary game close, and registration-only
+removal. Exact child and supervisor identities establish their positive exits.
+Preservation checks allow the definition's game-owned mutable paths while
+requiring unchanged immutable runtime bytes, originals and source copies;
+registration removal preserves the complete postgame inventory. Failure cleanup
+can signal only a separately captured, verified game process tree. This journey
+does not establish human gameplay, an installed package, Linux qualification or
+catalog support admission. Keep any earlier failed receipts and their limits.
+
 `--scenario native-direct-preparation-recovery` is an opt-in Windows journey
 through a real failed owned setup child. Its original source/runtime inputs and
 active installation remain unchanged; the actual Core failure supplies the
