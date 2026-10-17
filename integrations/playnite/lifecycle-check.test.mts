@@ -10,7 +10,7 @@ import {
   runCargoPhase,
 } from "./lifecycle-check.mts";
 
-test("internal Cargo execution requires a matching inherited lease before starting its timer", async () => {
+void test("internal Cargo execution requires a matching inherited lease before starting its timer", async () => {
   let executed = false;
   let released = 0;
   const environment = { PORTCOVE_HEAVY_RUST_LOCK_TOKEN: "owned" };
@@ -49,7 +49,7 @@ test("internal Cargo execution requires a matching inherited lease before starti
   assert.equal(executed, false);
 });
 
-test("actual private phase refuses a forged inherited token without running Cargo", () => {
+void test("actual private phase refuses a forged inherited token without running Cargo", () => {
   const result = spawnSync(
     process.execPath,
     ["integrations/playnite/lifecycle-check.mts", "--cargo-phase", "cli-build"],
@@ -64,7 +64,7 @@ test("actual private phase refuses a forged inherited token without running Carg
   assert.doesNotMatch(result.stdout, /Finished.*dev.*profile/);
 });
 
-test("lifecycle executable and fixture temp follow the resolved storage layout", () => {
+void test("lifecycle executable and fixture temp follow the resolved storage layout", () => {
   for (const target of [path.resolve("target"), path.resolve("external SSD 雪", "cargo")]) {
     const temporary = path.resolve("selected temp 雪");
     assert.deepEqual(lifecyclePaths({ target_directory: target, temporary_directory: temporary }), {
@@ -74,7 +74,7 @@ test("lifecycle executable and fixture temp follow the resolved storage layout",
   }
 });
 
-test("every finite Cargo phase delegates admission and closure to the existing guard", async () => {
+void test("every finite Cargo phase delegates admission and closure to the existing guard", async () => {
   const environment = {
     PORTCOVE_TEMP_DIR: path.resolve("guard temp"),
     PORTCOVE_HEAVY_RUST_LOCK_TOKEN: "inherited",
@@ -99,8 +99,8 @@ test("every finite Cargo phase delegates admission and closure to the existing g
       assert.equal(options.environment, environment);
       assert.equal(options.tempRoot, environment.PORTCOVE_TEMP_DIR);
       assert.equal(
-        options.timeout,
-        undefined,
+        Object.hasOwn(options, "timeout"),
+        false,
         "lock waiting is not under the Cargo execution timer",
       );
       return 0;
@@ -109,7 +109,7 @@ test("every finite Cargo phase delegates admission and closure to the existing g
   }
 });
 
-test("unknown phases and failed/unknown closure cannot continue qualification", async () => {
+void test("unknown phases and failed/unknown closure cannot continue qualification", async () => {
   let calls = 0;
   const guard = async () => {
     calls++;

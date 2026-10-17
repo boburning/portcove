@@ -1,4 +1,16 @@
 import assert from "node:assert/strict";
+import type { StoragePaths } from "../../scripts/dev-storage.mts";
+import type {
+  HeavyRustLock,
+  HeavyRustLockOptions,
+  HeavyRustMetadata,
+} from "../../scripts/heavy-rust-test-lock.mts";
+import type {
+  DirectReleaseSpec,
+  TransportOutputs,
+} from "../../apps/desktop/src/transport-types.generated.d.ts";
+import { isRecord } from "../../scripts/runtime-values.mts";
+import { transportValue } from "../../apps/desktop/scripts/transport-values.mts";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -26,7 +38,7 @@ const contract = path.join(
 );
 const DEFINITION_FIXTURE_PORT_ID = "opengoal-jak1";
 
-export function cargoPhaseArguments(phase, action) {
+export function cargoPhaseArguments(phase: string | undefined, action?: string) {
   if (phase === "cli-build" && action === undefined)
     return [
       "build",
@@ -37,7 +49,11 @@ export function cargoPhaseArguments(phase, action) {
       "--features",
       "portcove-core/qualification-fixtures",
     ];
-  if (phase === "definition-state" && ["select", "install", "revoke"].includes(action))
+  if (
+    phase === "definition-state" &&
+    action !== undefined &&
+    ["select", "install", "revoke"].includes(action)
+  )
     return [
       "test",
       "--locked",
@@ -54,15 +70,28 @@ export function cargoPhaseArguments(phase, action) {
   throw new Error("Unknown Playnite Cargo phase");
 }
 
-export function lifecyclePaths(layout) {
+export function lifecyclePaths(
+  layout: Pick<StoragePaths, "target_directory" | "temporary_directory">,
+) {
+  assert.ok(layout.target_directory, "Rust storage must resolve a target directory");
   return {
     cli: path.join(layout.target_directory, "debug", "portcove.exe"),
     temporary: layout.temporary_directory,
   };
 }
 
-export async function runCargoPhase(phase, action, environment, guard = runRustTests) {
+type CargoGuard = (
+  args: string[],
+  options: { environment: NodeJS.ProcessEnv; tempRoot?: string },
+) => Promise<number>;
+export async function runCargoPhase(
+  phase: string | undefined,
+  action: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  guard: CargoGuard = runRustTests,
+) {
   cargoPhaseArguments(phase, action);
+  assert.ok(phase);
   const code = await guard(
     [
       "--guard-command",
@@ -72,7 +101,12 @@ export async function runCargoPhase(phase, action, environment, guard = runRustT
       phase,
       ...(action === undefined ? [] : [action]),
     ],
-    { environment, tempRoot: environment.PORTCOVE_TEMP_DIR },
+    {
+      environment,
+      ...(environment.PORTCOVE_TEMP_DIR === undefined
+        ? {}
+        : { tempRoot: environment.PORTCOVE_TEMP_DIR }),
+    },
   );
   if (code !== 0)
     throw new Error(
@@ -80,10 +114,27 @@ export async function runCargoPhase(phase, action, environment, guard = runRustT
     );
 }
 
+interface RunOptions {
+  env?: NodeJS.ProcessEnv;
+  timeout?: number;
+  echo?: boolean;
+}
+interface CargoExecutionOptions {
+  environment?: NodeJS.ProcessEnv;
+  acquire?: (
+    metadata: HeavyRustMetadata,
+    options: HeavyRustLockOptions,
+  ) => Promise<Pick<HeavyRustLock, "inherited" | "release">>;
+  execute?: (command: string, args: string[], options: RunOptions) => Promise<unknown>;
+}
 export async function executeCargoPhase(
-  phase,
-  action,
-  { environment = process.env, acquire = acquireHeavyRustTestLock, execute = run } = {},
+  phase: string | undefined,
+  action: string | undefined,
+  {
+    environment = process.env,
+    acquire = acquireHeavyRustTestLock,
+    execute = run,
+  }: CargoExecutionOptions = {},
 ) {
   const args = cargoPhaseArguments(phase, action);
   if (!environment.PORTCOVE_HEAVY_RUST_LOCK_TOKEN)
@@ -102,18 +153,28 @@ export async function executeCargoPhase(
   }
 }
 
-export function run(command, args, { env = process.env, timeout = 600_000, echo = true } = {}) {
-  return new Promise((resolve, reject) => {
+export function run(
+  command: string,
+  args: string[],
+  { env = process.env, timeout = 600_000, echo = true }: RunOptions = {},
+): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
     const child = spawn(command, args, { cwd: root, env, windowsHide: true });
-    const stdout = [];
-    const stderr = [];
-    child.stdout.on("data", (chunk) => stdout.push(chunk));
-    child.stderr.on("data", (chunk) => stderr.push(chunk));
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
+    child.stdout.on("data", (chunk: unknown) => {
+      assert.ok(Buffer.isBuffer(chunk), "unencoded child stdout must contain buffers");
+      stdout.push(chunk);
+    });
+    child.stderr.on("data", (chunk: unknown) => {
+      assert.ok(Buffer.isBuffer(chunk), "unencoded child stderr must contain buffers");
+      stderr.push(chunk);
+    });
     let timedOut = false;
     let settled = false;
-    let closeTimer;
-    let timer;
-    const finish = (action, value) => {
+    let closeTimer: ReturnType<typeof setTimeout> | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const finish = <Value,>(action: (value: Value) => void, value: Value) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
@@ -163,17 +224,40 @@ export function run(command, args, { env = process.env, timeout = 600_000, echo 
   });
 }
 
-async function editRelease(catalogPath, portId, changes) {
-  const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
-  const definition = catalog.ports.find((value) => value.id === portId);
+function object(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value), "qualification catalog field must be an object");
+  return value;
+}
+function objects(value: unknown): Record<string, unknown>[] {
+  assert.ok(Array.isArray(value), "qualification catalog field must be an array");
+  const entries: unknown[] = value;
+  return entries.map(object);
+}
+function envelope(text: string): unknown {
+  const value: unknown = JSON.parse(text);
+  return object(value).data;
+}
+async function editRelease(
+  catalogPath: string,
+  portId: string,
+  changes: Partial<DirectReleaseSpec>,
+) {
+  const catalog = object(JSON.parse(await readFile(catalogPath, "utf8")));
+  const definition = objects(catalog.ports).find((value) => value.id === portId);
   assert.ok(definition, `${portId} must exist in the qualification catalog`);
-  const releases = Object.values(definition.release.direct);
+  const releases = Object.values(object(object(definition.release).direct));
   assert.equal(releases.length, 1, "qualification fixture must expose one platform release");
-  Object.assign(releases[0], changes);
+  Object.assign(object(releases[0]), changes);
   await writeFile(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`);
 }
 
-async function checkReviewedExternal(cli, library, catalogPath, workspace: string, env) {
+async function checkReviewedExternal(
+  cli: string,
+  library: string,
+  catalogPath: string,
+  workspace: string,
+  env: NodeJS.ProcessEnv,
+) {
   const port = "external-consent-fixture";
   const folder = path.join(workspace, "player-owned external 雪");
   await mkdir(folder);
@@ -189,10 +273,9 @@ async function checkReviewedExternal(cli, library, catalogPath, workspace: strin
     .update(size)
     .update(createHash("sha256").update(bytes).digest())
     .digest("hex");
-  const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
-  const definition = structuredClone(
-    catalog.ports.find((value) => value.id === "wave-race-64-recomp"),
-  );
+  const catalog = object(JSON.parse(await readFile(catalogPath, "utf8")));
+  const ports = objects(catalog.ports);
+  const definition = structuredClone(ports.find((value) => value.id === "wave-race-64-recomp"));
   assert.ok(definition, "existing user-prepared adapter must be available to the fixture");
   Object.assign(definition, {
     id: port,
@@ -201,7 +284,8 @@ async function checkReviewedExternal(cli, library, catalogPath, workspace: strin
     presentation: null,
   });
   definition.executable_hints = { "windows-x86-64": ["game.exe"] };
-  definition.release.user_prepared["windows-x86-64"] = {
+  const prepared = object(object(definition.release).user_prepared);
+  const preparedRelease = {
     version: "fixture-v1",
     archive_name: "owned.zip",
     archive_size: bytes.length,
@@ -211,27 +295,38 @@ async function checkReviewedExternal(cli, library, catalogPath, workspace: strin
     source_argument_extension: "z64",
     mutable_paths: ["player.save"],
   };
-  catalog.ports.push(definition);
+  prepared["windows-x86-64"] = preparedRelease;
+  ports.push(definition);
+  catalog.ports = ports;
+  const sourceCatalog = object(catalog.source_catalog);
+  const contracts = objects(sourceCatalog.contracts);
   const sourceBinding = structuredClone(
-    catalog.source_catalog.contracts.find((value) => value.profile_id === "star-fox-64"),
+    contracts.find((value) => value.profile_id === "star-fox-64"),
   );
   assert.ok(sourceBinding, "fixture source profile must have an authoritative contract");
   sourceBinding.port_id = port;
   sourceBinding.id = `${port}-game-source`;
-  catalog.source_catalog.contracts.push(sourceBinding);
+  contracts.push(sourceBinding);
+  sourceCatalog.contracts = contracts;
   const publish = () => writeFile(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`);
   await publish();
-  const invoke = (...args) =>
+  const invoke = (...args: string[]) =>
     run(cli, ["--library", library, "--json", "--non-interactive", "external", ...args], {
       env,
       echo: false,
     });
-  const read = async (...args) => JSON.parse(await invoke(...args)).data;
+  const read = async <Contract extends keyof TransportOutputs>(
+    contract: Contract,
+    ...args: string[]
+  ) => transportValue(contract, envelope(await invoke(...args)));
   const status = async () =>
-    JSON.parse(
-      await run(cli, ["--library", library, "--json", "status", port], { env, echo: false }),
-    ).data;
-  const preview = await read("preview", port, folder);
+    transportValue(
+      "status",
+      envelope(
+        await run(cli, ["--library", library, "--json", "status", port], { env, echo: false }),
+      ),
+    );
+  const preview = await read("external_runtime_preview", "preview", port, folder);
   await assert.rejects(
     invoke("register", port, folder, "--expected-preview", preview.preview_sha256),
     /confirmation|--yes/u,
@@ -241,7 +336,7 @@ async function checkReviewedExternal(cli, library, catalogPath, workspace: strin
     null,
     "declined noninteractive consent cannot register",
   );
-  definition.release.user_prepared["windows-x86-64"].version = "fixture-v2";
+  preparedRelease.version = "fixture-v2";
   await publish();
   await assert.rejects(
     invoke("register", port, folder, "--expected-preview", preview.preview_sha256, "--yes"),
@@ -252,9 +347,10 @@ async function checkReviewedExternal(cli, library, catalogPath, workspace: strin
     null,
     "CLI must not replace the caller's stale consent with a fresh digest",
   );
-  definition.release.user_prepared["windows-x86-64"].version = "fixture-v1";
+  preparedRelease.version = "fixture-v1";
   await publish();
   const registered = await read(
+    "external_runtime_record",
     "register",
     port,
     folder,
@@ -262,7 +358,7 @@ async function checkReviewedExternal(cli, library, catalogPath, workspace: strin
     preview.preview_sha256,
     "--yes",
   );
-  assert.equal((await status()).external_runtime.id, registered.id);
+  assert.equal((await status()).external_runtime?.id, registered.id);
   const original = path.join(workspace, "owned original.n64");
   await writeFile(original, "synthetic original source");
   await run(cli, ["--library", library, "--json", "source", "add", "star-fox-64", original], {
@@ -270,12 +366,14 @@ async function checkReviewedExternal(cli, library, catalogPath, workspace: strin
     echo: false,
   });
   const blocked = await status();
+  assert.ok(blocked.readiness, "external fixture must expose readiness");
+  assert.ok(blocked.port_actions, "external fixture must expose port actions");
   assert.equal(blocked.readiness.source, "current");
   assert.equal(blocked.readiness.required_source_extension, "z64");
   assert.equal(blocked.readiness.launchable, false);
   assert.deepEqual(blocked.readiness.blockers, ["incompatible_source"]);
   assert.equal(
-    blocked.port_actions.find((action) => action.action === "launch").availability,
+    blocked.port_actions.find((action) => action.action === "launch")?.availability,
     "waiting",
   );
   assert.match(
@@ -284,20 +382,24 @@ async function checkReviewedExternal(cli, library, catalogPath, workspace: strin
   );
   await run(contract, ["qualification-source-guidance", cli, library, port, original], { env });
   assert.equal(await readFile(original, "utf8"), "synthetic original source");
-  const removal = await read("removal-preview", port);
+  const removal = await read("external_runtime_removal_preview", "removal-preview", port);
   assert.equal(removal.external_files_will_be_preserved, true);
-  assert.equal((await status()).external_runtime.id, registered.id, "removal preview is read-only");
+  assert.equal(
+    (await status()).external_runtime?.id,
+    registered.id,
+    "removal preview is read-only",
+  );
   await assert.rejects(
     invoke("remove", port, "--expected-preview", "0".repeat(64), "--yes"),
     /conflict/u,
   );
   assert.equal(
-    (await status()).external_runtime.id,
+    (await status()).external_runtime?.id,
     registered.id,
     "stale CLI removal preserves the registration",
   );
-  await read("remove", port, "--expected-preview", removal.preview_sha256, "--yes");
-  const replacement = await read("register", port, folder, "--yes");
+  envelope(await invoke("remove", port, "--expected-preview", removal.preview_sha256, "--yes"));
+  const replacement = await read("external_runtime_record", "register", port, folder, "--yes");
   assert.notEqual(
     replacement.id,
     registered.id,
@@ -308,11 +410,11 @@ async function checkReviewedExternal(cli, library, catalogPath, workspace: strin
     /conflict/u,
   );
   assert.equal(
-    (await status()).external_runtime.id,
+    (await status()).external_runtime?.id,
     replacement.id,
     "replaced registration invalidates old consent",
   );
-  await read("remove", port, "--yes");
+  envelope(await invoke("remove", port, "--yes"));
   assert.equal(
     (await status()).external_runtime ?? null,
     null,
@@ -345,16 +447,23 @@ async function main() {
       PORTCOVE_PREFERENCES: path.join(workspace, "preferences.json"),
       PORTCOVE_QUALIFICATION_CATALOG: fixture.catalogPath,
     };
-    const identity = JSON.parse(
-      await run(cli, ["--library", library, "--json", "--non-interactive", "library", "identity"], {
-        env,
-        echo: false,
-      }),
-    ).data.id;
-    const phase = (mode, port, ...rest) =>
+    const identity = transportValue(
+      "library_identity",
+      envelope(
+        await run(
+          cli,
+          ["--library", library, "--json", "--non-interactive", "library", "identity"],
+          {
+            env,
+            echo: false,
+          },
+        ),
+      ),
+    ).id;
+    const phase = (mode: string, port: string, ...rest: string[]) =>
       run(contract, [mode, cli, library, port, identity, ...rest], { env });
     await checkReviewedExternal(cli, library, fixture.catalogPath, workspace, env);
-    const setDefinitionState = (action) =>
+    const setDefinitionState = (action: string) =>
       runCargoPhase("definition-state", action, {
         ...env,
         PORTCOVE_QUALIFICATION_LIBRARY: library,
@@ -365,6 +474,7 @@ async function main() {
     await phase("qualification-library-busy", INSTALL_REFRESH_FIXTURE_PORT_ID);
     await phase("qualification-concurrency", INSTALL_REFRESH_FIXTURE_PORT_ID);
     assert.equal(fixture.requests.length, 1, "conflict cannot start a competing artifact download");
+    assert.ok(fixture.requests[0]);
     assert.equal(fixture.requests[0].completed, false, "cancellation must precede full delivery");
     assert.equal(
       fixture.requests[0].bytes_sent,
@@ -435,7 +545,7 @@ async function main() {
       .split(/\r?\n/u)
       .find((line: string) => line.startsWith("REAL_MEASUREMENT "));
     assert.ok(measurementLine, "compiled client must emit the real-CLI measurement record");
-    const measurement = JSON.parse(measurementLine.slice("REAL_MEASUREMENT ".length));
+    const measurement: unknown = JSON.parse(measurementLine.slice("REAL_MEASUREMENT ".length));
     await phase("qualification-remove", INSTALL_REFRESH_FIXTURE_PORT_ID);
 
     const report = {
