@@ -129,7 +129,7 @@ impl KnownFailureCause {
             ),
             Self::AmbiguousAdoption => (
                 "adoption_ambiguous",
-                "More than one supported port was detected in this folder. Select the intended port explicitly and review the adoption again.",
+                "More than one matching port was detected in this folder. Select the intended port explicitly and review the adoption again.",
             ),
             Self::StaleRemoval => (
                 "removal_review_stale",
