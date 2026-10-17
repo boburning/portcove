@@ -17,6 +17,62 @@ import {
 } from "./desktop-linux-media.mjs";
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+test(
+  "published readiness cannot hide a wrapper failure with failed persistence and a live child",
+  { skip: process.platform !== "linux", timeout: 30_000 },
+  async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-terminal-"));
+    const evidence = path.join(directory, "readiness.json");
+    const marker = path.join(directory, "child-counter");
+    const module = new URL("./desktop-linux-media.mjs", import.meta.url).href;
+    const childProgram =
+      "import{writeFileSync}from'node:fs';let n=0;setInterval(()=>writeFileSync(process.argv[1],String(++n)),20);process.send('live');";
+    const program = `
+      import assert from 'node:assert/strict';
+      import {spawn} from 'node:child_process';
+      import {writeFile} from 'node:fs/promises';
+      import {once} from 'node:events';
+      import {publishApplicationMediaReadiness, failApplicationMediaWrapper} from ${JSON.stringify(module)};
+      const child=spawn(process.execPath,['--input-type=module','-e',${JSON.stringify(childProgram)},${JSON.stringify(marker)}],{stdio:['ignore','ignore','inherit','ipc']});
+      await once(child,'message');
+      assert.equal(child.exitCode,null);
+      await publishApplicationMediaReadiness(${JSON.stringify(evidence)},{phase:'app-launched'});
+      await writeFile(${JSON.stringify(`${evidence}.failure.json`)},'original failure evidence',{flag:'wx'});
+      await failApplicationMediaWrapper(${JSON.stringify(evidence)},{phase:'app-launched'},new Error('post-publication failure'));
+    `;
+    const launch = await launchLinuxNativeSession(
+      process.execPath,
+      ["--input-type=module", "-e", program],
+      process.env,
+    );
+    launch.child.stdout.resume();
+    launch.child.stderr.resume();
+    try {
+      await launch.ready();
+      const until = Date.now() + 5000;
+      while (!launch.receipt.events.some((event) => event.kind === "driver-exited")) {
+        assert.ok(Date.now() < until, "Wrapper must fail promptly despite its live child");
+        await pause(20);
+      }
+      assert.throws(
+        () => assertMediaWrapperOutcome(launch.receipt.events),
+        /exited unsuccessfully/u,
+      );
+      assert.deepEqual(JSON.parse(await readFile(evidence, "utf8")), { phase: "app-launched" });
+      assert.equal(await readFile(`${evidence}.failure.json`, "utf8"), "original failure evidence");
+      // The ordinary child stays under PID1 custody after the failed wrapper exits.
+      const before = await waitCounter(marker);
+      await waitCounter(marker, before);
+    } finally {
+      const closed = await launch.stop();
+      assert.equal(closed.quiesced, true);
+    }
+    const final = await counter(marker);
+    await pause(100);
+    assert.equal(await counter(marker), final);
+  },
+);
+
 test("application media readiness waits for atomic publication within the existing startup deadline", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-publication-"));
   const file = path.join(directory, "readiness.json");

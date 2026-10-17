@@ -88,6 +88,22 @@ export async function awaitApplicationMediaReadiness(file, launch, deadline) {
   }
 }
 
+export async function failApplicationMediaWrapper(evidence, report, error) {
+  try {
+    await save(`${evidence}.failure.json`, {
+      ...report,
+      phase: "failed",
+      failure: { name: error.name, message: error.message },
+    });
+  } catch (secondary) {
+    console.error(`Application media failure persistence (secondary): ${secondary.message}`);
+  }
+  console.error(error);
+  // A live app child must not keep a failed wrapper alive. The existing PID1
+  // retains descendant custody and reports this nonzero driver exit separately.
+  process.exit(1);
+}
+
 export function assertHostedMediaEnvironment(environment, platform, uid) {
   assert.equal(platform, "linux");
   assert.ok(Number.isSafeInteger(uid) && uid > 0, "Use an ordinary runner user");
@@ -544,17 +560,7 @@ async function launchProbedApplication(file, app, expectedSha256, evidence) {
     assert.equal(status.signal, null, "Ordinary app exited by signal before namespace cleanup");
     process.exitCode = status.code ?? 1;
   } catch (error) {
-    try {
-      await save(`${evidence}.failure.json`, {
-        ...report,
-        phase: "failed",
-        failure: { name: error.name, message: error.message },
-      });
-    } catch (secondary) {
-      error.evidenceFailure = secondary.message;
-      console.error(`Application media failure persistence (secondary): ${secondary.message}`);
-    }
-    throw error;
+    await failApplicationMediaWrapper(evidence, report, error);
   }
 }
 
