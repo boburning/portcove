@@ -139,8 +139,8 @@ pub use definition_repository::{
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use external_runtime::{ExternalRuntimePreview, ExternalRuntimeRemovalPreview};
 pub use failure::{
-    FailurePresentation, FailureReport, FailureTone, MutationState, RecoveryAction,
-    redact_diagnostic_text, redact_diagnostic_value, sensitive_diagnostic_field,
+    FailurePresentation, FailureRecoveryTarget, FailureReport, FailureTone, MutationState,
+    RecoveryAction, redact_diagnostic_text, redact_diagnostic_value, sensitive_diagnostic_field,
 };
 pub use game_file_query::{
     GameFileQueryReason, GameFileQueryRefreshRequest, GameFileQuerySnapshot, GameFileQueryState,
