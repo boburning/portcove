@@ -13,11 +13,10 @@ import {
 } from "./audit.mts";
 import { buildAuditBundle, AUDIT_BUNDLE_LIMITS } from "./audit-evidence.mts";
 
-const baseline = JSON.parse(
-  readFileSync(new URL("./fixtures/audit-fingerprint-baseline.json", import.meta.url)),
-);
+import { baseline, firstAuditBaseline } from "./fixtures/audit-baseline-fixture.mts";
+import { isRecord } from "./runtime-values.mts";
 
-test("hosted input capture precedes stage execution and retains the actual original plan", () => {
+void test("hosted input capture precedes stage execution and retains the actual original plan", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "audit-capture-"));
   const environment = {
     GITHUB_REPOSITORY: "boburning/portcove",
@@ -31,7 +30,7 @@ test("hosted input capture precedes stage execution and retains the actual origi
   const original = Object.fromEntries(Object.keys(environment).map((k) => [k, process.env[k]]));
   try {
     Object.assign(process.env, environment);
-    const entry = structuredClone(baseline.cases[0]);
+    const entry = firstAuditBaseline();
     const plan = planAudit({
       inventory: entry.inventory,
       runtime: entry.runtime,
@@ -42,15 +41,23 @@ test("hosted input capture precedes stage execution and retains the actual origi
     executeAudit(plan, {
       captureHosted: true,
       execute: () => {
-        const capture = JSON.parse(
+        const capture: unknown = JSON.parse(
           readFileSync(path.join(root, "audit-inputs-123-2.json"), "utf8"),
         );
+        assert(
+          isRecord(capture) && isRecord(capture.payload) && isRecord(capture.payload.stageInputs),
+        );
         assert.equal(receiptEnvelope(capture.payload.stageInputs.format).integrity, entry.expected);
-        entry.inventory.files[0].sha256 = "changed after capture";
+        const firstFile = entry.inventory.files[0];
+        assert(firstFile);
+        firstFile.sha256 = "changed after capture";
         return { status: 0 };
       },
     });
-    const capture = JSON.parse(readFileSync(path.join(root, "audit-inputs-123-2.json"), "utf8"));
+    const capture: unknown = JSON.parse(
+      readFileSync(path.join(root, "audit-inputs-123-2.json"), "utf8"),
+    );
+    assert(isRecord(capture) && isRecord(capture.payload) && isRecord(capture.payload.stageInputs));
     assert.equal(receiptEnvelope(capture.payload.stageInputs.format).integrity, entry.expected);
   } finally {
     for (const [key, value] of Object.entries(original)) {
@@ -60,7 +67,7 @@ test("hosted input capture precedes stage execution and retains the actual origi
     rmSync(root, { recursive: true, force: true });
   }
 });
-test("reviewed pre-change fingerprints and serialized input semantics are preserved", () => {
+void test("reviewed pre-change fingerprints and serialized input semantics are preserved", () => {
   for (const entry of baseline.cases) {
     assert.equal(
       fingerprintStage(entry.stage, entry.inventory, entry.runtime),
@@ -75,10 +82,10 @@ test("reviewed pre-change fingerprints and serialized input semantics are preser
   }
 });
 
-test("capture failure does not replace audit execution or its primary failure", () => {
+void test("capture failure does not replace audit execution or its primary failure", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "audit-capture-failure-"));
   try {
-    const entry = structuredClone(baseline.cases[0]);
+    const entry = firstAuditBaseline();
     const plan = planAudit({
       inventory: entry.inventory,
       runtime: entry.runtime,
@@ -86,7 +93,7 @@ test("capture failure does not replace audit execution or its primary failure", 
       fresh: true,
       receiptRoot: path.join(root, "receipts"),
     });
-    const calls = [];
+    const calls: string[] = [];
     const result = executeAudit(plan, {
       captureHosted: true,
       captureInputs: () => {
@@ -100,8 +107,8 @@ test("capture failure does not replace audit execution or its primary failure", 
     assert.deepEqual(calls, ["frontend-static", "rust"]);
     assert.equal(result.captureAvailable, false);
     assert.equal(result.success, false);
-    assert.equal(result.results[0].exitCode, 7);
-    assert.equal(result.results[1].status, "passed");
+    assert.equal(result.results[0]?.exitCode, 7);
+    assert.equal(result.results[1]?.status, "passed");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -124,10 +131,18 @@ function fixture() {
   const stageInputs = Object.fromEntries(
     stages.map((stage) => [
       stage.id,
-      fingerprintInputs(stage, baseline.cases[0].inventory, baseline.cases[0].runtime),
+      fingerprintInputs(stage, firstAuditBaseline().inventory, firstAuditBaseline().runtime),
     ]),
   );
-  const results = stages.map((s) => ({
+  const results: {
+    id: string;
+    recipe: string;
+    status: string;
+    fingerprint: string;
+    originatingHead: string;
+    durationMs: number;
+    exitCode?: number;
+  }[] = stages.map((s) => ({
     id: s.id,
     recipe: s.recipe,
     status: "passed",
@@ -181,12 +196,18 @@ function fixture() {
   return { identity, binding, capture, aggregate, receipts };
 }
 
-test("attempt-bound bundle retains original inputs and receipt identities within fixed limits", () => {
+void test("attempt-bound bundle retains original inputs and receipt identities within fixed limits", () => {
   const f = fixture();
   const bundle = buildAuditBundle(f);
   assert.equal(bundle.manifest.diagnosticOnly, false);
-  assert.deepEqual(JSON.parse(bundle.files.get("inputs.json")), f.capture);
-  assert.deepEqual(JSON.parse(bundle.files.get("receipts/rust.json")), f.receipts.rust);
+  assert.deepEqual(
+    JSON.parse(requiredFile(bundle.files, "inputs.json").toString("utf8")),
+    f.capture,
+  );
+  assert.deepEqual(
+    JSON.parse(requiredFile(bundle.files, "receipts/rust.json").toString("utf8")),
+    f.receipts.rust,
+  );
   assert.ok(bundle.files.size <= AUDIT_BUNDLE_LIMITS.files);
   assert.ok(
     [...bundle.files.values()].reduce((n, b) => n + b.length, 0) <=
@@ -194,12 +215,14 @@ test("attempt-bound bundle retains original inputs and receipt identities within
   );
 });
 
-test("failed audit is diagnostic only and never exports failed or stale stage receipts", () => {
+void test("failed audit is diagnostic only and never exports failed or stale stage receipts", () => {
   const f = fixture();
   const payload = f.aggregate.payload;
   payload.success = false;
-  payload.stages.find((stage) => stage.id === "rust").status = "failed";
-  payload.stages.find((stage) => stage.id === "rust").exitCode = 1;
+  const rust = payload.stages.find((stage) => stage.id === "rust");
+  assert(rust);
+  rust.status = "failed";
+  rust.exitCode = 1;
   f.aggregate = receiptEnvelope(payload);
   f.binding.exitCode = "1";
   f.binding.receiptIntegrity = f.aggregate.integrity;
@@ -208,8 +231,8 @@ test("failed audit is diagnostic only and never exports failed or stale stage re
   assert.equal(b.files.has("receipts/rust.json"), false);
 });
 
-test("wrong attempt, stale capture, incomplete aggregate and substituted inputs fail closed", () => {
-  for (const mutate of [
+void test("wrong attempt, stale capture, incomplete aggregate and substituted inputs fail closed", () => {
+  const mutations: ((f: ReturnType<typeof fixture>) => void)[] = [
     (f) => {
       f.identity.attempt = "3";
     },
@@ -224,32 +247,71 @@ test("wrong attempt, stale capture, incomplete aggregate and substituted inputs 
       f.binding.receiptIntegrity = f.aggregate.integrity;
     },
     (f) => {
-      f.capture.payload.stageInputs.rust.runtime.rustc = "changed";
+      const rustInputs = f.capture.payload.stageInputs.rust;
+      assert(rustInputs);
+      rustInputs.runtime.rustc = "changed";
       f.capture = receiptEnvelope(f.capture.payload);
     },
     (f) => {
+      const rustReceipt = f.receipts.rust;
+      assert(rustReceipt);
       f.receipts.rust = receiptEnvelope({
-        ...f.receipts.rust.payload,
+        ...rustReceipt.payload,
         originatingHead: "b".repeat(40),
       });
     },
-  ]) {
+  ];
+  for (const mutate of mutations) {
     const f = fixture();
     mutate(f);
     assert.throws(() => buildAuditBundle(f));
   }
 });
 
-test("expanded input excess is rejected before compression", () => {
+void test("expanded input excess is rejected before compression", () => {
   const f = fixture();
-  f.capture = JSON.parse(JSON.stringify(f.capture));
-  f.capture.payload.stageInputs["frontend-static"].runtime.environment.EXTRA = "x".repeat(
-    AUDIT_BUNDLE_LIMITS.expandedBytes,
-  );
+  f.capture = structuredClone(f.capture);
+  const frontendInputs = f.capture.payload.stageInputs["frontend-static"];
+  assert(frontendInputs);
+  frontendInputs.runtime.environment.EXTRA = "x".repeat(AUDIT_BUNDLE_LIMITS.expandedBytes);
   f.capture = receiptEnvelope(f.capture.payload);
-  f.aggregate.payload.stages.find((stage) => stage.id === "frontend-static").fingerprint =
-    receiptEnvelope(f.capture.payload.stageInputs["frontend-static"]).integrity;
+  const frontendResult = f.aggregate.payload.stages.find((stage) => stage.id === "frontend-static");
+  assert(frontendResult);
+  frontendResult.fingerprint = receiptEnvelope(frontendInputs).integrity;
   f.aggregate = receiptEnvelope(f.aggregate.payload);
   f.binding.receiptIntegrity = f.aggregate.integrity;
   assert.throws(() => buildAuditBundle(f), /expanded byte limit/);
+});
+
+function requiredFile(files: ReadonlyMap<string, Buffer>, name: string) {
+  const bytes = files.get(name);
+  assert(bytes);
+  return bytes;
+}
+
+void test("wire identity and timestamp coercion cannot authorize an audit bundle", () => {
+  for (const key of ["workflowDigest", "run"] as const) {
+    const f = fixture();
+    const identity = { ...f.identity, [key]: [f.identity[key]] };
+    const binding = { ...f.binding, [key]: identity[key] };
+    const capture = receiptEnvelope({ ...f.capture.payload, identity });
+    assert.throws(
+      () => buildAuditBundle({ ...f, identity, binding, capture }),
+      /producer identity/,
+    );
+  }
+  const f = fixture();
+  const aggregate = receiptEnvelope({
+    ...f.aggregate.payload,
+    completedAt: [f.aggregate.payload.completedAt],
+  });
+  assert.throws(
+    () =>
+      buildAuditBundle({
+        ...f,
+        aggregate,
+        binding: { ...f.binding, receiptIntegrity: aggregate.integrity },
+      }),
+    /complete execution report/,
+  );
 });

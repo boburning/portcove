@@ -1,4 +1,4 @@
-import { errorMessage } from "./runtime-values.mts";
+import { errorMessage, isRecord } from "./runtime-values.mts";
 import { createHash, randomUUID } from "node:crypto";
 import { lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -15,33 +15,72 @@ export const AUDIT_BUNDLE_LIMITS = Object.freeze({
 const sha = /^[a-f0-9]{40}$/;
 const digest = /^[a-f0-9]{64}$/;
 const positive = /^[1-9][0-9]{0,12}$/;
-const keys = ["source", "workflowSha", "workflowRef", "workflowDigest", "run", "attempt"];
-function requireValid(condition, reason) {
+const keys = ["source", "workflowSha", "workflowRef", "workflowDigest", "run", "attempt"] as const;
+function requireValid(condition: unknown, reason: string): asserts condition {
   if (!condition) throw new Error(`Audit bundle rejected: ${reason}`);
 }
-function intact(value) {
-  return value?.payload && value.integrity === receiptEnvelope(value.payload).integrity;
+interface AuditEnvelope {
+  payload: Record<string, unknown>;
+  integrity: string;
 }
-function within(time, binding) {
-  const ms = Date.parse(time);
+function intact(value: unknown): value is AuditEnvelope {
+  return (
+    isRecord(value) &&
+    isRecord(value.payload) &&
+    typeof value.integrity === "string" &&
+    value.integrity === receiptEnvelope(value.payload).integrity
+  );
+}
+function within(time: unknown, binding: { startedMs: number; completedMs: number }) {
+  const ms = typeof time === "string" ? Date.parse(time) : NaN;
   return Number.isFinite(ms) && ms >= binding.startedMs && ms <= binding.completedMs;
 }
 
-export function buildAuditBundle({ identity, binding, capture, aggregate, receipts }) {
+export type AuditProducerIdentity = {
+  [Key in keyof ReturnType<typeof hostedAuditIdentity>]: string;
+};
+function assertProducerIdentity(identity: unknown): asserts identity is AuditProducerIdentity {
   requireValid(
-    identity?.repository === "boburning/portcove" &&
+    isRecord(identity) &&
+      identity.repository === "boburning/portcove" &&
+      typeof identity.source === "string" &&
       sha.test(identity.source) &&
+      typeof identity.workflowSha === "string" &&
       sha.test(identity.workflowSha) &&
+      typeof identity.workflowDigest === "string" &&
       digest.test(identity.workflowDigest) &&
+      typeof identity.run === "string" &&
       positive.test(identity.run) &&
+      typeof identity.attempt === "string" &&
       positive.test(identity.attempt) &&
+      typeof identity.workflowRef === "string" &&
       /^boburning\/portcove\/\.github\/workflows\/deep-quality.yml@refs\/heads\/[A-Za-z0-9_./-]+$/.test(
         identity.workflowRef,
       ),
     "producer identity",
   );
+}
+
+export interface AuditBundleInputs {
+  identity: unknown;
+  binding: unknown;
+  capture: unknown;
+  aggregate: unknown;
+  receipts: Readonly<Record<string, unknown>>;
+}
+export function buildAuditBundle({
+  identity,
+  binding,
+  capture,
+  aggregate,
+  receipts,
+}: AuditBundleInputs) {
+  assertProducerIdentity(identity);
   requireValid(
-    keys.every((k) => binding?.[k] === identity[k]) &&
+    isRecord(binding) &&
+      keys.every((k) => binding[k] === identity[k]) &&
+      typeof binding.startedMs === "number" &&
+      typeof binding.completedMs === "number" &&
       Number.isSafeInteger(binding.startedMs) &&
       Number.isSafeInteger(binding.completedMs) &&
       binding.startedMs > 0 &&
@@ -49,32 +88,37 @@ export function buildAuditBundle({ identity, binding, capture, aggregate, receip
       binding.completedMs <= Date.now(),
     "attempt binding",
   );
-  const input = capture?.payload;
-  const result = aggregate?.payload;
+  requireValid(intact(capture), "original input capture");
+  const input = capture.payload;
+  const executionWindow = { startedMs: binding.startedMs, completedMs: binding.completedMs };
+  const inputIdentity = input.identity;
   requireValid(
-    intact(capture) &&
-      input.format === 1 &&
+    input.format === 1 &&
       input.kind === "audit-inputs" &&
       input.head === identity.source &&
       input.profile === "complete" &&
-      keys.every((k) => input.identity?.[k] === identity[k]) &&
-      input.identity.repository === identity.repository &&
-      within(input.capturedAt, binding),
+      isRecord(inputIdentity) &&
+      keys.every((k) => inputIdentity[k] === identity[k]) &&
+      inputIdentity.repository === identity.repository &&
+      within(input.capturedAt, executionWindow),
     "original input capture",
   );
+  requireValid(intact(aggregate), "complete execution report");
+  const result = aggregate.payload;
   const expected = AUDIT_STAGES.filter((s) => !s.platforms || s.platforms.includes("linux"));
   requireValid(
-    intact(aggregate) &&
-      result.format === 1 &&
+    result.format === 1 &&
       result.kind === "audit-run" &&
       result.profile === "complete" &&
       result.head === identity.source &&
-      within(result.completedAt, binding) &&
+      within(result.completedAt, executionWindow) &&
       binding.receiptIntegrity === aggregate.integrity &&
       Array.isArray(result.stages) &&
       result.stages.length === expected.length &&
       typeof result.success === "boolean" &&
-      result.success === result.stages.every((s) => s.status === "passed") &&
+      result.success ===
+        result.stages.every((s: unknown) => isRecord(s) && s.status === "passed") &&
+      typeof binding.exitCode === "string" &&
       /^(?:0|[1-9][0-9]{0,2})$/.test(binding.exitCode) &&
       Number(binding.exitCode) <= 255 &&
       (result.success
@@ -83,26 +127,35 @@ export function buildAuditBundle({ identity, binding, capture, aggregate, receip
           (binding.exitCode === "0" && recordsDevelopmentPolicy(result, identity.source))),
     "complete execution report",
   );
-  requireValid(Object.keys(input.stageInputs).length === expected.length, "input stage inventory");
-  const files = new Map();
-  const add = (name, value) => files.set(name, Buffer.from(`${JSON.stringify(value)}\n`));
+  requireValid(isRecord(input.stageInputs), "input stage inventory");
+  const stageInputs = input.stageInputs;
+  const observedStages: unknown[] = result.stages;
+  requireValid(Object.keys(stageInputs).length === expected.length, "input stage inventory");
+  const files = new Map<string, Buffer>();
+  const add = (name: string, value: unknown) =>
+    files.set(name, Buffer.from(`${JSON.stringify(value)}\n`));
   add("inputs.json", capture);
   add("audit.json", aggregate);
   add("binding.json", binding);
   expected.forEach((stage, index) => {
-    const observed = result.stages[index];
-    const inputs = input.stageInputs[stage.id];
+    const observed = observedStages[index];
+    const inputs = stageInputs[stage.id];
     requireValid(
-      inputs?.contract === 1 &&
-        inputs.runtime?.platform === "linux" &&
-        inputs.stage?.id === stage.id &&
+      isRecord(inputs) &&
+        inputs.contract === 1 &&
+        isRecord(inputs.runtime) &&
+        inputs.runtime.platform === "linux" &&
+        isRecord(inputs.stage) &&
+        inputs.stage.id === stage.id &&
         inputs.stage.recipe === stage.recipe &&
         inputs.stage.domain === stage.domain &&
+        isRecord(observed) &&
         observed.id === stage.id &&
         observed.recipe === stage.recipe &&
-        ["passed", "failed"].includes(observed.status) &&
+        (observed.status === "passed" || observed.status === "failed") &&
         observed.originatingHead === identity.source &&
         observed.fingerprint === receiptEnvelope(inputs).integrity &&
+        typeof observed.durationMs === "number" &&
         Number.isSafeInteger(observed.durationMs) &&
         observed.durationMs >= 0,
       `stage ${stage.id}`,
@@ -110,11 +163,13 @@ export function buildAuditBundle({ identity, binding, capture, aggregate, receip
     if (stage.reusable && observed.status === "passed") {
       const receipt = receipts[stage.id];
       requireValid(
-        validateReceipt(receipt, { stageId: stage.id, fingerprint: observed.fingerprint }).valid &&
+        intact(receipt) &&
+          validateReceipt(receipt, { stageId: stage.id, fingerprint: observed.fingerprint })
+            .valid &&
           receipt.payload.recipe === stage.recipe &&
           receipt.payload.originatingHead === identity.source &&
           receipt.payload.durationMs === observed.durationMs &&
-          within(receipt.payload.completedAt, binding),
+          within(receipt.payload.completedAt, executionWindow),
         `receipt ${stage.id}`,
       );
       add(`receipts/${stage.id}.json`, receipt);
@@ -152,7 +207,7 @@ export function buildAuditBundle({ identity, binding, capture, aggregate, receip
   return { manifest, files };
 }
 
-function readBoundedJson(file, budget) {
+function readBoundedJson(file: string, budget: { bytes: number; files: number }): unknown {
   const stat = lstatSync(file);
   requireValid(
     stat.isFile() && !stat.isSymbolicLink() && stat.size <= budget.bytes && budget.files > 0,
@@ -184,17 +239,25 @@ export function exportAuditBundle(root = fileURLToPath(new URL("../", import.met
     path.join(receiptRoot, "audits", `${identity.source}.json`),
     budget,
   );
-  const receipts = Object.fromEntries(
-    aggregate.payload.stages
-      .filter((s) => s.status === "passed" && AUDIT_STAGES.find((e) => e.id === s.id)?.reusable)
-      .map((s) => {
-        requireValid(digest.test(s.fingerprint), "receipt fingerprint path");
-        return [
-          s.id,
-          readBoundedJson(path.join(receiptRoot, "stages", s.id, `${s.fingerprint}.json`), budget),
-        ];
-      }),
+  requireValid(
+    intact(aggregate) && Array.isArray(aggregate.payload.stages),
+    "complete execution report",
   );
+  const observedStages: unknown[] = aggregate.payload.stages;
+  const receipts: Record<string, unknown> = {};
+  for (const stage of observedStages) {
+    requireValid(isRecord(stage) && typeof stage.id === "string", "receipt stage identity");
+    if (stage.status !== "passed" || !AUDIT_STAGES.find((entry) => entry.id === stage.id)?.reusable)
+      continue;
+    requireValid(
+      typeof stage.fingerprint === "string" && digest.test(stage.fingerprint),
+      "receipt fingerprint path",
+    );
+    receipts[stage.id] = readBoundedJson(
+      path.join(receiptRoot, "stages", stage.id, `${stage.fingerprint}.json`),
+      budget,
+    );
+  }
   const bundle = buildAuditBundle({ identity, binding, capture, aggregate, receipts });
   const directory = path.join(root, "work", "audit-bundles", `${identity.run}-${identity.attempt}`);
   const temporary = `${directory}.${randomUUID()}.tmp`;

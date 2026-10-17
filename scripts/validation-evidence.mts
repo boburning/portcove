@@ -575,10 +575,32 @@ function digest(value: unknown) {
     .digest("hex");
 }
 
+/** Fingerprints preserve absent historical identity fields as absent, rather than inventing values. */
+export interface FingerprintInventory {
+  objectFormat?: RepositoryInventory["objectFormat"];
+  files: (Pick<InventoryFile, "path" | "kind" | "domains" | "ambiguous"> &
+    Partial<
+      Pick<
+        InventoryFile,
+        "sha256" | "headMode" | "indexMode" | "worktreeMode" | "headBlob" | "indexBlob" | "gitBlob"
+      >
+    >)[];
+}
+type RequiredRuntimeKey =
+  | "platform"
+  | "architecture"
+  | "osRelease"
+  | "node"
+  | "git"
+  | "just"
+  | "environment";
+export type FingerprintRuntime = Pick<ValidationRuntime, RequiredRuntimeKey> & {
+  [Key in keyof Omit<ValidationRuntime, RequiredRuntimeKey>]?: ValidationRuntime[Key] | null;
+};
 export function fingerprintInputs(
   stage: StageIdentity,
-  inventory: Pick<RepositoryInventory, "objectFormat" | "files">,
-  runtime: ValidationRuntime,
+  inventory: FingerprintInventory,
+  runtime: FingerprintRuntime,
 ) {
   const inputs = inventory.files
     .filter((file) => file.domains.includes(stage.domain))
@@ -637,8 +659,8 @@ export function fingerprintInputs(
 
 export function fingerprintStage(
   stage: StageIdentity,
-  inventory: Pick<RepositoryInventory, "objectFormat" | "files">,
-  runtime: ValidationRuntime,
+  inventory: FingerprintInventory,
+  runtime: FingerprintRuntime,
 ) {
   return digest(fingerprintInputs(stage, inventory, runtime));
 }
