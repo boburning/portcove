@@ -1,4 +1,5 @@
 import type { ResourceLease } from "./resource-capacity.mts";
+import { restartedNativePreparation } from "./container-recovery.mts";
 import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
 import { runRustTests } from "./run-rust-tests.mts";
 import { EventEmitter } from "node:events";
@@ -203,6 +204,7 @@ interface RunState extends FailureState {
   capacity_retained?: string;
   capacity_recovery_journal?: unknown;
   build_completion?: unknown;
+  daemon_restart_proof?: unknown;
 }
 interface BrowserOptions {
   commit: unknown;
@@ -1189,6 +1191,7 @@ export function createContainerHost(profile: string) {
           "heavy-rust-test-lock.mts",
           "process-lock.mts",
           "fallow-source.mts",
+          "container-recovery.mts",
         ].map((name) => [name, hash(readFileSync(path.join(root, "scripts", name)))]),
       ),
       wrapper_sha256: hash(readFileSync(path.join(root, `scripts/${namespace}.mts`))),
@@ -1727,7 +1730,7 @@ export function createContainerHost(profile: string) {
     };
   }
 
-  async function preparationStopped(state: RunState) {
+  async function preparationStopped(state: RunState, recoveryHost?: unknown, directory?: string) {
     if (state.capacity_phase === "local-preparation")
       return capacityChildrenStopped(state.capacity);
     if (["admitted", "prepared"].includes(state.capacity_phase ?? "")) return true;
@@ -1742,8 +1745,112 @@ export function createContainerHost(profile: string) {
         .filter(Boolean)
         .map(parseJson);
       const completion = completedContainerPreparation(records, state.build_name);
-      if (!completion) return false;
-      state.build_completion = completion;
+      if (completion) {
+        state.build_completion = completion;
+        return true;
+      }
+      // An absent history record is never proof by itself. Recovery may use an
+      // actual native-daemon replacement after the preserved terminal failure.
+      if (
+        !recoveryHost ||
+        !directory ||
+        records.some((item) => object(item).name === state.build_name) ||
+        !(await capacityChildrenStopped(state.capacity))
+      )
+        return false;
+      const inspection = (await docker(["buildx", "inspect", "desktop-linux"])).stdout;
+      if (
+        !/^Driver:[ \t]+docker[ \t]*\r?$/mu.test(inspection) ||
+        !/^Status:[ \t]+running[ \t]*\r?$/mu.test(inspection)
+      )
+        return false;
+      const logRoot = path.join(
+        string(process.env.LOCALAPPDATA, "Local AppData"),
+        "Docker",
+        "log",
+        "vm",
+      );
+      if (lstatSync(logRoot).isSymbolicLink())
+        throw new Error("Docker lifecycle log directory is linked");
+      if (realpathSync.native(logRoot).toLowerCase() !== path.resolve(logRoot).toLowerCase())
+        throw new Error("Docker lifecycle log directory resolves elsewhere");
+      const names = [
+        "init.log",
+        ...readdirSync(logRoot)
+          .filter((name) => /^init\.log\.\d{8}-\d{6}\.\d{3}$/u.test(name))
+          .sort()
+          .reverse()
+          .slice(0, 15),
+      ];
+      const contents = new Map<string, string>();
+      const events: unknown[] = [];
+      let bytes = 0;
+      for (const name of names) {
+        const file = path.join(logRoot, name),
+          info = lstatSync(file);
+        if (!info.isFile() || info.isSymbolicLink() || info.size > 2 * 1024 ** 2)
+          throw new Error("Docker lifecycle log is not an ordinary bounded file");
+        bytes += info.size;
+        if (bytes > 16 * 1024 ** 2) throw new Error("Docker lifecycle log read exceeds 16 MiB");
+        const content = readFileSync(file, "utf8");
+        contents.set(name, content);
+        for (const line of content.split(/\r?\n/u)) {
+          if (!line.trim()) continue;
+          try {
+            const event: unknown = JSON.parse(line);
+            if (isRecord(event)) events.push({ ...event, source_file: name });
+          } catch {
+            /* Non-JSON diagnostics cannot establish lifecycle proof. */
+          }
+        }
+      }
+      const dispatchFile = path.join(directory, "failed-command.log"),
+        terminalFile = path.join(directory, "events.jsonl");
+      for (const file of [dispatchFile, terminalFile]) {
+        const info = lstatSync(file);
+        if (!info.isFile() || info.isSymbolicLink() || info.size > 16 * 1024 ** 2)
+          throw new Error("Preparation failure evidence is not an ordinary bounded file");
+      }
+      const dispatch = readFileSync(dispatchFile, "utf8"),
+        terminal = readFileSync(terminalFile, "utf8");
+      const proof = restartedNativePreparation({
+        state,
+        observation: recoveryHost,
+        dispatch,
+        terminal: terminal.trim().split(/\r?\n/u).filter(Boolean).map(parseJson),
+        lifecycle: events,
+      });
+      if (!proof) return false;
+      const proofRoot = path.join(directory, `daemon-restart-proof-${randomUUID()}`);
+      mkdirSync(proofRoot, { recursive: true });
+      if (lstatSync(proofRoot).isSymbolicLink())
+        throw new Error("Recovery proof directory is linked");
+      const sources = [];
+      for (const name of new Set([proof.stopped.source_file, proof.started.source_file])) {
+        const file = string(name, "lifecycle source"),
+          content = contents.get(file);
+        if (content === undefined) throw new Error("Lifecycle source was not collected");
+        writeFileSync(path.join(proofRoot, file), content, { flag: "wx" });
+        sources.push({ file, bytes: Buffer.byteLength(content), sha256: hash(content) });
+      }
+      state.daemon_restart_proof = {
+        ...proof,
+        sources,
+        dispatch_sha256: hash(dispatch),
+        terminal_sha256: hash(terminal),
+        observation: recoveryHost,
+        proof_directory: path.basename(proofRoot),
+        recovery_driver: {
+          commit: await git(["rev-parse", "HEAD"]),
+          host_sha256: hash(readFileSync(fileURLToPath(import.meta.url))),
+          policy_sha256: hash(readFileSync(path.join(root, "scripts/container-recovery.mts"))),
+        },
+      };
+      writeFileSync(
+        path.join(proofRoot, "proof.json"),
+        JSON.stringify(state.daemon_restart_proof, null, 2),
+        { flag: "wx" },
+      );
       return true;
     }
     const inspected = await inspectContainer(
@@ -1761,12 +1868,12 @@ export function createContainerHost(profile: string) {
     const state = runState(json(file));
     if (state.tool !== tool || state.workspace !== workspace || state.run !== run)
       throw new Error("Recovery ownership mismatch");
-    await doctor({ networkRequired: false });
+    const recoveryHost = await doctor({ networkRequired: false });
     if (state.capacity && !state.capacity_released) {
       state.capacity_recovery_journal = await reconcileExternalCapacity(
         state.capacity,
         state.capacity_external,
-        () => preparationStopped(state),
+        () => preparationStopped(state, recoveryHost, directory),
       );
       state.capacity_released = true;
       record(file, state);

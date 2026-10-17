@@ -75,6 +75,16 @@ format stays failed; existing files cannot turn it into success. Compile/archive
 inspection establishes no installed, GUI, minimum-platform, updater, security,
 signing or publication acceptance.
 
+Recovery normally requires the exact terminal BuildKit record. If an incomplete
+pre-runtime native build loses that record, recovery may instead establish actual
+local daemon replacement **after its preserved terminal failure**. It requires the
+original native-driver dispatch log, stopped client custody, a fresh validated
+Desktop/WSL engine and unchanged Docker disk, plus ordered installed-Docker init
+daemon stop/start events. A changed Desktop session or an existing image alone is
+insufficient. Bounded raw lifecycle logs and content hashes are retained with the
+run. Existing dead-owner, token and release-journal checks still control release;
+the failed run stays incomplete. Recovery never restarts the engine itself.
+
 ## Resource and evidence boundaries
 
 The task runs as UID/GID 1000 without sudo, mounts, host home/game libraries,
