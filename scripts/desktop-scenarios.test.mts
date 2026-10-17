@@ -177,6 +177,16 @@ test("scan cleanup attempts every owned action and retains the primary scenario 
   const navigate = runInNewContext(`${source.slice(start, end)}\nprogressiveScanNavigation`, {
     assert,
     path,
+    // This dependency-free source-slice fixture isolates cleanup ordering.
+    // Rust-schema admission is tested by transport-values.test.mts; these
+    // deliberate partial/incorrect observations must still reach cleanup checks.
+    transportValue: (_contract, value) => value,
+    transportValues: (_contract, value) => value,
+    gameFileRoot: (value) => value,
+    object: (value) => value,
+    rethrowFailure: (error) => {
+      throw error;
+    },
     requireTrustedProbeCleanup,
     reviewControls: () => ({
       button: (name) => name,

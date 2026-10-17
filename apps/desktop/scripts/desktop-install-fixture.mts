@@ -479,7 +479,7 @@ async function addSelectedSetupSources({
     game,
     replacement,
     bios,
-    profiles: profiles.map(({ id }) => id),
+    profiles: [profiles[0].id, profiles[1].id] as const,
   };
 }
 
