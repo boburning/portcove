@@ -281,6 +281,108 @@ export async function workspaceRefreshScenario({
       );
       assert.ok(observations.commands.includes("get_workspace_changed"));
       assert.ok(observations.commands.includes("get_workspace_snapshot"));
+      // Controlled native presentation only: the real Core status remains
+      // unchanged; actual incompatible-source execution is covered separately.
+      const sourceFormat = {
+        injection:
+          "replace one rendered launch assessment/readiness with incompatible_source and required extension z64; Core unchanged",
+        before: command(["status", port.id]),
+      };
+      try {
+        await browser.executeScript((portId) => {
+          const previous = window.fetch;
+          const probe = window.__portcoveExternalReconciliationProbe;
+          probe.formatFetch = previous;
+          probe.formatInjections = 0;
+          const target = window.__TAURI_INTERNALS__.convertFileSrc("get_workspace_snapshot", "ipc");
+          window.fetch = async function (input, ...args) {
+            const response = await previous.call(window, input, ...args);
+            const url = typeof input === "string" ? input : (input.url ?? String(input));
+            if (url !== target || !response.ok) return response;
+            const snapshot = await response.clone().json();
+            if (!snapshot.statuses?.some((status) => status.port_id === portId)) return response;
+            probe.formatInjections++;
+            return new Response(
+              JSON.stringify({
+                ...snapshot,
+                statuses: snapshot.statuses.map((status) =>
+                  status.port_id === portId
+                    ? {
+                        ...status,
+                        readiness: {
+                          ...status.readiness,
+                          launchable: false,
+                          source: "current",
+                          blockers: ["incompatible_source"],
+                          required_source_extension: "z64",
+                        },
+                        port_actions: status.port_actions.map((assessment) =>
+                          assessment.action === "launch"
+                            ? {
+                                action: "launch",
+                                availability: "waiting",
+                                reason: "incompatible_source",
+                              }
+                            : assessment,
+                        ),
+                      }
+                    : status,
+                ),
+              }),
+              {
+                status: response.status,
+                statusText: response.statusText,
+                headers: response.headers,
+              },
+            );
+          };
+          window.dispatchEvent(new Event("focus"));
+        }, port.id);
+        const expected =
+          "This runtime requires an uncompressed .z64 game file. Select and validate that file before playing.";
+        await browser.wait(
+          async () =>
+            (await browser.findElement(By.css(".detail-panel")).getText()).includes(expected),
+          10_000,
+        );
+        const play = await browser.findElement(By.css(".detail-panel .primary-actions button"));
+        assert.equal(await play.isEnabled(), false);
+        sourceFormat.guidance = expected;
+        sourceFormat.injections = await browser.executeScript(
+          () => window.__portcoveExternalReconciliationProbe.formatInjections,
+        );
+        assert.ok(sourceFormat.injections > 0);
+        const screenshot = path.join(output, "native-source-format-guidance.png");
+        await writeFile(screenshot, await browser.takeScreenshot(), {
+          encoding: "base64",
+          flag: "wx",
+        });
+        artifacts.push(screenshot);
+        await captureAccessibilityReport(
+          browser,
+          path.join(output, "source-format-accessibility.json"),
+          artifacts,
+        );
+        sourceFormat.after = command(["status", port.id]);
+        assert.deepEqual(sourceFormat.after, sourceFormat.before);
+      } finally {
+        sourceFormat.restored = await browser.executeScript(() => {
+          const probe = window.__portcoveExternalReconciliationProbe;
+          if (!probe.formatFetch) return false;
+          window.fetch = probe.formatFetch;
+          window.dispatchEvent(new Event("focus"));
+          return window.fetch === probe.formatFetch;
+        });
+        observations.source_format = sourceFormat;
+      }
+      assert.equal(sourceFormat.restored, true);
+      await browser.wait(
+        async () =>
+          !(await browser.findElement(By.css(".detail-panel")).getText()).includes(
+            "This runtime requires an uncompressed .z64 game file.",
+          ),
+        10_000,
+      );
     } finally {
       const probe = await browser.executeScript(() => {
         const current = window.__portcoveExternalReconciliationProbe;
