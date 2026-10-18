@@ -10,6 +10,9 @@ mod launch_assessments;
 #[path = "definition_authority_tests.rs"]
 mod authority_provisioning;
 
+#[path = "definition_refresh_tests.rs"]
+mod ordinary_refresh;
+
 #[cfg(feature = "qualification-fixtures")]
 #[path = "definition_compiled_client_tests.rs"]
 mod compiled_clients;

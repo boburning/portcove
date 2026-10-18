@@ -469,6 +469,22 @@ impl Library {
         &self,
         candidate: EligibleDefinitionCandidate,
     ) -> Result<DefinitionSelectionStatus> {
+        self.commit_definition_candidate(candidate, false)
+    }
+
+    /// Ordinary availability must also satisfy the current runtime baseline.
+    pub(crate) fn select_definition_catalog(
+        &self,
+        candidate: EligibleDefinitionCandidate,
+    ) -> Result<DefinitionSelectionStatus> {
+        self.commit_definition_candidate(candidate, true)
+    }
+
+    fn commit_definition_candidate(
+        &self,
+        candidate: EligibleDefinitionCandidate,
+        validate_transition: bool,
+    ) -> Result<DefinitionSelectionStatus> {
         require_fresh(&candidate.provenance, Self::now())?;
         let proposed_floor = DefinitionReplayFloor::from(&candidate.provenance);
         if candidate.replay_floor != proposed_floor {
@@ -506,6 +522,15 @@ impl Library {
         require_fresh(&candidate.provenance, Self::now())?;
         if let Some(floor) = &state.replay_floor {
             floor.evaluate(&candidate.provenance)?;
+        }
+        if validate_transition {
+            let (baseline, _) =
+                crate::catalog_store::CatalogState::read(&transaction)?.resolve(Self::now())?;
+            crate::definition_loader::validate_definition_transition(
+                &baseline,
+                candidate.projection.catalog(),
+                candidate.publisher.stable_id(),
+            )?;
         }
         if state.active_json.as_deref() == Some(active_json.as_str())
             && state.replay_floor.as_ref() == Some(&proposed_floor)

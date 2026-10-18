@@ -100,6 +100,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "definition_refresh",
+                serde_json::json!(schema_for_contract::<portcove_core::DefinitionRefresh>(
+                    contract
+                )),
+            ),
+            (
                 "definition_authority_provisioning",
                 serde_json::json!(schema_for_contract::<
                     portcove_core::DefinitionAuthorityProvisioning,

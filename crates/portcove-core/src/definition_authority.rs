@@ -293,6 +293,32 @@ fn review(library: &Library, bytes: &[u8]) -> Result<DefinitionAuthorityReview> 
     Ok(result)
 }
 
+fn require_installed(library: &Library, bytes: &[u8]) -> Result<()> {
+    let reviewed = review(library, bytes)?;
+    if !reviewed.configured {
+        return Err(PortcoveError::unsupported(
+            "this build has no configured definition authority",
+        ));
+    }
+    if !reviewed.installed || reviewed.installed_anchor_sha256 != reviewed.compiled_anchor_sha256 {
+        return Err(PortcoveError::conflict(
+            "provision this release's fixed definition authority before refresh",
+        ));
+    }
+    Ok(())
+}
+
+pub(super) fn installed_compiled_root(library: &Library) -> Result<&'static [u8]> {
+    require_installed(library, COMPILED_ROOT)?;
+    Ok(COMPILED_ROOT)
+}
+
+#[cfg(test)]
+pub(crate) fn installed_fixture_root<'a>(library: &Library, bytes: &'a [u8]) -> Result<&'a [u8]> {
+    require_installed(library, bytes)?;
+    Ok(bytes)
+}
+
 fn apply(
     library: &Library,
     bytes: &[u8],

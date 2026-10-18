@@ -25,6 +25,10 @@ pub use launch_assessment::{
 pub(crate) mod provisioning;
 pub use provisioning::{DefinitionAuthorityProvisioning, DefinitionAuthorityReview};
 
+#[path = "definition_refresh.rs"]
+pub(crate) mod refresh;
+pub use refresh::{DefinitionRefresh, DefinitionRefreshDisposition};
+
 /// Fetch inert policy under an explicitly supplied independently trusted root.
 /// A library still requires its own installed matching authority before admission.
 pub async fn acquire_definition_publisher_policy(
@@ -65,11 +69,26 @@ where
             "unsupported publisher policy identity",
         ));
     }
-    let (bytes, provenance) = acquire_target_with_transport(
+    let repository =
+        super::load_repository(trusted_root, metadata_base_url, targets_base_url, transport)
+            .await?;
+    acquire_from_repository(&repository, trusted_root, namespace, stable_id).await
+}
+
+async fn acquire_from_repository(
+    repository: &Repository,
+    trusted_root: &[u8],
+    namespace: &str,
+    stable_id: &str,
+) -> Result<AuthenticatedDefinitionPublisherPolicy> {
+    if namespace != "official" || !valid_identity(stable_id) {
+        return Err(PortcoveError::usage(
+            "unsupported publisher policy identity",
+        ));
+    }
+    let (bytes, provenance) = acquire_target_from_repository(
+        repository,
         trusted_root,
-        metadata_base_url,
-        targets_base_url,
-        transport,
         &format!("policy/{namespace}/{stable_id}.json"),
     )
     .await?;
@@ -86,27 +105,19 @@ where
     })
 }
 
-async fn acquire_target_with_transport<T>(
+async fn acquire_target_from_repository(
+    repository: &Repository,
     trusted_root: &[u8],
-    metadata_base_url: reqwest::Url,
-    targets_base_url: reqwest::Url,
-    transport: T,
     target_path: &str,
-) -> Result<(Vec<u8>, PolicyProvenance)>
-where
-    T: Transport + Send + Sync + 'static,
-{
-    let repository =
-        super::load_repository(trusted_root, metadata_base_url, targets_base_url, transport)
-            .await?;
-    let role = policy_role(&repository)?;
+) -> Result<(Vec<u8>, PolicyProvenance)> {
+    let role = policy_role(repository)?;
     let metadata = role
         .targets
         .as_ref()
         .ok_or_else(|| PortcoveError::verification("publisher policy delegation was not loaded"))?;
     let name = TargetName::new(target_path).map_err(super::map_tough_error)?;
-    let target = super::definition_target(role, &repository, &name)?;
-    let bytes = super::read_target(&repository, &name, target, MAX_POLICY_BYTES).await?;
+    let target = super::definition_target(role, repository, &name)?;
+    let bytes = super::read_target(repository, &name, target, MAX_POLICY_BYTES).await?;
     let expiration = [
         repository.root().signed.expires,
         repository.timestamp().signed.expires,

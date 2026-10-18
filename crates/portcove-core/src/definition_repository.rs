@@ -363,7 +363,7 @@ where
 {
     let repository =
         load_repository(trusted_root, metadata_base_url, targets_base_url, transport).await?;
-    acquire_from_repository(repository).await
+    acquire_from_repository(&repository).await
 }
 
 async fn load_repository<T>(
@@ -402,13 +402,13 @@ where
 }
 
 async fn acquire_from_repository(
-    repository: Repository,
+    repository: &Repository,
 ) -> Result<AuthenticatedDefinitionCandidate> {
-    let role = definition_role(&repository)?;
+    let role = definition_role(repository)?;
     let index_name = TargetName::new(INDEX_TARGET).map_err(map_tough_error)?;
-    let index_metadata = definition_target(role, &repository, &index_name)?;
+    let index_metadata = definition_target(role, repository, &index_name)?;
     let index_bytes = read_target(
-        &repository,
+        repository,
         &index_name,
         index_metadata,
         MAX_INDEX_BYTES as u64,
@@ -420,7 +420,7 @@ async fn acquire_from_repository(
         .content_records()
         .map(|(target, expected_sha256, expected_length)| {
             let name = TargetName::new(target).map_err(map_tough_error)?;
-            let metadata = definition_target(role, &repository, &name)?;
+            let metadata = definition_target(role, repository, &name)?;
             if metadata.length != expected_length
                 || hex::encode(metadata.hashes.sha256.clone().into_vec()) != expected_sha256
             {
@@ -432,12 +432,9 @@ async fn acquire_from_repository(
         })
         .collect::<Result<Vec<_>>>()?;
     let contents = stream::iter(content_targets)
-        .map(|(target, name, metadata)| {
-            let repository = &repository;
-            async move {
-                let bytes = read_target(repository, &name, metadata, MAX_CONTENT_BYTES).await?;
-                Ok::<_, PortcoveError>((target, bytes))
-            }
+        .map(|(target, name, metadata)| async move {
+            let bytes = read_target(repository, &name, metadata, MAX_CONTENT_BYTES).await?;
+            Ok::<_, PortcoveError>((target, bytes))
         })
         .buffer_unordered(TARGET_CONCURRENCY)
         .try_collect::<BTreeMap<_, _>>()

@@ -1423,6 +1423,7 @@ impl CapabilityDocument {
                 "catalog".into(),
                 "catalog.check-capabilities".into(),
                 "catalog.definition-authority".into(),
+                "catalog.definition-refresh".into(),
                 "external".into(),
                 "external.review".into(),
                 "source".into(),
