@@ -1,5 +1,30 @@
 # Releasing Portcove
 
+## Inactive Slice 4 input integration
+
+The prepared semantic input wire uses summary schema 2: the complete validated
+opportunity/digest plus actual independent report bytes/digest, runtime/session,
+whole-second UTC completion and accumulated-change/classification/compatibility
+coverage. Persisted classification schema 2 binds the entire verified provider
+proof digest. The existing envelope title ending `v1` is not permission for a v1
+summary. Legacy summaries/records refuse; they are never silently overwritten or
+migrated. Historical coordinator schema-1 replay is unchanged.
+`release-semantic-review.mts` is an inactive serializer, not authenticated runtime
+capture or acceptance. The writer and generic Actions remain excluded issuers.
+
+The prepared capacity configuration reader uses `portcove-release-pause` /
+`capacity.json`, verified raw Git objects and two exact-ref reads, with mandatory
+authenticated fresh observer/job guards. The document contains schema version 1,
+the ratified D2 `capacity`, and `observation` identifying provider-UI spending
+configuration, actor 43177418, time and retained evidence SHA-256. Configuration
+cannot supply operation history. Revoked/invalid configuration is ineligible;
+missing, conflicting or drifting provenance refuses. Successful parsing never
+proves live account settings, capacity availability or headroom. No source is
+installed by this reader. Availability/headroom stay Unknown; reservation none.
+See the [current checkpoint](qualification/slice4-producer-and-144-checkpoint-2026-10-18.md)
+and [canonical packet](qualification/slice4-production-authorization-packet-2026-10-18.md)
+for the actual producer blocker and remaining protected execution prerequisites.
+
 Portcove releases fail closed when the product version, Git tag, required identity assets, tests, or catalog ownership checks disagree. Tagged builds remain draft releases until their platform artifacts and checksums have been reviewed.
 
 ## Frontend and signing environment boundary
