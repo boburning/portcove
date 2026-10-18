@@ -130,6 +130,14 @@ exists. Loss of the sole unbacked key is not recoverable by weakening signatures
    and capable-client paths may then supply #246/#315 protected delivery proof.
 
 The proposed job ceilings are 5/5/30/5 minutes and seven-day artifact retention.
+The held jobs use `always()` retention for bounded orchestration JSONL receipts,
+the declared predicate and any completed public attestation bundle. A receipt is
+created exclusively before effects, appends its terminal stage without exception
+text, and refuses repeated use before another operation. It contains only the
+descriptor hash/checkpoint association, status and stage; bearer tokens and raw
+provider responses are excluded. This is diagnostic metadata, not retention of
+every failed payload. Hard runner loss, cancellation and ambiguous uploads still
+need the specifically authorized recovery proof and exact remote readback.
 Assembly's existing 15-minute bound and archive limits still apply. Concurrency
 is one fixed controller group with cancellation disabled. These ceilings bound a
 proof; they do not certify free capacity. No dispatch, OIDC request, upload,

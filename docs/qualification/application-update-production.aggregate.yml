@@ -109,6 +109,15 @@ jobs:
           PORTCOVE_NEW_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
           PORTCOVE_NEW_ARTIFACT_SHA256: ${{ steps.upload.outputs.artifact-digest }}
         run: node scripts/production-aggregate-steps.mts bind
+      - name: Retain bounded token-free orchestration receipts even after refusal
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-release-final-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/portcove-aggregate-*-receipt.jsonl
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7
 
   attest:
     if: ${{ false }}
@@ -137,9 +146,21 @@ jobs:
           if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw Error('predicate shape');
           await writeFile(path.join(process.env.RUNNER_TEMP, 'aggregate-predicate.json'), raw, {flag:'wx', mode:0o600});
           NODE
-      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      - id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
         with:
           subject-name: ${{ needs.aggregate.outputs.subject_name }}
           subject-digest: ${{ needs.aggregate.outputs.subject_digest }}
           predicate-type: https://portcove.dev/attestations/package-aggregate/v1
           predicate-path: ${{ runner.temp }}/aggregate-predicate.json
+      - name: Retain declared predicate and any completed public bundle
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-release-attestation-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/aggregate-predicate.json
+            ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7

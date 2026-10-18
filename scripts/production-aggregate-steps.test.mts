@@ -1,13 +1,64 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { parseDocument } from "yaml";
+import { isRecord } from "./runtime-values.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import {
   inspectAggregateDescriptor,
   requireReservedAggregate,
   requestAssemblerToken,
+  retainAggregateStepReceipt,
 } from "./production-aggregate-steps.mts";
+
+void test("step receipts preserve refusal association without secrets and reject a repeated operation before effects", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-step-receipt-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const filename = path.join(root, "receipt.jsonl");
+  const association = {
+    checkpoint: "c".repeat(40),
+    descriptor_sha256: "d".repeat(64),
+    operation: "fixture",
+  };
+  await assert.rejects(
+    retainAggregateStepReceipt(filename, association, async (stage) => {
+      association.checkpoint = "e".repeat(40);
+      stage("bind-new-upload");
+      throw Error("DISPOSABLE-SECRET-MUST-NOT-ENTER-RECEIPT");
+    }),
+  );
+  const raw = await readFile(filename, "utf8");
+  assert.doesNotMatch(raw, /DISPOSABLE-SECRET/u);
+  const entries = raw
+    .trim()
+    .split("\n")
+    .map((line): unknown => JSON.parse(line));
+  assert.equal(entries.length, 2);
+  assert.ok(isRecord(entries[0]));
+  assert.ok(isRecord(entries[1]));
+  assert.equal(entries[0].status, "started");
+  assert.equal(entries[1].status, "refused");
+  assert.equal(entries[1].phase, "bind-new-upload");
+  assert.equal(entries[1].checkpoint, "c".repeat(40));
+  let effects = 0;
+  await assert.rejects(
+    retainAggregateStepReceipt(filename, association, async () => {
+      effects++;
+    }),
+    { code: "EEXIST" },
+  );
+  assert.equal(effects, 0);
+  assert.equal(await readFile(filename, "utf8"), raw);
+  const success = path.join(root, "success.jsonl");
+  await retainAggregateStepReceipt(success, association, async (stage) => {
+    stage("assemble-accepted-archives");
+  });
+  const terminal: unknown = JSON.parse((await readFile(success, "utf8")).trim().split("\n")[1]!);
+  assert.ok(isRecord(terminal));
+  assert.equal(terminal.status, "succeeded");
+});
 
 void test("existing reservation must bind prepared source, tree, version and the frozen Release attempt", async (t) => {
   const { request } = await trustedAssemblyFixture(t);
@@ -152,6 +203,9 @@ void test("held full workflow preserves privilege separation and refuses unavail
   assert.match(template, /UNKNOWN: independent accepted file matrix/u);
   assert.match(template, /name: Trusted package assembly/u);
   assert.match(template, /overwrite: false/u);
+  assert.match(template, /if: \$\{\{ always\(\) \}\}/u);
+  assert.match(template, /portcove-aggregate-\*-receipt.jsonl/u);
+  assert.match(template, /steps.attest.outputs.bundle-path/u);
   assert.match(template, /PORTCOVE_NEW_ARTIFACT_ID: \$\{\{ steps.upload.outputs.artifact-id \}\}/u);
   assert.match(
     template,

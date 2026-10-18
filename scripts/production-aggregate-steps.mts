@@ -1,4 +1,5 @@
-import { appendFile, mkdtemp, writeFile } from "node:fs/promises";
+import { appendFile, mkdtemp, open, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
@@ -7,6 +8,7 @@ import { assembleReleaseArtifacts } from "./release-artifact-assembly.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { prepareAggregateAttestation } from "./trusted-aggregate-attestation.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
+import { inspectReleaseEvidenceRequest } from "./release-run-evidence.mts";
 
 /** Transport only. The held workflow has no producer for this descriptor until
  * independent candidate admission is implemented and ratified. Parsing it or
@@ -31,7 +33,14 @@ export function inspectAggregateDescriptor(raw: string | undefined) {
     !isRecord(value.evidence)
   )
     throw new Error("aggregate descriptor schema or reservation identity is invalid");
-  return value;
+  return {
+    schema_version: 1,
+    checkpoint: value.checkpoint,
+    coordinator: value.coordinator,
+    assembly: value.assembly,
+    archives: value.archives,
+    evidence: value.evidence,
+  };
 }
 
 /** Association with the EXISTING reservation; never allocate or advance state.
@@ -111,6 +120,41 @@ async function output(values: Record<string, string>) {
   }
 }
 
+/** Retain only non-secret association and stage, even if the operation throws.
+ * A pre-existing receipt is never overwritten and exception text is excluded. */
+export async function retainAggregateStepReceipt(
+  filename: string,
+  association: { checkpoint: string; descriptor_sha256: string; operation: string },
+  operation: (stage: (phase: string) => void) => Promise<void>,
+) {
+  const expected = structuredClone(association);
+  let phase = "recover-existing-reservation";
+  const handle = await open(filename, "wx", 0o600);
+  const record = (status: string) =>
+    handle.writeFile(
+      JSON.stringify({
+        schema_version: 1,
+        ...expected,
+        status,
+        phase,
+        qualification: "orchestration only; no acceptance or publication authority",
+      }) + "\n",
+    );
+  try {
+    await record("started");
+    await operation((next) => {
+      phase = next;
+    });
+    phase = "complete";
+    await record("succeeded");
+  } catch (error) {
+    await record("refused");
+    throw error;
+  } finally {
+    await handle.close();
+  }
+}
+
 async function main() {
   const mode = process.argv[2];
   if (process.argv.length !== 3 || !["assemble", "bind"].includes(mode ?? ""))
@@ -122,64 +166,79 @@ async function main() {
   const temp = process.env.RUNNER_TEMP;
   if (!temp || /[\r\n]/u.test(temp) || !path.isAbsolute(temp))
     throw new Error("private runner temporary root is unavailable");
-  if (mode === "assemble") {
-    const root = await mkdtemp(path.join(temp, "portcove-aggregate-"));
-    const recover = () =>
-      recoverRemoteCoordinator(root, descriptor.coordinator, { transport: { cwd: root } });
-    const before = await recover();
-    await requireReservedAggregate(raw!, before);
-    const result = await assembleReleaseArtifacts(
-      root,
-      descriptor.assembly,
-      descriptor.archives,
-      descriptor.evidence as Parameters<typeof assembleReleaseArtifacts>[3],
-    );
-    const after = await recover();
-    await requireReservedAggregate(raw!, after);
-    await writeFile(path.join(root, "assembly-receipt.json"), JSON.stringify(result), {
-      flag: "wx",
-      mode: 0o600,
-    });
-    await output({ assets: result.aggregate.assets });
-  } else {
-    const expected = inspectAssemblerIdentityExpectation({
-      audience: process.env.PORTCOVE_AGGREGATE_AUDIENCE,
-      subject: process.env.PORTCOVE_AGGREGATE_SUBJECT,
-      controller_revision: process.env.PORTCOVE_CONTROLLER_REVISION,
-      controller_ref: process.env.PORTCOVE_CONTROLLER_REF,
-      actor_id: process.env.PORTCOVE_CONTROLLER_ACTOR_ID,
-      run_id: process.env.GITHUB_RUN_ID,
-      run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
-    });
-    if (!Array.isArray(descriptor.archives)) throw new Error("accepted artifact matrix is missing");
-    const ids = descriptor.archives.map((archive) => {
-      if (!isRecord(archive) || typeof archive.artifact_id !== "number")
-        throw new Error("accepted artifact ID missing");
-      return archive.artifact_id;
-    });
-    const root = await mkdtemp(path.join(temp, "portcove-binding-"));
-    const recovered = await recoverRemoteCoordinator(root, descriptor.coordinator, {
-      transport: { cwd: root },
-    });
-    await requireReservedAggregate(raw!, recovered);
-    const token = await requestAssemblerToken(expected.audience);
-    const binding = await prepareAggregateAttestation(
-      token,
-      expected,
-      descriptor.assembly,
-      ids,
-      {
-        artifact_id: Number(process.env.PORTCOVE_NEW_ARTIFACT_ID),
-        sha256: process.env.PORTCOVE_NEW_ARTIFACT_SHA256 ?? "",
-      },
-      { cwd: root },
-    );
-    await output({
-      subject_name: binding.subject_name,
-      subject_digest: binding.subject_digest,
-      predicate: JSON.stringify(binding.predicate),
-    });
-  }
+  const receipt = path.join(temp, `portcove-aggregate-${mode}-receipt.jsonl`);
+  await retainAggregateStepReceipt(
+    receipt,
+    {
+      operation: mode!,
+      checkpoint: descriptor.checkpoint,
+      descriptor_sha256: createHash("sha256").update(raw!).digest("hex"),
+    },
+    async (stage) => {
+      if (mode === "assemble") {
+        const root = await mkdtemp(path.join(temp, "portcove-aggregate-"));
+        const recover = () =>
+          recoverRemoteCoordinator(root, descriptor.coordinator, { transport: { cwd: root } });
+        const before = await recover();
+        await requireReservedAggregate(raw!, before);
+        stage("assemble-accepted-archives");
+        const result = await assembleReleaseArtifacts(
+          root,
+          descriptor.assembly,
+          descriptor.archives,
+          inspectReleaseEvidenceRequest(descriptor.evidence),
+        );
+        const after = await recover();
+        await requireReservedAggregate(raw!, after);
+        await writeFile(path.join(root, "assembly-receipt.json"), JSON.stringify(result), {
+          flag: "wx",
+          mode: 0o600,
+        });
+        await output({ assets: result.aggregate.assets });
+      } else {
+        const expected = inspectAssemblerIdentityExpectation({
+          audience: process.env.PORTCOVE_AGGREGATE_AUDIENCE,
+          subject: process.env.PORTCOVE_AGGREGATE_SUBJECT,
+          controller_revision: process.env.PORTCOVE_CONTROLLER_REVISION,
+          controller_ref: process.env.PORTCOVE_CONTROLLER_REF,
+          actor_id: process.env.PORTCOVE_CONTROLLER_ACTOR_ID,
+          run_id: process.env.GITHUB_RUN_ID,
+          run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+        });
+        if (!Array.isArray(descriptor.archives))
+          throw new Error("accepted artifact matrix is missing");
+        const ids = descriptor.archives.map((archive) => {
+          if (!isRecord(archive) || typeof archive.artifact_id !== "number")
+            throw new Error("accepted artifact ID missing");
+          return archive.artifact_id;
+        });
+        const root = await mkdtemp(path.join(temp, "portcove-binding-"));
+        const recovered = await recoverRemoteCoordinator(root, descriptor.coordinator, {
+          transport: { cwd: root },
+        });
+        await requireReservedAggregate(raw!, recovered);
+        stage("fresh-own-job-token");
+        const token = await requestAssemblerToken(expected.audience);
+        stage("bind-new-upload");
+        const binding = await prepareAggregateAttestation(
+          token,
+          expected,
+          descriptor.assembly,
+          ids,
+          {
+            artifact_id: Number(process.env.PORTCOVE_NEW_ARTIFACT_ID),
+            sha256: process.env.PORTCOVE_NEW_ARTIFACT_SHA256 ?? "",
+          },
+          { cwd: root },
+        );
+        await output({
+          subject_name: binding.subject_name,
+          subject_digest: binding.subject_digest,
+          predicate: JSON.stringify(binding.predicate),
+        });
+      }
+    },
+  );
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

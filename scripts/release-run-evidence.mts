@@ -80,7 +80,7 @@ function nullableText(value: unknown, label: string) {
   return value === null ? null : text(value, label);
 }
 
-function validateRequest(value: unknown): ReleaseEvidenceRequest {
+export function inspectReleaseEvidenceRequest(value: unknown): ReleaseEvidenceRequest {
   if (
     !isRecord(value) ||
     Object.keys(value).sort().join(",") !==
@@ -132,7 +132,7 @@ function runIdentity(run: unknown, expected: ReleaseEvidenceRequest) {
  * associates an artifact with a producing job, or grants release eligibility.
  */
 export function collectReleaseRunEvidence(request: unknown, options: ReleaseEvidenceOptions = {}) {
-  const expected = validateRequest(request);
+  const expected = inspectReleaseEvidenceRequest(request);
   const api =
     options.api ?? new GitHubApiClient(createGitHubRunner({ maxBuffer: 2 * 1024 * 1024 }));
   const elapsed = options.elapsed ?? (() => performance.now());
@@ -378,7 +378,7 @@ export async function verifyReleaseArtifactBytes(
   filename: string,
   options: ReleaseEvidenceOptions = {},
 ) {
-  const expected = structuredClone(validateRequest(request));
+  const expected = structuredClone(inspectReleaseEvidenceRequest(request));
   positive(artifactId, "artifact ID");
   const elapsed = options.elapsed ?? (() => performance.now());
   const started = elapsed();
