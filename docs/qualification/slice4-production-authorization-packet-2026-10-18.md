@@ -221,8 +221,10 @@ existing process; physical quorum/backup/loss/rotation observations cannot be
 replaced by an approval.
 
 Recommended initial expiry ceilings are root 365 days, top-level targets 90 days,
-definitions/policy/snapshot seven days and timestamp 24 hours, with renewal before
-expiry through the separately authorized fixed publisher. These are proposed
+definitions/policy/snapshot seven days and timestamp 24 hours. Root and top-level
+targets renewal remain with their existing offline authorities; their private
+keys never enter the online publisher. Only the separately authorized delegated,
+snapshot and timestamp roles renew through the fixed online publisher. These are proposed
 policy settings for the eventual exact root/metadata review, not current signed
 versions or permission to use keys. D3 does not approve unidentified key material;
 record and review the resulting public fingerprints and signed bytes before
@@ -282,6 +284,23 @@ fixed binary's `catalog check-capabilities`, `catalog definition-authority`,
 metadata/target URLs use the two catalog origins above. Capture the actual
 binary/package and library identities when they exist; the recipe is not an
 already-built client identity or proof of initial absence.
+
+Write the inert capability requirement as
+`{"capability_contract_schema":1,"required_capabilities":[{"template":"generated-cache","minimum_version":1,"maximum_version":1}]}`.
+The exact command shapes below require the approved configured binary and an
+owned isolated library; they have not been executed as a positive baseline:
+
+```text
+portcove --library <isolated-library> catalog check-capabilities <requirements.json>
+portcove --library <isolated-library> catalog definition-authority
+portcove --library <isolated-library> catalog status
+portcove --library <isolated-library> catalog definition-refresh gen2recomp-gold --metadata-base-url https://boburning.github.io/portcove/catalog/metadata/ --targets-base-url https://boburning.github.io/portcove/catalog/targets/
+```
+
+Use the returned exact provisioning plan with the consent command documented
+above only after its grant. Save raw command outputs and their hashes alongside
+the binary/configuration manifest. These commands cannot create missing trust
+or make an already embedded Gen2 definition absent.
 
 For Chameleon, D3's **separate schema-4 scope** is limited to
 `official/chameleon-twist-jp-recompiled`, template `n64-recomp-portable`, Windows
