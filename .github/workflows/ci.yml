@@ -553,6 +553,14 @@ jobs:
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - run: cargo nextest run --locked --workspace --exclude portcove-core
+      - name: Install pinned dependencies for Playnite transport validation
+        uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+        with:
+          version-file: pnpm-workspace.yaml
+          node-version-file: .node-version
+          cache: true
+          run-install: |
+            args: [--frozen-lockfile]
       - name: Build and test the public Playnite reference consumer
         shell: pwsh
         run: |

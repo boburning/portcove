@@ -1621,6 +1621,27 @@ void test("release, rehearsal and deep audit Rust callers preserve repository pi
   }
 });
 
+void test("Playnite qualification installs pinned workspace dependencies before its lifecycle consumer", () => {
+  const setup = rustWorkspaceTests.indexOf(
+    "      - name: Install pinned dependencies for Playnite transport validation\n",
+  );
+  const consumer = rustWorkspaceTests.indexOf(
+    "      - name: Build and test the public Playnite reference consumer\n",
+  );
+  assert.ok(setup >= 0 && consumer > setup);
+  const dependencies = rustWorkspaceTests.slice(setup, consumer);
+  assert.match(
+    dependencies,
+    /uses: voidzero-dev\/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af/,
+  );
+  assert.match(dependencies, /version-file: pnpm-workspace\.yaml/);
+  assert.match(dependencies, /node-version-file: \.node-version/);
+  assert.match(dependencies, /args: \[--frozen-lockfile\]/);
+  assert.doesNotMatch(dependencies, /--prod|--filter|--ignore-scripts|continue-on-error/);
+  assert.match(rustWorkspaceTests.slice(consumer), /\.\/integrations\/playnite\/check\.ps1 -Cli/);
+  assert.doesNotMatch(rustWorkspaceTests.slice(consumer), /-ContractsOnly/);
+});
+
 void test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () => {
   assert.match(rustTests, /^ {4}name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m);
   assert.match(rustTests, /runs-on: windows-latest/);
