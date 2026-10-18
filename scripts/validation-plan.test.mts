@@ -99,6 +99,7 @@ void test("coordinator state and remote transport retain protected release quali
     "scripts/bounded-zip.mts",
     "scripts/github-binary.mts",
     "scripts/assembler-job-identity.mts",
+    "scripts/trusted-aggregate-attestation.mts",
   ]) {
     const ownership = validationOwnershipForPath(file);
     assert.equal(ownership.qualificationRequired, true);

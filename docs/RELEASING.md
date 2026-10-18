@@ -694,6 +694,49 @@ that attestation's workflow, subjects and claimed job association. Candidate
 input authority, isolation, strict Linux/SBOM/native qualification, custody,
 production permissions and the specifically authorized proof remain separate.
 
+### Inactive aggregate attestation binding
+
+`prepareAggregateAttestation` in `scripts/trusted-aggregate-attestation.mts`
+prepares inputs for the existing pinned `actions/attest` action. The reviewed
+fixed workflow must call it after `assembleReleaseArtifacts` and an actual new
+immutable upload, passing the complete independently accepted candidate artifact
+IDs. The count must equal the full package-policy platform matrix. The new ID
+must differ from every candidate ID and belong to the distinct controller run.
+
+The helper checks exact numeric artifact API identity, name, source, size,
+provider digest and nonexpired state; downloads opaque bytes within the accepted
+size and 120 seconds; and verifies complete ZIP members against the accepted
+package hashes and independently reconstructed aggregate checksum manifest.
+It then invokes fresh signed own-job verification itself and rechecks artifact
+identity and token expiry. Caller-supplied identity receipts cannot replace
+that invocation. The bounded 64 KiB predicate binds controller revision/ref,
+run/attempt, distinct numeric job/check-run IDs, new artifact bytes, complete
+candidate inputs and output members. No token enters the predicate. Injected
+providers produce an explicitly labelled predicate that the protected consumer
+path refuses.
+
+`verifyAggregateAttestation` takes independently expected controller, candidate
+and artifact facts plus bounded opaque archive and offline bundle bytes. It
+checks archive members, copies inputs into a new private directory and invokes
+existing `gh attestation verify`, with exact signer workflow/controller digest,
+controller source digest/ref, GitHub OIDC issuer, hosted-runner policy and custom
+predicate type. CLI output is limited to 1 MiB and 30 seconds; the bundle to
+512 KiB. It requires one verified result, a timestamp, exact signed certificate
+repository ID/controller/run identity, subject digest/name and complete predicate
+association. These controls follow GitHub CLI 2.102.0 and its Sigstore Go 1.3.0
+verified-result schema; unsupported result shapes refuse.
+
+The certificate identifies the attester. The assembler's job association is a
+claim from the reviewed fixed workflow's fresh identity verification, not a
+numeric job inferred from that certificate. Archive/member equality, authenticated
+aggregate assembly and original compiler provenance remain distinct. This module
+requests no OIDC token, creates no attestation and activates no workflow or
+permission. Actual hosted assembly/upload/attestation execution, trusted input
+admission, isolation and production authority remain required. Linux release
+authorization, SBOM and native acceptance remain unevaluated. Failed consumer
+verification retains its identified private copies. Synthetic CLI fixtures test
+the association controls, not cryptographic or hosted attestation success.
+
 ### Read-only release-run evidence
 
 `node scripts/release-run-evidence.mts REQUEST.json` collects bounded read-only
