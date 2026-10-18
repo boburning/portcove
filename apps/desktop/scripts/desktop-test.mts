@@ -3182,7 +3182,10 @@ try {
       (element) => element.scrollIntoView({ block: "start", inline: "nearest" }),
       about,
     );
-    await captureKeyboardTarget("settings-compact-layout", about);
+    await captureKeyboardTarget(
+      "settings-about-title-compact",
+      await about.findElement(By.css("h2")),
+    );
 
     const gameUpdatesLink = await browser.findElement(
       By.xpath(
