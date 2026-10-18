@@ -30,7 +30,8 @@
     "brave-fencer-musashi-usa-psx",
     "super-mario-world-snes-usa",
     "a-link-to-the-past-snes-usa",
-    "sonic-the-hedgehog-genesis-jue-rev00"
+    "sonic-the-hedgehog-genesis-jue-rev00",
+    "dark-forces-pc-dark-gob"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -64,6 +65,7 @@
     "alexbeav-brave-fencer-musashi-recomp",
     "super-mario-world-recomp",
     "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
-    "sonic-the-hedgehog-recomp"
+    "sonic-the-hedgehog-recomp",
+    "the-force-engine-dark-forces"
   ]
 }

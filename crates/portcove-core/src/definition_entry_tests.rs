@@ -136,7 +136,37 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["stable_id"] = json!(port.id);
         value["port"] = serde_json::to_value(port).unwrap();
         value["required_capabilities"][0]["template"] = json!(port.adapter);
-        let version = if port.n64_windows_initial_d3d12 { 2 } else { 1 };
+        // These synthetic envelopes must declare the semantics of the real port.
+        // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
+        let version = if port
+            .release
+            .user_prepared
+            .values()
+            .any(|r| r.settings_contract.is_some())
+        {
+            5
+        } else if port
+            .release
+            .user_prepared
+            .values()
+            .any(|r| !r.required_mutable_files.is_empty())
+        {
+            4
+        } else if port.release.provider == crate::ReleaseSource::UserPrepared
+            && port.runtime_subdirectory.is_some()
+        {
+            3
+        } else if port.n64_windows_initial_d3d12
+            || port
+                .release
+                .user_prepared
+                .values()
+                .any(|r| r.library_user_data)
+        {
+            2
+        } else {
+            1
+        };
         value["required_capabilities"][0]["minimum_version"] = json!(version);
         value["required_capabilities"][0]["maximum_version"] = json!(version);
         let entry = inspect(&value).unwrap();

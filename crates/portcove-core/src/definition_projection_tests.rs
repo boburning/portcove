@@ -78,12 +78,32 @@ fn generic_projection() -> Value {
 fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let port = &document["catalog"]["ports"][port_index];
     let reference = target(contract);
-    // Renderer initialization is a v2 engine contract, including in a
-    // synthetic entry used to verify the complete catalog projection.
-    let version = if port
-        .get("n64_windows_initial_d3d12")
-        .and_then(Value::as_bool)
-        == Some(true)
+    // Declare the semantics of each complete port in this synthetic envelope.
+    let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
+    let version = if typed
+        .release
+        .user_prepared
+        .values()
+        .any(|r| r.settings_contract.is_some())
+    {
+        5
+    } else if typed
+        .release
+        .user_prepared
+        .values()
+        .any(|r| !r.required_mutable_files.is_empty())
+    {
+        4
+    } else if typed.release.provider == crate::ReleaseSource::UserPrepared
+        && typed.runtime_subdirectory.is_some()
+    {
+        3
+    } else if typed.n64_windows_initial_d3d12
+        || typed
+            .release
+            .user_prepared
+            .values()
+            .any(|r| r.library_user_data)
     {
         2
     } else {
