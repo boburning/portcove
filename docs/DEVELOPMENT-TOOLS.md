@@ -98,6 +98,12 @@ Use `--summary` on Roadmap context/doctor and Renovate inspection for a retained
 route also supports `renovate` and `ui` reports. Raw evidence is retained before
 summary success, and missing retention fails explicitly.
 
+Use `node scripts/pr-delivery.mts inspect --pr N --head SHA --summary` for a bounded
+current delivery observation. Optional hashed review/acceptance/watcher references
+are described in [contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge).
+Missing or stale references stay unknown; the inspector performs no remote writes
+and establishes no new gate or approval authority.
+
 Use one `just pr-watch` per source/run/attempt/deadline binding. Opt into
 `--progress` for change-only workflow/check observations on stderr while final
 JSON stays on stdout. Repeated unchanged observations remain quiet. Consume the

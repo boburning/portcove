@@ -1,7 +1,7 @@
 import { isRecord, errorMessage } from "./runtime-values.mts";
-import { readFile } from "node:fs/promises";
+import { readFile, open, lstat } from "node:fs/promises";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { renderBoundedSummary, summarizeReport, retainReportSummary } from "./report-summary.mts";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
@@ -1337,17 +1337,356 @@ export function inspectRenovateQueue(
   };
 }
 
+export interface DeliveryInspectionReferences {
+  format_version: 1;
+  pull_request: number;
+  review?: {
+    head: string;
+    target: string;
+    result: "clear" | "changes-required";
+    reference: InspectionReference;
+  };
+  acceptance?: {
+    head: string;
+    result: "passed" | "failed" | "not-required";
+    reference: InspectionReference;
+  };
+  watcher?: {
+    head: string;
+    run: number;
+    attempt: number;
+    deadline: string;
+    reference: InspectionReference;
+  };
+}
+interface InspectionReference {
+  path: string;
+  sha256: string;
+}
+interface InspectionEvidence {
+  state: "unknown" | "referenced";
+  reason?: string;
+  result?: string;
+  reference?: InspectionReference;
+  run?: number;
+  attempt?: number;
+  deadline?: string;
+  status?: string;
+  conclusion?: string | null;
+}
+const inspectionSha = (value: unknown): value is string =>
+  typeof value === "string" && /^[a-f0-9]{40}$/u.test(value);
+function inspectionText(value: unknown, maximum = 1024): value is string {
+  return typeof value === "string" && value.length > 0 && Buffer.byteLength(value) <= maximum;
+}
+export function parseInspectionReferences(
+  text: string,
+  number: number,
+): DeliveryInspectionReferences {
+  if (Buffer.byteLength(text) > 8192)
+    throw new Error("inspection declaration exceeds 8192 UTF-8 bytes");
+  const value: unknown = JSON.parse(text);
+  if (!isRecord(value) || value.format_version !== 1 || value.pull_request !== number)
+    throw new Error("inspection declaration has an invalid version or pull request");
+  const optional = ["review", "acceptance", "watcher"].filter((key) => value[key] !== undefined);
+  exactKeys(value, ["format_version", "pull_request", ...optional], "inspection declaration");
+  for (const kind of optional) {
+    const entry = value[kind];
+    if (!isRecord(entry) || !inspectionSha(entry.head) || !isRecord(entry.reference))
+      throw new Error(`invalid ${kind} reference declaration`);
+    exactKeys(entry.reference, ["path", "sha256"], `${kind} reference`);
+    if (
+      !inspectionText(entry.reference.path) ||
+      !path.isAbsolute(entry.reference.path) ||
+      typeof entry.reference.sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(entry.reference.sha256)
+    )
+      throw new Error(`invalid ${kind} reference identity`);
+    if (kind === "review") {
+      exactKeys(entry, ["head", "target", "result", "reference"], kind);
+      if (
+        !inspectionSha(entry.target) ||
+        typeof entry.result !== "string" ||
+        !["clear", "changes-required"].includes(entry.result)
+      )
+        throw new Error("invalid review declaration");
+    } else if (kind === "acceptance") {
+      exactKeys(entry, ["head", "result", "reference"], kind);
+      if (
+        typeof entry.result !== "string" ||
+        !["passed", "failed", "not-required"].includes(entry.result)
+      )
+        throw new Error("invalid acceptance declaration");
+    } else {
+      exactKeys(entry, ["head", "run", "attempt", "deadline", "reference"], kind);
+      if (
+        !Number.isSafeInteger(entry.run) ||
+        Number(entry.run) < 1 ||
+        !Number.isSafeInteger(entry.attempt) ||
+        Number(entry.attempt) < 1 ||
+        typeof entry.deadline !== "string" ||
+        !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z$/u.test(entry.deadline) ||
+        !Number.isFinite(Date.parse(entry.deadline))
+      )
+        throw new Error("invalid watcher declaration");
+    }
+  }
+  // All fields admitted above are finite declarations, never approval authority.
+  return value as unknown as DeliveryInspectionReferences;
+}
+async function inspectionReferenceMatches(reference: InspectionReference) {
+  try {
+    if (!(await lstat(reference.path)).isFile()) return false;
+    const file = await open(reference.path, "r");
+    try {
+      const before = await file.stat();
+      if (!before.isFile() || before.size > 64 * 1024 * 1024) return false;
+      const hash = createHash("sha256");
+      let bytes = 0;
+      for await (const chunk of file.createReadStream({ autoClose: false })) {
+        const observed: unknown = chunk;
+        if (!Buffer.isBuffer(observed)) return false;
+        bytes += observed.length;
+        if (bytes > 64 * 1024 * 1024) return false;
+        hash.update(observed);
+      }
+      const after = await file.stat();
+      return (
+        before.size === after.size &&
+        bytes === after.size &&
+        before.mtimeMs === after.mtimeMs &&
+        hash.digest("hex") === reference.sha256
+      );
+    } finally {
+      await file.close();
+    }
+  } catch {
+    return false;
+  }
+}
+function assertInspectionPull(pull: DeliveryPull) {
+  if (
+    !inspectionSha(pull.head.sha) ||
+    !inspectionSha(pull.base.sha) ||
+    !inspectionText(pull.base.ref) ||
+    typeof pull.draft !== "boolean" ||
+    typeof pull.merged !== "boolean" ||
+    !["open", "closed"].includes(pull.state ?? "") ||
+    !(pull.mergeable === null || typeof pull.mergeable === "boolean") ||
+    !(pull.merge_commit_sha === null || inspectionSha(pull.merge_commit_sha)) ||
+    (pull.merged && (pull.state !== "closed" || !inspectionSha(pull.merge_commit_sha)))
+  )
+    throw new Error("inspection pull request projection is incomplete or contradictory");
+}
+export async function inspectDelivery(
+  client: Pick<
+    PullRequestDeliveryClient,
+    "pull" | "branch" | "checkRuns" | "commitStatuses" | "workflowRun" | "beginObservation"
+  >,
+  {
+    number,
+    head,
+    contexts,
+    references,
+    now = Date.now,
+  }: {
+    number: number;
+    head: string;
+    contexts: string[];
+    references?: DeliveryInspectionReferences;
+    now?: () => number;
+  },
+) {
+  client.beginObservation?.();
+  try {
+    const pull = client.pull(number);
+    assertInspectionPull(pull);
+    const ref = pull.base.ref!;
+    const target = client.branch(ref).commit.sha;
+    const checks = requiredCheckContexts(
+      client.checkRuns(pull.head.sha),
+      client.commitStatuses(pull.head.sha),
+      contexts,
+    ).map(({ context, outcome }) => ({ context, outcome }));
+    const observeReference = async (
+      kind: "review" | "acceptance" | "watcher",
+    ): Promise<InspectionEvidence> => {
+      const entry = references?.[kind];
+      if (!entry) return { state: "unknown", reason: "no-reference" };
+      const identity = { reference: entry.reference };
+      if (entry.head !== pull.head.sha || head !== pull.head.sha)
+        return { ...identity, state: "unknown", reason: "source-changed" };
+      if (!(await inspectionReferenceMatches(entry.reference)))
+        return { ...identity, state: "unknown", reason: "reference-unavailable-or-corrupt" };
+      if (kind === "review" && references?.review) {
+        if (references.review.target !== target)
+          return { ...identity, state: "unknown", reason: "target-changed" };
+        return { ...identity, state: "referenced", result: references.review.result };
+      }
+      if (kind === "acceptance" && references?.acceptance)
+        return { ...identity, state: "referenced", result: references.acceptance.result };
+      const watcher = references.watcher;
+      if (!watcher) throw new Error("watcher reference declaration is unavailable");
+      const run = client.workflowRun(watcher.run);
+      if (
+        !["queued", "in_progress", "completed", "waiting", "requested", "pending"].includes(
+          run.status,
+        ) ||
+        (run.status === "completed"
+          ? ![
+              "success",
+              "failure",
+              "neutral",
+              "cancelled",
+              "skipped",
+              "timed_out",
+              "action_required",
+              "stale",
+              "startup_failure",
+            ].includes(run.conclusion ?? "")
+          : run.conclusion !== null)
+      )
+        throw new Error("watcher response has invalid status or conclusion");
+      const binding = { run: watcher.run, attempt: watcher.attempt, deadline: watcher.deadline };
+      if (
+        run.head_sha !== watcher.head ||
+        run.run_attempt !== watcher.attempt ||
+        now() >= Date.parse(watcher.deadline)
+      )
+        return { ...identity, ...binding, state: "unknown", reason: "watcher-stale" };
+      return {
+        ...identity,
+        ...binding,
+        state: "referenced",
+        status: run.status,
+        conclusion: run.conclusion ?? null,
+      };
+    };
+    const review = await observeReference("review");
+    const acceptance = await observeReference("acceptance");
+    const watcher = await observeReference("watcher");
+    const after = client.pull(number);
+    assertInspectionPull(after);
+    if (
+      JSON.stringify([
+        pull.head.sha,
+        ref,
+        pull.state,
+        pull.draft,
+        pull.merged,
+        pull.merge_commit_sha,
+        pull.mergeable,
+      ]) !==
+        JSON.stringify([
+          after.head.sha,
+          after.base.ref,
+          after.state,
+          after.draft,
+          after.merged,
+          after.merge_commit_sha,
+          after.mergeable,
+        ]) ||
+      client.branch(ref).commit.sha !== target
+    )
+      throw new Error("source, target or pull request state changed during inspection");
+    const next_action = pull.merged
+      ? "Reconcile the owning issue and Project against confirmed merge readback."
+      : pull.state === "closed"
+        ? "Inspect the closed pull request with its owner before resuming."
+        : head !== pull.head.sha
+          ? "Resume from the observed source head; retained evidence for the requested head is stale."
+          : pull.draft
+            ? "Finish the current candidate and its applicable acceptance before marking ready."
+            : pull.mergeable !== true
+              ? "Resolve conflicts or unknown mergeability with the current owner."
+              : checks.some((check) => check.outcome === "failure")
+                ? "Inspect failed exact-head jobs and retained evidence before any repair or retry."
+                : checks.some((check) => check.outcome !== "success")
+                  ? watcher.state === "referenced"
+                    ? watcher.status === "completed"
+                      ? "Inspect the identified terminal workflow and missing or pending gates; its watcher cannot resume or renew the deadline."
+                      : "Continue the existing source-bound watcher with its original run, attempt and deadline."
+                    : "Inspect the retained source-head run and reconcile its watcher binding; do not resume a stale wait or renew its deadline."
+                  : review.state !== "referenced" || review.result !== "clear"
+                    ? "Complete or reconcile independent review against this source and target."
+                    : acceptance.state !== "referenced" ||
+                        !["passed", "not-required"].includes(acceptance.result ?? "")
+                      ? "Complete the owning acceptance or reconcile its retained evidence."
+                      : "Verify current authority and target interactions, then use the existing exact-head guarded merge.";
+    return {
+      format_version: 1,
+      pull_request: number,
+      observation: "complete",
+      source: { expected: head, observed: pull.head.sha, matches: head === pull.head.sha },
+      target: { ref, sha: target },
+      pull: {
+        state: pull.state,
+        draft: pull.draft,
+        mergeable: pull.mergeable,
+        merged: pull.merged,
+        merge_commit_sha: pull.merge_commit_sha,
+      },
+      checks,
+      review,
+      acceptance,
+      watcher,
+      next_action,
+      boundary:
+        "Current observations and referenced declarations only; no approval, acceptance authority or new merge gate.",
+    };
+  } catch (error) {
+    throw deliveryOutcomeError(
+      "unknown",
+      `Delivery inspection is incomplete: ${sanitizeOperationError(error).message.slice(0, 512)}`,
+      {
+        pull_request: number,
+        head,
+        observation: "unknown",
+        next_action:
+          "Resolve incomplete or contradictory inspection reads; do not infer readiness.",
+      },
+      error,
+    );
+  }
+}
+export function renderDeliveryInspection(
+  inspection: Awaited<ReturnType<typeof inspectDelivery>>,
+  json: boolean,
+) {
+  const text = json
+    ? JSON.stringify(inspection)
+    : renderBoundedSummary(
+        `PR #${inspection.pull_request}: ${inspection.pull.merged ? "merged" : inspection.pull.state}; source ${inspection.source.matches ? "matches" : "changed"}`,
+        [
+          `Source: expected ${inspection.source.expected}; observed ${inspection.source.observed}`,
+          `Target: ${inspection.target.ref} ${inspection.target.sha}`,
+          ...inspection.checks.map((check) => `${check.context}: ${check.outcome}`),
+          ...(["review", "acceptance", "watcher"] as const).map(
+            (kind) => `${kind}: ${JSON.stringify(inspection[kind])}`,
+          ),
+          inspection.next_action,
+          inspection.boundary,
+        ],
+      ).text;
+  if (Buffer.byteLength(text) + 1 > 16384)
+    throw new Error("inspection output exceeds 16384 UTF-8 bytes including newline");
+  return text;
+}
+
 const deliveryFlags: Readonly<Record<string, readonly string[]>> = {
+  inspect: ["--pr", "--head", "--evidence-file", "--json", "--summary"],
   watch: ["--pr", "--head", "--run", "--attempt", "--deadline", "--json", "--progress"],
   "renovate-check": ["--pr", "--head", "--queue", "--json", "--summary"],
   merge: ["--pr", "--head", "--closure-intent-file", "--merge-message-file", "--json"],
 };
 const deliveryRequired: Readonly<Record<string, readonly string[]>> = {
+  inspect: ["--pr", "--head"],
   watch: ["--pr", "--head", "--run", "--attempt", "--deadline"],
   "renovate-check": ["--pr", "--head"],
   merge: ["--pr", "--head", "--closure-intent-file", "--merge-message-file"],
 };
 const deliveryValues: Readonly<Record<string, string>> = {
+  "--evidence-file": "absolute-reference-declaration.json",
   "--pr": "number-or-url",
   "--head": "40-character-sha",
   "--run": "run-id",
@@ -1499,7 +1838,29 @@ async function main(argv: string[]) {
   const head = optionText(options, "--head");
   if (!/^[0-9a-f]{40}$/u.test(head ?? "")) throw new Error("--head must be a 40-character SHA");
   const contexts = await requiredContexts();
-  const client = command === "watch" ? createWatchClient() : new PullRequestDeliveryClient();
+  const client =
+    command === "watch" || command === "inspect"
+      ? createWatchClient()
+      : new PullRequestDeliveryClient();
+  if (command === "inspect") {
+    if (!Number.isSafeInteger(number))
+      throw new Error("inspection PR number must be a safe positive integer");
+    const evidenceFile = options["--evidence-file"];
+    if (typeof evidenceFile === "string" && !path.isAbsolute(evidenceFile))
+      throw new Error("--evidence-file must be an absolute path");
+    const references =
+      typeof evidenceFile === "string"
+        ? parseInspectionReferences(await readFile(evidenceFile, "utf8"), number)
+        : undefined;
+    const inspection = await inspectDelivery(client, {
+      number,
+      head,
+      contexts,
+      ...(references ? { references } : {}),
+    });
+    console.log(renderDeliveryInspection(inspection, Boolean(options["--json"])));
+    return;
+  }
   if (command === "renovate-check") {
     const config: unknown = JSON.parse(
       await readFile(path.join(projectRoot, "renovate.json"), "utf8"),
@@ -1690,7 +2051,18 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
     await main(process.argv.slice(2));
   } catch (error) {
     const safeError = sanitizeOperationError(error);
-    if (process.argv.slice(3).includes("--json")) {
+    if (process.argv[2] === "inspect" && process.argv.slice(3).includes("--json")) {
+      console.log(
+        JSON.stringify({
+          format_version: 1,
+          observation: "unknown",
+          error: {
+            code: "inspection_failed",
+            message: safeError.message.slice(0, 512),
+          },
+        }),
+      );
+    } else if (process.argv.slice(3).includes("--json")) {
       console.log(
         JSON.stringify(
           githubOperationEnvelope({
