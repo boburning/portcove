@@ -113,6 +113,18 @@ cannot be assumed to supply it. Recommend a separately protected, read-only
 billing reader; no account token enters candidate or package jobs. Establishing
 that credential boundary is D2, not implied by repository write access.
 
+The proposed reader is `.github/workflows/release-capacity-inputs.yml` at
+`refs/tags/portcove-production-controller-slice4-capacity-20261018-r1`, environment
+`production-release-capacity`, using a dedicated `portcove-billing-reader` GitHub
+App user authorization for account 43177418 with Plan read only. It has no
+repository contents-write permission. GitHub's billing service is the fact
+writer; the reader cannot set budgets or mint positive allowance facts. Its
+fixed workflow and numeric App/user identities require verification before use.
+Keep raw account responses in access-controlled evidence, outside public logs
+and artifacts; expose only the bounded capacity disposition and its evidence
+association to the existing admission consumer. No user token value is requested
+in chat. This proposed reader still cannot overcome the capability limit below.
+
 Positive capacity requires all of: standard public runners, current visibility,
 no larger runners or paid fallback, provider-enforced zero paid spending, complete
 current account-wide usage and allowance coverage, and conservative remaining
@@ -208,6 +220,14 @@ generate or install a provisional root. D3 enables their preparation through the
 existing process; physical quorum/backup/loss/rotation observations cannot be
 replaced by an approval.
 
+Recommended initial expiry ceilings are root 365 days, top-level targets 90 days,
+definitions/policy/snapshot seven days and timestamp 24 hours, with renewal before
+expiry through the separately authorized fixed publisher. These are proposed
+policy settings for the eventual exact root/metadata review, not current signed
+versions or permission to use keys. D3 does not approve unidentified key material;
+record and review the resulting public fingerprints and signed bytes before
+shipping the configured baseline or signing targets.
+
 For Gen2, recommend scope `official/gen2recomp-gold`, template `generated-cache`,
 Windows x86-64, repository `UNDERdecoded/Gen2Recomped` (numeric ID 1328250646),
 `github.com` plus `release-assets.githubusercontent.com`, at most one redirect,
@@ -252,6 +272,16 @@ observation can honestly be manufactured from that state. A configured build is
 a new baseline, never a relabelled old executable. Its executable and compiled
 catalog stay fixed through authenticated refresh, real artifact progression and
 safe correction; retain install/staged/previous/source/save/pin and hold readback.
+
+The concrete build command is
+`cargo build --release --locked -p portcove-cli --bin portcove`; the selected
+Gen2 capability requirement is `generated-cache`, contract version 1, window
+`[1,1]`. Use an isolated baseline library, not the ordinary user library. Run the
+fixed binary's `catalog check-capabilities`, `catalog definition-authority`,
+`catalog status` and `catalog definition-refresh gen2recomp-gold` surfaces;
+metadata/target URLs use the two catalog origins above. Capture the actual
+binary/package and library identities when they exist; the recipe is not an
+already-built client identity or proof of initial absence.
 
 For Chameleon, D3's **separate schema-4 scope** is limited to
 `official/chameleon-twist-jp-recompiled`, template `n64-recomp-portable`, Windows
