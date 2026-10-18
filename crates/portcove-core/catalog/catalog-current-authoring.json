@@ -619,6 +619,45 @@
         "claim": "Packaged main.cpp matches this tag ignoring line endings and declares Wave Race 64 USA Rev 1 with XXH3 50D5B6046F0C8115, validated before direct launch. Release target/tag provenance ambiguity remains recorded separately.",
         "immutable_url": "https://github.com/DomazinUS/RaceWave46/blob/5c34f3711426978107707a8f06af9c2af4ee5401/src/main.cpp",
         "live_url": "https://github.com/DomazinUS/RaceWave46/blob/main/src/main.cpp"
+      },
+      {
+        "id": "super-mario-world-recomp-0-12-0-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SuperMarioWorldRecomp",
+        "authority_ref": "5fc466cd11a3cb1a4bdc529ebf29e35915ef0252",
+        "reviewed_at": "2026-10-18",
+        "claim": "Pins the v0.12.0 original-input compatibility and direct positional invocation; selected package and source identities are separate from runtime or gameplay acceptance",
+        "immutable_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/5fc466cd11a3cb1a4bdc529ebf29e35915ef0252/src/main.c",
+        "live_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/main/src/main.c"
+      },
+      {
+        "id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/ZeldaAlttPSNESRecomp",
+        "authority_ref": "70b9c1a374d7d92a1d037516354036bf1bfebd5d",
+        "reviewed_at": "2026-10-18",
+        "claim": "Pins the v0.6.1 original-input compatibility and direct positional invocation; selected package and source identities are separate from runtime or gameplay acceptance",
+        "immutable_url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/70b9c1a374d7d92a1d037516354036bf1bfebd5d/src/main.c",
+        "live_url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/main/src/main.c"
+      },
+      {
+        "id": "sonic-the-hedgehog-recomp-0-6-0-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/segagenesisrecomp",
+        "authority_ref": "5c165f6195a88b17d8da4ae619aec2b8f640d84f",
+        "reviewed_at": "2026-10-18",
+        "claim": "The exact engine submodule pinned by SonicTheHedgehogRecomp v0.6.0 declares the 512 KiB raw big-endian JUE REV00 Sonic source with CRC f9394e97. Corroborating No-Intro evidence maps that identity to the enforced SHA-1; package trust and runtime acceptance remain separate.",
+        "immutable_url": "https://github.com/mstan/segagenesisrecomp/blob/5c165f6195a88b17d8da4ae619aec2b8f640d84f/sonicthehedgehog/game.toml",
+        "live_url": "https://github.com/mstan/segagenesisrecomp/blob/main/sonicthehedgehog/game.toml"
+      },
+      {
+        "id": "sonic-genesis-jue-rev00-no-intro-byte-identity",
+        "role": "byte_identity",
+        "authority": "libretro/libretro-database No-Intro",
+        "authority_ref": "12c21cf79f1e20eff6ac68b80875816c717d0a7a",
+        "reviewed_at": "2026-10-18",
+        "claim": "Unique 512 KiB Sonic JUE REV00 entry with upstream compatibility CRC f9394e97 maps to SHA-1 6ddb7de1e17e7f6cdb88927bd906352030daa194; ordinary-file admission uses SHA-1, not an unobserved CRC",
+        "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat/no-intro/Sega%20-%20Mega%20Drive%20-%20Genesis.dat"
       }
     ],
     "identities": [
@@ -5718,6 +5757,128 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "super-mario-world-snes-usa",
+        "label": "Super Mario World (USA) stock headerless SNES source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-stock",
+            "title": "Super Mario World",
+            "region": "USA",
+            "revision": "Stock USA",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headerless-sfc",
+                "extensions": [
+                  "sfc"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": null,
+                    "sha256": "0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "super-mario-world-recomp-0-12-0-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "super-mario-world-recomp-0-12-0-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "a-link-to-the-past-snes-usa",
+        "label": "The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-stock",
+            "title": "The Legend of Zelda: A Link to the Past",
+            "region": "USA",
+            "revision": "Stock USA",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headerless-sfc",
+                "extensions": [
+                  "sfc"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": null,
+                    "sha256": "66871d66be19ad2c34c927d6b14cd8eb6fc3181965b6e517cb361f7316009cfb",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "sonic-the-hedgehog-genesis-jue-rev00",
+        "label": "Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "jue-rev00",
+            "title": "Sonic the Hedgehog",
+            "region": "Japan/USA/Europe",
+            "revision": "REV00",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-big-endian-bin",
+                "extensions": [
+                  "bin"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "6ddb7de1e17e7f6cdb88927bd906352030daa194",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "sonic-the-hedgehog-recomp-0-6-0-source-contract",
+                  "sonic-genesis-jue-rev00-no-intro-byte-identity"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "sonic-the-hedgehog-recomp-0-6-0-source-contract",
+              "sonic-genesis-jue-rev00-no-intro-byte-identity"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -8302,6 +8463,88 @@
           {
             "upstream_ref": "v1.0.0",
             "artifact_sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "super-mario-world-recomp-game-source",
+        "port_id": "super-mario-world-recomp",
+        "role": "game",
+        "profile_id": "super-mario-world-snes-usa",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "super-mario-world-recomp-0-12-0-source-contract"
+        ],
+        "authority_ref": "5fc466cd11a3cb1a4bdc529ebf29e35915ef0252",
+        "reviewed_at": "2026-10-18",
+        "immutable_review_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/5fc466cd11a3cb1a4bdc529ebf29e35915ef0252/src/main.c",
+        "live_review_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/main/src/main.c",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.12.0",
+            "artifact_sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
+        "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+        "role": "game",
+        "profile_id": "a-link-to-the-past-snes-usa",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract"
+        ],
+        "authority_ref": "70b9c1a374d7d92a1d037516354036bf1bfebd5d",
+        "reviewed_at": "2026-10-18",
+        "immutable_review_url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/70b9c1a374d7d92a1d037516354036bf1bfebd5d/src/main.c",
+        "live_review_url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/main/src/main.c",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.6.1",
+            "artifact_sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "sonic-the-hedgehog-recomp-game-source",
+        "port_id": "sonic-the-hedgehog-recomp",
+        "role": "game",
+        "profile_id": "sonic-the-hedgehog-genesis-jue-rev00",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "jue-rev00"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "sonic-the-hedgehog-recomp-0-6-0-source-contract",
+          "sonic-genesis-jue-rev00-no-intro-byte-identity"
+        ],
+        "authority_ref": "5c165f6195a88b17d8da4ae619aec2b8f640d84f",
+        "reviewed_at": "2026-10-18",
+        "immutable_review_url": "https://github.com/mstan/segagenesisrecomp/blob/5c165f6195a88b17d8da4ae619aec2b8f640d84f/sonicthehedgehog/game.toml",
+        "live_review_url": "https://github.com/mstan/segagenesisrecomp/blob/main/sonicthehedgehog/game.toml",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.6.0",
+            "artifact_sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40"
           }
         ],
         "aliases": [],
@@ -16872,6 +17115,235 @@
         }
       },
       "bios_source_profile": "psx-scph-1001-bios"
+    },
+    {
+      "id": "super-mario-world-recomp",
+      "name": "SuperMarioWorldRecomp",
+      "summary": "Native Super Mario World recompilation with a player-prepared Windows runtime.",
+      "project_url": "https://github.com/mstan/SuperMarioWorldRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "mstan/SuperMarioWorldRecomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "version": "v0.12.0",
+            "archive_name": "SuperMarioWorldRecomp-windows-x64-v0.12.0.zip",
+            "archive_size": 9490376,
+            "archive_sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+            "executable": "SuperMarioWorldSNESRecomp.exe",
+            "immutable_tree_sha256": "14ef59aaf6afb54be86eefea3ab98bf842685064df6ed487356aeaf927f0f28e",
+            "source_argument_extension": null,
+            "mutable_paths": [
+              "config.ini",
+              "keybinds.ini",
+              "rom.cfg",
+              "saves",
+              "mods/state.toml",
+              "mods/state.toml.tmp",
+              "last_run_report.json",
+              ".snesrecomp_write_probe"
+            ]
+          }
+        }
+      },
+      "source_profile": "super-mario-world-snes-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "SuperMarioWorldSNESRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "super-mario-world-snes-usa",
+            "label": "Super Mario World (USA) stock headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Extract the exact official v0.12.0 Windows ZIP outside your Portcove library and select the folder containing SuperMarioWorldSNESRecomp.exe. Place your exact stock headerless 512 KiB USA ROM in the extracted package root as smw.sfc, then register that file separately. Portcove passes smw.sfc directly; the verified same-path branch avoids source relocation. Keep this ROM and mods/packages unchanged. Use short paths representable in the Windows system code page. Settings and saves remain player-owned. Unknown files refuse verification and remain preserved. Updates are user-managed; Portcove does not acquire, update, back up or delete the external runtime, source or saves. Windows registration, startup, ordinary close, restart, revalidation and registration-only removal were observed with ordinary developer options disabled. Gameplay, save/load, visual correctness, audio and controller behavior remain unqualified. Use ordinary runtime defaults: before starting Portcove, unset inherited developer options SNESRECOMP_WRAM_TRACE_FILE, SNESRECOMP_APURAM_TRACE_FILE, SNESRECOMP_DSPREG_TRACE_FILE, SNESRECOMP_DSPOUT, SNESRECOMP_STALL_LOG, SNESRECOMP_LUA_PORT. Portcove does not clear these options or sandbox the external process; trace options can write outside the runtime and the optional Lua setting enables a loopback listener.",
+        "artwork": {
+          "game_id": 1070,
+          "cover_id": 401336,
+          "image_id": "co8lo8",
+          "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
+          "game_slug": "super-mario-world",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_arguments": [
+        "smw.sfc"
+      ],
+      "launch_environment": {
+        "SNESRECOMP_NO_LAUNCHER": "1"
+      }
+    },
+    {
+      "id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+      "name": "ZeldaALttPSNESRecomp",
+      "summary": "Native The Legend of Zelda: A Link to the Past recompilation with a player-prepared Windows runtime.",
+      "project_url": "https://github.com/mstan/ZeldaAlttPSNESRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "mstan/ZeldaAlttPSNESRecomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "version": "v0.6.1",
+            "archive_name": "ZeldaALttPSNESRecomp-windows-x64-v0.6.1.zip",
+            "archive_size": 11388312,
+            "archive_sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+            "executable": "ZeldaALttPSNESRecomp.exe",
+            "immutable_tree_sha256": "0bf47793d4f53fe258e94be76e8b28e4ca3c8c19ef6d702dddc54dfb58e3335e",
+            "source_argument_extension": null,
+            "mutable_paths": [
+              "config.ini",
+              "keybinds.ini",
+              "rom.cfg",
+              "saves",
+              "mods/state.toml",
+              "mods/state.toml.tmp",
+              "last_run_report.json",
+              ".snesrecomp_write_probe",
+              "tier2_coverage.json"
+            ]
+          }
+        }
+      },
+      "source_profile": "a-link-to-the-past-snes-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "ZeldaALttPSNESRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "a-link-to-the-past-snes-usa",
+            "label": "The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Extract the exact official v0.6.1 Windows ZIP outside your Portcove library and select the folder containing ZeldaALttPSNESRecomp.exe. Place your exact stock headerless 1 MiB USA ROM in the extracted package root as zelda.sfc, then register that file separately. Portcove passes zelda.sfc directly; the verified same-path branch avoids source relocation. Keep this ROM and mods/packages unchanged. The package README directs personal prebuilt use; the project license is undeclared and dependency notice completeness remains unresolved. Preserve its README unchanged. Use short paths representable in the Windows system code page. Settings and saves remain player-owned. Unknown files refuse verification and remain preserved. Updates are user-managed; Portcove does not acquire, update, back up or delete the external runtime, source or saves. Windows registration, startup, ordinary close, restart, revalidation and registration-only removal were observed with ordinary developer options disabled. Gameplay, save/load, visual correctness, audio and controller behavior remain unqualified. Use ordinary runtime defaults: before starting Portcove, unset inherited developer options SNESRECOMP_WRAM_TRACE_FILE, SNESRECOMP_APURAM_TRACE_FILE, SNESRECOMP_DSPREG_TRACE_FILE, SNESRECOMP_DSPOUT. Portcove does not clear these options or sandbox the external process; trace options can write outside the runtime.",
+        "artwork": {
+          "game_id": 1026,
+          "cover_id": 181427,
+          "image_id": "co3vzn",
+          "image_sha256": "915a51bfc7b7945bdae988ef18d315b98ad8d70855136f4b2f24f4e30ebe007a",
+          "game_slug": "the-legend-of-zelda-a-link-to-the-past",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_arguments": [
+        "zelda.sfc"
+      ],
+      "launch_environment": {
+        "SNESRECOMP_NO_LAUNCHER": "1"
+      }
+    },
+    {
+      "id": "sonic-the-hedgehog-recomp",
+      "name": "SonicTheHedgehogRecomp",
+      "summary": "Native Sonic the Hedgehog recompilation with a player-prepared Windows runtime.",
+      "project_url": "https://github.com/mstan/SonicTheHedgehogRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "mstan/SonicTheHedgehogRecomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "version": "v0.6.0",
+            "archive_name": "SonicTheHedgehogRecomp-v0.6.0-win64.zip",
+            "archive_size": 3776546,
+            "archive_sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
+            "executable": "SonicTheHedgehogRecomp.exe",
+            "immutable_tree_sha256": "7dff505742639ce34c28c40066fe0493b54eaf33ee463b2bf7708ddfc9b37e68",
+            "source_argument_extension": "bin",
+            "mutable_paths": [
+              "settings.ini",
+              "rom-Sonic1.cfg",
+              "native_save_1.bin",
+              "native_save_2.bin",
+              "native_save_3.bin",
+              "native_save_4.bin",
+              "native_save_5.bin",
+              "native_save_6.bin",
+              "native_save_7.bin",
+              "native_save_8.bin",
+              "native_save_9.bin",
+              "framelog_step2.txt",
+              "ramdump_native.bin",
+              "dispatch_misses.log",
+              "interior_label_misses.log",
+              "interp_fallbacks.log",
+              "last_error.log",
+              "chip_ring.txt",
+              "snd_ring.txt",
+              "yield_log_native.log"
+            ]
+          }
+        }
+      },
+      "source_profile": "sonic-the-hedgehog-genesis-jue-rev00",
+      "executable_hints": {
+        "windows-x86-64": [
+          "SonicTheHedgehogRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "sonic-the-hedgehog-genesis-jue-rev00",
+            "label": "Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Extract the exact official v0.6.0 Windows ZIP outside your Portcove library and select the folder containing SonicTheHedgehogRecomp.exe. Register your exact raw big-endian 512 KiB JUE REV00 Genesis .bin separately. Portcove passes the verified original path directly without copying or modifying it. Keep debug.ini absent; adding it refuses package verification. Upstream reports Green Hill complete and later zones partial; full-game correctness remains unknown. Preserve LICENSE, THIRD-PARTY-LICENSES.md and README.txt unchanged. Project licensing does not grant rights to translated original-game code. Use short paths representable in the Windows system code page. Settings and saves remain player-owned. Unknown files refuse verification and remain preserved. Updates are user-managed; Portcove does not acquire, update, back up or delete the external runtime, source or saves. Windows registration, startup, ordinary close, restart, revalidation and registration-only removal were observed with ordinary developer options disabled. Gameplay, save/load, visual correctness, audio and controller behavior remain unqualified. If your exact raw source uses .md, make a byte-identical .bin working copy; no byte-order conversion or headered source is accepted.",
+        "artwork": {
+          "game_id": 3192,
+          "cover_id": 497143,
+          "image_id": "coanlj",
+          "image_sha256": "ac739a2272e2eab518c7d9814becf6f64cc61e8de57e5b357562f577d0d845d3",
+          "game_slug": "sonic-the-hedgehog",
+          "match_kind": "underlying-game"
+        }
+      }
     }
   ]
 }
