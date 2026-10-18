@@ -5550,6 +5550,113 @@
     "title": "PortBatchOutcome",
     "type": "object"
   },
+  "definition_authority_provisioning": {
+    "$defs": {
+      "DefinitionAuthorityReview": {
+        "properties": {
+          "compiled_anchor_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "expected_plan": {
+            "type": "string"
+          },
+          "installed": {
+            "type": "boolean"
+          },
+          "installed_anchor_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "library_id": {
+            "type": "string"
+          },
+          "provisioning_schema": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "provisioning_schema",
+          "configured",
+          "library_id",
+          "compiled_anchor_sha256",
+          "installed_anchor_sha256",
+          "installed",
+          "expected_plan"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "changed": {
+        "type": "boolean"
+      },
+      "review": {
+        "$ref": "#/$defs/DefinitionAuthorityReview"
+      }
+    },
+    "required": [
+      "changed",
+      "review"
+    ],
+    "title": "DefinitionAuthorityProvisioning",
+    "type": "object"
+  },
+  "definition_authority_review": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "compiled_anchor_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "configured": {
+        "type": "boolean"
+      },
+      "expected_plan": {
+        "type": "string"
+      },
+      "installed": {
+        "type": "boolean"
+      },
+      "installed_anchor_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "library_id": {
+        "type": "string"
+      },
+      "provisioning_schema": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "provisioning_schema",
+      "configured",
+      "library_id",
+      "compiled_anchor_sha256",
+      "installed_anchor_sha256",
+      "installed",
+      "expected_plan"
+    ],
+    "title": "DefinitionAuthorityReview",
+    "type": "object"
+  },
   "definition_capability_report": {
     "$defs": {
       "DefinitionCapabilityOutcome": {

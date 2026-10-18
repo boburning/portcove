@@ -553,6 +553,8 @@ export interface TransportOutputs {
   catalog_update_plan: OutputCatalogUpdatePlan;
   catalog_update_source: CatalogUpdateSource;
   check_batch_outcome: OutputCheckBatchOutcome;
+  definition_authority_provisioning: OutputDefinitionAuthorityProvisioning;
+  definition_authority_review: DefinitionAuthorityReview;
   definition_capability_report: OutputDefinitionCapabilityReport;
   definition_capability_request: OutputDefinitionCapabilityRequest;
   doctor: OutputDoctor;
@@ -1527,6 +1529,21 @@ export interface OutputCheckBatchOutcome {
   ok: boolean;
   port_id: string;
   result: UpdateCheck | null;
+  [k: string]: unknown;
+}
+export interface OutputDefinitionAuthorityProvisioning {
+  changed: boolean;
+  review: DefinitionAuthorityReview;
+  [k: string]: unknown;
+}
+export interface DefinitionAuthorityReview {
+  compiled_anchor_sha256: string | null;
+  configured: boolean;
+  expected_plan: string;
+  installed: boolean;
+  installed_anchor_sha256: string | null;
+  library_id: string;
+  provisioning_schema: number;
   [k: string]: unknown;
 }
 export interface OutputDefinitionCapabilityReport {
