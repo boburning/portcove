@@ -39,9 +39,11 @@ accumulated commits, both complete snapshots and 1,608 unique blobs / 50,608,461
 bytes. Bundle SHA-256:
 `8b136a032f5eb9fa2ec8a73e9becd9020653f3d2ec8cdb024724e7a3b4df6a37`.
 The classification is explicitly an unaccepted proposal and compatibility evidence
-is Unknown. No runtime was invoked. This frozen preparation predates the verifier
-repairs; a later activation candidate must rebuild and review its exact final
-source, rather than treating this bundle as a grant for subsequent changes.
+is Unknown. No runtime was invoked. The reviewed input source predates the verifier
+repairs; preparation ran using the repaired working-tree implementation now
+committed at `55c5d6fde03e0846d78d6e034decf122bada4ca2`. A later activation
+candidate must rebuild and review its exact final source, rather than treating
+this bundle as a grant for subsequent changes.
 
 `release-semantic-runtime.mts` accepts only builder-branded, integrity-checked
 inputs. It copies the complete manifest/files before any await and validates the

@@ -162,7 +162,9 @@
         "accepted": false,
         "qualification": "actual inert source preparation only; proposed classification/compatibility not accepted; no candidate eligibility/reservation/producer binding"
       },
-      "scope": "one frozen unaccepted source preparation at0e0cd308, before verifier repairs; not final activation candidate or semantic acceptance"
+      "scope": "one frozen unaccepted input source0e0cd308 predates verifier repairs; preparation ran using repaired working-tree implementation matching55c5d6f, not an activation candidate or semantic acceptance",
+      "preparation_implementation_source": "55c5d6fde03e0846d78d6e034decf122bada4ca2",
+      "preparation_implementation_observation": "executed as dirty working-tree implementation; code source identity recorded after commit"
     }
   },
   "upstream": {
