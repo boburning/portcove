@@ -15,20 +15,23 @@ The [producer and #144 checkpoint](slice4-producer-and-144-checkpoint-2026-10-18
 adds new evidence only. D2 bounded-attempt capacity is delivered at
 `dbf8f979b90ca4513d46dca7ff766fea12d1f2d3`; availability/headroom remain Unknown,
 with no capacity reservation. D1/D3 remain selected. Prepared schema-2 semantic
-serialization/consumption binds actual report bytes and exact inputs; the existing
-local implementation-review runtime has no appointed isolated authenticated
-completion-to-CheckRun transport. The [specific proposed remedy](slice4-semantic-producer-transport.proposed.json)
-reuses that runtime with a direct-capture broker and distinct Checks issuer.
-It does not promote PR clearance or App-authored text to semantic acceptance.
+serialization/consumption binds actual report bytes and exact inputs. The owner
+subsequently appointed the [specific transport role](slice4-semantic-producer-transport.proposed.json)
+at merged #2128. Its broker implementation and inert isolation evidence are now
+prepared; actual Codex execution remains held on storage and safe-reader enforcement.
+The [current checkpoint](slice4-broker-and-portable-repair-checkpoint-2026-10-18.md)
+records that precise blocker. PR clearance or App-authored text is not semantic acceptance.
 
 The guarded capacity reader uses the selected owner pause ref, `capacity.json`,
 and existing fresh protection/job provenance; a hash does not establish live
 settings. #144's real .35/.36 native startup and controlled retained-state
 readback succeeded at component scope, but default mod-resource state retains
 an absolute old executable-root path. This pair is not selected for the complete
-#246 journey. An upstream portable-path fix or separately reviewed finite client
-capability is the next bounded action; the candidate remains outside the compiled
-catalog. No configured baseline or initial absence is claimed.
+#246 journey. The selected upstream portable-default repair is now prepared and
+tested at framework scope. Upstream submission/adoption and two actual repaired
+game artifacts remain pending; a client path-rebase capability is not introduced.
+The candidate remains outside the compiled catalog. No configured baseline or
+initial absence is claimed.
 
 The source, workflow, permission and execution identities below do not become
 current through this continuation. Final runnable revision/digest, provider
@@ -718,3 +721,42 @@ OIDC runner variables and job permission semantics follow the
 The implementation additionally bounds the request/response, refuses redirects,
 and never persists or emits the bearer token. Endpoint compatibility still needs
 actual admitted-run observation; synthetic tests do not prove it.
+
+## Current delta after owner appointment at #2128
+
+The owner explicitly selected the semantic producer transport role and isolated
+runtime/broker boundary proposed at `6c43cb2e6fd0ba2e3a8060befc7b851fbae2af33`.
+This supersedes the earlier outstanding appointment decision; do not ask for that
+mechanism selection again. Implementation, isolation preparation and independent
+review are authorized. Exact credential provisioning and protected execution are
+separate, ungranted actions.
+
+The [broker/portable repair checkpoint](slice4-broker-and-portable-repair-checkpoint-2026-10-18.md)
+and [exact evidence](slice4-broker-and-portable-repair-evidence-2026-10-18.json)
+record the new work. Input serialization, direct-parent capture and the fixed
+CheckRun broker are implemented as held preparation. Native inert AppContainer,
+hardlink, bounded-output and descendant-teardown observations are retained.
+Actual Codex mode refuses before effects because hard-bounded writable profile
+storage and a safe source reader that cannot execute candidate bytes remain
+unassembled. No credential provisioning request or actual producer/check binding
+is ready. A role appointment, token or syntactically accepted report cannot remove
+that engineering hold.
+
+The #144 generated-default repair is prepared for the actual upstream repository,
+with regression and immutable source/local-test-artifact identities. The real
+.35/.36 pair remains failed; no legacy absolute-path migration, new client rebase
+capability, compiled catalog entry or complete Core/feed journey is asserted.
+The [exact upstream submission proposal](slice4-144-upstream-submission-2026-10-18.md)
+is ready for a separate communication decision. Adoption and two repaired real
+game artifacts are external dependencies that approval cannot supply.
+
+D1/D2/D3 and all spending/resource/admission restrictions remain selected. Capacity
+is bounded-attempt eligibility, availability/headroom Unknown and reservation none.
+The existing authenticated configuration and pending/recovery components retain
+their scope. Remote pending durability, exclusive protected executor/readback,
+actual eligible reservation, custody/public keys and operator-observed protections
+remain execution prerequisites. The held controller is not a final runnable
+revision/digest eligible for an execution grant. Assembly/attestation is one stage;
+signing, publication, feeds, custody and recovery retain their separate obligations.
+#254 stays Done; #315/#534/#246 acceptance stays pending; Chameleon
+protected_acceptance remains unset. Production stays held and slice 5 excluded.

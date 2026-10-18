@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "proposed-unprovisioned-not-runnable",
+  "status": "owner-selected-implementation-held-unprovisioned",
   "owner_actor_id": 43177418,
   "repository": "boburning/portcove",
   "repository_id": 1354613114,
@@ -12,21 +12,24 @@
     "launch_shape": [
       "codex",
       "exec",
+      "--ephemeral",
       "--ignore-user-config",
       "--ignore-rules",
       "--sandbox",
       "read-only",
       "--skip-git-repo-check",
       "--json",
+      "--model",
+      "gpt-6.1-sol",
+      "--config",
+      "model_reasoning_effort=\"high\"",
       "--output-schema",
       "<trusted-schema>",
-      "--output-last-message",
-      "<owned-result>",
       "--cd",
-      "<inert-frozen-bundle>",
+      "<isolated-work>",
       "-"
     ],
-    "launch_status": "capability inspected; not executed or isolated by this candidate",
+    "launch_status": "inert AppContainer/process/capture probes observed; actual Codex mode explicitly held",
     "input": "complete validated coordinator opportunity, independently established publication baseline, exact source/tree and complete net-tree delta, classification and compatibility evidence; inert immutable bundle with no candidate scripts/hooks/AGENTS configuration",
     "output": "direct trusted-parent capture of session identity, terminal exit, actual report and exact inputs; no imported caller-authored transcript",
     "failure": "nonzero, incomplete, rejected or ambiguous review retains evidence and emits no successful check"
@@ -36,7 +39,10 @@
     "app_id": null,
     "installation_id": null,
     "check_name": "Portcove independent release semantic review",
-    "permissions": { "checks": "write", "metadata": "read" },
+    "permissions": {
+      "checks": "write",
+      "metadata": "read"
+    },
     "provider_scope": "repository-wide Checks-write; provider does not restrict one check name/head",
     "excluded_issuers": ["classification writer", "GitHub Actions App 15368"],
     "credential_boundary": "producer-owned fixed broker, separate OS security boundary from candidate/reviewer; credential absent during reviewer lifetime and released only after positive process-tree termination; no token/key in model, candidate, writer, observer, admission, assembly or publication",
@@ -46,9 +52,9 @@
   "adapter_sha256": "68c8000be3da58917459b5b4b885b4f4fd4405b0c2cd4ccba6ca27a9fd61bd33",
   "wire": "summary schema 2, exact opportunity and actual report/coverage; persisted classification schema 2 binds full verified proof digest",
   "scope": "no hosted AI job, new classifier, trust journal, billing App, recurring personal artifact stamp, signing or publication",
-  "precise_blocker": "actual local runtime has no appointed isolated authenticated completion-to-CheckRun bridge; serializer integrity is not runtime authentication",
-  "prepared_remedy": "reuse existing independent runtime with fixed direct-capture bridge and separate Checks issuer; shared task host does not supply broker isolation/provisioning",
-  "new_owner_decision": "appoint this producer-owned transport role and isolated runtime/broker boundary, distinct from selected classification writer; exact provisioning and execution grants remain separate",
+  "precise_blocker": "reviewer writable profile storage is not hard-bounded and safe read-only source reader is not yet enforced; codex mode refuses before effects",
+  "prepared_remedy": "finish read-only input reader plus enforced storage boundary, then qualify actual runtime authentication/network before exact producer credential provisioning",
+  "new_owner_decision": null,
   "approval_cannot_supply": [
     "isolated host/OS identity and credential custody",
     "actual App/installation/check identity",
@@ -63,5 +69,16 @@
     "changed inputs and wrong issuer refuse",
     "writer and generic Actions exclusions remain",
     "no protected effect or automatic retry after refusal/ambiguity"
+  ],
+  "selection": {
+    "authority": "explicit owner instruction approving proposal at 6c43cb2e6fd0ba2e3a8060befc7b851fbae2af33",
+    "scope": "broker implementation, isolation preparation and review only"
+  },
+  "prepared_broker": [
+    "scripts/release-semantic-inputs.mts",
+    "scripts/release-semantic-runtime.mts",
+    "scripts/release-semantic-broker.mts",
+    "scripts/semantic-review-sandbox.ps1",
+    "scripts/fixtures/semantic-review-appcontainer.cs.txt"
   ]
 }
