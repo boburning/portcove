@@ -9,6 +9,107 @@ It grants nothing. The runnable workflow remains admission-only. The
 [held complete workflow](application-update-production.aggregate.yml) is outside
 `.github/workflows`; its four new jobs also have literal false conditions.
 
+## Selected implementation checkpoint after #2121
+
+The owner has selected D1's dedicated classification writer, separate owner pause
+ref and isolated administrative observer, and D3's separate catalog origins/root
+and delegated roles. Do not ask for these mechanism choices again. #254 stays
+Done; #315, #534 and #246 retain independent acceptance. Slice 5 is excluded.
+This pass starts at merged #2121 (`64400d8ab813a7a69d6b97cc66417add9ab7cfbe`);
+no later main changes were present at pickup. Subsequent main change #2122
+(`4d0ff2c`) adds Playnite transport dependencies and its focused workflow test;
+its CI edit is in a different job from this test registration. It does not alter
+the selected control inputs, target contracts, custody or acceptance boundaries. The older c65 payload rows below
+are historical component identities, not a grant for the new adapter candidate.
+
+### D1 implemented candidate and remaining producer boundary
+
+The prepared adapters are `scripts/release-control-inputs.mts`,
+`scripts/release-input-protections.mts`, `scripts/release-reviewed-inputs.mts`,
+and fixed named profiles in the existing job identity/source-admission modules.
+The held workflow is [release-reviewed-inputs.held.yml](release-reviewed-inputs.held.yml),
+intended for `.github/workflows/release-reviewed-inputs.yml`; it is outside
+workflows and its two credential jobs have literal false conditions.
+Exact held bytes: 6,366; SHA-256
+`086ed2c625bbd45b4849eee8598a65e9bdcb394d008f47f32a081965b1223b17`. This digest identifies the inert artifact,
+not an activated workflow or an execution grant.
+
+Classification reads reconstruct the complete raw commit, each nonrecursive tree
+on the fixed path, and the inert blob; unsupported objects, duplicate paths,
+symlinks/submodules, conflicts or changed refs refuse. Persistence uses GitHub's
+exact-head CAS on the independently verified opaque ref ID, one addition only,
+no overwrite/retry, and raw-object readback. Identical repeats perform no write.
+Ambiguous outcomes retain structured preimage/acknowledged/observed/input/check
+identities. The pause reader verifies the separate raw ref/document and brackets
+it; this App has no authorized pause path or pause-write role.
+
+Semantic acceptance requires a provider-authenticated independent CheckRun:
+exact configured producer App ID, check name/ID, source head, completed success,
+zero omitted annotations, and a complete versioned JSON report containing the
+whole existing opportunity and its canonical SHA-256. Both the existing version
+classification parser and opportunity contract apply. The writer App and generic
+GitHub Actions App 15368 cannot be this producer. The record is reread before CAS
+and on consumption; changed source/tree/base/net-delta/semantic flags refuse.
+A successful persistence response alone never establishes semantic review.
+
+**Unresolved environment fact:** no actual existing independent review producer's
+numeric issuer/check identity and authenticated report transport has been
+established. The adapters support that binding; they do not create a classifier,
+new review App, or a recurring personal artifact approval. The retained local
+non-writing reviews are implementation review, not silently promoted to these
+semantic release CheckRuns. Before provisioning/using the writer, establish how
+the actual existing independent review producer emits the exact report above.
+If it cannot, this is a concrete producer integration dependency, not permission
+to invent acceptance or appoint a new semantic authority.
+
+The observer does only bounded GETs: complete current repository rulesets,
+full details/bypass sets, both input refs and complete effective branch rules,
+read twice. Unknown inherited rule detail, hidden bypasses, pagination limits,
+drift or unavailable refs refuse. It does not request history because this
+assertion does not need historical enforcement. The policy evaluator requires
+active exact-ref update restrictions with exactly the classification App or
+User 43177418 as appropriate, and separate unbypassable creation/deletion/non-fast-
+forward restrictions. Other restrictions may further deny availability.
+The observer's raw collection is explicitly uninterpreted/HOLD; only the fixed
+writer's same-workflow `needs` mapping can supply its fresh result to the policy
+check and again immediately before CAS (maximum age 60 seconds). Arbitrary dispatch or cross-workflow receipts do
+not authenticate it. Aggregate admission still has no accepted observer handoff.
+
+Observer Administration-write App credentials stay in its own environment/job.
+Writer contents-write App credentials stay in the classification environment/job.
+The ordinary job tokens use actions read for identity queries; the writer also
+uses checks read for the independent report. Neither App needs those extra
+permissions: the CLI routes report reads through the ordinary job token.
+Dedicated `PORTCOVE_REVIEW_CONTROLLER_REVISION`, `_REF` and `_ADMISSION`
+repository variables map to the existing runtime variable names, avoiding a
+collision with the aggregate controller's different ref/digest. Only the writer
+installs the fixed lockfile, without hooks/cache, before App
+credential release. Both jobs use fixed source and own-job OIDC; the existing
+assembly identity profile remains fixed. Slow queue/setup/acquisition that ages
+the observation beyond 60 seconds must refuse without a mutation; this candidate
+does not promise an execution window or weaken freshness to obtain one. No Apps, settings or credentials were
+provisioned. Bootstrap/environment protection must be independently observed
+before either credential can be released. A source check alone cannot prove it.
+
+### D3 bounded target result
+
+[#439 fit assessment](slice4-439-proof-target-assessment-2026-10-18.md) rejects
+`v0.1.0 → v0.1.1`: the old pinned host's SCPH1001/OpenBIOS-only probe conflicts
+with this title's required SCPH5552 even though the managed route bypasses the
+ZIP-root forwarder. The newer framework repairs it. Exactly two releases were
+observed, so no independently usable two-version pair is established for #439.
+The assessment records the actual Core CLI route, exact releases/assets and
+source-level inference, with native/archive observations unrun. The remaining
+condition is a suitable same-target compatible pair, not a broader publisher
+permission. Keep preparation outside the compiled catalog; the root is still
+`null`, no configured ordinary baseline or initial absence is claimed, and the
+final new-definition publisher stable-ID scope remains unset. Gen2 remains
+component evidence and its stable identities are preserved.
+
+Chameleon's acquisition/review references and schema-4 publisher/root scope
+below remain current. `protected_acceptance` remains unset. Nothing here reopens
+#245 or changes the already-authorized general curated exact-byte policy.
+
 ## Proposed execution boundary
 
 ### Bounded unblock proposal — 2026-10-18
@@ -72,8 +173,8 @@ does not carry the App's Administration permission. No attestation or publicatio
 write is proposed for this observer.
 Bind its exact workflow/revision/job/attempt and bounded protection result through
 the existing job-identity/evidence machinery; then the read-only admission
-consumer can compare the complete actor sets and ref policy. This is proposed
-dependent integration, not an implemented observer or another allocation journal.
+consumer can compare the complete actor sets and ref policy. The selected candidate above implements this collection and narrow writer handoff;
+it remains held and is not another allocation journal.
 The current assembler identity verifier fixes the production workflow and
 `Trusted package assembly` job; it cannot accept this observer unchanged. Extend
 that existing machinery narrowly for the exact observer identity and signed
@@ -123,8 +224,8 @@ collection. Re-read the pause and authority configuration immediately before
 each protected effect, within 60 seconds, and refuse any drift; never cache a
 resume across jobs. Expiration of this read window requires a fresh read, not
 another personal approval. A pause cannot undo an effect already committed;
-recovery preserves that effect's evidence and blocks further effects. These
-timing and reader rules are proposed adapter behavior, not implemented claims.
+recovery preserves that effect's evidence and blocks further effects. The selected candidate implements the bounded input reads above; aggregate
+per-effect integration remains held.
 
 [GitHub rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets)
 provide branch/tag restrictions and API-visible enforcement. Their documented
@@ -135,61 +236,53 @@ current job has no such permission, the record does not identify its writer,
 and a value captured at job start cannot prove a later pre-effect read.
 See the [variables API](https://docs.github.com/en/rest/actions/variables).
 
-### Fresh zero-cost admission: decision D2 and provider capability gap
+### D2 feasibility amendment: provider no-spend versus availability
 
-Use GitHub's own account billing facts, never cache byte totals or candidate
-claims. Proposed usage source:
-`GET /users/boburning/settings/billing/usage/summary?year=<UTC-year>&month=<UTC-month>`.
-Its authenticated response must identify the account and current period; retain
-the exact bounded response, acquisition time and product/SKU coverage. The
-[documented user endpoint](https://docs.github.com/en/rest/billing/usage#get-billing-usage-summary-for-a-user)
-requires a GitHub App **user** access token or fine-grained personal token with
-Plan user permission read. An installation token or ordinary `GITHUB_TOKEN`
-cannot be assumed to supply it. Recommend a separately protected, read-only
-billing reader; no account token enters candidate or package jobs. Establishing
-that credential boundary is D2, not implied by repository write access.
+The previous proposal to appoint a billing-reader App is withdrawn for this
+candidate. Its documented Plan-read usage summary supplies neither allowance,
+hard-stop configuration nor reservation. The existing authorized API read lacked
+user scope; no scope expansion was made. It would not answer the decisive test,
+so no additional billing credential is requested.
 
-The proposed reader is `.github/workflows/release-capacity-inputs.yml` at
-`refs/tags/portcove-production-controller-slice4-capacity-20261018-r1`, environment
-`production-release-capacity`, using a dedicated `portcove-billing-reader` GitHub
-App user authorization for account 43177418 with Plan read only. It has no
-repository contents-write permission. GitHub's billing service is the fact
-writer; the reader cannot set budgets or mint positive allowance facts. Its
-fixed workflow and numeric App/user identities require verification before use.
-Keep raw account responses in access-controlled evidence, outside public logs
-and artifacts; expose only the bounded capacity disposition and its evidence
-association to the existing admission consumer. No user token value is requested
-in chat. This proposed reader still cannot overcome the capability limit below.
+A fresh read of the already signed-in account's GitHub billing UI observed
+account `boburning` (43177418), GitHub Free, and an existing account-wide Actions
+budget of `$0`. The budget list says `Usage blocked`; the exact budget editor
+shows amount `0` and **Stop usage when budget limit is reached checked**, with
+GitHub's statement that spending will not exceed that budget. No setting was
+submitted or changed. This is current provider UI evidence of the account's
+configured spending boundary, not an API-derived fresh allowance, storage
+reservation, an operation guarantee, or proof about previously accrued use.
 
-Positive capacity requires all of: standard public runners, current visibility,
-no larger runners or paid fallback, provider-enforced zero paid spending, complete
-current account-wide usage and allowance coverage, and conservative remaining
-artifact/retention headroom for this candidate plus overlapping account use.
-The current proposal remains five job ceilings of 5/25/30/5/20 minutes, seven-day
-retention and existing archive limits; those limits are not a storage reservation.
-Fresh reads must bracket admission and precede every storage-producing effect;
-read age is at most five minutes, with no optimistic reuse across billing periods.
-Missing, stale, partial, inconsistent or inaccessible facts mean
-`free_capacity_available:false` and HOLD in the existing planner.
+[GitHub's Actions billing contract](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
+separates free standard public runners, hourly accrued pooled Actions/Packages
+artifact storage and cache storage. Its no-valid-payment-method behavior also
+blocks usage at quota, but this pass did not inspect payment details and does
+not rely on that alternative. The [budget contract](https://docs.github.com/en/billing/concepts/budgets-and-alerts)
+and [stop-usage configuration](https://docs.github.com/en/billing/how-tos/set-up-budgets)
+support the observed no-spend setting; newly created budgets do not erase earlier
+accrual. There was no creation of a replacement budget.
 
-**Capability limit:** the published budgets REST API manages organization budgets;
-its user scope describes users inside an organization, not the personal
-`boburning` account's Actions budget. Do not invent a personal budget endpoint or
-change repository ownership to obtain one. Usage summaries also do not establish
-the current allowance or hard-stop configuration. The live usage read remained
-unavailable. D2 must include an owner-controlled account-budget/settings readback
-and an executable way to verify the needed invariant; approval alone cannot make
-an unsupported or inaccessible provider read work. Until that exists, no positive
-capacity adapter or protected run is represented as ready. A one-time screenshot
-or declared budget cannot serve as a fresh per-run capacity verdict.
+Recommended achievable contract: retain the existing account-wide `$0` Actions
+stop-usage budget, standard public runners only, no larger runner/paid fallback,
+no shared or enlarged cache, bounded package/archive/workflow ceilings, seven-day
+immutable evidence retention and explicit stop/recovery on provider capacity
+refusal. Include these new input jobs' 5/5/5-minute ceilings and bounded receipts
+in the later candidate estimate. Do not delete unrelated evidence to free space.
+A denied dispatch/upload is unavailable capacity, not accepted proof; retain
+whatever receipt is available, keep the reservation's actual phase, and use the
+existing coordinator's refusal/recovery process before any later attempt.
 
-The [billing contract](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
-distinguishes public standard runner use, accrued artifact/Packages storage and
-separate cache allowance. The
-[budget contract](https://docs.github.com/en/billing/concepts/budgets-and-alerts)
-also warns about usage predating a newly created budget. Verify the actual
-account controls; a zero-dollar notification or today's artifact count is
-insufficient. No budget, payment setting or account credential was changed here.
+**Exact owner decision still needed:** amend the current positive-capacity
+precondition to permit a bounded best-effort attempt inside this observed
+provider-enforced no-spend boundary, with availability/headroom explicitly
+Unknown until each operation succeeds, and fail/hold on any capacity refusal.
+This separates spending safety from availability; it is not a positive storage
+reservation. If that amendment is not accepted, the existing requirement for
+fresh, conservative account-wide remaining headroom stays in force and no
+supported accessible provider source was established to satisfy it.
+`free_capacity_available` remains false/HOLD. No positive capacity adapter or
+protected execution grant is claimed. Any budget/policy/account/runner boundary
+change must invalidate the eventual ratified configuration before use.
 
 ### Exact current payload and staged execution decision
 

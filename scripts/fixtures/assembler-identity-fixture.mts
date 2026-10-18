@@ -24,6 +24,7 @@ export const expected = {
 export function assemblerIdentityFixture(
   overrides: Record<string, unknown> = {},
   headerOverrides: Record<string, unknown> = {},
+  profile = { workflow: productionControllerWorkflow, job: "Trusted package assembly" },
 ) {
   const now = Math.floor(Date.now() / 1000);
   const claims = {
@@ -40,7 +41,7 @@ export function assemblerIdentityFixture(
     ref_type: "tag",
     sha: expected.controller_revision,
     workflow_sha: expected.controller_revision,
-    workflow_ref: `boburning/portcove/${productionControllerWorkflow}@${expected.controller_ref}`,
+    workflow_ref: `boburning/portcove/${profile.workflow}@${expected.controller_ref}`,
     event_name: "workflow_dispatch",
     runner_environment: "github-hosted",
     run_id: expected.run_id,
@@ -91,7 +92,7 @@ export function assemblerIdentityFixture(
             faults.value === "drift" && runReads > 1
               ? "b".repeat(40)
               : expected.controller_revision,
-          path: productionControllerWorkflow,
+          path: profile.workflow,
           event: "workflow_dispatch",
           status: "in_progress",
           repository: { id: 1354613114, full_name: "boburning/portcove" },
@@ -101,7 +102,7 @@ export function assemblerIdentityFixture(
         body = {
           ...job(501),
           status: faults.value === "job-completed" ? "completed" : "in_progress",
-          name: "Trusted package assembly",
+          name: profile.job,
           check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/777",
         };
       } else {
@@ -111,7 +112,7 @@ export function assemblerIdentityFixture(
           ...job(faults.value === "duplicate" ? 1 : 501),
           head_sha: faults.value === "job-source" ? "b".repeat(40) : expected.controller_revision,
           status: "in_progress",
-          name: "Trusted package assembly",
+          name: profile.job,
           check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${faults.value === "name-only" ? "778" : "777"}`,
         };
         body = {

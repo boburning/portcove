@@ -11,7 +11,10 @@ import {
   verifyUploadedAggregate,
 } from "./trusted-aggregate-attestation.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
-import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
+import {
+  requestAssemblerToken,
+  inspectAssemblerIdentityExpectation,
+} from "./assembler-job-identity.mts";
 import { inspectReleaseEvidenceRequest } from "./release-run-evidence.mts";
 
 /** Transport only. The held workflow has no producer for this descriptor until
@@ -74,44 +77,6 @@ export async function requireReservedAggregate(rawDescriptor: string, rawState: 
       "aggregate differs from the existing prepared candidate and frozen Release run",
     );
   return { descriptor, accepted };
-}
-
-export async function requestAssemblerToken(
-  audience: string,
-  environment: NodeJS.ProcessEnv = process.env,
-  fetcher: typeof fetch = fetch,
-) {
-  // These are runner-issued control variables, never dispatch/candidate values.
-  const endpoint = new URL(environment.ACTIONS_ID_TOKEN_REQUEST_URL ?? "");
-  const bearer = environment.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
-  if (
-    endpoint.protocol !== "https:" ||
-    endpoint.username ||
-    endpoint.password ||
-    endpoint.port ||
-    !endpoint.hostname.endsWith(".actions.githubusercontent.com") ||
-    !bearer ||
-    bearer.length > 16384
-  )
-    throw new Error("runner OIDC endpoint is unavailable");
-  endpoint.searchParams.set("audience", audience);
-  const response = await fetcher(endpoint, {
-    headers: { Authorization: `Bearer ${bearer}` },
-    redirect: "error",
-    signal: AbortSignal.timeout(15000),
-  });
-  if (response.status !== 200 || !response.body) throw new Error("runner OIDC request refused");
-  const chunks: Buffer[] = [];
-  let length = 0;
-  for await (const chunk of response.body as AsyncIterable<Uint8Array>) {
-    length += chunk.byteLength;
-    if (length > 32 * 1024) throw new Error("runner OIDC response exceeds bound");
-    chunks.push(Buffer.from(chunk));
-  }
-  const result: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-  if (!isRecord(result) || typeof result.value !== "string" || result.value.length > 16384)
-    throw new Error("runner OIDC response is invalid");
-  return result.value;
 }
 
 async function output(values: Record<string, string>) {
@@ -308,3 +273,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exitCode = 1;
   });
 }
+
+export { requestAssemblerToken } from "./assembler-job-identity.mts";

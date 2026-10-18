@@ -5,7 +5,10 @@ import { mkdtemp, mkdir, copyFile, writeFile, rm, readFile } from "node:fs/promi
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { admitProductionController } from "./production-controller-admission.mts";
+import {
+  admitProductionController,
+  admitReviewedInputsController,
+} from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const source = Buffer.from("independently selected workflow fixture\n");
@@ -199,4 +202,17 @@ void test("CLI runs with only fixed source files and no installed dependencies",
     Buffer.alloc(65537),
   );
   assert.throws(() => invoke([], {}), /source byte identity/u);
+});
+
+void test("reviewed inputs source admission pins its own fixed workflow and rejects production cross-use", () => {
+  const env = {
+    ...environment,
+    GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/release-reviewed-inputs.yml@${policy.execution_ref}`,
+  };
+  assert.equal(
+    admitReviewedInputsController(raw, env, source).workflow,
+    ".github/workflows/release-reviewed-inputs.yml",
+  );
+  assert.throws(() => admitProductionController(raw, env, source));
+  assert.throws(() => admitReviewedInputsController(raw, environment, source));
 });
