@@ -262,31 +262,65 @@ and [stop-usage configuration](https://docs.github.com/en/billing/how-tos/set-up
 support the observed no-spend setting; newly created budgets do not erase earlier
 accrual. There was no creation of a replacement budget.
 
-Recommended achievable contract: retain the existing account-wide `$0` Actions
-stop-usage budget, standard public runners only, no larger runner/paid fallback,
-no shared or enlarged cache, bounded package/archive/workflow ceilings, seven-day
-immutable evidence retention and explicit stop/recovery on provider capacity
-refusal. Include these new input jobs' 5/5/5-minute ceilings and bounded receipts
-in the later candidate estimate. Do not delete unrelated evidence to free space.
-A denied dispatch/upload is unavailable capacity, not accepted proof; retain
-whatever receipt is available, keep the reservation's actual phase, and use the
-existing coordinator's refusal/recovery process before any later attempt.
+**Selected and approved:** the owner approved this amendment against merged
+#2124, `c6470ec28ba9addb0f70d9f86953322d835bb8c0`. It authorizes dependent
+implementation and delivery, not protected execution. Do not reopen the billing
+App or source-selection question.
 
-**Exact owner decision still needed:** amend the current positive-capacity
-precondition to permit a bounded best-effort attempt inside this observed
-provider-enforced no-spend boundary, with availability/headroom explicitly
-Unknown until each operation succeeds, and fail/hold on any capacity refusal.
-This separates spending safety from availability; it is not a positive storage
-reservation. If that amendment is not accepted, the existing requirement for
-fresh, conservative account-wide remaining headroom stays in force and no
-supported accessible provider source was established to satisfy it.
-`free_capacity_available` remains false/HOLD. No positive capacity adapter or
-protected execution grant is claimed. Any budget/policy/account/runner boundary
-change must invalidate the eventual ratified configuration before use.
+The implemented contract permits **eligibility for one bounded attempt**, within
+the retained account-wide `$0` Actions stop-usage boundary, standard public runners
+only, no larger runner/paid fallback, no shared or enlarged cache, no overwrite or
+deletion of unrelated evidence. Availability and headroom remain **Unknown**, and
+there is no capacity reservation. Success proves only that exact operation's
+result, never capacity for another dispatch, upload or retention operation.
+
+`release-capacity.mts` binds supplied independently admitted boundary facts to a
+revocable ratification: account/repository, exact budget identity and configuration
+generation, Actions/account/$0/stop usage, public standard runners and resource
+policy digest. The selected policy pins both held workflow digests. Its bounded
+estimate includes aggregate jobs 5/25/30/5/20 minutes plus input jobs 5/5/5 minutes
+(**100 job-minutes**), three input receipts estimated at at most 128 KiB each,
+existing 512 MiB per-file/2 GiB aggregate archive and assembly ceilings, the two
+declared concurrency groups without cancellation, and seven-day retention. These
+are ceilings and estimates, not observed storage headroom or a storage allocation.
+Any later runnable workflow/resource change requires reconciliation and a new
+matching policy digest before use.
+
+Coordinator input schema 2 carries explicit `capacity_attempt` eligibility instead
+of `free_capacity_available`. Schema 1 remains exact historical replay only;
+new admission and operation preparation use schema 2. Admission snapshots the
+ratification and brackets immutable boundary observations; unavailable or changed
+facts hold. Capacity eligibility cannot remove classification, pause, producer,
+native, publication or other independent holds. The default live admission still
+holds because its independent sources and execution acceptance are incomplete.
+
+The inactive `runBoundedCapacityOperation` library uses the existing coordinator
+journal: persist an exact pending intent before the effect, bind candidate,
+operation/destination, preimage, policy and ratification, recheck boundary and
+pending ownership before entering the effect, and retain bounded completed-effect
+receipts. Provider refusal stops the attempt; unknown failures remain ambiguous.
+The actual reservation phase, counters and completed effects remain intact even
+when a later response or receipt write fails. Explicit existing readback/recovery
+must resolve pending/refused/ambiguous effects before a later attempt. A bounded prior-operation summary inside the existing portable checkpoint
+prevents A → B → A from bypassing completion or existing retry/repair
+limits; a changed or overfull summary refuses. No automatic retry or
+new journal is introduced. Readback persistence validates association, not the
+truth of caller-supplied provider evidence.
+
+**Configuration versus enforcement:** these parsers and digest checks do not
+authenticate arbitrary supplied facts or install provider controls. Retain the
+observed UI receipt above at its original scope. No supported automatic personal
+budget-setting observer is claimed. The admitted configuration owner must revoke
+the ratification **before** changing account, spending-stop, runner class or
+relevant resource policy. Live integration must supply the fixed authenticated
+boundary provenance, protected remote pending durability and exclusive executor/
+readback ownership. An unreported setting change cannot be detected from matching
+supplied hashes. No billing-reader App, positive headroom adapter, production
+activation or protected execution grant is added.
 
 ### Exact current payload and staged execution decision
 
-The reviewable implementation payload remains source
+The prior admission/held-workflow baseline was source
 `c65cb34bc707265c7cd6b1ae12fd490b476da897`, tree
 `d11d37cc726f86d0d7c6db422c95da1f95fd7056`:
 
@@ -301,8 +335,10 @@ The reviewable implementation payload remains source
 
 These are exact payload identities, not a final runnable aggregate controller.
 The held file cannot be substituted for the runnable file under the latter's
-digest. D1-selected adapters, D2 capability and executed-producer acceptance are
-unfinished. It would be false to offer an execution grant against today's inert
+digest. D1-selected adapter activation, authenticated semantic-producer binding and
+executed-producer acceptance remain unfinished. D2 local bounded-attempt semantics
+are implemented; live admitted boundary provenance and operation integration remain
+prerequisites. It would be false to offer an execution grant against today's inert
 workflow as if those changes were included. No protected execution approval is
 requested at this stage. After D1/D2, finish dependent implementation, separate
 review and exact-head CI, then replace this row with the actual final controller

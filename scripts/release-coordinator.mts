@@ -1,3 +1,4 @@
+import { assessBoundedCapacity } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
@@ -142,7 +143,22 @@ function plan(action: string, reason: string, authority: Authority, details: obj
   };
 }
 
-function validateController(controller: unknown) {
+function validateController(controller: unknown, schema: number) {
+  if (schema === 2) {
+    exactKeys(
+      controller,
+      ["workflow", "revision", "publication_paused", "capacity_attempt"],
+      [],
+      "controller",
+    );
+    return {
+      workflow: text(controller.workflow, "controller workflow", 256),
+      revision: sha(controller.revision, "controller revision"),
+      publication_paused: boolean(controller.publication_paused, "publication pause"),
+      capacity: assessBoundedCapacity(controller.capacity_attempt),
+      free_capacity_available: undefined,
+    };
+  }
   exactKeys(
     controller,
     ["workflow", "revision", "publication_paused", "free_capacity_available"],
@@ -342,6 +358,7 @@ type Authority = {
   opportunity_tree: string;
   change_set_sha256: string;
   reviewed_classification_sha256: string;
+  capacity_attempt?: ReturnType<typeof assessBoundedCapacity>;
 };
 function activePlan(
   active: NonNullable<ReturnType<typeof validateActive>>,
@@ -428,13 +445,15 @@ export function planReleaseOpportunity(input: unknown) {
     [],
     "release coordinator input",
   );
-  if (input.schema_version !== 1) throw new Error("unsupported release coordinator schema");
+  if (input.schema_version !== 1 && input.schema_version !== 2)
+    throw new Error("unsupported release coordinator schema");
   const now = instant(input.now, "coordinator time");
-  const controller = validateController(input.controller);
+  const controller = validateController(input.controller, input.schema_version);
   const opportunity = validateOpportunity(input.opportunity);
   const publication = validatePublication(input.publication, now);
   const active = validateActive(input.active_candidate);
   const authority = {
+    ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
     controller_workflow: controller.workflow,
     controller_revision: controller.revision,
     publication_observed_at: publication.observed_at,
@@ -450,9 +469,21 @@ export function planReleaseOpportunity(input: unknown) {
       .digest("hex"),
   };
 
+  if (
+    controller.capacity &&
+    (controller.publication_paused || controller.capacity.eligibility !== "eligible")
+  )
+    return plan(
+      "pause",
+      controller.publication_paused
+        ? "publication emergency pause is active"
+        : controller.capacity.reason,
+      authority,
+      { active_candidate: active, capacity: controller.capacity },
+    );
   if (controller.publication_paused)
     return plan("pause", "publication emergency pause is active", authority);
-  if (!controller.free_capacity_available)
+  if (input.schema_version === 1 && !controller.free_capacity_available)
     return plan("pause", "free runner or artifact capacity is unavailable", authority);
   if (active) {
     if (

@@ -1,3 +1,4 @@
+import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -465,4 +466,49 @@ void test("coordinator rejects array-valued intent digests before resuming", () 
       ),
     /intent digest is invalid/,
   );
+});
+
+void test("schema2 uses bounded eligibility with Unknown availability and preserves pause/reservation limits", () => {
+  const input = fixture();
+  input.schema_version = 2;
+  input.controller = {
+    workflow: ".github/workflows/release-coordinator.yml",
+    revision: controllerRevision,
+    publication_paused: false,
+    capacity_attempt: capacityFixture(),
+  };
+  const ready = planReleaseOpportunity(input);
+  assert.equal(ready.action, "prepare");
+  assert.equal(ready.authority.capacity_attempt?.availability, "unknown");
+  assert.throws(
+    () =>
+      planReleaseOpportunity({
+        ...input,
+        controller: { ...(input.controller as object), free_capacity_available: true },
+      }),
+    /unknown field/,
+  );
+  const held = planReleaseOpportunity({
+    ...input,
+    controller: { ...(input.controller as object), publication_paused: true },
+  });
+  assert.equal(held.action, "pause");
+  const unavailable = capacityFixture();
+  unavailable.boundary.stop_usage = false;
+  const heldActive = planReleaseOpportunity({
+    ...input,
+    controller: { ...(input.controller as object), capacity_attempt: unavailable },
+    publication: { ...(input.publication as object), reserved_versions: ["0.1.0-alpha.3"] },
+    active_candidate: active(),
+  });
+  assert.equal(heldActive.action, "pause");
+  assert.ok("active_candidate" in heldActive);
+  assert.ok(isRecord(heldActive.active_candidate));
+  assert.equal(heldActive.active_candidate.phase, "qualifying");
+  const exhausted = planReleaseOpportunity({
+    ...input,
+    publication: { ...(input.publication as object), reserved_versions: ["0.1.0-alpha.3"] },
+    active_candidate: active({ phase: "failed", failure_kind: "transient", transient_retries: 2 }),
+  });
+  assert.equal(exhausted.action, "pause-exception");
 });
