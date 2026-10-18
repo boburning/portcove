@@ -136,6 +136,20 @@ impl DefinitionContentIndex {
             .release
             .user_prepared
             .values()
+            .any(|runtime| runtime.settings_contract.is_some())
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable" && requirement.minimum_version >= 5
+            })
+        {
+            return Err(PortcoveError::verification(
+                "prepared settings contract requires staged-source capability version 5",
+            ));
+        }
+
+        if port
+            .release
+            .user_prepared
+            .values()
             .any(|runtime| !runtime.required_mutable_files.is_empty())
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable" && requirement.minimum_version >= 4

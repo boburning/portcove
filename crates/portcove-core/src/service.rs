@@ -3698,6 +3698,19 @@ impl PortcoveService {
             let port = launch_catalog.port(port_id)?;
             let active = self.library.status(port_id, default_channel(port))?.active;
             let external = self.library.external_runtime_with_port(port_id)?;
+            if !arguments.is_empty()
+                && let Some((record, retained_catalog)) = &external
+                && retained_catalog
+                    .port(port_id)?
+                    .release
+                    .user_prepared
+                    .get(&record.platform)
+                    .is_some_and(|runtime| runtime.settings_contract.is_some())
+            {
+                return Err(PortcoveError::usage(
+                    "this prepared settings contract does not allow forwarded launch arguments",
+                ));
+            }
             let (install_id, install_root, owner_kind) = match (&active, &external) {
                 (Some(_), Some(_)) => {
                     return Err(PortcoveError::state(
@@ -9247,6 +9260,7 @@ fn main() {
             source_argument_extension: None,
             library_user_data: private,
             required_mutable_files: vec![],
+            settings_contract: None,
             mutable_paths: vec!["player-save".into()],
         };
         if required_selector {
@@ -9351,6 +9365,105 @@ fn main() {
             None,
             &OperationCoordinator::new("launch", None),
         )
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn tfe_settings_retain_source_guard_and_do_not_spend_failed_consent() {
+        let (_temporary, mut service, record) =
+            external_location_fixture_with_selector(false, None, None, "game.exe", true);
+        let removal = service.preview_external_removal(&record.port_id).unwrap();
+        let authorization = service
+            .authorize_external_removal(&record.port_id, &removal.preview_sha256)
+            .unwrap();
+        service
+            .remove_external_runtime(&record.port_id, &authorization.token)
+            .unwrap();
+        let valid = b"[Game]\ngame=\"Dark Forces\"\n[Dark_Forces]\nsourcePath=\"GameData/\"\n";
+        fs::write(record.path.join("settings.ini"), valid).unwrap();
+        fs::create_dir(record.path.join("GameData")).unwrap();
+        for name in ["DARK.GOB", "SOUNDS.GOB", "SPRITES.GOB", "TEXTURES.GOB"] {
+            fs::write(record.path.join("GameData").join(name), name).unwrap();
+        }
+        let mut document = service.catalog.authoritative_document();
+        let spec = document.ports[0]
+            .release
+            .user_prepared
+            .values_mut()
+            .next()
+            .unwrap();
+        spec.version = "1.22.420".into();
+        spec.settings_contract = Some(crate::PreparedRuntimeSettingsContract::TfeDarkForces122420);
+        let mismatch = crate::external_runtime::inspect(&record.path, spec, service.library.root())
+            .unwrap_err();
+        spec.immutable_tree_sha256 = mismatch.details["actual_tree_sha256"].clone();
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        let preview = service
+            .preview_external_runtime(&record.port_id, &record.path)
+            .unwrap();
+        let authorization = service
+            .authorize_external_runtime(&record.port_id, &record.path, &preview.preview_sha256)
+            .unwrap();
+        fs::write(
+            record.path.join("settings.ini"),
+            String::from_utf8_lossy(valid).replace("GameData/", "ElseData/"),
+        )
+        .unwrap();
+        assert!(
+            service
+                .register_external_runtime(&record.port_id, &record.path, &authorization.token)
+                .is_err()
+        );
+        fs::write(record.path.join("settings.ini"), valid).unwrap();
+        let registered = service
+            .register_external_runtime(&record.port_id, &record.path, &authorization.token)
+            .unwrap();
+        prepare_external_location_fixture_launch(&service, &registered).unwrap();
+        for runtime in document.ports[0].release.user_prepared.values_mut() {
+            runtime.settings_contract = None;
+        }
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        let forwarded = service
+            .supervise_launch(
+                &record.port_id,
+                None,
+                &["-gOUTLAWS".into()],
+                LaunchStdio::Null,
+                |_| panic!("must refuse before spawn"),
+            )
+            .unwrap_err();
+        assert!(forwarded.message.contains("forwarded launch arguments"));
+        let sessions: usize = service
+            .library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM launch_sessions WHERE port_id=?1",
+                [&record.port_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(sessions, 0);
+        fs::write(
+            record.path.join("settings.ini"),
+            String::from_utf8_lossy(valid).replace("Dark Forces", "Outlaws"),
+        )
+        .unwrap();
+        assert!(prepare_external_location_fixture_launch(&service, &registered).is_err());
+        assert_external_location_readiness(&service, true);
+        let removal = service.preview_external_removal(&record.port_id).unwrap();
+        let authorization = service
+            .authorize_external_removal(&record.port_id, &removal.preview_sha256)
+            .unwrap();
+        service
+            .remove_external_runtime(&record.port_id, &authorization.token)
+            .unwrap();
+        assert!(record.path.join("GameData/DARK.GOB").is_file());
+        assert!(record.path.join("settings.ini").is_file());
     }
 
     #[test]
@@ -10100,6 +10213,7 @@ fn main() {
             source_argument_extension: Some("z64".into()),
             library_user_data: false,
             required_mutable_files: vec![],
+            settings_contract: None,
             mutable_paths: vec!["general.json".into()],
         };
         runtime.immutable_tree_sha256 =
@@ -10355,6 +10469,7 @@ fn main() {
             source_argument_extension: None,
             library_user_data: false,
             required_mutable_files: vec![],
+            settings_contract: None,
             mutable_paths: vec!["general.json".into()],
         };
         let mismatch =
