@@ -3,12 +3,13 @@
 Status: prepared, ungranted. This is a local host differential test, not producer
 credential provisioning, semantic acceptance or protected execution.
 
-Preparation is not yet an execution-ready request: first qualify the repaired
-package TEMP path in the non-elevated read-only preflight. The last completed
-probe denied real-profile writes, but TEMP was absent (Win32 error 3); that is a
-failure, not evidence of denied writes. The repaired preflight reached its
-900-second resource admission deadline without starting a payload. No host action
-or credential grant can substitute for that outstanding qualification.
+The repaired non-elevated read-only preflight now passes, including actual
+package TEMP denial. The fixed reader's real stdio list/read/search also passes
+inside the same boundary. Normal exit and persistent-descendant teardown pass.
+The installed Codex fixture still exits 1 before events with app-server access
+denied. Earlier absent-TEMP, forced-tree and resource-deadline failures remain in
+the checkpoint. This proposal is ready for a narrow host decision after review
+and exact-head delivery; it does not establish a usable authenticated reviewer.
 
 The selected LPAC boundary successfully starts the installed Codex executable,
 but its in-process app-server returns access denied before review events.
@@ -76,3 +77,19 @@ No supported authenticated reviewer route, accepted whole-opportunity report or
 issuer App/installation/CheckRun exists yet. Once inert startup works, prepare
 and qualify the supported authentication route inside the same boundary before
 requesting issuer provisioning. Production remains held.
+
+Reviewed configuration SHA-256:
+`8e305e64fccd5f002e7855f6472c3e6fb55f575691390db2221f400963fbaa89`.
+Provision/recovery helper SHA-256:
+`771d0c013aaf467b26798321a73c20e9390cfca42c5935fa2c53c2b5af18ead1`.
+From the exact reviewed delivery, the authorized same-owner elevated session uses:
+
+```powershell
+pwsh -NoProfile -File E:/Codex-Worktrees/slice4-admission-delivery/scripts/prepare-semantic-storage.ps1 -Operation Provision -Configuration E:/Codex-Worktrees/slice4-admission-delivery/docs/qualification/slice4-semantic-local-storage.proposed.json -ExpectedConfigurationSha256 8e305e64fccd5f002e7855f6472c3e6fb55f575691390db2221f400963fbaa89
+```
+
+Do not execute this command until the host action is granted. The source revision
+and helper digest must match the reviewed delivery; changed helpers/configuration
+require reconciliation before any operation. Fixture execution stays non-elevated.
+`RecoverDetach` uses the same command with that operation and the exact newly
+retained `-IsolationReceipt <run-root>/capture/isolation.json`; never guess a run.

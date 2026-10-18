@@ -296,6 +296,17 @@ if (mode === "flood" || mode === "descendant") {
     (mode === "descendant" && record.process.CaptureComplete !== true)
   )
     throw new Error("negative containment did not refuse safely");
+  if (mode === "descendant") {
+    const child = (await readFile(path.join(root, "capture/stdout.jsonl"), "utf8")).trim();
+    if (
+      !/^[1-9]\d*$/u.test(child) ||
+      Number(child) === record.process.Pid ||
+      record.process.ExitCode !== 0 ||
+      typeof record.process.ActiveBeforeTermination !== "number" ||
+      record.process.ActiveBeforeTermination < 1
+    )
+      throw new Error("persistent descendant was not actually established before teardown");
+  }
 }
 if (["readonly", "storage-readonly", "reader-fixture", "codex-fixture"].includes(mode)) {
   const record: unknown = JSON.parse(

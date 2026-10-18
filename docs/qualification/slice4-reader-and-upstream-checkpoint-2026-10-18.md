@@ -86,20 +86,49 @@ positive teardown observations and retains partial state.
   review events. Earlier hostname panic, Node startup/timeouts and setup failures
   remain separate observations. Parent login status does not qualify isolation.
 
+The next source-bound qualification adds these observations without replacing the
+failures above:
+
+- `cF6E7F`: all storage/registry assertions passed, but root exit 0 with active
+  job accounting required forced teardown. Overall **FAIL**; no accounting-lag
+  cause was assumed. The helper now allows at most one second of tree settlement
+  inside the original runtime bound, then kills surviving processes as before.
+- `ymQtTx`: read-only storage **PASS**, including real profile/TEMP denial and
+  normal teardown; settlement 10 ms. `AImkG3` then failed because Node attempted
+  drive-root realpath resolution outside its grants. The fixed reader now uses
+  the existing probe's direct-path Node flags; no ancestor ACL was widened.
+- `AVBfed`: read-only storage **PASS**. `3Fnym8`: actual isolated fixed-reader
+  initialize/list/read/search exchanges **PASS**, including exact inert bytes.
+- `2gt2Nd`: installed Codex inert no-auth fixture **FAIL**, exit 1, app-server
+  access denied before events, no forced termination, complete capture, empty
+  tree and deleted profile. The stack's symbol names do not establish its cause.
+- `TsyMwX`: normal probe **PASS**. `4TL3on`: persistent descendant **PASS** as a
+  negative containment test: root exited 0, child PID 18232, one active process
+  after 1000 ms, forced termination, complete capture, empty tree and deleted
+  profile. Strict retained-capture readback establishes the actual child; the
+  harness now requires that evidence rather than accepting any forced timeout.
+
+`cF6E7F` used the pre-settlement native helper SHA-256
+`a66688992d9490b028dcd7ba71bbede8952f5ff4b9cd3f7b40b1f3845e4dc64e`.
+`ymQtTx` and the subsequent listed observations use native helper SHA-256
+`1ec91e169569acfc71513a21c9977409ec6d35ce1041098c0f19af821d43cad3`.
+The reader/runtime implementation is unchanged from the focused nine-test pass;
+the subsequent harness assertion is checked against the retained actual capture.
+
 ## Concrete remaining actions
 
-First rerun the repaired non-elevated read-only preflight when ordinary host
-resource admission is available. Do not bypass live owners or infer native
-success from its queue refusal. Then qualify the fixed reader and inert installed
-runtime. No complete-opportunity review starts until that path works.
+The read-only storage and fixed-reader stages now pass. The installed inert
+runtime remains failed. No complete-opportunity review starts until that path
+works; host-resource and runtime failures remain independent observations.
 
 The [prepared fixed-storage configuration](slice4-semantic-local-storage.proposed.json)
 and [recovery procedure](slice4-semantic-local-storage-qualification-2026-10-18.md)
 are a conditional 512 MiB NTFS VHD diagnostic. The same owner's UAC-elevated
 operator action would be needed for provisioning; membership was confirmed but
 the current token is medium integrity and lacks the volume privilege. This is
-not yet an execution-ready grant request: the TEMP repair must qualify first.
-It does not assert that writable storage solves the app-server failure.
+the next narrow host grant request, bound to the final reviewed delivery and
+configuration/helper hashes. It does not assert that writable storage solves
+the app-server failure.
 No volume, authentication or credential has been provisioned. Supported isolated
 authentication/network qualification remains a separate environment dependency.
 

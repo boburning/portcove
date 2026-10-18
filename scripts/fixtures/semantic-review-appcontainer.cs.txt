@@ -167,7 +167,7 @@ public static class PortcoveReviewContainer {
   }
   public sealed class Result {
     public uint Pid; public uint? ExitCode; public bool IsAppContainer,TreeEmpty,ForcedTermination;
-    public string ObservedSid,RegistryValueReadback; public string[] CapabilitySids; public long ElapsedMs,SetupElapsedMs,StdoutBytes,StderrBytes; public bool CaptureComplete,RegistryReadOnly,RegistryCanariesIntact,AllApplicationPackagesGrantRefused;
+    public string ObservedSid,RegistryValueReadback; public string[] CapabilitySids; public long ElapsedMs,SetupElapsedMs,TreeSettlementMs,StdoutBytes,StderrBytes; public uint ActiveBeforeTermination; public bool CaptureComplete,RegistryReadOnly,RegistryCanariesIntact,AllApplicationPackagesGrantRefused;
   }
   static bool RefusesAllAppsGrant(IntPtr token) {
     IntPtr duplicate=IntPtr.Zero,descriptor=IntPtr.Zero,privileges=IntPtr.Zero;uint size,granted;
@@ -306,6 +306,16 @@ public static class PortcoveReviewContainer {
       } while(wait==258);
       if(!result.ForcedTermination){uint observedExit;Require(GetExitCodeProcess(pi.process,out observedExit),"exit code");result.ExitCode=observedExit;}
       Accounting count;Require(QueryInformationJobObject(job,1,out count,Marshal.SizeOf(typeof(Accounting)),IntPtr.Zero),"query remaining tree");
+      // Root termination and job accounting are separate observations. Give the
+      // owned tree a finite settlement window inside the original runtime bound;
+      // a remaining descendant or capture refusal still requires forced teardown.
+      var settlement=System.Diagnostics.Stopwatch.StartNew();
+      while(!result.ForcedTermination && count.active!=0 && settlement.ElapsedMilliseconds<1000 && watch.ElapsedMilliseconds<timeoutMs) {
+        if(output.Exceeded || error.Exceeded || output.Failed || error.Failed){result.ForcedTermination=true;break;}
+        System.Threading.Thread.Sleep(10);
+        Require(QueryInformationJobObject(job,1,out count,Marshal.SizeOf(typeof(Accounting)),IntPtr.Zero),"query settling tree");
+      }
+      result.TreeSettlementMs=settlement.ElapsedMilliseconds;result.ActiveBeforeTermination=count.active;
       if(count.active!=0)result.ForcedTermination=true;
       if(result.ForcedTermination)Require(TerminateJobObject(job,1),"terminate owned tree");
       var stop=System.Diagnostics.Stopwatch.StartNew();

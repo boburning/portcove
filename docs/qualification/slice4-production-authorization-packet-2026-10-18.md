@@ -786,17 +786,18 @@ Codex 0.162.0 inert, credential-free attempt failed to initialize its in-process
 app-server with access denied before any review event. Earlier hostname panic,
 Node startup/timeout and qualification setup failures remain separate retained
 observations. A native probe exposed a retained critical profile ACE; replacing the DACL made
-real-profile writes refuse. The latest completed probe still failed because Windows
-redirected TEMP to an absent package path (error 3). The candidate now materializes
-and locks that path, but the 900-second resource admission deadline ended before
-the follow-up payload started. This is not a native pass.
+real-profile writes refuse. An earlier probe still failed because Windows
+redirected TEMP to an absent package path (error 3). The candidate materializes
+and locks that path. One follow-up hit its resource deadline without payload;
+later qualification passed storage and the fixed reader. The retained failures
+and subsequent bounded tree-settlement repair are recorded in the checkpoint.
 Authentication/network and complete-opportunity review are unproven.
 The parent login status is not an authenticated isolated reviewer observation.
 
 The conditional host proposal is the separately ungranted
 [fixed-storage configuration](slice4-semantic-local-storage.proposed.json) and
 [qualification/recovery procedure](slice4-semantic-local-storage-qualification-2026-10-18.md).
-It is not execution-ready until the repaired non-elevated TEMP preflight passes.
+The subsequent read-only storage and isolated fixed-reader stages pass, as do normal and persistent-descendant teardown. The inert installed Codex still fails before events with app-server access denied. The next narrow host decision is the fixed-volume diagnostic, bound to the final reviewed delivery; it is not a proven fix or authentication grant.
 Its fixed 512 MiB NTFS VHD is a bounded writable-state differential, not an asserted
 fix. The current owner token is not elevated and lacks SeManageVolumePrivilege;
 Storage cmdlet presence does not grant the operator action. No volume, quota,

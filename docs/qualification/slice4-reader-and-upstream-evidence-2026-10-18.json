@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "reviewed held preparation; native TEMP repair and isolated runtime/authentication remain unqualified",
+  "status": "reviewed held preparation; isolated storage/reader and teardown pass; installed Codex startup/authentication remain unqualified",
   "base_commit": "c7a8226fcd854af4f71bc2649ec51da9b68123fe",
   "upstream": {
     "url": "https://github.com/RetroPortingToolKit/psxrecomp/pull/685",
@@ -426,6 +426,348 @@
         },
         "qualification": "OS containment/process evidence only; not semantic acceptance or credential authority"
       }
+    },
+    {
+      "path": "work/slice4/semantic-isolation-cF6E7F/capture/isolation.json",
+      "bytes": 1485,
+      "sha256": "540891145bdea610bc9e128ee2be59672b6954ee8ae02870d554fbd6268fa882",
+      "receipt": {
+        "schema_version": 1,
+        "mode": "probe",
+        "native_helper_sha256": "a66688992d9490b028dcd7ba71bbede8952f5ff4b9cd3f7b40b1f3845e4dc64e",
+        "read_only_storage": true,
+        "bounded_mount": null,
+        "bounded_volume_guid": null,
+        "bounded_grants_removed": false,
+        "cleanup_errors": [],
+        "profile_name": "portcove.review.04155101e29749a6952c80809670e1a3",
+        "expected_sid": "S-1-15-2-2614316014-64770092-2222040502-4172556446-3058149942-3354012843-3265426128",
+        "profile_deleted": true,
+        "broker_sid": "S-1-5-21-1007133822-4277289207-646028416-1001",
+        "process": {
+          "Pid": 29924,
+          "ExitCode": 0,
+          "IsAppContainer": true,
+          "TreeEmpty": true,
+          "ForcedTermination": true,
+          "ObservedSid": "S-1-15-2-2614316014-64770092-2222040502-4172556446-3058149942-3354012843-3265426128",
+          "RegistryValueReadback": "123",
+          "CapabilitySids": [
+            "S-1-15-3-1024-1643039355-2528352707-2793832923-4072405889-2916732180-1547159642-3850945952-3283237789",
+            "S-1-15-3-1024-1065365936-1281604716-3511738428-1654721687-432734479-3232135806-4053264122-3456934681",
+            "S-1-15-3-1"
+          ],
+          "ElapsedMs": 349,
+          "SetupElapsedMs": 213,
+          "StdoutBytes": 1148,
+          "StderrBytes": 0,
+          "CaptureComplete": true,
+          "RegistryReadOnly": true,
+          "RegistryCanariesIntact": true,
+          "AllApplicationPackagesGrantRefused": true
+        },
+        "qualification": "OS containment/process evidence only; not semantic acceptance or credential authority"
+      }
+    },
+    {
+      "path": "work/slice4/semantic-isolation-ymQtTx/capture/isolation.json",
+      "bytes": 1554,
+      "sha256": "cc0d7f50ba4329d4f05505177da1086d8a22df740351e959fcb9418d085b5ca4",
+      "receipt": {
+        "schema_version": 1,
+        "mode": "probe",
+        "native_helper_sha256": "1ec91e169569acfc71513a21c9977409ec6d35ce1041098c0f19af821d43cad3",
+        "read_only_storage": true,
+        "bounded_mount": null,
+        "bounded_volume_guid": null,
+        "bounded_grants_removed": false,
+        "cleanup_errors": [],
+        "profile_name": "portcove.review.4b6bce043111496d9fe3a41e0295f425",
+        "expected_sid": "S-1-15-2-3329305484-1943476924-3490905317-1348912571-1054866813-2952330926-2711993786",
+        "profile_deleted": true,
+        "broker_sid": "S-1-5-21-1007133822-4277289207-646028416-1001",
+        "process": {
+          "Pid": 16808,
+          "ExitCode": 0,
+          "IsAppContainer": true,
+          "TreeEmpty": true,
+          "ForcedTermination": false,
+          "ObservedSid": "S-1-15-2-3329305484-1943476924-3490905317-1348912571-1054866813-2952330926-2711993786",
+          "RegistryValueReadback": "123",
+          "CapabilitySids": [
+            "S-1-15-3-1024-1643039355-2528352707-2793832923-4072405889-2916732180-1547159642-3850945952-3283237789",
+            "S-1-15-3-1024-1065365936-1281604716-3511738428-1654721687-432734479-3232135806-4053264122-3456934681",
+            "S-1-15-3-1"
+          ],
+          "ElapsedMs": 447,
+          "SetupElapsedMs": 281,
+          "TreeSettlementMs": 10,
+          "StdoutBytes": 1148,
+          "StderrBytes": 0,
+          "ActiveBeforeTermination": 0,
+          "CaptureComplete": true,
+          "RegistryReadOnly": true,
+          "RegistryCanariesIntact": true,
+          "AllApplicationPackagesGrantRefused": true
+        },
+        "qualification": "OS containment/process evidence only; not semantic acceptance or credential authority"
+      }
+    },
+    {
+      "path": "work/slice4/semantic-isolation-AImkG3/capture/isolation.json",
+      "bytes": 1559,
+      "sha256": "d08aa24f6f6921de0a510e6eb21050a1c0bd94a1a0dbc3a7d2bb71ce01a7b7eb",
+      "receipt": {
+        "schema_version": 1,
+        "mode": "reader-fixture",
+        "native_helper_sha256": "1ec91e169569acfc71513a21c9977409ec6d35ce1041098c0f19af821d43cad3",
+        "read_only_storage": true,
+        "bounded_mount": null,
+        "bounded_volume_guid": null,
+        "bounded_grants_removed": false,
+        "cleanup_errors": [],
+        "profile_name": "portcove.review.b25f25b4babd44489bebe4c999e9a42f",
+        "expected_sid": "S-1-15-2-1484779613-2650528964-2385599668-3920190527-750399509-208910232-2725135358",
+        "profile_deleted": true,
+        "broker_sid": "S-1-5-21-1007133822-4277289207-646028416-1001",
+        "process": {
+          "Pid": 17476,
+          "ExitCode": 1,
+          "IsAppContainer": true,
+          "TreeEmpty": true,
+          "ForcedTermination": false,
+          "ObservedSid": "S-1-15-2-1484779613-2650528964-2385599668-3920190527-750399509-208910232-2725135358",
+          "RegistryValueReadback": "123",
+          "CapabilitySids": [
+            "S-1-15-3-1024-1643039355-2528352707-2793832923-4072405889-2916732180-1547159642-3850945952-3283237789",
+            "S-1-15-3-1024-1065365936-1281604716-3511738428-1654721687-432734479-3232135806-4053264122-3456934681",
+            "S-1-15-3-1"
+          ],
+          "ElapsedMs": 4458,
+          "SetupElapsedMs": 3253,
+          "TreeSettlementMs": 0,
+          "StdoutBytes": 0,
+          "StderrBytes": 596,
+          "ActiveBeforeTermination": 0,
+          "CaptureComplete": true,
+          "RegistryReadOnly": true,
+          "RegistryCanariesIntact": true,
+          "AllApplicationPackagesGrantRefused": true
+        },
+        "qualification": "OS containment/process evidence only; not semantic acceptance or credential authority"
+      }
+    },
+    {
+      "path": "work/slice4/semantic-isolation-AVBfed/capture/isolation.json",
+      "bytes": 1554,
+      "sha256": "f358b55fdedad06d575364c5a03fe65147f061f91037188e7534093011a9863c",
+      "receipt": {
+        "schema_version": 1,
+        "mode": "probe",
+        "native_helper_sha256": "1ec91e169569acfc71513a21c9977409ec6d35ce1041098c0f19af821d43cad3",
+        "read_only_storage": true,
+        "bounded_mount": null,
+        "bounded_volume_guid": null,
+        "bounded_grants_removed": false,
+        "cleanup_errors": [],
+        "profile_name": "portcove.review.a405c44db4104c6c97b299d872516a70",
+        "expected_sid": "S-1-15-2-2604764216-3685782127-3083381381-4065772559-1409919739-3179874226-3811746841",
+        "profile_deleted": true,
+        "broker_sid": "S-1-5-21-1007133822-4277289207-646028416-1001",
+        "process": {
+          "Pid": 41532,
+          "ExitCode": 0,
+          "IsAppContainer": true,
+          "TreeEmpty": true,
+          "ForcedTermination": false,
+          "ObservedSid": "S-1-15-2-2604764216-3685782127-3083381381-4065772559-1409919739-3179874226-3811746841",
+          "RegistryValueReadback": "123",
+          "CapabilitySids": [
+            "S-1-15-3-1024-1643039355-2528352707-2793832923-4072405889-2916732180-1547159642-3850945952-3283237789",
+            "S-1-15-3-1024-1065365936-1281604716-3511738428-1654721687-432734479-3232135806-4053264122-3456934681",
+            "S-1-15-3-1"
+          ],
+          "ElapsedMs": 997,
+          "SetupElapsedMs": 636,
+          "TreeSettlementMs": 10,
+          "StdoutBytes": 1148,
+          "StderrBytes": 0,
+          "ActiveBeforeTermination": 0,
+          "CaptureComplete": true,
+          "RegistryReadOnly": true,
+          "RegistryCanariesIntact": true,
+          "AllApplicationPackagesGrantRefused": true
+        },
+        "qualification": "OS containment/process evidence only; not semantic acceptance or credential authority"
+      }
+    },
+    {
+      "path": "work/slice4/semantic-isolation-3Fnym8/capture/isolation.json",
+      "bytes": 1562,
+      "sha256": "383ccfd2b4cc5d55bade9a7b92ebc70e47c101c76fd18fb8434185da8a6e045e",
+      "receipt": {
+        "schema_version": 1,
+        "mode": "reader-fixture",
+        "native_helper_sha256": "1ec91e169569acfc71513a21c9977409ec6d35ce1041098c0f19af821d43cad3",
+        "read_only_storage": true,
+        "bounded_mount": null,
+        "bounded_volume_guid": null,
+        "bounded_grants_removed": false,
+        "cleanup_errors": [],
+        "profile_name": "portcove.review.f83ad7b4db1847faa7ba3ceb0c4943e2",
+        "expected_sid": "S-1-15-2-1348768496-477107277-1926364505-3190352847-4132825777-1996671252-3841191358",
+        "profile_deleted": true,
+        "broker_sid": "S-1-5-21-1007133822-4277289207-646028416-1001",
+        "process": {
+          "Pid": 16064,
+          "ExitCode": 0,
+          "IsAppContainer": true,
+          "TreeEmpty": true,
+          "ForcedTermination": false,
+          "ObservedSid": "S-1-15-2-1348768496-477107277-1926364505-3190352847-4132825777-1996671252-3841191358",
+          "RegistryValueReadback": "123",
+          "CapabilitySids": [
+            "S-1-15-3-1024-1643039355-2528352707-2793832923-4072405889-2916732180-1547159642-3850945952-3283237789",
+            "S-1-15-3-1024-1065365936-1281604716-3511738428-1654721687-432734479-3232135806-4053264122-3456934681",
+            "S-1-15-3-1"
+          ],
+          "ElapsedMs": 5819,
+          "SetupElapsedMs": 3764,
+          "TreeSettlementMs": 0,
+          "StdoutBytes": 1927,
+          "StderrBytes": 0,
+          "ActiveBeforeTermination": 0,
+          "CaptureComplete": true,
+          "RegistryReadOnly": true,
+          "RegistryCanariesIntact": true,
+          "AllApplicationPackagesGrantRefused": true
+        },
+        "qualification": "OS containment/process evidence only; not semantic acceptance or credential authority"
+      }
+    },
+    {
+      "path": "work/slice4/semantic-isolation-2gt2Nd/capture/isolation.json",
+      "bytes": 1554,
+      "sha256": "eae8fb95b8478b168d83a9e5d2f436260d38bd8d79e670a7018dd1e69644070c",
+      "receipt": {
+        "schema_version": 1,
+        "mode": "fixture",
+        "native_helper_sha256": "1ec91e169569acfc71513a21c9977409ec6d35ce1041098c0f19af821d43cad3",
+        "read_only_storage": true,
+        "bounded_mount": null,
+        "bounded_volume_guid": null,
+        "bounded_grants_removed": false,
+        "cleanup_errors": [],
+        "profile_name": "portcove.review.150be26c7a70400b8e6d763388552473",
+        "expected_sid": "S-1-15-2-4202612229-824288698-1968662227-3497517434-2636787440-896239804-3551661355",
+        "profile_deleted": true,
+        "broker_sid": "S-1-5-21-1007133822-4277289207-646028416-1001",
+        "process": {
+          "Pid": 16924,
+          "ExitCode": 1,
+          "IsAppContainer": true,
+          "TreeEmpty": true,
+          "ForcedTermination": false,
+          "ObservedSid": "S-1-15-2-4202612229-824288698-1968662227-3497517434-2636787440-896239804-3551661355",
+          "RegistryValueReadback": "123",
+          "CapabilitySids": [
+            "S-1-15-3-1024-1643039355-2528352707-2793832923-4072405889-2916732180-1547159642-3850945952-3283237789",
+            "S-1-15-3-1024-1065365936-1281604716-3511738428-1654721687-432734479-3232135806-4053264122-3456934681",
+            "S-1-15-3-1"
+          ],
+          "ElapsedMs": 16726,
+          "SetupElapsedMs": 5462,
+          "TreeSettlementMs": 10,
+          "StdoutBytes": 0,
+          "StderrBytes": 707,
+          "ActiveBeforeTermination": 0,
+          "CaptureComplete": true,
+          "RegistryReadOnly": true,
+          "RegistryCanariesIntact": true,
+          "AllApplicationPackagesGrantRefused": true
+        },
+        "qualification": "OS containment/process evidence only; not semantic acceptance or credential authority"
+      }
+    },
+    {
+      "path": "work/slice4/semantic-isolation-TsyMwX/capture/isolation.json",
+      "bytes": 1309,
+      "sha256": "af3a0e4db51fddfe074c1e7b64aea73eca81cc5aeb1150f408ed8609aaefff81",
+      "receipt": {
+        "schema_version": 1,
+        "mode": "probe",
+        "native_helper_sha256": "1ec91e169569acfc71513a21c9977409ec6d35ce1041098c0f19af821d43cad3",
+        "read_only_storage": false,
+        "bounded_mount": null,
+        "bounded_volume_guid": null,
+        "bounded_grants_removed": false,
+        "cleanup_errors": [],
+        "profile_name": "portcove.review.247da39a289443b7be57cd23cf777aba",
+        "expected_sid": "S-1-15-2-1198205661-2695582542-3338879560-2612207322-3298362352-597134719-3635944819",
+        "profile_deleted": true,
+        "broker_sid": "S-1-5-21-1007133822-4277289207-646028416-1001",
+        "process": {
+          "Pid": 29544,
+          "ExitCode": 0,
+          "IsAppContainer": true,
+          "TreeEmpty": true,
+          "ForcedTermination": false,
+          "ObservedSid": "S-1-15-2-1198205661-2695582542-3338879560-2612207322-3298362352-597134719-3635944819",
+          "RegistryValueReadback": null,
+          "CapabilitySids": null,
+          "ElapsedMs": 17080,
+          "SetupElapsedMs": 8948,
+          "TreeSettlementMs": 0,
+          "StdoutBytes": 143,
+          "StderrBytes": 0,
+          "ActiveBeforeTermination": 0,
+          "CaptureComplete": true,
+          "RegistryReadOnly": false,
+          "RegistryCanariesIntact": false,
+          "AllApplicationPackagesGrantRefused": false
+        },
+        "qualification": "OS containment/process evidence only; not semantic acceptance or credential authority"
+      }
+    },
+    {
+      "path": "work/slice4/semantic-isolation-4TL3on/capture/isolation.json",
+      "bytes": 1306,
+      "sha256": "923a6472a3cae29c619bbb1b89345f25453fa373106c492bbd381925899a36a0",
+      "receipt": {
+        "schema_version": 1,
+        "mode": "probe",
+        "native_helper_sha256": "1ec91e169569acfc71513a21c9977409ec6d35ce1041098c0f19af821d43cad3",
+        "read_only_storage": false,
+        "bounded_mount": null,
+        "bounded_volume_guid": null,
+        "bounded_grants_removed": false,
+        "cleanup_errors": [],
+        "profile_name": "portcove.review.1d8342f2404c43cf85bf872eaae440c6",
+        "expected_sid": "S-1-15-2-2273573252-2596288633-1146453910-2361533181-351122063-1268705195-730769203",
+        "profile_deleted": true,
+        "broker_sid": "S-1-5-21-1007133822-4277289207-646028416-1001",
+        "process": {
+          "Pid": 31364,
+          "ExitCode": 0,
+          "IsAppContainer": true,
+          "TreeEmpty": true,
+          "ForcedTermination": true,
+          "ObservedSid": "S-1-15-2-2273573252-2596288633-1146453910-2361533181-351122063-1268705195-730769203",
+          "RegistryValueReadback": null,
+          "CapabilitySids": null,
+          "ElapsedMs": 5885,
+          "SetupElapsedMs": 3164,
+          "TreeSettlementMs": 1000,
+          "StdoutBytes": 6,
+          "StderrBytes": 0,
+          "ActiveBeforeTermination": 1,
+          "CaptureComplete": true,
+          "RegistryReadOnly": false,
+          "RegistryCanariesIntact": false,
+          "AllApplicationPackagesGrantRefused": false
+        },
+        "qualification": "OS containment/process evidence only; not semantic acceptance or credential authority"
+      }
     }
   ],
   "isolated_authentication": "unproven; no credentials copied",
@@ -441,7 +783,9 @@
     "boundary_bytes": 536870912,
     "credentials": "none",
     "action": "one inert Codex startup differential, retain state then exact-attempt RecoverDetach",
-    "readiness": "not execution-ready until repaired non-elevated read-only TEMP preflight succeeds; proposed host action ungranted"
+    "readiness": "next narrow host decision after exact-head delivery: same-owner elevated Provision, one non-elevated credential-free codex-fixture --bounded-storage differential, exact-attempt RecoverDetach; no asserted startup fix",
+    "helper_sha256": "771d0c013aaf467b26798321a73c20e9390cfca42c5935fa2c53c2b5af18ead1",
+    "reviewed_native_helper_sha256": "1ec91e169569acfc71513a21c9977409ec6d35ce1041098c0f19af821d43cad3"
   },
   "prior_evidence": "docs/qualification/slice4-broker-and-portable-repair-evidence-2026-10-18.json",
   "limits": "D1/D2/D3 unchanged; bounded-attempt eligibility; availability/headroom Unknown; no capacity reservation; #254 Done; #315/#534/#246 pending; Chameleon protected_acceptance unset; production held; slice 5 excluded",
@@ -500,15 +844,52 @@
       "path": "work/slice4/semantic-reader-delivery-tests.log",
       "bytes": 1187,
       "sha256": "395406c2508696c8e4b46eac77bae822a0f2271f91193d7c7fe2a094b51b6fe0"
+    },
+    {
+      "path": "work/slice4/semantic-reader-final-head-preflight.log",
+      "bytes": 4036,
+      "sha256": "9372d2d0833b15466af631cc10929b0244cba8496f1e98fc8d9cbba8dbf3fd99"
+    },
+    {
+      "path": "work/slice4/semantic-reader-tree-settlement-preflight.log",
+      "bytes": 6179,
+      "sha256": "809ab4d36a48df272abc0785c33a1b4d21886fb80349634f01ebcb44c29f6816"
+    },
+    {
+      "path": "work/slice4/semantic-reader-direct-path-preflight.log",
+      "bytes": 9922,
+      "sha256": "427bcaeff59e330f14f11648cbd2a1d288c225cdc9bd634e9ed36fecadeef3e0"
+    },
+    {
+      "path": "work/slice4/semantic-tree-normal.log",
+      "bytes": 1822,
+      "sha256": "c66da2ab3655dbc34f08af4fdbf745803f5b933f687d803ebe6cac149318c1fd"
+    },
+    {
+      "path": "work/slice4/semantic-tree-descendant.log",
+      "bytes": 2039,
+      "sha256": "ec7f8ad22a375b7f3acbe35dc3dd0ba21a04c454df131747c27e3ea93811845c"
+    },
+    {
+      "path": "work/slice4/semantic-descendant-strict-readback.json",
+      "bytes": 257,
+      "sha256": "0b2f5b041617d2b70ad55b327031b2a0cd7c0798d97d9b51316997076faee26e"
+    },
+    {
+      "path": "work/slice4/semantic-tree-settlement-compile.log",
+      "bytes": 32,
+      "sha256": "c1dffa29c35a0d7b4c279e75d9798e633ae58118e3e2ccd6ff8655b956f20711"
     }
   ],
   "native_summary": {
     "Hc7HgS": "FAIL: actual profile write succeeded; all other storage/registry checks retained",
     "rz9CJV": "FAIL: confirmed residual profile permission and TEMP path-not-found; not interpreted as denial",
     "otXyQE": "FAIL overall: fresh protected DACL denies actual profile write; TEMP error 3 remains a failed assertion; other registry/issuer/capture/owner-rights assertions pass; tree empty and profile deleted",
-    "final_preflight": "900-second resource queue deadline before payload; repaired TEMP path not executed",
-    "installed_codex": "0.162.0; inert no-auth attempt A2GehW exit 1 app-server access denied before events; isolated authentication/network unproven",
-    "storage_volume": "not provisioned; no bounded writable-volume or disk-full result"
+    "final_preflight": "cF6E7F FAIL overall: all storage assertions true, root0 while job accounting active -> forced termination",
+    "installed_codex": "2gt2Nd FAIL inert no-auth startup, root1/app-server access denied before events, no forced termination, complete capture, empty tree/profile deleted; no supported authenticated route proven",
+    "storage_volume": "not provisioned; no bounded writable-volume or disk-full result",
+    "tree_settlement": "one-second maximum inside original runtime deadline; ymQtTx/AVBfed storage PASS; normal TsyMwX PASS; persistent-descendant 4TL3on PASS as refusal/empty-tree test",
+    "isolated_reader": "3Fnym8 PASS actual initialize/list/read/search; AImkG3 prior EPERM drive-root realpath retained; direct-path flags fixed route without ACL widening"
   },
   "validation": {
     "focused": {
@@ -546,6 +927,50 @@
         "bytes": 56,
         "sha256": "1361b5c27a0ba27cbdaf5729026b0a572fde423161056ea5fed2e2210c5907c4"
       }
+    },
+    "prior_exact_head_ci": {
+      "head": "5e7d204c4dcfcb72579df66e9c0ab0a7d429db3e",
+      "run": 39158217804,
+      "attempt": 1,
+      "required_contexts": "all five PASS",
+      "scope": "preceding source only; final source requires fresh exact-head CI"
+    },
+    "final_delta": {
+      "typed_lint": {
+        "result": "PASS",
+        "scope": "changed qualification harness",
+        "log": {
+          "path": "work/slice4/semantic-reader-final-delta-lint.log",
+          "bytes": 127,
+          "sha256": "ffa7642c11ad027372acd3efd9214ae42868f0e823e9fb0c1fa58d6f46bd977a"
+        }
+      },
+      "powershell": {
+        "result": "PASS",
+        "scope": "changed sandbox direct-path arguments parser/analyzer Error severity",
+        "log": {
+          "path": "work/slice4/semantic-reader-final-delta-powershell.log",
+          "bytes": 68,
+          "sha256": "287c6616df16c6b174ac2b6e27ac714f510f58b04b6cf399e462d6cb92630336"
+        }
+      },
+      "native_compile": {
+        "result": "PASS",
+        "log": {
+          "path": "work/slice4/semantic-tree-settlement-compile.log",
+          "bytes": 32,
+          "sha256": "c1dffa29c35a0d7b4c279e75d9798e633ae58118e3e2ccd6ff8655b956f20711"
+        }
+      },
+      "descendant_assertion": {
+        "result": "PASS retained actual capture readback",
+        "log": {
+          "path": "work/slice4/semantic-descendant-strict-readback.json",
+          "bytes": 257,
+          "sha256": "0b2f5b041617d2b70ad55b327031b2a0cd7c0798d97d9b51316997076faee26e"
+        }
+      },
+      "review": "separate authoring and native reviewers CLEAR for executable delta; cF6E7F helper attribution corrected separately before final commit"
     }
   },
   "implementation_files": [
@@ -576,18 +1001,18 @@
     },
     {
       "path": "scripts/qualify-semantic-isolation.mts",
-      "bytes": 15167,
-      "sha256": "fdd1e0705696cdc5df28d02571a5d26de8f4fc6a7b69144d78e8f17815d021ab"
+      "bytes": 15640,
+      "sha256": "15d1e751a4abbaffd3743043361714921486675bef34c59630f6ffb00d5c090b"
     },
     {
       "path": "scripts/fixtures/semantic-review-appcontainer.cs.txt",
-      "bytes": 29778,
-      "sha256": "a66688992d9490b028dcd7ba71bbede8952f5ff4b9cd3f7b40b1f3845e4dc64e"
+      "bytes": 30682,
+      "sha256": "1ec91e169569acfc71513a21c9977409ec6d35ce1041098c0f19af821d43cad3"
     },
     {
       "path": "scripts/semantic-review-sandbox.ps1",
-      "bytes": 19396,
-      "sha256": "17fd327170dcc2a81362e5240427e944bb176dccae3aed7aa250962763d9116a"
+      "bytes": 19494,
+      "sha256": "7836b94888205482c607a866b43b8e84ba83de7f031186edc8c6db58b4e51eda"
     },
     {
       "path": "scripts/fixtures/semantic-storage-probe.cpp",

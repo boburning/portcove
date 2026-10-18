@@ -161,7 +161,7 @@ try {
     $readerLaunch=Get-Content -Raw -LiteralPath (Join-Path $inputs 'reader-launch.json') | ConvertFrom-Json
     if($readerLaunch.schema_version -ne 1 -or $readerLaunch.index_sha256 -notmatch '^[a-f0-9]{64}$') { throw 'fixed reader fixture identity unavailable' }
     $executable=Join-Path $runtime 'node.exe'
-    $arguments=@((Join-Path $runtime 'release-semantic-reader-server.mts'),(Join-Path $inputs 'reader-index.json'),$readerLaunch.index_sha256)
+    $arguments=@('--preserve-symlinks','--preserve-symlinks-main',(Join-Path $runtime 'release-semantic-reader-server.mts'),(Join-Path $inputs 'reader-index.json'),$readerLaunch.index_sha256)
     $timeout=60000
   } else {
     $executable=Join-Path $runtime 'codex.exe'
@@ -171,7 +171,7 @@ try {
       $readerLaunch=Get-Content -Raw -LiteralPath (Join-Path $inputs 'reader-launch.json') | ConvertFrom-Json
       if($readerLaunch.schema_version -ne 1 -or $readerLaunch.index_sha256 -notmatch '^[a-f0-9]{64}$') { throw 'fixed reader launch identity unavailable' }
       $readerCommand=(Join-Path $runtime 'node.exe').Replace('\','/') | ConvertTo-Json -Compress
-      $readerArguments=@((Join-Path $runtime 'release-semantic-reader-server.mts').Replace('\','/'),(Join-Path $inputs 'reader-index.json').Replace('\','/'),$readerLaunch.index_sha256) | ConvertTo-Json -Compress
+      $readerArguments=@('--preserve-symlinks','--preserve-symlinks-main',(Join-Path $runtime 'release-semantic-reader-server.mts').Replace('\','/'),(Join-Path $inputs 'reader-index.json').Replace('\','/'),$readerLaunch.index_sha256) | ConvertTo-Json -Compress
       $arguments += @('--config',("mcp_servers.portcove_frozen_bundle.command="+$readerCommand),'--config',("mcp_servers.portcove_frozen_bundle.args="+$readerArguments),'--config','mcp_servers.portcove_frozen_bundle.enabled_tools=["list","read","search"]','--config','mcp_servers.portcove_frozen_bundle.startup_timeout_sec=15','--config','mcp_servers.portcove_frozen_bundle.tool_timeout_sec=30')
     } elseif($Mode -eq 'codex') { throw 'fixed reader materialization required' }
     $timeout=if($Mode -eq 'fixture'){60000}else{1800000}
