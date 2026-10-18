@@ -821,6 +821,44 @@ Delivery details and exact evidence: [reader/upstream checkpoint](slice4-reader-
 
 ## Local storage diagnostic: first attempt recovered; corrected next attempt pending
 
+Later preparation supersedes the pending-operation wording below: the owner ran
+the corrected Provision once. It failed at `Add-PartitionAccessPath` after the
+earlier initialization/format stages; no fixture ran. The second exact image
+remains attached pending its separately prepared partial cleanup. Neither the
+earlier intent phase nor the failed command proves absence of partial effects.
+Further VHD provisioning and fixture retries are stopped. These are retained
+diagnostic failures, not semantic acceptance.
+
+Pinned Codex `rust-v0.162.0` source at
+`c1382380de69521303b416720a52f42d51af6248` shows that app-server initialization
+calls `resolve_installation_id`, which opens `CODEX_HOME/installation_id` with
+read/write/create and locks it even if the UUID is already present. The retained
+read-only-home fixture cannot satisfy that startup path. This establishes a
+necessary writable-home condition, not the exact failing operation (bootstrap
+can fail earlier), or a requirement to use a VHD. A supported authenticated
+runtime path remains unqualified; production mode stays held.
+
+### Capacity checkpoint transport integration preparation
+
+The inactive bounded-operation seam can now be supplied the existing explicit
+remote coordinator configuration and authenticated API adapter. In that mode,
+exact remote pending-checkpoint readback precedes the provider effect. Completed
+effect receipts also pass through the same transport. After observed effects,
+the remote path returns `readback-required` and retains the operation as pending
+until the existing explicit readback/recovery closes the handoff. It does not
+write an immutable local success before confirming a terminal remote handoff.
+An unavailable, refused or ambiguous checkpoint publication never falls back to
+local-only execution and stops further remote writes for that attempt. Local
+ambiguous state, completed effects, last confirmed remote checkpoint and the
+original transport evidence remain available for explicit readback/recovery.
+
+The existing no-transport seam remains local preparation evidence only. Remote
+CAS/readback is not an executor lease: protected configuration provenance,
+exclusive executor/readback ownership, actual eligible reservation and the exact
+execution grant remain separate requirements. No workflow is activated, new
+credential provisioned or authority added. Availability/headroom remain Unknown;
+there is no capacity reservation or automatic retry.
+
 The owner authorized one #2143 Provision, one conditional inert fixture and its
 matching recovery. Provision created and attached the exact 512 MiB VHD but
 failed before intent/storage.json: the helper expected `FileBackedVirtual`, while
