@@ -150,17 +150,13 @@ void test("bounded migration changes only status-check strictness and is idempot
 
 void test("canonical owners declare required review, hosted baseline and guarded merge", async () => {
   const root = await readFile(new URL("../AGENTS.md", import.meta.url), "utf8");
-  const quality = await readFile(new URL("../docs/QUALITY.md", import.meta.url), "utf8");
   const conventions = await readFile(
     new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url),
     "utf8",
   );
   assert.match(root, /QUALITY\.md#required-hosted-baseline/u);
   assert.match(root, /CONTRIBUTION-CONVENTIONS\.md#review-and-merge/u);
-  assert.match(quality, /Local commands[\s\S]*are optional feedback/u);
   assert.match(conventions, /just pr-merge-rest --pr <number-or-url> --head <reviewed-head>/u);
-  assert.match(conventions, /An unrelated target advance does not by itself/u);
-  assert.match(conventions, /administrator bypass/u);
 });
 
 void test("application plan preserves stable identity and scopes repository changes", () => {

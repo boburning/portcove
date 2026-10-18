@@ -8,7 +8,8 @@ import path from "node:path";
 import { createCiMetrics } from "./ci-metrics.mts";
 import { buildValidationPlan } from "./validation-plan.mts";
 import { discoverCiPlan } from "./select-ci-plan.mts";
-import { buildPlan } from "./local-validation.mts";
+import { buildPlan, classifyChanges } from "./local-validation.mts";
+import { windowsHelperChecksRequired } from "./windows-helper-checks.mts";
 import {
   baselineContractTests,
   baselineFrontendPlan,
@@ -288,5 +289,55 @@ void test("ordinary selected checking retains CSS correctness", () => {
 
 void test("Python is provisioned for the effective TOML positive contracts, not ordinary prose", () => {
   assert.equal(baselineRequiresPython(make(["scripts/nextest-equivalence.mts"])), true);
+  assert.equal(baselineRequiresPython(make(["scripts/ci-workflow.test.mts"])), true);
   assert.equal(baselineRequiresPython(make(["docs/QUALITY.md"])), false);
+});
+
+void test("desktop runner selects the same complete contract union in local and hosted production plans", () => {
+  const file = "apps/desktop/scripts/desktop-test.mts";
+  const expected = [
+    "scripts/desktop-execution-plan.test.mts",
+    "scripts/desktop-scenarios.test.mts",
+    "scripts/desktop-verify.test.mts",
+    "scripts/frontend-command-preflight.test.mts",
+    "scripts/native-helper-dependencies.test.mts",
+    "scripts/windows-helper-checks.test.mts",
+    "scripts/development-evidence.test.mts",
+    "scripts/native-session-lock.test.mts",
+  ];
+  const changes = [
+    { status: "M", path: file },
+    { status: "D", path: file },
+    { status: "R100", path: "apps/desktop/scripts/renamed.mts", previousPath: file },
+  ];
+  for (const change of changes) {
+    const local = classifyChanges([change], { fileExists: () => false });
+    // Classification is shared, while Windows execution remains independently selected.
+    const hosted = buildValidationPlan({
+      changes: [
+        {
+          status: change.status,
+          oldPath: file,
+          newPath: change.path,
+          oldMode: "100644",
+          newMode: change.status === "D" ? "000000" : "100644",
+        },
+      ],
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    const actualHosted = baselineContractTests(hosted, { fileExists: () => false });
+    for (const name of expected) {
+      assert.ok(local.nodeTests.has(name), `${change.status}: local ${name}`);
+      assert.ok(actualHosted.includes(name), `hosted ${name}`);
+    }
+    const command = buildPlan(local).find((entry) => entry.id === "node-tests");
+    assert.ok(command);
+    for (const name of expected) assert.ok(command.args.includes(name), `execution: ${name}`);
+    assert.equal(windowsHelperChecksRequired(hosted), true);
+    assert.equal(local.workspaceRust, false);
+  }
 });

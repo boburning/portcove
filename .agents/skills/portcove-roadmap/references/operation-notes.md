@@ -12,8 +12,7 @@ Read every page of the relevant inventory and require unique counts to match tot
 For pickup and upkeep, follow PROJECT-GOVERNANCE's candidate-ownership contract.
 `next --json` recommends; `context --issue <number> --runner <reported-instance> --json`
 collects relevant live requirements without a Dot grant or retired board read.
-`.github/roadmap.json:delivery_mode` selects this behavior. The retained
-`runner_coordination` pointers discover old handoffs only. Verify actual writers
+Exact historical issue/comment references can discover old handoffs. Verify actual writers
 and source-owner release before overlapping work; missing paperwork does not
 block independent delivery. Preserve old records, commits, unresolved evidence
 and pauses without fabricating ACKs or inactivity. Missing task/Project reads
@@ -22,10 +21,9 @@ remain a named coverage limitation.
 Compare validated `--consumed-file` baselines before repeating work; unchanged specification and operational text may be suppressed before model output only with valid raw observation/scoped baseline binding. Raw hash and edited timestamp changes are both detected. Exact `--consumed-comment` and `--reservation-comment` references are evidence, not grants. Optional `--coordination-pr` binds only the owning evidence PR. Explicit `node scripts/roadmap.mts history --issue <number> [--coordination-pr <number>] --json` is the bounded recent50-record historical route, with uncovered latest/absence UNKNOWN. Legacy #793 references remain exact/read-only; do not enumerate its archive.
 
 Ordinary pickup needs no coordinator acknowledgment or offer/return ritual.
-Coordinator planners refuse in single-runner mode; preserve the historical
-protocol and use owning issues/PRs for material task evidence. Keep one actively
-edited candidate, freeze clean waiting heads and continue independent work when
-blocked. Refresh acceptance, source, review and evidence before candidate
+The retired coordinator planners have been removed. Use owning issues/PRs for
+material task evidence. Multiple candidates may proceed under separate ownership;
+freeze clean waiting heads and continue independent work when blocked. Refresh acceptance, source, review and evidence before candidate
 completion; takeover does not waive remaining gates.
 
 Before ending/handoff, preserve findings in the canonical issue: fact/hypothesis, affected scope, evidence, disposition and next action/resume condition. Search before intake; refresh before writing, preserve concurrent edits, and read back. Keep runner-local limitations narrow, clear resolved current blockers while linking history, and retain exact unavailable writes as unapplied handoff artifacts. Following delivery, reconcile the finite parent/direct prerequisites/blocking consumers and reservation; later siblings and optional opportunities do not acquire release gates.
@@ -68,4 +66,4 @@ Before freezing a roadmap vocabulary migration, make one bounded old-term search
 
 Declare whether a Project inventory includes archived items; use an explicit supported archive scope when claiming that coverage. Interpret saved-view totals against filters and native parent/child nesting: a rendered root-row count need not equal the full requirement or outcome set. Verify UI settings independently, retain actual readiness relationships and calculations, and report authentication or child-loading limits without claiming missing work.
 
-For typed coordination changes, capacity failures or upstream transfer reconciliation, read [coordination and inventory checks](coordination-inventory.md). The historical coordinator protocol remains read-only in single-runner mode; owning issue/PR changes use guarded freshness and readback.
+For upstream transfer reconciliation, read [coordination and inventory checks](coordination-inventory.md). Retired board records remain historical evidence; owning issue/PR changes use guarded freshness and readback.

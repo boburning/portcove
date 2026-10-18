@@ -104,7 +104,9 @@ export function baselineRequiresRust(plan: ValidationPlan) {
 export function baselineRequiresPython(plan: ValidationPlan) {
   if (plan.mode === "qualification") return true;
   if (!["fast", "prose"].includes(plan.mode)) return false;
-  return baselineContractTests(plan).includes("scripts/nextest-equivalence.test.mts");
+  return baselineContractTests(plan).some((file) =>
+    ["scripts/nextest-equivalence.test.mts", "scripts/ci-workflow.test.mts"].includes(file),
+  );
 }
 
 // Run the cheap production checkers against the actual checkout when their
