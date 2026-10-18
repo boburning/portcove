@@ -250,12 +250,9 @@ roadmap-doctor:
 roadmap-next *args:
     node scripts/roadmap.mts next {{args}}
 
-# Derived live task context; consumption writes plan by default.
+# Read-only live task context; historical consumption references remain comparable.
 roadmap-context *args:
     node scripts/roadmap.mts context {{args}}
-
-roadmap-acknowledge *args:
-    node scripts/roadmap.mts acknowledge {{args}}
 
 roadmap-bootstrap:
     node scripts/roadmap.mts bootstrap

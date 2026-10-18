@@ -17,7 +17,7 @@ use tough::schema::{PathSet, Root, Signed, Targets};
 use tough::{ExpirationEnforcement, Limits, Repository, RepositoryLoader};
 use url::Url;
 
-use crate::application_update_storage::write_bytes_atomically;
+use crate::application_update_storage::{read_bytes_with_overflow, write_bytes_atomically};
 use crate::application_update_transport::{
     PinnedHttpsTransport, TransportSetupError, metadata_rate_limit,
 };
@@ -296,7 +296,7 @@ fn read_bounded(path: &Path, maximum: u64, label: &str) -> Result<Vec<u8>, Trust
             "{label} is not a bounded direct file"
         )));
     }
-    let bytes = fs::read(path)?;
+    let bytes = read_bytes_with_overflow(path, maximum)?;
     if bytes.is_empty() || bytes.len() as u64 > maximum {
         return Err(TrustedRepositoryError::InvalidState(format!(
             "{label} is empty or exceeds its limit"
@@ -835,6 +835,93 @@ mod tests {
     use tough::schema::{DelegatedRole, Delegations, Hashes, PathHashPrefix, PathPattern, Target};
 
     use super::*;
+
+    #[test]
+    fn trust_state_round_trips_at_byte_limit_and_rejects_future_schema() {
+        let directory = tempfile::tempdir().unwrap();
+        assert_eq!(read_state(directory.path()).unwrap(), None);
+        let mut state = PersistedTrustedRepositoryState {
+            schema_version: STATE_SCHEMA_VERSION,
+            greatest_accepted_time: Timestamp::now().to_string(),
+            root: PersistedMetadataIdentity {
+                version: 1,
+                signed_sha256: "a".repeat(64),
+            },
+            roles: PersistedRoleVersions {
+                timestamp: None,
+                snapshot: None,
+                targets: None,
+            },
+        };
+        let path = directory.path().join(STATE_FILE);
+        let mut bytes = serde_json::to_vec(&state).unwrap();
+        bytes.resize(MAX_STATE_BYTES as usize, b' ');
+        fs::write(&path, bytes).unwrap();
+        assert_eq!(read_state(directory.path()).unwrap(), Some(state.clone()));
+
+        state.schema_version += 1;
+        fs::write(&path, serde_json::to_vec(&state).unwrap()).unwrap();
+        assert!(matches!(
+            read_state(directory.path()),
+            Err(TrustedRepositoryError::InvalidState(message))
+                if message == "unsupported trust state schema"
+        ));
+        fs::write(&path, b"{").unwrap();
+        assert!(matches!(
+            read_state(directory.path()),
+            Err(TrustedRepositoryError::Serialization(_))
+        ));
+    }
+
+    #[test]
+    fn persisted_trust_state_rejects_empty_and_oversized_files() {
+        let directory = tempfile::tempdir().unwrap();
+        for (size, expected) in [
+            (0, "trust state is empty or exceeds its limit"),
+            (
+                MAX_STATE_BYTES as usize + 1,
+                "trust state is not a bounded direct file",
+            ),
+        ] {
+            fs::write(directory.path().join(STATE_FILE), vec![b' '; size]).unwrap();
+            assert!(matches!(
+                read_state(directory.path()),
+                Err(TrustedRepositoryError::InvalidState(message)) if message == expected
+            ));
+        }
+    }
+
+    #[test]
+    fn trusted_root_selection_and_reread_reject_empty_and_oversized_files() {
+        let directory = tempfile::tempdir().unwrap();
+        let request = TrustedRepositoryRequest {
+            bundled_root: b"unused while a persisted root exists",
+            metadata_base_url: Url::parse("https://updates.invalid/metadata/").unwrap(),
+            targets_base_url: Url::parse("https://updates.invalid/targets/").unwrap(),
+            state_directory: directory.path(),
+        };
+        let previous = PersistedMetadataIdentity {
+            version: 1,
+            signed_sha256: "a".repeat(64),
+        };
+        for (size, expected) in [
+            (0, "persisted trusted root is empty or exceeds its limit"),
+            (
+                MAX_ROOT_BYTES as usize + 1,
+                "persisted trusted root is not a bounded direct file",
+            ),
+        ] {
+            fs::write(directory.path().join(ROOT_FILE), vec![b' '; size]).unwrap();
+            assert!(matches!(
+                select_trusted_root(&request, directory.path(), None),
+                Err(TrustedRepositoryError::InvalidState(message)) if message == expected
+            ));
+            assert!(matches!(
+                persisted_root_after_load(directory.path(), &previous),
+                Err(TrustedRepositoryError::InvalidState(message)) if message == expected
+            ));
+        }
+    }
 
     fn empty_targets() -> Targets {
         Targets::new(
