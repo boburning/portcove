@@ -131,7 +131,13 @@ function run(...args: string[]) {
 function isolatedGenerator() {
   const scratch = mkdtempSync(join(tmpdir(), "portcove-generator-dispatch-"));
   mkdirSync(join(scratch, "scripts"));
-  for (const name of ["generate-catalog.mts", "inspect-igdb-artwork.mts", "runtime-values.mts"])
+  for (const name of [
+    "generate-catalog.mts",
+    "inspect-igdb-artwork.mts",
+    "runtime-values.mts",
+    "catalog-authoring.mts",
+    "maintainer-config.mts",
+  ])
     copyFileSync(join(root, "scripts", name), join(scratch, "scripts", name));
   const catalogs = join(scratch, "crates", "portcove-core", "catalog");
   mkdirSync(catalogs, { recursive: true });

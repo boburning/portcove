@@ -1,3 +1,4 @@
+import { readIgdbCredentials, resolveIgdbCredentialsFile } from "./maintainer-config.mts";
 import type { ReadableStreamReadResult } from "node:stream/web";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import type {
@@ -747,24 +748,6 @@ async function readBounded(
   }
 }
 
-function readCredentials(file: string | null | undefined) {
-  try {
-    if (!file) throw new Error();
-    const value = readArtworkJson(file, 64 * 1024);
-    if (
-      !isRecord(value) ||
-      typeof value.client_id !== "string" ||
-      !value.client_id ||
-      typeof value.client_secret !== "string" ||
-      !value.client_secret
-    )
-      throw new Error();
-    return { client_id: value.client_id, client_secret: value.client_secret };
-  } catch {
-    throw new Error("Private IGDB credentials are unavailable or invalid.");
-  }
-}
-
 function metadataRetryAt(header: string | null, now: number, deadline: number) {
   if (header === null) return now;
   // Bound parsing and arithmetic before provider input reaches a timer.
@@ -864,7 +847,7 @@ export function createIgdbInspector(
     if (Date.now() >= deadline) throw new Error("Artwork provider batch deadline reached.");
     return AbortSignal.timeout(Math.min(15000, Math.max(1, deadline - Date.now())));
   };
-  const credentials = () => readCredentials(credentialsFile);
+  const credentials = () => readIgdbCredentials(resolveIgdbCredentialsFile(credentialsFile));
   async function waitForMetadata() {
     for (;;) {
       const now = Date.now();
