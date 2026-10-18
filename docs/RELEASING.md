@@ -577,6 +577,42 @@ state may advance after the observations; any later mutation must supply its
 exact preimage. Fake-provider tests prove this sparse recovery contract, not
 protected GitHub execution, principal enforcement or production recovery.
 
+### Inactive bounded trusted assembly
+
+`assembleTrustedRelease(ownedRoot, inputRoot, request)` in
+`scripts/trusted-release-assembly.mts` supplies an assembly interface for a future
+fresh trusted controller. It loads the complete package policy only from its
+fixed trusted checkout. The caller must independently authenticate the supplied
+source/tree and expected file sizes/hashes; this function establishes equality,
+not the authority of those supplied inputs or producer declarations.
+
+Inputs contain exactly the complete policy matrix, each platform checksum
+manifest and producer declaration. Only those known files are opened: no
+unbounded input traversal, extraction or candidate code runs. Limits are 64
+files, 512 MiB per package, 2 GiB total and 64 KiB per metadata file. Regular
+unlinked leaves are checked before opening and again through the handle;
+nonblocking/no-follow flags are used where supported. Bounded streaming copies
+check growth, mutation and exact hashes into a newly created owned staging area.
+
+The existing reconciler produces a new aggregate, checksum manifest and
+inventory from that bounded private stage. Final package bytes are rehashed
+against both the independently supplied identities and reconciled inventory.
+Retries create distinct owned results and preserve earlier outputs; failures
+retain the identified partial directory. The cooperative assembly deadline is
+ten minutes, checked at bounded streaming operations; it is not a hard deadline
+for filesystem completion or the existing bounded reconciliation reads.
+
+Results identify the role as `package-aggregate-assembler`. Authenticated
+assembler and original compiler identities remain null. SBOM finalization and
+release authorization remain `not-evaluated`. There is no workflow, upload,
+attestation, signing, installation or publication activation. In particular,
+running the existing finalizer in a controller checkout would evaluate its
+Linux release gate against that checkout; this interface does not do so or
+bypass #706. A future finalizer still needs independently authenticated exact
+candidate/scan/publication evidence, applicable qualification, authenticated
+producing run/attempt/job and exact artifact/attestation binding through the
+existing protected architecture.
+
 ### Read-only release-run evidence
 
 `node scripts/release-run-evidence.mts REQUEST.json` collects bounded read-only
