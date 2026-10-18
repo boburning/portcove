@@ -56,7 +56,7 @@ async function sha256(file: string) {
     .digest("hex");
 }
 
-function parseManifest(contents: string, label: string) {
+export function parseReleaseChecksumManifest(contents: string, label: string) {
   const entries = contents
     .trim()
     .split(/\r?\n/)
@@ -77,7 +77,7 @@ function parseManifest(contents: string, label: string) {
   return entries;
 }
 
-function validateProducer(
+export function inspectReleaseProducer(
   record: unknown,
   label: string,
   version: string,
@@ -177,7 +177,7 @@ export async function reconcileReleaseAssets(
     const manifest = manifests[0];
     if (manifests.length !== 1 || !manifest)
       throw new Error(`expected exactly one ${manifestName}`);
-    const entries = parseManifest(await readFile(manifest, "utf8"), label);
+    const entries = parseReleaseChecksumManifest(await readFile(manifest, "utf8"), label);
     const expectedEntries = packagesForPlatform(policy, label);
     const expectedNames = expectedEntries.map((entry) => artifactName(entry, version));
     assertExactArtifactNames(
@@ -193,7 +193,7 @@ export async function reconcileReleaseAssets(
     const producerFile = producerFiles[0];
     if (producerFiles.length === 1 && producerFile) {
       producers.push(
-        validateProducer(
+        inspectReleaseProducer(
           JSON.parse(await readFile(producerFile, "utf8")),
           label,
           version,

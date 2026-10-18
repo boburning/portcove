@@ -241,6 +241,8 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/assembler-job-identity.mts",
   "scripts/trusted-aggregate-attestation.mts",
   "scripts/production-aggregate-steps.mts",
+  "scripts/acquire-release-admission.mts",
+  "scripts/release-coordinator-errors.mts",
   "scripts/finalize-release-assets.mts",
   "scripts/trusted-release-assembly.mts",
   "scripts/release-artifact-archive.mts",

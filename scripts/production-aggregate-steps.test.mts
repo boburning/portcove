@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, readdir, mkdir, copyFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -12,6 +14,27 @@ import {
   requestAssemblerToken,
   retainAggregateStepReceipt,
 } from "./production-aggregate-steps.mts";
+
+void test("trusted assembler imports from a clean fixed source with no installed packages", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-clean-assembler-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const directory = path.join(root, "scripts");
+  await mkdir(directory);
+  for (const entry of await readdir(new URL(".", import.meta.url), { withFileTypes: true })) {
+    if (entry.isFile() && entry.name.endsWith(".mts"))
+      await copyFile(new URL(entry.name, import.meta.url), path.join(directory, entry.name));
+  }
+  execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `try { import.meta.resolve('semver'); throw Error('unexpected package visibility'); } catch(error) { if(error.code!=='ERR_MODULE_NOT_FOUND') throw error; } await import(process.argv[1]);`,
+      pathToFileURL(path.join(directory, "production-aggregate-steps.mts")).href,
+    ],
+    { cwd: root, timeout: 15000, encoding: "utf8", windowsHide: true, stdio: "pipe" },
+  );
+});
 
 void test("step receipts preserve refusal association without secrets and reject a repeated operation before effects", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-step-receipt-"));
@@ -200,7 +223,7 @@ void test("held full workflow preserves privilege separation and refuses unavail
       template,
       new RegExp(`  ${job}:\\n(?:    #[^\\n]*\\n)*    if: \\$\\{\\{ false \\}\\}`),
     );
-  assert.match(template, /UNKNOWN: independent accepted file matrix/u);
+  assert.match(template, /run: node scripts\/acquire-release-admission.mts/u);
   assert.match(template, /name: Trusted package assembly/u);
   assert.match(template, /overwrite: false/u);
   assert.match(template, /if: \$\{\{ always\(\) \}\}/u);
@@ -219,6 +242,12 @@ void test("held full workflow preserves privilege separation and refuses unavail
   );
   assert.doesNotMatch(
     template,
-    /^\s*(?:secrets|cache|workflow_call|pull_request_target):|pnpm |npm |contents: write/mu,
+    /^\s*(?:secrets|cache|workflow_call|pull_request_target):|contents: write/mu,
+  );
+  const assembler = template.split("  aggregate:")[1]!.split("  attest:")[0]!;
+  assert.doesNotMatch(assembler, /pnpm |npm |action-setup/u);
+  assert.match(
+    template,
+    /pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir/u,
   );
 });

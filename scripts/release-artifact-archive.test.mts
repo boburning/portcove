@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
-import { stageReleaseArtifact } from "./release-artifact-archive.mts";
+import { stageReleaseArtifact, discoverReleaseArtifactFiles } from "./release-artifact-archive.mts";
 import { assembleTrustedRelease } from "./trusted-release-assembly.mts";
 import { assembleReleaseArtifacts } from "./release-artifact-assembly.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
@@ -43,6 +43,55 @@ async function fixture(t: test.TestContext) {
     .map((file) => [file.filename, f.contents.get(`${platform}/${file.filename}`)!] as const);
   return { ...f, stage, platform, entries };
 }
+
+void test("provider-byte discovery derives fixed matrix facts while retaining no producer authority", async (t) => {
+  const f = await fixture(t);
+  const archive = createAuditZip(
+    f.entries.map(
+      ([name, bytes], i) =>
+        [`${i % 2 ? "release-upload/" : ""}${name}`, bytes, { descriptor: true }] as const,
+    ),
+  );
+  const expected = identity(archive);
+  const pending = discoverReleaseArtifactFiles(archive, expected, f.platform, f.request);
+  archive.fill(0);
+  const found = await pending;
+  assert.equal(found.authority, "none");
+  assert.deepEqual(
+    found.files,
+    f.request.files.filter((file) => file.platform_label === f.platform),
+  );
+  assert.equal(found.declared_producer.run_id, "12345");
+  assert.equal(found.archive_sha256, expected.sha256);
+});
+
+void test("discovery refuses changed checksum declarations, producer identity and oversized metadata", async (t) => {
+  const f = await fixture(t);
+  for (const fault of ["checksum", "producer", "oversized"]) {
+    const entries = f.entries.map(
+      ([name, bytes]) =>
+        [
+          name,
+          fault === "checksum" && name.startsWith("SHA256SUMS-")
+            ? Buffer.from(bytes.toString().replace(/^[a-f0-9]{64}/u, "0".repeat(64)))
+            : fault === "producer" && name.startsWith("release-producer-")
+              ? Buffer.from(bytes.toString().replace('"12345"', '"54321"'))
+              : fault === "oversized" && name.startsWith("release-producer-")
+                ? Buffer.alloc(65537, 32)
+                : bytes,
+        ] as const,
+    );
+    const archive = createAuditZip(entries);
+    await assert.rejects(
+      discoverReleaseArtifactFiles(archive, identity(archive), f.platform, f.request),
+      fault === "checksum"
+        ? /checksum inventory/u
+        : fault === "producer"
+          ? /another workflow run/u
+          : /fixed policy bounds/u,
+    );
+  }
+});
 
 void test("bounded artifact staging accepts both documented layouts and descriptor ZIPs then feeds full assembly", async (t) => {
   const f = await fixture(t);

@@ -4,11 +4,8 @@ import { mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
-import { CoordinatorRemoteError } from "./release-coordinator-remote.mts";
-import {
-  importCoordinatorCheckpoint,
-  type CoordinatorGitObject,
-} from "./release-coordinator-state.mts";
+import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import type { CoordinatorGitObject } from "./release-coordinator-state.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const repository = "boburning/portcove";
@@ -68,7 +65,7 @@ function person(value: unknown) {
  * proves that reconstruction is complete. Unsupported forms remain Unknown.
  * A signature is reconstructed for byte identity, never treated as authority.
  */
-function commitObject(value: unknown, expected: string) {
+export function inspectRemoteCommitObject(value: unknown, expected: string) {
   if (!isRecord(value) || value.sha !== expected || !isRecord(value.tree))
     throw new Error("remote commit identity differs");
   oid(value.tree.sha);
@@ -94,12 +91,12 @@ function commitObject(value: unknown, expected: string) {
   return { object: verified("commit", expected, Buffer.from(raw)), tree: value.tree.sha, parents };
 }
 
-/** Restore the minimum recovery closure, never a source checkout or a complete
- * allocation inventory. The admitted caller owns parentDirectory and supplies
- * separately ratified namespace configuration. No default transport exists.
+/** Read the minimum raw recovery closure without Git writes, planner imports,
+ * source checkout or a complete allocation inventory. The admitted caller
+ * supplies separately ratified namespace configuration and a fixed transport.
  */
-export async function recoverRemoteCoordinator(
-  parentDirectory: string,
+export async function readRemoteCoordinatorSnapshot(
+  _parentDirectory: string,
   configuration: unknown,
   options: { transport?: { cwd: string; spawn?: Spawn } } = {},
 ) {
@@ -180,7 +177,7 @@ export async function recoverRemoteCoordinator(
     objects.set(object.oid, object);
   };
   const commit = (id: string) => {
-    const result = commitObject(get(`/git/commits/${id}`), id);
+    const result = inspectRemoteCommitObject(get(`/git/commits/${id}`), id);
     add(result.object);
     return result;
   };
@@ -269,6 +266,26 @@ export async function recoverRemoteCoordinator(
     if (refs.some((ref, index) => readRef(ref) !== expectedRefs[index]))
       throw new Error("remote recovery snapshot changed or receipt pair differs");
   }
+  return {
+    checkpoint: expected,
+    input: current.input,
+    previous: current.previous,
+    objects: [...objects.values()],
+    requests,
+    readiness: "raw-snapshot-only" as const,
+    qualification:
+      "Raw Git identity and ref association only; no planner or preparation acceptance",
+  };
+}
+
+/** Full unprivileged recovery validates the snapshot with the existing planner
+ * and preparation contracts. Snapshot readers need no installed dependencies. */
+export async function recoverRemoteCoordinator(
+  parentDirectory: string,
+  configuration: unknown,
+  options: Parameters<typeof readRemoteCoordinatorSnapshot>[2] = {},
+) {
+  const snapshot = await readRemoteCoordinatorSnapshot(parentDirectory, configuration, options);
   const localRepository = await mkdtemp(
     path.join(path.resolve(parentDirectory), "coordinator-recovery-"),
   );
@@ -296,23 +313,26 @@ export async function recoverRemoteCoordinator(
       },
     );
     phase = "validate-and-import";
-    const state = await importCoordinatorCheckpoint(localRepository, expected, [
-      ...objects.values(),
-    ]);
+    const { importCoordinatorCheckpoint } = await import("./release-coordinator-state.mts");
+    const state = await importCoordinatorCheckpoint(
+      localRepository,
+      snapshot.checkpoint,
+      snapshot.objects,
+    );
     return {
       ...state,
       repository: localRepository,
       readiness: "recovery-only" as const,
       complete_allocation_history: false as const,
       application_checkout_available: false as const,
-      requests,
+      requests: snapshot.requests,
     };
   } catch (error) {
     throw new CoordinatorRemoteError("recovery failed; retain the owned partial repository", {
       repository: localRepository,
-      checkpoint: expected,
+      checkpoint: snapshot.checkpoint,
       phase,
-      requests,
+      requests: snapshot.requests,
       error: sanitizeOperationError(error),
     });
   }

@@ -1,0 +1,467 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFile, readdir } from "node:fs/promises";
+import test from "node:test";
+import { acquireReleaseAdmission } from "./acquire-release-admission.mts";
+import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import type { IncludedResponse } from "./github-api.mts";
+import { rateLimitFromResponse } from "./github-api.mts";
+import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+
+const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
+function commit(tree: string, parents: string[], message: string) {
+  const actor = { name: "Fixture", email: "fixture@example.invalid", date: "2026-10-18T00:00:00Z" };
+  const header = `tree ${tree}\n${parents.map((p) => `parent ${p}\n`).join("")}author Fixture <fixture@example.invalid> 1792281600 +0000\ncommitter Fixture <fixture@example.invalid> 1792281600 +0000`;
+  const raw = Buffer.from(`${header}\n\n${message}`);
+  const sha = createHash("sha1").update(`commit ${raw.length}\0`).update(raw).digest("hex");
+  return {
+    sha,
+    tree: { sha: tree },
+    parents: parents.map((sha) => ({ sha })),
+    message,
+    author: actor,
+    committer: actor,
+  };
+}
+async function fixture(t: test.TestContext) {
+  const f = await trustedAssemblyFixture(t);
+  const original = commit("1".repeat(40), [], "fixture source; never execute\n");
+  const intent = JSON.stringify({
+    proposal: { source_commit: original.sha, version: f.request.version },
+    compatibility: "compatible",
+    migration_notes: "",
+  });
+  const intentHash = hash(intent);
+  const prepared = commit(
+    "2".repeat(40),
+    [original.sha],
+    `Prepare application ${f.request.version}\n\nPortcove-Preparation-SHA256: ${intentHash}\n${intent}\n`,
+  );
+  const candidate = {
+    source_commit: original.sha,
+    source_tree: original.tree.sha,
+    prepared_commit: prepared.sha,
+    prepared_tree: prepared.tree.sha,
+    version: f.request.version,
+    intent_sha256: intentHash,
+    phase: "building",
+    failure_kind: null,
+    transient_retries: 0,
+    substantive_repairs: 0,
+    release_run: { run_id: 12345, attempt: 1, revision: prepared.sha },
+  };
+  const input = {
+    schema_version: 1,
+    now: "2026-10-18T00:00:00.000Z",
+    controller: {
+      workflow: ".github/workflows/application-update-production.yml",
+      revision: "3".repeat(40),
+      publication_paused: false,
+      free_capacity_available: true,
+    },
+    opportunity: {
+      source_commit: original.sha,
+      source_tree: original.tree.sha,
+      base_commit: "4".repeat(40),
+      change_set_sha256: "a".repeat(64),
+      complete_change_set: true,
+      meaningful: true,
+      documentation_only: false,
+      urgency: false,
+      requested_channel: "preview",
+      classification: {
+        source_commit: original.sha,
+        reviewed_commit: original.sha,
+        source_tree: original.tree.sha,
+        reviewed_tree: original.tree.sha,
+        change_set_sha256: "a".repeat(64),
+        base_version: "0.1.0-alpha.2",
+        change: "prerelease",
+        compatibility: "compatible",
+      },
+    },
+    publication: {
+      complete: true,
+      observed_at: "2026-10-18T00:00:00.000Z",
+      published_versions: [],
+      published_sources: [],
+      reserved_versions: [f.request.version],
+      last_routine_preview_at: null,
+    },
+    active_candidate: candidate,
+  };
+  const tags = [
+    {
+      id: "Ref_version",
+      name: `portcove-fixture-prepared/v${f.request.version}`,
+      prefix: "refs/tags/",
+      target: { __typename: "Commit", oid: prepared.sha },
+    },
+    {
+      id: "Ref_source",
+      name: `portcove-fixture-prepared-source/${original.sha}`,
+      prefix: "refs/tags/",
+      target: { __typename: "Commit", oid: prepared.sha },
+    },
+  ];
+  const archives = new Map<number, Buffer>();
+  const artifacts: Record<string, unknown>[] = [];
+  for (const [index, platform] of [
+    ...new Set(f.request.files.map((file) => file.platform_label)),
+  ].entries()) {
+    const entries = f.request.files
+      .filter((file) => file.platform_label === platform)
+      .map((file) => {
+        let bytes = f.contents.get(`${platform}/${file.filename}`)!;
+        if (file.filename.startsWith("release-producer-"))
+          bytes = Buffer.from(bytes.toString().replaceAll(f.request.source_commit, prepared.sha));
+        return [file.filename, bytes, { descriptor: true }] as const;
+      });
+    const archive = createAuditZip(entries);
+    const id = 100 + index;
+    archives.set(id, archive);
+    artifacts.push({
+      id,
+      name: `release-build-${platform}`,
+      size_in_bytes: archive.length,
+      digest: `sha256:${hash(archive)}`,
+      expired: false,
+      created_at: "2026-10-18T00:00:00Z",
+      expires_at: null,
+      workflow_run: {
+        id: 12345,
+        repository_id: 1354613114,
+        head_repository_id: 1354613114,
+        head_sha: prepared.sha,
+      },
+    });
+  }
+  const workflow = await readFile(new URL("../.github/workflows/release.yml", import.meta.url));
+  const run = {
+    id: 12345,
+    run_attempt: 1,
+    head_sha: prepared.sha,
+    repository: { id: 1354613114, full_name: "boburning/portcove" },
+    head_repository: { id: 1354613114 },
+    path: ".github/workflows/release.yml",
+    workflow_id: 123,
+    status: "completed",
+    conclusion: "success",
+    updated_at: "2026-10-18T00:00:00Z",
+    event: "workflow_dispatch",
+  };
+  const jobs = [
+    {
+      id: 10,
+      run_id: 12345,
+      run_attempt: 1,
+      head_sha: prepared.sha,
+      name: "fixture package job",
+      status: "completed",
+      conclusion: "success",
+      runner_id: 1,
+      runner_name: "GitHub Actions fixture",
+      started_at: "2026-10-18T00:00:00Z",
+      completed_at: "2026-10-18T00:00:01Z",
+    },
+  ];
+  const checks = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"].map(
+    (name, index) => ({
+      id: 20 + index,
+      name,
+      status: "completed",
+      conclusion: "success",
+      head_sha: prepared.sha,
+      app: { id: 15368 },
+      html_url: `https://github.com/boburning/portcove/actions/runs/456/job/${20 + index}`,
+    }),
+  );
+  const faults = { value: "" };
+  const statuses: { id: number; context: string; state: string }[] = [];
+  const calls: string[] = [];
+  let tagRounds = 0;
+  let releaseRounds = 0;
+  let recoveries = 0;
+  const releases: {
+    id: number;
+    tag_name: string;
+    draft: boolean;
+    prerelease: boolean;
+    published_at: string | null;
+    updated_at: string;
+  }[] = [];
+  const response = (body: unknown, headers: Record<string, string> = {}) => {
+    const included: IncludedResponse = {
+      status: 200,
+      body,
+      headers: new Map(Object.entries(headers)),
+    };
+    return { ...included, rateLimit: rateLimitFromResponse(included) };
+  };
+  const options: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = {
+    now: () => Date.parse("2026-10-18T00:01:00.000Z"),
+    recover: async () => {
+      recoveries++;
+      return {
+        checkpoint:
+          faults.value === "checkpoint-drift" && recoveries > 1 ? "e".repeat(40) : "c".repeat(40),
+        input,
+        complete_allocation_history: false,
+      };
+    },
+    download: (endpoint: string) => {
+      calls.push(`ZIP ${endpoint}`);
+      if (faults.value === "check-drift") checks[0]!.conclusion = "failure";
+      if (faults.value === "check-identity-drift") checks[0]!.id = 999;
+      if (faults.value === "issuer-drift") checks[0]!.app.id = 1;
+      if (faults.value === "job-drift") jobs[0]!.id = 999;
+      if (faults.value === "status-drift" && !statuses.length)
+        statuses.push({ id: 900, context: "catalog", state: "failure" });
+      if (faults.value === "secret-error") throw new Error("Bearer secret-provider-text");
+      const id = Number(endpoint.match(/artifacts\/(\d+)/u)?.[1]);
+      const archive = archives.get(id);
+      assert.ok(archive);
+      return archive;
+    },
+    api: {
+      request: (method: string, endpoint: string) => {
+        assert.equal(method, "GET");
+        calls.push(endpoint);
+        const url = new URL(
+          endpoint.startsWith("https:") ? endpoint : `https://api.github.com/${endpoint}`,
+        );
+        assert.equal(url.origin, "https://api.github.com");
+        const route = url.pathname.replace("/repos/boburning/portcove", "");
+        if (route === "")
+          return response({
+            id: 1354613114,
+            node_id: "R_fixture",
+            full_name: "boburning/portcove",
+            private: false,
+            visibility: "public",
+          });
+        if (route === "/releases") {
+          const page = Number(url.searchParams.get("page") ?? 1);
+          if (page === 1) releaseRounds++;
+          const rows = structuredClone(releases.slice((page - 1) * 100, page * 100));
+          if (faults.value === "publication-drift" && releaseRounds > 1 && rows[0])
+            rows[0].updated_at = "2026-10-18T00:00:02Z";
+          return response(
+            rows,
+            page * 100 < releases.length
+              ? {
+                  link: `<https://api.github.com/repos/boburning/portcove/releases?per_page=100&page=${page + 1}>; rel="next"`,
+                }
+              : {},
+          );
+        }
+        if (route === `/git/commits/${original.sha}`) return response(original);
+        if (route === `/git/commits/${prepared.sha}`) return response(prepared);
+        if (route === "/actions/runs/12345" || route === "/actions/runs/12345/attempts/1")
+          return response(run);
+        if (route === "/actions/runs/12345/attempts/1/jobs")
+          return response({ total_count: jobs.length, jobs });
+        if (route === "/actions/runs/12345/artifacts")
+          return response({ total_count: artifacts.length, artifacts });
+        if (route === "/contents/.github/workflows/release.yml")
+          return response({
+            type: "file",
+            path: ".github/workflows/release.yml",
+            encoding: "base64",
+            size: workflow.length,
+            content: workflow.toString("base64"),
+          });
+        if (route === `/commits/${prepared.sha}/check-runs`)
+          return response({ total_count: checks.length, check_runs: checks });
+        if (route === `/commits/${prepared.sha}/status`)
+          return response({ sha: prepared.sha, total_count: statuses.length, statuses });
+        throw Error(`unexpected fixture route ${route}`);
+      },
+      graphql: (query: string, variables?: Readonly<Record<string, unknown>>) => {
+        calls.push("GraphQL refs");
+        assert.match(query, /query AdmissionRefs/u);
+        assert.doesNotMatch(query, /mutation/u);
+        const offset = variables?.cursor === null ? 0 : Number(variables?.cursor);
+        if (offset === 0) tagRounds++;
+        const rows = structuredClone(tags.slice(offset, offset + 100));
+        if (faults.value === "tag-drift" && tagRounds > 1 && rows[0])
+          rows[0].target.oid = "e".repeat(40);
+        if (faults.value === "duplicate-tag" && rows[1]) rows[1].id = rows[0]!.id;
+        return {
+          response: response({}),
+          rateLimit: rateLimitFromResponse(response({})),
+          data: {
+            repository: {
+              id: "R_fixture",
+              databaseId: 1354613114,
+              nameWithOwner: "boburning/portcove",
+              refs: {
+                totalCount: tags.length + (faults.value === "truncated" ? 1 : 0),
+                nodes: rows,
+                pageInfo: {
+                  hasNextPage: offset + 100 < tags.length,
+                  endCursor: String(offset + rows.length),
+                },
+              },
+            },
+          },
+        };
+      },
+    },
+  };
+  return {
+    ...f,
+    original,
+    prepared,
+    input,
+    tags,
+    releases,
+    checks,
+    artifacts,
+    jobs,
+    faults,
+    calls,
+    options,
+    config: { schema_version: 1, namespace: "portcove-fixture" },
+  };
+}
+
+void test("read-only acquisition constructs the full internally observed matrix and feeds only a conservative held plan", async (t) => {
+  const f = await fixture(t);
+  const result = await acquireReleaseAdmission(f.root, f.config, f.options);
+  assert.equal(result.decision, "hold");
+  assert.equal(result.descriptor, null);
+  assert.equal(result.authority, "none");
+  assert.equal(result.evidence_scope, "injected-provider");
+  assert.equal(result.allocations.length, 1);
+  assert.equal(result.contexts.length, 5);
+  assert.equal(result.archives.length, 4);
+  assert.equal(result.assembly.files.length, f.request.files.length);
+  assert.equal(result.diagnostic_plan?.action, "pause");
+  assert.ok(result.holds.includes("candidate-workflow-execution-and-producer-acceptance-unproven"));
+  assert.ok(
+    result.holds.includes("independent-classification-pause-and-capacity-sources-unconfigured"),
+  );
+  assert.equal(f.calls.filter((call) => call.startsWith("ZIP ")).length, 4);
+  assert.ok((await readdir(f.root)).some((name) => name.startsWith("release-admission-")));
+});
+
+void test("complete ref and release inventories cross real pagination boundaries without trusting titles or target_commitish", async (t) => {
+  const f = await fixture(t);
+  for (let i = 0; i < 101; i++) {
+    f.tags.push({
+      id: `Ref_extra_${i}`,
+      name: `unrelated-${i}`,
+      prefix: "refs/tags/",
+      target: { __typename: "Commit", oid: "5".repeat(40) },
+    });
+    f.releases.push({
+      id: 1000 + i,
+      tag_name: `v0.1.0-alpha.${100 + i}`,
+      draft: true,
+      prerelease: true,
+      published_at: null,
+      updated_at: "2026-10-18T00:00:00Z",
+    });
+  }
+  const result = await acquireReleaseAdmission(f.root, f.config, f.options);
+  assert.equal(result.decision, "hold");
+  assert.equal(result.allocations.length, 1);
+  assert.equal(f.calls.filter((call) => call.includes("releases?per_page=100&page=2")).length, 2);
+  assert.equal(f.calls.filter((call) => call === "GraphQL refs").length, 4);
+});
+
+void test("duplicate truncated drifting and unpaired source inventories refuse without another allocation", async (t) => {
+  for (const fault of ["duplicate-tag", "truncated", "tag-drift", "checkpoint-drift"]) {
+    const f = await fixture(t);
+    f.faults.value = fault;
+    await assert.rejects(acquireReleaseAdmission(f.root, f.config, f.options));
+    assert.ok(f.calls.every((call) => !call.includes("POST ") && !call.includes("PATCH ")));
+  }
+  const f = await fixture(t);
+  f.tags.pop();
+  await assert.rejects(
+    acquireReleaseAdmission(f.root, f.config, f.options),
+    /repository-and-reservation/u,
+  );
+});
+
+void test("failed qualification is a hold while wrong source and issuer refuse before archive reads", async (t) => {
+  const f = await fixture(t);
+  f.checks[0]!.conclusion = "failure";
+  const held = await acquireReleaseAdmission(f.root, f.config, f.options);
+  assert.ok(held.holds.includes("exact-prepared-head-required-contexts-not-successful"));
+  for (const fault of ["source", "issuer"]) {
+    const g = await fixture(t);
+    if (fault === "source") g.checks[0]!.head_sha = "e".repeat(40);
+    else g.checks[0]!.app.id = 1;
+    await assert.rejects(acquireReleaseAdmission(g.root, g.config, g.options), /qualification/u);
+    assert.equal(g.calls.filter((call) => call.startsWith("ZIP ")).length, 0);
+  }
+});
+
+void test("historical publication without immutable source/routine attribution remains unknown and changed snapshot refuses", async (t) => {
+  const f = await fixture(t);
+  f.tags.push({
+    id: "Ref_alpha",
+    name: "v0.1.0-alpha.1",
+    prefix: "refs/tags/",
+    target: { __typename: "Commit", oid: f.original.sha },
+  });
+  f.releases.push({
+    id: 1000,
+    tag_name: "v0.1.0-alpha.1",
+    draft: false,
+    prerelease: true,
+    published_at: "2026-10-17T00:00:00Z",
+    updated_at: "2026-10-17T00:00:00Z",
+  });
+  const result = await acquireReleaseAdmission(f.root, f.config, f.options);
+  assert.equal(result.publication.complete, false);
+  assert.equal(result.diagnostic_plan, null);
+  assert.ok(
+    result.holds.includes(
+      "historical-original-source-and-routine-preview-classification-unresolved",
+    ),
+  );
+  const g = await fixture(t);
+  g.tags.push(structuredClone(f.tags[2]!));
+  g.releases.push(structuredClone(f.releases[0]!));
+  g.faults.value = "publication-drift";
+  await assert.rejects(acquireReleaseAdmission(g.root, g.config, g.options), /freshness-bracket/u);
+});
+
+void test("qualification identities, outcomes, issuers, statuses and attempt jobs are bracketed across downloads", async (t) => {
+  for (const fault of [
+    "check-drift",
+    "check-identity-drift",
+    "issuer-drift",
+    "job-drift",
+    "status-drift",
+  ]) {
+    const f = await fixture(t);
+    f.faults.value = fault;
+    await assert.rejects(
+      acquireReleaseAdmission(f.root, f.config, f.options),
+      /freshness-bracket/u,
+    );
+  }
+});
+
+void test("refusal retains its owned directory and bounded phase without provider secrets", async (t) => {
+  const f = await fixture(t);
+  f.faults.value = "secret-error";
+  let evidence: { directory: string; phase: string; checkpoint: string } | undefined;
+  await assert.rejects(acquireReleaseAdmission(f.root, f.config, f.options), (error: unknown) => {
+    assert.ok(error instanceof CoordinatorRemoteError);
+    evidence = error.evidence as { directory: string; phase: string; checkpoint: string };
+    assert.equal(evidence.phase, "archive-acquisition");
+    assert.equal(evidence.checkpoint, "c".repeat(40));
+    return true;
+  });
+  assert.ok(evidence);
+  const retained = await readFile(`${evidence.directory}/admission-failure.json`, "utf8");
+  assert.deepEqual(JSON.parse(retained), evidence);
+  assert.doesNotMatch(retained, /Bearer|secret-provider-text/u);
+});

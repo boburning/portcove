@@ -306,9 +306,13 @@ function transition(previous: ReturnType<typeof readCheckpoint>, next: Record<st
   }
 }
 
-function preparationVerifies(git: Git, input: Record<string, unknown>) {
-  const candidate = active(input);
-  if (!candidate) return [];
+/** Reuse the raw preparation receipt contract for remote inventory. The caller
+ * must first authenticate each Git object's raw identity; this grants no trust. */
+export function inspectPreparationCommitBytes(
+  sourceBytes: string,
+  preparedBytes: string,
+  candidate: Record<string, unknown>,
+) {
   const {
     source_commit: source,
     source_tree: sourceTree,
@@ -319,13 +323,8 @@ function preparationVerifies(git: Git, input: Record<string, unknown>) {
   } = candidate;
   identity(source);
   identity(prepared);
-  if (
-    git(["cat-file", "-t", source]) !== "commit" ||
-    git(["cat-file", "-t", prepared]) !== "commit"
-  )
-    throw new Error("preparation requires exact commits with the source as its sole parent");
-  const sourceBytes = git(["cat-file", "commit", source], undefined, true);
-  const preparedBytes = git(["cat-file", "commit", prepared], undefined, true);
+  if (Buffer.byteLength(sourceBytes) > 128 * 1024 || Buffer.byteLength(preparedBytes) > 128 * 1024)
+    throw new Error("preparation commit exceeds its byte bound");
   const sourceHeader = sourceBytes.split("\n\n", 1)[0]?.split("\n") ?? [];
   const boundary = preparedBytes.indexOf("\n\n");
   const preparedHeader = preparedBytes.slice(0, boundary).split("\n");
@@ -348,6 +347,26 @@ function preparationVerifies(git: Git, input: Record<string, unknown>) {
     throw new Error("prepared commit does not bind the reservation intent");
   if (typeof version !== "string" || !/^[0-9A-Za-z.+-]+$/u.test(version))
     throw new Error("unsafe reservation version");
+  return payload;
+}
+
+function preparationVerifies(git: Git, input: Record<string, unknown>) {
+  const candidate = active(input);
+  if (!candidate) return [];
+  const { source_commit: source, prepared_commit: prepared, version } = candidate;
+  identity(source);
+  identity(prepared);
+  if (
+    git(["cat-file", "-t", source]) !== "commit" ||
+    git(["cat-file", "-t", prepared]) !== "commit"
+  )
+    throw new Error("preparation requires exact commits with the source as its sole parent");
+  inspectPreparationCommitBytes(
+    git(["cat-file", "commit", source], undefined, true),
+    git(["cat-file", "commit", prepared], undefined, true),
+    candidate,
+  );
+  if (typeof version !== "string") throw new Error("unsafe reservation version");
   return [
     `verify refs/portcove/prepared-versions/v${version} ${prepared}`,
     `verify refs/portcove/prepared-commits/${source} ${prepared}`,

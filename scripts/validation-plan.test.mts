@@ -101,6 +101,8 @@ void test("coordinator state and remote transport retain protected release quali
     "scripts/assembler-job-identity.mts",
     "scripts/trusted-aggregate-attestation.mts",
     "scripts/production-aggregate-steps.mts",
+    "scripts/acquire-release-admission.mts",
+    "scripts/release-coordinator-errors.mts",
     "docs/qualification/application-update-production.aggregate.yml",
     "docs/qualification/slice4-production-authorization-packet-2026-10-18.md",
   ]) {
