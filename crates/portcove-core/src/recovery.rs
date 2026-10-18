@@ -73,6 +73,30 @@ pub(crate) fn recover_published_install(
         &operation.id,
         &staging,
     )?;
+    if matches!(
+        operation.phase,
+        LifecyclePhase::Prepared | LifecyclePhase::PayloadPublished
+    ) {
+        let status = service
+            .library
+            .status(&operation.port_id, install.channel)?;
+        let already_registered = status
+            .active
+            .as_ref()
+            .is_some_and(|active| active.id == install.id)
+            || (!operation.activate
+                && status
+                    .staged
+                    .as_ref()
+                    .is_some_and(|staged| staged.id == install.id));
+        if !already_registered {
+            service.require_ghostship_data_compatibility(
+                &install.port_id,
+                &install.version,
+                status.active.as_ref().map(|active| active.version.as_str()),
+            )?;
+        }
+    }
     if operation.phase == LifecyclePhase::Prepared {
         match (payload.exists(), install.path.exists()) {
             (true, false) => {
@@ -590,6 +614,11 @@ pub(crate) fn recover_activation(
                     "the staged install changed while activation was interrupted",
                 ));
             }
+            service.require_ghostship_data_compatibility(
+                &install.port_id,
+                &install.version,
+                status.active.as_ref().map(|active| active.version.as_str()),
+            )?;
             let commit = activation.prepare_commit(service, operation)?;
             service.collect_active_user_data_if_launched(&install.port_id)?;
             service.restore_user_data_to(&port, &install.path)?;

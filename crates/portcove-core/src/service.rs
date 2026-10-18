@@ -39,6 +39,7 @@ use crate::{
 };
 
 mod backups;
+mod ghostship_compatibility;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
@@ -1447,6 +1448,12 @@ impl PortcoveService {
         if pending_setup && crate::preparation::managed(port) {
             blockers.push(LaunchBlocker::PreparationRequired);
         }
+        if status.active.as_ref().is_some_and(|active| {
+            self.require_ghostship_data_compatibility(&port.id, &active.version, None)
+                .is_err()
+        }) {
+            blockers.push(LaunchBlocker::InvalidInstallation);
+        }
         status.readiness = Some(LaunchReadiness {
             launchable: installed && blockers.is_empty(),
             blockers,
@@ -1757,6 +1764,11 @@ impl PortcoveService {
                 Reason::DefinitionIneligible,
                 Some(ineligible),
             )
+        } else if status.active.as_ref().is_some_and(|active| {
+            self.require_ghostship_data_compatibility(&current_port.id, &active.version, None)
+                .is_err()
+        }) {
+            assessed(Action::Launch, Availability::Held, Reason::UnsafeData, None)
         } else if status
             .readiness
             .as_ref()
@@ -1870,23 +1882,25 @@ impl PortcoveService {
                 PortActionReason::NotInstalled,
                 None,
             ),
-            Some(previous) => match self.rollback_target(&status.port_id, previous) {
-                Ok(_) => (
-                    PortActionAvailability::Allowed,
-                    PortActionReason::Available,
-                    None,
-                ),
-                Err(failure) if failure.reason == PortActionReason::RouteNotOffered => (
-                    PortActionAvailability::NotOffered,
-                    failure.reason,
-                    failure.definition,
-                ),
-                Err(failure) => (
-                    PortActionAvailability::Held,
-                    failure.reason,
-                    failure.definition,
-                ),
-            },
+            Some(previous) => {
+                match self.rollback_target(&status.port_id, previous, status.active.as_ref()) {
+                    Ok(_) => (
+                        PortActionAvailability::Allowed,
+                        PortActionReason::Available,
+                        None,
+                    ),
+                    Err(failure) if failure.reason == PortActionReason::RouteNotOffered => (
+                        PortActionAvailability::NotOffered,
+                        failure.reason,
+                        failure.definition,
+                    ),
+                    Err(failure) => (
+                        PortActionAvailability::Held,
+                        failure.reason,
+                        failure.definition,
+                    ),
+                }
+            }
         };
         status.port_actions.push(PortActionAssessment {
             action: PortAction::Rollback,
@@ -2703,6 +2717,14 @@ impl PortcoveService {
             port,
             DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
         )?;
+        self.require_ghostship_data_compatibility(
+            &port.id,
+            &release.version,
+            status
+                .active
+                .as_ref()
+                .map(|install| install.version.as_str()),
+        )?;
         let runtime = crate::runtime::required(port, Platform::current()?);
         if let Some(active) = &status.active
             && artifact_matches_release(active, &release, runtime.as_ref())
@@ -3123,14 +3145,12 @@ impl PortcoveService {
         let result = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "rollback")?;
-            let previous = self
-                .status_without_rollback_assessment(port_id)?
-                .previous
-                .ok_or_else(|| {
-                    PortcoveError::not_found(format!("{port_id} has no rollback version"))
-                })?;
+            let status = self.status_without_rollback_assessment(port_id)?;
+            let previous = status.previous.ok_or_else(|| {
+                PortcoveError::not_found(format!("{port_id} has no rollback version"))
+            })?;
             let (port, qualification) = self
-                .rollback_target(port_id, &previous)
+                .rollback_target(port_id, &previous, status.active.as_ref())
                 .map_err(|failure| failure.error)?;
             self.collect_active_user_data_if_launched(port_id)?;
             self.restore_user_data_to(&port, &previous.path)?;
@@ -3147,6 +3167,7 @@ impl PortcoveService {
         &self,
         port_id: &str,
         previous: &InstallRecord,
+        active: Option<&InstallRecord>,
     ) -> std::result::Result<(PortDefinition, InstallQualification), RollbackTargetFailure> {
         // Preview must preserve execution's current-catalog route gate. A
         // retained contract proves the target's identity, not a newly offered
@@ -3158,6 +3179,16 @@ impl PortcoveService {
                 error,
                 definition: None,
             })?;
+        self.require_ghostship_data_compatibility(
+            port_id,
+            &previous.version,
+            active.map(|install| install.version.as_str()),
+        )
+        .map_err(|error| RollbackTargetFailure {
+            reason: PortActionReason::UnsafeData,
+            error,
+            definition: None,
+        })?;
         let invalid = |error| RollbackTargetFailure {
             reason: PortActionReason::InvalidInstallation,
             error,
@@ -3246,10 +3277,18 @@ impl PortcoveService {
     }
 
     fn activate_staged_locked(&self, port_id: &str, operation_id: &str) -> Result<InstallRecord> {
-        let staged = self
-            .status(port_id)?
+        let status = self.status_without_rollback_assessment(port_id)?;
+        let staged = status
             .staged
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
+        self.require_ghostship_data_compatibility(
+            port_id,
+            &staged.version,
+            status
+                .active
+                .as_ref()
+                .map(|install| install.version.as_str()),
+        )?;
         let port = self.installed_port(&staged)?;
         let qualification = self.installed_mutability_qualification(&staged)?;
         crate::runtime::require_ready(&port, Platform::current()?, &staged)?;
@@ -13117,6 +13156,236 @@ fn main() {
             let error = service.prepare_launch(&original.id, None).unwrap_err();
             assert_eq!(error.code, crate::ErrorCode::Conflict);
             assert_eq!(error.details["definition_reason"], "publisher_revoked");
+        }
+    }
+
+    #[test]
+    fn ghostship_incompatible_rollback_is_held_without_touching_data() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        for version in ["2.0.0", "3.0.0"] {
+            let root = library.versions_dir().join("ghostship").join(version);
+            fs::create_dir_all(&root).unwrap();
+            write_host_test_executable(&root, "ghostship");
+            register_existing_test_install(&library, "ghostship", version, &root, true);
+            fs::write(root.join(LAUNCH_MARKER), b"1").unwrap();
+        }
+        let user = library.user_dir("ghostship");
+        fs::create_dir_all(user.join("saves")).unwrap();
+        fs::write(
+            user.join("saves/save_0.json"),
+            br#"{"version":2,"flags":42}"#,
+        )
+        .unwrap();
+        fs::write(user.join("sm64.o2r"), b"retained generated data").unwrap();
+        fs::write(user.join("ghostship.cfg.json"), b"retained settings").unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let before = crate::test_fixture::library_file_snapshot(&library);
+
+        let status = service.status("ghostship").unwrap();
+        let action = status
+            .port_actions
+            .iter()
+            .find(|item| item.action == PortAction::Rollback)
+            .unwrap();
+        assert_eq!(action.availability, PortActionAvailability::Held);
+        assert_eq!(action.reason, PortActionReason::UnsafeData);
+        assert_eq!(crate::test_fixture::library_file_snapshot(&library), before);
+
+        let error = service.rollback("ghostship").unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(error.message.contains("schema-2 saves"));
+        let data_files = |files: Vec<(PathBuf, String)>| {
+            files
+                .into_iter()
+                .filter(|(path, _)| path.starts_with("versions") || path.starts_with("user"))
+                .collect::<Vec<_>>()
+        };
+        // The failed activity is recorded in SQLite; game data remains intact.
+        assert_eq!(
+            data_files(crate::test_fixture::library_file_snapshot(&library)),
+            data_files(before)
+        );
+        let status = library.status("ghostship", ReleaseChannel::Stable).unwrap();
+        assert_eq!(status.active.unwrap().version, "3.0.0");
+        assert_eq!(status.previous.unwrap().version, "2.0.0");
+    }
+
+    #[test]
+    fn ghostship_rollback_hold_does_not_block_the_reverse_transition() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        for version in ["3.0.0", "2.0.0"] {
+            let root = library.versions_dir().join("ghostship").join(version);
+            fs::create_dir_all(&root).unwrap();
+            write_host_test_executable(&root, "ghostship");
+            register_existing_test_install(&library, "ghostship", version, &root, true);
+        }
+        let service = PortcoveService::new(library).unwrap();
+        let status = service.status("ghostship").unwrap();
+        let action = status
+            .port_actions
+            .iter()
+            .find(|item| item.action == PortAction::Rollback)
+            .unwrap();
+        assert_eq!(action.availability, PortActionAvailability::Allowed);
+        assert_eq!(service.rollback("ghostship").unwrap().version, "3.0.0");
+        // Fixture bytes establish only the scoped guard, not upstream migration.
+    }
+
+    #[tokio::test]
+    async fn ghostship_staged_and_retained_reactivation_cannot_bypass_the_hold() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        for version in ["3.0.0", "2.0.0"] {
+            let root = library.versions_dir().join("ghostship").join(version);
+            fs::create_dir_all(&root).unwrap();
+            write_host_test_executable(&root, "ghostship");
+            register_existing_test_install(
+                &library,
+                "ghostship",
+                version,
+                &root,
+                version == "3.0.0",
+            );
+        }
+        let service = service_with_release(library.clone(), "2.0.0");
+        let error = service.activate_staged("ghostship").unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(error.message.contains("schema-2 saves"));
+        let status = library.status("ghostship", ReleaseChannel::Stable).unwrap();
+        assert_eq!(status.active.unwrap().version, "3.0.0");
+        assert_eq!(status.staged.unwrap().version, "2.0.0");
+        let error = service
+            .install("ghostship", None, None, None, true, |_| {})
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(error.message.contains("schema-2 saves"));
+        assert_eq!(
+            library
+                .status("ghostship", ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .unwrap()
+                .version,
+            "3.0.0"
+        );
+    }
+
+    #[test]
+    fn ghostship_old_launch_checks_retained_data_before_preparation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let root = library.versions_dir().join("ghostship/2.0.0");
+        fs::create_dir_all(&root).unwrap();
+        write_host_test_executable(&root, "ghostship");
+        let active = register_existing_test_install(&library, "ghostship", "2.0.0", &root, true);
+        let save = library.user_dir("ghostship").join("saves/save_0.json");
+        fs::create_dir_all(save.parent().unwrap()).unwrap();
+        fs::write(&save, br#"{"version":2}"#).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let port = service.catalog.port("ghostship").unwrap();
+        let before = crate::test_fixture::library_file_snapshot(&library);
+        let error = service
+            .prepare_launch_for_install(port, &active, None, None)
+            .unwrap_err();
+        assert!(error.message.contains("schema-1 reader"));
+        assert!(
+            !service
+                .status("ghostship")
+                .unwrap()
+                .readiness
+                .unwrap()
+                .launchable
+        );
+        assert_eq!(crate::test_fixture::library_file_snapshot(&library), before);
+    }
+
+    #[test]
+    fn ghostship_legacy_reader_refuses_linked_save_data() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let saves = library.user_dir("ghostship").join("saves");
+        fs::create_dir_all(&saves).unwrap();
+        let outside = temporary.path().join("outside.json");
+        fs::write(&outside, br#"{"version":1}"#).unwrap();
+        create_adoption_test_symlink(&outside, &saves.join("global.json"), false);
+        let service = PortcoveService::new(library).unwrap();
+        let error = service
+            .require_ghostship_data_compatibility("ghostship", "2.0.0", None)
+            .unwrap_err();
+        assert!(error.message.contains("unsafe path"));
+        assert_eq!(fs::read(outside).unwrap(), br#"{"version":1}"#);
+    }
+
+    #[test]
+    fn ghostship_interrupted_publication_and_activation_preserve_the_hold_and_journal() {
+        for kind in [
+            LifecycleOperationKind::Install,
+            LifecycleOperationKind::Activate,
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let service = PortcoveService::new(library.clone()).unwrap();
+            let mut target = None;
+            for version in ["3.0.0", "2.0.0"] {
+                let root = library.versions_dir().join("ghostship").join(version);
+                fs::create_dir_all(&root).unwrap();
+                write_host_test_executable(&root, "ghostship");
+                let record = register_existing_test_install(
+                    &library,
+                    "ghostship",
+                    version,
+                    &root,
+                    version == "3.0.0",
+                );
+                if version == "2.0.0" {
+                    target = Some(record);
+                }
+            }
+            let store = OperationStore::new(library.clone());
+            let mut operation =
+                LifecycleOperation::new(Uuid::new_v4().to_string(), kind, "ghostship");
+            operation.install = target.clone();
+            operation.activate = true;
+            if kind == LifecycleOperationKind::Install {
+                operation.phase = LifecyclePhase::PayloadPublished;
+                let staging = library.staging_dir().join(&operation.id);
+                fs::create_dir_all(&staging).unwrap();
+                operation.paths.staging = Some(staging);
+            }
+            store.put(&mut operation).unwrap();
+            let phase = operation.phase;
+            let _lock = library.try_lock_port("ghostship", "test-recovery").unwrap();
+            let result = if kind == LifecycleOperationKind::Install {
+                crate::recovery::recover_published_install(&service, &store, &mut operation)
+            } else {
+                crate::recovery::recover_activation(&service, &store, &mut operation)
+            };
+            assert!(result.unwrap_err().message.contains("schema-2 saves"));
+            assert_eq!(store.all().unwrap()[0].phase, phase);
+            assert_eq!(
+                library
+                    .status("ghostship", ReleaseChannel::Stable)
+                    .unwrap()
+                    .active
+                    .unwrap()
+                    .version,
+                "3.0.0"
+            );
+
+            // A crash after actual metadata commit must still retire the journal.
+            library.register_install(&target.unwrap(), true).unwrap();
+            if kind == LifecycleOperationKind::Install {
+                operation.phase = LifecyclePhase::MetadataCommitted;
+                store.put(&mut operation).unwrap();
+                crate::recovery::recover_published_install(&service, &store, &mut operation)
+                    .unwrap();
+            } else {
+                crate::recovery::recover_activation(&service, &store, &mut operation).unwrap();
+            }
+            assert!(store.all().unwrap().is_empty());
         }
     }
 
