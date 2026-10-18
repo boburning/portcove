@@ -274,6 +274,63 @@ fn service_projects_real_missing_registration_without_planning_or_mutation() {
 }
 
 #[test]
+fn route_bindings_preserve_the_released_owned_catalog_tuple_hash() {
+    let (_temporary, service, _batch) = service_fixture();
+    let mut request = managed_request(&service);
+    inert_install(&service, &request.port_id, true);
+    let current_document = service.catalog().authoritative_document();
+    for route in [
+        GameFileRouteKind::ManagedInstall,
+        GameFileRouteKind::ManagedLaunch,
+    ] {
+        request.route = route;
+        let selected = resolve_route(&service, &request).unwrap();
+        // The original owned-document tuple at 6466c117 is the compatibility
+        // oracle, independent of the operation-local document reuse.
+        let original = crate::source_batch::fingerprint(&(
+            &request,
+            selected.catalog.authoritative_document(),
+            selected.context_complete,
+            selected.offered,
+            selected.empty_requirements,
+            selected.unknown_requirements,
+            &selected.profile_id,
+            &selected.release,
+            &selected.instance_sha256,
+        ))
+        .unwrap();
+        assert_eq!(
+            selected.binding(&request, &current_document).unwrap(),
+            original
+        );
+    }
+}
+
+#[test]
+fn a_changed_current_catalog_invalidates_the_previously_accepted_batch() {
+    let (_temporary, mut service, batch) = service_fixture();
+    let request = managed_request(&service);
+    service
+        .game_file_query_snapshot(&batch, std::slice::from_ref(&request), 300)
+        .unwrap();
+    let mut document = service.catalog().authoritative_document();
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == request.port_id)
+        .unwrap()
+        .name
+        .push('!');
+    service.replace_catalog_for_test(
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+    );
+    let error = service
+        .game_file_query_snapshot(&batch, &[request], 300)
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+}
+
+#[test]
 fn package_registration_does_not_imply_external_launch_has_no_game_inputs() {
     let (_temporary, service, batch) = service_fixture();
     let port = service
@@ -458,7 +515,7 @@ fn existing_managed_install_excludes_external_registration() {
 
 #[test]
 fn retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailable() {
-    let (_temporary, service, batch) = service_fixture();
+    let (_temporary, mut service, _batch) = service_fixture();
     let port = service
         .catalog()
         .ports()
@@ -467,12 +524,35 @@ fn retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailab
             port.source_profile.as_deref() == Some("ocarina-of-time")
                 && port.release.provider != crate::ReleaseSource::UserPrepared
         })
-        .unwrap();
+        .unwrap()
+        .clone();
+    // Retain a distinct historical definition, then restore today's catalog
+    // before inspection so the service and library agree on current authority.
+    let current = service.catalog().clone();
+    let mut historical = current.authoritative_document();
+    historical
+        .ports
+        .iter_mut()
+        .find(|definition| definition.id == port.id)
+        .unwrap()
+        .name
+        .push_str(" (retained catalog)");
+    service.replace_catalog_for_test(
+        Catalog::from_json(&serde_json::to_string(&historical).unwrap()).unwrap(),
+    );
     let install = inert_install(&service, &port.id, true);
+    service.replace_catalog_for_test(current);
     crate::output_root::validate_install_path(service.library(), &port.id, &install.path).unwrap();
     let retained = crate::install::retained_query_context(&install).unwrap();
     assert!(retained.0.is_some());
     assert!(retained.1.is_some());
+    let batch = service
+        .inspect_registered_sources_bounded(
+            &["ocarina-of-time".into()],
+            &refresh_limits(),
+            &crate::OperationCoordinator::new("retained-query-fixture", None),
+        )
+        .unwrap();
     let mut request = GameFileRouteRequest {
         port_id: port.id.clone(),
         platform: port.platforms[0],
@@ -486,7 +566,16 @@ fn retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailab
         result.routes[0].reason,
         GameFileQueryReason::NoConnectedRegistration
     );
-    assert!(result.routes[0].route_definition_sha256.is_some());
+    let retained_hash =
+        crate::source_batch::fingerprint(&retained.0.as_ref().unwrap().authoritative_document())
+            .unwrap();
+    let current_hash =
+        crate::source_batch::fingerprint(&service.catalog().authoritative_document()).unwrap();
+    assert_ne!(retained_hash, current_hash);
+    assert_eq!(
+        result.routes[0].route_definition_sha256,
+        Some(retained_hash)
+    );
     assert!(result.routes[0].route_instance_sha256.is_some());
     request.platform = if request.platform == Platform::WindowsX86_64 {
         Platform::LinuxX86_64

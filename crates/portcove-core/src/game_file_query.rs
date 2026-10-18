@@ -1,6 +1,8 @@
 //! Pure, route-bound interpretation of previously accepted source observations.
 //! Snapshot construction owns context validation; this evaluator performs no I/O.
 
+use std::borrow::Cow;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -142,6 +144,9 @@ impl crate::PortcoveService {
             ));
         }
         self.validate_game_file_batch(batch)?;
+        // This catalog is immutable for the operation. Mutable route state is
+        // still reread for every binding and final acceptance check.
+        let current_document = self.catalog().authoritative_document();
         let now = crate::Library::now();
         let expires_at = batch
             .observed_at
@@ -172,19 +177,24 @@ impl crate::PortcoveService {
             };
             let mut projection = project(&context, observation, fresh)?;
             projection.route_definition_sha256 = if selected.context_complete {
-                Some(fingerprint(&selected.catalog.authoritative_document())?)
+                Some(match &selected.catalog {
+                    // Batch validation has just proved this exact digest matches
+                    // the service catalog. Retained installations keep their own.
+                    Cow::Borrowed(_) => batch.catalog_sha256.clone(),
+                    Cow::Owned(catalog) => fingerprint(&catalog.authoritative_document())?,
+                })
             } else {
                 None
             };
             projection.route_instance_sha256 = selected.instance_sha256.clone();
             routes.push(projection);
-            bindings.push(selected.binding(request)?);
+            bindings.push(selected.binding(request, &current_document)?);
         }
         // Detect changes to current channel, active/external instance and retained
         // definition while constructing this observation. No source reinspection.
         for (request, before) in requests.iter().zip(&bindings) {
             fence.checkpoint()?;
-            if resolve_route(self, request)?.binding(request)? != *before {
+            if resolve_route(self, request)?.binding(request, &current_document)? != *before {
                 return Err(PortcoveError::conflict(
                     "selected game-file route changed during projection",
                 ));
@@ -254,6 +264,7 @@ impl crate::PortcoveService {
             ));
         }
         fence.checkpoint()?;
+        let current_document = self.catalog().authoritative_document();
         let mut profiles = std::collections::BTreeSet::new();
         let mut initial_bindings = Vec::with_capacity(requests.len());
         let mut unique = std::collections::HashSet::new();
@@ -283,7 +294,7 @@ impl crate::PortcoveService {
                     profiles.insert(profile.clone());
                 }
             }
-            initial_bindings.push(selected.binding(request)?);
+            initial_bindings.push(selected.binding(request, &current_document)?);
         }
         fence.checkpoint()?;
         let mut remaining = limits.clone();
@@ -313,7 +324,8 @@ impl crate::PortcoveService {
                 self.validate_game_file_batch(batch)?;
                 for (request, before) in requests.iter().zip(&initial_bindings) {
                     fence.checkpoint()?;
-                    if resolve_route(self, request)?.binding(request)? != *before {
+                    if resolve_route(self, request)?.binding(request, &current_document)? != *before
+                    {
                         return Err(PortcoveError::conflict(
                             "selected game-file route changed during refresh",
                         ));
@@ -390,8 +402,8 @@ impl QueryFence<'_> {
     }
 }
 
-struct ResolvedRoute {
-    catalog: Catalog,
+struct ResolvedRoute<'a> {
+    catalog: Cow<'a, Catalog>,
     context_complete: bool,
     offered: bool,
     empty_requirements: bool,
@@ -401,7 +413,7 @@ struct ResolvedRoute {
     instance_sha256: Option<String>,
 }
 
-impl ResolvedRoute {
+impl ResolvedRoute<'_> {
     fn context<'a>(&'a self, request: &'a GameFileRouteRequest) -> GameFileRouteContext<'a> {
         GameFileRouteContext {
             catalog: &self.catalog,
@@ -428,10 +440,18 @@ impl ResolvedRoute {
         }
     }
 
-    fn binding(&self, request: &GameFileRouteRequest) -> crate::Result<String> {
+    fn binding(
+        &self,
+        request: &GameFileRouteRequest,
+        current_document: &crate::CatalogDocument,
+    ) -> crate::Result<String> {
+        let document = match &self.catalog {
+            Cow::Borrowed(_) => Cow::Borrowed(current_document),
+            Cow::Owned(catalog) => Cow::Owned(catalog.authoritative_document()),
+        };
         crate::source_batch::fingerprint(&(
             request,
-            self.catalog.authoritative_document(),
+            document,
             self.context_complete,
             self.offered,
             self.empty_requirements,
@@ -443,17 +463,17 @@ impl ResolvedRoute {
     }
 }
 
-fn resolve_route(
-    service: &crate::PortcoveService,
+fn resolve_route<'a>(
+    service: &'a crate::PortcoveService,
     request: &GameFileRouteRequest,
-) -> crate::Result<ResolvedRoute> {
+) -> crate::Result<ResolvedRoute<'a>> {
     use crate::source_batch::fingerprint;
     let current = service.catalog().port(&request.port_id)?;
     let status = service
         .library()
         .status(&request.port_id, current.channels[0])?;
     let mut selected = ResolvedRoute {
-        catalog: service.catalog().clone(),
+        catalog: Cow::Borrowed(service.catalog()),
         context_complete: true,
         offered: false,
         empty_requirements: false,
@@ -477,7 +497,7 @@ fn resolve_route(
                 selected.context_complete = false;
                 return Ok(selected);
             };
-            selected.catalog = catalog;
+            selected.catalog = Cow::Owned(catalog);
             selected.release = Some((install.version.clone(), install.artifact.sha256.clone()));
             selected.offered = install.channel == request.channel && platform == request.platform;
         }
@@ -493,7 +513,7 @@ fn resolve_route(
                     return Ok(selected);
                 }
             };
-            selected.catalog = catalog;
+            selected.catalog = Cow::Owned(catalog);
             selected.instance_sha256 = Some(fingerprint(&record)?);
             selected.release = Some((record.version.clone(), record.archive_sha256.clone()));
             selected.offered =
