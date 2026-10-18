@@ -1,3 +1,8 @@
+import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { GitHubApiClient } from "./github-api.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
 import type {
@@ -27,6 +32,9 @@ import {
   inspectRenovateQueue,
   baselineTimingWindow,
   retainMergeReceipt,
+  inspectDelivery,
+  parseInspectionReferences,
+  renderDeliveryInspection,
 } from "./pr-delivery.mts";
 
 function requiredFixture<T>(value: T | undefined | null): T {
@@ -1294,4 +1302,248 @@ void test("selective retry retains independent success but refuses newer authori
     ),
     /invalid or duplicate/,
   );
+});
+
+function inspectionClient(
+  options: {
+    pull?: Partial<DeliveryPull>;
+    checks?: ReturnType<typeof successfulRuns>;
+    changeHead?: boolean;
+    changeTarget?: boolean;
+    incomplete?: boolean;
+    paginated?: boolean;
+    workflow?: Partial<DeliveryWorkflow>;
+  } = {},
+) {
+  let pullReads = 0;
+  let targetReads = 0;
+  const calls: string[] = [];
+  const client = new PullRequestDeliveryClient((args) => {
+    assert.equal(args[args.indexOf("--method") + 1], "GET", "inspection must issue only GETs");
+    const endpoint = requiredFixture(args[2]);
+    calls.push(endpoint);
+    if (endpoint.endsWith("/pulls/7")) {
+      pullReads++;
+      return included(
+        pull({
+          base: { sha: base, ref: "main" },
+          ...options.pull,
+          ...(options.changeHead && pullReads > 1 ? { head: { sha: merge } } : {}),
+        }),
+      );
+    }
+    if (endpoint.endsWith("/branches/main")) {
+      targetReads++;
+      return included({ commit: { sha: options.changeTarget && targetReads > 1 ? merge : base } });
+    }
+    if (endpoint.includes("/check-runs?")) {
+      const runs = options.checks ?? successfulRuns();
+      if (options.paginated)
+        return included(
+          {
+            total_count: runs.length,
+            check_runs: endpoint.includes("page=2") ? runs.slice(3) : runs.slice(0, 3),
+          },
+          endpoint.includes("page=2")
+            ? {}
+            : {
+                link:
+                  "<https://api.github.com/repos/boburning/portcove/commits/" +
+                  head +
+                  '/check-runs?filter=latest&per_page=100&page=2>; rel="next"',
+              },
+        );
+      return included({
+        total_count: runs.length + (options.incomplete ? 1 : 0),
+        check_runs: runs,
+      });
+    }
+    if (endpoint.includes("/status?")) return included({ total_count: 0, statuses: [] });
+    if (endpoint.endsWith("/actions/runs/42"))
+      return included({
+        id: 42,
+        run_attempt: 1,
+        head_sha: head,
+        repository: { full_name: "boburning/portcove" },
+        status: "in_progress",
+        conclusion: null,
+        ...options.workflow,
+      });
+    throw new Error(`Unexpected inspection read: ${endpoint}`);
+  });
+  return { client, calls };
+}
+const inspectOptions = { number: 7, head, contexts: required };
+
+void test("inspection observes pending, failure, success, changed head and confirmed merge without mutations", async () => {
+  for (const [checks, expected] of [
+    [[], "Continue the existing"],
+    [successfulRuns().map((run) => ({ ...run, conclusion: "failure" })), "Inspect failed"],
+    [successfulRuns(), "Complete or reconcile independent review"],
+  ] as const) {
+    const fixture = inspectionClient({ checks: [...checks] });
+    const result = await inspectDelivery(fixture.client, inspectOptions);
+    assert.equal(result.observation, "complete");
+    assert.ok(result.next_action.startsWith(expected));
+    assert.equal(result.review.state, "unknown");
+    assert.equal(fixture.calls.length, 6);
+  }
+  const changed = await inspectDelivery(
+    inspectionClient({ pull: { head: { sha: merge } } }).client,
+    inspectOptions,
+  );
+  assert.equal(changed.source.matches, false);
+  assert.match(changed.next_action, /observed source head/);
+  const merged = await inspectDelivery(
+    inspectionClient({ pull: { state: "closed", merged: true, merge_commit_sha: merge } }).client,
+    inspectOptions,
+  );
+  assert.equal(merged.pull.merge_commit_sha, merge);
+  assert.match(merged.next_action, /Reconcile the owning issue/);
+  const paginated = inspectionClient({ paginated: true });
+  assert.ok(
+    (await inspectDelivery(paginated.client, inspectOptions)).checks.every(
+      (check) => check.outcome === "success",
+    ),
+  );
+  assert.equal(paginated.calls.length, 7);
+});
+
+void test("inspection refuses incomplete pagination, contradictory PR fields and source/target changes during collection", async () => {
+  for (const options of [
+    { incomplete: true },
+    { changeHead: true },
+    { changeTarget: true },
+    { pull: { merged: true, state: "open", merge_commit_sha: null } },
+    { pull: { base: { sha: base } } },
+  ] satisfies Parameters<typeof inspectionClient>[0][]) {
+    await assert.rejects(
+      inspectDelivery(inspectionClient(options).client, inspectOptions),
+      (error) =>
+        deliveryError(error).operationStatus === "unknown" &&
+        evidence(error).observation === "unknown",
+    );
+  }
+});
+
+void test("inspection verifies hashed finite references without converting declarations into approval", async (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "delivery-inspection-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const file = path.join(root, "review Ω.txt");
+  writeFileSync(file, "retained reviewer output Ω\n");
+  const reference = {
+    path: file,
+    sha256: createHash("sha256").update(readFileSync(file)).digest("hex"),
+  };
+  const declaration = {
+    format_version: 1,
+    pull_request: 7,
+    review: { head, target: base, result: "clear", reference },
+    acceptance: { head, result: "passed", reference },
+    watcher: { head, run: 42, attempt: 1, deadline: "2026-10-19T00:00:00Z", reference },
+  };
+  const inspect = (
+    value = declaration,
+    options: Parameters<typeof inspectionClient>[0] = {},
+    now = Date.parse("2026-10-18T00:00:00Z"),
+  ) =>
+    inspectDelivery(inspectionClient(options).client, {
+      ...inspectOptions,
+      references: parseInspectionReferences(JSON.stringify(value), 7),
+      now: () => now,
+    });
+  const valid = await inspect();
+  assert.equal(valid.review.state, "referenced");
+  assert.equal(valid.acceptance.result, "passed");
+  assert.equal(valid.watcher.state, "referenced");
+  assert.match(valid.next_action, /Verify current authority/);
+  assert.match(valid.boundary, /no approval/);
+  assert.equal(
+    (await inspect({ ...declaration, review: { ...declaration.review, target: merge } })).review
+      .reason,
+    "target-changed",
+  );
+  assert.equal(
+    (await inspect(declaration, { pull: { head: { sha: merge } } })).acceptance.reason,
+    "source-changed",
+  );
+  assert.equal(
+    (await inspect(declaration, { workflow: { run_attempt: 2 } })).watcher.reason,
+    "watcher-stale",
+  );
+  assert.equal(
+    (await inspect(declaration, {}, Date.parse(declaration.watcher.deadline))).watcher.reason,
+    "watcher-stale",
+  );
+  writeFileSync(file, "corrupt");
+  assert.equal((await inspect()).review.reason, "reference-unavailable-or-corrupt");
+  rmSync(file);
+  assert.equal((await inspect()).acceptance.state, "unknown");
+});
+
+void test("inspection declaration schema and full CLI serialization include UTF-8 newline in bounds", async () => {
+  for (const text of [
+    "{}",
+    JSON.stringify({ format_version: 1, pull_request: 8 }),
+    "Ω".repeat(4097),
+    JSON.stringify({ format_version: 1, pull_request: 7, approval: true }),
+  ])
+    assert.throws(() => parseInspectionReferences(text, 7));
+  const inspection = await inspectDelivery(inspectionClient().client, inspectOptions);
+  const moduleUrl = new URL("./pr-delivery.mts", import.meta.url).href;
+  for (const json of [true, false]) {
+    const result = spawnHelp(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `import { renderDeliveryInspection } from ${JSON.stringify(moduleUrl)}; console.log(renderDeliveryInspection(JSON.parse(process.argv[1]),${json}));`,
+        JSON.stringify(inspection),
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(Buffer.byteLength(result.stdout) <= 16384);
+    assert.ok(result.stdout.endsWith("\n"));
+    if (json) assert.equal(record(JSON.parse(result.stdout)).observation, "complete");
+  }
+  const oversized = { ...inspection, target: { ...inspection.target, ref: "Ω".repeat(8192) } };
+  assert.throws(() => renderDeliveryInspection(oversized, true), /including newline/);
+  const bounded = { ...inspection, boundary: "" };
+  const remaining = 16384 - Buffer.byteLength(JSON.stringify(bounded)) - 1;
+  bounded.boundary = "Ω".repeat(Math.floor(remaining / 2)) + "x".repeat(remaining % 2);
+  const serializer = `import { renderDeliveryInspection } from ${JSON.stringify(moduleUrl)}; console.log(renderDeliveryInspection(JSON.parse(process.argv[1]),true));`;
+  const nearLimit = spawnHelp(
+    process.execPath,
+    ["--input-type=module", "-e", serializer, JSON.stringify(bounded)],
+    { encoding: "utf8" },
+  );
+  assert.equal(nearLimit.status, 0, nearLimit.stderr);
+  assert.equal(Buffer.byteLength(nearLimit.stdout), 16384);
+  const beyondLimit = spawnHelp(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      serializer,
+      JSON.stringify({ ...bounded, boundary: bounded.boundary + "x" }),
+    ],
+    { encoding: "utf8" },
+  );
+  assert.notEqual(beyondLimit.status, 0);
+  assert.equal(beyondLimit.stdout, "");
+  assert.match(beyondLimit.stderr, /including newline/);
+  const cli = new URL("./pr-delivery.mts", import.meta.url);
+  const help = spawnHelp(process.execPath, [fileURLToPath(cli), "inspect", "--help"], {
+    encoding: "utf8",
+  });
+  assert.equal(help.status, 0, help.stderr);
+  assert.match(help.stdout, /--evidence-file/);
+  const incompatible = spawnHelp(
+    process.execPath,
+    [fileURLToPath(cli), "inspect", "--json", "--summary"],
+    { encoding: "utf8" },
+  );
+  assert.equal(incompatible.status, 1);
+  assert.match(incompatible.stderr, /mutually exclusive/);
 });
