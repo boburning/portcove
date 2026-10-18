@@ -46,7 +46,10 @@ if (mode === "descendant")
 if (mode === "hardlink") {
   const canary = path.join(path.dirname(root), "hardlink-canary-" + path.basename(root));
   await writeFile(canary, "external task-owned canary");
-  const acl = spawnSync("icacls.exe", [canary], { encoding: "utf8", windowsHide: true }).stdout;
+  const observation = spawnSync("icacls.exe", [canary], { encoding: "utf8", windowsHide: true });
+  if (observation.error || observation.status !== 0)
+    throw new Error("canary ACL preimage unavailable");
+  const acl = observation.stdout;
   await link(canary, path.join(root, "inputs/hardlink.data"));
   await writeFile(path.join(root, "capture/canary-preimage.txt"), acl);
 }
@@ -70,10 +73,20 @@ console.log("launcher", result.status, result.error?.message);
 console.log((result.stderr ?? "").slice(-3000));
 if (mode === "hardlink") {
   const canary = path.join(path.dirname(root), "hardlink-canary-" + path.basename(root));
-  const acl = spawnSync("icacls.exe", [canary], { encoding: "utf8", windowsHide: true }).stdout;
+  const observation = spawnSync("icacls.exe", [canary], { encoding: "utf8", windowsHide: true });
+  if (observation.error || observation.status !== 0)
+    throw new Error("canary ACL readback unavailable");
+  const acl = observation.stdout;
   const before = await readFile(path.join(root, "capture/canary-preimage.txt"), "utf8");
   console.log("external-canary-acl-unchanged", acl === before);
-  if (result.status === 0 || acl !== before) throw new Error("hardlink refusal/custody failure");
+  if (
+    result.error ||
+    result.status !== 1 ||
+    acl !== before ||
+    !result.stderr.includes('Exception calling "LockBoundary"') ||
+    !result.stderr.includes('"reparse/hard-linked boundary refused"')
+  )
+    throw new Error("expected pre-ACL hardlink refusal was not observed");
 }
 try {
   console.log(await readFile(path.join(root, "capture/isolation.json"), "utf8"));
@@ -91,10 +104,19 @@ if (mode === "flood" || mode === "descendant") {
     !isRecord(record) ||
     !isRecord(record.process) ||
     typeof record.process.StdoutBytes !== "number" ||
-    result.status === 0 ||
-    !record.process.TreeEmpty ||
-    !record.process.ForcedTermination ||
-    record.process.StdoutBytes > 16 * 1024 * 1024
+    result.error ||
+    result.status !== 1 ||
+    record.mode !== "probe" ||
+    record.profile_deleted !== true ||
+    typeof record.expected_sid !== "string" ||
+    record.process.ObservedSid !== record.expected_sid ||
+    record.process.IsAppContainer !== true ||
+    record.process.TreeEmpty !== true ||
+    record.process.ForcedTermination !== true ||
+    (mode === "flood" &&
+      (record.process.StdoutBytes !== 16 * 1024 * 1024 ||
+        record.process.CaptureComplete !== false)) ||
+    (mode === "descendant" && record.process.CaptureComplete !== true)
   )
     throw new Error("negative containment did not refuse safely");
 }

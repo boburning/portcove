@@ -113,6 +113,21 @@
       "path": "E:/Codex-Worktrees/slice4-admission-delivery/work/slice4/semantic-isolation-nBGI3W/capture/isolation.json",
       "sha256": "b4408ad00a4812c378cca88af2b5771f1a93648b993293f63d46760953d10919",
       "bytes": 786
+    },
+    "observed_publication_baseline": {
+      "authority": "none",
+      "observed_at": "2026-10-18T16:17:15.591Z",
+      "qualification": "live read-only baseline identity only; no semantic acceptance or eligibility",
+      "baseline": {
+        "repository_id": 1354613114,
+        "release_id": 384894721,
+        "tag": "v0.1.0-alpha.2",
+        "published_at": "2026-09-08T16:48:17Z",
+        "tag_object": "27328c8a1b30bf92868bcf3cde313f2720c8fd1e",
+        "commit": "27328c8a1b30bf92868bcf3cde313f2720c8fd1e",
+        "tree": "d8101837debca830c00032a70a03b8ecdd0e5f3d",
+        "qualification": "provider publication/tag identity readback; semantic review still required"
+      }
     }
   },
   "upstream": {
@@ -214,6 +229,31 @@
       "path": "work/slice4/semantic-isolation-maintained-normal.log",
       "sha256": "917d2328675720cf335f037304573de277c235db390ccae726d0249027f00e0a",
       "bytes": 1296
+    },
+    {
+      "path": "work/slice4/semantic-isolation-maintained-hardlink.log",
+      "sha256": "463c5017daa6b5a4597dbe9e30bcb2cec461c3b1892765fb41da92c7b29a6e60",
+      "bytes": 1118
+    },
+    {
+      "path": "work/slice4/semantic-isolation-maintained-flood.log",
+      "sha256": "142c3423bf5332821ada30ee53daf23cbc500162795e2f0171cc2ee2912fda6c",
+      "bytes": 1509
+    },
+    {
+      "path": "work/slice4/semantic-isolation-maintained-descendant.log",
+      "sha256": "c85c0f4fac5d66460ed34b618cf8880cce087fc3de446d93931554d83b4a4643",
+      "bytes": 1512
+    },
+    {
+      "path": "work/slice4/broker-harness-lint-repair.log",
+      "sha256": "ffa7642c11ad027372acd3efd9214ae42868f0e823e9fb0c1fa58d6f46bd977a",
+      "bytes": 127
+    },
+    {
+      "path": "work/slice4/broker-observed-publication-baseline.json",
+      "sha256": "bd6a3f2ad7c30ed87a83565d80171ec18e34daf123b950162b901306e42e2bd5",
+      "bytes": 600
     }
   ],
   "preserved": {
@@ -233,6 +273,7 @@
     "passed": 34,
     "failed": 0,
     "typed_lint": "PASS seven files",
-    "maintained_native_probe": "PASS normal inert mode; root/readable/deny facts all true; distinct SID; empty tree"
+    "maintained_native_probe": "PASS normal inert mode; root/readable/deny facts all true; distinct SID; empty tree",
+    "maintained_negative_probes": "PASS hardlink/flood/descendant with exact expected failure and successful readback; unrelated startup/transport failures cannot qualify"
   }
 }
