@@ -1406,12 +1406,16 @@ export function parseInspectionReferences(
       exactKeys(entry, ["head", "target", "result", "reference"], kind);
       if (
         !inspectionSha(entry.target) ||
-        !["clear", "changes-required"].includes(String(entry.result))
+        typeof entry.result !== "string" ||
+        !["clear", "changes-required"].includes(entry.result)
       )
         throw new Error("invalid review declaration");
     } else if (kind === "acceptance") {
       exactKeys(entry, ["head", "result", "reference"], kind);
-      if (!["passed", "failed", "not-required"].includes(String(entry.result)))
+      if (
+        typeof entry.result !== "string" ||
+        !["passed", "failed", "not-required"].includes(entry.result)
+      )
         throw new Error("invalid acceptance declaration");
     } else {
       exactKeys(entry, ["head", "run", "attempt", "deadline", "reference"], kind);
@@ -1528,9 +1532,19 @@ export async function inspectDelivery(
         !["queued", "in_progress", "completed", "waiting", "requested", "pending"].includes(
           run.status,
         ) ||
-        (run.conclusion !== null &&
-          run.conclusion !== undefined &&
-          !inspectionText(run.conclusion, 100))
+        (run.status === "completed"
+          ? ![
+              "success",
+              "failure",
+              "neutral",
+              "cancelled",
+              "skipped",
+              "timed_out",
+              "action_required",
+              "stale",
+              "startup_failure",
+            ].includes(run.conclusion ?? "")
+          : run.conclusion !== null)
       )
         throw new Error("watcher response has invalid status or conclusion");
       const binding = { run: watcher.run, attempt: watcher.attempt, deadline: watcher.deadline };
@@ -1588,7 +1602,9 @@ export async function inspectDelivery(
               : checks.some((check) => check.outcome === "failure")
                 ? "Inspect failed exact-head jobs and retained evidence before any repair or retry."
                 : checks.some((check) => check.outcome !== "success")
-                  ? "Continue the existing source-bound watcher with its original run, attempt and deadline."
+                  ? watcher.state === "referenced"
+                    ? "Continue the existing source-bound watcher with its original run, attempt and deadline."
+                    : "Inspect the retained source-head run and reconcile its watcher binding; do not resume a stale wait or renew its deadline."
                   : review.state !== "referenced" || review.result !== "clear"
                     ? "Complete or reconcile independent review against this source and target."
                     : acceptance.state !== "referenced" ||

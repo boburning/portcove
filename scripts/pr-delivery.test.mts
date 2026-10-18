@@ -1377,7 +1377,7 @@ const inspectOptions = { number: 7, head, contexts: required };
 
 void test("inspection observes pending, failure, success, changed head and confirmed merge without mutations", async () => {
   for (const [checks, expected] of [
-    [[], "Continue the existing"],
+    [[], "Inspect the retained"],
     [successfulRuns().map((run) => ({ ...run, conclusion: "failure" })), "Inspect failed"],
     [successfulRuns(), "Complete or reconcile independent review"],
   ] as const) {
@@ -1458,6 +1458,38 @@ void test("inspection verifies hashed finite references without converting decla
   assert.equal(valid.watcher.state, "referenced");
   assert.match(valid.next_action, /Verify current authority/);
   assert.match(valid.boundary, /no approval/);
+  assert.match((await inspect(declaration, { checks: [] })).next_action, /Continue the existing/);
+  for (const [options, now] of [
+    [{ checks: [], workflow: { run_attempt: 2 } }, Date.parse("2026-10-18T00:00:00Z")],
+    [{ checks: [] }, Date.parse(declaration.watcher.deadline)],
+  ] as const) {
+    const result = await inspect(declaration, { ...options, checks: [] }, now);
+    assert.equal(result.watcher.state, "unknown");
+    assert.match(result.next_action, /do not resume a stale wait or renew/);
+  }
+  for (const workflow of [
+    { status: "in_progress", conclusion: "success" },
+    { status: "completed", conclusion: null },
+    { status: "completed", conclusion: "made-up" },
+  ])
+    await assert.rejects(
+      inspect(declaration, { workflow }),
+      (error) => deliveryError(error).operationStatus === "unknown",
+    );
+  for (const result of [["clear"], { value: "clear" }])
+    assert.throws(() =>
+      parseInspectionReferences(
+        JSON.stringify({ ...declaration, review: { ...declaration.review, result } }),
+        7,
+      ),
+    );
+  for (const result of [["passed"], { value: "passed" }])
+    assert.throws(() =>
+      parseInspectionReferences(
+        JSON.stringify({ ...declaration, acceptance: { ...declaration.acceptance, result } }),
+        7,
+      ),
+    );
   assert.equal(
     (await inspect({ ...declaration, review: { ...declaration.review, target: merge } })).review
       .reason,
@@ -1477,6 +1509,10 @@ void test("inspection verifies hashed finite references without converting decla
   );
   writeFileSync(file, "corrupt");
   assert.equal((await inspect()).review.reason, "reference-unavailable-or-corrupt");
+  assert.match(
+    (await inspect(declaration, { checks: [] })).next_action,
+    /do not resume a stale wait or renew/,
+  );
   rmSync(file);
   assert.equal((await inspect()).acceptance.state, "unknown");
 });
