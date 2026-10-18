@@ -91,8 +91,8 @@ export function setIgdbCredentialsFile(file: string, config = maintainerConfigPa
     } finally {
       try {
         unlinkSync(temporary);
-      } catch (error) {
-        if (errorCode(error) !== "ENOENT") throw error;
+      } catch {
+        // Preserve the write outcome and any owned temporary that could not be removed.
       }
     }
     return { configured: true, valid: true };
