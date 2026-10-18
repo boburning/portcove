@@ -818,3 +818,29 @@ remain unchanged. #254 Done; #315/#534/#246 pending; Chameleon protected_accepta
 unset; #144 outside compiled catalog; production held; slice 5 excluded.
 
 Delivery details and exact evidence: [reader/upstream checkpoint](slice4-reader-and-upstream-checkpoint-2026-10-18.md), [evidence](slice4-reader-and-upstream-evidence-2026-10-18.json).
+
+## Local storage diagnostic: first attempt recovered; corrected next attempt pending
+
+The owner authorized one #2143 Provision, one conditional inert fixture and its
+matching recovery. Provision created and attached the exact 512 MiB VHD but
+failed before intent/storage.json: the helper expected `FileBackedVirtual`, while
+the elevated provider reports `File Backed Virtual`. The retained observation
+binds disk ID `6002248078D013B408E10955E24A9B4F`, RAW/non-boot/non-system,
+with the exact image path and size. No fixture ran.
+
+The separately approved partial-Provision detach succeeded with no provider or
+readback error. Subsequent exact-image readback confirms Attached=false and the
+536871424-byte backing file retained. This is recovery of a partial allocation,
+not storage qualification or a Codex startup observation.
+
+The corrected helper and fresh proposed root are prepared through the ordinary
+review/CI process. The [host procedure](slice4-semantic-local-storage-qualification-2026-10-18.md#corrected-next-attempt--awaiting-a-new-operation-grant)
+binds the new helper/configuration hashes and one new same-owner elevated
+Provision proposal. Its operation grant is outstanding; the first grant does not
+authorize another Provision. The original root/image/markers/logs remain retained.
+
+Only the bus-type representation and explicit known-false boot/system checks
+change. Inert tests execute the actual guard against the observed representation
+and unsafe alternatives. No new storage operation, fixture, fill probe or
+credential action has occurred. Authentication/issuer/production and all prior
+D1/D2/D3, status, Chameleon and slice-5 boundaries remain unchanged.

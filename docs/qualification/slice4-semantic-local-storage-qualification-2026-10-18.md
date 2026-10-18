@@ -1,6 +1,6 @@
 # Proposed inert reviewer storage qualification
 
-Status: prepared, ungranted. This is a local host differential test, not producer
+Status: corrected next attempt prepared, ungranted. The first authorized Provision failed and its partial image was detached with explicit recovery authority. This is a local host differential test, not producer
 credential provisioning, semantic acceptance or protected execution.
 
 The repaired non-elevated read-only preflight now passes, including actual
@@ -78,6 +78,10 @@ issuer App/installation/CheckRun exists yet. Once inert startup works, prepare
 and qualify the supported authentication route inside the same boundary before
 requesting issuer provisioning. Production remains held.
 
+## Historical first-attempt command (consumed; do not rerun)
+
+The following hashes/command identify the first attempt from #2143. That attempt failed before initialization, and the image is now positively detached with its file retained. Its configuration is preserved at commit e245733; the current proposal uses the fresh root and hashes below.
+
 Reviewed configuration SHA-256:
 `8e305e64fccd5f002e7855f6472c3e6fb55f575691390db2221f400963fbaa89`.
 Provision/recovery helper SHA-256:
@@ -93,3 +97,38 @@ and helper digest must match the reviewed delivery; changed helpers/configuratio
 require reconciliation before any operation. Fixture execution stays non-elevated.
 `RecoverDetach` uses the same command with that operation and the exact newly
 retained `-IsolationReceipt <run-root>/capture/isolation.json`; never guess a run.
+
+## Corrected next attempt — awaiting a new operation grant
+
+The original helper compared `FileBackedVirtual` with the actual elevated Windows
+provider text `File Backed Virtual`. The corrected guard accepts that exact
+observed representation and requires explicit false boot/system flags. It still
+refuses other bus types, missing identity, wrong size and ambiguous associations.
+An inert regression executes the actual extracted guard; it does not provision
+storage. Native success beyond the original RAW attachment is still unproven.
+
+The original image remains detached at root ending
+`semantic-storage-dde7e30cccb4407695183a63817d12a5`, with its owner marker/logs/file
+retained. No fixture ran. The new proposed root ends
+`semantic-storage-2fda9f572e3843b5b16190a100b5275c` and is absent. The original
+one-Provision grant has been consumed; this is a request for one new operation
+using the corrected reviewed bytes, not a new storage mechanism selection.
+
+New helper SHA-256:
+`a5cc33964b309f09214ebc4ed246c781cf8ee2e010cad3d22d42dbd63fc4cc28`.
+New configuration SHA-256:
+`4cdb2ef63a9c85a917b6d2f6962eddb6f40da561357433cde0bdd3d1e57ad0db`.
+
+After the exact corrected delivery is approved, same-owner elevated operation:
+
+```powershell
+pwsh -NoProfile -File E:/Codex-Worktrees/slice4-admission-delivery/scripts/prepare-semantic-storage.ps1 -Operation Provision -Configuration E:/Codex-Worktrees/slice4-admission-delivery/docs/qualification/slice4-semantic-local-storage.proposed.json -ExpectedConfigurationSha256 4cdb2ef63a9c85a917b6d2f6962eddb6f40da561357433cde0bdd3d1e57ad0db
+```
+
+This is not an instruction to run the command before that new grant. One
+non-elevated credential-free startup differential requires positive provisioning
+readback; matching RecoverDetach still requires the exact new isolation receipt
+and positive identity/teardown checks. The same retention, refusal and partial
+provisioning recovery rules above apply. No repeated fixture, fill probe,
+authentication, issuer or production operation is included. Original and later
+outcomes remain separate evidence.
