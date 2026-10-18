@@ -47,7 +47,12 @@ function fixture() {
   writeFileSync(path.join(cwd, ".gitignore"), ".vite-hooks/_/\n");
   mkdirSync(path.join(cwd, ".vite-hooks"));
   mkdirSync(path.join(cwd, "scripts"));
-  for (const name of ["node-test-inventory.mts", "runtime-values.mts"])
+  for (const name of [
+    "node-test-inventory.mts",
+    "runtime-values.mts",
+    "catalog-staged-check.mts",
+    "catalog-authoring.mts",
+  ])
     writeFileSync(path.join(cwd, "scripts", name), readFileSync(path.join(root, "scripts", name)));
   writeFileSync(
     path.join(cwd, ".vite-hooks/pre-commit"),

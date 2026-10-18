@@ -88,6 +88,15 @@ their evidence in the same batch using the existing generator:
 node scripts/generate-catalog.mts --prepare-artwork PROPOSAL.json --identities FACTS.json --credentials-file PRIVATE.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY
 ```
 
+Maintainers can save an existing private credentials-file path once per user with
+`node scripts/maintainer-config.mts set-igdb-credentials-file ABSOLUTE_PATH` and
+inspect its redacted, no-network status with `node scripts/maintainer-config.mts check`.
+The versioned `~/.portcove/maintainer.json` contains only the path and is shared
+across worktrees outside Git. Explicit `--credentials-file` takes precedence.
+Configuration and credentials are read only when provider authentication is
+needed; accepted reuse and fallback do not require them. Credentials, tokens and
+private paths stay out of proposal evidence and client bundles.
+
 The optional facts document is keyed by stable port ID. Ordinary port matching
 uses the definition's public name and exact project URL without a supplied IGDB
 ID; a unique exact name/alias plus matching provider project website is required.

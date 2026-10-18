@@ -150,7 +150,15 @@ function failureLabel(value: unknown): string {
     Object.entries(failureLabels).find(([name]) => name === value)?.[1] ?? failureLabels.unknown
   );
 }
-type CountedReportKind = "ci" | "roadmap" | "watch" | "doctor" | "timings" | "renovate" | "ui";
+type CountedReportKind =
+  | "ci"
+  | "roadmap"
+  | "watch"
+  | "doctor"
+  | "timings"
+  | "renovate"
+  | "ui"
+  | "native";
 type CountedSummary = ReturnType<typeof renderBoundedSummary>;
 // Inputs remain untrusted presentation data. This projection does not establish
 // report validity, inventory completeness, acceptance, or a reusable verdict.
@@ -171,6 +179,46 @@ export function summarizeReport(
 ): CountedSummary | { text: string };
 export function summarizeReport(kind: string, report: unknown, reference: string) {
   if (!isRecord(report)) throw new Error("Report must be a JSON object");
+  if (
+    kind === "native" &&
+    (report.format_version === 2 || report.format_version === 3) &&
+    Array.isArray(report.checks)
+  ) {
+    const checks = arrayRows(report.checks).map(fields);
+    const setup = arrayRows(report.setup_checks ?? []).map(fields);
+    const gaps = arrayRows(report.known_gaps ?? []).map(fields);
+    const selected = arrayRows(report.selected_scenarios ?? []);
+    const executable = optionalFields(report.executable);
+    const referenceFits = Buffer.byteLength(reference) <= 2048;
+    return renderBoundedSummary(
+      "Native execution observations (recorded facts; no compiled-source, installed or acceptance inference)",
+      [
+        `Counts: checks ${checks.length}; setup ${setup.length}; selected ${selected.length}; gaps ${gaps.length}; inputs ${arrayRows(report.inputs ?? []).length}; artifacts ${arrayRows(report.artifacts ?? []).length}`,
+        ...(!referenceFits
+          ? [
+              `Raw evidence reference omitted: ${Buffer.byteLength(reference)} UTF-8 bytes; retain the original input path`,
+            ]
+          : []),
+        `Recorded outcome: ${diagnosticString(report.outcome ?? "unknown")}; recorded qualification_complete: ${diagnosticString(report.qualification_complete ?? "unknown")}`,
+        `Recorded runner revision: ${diagnosticString(report.revision ?? "unknown")}; clean: ${diagnosticString(optionalFields(report.source_state).clean ?? "unknown")}`,
+        `Executable: ${diagnosticString(executable.path ?? "unknown")}; bytes: ${diagnosticString(executable.bytes ?? "unknown")}; SHA-256: ${diagnosticString(executable.sha256 ?? "unknown")}`,
+        ...gaps.map(
+          (gap) =>
+            `Gap ${diagnosticString(gap.scenario)}: ${diagnosticString(gap.reason ?? "unspecified")}`,
+        ),
+        ...setup.map(
+          (check) =>
+            `Setup ${diagnosticString(check.scenario)}: ${diagnosticString(check.outcome ?? "unknown")}; ${diagnosticString(check.reason ?? check.message ?? "no detail recorded")}`,
+        ),
+        ...checks.map(
+          (check) =>
+            `Check ${diagnosticString(check.scenario)}: ${diagnosticString(check.outcome ?? "unknown")}; ${diagnosticString(check.reason ?? check.message ?? "no detail recorded")}`,
+        ),
+        ...selected.map((scenario) => `Selected: ${diagnosticString(scenario)}`),
+      ],
+      { reference: referenceFits ? reference : null },
+    );
+  }
   if (kind === "renovate" && report.evidence) {
     const evidence = fields(report.evidence);
     const entries = evidence.candidates
@@ -341,7 +389,7 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
     const [kind, file, ...rest] = process.argv.slice(2);
     if (!kind || !file || rest.length)
       throw new Error(
-        "usage: report-summary.mts ci|roadmap|fallow|watch|doctor|timings|renovate|ui FILE",
+        "usage: report-summary.mts ci|roadmap|fallow|watch|doctor|timings|renovate|ui|native FILE",
       );
     if (statSync(file).size > 32 * 1024 * 1024)
       throw new Error("Report exceeds 32 MiB input limit");
