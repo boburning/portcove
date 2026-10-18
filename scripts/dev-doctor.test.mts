@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   mkdirSync,
   writeFileSync,
+  readFileSync,
   existsSync,
   rmSync,
   symlinkSync,
@@ -23,7 +24,29 @@ import {
   pnpmDefinition,
   existingAquaDefinition,
   existingNpmDefinition,
+  cachedRustDefinition,
 } from "./dev-doctor.mts";
+
+void test("Windows desktop doctor probes pinned Rust payloads without ambient executable fallback", async () => {
+  const manifest = await loadQualityManifest();
+  const cargoRoot = path.join(os.tmpdir(), "portcove-absent-doctor-cache");
+  for (const tool of manifest.tools.filter((item) => item.tier === "required")) {
+    const definition = cachedRustDefinition(tool, { cargoRoot }, "win32");
+    const binary = tool.id === "rscheck-cli" ? "rscheck" : tool.crate;
+    assert.deepEqual(definition.command, [
+      path.join(cargoRoot, tool.crate, tool.version, "bin", `${binary}.exe`),
+      "--version",
+    ]);
+    const calls: string[] = [];
+    const result = probeTool(definition, (command) => {
+      calls.push(command);
+      return { status: null, error: Object.assign(new Error("absent"), { code: "ENOENT" }) };
+    });
+    assert.equal(result.status, "unavailable");
+    assert.deepEqual(calls, [definition.command[0]]);
+    assert.equal(cachedRustDefinition(tool, { cargoRoot }, "linux").command[0], binary);
+  }
+});
 
 void test("selected frontend prerequisites do not invoke Rust, native provisioning or bootstrap", async () => {
   const calls: [string, string[]][] = [];
@@ -495,7 +518,13 @@ void test("requested profile stays failed when one capability is missing; observ
     run(command, args, options) {
       commands.push([command, args]);
       assert.equal(options.env?.RUSTUP_AUTO_INSTALL, "0");
-      return { status: 0, stdout: command === "rustc" ? "1.98.1" : "24.21.0" };
+      return {
+        status: 0,
+        stdout:
+          command === "rustc"
+            ? "1.98.1"
+            : readFileSync(new URL("../.node-version", import.meta.url), "utf8").trim(),
+      };
     },
   });
   assert.equal(report.ok, false);

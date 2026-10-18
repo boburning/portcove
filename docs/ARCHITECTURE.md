@@ -822,6 +822,11 @@ Desktop continues to call core directly.
 
 ## Desktop library handoff state
 
+GitHub authentication status extracts an owned HTTP observation before awaiting
+the network. The observation retains its request and credential-source facts,
+without retaining the provider or library lease. Pending library-bound work still
+blocks an exclusive handoff through Core's existing lease checks.
+
 Desktop retires event progress when a current Core activity snapshot explicitly
 reports that exact activity as succeeded, failed or cancelled. Queued events for
 that retired identity remain suppressed until the workspace owner ends, even if

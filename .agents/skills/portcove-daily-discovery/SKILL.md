@@ -8,6 +8,14 @@ metadata:
 
 Read [the daily investigation contract](../../../docs/DAILY-PORT-DISCOVERY.md).
 Use the existing portcove-roadmap skill for canonical intake and readback.
+Run the maintained `node scripts/daily-discovery.mts plan`, then `run` in the
+clean, detached dedicated metadata checkout. Keep that foreground session open
+through collection, research, separate review, delivery and explicit `finish`.
+Use the structured protocol and completion criteria in the contract; `status`
+reads the latest receipt. Recover retained candidate identities before new intake.
+Use GPT-6.1-Sol Medium for scheduled collection and research, with a separate
+GPT-6.1-Sol High non-writing review of proposed writes. Ordinary and cold budgets
+are selected by the runner. Retain an explicit continuation when work does not fit.
 This workflow researches metadata and applies authorized neutral intake or
 material factual updates. It does not implement, install, admit, qualify or
 publish ports, change release commitments, reverse deferrals or assign work.

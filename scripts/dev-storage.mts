@@ -63,7 +63,7 @@ function cargoMetadata() {
   const result = spawnSync("cargo", ["metadata", "--format-version", "1", "--no-deps"], {
     cwd: projectRoot,
     encoding: "utf8",
-    env: process.env,
+    env: { ...process.env, RUSTUP_AUTO_INSTALL: "0" },
     windowsHide: true,
   });
   if (result.error) throw result.error;

@@ -56,16 +56,20 @@ function gitRepository(repository: string) {
     "-c",
     "core.filesRefLockTimeout=1000",
   ];
-  const read = (args: readonly string[], input?: string) =>
-    execFileSync("git", [...base, ...args], {
+  const read = (args: readonly string[], input?: string, preserveBytes = false) => {
+    const bytes = execFileSync("git", [...base, ...args], {
       input,
-      encoding: "utf8",
       timeout: 30_000,
       maxBuffer: maximumBytes * 2,
       windowsHide: true,
       stdio: ["pipe", "pipe", "pipe"],
       env,
-    }).trimEnd();
+    });
+    const text = bytes.toString("utf8");
+    if (!Buffer.from(text, "utf8").equals(bytes))
+      throw new Error("coordinator Git output is not UTF-8");
+    return preserveBytes ? text : text.trimEnd();
+  };
   const transaction = (commands: string[]) =>
     new Promise<void>((resolve, reject) => {
       const child = spawn("git", [...base, "update-ref", "--no-deref", "--stdin"], {
@@ -169,7 +173,7 @@ function readCheckpoint(git: Git, commit: string) {
   const size = Number(git(["cat-file", "-s", `${commit}:state.json`]));
   if (!Number.isSafeInteger(size) || size < 1 || size > maximumBytes)
     throw new Error("stored coordinator checkpoint exceeds byte bound");
-  const raw = git(["cat-file", "blob", `${commit}:state.json`]);
+  const raw = git(["cat-file", "blob", `${commit}:state.json`], undefined, true);
   const state: unknown = JSON.parse(raw);
   if (
     !isRecord(state) ||
@@ -395,4 +399,86 @@ export async function recoverReleaseOpportunity(repository: string, expected: st
   const verifies = preparationVerifies(git, state.input);
   await git.transaction([`verify ${coordinatorStateRef} ${expected}`, ...verifies]);
   return { checkpoint: expected, ...state };
+}
+
+function objectIdentity(kind: "blob" | "tree" | "commit", bytes: Uint8Array) {
+  return createHash("sha1").update(`${kind} ${bytes.byteLength}\0`).update(bytes).digest("hex");
+}
+
+/** Export only the existing journal's exact inert objects. The caller must own
+ * this bare coordinator; bare status alone is not ownership or authorization.
+ * This performs no network request, allocation, checkout or code execution.
+ */
+export async function exportCoordinatorCheckpoint(repository: string, expected: string) {
+  const git = gitRepository(repository);
+  if (git(["rev-parse", "--is-bare-repository"]) !== "true")
+    throw new Error("remote checkpoint export requires a caller-owned bare coordinator");
+  const state = await recoverReleaseOpportunity(repository, expected);
+  const previous = state.previous === null ? null : readCheckpoint(git, state.previous);
+  if (previous) transition(previous, state.input);
+  else if (active(state.input)) throw new Error("initial checkpoint cannot invent a reservation");
+
+  const selected = active(state.input) ? state.input : previous?.input;
+  const candidate = selected ? active(selected) : null;
+  const verifies = selected ? preparationVerifies(git, selected) : [];
+  // Completion still retains both allocation receipts. Verify the complete
+  // local preimage before exporting any immutable object identities.
+  await git.transaction([`verify ${coordinatorStateRef} ${expected}`, ...verifies]);
+  const receipts = verifies.map((command) => {
+    const [, name, oid] = command.split(" ");
+    identity(oid);
+    if (!name) throw new Error("missing preparation receipt name");
+    return { local_ref: name, oid, before_oid: previous && active(previous.input) ? oid : zero };
+  });
+
+  const blob = git(["rev-parse", `${expected}:state.json`]);
+  const tree = git(["rev-parse", `${expected}^{tree}`]);
+  identity(blob);
+  identity(tree);
+  const contents = git(["cat-file", "blob", `${expected}:state.json`], undefined, true);
+  const treeBytes = Buffer.concat([
+    Buffer.from("100644 state.json\0", "utf8"),
+    Buffer.from(blob, "hex"),
+  ]);
+  const parents = state.previous === null ? [] : [state.previous];
+  const actor = {
+    name: "Portcove release coordinator",
+    email: "coordinator@portcove.invalid",
+    date: "2000-01-01T00:00:00Z",
+  };
+  const message = "Portcove release coordinator checkpoint\n";
+  const canonicalCommit = `tree ${tree}\n${parents.map((oid) => `parent ${oid}\n`).join("")}author ${actor.name} <${actor.email}> 946684800 +0000\ncommitter ${actor.name} <${actor.email}> 946684800 +0000\n\n${message}`;
+  if (
+    git(["cat-file", "commit", expected], undefined, true) !== canonicalCommit ||
+    objectIdentity("blob", Buffer.from(contents, "utf8")) !== blob ||
+    objectIdentity("tree", treeBytes) !== tree ||
+    objectIdentity("commit", Buffer.from(canonicalCommit, "utf8")) !== expected
+  )
+    throw new Error("checkpoint object bytes or fixed metadata disagree with their identities");
+
+  const requiredCommits: { oid: string; tree: string; parent?: string }[] = [];
+  if (candidate) {
+    const source = candidate.source_commit;
+    const sourceTree = candidate.source_tree;
+    const prepared = candidate.prepared_commit;
+    const preparedTree = candidate.prepared_tree;
+    identity(source);
+    identity(sourceTree);
+    identity(prepared);
+    identity(preparedTree);
+    requiredCommits.push(
+      { oid: source, tree: sourceTree },
+      { oid: prepared, tree: preparedTree, parent: source },
+    );
+  }
+  return {
+    schema_version: 1 as const,
+    checkpoint: expected,
+    previous: state.previous,
+    blob: { oid: blob, contents },
+    tree: { oid: tree, entries: [{ path: "state.json", mode: "100644", type: "blob", sha: blob }] },
+    commit: { oid: expected, tree, parents, message, author: actor, committer: actor },
+    receipts,
+    required_commits: requiredCommits,
+  };
 }

@@ -101,6 +101,29 @@ actual final head before expensive final qualification. Preserve exploratory
 checks with their original head; equivalent trees do not replace current-head CI
 or explicitly fresh/stateful acceptance.
 
+For a current read-only delivery observation, use
+`node scripts/pr-delivery.mts inspect --pr <number-or-url> --head <reviewed-head> --json`.
+It reads the PR, target and complete required check inventories within the existing
+sixty-second API collection budget, then brackets source/target/state readback.
+Pending or failed checks and a changed requested head are successful observations;
+incomplete or contradictory API reads fail with unknown coverage. It recommends
+one next action without approving, starting a watcher, retrying or merging.
+
+Optional `--evidence-file <absolute-reference-declaration.json>` supplies a small
+reference declaration with `format_version: 1`, `pull_request`, and optional
+`review`, `acceptance`, `watcher` entries. Each entry binds `head` and a
+`reference: { path: <absolute-file>, sha256: <64-hex> }`. Review additionally binds
+`target` and `result` (`clear` or `changes-required`); acceptance declares `result`
+(`passed`, `failed`, `not-required`). Watcher binds `run`, `attempt`, and its
+original absolute UTC `deadline`, which inspection never renews. Reference files
+must be regular file leaves (symlink leaves are refused) up to64MiB; unavailable, changed or corrupt bytes,
+source drift, review target drift and stale watcher identities remain unknown.
+These are hashed references to declarations, not independently verified approval
+or acceptance. The declaration is limited to8192UTF-8bytes. JSON and `--summary`
+output are mutually exclusive and bounded to16KiB including the final newline.
+Omitting references creates no new merge requirement; the owning acceptance and
+actual separate review continue to govern delivery.
+
 Keep the reviewed source head frozen while checks complete. Use
 `just pr-watch --pr <number-or-url> --head <reviewed-head> --run <id> --attempt <number> --deadline <UTC-time>`
 for one identified source-head workflow and the five checked-in required contexts.

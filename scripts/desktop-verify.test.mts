@@ -1,13 +1,92 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   buildDesktopVerifyPlan,
   desktopBuildEnvironment,
   parseDesktopVerifyArgs,
+  desktopVerificationOutputResources,
+  checkpointTestNames,
+  requireCheckpointTestExecution,
 } from "./desktop-verify.mts";
 import { resolveDesktopSelection } from "./desktop-scenarios.mts";
+import { frontendOutputResource } from "./resource-capacity.mts";
+
+void test("native admission includes target output and deduplicates physical aliases", () => {
+  const workspace = path.resolve("work/retro-admission");
+  const target = path.resolve("work/retro-cargo");
+  assert.deepEqual(desktopVerificationOutputResources({ workspace, target_directory: target }), [
+    frontendOutputResource(workspace),
+    frontendOutputResource(target),
+  ]);
+  assert.deepEqual(
+    desktopVerificationOutputResources({
+      workspace,
+      target_directory: path.join(workspace, "child", ".."),
+    }),
+    [frontendOutputResource(workspace)],
+  );
+  assert.throws(() => desktopVerificationOutputResources({ workspace }), /resolved Rust target/);
+});
+
+void test("checkpoint feature feedback requires nonempty complete execution, not just exit zero", () => {
+  const first = "qualification_checkpoint::tests::one";
+  const second = "qualification_checkpoint::tests::two";
+  const listing = `${first}: test\r\n${second}: test\r\n\r\n2 tests, 0 benchmarks\r\n`;
+  const names = checkpointTestNames(listing);
+  assert.deepEqual(names, [first, second]);
+  for (const invalid of [
+    "0 tests, 0 benchmarks",
+    `${first}: test\n2 tests, 0 benchmarks`,
+    `${first}: test\n${first}: test\n2 tests, 0 benchmarks`,
+  ])
+    assert.throws(() => checkpointTestNames(invalid), /inventory/);
+  const output = `test ${first} ... ok\ntest ${second} ... ok\ntest result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.01s\n`;
+  requireCheckpointTestExecution(names, output);
+  for (const invalid of [
+    "",
+    output.replace(`test ${second} ... ok\n`, ""),
+    output.replace("0 ignored", "1 ignored"),
+    output.replace(first, second),
+  ])
+    assert.throws(
+      () => requireCheckpointTestExecution(names, invalid),
+      /complete selected inventory/,
+    );
+});
+
+void test("feature feedback is selected only for existing fixture-feature native builds", () => {
+  const common = {
+    paths: { output_root: path.resolve("out"), target_directory: path.resolve("target") },
+    drivers: null,
+    source: { revision: "a".repeat(40), clean: true },
+    packages: { ready: false },
+  };
+  const fixture = buildDesktopVerifyPlan({
+    ...common,
+    selection: resolveDesktopSelection({
+      scenarios: ["native-host-publication-recovery"],
+      platform: "win32",
+    }),
+  });
+  assert.ok(
+    fixture.phases.indexOf("checkpoint-feature-tests") < fixture.phases.indexOf("frontend-build"),
+  );
+  assert.deepEqual(
+    fixture.required_output_resources,
+    desktopVerificationOutputResources({
+      workspace: fileURLToPath(new URL("../", import.meta.url)),
+      target_directory: common.paths.target_directory,
+    }),
+  );
+  const ordinary = buildDesktopVerifyPlan({
+    ...common,
+    selection: resolveDesktopSelection({ scenarios: ["keyboard-layout"] }),
+  });
+  assert.ok(!ordinary.phases.includes("checkpoint-feature-tests"));
+});
 
 void test("desktop verify parser defaults to a smoke-compatible cycle configuration", () => {
   const parsed = parseDesktopVerifyArgs([]);

@@ -144,6 +144,7 @@ function discoveryRun(value: unknown): DiscoveryRun {
     parsed.expected_checkpoint_sha256 = text(run.expected_checkpoint_sha256, "Checkpoint preimage");
   return parsed;
 }
+export const parseDiscoveryCheckpoint = checkpoint;
 import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

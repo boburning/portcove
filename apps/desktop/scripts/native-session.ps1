@@ -34,14 +34,25 @@ if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver' -or $Mode -eq 'SnapshotD
         }
         [pscustomobject]@{ driver = $root; application = $root; processes = @($root) + @($owned.processes) }
     } else {
-        $entry = Get-CimInstance Win32_Process -Filter "ProcessId = $DriverProcessId"
-        if (-not $entry) { throw 'Owned driver is no longer running.' }
+        # Immediately after spawn Windows can expose PID/creation before image
+        # metadata. Observe readiness within the existing caller budget; never
+        # publish null == null as an established executable identity.
+        $identityDeadline = [DateTime]::UtcNow.AddSeconds(2)
+        do {
+            $entry = Get-CimInstance Win32_Process -Filter "ProcessId = $DriverProcessId"
+            if (-not $entry) { throw 'Owned driver is no longer running.' }
+            if (-not [string]::IsNullOrWhiteSpace($entry.ExecutablePath)) { break }
+            if ([DateTime]::UtcNow -ge $identityDeadline) { throw 'Owned driver executable identity remained unavailable.' }
+            Start-Sleep -Milliseconds 25
+        } while ($true)
         [pscustomobject]@{ driver = $entry; application = $null; processes = @() }
     }
     $driverProcess = try { [Diagnostics.Process]::GetProcessById([int]$tree.driver.ProcessId) } catch [ArgumentException] { $null }
     if (-not $driverProcess) { throw 'Owned driver exited during snapshot.' }
     try {
-        if ([Math]::Abs(($driverProcess.StartTime.ToUniversalTime() - $tree.driver.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt 1 -or
+        if ([string]::IsNullOrWhiteSpace($tree.driver.ExecutablePath) -or
+            [string]::IsNullOrWhiteSpace($driverProcess.MainModule.FileName) -or
+            [Math]::Abs(($driverProcess.StartTime.ToUniversalTime() - $tree.driver.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt 1 -or
             -not [string]::Equals($driverProcess.MainModule.FileName, $tree.driver.ExecutablePath, [StringComparison]::OrdinalIgnoreCase)) { throw 'Owned driver identity changed during snapshot.' }
         $driverRecord = [pscustomobject]@{ pid = $tree.driver.ProcessId; path = $tree.driver.ExecutablePath; started_filetime = $driverProcess.StartTime.ToFileTimeUtc().ToString([Globalization.CultureInfo]::InvariantCulture) }
     } finally { $driverProcess.Dispose() }
@@ -51,7 +62,9 @@ if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver' -or $Mode -eq 'SnapshotD
         if ($process) {
             try {
                 $started = $process.StartTime.ToUniversalTime()
-                if ([Math]::Abs(($started - $entry.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt 1 -or
+                if ([string]::IsNullOrWhiteSpace($entry.ExecutablePath) -or
+                    [string]::IsNullOrWhiteSpace($process.MainModule.FileName) -or
+                    [Math]::Abs(($started - $entry.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt 1 -or
                     -not [string]::Equals($process.MainModule.FileName, $entry.ExecutablePath, [StringComparison]::OrdinalIgnoreCase)) { throw 'Native process identity changed during snapshot.' }
                 [pscustomobject]@{ pid = $entry.ProcessId; path = $entry.ExecutablePath; started_filetime = $process.StartTime.ToFileTimeUtc().ToString([Globalization.CultureInfo]::InvariantCulture) }
             } catch [InvalidOperationException] {

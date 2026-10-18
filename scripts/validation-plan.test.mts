@@ -88,6 +88,18 @@ void test("scoped beta matcher and Roadmap release consumer retain protected qua
   }
 });
 
+void test("coordinator state and remote transport retain protected release qualification ownership", () => {
+  for (const file of [
+    "scripts/release-coordinator-state.mts",
+    "scripts/release-coordinator-remote.mts",
+  ]) {
+    const ownership = validationOwnershipForPath(file);
+    assert.equal(ownership.qualificationRequired, true);
+    assert.ok(ownership.areas.includes("release-security"));
+    assert.deepEqual(ownership.platforms, qualificationPlatforms);
+  }
+});
+
 void test("ordinary layers select the minimum baseline and union mixed changes", () => {
   for (const [file, groups] of [
     ["apps/desktop/src/App.tsx", ["frontend", "rust-quality"]],

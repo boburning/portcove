@@ -98,6 +98,12 @@ Use `--summary` on Roadmap context/doctor and Renovate inspection for a retained
 route also supports `renovate` and `ui` reports. Raw evidence is retained before
 summary success, and missing retention fails explicitly.
 
+Use `node scripts/pr-delivery.mts inspect --pr N --head SHA --summary` for a bounded
+current delivery observation. Optional hashed review/acceptance/watcher references
+are described in [contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge).
+Missing or stale references stay unknown; the inspector performs no remote writes
+and establishes no new gate or approval authority.
+
 Use one `just pr-watch` per source/run/attempt/deadline binding. Opt into
 `--progress` for change-only workflow/check observations on stderr while final
 JSON stays on stdout. Repeated unchanged observations remain quiet. Consume the
@@ -826,6 +832,9 @@ paths. General architecture, authority, review, and safety obligations remain in
 | `portcove-roadmap`              | Issue intake, dependency, live Project, or readiness reconciliation        | Product implementation without planning mutations                                               |
 | `portcove-daily-discovery`      | Daily incremental native-port research and neutral canonical intake        | Port implementation, catalog admission, release planning or gameplay qualification              |
 
+The daily discovery runner's `plan`, foreground `run` and read-only `status`
+commands are documented in [daily investigation](DAILY-PORT-DISCOVERY.md#maintained-runner).
+
 The reusable Windows diagnostics skill is installed in the user's Codex skill
 directory and can be used outside Portcove. Keep a repository skill focused:
 update its trigger and owning references when behavior changes instead of copying
@@ -1339,6 +1348,26 @@ cannot substitute for this command.
 `--plan` reports command-file availability and an unobserved version without
 executing Vite+, installing packages or acquiring a lease. An inherited caller
 lease remains the caller's responsibility.
+
+Direct desktop verification resolves the checkout and Cargo target output keys
+together before build admission. Nested Rust/browser phases validate the inherited
+reservation; an outer caller that reserved only one output is refused rather than
+upgraded. Physical aliases share one key. Doctor and build/harness commands use
+the same checkout tool environment, and doctor runs before the native-session
+lease. Missing prerequisites retain diagnostics and the normal explicit bootstrap
+remedy; verification does not provision tools. Help, scenario listing and planning
+do not acquire capacity or a native lease.
+
+Native plans selecting `qualification-fixtures` list and run the existing Core
+checkpoint tests before frontend and application builds. The selected inventory
+must be nonempty, unique and fully executed without skips. This is scoped native
+feedback, not a new qualification requirement for ordinary changes.
+
+The optional Vite+ pre-commit hook also checks Node-test registration when relevant
+tests or inventory inputs are staged. It uses the same coverage assertion as CI,
+reading the Git index so unstaged workflow/recipe edits cannot conceal an
+incomplete commit. It does not modify either tree; the normal Vite+ staged
+formatting and partial-staging behavior follows only after that check succeeds.
 
 Native helper dependencies are declared in
 `scripts/native-helper-dependencies.mts`. Literal PowerShell dot-source imports

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { requireNodeTestInventory } from "./node-test-inventory.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import type {
   SpawnOptions,
@@ -670,14 +671,11 @@ void test("every Node test file is included in required CI and the local quality
   const files = (await readdir(new URL(".", import.meta.url))).filter((name: string) =>
     /\.test\.[cm]?[jt]s$/u.test(name),
   );
-  assert.ok(files.length > 0, "Node test inventory must be nonempty");
-  for (const file of files) {
-    assert.ok(requiredCiSurface.includes(`scripts/${file}`), `${file} is absent from required CI`);
-    assert.ok(
-      localQualitySurface.includes(`scripts/${file}`),
-      `${file} is absent from local quality checks`,
-    );
-  }
+  requireNodeTestInventory(
+    files.map((file) => `scripts/${file}`),
+    requiredCiSurface,
+    localQualitySurface,
+  );
 });
 
 void test("application release records run after the maintained SemVer dependency is installed", () => {
