@@ -1,0 +1,166 @@
+# HELD REVIEW ARTIFACT. Intended target:
+# .github/workflows/application-update-production.yml
+# This file is outside .github/workflows and cannot execute. It is not a grant.
+# Preserve every literal hold until independent input admission is implemented,
+# exact owner configuration is ratified and a replacement passes review.
+name: Held application-update aggregate controller
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: application-update-production-controller
+  cancel-in-progress: false
+jobs:
+  admission:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    env:
+      PORTCOVE_CONTROLLER_REVISION: ${{ vars.PORTCOVE_CONTROLLER_REVISION }}
+      PORTCOVE_CONTROLLER_REF: ${{ vars.PORTCOVE_CONTROLLER_REF }}
+      PORTCOVE_CONTROLLER_ADMISSION: ${{ vars.PORTCOVE_CONTROLLER_ADMISSION }}
+    steps:
+      - name: Refuse wrong bootstrap identity before checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PORTCOVE_CONTROLLER_REVISION" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$PORTCOVE_CONTROLLER_REF" =~ ^refs/tags/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]
+          [[ -n "$PORTCOVE_CONTROLLER_ADMISSION" ]]
+          [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]
+          [[ "$GITHUB_REPOSITORY" == boburning/portcove && "$GITHUB_REPOSITORY_ID" == 1354613114 ]]
+          [[ "$GITHUB_REF" == "$PORTCOVE_CONTROLLER_REF" && "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_PROTECTED" == true ]]
+          [[ "$GITHUB_SHA" == "$PORTCOVE_CONTROLLER_REVISION" && "$GITHUB_WORKFLOW_SHA" == "$PORTCOVE_CONTROLLER_REVISION" ]]
+          [[ "$GITHUB_WORKFLOW_REF" == "boburning/portcove/.github/workflows/application-update-production.yml@$PORTCOVE_CONTROLLER_REF" ]]
+          [[ "$GITHUB_RUN_ATTEMPT" == 1 ]]
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - run: node scripts/production-controller-admission.mts
+
+  independent_admission:
+    # NOT an activation switch: a missing engineering consumer must be supplied.
+    if: ${{ false }}
+    needs: admission
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      descriptor: ${{ steps.accept.outputs.descriptor }}
+    steps:
+      - id: accept
+        name: Hold unavailable independent candidate admission
+        run: |
+          echo "UNKNOWN: independent accepted file matrix, policy/classification, pause, free capacity and exact reservation admission are unavailable." >&2
+          exit 1
+
+  aggregate:
+    if: ${{ false }}
+    needs: [admission, independent_admission]
+    name: Trusted package assembly
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_HOST: github.com
+      PORTCOVE_ACCEPTED_AGGREGATE: ${{ needs.independent_admission.outputs.descriptor }}
+      PORTCOVE_CONTROLLER_REVISION: ${{ vars.PORTCOVE_CONTROLLER_REVISION }}
+      PORTCOVE_CONTROLLER_REF: ${{ vars.PORTCOVE_CONTROLLER_REF }}
+      PORTCOVE_CONTROLLER_ACTOR_ID: ${{ vars.PORTCOVE_CONTROLLER_ACTOR_ID }}
+      PORTCOVE_AGGREGATE_AUDIENCE: ${{ vars.PORTCOVE_AGGREGATE_AUDIENCE }}
+      PORTCOVE_AGGREGATE_SUBJECT: ${{ vars.PORTCOVE_AGGREGATE_SUBJECT }}
+    outputs:
+      subject_name: ${{ steps.bind.outputs.subject_name }}
+      subject_digest: ${{ steps.bind.outputs.subject_digest }}
+      predicate: ${{ steps.bind.outputs.predicate }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - id: assemble
+        run: node scripts/production-aggregate-steps.mts assemble
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-release-final-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.assemble.outputs.assets }}/*
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 7
+          compression-level: 0
+      - id: bind
+        env:
+          PORTCOVE_NEW_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          PORTCOVE_NEW_ARTIFACT_SHA256: ${{ steps.upload.outputs.artifact-digest }}
+        run: node scripts/production-aggregate-steps.mts bind
+      - name: Retain bounded token-free orchestration receipts even after refusal
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-release-final-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/portcove-aggregate-*-receipt.jsonl
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7
+
+  attest:
+    if: ${{ false }}
+    needs: [admission, aggregate]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: "24.22.0"
+          package-manager-cache: false
+      - name: Write only the fixed assembler's bounded structured predicate
+        env:
+          PORTCOVE_PREDICATE: ${{ needs.aggregate.outputs.predicate }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { writeFile } from 'node:fs/promises';
+          import path from 'node:path';
+          const raw = process.env.PORTCOVE_PREDICATE;
+          if (!raw || Buffer.byteLength(raw) > 65536) throw Error('missing or oversized predicate');
+          const parsed = JSON.parse(raw);
+          if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw Error('predicate shape');
+          await writeFile(path.join(process.env.RUNNER_TEMP, 'aggregate-predicate.json'), raw, {flag:'wx', mode:0o600});
+          NODE
+      - id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-name: ${{ needs.aggregate.outputs.subject_name }}
+          subject-digest: ${{ needs.aggregate.outputs.subject_digest }}
+          predicate-type: https://portcove.dev/attestations/package-aggregate/v1
+          predicate-path: ${{ runner.temp }}/aggregate-predicate.json
+      - name: Retain declared predicate and any completed public bundle
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-release-attestation-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/aggregate-predicate.json
+            ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7
