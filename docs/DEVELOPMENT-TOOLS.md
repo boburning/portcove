@@ -937,8 +937,9 @@ cannot supply a complete-panel image: capture identified title/actions instead.
 Vitest annotations retain bounded JSON geometry/outcome attachments for successful
 and refused browser captures. Ordinary hosted browser diagnostics retain annotation
 JSON and the selected capture PNGs for seven days on success and failure through
-the existing artifact upload. Native captures retain metadata through
-`captureSettledVisual`. Actual pixel inspection and journey assertions remain
+the existing artifact upload. Native adapters retain successful geometry through
+`captureSettledVisual` and refused preflight observations in bounded failure
+receipts, preserving the original failure and existing receipt. Actual pixel inspection and journey assertions remain
 separate obligations. These helpers are excluded from production imports.
 
 Controller capability receipts distinguish API absence, access failure/restriction,

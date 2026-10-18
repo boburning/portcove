@@ -1101,6 +1101,8 @@ async function captureKeyboardTarget(name: string, element: WebElement) {
     element,
     label,
   );
+  let lastObservation: ReturnType<typeof observeVisibleTarget> | undefined;
+  let preflightComplete = false;
   try {
     const metadata = await prepareCaptureTarget({
       target,
@@ -1112,8 +1114,17 @@ async function captureKeyboardTarget(name: string, element: WebElement) {
             element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
           element,
         ),
-      observe: () => executeBrowserScript(session, observeVisibleTarget, target, "visual" as const),
+      observe: async () => {
+        lastObservation = await executeBrowserScript(
+          session,
+          observeVisibleTarget,
+          target,
+          "visual" as const,
+        );
+        return lastObservation;
+      },
     });
+    preflightComplete = true;
     const capture = await captureSettledVisual({
       browser: session,
       output,
@@ -1134,6 +1145,26 @@ async function captureKeyboardTarget(name: string, element: WebElement) {
     });
     artifacts.push(capture.image.path, capture.receipt);
   } catch (error) {
+    if (!preflightComplete) {
+      try {
+        const body = `${JSON.stringify({
+          format_version: 1,
+          outcome: "failed",
+          scenario: "keyboard-layout",
+          target,
+          label,
+          message: errorMessage(error),
+          preflight_complete: preflightComplete,
+          preflight_observation: lastObservation ?? null,
+          acceptance: false,
+        })}\n`;
+        if (new TextEncoder().encode(body).byteLength > 16 * 1024)
+          throw new Error("Capture failure metadata exceeds16KiB");
+        await writeFile(path.join(output, `${name}-capture-failure.json`), body, { flag: "wx" });
+      } catch {
+        /* Preserve the original failure and any existing settled-capture receipt. */
+      }
+    }
     for (const suffix of [".png", "-capture-failure.json"]) {
       const file = path.join(output, name + suffix);
       try {
@@ -3182,6 +3213,19 @@ try {
       (element) => element.scrollIntoView({ block: "start", inline: "nearest" }),
       about,
     );
+    const aboutHeight = await executeBrowserScript(
+      browser,
+      (element) => ({
+        height: element.getBoundingClientRect().height,
+        viewport: window.innerHeight,
+      }),
+      about,
+    );
+    if (aboutHeight.height > aboutHeight.viewport)
+      await assert.rejects(
+        captureKeyboardTarget("settings-about-panel-refused", about),
+        /Capture target exceeds viewport; capture identified title\/actions instead/,
+      );
     await captureKeyboardTarget(
       "settings-about-title-compact",
       await about.findElement(By.css("h2")),

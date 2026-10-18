@@ -103,3 +103,102 @@ void test("moving or hung target probes terminate within their finite preflight"
     /bounded identified/,
   );
 });
+
+void test("native preflight retains the exact refused observation without another probe or overwriting evidence", async (t) => {
+  const { readFile, writeFile, mkdtemp, lstat, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const path = await import("node:path");
+  const { stripTypeScriptTypes } = await import("node:module");
+  const { runInNewContext } = await import("node:vm");
+  const { errorMessage, isRecord } = await import("./runtime-values.mts");
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function captureKeyboardTarget(");
+  const end = source.indexOf("\nasync function ", start + 1);
+  assert.ok(start >= 0 && end > start);
+  const executable = stripTypeScriptTypes(source.slice(start, end));
+  const output = await mkdtemp(path.join(tmpdir(), "portcove-native-capture-"));
+  t.after(async () => {
+    assert.equal(path.dirname(output), tmpdir());
+    await rm(output, { recursive: true });
+  });
+  for (const mode of ["recorded", "existing", "oversized-metadata"]) {
+    const name = `about-${mode}`;
+    const file = path.join(output, `${name}-capture-failure.json`);
+    if (mode === "existing") await writeFile(file, "original evidence");
+    let probes = 0;
+    let captures = 0;
+    let restored = false;
+    const attributes = new Map<string, string>();
+    const element = {
+      getAttribute: (name: string) => attributes.get(name) ?? null,
+      setAttribute: (name: string, value: string) => attributes.set(name, value),
+      removeAttribute: (name: string) => {
+        attributes.delete(name);
+        restored = true;
+      },
+      scrollIntoView() {},
+    };
+    const observer = () => {};
+    const observation = {
+      target: `[data-capture-target="native-${name}"]`,
+      target_count: 1,
+      visible: true,
+      rect: { x: 0, y: 0, width: 200, height: 641 },
+      viewport: { width: 640, height: 640 },
+      ...(mode === "oversized-metadata" ? { diagnostic: "x".repeat(16384) } : {}),
+    };
+    const extracted: unknown = runInNewContext(`${executable}; captureKeyboardTarget`, {
+      driverBrowser: () => ({}),
+      assert,
+      output,
+      path,
+      writeFile,
+      lstat,
+      errorMessage,
+      TextEncoder,
+      artifacts: [],
+      observeVisibleTarget: observer,
+      prepareCaptureTarget,
+      requireUnchangedCaptureTarget,
+      executeBrowserScript: async (
+        _session: unknown,
+        fn: (...args: unknown[]) => unknown,
+        ...args: unknown[]
+      ) => {
+        if (fn === observer) {
+          probes++;
+          return observation;
+        }
+        return fn(...args);
+      },
+      captureSettledVisual: async () => {
+        captures++;
+        throw new Error("Unexpected screenshot");
+      },
+    });
+    assert.ok(typeof extracted === "function");
+    const capture = extracted as (name: string, element: unknown) => Promise<void>;
+    await assert.rejects(
+      capture(name, element),
+      /exceeds viewport; capture identified title\/actions instead/,
+    );
+    assert.equal(probes, 1);
+    assert.equal(captures, 0);
+    assert.equal(restored, true);
+    if (mode === "recorded") {
+      const body = await readFile(file);
+      assert.ok(body.byteLength <= 16384);
+      const receipt: unknown = JSON.parse(body.toString("utf8"));
+      assert.ok(isRecord(receipt));
+      assert.equal(receipt.outcome, "failed");
+      assert.equal(receipt.target, observation.target);
+      assert.equal(receipt.preflight_complete, false);
+      assert.equal(receipt.acceptance, false);
+      assert.deepEqual(receipt.preflight_observation, observation);
+    } else if (mode === "existing") assert.equal(await readFile(file, "utf8"), "original evidence");
+    else await assert.rejects(lstat(file), { code: "ENOENT" });
+  }
+});
