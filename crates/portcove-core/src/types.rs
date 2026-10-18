@@ -351,6 +351,10 @@ pub struct UserPreparedRuntimeSpec {
     pub library_user_data: bool,
     #[serde(default)]
     pub mutable_paths: Vec<String>,
+    /// Regular, single-link mutable selectors that must remain present before launch.
+    /// Contents remain player-owned and are never frozen or seeded by registration.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub required_mutable_files: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

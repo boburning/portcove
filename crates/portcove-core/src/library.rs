@@ -33,6 +33,35 @@ struct StoredSourceRow {
     observed_identity_json: Option<String>,
 }
 
+/// Old external readers expect a raw CatalogDocument and must refuse retained
+/// semantics they cannot preserve. Reuse the existing strict retained-contract
+/// envelope for opt-in selectors; legacy registrations keep their original shape.
+fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
+    let port = catalog.port(port_id)?;
+    if port
+        .release
+        .user_prepared
+        .values()
+        .any(|runtime| !runtime.required_mutable_files.is_empty())
+    {
+        return Ok(serde_json::to_string(
+            &crate::installed_contract::InstalledContract::capture(catalog, port_id)?,
+        )?);
+    }
+    Ok(serde_json::to_string(&catalog.authoritative_document())?)
+}
+
+fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
+    let value: serde_json::Value = serde_json::from_str(content)?;
+    if value.get("format").is_some() {
+        // Never fall back to a raw catalog after an envelope decoding failure.
+        // deny_unknown_fields also refuses a mixed envelope/catalog shape.
+        let retained: crate::installed_contract::InstalledContract = serde_json::from_value(value)?;
+        return retained.catalog(port_id);
+    }
+    Catalog::from_json(content)
+}
+
 impl StoredSourceRow {
     fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
         Ok(Self {
@@ -1859,7 +1888,7 @@ impl Library {
             .optional()?;
         row.map(|(record, catalog)| {
             let record: ExternalRuntimeRecord = serde_json::from_str(&record)?;
-            let catalog = Catalog::from_json(&catalog)?;
+            let catalog = decode_external_catalog(&catalog, port_id)?;
             if record.port_id != port_id || catalog.port(port_id).is_err() {
                 return Err(PortcoveError::state(
                     "retained external runtime has a mismatched port identity",
@@ -1911,7 +1940,7 @@ impl Library {
         };
         *budget = budget.saturating_sub((record.len() + catalog.len()) as u64);
         let record: ExternalRuntimeRecord = serde_json::from_str(&record)?;
-        let catalog = Catalog::from_json(&catalog)?;
+        let catalog = decode_external_catalog(&catalog, port_id)?;
         if record.port_id != port_id || catalog.port(port_id).is_err() {
             return Err(PortcoveError::state(
                 "retained browsing metadata has a mismatched port identity",
@@ -1950,7 +1979,7 @@ impl Library {
             params![
                 record.port_id,
                 serde_json::to_string(record)?,
-                serde_json::to_string(&retained_catalog.authoritative_document())?,
+                encode_external_catalog(retained_catalog, &record.port_id)?,
                 record.registered_at,
             ],
         )?;
@@ -2461,6 +2490,47 @@ fn parse_launch_session(row: StoredLaunchSession) -> Result<LaunchSessionRecord>
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn required_mutable_retained_envelope_refuses_old_readers_and_mixed_shapes() {
+        let legacy = Catalog::embedded().unwrap();
+        let port_id = "dkc3-recomp";
+        let raw = encode_external_catalog(&legacy, port_id).unwrap();
+        assert_eq!(
+            raw,
+            serde_json::to_string(&legacy.authoritative_document()).unwrap()
+        );
+        assert!(Catalog::from_json(&raw).is_ok());
+        assert!(decode_external_catalog(&raw, port_id).is_ok());
+
+        let mut document = legacy.authoritative_document();
+        let port = document.ports.iter_mut().find(|p| p.id == port_id).unwrap();
+        for runtime in port.release.user_prepared.values_mut() {
+            runtime.required_mutable_files.push("keybinds.ini".into());
+        }
+        let guarded = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let encoded = encode_external_catalog(&guarded, port_id).unwrap();
+        // The previous external reader takes this exact raw CatalogDocument
+        // decoder path. Required schema_version/ports are absent in an envelope.
+        assert!(Catalog::from_json(&encoded).is_err());
+        let restored = decode_external_catalog(&encoded, port_id).unwrap();
+        assert_eq!(
+            serde_json::to_value(restored.authoritative_document()).unwrap(),
+            serde_json::to_value(guarded.authoritative_document()).unwrap()
+        );
+        assert!(decode_external_catalog(&encoded, "another-port").is_err());
+
+        let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+        for (field, replacement) in [
+            ("format", serde_json::json!(99)),
+            ("future_constraint", serde_json::json!(true)),
+            ("schema_version", serde_json::json!(2)),
+        ] {
+            let mut changed = value.clone();
+            changed[field] = replacement;
+            assert!(decode_external_catalog(&changed.to_string(), port_id).is_err());
+        }
+    }
 
     #[test]
     fn retained_browsing_sql_guard_counts_bytes_before_copying_values() {

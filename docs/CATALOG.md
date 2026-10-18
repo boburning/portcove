@@ -343,6 +343,38 @@ migrate AppData, qualify an upstream package, or grant update/backup ownership.
 Removing the external registration preserves both the external folder and private
 user files. No current title is admitted by this generic engine component.
 
+A `staged-source-portable` prepared spec may declare up to 64
+`required_mutable_files`, each an exact relative file path within its declared
+`mutable_paths`. Portable path keys must be unique, including case aliases.
+For example, The Force Engine's portable selector is a mutable `settings.ini`:
+its presence selects the program directory instead of host Documents, while its
+contents legitimately change. Core observes each required file as a regular,
+non-redirected file with exactly one filesystem link before inspection, at the
+final callback-free inspection boundary, and during registered-location readiness.
+Missing files, directories, symlinks, reparse paths and hardlink aliases refuse
+readiness or the affected review/launch operation. Contents are neither hashed
+into immutable identity nor frozen between observations. These checks do not
+provide an atomic tree snapshot or an execution sandbox.
+
+This declaration requires staged-source template contract version 4; versions
+1–3 and omitted/empty declarations retain their previous behavior. Independently
+delivered entries must declare version 4, and complete typed projection prevents
+an older reader from silently dropping the new constraint. The retained
+registration contract continues to enforce it after a current definition changes.
+Registration creates no selector, claims no external ownership and changes no
+original files. Preparation instructions must explain how the player creates
+the reviewed selector; removal of registration remains available if it is missing
+and preserves all external files. This capability alone admits no TFE package,
+source input, native operation or managed maintenance route.
+
+Registrations using required mutable files retain the existing strict contract
+envelope instead of a raw catalog document. Older external-runtime readers
+refuse that envelope because they require a raw catalog's schema and port list;
+they cannot silently drop the selector requirement after a client downgrade.
+Both ordinary and bounded readers decode the same retained contract. Registrations
+without this opt-in keep their existing encoding; no library-wide schema migration
+or external-file ownership is introduced.
+
 Hosted
 installation still requires a provider digest or verified checksum sidecar;
 an exact direct manifest still requires an accepted HTTPS URL, size, version and
