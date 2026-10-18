@@ -515,7 +515,7 @@ fn existing_managed_install_excludes_external_registration() {
 
 #[test]
 fn retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailable() {
-    let (_temporary, service, batch) = service_fixture();
+    let (_temporary, mut service, _batch) = service_fixture();
     let port = service
         .catalog()
         .ports()
@@ -524,12 +524,33 @@ fn retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailab
             port.source_profile.as_deref() == Some("ocarina-of-time")
                 && port.release.provider != crate::ReleaseSource::UserPrepared
         })
-        .unwrap();
+        .unwrap()
+        .clone();
     let install = inert_install(&service, &port.id, true);
     crate::output_root::validate_install_path(service.library(), &port.id, &install.path).unwrap();
     let retained = crate::install::retained_query_context(&install).unwrap();
     assert!(retained.0.is_some());
     assert!(retained.1.is_some());
+    // The installed definition must remain authoritative after today's catalog
+    // changes; equal fixture catalogs would not detect accidental digest reuse.
+    let mut current = service.catalog().authoritative_document();
+    current
+        .ports
+        .iter_mut()
+        .find(|definition| definition.id == port.id)
+        .unwrap()
+        .name
+        .push_str(" (current catalog)");
+    service.replace_catalog_for_test(
+        Catalog::from_json(&serde_json::to_string(&current).unwrap()).unwrap(),
+    );
+    let batch = service
+        .inspect_registered_sources_bounded(
+            &["ocarina-of-time".into()],
+            &refresh_limits(),
+            &crate::OperationCoordinator::new("retained-query-fixture", None),
+        )
+        .unwrap();
     let mut request = GameFileRouteRequest {
         port_id: port.id.clone(),
         platform: port.platforms[0],
