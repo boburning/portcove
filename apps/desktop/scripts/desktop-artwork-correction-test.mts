@@ -409,7 +409,7 @@ export async function artworkCorrectionScenario({
       JSON.stringify(
         {
           scope:
-            "unchanged Windows native development application; public test signing and owned cached solid-color fixtures, not live publication/provider/installed/gameplay evidence",
+            "unchanged Windows native application; public test signing and owned cached solid-color fixtures. Package/installation provenance requires an independently joined outer receipt; no live publication/provider/minimum/gameplay claim",
           portId,
           first,
           local,

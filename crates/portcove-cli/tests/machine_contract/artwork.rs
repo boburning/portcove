@@ -72,6 +72,69 @@ fn artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle() 
         .each_ref()
         .map(|state| state["choice"]["asset_sha256"].as_str().unwrap().to_owned());
     assert_ne!(ids[0], ids[1]);
+    // Existing slot clients and the optional destination consumer share exactly
+    // the admitted original/choice, through separate compiled CLI invocations.
+    let handoff = run(&[
+        "--json",
+        "artwork",
+        "handoff",
+        "zelda64-recomp",
+        "--role",
+        "portrait-cover",
+    ]);
+    let observed: portcove_core::DestinationArtworkHandoff =
+        serde_json::from_value(handoff.clone()).unwrap();
+    assert_eq!(observed.handoff_schema, 1);
+    assert_eq!(handoff["choice"], choices[0]["choice"]);
+    assert_eq!(handoff["source"]["asset"], choices[0]["selection"]);
+    let original = run(&[
+        "--json",
+        "artwork",
+        "handoff-bytes",
+        "zelda64-recomp",
+        "--role",
+        "portrait-cover",
+        "--expected-library-id",
+        &observed.library.id,
+        "--expected-revision",
+        "1",
+        "--expected-asset-sha256",
+        &ids[0],
+    ]);
+    let accepted: portcove_core::DestinationArtworkBytes =
+        serde_json::from_value(original).unwrap();
+    assert_eq!(accepted.original, images[0].1);
+    refuse(
+        &[
+            "--json",
+            "artwork",
+            "handoff-bytes",
+            "zelda64-recomp",
+            "--role",
+            "portrait-cover",
+            "--expected-library-id",
+            "foreign-library",
+            "--expected-revision",
+            "1",
+            "--expected-asset-sha256",
+            &ids[0],
+        ],
+        "conflict",
+    );
+    for role in ["landscape-cover", "hero-banner"] {
+        let missing = run(&[
+            "--json",
+            "artwork",
+            "handoff",
+            "zelda64-recomp",
+            "--role",
+            role,
+        ]);
+        let _: portcove_core::DestinationArtworkHandoff =
+            serde_json::from_value(missing.clone()).unwrap();
+        assert_eq!(missing["content"]["reason"], "role_not_provided");
+        assert!(missing["choice"].is_null());
+    }
     for (index, id) in ids.iter().enumerate() {
         assert_eq!(choices[index]["resolved_source"]["asset_sha256"], *id);
         assert_eq!(

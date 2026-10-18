@@ -15237,7 +15237,15 @@
           }
         ],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the official v1.8.3 Windows ZIP outside your Portcove library. Choose its FZeroSNESRecomp-1.8.3-windows-x64 folder for exact-file review and register your original headerless F-Zero (USA) .sfc separately. Windows runtime and gameplay are not tested. Additional files, including crash reports, may prevent later verification; preserve them for troubleshooting. Portcove does not update, back up or delete this folder."
+        "manual_preparation": "Extract the official v1.8.3 Windows ZIP outside your Portcove library. Choose its FZeroSNESRecomp-1.8.3-windows-x64 folder for exact-file review and register your original headerless F-Zero (USA) .sfc separately. Windows runtime and gameplay are not tested. Additional files, including crash reports, may prevent later verification; preserve them for troubleshooting. Portcove does not update, back up or delete this folder.",
+        "artwork": {
+          "game_id": 3490,
+          "cover_id": 319391,
+          "image_id": "co6ufz",
+          "image_sha256": "c504dbfa253882ca87b76d75a5cd290aef6b717a368617107d69e836bd651553",
+          "game_slug": "f-zero",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -15336,7 +15344,15 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own Road Rash 64 USA v1.0 canonical .z64 file (32 MiB). Portcove keeps a staged ROM copy; local save backups include that copy."
+        "manual_preparation": "Provide your own Road Rash 64 USA v1.0 canonical .z64 file (32 MiB). Portcove keeps a staged ROM copy; local save backups include that copy.",
+        "artwork": {
+          "game_id": 3589,
+          "cover_id": 77133,
+          "image_id": "co1nil",
+          "image_sha256": "14e7330f273952c61a0dd9be209c2357ed9163e522eb55f4080bc5211241ed5d",
+          "game_slug": "road-rash-64",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -15395,7 +15411,15 @@
           }
         ],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the official v0.0.6 Windows ZIP outside your Portcove library. Choose its DKC3Recomp-v0.0.6-windows-x64 folder for exact-file review and register your original headerless North American En/Fr DKC3 .sfc separately. Portcove passes that verified source directly and skips the upstream launcher; in-game settings remain available. Keep package and ROM paths short and representable in the Windows system code page. Windows registration, startup, ordinary close and external-file preservation were observed. Upstream reports skipped game logic during startup; gameplay, visual correctness and save/load remain unqualified. Unknown files refuse verification and remain preserved. Updates are user-managed; Portcove does not update, back up or delete this folder or its saves."
+        "manual_preparation": "Extract the official v0.0.6 Windows ZIP outside your Portcove library. Choose its DKC3Recomp-v0.0.6-windows-x64 folder for exact-file review and register your original headerless North American En/Fr DKC3 .sfc separately. Portcove passes that verified source directly and skips the upstream launcher; in-game settings remain available. Keep package and ROM paths short and representable in the Windows system code page. Windows registration, startup, ordinary close and external-file preservation were observed. Upstream reports skipped game logic during startup; gameplay, visual correctness and save/load remain unqualified. Unknown files refuse verification and remain preserved. Updates are user-managed; Portcove does not update, back up or delete this folder or its saves.",
+        "artwork": {
+          "game_id": 1094,
+          "cover_id": 94883,
+          "image_id": "co217n",
+          "image_sha256": "f4e13f77be3f1695208fb6de7e5ad3cc902e95e75505315bf183d1373d29648c",
+          "game_slug": "donkey-kong-country-3-dixie-kong-s-double-trouble",
+          "match_kind": "underlying-game"
+        }
       },
       "launch_environment": {
         "SNESRECOMP_NO_LAUNCHER": "1"
@@ -15568,7 +15592,15 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-disc CHD. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content."
+        "manual_preparation": "Provide your own matching single-disc CHD. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content.",
+        "artwork": {
+          "game_id": 1175,
+          "cover_id": 178335,
+          "image_id": "co3tlr",
+          "image_sha256": "622d5b7bcf3e8364030bfef448c93a3e6c2f76ae5032605d40978ffc4e6d91a0",
+          "game_slug": "alundra",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -15649,7 +15681,15 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for SCES-00842. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+        "manual_preparation": "Provide your own matching single-track CHD for SCES-00842. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "artwork": {
+          "game_id": 4144,
+          "cover_id": 454572,
+          "image_id": "co9qr0",
+          "image_sha256": "d1ddebb5cd67d94c11bf471b292c2b54484b95e8c1446d5d20313dc51441631a",
+          "game_slug": "armored-core",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -15730,7 +15770,15 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00027. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00027. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "artwork": {
+          "game_id": 7894,
+          "cover_id": 425045,
+          "image_id": "co93yt",
+          "image_sha256": "6320c9e27a39922ab6a09c3f4e888805376bce3515ecd297b6d379eb735ca872",
+          "game_slug": "blood-omen-legacy-of-kain",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -15892,7 +15940,15 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for SLUS-01002. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-01002. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "artwork": {
+          "game_id": 8504,
+          "cover_id": 441104,
+          "image_id": "co9gcw",
+          "image_sha256": "0824cbe0f5262d51f5a1f2d15f9295a42626d78e36da063627d177df7255904a",
+          "game_slug": "duke-nukem-land-of-the-babes",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -15973,7 +16029,15 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00842. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00842. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "artwork": {
+          "game_id": 675,
+          "cover_id": 566481,
+          "image_id": "coc53l",
+          "image_sha256": "c51586bdfb4be818a6acd2b857693f235549fc77ea87d8e367246a3a947d9f47",
+          "game_slug": "driver",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -16054,7 +16118,15 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00583. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00583. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "artwork": {
+          "game_id": 4130,
+          "cover_id": 153570,
+          "image_id": "co3ahu",
+          "image_sha256": "e72b4c28ca465819d972c6de8ae919cba2721ae99c503cedaa5cfc8a5fe5fe01",
+          "game_slug": "duke-nukem-time-to-kill--1",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -16135,7 +16207,15 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00236. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00236. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "artwork": {
+          "game_id": 12427,
+          "cover_id": 118221,
+          "image_id": "co2j7x",
+          "image_sha256": "702ab387284896258c2bbded9858d89d9d1d05d8ed2ef17cd8b237c2dcc9a154",
+          "game_slug": "fade-to-black",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -16231,7 +16311,15 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for Diablo Europe SLES-01156 and legally obtained retail SCPH-5552 BIOS. OpenBIOS is not an accepted substitute for this release. Portcove uses its registered Python/build toolchain for managed preparation and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain; the packaged setup host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility and Linux runtime behavior remain untested."
+        "manual_preparation": "Provide your own matching single-track CHD for Diablo Europe SLES-01156 and legally obtained retail SCPH-5552 BIOS. OpenBIOS is not an accepted substitute for this release. Portcove uses its registered Python/build toolchain for managed preparation and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain; the packaged setup host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
+        "artwork": {
+          "game_id": 125,
+          "cover_id": 161304,
+          "image_id": "co3ggo",
+          "image_sha256": "514e501260b0929c26bc55653acff593099b98a5d4f83ad2c04a00f026778440",
+          "game_slug": "diablo",
+          "match_kind": "underlying-game"
+        }
       },
       "bios_source_profile": "psx-scph-5552-bios"
     },
@@ -16434,7 +16522,15 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis SLUS-00922 (USA Rev 1) and legally obtained retail SCPH-5552/5502 Europe BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested."
+        "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis SLUS-00922 (USA Rev 1) and legally obtained retail SCPH-5552/5502 Europe BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
+        "artwork": {
+          "game_id": 3027,
+          "cover_id": 237188,
+          "image_id": "co530k",
+          "image_sha256": "6d28f411058c9f890839bb7d62319b9c1ccd8223cc2bea2fe012cfdac46a01c6",
+          "game_slug": "dino-crisis",
+          "match_kind": "underlying-game"
+        }
       },
       "bios_source_profile": "psx-scph-5552-bios"
     },
@@ -16539,7 +16635,15 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis 2 SLUS-01279 (USA) and legally obtained retail SCPH-5552/5502 Europe BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested."
+        "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis 2 SLUS-01279 (USA) and legally obtained retail SCPH-5552/5502 Europe BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
+        "artwork": {
+          "game_id": 4132,
+          "cover_id": 407370,
+          "image_id": "co8qbu",
+          "image_sha256": "15daa02a91257ede23e9cb44d7c8feed83c4f125cd30cef60aafe5fff00800f7",
+          "game_slug": "dino-crisis-2",
+          "match_kind": "underlying-game"
+        }
       },
       "bios_source_profile": "psx-scph-5552-bios"
     },
@@ -16644,7 +16748,15 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching four-track CHD for Alien Resurrection SLES-02913 (Europe) and a legally obtained retail SCPH-5552 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested."
+        "manual_preparation": "Provide your own matching four-track CHD for Alien Resurrection SLES-02913 (Europe) and a legally obtained retail SCPH-5552 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
+        "artwork": {
+          "game_id": 44995,
+          "cover_id": 504131,
+          "image_id": "coaszn",
+          "image_sha256": "4a5c0dbbfb4f7c8f6815e2c171d5eb9f0e2efb5a657c4ff5b5acd6726c39c704",
+          "game_slug": "alien-resurrection",
+          "match_kind": "underlying-game"
+        }
       },
       "bios_source_profile": "psx-scph-5552-bios"
     },
@@ -16749,7 +16861,15 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching four-track CHD for Brave Fencer Musashi SLUS-00726 (USA) and a legally obtained retail SCPH-1001 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested."
+        "manual_preparation": "Provide your own matching four-track CHD for Brave Fencer Musashi SLUS-00726 (USA) and a legally obtained retail SCPH-1001 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
+        "artwork": {
+          "game_id": 1810,
+          "cover_id": 154795,
+          "image_id": "co3bfv",
+          "image_sha256": "bb71a22c939edcee852d6a1cb5889136074087a694340b2f70594d6af9d57195",
+          "game_slug": "brave-fencer-musashi",
+          "match_kind": "underlying-game"
+        }
       },
       "bios_source_profile": "psx-scph-1001-bios"
     }

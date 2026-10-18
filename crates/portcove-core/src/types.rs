@@ -1394,6 +1394,9 @@ pub enum OperationEventKind {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilityDocument {
     pub schema_version: u32,
+    /// Optional read-only destination handoff; negotiate independently of API/events.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artwork_handoff_schema: Option<u32>,
     /// Schema used by JSONL operation events, independently from result envelopes.
     pub operation_event_schema_version: u32,
     pub product: String,
@@ -1413,6 +1416,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
+            artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,
             product: "Portcove".into(),
             product_version: env!("CARGO_PKG_VERSION").into(),
@@ -1420,6 +1424,8 @@ impl CapabilityDocument {
                 "auth".into(),
                 "backup".into(),
                 "artwork".into(),
+                "artwork.handoff".into(),
+                "artwork.handoff-bytes".into(),
                 "catalog".into(),
                 "catalog.check-capabilities".into(),
                 "catalog.definition-authority".into(),

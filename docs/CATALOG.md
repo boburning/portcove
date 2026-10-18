@@ -150,6 +150,52 @@ This command prepares the cover role only;
 other roles, full backlog coverage, protected acceptance/publication and installed
 or physical-platform evidence retain their own acceptance.
 
+### Reference and exception maintenance
+
+Use the existing catalog/onboarding maintenance checkpoint weekly. Select at most
+50 stable port IDs per batch, oldest successful reference observation first, with
+stable ID as the tie breaker; check every accepted reference within 28 days.
+Use the existing preparation receipt and owning issue evidence for observation
+time, input digest, selected refresh IDs, outcome and next due checkpoint. Missing
+or uncertain observation dates are due, not evidence of healthy content. This is
+an operator cadence, not a new scheduler, registry or player startup task. New or
+changed identities and assessed mistakes are investigated when encountered;
+ordinary executable updates do not refresh artwork.
+
+Refresh due IDs with `--refresh-artwork` and reuse all unaffected accepted mappings.
+The existing hard ceilings remain 400 batch entries, 800 metadata queries, 400 image
+queries, 32 MiB metadata, 512 MiB images, 16 MiB per image, 15 minutes overall and 15
+seconds per request. The adapter is sequential, spaces metadata starts by at least
+300 ms, authenticates once and does not retry failed requests. Stop at those
+limits, retain the incomplete receipt and resume only unobserved IDs in the next
+bounded batch. Do not call a retained mapping a successful live refresh. Reuse
+unchanged downloaded content by identity; only a changed accepted image needs new
+semantic review and affected display validation.
+
+Recheck the bounded missing-fact/resume exceptions at the same checkpoint; query
+again when attributable facts, asset/provider state or a previous transient
+failure changes. Preserve one current exception per stable port/role rather than
+opening another owner queue. Absence of a current admitted definition stays with
+its existing per-port/onboarding owner; it is not a successful artwork exception.
+
+The [official IGDB documentation](https://api-docs.igdb.com/#rate-limits), checked
+2026-10-18, permits four API requests per second and eight open requests.
+Its [image guidance](https://api-docs.igdb.com/#images) says removed/replaced images
+remain on its servers for 30 days. That is server behavior, not an observed expiry
+or an image-retention license. The [caching FAQ](https://api-docs.igdb.com/#faq)
+allows caching API data; it does not establish rights to bundle, mirror or export
+a particular image. Keep maintainer authentication private and existing attribution.
+
+Transient failure/404 preserves only eligible permitted known-good state and
+reports uncertainty; an observed HTTP 410 or a concrete withdrawal/invalidation stops
+that image's reuse in the proposal, preserving the exact reason and scope. Prepare
+a validated replacement or generated fallback through the existing protected
+catalog correction route. Retained bytes are not permission to continue a known
+forbidden use. Client propagation needs its own accepted signed correction; an
+unsigned maintenance report cannot revoke trust or mutate installed libraries.
+Local imports/choices/corrections and unrelated game data remain independent of
+remote cache eviction. Broader production correction remains with #1155/#246/#534.
+
 Generate the embedded catalog with
 `node scripts/generate-catalog.mts`, then run selected local checks and the opt-in
 `just desktop-verify --scenario native-default-cover-display --require-clean`.
