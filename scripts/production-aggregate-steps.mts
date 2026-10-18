@@ -6,7 +6,11 @@ import { isRecord } from "./runtime-values.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import { assembleReleaseArtifacts } from "./release-artifact-assembly.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
-import { prepareAggregateAttestation } from "./trusted-aggregate-attestation.mts";
+import {
+  prepareAggregateAttestation,
+  verifyUploadedAggregate,
+} from "./trusted-aggregate-attestation.mts";
+import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
 import { inspectReleaseEvidenceRequest } from "./release-run-evidence.mts";
 
@@ -157,9 +161,9 @@ export async function retainAggregateStepReceipt(
 
 async function main() {
   const mode = process.argv[2];
-  if (process.argv.length !== 3 || !["assemble", "bind"].includes(mode ?? ""))
-    throw new Error("choose only assemble or bind from the held fixed workflow");
-  // Both jobs remain literally held. This program cannot turn a descriptor into
+  if (process.argv.length !== 3 || !["assemble", "bind", "verify"].includes(mode ?? ""))
+    throw new Error("choose only assemble, bind or verify from the held fixed workflow");
+  // These jobs remain literally held. This program cannot turn a descriptor into
   // authorization, write a reservation, sign, publish, or select another run.
   const raw = process.env.PORTCOVE_ACCEPTED_AGGREGATE;
   const descriptor = inspectAggregateDescriptor(raw);
@@ -195,7 +199,7 @@ async function main() {
           mode: 0o600,
         });
         await output({ assets: result.aggregate.assets });
-      } else {
+      } else if (mode === "bind") {
         const expected = inspectAssemblerIdentityExpectation({
           audience: process.env.PORTCOVE_AGGREGATE_AUDIENCE,
           subject: process.env.PORTCOVE_AGGREGATE_SUBJECT,
@@ -232,10 +236,64 @@ async function main() {
           { cwd: root },
         );
         await output({
+          artifact_id: String(binding.predicate.artifact.id),
+          artifact_sha256: binding.predicate.artifact.sha256,
           subject_name: binding.subject_name,
           subject_digest: binding.subject_digest,
           predicate: JSON.stringify(binding.predicate),
         });
+      } else {
+        const root = await mkdtemp(path.join(temp, "portcove-verification-"));
+        const recover = () =>
+          readRemoteCoordinatorSnapshot(root, descriptor.coordinator, { transport: { cwd: root } });
+        let result;
+        try {
+          await requireReservedAggregate(raw!, await recover());
+          if (!Array.isArray(descriptor.archives))
+            throw new Error("accepted artifact matrix is missing");
+          const ids = descriptor.archives.map((archive) => {
+            if (!isRecord(archive) || typeof archive.artifact_id !== "number")
+              throw new Error("accepted artifact ID missing");
+            return archive.artifact_id;
+          });
+          stage("verify-exact-uploaded-aggregate-and-bundle");
+          result = await verifyUploadedAggregate(root, {
+            controller_revision: process.env.PORTCOVE_CONTROLLER_REVISION ?? "",
+            controller_ref: process.env.PORTCOVE_CONTROLLER_REF ?? "",
+            run_id: process.env.GITHUB_RUN_ID ?? "",
+            run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+            artifact_id: Number(process.env.PORTCOVE_NEW_ARTIFACT_ID),
+            sha256: process.env.PORTCOVE_NEW_ARTIFACT_SHA256 ?? "",
+            bundle_artifact_id: Number(process.env.PORTCOVE_BUNDLE_ARTIFACT_ID),
+            bundle_sha256: process.env.PORTCOVE_BUNDLE_ARTIFACT_SHA256 ?? "",
+            candidate: descriptor.assembly,
+            candidate_artifact_ids: ids,
+          });
+          stage("reservation-after-verification");
+          await requireReservedAggregate(raw!, await recover());
+        } catch (error) {
+          const failure =
+            error instanceof CoordinatorRemoteError
+              ? error.evidence
+              : {
+                  directory: root,
+                  acquisition_directory: result?.acquisition_directory,
+                  verification_directory: result?.directory,
+                  authority: "none",
+                  decision: "refused",
+                };
+          await writeFile(
+            path.join(temp, "portcove-aggregate-verification-result.json"),
+            JSON.stringify(failure),
+            { flag: "wx", mode: 0o600 },
+          );
+          throw error;
+        }
+        await writeFile(
+          path.join(temp, "portcove-aggregate-verification-result.json"),
+          JSON.stringify(result),
+          { flag: "wx", mode: 0o600 },
+        );
       }
     },
   );

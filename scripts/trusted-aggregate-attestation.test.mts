@@ -10,10 +10,12 @@ import { assembleTrustedRelease } from "./trusted-release-assembly.mts";
 import {
   prepareAggregateAttestation,
   verifyAggregateAttestation,
+  verifyUploadedAggregate,
   aggregatePredicateType,
 } from "./trusted-aggregate-attestation.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
+import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 async function fixture(t: test.TestContext) {
@@ -397,4 +399,152 @@ void test("verified-but-wrong certificate/subject/predicate and ambiguous result
       "aggregate.zip",
       "attestation.json",
     ]);
+});
+
+async function uploadedFixture(t: test.TestContext) {
+  const f = await verificationFixture(t);
+  const state = {
+    reads: 0,
+    fault: "",
+    downloaded: false,
+    bundle: createAuditZip([
+      ["aggregate-attestation.json", Buffer.from("synthetic offline bundle"), { descriptor: true }],
+    ]),
+  };
+  const supplied = {
+    ...f.verificationExpected,
+    bundle_artifact_id: 100,
+    bundle_sha256: hash(state.bundle),
+  };
+  const apiCalls: string[] = [];
+  const downloadCalls: string[] = [];
+  const options = {
+    spawn: (
+      command: string,
+      args: readonly string[],
+      settings: SpawnSyncOptionsWithStringEncoding,
+    ) => {
+      if (args[0] !== "api") return f.spawn(command, args, settings);
+      state.reads++;
+      apiCalls.push(args[1]!);
+      assert.equal(settings.timeout, 15000);
+      assert.equal(settings.maxBuffer, 128 * 1024);
+      assert.deepEqual(args.slice(2), ["--include", "--method", "GET", "--hostname", "github.com"]);
+      const endpoint = args[1]!;
+      let body: unknown;
+      if (endpoint.includes("/actions/runs/")) {
+        assert.ok(
+          [
+            `repos/boburning/portcove/actions/runs/${expected.run_id}`,
+            `repos/boburning/portcove/actions/runs/${expected.run_id}/attempts/${expected.run_attempt}`,
+          ].includes(endpoint),
+        );
+        body = {
+          id: Number(expected.run_id),
+          run_attempt:
+            state.fault === "attempt-drift" && state.downloaded ? 3 : expected.run_attempt,
+          head_sha: expected.controller_revision,
+          repository: { id: 1354613114, full_name: "boburning/portcove" },
+          head_repository: { id: 1354613114 },
+          path: productionControllerWorkflow,
+          event: "workflow_dispatch",
+          status: "in_progress",
+          conclusion: null,
+        };
+      } else {
+        const bundle = endpoint.endsWith("/100");
+        assert.ok(bundle || endpoint.endsWith("/99"));
+        body = {
+          id: bundle ? 100 : 99,
+          name: `trusted-release-${bundle ? "attestation" : "final"}-${expected.run_id}-${expected.run_attempt}`,
+          size_in_bytes: bundle ? state.bundle.length : f.archive.length,
+          digest: `sha256:${bundle ? (state.fault === "bundle-drift" && state.downloaded ? "0".repeat(64) : supplied.bundle_sha256) : supplied.sha256}`,
+          expired: state.fault === "expired",
+          created_at: "2026-10-18T00:00:00Z",
+          expires_at: null,
+          workflow_run: {
+            id: Number(expected.run_id),
+            repository_id: 1354613114,
+            head_repository_id: 1354613114,
+            head_sha: state.fault === "source" ? "b".repeat(40) : expected.controller_revision,
+          },
+        };
+      }
+      return {
+        status: 0,
+        stdout: `HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
+        stderr: "",
+      };
+    },
+    download: (endpoint: string) => {
+      downloadCalls.push(endpoint);
+      state.downloaded = true;
+      if (state.fault === "secret") throw new Error("Bearer private-provider-text");
+      if (endpoint.endsWith("/99/zip")) return f.archive;
+      assert.equal(endpoint, "repos/boburning/portcove/actions/artifacts/100/zip");
+      return state.fault === "changed-bytes" ? Buffer.alloc(state.bundle.length, 1) : state.bundle;
+    },
+  };
+  return { ...f, state, supplied, options, apiCalls, downloadCalls };
+}
+
+void test("downstream consumer acquires exact opaque IDs in a still-active controller then invokes the existing pinned verifier", async (t) => {
+  const f = await uploadedFixture(t);
+  const result = await verifyUploadedAggregate(f.root, f.supplied, f.options);
+  assert.equal(result.authority, "none");
+  assert.equal(result.evidence_scope, "injected-provider");
+  assert.equal(result.original_compiler, null);
+  assert.equal(result.api_requests, 8);
+  assert.equal(result.bundle_artifact_id, 100);
+  assert.equal(f.calls.length, 1);
+  assert.equal(f.downloadCalls.length, 2);
+  assert.equal(f.apiCalls.filter((endpoint) => endpoint.includes("/attempts/2")).length, 2);
+});
+
+void test("downstream drift, expired/mismatched provider objects, changed ZIPs and provider exceptions refuse with exact sanitized association", async (t) => {
+  for (const fault of [
+    "attempt-drift",
+    "bundle-drift",
+    "expired",
+    "source",
+    "changed-bytes",
+    "secret",
+  ]) {
+    const f = await uploadedFixture(t);
+    f.state.fault = fault;
+    await assert.rejects(
+      verifyUploadedAggregate(f.root, f.supplied, f.options),
+      (error: unknown) => {
+        assert.ok(error instanceof CoordinatorRemoteError);
+        assert.doesNotMatch(JSON.stringify(error.evidence), /Bearer|private-provider-text/u);
+        const evidence = error.evidence as {
+          artifact_id: number;
+          bundle_artifact_id: number;
+          directory: string;
+        };
+        assert.equal(evidence.artifact_id, 99);
+        assert.equal(evidence.bundle_artifact_id, 100);
+        assert.match(evidence.directory, /aggregate-verification-/u);
+        return true;
+      },
+    );
+    if (["expired", "source"].includes(fault)) assert.equal(f.downloadCalls.length, 0);
+  }
+});
+
+void test("bundle ZIP aliases, extra members and oversized declarations refuse before the signature verifier", async (t) => {
+  for (const entries of [
+    [["nested/aggregate-attestation.json", Buffer.from("x")]],
+    [
+      ["aggregate-attestation.json", Buffer.from("x")],
+      ["other.json", Buffer.from("y")],
+    ],
+    [["aggregate-attestation.json", Buffer.alloc(512 * 1024 + 1, 1)]],
+  ] as [string, Buffer][][]) {
+    const f = await uploadedFixture(t);
+    f.state.bundle = createAuditZip(entries);
+    f.supplied.bundle_sha256 = hash(f.state.bundle);
+    await assert.rejects(verifyUploadedAggregate(f.root, f.supplied, f.options));
+    assert.equal(f.calls.length, 0);
+  }
 });
