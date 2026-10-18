@@ -6,6 +6,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { GameFileFilterObservation } from "../components/GameFileFilterObservation";
+import { GameFileQueryControl } from "../components/GameFileQuery";
+import { GameFileObservationSummary } from "../features/browsing/GameFileObservationSummary";
 import { PortBrowser } from "../components/PortBrowser";
 import { useDetailWorkspaceNavigation } from "../features/app-shell/use-detail-workspace-navigation";
 import { useLibraryBrowsingContext } from "../features/app-shell/use-library-browsing-context";
@@ -89,6 +91,8 @@ function Session({ library }: { library: string }) {
   useEffect(() => setView("catalog"), [setView]);
   return (
     <main ref={workspace} data-focus-region="workspace" tabIndex={-1}>
+      <button onClick={() => ui.setView("library")}>Go to Library</button>
+      <button onClick={() => ui.setView("catalog")}>Go to Catalog</button>
       <label>
         Search catalog
         <input value={ui.query} onChange={(event) => ui.setQuery(event.target.value)} />
@@ -102,11 +106,22 @@ function Session({ library }: { library: string }) {
             Back to catalog
           </button>
           <GameFileFilterObservation portId={ui.selectedId} context={observation.context} />
+          <GameFileObservationSummary
+            observation={observation.observation}
+            catalog
+            portId={ui.selectedId}
+          />
+          <GameFileQueryControl
+            port={ports.find((port) => port.id === ui.selectedId)!}
+            channel="stable"
+            generation={generation}
+            context={library}
+          />
         </>
       ) : (
         <PortBrowser
-          view="catalog"
-          ports={filterPorts(ports, empty, "catalog", ui.filter, ui.query, ui.catalogSort, context)}
+          view={ui.view}
+          ports={filterPorts(ports, empty, ui.view, ui.filter, ui.query, ui.catalogSort, context)}
           catalogFilterCandidates={filterPorts(ports, empty, "catalog", "all", ui.query)}
           queryContext={context}
           gameFileQuery={observation}
@@ -165,6 +180,8 @@ afterEach(() => {
   host.remove();
   localStorage.clear();
   delete document.documentElement.dataset.theme;
+  vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 const button = (name: string) => page.getByRole("button", { name, exact: true });
 async function closeFilters() {
@@ -264,4 +281,94 @@ it("retains unavailable choices across library invalidation, persistence and iso
   await expect.element(button("Remove Needs checking filter")).toHaveFocus();
   await userEvent.keyboard("{Enter}");
   await expect.element(button("Filters (0)")).toHaveFocus();
+});
+
+it.each(["dark", "light"])(
+  "keeps catalog history across details/back while independent history ends in %s",
+  async (theme) => {
+    await page.viewport(520, 780);
+    document.documentElement.dataset.theme = theme;
+    flushSync(() => root.render(<Fixture />));
+    await userEvent.click(button("Filters (0)"));
+    await userEvent.click(button("Check game-file filters"));
+    await closeFilters();
+    await userEvent.click(page.getByRole("button", { name: /^Complete game\./ }));
+    await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
+    await userEvent.click(button("Check selected route game files"));
+    await expect.element(page.getByLabelText("Selected-route check history")).toBeInTheDocument();
+    await userEvent.click(button("Back to catalog"));
+    await userEvent.click(page.getByRole("button", { name: /^Complete game\./ }));
+    await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
+    await expect
+      .element(page.getByLabelText("Selected-route check history"))
+      .not.toBeInTheDocument();
+    const metadata = document.querySelector('[aria-label="Catalog check history"]')!;
+    expect(metadata.textContent).toContain(
+      "Complete catalog (5 ports) · Managed setup · Windows · Stable",
+    );
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(520);
+    await page.screenshot({
+      element: metadata.parentElement!,
+      path: `../../../../outputs/observation-clarity/catalog-current-${theme}-520.png`,
+    });
+    expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(2);
+  },
+);
+
+it.each(["dark", "light"])(
+  "shows expired catalog history independently of absent matching evidence in %s",
+  async (theme) => {
+    await page.viewport(520, 780);
+    document.documentElement.dataset.theme = theme;
+    const monotonic = vi.spyOn(performance, "now").mockReturnValue(1000);
+    flushSync(() => root.render(<Fixture />));
+    await userEvent.click(button("Filters (0)"));
+    await userEvent.click(button("Check game-file filters"));
+    await closeFilters();
+    await userEvent.click(page.getByRole("button", { name: /^Complete game\./ }));
+    monotonic.mockReturnValue(301001);
+    flushSync(() => root.render(<Fixture />));
+    await expect
+      .element(page.getByRole("region", { name: "Catalog game-file observation" }))
+      .not.toBeInTheDocument();
+    const metadata = document.querySelector('[aria-label="Catalog check history"]')!;
+    expect(metadata.textContent).toContain("Previous check");
+    expect(metadata.textContent).toContain("previous observation expired");
+    expect(metadata.textContent).toContain("Filters → Check game-file filters");
+    expect(metadata.textContent).not.toContain("Complete set");
+    expect(metadata.querySelector("time")?.dateTime).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(520);
+    await page.screenshot({
+      element: metadata.parentElement!,
+      path: `../../../../outputs/observation-clarity/catalog-expired-${theme}-520.png`,
+    });
+    await userEvent.click(button("Back to catalog"));
+    await userEvent.click(button("Filters (0)"));
+    await expect
+      .element(button("Compatible complete files available (unavailable)"))
+      .toBeDisabled();
+    noAdditionalChecks();
+  },
+);
+
+it("retains catalog history through Catalog/Library section navigation without inspection", async () => {
+  flushSync(() => root.render(<Fixture />));
+  await userEvent.click(button("Filters (0)"));
+  await userEvent.click(button("Check game-file filters"));
+  const recordedTime = page
+    .getByLabelText("Catalog check history")
+    .element()
+    .querySelector("time")!.dateTime;
+  await closeFilters();
+  await userEvent.click(button("Go to Library"));
+  await userEvent.click(button("Filters (0)"));
+  await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
+  expect(
+    page.getByLabelText("Catalog check history").element().querySelector("time")!.dateTime,
+  ).toBe(recordedTime);
+  await closeFilters();
+  await userEvent.click(button("Go to Catalog"));
+  await userEvent.click(button("Filters (0)"));
+  await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
+  noAdditionalChecks();
 });

@@ -1220,6 +1220,7 @@ function SelectedPortPanel({
       libraryGeneration={libraryGeneration}
       gameFileQueryContext={model.gameFileQueryContext}
       gameFileFilterContext={model.gameFileQuery?.context}
+      gameFileObservation={model.gameFileQuery?.observation}
       browsingMatch={model.browsingMatch}
       browsingBinding={model.queryContext.browsing?.workspace_binding_sha256}
       outputLocationChanged={installPlanning.invalidate}

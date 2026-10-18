@@ -1098,6 +1098,16 @@ void test("heavy Rust runner and lock changes select both guarded execution cont
   assert.ok(hostFixtureOnly.selection.nodeTests.has("scripts/rust-support-cache.test.mts"));
 });
 
+void test("production controller admission source and workflow retain their required contract", () => {
+  for (const file of [
+    "scripts/production-controller-admission.mts",
+    ".github/workflows/application-update-production.yml",
+  ]) {
+    const { selection } = planFor([file]);
+    assert.ok(selection.nodeTests.has("scripts/production-controller-admission.test.mts"), file);
+  }
+});
+
 void test("release-script changes select deterministic release contracts without packaged qualification", () => {
   const { selection, plan } = planFor(["scripts/release-preflight.ps1"]);
   for (const contract of [
@@ -1105,6 +1115,7 @@ void test("release-script changes select deterministic release contracts without
     "scripts/release-package-policy.test.mts",
     "scripts/release-coordinator.test.mts",
     "scripts/release-coordinator-state.test.mts",
+    "scripts/production-controller-admission.test.mts",
     "scripts/release-workflow.test.mts",
     "scripts/windows-qualification-session.test.mts",
     "scripts/ci-workflow.test.mts",

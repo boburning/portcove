@@ -93,8 +93,9 @@ and unavailable choices remain removable. Version-1 queries without attention
 keep their semantics; unknown restored reasons remain unresolved for reset.
 These observations do not describe complete compatible source sets, install
 eligibility or a ready installation for a declared platform. They perform no I/O
-or lifecycle authorization. Whole #1551 remains open for route-bound game-file
-states; the finite observed update predicates are documented below.
+or lifecycle authorization. [#1551's final completion receipt](https://github.com/boburning/portcove/issues/1551#issuecomment-6111474268)
+records the delivered route-bound game-file filtering boundary; the finite
+observed update predicates are documented below.
 
 ## Observed update candidates
 
@@ -120,3 +121,49 @@ restored choices remain actionable through existing reset/correction. The local
 predicates carry no private path or installation identity in the persisted query.
 No check, scan, hash, network, plan or mutation occurs while matching. Complete
 route-bound game-file acceptance remains with #1551.
+
+## Game-file observation history
+
+The feature-owned `useGameFileObservation<T>` shares the two explicit checks' request
+lifetime. Each owner retains its request construction, guards and complete-scope
+acceptance. Context epochs hide obsolete results, errors, operation controls and
+history immediately, including A→B→A. A distinct attempt identity owns events and
+settlement, so a settled request cannot replace a newer cancellation target.
+Exclusion starts before reading library identity and lasts until actual settlement,
+even after context changes or a cancellation acknowledgment. An obsolete held
+identity read never starts a Core query. A valid completion after cancellation was
+requested is accepted normally; only an authoritative cancelled rejection shows
+that outcome.
+
+An accepted observation means the response passed its scope-specific contract,
+including Files missing, Needs checking, No game files required and Unavailable
+context. It does not mean compatible files were found. Current classifications and
+matching-evidence maps are separate from immutable metadata: Core's observation
+and expiry timestamps, the exact requested port/route/platform/channel list and
+its original monotonic deadline. Retry immediately clears current usability while
+retaining that metadata. Failure or actual cancellation leaves it informational;
+new acceptance replaces it. Sticky expiry remains bound to the original accepted
+record through retries, failures and clock changes. Expired history never revives.
+
+`GameFileObservationSummary` presents an exact localized Core time in a machine-readable
+`<time>`, with Last checked for usable results and Previous check for history. The
+current status explains checking, failure, cancellation or expiry. Time and scope
+support the existing result and check control. First attempts have meaningful
+pending/failure/cancellation status without inventing a previous check.
+
+Catalog history reaches details independently of current classification and
+matching-context branches and only for ports in its recorded request. Labels come
+from that record, never the detail selection. Complete catalog means the requested
+catalog ports for the recorded route/platform/channel, not every combination.
+History supplies no classifications, counts, complete-set or matching-build
+evidence, and no registration/setup/install/update/launch permission. All existing
+definition and installation-instance matching checks still apply to current data.
+Expired catalog history directs the player to Filters → Check game-file filters.
+
+Catalog history survives details/back and Catalog/Library navigation within the
+mounted workspace and unchanged observation context. Library/generation, catalog,
+sources, statuses, browsing binding or requested selection changes clear it; a
+remounted workspace starts empty. Independent selected-route history ends when
+its detail owner unmounts. Neither history is persisted or cached. Navigation,
+filtering, presentation, expiry and ordinary rerenders start no inspection. The
+two existing check controls remain the only inspection actions.

@@ -528,6 +528,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
 ]);
 
 const workflowTests = new Map([
+  ["application-update-production.yml", ["scripts/production-controller-admission.test.mts"]],
   ["release.yml", ["scripts/release-workflow.test.mts"]],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
   ["configured-upstream-observer.yml", ["scripts/upstream-observer.test.mts"]],
@@ -537,6 +538,7 @@ const workflowTests = new Map([
 ]);
 
 const releaseContractTests = Object.freeze([
+  "scripts/production-controller-admission.test.mts",
   "scripts/controller-canary.test.mts",
   "scripts/check-release-metadata.test.mts",
   "scripts/release-package-policy.test.mts",
