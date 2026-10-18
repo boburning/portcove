@@ -12,10 +12,185 @@ import {
   checkpointReleaseOpportunity,
   recoverReleaseOpportunity,
   coordinatorStateRef,
+  exportCoordinatorCheckpoint,
 } from "./release-coordinator-state.mts";
+import {
+  publishCoordinatorCheckpoint,
+  CoordinatorRemoteError,
+} from "./release-coordinator-remote.mts";
+import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 
 const execute = promisify(execFile);
 const moduleUrl = new URL("./release-coordinator-state.mts", import.meta.url).href;
+
+function gitObject(kind: string, bytes: Buffer) {
+  return createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest("hex");
+}
+
+async function remoteFixture(t: test.TestContext) {
+  const local = await fixture(t);
+  const saved = await checkpointReleaseOpportunity(
+    local.repository,
+    local.initial.checkpoint,
+    local.input,
+  );
+  const bare = path.join(local.repository, "coordinator.git");
+  execFileSync("git", ["clone", "--mirror", "--quiet", local.repository, bare], {
+    windowsHide: true,
+  });
+  const checkpoint = await exportCoordinatorCheckpoint(bare, saved.checkpoint);
+  const config = { schema_version: 1, namespace: "portcove-fixture" };
+  const stateRef = "refs/heads/portcove-fixture-coordinator-state";
+  const refs = new Map([[stateRef, local.initial.checkpoint]]);
+  const commits = new Map(
+    checkpoint.required_commits.map((commit) => [
+      commit.oid,
+      {
+        sha: commit.oid,
+        tree: { sha: commit.tree },
+        parents: commit.parent ? [{ sha: commit.parent }] : [],
+      },
+    ]),
+  );
+  let posts = 0;
+  let mutations = 0;
+  let snapshots = 0;
+  let requests = 0;
+  const blobs = new Set<string>();
+  const faults = { object: "", mutation: "", snapshot: "" };
+  const api: CoordinatorRemoteApi = {
+    request(method, endpoint, body) {
+      requests++;
+      const reply = (value: unknown) => ({
+        status: method === "GET" ? 200 : 201,
+        headers: new Map<string, string>(),
+        body: value,
+      });
+      if (method === "GET" && endpoint === "repos/boburning/portcove")
+        return reply({
+          id: faults.snapshot === "repository" ? 1 : 1354613114,
+          full_name: "boburning/portcove",
+          node_id: "R_fixture",
+        });
+      if (method === "GET") {
+        const oid = endpoint.split("/").at(-1)!;
+        const value = commits.get(oid);
+        return value
+          ? reply(value)
+          : { status: 404, headers: new Map<string, string>(), body: null };
+      }
+      posts++;
+      assert.ok(isRecord(body));
+      const kind = endpoint.split("/").at(-1)!;
+      let bytes: Buffer;
+      if (kind === "blobs") {
+        assert.equal(body.encoding, "base64");
+        assert.equal(typeof body.content, "string");
+        bytes = Buffer.from(body.content as string, "base64");
+      } else if (kind === "trees") {
+        assert.ok(Array.isArray(body.tree) && body.tree.length === 1);
+        const entry: unknown = body.tree[0];
+        assert.ok(isRecord(entry));
+        assert.equal(entry.path, "state.json");
+        assert.equal(entry.mode, "100644");
+        assert.equal(entry.type, "blob");
+        assert.ok(typeof entry.sha === "string" && blobs.has(entry.sha));
+        bytes = Buffer.concat([
+          Buffer.from("100644 state.json\0"),
+          Buffer.from(String(entry.sha), "hex"),
+        ]);
+      } else {
+        assert.equal(kind, "commits");
+        assert.ok(isRecord(body.author) && isRecord(body.committer));
+        assert.ok(Array.isArray(body.parents));
+        const person = (value: Record<string, unknown>) =>
+          `${String(value.name)} <${String(value.email)}> ${Date.parse(String(value.date)) / 1000} +0000`;
+        bytes = Buffer.from(
+          `tree ${String(body.tree)}\n${body.parents.map((oid) => `parent ${String(oid)}\n`).join("")}author ${person(body.author)}\ncommitter ${person(body.committer)}\n\n${String(body.message)}`,
+        );
+      }
+      const oid = gitObject(kind.slice(0, -1), bytes);
+      if (kind === "blobs") blobs.add(oid);
+      return reply({ sha: faults.object === kind ? "f".repeat(40) : oid });
+    },
+    graphql(query, variables) {
+      requests++;
+      if (query.startsWith("mutation")) {
+        mutations++;
+        assert.ok(isRecord(variables.input));
+        const input = variables.input;
+        assert.equal(input.repositoryId, "R_fixture");
+        assert.ok(Array.isArray(input.refUpdates));
+        const updates = input.refUpdates;
+        assert.equal(
+          new Set(updates.map((ref: unknown) => (isRecord(ref) ? ref.name : null))).size,
+          updates.length,
+        );
+        for (const value of updates) {
+          assert.ok(isRecord(value));
+          assert.equal(value.force, false);
+          assert.equal(refs.get(String(value.name)) ?? "0".repeat(40), value.beforeOid);
+          assert.notEqual(value.afterOid, "0".repeat(40));
+          assert.match(
+            String(value.name),
+            /^refs\/(?:heads\/portcove-fixture-coordinator-state|tags\/portcove-fixture-prepared(?:-source)?\/.+)$/u,
+          );
+        }
+        if (faults.mutation === "before")
+          throw new Error("bounded fixture response lost before CAS");
+        for (const value of updates) {
+          assert.ok(isRecord(value));
+          refs.set(String(value.name), String(value.afterOid));
+        }
+        if (faults.mutation === "after") throw new Error("bounded fixture response lost after CAS");
+        if (faults.mutation === "concurrent") refs.set(stateRef, "e".repeat(40));
+        return { data: { updateRefs: { clientMutationId: input.clientMutationId } } };
+      }
+      snapshots++;
+      if (faults.snapshot === "after" && snapshots > 1) throw new Error("readback unavailable");
+      const node: Record<string, unknown> = {
+        __typename: "Repository",
+        id: "R_fixture",
+        databaseId: 1354613114,
+        nameWithOwner: "boburning/portcove",
+      };
+      for (const [alias, name] of Object.entries(variables)) {
+        if (!/^r\d+$/u.test(alias)) continue;
+        assert.equal(typeof name, "string");
+        const ref = String(name);
+        const oid = refs.get(ref);
+        const split = ref.indexOf("/", 5) + 1;
+        node[alias] = oid
+          ? {
+              name: ref.slice(split),
+              prefix: ref.slice(0, split),
+              target: {
+                __typename: faults.snapshot === "tag" ? "Tag" : "Commit",
+                oid: faults.snapshot === "zero" ? "0".repeat(40) : oid,
+              },
+            }
+          : null;
+      }
+      if (faults.snapshot === "incomplete") delete node.r1;
+      return { data: { node } };
+    },
+  };
+  return {
+    ...local,
+    saved,
+    bare,
+    checkpoint,
+    config,
+    refs,
+    stateRef,
+    commits,
+    faults,
+    api,
+    counts: () => ({ posts, mutations, snapshots }),
+    requests: () => requests,
+  };
+}
 
 async function fixture(t: test.TestContext) {
   const repository = await mkdtemp(path.join(os.tmpdir(), "portcove-coordinator-state-"));
@@ -107,6 +282,190 @@ async function fixture(t: test.TestContext) {
   };
   return { repository, git, input, initial, prepared };
 }
+
+void test("remote checkpoint exports exact Git objects, atomically persists receipts, and repeats without writes", async (t) => {
+  const f = await remoteFixture(t);
+  // Exercise the real bounded API adapter and its JSON stdin contract without
+  // invoking gh, resolving credentials, or making a network request.
+  const api = new GitHubApiClient(
+    createGitHubRunner({
+      cwd: f.bare,
+      spawn: (command, args, options) => {
+        assert.equal(command, "gh");
+        assert.equal(options.timeout, 15_000);
+        assert.equal(options.windowsHide, true);
+        let response: unknown;
+        let status: number;
+        if (options.input !== undefined) assert.equal(typeof options.input, "string");
+        const input: unknown =
+          options.input === undefined ? null : JSON.parse(options.input as string);
+        if (args[1] === "graphql") {
+          assert.deepEqual(args, ["api", "graphql", "--include", "--input", "-"]);
+          assert.ok(
+            isRecord(input) && typeof input.query === "string" && isRecord(input.variables),
+          );
+          response = f.api.graphql(input.query, input.variables);
+          status = 200;
+        } else {
+          const method = args[args.indexOf("--method") + 1];
+          assert.ok(method);
+          const result = f.api.request(method, args[2]!, input);
+          response = result.body;
+          status = result.status!;
+        }
+        return {
+          status: 0,
+          stdout: `HTTP/2.0 ${status} Fixture\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(response)}`,
+          stderr: "",
+        };
+      },
+    }),
+  );
+  await assert.rejects(
+    exportCoordinatorCheckpoint(f.repository, f.saved.checkpoint),
+    /bare coordinator/u,
+  );
+  assert.equal(f.checkpoint.commit.oid, f.saved.checkpoint);
+  assert.equal(gitObject("blob", Buffer.from(f.checkpoint.blob.contents)), f.checkpoint.blob.oid);
+  const result = await publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, {
+    api,
+  });
+  assert.equal(result.changed, true);
+  assert.equal(result.recovered, false);
+  assert.equal(result.updates.length, 3);
+  assert.deepEqual(f.counts(), { posts: 3, mutations: 1, snapshots: 2 });
+  assert.equal(f.refs.get(f.stateRef), f.saved.checkpoint);
+  const again = await publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, {
+    api,
+  });
+  assert.equal(again.changed, false);
+  assert.deepEqual(f.counts(), { posts: 3, mutations: 1, snapshots: 3 });
+  assert.equal(f.git("rev-parse", coordinatorStateRef), f.saved.checkpoint);
+  // Existing receipts are compared even though their values do not change.
+  f.input.active_candidate!.phase = "qualifying";
+  const advanced = await checkpointReleaseOpportunity(f.bare, f.saved.checkpoint, f.input);
+  const next = await publishCoordinatorCheckpoint(f.bare, advanced.checkpoint, f.config, {
+    api,
+  });
+  assert.equal(next.updates.length, 3);
+  assert.ok(next.updates.slice(1).every((ref) => ref.beforeOid === ref.afterOid));
+});
+
+for (const mode of ["before", "after", "concurrent", "readback"]) {
+  void test(`remote checkpoint preserves ambiguous CAS outcome ${mode} without automatic retry`, async (t) => {
+    const f = await remoteFixture(t);
+    if (mode === "readback") f.faults.snapshot = "after";
+    else f.faults.mutation = mode;
+    if (mode === "after") {
+      const result = await publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, {
+        api: f.api,
+      });
+      assert.equal(result.recovered, true);
+      assert.equal(f.refs.get(f.stateRef), f.saved.checkpoint);
+    } else {
+      await assert.rejects(
+        publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, { api: f.api }),
+        (error: unknown) => {
+          assert.ok(error instanceof CoordinatorRemoteError);
+          assert.ok(isRecord(error.evidence));
+          if (mode === "before") assert.equal(error.evidence.observation, "observed-before");
+          if (mode === "concurrent")
+            assert.equal(error.evidence.observation, "unknown-or-concurrent");
+          if (mode === "readback") assert.ok(error.evidence.readbackError);
+          return true;
+        },
+      );
+    }
+    assert.equal(f.counts().mutations, 1);
+    assert.equal(f.counts().snapshots, 2);
+    assert.equal(f.git("rev-parse", coordinatorStateRef), f.saved.checkpoint);
+  });
+}
+
+for (const mode of [
+  "object-missing",
+  "commit-parent",
+  "mixed",
+  "incomplete",
+  "repository",
+  "tag",
+  "zero",
+  "blobs",
+  "trees",
+  "commits",
+]) {
+  void test(`remote checkpoint refuses ${mode} before CAS`, async (t) => {
+    const f = await remoteFixture(t);
+    if (mode === "object-missing") f.commits.clear();
+    else if (mode === "commit-parent")
+      f.commits.get(f.prepared.prepared_commit)!.parents = [{ sha: "f".repeat(40) }];
+    else if (mode === "mixed") f.refs.set(f.stateRef, f.saved.checkpoint);
+    else if (["incomplete", "repository", "tag", "zero"].includes(mode)) f.faults.snapshot = mode;
+    else f.faults.object = mode;
+    await assert.rejects(
+      publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, { api: f.api }),
+    );
+    assert.equal(f.counts().mutations, 0);
+    if (!["blobs", "trees", "commits"].includes(mode)) assert.equal(f.counts().posts, 0);
+    assert.equal(f.git("rev-parse", coordinatorStateRef), f.saved.checkpoint);
+  });
+}
+
+void test("remote checkpoint requires explicit configuration, transport, bare ownership and initialized history before provider calls", async (t) => {
+  const f = await remoteFixture(t);
+  await assert.rejects(
+    publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config),
+    /unconfigured/u,
+  );
+  for (const config of [
+    null,
+    { ...f.config, namespace: "main" },
+    { ...f.config, repository: "other/repo" },
+  ])
+    await assert.rejects(
+      publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, config, { api: f.api }),
+      /configuration/u,
+    );
+  await assert.rejects(
+    publishCoordinatorCheckpoint(f.repository, f.saved.checkpoint, f.config, { api: f.api }),
+    /bare coordinator/u,
+  );
+  execFileSync("git", ["-C", f.bare, "update-ref", coordinatorStateRef, f.initial.checkpoint]);
+  await assert.rejects(
+    publishCoordinatorCheckpoint(f.bare, f.initial.checkpoint, f.config, { api: f.api }),
+    /initialized previous/u,
+  );
+  assert.deepEqual(f.counts(), { posts: 0, mutations: 0, snapshots: 0 });
+  assert.equal(f.requests(), 0);
+});
+
+void test("checkpoint rejects physical trailing whitespace and invalid UTF-8 without normalizing history", async (t) => {
+  const f = await fixture(t);
+  const original = execFileSync("git", [
+    "-C",
+    f.repository,
+    "cat-file",
+    "blob",
+    `${f.initial.checkpoint}:state.json`,
+  ]);
+  for (const suffix of [Buffer.from("\n"), Buffer.from("\t"), Buffer.from([0xff])]) {
+    const blob = execFileSync("git", ["-C", f.repository, "hash-object", "-w", "--stdin"], {
+      input: Buffer.concat([original, suffix]),
+      encoding: "utf8",
+    }).trim();
+    const tree = execFileSync("git", ["-C", f.repository, "mktree"], {
+      input: `100644 blob ${blob}\tstate.json\n`,
+      encoding: "utf8",
+    }).trim();
+    const commit = execFileSync("git", ["-C", f.repository, "commit-tree", tree], {
+      input: "physical bytes fixture\n",
+      encoding: "utf8",
+    }).trim();
+    f.git("update-ref", coordinatorStateRef, commit);
+    await assert.rejects(recoverReleaseOpportunity(f.repository, commit), /canonical|UTF-8/u);
+    assert.equal(f.git("rev-parse", coordinatorStateRef), commit);
+  }
+});
 
 void test("checkpoint recovers exact prepared candidate and parent history without touching index or branch", async (t) => {
   const { repository, git, input, initial } = await fixture(t);
