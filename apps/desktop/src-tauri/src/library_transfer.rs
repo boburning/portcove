@@ -199,6 +199,47 @@ mod tests {
     use super::*;
     use crate::{bootstrap_status, service};
     use std::fs;
+    #[test]
+    fn pending_auth_status_observation_does_not_retain_library_handoff_lease() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let destination = temporary.path().join("destination");
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(initialize_desktop_at(
+                Some(source.clone()),
+            ))),
+            preferences: portcove_core::HostPreferenceStore::new(
+                temporary.path().join("preferences.json"),
+            )
+            .map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        let plan = service(&state)
+            .unwrap()
+            .plan_library_move(&destination)
+            .unwrap();
+        // The actual command seam must own only HTTP observation inputs while
+        // suspended. Its future remains live across the real exclusive handoff.
+        let pending = crate::github_status_observation(&state).unwrap();
+        let moved = transfer_desktop_library(
+            &state,
+            None,
+            |root| PortcoveService::move_library(root, &destination, &plan.plan_sha256),
+            |result| result.active_root.clone(),
+        )
+        .expect("pending authentication status must not keep the old library in use");
+        assert!(moved.completed);
+        assert_eq!(bootstrap_status(&state).generation, 2);
+        assert_eq!(
+            bootstrap_status(&state).library_root.unwrap(),
+            fs::canonicalize(destination).unwrap()
+        );
+        drop(pending);
+        assert_eq!(bootstrap_status(&state).generation, 2);
+        assert!(crate::service_at_generation(&state, 1).is_err());
+    }
+
     #[tokio::test(flavor = "current_thread")]
     async fn desktop_library_handoff_drops_cached_leases_and_reopens_the_verified_destination() {
         let temporary = tempfile::tempdir().unwrap();

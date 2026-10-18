@@ -18,6 +18,7 @@ import {
   baselineTestEnvironment,
   baselineSelection,
   baselineRequiresPython,
+  baselineRequiresRust,
 } from "./ci-baseline.mts";
 const make = (files: string[]) =>
   buildValidationPlan({
@@ -34,6 +35,20 @@ const make = (files: string[]) =>
     head: "b".repeat(40),
     checkout: "b".repeat(40),
   });
+
+void test("storage metadata contracts provision pinned Rust for direct and indirect selection", () => {
+  for (const file of [
+    "scripts/dev-storage.mts",
+    "scripts/dev-storage.test.mts",
+    "justfile",
+    "package.json",
+  ]) {
+    const plan = make([file]);
+    assert.ok(baselineContractTests(plan).includes("scripts/dev-storage.test.mts"));
+    assert.equal(baselineRequiresRust(plan), true);
+  }
+  assert.equal(baselineRequiresRust(make(["docs/README.md"])), false);
+});
 
 void test("local and hosted lint use one full stage for relevant inputs, including rename and deletion", () => {
   for (const file of [

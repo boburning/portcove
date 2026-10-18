@@ -46,6 +46,9 @@ function fixture() {
   writeFileSync(path.join(cwd, "sample.js"), "export const value = 1;\n");
   writeFileSync(path.join(cwd, ".gitignore"), ".vite-hooks/_/\n");
   mkdirSync(path.join(cwd, ".vite-hooks"));
+  mkdirSync(path.join(cwd, "scripts"));
+  for (const name of ["node-test-inventory.mts", "runtime-values.mts"])
+    writeFileSync(path.join(cwd, "scripts", name), readFileSync(path.join(root, "scripts", name)));
   writeFileSync(
     path.join(cwd, ".vite-hooks/pre-commit"),
     readFileSync(path.join(root, ".vite-hooks/pre-commit")),
@@ -82,6 +85,28 @@ void test("a failed staged command restores the index and working changes", () =
   assert.notEqual(result.status, 0);
   assert.equal(git(cwd, "diff"), before);
   assert.equal(git(cwd, "show", ":sample.js"), index);
+});
+
+void test("the real hook rejects an unstaged-only test registration without changing either tree", () => {
+  const cwd = fixture();
+  configureHooks(cwd, "enable", env);
+  mkdirSync(path.join(cwd, ".github/workflows"), { recursive: true });
+  writeFileSync(path.join(cwd, ".github/workflows/ci.yml"), "scripts/new.test.mts\n");
+  writeFileSync(path.join(cwd, "justfile"), "scripts/new.test.mts\n");
+  writeFileSync(path.join(cwd, "scripts/run-windows-qualification.ps1"), "");
+  writeFileSync(path.join(cwd, "scripts/new.test.mts"), "// newly staged test\n");
+  git(cwd, "add", "scripts/new.test.mts");
+  const beforeIndex = git(cwd, "diff", "--cached");
+  const beforeWorktree = git(cwd, "status", "--porcelain");
+  const result = run(cwd, "git", ["commit", "-qm", "must fail"], false);
+  assert.notEqual(result.status, 0);
+  assert.match(`${result.stdout}\n${result.stderr}`, /Cannot inspect staged Node inventory/);
+  assert.equal(git(cwd, "diff", "--cached"), beforeIndex);
+  assert.equal(git(cwd, "status", "--porcelain"), beforeWorktree);
+  assert.equal(
+    readFileSync(path.join(cwd, "scripts/new.test.mts"), "utf8"),
+    "// newly staged test\n",
+  );
 });
 
 void test("supported hooks work from a linked worktree and noninteractive Git client", () => {

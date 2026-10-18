@@ -14,6 +14,8 @@ import {
   resolvePhysicalPath,
 } from "./dev-storage.mts";
 import { loadQualityManifest } from "./quality-tools.mts";
+import type { QualityTool } from "./quality-tools.mts";
+import type { ToolCachePaths } from "./tool-cache.mts";
 import {
   cachedDesktopDrivers,
   checkoutToolEnvironment,
@@ -211,6 +213,31 @@ export function pnpmDefinition(version: string): ToolDefinition {
     version,
     command: ["pnpm", "--version"],
     remediation: "provide the repository-pinned pnpm on PATH; Corepack is optional",
+  };
+}
+
+export function cachedRustDefinition(
+  definition: QualityTool,
+  cachePaths: Pick<ToolCachePaths, "cargoRoot">,
+  platform = process.platform,
+): ToolDefinition {
+  const binary = definition.id === "rscheck-cli" ? "rscheck" : definition.crate;
+  // Windows executable lookup can prefer an ambient .exe over a preceding .cmd shim.
+  // Probe the bootstrap-owned versioned payload directly, and fail if it is absent.
+  const command =
+    platform === "win32"
+      ? path.join(
+          cachePaths.cargoRoot,
+          definition.crate,
+          definition.version,
+          "bin",
+          `${binary}.exe`,
+        )
+      : binary;
+  return {
+    ...definition,
+    command: [command, "--version"],
+    remediation: "./scripts/bootstrap-quality-tools.ps1",
   };
 }
 
@@ -706,8 +733,10 @@ export async function collectDoctor(options: DoctorOptions = {}): Promise<Doctor
     return collectProfileDoctor(profile, options);
   if (!["standard", "desktop"].includes(profile))
     throw new Error(`unknown doctor profile: ${profile}`);
-  const cachePaths = toolCachePaths();
-  const environment = checkoutToolEnvironment(process.env, { paths: cachePaths });
+  const cachePaths = toolCachePaths({ environment: options.environment ?? process.env });
+  const environment = checkoutToolEnvironment(options.environment ?? process.env, {
+    paths: cachePaths,
+  });
   const toolState = readToolState({ paths: cachePaths });
   const manifest = await loadQualityManifest();
   const bootstrapManifest = cachePaths.pins.bootstrap;
@@ -757,11 +786,7 @@ export async function collectDoctor(options: DoctorOptions = {}): Promise<Doctor
           applicable: false,
           required: false,
         },
-    ...requiredRustDefinitions.map((definition): ToolDefinition => ({
-      ...definition,
-      command: [definition.id === "rscheck-cli" ? "rscheck" : definition.crate, "--version"],
-      remediation: "./scripts/bootstrap-quality-tools.ps1",
-    })),
+    ...requiredRustDefinitions.map((definition) => cachedRustDefinition(definition, cachePaths)),
   ];
   const tools: DoctorReport["tools"] = definitions.map((definition) =>
     definition.applicable === false

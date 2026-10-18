@@ -26,6 +26,8 @@ import {
 import { acquireNativeSessionLock } from "./native-session-lock.mts";
 import { cachedDesktopDrivers, readToolPins } from "./tool-cache.mts";
 import { frontendCommandPlan, probeFrontendCommand } from "./frontend-command-preflight.mts";
+import { resourceEntrypoint } from "./resource-command.mts";
+import { frontendOutputResource } from "./resource-capacity.mts";
 import {
   createFrontendBuildIdentity,
   observeFrontendBuild,
@@ -63,6 +65,46 @@ export function desktopBuildEnvironment(
   if (planDesktopExecution(selection).fixtures.designCompatibility)
     result.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE = "1";
   return result;
+}
+
+export function desktopVerificationOutputResources(
+  paths: Pick<StoragePaths, "workspace" | "target_directory">,
+) {
+  if (!paths.target_directory)
+    throw new Error("Desktop verification requires resolved Rust target storage");
+  return [...new Set([paths.workspace, paths.target_directory].map(frontendOutputResource))];
+}
+
+export function checkpointTestNames(listing: string) {
+  const names = [...listing.matchAll(/^(qualification_checkpoint::tests::\S+): test\r?$/gmu)].map(
+    (match) => match[1] ?? "",
+  );
+  const total = listing.match(/^(\d+) tests?, (\d+) benchmarks?\r?$/mu);
+  if (
+    !names.length ||
+    new Set(names).size !== names.length ||
+    Number(total?.[1]) !== names.length ||
+    Number(total?.[2]) !== 0
+  )
+    throw new Error("Checkpoint feature test inventory is empty, incomplete or duplicated");
+  return names;
+}
+
+export function requireCheckpointTestExecution(names: readonly string[], output: string) {
+  const passed = [
+    ...output.matchAll(/^test (qualification_checkpoint::tests::\S+) \.\.\. ok\r?$/gmu),
+  ].map((match) => match[1] ?? "");
+  const summary = output.match(
+    /^test result: ok\. (\d+) passed; 0 failed; 0 ignored; 0 measured;/mu,
+  );
+  if (
+    !names.length ||
+    new Set(passed).size !== passed.length ||
+    Number(summary?.[1]) !== names.length ||
+    passed.length !== names.length ||
+    names.some((name) => !passed.includes(name))
+  )
+    throw new Error("Checkpoint feature tests did not execute their complete selected inventory");
 }
 
 export function parseDesktopVerifyArgs(args: string[]) {
@@ -180,6 +222,7 @@ export function buildDesktopVerifyPlan<Source extends { revision: string }, Pack
     host_resources: selection.host_resources,
     cli_features: execution.build.cliFeatures,
     qualification_features: execution.build.qualificationFeatures,
+    required_output_resources: desktopVerificationOutputResources({ workspace: root, ...paths }),
     source,
     workspace_packages: packages,
     frontend_command: frontendCommand,
@@ -200,9 +243,12 @@ export function buildDesktopVerifyPlan<Source extends { revision: string }, Pack
     },
     phases: [
       "workspace-package-preflight",
-      "frontend-command-preflight",
       "desktop-doctor",
+      "frontend-command-preflight",
       ...(ownedFixture ? ["scenario-context-preflight"] : []),
+      ...(execution.build.qualificationFeatures.includes("qualification-fixtures")
+        ? ["checkpoint-feature-inventory", "checkpoint-feature-tests"]
+        : []),
       "frontend-build",
       "desktop-build",
       ...(ownedFixture ? ["cli-build", "owned-probe-build"] : []),
@@ -316,6 +362,7 @@ async function executePhase({
     `${JSON.stringify({ ...timing, command: [command, ...args] })}\n${result.stdout ?? ""}${result.stderr ?? ""}`,
   );
   if (result.status !== 0) throw new Error(`${id} failed with exit code ${result.status}`);
+  return result.stdout ?? "";
 }
 
 export async function acquireDesktopVerifySession<
@@ -430,17 +477,10 @@ async function runVerification(
   await writeFile(runPlanPath, `${JSON.stringify(plan, null, 2)}\n`, { flag: "wx" });
   let lock;
   try {
-    const prerequisite = await acquireDesktopVerifySession({
-      runDirectory,
-      environment,
-      selection,
-      timings,
-    });
-    lock = prerequisite.lock;
     const doctorStarted = new Date();
-    const doctor = await collectDoctor({ profile: "desktop" });
+    const doctor = await collectDoctor({ profile: "desktop", environment });
     const doctorFinished = new Date();
-    timings.unshift({
+    timings.push({
       phase: "desktop-doctor",
       started_at: doctorStarted.toISOString(),
       finished_at: doctorFinished.toISOString(),
@@ -465,6 +505,14 @@ async function runVerification(
     if (!drivers)
       throw new Error(`Desktop drivers are unavailable; remedy ${plan.drivers.remediation}`);
 
+    const prerequisite = await acquireDesktopVerifySession({
+      runDirectory,
+      environment,
+      selection,
+      timings,
+    });
+    lock = prerequisite.lock;
+
     const phase = (id: string, command: string, args: string[]) =>
       executePhase({ id, command, args, cwd: root, environment, log, timings });
     if (selection.prerequisites.includes("owned-fixture"))
@@ -472,6 +520,33 @@ async function runVerification(
         "apps/desktop/scripts/desktop-preparation-test.mts",
         "--context-preflight",
       ]);
+    if (plan.qualification_features.includes("qualification-fixtures")) {
+      const args = [
+        "test",
+        "--locked",
+        "-p",
+        "portcove-core",
+        "--lib",
+        "--features",
+        "qualification-fixtures",
+        "qualification_checkpoint::tests",
+        "--",
+      ];
+      const listing = await phase("checkpoint-feature-inventory", "cargo", [
+        ...args,
+        "--list",
+        "--color",
+        "never",
+      ]);
+      const names = checkpointTestNames(listing);
+      const output = await phase("checkpoint-feature-tests", "cargo", [
+        ...args,
+        "--test-threads=1",
+        "--color",
+        "never",
+      ]);
+      requireCheckpointTestExecution(names, output);
+    }
     const frontendIdentity = await createFrontendBuildIdentity({
       root,
       packageManager: pins.packageManager,
@@ -659,12 +734,28 @@ export async function main(args = process.argv.slice(2)) {
     scenarios: options.scenarios,
     reloadCycles: options.reloadCycles,
   });
-  return runVerification(options, selection);
+  if (options.plan) return runVerification(options, selection);
+  const paths = getPaths();
+  return resourceEntrypoint(
+    "browser",
+    async () => {
+      await runVerification(options, selection);
+      return 0;
+    },
+    {
+      environment: desktopBuildEnvironment(childEnvironment(paths), selection),
+      exclusive: desktopVerificationOutputResources(paths),
+    },
+  );
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  main().catch((error) => {
-    console.error(`desktop-verify: ${errorMessage(error)}`);
-    process.exitCode = 1;
-  });
+  main()
+    .then((status) => {
+      if (typeof status === "number") process.exitCode = status;
+    })
+    .catch((error) => {
+      console.error(`desktop-verify: ${errorMessage(error)}`);
+      process.exitCode = 1;
+    });
 }

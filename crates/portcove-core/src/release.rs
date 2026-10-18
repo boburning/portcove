@@ -659,7 +659,9 @@ impl GithubReleaseProvider {
         );
     }
 
-    pub async fn auth_status(&self) -> Result<GithubAuthStatus> {
+    pub fn auth_status(
+        &self,
+    ) -> impl std::future::Future<Output = Result<GithubAuthStatus>> + Send + 'static + use<> {
         let source = self.credential_source();
         let authenticated = self.active_token().is_some();
         let url = if authenticated {
@@ -667,41 +669,46 @@ impl GithubReleaseProvider {
         } else {
             format!("{}/rate_limit", self.api_root)
         };
-        let response = self
-            .request(&url)
-            .send()
-            .await
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
-        let status = response.status();
-        let rate_limit = rate_limit_from_headers(response.headers());
-        if status == StatusCode::UNAUTHORIZED && authenticated {
-            return Ok(GithubAuthStatus {
+        // Authentication observation needs no library/cache authority. Capture
+        // only the request and response facts, so a pending network read cannot
+        // retain the provider's library lease across a desktop handoff.
+        let request = self.request(&url);
+        async move {
+            let response = request
+                .send()
+                .await
+                .map_err(|error| PortcoveError::network(error.to_string()))?;
+            let status = response.status();
+            let rate_limit = rate_limit_from_headers(response.headers());
+            if status == StatusCode::UNAUTHORIZED && authenticated {
+                return Ok(GithubAuthStatus {
+                    source,
+                    authenticated: false,
+                    login: None,
+                    rate_limit,
+                    device_login_available: github_client_id().is_some(),
+                });
+            }
+            if !status.is_success() {
+                return Err(github_http_error(status, response.headers()));
+            }
+            let login = if authenticated {
+                Some(
+                    parse_bounded_json::<GithubUser>(response, "GitHub user response")
+                        .await?
+                        .login,
+                )
+            } else {
+                None
+            };
+            Ok(GithubAuthStatus {
                 source,
-                authenticated: false,
-                login: None,
+                authenticated,
+                login,
                 rate_limit,
                 device_login_available: github_client_id().is_some(),
-            });
+            })
         }
-        if !status.is_success() {
-            return Err(github_http_error(status, response.headers()));
-        }
-        let login = if authenticated {
-            Some(
-                parse_bounded_json::<GithubUser>(response, "GitHub user response")
-                    .await?
-                    .login,
-            )
-        } else {
-            None
-        };
-        Ok(GithubAuthStatus {
-            source,
-            authenticated,
-            login,
-            rate_limit,
-            device_login_available: github_client_id().is_some(),
-        })
     }
 
     pub async fn store_personal_token(&self, token: &str) -> Result<GithubAuthStatus> {
@@ -1678,6 +1685,63 @@ fn is_sha256(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn pending_auth_status_http_observation_releases_library_lease() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let (entered, observed) = tokio::sync::oneshot::channel();
+        let (release, resume) = std::sync::mpsc::channel();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                .unwrap();
+            let mut request = [0; 4096];
+            assert!(std::io::Read::read(&mut stream, &mut request).unwrap() > 0);
+            entered.send(()).unwrap();
+            resume
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+            std::io::Write::write_all(
+                &mut stream,
+                b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}",
+            )
+            .unwrap();
+        });
+        let provider = GithubReleaseProvider::build_with_credential(
+            Some(library.clone()),
+            &origin,
+            &origin,
+            PROVIDER_NETWORK_BOUNDS,
+            Some(GithubCredential {
+                token: None,
+                source: GithubAuthSource::Anonymous,
+                intent: 0,
+            }),
+            true,
+        )
+        .unwrap();
+        let pending = provider.auth_status();
+        drop(provider);
+        drop(library);
+        let observation = tokio::spawn(pending);
+        tokio::time::timeout(std::time::Duration::from_secs(5), observed)
+            .await
+            .unwrap()
+            .unwrap();
+        let exclusive = crate::library_access::LibraryLease::with_access(
+            temporary.path(),
+            crate::library_access::LibraryAccess::Exclusive,
+        )
+        .expect("an in-flight auth HTTP observation must not retain a library lease");
+        drop(exclusive);
+        release.send(()).unwrap();
+        assert!(!observation.await.unwrap().unwrap().authenticated);
+        server.join().unwrap();
+    }
 
     #[test]
     fn beta_selection_falls_back_only_to_a_selectable_stable_release() {

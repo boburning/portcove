@@ -1343,6 +1343,26 @@ cannot substitute for this command.
 executing Vite+, installing packages or acquiring a lease. An inherited caller
 lease remains the caller's responsibility.
 
+Direct desktop verification resolves the checkout and Cargo target output keys
+together before build admission. Nested Rust/browser phases validate the inherited
+reservation; an outer caller that reserved only one output is refused rather than
+upgraded. Physical aliases share one key. Doctor and build/harness commands use
+the same checkout tool environment, and doctor runs before the native-session
+lease. Missing prerequisites retain diagnostics and the normal explicit bootstrap
+remedy; verification does not provision tools. Help, scenario listing and planning
+do not acquire capacity or a native lease.
+
+Native plans selecting `qualification-fixtures` list and run the existing Core
+checkpoint tests before frontend and application builds. The selected inventory
+must be nonempty, unique and fully executed without skips. This is scoped native
+feedback, not a new qualification requirement for ordinary changes.
+
+The optional Vite+ pre-commit hook also checks Node-test registration when relevant
+tests or inventory inputs are staged. It uses the same coverage assertion as CI,
+reading the Git index so unstaged workflow/recipe edits cannot conceal an
+incomplete commit. It does not modify either tree; the normal Vite+ staged
+formatting and partial-staging behavior follows only after that check succeeds.
+
 Native helper dependencies are declared in
 `scripts/native-helper-dependencies.mts`. Literal PowerShell dot-source imports
 and wrapper imports are checked against the declaration (using the Windows
