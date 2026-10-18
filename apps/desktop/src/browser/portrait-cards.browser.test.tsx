@@ -160,6 +160,18 @@ it.each([
     await page.screenshot({
       path: `../../../../outputs/slice5-cards/after-${view}-${theme}-${width}-bottom.png`,
     });
+    await page.screenshot({
+      element: fallback,
+      path: `../../../../outputs/slice5-cards/missing-art-${view}-${theme}-${width}.png`,
+    });
+    await page.screenshot({
+      element: fallback.nextElementSibling!,
+      path: `../../../../outputs/slice5-cards/missing-details-${view}-${theme}-${width}.png`,
+    });
+    await page.screenshot({
+      element: document.querySelector(".card-content")!,
+      path: `../../../../outputs/slice5-cards/ready-details-${view}-${theme}-${width}.png`,
+    });
     await screen.unmount();
   }
 });
@@ -203,5 +215,18 @@ it.each(["library", "catalog"] as const)(
       .scrollIntoView();
     expect(window.scrollY).toBeGreaterThan(640);
     await page.screenshot({ path: `../../../../outputs/slice5-cards/expanded-${view}-960.png` });
+    await page.screenshot({
+      element: frames[99]!.nextElementSibling!,
+      path: `../../../../outputs/slice5-cards/expanded-${view}-960-metadata.png`,
+    });
+    const metadata = frames[99]!.nextElementSibling!;
+    await page.screenshot({
+      element: metadata.querySelector("h2")!,
+      path: `../../../../outputs/slice5-cards/expanded-${view}-960-title.png`,
+    });
+    await page.screenshot({
+      element: metadata.lastElementChild!,
+      path: `../../../../outputs/slice5-cards/expanded-${view}-960-actions.png`,
+    });
   },
 );
