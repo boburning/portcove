@@ -1,0 +1,400 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFile, readdir } from "node:fs/promises";
+import path from "node:path";
+import test from "node:test";
+import { assemblerIdentityFixture, expected } from "./fixtures/assembler-identity-fixture.mts";
+import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import { assembleTrustedRelease } from "./trusted-release-assembly.mts";
+import {
+  prepareAggregateAttestation,
+  verifyAggregateAttestation,
+  aggregatePredicateType,
+} from "./trusted-aggregate-attestation.mts";
+import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
+
+const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+async function fixture(t: test.TestContext) {
+  const f = await trustedAssemblyFixture(t);
+  const aggregate = await assembleTrustedRelease(f.root, f.input, f.request);
+  const entries = await Promise.all(
+    aggregate.output_files.map(
+      async (file) =>
+        [
+          file.filename,
+          await readFile(path.join(aggregate.assets, file.filename)),
+          { descriptor: true },
+        ] as const,
+    ),
+  );
+  const archive = createAuditZip(entries);
+  const upload = { artifact_id: 99, sha256: hash(archive) };
+  const identity = assemblerIdentityFixture();
+  const state = { drift: false, reads: 0, payload: archive };
+  const metadata = () => ({
+    id: 99,
+    name: `trusted-release-final-${expected.run_id}-${expected.run_attempt}`,
+    size_in_bytes: state.payload.length,
+    digest: `sha256:${state.drift && state.reads > 1 ? "0".repeat(64) : hash(state.payload)}`,
+    expired: false,
+    created_at: "2026-10-18T00:00:00Z",
+    expires_at: null,
+    workflow_run: {
+      id: Number(expected.run_id),
+      repository_id: 1354613114,
+      head_repository_id: 1354613114,
+      head_sha: expected.controller_revision,
+    },
+  });
+  const options = {
+    cwd: f.root,
+    identity,
+    download: () => state.payload,
+    spawn: (
+      _command: string,
+      args: readonly string[],
+      settings: SpawnSyncOptionsWithStringEncoding,
+    ) => {
+      state.reads++;
+      assert.deepEqual(args, [
+        "api",
+        "repos/boburning/portcove/actions/artifacts/99",
+        "--include",
+        "--method",
+        "GET",
+        "--hostname",
+        "github.com",
+      ]);
+      assert.equal(settings.maxBuffer, 128 * 1024);
+      assert.equal(settings.timeout, 15000);
+      return {
+        status: 0,
+        stdout: `HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(metadata())}`,
+        stderr: "",
+      };
+    },
+  };
+  return { ...f, aggregate, archive, entries, upload, identity, state, options };
+}
+
+void test("new opaque aggregate members bind fresh signed own-job identity without accepting a supplied identity receipt", async (t) => {
+  const f = await fixture(t);
+  const result = await prepareAggregateAttestation(
+    f.identity.token,
+    expected,
+    f.request,
+    [1, 2, 3, 4],
+    f.upload,
+    f.options,
+  );
+  assert.equal(result.predicate_type, aggregatePredicateType);
+  assert.equal(result.subject_digest, `sha256:${f.upload.sha256}`);
+  assert.equal(result.predicate.assembler.job_id, 501);
+  assert.equal(result.predicate.assembler.check_run_id, "777");
+  assert.equal(result.predicate.evidence_scope, "injected-provider");
+  assert.equal(result.authority, "none");
+  assert.equal(result.predicate.original_compiler, null);
+  assert.equal(result.predicate.release_authorization, "not-evaluated");
+  assert.equal(JSON.stringify(result).includes(f.identity.token), false);
+  assert.deepEqual(f.identity.counts(), { requests: 5, keyReads: 1 });
+  assert.equal(f.state.reads, 2);
+  assert.deepEqual(
+    result.predicate.output_files,
+    f.aggregate.output_files.sort((a, b) => a.filename.localeCompare(b.filename)),
+  );
+});
+
+void test("old artifact IDs, wrong member bytes, forged identity and provider drift cannot form an accepted aggregate binding", async (t) => {
+  const f = await fixture(t);
+  await assert.rejects(
+    prepareAggregateAttestation(
+      f.identity.token,
+      expected,
+      f.request,
+      [1, 2, 3, 99],
+      f.upload,
+      f.options,
+    ),
+    /new artifact/u,
+  );
+  assert.equal(f.state.reads, 0);
+  const changed = createAuditZip(
+    f.entries.map(([name, bytes, opts], i) => [
+      name,
+      i ? bytes : Buffer.alloc(bytes.length, 120),
+      opts,
+    ]),
+  );
+  f.state.payload = changed;
+  await assert.rejects(
+    prepareAggregateAttestation(
+      f.identity.token,
+      expected,
+      f.request,
+      [1, 2, 3, 4],
+      { artifact_id: 99, sha256: hash(changed) },
+      f.options,
+    ),
+    /member bytes differ/u,
+  );
+  f.state.payload = f.archive;
+  const sameIdentityWrongBytes = {
+    ...f.options,
+    download: () => {
+      const copy = Buffer.from(f.archive);
+      copy[40]! ^= 1;
+      return copy;
+    },
+  };
+  await assert.rejects(
+    prepareAggregateAttestation(
+      f.identity.token,
+      expected,
+      f.request,
+      [1, 2, 3, 4],
+      f.upload,
+      sameIdentityWrongBytes,
+    ),
+    /digest differs/u,
+  );
+  await assert.rejects(
+    prepareAggregateAttestation("forged", expected, f.request, [1, 2, 3, 4], f.upload, f.options),
+  );
+  f.state.reads = 0;
+  f.state.drift = true;
+  await assert.rejects(
+    prepareAggregateAttestation(
+      f.identity.token,
+      expected,
+      f.request,
+      [1, 2, 3, 4],
+      f.upload,
+      f.options,
+    ),
+    /provider identity differs|changed during binding/u,
+  );
+});
+
+async function verificationFixture(t: test.TestContext) {
+  const f = await fixture(t);
+  const prepared = await prepareAggregateAttestation(
+    f.identity.token,
+    expected,
+    f.request,
+    [1, 2, 3, 4],
+    f.upload,
+    f.options,
+  );
+  // Synthetic successful CLI boundary, never cryptographic/production evidence.
+  const predicate = { ...prepared.predicate, evidence_scope: "github.com" };
+  const workflowUri = `https://github.com/boburning/portcove/${productionControllerWorkflow}@${expected.controller_ref}`;
+  const certificate = {
+    issuer: "https://token.actions.githubusercontent.com",
+    sourceRepositoryIdentifier: "1354613114",
+    sourceRepositoryURI: "https://github.com/boburning/portcove",
+    buildSignerURI: workflowUri,
+    buildSignerDigest: expected.controller_revision,
+    sourceRepositoryDigest: expected.controller_revision,
+    sourceRepositoryRef: expected.controller_ref,
+    runnerEnvironment: "github-hosted",
+    runInvocationURI: `https://github.com/boburning/portcove/actions/runs/${expected.run_id}/attempts/${expected.run_attempt}`,
+  };
+  const value = [
+    {
+      verificationResult: {
+        signature: { certificate },
+        verifiedTimestamps: [{ timestamp: "synthetic" }],
+        statement: {
+          _type: "https://in-toto.io/Statement/v1",
+          predicateType: aggregatePredicateType,
+          subject: [{ name: prepared.subject_name, digest: { sha256: f.upload.sha256 } }],
+          predicate,
+        },
+      },
+    },
+  ];
+  const verificationExpected = {
+    controller_revision: expected.controller_revision,
+    controller_ref: expected.controller_ref,
+    run_id: expected.run_id,
+    run_attempt: expected.run_attempt,
+    artifact_id: 99,
+    sha256: f.upload.sha256,
+    bytes: f.archive.length,
+    candidate: f.request,
+    candidate_artifact_ids: [1, 2, 3, 4],
+  };
+  const calls: readonly string[][] = [];
+  const spawn = (
+    _command: string,
+    args: readonly string[],
+    settings: SpawnSyncOptionsWithStringEncoding,
+  ) => {
+    (calls as string[][]).push([...args]);
+    assert.equal(settings.timeout, 30000);
+    assert.equal(settings.maxBuffer, 1024 * 1024);
+    for (const [flag, wanted] of [
+      ["--signer-digest", expected.controller_revision],
+      ["--source-digest", expected.controller_revision],
+      ["--source-ref", expected.controller_ref],
+      ["--predicate-type", aggregatePredicateType],
+    ])
+      assert.equal(args[args.indexOf(flag!) + 1], wanted);
+    assert.ok(args.includes("--bundle") && args.includes("--deny-self-hosted-runners"));
+    return { status: 0, stdout: JSON.stringify(value), stderr: "" };
+  };
+  return { ...f, value, verificationExpected, calls, spawn };
+}
+
+void test("missing or changed aggregate checksum manifest and excess member length refuse before identity verification", async (t) => {
+  const f = await fixture(t);
+  const cases = [
+    createAuditZip(f.entries.filter(([name]) => name !== "SHA256SUMS.txt")),
+    createAuditZip(
+      f.entries.map(([name, bytes, opts]) => [
+        name,
+        name === "SHA256SUMS.txt" ? Buffer.alloc(bytes.length, 48) : bytes,
+        opts,
+      ]),
+    ),
+    createAuditZip(
+      f.entries.map(([name, bytes, opts], i) => [
+        name,
+        i ? bytes : Buffer.concat([bytes, Buffer.from("excess")]),
+        opts,
+      ]),
+    ),
+  ];
+  for (const archive of cases) {
+    f.state.payload = archive;
+    await assert.rejects(
+      prepareAggregateAttestation(
+        f.identity.token,
+        expected,
+        f.request,
+        [1, 2, 3, 4],
+        { artifact_id: 99, sha256: hash(archive) },
+        f.options,
+      ),
+    );
+    assert.deepEqual(f.identity.counts(), { requests: 0, keyReads: 0 });
+  }
+});
+
+void test("omitted candidate artifacts refuse in producer and consumer before creating predicate or verification output", async (t) => {
+  const f = await fixture(t);
+  await assert.rejects(
+    prepareAggregateAttestation(f.identity.token, expected, f.request, [1], f.upload, f.options),
+    /matrix is incomplete/u,
+  );
+  assert.equal(f.state.reads, 0);
+  assert.equal(f.identity.counts().requests, 0);
+  const before = await readdir(f.root);
+  await assert.rejects(
+    verifyAggregateAttestation(
+      f.root,
+      f.archive,
+      Buffer.from("synthetic"),
+      {
+        controller_revision: expected.controller_revision,
+        controller_ref: expected.controller_ref,
+        run_id: expected.run_id,
+        run_attempt: expected.run_attempt,
+        artifact_id: 99,
+        sha256: f.upload.sha256,
+        bytes: f.archive.length,
+        candidate: f.request,
+        candidate_artifact_ids: [1],
+      },
+      {
+        spawn: () => {
+          assert.fail("incomplete matrix reached verifier");
+        },
+      },
+    ),
+    /matrix is incomplete/u,
+  );
+  assert.deepEqual(await readdir(f.root), before);
+});
+
+void test("existing CLI verified certificate and predicate bind the exact subject, controller run and complete candidate members", async (t) => {
+  const f = await verificationFixture(t);
+  const result = await verifyAggregateAttestation(
+    f.root,
+    f.archive,
+    Buffer.from("synthetic offline bundle"),
+    f.verificationExpected,
+    { spawn: f.spawn },
+  );
+  assert.equal(result.evidence_scope, "injected-provider");
+  assert.equal(result.authority, "none");
+  assert.equal(result.original_compiler, null);
+  assert.equal(f.calls.length, 1);
+  assert.deepEqual(
+    await readFile(path.join(result.directory, "input", "aggregate.zip")),
+    f.archive,
+  );
+  assert.equal(result.assembler.job_id, 501);
+});
+
+void test("verified-but-wrong certificate/subject/predicate and ambiguous results fail closed with retained evidence", async (t) => {
+  const f = await verificationFixture(t);
+  const baseline = structuredClone(f.value);
+  const mutate = [
+    () => {
+      f.value[0]!.verificationResult.signature.certificate.sourceRepositoryIdentifier = "1";
+    },
+    () => {
+      f.value[0]!.verificationResult.signature.certificate.runInvocationURI += "0";
+    },
+    () => {
+      f.value[0]!.verificationResult.signature.certificate.buildSignerDigest = "b".repeat(40);
+    },
+    () => {
+      f.value[0]!.verificationResult.statement.subject[0]!.digest.sha256 = "0".repeat(64);
+    },
+    () => {
+      f.value[0]!.verificationResult.statement.predicate.candidate.source_tree = "c".repeat(40);
+    },
+    () => {
+      f.value[0]!.verificationResult.statement.predicate.output_files.pop();
+    },
+    () => {
+      f.value[0]!.verificationResult.statement.predicate.assembler.job_id = 0;
+    },
+    () => {
+      f.value[0]!.verificationResult.statement.predicate.evidence_scope = "injected-provider";
+    },
+    () => {
+      f.value[0]!.verificationResult.verifiedTimestamps.length = 0;
+    },
+    () => {
+      f.value.push(structuredClone(f.value[0]!));
+    },
+  ];
+  for (const change of mutate) {
+    f.value.splice(0, f.value.length, ...structuredClone(baseline));
+    change();
+    await assert.rejects(
+      verifyAggregateAttestation(
+        f.root,
+        f.archive,
+        Buffer.from("synthetic"),
+        f.verificationExpected,
+        { spawn: f.spawn },
+      ),
+      /retain owned directory/u,
+    );
+  }
+  const retained = (await readdir(f.root)).filter((name) =>
+    name.startsWith("aggregate-attestation-"),
+  );
+  assert.equal(retained.length, mutate.length);
+  for (const directory of retained)
+    assert.deepEqual((await readdir(path.join(f.root, directory, "input"))).sort(), [
+      "aggregate.zip",
+      "attestation.json",
+    ]);
+});

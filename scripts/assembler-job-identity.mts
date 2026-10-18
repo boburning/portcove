@@ -56,7 +56,7 @@ async function providerKeys(): Promise<unknown> {
   return record(Buffer.concat(parts));
 }
 
-function expectation(value: unknown): AssemblerIdentityExpectation {
+export function inspectAssemblerIdentityExpectation(value: unknown): AssemblerIdentityExpectation {
   if (
     !isRecord(value) ||
     Object.keys(value).sort().join(",") !==
@@ -103,7 +103,7 @@ export async function verifyAssemblerJobIdentity(
   rawExpected: unknown,
   options: { transport?: { cwd: string; spawn?: Spawn }; readKeys?: () => Promise<unknown> } = {},
 ) {
-  const expected = expectation(rawExpected);
+  const expected = inspectAssemblerIdentityExpectation(rawExpected);
   if (!options.transport) throw new Error("assembler identity transport is unconfigured");
   if (typeof token !== "string" || Buffer.byteLength(token) > 16 * 1024)
     throw new Error("OIDC token exceeds its byte bound");
