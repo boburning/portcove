@@ -193,3 +193,77 @@ fn fixed_definition_authority_is_advertised_reviewable_and_unconfigured() {
         .unwrap();
     assert_eq!(final_review.expected_plan, initial.expected_plan);
 }
+
+#[test]
+fn ordinary_definition_refresh_advertises_contract_and_refuses_unconfigured_authority() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let core = portcove_core::Library::open(&library).unwrap();
+    let before = core.review_definition_authority().unwrap();
+    let capabilities = json_stdout(&portcove(&library, &["--json", "capabilities"]));
+    assert_eq!(
+        capabilities["data"]["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|name| name.as_str() == Some("catalog.definition-refresh"))
+            .count(),
+        1
+    );
+    let schema = json_stdout(&portcove(
+        &library,
+        &["--json", "schema", "export", "--contract", "output"],
+    ));
+    assert!(schema["data"]["definition_refresh"]["properties"]["refresh_schema"].is_object());
+    for mode in ["--json", "--jsonl"] {
+        let output = portcove(
+            &library,
+            &[
+                mode,
+                "--non-interactive",
+                "catalog",
+                "definition-refresh",
+                "future-port",
+                "--metadata-base-url",
+                "https://definitions.invalid/metadata/",
+                "--targets-base-url",
+                "https://definitions.invalid/targets/",
+            ],
+        );
+        assert!(!output.status.success());
+        let response = json_stdout(&output);
+        assert_eq!(
+            response["schema_version"],
+            portcove_core::API_SCHEMA_VERSION
+        );
+        assert_eq!(response["command"], "catalog.definition-refresh");
+        assert_eq!(response["error"]["code"], "unsupported");
+    }
+    let injected = portcove(
+        &library,
+        &[
+            "catalog",
+            "definition-refresh",
+            "future-port",
+            "--metadata-base-url",
+            "https://definitions.invalid/metadata/",
+            "--targets-base-url",
+            "https://definitions.invalid/targets/",
+            "--root",
+            "untrusted.json",
+        ],
+    );
+    assert!(!injected.status.success());
+    assert!(String::from_utf8_lossy(&injected.stderr).contains("--root"));
+    assert_eq!(
+        core.review_definition_authority().unwrap().expected_plan,
+        before.expected_plan
+    );
+    assert!(core.activities(10).unwrap().is_empty());
+    assert!(
+        core.definition_selection_status()
+            .unwrap()
+            .selected
+            .is_none()
+    );
+}

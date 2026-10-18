@@ -135,8 +135,9 @@ pub use definition_repository::{
     acquire_definition_candidate,
     publisher_policy::{
         AuthenticatedDefinitionLaunchAssessment, AuthenticatedDefinitionPublisherPolicy,
-        DefinitionAuthorityProvisioning, DefinitionAuthorityReview,
-        acquire_definition_launch_assessment, acquire_definition_publisher_policy,
+        DefinitionAuthorityProvisioning, DefinitionAuthorityReview, DefinitionRefresh,
+        DefinitionRefreshDisposition, acquire_definition_launch_assessment,
+        acquire_definition_publisher_policy,
     },
 };
 pub use error::{ErrorCode, PortcoveError, Result};

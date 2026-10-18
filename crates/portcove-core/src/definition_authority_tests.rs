@@ -1,7 +1,7 @@
 use super::*;
 use policy::provisioning::{apply_fixture, review_fixture};
 
-fn separated_fixture() -> RepositoryFixture {
+pub(super) fn separated_fixture() -> RepositoryFixture {
     let mut fixture = RepositoryFixture::new();
     fixture.separated_roles = Some([
         Key::new(fixture._directory.path()),

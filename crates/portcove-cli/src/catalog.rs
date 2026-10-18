@@ -56,6 +56,14 @@ pub(crate) enum CatalogCommand {
         #[arg(long, requires = "apply")]
         yes: bool,
     },
+    /// Refresh one official definition under this release's installed fixed authority.
+    DefinitionRefresh {
+        stable_id: String,
+        #[arg(long)]
+        metadata_base_url: String,
+        #[arg(long)]
+        targets_base_url: String,
+    },
     /// Trust a publisher's raw 32-byte Ed25519 public key, encoded as hex.
     TrustKey {
         public_key: String,
@@ -106,6 +114,7 @@ impl CatalogCommand {
             Self::InspectObservation { .. } => "catalog.inspect-observation",
             Self::Status => "catalog.status",
             Self::DefinitionAuthority { .. } => "catalog.definition-authority",
+            Self::DefinitionRefresh { .. } => "catalog.definition-refresh",
             Self::TrustKey { .. } => "catalog.trust-key",
             Self::RevokeKey { .. } => "catalog.revoke-key",
             Self::Update { .. } => "catalog.update",
@@ -139,6 +148,33 @@ pub(crate) async fn execute(
         ),
         CatalogCommand::Status => {
             render_read_success(mode, name, library.catalog_status()?, human::catalog_status)
+        }
+        CatalogCommand::DefinitionRefresh {
+            stable_id,
+            metadata_base_url,
+            targets_base_url,
+        } => {
+            let source = portcove_core::DefinitionRepositorySource::new(
+                &metadata_base_url,
+                &targets_base_url,
+            )?;
+            let refreshed = service
+                .refresh_definition(&source, &stable_id, progress_renderer(mode))
+                .await?;
+            render_read_success(mode, name, refreshed, |result| {
+                let disposition = match result.disposition {
+                    portcove_core::DefinitionRefreshDisposition::Revoked => {
+                        "publisher revoked; existing selection retained"
+                    }
+                    portcove_core::DefinitionRefreshDisposition::Selected => {
+                        "authenticated definition selected"
+                    }
+                    portcove_core::DefinitionRefreshDisposition::Ineligible => {
+                        "definition unavailable; existing selection retained"
+                    }
+                };
+                format!("Definition {}: {}", result.stable_id, disposition)
+            })
         }
         CatalogCommand::DefinitionAuthority {
             apply,

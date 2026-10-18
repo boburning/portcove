@@ -240,12 +240,27 @@ where
             "unsupported launch assessment identity",
         ));
     }
+    let repository =
+        super::super::load_repository(trusted_root, metadata_base_url, targets_base_url, transport)
+            .await?;
+    acquire_from_repository(&repository, trusted_root, namespace, stable_id).await
+}
+
+pub(super) async fn acquire_from_repository(
+    repository: &tough::Repository,
+    trusted_root: &[u8],
+    namespace: &str,
+    stable_id: &str,
+) -> Result<AuthenticatedDefinitionLaunchAssessment> {
+    if namespace != "official" || !valid_identity(stable_id) {
+        return Err(PortcoveError::usage(
+            "unsupported launch assessment identity",
+        ));
+    }
     // A dot cannot occur in a grant stable ID, so this cannot alias its target.
-    let (bytes, provenance) = super::acquire_target_with_transport(
+    let (bytes, provenance) = super::acquire_target_from_repository(
+        repository,
         trusted_root,
-        metadata_base_url,
-        targets_base_url,
-        transport,
         &format!("policy/{namespace}/{stable_id}.launch.json"),
     )
     .await?;

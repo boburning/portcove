@@ -1144,6 +1144,26 @@ There is no prompt unless an operation needs confirmation. Pass `--non-interacti
 
 ### Signed catalog delivery
 
+`catalog definition-refresh <stable-id> --metadata-base-url <https-base>
+--targets-base-url <https-base>` refreshes one official identity under the fixed
+compiled authority already installed in the library. The locations supply no
+root, key, grant or executable input. Unconfigured or unprovisioned authority
+refuses before network work or activity creation. The `refresh_schema: 1` result
+reports `selected`, `ineligible` or `revoked`, the policy/assessment changes and
+durable selection. A subsequent CLI invocation loads that selection; existing
+Core service instances retain their constructor catalog snapshot.
+
+Core acquires one authenticated metadata snapshot, admits the exact policy and
+any required launch assessment, then selects through existing eligibility gates.
+Revocation needs no candidate download. A separately valid restrictive policy can
+remain committed when a companion fails: error details report
+`definition_refresh_phase`, `definition_policy_changed` and
+`definition_launch_assessment_changed`. Retry after repairing the authenticated
+input; a generic refresh cannot clear a hold. Acquisition is cancellable until
+the existing publication seal. The command emits existing update-catalog events,
+advertises `catalog.definition-refresh` and exports `definition_refresh` without
+changing envelope/event versions. It performs no game install, update or launch.
+
 `catalog definition-authority` separately reviews the independent definition
 authority compiled into this release. Its `provisioning_schema: 1` result includes
 `configured`, library/anchor identities, `installed` and `expected_plan`.
