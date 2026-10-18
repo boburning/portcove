@@ -72,8 +72,11 @@ native exit immediately.
 
 Retain raw JSON, then use `node scripts/report-summary.mts KIND FILE`
 to inspect decision-relevant fields within 16 KiB, with omission counts and raw
-evidence references. `--help`/usage lists supported report kinds. CI summaries
-accept REST and `gh` job IDs and never claim complete pagination. Delivery watch
+evidence references. `--help`/usage lists supported report kinds. The `native`
+kind shows recorded runner/executable identities, outcomes, selected
+checks and gaps. It omits custody trees and does not infer compiled-source,
+installed-package or human acceptance from the receipt.
+CI summaries accept REST and `gh` job IDs and never claim complete pagination. Delivery watch
 retains its existing observations under ignored `work/pr-delivery`; inspect those
 snapshots instead of issuing duplicate status queries. Fetch logs for the identified
 failed job rather than an entire multi-job workflow. Fallow retains
@@ -353,11 +356,17 @@ repository with `extensions.worktreeConfig`, the adapter asks that exact local
 CLI to generate its dispatcher in an isolated scratch Git directory, then installs
 those generated files and writes only this worktree's preferences. It preserves
 sibling configuration and explicit disable choices. It owns no staged-file policy. The
-project-owned `.vite-hooks/pre-commit` checks staged whitespace and runs
+project-owned `.vite-hooks/pre-commit` checks staged whitespace, Node test
+registration and affected indexed catalog coherence, then runs
 `vp staged`. Its standard `vp check --fix` workflow formats, lints and stages
 safe fixes while lint-staged's backup and partial-staging isolation remain on.
 Review the resulting diff before committing. Required CI and separate review
 remain independent gates.
+
+`node scripts/catalog-staged-check.mts --staged` reads the four current catalog
+inputs from the Git index. It shares the generator's authoring projection and
+independent compatibility expectations, preserves partial staging, and never
+regenerates or stages files. Unrelated commits skip this optional local check.
 
 Existing foreign hook managers are preserved by the installer. To replace an
 old Portcove Husky hook, inspect `git config --show-origin --get core.hooksPath`,
