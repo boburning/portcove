@@ -196,24 +196,9 @@ async function outputIdentity(filename: string, maximum: number, withinBound: ()
   }
 }
 
-/** Inactive assembly seam. The trusted caller independently authenticates the
- * source/tree and expected input bytes. This function verifies equality and
- * creates a new aggregate; supplied producer declarations are not authority.
- * No workflow, transport, signing, upload, installation or publication occurs.
- */
-export async function assembleTrustedRelease(
-  ownedRoot: string,
-  inputRoot: string,
-  rawRequest: unknown,
-) {
+/** Shared exact input validation for staging and assembly. No authority grant. */
+export async function inspectTrustedAssemblyInput(rawRequest: unknown) {
   const accepted = request(rawRequest);
-  const root = path.resolve(ownedRoot);
-  const input = await assertOwnedUnlinkedPath(root, inputRoot, "assembly input");
-  const started = performance.now();
-  const withinBound = () => {
-    if (performance.now() - started > maximumMilliseconds)
-      throw new Error("assembly duration bound exhausted");
-  };
   // The policy is loaded only from this fixed trusted checkout, never inputs.
   const policy = await loadPackagePolicy(trustedProject);
   const labels = releaseLabels(policy);
@@ -238,6 +223,29 @@ export async function assembleTrustedRelease(
       file.bytes > maximumMetadataBytes
     )
       throw new Error("assembly metadata exceeds its byte bound");
+  }
+  return { accepted, policy, labels };
+}
+
+/** Inactive assembly seam. The trusted caller independently authenticates the
+ * source/tree and expected input bytes. This function verifies equality and
+ * creates a new aggregate; supplied producer declarations are not authority.
+ * No workflow, transport, signing, upload, installation or publication occurs.
+ */
+export async function assembleTrustedRelease(
+  ownedRoot: string,
+  inputRoot: string,
+  rawRequest: unknown,
+) {
+  const started = performance.now();
+  const { accepted, policy, labels } = await inspectTrustedAssemblyInput(rawRequest);
+  const root = path.resolve(ownedRoot);
+  const input = await assertOwnedUnlinkedPath(root, inputRoot, "assembly input");
+  const withinBound = () => {
+    if (performance.now() - started > maximumMilliseconds)
+      throw new Error("assembly duration bound exhausted");
+  };
+  for (const file of accepted.files) {
     await assertOwnedUnlinkedPath(
       root,
       path.join(input, `release-build-${file.platform_label}`, file.filename),

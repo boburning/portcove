@@ -1,6 +1,6 @@
 import { errorCode, isRecord } from "./runtime-values.mts";
 import { createHash, randomUUID } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { readGitHubArtifactArchive } from "./github-binary.mts";
 import {
   existsSync,
   linkSync,
@@ -486,16 +486,15 @@ function defaultRequest(
     return JSON.parse(
       createGitHubRunner({ cwd, timeoutMs, maxBuffer: 2 * 1024 * 1024 })(["api", endpoint]),
     );
-  const result = spawnSync("gh", ["api", endpoint], {
-    cwd,
-    encoding: null,
-    timeout: timeoutMs,
-    maxBuffer: AUDIT_BUNDLE_LIMITS.compressedBytes,
-    windowsHide: true,
-    shell: false,
-  });
-  if (result.error || result.status !== 0) reject("provider-unavailable");
-  return result.stdout;
+  try {
+    return readGitHubArtifactArchive(endpoint, {
+      cwd,
+      timeoutMs,
+      maxBytes: AUDIT_BUNDLE_LIMITS.compressedBytes,
+    });
+  } catch {
+    return reject("provider-unavailable");
+  }
 }
 
 export function discoverAuditReceipts(

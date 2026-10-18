@@ -613,6 +613,42 @@ candidate/scan/publication evidence, applicable qualification, authenticated
 producing run/attempt/job and exact artifact/attestation binding through the
 existing protected architecture.
 
+### Bounded artifact-to-aggregate integration
+
+`assembleReleaseArtifacts` in `scripts/release-artifact-assembly.mts` connects
+the existing complete Release run evidence collector, opaque artifact transport,
+private staging and the full-policy assembler. Callers supply independently
+accepted run/source/tree/workflow identities, the complete expected file matrix,
+and one exact artifact ID, byte count and SHA-256 per platform. These inputs are
+frozen before asynchronous reads. Complete provider inventories must match the
+selected objects before downloading and again before aggregate creation. Run
+identity and selected artifact metadata must remain unchanged. Run-level API
+objects still leave original producer jobs and attempts unknown.
+
+`scripts/github-binary.mts` pins transport to `github.com` and enforces byte and
+time limits in the subprocess before returning opaque bytes. Release downloads
+are bounded by their accepted byte counts, at most 512 MiB each, 2 GiB in total,
+and 120 seconds per download. Collection and assembly have a cooperative
+15-minute overall deadline. Audit reuse shares this transport while retaining
+its existing 8 MiB compressed and 15-second request limits.
+
+`stageReleaseArtifact` checks the archive digest after taking private buffer
+custody. Shared raw ZIP32 preflight bounds central/local records and metadata
+before inflation. ZIP64, multipart archives, unsupported extensions, links,
+unlisted paths and duplicate or alias entries refuse. Only flat filenames and
+`release-upload/` filenames are accepted. Complete expected inventory and
+declared per-file sizes must match before output creation or inflation. Actual
+expanded size, CRC and independently expected SHA-256 must then match. Each
+platform directory is new; existing directories refuse, and partial failures
+retain their identified private path. No candidate code or package is executed.
+
+This integration creates a new local aggregate, without upload, attestation,
+signing or production activation. Injected transports are explicitly labelled.
+Actual fixed-controller execution, independently authenticated admission inputs,
+the assembler's own identity, immutable upload and verified attestation binding
+remain required. Linux release authorization, SBOM and native qualification
+remain separate and unevaluated.
+
 ### Inactive assembler job identity verification
 
 `verifyAssemblerJobIdentity(token, expected, { transport })` in
