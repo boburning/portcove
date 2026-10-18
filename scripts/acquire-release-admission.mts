@@ -1,3 +1,8 @@
+import {
+  assessBoundedCapacity,
+  capacityDigest,
+  slice4CapacityResourceDigest,
+} from "./release-capacity.mts";
 import { createHash } from "node:crypto";
 import { readFile, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -92,8 +97,15 @@ export async function acquireReleaseAdmission(
     recover?: Recover;
     download?: typeof readGitHubArtifactArchive;
     now?: () => number;
+    capacity?: { ratification: unknown; readBoundary: () => Promise<unknown> };
   } = {},
 ) {
+  const capacitySource = options.capacity
+    ? {
+        ratification: structuredClone(options.capacity.ratification),
+        readBoundary: options.capacity.readBoundary,
+      }
+    : undefined;
   const config = configuration(structuredClone(rawConfiguration));
   const started = performance.now();
   const root = await mkdtemp(path.join(path.resolve(privateRoot), "release-admission-"));
@@ -404,6 +416,15 @@ export async function acquireReleaseAdmission(
     )
       throw new Error("active reservation differs from complete namespace receipts");
     const holds = new Set<string>();
+    // Separate live source seam; retained coordinator facts cannot self-attest
+    // a current provider boundary. Missing/invalid input holds independently.
+    let capacityBefore: unknown = null;
+    try {
+      capacityBefore = capacitySource ? structuredClone(await capacitySource.readBoundary()) : null;
+    } catch {
+      /* unknown stays held */
+    }
+
     let sourceChanges: ReturnType<typeof collectReleaseSourceChanges> | null = null;
     phase = "source-consistency";
     if (!Object.hasOwn(candidate, "frozen_opportunity")) {
@@ -625,7 +646,50 @@ export async function acquireReleaseAdmission(
     // The retained snapshot's classification/pause/capacity fields are supplied
     // facts, not independent live authority. Do not feed them to an executing
     // plan or adopt a package's own checksum as acceptance.
-    holds.add("independent-classification-pause-and-capacity-sources-unconfigured");
+
+    const capacityInput = {
+      schema_version: 1,
+      prior_operations:
+        state.schema_version === 2 &&
+        isRecord(state.controller) &&
+        isRecord(state.controller.capacity_attempt)
+          ? state.controller.capacity_attempt.prior_operations
+          : [],
+      ratification: capacitySource?.ratification ?? {
+        active: false,
+        boundary_sha256: "0".repeat(64),
+        resource_policy_sha256: slice4CapacityResourceDigest,
+        selection: "slice4-d2-c6470ec28ba9addb0f70d9f86953322d835bb8c0",
+      },
+      boundary: null as unknown,
+      operation:
+        isRecord(state.controller) && isRecord(state.controller.capacity_attempt)
+          ? state.controller.capacity_attempt.operation
+          : null,
+    };
+    try {
+      const boundary = capacitySource ? structuredClone(await capacitySource.readBoundary()) : null;
+      if (capacityBefore !== null && capacityDigest(capacityBefore) === capacityDigest(boundary))
+        capacityInput.boundary = boundary;
+    } catch {
+      /* unavailable provider source never supplies eligibility */
+    }
+    let capacity;
+    try {
+      capacity = assessBoundedCapacity(capacityInput);
+    } catch {
+      capacityInput.boundary = null;
+      capacityInput.ratification = {
+        active: false,
+        boundary_sha256: "0".repeat(64),
+        resource_policy_sha256: slice4CapacityResourceDigest,
+        selection: "slice4-d2-c6470ec28ba9addb0f70d9f86953322d835bb8c0",
+      };
+      capacity = assessBoundedCapacity(capacityInput);
+    }
+    if (!capacitySource) holds.add("admitted-spending-boundary-source-unconfigured");
+    if (capacity.eligibility !== "eligible") holds.add("bounded-no-spend-attempt-ineligible");
+    holds.add("independent-classification-and-pause-sources-unconfigured");
     holds.add("candidate-workflow-execution-and-producer-acceptance-unproven");
     holds.add("strict-release-SBOM-and-native-authorization-not-evaluated");
     const publication = {
@@ -642,12 +706,14 @@ export async function acquireReleaseAdmission(
       publication.complete && initialReleases.every((r) => r.draft)
         ? planReleaseOpportunity({
             ...state,
+            schema_version: 2,
             now: publication.observed_at,
             publication,
             controller: {
-              ...record(state.controller),
+              workflow: record(state.controller).workflow,
+              revision: record(state.controller).revision,
               publication_paused: true,
-              free_capacity_available: false,
+              capacity_attempt: capacityInput,
             },
           })
         : null;
@@ -658,6 +724,7 @@ export async function acquireReleaseAdmission(
       directory: root,
       checkpoint,
       holds: [...holds].sort(),
+      capacity,
       publication,
       allocations,
       contexts,
@@ -670,7 +737,7 @@ export async function acquireReleaseAdmission(
       diagnostic_plan_scope: "conservative paused schema check only; no acquired control authority",
       api_requests: requests,
       evidence_scope:
-        options.api || options.recover || options.download || options.now
+        options.api || options.recover || options.download || options.now || options.capacity
           ? "injected-provider"
           : "github.com",
       authority: "none",

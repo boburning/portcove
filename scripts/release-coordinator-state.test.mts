@@ -1,3 +1,9 @@
+import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
+import {
+  runBoundedCapacityOperation,
+  recordCapacityReadback,
+  ProviderCapacityRefusal,
+} from "./release-capacity-operation.mts";
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, writeFile, rm, readdir } from "node:fs/promises";
@@ -1174,3 +1180,323 @@ void test("symbolic state or prepared refs cannot redirect a checkpoint transact
   await assert.rejects(async () => await checkpointReleaseOpportunity(repository, null, first));
   assert.equal(git("symbolic-ref", coordinatorStateRef), "refs/portcove/missing-state");
 });
+
+for (const kind of ["refusal", "ambiguous"]) {
+  void test(`schema2 pending intent survives partial ${kind} without phase loss or duplicate attempts`, async (t) => {
+    const f = await fixture(t);
+    const saved = await checkpointReleaseOpportunity(f.repository, f.initial.checkpoint, f.input);
+    const capacity = capacityFixture();
+    const input = {
+      ...f.input,
+      schema_version: 2,
+      controller: {
+        workflow: f.input.controller.workflow,
+        revision: f.input.controller.revision,
+        publication_paused: false,
+        capacity_attempt: capacity,
+      },
+    };
+    const migrated = await checkpointReleaseOpportunity(f.repository, saved.checkpoint, input);
+    let effects = 0,
+      failedCheckpoint = "";
+    try {
+      await runBoundedCapacityOperation(
+        f.repository,
+        migrated.checkpoint,
+        { kind: "upload", destination: "same-run immutable candidate archive" },
+        async () => capacity.boundary,
+        async (record) => {
+          effects++;
+          const pending = f.git("rev-parse", coordinatorStateRef).trim();
+          const pendingState = await recoverReleaseOpportunity(f.repository, pending);
+          assert.equal(pendingState.plan.action, "pause");
+          assert.deepEqual(pendingState.input.active_candidate, f.input.active_candidate);
+          await record("artifact:fixture-completed", "a".repeat(64));
+          if (kind === "refusal")
+            throw new ProviderCapacityRefusal("provider-upload-quota-refusal", "b".repeat(64));
+          throw Error("DISPOSABLE-SECRET-unavailable-response");
+        },
+      );
+      assert.fail("must stop");
+    } catch (error) {
+      assert.ok(error instanceof CoordinatorRemoteError);
+      assert.ok(isRecord(error.evidence));
+      failedCheckpoint = String(error.evidence.checkpoint);
+      assert.equal(JSON.stringify(error.evidence).includes("DISPOSABLE-SECRET"), false);
+    }
+    const failed = await recoverReleaseOpportunity(f.repository, failedCheckpoint);
+    assert.deepEqual(failed.input.active_candidate, f.input.active_candidate);
+    assert.ok(
+      isRecord(failed.input.controller) && isRecord(failed.input.controller.capacity_attempt),
+    );
+    const operation = failed.input.controller.capacity_attempt.operation;
+    assert.ok(isRecord(operation));
+    assert.equal(operation.outcome, kind === "refusal" ? "capacity-refused" : "ambiguous");
+    assert.ok(Array.isArray(operation.completed_effects));
+    assert.equal(operation.completed_effects.length, 1);
+    await assert.rejects(
+      runBoundedCapacityOperation(
+        f.repository,
+        failedCheckpoint,
+        { kind: "dispatch", destination: "different ID cannot bypass unresolved effect" },
+        async () => capacity.boundary,
+        async () => {
+          effects++;
+        },
+      ),
+    );
+    assert.equal(effects, 1);
+    const dropped = structuredClone(failed.input);
+    assert.ok(isRecord(dropped.controller) && isRecord(dropped.controller.capacity_attempt));
+    dropped.controller.capacity_attempt.operation = null;
+    await assert.rejects(
+      checkpointReleaseOpportunity(f.repository, failedCheckpoint, dropped),
+      /cannot disappear/,
+    );
+    await assert.rejects(
+      recordCapacityReadback(f.repository, failedCheckpoint, "effect-not-applied", "c".repeat(64)),
+      /contradicts/,
+    );
+    const resolved = await recordCapacityReadback(
+      f.repository,
+      failedCheckpoint,
+      "partial-effects-retained",
+      "c".repeat(64),
+    );
+    const readback = await recoverReleaseOpportunity(f.repository, resolved.checkpoint);
+    assert.deepEqual(readback.input.active_candidate, f.input.active_candidate);
+    assert.equal(readback.plan.authority.capacity_attempt?.availability, "unknown");
+    await assert.rejects(
+      checkpointReleaseOpportunity(f.repository, resolved.checkpoint, { ...f.input }),
+      /cannot downgrade/,
+    );
+  });
+}
+void test("successful operation proves only its own effect; next boundary must be checked independently", async (t) => {
+  const f = await fixture(t);
+  const saved = await checkpointReleaseOpportunity(f.repository, f.initial.checkpoint, f.input);
+  const capacity = capacityFixture();
+  const input = {
+    ...f.input,
+    schema_version: 2,
+    controller: {
+      workflow: f.input.controller.workflow,
+      revision: f.input.controller.revision,
+      publication_paused: false,
+      capacity_attempt: capacity,
+    },
+  };
+  const migrated = await checkpointReleaseOpportunity(f.repository, saved.checkpoint, input);
+  let effects = 0;
+  const success = await runBoundedCapacityOperation(
+    f.repository,
+    migrated.checkpoint,
+    { kind: "upload", destination: "artifact:first" },
+    async () => capacity.boundary,
+    async (record) => {
+      effects++;
+      await record("artifact:1", "d".repeat(64));
+    },
+  );
+  assert.equal(success.availability, "unknown");
+  assert.equal(success.headroom, "unknown");
+  await assert.rejects(
+    runBoundedCapacityOperation(
+      f.repository,
+      success.checkpoint,
+      { kind: "retention", destination: "artifact:second" },
+      async () => ({ ...capacity.boundary, stop_usage: false }),
+      async () => {
+        effects++;
+      },
+    ),
+  );
+  assert.equal(effects, 1);
+  const held = await recoverReleaseOpportunity(f.repository, success.checkpoint);
+  assert.deepEqual(held.input.active_candidate, f.input.active_candidate);
+});
+
+async function capacityStateFixture(t: Parameters<typeof fixture>[0]) {
+  const f = await fixture(t);
+  const saved = await checkpointReleaseOpportunity(f.repository, f.initial.checkpoint, f.input);
+  const capacity = capacityFixture();
+  const input = {
+    ...f.input,
+    schema_version: 2,
+    controller: {
+      workflow: f.input.controller.workflow,
+      revision: f.input.controller.revision,
+      publication_paused: false,
+      capacity_attempt: capacity,
+    },
+  };
+  const migrated = await checkpointReleaseOpportunity(f.repository, saved.checkpoint, input);
+  return { ...f, capacity, migrated };
+}
+void test(
+  "journal history refuses A B A despite intervening completed operations",
+  { timeout: 60000 },
+  async (t) => {
+    const f = await capacityStateFixture(t);
+    const run = (checkpoint: string, destination: string) =>
+      runBoundedCapacityOperation(
+        f.repository,
+        checkpoint,
+        { kind: "upload", destination },
+        async () => f.capacity.boundary,
+        async (record) => {
+          await record(destination, "d".repeat(64));
+        },
+      );
+    const a = await run(f.migrated.checkpoint, "artifact:A");
+    const b = await run(a.checkpoint, "artifact:B");
+    await assert.rejects(run(b.checkpoint, "artifact:A"), /completed operation cannot be repeated/);
+    assert.equal(f.git("rev-parse", coordinatorStateRef).trim(), b.checkpoint);
+  },
+);
+void test("checkpoint advancement during final boundary read prevents stale effect", async (t) => {
+  const f = await capacityStateFixture(t);
+  let reads = 0,
+    effects = 0,
+    advanced = "";
+  await assert.rejects(
+    runBoundedCapacityOperation(
+      f.repository,
+      f.migrated.checkpoint,
+      { kind: "dispatch", destination: "run:race" },
+      async () => {
+        if (++reads === 2) {
+          const pending = f.git("rev-parse", coordinatorStateRef).trim();
+          const state = await recoverReleaseOpportunity(f.repository, pending);
+          assert.ok(isRecord(state.input.controller));
+          state.input.controller.publication_paused = true;
+          advanced = (await checkpointReleaseOpportunity(f.repository, pending, state.input))
+            .checkpoint;
+        }
+        return f.capacity.boundary;
+      },
+      async () => {
+        effects++;
+      },
+    ),
+    CoordinatorRemoteError,
+  );
+  assert.equal(effects, 0);
+  assert.equal(f.git("rev-parse", coordinatorStateRef).trim(), advanced);
+  const retained = await recoverReleaseOpportunity(f.repository, advanced);
+  assert.equal(retained.plan.action, "pause");
+});
+void test("invalid provider receipt stays bounded and unawaited receipt is drained", async (t) => {
+  const f = await capacityStateFixture(t);
+  let checkpoint = "";
+  await assert.rejects(
+    runBoundedCapacityOperation(
+      f.repository,
+      f.migrated.checkpoint,
+      { kind: "upload", destination: "artifact:bounded" },
+      async () => f.capacity.boundary,
+      async (record) => {
+        void record("artifact:valid", "e".repeat(64));
+        void record("X".repeat(4096), "f".repeat(64));
+      },
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof CoordinatorRemoteError);
+      assert.ok(isRecord(error.evidence));
+      checkpoint = String(error.evidence.checkpoint);
+      assert.ok(JSON.stringify(error.evidence).length < 4096);
+      return true;
+    },
+  );
+  const state = await recoverReleaseOpportunity(f.repository, checkpoint);
+  assert.ok(isRecord(state.input.controller) && isRecord(state.input.controller.capacity_attempt));
+  const operation = state.input.controller.capacity_attempt.operation;
+  assert.ok(isRecord(operation));
+  assert.equal(operation.outcome, "ambiguous");
+  assert.deepEqual(operation.completed_effects, [
+    { remote_identity: "artifact:valid", evidence_sha256: "e".repeat(64) },
+  ]);
+});
+
+for (const outcome of ["pending", "capacity-refused", "succeeded"]) {
+  void test(
+    `schema2 ${outcome} survives fresh sparse provider recovery with anti-repeat summary`,
+    { timeout: 60000 },
+    async (t) => {
+      const f = await recoveryFixture(t),
+        capacity = capacityFixture();
+      const input = {
+        ...f.input,
+        schema_version: 2,
+        controller: {
+          workflow: f.input.controller.workflow,
+          revision: f.input.controller.revision,
+          publication_paused: false,
+          capacity_attempt: capacity,
+        },
+      };
+      const migrated = await checkpointReleaseOpportunity(f.repository, f.saved.checkpoint, input);
+      const a = await runBoundedCapacityOperation(
+        f.repository,
+        migrated.checkpoint,
+        { kind: "upload", destination: "artifact:earlier-A" },
+        async () => capacity.boundary,
+        async (record) => {
+          await record("artifact:A", "a".repeat(64));
+        },
+      );
+      let selected = "",
+        pending = "";
+      try {
+        const b = await runBoundedCapacityOperation(
+          f.repository,
+          a.checkpoint,
+          { kind: "upload", destination: "artifact:later-B" },
+          async () => capacity.boundary,
+          async (record) => {
+            pending = f.git("rev-parse", coordinatorStateRef).trim();
+            await record("artifact:B", "b".repeat(64));
+            if (outcome === "capacity-refused")
+              throw new ProviderCapacityRefusal("provider:refused-after-B", "c".repeat(64));
+          },
+        );
+        selected = outcome === "pending" ? pending : b.checkpoint;
+      } catch (error) {
+        assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+        selected = String(error.evidence.checkpoint);
+      }
+      f.refs.set("refs/heads/portcove-fixture-coordinator-state", selected);
+      const result = await recoverRemoteCoordinator(
+        f.parent,
+        { schema_version: 1, namespace: "portcove-fixture" },
+        { transport: f.transport },
+      );
+      assert.equal(result.checkpoint, selected);
+      assert.throws(() =>
+        execFileSync("git", ["-C", result.repository, "cat-file", "-e", migrated.checkpoint], {
+          windowsHide: true,
+          stdio: "pipe",
+        }),
+      );
+      assert.ok(
+        isRecord(result.input.controller) && isRecord(result.input.controller.capacity_attempt),
+      );
+      const retained = result.input.controller.capacity_attempt;
+      assert.ok(isRecord(retained.operation));
+      assert.equal(retained.operation.outcome, outcome);
+      assert.ok(Array.isArray(retained.prior_operations));
+      assert.equal(retained.prior_operations.length, 1);
+      await assert.rejects(
+        runBoundedCapacityOperation(
+          result.repository,
+          selected,
+          { kind: "upload", destination: "artifact:earlier-A" },
+          async () => capacity.boundary,
+          async () => {
+            assert.fail("must not execute repeated/held effect");
+          },
+        ),
+      );
+    },
+  );
+}

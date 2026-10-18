@@ -401,7 +401,7 @@ bind the existing reusable qualification and Release workflow to the prepared
 commit, and persist attempts in existing workflow/issue records.
 Two transient retries and three substantive repair attempts are the fixed
 initial bounds; exhaustion, missing authority, the publication pause, or free
-capacity exhaustion produces a hold. Production dispatch, signing, release and
+capacity refusal or an invalid spending boundary produces a hold. Production dispatch, signing, release and
 Pages/feed permissions remain disabled pending #534. The checked-in fixture tests
 are nonproduction evidence, not proof that a subscription task or production
 credential path is active.
@@ -503,6 +503,50 @@ This supplies nonproduction local persistence/refusal controls for #534. Trusted
 execution/principal enforcement, producer-job/attempt/artifact binding, isolated
 candidate runners/caches, protected remote durability, custody, signing/feed
 activation and actual Windows/Linux public recovery proof remain separate.
+
+### Bounded no-spend attempt eligibility (Slice 4)
+
+Coordinator input schema 2 replaces the legacy `free_capacity_available` Boolean
+with `controller.capacity_attempt`. Schema 1 remains unchanged for historical
+replay, including serialized plan digests. New admission uses schema 2 and never
+sets the legacy Boolean to bypass an unknown allowance. `release-capacity.mts`
+reports eligibility separately from availability/headroom (always `unknown`) and
+reservation (`none`). The selected account-wide $0 Actions stop, public standard
+runners and pinned resource ceilings are a spending boundary, not positive
+headroom. Each operation must establish its own exact result; no successful
+operation grants availability for a subsequent effect. Source/configuration loss,
+revocation or boundary drift refuses, and unrelated admission holds remain holds.
+
+`release-capacity-operation.mts` is an inactive caller-owned library, with no CLI,
+credential discovery, dispatch, upload, signing or publication implementation.
+An already admitted caller provides one exact effect against an existing frozen
+reservation. Its pending intent is checkpointed before execution, then the supplied
+boundary and exact pending ownership are checked again. Completed receipts are
+validated before mutation, serialized and drained before outcome publication.
+Capacity refusal retains its bounded evidence; all other failed or missing-result
+responses remain ambiguous. A failed checkpoint response is not proof of no
+remote effect: the last durable pending intent continues to block.
+
+Existing readback must resolve the exact checkpoint and operation identity before
+another attempt. Recovery preserves completed effects and failure evidence;
+`effect-not-applied` contradicts any retained completed effect. The existing
+portable checkpoint retains up to 32 resolved prior operations for the current
+candidate; transitions refuse a dropped/rewritten or overfull summary. This
+preserves fresh sparse remote recovery without requiring older grandparents. An
+intervening operation cannot erase completed effects or reset same-operation retry
+limits. Ordinary coordinator recovery must consume its existing retry/repair
+counter before repeating a resolved failed operation. Phase and counters never
+advance merely because capacity evidence was recorded.
+
+The fixed ratification and boundary observations must come from independently
+admitted provenance. Hash matching and persistence alone do not authenticate that
+provenance, prove provider enforcement or detect an unreported setting change.
+The configuration owner must revoke ratification before changing the account,
+spending stop, runner class or resource policy. Protected remote pending durability,
+exclusive live executor/readback ownership, final runnable source/digest, eligible
+candidate and exact protected execution grant remain separate activation gates.
+See the [canonical Slice 4 packet](qualification/slice4-production-authorization-packet-2026-10-18.md)
+for the selected boundary, retained provider observation and resource estimate.
 
 ### Inactive remote checkpoint transport
 

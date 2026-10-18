@@ -1,3 +1,5 @@
+import { capacityDigest } from "./release-capacity.mts";
+import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
@@ -357,9 +359,7 @@ void test("read-only acquisition constructs the full internally observed matrix 
   assert.equal(result.assembly.files.length, f.request.files.length);
   assert.equal(result.diagnostic_plan?.action, "pause");
   assert.ok(result.holds.includes("candidate-workflow-execution-and-producer-acceptance-unproven"));
-  assert.ok(
-    result.holds.includes("independent-classification-pause-and-capacity-sources-unconfigured"),
-  );
+  assert.ok(result.holds.includes("independent-classification-and-pause-sources-unconfigured"));
   assert.equal(f.calls.filter((call) => call.startsWith("ZIP ")).length, 4);
   assert.ok((await readdir(f.root)).some((name) => name.startsWith("release-admission-")));
 });
@@ -381,9 +381,7 @@ void test("frozen net source facts bind the original classification and preparat
   assert.equal(result.source_changes?.change_set_sha256, f.sourceFacts.expectedHash);
   assert.equal(result.decision, "hold");
   assert.equal(result.descriptor, null);
-  assert.ok(
-    result.holds.includes("independent-classification-pause-and-capacity-sources-unconfigured"),
-  );
+  assert.ok(result.holds.includes("independent-classification-and-pause-sources-unconfigured"));
   frozen.change_set_sha256 = "f".repeat(64);
   await assert.rejects(acquireReleaseAdmission(f.root, f.config, f.options), /source-consistency/u);
 });
@@ -524,4 +522,44 @@ void test("refusal retains its owned directory and bounded phase without provide
   const retained = await readFile(`${evidence.directory}/admission-failure.json`, "utf8");
   assert.deepEqual(JSON.parse(retained), evidence);
   assert.doesNotMatch(retained, /Bearer|secret-provider-text/u);
+});
+
+void test("bounded capacity eligibility cannot clear unrelated admission holds or claim headroom", async (t) => {
+  const f = await fixture(t),
+    capacity = capacityFixture();
+  const result = await acquireReleaseAdmission(f.root, f.config, {
+    ...f.options,
+    capacity: { ratification: capacity.ratification, readBoundary: async () => capacity.boundary },
+  });
+  assert.equal(result.capacity.eligibility, "eligible");
+  assert.equal(result.capacity.availability, "unknown");
+  assert.equal(result.capacity.headroom, "unknown");
+  assert.equal(result.decision, "hold");
+  assert.equal(result.descriptor, null);
+  assert.ok(result.holds.includes("independent-classification-and-pause-sources-unconfigured"));
+  assert.ok(result.holds.includes("candidate-workflow-execution-and-producer-acceptance-unproven"));
+  assert.ok(result.holds.includes("strict-release-SBOM-and-native-authorization-not-evaluated"));
+});
+
+void test("capacity bracketing snapshots aliased observations and initial ratification", async (t) => {
+  const f = await fixture(t),
+    capacity = capacityFixture();
+  let reads = 0;
+  const result = await acquireReleaseAdmission(f.root, f.config, {
+    ...f.options,
+    capacity: {
+      ratification: capacity.ratification,
+      readBoundary: async () => {
+        reads++;
+        if (reads === 2) {
+          capacity.boundary.configuration_generation = "changed-after-first-observation";
+          capacity.ratification.boundary_sha256 = capacityDigest(capacity.boundary);
+        }
+        return capacity.boundary;
+      },
+    },
+  });
+  assert.equal(reads, 2);
+  assert.equal(result.capacity.eligibility, "ineligible");
+  assert.ok(result.holds.includes("bounded-no-spend-attempt-ineligible"));
 });

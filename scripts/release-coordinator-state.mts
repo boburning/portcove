@@ -1,3 +1,4 @@
+import { validateCapacityTransition } from "./release-capacity.mts";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -192,7 +193,12 @@ function active(input: Record<string, unknown>): Record<string, unknown> | null 
   return isRecord(input.active_candidate) ? input.active_candidate : null;
 }
 
-function transition(previous: ReturnType<typeof readCheckpoint>, next: Record<string, unknown>) {
+function transition(
+  previous: ReturnType<typeof readCheckpoint>,
+  next: Record<string, unknown>,
+  checkpoint: string,
+) {
+  validateCapacityTransition(previous.input, next, checkpoint);
   const old = active(previous.input);
   const candidate = active(next);
   const controller = next.controller;
@@ -393,7 +399,7 @@ export async function checkpointReleaseOpportunity(
   const { input, plan } = checkedInput(rawInput);
   const git = gitRepository(repository);
   const previous = expectedPrevious === null ? null : readCheckpoint(git, expectedPrevious);
-  if (previous) transition(previous, input);
+  if (previous) transition(previous, input, expectedPrevious!);
   else if (active(input))
     throw new Error("first coordinator checkpoint cannot invent an active reservation");
   const verifies = preparationVerifies(git, input);
@@ -451,7 +457,7 @@ function inspectCheckpoint(git: Git, expected: string) {
     throw new Error("remote checkpoint export requires a caller-owned bare coordinator");
   const state = { checkpoint: expected, ...readCheckpoint(git, expected) };
   const previous = state.previous === null ? null : readCheckpoint(git, state.previous);
-  if (previous) transition(previous, state.input);
+  if (previous) transition(previous, state.input, state.previous!);
   else if (active(state.input)) throw new Error("initial checkpoint cannot invent a reservation");
 
   const selected = active(state.input) ? state.input : previous?.input;
