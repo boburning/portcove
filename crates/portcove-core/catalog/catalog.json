@@ -658,6 +658,26 @@
         "reviewed_at": "2026-10-18",
         "claim": "Unique 512 KiB Sonic JUE REV00 entry with upstream compatibility CRC f9394e97 maps to SHA-1 6ddb7de1e17e7f6cdb88927bd906352030daa194; ordinary-file admission uses SHA-1, not an unobserved CRC",
         "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat/no-intro/Sega%20-%20Mega%20Drive%20-%20Genesis.dat"
+      },
+      {
+        "id": "the-force-engine-pc-data-2026-10-12",
+        "role": "byte_identity",
+        "authority": "Portcove owner-authorized PC installed-data capture",
+        "authority_ref": "b557ffa6d1797983b4451c79b49e6c5805218a80",
+        "reviewed_at": "2026-10-18",
+        "claim": "Exact primary DARK.GOB digest from the retained lawful Windows PC installed-data capture; four GOB identities and provenance are independently recorded on the canonical owner. Companion LFD files are authenticated by the accepted prepared tree, not independently admitted by this primary-file profile.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/b557ffa6d1797983b4451c79b49e6c5805218a80/docs/qualification/tfe-prepared-source-windows-2026-10-18.md",
+        "live_url": "https://github.com/boburning/portcove/issues/726"
+      },
+      {
+        "id": "the-force-engine-1-22-420-source-contract",
+        "role": "upstream_support",
+        "authority": "TheForceEngine/TheForceEngine",
+        "authority_ref": "cc25205cc94c36a396f6f50295772f6ec83069a2",
+        "reviewed_at": "2026-10-18",
+        "claim": "Pinned v1.22.420 PC Dark Forces engine startup and data use; Windows portable settings/source-selection parser and original GOB/LFD companions are separately reviewed. This source supports format/use compatibility, not an independently published hash allowlist or gameplay result.",
+        "immutable_url": "https://github.com/TheForceEngine/TheForceEngine/blob/cc25205cc94c36a396f6f50295772f6ec83069a2/TheForceEngine/TFE_DarkForces/darkForcesMain.cpp",
+        "live_url": "https://github.com/TheForceEngine/TheForceEngine/blob/master/TheForceEngine/TFE_DarkForces/darkForcesMain.cpp"
       }
     ],
     "identities": [
@@ -5879,6 +5899,47 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "dark-forces-pc-dark-gob",
+        "label": "Dark Forces PC installed data: exact primary DARK.GOB",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "owned-pc-installed-data",
+            "title": "Star Wars: Dark Forces",
+            "region": "USA/Europe",
+            "revision": "Retained PC installed-data capture",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-dark-gob",
+                "extensions": [
+                  "gob"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": null,
+                    "sha256": "3ff0efca4fb5ce82b2e02bbf1ef3fc4246f1ecce5625959f5e729f80a0576c1b",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "the-force-engine-pc-data-2026-10-12"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "the-force-engine-pc-data-2026-10-12",
+              "the-force-engine-1-22-420-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -8545,6 +8606,34 @@
           {
             "upstream_ref": "v0.6.0",
             "artifact_sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "the-force-engine-dark-forces-game-source",
+        "port_id": "the-force-engine-dark-forces",
+        "role": "game",
+        "profile_id": "dark-forces-pc-dark-gob",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "owned-pc-installed-data"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "the-force-engine-pc-data-2026-10-12",
+          "the-force-engine-1-22-420-source-contract"
+        ],
+        "authority_ref": "cc25205cc94c36a396f6f50295772f6ec83069a2",
+        "reviewed_at": "2026-10-18",
+        "immutable_review_url": "https://github.com/TheForceEngine/TheForceEngine/blob/cc25205cc94c36a396f6f50295772f6ec83069a2/TheForceEngine/TFE_DarkForces/darkForcesMain.cpp",
+        "live_review_url": "https://github.com/TheForceEngine/TheForceEngine/blob/master/TheForceEngine/TFE_DarkForces/darkForcesMain.cpp",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.22.420",
+            "artifact_sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac"
           }
         ],
         "aliases": [],
@@ -17343,6 +17432,74 @@
           "game_slug": "sonic-the-hedgehog",
           "match_kind": "underlying-game"
         }
+      }
+    },
+    {
+      "id": "the-force-engine-dark-forces",
+      "name": "The Force Engine: Dark Forces",
+      "summary": "Dark Forces with an exact player-prepared Windows runtime and PC data.",
+      "project_url": "https://github.com/TheForceEngine/TheForceEngine",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "TheForceEngine/TheForceEngine",
+        "user_prepared": {
+          "windows-x86-64": {
+            "version": "1.22.420",
+            "archive_name": "TheForceEngine-v1.22.420.zip",
+            "archive_size": 10561878,
+            "archive_sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac",
+            "executable": "TheForceEngine.exe",
+            "immutable_tree_sha256": "e07fc26a2027500b74548e511c5677ea78357e466d23510d94161e144ce6eaf8",
+            "source_argument_extension": null,
+            "mutable_paths": [
+              "settings.ini",
+              "settings_default.ini",
+              "tfe_input_remapping.bin",
+              "DARKPILO.CFG",
+              "imgui.ini",
+              "the_force_engine_log.txt",
+              "the_force_engine_log.txt.1",
+              "the_force_engine_log.txt.2",
+              "the_force_engine_log.txt.3",
+              "Screenshots",
+              "Saves"
+            ],
+            "required_mutable_files": [
+              "settings.ini",
+              "DARKPILO.CFG"
+            ],
+            "settings_contract": "tfe-dark-forces-v1.22.420"
+          }
+        }
+      },
+      "source_profile": "dark-forces-pc-dark-gob",
+      "executable_hints": {
+        "windows-x86-64": [
+          "TheForceEngine.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "dark-forces-pc-dark-gob",
+            "label": "Dark Forces PC installed data: exact primary DARK.GOB",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Extract the exact official v1.22.420 Windows package into a fresh local folder outside your Portcove library. Place the reviewed owned PC installed-data member set under GameData/ and register GameData/DARK.GOB as the original source. Prepare portable settings.ini with [Game] game=\"Dark Forces\" and [Dark_Forces] sourcePath=\"GameData/\". Preserve a compatible owned DARKPILO.CFG, or create a deliberately fresh pilot using the reviewed non-overwriting procedure at https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-prepared-windows-2026-10-18.md . Core neither seeds nor imports pilots. A present required pilot skips automatic absent-file imports while observed present; TFE may regenerate a malformed local pilot. Keep the shipped package, GameData and built-in Mods/TFE immutable. Additional mods/editor output require separate qualification. Settings, input mappings, pilot, saves, screenshots and fixed logs remain player-owned; registration-only removal preserves all files. Updates are user-managed; no acquisition, managed maintenance, backup or external deletion is offered. Sequential checks do not freeze external writes or sandbox TFE. Windows registration, revalidation, startup, ordinary close, restart and removal were observed with the exact qualification CLI/private catalog. Gameplay, in-game save/load, visual correctness, audio, controllers and other platforms remain unqualified."
       }
     }
   ]
