@@ -94,6 +94,10 @@ void test("coordinator state and remote transport retain protected release quali
     "scripts/release-coordinator-remote.mts",
     "scripts/release-coordinator-recovery.mts",
     "scripts/trusted-release-assembly.mts",
+    "scripts/release-artifact-archive.mts",
+    "scripts/release-artifact-assembly.mts",
+    "scripts/bounded-zip.mts",
+    "scripts/github-binary.mts",
     "scripts/assembler-job-identity.mts",
   ]) {
     const ownership = validationOwnershipForPath(file);

@@ -4,7 +4,7 @@ export function createAuditZip(
   entries: readonly (readonly [
     name: string,
     raw: string | Uint8Array,
-    options?: { method?: number; attributes?: number },
+    options?: { method?: number; attributes?: number; descriptor?: boolean },
   ])[],
 ) {
   const local = [];
@@ -18,17 +18,25 @@ export function createAuditZip(
     const header = Buffer.alloc(30);
     header.writeUInt32LE(0x04034b50);
     header.writeUInt16LE(20, 4);
+    header.writeUInt16LE(options.descriptor ? 8 : 0, 6);
     header.writeUInt16LE(method, 8);
     header.writeUInt32LE(crc32(data), 14);
     header.writeUInt32LE(compressed.length, 18);
     header.writeUInt32LE(data.length, 22);
     header.writeUInt16LE(filename.length, 26);
-    const record = Buffer.concat([header, filename, compressed]);
+    const descriptor = Buffer.alloc(options.descriptor ? 16 : 0);
+    if (options.descriptor) {
+      descriptor.writeUInt32LE(0x08074b50);
+      header.copy(descriptor, 4, 14, 26);
+      header.fill(0, 14, 26);
+    }
+    const record = Buffer.concat([header, filename, compressed, descriptor]);
     local.push(record);
     const dir = Buffer.alloc(46);
     dir.writeUInt32LE(0x02014b50);
     dir.writeUInt16LE(0x314, 4);
     dir.writeUInt16LE(20, 6);
+    dir.writeUInt16LE(options.descriptor ? 8 : 0, 8);
     dir.writeUInt16LE(method, 10);
     dir.writeUInt32LE(crc32(data), 16);
     dir.writeUInt32LE(compressed.length, 20);

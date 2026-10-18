@@ -3,63 +3,16 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile, link } from "node:fs/promises";
-import os from "node:os";
+import { readFile, readdir, rm, writeFile, link } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { trustedAssemblyFixture as fixture } from "./fixtures/trusted-assembly-fixture.mts";
 import { assembleTrustedRelease } from "./trusted-release-assembly.mts";
-import {
-  artifactName,
-  loadPackagePolicy,
-  packagesForPlatform,
-  releaseLabels,
-} from "./release-package-policy.mts";
+import { artifactName, loadPackagePolicy } from "./release-package-policy.mts";
 
 const policy = await loadPackagePolicy();
 const version = "0.1.0-alpha.3";
-const source = "a".repeat(40);
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
-
-async function fixture(t: test.TestContext) {
-  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-trusted-assembly-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const input = path.join(root, "input");
-  const files: { platform_label: string; filename: string; bytes: number; sha256: string }[] = [];
-  const contents = new Map<string, Buffer>();
-  for (const label of releaseLabels(policy)) {
-    const directory = path.join(input, `release-build-${label}`);
-    await mkdir(directory, { recursive: true });
-    const put = async (filename: string, value: string) => {
-      const bytes = Buffer.from(value);
-      await writeFile(path.join(directory, filename), bytes);
-      files.push({ platform_label: label, filename, bytes: bytes.length, sha256: hash(bytes) });
-      contents.set(`${label}/${filename}`, bytes);
-    };
-    const checksums = [];
-    for (const entry of packagesForPlatform(policy, label)) {
-      const filename = artifactName(entry, version);
-      // Opaque deliberately inert fixtures, no real installer/gameplay claim.
-      const bytes = `fixture package ${entry.id}; never execute`;
-      await put(filename, bytes);
-      checksums.push(`${hash(bytes)}  ${filename}`);
-    }
-    await put(`SHA256SUMS-${label}.txt`, `${checksums.join("\n")}\n`);
-    await put(
-      `release-producer-${label}.json`,
-      `${JSON.stringify({ schema_version: 1, platform_label: label, version, run_id: "12345", run_attempt: 1, revision: source })}\n`,
-    );
-  }
-  const request = {
-    schema_version: 1,
-    version,
-    source_commit: source,
-    source_tree: "b".repeat(40),
-    run_id: "12345",
-    run_attempt: 1,
-    files,
-  };
-  return { root, input, request, contents };
-}
 
 void test("trusted assembly produces a complete new aggregate and exact inventory without authenticating declared producers", async (t) => {
   const f = await fixture(t);
