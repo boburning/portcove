@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "status": "proposed-inert-local-qualification-ungranted",
+  "root": "E:\\Codex-Worktrees\\slice4-admission-delivery\\work\\slice4\\semantic-storage-dde7e30cccb4407695183a63817d12a5",
+  "owner_sid": "S-1-5-21-1007133822-4277289207-646028416-1001",
+  "maximum_bytes": 536870912,
+  "credentials": "none",
+  "purpose": "one bounded writable-state differential qualification of the selected installed reviewer; no production execution or App provisioning",
+  "fallbacks": "none",
+  "retention": "retain backing file and all partial effects after detach; no unrelated deletion"
+}
