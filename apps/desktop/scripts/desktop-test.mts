@@ -3165,13 +3165,21 @@ try {
     const selectedFilter = await browser.findElement(By.css('.filter-row [aria-pressed="true"]'));
     assert.equal(await selectedFilter.getAttribute("data-slot"), "button");
     assert.equal(await selectedFilter.getAttribute("data-variant"), "selected");
-    await search.clear();
+    // WebDriver clear() can empty the DOM without committing React's query;
+    // the next render then restores the previous scenario's search. Exercise
+    // actual editing with a nonempty preimage, including on standalone runs.
+    const selectAll = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+    await search.sendKeys(selectAll, "a", Key.NULL, "prior catalog query");
+    assert.equal(await search.getAttribute("value"), "prior catalog query");
+    await search.sendKeys(selectAll, "a", Key.NULL, Key.BACK_SPACE);
+    await browser.wait(async () => (await search.getAttribute("value")) === "", 5_000);
     const allChannels = await browser.findElement(
       By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="All"]'),
     );
     await allChannels.click();
     assert.equal(await allChannels.getAttribute("aria-pressed"), "true");
     await browser.findElement(By.id("port-search")).sendKeys("Ghostship");
+    assert.equal(await search.getAttribute("value"), "Ghostship");
     await browser.wait(
       () =>
         executeBrowserScript(browser, () =>

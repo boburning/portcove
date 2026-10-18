@@ -279,7 +279,7 @@ export function PortBrowser({
   const renderFilters = () =>
     !firstUseEmpty && (
       <div
-        className="filter-row mb-[18px] flex items-center gap-[7px]"
+        className="filter-row mb-[18px] flex flex-wrap items-center gap-[7px]"
         data-focus-group
         role="group"
         aria-label={view === "library" ? "Library filters" : "Release channel filters"}
@@ -514,7 +514,7 @@ function BrowserResults({
     );
   return (
     <section
-      className="port-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,21rem),1fr))] gap-3"
+      className="port-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),1fr))] gap-4"
       data-focus-group
     >
       {ports.map((port) => (
@@ -775,7 +775,7 @@ function PortCard({
   const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
   const detailOrigin = `${view}:card:${port.id}`;
-  const className = `port-card @container/card relative isolate grid min-h-52 min-w-0 grid-cols-[8rem_minmax(0,1fr)] overflow-hidden rounded-pc-lg border border-pc-border bg-pc-surface p-0 text-start text-pc-foreground shadow-(--shadow-control) transition-[transform,border-color,box-shadow,background-color] duration-(--duration-slow) ease-(--ease-emphasized) hover:-translate-y-px hover:border-[var(--color-interactive-border)] hover:bg-pc-secondary hover:shadow-(--shadow-raised) focus-within:-translate-y-px focus-within:border-[var(--color-interactive-border)] motion-reduce:transition-none ${view === "catalog" ? "port-card-selectable cursor-pointer" : "port-card-library"}${dropEligible ? " source-drop-eligible border-[var(--color-interactive-border)]" : ""}${dropTarget ? " source-drop-targeted outline-3 outline-solid outline-pc-ring outline-offset-2" : ""}`;
+  const className = `port-card @container/card relative isolate flex min-w-0 flex-col overflow-hidden rounded-pc-lg border border-pc-border bg-pc-surface p-0 text-start text-pc-foreground shadow-(--shadow-control) transition-[border-color,box-shadow,background-color] duration-(--duration-slow) ease-(--ease-emphasized) hover:border-[var(--color-interactive-border)] hover:bg-pc-secondary hover:shadow-(--shadow-raised) focus-within:border-[var(--color-interactive-border)] motion-reduce:transition-none ${view === "catalog" ? "port-card-selectable cursor-pointer" : "port-card-library"}${dropEligible ? " source-drop-eligible border-[var(--color-interactive-border)]" : ""}${dropTarget ? " source-drop-targeted outline-3 outline-solid outline-pc-ring outline-offset-2" : ""}`;
   const contents = (
     <PortCardContents
       {...{
@@ -790,6 +790,7 @@ function PortCard({
         dropEligible,
         dropTarget,
       }}
+      hasFavorite={Boolean(favorites)}
       detailOrigin={detailOrigin}
       onSelect={onSelect}
       onLaunch={onLaunch}
@@ -802,7 +803,10 @@ function PortCard({
         data-focusable
         variant={favorites.ids?.has(port.id) ? "selected" : "outline"}
         size="icon-sm"
-        className="absolute top-2 left-2 z-10 bg-pc-surface"
+        className={cn(
+          "absolute bottom-4 z-10 bg-pc-surface",
+          view === "library" ? "start-4" : "end-4",
+        )}
         aria-label={`Favorite ${port.name}`}
         aria-pressed={favorites.ids?.has(port.id) ?? false}
         disabled={!favorites.ids}
@@ -855,7 +859,7 @@ function PortCard({
 }
 
 const cardBadgeClass =
-  "rounded-full bg-[var(--color-bg-subtle-hover)] px-[7px] py-1 text-[length:var(--text-2xs)] tracking-[0.08em] text-[var(--color-text-secondary)] uppercase";
+  "rounded-full bg-[var(--color-bg-subtle-hover)] px-[7px] py-1 text-[length:var(--text-2xs)] text-[var(--color-text-secondary)]";
 
 function PortCardContents({
   port,
@@ -868,6 +872,7 @@ function PortCardContents({
   updateAvailable,
   dropEligible,
   dropTarget,
+  hasFavorite,
   detailOrigin,
   onSelect,
   onLaunch,
@@ -881,6 +886,7 @@ function PortCardContents({
   updateAvailable?: boolean;
   dropEligible: boolean;
   dropTarget: boolean;
+  hasFavorite: boolean;
   detailOrigin: string;
 }) {
   const title = (
@@ -889,9 +895,7 @@ function PortCardContents({
     </div>
   );
   const renderStateLabel = () => (
-    <div
-      className={`flex items-center justify-between gap-2 ${view === "catalog" ? "mb-2.5" : ""}`}
-    >
+    <div className="flex flex-wrap items-center justify-between gap-2">
       <span
         className={cn(
           `readiness ${state.tone} inline-flex items-center gap-[6px] text-[length:var(--text-2xs)] font-[750] tracking-[0.025em] text-[var(--color-text-secondary)]`,
@@ -926,22 +930,11 @@ function PortCardContents({
       )}
       <ArtworkImage
         port={port}
-        className="card-art relative aspect-2/3 w-full self-center overflow-hidden bg-[var(--art-color)]"
+        className="card-art relative aspect-2/3 w-full shrink-0 overflow-hidden"
       />
-      <div
-        className={`card-content flex min-w-0 flex-col p-4 ${view === "library" ? "gap-2" : ""}`}
-      >
-        {view === "library" ? (
-          <>
-            {title}
-            {stateLabel}
-          </>
-        ) : (
-          <>
-            {stateLabel}
-            {title}
-          </>
-        )}
+      <div className="card-content flex min-w-0 flex-1 flex-col gap-2 p-4 wrap-anywhere">
+        {title}
+        {stateLabel}
         {setup && (
           <div
             id={setupDescriptionId}
@@ -1025,7 +1018,7 @@ function PortCardContents({
         )}
         <PortCardStatus
           inputDescriptionId={input ? setupDescriptionId : undefined}
-          {...{ port, status, state, detailOrigin, onSelect, onLaunch, view }}
+          {...{ port, status, state, hasFavorite, detailOrigin, onSelect, onLaunch, view }}
         />
       </div>
     </>
@@ -1037,6 +1030,7 @@ function PortCardStatus({
   port,
   status,
   state,
+  hasFavorite,
   detailOrigin,
   onSelect,
   onLaunch,
@@ -1044,12 +1038,16 @@ function PortCardStatus({
 }: Pick<PortCardProps, "port" | "status" | "onSelect" | "onLaunch" | "view"> & {
   inputDescriptionId?: string | undefined;
   state: CardState;
+  hasFavorite: boolean;
   detailOrigin: string;
 }) {
   const overflowOrigin = `library:card-more:${port.id}`;
   return (
     <div
-      className={`mt-auto flex items-center gap-[10px] border-t border-pc-border pt-3 text-xs ${view === "library" ? "justify-end" : "justify-between"}`}
+      className={cn(
+        `mt-auto flex min-h-11 flex-wrap items-center gap-2 border-t border-pc-border pt-3 text-xs ${view === "library" ? "justify-end" : "justify-between"}`,
+        hasFavorite && (view === "library" ? "ps-9" : "pe-9"),
+      )}
     >
       {view === "catalog" && (
         <strong className="font-semibold text-[var(--color-text-secondary)]">

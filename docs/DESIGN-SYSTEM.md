@@ -278,6 +278,16 @@ optional; titles, status and actions remain readable outside images, including
 generated fallback states. Logos, icons, animation and a crop editor are not
 required for this slice.
 
+Library and Catalog use responsive portrait grids. Each artwork frame is 2:3;
+metadata adds height below the frame and never participates in its aspect ratio.
+Whole-image fitting and Core fallback colors remain owned by `Artwork.module.css`.
+Titles, status, descriptions, Favorites and supporting actions sit below artwork.
+Directional navigation must reach the separate Favorite even when its hit region
+sits within the larger Catalog card's bounds, and return to the card normally.
+Long words wrap, filters can wrap, and the collection scrolls rather than shrinking
+covers to fit a row count. The grid chooses columns from available width; a
+reference composition's fixed frame width or column count is not a window rule.
+
 The current account-free fallback is a core-owned style with a stable identity,
 initials and palette per port and slot. Desktop renders a reviewed IGDB catalog
 cover when mapped and no local image is chosen; other slots use the generated style.
