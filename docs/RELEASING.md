@@ -696,6 +696,19 @@ production permissions and the specifically authorized proof remain separate.
 
 ### Inactive aggregate attestation binding
 
+The [held aggregate workflow](qualification/application-update-production.aggregate.yml)
+connects existing reservation recovery, assembly, a new immutable upload, fresh
+own-job binding and an isolated attester. It is outside `.github/workflows` and
+keeps literal holds on all new jobs. `production-aggregate-steps.mts` is its
+bounded transport/orchestration adapter; it never admits its input authority or
+allocates/advances a reservation. Independent candidate/file-matrix admission,
+fresh qualification/classification/pause/capacity sources and production
+configuration remain missing. The
+[dated authorization packet](qualification/slice4-production-authorization-packet-2026-10-18.md)
+records exact proposed permission scopes and the remaining owner decisions.
+Merging this inert preparation cannot activate the runnable admission-only
+workflow or grant protected execution/signing/publication.
+
 `prepareAggregateAttestation` in `scripts/trusted-aggregate-attestation.mts`
 prepares inputs for the existing pinned `actions/attest` action. The reviewed
 fixed workflow must call it after `assembleReleaseArtifacts` and an actual new
