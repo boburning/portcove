@@ -500,7 +500,7 @@ control and executed-producer acceptance.
 | Job                               | Proposed permissions                                    | Scope and destination                                                                                                                                                                           |
 | --------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Admission                         | `contents:read`                                         | Exact fixed workflow/source identity only                                                                                                                                                       |
-| Independent input admission, held | `contents:read`, `actions:read`                         | Existing reservation plus complete independently accepted source/tree, qualification, policy, classification, pause and free-capacity facts; no candidate execution                             |
+| Independent input admission, held | `contents:read`, `actions:read`                         | Existing reservation plus complete independently accepted source/tree, qualification, policy, classification, pause and ratified bounded-attempt eligibility; no candidate execution            |
 | Trusted package assembly, held    | `contents:read`, `actions:read`, `id-token:write`       | Bounded candidate archives; new same-repository `trusted-release-final-<own-run>-<attempt>` Actions artifact, seven-day retention, no overwrite; fresh own-job identity JWT kept only in memory |
 | Attest, held                      | `contents:read`, `id-token:write`, `attestations:write` | Existing pinned `actions/attest`, custom aggregate predicate in GitHub repository attestation service; no package extraction or candidate checkout                                              |
 | Verify, held                      | `contents:read`, `actions:read`                         | Exact aggregate and dedicated bundle artifact IDs/bytes, existing pinned certificate/predicate verifier and reservation readback; no OIDC, signing or publication                               |
@@ -558,8 +558,9 @@ limits remain. This adds no source-selection authority or positive descriptor.
 These are acquired facts, not independent acceptance. Producer JSON is only a
 declaration. Historical original-source/routine publication attribution can
 remain unknown. The gate still needs actual executed-workflow/producer/isolation
-acceptance and authenticated fresh classification, pause and free-capacity
-inputs through the accepted authority. It emits no descriptor and always holds.
+acceptance and authenticated classification/pause inputs plus the selected
+ratified no-spend boundary through the accepted authority. Availability and
+headroom remain Unknown; the boundary is not a capacity reservation. It emits no descriptor and always holds.
 Its conservative paused planner invocation is a schema diagnostic only.
 Missing or partial
 facts remain UNKNOWN and hold. Existing #532/#533 parsers preserve facts but do
@@ -625,20 +626,22 @@ exists. Loss of the sole unbacked key is not recoverable by weakening signatures
 
 ## Bounded activation and proof sequence
 
-1. Finish and independently review candidate admission's missing authenticated
-   control and executed-producer acceptance,
-   exact permission proposal, source-bound qualification and fresh budget source.
-   Required exact-head CI and held-template checks must pass. No runtime privilege
-   is needed to merge this inert preparation.
-2. Obtain the owner's exact grant for the principal/actor, full protected ref,
-   controller commit/workflow digest, namespace/protection, permissions and proof
-   scope. Verify actual provider enforcement and $0 capacity. Do not consume an
-   available token as permission or silently select the retained exhausted ref.
-3. Only then prepare and review the runnable workflow replacement and provision
-   the granted boundary. Select a newly eligible, specifically admitted existing
-   reservation and candidate. Do not redispatch an exhausted canary or start a
-   full Release for convenience. The latest retained Release inventory observed
-   in this work has zero current artifacts; no reusable bytes are claimed.
+1. Finish and independently review the runnable candidate, missing authenticated
+   control and executed-producer acceptance, exact permissions, source-bound
+   qualification and admitted ratified no-spend boundary. Required exact-head CI
+   and held-template checks must pass. Bind its final commit/workflow digest and
+   exact eligible existing-journal candidate/reservation. Do not redispatch the
+   exhausted canary or start a full Release for convenience. The latest retained
+   Release inventory observed here has zero current artifacts; no reuse is claimed.
+2. Provision only the separately granted principal/credential/protection boundary.
+   Verify actual provider enforcement for the exact full ref, actor, namespace,
+   runner/resource restrictions and retained $0 stop-usage configuration. Revoke
+   ratification before any relevant configuration change; availability/headroom
+   remain Unknown. An available token is not permission.
+3. Present the actual reviewed runnable revision/digest, observed protections,
+   eligible reservation and bounded proof for the owner's exact protected execution
+   grant. Reconcile any subsequent source, digest, permissions or execution-boundary
+   change before running. No grant for today's held template is implied.
 4. Execute once within the explicit proof budget. Collect exact controller and
    candidate commit/tree, run/attempt/numeric jobs, new artifact ID/digest, bounded
    archive/member readback, attestation bundle and independent pinned consumer
