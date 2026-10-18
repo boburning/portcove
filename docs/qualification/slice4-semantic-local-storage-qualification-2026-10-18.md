@@ -1,7 +1,13 @@
 # Proposed inert reviewer storage qualification
 
-Status: corrected next attempt prepared, ungranted. The first authorized Provision failed and its partial image was detached with explicit recovery authority. This is a local host differential test, not producer
-credential provisioning, semantic acceptance or protected execution.
+Status: both authorized Provision attempts failed; both partial images are now
+detached and retained after their approved recovery. Neither attempt started a
+fixture. The second cleanup approval is fulfilled; no cleanup step remains.
+The [retained-volume completion proposal](slice4-semantic-retained-volume-completion-2026-10-18.md)
+supersedes the historical Provision commands below. It prepares reuse of the
+already formatted second image, with no new image or formatting. Completion and
+another fixture remain ungranted. This is a local startup diagnostic, not
+producer credential provisioning, semantic acceptance or protected execution.
 
 The repaired non-elevated read-only preflight now passes, including actual
 package TEMP denial. The fixed reader's real stdio list/read/search also passes
