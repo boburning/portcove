@@ -20,6 +20,7 @@ use uuid::Uuid;
 
 mod cancellation;
 mod catalog;
+mod startup;
 use catalog::CatalogCommand;
 mod human;
 mod schema;
@@ -1086,77 +1087,7 @@ fn main() -> ExitCode {
 }
 
 fn command_is_observation(command: &Commands) -> bool {
-    #[cfg(feature = "qualification-fixtures")]
-    if matches!(
-        command,
-        Commands::Installation {
-            command: InstallationCommand::QualificationUpdatePlan { .. }
-        }
-    ) {
-        return true;
-    }
-    matches!(
-        command,
-        Commands::Auth {
-            command: AuthCommand::Status,
-        } | Commands::Capabilities
-            | Commands::Catalog {
-                command: CatalogCommand::Update { apply: false, .. },
-            }
-            | Commands::Status { .. }
-            | Commands::RemovePreview { .. }
-            | Commands::External {
-                command: ExternalCommand::Preview { .. } | ExternalCommand::RemovalPreview { .. },
-            }
-            | Commands::Activity { .. }
-            | Commands::Storage
-            | Commands::Doctor
-            | Commands::Paths { .. }
-            | Commands::Plan { .. }
-            | Commands::Installation {
-                command: InstallationCommand::Plan { .. }
-            }
-            | Commands::Catalog {
-                command: CatalogCommand::List
-                    | CatalogCommand::Export
-                    | CatalogCommand::Show { .. }
-                    | CatalogCommand::Status
-                    | CatalogCommand::DefinitionAuthority { apply: false, .. }
-                    | CatalogCommand::InspectProposal { .. },
-            }
-            | Commands::Backup {
-                command: BackupCommand::List { .. },
-            }
-            | Commands::Preparation {
-                command: PreparationCommand::Plan { .. } | PreparationCommand::CleanupPlan { .. },
-            }
-            | Commands::Source {
-                command: SourceCommand::List
-                    | SourceCommand::Inspect { .. }
-                    | SourceCommand::Verify(_)
-                    | SourceCommand::Relink { apply: false, .. }
-                    | SourceCommand::Inbox {
-                        command: SourceInboxCommand::Path { .. },
-                    }
-                    | SourceCommand::Inbox {
-                        command: SourceInboxCommand::Import { apply: false, .. },
-                    }
-                    | SourceCommand::Roots {
-                        command: GameFileRootCommand::List | GameFileRootCommand::Snapshot,
-                    },
-            }
-            | Commands::Output {
-                command: OutputCommand::Show { .. }
-                    | OutputCommand::Preview { .. }
-                    | OutputCommand::Move { apply: false, .. },
-            }
-            | Commands::Artwork {
-                command: ArtworkCommand::Show { .. }
-                    | ArtworkCommand::Unused
-                    | ArtworkCommand::Handoff { .. }
-                    | ArtworkCommand::HandoffBytes { .. },
-            }
-    )
+    startup::startup_mode(command) == startup::StartupMode::ReadOnly
 }
 
 #[tokio::main]
@@ -3914,7 +3845,7 @@ mod tests {
     }
 
     #[test]
-    fn observation_commands_do_not_trigger_constructor_recovery() {
+    fn parsed_observation_commands_select_read_only_startup() {
         for arguments in [
             vec!["portcove", "status"],
             vec![

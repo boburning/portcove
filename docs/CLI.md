@@ -1,5 +1,12 @@
 # Portcove CLI
 
+The private startup policy exhaustively classifies every CLI command and nested
+variant as read-only or recovering. Adding a variant requires an explicit choice.
+Artwork handoff and status observations leave pending constructor recovery alone;
+recovering commands retain Core's existing recovery before shared-service dispatch.
+Commands with early dispatch keep their own existing construction paths. This
+classification does not grant mutation, cancellation, or launch authority.
+
 `source query PORT_ID --route managed-install --channel stable` explicitly
 refreshes registered game-file observations for the selected route on the current
 host. Other route choices are `external-registration`, `managed-launch` and

@@ -24,6 +24,52 @@ mod source_discovery_contract;
 static CAPACITY_SENSITIVE_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[test]
+fn startup_observations_preserve_pending_recovery_and_recovering_command_consumes_it() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("recovery-library");
+    drop(portcove_core::Library::open(&library).unwrap());
+    let database = rusqlite::Connection::open(library.join("portcove.sqlite3")).unwrap();
+    database.execute(
+        "INSERT INTO activity_history (id, operation, target_kind, target_id, status, started_at, cancellation_phase, cancellation_owner)
+         VALUES ('startup-recovery-control', 'prepare', 'port', 'zelda64-recomp', 'running', 1, 'preparing', 'interrupted-worker')",
+        [],
+    ).unwrap();
+    let state = || {
+        database.query_row(
+        "SELECT status, cancellation_phase, cancellation_owner, finished_at FROM activity_history WHERE id='startup-recovery-control'",
+        [],
+        |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?, row.get::<_, Option<String>>(2)?, row.get::<_, Option<i64>>(3)?)),
+    ).unwrap()
+    };
+    let pending = state();
+    let sentinel = library.join("user-owned-save");
+    std::fs::write(&sentinel, b"preserve user data").unwrap();
+    for arguments in [
+        vec![
+            "--json",
+            "artwork",
+            "handoff",
+            "zelda64-recomp",
+            "--role",
+            "portrait-cover",
+        ],
+        vec!["--json", "status"],
+    ] {
+        let output = portcove(&library, &arguments);
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(state(), pending, "{arguments:?}");
+        assert_eq!(std::fs::read(&sentinel).unwrap(), b"preserve user data");
+    }
+    // Verification may report no installed version; constructor recovery must
+    // nevertheless finish the interrupted row before dispatching that command.
+    let output = portcove(&library, &["--json", "verify", "zelda64-recomp"]);
+    assert!(!output.status.success(), "{output:?}");
+    assert_eq!(state().0, "failed");
+    assert!(state().3.is_some());
+    assert_eq!(std::fs::read(&sentinel).unwrap(), b"preserve user data");
+}
+
+#[test]
 fn game_file_query_uses_core_refresh_and_truthful_operation_events() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("query-library");
