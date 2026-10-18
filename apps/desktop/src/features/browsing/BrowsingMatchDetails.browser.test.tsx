@@ -60,8 +60,8 @@ it.each(["first-workspace", "changed-workspace"])(
         true,
       );
       await act(async () => fixtureValue(buttons()[1], "buttons()[1]").click());
-      expect(host.textContent).toContain("Retained setup method unknown");
-      expect(host.textContent).toContain("observation unavailable");
+      expect(host.textContent).toContain("Saved setup method unknown");
+      expect(host.textContent).toContain("No current game-file check");
       await render("first-workspace");
       expect(fixtureValue(buttons()[1], "buttons()[1]").getAttribute("aria-pressed")).toBe("true");
       result.matchingContexts = new Map([["port", [installed]]]);
@@ -69,12 +69,12 @@ it.each(["first-workspace", "changed-workspace"])(
       expect(buttons().every((button) => button.getAttribute("aria-pressed") === "false")).toBe(
         true,
       );
-      expect(host.textContent).not.toContain("Retained setup method unknown");
+      expect(host.textContent).not.toContain("Saved setup method unknown");
       expect(host.textContent).toContain("Your previous choice is no longer current");
-      expect(host.textContent).not.toContain("This is the matching retained installation");
+      expect(host.textContent).not.toContain("This is your matching saved installation");
       await act(async () => fixtureValue(buttons()[0], "buttons()[0]").click());
       expect(fixtureValue(buttons()[0], "buttons()[0]").getAttribute("aria-pressed")).toBe("true");
-      expect(host.textContent).toContain("This is the matching retained installation");
+      expect(host.textContent).toContain("This is your matching saved installation");
       gameFiles = {
         libraryKey: "selected",
         library: { id: "opaque", root: "selected" },
@@ -109,7 +109,7 @@ it.each(["first-workspace", "changed-workspace"])(
       };
       await render(replacementBinding);
       expect(host.textContent).not.toContain("Complete set:");
-      expect(host.textContent).toContain("observation unavailable");
+      expect(host.textContent).toContain("No current game-file check");
     } finally {
       await act(async () => root.unmount());
       host.remove();

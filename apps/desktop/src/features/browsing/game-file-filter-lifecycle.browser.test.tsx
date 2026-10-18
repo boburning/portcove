@@ -265,7 +265,7 @@ it("keeps history while retry and failure make classifications and counts unavai
   expect(state.observation.lastAccepted).toBe(metadata);
   expect(button("Compatible complete files available (unavailable)").disabled).toBe(true);
   expect(document.body.textContent).toContain("Previous check");
-  expect(document.body.textContent).toContain("Checking complete catalog context");
+  expect(document.body.textContent).toContain("Checking game files for the catalog");
   await act(async () => reject(new Error("offline")));
   expect(state.context).toBeUndefined();
   expect(state.observation.lastAccepted).toBe(metadata);

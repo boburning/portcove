@@ -303,9 +303,7 @@ it.each(["dark", "light"])(
       .element(page.getByLabelText("Selected-route check history"))
       .not.toBeInTheDocument();
     const metadata = document.querySelector('[aria-label="Catalog check history"]')!;
-    expect(metadata.textContent).toContain(
-      "Complete catalog (5 ports) · Managed setup · Windows · Stable",
-    );
+    expect(metadata.textContent).toContain("Catalog (5 ports) · Managed setup · Windows · Stable");
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(520);
     await page.screenshot({
       element: metadata.parentElement!,

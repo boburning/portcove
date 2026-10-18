@@ -1,3 +1,4 @@
+import { MetadataGrid } from "./ui/patterns";
 import type { PortDefinition, SourceInspectionReport } from "../types";
 import type { SourceEvidence, SourceVariant } from "../transport-types.generated";
 import { platformLabel } from "../view-model";
@@ -155,7 +156,7 @@ function RecordedObservation({
         {outcomeLabels[record.outcome] ?? "Outcome unknown"}
       </strong>
       <p>{record.method || "Method not recorded"}</p>
-      <dl className="qualification-grid m-0 grid grid-cols-[repeat(2,_minmax(0,_1fr))] gap-2 max-[760px]:grid-cols-[1fr]">
+      <MetadataGrid className="qualification-grid max-[760px]:grid-cols-[1fr]">
         <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt>Recorded platform</dt>
           <dd>{platformLabel(record.scope.platform)}</dd>
@@ -202,7 +203,7 @@ function RecordedObservation({
             </dd>
           </div>
         )}
-      </dl>
+      </MetadataGrid>
       {!technical && (
         <p>
           {record.scope.check_version && record.scope.artifact_sha256

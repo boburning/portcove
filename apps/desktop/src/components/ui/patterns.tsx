@@ -42,3 +42,8 @@ export function Notice({
     <section data-slot="notice" className={noticeVariants({ intent, className })} {...props} />
   );
 }
+
+/** Two-column facts; feature-specific breakpoints and item surfaces remain with their owner. */
+export function MetadataGrid({ className, ...props }: ComponentProps<"dl">) {
+  return <dl className={cn("m-0 grid grid-cols-2 gap-2", className)} {...props} />;
+}

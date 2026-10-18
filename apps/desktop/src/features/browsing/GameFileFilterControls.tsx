@@ -10,16 +10,16 @@ export function GameFileFilterControls({ state }: { state: GameFileFilterState }
   const { selection } = state;
   return (
     <fieldset className="grid gap-2">
-      <legend className="font-medium">Game-file observation context</legend>
+      <legend className="font-medium">Game files to check</legend>
       <ChoiceSelect
-        label="Observed route"
+        label="Setup option"
         value={selection.route}
         options={routes}
         disabled={state.pending}
         onChange={(route) => state.setSelection((current) => ({ ...current, route }))}
       />
       <ChoiceSelect
-        label="Observed target platform"
+        label="Platform"
         value={selection.platform}
         options={(["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"] as const).map(
           (value) => ({ value, label: platformLabel(value) }),
@@ -28,7 +28,7 @@ export function GameFileFilterControls({ state }: { state: GameFileFilterState }
         onChange={(platform) => state.setSelection((current) => ({ ...current, platform }))}
       />
       <ChoiceSelect
-        label="Observed channel"
+        label="Channel"
         value={selection.channel}
         options={(["stable", "beta", "rolling"] as const).map((value) => ({
           value,
@@ -38,9 +38,8 @@ export function GameFileFilterControls({ state }: { state: GameFileFilterState }
         onChange={(channel) => state.setSelection((current) => ({ ...current, channel }))}
       />
       <p>
-        Game-file choices use this exact route, platform and channel. Other filter groups remain
-        independent. Checking reads connected files within the existing limits; changing filters
-        does not scan, plan or install.
+        Check game files for this setup option, platform and channel. Changing filters alone does
+        not scan files or install anything.
       </p>
       <Button
         data-focusable
