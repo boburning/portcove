@@ -174,7 +174,7 @@ async fn refresh<T: Transport + Send + Sync + 'static>(
             eligibility = Some(availability.eligibility());
             if let Some(eligible) = availability.into_eligible() {
                 progress.phase = "selection";
-                library.select_definition_candidate(eligible)?;
+                library.select_definition_catalog(eligible)?;
                 DefinitionRefreshDisposition::Selected
             } else {
                 DefinitionRefreshDisposition::Ineligible

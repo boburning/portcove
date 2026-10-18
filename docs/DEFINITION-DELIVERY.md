@@ -558,7 +558,10 @@ fails verification or binding. The error reports the phase and committed policy/
 assessment changes; prior selection remains retained. Retry does not rewind
 floors, clear holds or replace the installed root. Selection uses the existing
 atomic commit and rechecks current authority, so a concurrent revocation defeats
-an older eligibility proof. Existing service instances keep their constructor
+an older eligibility proof. Ordinary selection also validates the transition
+against the current format-1/embedded catalog in that same immediate transaction,
+including exact retries; a definition cannot remove or change unrelated entries.
+Existing service instances keep their constructor
 catalog; a new service (the next CLI invocation) consumes the durable selection.
 This explicit command adds no startup polling, Tauri binding, game lifecycle
 side effects or production feed activation. The default root remains absent;

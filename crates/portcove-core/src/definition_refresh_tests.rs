@@ -34,7 +34,7 @@ impl tough::Transport for ObservedTransport {
             started.notify_one();
             std::future::pending::<()>().await;
         }
-        let url = if self.refuse_candidate && url.path().contains("/definitions/") {
+        let url = if self.refuse_candidate && url.path().ends_with("/index.json") {
             url.join("absent-candidate-fixture").unwrap()
         } else {
             url
@@ -53,6 +53,58 @@ fn source(fixture: &RepositoryFixture) -> DefinitionRepositorySource {
 fn provision(library: &Library, root: &[u8]) {
     let plan = review_fixture(library, root).unwrap();
     apply_fixture(library, root, &plan.expected_plan).unwrap();
+}
+
+fn ordinary_targets() -> Vec<(String, Vec<u8>)> {
+    let mut document =
+        serde_json::to_value(Catalog::embedded().unwrap().authoritative_document()).unwrap();
+    let metadata = serde_json::to_value(metadata_catalog().authoritative_document()).unwrap();
+    document["ports"]
+        .as_array_mut()
+        .unwrap()
+        .push(metadata["ports"][0].clone());
+    let catalog = Catalog::from_json(&document.to_string()).unwrap();
+    repository_targets_for(&catalog, ID)
+}
+
+fn ordinary_availability(revision: u64) -> Value {
+    availability_for(&ordinary_targets(), ID, revision)
+}
+
+fn ordinary_managed(revision: u64) -> Value {
+    let mut document = managed_github(revision);
+    let binding = ordinary_availability(revision);
+    for field in [
+        "definition_revision",
+        "index_sha256",
+        "definition_sha256",
+        "template",
+    ] {
+        document["decision"][field] = binding["decision"][field].clone();
+    }
+    document
+}
+
+async fn publish_ordinary(
+    fixture: &RepositoryFixture,
+    key: &Key,
+    version: u64,
+    document: &Value,
+) -> Vec<u8> {
+    let mut targets = ordinary_targets();
+    targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(document).unwrap(),
+    ));
+    fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((key, version)),
+        )
+        .await
 }
 
 #[tokio::test]
@@ -99,7 +151,24 @@ async fn ordinary_unconfigured_and_unprovisioned_refresh_refuse_before_transport
 async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preserves_selection() {
     let fixture = authority_provisioning::separated_fixture();
     let key = Key::new(fixture._directory.path());
-    let root = publish(&fixture, &key, 1, &availability(1)).await;
+    // A selectable catalog retains all existing entries. Generic metadata-only
+    // fixtures deliberately omit them and cannot establish ordinary availability.
+    let (catalog, id) = post_client_catalog();
+    let mut targets = repository_targets_for(&catalog, &id);
+    let document = availability_for(&targets, &id, 1);
+    targets.push((
+        format!("policy/official/{id}.json"),
+        serde_json::to_vec(&document).unwrap(),
+    ));
+    let root = fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 1)),
+        )
+        .await;
     let (_directory, library) = library();
     provision(&library, &root);
     let service = PortcoveService::new(library.clone()).unwrap();
@@ -107,7 +176,7 @@ async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preser
     let first = refresh_fixture(
         &service,
         &source(&fixture),
-        ID,
+        &id,
         &root,
         transport.clone(),
         |_| {},
@@ -120,7 +189,7 @@ async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preser
     ));
     assert!(first.policy_changed);
     assert_eq!(first.refresh_schema, 1);
-    assert_eq!(first.selection.selected.as_ref().unwrap().stable_id, ID);
+    assert_eq!(first.selection.selected.as_ref().unwrap().stable_id, id);
     assert_eq!(
         transport
             .requests
@@ -134,7 +203,7 @@ async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preser
     let second = refresh_fixture(
         &service,
         &source(&fixture),
-        ID,
+        &id,
         &root,
         FilesystemTransport,
         |_| {},
@@ -144,22 +213,101 @@ async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preser
     assert!(!second.policy_changed);
     assert_eq!(second.selection.revision, first.selection.revision);
     assert_eq!(second.selection.selected, first.selection.selected);
-    assert!(service.catalog().definition_selection(ID).is_none());
-    let fresh = PortcoveService::new(library).unwrap();
-    assert!(fresh.catalog().definition_selection(ID).is_some());
+    assert!(service.catalog().definition_selection(&id).is_none());
+    let fresh = PortcoveService::new(library.clone()).unwrap();
+    assert!(fresh.catalog().definition_selection(&id).is_some());
+
+    // Change the separately signed baseline after this service was constructed.
+    // An exact definition retry must revalidate that baseline in its transaction.
+    use ed25519_dalek::Signer;
+    let key = ed25519_dalek::SigningKey::from_bytes(&[19; 32]);
+    library
+        .trust_catalog_key(&hex::encode(key.verifying_key().as_bytes()))
+        .unwrap();
+    let mut baseline = Catalog::embedded()
+        .unwrap()
+        .authoritative_document()
+        .clone();
+    baseline.ports[0].summary = "Changed independently signed baseline fixture".into();
+    let now = Library::now();
+    let payload = serde_json::to_string(&crate::SignedCatalogPayload {
+        sequence: 1,
+        issued_at: now - 60,
+        expires_at: now + 3600,
+        catalog: baseline,
+    })
+    .unwrap();
+    let key_id = crate::signed_catalog::digest(key.verifying_key().as_bytes());
+    let signature = key.sign(&crate::signed_catalog::signing_message(&key_id, &payload));
+    let file = _directory.path().join("changed-baseline.json");
+    fs::write(
+        &file,
+        serde_json::to_vec(&crate::SignedCatalogEnvelope {
+            format_version: 1,
+            key_id,
+            payload,
+            signature: hex::encode(signature.to_bytes()),
+        })
+        .unwrap(),
+    )
+    .unwrap();
+    let baseline_source = crate::CatalogUpdateSource::File(file);
+    let plan = service.plan_catalog_update(&baseline_source).await.unwrap();
+    service
+        .apply_catalog_update(&baseline_source, &plan.plan_sha256, |_| {})
+        .await
+        .unwrap();
+    let error = refresh_fixture(
+        &service,
+        &source(&fixture),
+        &id,
+        &root,
+        FilesystemTransport,
+        |_| {},
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.details["definition_refresh_phase"], "selection");
+    assert_eq!(error.details["definition_policy_changed"], "false");
+    assert_eq!(
+        library.definition_selection_status().unwrap(),
+        second.selection
+    );
 }
 
 #[tokio::test]
 async fn ordinary_refresh_cancels_suspended_companion_and_candidate_without_admission() {
-    for needle in [".launch.json", "/definitions/"] {
+    for needle in [".launch.json", "/index.json"] {
         let fixture = authority_provisioning::separated_fixture();
         let key = Key::new(fixture._directory.path());
-        let mut document = managed_github(1);
+        let mut document = ordinary_managed(1);
         if needle == ".launch.json" {
             document["policy_schema"] = 3.into();
             document["decision"]["scoped_launch_checks"] = 1.into();
         }
-        let root = publish(&fixture, &key, 1, &document).await;
+        let root = publish_ordinary(&fixture, &key, 1, &document).await;
+        if needle == ".launch.json" {
+            let mut targets = ordinary_targets();
+            targets.push((
+                format!("policy/official/{ID}.json"),
+                serde_json::to_vec(&document).unwrap(),
+            ));
+            let assessment = launch_assessments::assessment_document(
+                &hex::encode(Sha256::digest(serde_json::to_vec(&document).unwrap())),
+                1,
+                vec![],
+            );
+            launch_assessments::publish_assessment_for_targets(
+                &fixture,
+                &key,
+                &root,
+                targets,
+                2,
+                &assessment,
+            )
+            .await
+            .unwrap();
+        }
         let (_directory, library) = library();
         provision(&library, &root);
         let service = PortcoveService::new(library.clone()).unwrap();
@@ -185,6 +333,10 @@ async fn ordinary_refresh_cancels_suspended_companion_and_candidate_without_admi
         assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
         assert_eq!(active.load(Ordering::SeqCst), 0);
         assert_eq!(count(&library, "definition_publisher_admission"), 0);
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            crate::ActivityStatus::Cancelled
+        );
         assert!(
             library
                 .definition_selection_status()
@@ -200,7 +352,9 @@ async fn ordinary_refresh_cancels_suspended_companion_and_candidate_without_admi
         ));
         assert!(matches!(
             events[1].event,
-            crate::OperationEventKind::Finished { .. }
+            crate::OperationEventKind::Finished {
+                result: crate::OperationResult::Cancelled
+            }
         ));
     }
 }
@@ -209,8 +363,8 @@ async fn ordinary_refresh_cancels_suspended_companion_and_candidate_without_admi
 async fn ordinary_refresh_persists_revocation_without_fetching_a_candidate() {
     let fixture = authority_provisioning::separated_fixture();
     let key = Key::new(fixture._directory.path());
-    let mut document = availability(1);
-    let root = publish(&fixture, &key, 1, &document).await;
+    let mut document = ordinary_availability(1);
+    let root = publish_ordinary(&fixture, &key, 1, &document).await;
     let (_directory, library) = library();
     provision(&library, &root);
     let service = PortcoveService::new(library.clone()).unwrap();
@@ -227,7 +381,7 @@ async fn ordinary_refresh_persists_revocation_without_fetching_a_candidate() {
     .selection;
     document["policy_revision"] = 2.into();
     document["decision"] = serde_json::json!({"status":"revoked"});
-    assert_eq!(publish(&fixture, &key, 2, &document).await, root);
+    assert_eq!(publish_ordinary(&fixture, &key, 2, &document).await, root);
     let transport = ObservedTransport {
         refuse_candidate: true,
         ..ObservedTransport::default()
@@ -254,11 +408,11 @@ async fn ordinary_refresh_persists_revocation_without_fetching_a_candidate() {
             .lock()
             .unwrap()
             .iter()
-            .any(|url| url.contains("/definitions/"))
+            .any(|url| url.ends_with("/index.json"))
     );
     let status: String = library.connection().unwrap().query_row("SELECT status FROM definition_publisher_policy WHERE namespace='official' AND stable_id=?1", [ID], |row| row.get(0)).unwrap();
     assert_eq!(status, "revoked");
-    publish(&fixture, &key, 1, &availability(1)).await;
+    publish_ordinary(&fixture, &key, 1, &ordinary_availability(1)).await;
     let replay = refresh_fixture(
         &service,
         &source(&fixture),
@@ -284,8 +438,8 @@ async fn ordinary_refresh_retains_restrictive_admission_when_launch_companion_fa
     for wrong_binding in [false, true] {
         let fixture = authority_provisioning::separated_fixture();
         let key = Key::new(fixture._directory.path());
-        let mut document = managed_github(1);
-        let root = publish(&fixture, &key, 1, &document).await;
+        let mut document = ordinary_managed(1);
+        let root = publish_ordinary(&fixture, &key, 1, &document).await;
         let (_directory, library) = library();
         provision(&library, &root);
         let service = PortcoveService::new(library.clone()).unwrap();
@@ -304,7 +458,7 @@ async fn ordinary_refresh_retains_restrictive_admission_when_launch_companion_fa
         document["policy_revision"] = 2.into();
         document["decision"]["scoped_launch_checks"] = 1.into();
         if wrong_binding {
-            let mut targets = metadata_targets();
+            let mut targets = ordinary_targets();
             targets.push((
                 format!("policy/official/{ID}.json"),
                 serde_json::to_vec(&document).unwrap(),
@@ -320,18 +474,30 @@ async fn ordinary_refresh_retains_restrictive_admission_when_launch_companion_fa
             .await
             .unwrap();
         } else {
-            publish(&fixture, &key, 2, &document).await;
+            publish_ordinary(&fixture, &key, 2, &document).await;
         }
+        let mut failed_events = Vec::new();
         let error = refresh_fixture(
             &service,
             &source(&fixture),
             ID,
             &root,
             FilesystemTransport,
-            |_| {},
+            |event| failed_events.push(event),
         )
         .await
         .unwrap_err();
+        assert_eq!(failed_events.len(), 2);
+        assert!(matches!(
+            failed_events[1].event,
+            crate::OperationEventKind::Finished {
+                result: crate::OperationResult::Failed
+            }
+        ));
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            crate::ActivityStatus::Failed
+        );
         assert_eq!(error.details["definition_policy_changed"], "true");
         assert_eq!(
             error.details["definition_refresh_phase"],
@@ -351,7 +517,7 @@ async fn ordinary_refresh_retains_restrictive_admission_when_launch_companion_fa
             1,
             vec![],
         );
-        let mut targets = metadata_targets();
+        let mut targets = ordinary_targets();
         targets.push((
             format!("policy/official/{ID}.json"),
             serde_json::to_vec(&document).unwrap(),
@@ -389,7 +555,7 @@ async fn ordinary_refresh_retains_restrictive_admission_when_launch_companion_fa
 async fn ordinary_refresh_cancellation_wins_before_network_and_admission() {
     let fixture = authority_provisioning::separated_fixture();
     let key = Key::new(fixture._directory.path());
-    let root = publish(&fixture, &key, 1, &availability(1)).await;
+    let root = publish_ordinary(&fixture, &key, 1, &ordinary_availability(1)).await;
     let (_directory, library) = library();
     provision(&library, &root);
     let service = PortcoveService::new(library.clone()).unwrap();
@@ -417,5 +583,50 @@ async fn ordinary_refresh_cancellation_wins_before_network_and_admission() {
             .unwrap()
             .selected
             .is_none()
+    );
+}
+
+#[tokio::test]
+async fn ordinary_refresh_refuses_a_transition_that_removes_unrelated_catalog_entries() {
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let root = publish_ordinary(&fixture, &key, 1, &ordinary_availability(1)).await;
+    let (_directory, library) = library();
+    provision(&library, &root);
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let before = refresh_fixture(
+        &service,
+        &source(&fixture),
+        ID,
+        &root,
+        FilesystemTransport,
+        |_| {},
+    )
+    .await
+    .unwrap()
+    .selection;
+    // Authenticate a valid standalone definition which omits the existing
+    // catalog. It must not become an ordinary selected/available transition.
+    publish(&fixture, &key, 2, &availability(2)).await;
+    let error = refresh_fixture(
+        &service,
+        &source(&fixture),
+        ID,
+        &root,
+        FilesystemTransport,
+        |_| {},
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.details["definition_refresh_phase"], "selection");
+    assert_eq!(error.details["definition_policy_changed"], "true");
+    assert_eq!(library.definition_selection_status().unwrap(), before);
+    let retained: String = library.connection().unwrap().query_row(
+        "SELECT policy_json FROM definition_publisher_admission WHERE namespace='official' AND stable_id=?1",
+        [ID], |row| row.get(0),
+    ).unwrap();
+    assert_eq!(
+        serde_json::from_str::<Value>(&retained).unwrap()["policy_revision"],
+        2
     );
 }

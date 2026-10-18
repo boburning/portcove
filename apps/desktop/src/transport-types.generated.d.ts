@@ -309,6 +309,7 @@ export type CatalogUpdateSource =
       [k: string]: unknown;
     };
 export type DefinitionCapabilityOutcome = "supported" | "unsupported_template" | "unsupported_version";
+export type DefinitionRefreshDisposition = "revoked" | "selected" | "ineligible";
 export type HostToolSource = "environment" | "saved" | "discovery";
 export type HostToolState = "available" | "missing" | "misconfigured" | "unsupported";
 export type RepairItemKind =
@@ -557,6 +558,7 @@ export interface TransportOutputs {
   definition_authority_review: DefinitionAuthorityReview;
   definition_capability_report: OutputDefinitionCapabilityReport;
   definition_capability_request: OutputDefinitionCapabilityRequest;
+  definition_refresh: OutputDefinitionRefresh;
   doctor: OutputDoctor;
   external_runtime_preview: OutputExternalRuntimePreview;
   external_runtime_record: ExternalRuntimeRecord;
@@ -1566,6 +1568,44 @@ export interface DefinitionCapabilityRequirement {
 export interface OutputDefinitionCapabilityRequest {
   capability_contract_schema: number;
   required_capabilities: DefinitionCapabilityRequirement[];
+}
+export interface OutputDefinitionRefresh {
+  disposition: DefinitionRefreshDisposition;
+  eligibility: DefinitionEligibility | null;
+  launch_assessment_changed: boolean;
+  namespace: string;
+  policy_changed: boolean;
+  refresh_schema: number;
+  selection: DefinitionSelectionStatus;
+  stable_id: string;
+  [k: string]: unknown;
+}
+export interface DefinitionSelectionStatus {
+  can_rollback: boolean;
+  replay_floor: DefinitionReplayFloor | null;
+  revision: number;
+  selected: DefinitionSelectionIdentity | null;
+  [k: string]: unknown;
+}
+/**
+ * Highest authenticated metadata identities accepted with a selected definition snapshot.
+ *
+ * The floor is inert until a later catalog-selection transaction persists it. Each digest is
+ * the canonical signed body for that TUF role, excluding replaceable signature bytes.
+ */
+export interface DefinitionReplayFloor {
+  definitions_sha256: string;
+  definitions_version: number;
+  index_sha256: string;
+  root_sha256: string;
+  root_version: number;
+  snapshot_sha256: string;
+  snapshot_version: number;
+  targets_sha256: string;
+  targets_version: number;
+  timestamp_sha256: string;
+  timestamp_version: number;
+  [k: string]: unknown;
 }
 export interface OutputDoctor {
   catalog_port_count: number;
