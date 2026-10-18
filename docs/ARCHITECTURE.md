@@ -92,6 +92,13 @@ scope; they do not certify later builds.
 
 ## Source import journal interpretation
 
+`PortcoveService` remains the source-operation facade. Its private
+`service::sources` module owns inspection, registration, verification and removal
+of source references, including their consent fingerprints. Registration and
+removal acquire the source and dependent-port locks before checking current
+state. Removal forgets a registration and preserves the source files. Import
+transactions and their recovery remain with the source-import owner below.
+
 The source-import owner decodes the released lifecycle envelope into a private
 profile identity and import phase before normal execution, recovery or cancelled
 staging cleanup. The persisted `port_id` column continues to hold the source
@@ -2261,6 +2268,11 @@ checks remain required. Deletion already in progress need not retain an intact
 backup manifest.
 
 ## Adapter boundary
+
+The supervised launch path uses the concrete built-in adapter directly, without
+allocating a boxed trait object or storing a registry in the service. The public
+`Adapter` trait and `AdapterRegistry::get` return type remain compatible; callers
+using that boundary retain the same built-in behavior.
 
 Adapter `launch_spec` and `launch_spec_with_executable` observe current inputs and
 assemble paths, environment and arguments without creating directories, copying
