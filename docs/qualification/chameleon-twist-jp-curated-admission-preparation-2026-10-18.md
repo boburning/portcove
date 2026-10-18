@@ -7,10 +7,12 @@ runtime authority, support or qualification. No original-game bytes were read,
 package executed, library installed, key used or protected feed changed here.
 
 The [concrete data draft](chameleon-twist-jp-curated-admission-proposal-2026-10-18.json)
-uses the existing port, source and curated-record fields. Its required acquisition,
-independent final review and protected acceptance references remain null. It is
-deliberately non-admissible; do not put it into the live catalog or replace those
-fields with an inspection receipt to manufacture authority.
+uses the existing port, source and curated-record fields. The bounded unblock
+pass completed its [acquisition evidence](chameleon-twist-jp-acquisition-evidence-2026-10-18.json)
+and [separate independent preparation review](chameleon-twist-jp-independent-review-2026-10-18.md)
+references with immutable locations and exact hashes. Protected acceptance
+remains null. The draft is deliberately non-admissible; neither these receipts
+nor matching downloads may manufacture publisher/root authority.
 
 ## Exact observed candidate
 
