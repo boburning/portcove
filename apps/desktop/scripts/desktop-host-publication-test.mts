@@ -325,8 +325,45 @@ export async function hostPublicationScenario(context: Context) {
 
     const destination = path.join(output, "published-move-destination");
     const original = await fileIdentity(save);
-    const move = await arm("library_move_published");
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    // Settings starts a real library-bound diagnostic worker. Let that read
+    // finish before requesting an exclusive transfer; never retry a mutation
+    // or treat a failed diagnostic as successful host qualification.
+    const diagnosticsStarted = Date.now();
+    const diagnostics = await browser.wait(
+      until.elementLocated(By.css('.diagnostics-card [role="status"]')),
+      15_000,
+    );
+    assert.equal(
+      (await browser.findElements(By.css('.diagnostics-card [role="status"]'))).length,
+      1,
+    );
+    const refreshDiagnostics = await browser.findElement(By.css(".diagnostics-card button"));
+    const initialDiagnostics = await diagnostics.getText();
+    let terminalDiagnostics = "";
+    await browser.wait(
+      async () => {
+        terminalDiagnostics = await diagnostics.getText();
+        return (
+          (await refreshDiagnostics.isEnabled()) &&
+          [
+            "Diagnostics are current.",
+            "Diagnostics could not be checked.",
+            "Couldn't refresh diagnostics. Showing the last results.",
+          ].includes(terminalDiagnostics)
+        );
+      },
+      30_000,
+      "Settings diagnostics must finish before exclusive library transfer",
+    );
+    const settingsDiagnostics = {
+      initial: initialDiagnostics,
+      terminal: terminalDiagnostics,
+      elapsed_ms: Date.now() - diagnosticsStarted,
+      outcome: terminalDiagnostics === "Diagnostics are current." ? "completed" : "failed",
+    };
+    const move = await arm("library_move_published");
+    move.result.settings_diagnostics_before_transfer = settingsDiagnostics;
     await browser.findElement(button("Move library")).click();
     await browser.wait(until.elementLocated(By.id("library-destination")), 15_000);
     await browser.findElement(By.id("library-destination")).sendKeys(destination);

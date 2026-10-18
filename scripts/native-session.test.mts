@@ -45,6 +45,48 @@ const script = fileURLToPath(
 const windows = { skip: process.platform !== "win32", timeout: 20_000 };
 
 void test(
+  "driver snapshot waits for positive image metadata and refuses persistent absence",
+  windows,
+  async () => {
+    const root = await temporaryRoot();
+    for (const persistent of [false, true]) {
+      const snapshot = path.join(root, persistent ? "unavailable.json" : "ready.json");
+      const quote = (value: string) => "'" + value.replaceAll("'", "''") + "'";
+      const result = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-Command",
+          `
+      $script:observations = 0
+      function Get-CimInstance {
+        param($ClassName, $Filter)
+        $script:observations++
+        $self = [Diagnostics.Process]::GetCurrentProcess()
+        try {
+          [pscustomobject]@{ ProcessId=$PID; CreationDate=$self.StartTime; ExecutablePath=$(if (${persistent ? "$true" : "$false"} -or $script:observations -eq 1) { $null } else { $self.MainModule.FileName }) }
+        } finally { $self.Dispose() }
+      }
+      & ${quote(script)} -Mode SnapshotDriver -DriverProcessId $PID -SnapshotPath ${quote(snapshot)}
+    `,
+        ],
+        { encoding: "utf8", windowsHide: true, timeout: 10_000 },
+      );
+      if (persistent) {
+        assert.notEqual(result.status, 0);
+        assert.match(result.stderr, /executable identity remained unavailable/u);
+        await assert.rejects(access(snapshot), { code: "ENOENT" });
+      } else {
+        assert.equal(result.status, 0, result.stderr);
+        const observed = readNativeProcessSnapshot(json(result.stdout));
+        assert.ok(path.isAbsolute(observed.driver.path));
+        assert.deepEqual(json(await readFile(snapshot, "utf8")), json(result.stdout));
+      }
+    }
+  },
+);
+
+void test(
   "embedded startup root exit cannot claim cleanup of later descendants",
   { ...windows, timeout: 45_000 },
   async () => {

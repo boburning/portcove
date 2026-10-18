@@ -1,1 +1,1 @@
-git diff --cached --check && vp staged --relative
+git diff --cached --check && node scripts/node-test-inventory.mts --staged && vp staged --relative

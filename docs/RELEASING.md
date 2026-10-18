@@ -493,6 +493,48 @@ execution/principal enforcement, producer-job/attempt/artifact binding, isolated
 candidate runners/caches, protected remote durability, custody, signing/feed
 activation and actual Windows/Linux public recovery proof remain separate.
 
+### Inactive remote checkpoint transport
+
+`exportCoordinatorCheckpoint(repository, expected)` exports the existing journal's
+exact blob, tree and commit from a caller-owned bare coordinator. It validates
+physical UTF-8 and canonical state bytes, fixed commit metadata, the preceding
+transition and the complete preparation receipt pair. The caller establishes
+ownership of that path; bare status alone supplies no authority.
+
+`publishCoordinatorCheckpoint(repository, expected, configuration, { api })` in
+`scripts/release-coordinator-remote.mts` supplies an inactive transport seam.
+The caller injects a bounded API transport and separately ratified configuration
+`{ schema_version: 1, namespace }`. There is no default transport, configured
+production namespace, CLI or workflow activation. Configuration is a destination,
+not an execution or publication grant. Production integration must enforce the
+fixed controller, principal, protected refs, fresh accepted inputs and isolation
+before constructing that caller.
+
+The adapter fixes the repository identity to `boburning/portcove` / `1354613114`.
+The namespace selects one coordinator state branch and two preparation tag
+namespaces. An initialized previous checkpoint and exact remote source/prepared
+application commits are required. Application-object transport and one-time
+initialization remain separate reviewed operations. The adapter uploads only the
+checkpoint's inert objects and compares each returned Git identity. One
+[atomic GitHub ref update](https://docs.github.com/en/graphql/reference/git#updaterefs)
+compares the state preimage and creates or verifies both immutable receipts;
+updates use `force: false` and retain completed allocations. Exact observed
+replay performs no upload or ref mutation.
+
+The cooperative API budget is 16 requests and 120 seconds, plus 30 seconds for
+post-mutation collection; injected calls must have finite timeouts (the existing
+GitHub runner defaults to 15 seconds). A possibly committed CAS receives one
+fresh readback. Unknown, conflicting or unavailable readback preserves the local
+checkpoint and failure evidence for explicit reconciliation, without automatic
+retry, rollback or reallocation. An observed final state identifies that state;
+it does not establish which concurrent actor applied it.
+
+Isolated tests exercise actual Git object identities and the existing bounded
+API adapter through an injected fake provider. Production qualification still
+requires platform proof of exact object reproduction, existing tag receipt
+verification with unchanged OIDs, principal/ref enforcement and recovery. This
+transport supplies neither authentic producer facts nor signing/feed authority.
+
 ### Read-only release-run evidence
 
 `node scripts/release-run-evidence.mts REQUEST.json` collects bounded read-only

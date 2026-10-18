@@ -86,7 +86,7 @@ export function baselineContractTests(plan: ValidationPlan, options: ClassifyOpt
   return [...tests].sort();
 }
 
-// Tests that actually invoke native compiler/runner fixture controls.
+// Tests that actually invoke Cargo metadata or native compiler/runner controls.
 export function baselineRequiresRust(plan: ValidationPlan) {
   if (plan.mode === "qualification") return true;
   if (plan.mode === "blocked" || plan.mode === "prose") return false;
@@ -96,6 +96,7 @@ export function baselineRequiresRust(plan: ValidationPlan) {
       "scripts/rust-support-cache.test.mts",
       "scripts/rust-test-tree-supervisor.test.mts",
       "scripts/development-capabilities.test.mts",
+      "scripts/dev-storage.test.mts",
     ].includes(file),
   );
 }

@@ -253,6 +253,14 @@ fn ready(state: &DesktopState) -> DesktopResult<ReadyDesktopState> {
     initialization_snapshot(state).0
 }
 
+fn github_status_observation(
+    state: &DesktopState,
+) -> DesktopResult<
+    impl std::future::Future<Output = portcove_core::Result<GithubAuthStatus>> + Send + 'static + use<>,
+> {
+    Ok(ready(state)?.github.auth_status())
+}
+
 fn require_no_library_handoff(
     initialization: &DesktopResult<ReadyDesktopState>,
 ) -> DesktopResult<()> {
@@ -456,8 +464,8 @@ async fn get_github_auth_status(
     state: tauri::State<'_, DesktopState>,
 ) -> DesktopResult<GithubAuthStatus> {
     let observation = diagnostics::GithubAuthObservation::begin();
-    let result = match ready(&state) {
-        Ok(ready) => ready.github.auth_status().await.map_err(Into::into),
+    let result = match github_status_observation(&state) {
+        Ok(request) => request.await.map_err(Into::into),
         Err(error) => Err(error),
     };
     observation.finish(result)
