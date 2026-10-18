@@ -24,6 +24,11 @@ future schemas fail closed; explicit reset clears consent while advancing the
 revision. The typed get, save and reset commands perform no update check, download,
 staging or application side effect.
 
+Host state reads enforce their byte limits while consuming the file, including
+recovery revision reads. Metadata checks supplement the limit; growth after the
+check cannot cause an unbounded read. Oversized state remains invalid and cannot
+supply a recovery revision.
+
 Desktop Settings presents that state as a local draft with the installed application
 version, channel, mode and pause control. A missing choice stays nonconsenting even
 while the recommended Preview/automatic draft is visible. Only the explicit Save

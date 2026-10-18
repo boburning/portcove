@@ -18,7 +18,7 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::application_update::ApplicationChannel;
-use crate::application_update_storage::write_bytes_atomically;
+use crate::application_update_storage::{read_bytes_with_overflow, write_bytes_atomically};
 use crate::{DesktopError, DesktopResult, blocking_worker};
 
 const PREFERENCE_SCHEMA_VERSION: u32 = 1;
@@ -151,7 +151,7 @@ impl ApplicationUpdatePreferenceStore {
                 "preference document is not a bounded direct file".into(),
             ));
         }
-        let bytes = fs::read(&self.path)?;
+        let bytes = read_bytes_with_overflow(&self.path, MAX_PREFERENCE_BYTES)?;
         if bytes.is_empty() || bytes.len() as u64 > MAX_PREFERENCE_BYTES {
             return Err(ApplicationUpdatePreferenceError::InvalidState(
                 "preference document changed size while being read".into(),
@@ -366,7 +366,7 @@ impl ApplicationUpdatePreferenceStore {
     }
 
     fn next_recovery_revision(&self) -> Result<u64, ApplicationUpdatePreferenceError> {
-        let revision = fs::read(&self.path)
+        let revision = read_bytes_with_overflow(&self.path, MAX_PREFERENCE_BYTES)
             .ok()
             .filter(|bytes| !bytes.is_empty() && bytes.len() as u64 <= MAX_PREFERENCE_BYTES)
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
@@ -429,7 +429,10 @@ impl ApplicationUpdatePreferenceStore {
         {
             return Ok(false);
         }
-        let bytes = fs::read(path)?;
+        let bytes = read_bytes_with_overflow(&path, MAX_PRODUCTION_TRANSITION_BYTES)?;
+        if bytes.is_empty() || bytes.len() as u64 > MAX_PRODUCTION_TRANSITION_BYTES {
+            return Ok(false);
+        }
         let Ok(marker) =
             serde_json::from_slice::<ApplicationUpdateProductionTransitionMarker>(&bytes)
         else {
@@ -750,6 +753,31 @@ mod tests {
                 actual: 2
             })
         ));
+    }
+
+    #[test]
+    fn empty_and_oversized_preferences_recover_without_consent_or_untrusted_revision() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join(DEFAULT_FILE);
+        let store = ApplicationUpdatePreferenceStore::new(path.clone()).unwrap();
+        for length in [0, MAX_PREFERENCE_BYTES + 1] {
+            fs::write(&path, br#"{"schema_version":99,"revision":42}"#).unwrap();
+            File::options()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_len(length)
+                .unwrap();
+            assert!(matches!(
+                store.load(),
+                Err(ApplicationUpdatePreferenceError::InvalidState(_))
+            ));
+            let recovered = store.recover_invalid().unwrap();
+            assert_eq!(recovered.revision, 1);
+            assert!(recovered.choice.is_none());
+            assert_eq!(store.load().unwrap(), recovered);
+            assert!(store.recover_invalid().is_err());
+        }
     }
 
     #[test]

@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::application_update_preferences::{
     ApplicationUpdateMode, ApplicationUpdatePreferenceStore, ApplicationUpdatePreferences,
 };
-use crate::application_update_storage::write_bytes_atomically;
+use crate::application_update_storage::{read_bytes_with_overflow, write_bytes_atomically};
 
 const SCHEDULE_SCHEMA_VERSION: u32 = 1;
 const MAX_SCHEDULE_BYTES: u64 = 64 * 1024;
@@ -238,7 +238,7 @@ impl ApplicationUpdateScheduleStore {
                 "schedule document is not a bounded direct file".into(),
             ));
         }
-        let bytes = fs::read(&self.path)?;
+        let bytes = read_bytes_with_overflow(&self.path, MAX_SCHEDULE_BYTES)?;
         if bytes.is_empty() || bytes.len() as u64 > MAX_SCHEDULE_BYTES {
             return Err(ApplicationUpdateScheduleError::InvalidState(
                 "schedule document changed size while being read".into(),
@@ -426,7 +426,7 @@ impl ApplicationUpdateScheduleStore {
     }
 
     fn recovery_revision(&self) -> u64 {
-        fs::read(&self.path)
+        read_bytes_with_overflow(&self.path, MAX_SCHEDULE_BYTES)
             .ok()
             .filter(|bytes| !bytes.is_empty() && bytes.len() as u64 <= MAX_SCHEDULE_BYTES)
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
@@ -830,6 +830,30 @@ mod tests {
             past.next_automatic_check_unix_seconds,
             bounded.next_automatic_check_unix_seconds
         );
+    }
+
+    #[test]
+    fn empty_and_oversized_schedule_recover_without_retaining_an_untrusted_revision() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join(DEFAULT_FILE);
+        let store = ApplicationUpdateScheduleStore::new(path.clone()).unwrap();
+        for length in [0, MAX_SCHEDULE_BYTES + 1] {
+            fs::write(&path, br#"{"schema_version":99,"revision":42}"#).unwrap();
+            File::options()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_len(length)
+                .unwrap();
+            assert!(matches!(
+                store.load(),
+                Err(ApplicationUpdateScheduleError::InvalidState(_))
+            ));
+            let recovered = store.recover_invalid().unwrap();
+            assert_eq!(recovered.revision, 1);
+            assert_eq!(store.load().unwrap(), recovered);
+            assert!(store.recover_invalid().is_err());
+        }
     }
 
     #[test]

@@ -25,7 +25,9 @@ use crate::application_update::{
 use crate::application_update_payload::{
     PayloadVerificationError, PayloadVerificationKey, verify_payload_to_writer,
 };
-use crate::application_update_storage::{replace_file_atomically, write_bytes_atomically};
+use crate::application_update_storage::{
+    read_bytes_with_overflow, replace_file_atomically, write_bytes_atomically,
+};
 
 const STAGING_SCHEMA_VERSION: u32 = 1;
 const MAX_JOURNAL_BYTES: u64 = 512 * 1024;
@@ -685,7 +687,12 @@ impl ApplicationUpdateStagingStore {
                 "staging journal is not a bounded direct file".into(),
             ));
         }
-        let bytes = fs::read(path)?;
+        let bytes = read_bytes_with_overflow(&path, MAX_JOURNAL_BYTES)?;
+        if bytes.is_empty() || bytes.len() as u64 > MAX_JOURNAL_BYTES {
+            return Err(ApplicationUpdateStagingError::InvalidState(
+                "staging journal changed size while being read".into(),
+            ));
+        }
         serde_json::from_slice(&bytes)
             .map(Some)
             .map_err(|error| ApplicationUpdateStagingError::InvalidState(error.to_string()))
