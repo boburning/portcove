@@ -1144,6 +1144,23 @@ There is no prompt unless an operation needs confirmation. Pass `--non-interacti
 
 ### Signed catalog delivery
 
+`catalog definition-authority` separately reviews the independent definition
+authority compiled into this release. Its `provisioning_schema: 1` result includes
+`configured`, library/anchor identities, `installed` and `expected_plan`.
+Current builds have no configured anchor and refuse application. A separately
+approved configured release can apply with
+`catalog definition-authority --apply --expected-plan <expected_plan>` and
+explicit confirmation (`--yes` in noninteractive use). There is no root/key/file/URL
+input. Core recomputes the exact library and retained-state fingerprint in its
+transaction, inserts once, preserves exact retries without writes and refuses
+conflicts, stale reviews or incomplete retained history. This does not grant
+publisher policy or install games. See
+[fixed-anchor provisioning](DEFINITION-DELIVERY.md#exact-definition-availability-policy)
+for trust and recovery limits. `capabilities.commands` advertises the command;
+`schema export` adds `definition_authority_review` and
+`definition_authority_provisioning`. The existing API envelope and event versions
+are unchanged; provisioning emits no operation event.
+
 API schema 7 adds catalog provenance to `doctor`, public-key trust and selection state, signed-envelope/payload schemas, reviewed catalog updates, and the `update_catalog` activity operation. Operation event schema stays at 2.
 
 - `catalog status`: current effective provenance, trusted public keys, highest accepted sequence, valid rollback/cache availability, and `state_sha256`.

@@ -126,3 +126,70 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     );
     assert!(schemas["data"]["definition_capability_report"]["properties"]["checks"].is_object());
 }
+
+#[test]
+fn fixed_definition_authority_is_advertised_reviewable_and_unconfigured() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let core = portcove_core::Library::open(&library).unwrap();
+    let initial = core.review_definition_authority().unwrap();
+    drop(core);
+    let capabilities = json_stdout(&portcove(&library, &["--json", "capabilities"]));
+    assert_eq!(
+        capabilities["data"]["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|name| name.as_str() == Some("catalog.definition-authority"))
+            .count(),
+        1
+    );
+    let schema = json_stdout(&portcove(
+        &library,
+        &["--json", "schema", "export", "--contract", "output"],
+    ));
+    for name in [
+        "definition_authority_review",
+        "definition_authority_provisioning",
+    ] {
+        assert!(schema["data"][name].is_object());
+    }
+    for mode in ["--json", "--jsonl"] {
+        let result = json_stdout(&portcove(
+            &library,
+            &[mode, "catalog", "definition-authority"],
+        ));
+        assert_eq!(result["schema_version"], portcove_core::API_SCHEMA_VERSION);
+        assert_eq!(result["command"], "catalog.definition-authority");
+        assert_eq!(result["data"], serde_json::to_value(&initial).unwrap());
+        assert_eq!(result["data"]["provisioning_schema"], 1);
+        assert_eq!(result["data"]["configured"], false);
+        assert_eq!(result["data"]["installed"], false);
+        for field in schema["data"]["definition_authority_review"]["required"]
+            .as_array()
+            .unwrap()
+        {
+            assert!(result["data"].get(field.as_str().unwrap()).is_some());
+        }
+    }
+    let failed = portcove(
+        &library,
+        &[
+            "--json",
+            "--non-interactive",
+            "catalog",
+            "definition-authority",
+            "--apply",
+            "--expected-plan",
+            &initial.expected_plan,
+            "--yes",
+        ],
+    );
+    assert!(!failed.status.success());
+    assert_eq!(json_stdout(&failed)["error"]["code"], "unsupported");
+    let final_review = portcove_core::Library::open(&library)
+        .unwrap()
+        .review_definition_authority()
+        .unwrap();
+    assert_eq!(final_review.expected_plan, initial.expected_plan);
+}
