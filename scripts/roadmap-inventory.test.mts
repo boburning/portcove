@@ -374,6 +374,37 @@ void test("material proposal identity ignores wording and invalid replacements p
   assert.equal(session.journal.candidates[first.id]?.status, "held");
   assert.equal(Object.keys(session.journal.candidates).length, 1);
 });
+void test("quiet rotation yields a continuation at its reserved floor and cannot exceed fifty across commands", async (t) => {
+  const { session } = await temporarySession(t);
+  const f = fixture(60);
+  for (const row of f.rows) {
+    row.title = "[Port] Fixture " + row.number;
+    row.body = renderPortIssueBody({
+      title: "Fixture " + row.number,
+      upstream: "https://github.com/example/fixture-" + row.number,
+      portKey: "fixture-" + row.number,
+    });
+  }
+  session.inventory = collectRoadmapInventory(f.client);
+  session.budget.reserveDelivery(session.budget.limits.requests, 0);
+  const deferred = session.recheck();
+  assert.deepEqual(deferred.checked, []);
+  assert.equal(session.quietAttempts, 0);
+  assert.equal(session.journal.coverage, "partial");
+  assert.ok(session.journal.notes.length);
+  session.budget.reserve = { requests: 0, bytes: 0 };
+  session.client.api.request = () => ({
+    body: { id: 1, full_name: "example/fixture", archived: false },
+    headers: new Map(),
+    rateLimit: { resource: null, limit: null, remaining: null, used: null, resetAt: null },
+  });
+  const first = session.recheck();
+  assert.equal(first.checked.length, 50);
+  assert.equal(session.quietAttempts, 50);
+  assert.deepEqual(session.recheck().checked, []);
+  session.deepInvestigations = 12;
+  assert.throws(() => session.research("example/fixture"), /Deep investigation limit/);
+});
 void test("warm inventory fetches changed bodies only and rejects corrupt cached body hashes", () => {
   const f = fixture();
   const first = collectRoadmapInventory(f.client);

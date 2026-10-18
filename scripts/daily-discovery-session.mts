@@ -170,6 +170,8 @@ export class DiscoverySession {
   inventoryCache: InventoryCache | undefined;
   searches = 0;
   intakeAttempts = 0;
+  quietAttempts = 0;
+  deepInvestigations = 0;
   readonly stateDir: string;
   readonly runDir: string;
   readonly head: string;
@@ -406,11 +408,7 @@ export class DiscoverySession {
     };
   }
   research(repository: string) {
-    if (
-      Object.values(this.journal.evidence).filter((e) => e.file.startsWith(this.runDir)).length >=
-      12
-    )
-      throw new Error("Deep investigation limit reached");
+    if (++this.deepInvestigations > 12) throw new Error("Deep investigation limit reached");
     const before = { requests: this.budget.usage.requests, bytes: this.budget.usage.bytes };
     const data = investigateDiscoveryUpstream(this.source, repoName(repository));
     const fingerprint = material(data);
@@ -645,11 +643,30 @@ export class DiscoverySession {
       records.map((i) => Number(i.number)),
       this.checkpoint.checked,
       new Date().toISOString(),
-      50,
+      Math.max(0, 50 - this.quietAttempts),
     );
     const checked: number[] = [];
     for (const id of plan.selected) {
+      const left = this.budget.remaining();
+      if (
+        left.requests < 1 ||
+        left.bytes < 1 ||
+        left.milliseconds <= 0 ||
+        (this.budget.usage.backoff_until &&
+          Date.parse(this.budget.usage.backoff_until) > Date.now())
+      ) {
+        this.journal.coverage = "partial";
+        this.journal.notes.push({
+          phase: "quiet-recheck",
+          status: "deferred",
+          next_issue: id,
+          reason: "Remaining budget or provider backoff",
+          resume: "Continue oldest unchecked canonical metadata on the next admitted run",
+        });
+        break;
+      }
       this.budget.admit(1, 1);
+      this.quietAttempts++;
       const issue = records.find((i) => Number(i.number) === id);
       if (!issue) continue;
       const identity = sourceProvenancePortIdentity(issue);
@@ -677,6 +694,7 @@ export class DiscoverySession {
         this.checkpoint.checked[id] = new Date().toISOString();
         checked.push(id);
       } catch (e) {
+        this.journal.coverage = "partial";
         this.journal.notes.push({ issue: id, error: errorMessage(e) });
         if (
           this.budget.usage.backoff_until ||
