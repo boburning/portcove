@@ -23,6 +23,8 @@ const MAX_FILES: usize = 100_000;
 const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_TREE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 
+mod tfe_settings;
+
 /// Required selectors are existence/type constraints, never content authority.
 pub(crate) fn validate_required_mutable_files(spec: &UserPreparedRuntimeSpec) -> Result<()> {
     if spec.required_mutable_files.len() > 64 {
@@ -47,6 +49,9 @@ pub(crate) fn validate_required_mutable_files(spec: &UserPreparedRuntimeSpec) ->
             ));
         }
     }
+    if spec.settings_contract.is_some() {
+        tfe_settings::validate_declaration(spec)?;
+    }
     Ok(())
 }
 
@@ -64,6 +69,18 @@ fn check_required_mutable_files(root: &Path, spec: &UserPreparedRuntimeSpec) -> 
                 "required mutable selector must not share a hard-linked file",
             )
             .detail("path", required));
+        }
+        if spec.settings_contract.is_some() && required == "settings.ini" {
+            tfe_settings::check(&file)?;
+        }
+    }
+    if spec.settings_contract.is_some() {
+        for name in tfe_settings::GOBS {
+            open_object(&root.join("GameData").join(name), false).map_err(|error| {
+                PortcoveError::verification("TFE immutable GameData is missing or unsafe")
+                    .detail("path", name)
+                    .detail("cause", error.message)
+            })?;
         }
     }
     Ok(())
@@ -666,6 +683,7 @@ mod tests {
             source_argument_extension: None,
             library_user_data: false,
             required_mutable_files: vec![],
+            settings_contract: None,
             mutable_paths: vec!["runtime-state".into()],
         };
         let mismatch = inspect(&runtime, &spec, &library).unwrap_err();
@@ -691,6 +709,47 @@ mod tests {
             registered_at: 1,
             retained_definition: None,
         }
+    }
+
+    #[test]
+    fn tfe_selection_rechecks_content_and_immutable_data_before_launch() {
+        let (_temporary, library, runtime, mut spec) = fixture();
+        spec.mutable_paths.push("settings.ini".into());
+        spec.required_mutable_files.push("settings.ini".into());
+        spec.settings_contract = Some(crate::PreparedRuntimeSettingsContract::TfeDarkForces122420);
+        spec.version = "1.22.420".into();
+        let settings = runtime.join("settings.ini");
+        let valid = b"[Game]\ngame=\"Dark Forces\"\n[Dark_Forces]\nsourcePath=\"GameData/\"\n";
+        fs::write(&settings, valid).unwrap();
+        assert!(inspect(&runtime, &spec, &library).is_err());
+        fs::create_dir(runtime.join("GameData")).unwrap();
+        for name in tfe_settings::GOBS {
+            fs::write(runtime.join("GameData").join(name), name).unwrap();
+        }
+        let mismatch = inspect(&runtime, &spec, &library).unwrap_err();
+        spec.immutable_tree_sha256 = mismatch.details["actual_tree_sha256"].clone();
+        let record = location_record(&runtime, &spec, &library);
+        let calls = std::cell::Cell::new(0);
+        inspect_with_checkpoint(&runtime, &spec, &library, &|| {
+            calls.set(calls.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+        assert!(
+            inspect_at_checkpoint(&runtime, &spec, &library, calls.get(), || {
+                fs::write(
+                    &settings,
+                    String::from_utf8_lossy(valid).replace("GameData/", "ElseData/"),
+                )
+                .unwrap();
+            })
+            .is_err()
+        );
+        assert!(check_registered_location(&record, &spec, &library).is_err());
+        fs::write(&settings, valid).unwrap();
+        check_registered_location(&record, &spec, &library).unwrap();
+        fs::remove_file(runtime.join("GameData/DARK.GOB")).unwrap();
+        assert!(check_registered_location(&record, &spec, &library).is_err());
     }
 
     #[test]

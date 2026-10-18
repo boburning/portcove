@@ -335,6 +335,13 @@ pub struct DirectReleaseSpec {
 
 /// Catalog-accepted identity for a runtime the player prepares outside Portcove.
 /// Portcove never downloads or owns this package through this route.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum PreparedRuntimeSettingsContract {
+    #[serde(rename = "tfe-dark-forces-v1.22.420")]
+    TfeDarkForces122420,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UserPreparedRuntimeSpec {
     pub version: String,
@@ -355,6 +362,9 @@ pub struct UserPreparedRuntimeSpec {
     /// Contents remain player-owned and are never frozen or seeded by registration.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub required_mutable_files: Vec<String>,
+    /// Read-only, version-scoped source-selection semantics; never seeds settings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settings_contract: Option<PreparedRuntimeSettingsContract>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

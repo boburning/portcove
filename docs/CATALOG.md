@@ -371,6 +371,41 @@ Registrations using required mutable files retain the existing strict contract
 envelope instead of a raw catalog document. Older external-runtime readers
 refuse that envelope because they require a raw catalog's schema and port list;
 they cannot silently drop the selector requirement after a client downgrade.
+
+Staged-source version 5 adds the optional `settings_contract` value
+`tfe-dark-forces-v1.22.420`. This is a narrow read-only contract for the pinned
+Windows x64 TFE parser, requiring version `1.22.420`, a root executable/working
+directory, no runtime subdirectory or launch arguments, no source argument or
+private user-data binding, and required mutable `settings.ini`. `GameData` must
+remain wholly immutable; all four GOB files must be regular, non-redirected
+objects. The accepted tree authenticates their bytes and required companions.
+The settings reader requires one effective `[Game] game="Dark Forces"` and one
+`[Dark_Forces] sourcePath="GameData/"` assignment. It checks the existing opened
+selector at each inspection boundary, without writing settings or granting
+ownership. Other preferences remain mutable.
+
+This reader follows the consequential rules in TFE commit
+`cc25205cc94c36a396f6f50295772f6ec83069a2`: case-insensitive section/key/game names,
+whitespace/comma/equals separators, comments even inside quotes, and empty-quote
+tokens. It conservatively refuses malformed sections, duplicate effective
+selectors, unmatched quotes, NUL bytes, files exceeding 1 MiB, raw lines of
+4096 bytes or more, tokens of 1024 bytes or more, and decoded CVar values of 256
+bytes or more. A string CVar's second space-delimited word must also contain at
+least two bytes when present, avoiding the pinned reader's empty-tail write.
+Forwarded launch arguments are refused using the retained declaration before a
+launch session is created. These limits protect the reviewed line/token/CVar buffers;
+they do not establish general upstream memory safety. Valid selected data prevents
+Dark Forces source fallback while observed valid; TFE may still probe host paths
+for other games. Sequential observations neither freeze player writes nor
+provide a sandbox.
+
+Independently delivered entries must require version 5. Retained registrations
+reuse the strict installed-contract envelope: older v4 readers reject the
+noncanonical projection when they cannot preserve this field. This refusal
+does not extend to newly supplied plain legacy catalogs, whose older decoders
+may discard unknown fields. Such catalogs are not a compatible delivery route
+for this declaration. The component alone admits no TFE package or source and
+claims no native operation, production-client delivery or managed maintenance.
 Both ordinary and bounded readers decode the same retained contract. Registrations
 without this opt-in keep their existing encoding; no library-wide schema migration
 or external-file ownership is introduced.

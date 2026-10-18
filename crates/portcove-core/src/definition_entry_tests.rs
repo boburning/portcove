@@ -435,6 +435,67 @@ fn prepared_nested_directory_requires_version_three_and_staged_adapter() {
 }
 
 #[test]
+fn prepared_settings_require_version_five_and_narrow_declaration() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("dkc3-recomp").unwrap().clone();
+    for runtime in port.release.user_prepared.values_mut() {
+        runtime.version = "1.22.420".into();
+        runtime.source_argument_extension = None;
+        runtime.mutable_paths.push("settings.ini".into());
+        runtime.required_mutable_files.push("settings.ini".into());
+        runtime.settings_contract =
+            Some(crate::PreparedRuntimeSettingsContract::TfeDarkForces122420);
+    }
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(5);
+    for minimum in 1..5 {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        assert!(inspect(&entry).is_err());
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(5);
+    assert!(inspect(&entry).is_ok());
+    let mut document = catalog.authoritative_document();
+    *document.ports.iter_mut().find(|p| p.id == port.id).unwrap() = port;
+    let valid = serde_json::to_value(document).unwrap();
+    assert!(crate::Catalog::from_json(&valid.to_string()).is_ok());
+    let index = valid["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|p| p["id"] == "dkc3-recomp")
+        .unwrap();
+    for (field, value) in [
+        ("version", json!("1.22.419")),
+        ("executable", json!("bin/DKC3Recomp.exe")),
+        ("source_argument_extension", json!("gob")),
+        ("library_user_data", json!(true)),
+        ("required_mutable_files", json!([])),
+        (
+            "mutable_paths",
+            json!(["settings.ini", "GameData/DARK.GOB"]),
+        ),
+    ] {
+        let mut changed = valid.clone();
+        changed["ports"][index]["release"]["user_prepared"]["windows-x86-64"][field] = value;
+        assert!(
+            crate::Catalog::from_json(&changed.to_string()).is_err(),
+            "{field}"
+        );
+    }
+    for (field, value) in [
+        ("runtime_subdirectory", json!("bin")),
+        ("launch_arguments", json!(["-gOUTLAWS"])),
+    ] {
+        let mut changed = valid.clone();
+        changed["ports"][index][field] = value;
+        assert!(
+            crate::Catalog::from_json(&changed.to_string()).is_err(),
+            "{field}"
+        );
+    }
+}
+
+#[test]
 fn prepared_required_mutable_files_require_version_four_and_complete_projection() {
     let mut port = crate::Catalog::embedded()
         .unwrap()
