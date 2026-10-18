@@ -526,24 +526,26 @@ fn retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailab
         })
         .unwrap()
         .clone();
-    let install = inert_install(&service, &port.id, true);
-    crate::output_root::validate_install_path(service.library(), &port.id, &install.path).unwrap();
-    let retained = crate::install::retained_query_context(&install).unwrap();
-    assert!(retained.0.is_some());
-    assert!(retained.1.is_some());
-    // The installed definition must remain authoritative after today's catalog
-    // changes; equal fixture catalogs would not detect accidental digest reuse.
-    let mut current = service.catalog().authoritative_document();
-    current
+    // Retain a distinct historical definition, then restore today's catalog
+    // before inspection so the service and library agree on current authority.
+    let current = service.catalog().clone();
+    let mut historical = current.authoritative_document();
+    historical
         .ports
         .iter_mut()
         .find(|definition| definition.id == port.id)
         .unwrap()
         .name
-        .push_str(" (current catalog)");
+        .push_str(" (retained catalog)");
     service.replace_catalog_for_test(
-        Catalog::from_json(&serde_json::to_string(&current).unwrap()).unwrap(),
+        Catalog::from_json(&serde_json::to_string(&historical).unwrap()).unwrap(),
     );
+    let install = inert_install(&service, &port.id, true);
+    service.replace_catalog_for_test(current);
+    crate::output_root::validate_install_path(service.library(), &port.id, &install.path).unwrap();
+    let retained = crate::install::retained_query_context(&install).unwrap();
+    assert!(retained.0.is_some());
+    assert!(retained.1.is_some());
     let batch = service
         .inspect_registered_sources_bounded(
             &["ocarina-of-time".into()],
