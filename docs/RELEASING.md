@@ -75,11 +75,17 @@ package for the selected fixture transition: `legacy-adjacent` uses 0.1.0 to
 same installed-app selection, staging, replacement and restart path. The default
 remains `legacy-skipped`; choosing a profile is not evidence it passed.
 It checks native package versions and
-executable permissions. The Linux job defaults to Ubuntu 22.04; the dispatch-only
-`linux_runner` choice can run the same installed AppImage path on Ubuntu 24.04.
+executable permissions. The Linux job defaults to the approved Ubuntu 24.04
+support environment; `linux_runner` retains Ubuntu 22.04 for scoped diagnostic
+observations, which cannot qualify the supported minimum.
 Its retained host baseline records the actual OS, kernel, glibc, WebKitGTK and
-FUSE package versions. This choice does not change the production Linux support
-floor or establish Steam Deck compatibility. Windows builds a disposable
+FUSE package versions. Production Linux bundles are produced on Ubuntu 24.04 so
+the AppImage does not inherit the older Jammy WebKit engine. Compilation-only
+Ubuntu 22.04 checks remain separate. Inspect the distributed AppImage's actual
+loaded libraries; the host's installed package version alone is insufficient.
+The [design-system support policy](DESIGN-SYSTEM.md#compatibility-and-qualification-boundary)
+and #993 own the exact engine floor and still-required minimum observations.
+No Steam Deck compatibility follows. Windows builds a disposable
 test-signed TUF repository,
 embeds its public trust and local repository URLs in a qualification-only
 predecessor NSIS package, and uses the installed predecessor to select the signed

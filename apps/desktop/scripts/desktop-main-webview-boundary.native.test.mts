@@ -39,6 +39,7 @@ import { pathToFileURL } from "node:url";
 import { assertLocalMainUrl, chromeObserverEndpoint } from "./desktop-main-webview-boundary.mts";
 import {
   inspectorSocketPath,
+  mappedWebKitLibraries,
   isInspectorMainDocument,
   linuxInspectorEnvironment,
   LinuxInspectorProtocol,
@@ -188,6 +189,18 @@ void test("inspector discovery selects one canonical tuple rather than executing
     "x".repeat(65537),
   ])
     assert.throws(() => inspectorSocketPath(html));
+});
+
+void test("loaded-engine evidence distinguishes mapped AppImage libraries from host package versions", () => {
+  const file = "/tmp/.mount_Portcove/usr/lib/libwebkit2gtk-4.1.so.0.22.6";
+  const row = (name: string) => `7f00-7fff r-xp 00000000 08:01 123 ${name}`;
+  assert.deepEqual(
+    mappedWebKitLibraries([row(file), row(file), row("/usr/lib/unrelated.so.1")].join("\n")),
+    [file],
+  );
+  assert.throws(() => mappedWebKitLibraries(row("/usr/lib/unrelated.so.1")));
+  assert.throws(() => mappedWebKitLibraries(row(`${file} (deleted)`)));
+  assert.throws(() => mappedWebKitLibraries("x".repeat(4 * 1024 * 1024 + 1)));
 });
 
 void test("inspector readiness accepts both observed local spellings and requires the nonautomation main view", () => {

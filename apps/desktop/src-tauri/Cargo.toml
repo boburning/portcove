@@ -61,7 +61,7 @@ windows = { version = "0.62.2", features = [
   "Win32_Networking_NetworkListManager",
   "Win32_System_Com",
 ] }
-windows-sys.workspace = true
+windows-sys = { workspace = true, features = ["Win32_UI_WindowsAndMessaging"] }
 windows-version.workspace = true
 
 [target.'cfg(unix)'.dependencies]

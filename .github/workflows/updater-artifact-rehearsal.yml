@@ -16,7 +16,7 @@ on:
       linux_runner:
         description: Ubuntu baseline for the installed AppImage rehearsal
         type: choice
-        default: ubuntu-22.04
+        default: ubuntu-24.04
         options: [ubuntu-22.04, ubuntu-24.04]
 
 permissions:

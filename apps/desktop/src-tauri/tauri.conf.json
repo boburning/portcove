@@ -26,6 +26,13 @@
   },
   "bundle": {
     "active": true,
+    "windows": {
+      "minimumWebview2Version": "155.0.4283.62",
+      "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true }
+    },
+    "linux": {
+      "deb": { "depends": ["libwebkit2gtk-4.1-0 (>= 2.52.6)"] }
+    },
     "targets": "all",
     "icon": [
       "icons/32x32.png",

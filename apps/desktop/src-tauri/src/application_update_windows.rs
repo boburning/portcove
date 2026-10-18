@@ -573,6 +573,7 @@ pub fn current_windows_installed_application_context()
 pub fn windows_nsis_context_for_version(
     current_version: &str,
 ) -> Result<InstalledApplicationContext, WindowsApplicationUpdateError> {
+    crate::runtime_support::check().map_err(WindowsApplicationUpdateError::InstalledContext)?;
     let os = windows_version::OsVersion::current();
     let catalog_format = portcove_core::Catalog::embedded()
         .map_err(|error| WindowsApplicationUpdateError::InstalledContext(error.to_string()))?

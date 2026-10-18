@@ -609,6 +609,7 @@ fn package_owner_name(value: &str) -> Result<String, LinuxApplicationUpdateError
 pub fn linux_appimage_context_for_version(
     current_version: &str,
 ) -> Result<InstalledApplicationContext, LinuxApplicationUpdateError> {
+    crate::runtime_support::check().map_err(LinuxApplicationUpdateError::InstalledContext)?;
     let kernel = std::fs::read_to_string(platform_absolute_path(&[
         "proc",
         "sys",
