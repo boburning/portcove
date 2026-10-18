@@ -134,6 +134,20 @@ mod tests {
     }
 
     #[test]
+    fn collision_keys_reorder_unicode_18_combining_marks() {
+        // Unicode 18 assigns U+1AEE combining class 220, before U+0301 (230).
+        // Preserve the actual names while recognizing their canonical alias.
+        let first = "assets/a\u{301}\u{1aee}.bin";
+        let second = "assets/a\u{1aee}\u{301}.bin";
+        let (first_path, first_key) = validate_relative_path(first, false).unwrap();
+        let (second_path, second_key) = validate_relative_path(second, false).unwrap();
+        assert_eq!(first_path.to_str(), Some(first));
+        assert_eq!(second_path.to_str(), Some(second));
+        assert_eq!(first_key, second_key);
+        assert_eq!(first_key, second);
+    }
+
+    #[test]
     fn rejects_unsafe_and_windows_unrepresentable_generated_paths() {
         for path in [
             "../outside.bin",
