@@ -9437,13 +9437,17 @@ fn main() {
             )
             .unwrap_err();
         assert!(forwarded.message.contains("forwarded launch arguments"));
-        assert!(
-            service
-                .library
-                .launch_session_for_port(&record.port_id)
-                .unwrap()
-                .is_none()
-        );
+        let sessions: usize = service
+            .library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM launch_sessions WHERE port_id=?1",
+                [&record.port_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(sessions, 0);
         fs::write(
             record.path.join("settings.ini"),
             String::from_utf8_lossy(valid).replace("Dark Forces", "Outlaws"),

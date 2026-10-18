@@ -161,6 +161,21 @@ mod tests {
     const VALID: &str = "[Game]\ngame=\"Dark Forces\"\n[Dark_Forces]\nsourcePath=\"GameData/\"\n";
 
     #[test]
+    fn bounded_reader_refuses_nul_and_oversized_settings() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("settings.ini");
+        for bytes in [
+            format!("{VALID}\0").into_bytes(),
+            vec![b' '; MAX_BYTES as usize + 1],
+        ] {
+            std::fs::write(&path, bytes).unwrap();
+            assert!(check(&File::open(&path).unwrap()).is_err());
+        }
+        std::fs::write(&path, VALID).unwrap();
+        check(&File::open(path).unwrap()).unwrap();
+    }
+
+    #[test]
     fn cvar_value_obeys_the_smaller_upstream_buffer() {
         parse(format!("{VALID}[CVar]\nx=\"{}\"\n", "a".repeat(255)).as_bytes()).unwrap();
         assert!(parse(format!("{VALID}[CVar]\nx=\"{}\"\n", "a".repeat(256)).as_bytes()).is_err());

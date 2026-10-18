@@ -455,7 +455,11 @@ fn prepared_settings_require_version_five_and_narrow_declaration() {
     entry["required_capabilities"][0]["minimum_version"] = json!(5);
     assert!(inspect(&entry).is_ok());
     let mut document = catalog.authoritative_document();
-    *document.ports.iter_mut().find(|p| p.id == port.id).unwrap() = port;
+    *document
+        .ports
+        .iter_mut()
+        .find(|p| p.id == "dkc3-recomp")
+        .unwrap() = port;
     let valid = serde_json::to_value(document).unwrap();
     assert!(crate::Catalog::from_json(&valid.to_string()).is_ok());
     let index = valid["ports"]
