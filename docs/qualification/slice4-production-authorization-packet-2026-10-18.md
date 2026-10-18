@@ -760,3 +760,60 @@ revision/digest eligible for an execution grant. Assembly/attestation is one sta
 signing, publication, feeds, custody and recovery retain their separate obligations.
 #254 stays Done; #315/#534/#246 acceptance stays pending; Chameleon
 protected_acceptance remains unset. Production stays held and slice 5 excluded.
+
+## Current delta: upstream submission and held reader integration
+
+The owner authorized the prepared upstream contribution after #2132. It is now
+[psxrecomp PR #685](https://github.com/RetroPortingToolKit/psxrecomp/pull/685),
+source `572558394b5b737690138f8374c80b032c3d84ba`, targeting master
+`53a057f548cd1f93f1b4d8300caaeded72f4160d`. The exact-title submission and
+passing repair/package assertions disclose the separate file-identity runtime
+failure. Legacy absolute-path migration is excluded. Upstream adoption and two
+real repaired game assets remain absent; .35/.36 remain failed candidates.
+
+The fixed reader now serves only bounded list/read/literal-search operations over
+validated frozen snapshots. The stdio child cannot acquire builder or producer
+provenance by loading a payload. Direct capture accepts only the required paired
+reader operations; wrong issuer, changed inputs, incomplete review, malformed or
+ambiguous results still refuse. Valid changes-required/refused reports are retained
+without accepted handoff authority. Runtime, Node, PowerShell and reader inputs
+are pinned/read back. Fixture tests are not an actual semantic producer binding.
+
+The native preparation replaces the real profile DACL and seals the disposable registry,
+verifies LPAC capability/impersonation identity and tests individual mutation
+rights, while retaining direct bounded capture and job-tree teardown. The installed
+Codex 0.162.0 inert, credential-free attempt failed to initialize its in-process
+app-server with access denied before any review event. Earlier hostname panic,
+Node startup/timeout and qualification setup failures remain separate retained
+observations. A native probe exposed a retained critical profile ACE; replacing the DACL made
+real-profile writes refuse. The latest completed probe still failed because Windows
+redirected TEMP to an absent package path (error 3). The candidate now materializes
+and locks that path, but the 900-second resource admission deadline ended before
+the follow-up payload started. This is not a native pass.
+Authentication/network and complete-opportunity review are unproven.
+The parent login status is not an authenticated isolated reviewer observation.
+
+The conditional host proposal is the separately ungranted
+[fixed-storage configuration](slice4-semantic-local-storage.proposed.json) and
+[qualification/recovery procedure](slice4-semantic-local-storage-qualification-2026-10-18.md).
+It is not execution-ready until the repaired non-elevated TEMP preflight passes.
+Its fixed 512 MiB NTFS VHD is a bounded writable-state differential, not an asserted
+fix. The current owner token is not elevated and lacks SeManageVolumePrivilege;
+Storage cmdlet presence does not grant the operator action. No volume, quota,
+authentication, issuer App or key has been provisioned. Reviewer-controlled paths
+are never recursively traversed for ACL cleanup: the marker/image/grants are retained
+and exact-attempt positive teardown is required before identity-checked detach.
+
+Production mode remains an unconditional HOLD. The old scope-specific native and
+Git-timeout evidence is retained; no complete runtime-suite pass, two repaired
+game assets or full client journey is claimed. No full opportunity review is
+started before the inert/authenticated path works, and the older frozen bundle
+is not relabelled as current-source review. Issuer credential provisioning is not
+ready to request. Final runnable source/digest, semantic producer binding, remote
+pending/exclusive executor/readback, eligible reservation, custody/public-key and
+operator protection/spending observations remain prerequisites to a separate
+protected-execution grant. D1/D2/D3 and all spending/resource/admission restrictions
+remain unchanged. #254 Done; #315/#534/#246 pending; Chameleon protected_acceptance
+unset; #144 outside compiled catalog; production held; slice 5 excluded.
+
+Delivery details and exact evidence: [reader/upstream checkpoint](slice4-reader-and-upstream-checkpoint-2026-10-18.md), [evidence](slice4-reader-and-upstream-evidence-2026-10-18.json).

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -15,11 +16,18 @@ import {
 } from "./release-semantic-inputs.mts";
 import {
   inspectSemanticRuntimeEvents,
+  inspectSemanticFixtureEvents,
   requireDirectSemanticCapture,
 } from "./release-semantic-runtime.mts";
 import { prepareSemanticReviewHandoff } from "./release-semantic-review.mts";
 import { readbackSemanticCheck, publishSemanticCapture } from "./release-semantic-broker.mts";
 import { capacityDigest } from "./release-capacity.mts";
+import {
+  createSemanticBundleReader,
+  createSemanticReaderRpc,
+  materializeSemanticReaderIndex,
+} from "./release-semantic-reader.mts";
+import { inspectSemanticReaderIndex } from "./release-semantic-reader-core.mts";
 
 function fixture() {
   const f = releaseSourceFixture();
@@ -161,6 +169,104 @@ void test("frozen source collection binds actual Git blobs, publication and comp
     compatibility: "fixture only",
   });
   const frozen = requireFrozenSemanticInputs(bundle);
+  const index = materializeSemanticReaderIndex(bundle);
+  assert.equal(inspectSemanticReaderIndex(index.bytes, index.sha256).files.length, 3);
+  assert.throws(
+    () => requireFrozenSemanticInputs(inspectSemanticReaderIndex(index.bytes, index.sha256)),
+    /imported/,
+  );
+  assert.throws(() => inspectSemanticReaderIndex(index.bytes, "0".repeat(64)), /differs/);
+  const indexPath = path.join(root, "reader-index.json");
+  await writeFile(indexPath, index.bytes, { flag: "wx" });
+  const server = fileURLToPath(new URL("./release-semantic-reader-server.mts", import.meta.url));
+  const requests =
+    [
+      { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } },
+      { jsonrpc: "2.0", method: "notifications/initialized" },
+      { jsonrpc: "2.0", id: 2, method: "tools/list" },
+      {
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "read",
+          arguments: { snapshot: "source", path: "app.rs", offset: 0, length: 6 },
+        },
+      },
+    ]
+      .map((row) => JSON.stringify(row))
+      .join("\n") + "\n";
+  const lines = execFileSync(process.execPath, [server, indexPath, index.sha256], {
+    input: requests,
+    windowsHide: true,
+    timeout: 10000,
+    maxBuffer: 1024 * 1024,
+  })
+    .toString()
+    .trim()
+    .split("\n");
+  assert.equal(lines.length, 3);
+  assert.ok(lines[2]!.includes(Buffer.from("source").toString("base64")));
+  assert.throws(() =>
+    execFileSync(process.execPath, [server, indexPath, "0".repeat(64)], {
+      input: requests,
+      windowsHide: true,
+      timeout: 10000,
+      stdio: ["pipe", "pipe", "pipe"],
+    }),
+  );
+  const reader = createSemanticBundleReader(bundle);
+  assert.deepEqual(reader("list", { snapshot: "source", offset: 0 }), {
+    total: 2,
+    entries: frozen.manifest.snapshots.source,
+    next: null,
+  });
+  const page = reader("read", { snapshot: "source", path: "app.rs", offset: 0, length: 6 }) as {
+    data: string;
+  };
+  assert.equal(Buffer.from(page.data, "base64").toString(), "source");
+  const listed = reader("list", { snapshot: "source", offset: 0 }) as {
+    entries: { path: string; oid: string }[];
+  };
+  listed.entries[0]!.path = "forged";
+  listed.entries[0]!.oid = "0".repeat(40);
+  assert.deepEqual(reader("list", { snapshot: "source", offset: 0 }), {
+    total: 2,
+    entries: frozen.manifest.snapshots.source,
+    next: null,
+  });
+  assert.deepEqual(reader("search", { snapshot: "source", literal: "source" }), {
+    matches: [{ path: "app.rs", offset: 0 }],
+    truncated: false,
+  });
+  for (const [tool, args] of [
+    ["exec", { command: "candidate.exe" }],
+    ["read", { snapshot: "source", path: "../../secret", offset: 0, length: 1 }],
+    ["read", { snapshot: "source", path: "app.rs", offset: 0, length: 16385 }],
+    ["search", { snapshot: "source", literal: "", regex: true }],
+  ])
+    assert.throws(() => reader(tool, args));
+  const rpc = createSemanticReaderRpc(bundle);
+  assert.throws(() => rpc({ jsonrpc: "2.0", id: 0, method: "tools/list" }));
+  assert.ok(
+    rpc({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } }),
+  );
+  assert.equal(rpc({ jsonrpc: "2.0", method: "notifications/initialized" }), null);
+  assert.ok(rpc({ jsonrpc: "2.0", id: 2, method: "tools/list" }));
+  assert.ok(
+    rpc({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/call",
+      params: { name: "list", arguments: { snapshot: "source", offset: 0 } },
+    }),
+  );
+  assert.throws(() =>
+    rpc({ jsonrpc: "2.0", id: 4, method: "resources/read", params: { uri: "file:///secret" } }),
+  );
+  const bounded = createSemanticBundleReader(bundle);
+  for (let i = 0; i < 1024; i++) bounded("list", { snapshot: "source", offset: 0 });
+  assert.throws(() => bounded("list", { snapshot: "source", offset: 0 }), /lifetime call/);
   assert.equal(frozen.manifest.source.source_tree, f.sourceTree);
   assert.equal(frozen.files.length, 3);
   assert.throws(() => requireFrozenSemanticInputs(structuredClone(bundle)), /imported or changed/);
@@ -169,6 +275,17 @@ void test("frozen source collection binds actual Git blobs, publication and comp
   first.sha256 = createHash("sha256").update(first.bytes).digest("hex");
   assert.throws(() => requireFrozenSemanticInputs(bundle), /differs/);
   assert.notDeepEqual(frozen.files[0]!.bytes, first.bytes);
+  assert.equal(
+    Buffer.from(
+      (
+        reader("read", { snapshot: "source", path: "app.rs", offset: 0, length: 6 }) as {
+          data: string;
+        }
+      ).data,
+      "base64",
+    ).toString(),
+    "source",
+  );
 });
 
 void test("publication pagination cannot leave the fixed repository release inventory", () => {
@@ -229,11 +346,94 @@ void test("only explicit complete-opportunity acceptance passes event integrity;
     );
   assert.equal(inspectSemanticRuntimeEvents(events(result), bundle).report, result.report);
   for (const changed of [
-    { ...result, outcome: "refused" },
     { ...result, bundle_sha256: "b".repeat(64) },
     { ...result, coverage: { ...result.coverage, compatibility: false } },
   ])
     assert.throws(() => inspectSemanticRuntimeEvents(events(changed), bundle));
+  for (const outcome of ["refused", "changes-required"])
+    assert.equal(
+      inspectSemanticRuntimeEvents(
+        events({
+          ...result,
+          outcome,
+          coverage: { accumulated_changes: true, classification: false, compatibility: false },
+        }),
+        bundle,
+      ).result.outcome,
+      outcome,
+    );
+  const call = {
+    id: "reader-1",
+    type: "mcp_tool_call",
+    server: "portcove_frozen_bundle",
+    tool: "list",
+    arguments: { snapshot: "source", offset: 0 },
+  };
+  const start = { type: "item.started", item: { ...call, status: "in_progress" } };
+  const end = {
+    type: "item.completed",
+    item: { ...call, status: "completed", result: { content: [] }, error: null },
+  };
+  assert.ok(inspectSemanticRuntimeEvents(events(result, [start, end]), bundle));
+  const fixtureCall = {
+    ...call,
+    tool: "read",
+    arguments: { snapshot: "source", path: "fixture.txt", offset: 0, length: 1024 },
+  };
+  const fixtureStart = { type: "item.started", item: { ...fixtureCall, status: "in_progress" } };
+  const data = Buffer.from("inert fixture\n");
+  const fixtureValue = {
+    bytes: data.length,
+    offset: 0,
+    encoding: "base64",
+    next: null,
+    sha256: createHash("sha256").update(data).digest("hex"),
+    data: data.toString("base64"),
+  };
+  const fixtureEnd = {
+    type: "item.completed",
+    item: {
+      ...fixtureCall,
+      status: "completed",
+      result: { content: [{ type: "text", text: JSON.stringify(fixtureValue) }] },
+      error: null,
+    },
+  };
+  const fixtureInspection = inspectSemanticFixtureEvents(
+    events({ fixture: "inert" }, [fixtureStart, fixtureEnd]),
+  );
+  assert.equal(fixtureInspection.scope, "inert-runtime-reader-fixture");
+  assert.throws(
+    () =>
+      requireDirectSemanticCapture(
+        fixtureInspection as unknown as Parameters<typeof requireDirectSemanticCapture>[0],
+      ),
+    /imported/,
+  );
+  for (const bad of [
+    events({ fixture: "inert" }),
+    events({ fixture: "other" }, [fixtureStart, fixtureEnd]),
+    events({ fixture: "inert" }, [fixtureStart]),
+    events({ fixture: "inert" }, [
+      fixtureStart,
+      { ...fixtureEnd, item: { ...fixtureEnd.item, result: { content: [] } } },
+    ]),
+  ])
+    assert.throws(() => inspectSemanticFixtureEvents(bad));
+  assert.throws(() =>
+    inspectSemanticRuntimeEvents(events({ fixture: "inert" }, [fixtureStart, fixtureEnd]), bundle),
+  );
+  for (const extra of [
+    [end],
+    [start],
+    [start, { ...end, item: { ...end.item, server: "other" } }],
+    [start, { ...end, item: { ...end.item, arguments: { snapshot: "source", offset: 1 } } }],
+    [start, { ...end, item: { ...end.item, error: { message: "failed" } } }],
+    [start, { ...end, item: { ...end.item, result: { content: [], isError: true } } }],
+    [start, end, start, end],
+    [start, { ...end, item: { ...end.item, result: { data: "x".repeat(65537) } } }],
+  ])
+    assert.throws(() => inspectSemanticRuntimeEvents(events(result, extra), bundle));
   assert.throws(
     () =>
       inspectSemanticRuntimeEvents(
