@@ -47,6 +47,15 @@ pub(crate) enum CatalogCommand {
     },
     /// Show effective provenance, public trust keys, and replay protection.
     Status,
+    /// Review this release's fixed definition authority; apply requires exact consent.
+    DefinitionAuthority {
+        #[arg(long, requires = "expected_plan")]
+        apply: bool,
+        #[arg(long, requires = "apply")]
+        expected_plan: Option<String>,
+        #[arg(long, requires = "apply")]
+        yes: bool,
+    },
     /// Trust a publisher's raw 32-byte Ed25519 public key, encoded as hex.
     TrustKey {
         public_key: String,
@@ -96,6 +105,7 @@ impl CatalogCommand {
             Self::InspectProposal { .. } => "catalog.inspect-proposal",
             Self::InspectObservation { .. } => "catalog.inspect-observation",
             Self::Status => "catalog.status",
+            Self::DefinitionAuthority { .. } => "catalog.definition-authority",
             Self::TrustKey { .. } => "catalog.trust-key",
             Self::RevokeKey { .. } => "catalog.revoke-key",
             Self::Update { .. } => "catalog.update",
@@ -129,6 +139,57 @@ pub(crate) async fn execute(
         ),
         CatalogCommand::Status => {
             render_read_success(mode, name, library.catalog_status()?, human::catalog_status)
+        }
+        CatalogCommand::DefinitionAuthority {
+            apply,
+            expected_plan,
+            yes,
+        } => {
+            if apply {
+                let review = library.review_definition_authority()?;
+                if !review.configured {
+                    return Err(portcove_core::PortcoveError::unsupported(
+                        "this build has no configured definition authority",
+                    ));
+                }
+                require_confirmation(
+                    &format!(
+                        "Install this release's fixed definition authority {} in library {}? Authenticated policy is still required for operations.",
+                        review
+                            .compiled_anchor_sha256
+                            .as_deref()
+                            .expect("configured anchor"),
+                        review.library_id
+                    ),
+                    yes,
+                    non_interactive,
+                )?;
+                render_success(
+                    mode,
+                    name,
+                    library.provision_definition_authority(
+                        &expected_plan.expect("clap requires the reviewed plan"),
+                    )?,
+                )
+            } else {
+                render_read_success(
+                    mode,
+                    name,
+                    library.review_definition_authority()?,
+                    |review| {
+                        format!(
+                            "Definition authority: {}\nInstalled: {}\nLibrary: {}\nReview plan: {}",
+                            review
+                                .compiled_anchor_sha256
+                                .as_deref()
+                                .unwrap_or("unconfigured"),
+                            review.installed,
+                            review.library_id,
+                            review.expected_plan
+                        )
+                    },
+                )
+            }
         }
         CatalogCommand::InspectObservation { .. } => {
             unreachable!("observation inspection executes before opening a library")

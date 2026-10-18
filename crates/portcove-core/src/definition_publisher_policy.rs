@@ -21,6 +21,10 @@ pub use launch_assessment::{
     AuthenticatedDefinitionLaunchAssessment, acquire_definition_launch_assessment,
 };
 
+#[path = "definition_authority.rs"]
+pub(crate) mod provisioning;
+pub use provisioning::{DefinitionAuthorityProvisioning, DefinitionAuthorityReview};
+
 /// Fetch inert policy under an explicitly supplied independently trusted root.
 /// A library still requires its own installed matching authority before admission.
 pub async fn acquire_definition_publisher_policy(

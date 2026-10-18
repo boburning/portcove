@@ -7,6 +7,9 @@ const ID: &str = "tuf-metadata-fixture";
 #[path = "definition_launch_assessment_tests.rs"]
 mod launch_assessments;
 
+#[path = "definition_authority_tests.rs"]
+mod authority_provisioning;
+
 #[cfg(feature = "qualification-fixtures")]
 #[path = "definition_compiled_client_tests.rs"]
 mod compiled_clients;

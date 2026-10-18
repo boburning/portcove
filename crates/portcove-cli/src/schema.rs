@@ -94,6 +94,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "definition_authority_review",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::DefinitionAuthorityReview,
+                >(contract)),
+            ),
+            (
+                "definition_authority_provisioning",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::DefinitionAuthorityProvisioning,
+                >(contract)),
+            ),
+            (
                 "catalog_provenance",
                 serde_json::json!(schema_for_contract::<portcove_core::CatalogProvenance>(
                     contract

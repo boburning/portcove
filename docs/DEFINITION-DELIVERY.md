@@ -501,12 +501,47 @@ delegation has exactly `policy/official/*.json`; its key material must be distin
 from the definition role and top-level metadata keys. Authentication uses the
 existing bounded TUF transport, consistent snapshots and expiration enforcement.
 Caller-supplied root bytes do not install trust. A library must already contain
-the independently provisioned matching authority; there is no public root or
-grant setter in this component. Ordinary unprovisioned libraries remain unscoped.
+the independently provisioned matching authority; there is no caller-selected root
+or grant setter. Ordinary unprovisioned libraries remain unscoped.
 The existing offline top-level targets authority still appoints and rotates
 delegates. This component does not infer offline custody from public key bytes;
 that custody remains a protected provisioning obligation. Policy fixtures use a
 separate offline delegation signer rather than the timestamp/snapshot signer.
+
+**Fixed-anchor client provisioning.**
+
+`Library::review_definition_authority` reviews only the immutable public root
+compiled into the release from `crates/portcove-core/catalog/official-definition-root.json`.
+The checked-in value is `null`: ordinary builds report `configured: false` and
+refuse application. Selecting a production root, demonstrating its custody and
+shipping a configured release remain separate protected owner decisions. A valid
+root document alone does not prove offline custody or grant signing/publication
+permissions.
+
+For a separately approved configured release, `catalog definition-authority`
+returns a `provisioning_schema: 1` review. `--apply --expected-plan <expected_plan>`
+requires explicit confirmation (`--yes` for noninteractive use) and delegates to
+Core. No file, URL, key, environment override or qualification option supplies
+the anchor. The compiled root is bounded to 1 MiB and must self-verify with a
+2-of-3 root quorum, distinct root/targets/snapshot/timestamp signing material,
+consistent snapshots and exactly the four supported top-level roles. Existing
+TUF acquisition still authenticates rotation, expiry and fresh metadata.
+
+The reviewed fingerprint binds the library identity and canonical path, compiled
+anchor and retained authority/policy/admission/launch/curated state. Core recomputes
+it inside an immediate SQLite transaction and inserts only a missing authority.
+Conflicting roots, corrupt or incomplete retained baselines and stale reviews
+refuse without repair. An exact retry writes nothing. A lost-response retry using
+the original plan is accepted only while the inserted authority remains exact
+and has no replay floor or dependent history; once admission advances, review
+again. Provisioning cannot replace roots, reset floors, clear holds, grant policy,
+select definitions or install games. Deleting all history or rolling back the
+entire database cannot be detected without an independent witness; this seam
+does not claim that protection.
+
+This is a CLI operator command with additive exported review/result schemas and
+capability advertisement. API result-envelope and operation-event versions stay
+unchanged; no event is emitted and no Tauri command/binding is introduced.
 
 Policy schema 1 authorizes **availability only**, binding the namespace,
 stable ID, grant and monotonic policy revision to the exact index, definition

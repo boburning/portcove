@@ -1084,6 +1084,7 @@ fn command_is_observation(command: &Commands) -> bool {
                     | CatalogCommand::Export
                     | CatalogCommand::Show { .. }
                     | CatalogCommand::Status
+                    | CatalogCommand::DefinitionAuthority { apply: false, .. }
                     | CatalogCommand::InspectProposal { .. },
             }
             | Commands::Backup {
@@ -3299,6 +3300,49 @@ fn command_name(command: &Commands) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn definition_authority_requires_reviewed_explicit_apply_and_has_no_root_input() {
+        let review = Cli::try_parse_from(["portcove", "catalog", "definition-authority"]).unwrap();
+        assert!(super::command_is_observation(&review.command));
+        assert_eq!(
+            super::command_name(&review.command),
+            "catalog.definition-authority"
+        );
+        assert!(
+            portcove_core::CapabilityDocument::current()
+                .commands
+                .iter()
+                .any(|name| name == "catalog.definition-authority")
+        );
+        for flags in [
+            vec!["--apply"],
+            vec!["--expected-plan", "abc"],
+            vec!["--yes"],
+            vec!["--file", "root.json"],
+            vec!["--url", "https://example.com/root.json"],
+            vec!["--root", "root.json"],
+            vec!["--public-key", "abc"],
+        ] {
+            assert!(
+                Cli::try_parse_from(
+                    [vec!["portcove", "catalog", "definition-authority"], flags].concat()
+                )
+                .is_err()
+            );
+        }
+        let apply = Cli::try_parse_from([
+            "portcove",
+            "catalog",
+            "definition-authority",
+            "--apply",
+            "--expected-plan",
+            &"0".repeat(64),
+            "--yes",
+        ])
+        .unwrap();
+        assert!(!super::command_is_observation(&apply.command));
+    }
+
     #[cfg(feature = "qualification-fixtures")]
     fn qualification_proxy_cli() -> Cli {
         Cli::try_parse_from([

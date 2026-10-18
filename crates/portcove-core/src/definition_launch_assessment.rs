@@ -477,6 +477,62 @@ impl Library {
     }
 }
 
+/// Provisioning is not a repair path: retain and validate every established
+/// baseline, including scopes currently held or using a superseding policy.
+pub(super) fn validate_retained_baselines(connection: &Connection) -> Result<()> {
+    let mut statement = connection.prepare(
+        "SELECT namespace,stable_id,launch_assessment_revision FROM definition_publisher_admission",
+    )?;
+    let rows = statement.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, i64>(2)?,
+        ))
+    })?;
+    for row in rows {
+        let (namespace, stable_id, revision) = row?;
+        let baseline: Option<(String, String, String)> = connection.query_row(
+            "SELECT document_json,provenance_json,inventory_sha256 FROM definition_launch_assessments WHERE namespace=?1 AND stable_id=?2",
+            params![namespace, stable_id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        ).optional()?;
+        let (actual_inventory, decisions) = inventory(connection, &namespace, &stable_id)?;
+        let Some((bytes, provenance, expected_inventory)) = baseline else {
+            if revision != 0 || !decisions.is_empty() {
+                return Err(PortcoveError::state(
+                    "accepted launch decisions lost their baseline",
+                ));
+            }
+            continue;
+        };
+        if provenance.len() > 16 * 1024 || revision <= 0 || actual_inventory != expected_inventory {
+            return Err(PortcoveError::state("stored launch baseline differs"));
+        }
+        let document = Document::parse(bytes.as_bytes())?;
+        let provenance: PolicyProvenance = serde_json::from_str(&provenance)?;
+        provenance.validate()?;
+        let (_, admission, _) = super::stored_admission(connection, &namespace, &stable_id)?
+            .ok_or_else(|| PortcoveError::state("launch baseline lost its policy"))?;
+        if document.namespace != namespace
+            || document.stable_id != stable_id
+            || document.revision != revision as u64
+            || provenance.target_sha256 != digest(bytes.as_bytes())
+            || provenance.anchor_sha256 != admission.anchor_sha256
+            || decisions
+                .iter()
+                .any(|(_, anchor)| anchor != &provenance.anchor_sha256)
+        {
+            return Err(PortcoveError::state(
+                "stored launch baseline identity differs",
+            ));
+        }
+        super::installed_authority_floor(connection, &provenance.anchor_sha256)?
+            .ok_or_else(|| PortcoveError::state("launch baseline lost its replay floor"))?
+            .check_advance(&provenance)?;
+    }
+    Ok(())
+}
+
 pub(super) fn established_revision(
     connection: &Connection,
     namespace: &str,

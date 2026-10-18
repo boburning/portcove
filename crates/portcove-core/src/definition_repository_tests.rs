@@ -84,6 +84,7 @@ struct RepositoryFixture {
     offline: [Key; 3],
     online: Key,
     definitions: Key,
+    separated_roles: Option<[Key; 3]>,
     root_path: PathBuf,
     source: PathBuf,
     metadata: PathBuf,
@@ -112,6 +113,7 @@ impl RepositoryFixture {
             offline,
             online,
             definitions,
+            separated_roles: None,
             root_path,
             source,
             metadata,
@@ -156,19 +158,31 @@ impl RepositoryFixture {
         let public = self.online.source().as_sign().await.unwrap().tuf_key();
         let id = public.key_id().unwrap();
         root.keys.insert(id.clone(), public);
-        for role in [RoleType::Targets, RoleType::Snapshot, RoleType::Timestamp] {
+        for (index, role) in [RoleType::Targets, RoleType::Snapshot, RoleType::Timestamp]
+            .into_iter()
+            .enumerate()
+        {
+            let role_id = if let Some(keys) = &self.separated_roles {
+                let public = keys[index].source().as_sign().await.unwrap().tuf_key();
+                let role_id = public.key_id().unwrap();
+                root.keys.insert(role_id.clone(), public);
+                role_id
+            } else if protected_delegation && role == RoleType::Targets {
+                root_ids[0].clone()
+            } else {
+                id.clone()
+            };
             root.roles.insert(
                 role,
                 RoleKeys {
-                    keyids: vec![if protected_delegation && role == RoleType::Targets {
-                        root_ids[0].clone()
-                    } else {
-                        id.clone()
-                    }],
+                    keyids: vec![role_id],
                     threshold: nz(1),
                     _extra: HashMap::new(),
                 },
             );
+        }
+        if self.separated_roles.is_some() {
+            root.keys.remove(&id);
         }
         let keys = self
             .offline
@@ -217,7 +231,9 @@ impl RepositoryFixture {
         } else {
             self.root(consistent_snapshot).await
         };
-        let delegation_key = if policy.is_some() {
+        let delegation_key = if let Some(keys) = &self.separated_roles {
+            &keys[0]
+        } else if policy.is_some() {
             &self.offline[0]
         } else {
             &self.online
@@ -337,6 +353,9 @@ impl RepositoryFixture {
             .targets_expires(expires)
             .unwrap();
         let mut signing_keys = vec![self.online.source()];
+        if let Some(keys) = &self.separated_roles {
+            signing_keys = keys.iter().map(Key::source).collect();
+        }
         if policy.is_some() {
             signing_keys.push(delegation_key.source());
         }
