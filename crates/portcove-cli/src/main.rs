@@ -278,8 +278,43 @@ impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
     }
 }
 
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+enum DestinationArtworkRoleArg {
+    PortraitCover,
+    LandscapeCover,
+    HeroBanner,
+}
+
+impl From<DestinationArtworkRoleArg> for portcove_core::DestinationArtworkRole {
+    fn from(role: DestinationArtworkRoleArg) -> Self {
+        match role {
+            DestinationArtworkRoleArg::PortraitCover => Self::PortraitCover,
+            DestinationArtworkRoleArg::LandscapeCover => Self::LandscapeCover,
+            DestinationArtworkRoleArg::HeroBanner => Self::HeroBanner,
+        }
+    }
+}
+
 #[derive(Debug, Subcommand)]
 enum ArtworkCommand {
+    /// Observe a semantic destination role without fetching or writing artwork.
+    Handoff {
+        port_id: String,
+        #[arg(long, value_enum)]
+        role: DestinationArtworkRoleArg,
+    },
+    /// Read exact accepted local original bytes against a previously observed binding.
+    HandoffBytes {
+        port_id: String,
+        #[arg(long, value_enum)]
+        role: DestinationArtworkRoleArg,
+        #[arg(long)]
+        expected_library_id: String,
+        #[arg(long)]
+        expected_revision: u64,
+        #[arg(long)]
+        expected_asset_sha256: String,
+    },
     /// Show the effective artwork and source for a port and slot.
     Show {
         port_id: String,
@@ -320,6 +355,8 @@ enum ArtworkCommand {
 impl ArtworkCommand {
     fn name(&self) -> &'static str {
         match self {
+            Self::Handoff { .. } => "artwork.handoff",
+            Self::HandoffBytes { .. } => "artwork.handoff-bytes",
             Self::Show { .. } => "artwork.show",
             Self::Import { .. } => "artwork.import",
             Self::Reset { .. } => "artwork.reset",
@@ -1114,7 +1151,10 @@ fn command_is_observation(command: &Commands) -> bool {
                     | OutputCommand::Move { apply: false, .. },
             }
             | Commands::Artwork {
-                command: ArtworkCommand::Show { .. } | ArtworkCommand::Unused,
+                command: ArtworkCommand::Show { .. }
+                    | ArtworkCommand::Unused
+                    | ArtworkCommand::Handoff { .. }
+                    | ArtworkCommand::HandoffBytes { .. },
             }
     )
 }
@@ -3087,6 +3127,28 @@ fn execute_artwork(
 ) -> Result<()> {
     let name = command.name();
     match command {
+        ArtworkCommand::Handoff { port_id, role } => render_success(
+            mode,
+            name,
+            service.destination_artwork(&port_id, role.into())?,
+        ),
+        ArtworkCommand::HandoffBytes {
+            port_id,
+            role,
+            expected_library_id,
+            expected_revision,
+            expected_asset_sha256,
+        } => render_success(
+            mode,
+            name,
+            service.destination_artwork_bytes(
+                &port_id,
+                role.into(),
+                &expected_library_id,
+                expected_revision,
+                &expected_asset_sha256,
+            )?,
+        ),
         ArtworkCommand::Show { port_id, slot } => {
             render_success(mode, name, service.artwork(&port_id, slot.into())?)
         }
@@ -3855,6 +3917,28 @@ mod tests {
     fn observation_commands_do_not_trigger_constructor_recovery() {
         for arguments in [
             vec!["portcove", "status"],
+            vec![
+                "portcove",
+                "artwork",
+                "handoff",
+                "zelda64-recomp",
+                "--role",
+                "portrait-cover",
+            ],
+            vec![
+                "portcove",
+                "artwork",
+                "handoff-bytes",
+                "zelda64-recomp",
+                "--role",
+                "portrait-cover",
+                "--expected-library-id",
+                "library",
+                "--expected-revision",
+                "1",
+                "--expected-asset-sha256",
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            ],
             vec!["portcove", "remove-preview", "zelda64-recomp"],
             vec!["portcove", "activity"],
             vec!["portcove", "doctor"],

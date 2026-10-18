@@ -231,22 +231,47 @@ through `launch.show`, and read the returned terminal record. Never substitute
 client-side PID checks, direct SQLite changes, automatic relaunch, or a success
 claim for the core result.
 
-## Planned destination-artwork handoff
+## Destination-artwork handoff
 
-Public beta planning requires a small additive/versioned artwork handoff for an
-operating-system destination adapter such as #292. This is a future contract, not
-a shipped command or schema. Audit the existing public surface before adding any
-field. Reuse #208's core-owned asset identity, selection revision, provenance,
-accepted bytes and availability rather than exposing provider internals or teaching
-the adapter to search SteamGridDB.
+API 67 offers an optional, independently versioned `artwork_handoff_schema: 1`
+capability and the `artwork.handoff` / `artwork.handoff-bytes` commands. A destination
+adapter such as #292 must negotiate all three before using them. API envelopes and
+operation events retain their existing versions; existing cover/detail clients
+and clients that ignore this optional capability remain compatible.
 
-The initial semantic roles are static portrait cover, landscape cover and
-hero/banner. They are not provider dimensions or destination filenames, and a role
-may be unavailable. A consumer negotiates only the handoff it uses, treats unknown
-roles or consequential availability/provenance values according to the declared
-compatibility window, and never stretches or destructively crops one role into
-another. Existing cover/detail clients remain compatible and do not need to render
-every destination role.
+```powershell
+portcove --library C:\Games\Portcove --json --non-interactive artwork handoff shipwright --role portrait-cover
+portcove --library C:\Games\Portcove --json --non-interactive artwork handoff-bytes shipwright --role portrait-cover --expected-library-id <observed-id> --expected-revision <observed-revision> --expected-asset-sha256 <observed-sha256>
+```
+
+Both commands are read-only observations, including startup: they perform no
+recovery, provider fetch, thumbnail-cache read/write or destination write. Core resolves
+the same current or retained admitted port as existing artwork reads. The metadata
+contains `handoff_schema`, exact library identity, port, semantic role, Cover choice
+and revision, selected SHA-256, tagged source provenance and tagged availability.
+Local provenance retains the full admitted asset even when its original is missing;
+catalog provenance retains the accepted IGDB game, cover, image, slug, match kind
+and digest. This distinguishes an underlying-game default from a port-specific one.
+
+The three static roles are `portrait_cover`, `landscape_cover` and `hero_banner`
+(CLI flags use hyphens). V1 offers accepted durable Cover originals as portrait
+content. Landscape and hero roles explicitly report `role_not_provided`; Detail
+dimensions never assign a destination role. Catalog defaults report
+`no_local_original`, even if a disposable display thumbnail exists. Missing or
+invalid selected originals report `selected_original_unavailable` while retaining
+the choice and provenance. Generated fallback also has no reusable original.
+Never stretch or destructively crop one role into another.
+
+The bytes command requires the previously observed library ID, choice revision and
+asset digest, rechecks them under the artwork lock, and returns the complete handoff
+plus an `original` JSON byte array. It reads the bounded regular original and checks
+its digest, decoded format and dimensions. Stale bindings fail and require a fresh
+preview. Originals retain the existing 16 MiB limit; bound process output for JSON
+array expansion as well. Validate the handoff, byte count, digest and decode before
+storing a durable destination copy. Exported `destination_artwork_handoff` and
+`destination_artwork_bytes` schemas describe v1; the Core readers additionally reject
+contradictory identity/source/content combinations. Unknown versions, roles,
+provenance kinds or availability values require refusal, not inferred success.
 
 The adapter binds a preview to the exact library/port, choice revision, selected
 asset identity, destination installation/profile/entry, existing destination

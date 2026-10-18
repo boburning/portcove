@@ -207,6 +207,14 @@ internal static class ContractTests
         Reject(() => PublicCli.RequireAbsolute(@"\root-relative"), "root-relative path rejected");
         ProtocolStream.Negotiate(Json.Parse(Json.Print(Capabilities())));
         Check(true, "supported capabilities negotiated");
+        var artworkAdditive = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        artworkAdditive["schema_version"] = 67;
+        artworkAdditive["operation_event_schema_version"] = 3;
+        artworkAdditive["artwork_handoff_schema"] = 1;
+        artworkAdditive["commands"] = Json.Array(Json.Field(artworkAdditive, "commands"))
+            .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
+        ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
+        Check(true, "existing library reader accepts optional artwork handoff without consuming it");
         foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));

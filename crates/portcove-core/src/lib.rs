@@ -94,9 +94,11 @@ pub use adapter::{Adapter, AdapterRegistry, LaunchSpecRequest};
 pub use adapter::{host_tool_statuses, recheck_host_tool};
 pub use application_runtime::{ApplicationRuntimeGuard, ApplicationUpdateExclusivityGuard};
 pub use artwork::{
-    ArtworkAvailability, ArtworkCacheClear, ArtworkChoice, ArtworkImageFormat, ArtworkMetadata,
-    ArtworkResolvedSource, ArtworkSlot, ArtworkState, ArtworkThumbnail, GeneratedArtworkFallback,
-    LocalArtworkAsset,
+    ARTWORK_HANDOFF_SCHEMA, ArtworkAvailability, ArtworkCacheClear, ArtworkChoice,
+    ArtworkImageFormat, ArtworkMetadata, ArtworkResolvedSource, ArtworkSlot, ArtworkState,
+    ArtworkThumbnail, DestinationArtworkBytes, DestinationArtworkContent,
+    DestinationArtworkHandoff, DestinationArtworkRole, DestinationArtworkSource,
+    DestinationArtworkUnavailableReason, GeneratedArtworkFallback, LocalArtworkAsset,
 };
 pub use auth::{
     GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,

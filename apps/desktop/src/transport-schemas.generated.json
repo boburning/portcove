@@ -2634,6 +2634,15 @@
         },
         "type": "array"
       },
+      "artwork_handoff_schema": {
+        "description": "Optional read-only destination handoff; negotiate independently of API/events.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
       "commands": {
         "items": {
           "type": "string"
@@ -6101,6 +6110,679 @@
       "selection"
     ],
     "title": "DefinitionRefresh",
+    "type": "object"
+  },
+  "destination_artwork_bytes": {
+    "$defs": {
+      "ArtworkChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "slot": {
+            "$ref": "#/$defs/ArtworkSlot"
+          }
+        },
+        "required": [
+          "port_id",
+          "slot",
+          "revision",
+          "asset_sha256"
+        ],
+        "type": "object"
+      },
+      "ArtworkImageFormat": {
+        "enum": [
+          "png",
+          "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkSlot": {
+        "enum": [
+          "cover",
+          "detail"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkContent": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset": {
+                "$ref": "#/$defs/LocalArtworkAsset"
+              },
+              "availability": {
+                "const": "available",
+                "type": "string"
+              }
+            },
+            "required": [
+              "availability",
+              "asset"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "availability": {
+                "const": "unavailable",
+                "type": "string"
+              },
+              "reason": {
+                "$ref": "#/$defs/DestinationArtworkUnavailableReason"
+              }
+            },
+            "required": [
+              "availability",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "DestinationArtworkHandoff": {
+        "additionalProperties": false,
+        "description": "An observation, never provider permission, destination ownership or write consent.\nV1 exposes validated local portrait originals. Catalog defaults and unprovided\nwide roles remain explicit; they are never synthesized from another role/cache.",
+        "properties": {
+          "choice": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtworkChoice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "content": {
+            "$ref": "#/$defs/DestinationArtworkContent"
+          },
+          "handoff_schema": {
+            "format": "uint32",
+            "maximum": 1,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "library": {
+            "$ref": "#/$defs/LibraryIdentity"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "selected_asset_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "$ref": "#/$defs/DestinationArtworkSource"
+          }
+        },
+        "required": [
+          "handoff_schema",
+          "library",
+          "port_id",
+          "role",
+          "choice",
+          "source",
+          "selected_asset_sha256",
+          "content"
+        ],
+        "type": "object"
+      },
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkSource": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset": {
+                "$ref": "#/$defs/LocalArtworkAsset"
+              },
+              "kind": {
+                "const": "local_import",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "asset"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "artwork": {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              "kind": {
+                "const": "catalog_default",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "artwork"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "generated_fallback",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "unassigned_role",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "DestinationArtworkUnavailableReason": {
+        "enum": [
+          "role_not_provided",
+          "no_local_original",
+          "selected_original_unavailable"
+        ],
+        "type": "string"
+      },
+      "IgdbArtwork": {
+        "additionalProperties": false,
+        "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
+        "properties": {
+          "cover_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_slug": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "image_sha256": {
+            "type": "string"
+          },
+          "match_kind": {
+            "$ref": "#/$defs/IgdbArtworkMatch"
+          }
+        },
+        "required": [
+          "game_id",
+          "cover_id",
+          "image_id",
+          "image_sha256",
+          "game_slug",
+          "match_kind"
+        ],
+        "type": "object"
+      },
+      "IgdbArtworkMatch": {
+        "enum": [
+          "port",
+          "underlying-game"
+        ],
+        "type": "string"
+      },
+      "LibraryIdentity": {
+        "description": "Durable library identity and its current effective location.",
+        "properties": {
+          "id": {
+            "description": "Opaque identity, preserved by managed moves; not an authentication token.",
+            "type": "string"
+          },
+          "root": {
+            "description": "Current location, which may differ from the root originally requested.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "root"
+        ],
+        "type": "object"
+      },
+      "LocalArtworkAsset": {
+        "additionalProperties": false,
+        "description": "Local integrity and user selection do not establish copyright permission.",
+        "properties": {
+          "byte_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "format": {
+            "$ref": "#/$defs/ArtworkImageFormat"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "imported_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "original_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "original_name",
+          "format",
+          "byte_size",
+          "width",
+          "height",
+          "imported_at"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "handoff": {
+        "$ref": "#/$defs/DestinationArtworkHandoff"
+      },
+      "original": {
+        "description": "Exact bounded original bytes, with no resize, crop, URL or filesystem path.",
+        "items": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "handoff",
+      "original"
+    ],
+    "title": "DestinationArtworkBytes",
+    "type": "object"
+  },
+  "destination_artwork_handoff": {
+    "$defs": {
+      "ArtworkChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "slot": {
+            "$ref": "#/$defs/ArtworkSlot"
+          }
+        },
+        "required": [
+          "port_id",
+          "slot",
+          "revision",
+          "asset_sha256"
+        ],
+        "type": "object"
+      },
+      "ArtworkImageFormat": {
+        "enum": [
+          "png",
+          "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkSlot": {
+        "enum": [
+          "cover",
+          "detail"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkContent": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset": {
+                "$ref": "#/$defs/LocalArtworkAsset"
+              },
+              "availability": {
+                "const": "available",
+                "type": "string"
+              }
+            },
+            "required": [
+              "availability",
+              "asset"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "availability": {
+                "const": "unavailable",
+                "type": "string"
+              },
+              "reason": {
+                "$ref": "#/$defs/DestinationArtworkUnavailableReason"
+              }
+            },
+            "required": [
+              "availability",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkSource": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "asset": {
+                "$ref": "#/$defs/LocalArtworkAsset"
+              },
+              "kind": {
+                "const": "local_import",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "asset"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "artwork": {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              "kind": {
+                "const": "catalog_default",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "artwork"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "generated_fallback",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "unassigned_role",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "DestinationArtworkUnavailableReason": {
+        "enum": [
+          "role_not_provided",
+          "no_local_original",
+          "selected_original_unavailable"
+        ],
+        "type": "string"
+      },
+      "IgdbArtwork": {
+        "additionalProperties": false,
+        "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
+        "properties": {
+          "cover_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_slug": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "image_sha256": {
+            "type": "string"
+          },
+          "match_kind": {
+            "$ref": "#/$defs/IgdbArtworkMatch"
+          }
+        },
+        "required": [
+          "game_id",
+          "cover_id",
+          "image_id",
+          "image_sha256",
+          "game_slug",
+          "match_kind"
+        ],
+        "type": "object"
+      },
+      "IgdbArtworkMatch": {
+        "enum": [
+          "port",
+          "underlying-game"
+        ],
+        "type": "string"
+      },
+      "LibraryIdentity": {
+        "description": "Durable library identity and its current effective location.",
+        "properties": {
+          "id": {
+            "description": "Opaque identity, preserved by managed moves; not an authentication token.",
+            "type": "string"
+          },
+          "root": {
+            "description": "Current location, which may differ from the root originally requested.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "root"
+        ],
+        "type": "object"
+      },
+      "LocalArtworkAsset": {
+        "additionalProperties": false,
+        "description": "Local integrity and user selection do not establish copyright permission.",
+        "properties": {
+          "byte_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "format": {
+            "$ref": "#/$defs/ArtworkImageFormat"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "imported_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "original_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "original_name",
+          "format",
+          "byte_size",
+          "width",
+          "height",
+          "imported_at"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "An observation, never provider permission, destination ownership or write consent.\nV1 exposes validated local portrait originals. Catalog defaults and unprovided\nwide roles remain explicit; they are never synthesized from another role/cache.",
+    "properties": {
+      "choice": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ArtworkChoice"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "content": {
+        "$ref": "#/$defs/DestinationArtworkContent"
+      },
+      "handoff_schema": {
+        "format": "uint32",
+        "maximum": 1,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "library": {
+        "$ref": "#/$defs/LibraryIdentity"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "role": {
+        "$ref": "#/$defs/DestinationArtworkRole"
+      },
+      "selected_asset_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "source": {
+        "$ref": "#/$defs/DestinationArtworkSource"
+      }
+    },
+    "required": [
+      "handoff_schema",
+      "library",
+      "port_id",
+      "role",
+      "choice",
+      "source",
+      "selected_asset_sha256",
+      "content"
+    ],
+    "title": "DestinationArtworkHandoff",
     "type": "object"
   },
   "doctor": {

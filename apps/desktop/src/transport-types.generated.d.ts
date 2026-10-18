@@ -310,6 +310,33 @@ export type CatalogUpdateSource =
     };
 export type DefinitionCapabilityOutcome = "supported" | "unsupported_template" | "unsupported_version";
 export type DefinitionRefreshDisposition = "revoked" | "selected" | "ineligible";
+export type DestinationArtworkContent =
+  | {
+      asset: LocalArtworkAsset;
+      availability: "available";
+    }
+  | {
+      availability: "unavailable";
+      reason: DestinationArtworkUnavailableReason;
+    };
+export type DestinationArtworkUnavailableReason =
+  "role_not_provided" | "no_local_original" | "selected_original_unavailable";
+export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
+export type DestinationArtworkSource =
+  | {
+      asset: LocalArtworkAsset;
+      kind: "local_import";
+    }
+  | {
+      artwork: IgdbArtwork;
+      kind: "catalog_default";
+    }
+  | {
+      kind: "generated_fallback";
+    }
+  | {
+      kind: "unassigned_role";
+    };
 export type HostToolSource = "environment" | "saved" | "discovery";
 export type HostToolState = "available" | "missing" | "misconfigured" | "unsupported";
 export type RepairItemKind =
@@ -559,6 +586,8 @@ export interface TransportOutputs {
   definition_capability_report: OutputDefinitionCapabilityReport;
   definition_capability_request: OutputDefinitionCapabilityRequest;
   definition_refresh: OutputDefinitionRefresh;
+  destination_artwork_bytes: OutputDestinationArtworkBytes;
+  destination_artwork_handoff: DestinationArtworkHandoff;
   doctor: OutputDoctor;
   external_runtime_preview: OutputExternalRuntimePreview;
   external_runtime_record: ExternalRuntimeRecord;
@@ -1086,6 +1115,10 @@ export interface PortActionAssessment2 {
 }
 export interface OutputCapabilities {
   adapters: AdapterKind[];
+  /**
+   * Optional read-only destination handoff; negotiate independently of API/events.
+   */
+  artwork_handoff_schema?: number | null;
   commands: string[];
   /**
    * Installed engine contracts; these do not grant definition admission.
@@ -1607,6 +1640,42 @@ export interface DefinitionReplayFloor {
   timestamp_version: number;
   [k: string]: unknown;
 }
+export interface OutputDestinationArtworkBytes {
+  handoff: DestinationArtworkHandoff;
+  /**
+   * Exact bounded original bytes, with no resize, crop, URL or filesystem path.
+   */
+  original: number[];
+}
+/**
+ * An observation, never provider permission, destination ownership or write consent.
+ * V1 exposes validated local portrait originals. Catalog defaults and unprovided
+ * wide roles remain explicit; they are never synthesized from another role/cache.
+ */
+export interface DestinationArtworkHandoff {
+  choice: ArtworkChoice | null;
+  content: DestinationArtworkContent;
+  handoff_schema: number;
+  library: LibraryIdentity;
+  port_id: string;
+  role: DestinationArtworkRole;
+  selected_asset_sha256: string | null;
+  source: DestinationArtworkSource;
+}
+/**
+ * Durable library identity and its current effective location.
+ */
+export interface LibraryIdentity {
+  /**
+   * Opaque identity, preserved by managed moves; not an authentication token.
+   */
+  id: string;
+  /**
+   * Current location, which may differ from the root originally requested.
+   */
+  root: string;
+  [k: string]: unknown;
+}
 export interface OutputDoctor {
   catalog_port_count: number;
   catalog_provenance: CatalogProvenance;
@@ -1699,20 +1768,6 @@ export interface OutputGameFileQuerySnapshot {
   routes: GameFileRouteProjection[];
   schema_version: number;
   selection_sha256: string;
-  [k: string]: unknown;
-}
-/**
- * Durable library identity and its current effective location.
- */
-export interface LibraryIdentity {
-  /**
-   * Opaque identity, preserved by managed moves; not an authentication token.
-   */
-  id: string;
-  /**
-   * Current location, which may differ from the root originally requested.
-   */
-  root: string;
   [k: string]: unknown;
 }
 export interface GameFileRouteProjection {

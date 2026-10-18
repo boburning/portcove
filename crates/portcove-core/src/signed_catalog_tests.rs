@@ -130,6 +130,158 @@ async fn publish(service: &PortcoveService, source: &CatalogUpdateSource) -> Cat
 }
 
 #[tokio::test]
+async fn refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries() {
+    let root = tempfile::tempdir().unwrap();
+    let library_root = root.path().join("library");
+    let library = Library::open(&library_root).unwrap();
+    trusted(&library);
+    let initial = fixture(1, Library::now());
+    let port_id = initial.catalog.ports[0].id.clone();
+    let initial_artwork = initial.catalog.ports[0]
+        .presentation
+        .as_ref()
+        .unwrap()
+        .artwork
+        .clone()
+        .unwrap();
+    let first_path = root.path().join("first.json");
+    std::fs::write(&first_path, sign(&initial)).unwrap();
+    publish(
+        &PortcoveService::new(library.clone()).unwrap(),
+        &CatalogUpdateSource::File(first_path),
+    )
+    .await;
+
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let image_path = root.path().join("owned-local-choice.png");
+    image::RgbImage::from_pixel(12, 24, image::Rgb([24_u8, 80, 160]))
+        .save(&image_path)
+        .unwrap();
+    let original = std::fs::read(&image_path).unwrap();
+    let imported = service
+        .import_artwork(&port_id, crate::ArtworkSlot::Cover, &image_path, 0)
+        .unwrap();
+    let mut correction = initial.clone();
+    correction.sequence = 2;
+    let artwork = correction.catalog.ports[0]
+        .presentation
+        .as_mut()
+        .unwrap()
+        .artwork
+        .as_mut()
+        .unwrap();
+    artwork.image_id = "portcovetestcorrected".into();
+    artwork.image_sha256 = "a".repeat(64);
+    // The declaration delta is artwork only; sequence/time are envelope concerns.
+    let mut without_correction = correction.catalog.clone();
+    without_correction.ports[0]
+        .presentation
+        .as_mut()
+        .unwrap()
+        .artwork = Some(initial_artwork.clone());
+    assert_eq!(
+        serde_json::to_value(&without_correction).unwrap(),
+        serde_json::to_value(&initial.catalog).unwrap()
+    );
+    let corrected_artwork = correction.catalog.ports[0]
+        .presentation
+        .as_ref()
+        .unwrap()
+        .artwork
+        .clone()
+        .unwrap();
+    let path = root.path().join("artwork-correction.json");
+    std::fs::write(&path, sign(&correction)).unwrap();
+    let source = CatalogUpdateSource::File(path);
+    let plan = service.plan_catalog_update(&source).await.unwrap();
+    library.connection().unwrap().execute_batch("CREATE TRIGGER reject_artwork_commit BEFORE UPDATE OF status ON activity_history WHEN NEW.status='succeeded' BEGIN SELECT RAISE(ABORT,'owned artwork commit refusal'); END;").unwrap();
+    assert!(
+        service
+            .apply_catalog_update(&source, &plan.plan_sha256, |_| {})
+            .await
+            .is_err()
+    );
+    drop(service);
+    drop(library);
+
+    let library = Library::open(&library_root).unwrap();
+    let service = PortcoveService::new_read_only(library.clone()).unwrap();
+    assert_eq!(library.catalog_status().unwrap().highest_sequence, 1);
+    assert_eq!(
+        service
+            .catalog()
+            .port(&port_id)
+            .unwrap()
+            .presentation
+            .as_ref()
+            .unwrap()
+            .artwork,
+        Some(initial_artwork)
+    );
+    let retained = service
+        .artwork(&port_id, crate::ArtworkSlot::Cover)
+        .unwrap();
+    assert_eq!(retained.choice, imported.choice);
+    assert_eq!(retained.selection, imported.selection);
+    assert_eq!(
+        std::fs::read(
+            crate::artwork::original_path(&library, imported.choice.asset_sha256.as_ref().unwrap())
+                .unwrap()
+        )
+        .unwrap(),
+        original
+    );
+    assert!(
+        library
+            .activities(20)
+            .unwrap()
+            .iter()
+            .all(|row| row.status != ActivityStatus::Running)
+    );
+    library
+        .connection()
+        .unwrap()
+        .execute_batch("DROP TRIGGER reject_artwork_commit")
+        .unwrap();
+    publish(&service, &source).await;
+    drop(service);
+    drop(library);
+
+    let service = PortcoveService::new_read_only(Library::open(&library_root).unwrap()).unwrap();
+    assert_eq!(
+        service.library().catalog_status().unwrap().highest_sequence,
+        2
+    );
+    assert_eq!(
+        service
+            .catalog()
+            .port(&port_id)
+            .unwrap()
+            .presentation
+            .as_ref()
+            .unwrap()
+            .artwork,
+        Some(corrected_artwork)
+    );
+    let retained = service
+        .artwork(&port_id, crate::ArtworkSlot::Cover)
+        .unwrap();
+    assert_eq!(retained.choice, imported.choice);
+    assert_eq!(retained.selection, imported.selection);
+    assert_eq!(
+        std::fs::read(
+            crate::artwork::original_path(
+                service.library(),
+                imported.choice.asset_sha256.as_ref().unwrap()
+            )
+            .unwrap()
+        )
+        .unwrap(),
+        original
+    );
+}
+
+#[tokio::test]
 async fn review_names_changed_ports_from_the_verified_candidate() {
     let root = tempfile::tempdir().unwrap();
     let library = Library::open(root.path().join("library")).unwrap();

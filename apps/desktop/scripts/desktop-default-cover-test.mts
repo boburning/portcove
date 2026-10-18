@@ -288,8 +288,8 @@ export async function defaultCoverScenario({
           JSON.stringify(
             {
               scope: cacheConditions
-                ? "native development app; isolated empty-cache first display and cached restart with backend image traffic rejected; missing-cache negative control; not installed-package or physical-device evidence"
-                : "native development app; every mapped catalog cover in both themes, representative details; first/warm same-session CDN display, not cold-request latency or offline",
+                ? "native app; isolated empty-cache first display and cached restart with backend image traffic rejected; missing-cache negative control. Package/installation provenance requires an independently joined outer receipt; no physical-device claim"
+                : "native app; every mapped catalog cover in both themes, representative details; first/warm same-session CDN display, not cold-request latency or offline. Package/installation provenance requires an independently joined outer receipt",
               negativeControl,
               refusedOrigins,
               catalogCount: catalog.ports.length,

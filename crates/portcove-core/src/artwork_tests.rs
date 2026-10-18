@@ -5,6 +5,317 @@ use crate::{
     PortcoveService,
 };
 
+#[test]
+fn destination_handoff_preserves_original_identity_and_separate_roles_after_cache_clear() {
+    use crate::{
+        DestinationArtworkBytes, DestinationArtworkContent, DestinationArtworkRole as Role,
+    };
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("library");
+    let service = open_service(&root);
+    let image = image_file(temporary.path(), "portrait.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &image, 0)
+        .unwrap();
+    let detail = temporary.path().join("detail.jpg");
+    image::RgbImage::from_pixel(40, 12, image::Rgb([160, 80, 24]))
+        .save(&detail)
+        .unwrap();
+    service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Detail, &detail, 0)
+        .unwrap();
+    let snapshot = service
+        .destination_artwork("zelda64-recomp", Role::PortraitCover)
+        .unwrap();
+    assert_eq!(snapshot.choice.as_ref().unwrap(), &selected.choice);
+    assert!(matches!(
+        snapshot.content,
+        DestinationArtworkContent::Available { .. }
+    ));
+    let bytes = service
+        .destination_artwork_bytes(
+            "zelda64-recomp",
+            Role::PortraitCover,
+            &snapshot.library.id,
+            selected.choice.revision,
+            selected.choice.asset_sha256.as_deref().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(bytes.original, fs::read(&image).unwrap());
+    let serialized = serde_json::to_vec(&bytes).unwrap();
+    let decoded: DestinationArtworkBytes = serde_json::from_slice(&serialized).unwrap();
+    assert_eq!(decoded.original, bytes.original);
+    service.clear_artwork_cache().unwrap();
+    drop(service);
+    let reopened = open_service(&root);
+    let retained = reopened
+        .destination_artwork_bytes(
+            "zelda64-recomp",
+            Role::PortraitCover,
+            &snapshot.library.id,
+            selected.choice.revision,
+            selected.choice.asset_sha256.as_deref().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(retained.original, bytes.original);
+    for role in [Role::LandscapeCover, Role::HeroBanner] {
+        let missing = reopened
+            .destination_artwork("zelda64-recomp", role)
+            .unwrap();
+        assert_eq!(
+            missing.source,
+            crate::DestinationArtworkSource::UnassignedRole
+        );
+        assert_eq!(
+            missing.content,
+            DestinationArtworkContent::Unavailable {
+                reason: crate::DestinationArtworkUnavailableReason::RoleNotProvided,
+            }
+        );
+        assert!(missing.choice.is_none());
+    }
+    assert!(image.is_file());
+    assert!(detail.is_file());
+}
+
+#[test]
+fn destination_handoff_rechecks_library_revision_asset_and_missing_choice_provenance() {
+    use crate::{
+        DestinationArtworkContent, DestinationArtworkRole as Role, DestinationArtworkSource,
+    };
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(&temporary.path().join("library"));
+    let image = image_file(temporary.path(), "portrait.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &image, 0)
+        .unwrap();
+    let snapshot = service
+        .destination_artwork("zelda64-recomp", Role::PortraitCover)
+        .unwrap();
+    let sha = selected.choice.asset_sha256.as_deref().unwrap();
+    for (library, revision, asset) in [
+        ("another-library", selected.choice.revision, sha),
+        (snapshot.library.id.as_str(), 0, sha),
+        (
+            snapshot.library.id.as_str(),
+            selected.choice.revision,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ),
+    ] {
+        assert!(
+            service
+                .destination_artwork_bytes(
+                    "zelda64-recomp",
+                    Role::PortraitCover,
+                    library,
+                    revision,
+                    asset
+                )
+                .is_err()
+        );
+    }
+    fs::remove_file(crate::artwork::original_path(service.library(), sha).unwrap()).unwrap();
+    let unavailable = service
+        .destination_artwork("zelda64-recomp", Role::PortraitCover)
+        .unwrap();
+    assert_eq!(
+        unavailable.source,
+        DestinationArtworkSource::LocalImport {
+            asset: selected.selection.clone().unwrap()
+        }
+    );
+    assert_eq!(unavailable.choice.as_ref().unwrap(), &selected.choice);
+    assert_eq!(unavailable.selected_asset_sha256.as_deref(), Some(sha));
+    assert_eq!(
+        unavailable.content,
+        DestinationArtworkContent::Unavailable {
+            reason: crate::DestinationArtworkUnavailableReason::SelectedOriginalUnavailable,
+        }
+    );
+    assert!(
+        service
+            .destination_artwork_bytes(
+                "zelda64-recomp",
+                Role::PortraitCover,
+                &snapshot.library.id,
+                selected.choice.revision,
+                sha
+            )
+            .is_err()
+    );
+    assert_eq!(
+        service
+            .artwork("zelda64-recomp", ArtworkSlot::Cover)
+            .unwrap()
+            .choice,
+        selected.choice
+    );
+    assert!(service.status("zelda64-recomp").is_ok());
+    fs::write(
+        crate::artwork::original_path(service.library(), sha).unwrap(),
+        fs::read(&image).unwrap(),
+    )
+    .unwrap();
+    let reset = service
+        .reset_artwork(
+            "zelda64-recomp",
+            ArtworkSlot::Cover,
+            selected.choice.revision,
+        )
+        .unwrap();
+    assert_eq!(reset.choice.revision, selected.choice.revision + 1);
+    assert!(
+        service
+            .destination_artwork_bytes(
+                "zelda64-recomp",
+                Role::PortraitCover,
+                &snapshot.library.id,
+                selected.choice.revision,
+                sha,
+            )
+            .is_err()
+    );
+}
+
+#[test]
+fn destination_handoff_reader_refuses_unknown_or_contradictory_consequential_values() {
+    use crate::{
+        DestinationArtworkBytes, DestinationArtworkHandoff, DestinationArtworkRole as Role,
+    };
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(&temporary.path().join("library"));
+    let image = image_file(temporary.path(), "portrait.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &image, 0)
+        .unwrap();
+    let snapshot = service
+        .destination_artwork("zelda64-recomp", Role::PortraitCover)
+        .unwrap();
+    let value = serde_json::to_value(&snapshot).unwrap();
+    for path in ["sha256", "width", "original_name"] {
+        let mut changed = value.clone();
+        changed["source"]["asset"][path] = match path {
+            "sha256" => serde_json::json!("a".repeat(64)),
+            "width" => serde_json::json!(0),
+            _ => serde_json::json!("../untrusted.png"),
+        };
+        assert!(serde_json::from_value::<DestinationArtworkHandoff>(changed).is_err());
+    }
+    for (field, invalid) in [
+        ("handoff_schema", serde_json::json!(2)),
+        ("role", serde_json::json!("animated_logo")),
+        ("role", serde_json::json!("hero_banner")),
+        ("source", serde_json::json!({"kind":"future_provider"})),
+        ("source", serde_json::json!({"kind":"generated_fallback"})),
+        ("port_id", serde_json::json!("shipwright")),
+        ("selected_asset_sha256", serde_json::json!(null)),
+        ("unexpected", serde_json::json!(true)),
+        (
+            "content",
+            serde_json::json!({"availability":"future_value"}),
+        ),
+    ] {
+        let mut changed = value.clone();
+        changed[field] = invalid;
+        assert!(
+            serde_json::from_value::<DestinationArtworkHandoff>(changed).is_err(),
+            "accepted {field}"
+        );
+    }
+    for field in [
+        "handoff_schema",
+        "library",
+        "port_id",
+        "role",
+        "source",
+        "content",
+        "choice",
+    ] {
+        let mut changed = value.clone();
+        changed.as_object_mut().unwrap().remove(field);
+        assert!(
+            serde_json::from_value::<DestinationArtworkHandoff>(changed).is_err(),
+            "omitted {field}"
+        );
+    }
+    let bytes = service
+        .destination_artwork_bytes(
+            "zelda64-recomp",
+            Role::PortraitCover,
+            &snapshot.library.id,
+            selected.choice.revision,
+            selected.choice.asset_sha256.as_deref().unwrap(),
+        )
+        .unwrap();
+    let mut changed = serde_json::to_value(bytes).unwrap();
+    changed["original"][0] = serde_json::json!(0);
+    assert!(serde_json::from_value::<DestinationArtworkBytes>(changed).is_err());
+}
+
+#[test]
+fn destination_handoff_catalog_defaults_remain_observations_without_cache_or_provider_fetch() {
+    use crate::{
+        DestinationArtworkContent, DestinationArtworkRole as Role, DestinationArtworkSource,
+    };
+    let temporary = tempfile::tempdir().unwrap();
+    let service = PortcoveService::new(Library::open(temporary.path()).unwrap()).unwrap();
+    let snapshot = service
+        .destination_artwork("shipwright", Role::PortraitCover)
+        .unwrap();
+    assert_eq!(
+        snapshot.source,
+        DestinationArtworkSource::CatalogDefault {
+            artwork: service
+                .catalog()
+                .port("shipwright")
+                .unwrap()
+                .presentation
+                .as_ref()
+                .unwrap()
+                .artwork
+                .clone()
+                .unwrap()
+        }
+    );
+    assert!(snapshot.selected_asset_sha256.is_some());
+    let serialized = serde_json::to_value(&snapshot).unwrap();
+    let _: crate::DestinationArtworkHandoff = serde_json::from_value(serialized.clone()).unwrap();
+    for (field, invalid) in [
+        ("match_kind", serde_json::json!("unreviewed_match")),
+        ("image_sha256", serde_json::json!("a".repeat(64))),
+        ("image_id", serde_json::json!("../foreign")),
+        ("game_id", serde_json::json!(0)),
+    ] {
+        let mut changed = serialized.clone();
+        changed["source"]["artwork"][field] = invalid;
+        assert!(serde_json::from_value::<crate::DestinationArtworkHandoff>(changed).is_err());
+    }
+    assert_eq!(
+        snapshot.content,
+        DestinationArtworkContent::Unavailable {
+            reason: crate::DestinationArtworkUnavailableReason::NoLocalOriginal,
+        }
+    );
+    assert!(!temporary.path().join("artwork-cache").exists());
+    assert!(
+        service
+            .destination_artwork("unknown-port", Role::PortraitCover)
+            .is_err()
+    );
+    let mut legacy = serde_json::to_value(crate::CapabilityDocument::current()).unwrap();
+    assert_eq!(legacy["artwork_handoff_schema"], 1);
+    legacy
+        .as_object_mut()
+        .unwrap()
+        .remove("artwork_handoff_schema");
+    assert!(
+        serde_json::from_value::<crate::CapabilityDocument>(legacy)
+            .unwrap()
+            .artwork_handoff_schema
+            .is_none()
+    );
+}
+
 fn image_file(root: &Path, name: &str, format: image::ImageFormat) -> std::path::PathBuf {
     let image = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
         12,

@@ -12,6 +12,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Library, PortcoveError, PortcoveService, Result};
 
+mod destination;
+pub use destination::{
+    ARTWORK_HANDOFF_SCHEMA, DestinationArtworkBytes, DestinationArtworkContent,
+    DestinationArtworkHandoff, DestinationArtworkRole, DestinationArtworkSource,
+    DestinationArtworkUnavailableReason,
+};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ArtworkSlot {

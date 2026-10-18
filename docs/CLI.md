@@ -850,6 +850,16 @@ a client. A reviewed catalog cover can resolve
 as the default for a mapped cover slot through the fixed IGDB image CDN path.
 The CLI does not search IGDB through these local-choice commands.
 
+API 67 also advertises optional `artwork_handoff_schema: 1`, `artwork.handoff`
+and `artwork.handoff-bytes`. These read-only destination observations export
+semantic role, exact library/port/choice revision, accepted source provenance and
+availability; the bytes route additionally requires the observed library ID,
+revision and asset digest. V1 returns only validated durable local Cover originals
+as portrait bytes. Catalog defaults and unprovided landscape/hero roles remain
+explicitly unavailable, without provider requests or disposable-cache export.
+See the [destination contract](INTEGRATION-AUTHOR.md#destination-artwork-handoff)
+for commands, strict v1 schemas, byte validation and destination preview obligations.
+
 ### Library metadata
 
 Format 3 includes local artwork choices and copied-image identities. Include the
