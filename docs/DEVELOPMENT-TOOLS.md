@@ -826,6 +826,9 @@ paths. General architecture, authority, review, and safety obligations remain in
 | `portcove-roadmap`              | Issue intake, dependency, live Project, or readiness reconciliation        | Product implementation without planning mutations                                               |
 | `portcove-daily-discovery`      | Daily incremental native-port research and neutral canonical intake        | Port implementation, catalog admission, release planning or gameplay qualification              |
 
+The daily discovery runner's `plan`, foreground `run` and read-only `status`
+commands are documented in [daily investigation](DAILY-PORT-DISCOVERY.md#maintained-runner).
+
 The reusable Windows diagnostics skill is installed in the user's Codex skill
 directory and can be used outside Portcove. Keep a repository skill focused:
 update its trigger and owning references when behavior changes instead of copying

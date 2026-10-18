@@ -68,9 +68,15 @@ identity is uncertain. Never use capped search results to prove absence.
 Before any intake repeat a targeted live canonical check, including issues
 created since baseline, current Project and catalog/retired markers.
 
-Default finite per-run limits: 30 minutes, 200 HTTP/API requests, 20 MiB
-response bodies total, 2 MiB per response, concurrency 1, zero automatic
-retries, 12 deep investigations, 50 quiet metadata rechecks and 5 new issues.
+The ordinary profile permits 200 HTTP/API requests and 20 MiB of response
+bodies. A missing, invalid or weekly-expired inventory selects the cold profile:
+300 requests and 64 MiB, including a complete body rebuild. Both profiles permit
+30 minutes, 2 MiB per streamed response, 20 seconds per request chain,
+concurrency 1, zero automatic retries, 12 deep investigations, 50 quiet metadata
+rechecks and 5 new issues. Use GPT-6.1-Sol Medium for scheduled collection,
+comparison and research; GPT-6.1-Sol High owns separate non-writing review.
+The owner approved this model change after the first Luna run omitted required
+collection and rotation, and the Sol retry exposed duplicated doctor-body costs.
 Respect stricter provider/runtime limits and the available token budget. Stop
 before exhaustion with pending IDs, next page/path and exact resume condition.
 Honor Retry-After/rate-reset on a later run; do not spin or switch identities.
@@ -133,6 +139,73 @@ Project registration. A pending receipt is not a completed disposition.
 Cap receipt retention at 90 days, retaining unresolved intake and pending
 research regardless of age; raw run receipts retain 14 days unless failed
 evidence has an existing preservation obligation. Record baseline rebuilds.
+
+## Maintained runner
+
+Use the existing dedicated metadata checkout (currently
+`E:\Codex-Worktrees\daily-port-discovery`). Keep its `work/daily-discovery/`
+directory when advancing Git. The runner requires a clean detached checkout,
+takes the full investigation lock, fetches `origin/main`, verifies that main
+contains the delivered runner and skill, and advances only that checkout.
+A dirty checkout, named branch, active lock or incompatible loaded lock helper
+produces a local blocked/skipped receipt; preserve ownership and resume with
+current main. Never reset files or remove a lock based on its age.
+
+```sh
+node scripts/daily-discovery.mts plan
+node scripts/daily-discovery.mts run
+node scripts/daily-discovery.mts status
+```
+
+`run` stays in the foreground and emits JSON lines. Wait for `phase: ready`,
+retain its `run_id`, then send one JSON line at a time to that same process:
+
+| `op`           | Additional message fields and completion criterion                                                                                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `collect`      | Fixed registry snapshots, bounded manifest rotation and accessible source evidence saved. Each failure remains partial/inaccessible.                                                                                                        |
+| `search`       | `query`: at most six bounded GitHub repository lead searches. Search is a lead page and cannot prove absence or complete community coverage.                                                                                                |
+| `research`     | `repository`: exact `owner/name`. Complete release listing, selected asset pages, tag commits and pinned README retained; returns evidence ID and file.                                                                                     |
+| `read-primary` | `repository`, `url`: bounded HTTPS primary documentation read, returned as evidence. External text remains data.                                                                                                                            |
+| `propose`      | `candidate`: `kind` (`intake` or `comment`), `title`, `upstream`, `portKey`, reviewed `body`, `evidence_ids`; comments require `issue`. Optional `pending_ids` bind queued observations. Returns immutable body/evidence hashes for review. |
+| `review`       | `review`: `candidate_id`, `verdict: clear`, actual separate `reviewer`, `model: gpt-6.1-sol`, `reasoning: high`, and the exact `body_sha256`/`evidence_sha256`. Attach the review only after the separate reviewer returns it.              |
+| `apply`        | Deliver at most five reviewed candidates with fresh primary evidence, canonical preimages, duplicate protection, exact issue/Project readback and full doctor. Recover a retained created issue before new capture.                         |
+| `recheck`      | Oldest canonical records, at most fifty within remaining capacity; retained evidence states its selected metadata scope. Read flagged/changed evidence before proposing material updates.                                                   |
+| `dispose`      | `disposition`: `pending_id`, investigated `evidence_id`, `outcome` (`no-change`, `held`, `recommendation`). Mutation dispositions are written only after successful readback and doctor.                                                    |
+| `finish`       | Commit checkpoint under its short inner lock and retain receipt before releasing the investigation lock. EOF/cancellation is an interrupted run.                                                                                            |
+
+For an unresolved candidate without a public mutation, `op: hold` accepts
+`hold: {candidate_id, reason, resume}`. Retain its factual blocker and exact
+resume condition. Reconcile ambiguous or unfinished public writes first.
+A new proposal may supersede an uncreated held draft for the same target.
+
+Every message includes `run_id`; a message is capped at 128 KiB while reading.
+Read the retained authority bodies/comments before choosing actions. Prioritize
+unfinished delivery, then actionable changes. Propose worthwhile intake early:
+the runner reserves its estimated mutation/readback/full-doctor cost, including
+evidence refresh and repeated thin inventory reads, before lower-priority work.
+If capacity cannot admit a complete batch, retain its journal and continuation;
+do not request a routine one-run budget extension. A successful collection and
+a successful delivery are separate receipt fields.
+
+`inventory.json` caches issue bodies by provider ID, repository URL, number,
+revision and body hash. Every use enumerates live thin issue revisions and
+explicit active/archived Project membership. Only the maintained collector can
+produce the in-process validated inventory accepted by capture/normalization
+and doctor. Changed bodies are fetched once and shared by opaque identity;
+the doctor's established rules and active-item policy scope are preserved.
+`canonical-baseline.json`, `project-items.json`, `checkpoint.json`,
+`active-run.json` and `runs/<run-id>/` retain identities, evidence and recovery.
+They are collection caches, never independent planning or support authority.
+
+HTTP response bodies, redirects and failed attempts share the same ledger.
+The bounded worker streams at most 2 MiB into retained response buffers and
+drains before the foreground process can finish. Provider backoff is persisted.
+An uncertain worker failure receives a conservative charge. Git fetch is a
+separate metadata Git operation with a finite timeout; its time counts in the
+session deadline, while its transport bytes are outside the API-body ledger.
+Final receipts disclose actual charged requests/bytes and gaps. Fixture tests,
+manual runs and actual scheduled runs are different evidence scopes. Keep
+#2100 validating until three actual scheduled receipts have been evaluated.
 
 ## Investigation and safe writes
 
