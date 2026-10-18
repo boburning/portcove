@@ -935,7 +935,9 @@ hidden/transparent ancestors, ancestor overflow clipping, zero area and targets
 outside the viewport. Semantic readiness retains its own checks. Oversized panels
 cannot supply a complete-panel image: capture identified title/actions instead.
 Vitest annotations retain bounded JSON geometry/outcome attachments for successful
-and refused browser captures; native captures retain it through
+and refused browser captures. Ordinary hosted browser diagnostics retain annotation
+JSON and the selected capture PNGs for seven days on success and failure through
+the existing artifact upload. Native captures retain metadata through
 `captureSettledVisual`. Actual pixel inspection and journey assertions remain
 separate obligations. These helpers are excluded from production imports.
 

@@ -92,7 +92,7 @@ it("visual capture accepts decorative art, rejects hidden and clipped ancestors,
     expect(host.scrollTop).toBeGreaterThan(0);
     expect(observeVisibleTarget(target).visible).toBe(false);
     host.hidden = true;
-    await expect(prepare()).rejects.toThrow("Capture requires one identified visible target");
+    await expect(prepare()).rejects.toThrow("Capture target geometry must be finite and nonzero");
     host.hidden = false;
     host.style.opacity = "0";
     await expect(prepare()).rejects.toThrow("Capture requires one identified visible target");

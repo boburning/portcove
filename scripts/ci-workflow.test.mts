@@ -647,6 +647,8 @@ void test("Windows diagnostics serialize file workers without changing coverage 
     "scripts/development-capabilities.test.mts",
     "scripts/development-cli-help.test.mts",
     "scripts/development-evidence.test.mts",
+    "scripts/retained-package.test.mts",
+    "scripts/capture-target.test.mts",
     "scripts/handoff-evidence.test.mts",
     "scripts/native-confirmation.test.mts",
     "scripts/native-helper-dependencies.test.mts",
@@ -2096,8 +2098,28 @@ void test("full frontend qualification provisions browser artifacts before compo
   ] as const) {
     const uploadIndex = block.indexOf(`name: browser-traces-${name}-`);
     assert.ok(uploadIndex >= 0, `${name} must preserve failed browser evidence`);
-    const upload = block.slice(uploadIndex);
-    assert.match(block, /if: failure\(\)\r?\n +uses: actions\/upload-artifact@/);
+    const stepStart = block.lastIndexOf("      - name:", uploadIndex);
+    assert.ok(stepStart >= 0);
+    const nextStep = block.indexOf("\n      - name:", uploadIndex);
+    const upload = block.slice(uploadIndex, nextStep < 0 ? undefined : nextStep);
+    const prefix = block.slice(stepStart, uploadIndex);
+    assert.match(
+      prefix,
+      name === "contributor"
+        ? /if: failure\(\)\r?\n +uses: actions\/upload-artifact@/
+        : /if: always\(\)\r?\n +uses: actions\/upload-artifact@/,
+    );
+    if (name !== "contributor") {
+      for (const retained of [
+        ".vitest/attachments/**/*.json",
+        "apps/desktop/.vitest/attachments/**/*.json",
+        "outputs/slice5-cards/**/*.png",
+      ])
+        assert.ok(
+          upload.includes(retained),
+          `${name} retains successful capture metadata and images`,
+        );
+    }
     assert.match(upload, /work\/bt\/\*\*\/\*\.trace\.zip/);
     assert.match(upload, /\.vitest\/attachments\/failure-screenshots\/\*\*\/\*\.png/);
     assert.match(upload, /include-hidden-files: true/);
