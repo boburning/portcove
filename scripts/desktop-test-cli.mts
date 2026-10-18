@@ -134,6 +134,10 @@ async function executeDesktopTest() {
       "usage: just desktop-test --app ABSOLUTE --output ABSOLUTE [--driver ABSOLUTE] [--native-driver ABSOLUTE] [options]",
     );
     console.log("Cached drivers are used when --driver and --native-driver are omitted.");
+    console.log(
+      "Ordinary retained NSIS: --prepare-retained-package --output ABS_NEW_EXTERNAL_DIRECTORY",
+    );
+    console.log("File-only recovery: --finalize-retained-package --output ABS_COMPLETED_DIRECTORY");
     console.log("Select with --profile PROFILE or repeat --scenario ID for an exact series.");
     console.log(
       "Current-installed NSIS: --current-installed --installer ABS --package-evidence ABS --expected-app ABS --expected-version VERSION --test-base ABS --evidence ABS",
@@ -359,9 +363,48 @@ async function executeDesktopTest() {
 
   return Number(process.exitCode ?? 0);
 }
+async function executeRetainedPackageCommand() {
+  try {
+    const { values } = parseArgs({
+      args,
+      options: {
+        "prepare-retained-package": { type: "boolean" },
+        "finalize-retained-package": { type: "boolean" },
+        output: { type: "string" },
+      },
+    });
+    assert.ok(
+      Boolean(values["prepare-retained-package"]) !== Boolean(values["finalize-retained-package"]),
+      "Select exactly one retained package mode",
+    );
+    assertAbsoluteArguments(values, ["output"] as const);
+    const { prepareRetainedPackage, finalizeRetainedPackage } =
+      await import("./retained-package.mts");
+    const result = values["prepare-retained-package"]
+      ? await prepareRetainedPackage(values.output)
+      : await finalizeRetainedPackage(values.output);
+    console.log(
+      JSON.stringify({
+        manifest: result.manifest.path,
+        executable: result.executable.path,
+        revision: result.revision,
+        execution_context: result.execution_context,
+      }),
+    );
+    return 0;
+  } catch (error) {
+    console.error(errorMessage(error));
+    return 1;
+  }
+}
+
+// Preparation owns separate build and native phases; finalization is file-only.
+// Neither may inherit the normal launcher's blanket browser admission.
 process.exitCode = args.includes("--help")
   ? await executeDesktopTest()
-  : await resourceEntrypoint("browser", executeDesktopTest);
+  : args.includes("--prepare-retained-package") || args.includes("--finalize-retained-package")
+    ? await executeRetainedPackageCommand()
+    : await resourceEntrypoint("browser", executeDesktopTest);
 
 function assertAbsoluteArguments<Key extends string, Values extends Partial<Record<Key, unknown>>>(
   values: Values,

@@ -927,6 +927,18 @@ capture receipt. Loading, offscreen targets, changed state, timeouts and retenti
 failures produce diagnostic evidence; they cannot publish an accepted capture.
 Other legacy diagnostic screenshots retain their existing scope.
 
+The test-only `apps/desktop/test/capture-target.ts` preflight is shared by the
+browser adapter and selected native keyboard captures. Callers identify a single
+target, scroll it into view, and require two unchanged observations within a finite
+budget. Visual capture accepts decorative `aria-hidden` content while refusing
+hidden/transparent ancestors, ancestor overflow clipping, zero area and targets
+outside the viewport. Semantic readiness retains its own checks. Oversized panels
+cannot supply a complete-panel image: capture identified title/actions instead.
+Vitest annotations retain bounded JSON geometry/outcome attachments for successful
+and refused browser captures; native captures retain it through
+`captureSettledVisual`. Actual pixel inspection and journey assertions remain
+separate obligations. These helpers are excluded from production imports.
+
 Controller capability receipts distinguish API absence, access failure/restriction,
 no exposed device and exposed-device inventory. The exact opt-in
 `native-controller-api-fallback` declares absence/restriction as fallback coverage.
@@ -1864,8 +1876,30 @@ revision, exact admitted `pnpm --dir apps/desktop desktop:build --bundles nsis` 
 empty qualification-feature list, hashes of the normal Tauri configuration,
 Windows overlay and Desktop Cargo manifest, installer, and completed
 `test-windows-installer.ps1` evidence. Its retained executable must match the
-installed hash. Produce it with that existing script's `-RetainExecutablePath`
-and `-EvidencePath`; preserve package/build logs with the manifest.
+installed hash. Produce it through the maintained launcher:
+
+```text
+just desktop-test --prepare-retained-package --output <new-absolute-external-directory>
+just desktop-test --finalize-retained-package --output <completed-absolute-directory>
+```
+
+Preparation requires a clean Windows checkout and a new output directory outside
+the checkout and Cargo target. It builds an ordinary unsigned NSIS package without
+qualification features or signing/configuration overrides, copies the installer
+and raw executable under the build lease, then releases that lease before isolated
+install/smoke/persistent-data-preservation/uninstall under native admission. Original
+process logs, doctor, configuration and file identities remain in that directory.
+The resulting `ordinary-package-manifest.json` passes the existing verifier and
+binds separate raw UNK, bundled NSS and retained installed executable identities.
+The installer script remains the underlying installation mechanism.
+
+Finalization is file-only recovery for a completed original run: it verifies file
+bindings, unique bundle-marker substitution and the strict existing package
+contract, then writes only missing derived manifest/result files. An unchanged
+repeat performs no writes; conflicting or incomplete evidence is preserved and
+refused. It never builds, installs, runs a doctor, invokes Git, acquires resources
+or changes Registry state. Preserve a failed preparation directory and its logs;
+finalization does not turn an incomplete installation into acceptance.
 
 Shared main-window assertions check application-origin assets and legitimate
 IPC, unavailable qualification commands, actual inline CSP violation, browser

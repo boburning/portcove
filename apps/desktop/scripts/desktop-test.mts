@@ -9,6 +9,8 @@ import {
   observePacketDeliveryBindings,
 } from "../../../scripts/acceptance-packet.mts";
 import { captureSettledVisual } from "../../../scripts/native-readiness.mts";
+import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
+import type { WebElement } from "selenium-webdriver";
 import {
   parseDesktopHarnessOptions,
   resolveDesktopHarnessSelection,
@@ -1081,6 +1083,78 @@ async function captureScenarioScreenshot(name: string, required = false) {
     if (required)
       throw new Error(`Required screenshot ${name} could not be captured`, { cause: error });
     /* The failed scenario remains recorded even if its window disappeared. */
+  }
+}
+
+async function captureKeyboardTarget(name: string, element: WebElement) {
+  const session = driverBrowser();
+  assert.match(name, /^[a-z0-9-]+$/u);
+  const label = `native-${name}`;
+  const target = `[data-capture-target="${label}"]`;
+  const previous = await executeBrowserScript(
+    session,
+    (target, label) => {
+      const previous = target.getAttribute("data-capture-target");
+      target.setAttribute("data-capture-target", label);
+      return previous;
+    },
+    element,
+    label,
+  );
+  try {
+    const metadata = await prepareCaptureTarget({
+      target,
+      label,
+      scroll: () =>
+        executeBrowserScript(
+          session,
+          (element) =>
+            element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
+          element,
+        ),
+      observe: () => executeBrowserScript(session, observeVisibleTarget, target, "visual" as const),
+    });
+    const capture = await captureSettledVisual({
+      browser: session,
+      output,
+      name,
+      scenario: "keyboard-layout",
+      target,
+      observeTarget: async () => {
+        const state = await executeBrowserScript(
+          session,
+          observeVisibleTarget,
+          target,
+          "visual" as const,
+        );
+        requireUnchangedCaptureTarget(metadata.observation, state);
+        return { ...state, capture_target_preflight: metadata };
+      },
+      readiness: async () => ({ ready: true }),
+    });
+    artifacts.push(capture.image.path, capture.receipt);
+  } catch (error) {
+    for (const suffix of [".png", "-capture-failure.json"]) {
+      const file = path.join(output, name + suffix);
+      try {
+        if ((await lstat(file)).isFile()) artifacts.push(file);
+      } catch {
+        /* no capture file was written */
+      }
+    }
+    throw error;
+  } finally {
+    await executeBrowserScript(
+      session,
+      (element, previous) => {
+        if (previous === null) element.removeAttribute("data-capture-target");
+        else element.setAttribute("data-capture-target", previous);
+      },
+      element,
+      previous,
+    ).catch(() => {
+      /* Preserve an original capture/route failure. */
+    });
   }
 }
 
@@ -3026,7 +3100,10 @@ try {
     };
     await browser.manage().window().setRect({ width: 1280, height: 800 });
     await verifySidebarLabels();
-    await captureScenarioScreenshot("sidebar-full-labels-default");
+    await captureKeyboardTarget(
+      "sidebar-full-labels-default",
+      await browser.findElement(By.css(".sidebar nav")),
+    );
     await browser.manage().window().setRect({ width: 640, height: 640 });
     await verifySidebarLabels();
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
@@ -3105,7 +3182,7 @@ try {
       (element) => element.scrollIntoView({ block: "start", inline: "nearest" }),
       about,
     );
-    await captureScenarioScreenshot("settings-compact-layout");
+    await captureKeyboardTarget("settings-compact-layout", about);
 
     const gameUpdatesLink = await browser.findElement(
       By.xpath(
@@ -3117,7 +3194,7 @@ try {
       (element) => element.scrollIntoView({ block: "center" }),
       gameUpdatesLink,
     );
-    await captureScenarioScreenshot("settings-game-update-destination-link");
+    await captureKeyboardTarget("settings-game-update-destination-link", gameUpdatesLink);
     await gameUpdatesLink.click();
     await browser.wait(until.elementLocated(By.css(".update-center")), 15_000);
     assert.equal(await browser.findElement(By.css("main h1")).getText(), "Game updates & activity");
@@ -3144,7 +3221,7 @@ try {
       (element) => element.scrollIntoView({ block: "center" }),
       applicationUpdatesLink,
     );
-    await captureScenarioScreenshot("game-updates-settings-destination-link");
+    await captureKeyboardTarget("game-updates-settings-destination-link", applicationUpdatesLink);
     await applicationUpdatesLink.click();
     const updateSettings = await browser.wait(
       until.elementLocated(By.css('[data-settings-group="updates"]')),
