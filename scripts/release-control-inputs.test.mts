@@ -9,13 +9,16 @@ import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import {
   persistReviewedClassification,
   readPublicationPause,
+  readRatifiedCapacityConfiguration,
   readReviewedClassification,
-  releaseOpportunityDigest,
 } from "./release-control-inputs.mts";
 import {
   observeReleaseInputProtections,
   requireReleaseInputWriterPolicy,
 } from "./release-input-protections.mts";
+import { prepareSemanticReviewHandoff } from "./release-semantic-review.mts";
+import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
+import { isRecord } from "./runtime-values.mts";
 const source = "a".repeat(40),
   tree = "b".repeat(40),
   before = "c".repeat(40),
@@ -48,7 +51,7 @@ const config = {
   writer_app_id: 202,
   review_check_name: "Independent semantic review",
 };
-function fixture() {
+function fixture(capacityDocument?: unknown) {
   let content: string | null = null,
     mutations = 0;
   const objects = new Map<string, unknown>();
@@ -95,6 +98,13 @@ function fixture() {
         sha: blob(JSON.stringify({ schema_version: 1, publication_paused: true })),
       },
     ];
+    if (capacityDocument !== undefined)
+      entries.push({
+        path: "capacity.json",
+        mode: "100644",
+        type: "blob",
+        sha: blob(JSON.stringify(capacityDocument)),
+      });
     if (content !== null) {
       const file = makeTree([
         {
@@ -133,6 +143,7 @@ function fixture() {
   const initial = head;
   const faults = { value: "" };
   const requests: string[] = [];
+  let refReads = 0;
   const api: CoordinatorRemoteApi = {
     request(method, endpoint) {
       assert.equal(method, "GET");
@@ -143,7 +154,14 @@ function fixture() {
       else if (endpoint.includes("/git/ref/heads/"))
         body = {
           ref: `refs/heads/${endpoint.split("/").at(-1)}`,
-          object: { type: "commit", sha: head },
+          object: {
+            type: "commit",
+            sha:
+              faults.value === "pause-drift" &&
+              requests.filter((route) => route.includes("/git/ref/heads/")).length > 1
+                ? after
+                : head,
+          },
         };
       else if (endpoint.endsWith("/check-runs/303"))
         body = {
@@ -157,12 +175,31 @@ function fixture() {
           output: {
             title: "Portcove independent release review v1",
             annotations_count: faults.value === "annotations" ? 1 : 0,
-            summary: JSON.stringify({
-              schema_version: 1,
-              opportunity:
-                faults.value === "input" ? { ...opportunity, urgency: true } : opportunity,
-              opportunity_sha256: releaseOpportunityDigest(opportunity),
-            }),
+            summary: (() => {
+              const reviewed =
+                faults.value === "input" ? { ...opportunity, urgency: true } : opportunity;
+              const prepared = prepareSemanticReviewHandoff(reviewed, {
+                scope: "complete-release-opportunity",
+                runtime: "codex-independent-local-review",
+                session_ref: "fixture:independent-task",
+                completed_at: "2026-01-01T00:00:00Z",
+                coverage: { accumulated_changes: true, classification: true, compatibility: true },
+                accepted_opportunity: reviewed,
+                report:
+                  faults.value === "report-change"
+                    ? "Changed fixture semantic report"
+                    : "Fixture independent semantic review; no live authority.",
+              });
+              const wire: unknown = JSON.parse(prepared.proposed_request.body.output.summary);
+              assert.ok(isRecord(wire) && isRecord(wire.review));
+              if (faults.value === "report-bytes") wire.review.report = "Tampered transcript";
+              if (faults.value === "pr-scope") wire.review.scope = "implementation-pr";
+              if (faults.value === "legacy-report") {
+                delete wire.review;
+                wire.schema_version = 1;
+              }
+              return JSON.stringify(wire);
+            })(),
           },
         };
       else if (endpoint.includes("/git/")) {
@@ -172,7 +209,8 @@ function fixture() {
       return { status: 200, headers: new Map(), body };
     },
     graphql(query, variables) {
-      if (query.startsWith("query"))
+      if (query.startsWith("query")) {
+        refReads++;
         return {
           data: {
             node: {
@@ -184,11 +222,15 @@ function fixture() {
                 id: `opaque-${String(variables.ref)}`,
                 name: String(variables.ref).slice(11),
                 prefix: "refs/heads/",
-                target: { __typename: "Commit", oid: head },
+                target: {
+                  __typename: "Commit",
+                  oid: faults.value === "pause-drift" && refReads > 1 ? after : head,
+                },
               },
             },
           },
         };
+      }
       mutations++;
       const input = variables.input as {
         expectedHeadOid: string;
@@ -214,6 +256,15 @@ function fixture() {
       content = "{}";
       head = makeCommit();
     },
+    legacy: () => {
+      assert.ok(content);
+      const record: unknown = JSON.parse(content);
+      assert.ok(isRecord(record));
+      record.schema_version = 1;
+      delete record.review_sha256;
+      content = JSON.stringify(record);
+      head = makeCommit();
+    },
   };
 }
 void test("semantic review binds exact inputs; CAS writes once; identical repeat does not write", () => {
@@ -235,7 +286,15 @@ void test("semantic review binds exact inputs; CAS writes once; identical repeat
   assert.equal(readPublicationPause(f.api).publication_paused, true);
 });
 void test("writer identity, semantic failure, incomplete reports and changed inputs cannot persist acceptance", () => {
-  for (const fault of ["issuer", "failure", "annotations", "input"]) {
+  for (const fault of [
+    "issuer",
+    "failure",
+    "annotations",
+    "input",
+    "report-bytes",
+    "pr-scope",
+    "legacy-report",
+  ]) {
     const f = fixture();
     f.faults.value = fault;
     assert.throws(() => persistReviewedClassification(f.api, config, opportunity, 303, () => {}));
@@ -484,4 +543,70 @@ void test("protection expiry during source acquisition refuses immediately befor
     /expired/,
   );
   assert.equal(f.mutations(), 0);
+});
+
+void test("owner-ref capacity source binds raw bytes, guarded provenance and revocation without claiming live headroom", () => {
+  const document = {
+    schema_version: 1,
+    capacity: capacityFixture(),
+    observation: {
+      kind: "provider-ui-spending-configuration",
+      operator_actor_id: 43177418,
+      observed_at: "2026-10-18T00:00:00Z",
+      evidence_sha256: "e".repeat(64),
+    },
+  };
+  const f = fixture(document);
+  let guards = 0;
+  const result = readRatifiedCapacityConfiguration(f.api, () => {
+    guards++;
+  });
+  assert.equal(guards, 2);
+  assert.equal(result.path, "capacity.json");
+  assert.equal(result.report.eligibility, "eligible");
+  assert.equal(result.report.headroom, "unknown");
+  assert.equal(result.report.reservation, "none");
+  assert.equal(f.mutations(), 0);
+  const revoked = structuredClone(document);
+  revoked.capacity.ratification.active = false;
+  assert.equal(
+    readRatifiedCapacityConfiguration(fixture(revoked).api, () => {}).report.eligibility,
+    "ineligible",
+  );
+  const drift = fixture(document);
+  drift.faults.value = "pause-drift";
+  assert.throws(() => readRatifiedCapacityConfiguration(drift.api, () => {}));
+  assert.throws(
+    () =>
+      readRatifiedCapacityConfiguration(f.api, () => {
+        throw Error("unverified observer/job");
+      }),
+    /unverified/,
+  );
+  for (const bad of [
+    { ...document, observation: { ...document.observation, operator_actor_id: 202 } },
+    { ...document, capacity: { ...document.capacity, operation: {} } },
+  ])
+    assert.throws(() => readRatifiedCapacityConfiguration(fixture(bad).api, () => {}));
+  assert.throws(() => readRatifiedCapacityConfiguration(fixture().api, () => {}), /unavailable/);
+});
+
+void test("persisted classification binds actual semantic report bytes, not just its App-authored input digest", () => {
+  const f = fixture();
+  persistReviewedClassification(f.api, config, opportunity, 303, () => {});
+  f.faults.value = "report-change";
+  assert.throws(
+    () => readReviewedClassification(f.api, config, opportunity),
+    /persisted semantic review report changed/,
+  );
+  assert.equal(f.mutations(), 1);
+});
+
+void test("legacy persisted classification refuses consumption and is never overwritten as migration", () => {
+  const f = fixture();
+  persistReviewedClassification(f.api, config, opportunity, 303, () => {});
+  f.legacy();
+  assert.throws(() => readReviewedClassification(f.api, config, opportunity));
+  assert.throws(() => persistReviewedClassification(f.api, config, opportunity, 303, () => {}));
+  assert.equal(f.mutations(), 1);
 });

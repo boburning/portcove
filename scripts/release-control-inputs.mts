@@ -8,7 +8,9 @@ import {
   inspectRemoteCommitObject,
   inspectRemoteGitObject,
 } from "./release-coordinator-recovery.mts";
+import { inspectSemanticReviewEvidence } from "./release-semantic-review.mts";
 import { isRecord } from "./runtime-values.mts";
+import { assessBoundedCapacity, capacityDigest } from "./release-capacity.mts";
 
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
@@ -256,9 +258,12 @@ function review(
       "independent semantic review is missing, incomplete or from another producer/input",
     );
   const report: unknown = JSON.parse(value.output.summary);
-  exact(report, "opportunity,opportunity_sha256,schema_version");
+  exact(report, "opportunity,opportunity_sha256,review,schema_version");
+  const evidence = inspectSemanticReviewEvidence(report.review);
+  if (evidence.completed_at !== value.completed_at)
+    throw new Error("semantic review completion identity differs");
   if (
-    report.schema_version !== 1 ||
+    report.schema_version !== 2 ||
     report.opportunity_sha256 !== releaseOpportunityDigest(opportunity) ||
     canonical(validateOpportunity(report.opportunity)) !== canonical(opportunity)
   )
@@ -302,7 +307,7 @@ export function persistReviewedClassification(
   const io = session(api);
   const before = io.ref(classificationBranch);
   const proof = review(io.get, checkId, config, opportunity);
-  const text = `${canonical({ schema_version: 1, opportunity, review_check_id: checkId, review_app_id: config.review_app_id, opportunity_sha256: releaseOpportunityDigest(opportunity) })}\n`;
+  const text = `${canonical({ schema_version: 2, opportunity, review_check_id: checkId, review_app_id: config.review_app_id, review_sha256: createHash("sha256").update(proof).digest("hex"), opportunity_sha256: releaseOpportunityDigest(opportunity) })}\n`;
   const existing = io.contents(before, path, true);
   if (existing !== null && existing !== text)
     throw new Error("immutable classification conflicts; no overwrite permitted");
@@ -390,16 +395,21 @@ export function readReviewedClassification(
   const text = io.contents(before, classificationPath(opportunity));
   if (text === null) throw new Error("classification is missing");
   const value: unknown = JSON.parse(text);
-  exact(value, "opportunity,opportunity_sha256,review_app_id,review_check_id,schema_version");
+  exact(
+    value,
+    "opportunity,opportunity_sha256,review_app_id,review_check_id,review_sha256,schema_version",
+  );
   numeric(value.review_check_id);
   if (
-    value.schema_version !== 1 ||
+    value.schema_version !== 2 ||
     value.review_app_id !== config.review_app_id ||
     value.opportunity_sha256 !== releaseOpportunityDigest(opportunity) ||
     canonical(validateOpportunity(value.opportunity)) !== canonical(opportunity)
   )
     throw new Error("classification record differs from reviewed inputs");
   const proof = review(io.get, value.review_check_id, config, opportunity);
+  if (value.review_sha256 !== createHash("sha256").update(proof).digest("hex"))
+    throw new Error("persisted semantic review report changed");
   if (
     io.ref(classificationBranch) !== before ||
     review(io.get, value.review_check_id, config, opportunity) !== proof
@@ -429,5 +439,49 @@ export function readPublicationPause(api: CoordinatorRemoteApi) {
     publication_paused: value.publication_paused,
     observed_at: new Date().toISOString(),
     authority: "none",
+  };
+}
+
+/** Owner-controlled configuration on the already selected pause ref. The fixed
+ * admitted caller must authenticate fresh observer/job provenance in the guard.
+ * This reads a revocable operator observation, not live billing availability.
+ */
+export function readRatifiedCapacityConfiguration(api: CoordinatorRemoteApi, guard: () => void) {
+  if (typeof guard !== "function") throw new Error("authenticated capacity source guard missing");
+  guard();
+  const io = session(api);
+  const before = io.ref(pauseBranch);
+  const text = io.contents(before, "capacity.json", true);
+  if (text === null) throw new Error("ratified capacity configuration unavailable");
+  const value: unknown = JSON.parse(text);
+  exact(value, "capacity,observation,schema_version");
+  exact(value.observation, "evidence_sha256,kind,observed_at,operator_actor_id");
+  if (
+    value.schema_version !== 1 ||
+    value.observation.kind !== "provider-ui-spending-configuration" ||
+    value.observation.operator_actor_id !== 43177418 ||
+    typeof value.observation.observed_at !== "string" ||
+    !Number.isFinite(Date.parse(value.observation.observed_at)) ||
+    Date.parse(value.observation.observed_at) > Date.now() ||
+    typeof value.observation.evidence_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(value.observation.evidence_sha256) ||
+    !isRecord(value.capacity) ||
+    value.capacity.operation !== null ||
+    !Array.isArray(value.capacity.prior_operations) ||
+    value.capacity.prior_operations.length !== 0
+  )
+    throw new Error("capacity source cannot supply invented observation or reservation effects");
+  const report = assessBoundedCapacity(value.capacity);
+  if (io.ref(pauseBranch) !== before) throw new Error("capacity configuration changed during read");
+  guard();
+  return {
+    commit: before,
+    path: "capacity.json",
+    document_sha256: capacityDigest(value),
+    capacity: structuredClone(value.capacity),
+    observation: structuredClone(value.observation),
+    report,
+    authority: "none",
+    qualification: "protected owner configuration; availability/headroom remain unknown",
   };
 }

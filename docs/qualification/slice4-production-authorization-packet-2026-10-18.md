@@ -9,6 +9,33 @@ It grants nothing. The runnable workflow remains admission-only. The
 [held complete workflow](application-update-production.aggregate.yml) is outside
 `.github/workflows`; its four new jobs also have literal false conditions.
 
+## Continuation after merged #2125
+
+The [producer and #144 checkpoint](slice4-producer-and-144-checkpoint-2026-10-18.md)
+adds new evidence only. D2 bounded-attempt capacity is delivered at
+`dbf8f979b90ca4513d46dca7ff766fea12d1f2d3`; availability/headroom remain Unknown,
+with no capacity reservation. D1/D3 remain selected. Prepared schema-2 semantic
+serialization/consumption binds actual report bytes and exact inputs; the existing
+local implementation-review runtime has no appointed isolated authenticated
+completion-to-CheckRun transport. The [specific proposed remedy](slice4-semantic-producer-transport.proposed.json)
+reuses that runtime with a direct-capture broker and distinct Checks issuer.
+It does not promote PR clearance or App-authored text to semantic acceptance.
+
+The guarded capacity reader uses the selected owner pause ref, `capacity.json`,
+and existing fresh protection/job provenance; a hash does not establish live
+settings. #144's real .35/.36 native startup and controlled retained-state
+readback succeeded at component scope, but default mod-resource state retains
+an absolute old executable-root path. This pair is not selected for the complete
+#246 journey. An upstream portable-path fix or separately reviewed finite client
+capability is the next bounded action; the candidate remains outside the compiled
+catalog. No configured baseline or initial absence is claimed.
+
+The source, workflow, permission and execution identities below do not become
+current through this continuation. Final runnable revision/digest, provider
+observations, custody/public keys and eligible reservation are still required
+before an exact protected execution decision. Production remains held; #254 stays
+Done, #315/#534/#246 acceptance pending, Chameleon protected acceptance unset.
+
 ## Selected implementation checkpoint after #2121
 
 The owner has selected D1's dedicated classification writer, separate owner pause
