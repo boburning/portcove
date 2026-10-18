@@ -17,6 +17,7 @@ it("rejects scenario modules and entrypoints from a production bundle", () => {
     "/repo/src/browser/interactive-app.browser.test.tsx",
     "C:\\repo\\src\\dev-scenarios\\entry.ts",
     "/repo/src/test-fixtures.ts",
+    "/repo/test/capture-target.ts",
     "/repo/src/test-fixtures.ts?raw",
     "/repo/src/browser/adoption.browser.test.tsx",
   ])

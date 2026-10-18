@@ -11,6 +11,7 @@ export function assertScenarioExclusion(
     if (
       normalized.includes("/src/dev-scenarios/") ||
       normalized.includes("/src/browser/") ||
+      normalized.includes("/test/capture-target") ||
       /\/src\/.*\.test\.[cm]?[jt]sx?$/u.test(normalized) ||
       normalized.endsWith("/src/test-fixtures.ts")
     )

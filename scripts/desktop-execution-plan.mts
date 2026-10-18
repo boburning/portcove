@@ -151,6 +151,7 @@ export function planDesktopExecution(
     ])
       inputs.push({ kind: "file", path: source });
   for (const source of nativeTransportReceiptSources) inputs.push({ kind: "file", path: source });
+  inputs.push({ kind: "file", path: "apps/desktop/test/capture-target.ts" });
   inputs.push({ kind: "file", path: "scripts/native-readiness.mts" });
   inputs.push({ kind: "file", path: "scripts/runtime-values.mts" });
   inputs.push({ kind: "file", path: "apps/desktop/scripts/browser-script.mts" });

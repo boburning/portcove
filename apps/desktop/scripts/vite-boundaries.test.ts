@@ -61,6 +61,7 @@ describe("Vite configuration boundaries", () => {
       "E:\\checkout\\src\\browser\\fixture.tsx?raw",
       "/checkout/src/dev-scenarios/fixture.tsx?raw",
       "/checkout/src/test-fixtures.ts?raw",
+      "/checkout/test/capture-target.ts?raw",
       "/checkout/src/components/control.browser.test.tsx?raw",
       "/checkout/src/domain.test.ts",
     ])

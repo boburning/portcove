@@ -328,8 +328,8 @@ jobs:
           PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
         working-directory: .
         run: node scripts/ci-baseline.mts frontend
-      - name: Retain failed affected browser diagnostics
-        if: failure()
+      - name: Retain affected browser diagnostics
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: browser-traces-fast-${{ github.run_id }}-${{ github.run_attempt }}
@@ -337,6 +337,9 @@ jobs:
             work/bt/**/*.trace.zip
             .vitest/attachments/failure-screenshots/**/*.png
             apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
+            .vitest/attachments/**/*.json
+            apps/desktop/.vitest/attachments/**/*.json
+            outputs/slice5-cards/**/*.png
           include-hidden-files: true
           retention-days: 7
           if-no-files-found: warn
@@ -609,7 +612,7 @@ jobs:
         shell: pwsh
         run: ./scripts/run-windows-qualification.ps1
       - name: Test development diagnostics and evidence
-        run: node scripts/dev-storage.mts run -- node --test --test-concurrency=1 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/desktop-scenarios.test.mts scripts/native-compatibility.test.mts scripts/desktop-execution-plan.test.mts scripts/desktop-real-runtime.test.mts scripts/desktop-linux-native-session.test.mts scripts/desktop-linux-stop.test.mts scripts/desktop-listener-probe.test.mts scripts/desktop-verify.test.mts scripts/dev-doctor.test.mts scripts/development-capabilities.test.mts scripts/development-cli-help.test.mts scripts/development-evidence.test.mts scripts/handoff-evidence.test.mts scripts/native-confirmation.test.mts scripts/native-helper-dependencies.test.mts scripts/frontend-command-preflight.test.mts scripts/windows-helper-checks.test.mts scripts/heavy-rust-test-lock.test.mts scripts/local-validation.test.mts scripts/validation-evidence.test.mts scripts/native-session-lock.test.mts scripts/native-session.test.mts scripts/run-rust-tests.test.mts scripts/rust-support-cache.test.mts scripts/rust-test-impact.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/tool-cache.test.mts
+        run: node scripts/dev-storage.mts run -- node --test --test-concurrency=1 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/desktop-scenarios.test.mts scripts/native-compatibility.test.mts scripts/desktop-execution-plan.test.mts scripts/desktop-real-runtime.test.mts scripts/desktop-linux-native-session.test.mts scripts/desktop-linux-stop.test.mts scripts/desktop-listener-probe.test.mts scripts/desktop-verify.test.mts scripts/dev-doctor.test.mts scripts/development-capabilities.test.mts scripts/development-cli-help.test.mts scripts/development-evidence.test.mts scripts/retained-package.test.mts scripts/capture-target.test.mts scripts/handoff-evidence.test.mts scripts/native-confirmation.test.mts scripts/native-helper-dependencies.test.mts scripts/frontend-command-preflight.test.mts scripts/windows-helper-checks.test.mts scripts/heavy-rust-test-lock.test.mts scripts/local-validation.test.mts scripts/validation-evidence.test.mts scripts/native-session-lock.test.mts scripts/native-session.test.mts scripts/run-rust-tests.test.mts scripts/rust-support-cache.test.mts scripts/rust-test-impact.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/tool-cache.test.mts
       - name: Lint PowerShell scripts
         shell: pwsh
         run: |
@@ -971,7 +974,7 @@ jobs:
       - name: Check maintained native scenario consumer contracts
         run: |
           /usr/bin/unshare --user --map-current-user --mount --pid --fork --mount-proc /usr/bin/true
-          node --test --test-timeout=30000 scripts/desktop-scenarios.test.mts scripts/native-compatibility.test.mts scripts/desktop-execution-plan.test.mts scripts/desktop-real-runtime.test.mts scripts/desktop-linux-native-session.test.mts scripts/desktop-linux-stop.test.mts scripts/desktop-listener-probe.test.mts scripts/desktop-verify.test.mts scripts/development-evidence.test.mts scripts/handoff-evidence.test.mts scripts/native-session-lock.test.mts
+          node --test --test-timeout=30000 scripts/desktop-scenarios.test.mts scripts/native-compatibility.test.mts scripts/desktop-execution-plan.test.mts scripts/desktop-real-runtime.test.mts scripts/desktop-linux-native-session.test.mts scripts/desktop-linux-stop.test.mts scripts/desktop-listener-probe.test.mts scripts/desktop-verify.test.mts scripts/development-evidence.test.mts scripts/retained-package.test.mts scripts/capture-target.test.mts scripts/handoff-evidence.test.mts scripts/native-session-lock.test.mts
           node apps/desktop/scripts/desktop-preparation-test.mts --context-preflight
         working-directory: .
       - name: Provision reviewed Chromium for browser composition
@@ -982,8 +985,8 @@ jobs:
       - name: Verify native Node Rust-schema output boundaries
         working-directory: .
         run: node --test scripts/transport-values.test.mts
-      - name: Retain failed browser traces
-        if: failure()
+      - name: Retain browser diagnostics
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: browser-traces-full-${{ github.run_id }}-${{ github.run_attempt }}
@@ -991,6 +994,9 @@ jobs:
             work/bt/**/*.trace.zip
             .vitest/attachments/failure-screenshots/**/*.png
             apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
+            .vitest/attachments/**/*.json
+            apps/desktop/.vitest/attachments/**/*.json
+            outputs/slice5-cards/**/*.png
           include-hidden-files: true
           retention-days: 7
           if-no-files-found: warn
