@@ -65,10 +65,12 @@ function text(value: unknown): asserts value is string {
 }
 export function inspectCapacityOperation(raw: unknown) {
   if (raw === null) return null;
+  const hasExecutor = isRecord(raw) && Object.hasOwn(raw, "executor_nonce");
   exact(
     raw,
-    "before_checkpoint,candidate,completed_effects,destination,failure_evidence,id,kind,outcome,policy_sha256,ratification_sha256,recovery,sequence",
+    `before_checkpoint,candidate,completed_effects,destination,${hasExecutor ? "executor_nonce," : ""}failure_evidence,id,kind,outcome,policy_sha256,ratification_sha256,recovery,sequence`,
   );
+  if (hasExecutor) sha(raw.executor_nonce);
   sha(raw.before_checkpoint, 40);
   sha(raw.id);
   sha(raw.policy_sha256);
@@ -139,6 +141,7 @@ export function inspectCapacityOperation(raw: unknown) {
     before_checkpoint: raw.before_checkpoint,
     candidate: raw.candidate,
     destination: raw.destination,
+    ...(hasExecutor ? { executor_nonce: raw.executor_nonce } : {}),
     kind: raw.kind,
     policy_sha256: raw.policy_sha256,
     ratification_sha256: raw.ratification_sha256,
