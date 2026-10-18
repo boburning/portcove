@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   classifyApplicationVersion,
   proposeApplicationVersion,
+  parseVersionClassification,
 } from "../apps/desktop/scripts/release-version-policy.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -271,7 +272,7 @@ function validateActive(active: unknown) {
       "transient_retries",
       "substantive_repairs",
     ],
-    ["release_run"],
+    ["release_run", "frozen_opportunity"],
     "active candidate",
   );
   for (const field of ["source_commit", "source_tree", "prepared_commit", "prepared_tree"])
@@ -290,6 +291,12 @@ function validateActive(active: unknown) {
   }
   boundedCount(active.transient_retries, 2, "transient retries");
   boundedCount(active.substantive_repairs, 3, "substantive repairs");
+  if (Object.hasOwn(active, "frozen_opportunity")) {
+    const frozen = validateOpportunity(active.frozen_opportunity);
+    parseVersionClassification(frozen.classification);
+    if (frozen.source_commit !== active.source_commit || frozen.source_tree !== active.source_tree)
+      throw new Error("frozen opportunity differs from active original source");
+  }
   if (active.release_run !== undefined && active.release_run !== null) {
     exactKeys(active.release_run, ["run_id", "attempt", "revision"], [], "release run");
     if (
@@ -319,6 +326,9 @@ function validateActive(active: unknown) {
     transient_retries: boundedCount(active.transient_retries, 2, "transient retries"),
     substantive_repairs: boundedCount(active.substantive_repairs, 3, "substantive repairs"),
     release_run: active.release_run ?? null,
+    ...(Object.hasOwn(active, "frozen_opportunity")
+      ? { frozen_opportunity: validateOpportunity(active.frozen_opportunity) }
+      : {}),
   };
 }
 
@@ -358,6 +368,9 @@ function activePlan(
     transient_retries: active.transient_retries,
     substantive_repairs: active.substantive_repairs,
     release_run: active.release_run ?? null,
+    ...(Object.hasOwn(active, "frozen_opportunity")
+      ? { frozen_opportunity: active.frozen_opportunity }
+      : {}),
   };
   if (active.phase !== "failed")
     return plan(

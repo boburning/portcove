@@ -20,7 +20,11 @@ import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { discoverReleaseArtifactFiles } from "./release-artifact-archive.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
-import { classifyApplicationVersion } from "../apps/desktop/scripts/release-version-policy.mts";
+import {
+  classifyApplicationVersion,
+  parseVersionClassification,
+} from "../apps/desktop/scripts/release-version-policy.mts";
+import { collectReleaseSourceChanges, netTreeDeltaScope } from "./release-source-changes.mts";
 import { isRecord } from "./runtime-values.mts";
 import { isDeepStrictEqual } from "node:util";
 import { retainAggregateStepReceipt } from "./production-aggregate-steps.mts";
@@ -120,7 +124,10 @@ export async function acquireReleaseAdmission(
           endpoint.startsWith("https:") ? endpoint : `https://api.github.com/${endpoint}`,
         );
         const route = url.pathname.slice(`/repos/${repository}`.length);
+        const comparison = /^\/compare\/[a-f0-9]{40}\.\.\.[a-f0-9]{40}$/u.test(route);
+        const tree = /^\/git\/trees\/[a-f0-9]{40}$/u.test(route);
         const collection =
+          comparison ||
           /^(?:\/releases|\/actions\/runs\/[1-9][0-9]*\/(?:artifacts|attempts\/[1-9][0-9]*\/jobs)|\/commits\/[a-f0-9]{40}\/(?:check-runs|status))$/u.test(
             route,
           );
@@ -140,16 +147,18 @@ export async function acquireReleaseAdmission(
           url.hash ||
           (url.pathname !== `/repos/${repository}` &&
             !url.pathname.startsWith(`/repos/${repository}/`)) ||
-          (!collection && !contents && !single) ||
+          (!collection && !contents && !single && !tree) ||
           new Set(keys).size !== keys.length ||
           keys.some(
             (key) =>
               !(
                 collection
                   ? ["per_page", "page", ...(route.endsWith("/check-runs") ? ["filter"] : [])]
-                  : contents
-                    ? ["ref"]
-                    : []
+                  : tree
+                    ? ["recursive"]
+                    : contents
+                      ? ["ref"]
+                      : []
               ).includes(key),
           ) ||
           (collection &&
@@ -157,6 +166,7 @@ export async function acquireReleaseAdmission(
               (url.searchParams.has("page") &&
                 !/^(?:[1-9]|1[0-6])$/u.test(url.searchParams.get("page") ?? "")))) ||
           (route.endsWith("/check-runs") && url.searchParams.get("filter") !== "latest") ||
+          (tree && url.searchParams.get("recursive") !== "1") ||
           (contents && !/^[a-f0-9]{40}$/u.test(url.searchParams.get("ref") ?? ""))
         )
           throw new Error("admission traversal escaped its remote-read-only repository");
@@ -341,6 +351,7 @@ export async function acquireReleaseAdmission(
     if (versions.length !== sources.length)
       throw new Error("reservation namespace has incomplete receipt pairs");
     const allocations = [];
+    let activePreparationIntent: string | null = null;
     const seenSources = new Set<string>();
     for (const ref of versions) {
       const tag = String(ref.name).slice(versionPrefix.length);
@@ -374,6 +385,7 @@ export async function acquireReleaseAdmission(
       const proposal = record(declared.proposal);
       if (proposal.source_commit !== source || proposal.version !== allocated)
         throw new Error("reservation intent does not match its complete receipt pair");
+      if (allocated === version) activePreparationIntent = payload;
       allocations.push({
         version: allocated,
         source_commit: source,
@@ -392,6 +404,54 @@ export async function acquireReleaseAdmission(
     )
       throw new Error("active reservation differs from complete namespace receipts");
     const holds = new Set<string>();
+    let sourceChanges: ReturnType<typeof collectReleaseSourceChanges> | null = null;
+    phase = "source-consistency";
+    if (!Object.hasOwn(candidate, "frozen_opportunity")) {
+      holds.add("active-frozen-opportunity-unavailable-no-latest-opportunity-substitution");
+    } else {
+      const frozen = record(candidate.frozen_opportunity);
+      const classification = record(frozen.classification);
+      if (
+        frozen.source_commit !== active.source_commit ||
+        frozen.source_tree !== active.source_tree ||
+        classification.source_commit !== active.source_commit ||
+        classification.reviewed_commit !== active.source_commit ||
+        classification.source_tree !== active.source_tree ||
+        classification.reviewed_tree !== active.source_tree
+      )
+        throw new Error("frozen classification differs from the active original source");
+      if (classification.change_set_scope !== netTreeDeltaScope) {
+        holds.add("frozen-change-set-scope-unsupported-no-legacy-hash-reinterpretation");
+      } else {
+        sourceChanges = collectReleaseSourceChanges(api, frozen);
+        if (
+          sourceChanges.change_set_sha256 !== frozen.change_set_sha256 ||
+          sourceChanges.change_set_sha256 !== classification.change_set_sha256
+        )
+          throw new Error("frozen change-set digest differs from acquired complete source facts");
+        const parsed = parseVersionClassification(classification);
+        // Associate the already-frozen proposal rather than fabricating its
+        // historical publication input or reallocating on a later retry.
+        const intent = record(JSON.parse(activePreparationIntent ?? "null"));
+        const proposal = record(intent.proposal);
+        const classified = classifyApplicationVersion(version);
+        if (
+          Object.keys(intent).sort().join(",") !== "compatibility,migration_notes,proposal" ||
+          Object.keys(proposal).sort().join(",") !==
+            "base_version,change,channels,github_prerelease,schema_version,source_commit,version" ||
+          proposal.schema_version !== 1 ||
+          proposal.source_commit !== active.source_commit ||
+          proposal.version !== version ||
+          proposal.base_version !== parsed.base_version ||
+          proposal.change !== parsed.change ||
+          proposal.github_prerelease !== classified.github_prerelease ||
+          !isDeepStrictEqual(proposal.channels, classified.channels) ||
+          intent.compatibility !== parsed.compatibility ||
+          intent.migration_notes !== (parsed.migration_notes ?? "")
+        )
+          throw new Error("frozen classification differs from the existing preparation intent");
+      }
+    }
     const publishedVersions: string[] = [];
     const publishedSources: string[] = [];
     for (const release of initialReleases.filter((r) => !r.draft)) {
@@ -601,6 +661,7 @@ export async function acquireReleaseAdmission(
       publication,
       allocations,
       contexts,
+      source_changes: sourceChanges,
       evidence,
       assembly,
       archives,

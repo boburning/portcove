@@ -77,6 +77,17 @@ publication/reservations and checkpoint are reread after acquisition; changed
 facts refuse. Raw snapshot reads in the assembler preserve the same immutable
 checkpoint association without importing the planner's package dependencies.
 
+The existing journal can additionally retain an optional immutable
+`frozen_opportunity` at allocation, equal to the whole preceding preparation
+input. It is never backfilled into legacy active states. The input gate binds
+that original classification to complete bounded source comparison and
+cryptographically reconstructed tree inventories using the explicit versioned
+[net tree delta encoding](../RELEASING.md#frozen-source-consistency). Queued source
+changes cannot substitute for it. Net difference is consistency evidence, not
+semantic classification or source authority. Missing frozen evidence and opaque
+legacy hash scopes hold; mismatches refuse. Existing checkpoint and acquisition
+limits remain. This adds no source-selection authority or positive descriptor.
+
 These are acquired facts, not independent acceptance. Producer JSON is only a
 declaration. Historical original-source/routine publication attribution can
 remain unknown. The gate still needs actual executed-workflow/producer/isolation

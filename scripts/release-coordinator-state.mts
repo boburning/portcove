@@ -223,6 +223,11 @@ function transition(previous: ReturnType<typeof readCheckpoint>, next: Record<st
       throw new Error("active candidate does not match the frozen preparation plan");
     const opportunity = previous.input.opportunity;
     if (!isRecord(opportunity)) throw new Error("missing preparation opportunity");
+    if (
+      Object.hasOwn(candidate, "frozen_opportunity") &&
+      canonical(candidate.frozen_opportunity) !== canonical(opportunity)
+    )
+      throw new Error("frozen opportunity differs from the preceding preparation input");
     const classification = parseVersionClassification(opportunity.classification);
     const intent = JSON.stringify({
       proposal,
@@ -246,6 +251,8 @@ function transition(previous: ReturnType<typeof readCheckpoint>, next: Record<st
       throw new Error("cannot discard an active reservation without matching published identity");
     return;
   }
+  if (canonical(old.frozen_opportunity) !== canonical(candidate.frozen_opportunity))
+    throw new Error("active frozen opportunity cannot be added, removed or changed");
   for (const field of [
     "source_commit",
     "source_tree",

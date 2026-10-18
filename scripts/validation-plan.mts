@@ -267,6 +267,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-coordinator-remote.mts",
   "scripts/release-coordinator-recovery.mts",
   "scripts/release-run-evidence.mts",
+  "scripts/release-source-changes.mts",
   "scripts/release-preflight.ps1",
   "scripts/release-workflow.test.mts",
   "scripts/run-windows-qualification.ps1",
