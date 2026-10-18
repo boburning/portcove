@@ -48,16 +48,12 @@ void test("retained public signed GitHub commit preserves non-UTC offsets and te
     );
     changed.verification.verified = true;
     const payload = changed.verification.payload;
-    if (fault === "offset")
-      changed.verification.payload = payload.replaceAll(" -0400", " +0000");
+    if (fault === "offset") changed.verification.payload = payload.replaceAll(" -0400", " +0000");
     if (fault === "signature") changed.verification.signature += "changed";
     if (fault === "message") changed.message = "changed";
     if (fault === "actor") changed.author.date = "2026-10-18T00:00:00Z";
     if (fault === "extra-header")
-      changed.verification.payload = payload.replace(
-        "\n\n",
-        "\nencoding invented\n\n",
-      );
+      changed.verification.payload = payload.replace("\n\n", "\nencoding invented\n\n");
     assert.throws(() => inspectRemoteCommitObject(changed, expected));
   }
 });
