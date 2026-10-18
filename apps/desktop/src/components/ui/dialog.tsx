@@ -15,6 +15,16 @@ const popupClassName = cn(
   floatingMotion,
 );
 
+// Review surfaces share their scrolling and spacing; unusual compositions stay local.
+const reviewLayoutClassName =
+  "max-h-[calc(100dvh-var(--space-8))] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none";
+const reviewWidths = {
+  compact: "w-[min(500px,90vw)]",
+  standard: "w-[min(680px,90vw)]",
+  wide: "w-[min(760px,90vw)]",
+  large: "w-[min(860px,90vw)]",
+};
+
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
@@ -47,10 +57,12 @@ function DialogContent({
   showCloseButton = true,
   portaled = true,
   finalFocus,
+  reviewSize,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
   portaled?: boolean;
+  reviewSize?: keyof typeof reviewWidths;
 }) {
   const content = (
     <>
@@ -66,7 +78,12 @@ function DialogContent({
       )}
     </>
   );
-  const resolvedClassName = controlClassName(popupClassName, className);
+  const layoutClassName = cn(
+    popupClassName,
+    reviewSize && reviewLayoutClassName,
+    reviewSize && reviewWidths[reviewSize],
+  );
+  const resolvedClassName = controlClassName(layoutClassName, className);
   if (!portaled)
     return (
       <>
@@ -75,7 +92,7 @@ function DialogContent({
           role="dialog"
           data-slot="dialog-content"
           data-portcove-focus-scope=""
-          className={typeof resolvedClassName === "string" ? resolvedClassName : popupClassName}
+          className={typeof resolvedClassName === "string" ? resolvedClassName : layoutClassName}
           {...(props as React.ComponentProps<"div">)}
         >
           {content}

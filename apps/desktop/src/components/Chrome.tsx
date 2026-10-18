@@ -35,7 +35,6 @@ import type {
   ActivityRecord,
   PortDefinition,
   PortStatus,
-  ApplicationUpdateNoticeSnapshot,
   DoctorReport,
   GithubAuthStatus,
   GithubDeviceLogin,
@@ -68,9 +67,6 @@ import { ExternalLink } from "./ExternalLink";
 import { LibraryMoveButton } from "./LibraryMove";
 import { LibraryImportButton } from "./LibraryImport";
 import { CatalogSettings } from "./CatalogUpdates";
-import { ApplicationUpdateSettings } from "../features/application-update/ApplicationUpdates";
-import type { ApplicationUpdateRoute } from "../features/application-update/focus-application-update-route";
-import type { ApplicationUpdatePreferencesState } from "../features/application-update/use-application-update-preferences";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { GameFileLibraries } from "./GameFileLibraries";
 import { SourceIdentityPanel } from "./SourceIdentity";
@@ -301,16 +297,7 @@ export function StatusLayer({
   reviewCurrentState,
   operation,
   busy,
-  updateNotice,
-  updateChoiceRequired,
-  productionTransitionRequired,
-  productionTransitionBusy,
-  reviewUpdate,
-  dismissUpdate,
-  dismissUpdateChoice,
-  useStable,
-  keepPreview,
-  dismissProductionTransition,
+  featureNotices,
 }: {
   error?: unknown;
   clearError: () => void;
@@ -318,16 +305,7 @@ export function StatusLayer({
   reviewCurrentState?: (() => unknown) | undefined;
   operation?: OperationEvent | undefined;
   busy?: string | undefined;
-  updateNotice?: ApplicationUpdateNoticeSnapshot["notice"] | undefined;
-  updateChoiceRequired?: boolean;
-  productionTransitionRequired?: boolean;
-  productionTransitionBusy?: boolean;
-  reviewUpdate?: (route: ApplicationUpdateRoute) => void;
-  dismissUpdate?: () => Promise<void>;
-  dismissUpdateChoice?: () => void;
-  useStable?: (() => void) | undefined;
-  keepPreview?: (() => void) | undefined;
-  dismissProductionTransition?: () => void;
+  featureNotices?: ReactNode;
 }) {
   return (
     <>
@@ -339,27 +317,7 @@ export function StatusLayer({
           reviewCurrentState={reviewCurrentState}
         />
       )}
-      {updateNotice && (
-        <ApplicationUpdateNoticeBanner
-          notice={updateNotice}
-          review={() => reviewUpdate?.(updateNotice.result.staged ? "status" : "check")}
-          dismiss={dismissUpdate}
-        />
-      )}
-      {!updateNotice && updateChoiceRequired && (
-        <ApplicationUpdateChoiceBanner
-          review={() => reviewUpdate?.("choice")}
-          dismiss={dismissUpdateChoice}
-        />
-      )}
-      {!updateNotice && !updateChoiceRequired && productionTransitionRequired && (
-        <ApplicationUpdateProductionTransitionBanner
-          busy={Boolean(productionTransitionBusy)}
-          useStable={useStable}
-          keepPreview={keepPreview}
-          dismiss={dismissProductionTransition}
-        />
-      )}
+      {featureNotices}
       {busy && (
         <OperationProgress
           operation={operation?.type === "finished" ? undefined : operation}
@@ -367,140 +325,6 @@ export function StatusLayer({
         />
       )}
     </>
-  );
-}
-
-function ApplicationUpdateProductionTransitionBanner({
-  busy,
-  useStable,
-  keepPreview,
-  dismiss,
-}: {
-  busy: boolean;
-  useStable?: (() => void) | undefined;
-  keepPreview?: (() => void) | undefined;
-  dismiss?: (() => void) | undefined;
-}) {
-  return (
-    <Notice
-      intent="info"
-      className=""
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      aria-busy={busy}
-    >
-      <span
-        data-slot="notice-icon"
-        className="error-icon grid h-[2rem] w-[2rem] place-items-center"
-      >
-        <Icon glyph={ShieldCheck} />
-      </span>
-      <div data-slot="notice-body">
-        <strong>Choose an update channel</strong>
-        <p>
-          Stable is recommended and waits for an eligible production release newer than this
-          installation; it never downgrades Portcove. Keep Preview to continue receiving eligible
-          test releases. Your update mode and pause setting stay unchanged.
-        </p>
-      </div>
-      <div data-slot="notice-actions" className="error-actions flex gap-1">
-        <Button data-focusable variant="primary" size="sm" disabled={busy} onClick={useStable}>
-          Use Stable
-        </Button>
-        <Button data-focusable variant="outline" size="sm" disabled={busy} onClick={keepPreview}>
-          Keep Preview
-        </Button>
-        <Button data-focusable variant="ghost" size="sm" disabled={busy} onClick={dismiss}>
-          Not now
-        </Button>
-      </div>
-    </Notice>
-  );
-}
-
-function ApplicationUpdateChoiceBanner({
-  review,
-  dismiss,
-}: {
-  review?: () => void;
-  dismiss?: (() => void) | undefined;
-}) {
-  return (
-    <Notice intent="info" className="" role="status" aria-live="polite" aria-atomic="true">
-      <span
-        data-slot="notice-icon"
-        className="error-icon grid h-[2rem] w-[2rem] place-items-center"
-      >
-        <Icon glyph={Settings} />
-      </span>
-      <div data-slot="notice-body">
-        <strong>Choose how Portcove updates</strong>
-        <p>
-          Automatic updates are recommended. During public beta, Preview receives eligible test
-          releases. Portcove verifies updates and waits for a safe exit or an explicit restart
-          before applying them.
-        </p>
-      </div>
-      <div data-slot="notice-actions" className="error-actions flex gap-1">
-        <Button data-focusable variant="primary" size="sm" onClick={review}>
-          Review options
-        </Button>
-        <Button data-focusable variant="ghost" size="sm" onClick={dismiss}>
-          Not now
-        </Button>
-      </div>
-    </Notice>
-  );
-}
-
-function ApplicationUpdateNoticeBanner({
-  notice,
-  review,
-  dismiss,
-}: {
-  notice: NonNullable<ApplicationUpdateNoticeSnapshot["notice"]>;
-  review?: () => void;
-  dismiss?: (() => Promise<void>) | undefined;
-}) {
-  const candidate = notice.result.candidate;
-  if (!candidate) return null;
-  const channel = candidate.channel === "preview" ? "Preview" : "Stable";
-  return (
-    <Notice intent="success" className="" role="status" aria-live="polite" aria-atomic="true">
-      <span
-        data-slot="notice-icon"
-        className="error-icon grid h-[2rem] w-[2rem] place-items-center"
-      >
-        <Icon glyph={Download} />
-      </span>
-      <div data-slot="notice-body">
-        <strong>
-          {notice.result.staged
-            ? `Portcove ${candidate.version} is ready to install`
-            : `Portcove ${candidate.version} is available`}
-        </strong>
-        <p>
-          {notice.result.staged
-            ? `${channel} update verified (${formatBytes(candidate.bytes)}). Review it in Settings and restart when convenient.`
-            : `${channel} update found (${formatBytes(candidate.bytes)}). Review it in Settings before downloading.`}
-        </p>
-      </div>
-      <div data-slot="notice-actions" className="error-actions flex gap-1">
-        <Button data-focusable variant="primary" size="sm" onClick={review}>
-          Review update
-        </Button>
-        <Button
-          data-focusable
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Dismiss application update notice"
-          onClick={() => void dismiss?.()}
-        >
-          <Icon glyph={X} />
-        </Button>
-      </div>
-    </Notice>
   );
 }
 
@@ -1592,8 +1416,7 @@ export function SettingsView({
   onOpenGameUpdates,
   hostToolActions,
   openSourceEvidence,
-  applicationUpdateNotice,
-  applicationUpdatePreferences,
+  applicationUpdates,
   diagnosticsRefreshing,
   diagnosticsStale,
   diagnosticFailure,
@@ -1633,8 +1456,7 @@ export function SettingsView({
   onCatalogChanged?: () => Promise<unknown>;
   onOpenGameUpdates?: () => void;
   hostToolActions?: HostToolActions | undefined;
-  applicationUpdateNotice?: ApplicationUpdateNoticeSnapshot["notice"] | undefined;
-  applicationUpdatePreferences?: ApplicationUpdatePreferencesState | undefined;
+  applicationUpdates?: ReactNode;
   diagnosticsRefreshing?: boolean;
   diagnosticsStale?: boolean;
   diagnosticFailure?: unknown;
@@ -1765,13 +1587,7 @@ export function SettingsView({
           )
         }
       >
-        <ApplicationUpdateSettings
-          currentVersion={desktopPackage.version}
-          generation={generation}
-          disabled={Boolean(busy)}
-          automaticNotice={applicationUpdateNotice}
-          preferencesState={applicationUpdatePreferences}
-        />
+        {applicationUpdates}
         <CatalogSettings
           provenance={doctor?.catalog_provenance}
           disabled={Boolean(busy)}

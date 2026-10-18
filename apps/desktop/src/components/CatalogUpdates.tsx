@@ -193,7 +193,8 @@ function CatalogUpdatesDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="catalog-update-dialog max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
+        reviewSize="wide"
+        className="catalog-update-dialog"
         aria-describedby="catalog-update-description"
       >
         <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">

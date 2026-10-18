@@ -1,3 +1,4 @@
+import { MetadataGrid } from "./ui/patterns";
 import { cn } from "cn";
 import { useLayoutEffect, useRef, useState } from "react";
 import {
@@ -111,7 +112,7 @@ export function SourceIdentityPanel({
       <p className="source-next m-0 leading-[var(--leading-relaxed)] text-[var(--color-text-muted)]">
         <strong>Next:</strong> {report.next_action}
       </p>
-      <dl className="source-identity-summary m-0 grid grid-cols-[repeat(2,_minmax(0,_1fr))] gap-2 @max-[30rem]/source:grid-cols-[1fr]">
+      <MetadataGrid className="source-identity-summary @max-[30rem]/source:grid-cols-[1fr]">
         <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt className="m-0 text-[length:var(--text-2xs)] tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
             Selected
@@ -138,7 +139,7 @@ export function SourceIdentityPanel({
             {variant ? variantLabel(variant) : classificationLabel(report)}
           </dd>
         </div>
-      </dl>
+      </MetadataGrid>
       {report.applications.map((application) => (
         <ApplicationResult
           key={`${application.port_id}:${application.role}`}
@@ -155,14 +156,14 @@ export function SourceIdentityPanel({
           Full identity and evidence
         </summary>
         <div className="grid gap-4 [&_h4]:mt-3 [&_h4]:mb-2">
-          <dl className="source-identity-summary m-0 grid grid-cols-[repeat(2,_minmax(0,_1fr))] gap-2 @max-[30rem]/source:grid-cols-[1fr]">
+          <MetadataGrid className="source-identity-summary @max-[30rem]/source:grid-cols-[1fr]">
             <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
               <dt className="m-0 text-[length:var(--text-2xs)] tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
                 Admission
               </dt>
               <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">{admissionLabel(report)}</dd>
             </div>
-          </dl>
+          </MetadataGrid>
           <IdentityDigests report={report} />
           <Qualification report={report} />
           {report.evidence.length > 0 && (
@@ -250,12 +251,12 @@ function ApplicationResult({
           {result}
         </span>
       </div>
-      <dl className="m-0 grid grid-cols-[repeat(2,_minmax(0,_1fr))] gap-2 @max-[30rem]/source:grid-cols-[1fr]">
+      <MetadataGrid className="@max-[30rem]/source:grid-cols-[1fr]">
         <div className="flex min-w-0 items-center justify-between gap-3 rounded-pc-md bg-[var(--color-bg-inset)] p-2 @max-[30rem]/source:flex-col @max-[30rem]/source:items-start">
           <dt>Release applicability</dt>
           <dd>{applicability}</dd>
         </div>
-      </dl>
+      </MetadataGrid>
       {selectedVariantId && selectedHandsOn.length === 0 && (
         <p className="text-[length:var(--text-xs)]">
           No hands-on test is recorded for this edition and file format.
@@ -277,7 +278,7 @@ function ApplicationResult({
         <small className="text-[var(--color-text-muted)]">
           {application.contract.authority_ref}
         </small>
-        <dl className="m-0 grid grid-cols-[repeat(2,_minmax(0,_1fr))] gap-2 @max-[30rem]/source:grid-cols-[1fr]">
+        <MetadataGrid className="@max-[30rem]/source:grid-cols-[1fr]">
           <div className="flex min-w-0 items-center justify-between gap-3 rounded-pc-md bg-[var(--color-bg-inset)] p-2 @max-[30rem]/source:flex-col @max-[30rem]/source:items-start">
             <dt>Recorded automated results</dt>
             <dd>{evidenceDetails(exactAutomated, "No automated test recorded")}</dd>
@@ -286,7 +287,7 @@ function ApplicationResult({
             <dt>Recorded hands-on results</dt>
             <dd>{evidenceDetails(exactHandsOn, "No hands-on test recorded")}</dd>
           </div>
-        </dl>
+        </MetadataGrid>
       </details>
     </section>
   );
@@ -547,7 +548,7 @@ function Qualification({ report }: { report: SourceInspectionReport }) {
   return (
     <section>
       <h4>Test coverage</h4>
-      <dl className="qualification-grid m-0 grid grid-cols-[repeat(2,_minmax(0,_1fr))] gap-2 @max-[30rem]/source:grid-cols-[1fr]">
+      <MetadataGrid className="qualification-grid @max-[30rem]/source:grid-cols-[1fr]">
         <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt>Legacy port-wide automated</dt>
           <dd>{platformList(legacyAutomated) || "Not recorded"}</dd>
@@ -568,7 +569,7 @@ function Qualification({ report }: { report: SourceInspectionReport }) {
           <dt>Variant-unspecified records</dt>
           <dd>{report.legacy.variant_unspecified_records.length || "None"}</dd>
         </div>
-      </dl>
+      </MetadataGrid>
     </section>
   );
 }

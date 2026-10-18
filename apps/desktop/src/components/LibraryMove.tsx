@@ -72,7 +72,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
+        reviewSize="wide"
         aria-describedby="move-library-description"
       >
         <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">

@@ -1,3 +1,6 @@
+import desktopPackage from "../package.json";
+import { ApplicationUpdateNotices } from "./features/application-update/ApplicationUpdateNotices";
+import { ApplicationUpdateSettings } from "./features/application-update/ApplicationUpdates";
 import { Notice } from "./components/ui/patterns";
 import { useFavorites } from "./features/favorites/use-favorites";
 import {
@@ -5,7 +8,7 @@ import {
   useApplicationUpdateNotice,
   useApplicationUpdateProductionTransition,
 } from "./features/application-update/use-application-update";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
 import { useGithubAuth } from "./features/github-auth/use-github-auth";
 import { useSourceHealth } from "./features/source-health/use-source-health";
@@ -641,8 +644,15 @@ function Workspace({
         resetLibrary={resetLibraryWithContext}
         nativeSourceDrag={nativeSourceDrag}
         hostToolActions={hostToolActions}
-        applicationUpdateNotice={applicationUpdate.notice}
-        applicationUpdatePreferences={applicationUpdateChoice}
+        applicationUpdates={
+          <ApplicationUpdateSettings
+            currentVersion={desktopPackage.version}
+            generation={bootstrap.generation}
+            disabled={Boolean(operations.busy)}
+            automaticNotice={applicationUpdate.notice}
+            preferencesState={applicationUpdateChoice}
+          />
+        }
         openPortDetails={openPortDetails}
         setupSource={setupSource}
         setSetupSource={setSetupSource}
@@ -705,16 +715,22 @@ function Workspace({
             }
             operation={operations.operation}
             busy={operations.busy}
-            updateNotice={applicationUpdate.notice}
-            updateChoiceRequired={applicationUpdateChoice.choiceRequired}
-            productionTransitionRequired={applicationUpdateProductionTransition.offerRequired}
-            productionTransitionBusy={applicationUpdateProductionTransition.busy}
-            reviewUpdate={reviewApplicationUpdate}
-            dismissUpdate={applicationUpdate.dismiss}
-            dismissUpdateChoice={dismissApplicationUpdateChoice}
-            useStable={() => void completeApplicationUpdateProductionTransition("use-stable")}
-            keepPreview={() => void completeApplicationUpdateProductionTransition("keep-preview")}
-            dismissProductionTransition={dismissApplicationUpdateProductionTransition}
+            featureNotices={
+              <ApplicationUpdateNotices
+                updateNotice={applicationUpdate.notice}
+                updateChoiceRequired={applicationUpdateChoice.choiceRequired}
+                productionTransitionRequired={applicationUpdateProductionTransition.offerRequired}
+                productionTransitionBusy={applicationUpdateProductionTransition.busy}
+                reviewUpdate={reviewApplicationUpdate}
+                dismissUpdate={applicationUpdate.dismiss}
+                dismissUpdateChoice={dismissApplicationUpdateChoice}
+                useStable={() => void completeApplicationUpdateProductionTransition("use-stable")}
+                keepPreview={() =>
+                  void completeApplicationUpdateProductionTransition("keep-preview")
+                }
+                dismissProductionTransition={dismissApplicationUpdateProductionTransition}
+              />
+            }
           />
           <WorkspaceRefreshNotice
             failure={data.refreshFailure}
@@ -927,8 +943,7 @@ function CurrentView({
   resetLibrary,
   nativeSourceDrag,
   hostToolActions,
-  applicationUpdateNotice,
-  applicationUpdatePreferences,
+  applicationUpdates,
   openPortDetails,
   setupSource,
   setSetupSource,
@@ -947,8 +962,7 @@ function CurrentView({
   resetLibrary: () => Promise<void>;
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
   hostToolActions: HostToolActions;
-  applicationUpdateNotice: ReturnType<typeof useApplicationUpdateNotice>["notice"];
-  applicationUpdatePreferences: ReturnType<typeof useApplicationUpdateChoice>;
+  applicationUpdates: ReactNode;
   openPortDetails: (portId: string, originKey?: string) => void;
   setupSource?: SourceRecord | undefined;
   setSetupSource: (source?: SourceRecord) => void;
@@ -1013,8 +1027,7 @@ function CurrentView({
           });
         }}
         hostToolActions={hostToolActions}
-        applicationUpdateNotice={applicationUpdateNotice}
-        applicationUpdatePreferences={applicationUpdatePreferences}
+        applicationUpdates={applicationUpdates}
         diagnosticsRefreshing={data.diagnosticRefreshing}
         diagnosticsStale={data.diagnosticsStale}
         diagnosticFailure={data.diagnosticFailure?.error}

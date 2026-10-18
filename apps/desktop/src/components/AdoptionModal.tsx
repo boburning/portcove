@@ -61,7 +61,7 @@ export function AdoptionModal({
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(500px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
+        reviewSize="compact"
         aria-describedby="adopt-description"
       >
         <Button

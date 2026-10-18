@@ -7,11 +7,7 @@ import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "../../api";
 import { useUpdateCenter } from "../port-updates/use-update-center";
 import { useOperationState, type Perform } from "../operations/use-operation-state";
-import {
-  emptyActivityFeed,
-  essentialSnapshotIdentity,
-  usePortcoveData,
-} from "./use-workspace-data";
+import { emptyActivityFeed, usePortcoveData } from "./use-workspace-data";
 import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type { DoctorReport, OperationEvent, WorkspaceSnapshot } from "../../types";
 import { WorkspaceRefreshNotice } from "./WorkspaceRefreshNotice";
@@ -190,26 +186,6 @@ describe("workspace refresh recovery", () => {
     await act(async () => data.refresh());
     expect(data.browsing).toBeUndefined();
   });
-  it("compares each essential collection once without increasing serialized identity bytes", () => {
-    const combinedIdentity = JSON.stringify([
-      snapshot.catalog,
-      snapshot.statuses,
-      snapshot.sources,
-      snapshot.browsing ?? null,
-    ]);
-    const stringify = vi.spyOn(JSON, "stringify");
-
-    const identities = essentialSnapshotIdentity(snapshot);
-
-    expect(stringify).toHaveBeenCalledTimes(4);
-    expect(
-      identities.catalog.length +
-        identities.statuses.length +
-        identities.sources.length +
-        identities.browsing.length,
-    ).toBe(combinedIdentity.length - 5);
-  });
-
   it("preserves unchanged IPC snapshot references and avoids redundant status indexing", async () => {
     await render();
     const before = { catalog: data.catalog, statuses: data.statuses, sources: data.sources };

@@ -51,23 +51,21 @@ export function BrowsingMatchDetails({
     `${fact.member_context ? "Installed build" : "Setup"} · ${fact.platform ? platformLabel(fact.platform) : "Platform unknown"} · ${fact.channel ? releaseChannelPresentation(fact.channel).label : "Channel unknown"}${fact.release_version ? ` · ${fact.release_version}` : ""}`;
   return (
     <section aria-label="Matching browsing contexts" className="my-4 space-y-2">
-      <h2>Matching contexts for your filters</h2>
+      <h2>Matching versions for your filters</h2>
       {result.state !== "matched" ? (
         <p>
-          The retained context is unavailable. Return to your filters to correct or refresh the
-          context.
+          These filter results are unavailable. Return to Filters to update your choices or check
+          again.
         </p>
       ) : contexts.length === 0 ? (
         <p>This port no longer matches your filters.</p>
       ) : (
         <>
           {lostChoice && (
-            <p>Your previous choice is no longer current. Choose a matching context to inspect.</p>
+            <p>Your previous choice is no longer current. Choose a matching version to inspect.</p>
           )}
           {!lostChoice && contexts.length > 1 && (
-            <p>
-              Choose a matching context to inspect. Each choice matches all selected filter groups.
-            </p>
+            <p>Choose a version to inspect. Each choice matches all selected filters.</p>
           )}
           {contexts.map((fact) => (
             <Button
@@ -85,12 +83,12 @@ export function BrowsingMatchDetails({
             <p>
               {choice.installation_method
                 ? installationMethodLabels[choice.installation_method]
-                : "Retained setup method unknown"}
+                : "Saved setup method unknown"}
               .{" "}
               {choice.member_context
-                ? "This is the matching retained installation."
-                : "This is a matching declared setup route."}{" "}
-              Actions below require their own current Core review.
+                ? "This is your matching saved installation."
+                : "This setup option matches your filters."}{" "}
+              Portcove checks the current requirements again before setup or launch.
             </p>
           )}
           {choice &&
@@ -100,7 +98,7 @@ export function BrowsingMatchDetails({
                 context={{ ...gameFiles, byPort: new Map([[portId, matchingObservation]]) }}
               />
             ) : (
-              <p>Game files for this context: observation unavailable.</p>
+              <p>No current game-file check for this version. Check again.</p>
             ))}
         </>
       )}

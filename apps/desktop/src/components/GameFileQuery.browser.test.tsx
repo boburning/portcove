@@ -187,7 +187,7 @@ it("keeps the real refresh pending after cancellation acknowledgment and rejects
   await act(async () => cancel.click());
   expect(desktopApi.cancelOperation).toHaveBeenCalledExactlyOnceWith("owned");
   expect(container.textContent).toContain("Cancellation requested");
-  expect(container.textContent).toContain("Checking selected route…");
+  expect(container.textContent).toContain("Checking game files for this setup…");
   expect(button.disabled).toBe(true);
   await act(async () => resolve(snapshot()));
   expect(container.textContent).not.toContain("Cancellation requested");
@@ -199,7 +199,7 @@ it("expires accepted observations without issuing another inspection", async () 
   await render();
   await check();
   await act(async () => vi.advanceTimersByTime(300001));
-  expect(container.textContent).toContain("Observation expired");
+  expect(container.textContent).toContain("file check expired");
   expect(container.textContent).not.toContain("Files missing");
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
   expect(vi.getTimerCount()).toBe(0);
@@ -212,7 +212,7 @@ it("rejects a clock jump before timer callbacks, never resurrects the old observ
   const originalTime = Date.now();
   vi.setSystemTime(originalTime + 300001);
   await render();
-  expect(container.textContent).toContain("Observation expired");
+  expect(container.textContent).toContain("file check expired");
   expect(container.textContent).not.toContain("Files missing");
   vi.setSystemTime(originalTime);
   await render();
@@ -221,7 +221,7 @@ it("rejects a clock jump before timer callbacks, never resurrects the old observ
   vi.mocked(desktopApi.refreshGameFileQuery).mockResolvedValue(snapshot());
   await check();
   expect(container.textContent).toContain("Files missing");
-  expect(container.textContent).not.toContain("Observation expired");
+  expect(container.textContent).not.toContain("file check expired");
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(2);
 });
 it("rejects monotonic expiry with unchanged wall time and rejects a wall clock earlier than observation", async () => {
