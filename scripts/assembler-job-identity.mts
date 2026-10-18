@@ -7,7 +7,18 @@ import { isRecord } from "./runtime-values.mts";
 const issuer = "https://token.actions.githubusercontent.com";
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
-const assemblyJobName = "Trusted package assembly";
+const assemblerProfile = {
+  workflow: productionControllerWorkflow,
+  job: "Trusted package assembly",
+};
+const classificationProfile = {
+  workflow: ".github/workflows/release-reviewed-inputs.yml",
+  job: "Persist independently reviewed classification",
+};
+const protectionProfile = {
+  workflow: ".github/workflows/release-reviewed-inputs.yml",
+  job: "Observe release input protections",
+};
 type Spawn = NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>;
 
 export interface AssemblerIdentityExpectation {
@@ -98,7 +109,8 @@ export function inspectAssemblerIdentityExpectation(value: unknown): AssemblerId
  * the admitted invocation, never from token contents. No bearer token is saved
  * or returned. Injected readers explicitly produce fixture-scoped evidence.
  */
-export async function verifyAssemblerJobIdentity(
+async function verifyJobIdentity(
+  profile: { workflow: string; job: string },
   token: string,
   rawExpected: unknown,
   options: { transport?: { cwd: string; spawn?: Spawn }; readKeys?: () => Promise<unknown> } = {},
@@ -176,7 +188,7 @@ export async function verifyAssemblerJobIdentity(
     ref_type: "tag",
     sha: expected.controller_revision,
     workflow_sha: expected.controller_revision,
-    workflow_ref: `${repository}/${productionControllerWorkflow}@${expected.controller_ref}`,
+    workflow_ref: `${repository}/${profile.workflow}@${expected.controller_ref}`,
     event_name: "workflow_dispatch",
     runner_environment: "github-hosted",
     run_id: expected.run_id,
@@ -222,8 +234,8 @@ export async function verifyAssemblerJobIdentity(
       String(value.id) !== expected.run_id ||
       value.run_attempt !== expected.run_attempt ||
       value.head_sha !== expected.controller_revision ||
-      (value.path !== productionControllerWorkflow &&
-        value.path !== `${productionControllerWorkflow}@${expected.controller_ref}`) ||
+      (value.path !== profile.workflow &&
+        value.path !== `${profile.workflow}@${expected.controller_ref}`) ||
       value.event !== "workflow_dispatch" ||
       value.status !== "in_progress" ||
       !isRecord(value.repository) ||
@@ -288,7 +300,7 @@ export async function verifyAssemblerJobIdentity(
     !job ||
     typeof job.id !== "number" ||
     job.status !== "in_progress" ||
-    job.name !== assemblyJobName
+    job.name !== profile.job
   )
     throw new Error("signed check-run identity does not identify one active trusted assembly job");
   const refreshed = get(`/actions/jobs/${job.id}`);
@@ -299,7 +311,7 @@ export async function verifyAssemblerJobIdentity(
     refreshed.run_attempt !== expected.run_attempt ||
     refreshed.head_sha !== expected.controller_revision ||
     refreshed.check_run_url !== job.check_run_url ||
-    refreshed.name !== assemblyJobName ||
+    refreshed.name !== profile.job ||
     refreshed.status !== "in_progress"
   )
     throw new Error("selected assembler job changed during collection");
@@ -313,7 +325,7 @@ export async function verifyAssemblerJobIdentity(
       options.readKeys || options.transport.spawn ? "injected-provider" : "github.com",
     repository_id: repositoryId,
     repository,
-    workflow: productionControllerWorkflow,
+    workflow: profile.workflow,
     workflow_revision: expected.controller_revision,
     execution_ref: expected.controller_ref,
     actor_id: expected.actor_id,
@@ -328,4 +340,67 @@ export async function verifyAssemblerJobIdentity(
     artifact_production: "unproven",
     authority: "none",
   };
+}
+
+// Fixed profiles are deliberately private: callers cannot promote another job
+// by supplying a trusted-looking name or workflow path.
+type IdentityOptions = NonNullable<Parameters<typeof verifyJobIdentity>[3]>;
+export function verifyAssemblerJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(assemblerProfile, token, expected, options);
+}
+export function verifyClassificationWriterJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(classificationProfile, token, expected, options);
+}
+export function verifyProtectionObserverJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(protectionProfile, token, expected, options);
+}
+
+export async function requestAssemblerToken(
+  audience: string,
+  environment: NodeJS.ProcessEnv = process.env,
+  fetcher: typeof fetch = fetch,
+) {
+  // These are runner-issued control variables, never dispatch/candidate values.
+  const endpoint = new URL(environment.ACTIONS_ID_TOKEN_REQUEST_URL ?? "");
+  const bearer = environment.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
+  if (
+    endpoint.protocol !== "https:" ||
+    endpoint.username ||
+    endpoint.password ||
+    endpoint.port ||
+    !endpoint.hostname.endsWith(".actions.githubusercontent.com") ||
+    !bearer ||
+    bearer.length > 16384
+  )
+    throw new Error("runner OIDC endpoint is unavailable");
+  endpoint.searchParams.set("audience", audience);
+  const response = await fetcher(endpoint, {
+    headers: { Authorization: `Bearer ${bearer}` },
+    redirect: "error",
+    signal: AbortSignal.timeout(15000),
+  });
+  if (response.status !== 200 || !response.body) throw new Error("runner OIDC request refused");
+  const chunks: Buffer[] = [];
+  let length = 0;
+  for await (const chunk of response.body as AsyncIterable<Uint8Array>) {
+    length += chunk.byteLength;
+    if (length > 32 * 1024) throw new Error("runner OIDC response exceeds bound");
+    chunks.push(Buffer.from(chunk));
+  }
+  const result: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  if (!isRecord(result) || typeof result.value !== "string" || result.value.length > 16384)
+    throw new Error("runner OIDC response is invalid");
+  return result.value;
 }

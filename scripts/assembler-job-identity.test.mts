@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
 import test from "node:test";
-import { verifyAssemblerJobIdentity } from "./assembler-job-identity.mts";
+import {
+  verifyAssemblerJobIdentity,
+  verifyClassificationWriterJobIdentity,
+  verifyProtectionObserverJobIdentity,
+} from "./assembler-job-identity.mts";
 import {
   expected,
   jwk,
@@ -147,4 +151,28 @@ void test("default key collection pins the HTTPS issuer and bounds bytes before 
     verifyAssemblerJobIdentity(f.token, expected, { transport: f.transport }),
     /malformed/u,
   );
+});
+
+void test("fixed control profiles accept only their exact workflow/job and reject cross-role credentials", async () => {
+  const workflow = ".github/workflows/release-reviewed-inputs.yml";
+  const roles = [
+    {
+      verify: verifyClassificationWriterJobIdentity,
+      job: "Persist independently reviewed classification",
+    },
+    { verify: verifyProtectionObserverJobIdentity, job: "Observe release input protections" },
+  ];
+  for (const role of roles) {
+    const f = fixture({}, {}, { workflow, job: role.job });
+    assert.equal((await role.verify(f.token, expected, f)).workflow, workflow);
+    await assert.rejects(verifyAssemblerJobIdentity(f.token, expected, f));
+    const other = roles.find((value) => value !== role)!;
+    await assert.rejects(other.verify(f.token, expected, f));
+    const wrongWorkflow = fixture(
+      {},
+      {},
+      { workflow: ".github/workflows/other.yml", job: role.job },
+    );
+    await assert.rejects(role.verify(wrongWorkflow.token, expected, wrongWorkflow));
+  }
 });

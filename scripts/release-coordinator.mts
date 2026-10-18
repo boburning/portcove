@@ -164,7 +164,7 @@ function validateController(controller: unknown) {
   };
 }
 
-function validateOpportunity(opportunity: unknown) {
+export function validateOpportunity(opportunity: unknown) {
   exactKeys(
     opportunity,
     [

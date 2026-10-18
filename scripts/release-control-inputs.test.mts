@@ -1,0 +1,487 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import test from "node:test";
+import { execFileSync } from "node:child_process";
+import { mkdtemp, mkdir, copyFile, writeFile, readFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import {
+  persistReviewedClassification,
+  readPublicationPause,
+  readReviewedClassification,
+  releaseOpportunityDigest,
+} from "./release-control-inputs.mts";
+import {
+  observeReleaseInputProtections,
+  requireReleaseInputWriterPolicy,
+} from "./release-input-protections.mts";
+const source = "a".repeat(40),
+  tree = "b".repeat(40),
+  before = "c".repeat(40),
+  after = "d".repeat(40);
+const opportunity = {
+  source_commit: source,
+  source_tree: tree,
+  base_commit: "e".repeat(40),
+  change_set_sha256: "f".repeat(64),
+  complete_change_set: true,
+  meaningful: true,
+  documentation_only: false,
+  urgency: false,
+  requested_channel: "preview",
+  classification: {
+    source_commit: source,
+    reviewed_commit: source,
+    source_tree: tree,
+    reviewed_tree: tree,
+    change_set_sha256: "f".repeat(64),
+    change_set_scope: "portcove-release-net-tree-delta-v1",
+    base_version: "0.1.0-alpha.2",
+    change: "prerelease",
+    compatibility: "compatible",
+  },
+};
+const config = {
+  schema_version: 1,
+  review_app_id: 101,
+  writer_app_id: 202,
+  review_check_name: "Independent semantic review",
+};
+function fixture() {
+  let content: string | null = null,
+    mutations = 0;
+  const objects = new Map<string, unknown>();
+  const git = (kind: string, bytes: Buffer) =>
+    createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest("hex");
+  const blob = (text: string) => {
+    const bytes = Buffer.from(text),
+      sha = git("blob", bytes);
+    objects.set(`blobs/${sha}`, {
+      sha,
+      encoding: "base64",
+      size: bytes.length,
+      content: bytes.toString("base64"),
+    });
+    return sha;
+  };
+  const makeTree = (entries: { path: string; mode: string; type: string; sha: string }[]) => {
+    entries.sort((a, b) =>
+      Buffer.compare(
+        Buffer.from(a.path + (a.type === "tree" ? "/" : "")),
+        Buffer.from(b.path + (b.type === "tree" ? "/" : "")),
+      ),
+    );
+    const sha = git(
+      "tree",
+      Buffer.concat(
+        entries.map((entry) =>
+          Buffer.concat([
+            Buffer.from(`${entry.mode === "040000" ? "40000" : entry.mode} ${entry.path}\0`),
+            Buffer.from(entry.sha, "hex"),
+          ]),
+        ),
+      ),
+    );
+    objects.set(`trees/${sha}`, { sha, truncated: false, tree: entries });
+    return sha;
+  };
+  const makeCommit = () => {
+    const entries = [
+      {
+        path: "publication.json",
+        mode: "100644",
+        type: "blob",
+        sha: blob(JSON.stringify({ schema_version: 1, publication_paused: true })),
+      },
+    ];
+    if (content !== null) {
+      const file = makeTree([
+        {
+          path: `${opportunity.change_set_sha256}.json`,
+          mode: "100644",
+          type: "blob",
+          sha: blob(content),
+        },
+      ]);
+      const directory = makeTree([{ path: source, mode: "040000", type: "tree", sha: file }]);
+      entries.push({ path: "classification", mode: "040000", type: "tree", sha: directory });
+    }
+    const tree = makeTree(entries),
+      message = "fixture\n";
+    const sha = git(
+      "commit",
+      Buffer.from(
+        `tree ${tree}\nauthor Fixture <fixture@example.invalid> 946684800 +0000\ncommitter Fixture <fixture@example.invalid> 946684800 +0000\n\n${message}`,
+      ),
+    );
+    objects.set(`commits/${sha}`, {
+      sha,
+      tree: { sha: tree },
+      parents: [],
+      message,
+      author: { name: "Fixture", email: "fixture@example.invalid", date: "2000-01-01T00:00:00Z" },
+      committer: {
+        name: "Fixture",
+        email: "fixture@example.invalid",
+        date: "2000-01-01T00:00:00Z",
+      },
+    });
+    return sha;
+  };
+  let head = makeCommit();
+  const initial = head;
+  const faults = { value: "" };
+  const requests: string[] = [];
+  const api: CoordinatorRemoteApi = {
+    request(method, endpoint) {
+      assert.equal(method, "GET");
+      requests.push(endpoint);
+      let body: unknown;
+      if (endpoint === "repos/boburning/portcove")
+        body = { id: 1354613114, full_name: "boburning/portcove", node_id: "fixture-repo" };
+      else if (endpoint.includes("/git/ref/heads/"))
+        body = {
+          ref: `refs/heads/${endpoint.split("/").at(-1)}`,
+          object: { type: "commit", sha: head },
+        };
+      else if (endpoint.endsWith("/check-runs/303"))
+        body = {
+          id: 303,
+          app: { id: faults.value === "issuer" ? 202 : 101 },
+          name: config.review_check_name,
+          head_sha: source,
+          status: "completed",
+          conclusion: faults.value === "failure" ? "failure" : "success",
+          completed_at: "2026-01-01T00:00:00Z",
+          output: {
+            title: "Portcove independent release review v1",
+            annotations_count: faults.value === "annotations" ? 1 : 0,
+            summary: JSON.stringify({
+              schema_version: 1,
+              opportunity:
+                faults.value === "input" ? { ...opportunity, urgency: true } : opportunity,
+              opportunity_sha256: releaseOpportunityDigest(opportunity),
+            }),
+          },
+        };
+      else if (endpoint.includes("/git/")) {
+        body = objects.get(endpoint.split("/git/")[1]!);
+        if (!body) throw new Error("unknown Git fixture object");
+      } else throw new Error("unexpected route");
+      return { status: 200, headers: new Map(), body };
+    },
+    graphql(query, variables) {
+      if (query.startsWith("query"))
+        return {
+          data: {
+            node: {
+              __typename: "Repository",
+              id: "fixture-repo",
+              databaseId: 1354613114,
+              nameWithOwner: "boburning/portcove",
+              ref: {
+                id: `opaque-${String(variables.ref)}`,
+                name: String(variables.ref).slice(11),
+                prefix: "refs/heads/",
+                target: { __typename: "Commit", oid: head },
+              },
+            },
+          },
+        };
+      mutations++;
+      const input = variables.input as {
+        expectedHeadOid: string;
+        branch: { id: string };
+        fileChanges: { additions: { contents: string; path: string }[] };
+      };
+      assert.equal(input.expectedHeadOid, initial);
+      assert.equal(input.branch.id, "opaque-refs/heads/portcove-release-inputs");
+      assert.equal(input.fileChanges.additions.length, 1);
+      if (faults.value === "cas") throw new Error("preimage race");
+      content = Buffer.from(input.fileChanges.additions[0]!.contents, "base64").toString();
+      head = makeCommit();
+      if (faults.value === "ambiguous") throw new Error("lost response");
+      return { data: { createCommitOnBranch: { commit: { oid: head } } } };
+    },
+  };
+  return {
+    api,
+    faults,
+    requests,
+    mutations: () => mutations,
+    conflicting: () => {
+      content = "{}";
+      head = makeCommit();
+    },
+  };
+}
+void test("semantic review binds exact inputs; CAS writes once; identical repeat does not write", () => {
+  const f = fixture();
+  assert.equal(
+    persistReviewedClassification(f.api, config, opportunity, 303, () => {}).changed,
+    true,
+  );
+  assert.equal(readReviewedClassification(f.api, config, opportunity).review_check_id, 303);
+  assert.equal(
+    persistReviewedClassification(f.api, config, opportunity, 303, () => {}).changed,
+    false,
+  );
+  assert.equal(f.mutations(), 1);
+  assert.equal(
+    f.requests.some((route) => route.includes("portcove-release-pause")),
+    false,
+  );
+  assert.equal(readPublicationPause(f.api).publication_paused, true);
+});
+void test("writer identity, semantic failure, incomplete reports and changed inputs cannot persist acceptance", () => {
+  for (const fault of ["issuer", "failure", "annotations", "input"]) {
+    const f = fixture();
+    f.faults.value = fault;
+    assert.throws(() => persistReviewedClassification(f.api, config, opportunity, 303, () => {}));
+    assert.equal(f.mutations(), 0);
+  }
+  for (const invalid of [
+    { ...config, review_app_id: 15368 },
+    { ...config, review_app_id: 202 },
+    {},
+  ]) {
+    const f = fixture();
+    assert.throws(() => persistReviewedClassification(f.api, invalid, opportunity, 303, () => {}));
+    assert.equal(f.requests.length, 0);
+  }
+});
+void test("immutable conflicts, CAS refusal and ambiguous acknowledgment never overwrite or retry", () => {
+  const f = fixture();
+  f.conflicting();
+  assert.throws(
+    () => persistReviewedClassification(f.api, config, opportunity, 303, () => {}),
+    /conflicts/,
+  );
+  assert.equal(f.mutations(), 0);
+  const race = fixture();
+  race.faults.value = "cas";
+  assert.throws(
+    () => persistReviewedClassification(race.api, config, opportunity, 303, () => {}),
+    /do not retry/,
+  );
+  assert.equal(race.mutations(), 1);
+  const recovered = fixture();
+  recovered.faults.value = "ambiguous";
+  assert.equal(
+    persistReviewedClassification(recovered.api, config, opportunity, 303, () => {}).recovered,
+    true,
+  );
+  assert.equal(recovered.mutations(), 1);
+});
+void test("isolated observer only GETs and refuses hidden bypass, inherited coverage and drift", () => {
+  for (const fault of ["", "bypass", "inherited", "drift"]) {
+    let refReads = 0;
+    const api = {
+      request(method: string, endpoint: string) {
+        assert.equal(method, "GET");
+        let body: unknown;
+        const rule = {
+          id: 1,
+          source_type: fault === "inherited" ? "Organization" : "Repository",
+          source: "boburning/portcove",
+          enforcement: "active",
+          conditions: {
+            ref_name: { include: ["refs/heads/portcove-release-inputs"], exclude: [] },
+          },
+          bypass_actors: [],
+          rules: [{ type: "update" }],
+        };
+        if (endpoint === "repos/boburning/portcove")
+          body = { id: 1354613114, full_name: "boburning/portcove" };
+        else if (endpoint.includes("/rulesets?")) body = [rule];
+        else if (endpoint.includes("/rulesets/1?"))
+          body = fault === "bypass" ? { ...rule, bypass_actors: undefined } : rule;
+        else if (endpoint.includes("/git/ref/heads/")) {
+          refReads++;
+          body = {
+            ref: `refs/heads/${endpoint.split("/").at(-1)}`,
+            object: { type: "commit", sha: fault === "drift" && refReads > 2 ? after : before },
+          };
+        } else if (endpoint.includes("/rules/branches/")) body = [{ type: "update" }];
+        else if (endpoint.includes("/protection")) body = { enforce_admins: { enabled: true } };
+        else throw new Error("unexpected observer route");
+        return { status: 200, headers: new Map<string, string>(), body };
+      },
+    };
+    if (fault) assert.throws(() => observeReleaseInputProtections(api));
+    else {
+      const result = observeReleaseInputProtections(api);
+      assert.equal(result.admission, "hold");
+      assert.equal(result.enforcement, "uninterpreted");
+    }
+  }
+});
+
+void test("writer policy requires fresh exact per-ref principals and unbypassable immutable ref rules", () => {
+  const names = ["portcove-release-inputs", "portcove-release-pause"];
+  const rulesets = names.flatMap((branch, index) => [
+    {
+      id: index * 2 + 1,
+      enforcement: "active",
+      conditions: { ref_name: { include: [`refs/heads/${branch}`], exclude: [] } },
+      rules: [{ type: "update" }],
+      bypass_actors: [
+        {
+          actor_type: index === 0 ? "Integration" : "User",
+          actor_id: index === 0 ? 202 : 43177418,
+          bypass_mode: "always",
+        },
+      ],
+    },
+    {
+      id: index * 2 + 2,
+      enforcement: "active",
+      conditions: { ref_name: { include: [`refs/heads/${branch}`], exclude: [] } },
+      rules: ["creation", "deletion", "non_fast_forward"].map((type) => ({ type })),
+      bypass_actors: [],
+    },
+  ]);
+  const inventory = {
+    rulesets,
+    branches: names.map((branch, index) => ({
+      branch,
+      effective_rules: [
+        { type: "update", ruleset_id: index * 2 + 1 },
+        ...["creation", "deletion", "non_fast_forward"].map((type) => ({
+          type,
+          ruleset_id: index * 2 + 2,
+        })),
+      ],
+    })),
+  };
+  const canonical = (value: unknown): string =>
+    Array.isArray(value)
+      ? `[${value.map(canonical).join(",")}]`
+      : value !== null && typeof value === "object"
+        ? `{${Object.keys(value)
+            .sort()
+            .map(
+              (key) =>
+                `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`,
+            )
+            .join(",")}}`
+        : JSON.stringify(value);
+  const make = () => ({
+    schema_version: 1,
+    repository_id: 1354613114,
+    observed_at: new Date().toISOString(),
+    coverage: "current-repository-input-branches-only",
+    inventory,
+    inventory_sha256: createHash("sha256").update(canonical(inventory)).digest("hex"),
+  });
+  assert.equal(
+    requireReleaseInputWriterPolicy(make(), 202).authorization,
+    "input-writer-policy-only",
+  );
+  assert.throws(() => requireReleaseInputWriterPolicy(make(), 203));
+  assert.throws(() =>
+    requireReleaseInputWriterPolicy(
+      { ...make(), observed_at: new Date(Date.now() - 60001).toISOString() },
+      202,
+    ),
+  );
+  rulesets[0]!.bypass_actors[0]!.actor_id = 15368;
+  assert.throws(() => requireReleaseInputWriterPolicy(make(), 202));
+});
+
+void test("held CLI source admission runs without installed dependencies and refuses before credential operations", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-input-admission-"));
+  await mkdir(path.join(root, "scripts"));
+  await mkdir(path.join(root, ".github/workflows"), { recursive: true });
+  for (const file of [
+    "release-reviewed-inputs.mts",
+    "assembler-job-identity.mts",
+    "production-controller-admission.mts",
+    "github-api.mts",
+    "runtime-values.mts",
+    "release-coordinator-errors.mts",
+    "release-input-protections.mts",
+  ])
+    await copyFile(new URL(file, import.meta.url), path.join(root, "scripts", file));
+  const workflow = Buffer.from("fixed inert source fixture\n");
+  await writeFile(path.join(root, ".github/workflows/release-reviewed-inputs.yml"), workflow);
+  const ref = "refs/tags/portcove-production-controller-fixture";
+  const policy = {
+    schema_version: 1,
+    mode: "admission-only",
+    execution_ref: ref,
+    revision: source,
+    workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+    actor_id: "43177418",
+  };
+  const env = {
+    ...process.env,
+    GH_TOKEN: undefined,
+    GITHUB_TOKEN: undefined,
+    PORTCOVE_CONTROL_APP_TOKEN: undefined,
+    GITHUB_ACTIONS: "true",
+    GITHUB_SERVER_URL: "https://github.com",
+    GITHUB_API_URL: "https://api.github.com",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_REPOSITORY_ID: "1354613114",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    GITHUB_REF: ref,
+    GITHUB_REF_TYPE: "tag",
+    GITHUB_REF_PROTECTED: "true",
+    GITHUB_SHA: source,
+    GITHUB_WORKFLOW_SHA: source,
+    GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/release-reviewed-inputs.yml@${ref}`,
+    GITHUB_ACTOR: "boburning",
+    GITHUB_ACTOR_ID: "43177418",
+    GITHUB_TRIGGERING_ACTOR: "boburning",
+    GITHUB_RUN_ID: "9988",
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_JOB: "admission",
+    RUNNER_ENVIRONMENT: "github-hosted",
+    PORTCOVE_CONTROLLER_REVISION: source,
+    PORTCOVE_CONTROLLER_REF: ref,
+    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify(policy),
+    RUNNER_TEMP: root,
+  };
+  const result: unknown = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [path.join(root, "scripts/release-reviewed-inputs.mts"), "admission"],
+      { env, encoding: "utf8" },
+    ),
+  );
+  assert.ok(result);
+  assert.throws(() =>
+    execFileSync(
+      process.execPath,
+      [path.join(root, "scripts/release-reviewed-inputs.mts"), "persist"],
+      { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    ),
+  );
+  assert.match(
+    await readFile(path.join(root, "release-reviewed-inputs-persist.jsonl"), "utf8"),
+    /"status":"refused"/,
+  );
+});
+
+void test("protection expiry during source acquisition refuses immediately before CAS with zero mutations", () => {
+  const f = fixture();
+  const deadline = Date.now() + 1;
+  let clock = deadline - 1;
+  const api = {
+    ...f.api,
+    request: (...args: Parameters<typeof f.api.request>) => {
+      clock = deadline + 1;
+      return f.api.request(...args);
+    },
+  };
+  assert.throws(
+    () =>
+      persistReviewedClassification(api, config, opportunity, 303, () => {
+        if (clock > deadline) throw new Error("protection observation expired");
+      }),
+    /expired/,
+  );
+  assert.equal(f.mutations(), 0);
+});

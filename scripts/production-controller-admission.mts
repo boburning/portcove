@@ -17,7 +17,8 @@ function refuse(reason: string): never {
  * candidate input. Matching it is a source admission check, not a platform
  * enforcement proof, credential grant, or accepted candidate descriptor.
  */
-export function admitProductionController(
+function admitController(
+  workflow: string,
   rawPolicy: string | undefined,
   environment: NodeJS.ProcessEnv,
   workflowBytes: Uint8Array,
@@ -62,8 +63,7 @@ export function admitProductionController(
     environment.GITHUB_REF_PROTECTED !== "true" ||
     environment.GITHUB_SHA !== policy.revision ||
     environment.GITHUB_WORKFLOW_SHA !== policy.revision ||
-    environment.GITHUB_WORKFLOW_REF !==
-      `${repository}/${productionControllerWorkflow}@${policy.execution_ref}` ||
+    environment.GITHUB_WORKFLOW_REF !== `${repository}/${workflow}@${policy.execution_ref}` ||
     environment.PORTCOVE_CONTROLLER_REVISION !== policy.revision ||
     environment.PORTCOVE_CONTROLLER_REF !== policy.execution_ref
   )
@@ -89,7 +89,7 @@ export function admitProductionController(
     mode: "admission-only",
     repository_id: repositoryId,
     repository,
-    workflow: productionControllerWorkflow,
+    workflow,
     revision: policy.revision,
     execution_ref: policy.execution_ref,
     workflow_sha256: policy.workflow_sha256,
@@ -99,6 +99,26 @@ export function admitProductionController(
     qualification:
       "Source admission only; no candidate acceptance, platform reachability, execution, signing or publication authority",
   };
+}
+
+export function admitProductionController(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+) {
+  return admitController(productionControllerWorkflow, rawPolicy, environment, workflowBytes);
+}
+export function admitReviewedInputsController(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+) {
+  return admitController(
+    ".github/workflows/release-reviewed-inputs.yml",
+    rawPolicy,
+    environment,
+    workflowBytes,
+  );
 }
 
 async function main() {
