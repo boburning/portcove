@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm, readdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -13,7 +13,9 @@ import {
   recoverReleaseOpportunity,
   coordinatorStateRef,
   exportCoordinatorCheckpoint,
+  importCoordinatorCheckpoint,
 } from "./release-coordinator-state.mts";
+import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
 import {
   publishCoordinatorCheckpoint,
   CoordinatorRemoteError,
@@ -23,6 +25,306 @@ import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 
 const execute = promisify(execFile);
 const moduleUrl = new URL("./release-coordinator-state.mts", import.meta.url).href;
+
+async function recoveryFixture(t: test.TestContext, signed = false) {
+  const local = await fixture(t, signed);
+  const saved = await checkpointReleaseOpportunity(
+    local.repository,
+    local.initial.checkpoint,
+    local.input,
+  );
+  const parent = await mkdtemp(path.join(os.tmpdir(), "portcove-recovery-parent-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const refs = new Map([
+    ["refs/heads/portcove-fixture-coordinator-state", saved.checkpoint],
+    [
+      `refs/tags/portcove-fixture-prepared/v${local.prepared.version}`,
+      local.prepared.prepared_commit,
+    ],
+    [
+      `refs/tags/portcove-fixture-prepared-source/${local.input.opportunity.source_commit}`,
+      local.prepared.prepared_commit,
+    ],
+  ]);
+  const faults = { value: "" };
+  let reads = 0;
+  let refReads = 0;
+  const transport = {
+    cwd: parent,
+    spawn: (
+      command: string,
+      rawArgs: readonly string[],
+      options: import("node:child_process").SpawnSyncOptionsWithStringEncoding,
+    ) => {
+      assert.deepEqual(rawArgs.slice(-2), ["--hostname", "github.com"]);
+      const args = rawArgs.slice(0, -2);
+      assert.equal(command, "gh");
+      assert.equal(options.maxBuffer, 256 * 1024);
+      assert.equal(options.timeout, 15_000);
+      if (faults.value === "overflow")
+        return {
+          status: null,
+          stdout: "",
+          stderr: "",
+          error: Object.assign(new Error("fixture collection overflow"), { code: "ENOBUFS" }),
+        };
+      reads++;
+      const endpoint = args[2]!;
+      let body: unknown;
+      if (args[1] === "graphql") {
+        assert.deepEqual(args, ["api", "graphql", "--include", "--input", "-"]);
+        const input = JSON.parse(options.input as string) as {
+          variables: { id: string; ref: string };
+        };
+        assert.equal(input.variables.id, "R_fixture");
+        const ref = input.variables.ref;
+        refReads++;
+        const prefix = ref.startsWith("refs/heads/") ? "refs/heads/" : "refs/tags/";
+        body = {
+          data: {
+            node: {
+              __typename: "Repository",
+              id: "R_fixture",
+              databaseId: faults.value === "repository" && refReads > 1 ? 1 : 1354613114,
+              nameWithOwner: "boburning/portcove",
+              ref: {
+                name: ref.slice(prefix.length),
+                prefix,
+                target: {
+                  __typename: "Commit",
+                  oid: faults.value === "changed" && refReads > 4 ? "9".repeat(40) : refs.get(ref),
+                },
+              },
+            },
+          },
+        };
+      } else if (endpoint === "repos/boburning/portcove")
+        body = { id: 1354613114, full_name: "boburning/portcove", node_id: "R_fixture" };
+      else {
+        assert.deepEqual(args.slice(-2), ["--method", "GET"]);
+        assert.equal(options.input, undefined);
+        const id = endpoint.split("/").at(-1)!;
+        if (endpoint.includes("/git/commits/")) {
+          const raw = execFileSync("git", ["-C", local.repository, "cat-file", "commit", id], {
+            encoding: "utf8",
+            windowsHide: true,
+          });
+          const boundary = raw.indexOf("\n\n");
+          const header = raw.slice(0, boundary);
+          const field = (name: string) =>
+            header
+              .split("\n")
+              .find((line) => line.startsWith(`${name} `))!
+              .slice(name.length + 1);
+          const actor = (name: string) => {
+            const match = /^(.*) <(.*)> (\d+) [+-]\d{4}$/u.exec(field(name))!;
+            return {
+              name: match[1],
+              email: match[2],
+              date: new Date(Number(match[3]) * 1000).toISOString().replace(".000Z", "Z"),
+            };
+          };
+          const signatureStart = header.indexOf("\ngpgsig ");
+          const signature =
+            signatureStart < 0
+              ? null
+              : `${header.slice(signatureStart + 8).replaceAll("\n ", "\n")}\n`;
+          const payload =
+            signatureStart < 0 ? null : `${header.slice(0, signatureStart)}${raw.slice(boundary)}`;
+          body = {
+            sha: id,
+            tree: { sha: field("tree") },
+            parents: header
+              .split("\n")
+              .filter((line) => line.startsWith("parent "))
+              .map((line) => ({ sha: line.slice(7) })),
+            author: actor("author"),
+            committer: actor("committer"),
+            message: faults.value === "message" ? "substitution" : raw.slice(boundary + 2),
+            verification: { signature, payload },
+          };
+        } else if (endpoint.includes("/git/trees/")) {
+          const entry = local
+            .git("ls-tree", id)
+            .match(/^100644 blob ([a-f0-9]{40})\tstate.json$/u)!;
+          body = {
+            sha: id,
+            truncated: faults.value === "truncated",
+            tree: [{ path: "state.json", mode: "100644", type: "blob", sha: entry[1] }],
+          };
+        } else {
+          assert.ok(endpoint.includes("/git/blobs/"));
+          const bytes = execFileSync("git", ["-C", local.repository, "cat-file", "blob", id], {
+            windowsHide: true,
+          });
+          body = {
+            sha: id,
+            encoding: "base64",
+            size: faults.value === "size" ? 65537 : bytes.length,
+            content: bytes.toString("base64"),
+          };
+        }
+      }
+      return {
+        status: 0,
+        stdout: `HTTP/2.0 200 Fixture\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
+        stderr: "",
+      };
+    },
+  };
+  return { ...local, saved, parent, refs, faults, transport, reads: () => reads };
+}
+
+void test("bounded API recovery restores exact checkpoint and receipts without application files or history", async (t) => {
+  for (const signed of [false, true]) {
+    const f = await recoveryFixture(t, signed);
+    const result = await recoverRemoteCoordinator(
+      f.parent,
+      { schema_version: 1, namespace: "portcove-fixture" },
+      { transport: f.transport },
+    );
+    assert.equal(result.checkpoint, f.saved.checkpoint);
+    assert.deepEqual(result.input, f.input);
+    assert.equal(result.readiness, "recovery-only");
+    assert.equal(result.complete_allocation_history, false);
+    assert.equal(result.application_checkout_available, false);
+    assert.equal(result.requests, 16);
+    assert.equal(f.reads(), 16);
+    const git = (...args: string[]) =>
+      execFileSync("git", ["-C", result.repository, ...args], {
+        encoding: "utf8",
+        windowsHide: true,
+        stdio: ["ignore", "pipe", "pipe"],
+      }).trim();
+    assert.equal(git("rev-parse", coordinatorStateRef), f.saved.checkpoint);
+    for (const ref of f.prepared.allocation_refs)
+      assert.equal(git("rev-parse", ref), f.prepared.prepared_commit);
+    assert.throws(() => git("cat-file", "-e", f.input.opportunity.source_tree));
+    assert.throws(() => git("cat-file", "-e", `${f.input.opportunity.source_commit}:Cargo.toml`));
+    const exported = await exportCoordinatorCheckpoint(result.repository, result.checkpoint);
+    assert.equal(exported.required_commits.length, 2);
+    assert.deepEqual(
+      (await recoverReleaseOpportunity(result.repository, result.checkpoint)).input,
+      f.input,
+    );
+  }
+});
+
+void test("sparse recovery uses raw parent headers when older checkpoint history is absent", async (t) => {
+  const f = await recoveryFixture(t);
+  const next = structuredClone(f.input);
+  next.active_candidate!.phase = "qualifying";
+  const saved = await checkpointReleaseOpportunity(f.repository, f.saved.checkpoint, next);
+  f.refs.set("refs/heads/portcove-fixture-coordinator-state", saved.checkpoint);
+  const result = await recoverRemoteCoordinator(
+    f.parent,
+    { schema_version: 1, namespace: "portcove-fixture" },
+    { transport: f.transport },
+  );
+  assert.equal(result.previous, f.saved.checkpoint);
+  assert.ok(isRecord(result.input.active_candidate));
+  assert.equal(result.input.active_candidate.phase, "qualifying");
+  assert.throws(() =>
+    execFileSync("git", ["-C", result.repository, "cat-file", "-e", f.initial.checkpoint], {
+      windowsHide: true,
+      stdio: "pipe",
+    }),
+  );
+  await writeFile(path.join(result.repository, "shallow"), `${f.prepared.prepared_commit}\n`);
+  assert.equal(
+    (await exportCoordinatorCheckpoint(result.repository, result.checkpoint)).required_commits[1]!
+      .parent,
+    f.input.opportunity.source_commit,
+  );
+});
+
+void test("recovery refuses unavailable transport, changed snapshots and malformed objects before creating a repository", async (t) => {
+  const f = await recoveryFixture(t);
+  const config = { schema_version: 1, namespace: "portcove-fixture" };
+  await assert.rejects(recoverRemoteCoordinator(f.parent, config), /unconfigured/u);
+  assert.equal(f.reads(), 0);
+  await assert.rejects(
+    recoverRemoteCoordinator(
+      f.parent,
+      { ...config, namespace: "main" },
+      { transport: f.transport },
+    ),
+    /configuration/u,
+  );
+  assert.equal(f.reads(), 0);
+  for (const fault of ["message", "truncated", "size", "changed", "repository", "overflow"]) {
+    f.faults.value = fault;
+    await assert.rejects(recoverRemoteCoordinator(f.parent, config, { transport: f.transport }));
+    assert.deepEqual(await readdir(f.parent), []);
+  }
+});
+
+void test("shared journal refusal retains an identified partial repository with no installed refs", async (t) => {
+  const f = await recoveryFixture(t);
+  const run = (args: string[], input?: string) =>
+    execFileSync("git", ["-C", f.repository, ...args], {
+      input,
+      encoding: "utf8",
+      windowsHide: true,
+    });
+  const raw = run(["cat-file", "commit", f.saved.checkpoint]);
+  const state = JSON.parse(run(["cat-file", "blob", `${f.saved.checkpoint}:state.json`])) as Record<
+    string,
+    unknown
+  >;
+  state.schema_version = 2;
+  const blob = run(["hash-object", "-w", "--stdin"], JSON.stringify(state)).trim();
+  const tree = run(["mktree"], `100644 blob ${blob}\tstate.json\n`).trim();
+  const invalid = run(
+    ["hash-object", "-w", "-t", "commit", "--stdin"],
+    raw.replace(/^tree [a-f0-9]{40}/u, `tree ${tree}`),
+  ).trim();
+  f.refs.set("refs/heads/portcove-fixture-coordinator-state", invalid);
+  await assert.rejects(
+    recoverRemoteCoordinator(
+      f.parent,
+      { schema_version: 1, namespace: "portcove-fixture" },
+      { transport: f.transport },
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof CoordinatorRemoteError);
+      assert.ok(isRecord(error.evidence));
+      assert.equal(error.evidence.phase, "validate-and-import");
+      assert.equal(error.evidence.checkpoint, invalid);
+      assert.equal(typeof error.evidence.repository, "string");
+      const restored = error.evidence.repository as string;
+      assert.equal(path.dirname(restored), f.parent);
+      assert.equal(
+        execFileSync("git", ["-C", restored, "for-each-ref"], {
+          encoding: "utf8",
+          windowsHide: true,
+        }),
+        "",
+      );
+      return true;
+    },
+  );
+  assert.equal((await readdir(f.parent)).length, 1);
+});
+
+void test("inert import refuses forged bytes and leaves existing refs intact", async (t) => {
+  const f = await recoveryFixture(t);
+  const bytes = Buffer.from("independently expected bytes");
+  const object = { kind: "blob" as const, oid: gitObject("blob", bytes), bytes };
+  await assert.rejects(
+    importCoordinatorCheckpoint(f.repository, f.saved.checkpoint, [object, object, object]),
+    /duplicate/u,
+  );
+  await assert.rejects(
+    importCoordinatorCheckpoint(f.repository, f.saved.checkpoint, [
+      object,
+      { ...object, bytes: Buffer.from("changed") },
+      object,
+    ]),
+    /identity/u,
+  );
+  assert.equal(f.git("rev-parse", coordinatorStateRef), f.saved.checkpoint);
+});
 
 function gitObject(kind: string, bytes: Buffer) {
   return createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest("hex");
@@ -192,13 +494,18 @@ async function remoteFixture(t: test.TestContext) {
   };
 }
 
-async function fixture(t: test.TestContext) {
+async function fixture(t: test.TestContext, signed = false) {
   const repository = await mkdtemp(path.join(os.tmpdir(), "portcove-coordinator-state-"));
   t.after(() => rm(repository, { recursive: true, force: true }));
   const git = (...args: string[]) =>
     execFileSync("git", ["-C", repository, ...args], {
       encoding: "utf8",
       windowsHide: true,
+      env: {
+        ...process.env,
+        GIT_AUTHOR_DATE: "2026-09-14T12:00:00Z",
+        GIT_COMMITTER_DATE: "2026-09-14T12:00:00Z",
+      },
     }).trim();
   git("init", "-q");
   git("config", "user.name", "Coordinator fixture");
@@ -217,6 +524,22 @@ async function fixture(t: test.TestContext) {
   }
   git("add", ".");
   git("commit", "-qm", "independent source fixture");
+  if (signed) {
+    const original = execFileSync("git", ["-C", repository, "cat-file", "commit", "HEAD"], {
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    const boundary = original.indexOf("\n\n");
+    // Deliberately non-authentic fixture signature: this tests raw Git byte
+    // reproduction, never a publisher signature or production authority.
+    const signedBytes = `${original.slice(0, boundary)}\ngpgsig -----BEGIN PGP SIGNATURE-----\n fixture-only\n -----END PGP SIGNATURE-----${original.slice(boundary)}`;
+    const signedOid = execFileSync(
+      "git",
+      ["-C", repository, "hash-object", "-w", "-t", "commit", "--stdin"],
+      { input: signedBytes, encoding: "utf8", windowsHide: true },
+    ).trim();
+    git("update-ref", "HEAD", signedOid);
+  }
   const source = git("rev-parse", "HEAD");
   const tree = git("rev-parse", "HEAD^{tree}");
   const classification = {

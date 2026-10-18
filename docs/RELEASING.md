@@ -535,6 +535,48 @@ requires platform proof of exact object reproduction, existing tag receipt
 verification with unchanged OIDs, principal/ref enforcement and recovery. This
 transport supplies neither authentic producer facts nor signing/feed authority.
 
+### Bounded remote checkpoint recovery
+
+`recoverRemoteCoordinator(parentDirectory, configuration, { transport })` in
+`scripts/release-coordinator-recovery.mts` reads the existing checkpoint through
+an explicitly configured transport. It pins `github.com`, repository numeric
+and node identities, and exact qualified refs. Ref snapshots use that immutable
+repository node; object reads reproduce the exact Git hashes obtained from it.
+No production namespace, credentials, CLI or workflow is configured by this seam.
+
+Recovery collects only the current and immediate previous checkpoint commits,
+their one-file trees and bounded canonical `state.json` blobs, plus the active
+source/prepared commit bytes. It performs no Git fetch, pack import, checkout,
+application-file download or candidate execution. REST commit fields omit raw
+headers, so reconstruction is accepted only when the resulting complete object
+hash equals the expected identity. Supported unsigned commits use canonical UTC
+timestamps; signed commits additionally require the complete matching payload
+and signature with reproducible header folding. Unsupported forms refuse rather
+than guessing. Reproducing a signed object's bytes does not authenticate its
+signer or grant publication authority.
+
+The transport bounds each response before parsing to 256 KiB and 15 seconds.
+Collection has at most 20 requests and a cooperative 120-second deadline; one
+in-flight bounded call may finish after it. Two complete state/paired-receipt
+observations must agree after object collection. Changed, incomplete or missing
+observations refuse before creating a local repository.
+
+Only then does recovery create a fresh bare directory under the caller-owned
+parent. Shared journal validation checks canonical bytes, the preceding
+transition and raw preparation intent before one transaction creates the state
+and paired local receipt refs from zero. Import accepts at most 16 verified
+objects, 128 KiB each and 1 MiB total. Hooks and lazy retrieval are disabled.
+Failures retain the owned directory and identify its path, checkpoint and phase.
+
+The result is explicitly `recovery-only`: older checkpoint history, application
+trees/files and complete historical allocation receipts are unavailable. It can
+recover and export this exact snapshot; it is not a source checkout or a new
+allocation permission. Later allocation still requires complete independently
+authenticated inventory and the existing remote CAS/collision checks. Remote
+state may advance after the observations; any later mutation must supply its
+exact preimage. Fake-provider tests prove this sparse recovery contract, not
+protected GitHub execution, principal enforcement or production recovery.
+
 ### Read-only release-run evidence
 
 `node scripts/release-run-evidence.mts REQUEST.json` collects bounded read-only

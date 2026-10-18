@@ -56,7 +56,7 @@ function gitRepository(repository: string) {
     "-c",
     "core.filesRefLockTimeout=1000",
   ];
-  const read = (args: readonly string[], input?: string, preserveBytes = false) => {
+  const read = (args: readonly string[], input?: string | Uint8Array, preserveBytes = false) => {
     const bytes = execFileSync("git", [...base, ...args], {
       input,
       timeout: 30_000,
@@ -321,16 +321,27 @@ function preparationVerifies(git: Git, input: Record<string, unknown>) {
   identity(prepared);
   if (
     git(["cat-file", "-t", source]) !== "commit" ||
-    git(["cat-file", "-t", prepared]) !== "commit" ||
-    git(["show", "-s", "--format=%P", prepared]) !== source
+    git(["cat-file", "-t", prepared]) !== "commit"
   )
     throw new Error("preparation requires exact commits with the source as its sole parent");
+  const sourceBytes = git(["cat-file", "commit", source], undefined, true);
+  const preparedBytes = git(["cat-file", "commit", prepared], undefined, true);
+  const sourceHeader = sourceBytes.split("\n\n", 1)[0]?.split("\n") ?? [];
+  const boundary = preparedBytes.indexOf("\n\n");
+  const preparedHeader = preparedBytes.slice(0, boundary).split("\n");
   if (
-    git(["rev-parse", "--verify", `${source}^{tree}`]) !== sourceTree ||
-    git(["rev-parse", "--verify", `${prepared}^{tree}`]) !== preparedTree
+    boundary < 0 ||
+    preparedHeader.filter((line) => line.startsWith("parent ")).join("\n") !== `parent ${source}`
+  )
+    throw new Error("preparation requires the raw source as its sole parent");
+  if (
+    sourceHeader.filter((line) => line.startsWith("tree ")).join("\n") !==
+      `tree ${String(sourceTree)}` ||
+    preparedHeader.filter((line) => line.startsWith("tree ")).join("\n") !==
+      `tree ${String(preparedTree)}`
   )
     throw new Error("reserved source or prepared tree disagrees with Git objects");
-  const message = git(["show", "-s", "--format=%B", prepared]);
+  const message = preparedBytes.slice(boundary + 2).trimEnd();
   const prefix = `Prepare application ${String(version)}\n\nPortcove-Preparation-SHA256: ${String(intent)}\n`;
   const payload = message.slice(prefix.length);
   if (!message.startsWith(prefix) || createHash("sha256").update(payload).digest("hex") !== intent)
@@ -409,11 +420,10 @@ function objectIdentity(kind: "blob" | "tree" | "commit", bytes: Uint8Array) {
  * this bare coordinator; bare status alone is not ownership or authorization.
  * This performs no network request, allocation, checkout or code execution.
  */
-export async function exportCoordinatorCheckpoint(repository: string, expected: string) {
-  const git = gitRepository(repository);
+function inspectCheckpoint(git: Git, expected: string) {
   if (git(["rev-parse", "--is-bare-repository"]) !== "true")
     throw new Error("remote checkpoint export requires a caller-owned bare coordinator");
-  const state = await recoverReleaseOpportunity(repository, expected);
+  const state = { checkpoint: expected, ...readCheckpoint(git, expected) };
   const previous = state.previous === null ? null : readCheckpoint(git, state.previous);
   if (previous) transition(previous, state.input);
   else if (active(state.input)) throw new Error("initial checkpoint cannot invent a reservation");
@@ -423,7 +433,6 @@ export async function exportCoordinatorCheckpoint(repository: string, expected: 
   const verifies = selected ? preparationVerifies(git, selected) : [];
   // Completion still retains both allocation receipts. Verify the complete
   // local preimage before exporting any immutable object identities.
-  await git.transaction([`verify ${coordinatorStateRef} ${expected}`, ...verifies]);
   const receipts = verifies.map((command) => {
     const [, name, oid] = command.split(" ");
     identity(oid);
@@ -472,6 +481,7 @@ export async function exportCoordinatorCheckpoint(repository: string, expected: 
     );
   }
   return {
+    verifies,
     schema_version: 1 as const,
     checkpoint: expected,
     previous: state.previous,
@@ -481,4 +491,75 @@ export async function exportCoordinatorCheckpoint(repository: string, expected: 
     receipts,
     required_commits: requiredCommits,
   };
+}
+
+export async function exportCoordinatorCheckpoint(repository: string, expected: string) {
+  const git = gitRepository(repository);
+  const { verifies, ...checkpoint } = inspectCheckpoint(git, expected);
+  await git.transaction([`verify ${coordinatorStateRef} ${expected}`, ...verifies]);
+  return checkpoint;
+}
+
+export interface CoordinatorGitObject {
+  kind: "blob" | "tree" | "commit";
+  oid: string;
+  bytes: Uint8Array;
+}
+
+/** Restore only verified inert objects into a caller-owned fresh bare repository.
+ * No transport, checkout, authority grant or preparation execution is performed.
+ * Missing application blobs/history remain missing; lazy fetching is disabled.
+ */
+export async function importCoordinatorCheckpoint(
+  repository: string,
+  expected: string,
+  objects: unknown,
+) {
+  identity(expected);
+  if (!Array.isArray(objects) || objects.length < 3 || objects.length > 16)
+    throw new Error("checkpoint import object count exceeds its bound");
+  const identities = new Set<string>();
+  const validated: CoordinatorGitObject[] = [];
+  let total = 0;
+  for (const object of objects) {
+    if (
+      !isRecord(object) ||
+      Object.keys(object).sort().join(",") !== "bytes,kind,oid" ||
+      (object.kind !== "blob" && object.kind !== "tree" && object.kind !== "commit") ||
+      !(object.bytes instanceof Uint8Array) ||
+      object.bytes.byteLength < 1 ||
+      object.bytes.byteLength > maximumBytes * 2
+    )
+      throw new Error("checkpoint import object type or bytes exceed its bound");
+    identity(object.oid);
+    total += object.bytes.byteLength;
+    if (
+      total > 1024 * 1024 ||
+      identities.has(object.oid) ||
+      objectIdentity(object.kind, object.bytes) !== object.oid
+    )
+      throw new Error("checkpoint import object identity, duplicate or total byte bound differs");
+    identities.add(object.oid);
+    validated.push({ kind: object.kind, oid: object.oid, bytes: object.bytes });
+  }
+  const git = gitRepository(repository);
+  if (
+    git(["rev-parse", "--is-bare-repository"]) !== "true" ||
+    git(["for-each-ref", "--format=%(refname)"]) !== ""
+  )
+    throw new Error("checkpoint import requires a caller-owned fresh bare repository");
+  for (const kind of ["blob", "tree", "commit"] as const) {
+    for (const object of validated.filter((value) => value.kind === kind)) {
+      if (git(["hash-object", "-w", "-t", kind, "--stdin"], object.bytes) !== object.oid)
+        throw new Error("imported checkpoint object identity differs");
+    }
+  }
+  const checkpoint = inspectCheckpoint(git, expected);
+  const creates = checkpoint.verifies.map((command) => {
+    const [, name, oid] = command.split(" ");
+    if (!name || !oid) throw new Error("incomplete restored preparation receipt");
+    return `update ${name} ${oid} ${zero}`;
+  });
+  await git.transaction([`update ${coordinatorStateRef} ${expected} ${zero}`, ...creates]);
+  return recoverReleaseOpportunity(repository, expected);
 }
