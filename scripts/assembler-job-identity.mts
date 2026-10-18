@@ -1,0 +1,331 @@
+import { createPublicKey, verify } from "node:crypto";
+import { performance } from "node:perf_hooks";
+import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import { isRecord } from "./runtime-values.mts";
+
+const issuer = "https://token.actions.githubusercontent.com";
+const repository = "boburning/portcove";
+const repositoryId = 1354613114;
+const assemblyJobName = "Trusted package assembly";
+type Spawn = NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>;
+
+export interface AssemblerIdentityExpectation {
+  audience: string;
+  subject: string;
+  controller_revision: string;
+  controller_ref: string;
+  actor_id: string;
+  run_id: string;
+  run_attempt: number;
+}
+
+function record(bytes: Buffer): Record<string, unknown> {
+  if (!Buffer.from(bytes.toString("utf8")).equals(bytes)) throw new Error("OIDC text is not UTF-8");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(bytes.toString("utf8"));
+  } catch {
+    throw new Error("OIDC JSON is malformed");
+  }
+  if (!isRecord(parsed)) throw new Error("OIDC JSON is not an object");
+  return parsed;
+}
+
+function decoded(value: string): Buffer {
+  if (!/^[A-Za-z0-9_-]+$/u.test(value)) throw new Error("OIDC encoding is malformed");
+  const result = Buffer.from(value, "base64url");
+  if (result.toString("base64url") !== value) throw new Error("OIDC encoding is noncanonical");
+  return result;
+}
+
+async function providerKeys(): Promise<unknown> {
+  const response = await fetch(`${issuer}/.well-known/jwks`, {
+    redirect: "error",
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (response.status !== 200 || !response.body) throw new Error("OIDC provider keys unavailable");
+  const parts: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of response.body as AsyncIterable<unknown>) {
+    if (!(chunk instanceof Uint8Array)) throw new Error("OIDC key response is not byte data");
+    size += chunk.byteLength;
+    if (size > 128 * 1024) throw new Error("OIDC provider keys exceed their byte bound");
+    parts.push(Buffer.from(chunk));
+  }
+  return record(Buffer.concat(parts));
+}
+
+function expectation(value: unknown): AssemblerIdentityExpectation {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).sort().join(",") !==
+      "actor_id,audience,controller_ref,controller_revision,run_attempt,run_id,subject" ||
+    typeof value.audience !== "string" ||
+    !value.audience ||
+    value.audience.length > 256 ||
+    typeof value.subject !== "string" ||
+    !value.subject ||
+    value.subject.length > 512 ||
+    typeof value.controller_revision !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(value.controller_revision) ||
+    typeof value.controller_ref !== "string" ||
+    !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
+      value.controller_ref,
+    ) ||
+    typeof value.actor_id !== "string" ||
+    !/^[1-9][0-9]{0,15}$/u.test(value.actor_id) ||
+    typeof value.run_id !== "string" ||
+    !/^[1-9][0-9]{0,15}$/u.test(value.run_id) ||
+    typeof value.run_attempt !== "number" ||
+    !Number.isSafeInteger(value.run_attempt) ||
+    value.run_attempt < 1
+  )
+    throw new Error("independently expected assembler identity is incomplete");
+  return {
+    audience: value.audience,
+    subject: value.subject,
+    controller_revision: value.controller_revision,
+    controller_ref: value.controller_ref,
+    actor_id: value.actor_id,
+    run_id: value.run_id,
+    run_attempt: value.run_attempt,
+  };
+}
+
+/** Verify a job token's identity, not which code ran or which artifact it made.
+ * Expectations come from independently ratified controller configuration and
+ * the admitted invocation, never from token contents. No bearer token is saved
+ * or returned. Injected readers explicitly produce fixture-scoped evidence.
+ */
+export async function verifyAssemblerJobIdentity(
+  token: string,
+  rawExpected: unknown,
+  options: { transport?: { cwd: string; spawn?: Spawn }; readKeys?: () => Promise<unknown> } = {},
+) {
+  const expected = expectation(rawExpected);
+  if (!options.transport) throw new Error("assembler identity transport is unconfigured");
+  if (typeof token !== "string" || Buffer.byteLength(token) > 16 * 1024)
+    throw new Error("OIDC token exceeds its byte bound");
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("OIDC token has an invalid form");
+  const header = record(decoded(parts[0]!));
+  const claims = record(decoded(parts[1]!));
+  const signature = decoded(parts[2]!);
+  if (
+    header.alg !== "RS256" ||
+    header.typ !== "JWT" ||
+    typeof header.kid !== "string" ||
+    !header.kid ||
+    header.kid.length > 256 ||
+    Object.keys(header).some((key) => !["alg", "typ", "kid", "x5t", "x5t#S256"].includes(key))
+  )
+    throw new Error("OIDC header or key selection is unsupported");
+  const started = performance.now();
+  const keys = await (options.readKeys ?? providerKeys)();
+  if (!isRecord(keys) || !Array.isArray(keys.keys) || keys.keys.length < 1 || keys.keys.length > 16)
+    throw new Error("OIDC provider key inventory is incomplete or oversized");
+  const matches = keys.keys.filter((key: unknown) => isRecord(key) && key.kid === header.kid);
+  const key: unknown = matches[0];
+  if (
+    matches.length !== 1 ||
+    !isRecord(key) ||
+    key.kty !== "RSA" ||
+    key.alg !== "RS256" ||
+    key.use !== "sig" ||
+    typeof key.n !== "string" ||
+    key.n.length > 1024 ||
+    typeof key.e !== "string" ||
+    key.e.length > 16
+  )
+    throw new Error("OIDC provider signing key is missing or ambiguous");
+  decoded(key.n);
+  decoded(key.e);
+  const publicKey = createPublicKey({ key: { kty: "RSA", n: key.n, e: key.e }, format: "jwk" });
+  const bits = publicKey.asymmetricKeyDetails?.modulusLength;
+  if (
+    typeof bits !== "number" ||
+    bits < 2048 ||
+    bits > 4096 ||
+    !verify("RSA-SHA256", Buffer.from(`${parts[0]}.${parts[1]}`), publicKey, signature)
+  )
+    throw new Error("OIDC signature verification failed");
+  const now = Math.floor(Date.now() / 1000);
+  if (
+    ![claims.exp, claims.nbf, claims.iat].every(
+      (value) => typeof value === "number" && Number.isSafeInteger(value),
+    ) ||
+    typeof claims.exp !== "number" ||
+    typeof claims.nbf !== "number" ||
+    typeof claims.iat !== "number" ||
+    claims.exp <= now ||
+    claims.nbf > now ||
+    claims.iat > now ||
+    claims.exp <= claims.iat ||
+    claims.nbf > claims.exp
+  )
+    throw new Error("OIDC time bounds are invalid or expired");
+  const required: Record<string, string> = {
+    iss: issuer,
+    aud: expected.audience,
+    sub: expected.subject,
+    repository,
+    repository_id: String(repositoryId),
+    actor_id: expected.actor_id,
+    ref: expected.controller_ref,
+    ref_type: "tag",
+    sha: expected.controller_revision,
+    workflow_sha: expected.controller_revision,
+    workflow_ref: `${repository}/${productionControllerWorkflow}@${expected.controller_ref}`,
+    event_name: "workflow_dispatch",
+    runner_environment: "github-hosted",
+    run_id: expected.run_id,
+    run_attempt: String(expected.run_attempt),
+  };
+  if (
+    Object.entries(required).some(([name, value]) => claims[name] !== value) ||
+    Object.hasOwn(claims, "job_workflow_ref") ||
+    Object.hasOwn(claims, "job_workflow_sha") ||
+    typeof claims.check_run_id !== "string" ||
+    !/^[1-9][0-9]{0,15}$/u.test(claims.check_run_id)
+  )
+    throw new Error("signed OIDC claims differ from the expected direct controller job");
+  const expires = claims.exp;
+  const checkRunId = claims.check_run_id;
+  const runner = createGitHubRunner({
+    ...options.transport,
+    maxBuffer: 2 * 1024 * 1024,
+    timeoutMs: 15_000,
+  });
+  const api = new GitHubApiClient((args, input) =>
+    runner([...args, "--hostname", "github.com"], input),
+  );
+  let requests = 0;
+  const get = (suffix: string) => {
+    if (++requests > 20 || performance.now() - started > 120_000 || Date.now() / 1000 >= expires)
+      throw new Error("assembler identity collection deadline exhausted");
+    const reply = api.request("GET", `repos/${repository}${suffix}`);
+    if (
+      reply.status !== 200 ||
+      performance.now() - started > 120_000 ||
+      Date.now() / 1000 >= expires
+    )
+      throw new Error("assembler identity response unavailable, expired or late");
+    return reply.body;
+  };
+  const runPath = `/actions/runs/${expected.run_id}`;
+  const runIdentity = (value: unknown) => {
+    if (
+      !isRecord(value) ||
+      typeof value.id !== "number" ||
+      !Number.isSafeInteger(value.id) ||
+      String(value.id) !== expected.run_id ||
+      value.run_attempt !== expected.run_attempt ||
+      value.head_sha !== expected.controller_revision ||
+      (value.path !== productionControllerWorkflow &&
+        value.path !== `${productionControllerWorkflow}@${expected.controller_ref}`) ||
+      value.event !== "workflow_dispatch" ||
+      value.status !== "in_progress" ||
+      !isRecord(value.repository) ||
+      value.repository.id !== repositoryId ||
+      value.repository.full_name !== repository ||
+      !isRecord(value.head_repository) ||
+      value.head_repository.id !== repositoryId
+    )
+      throw new Error("assembler run identity differs");
+    return {
+      id: value.id,
+      attempt: value.run_attempt,
+      sha: value.head_sha,
+      path: value.path,
+      event: value.event,
+      status: value.status,
+    };
+  };
+  const before = runIdentity(get(runPath));
+  const jobs: Record<string, unknown>[] = [];
+  let total: number | null = null;
+  for (let page = 1; page <= 16; page++) {
+    const value = get(`${runPath}/attempts/${expected.run_attempt}/jobs?per_page=100&page=${page}`);
+    if (
+      !isRecord(value) ||
+      typeof value.total_count !== "number" ||
+      !Number.isSafeInteger(value.total_count) ||
+      value.total_count < 1 ||
+      value.total_count > 1600 ||
+      (total !== null && total !== value.total_count) ||
+      !Array.isArray(value.jobs) ||
+      value.jobs.length > 100
+    )
+      throw new Error("assembler attempt job inventory is incomplete");
+    total = value.total_count;
+    for (const job of value.jobs) {
+      if (
+        !isRecord(job) ||
+        typeof job.id !== "number" ||
+        !Number.isSafeInteger(job.id) ||
+        job.id < 1 ||
+        String(job.run_id) !== expected.run_id ||
+        job.run_attempt !== expected.run_attempt ||
+        job.head_sha !== expected.controller_revision
+      )
+        throw new Error("assembler attempt job identity differs");
+      jobs.push(job);
+    }
+    if (jobs.length === total) break;
+    if (jobs.length > total || value.jobs.length !== 100 || page === 16)
+      throw new Error("assembler attempt job pages are incomplete");
+  }
+  if (new Set(jobs.map((job) => job.id)).size !== jobs.length)
+    throw new Error("duplicate assembler job identity");
+  const matching = jobs.filter(
+    (job) =>
+      job.check_run_url === `https://api.github.com/repos/${repository}/check-runs/${checkRunId}`,
+  );
+  const job = matching[0];
+  if (
+    matching.length !== 1 ||
+    !job ||
+    typeof job.id !== "number" ||
+    job.status !== "in_progress" ||
+    job.name !== assemblyJobName
+  )
+    throw new Error("signed check-run identity does not identify one active trusted assembly job");
+  const refreshed = get(`/actions/jobs/${job.id}`);
+  if (
+    !isRecord(refreshed) ||
+    refreshed.id !== job.id ||
+    String(refreshed.run_id) !== expected.run_id ||
+    refreshed.run_attempt !== expected.run_attempt ||
+    refreshed.head_sha !== expected.controller_revision ||
+    refreshed.check_run_url !== job.check_run_url ||
+    refreshed.name !== assemblyJobName ||
+    refreshed.status !== "in_progress"
+  )
+    throw new Error("selected assembler job changed during collection");
+  const after = runIdentity(get(runPath));
+  if (JSON.stringify(before) !== JSON.stringify(after))
+    throw new Error("assembler run changed during collection");
+  return {
+    schema_version: 1,
+    kind: "oidc-job-identity-only",
+    evidence_scope:
+      options.readKeys || options.transport.spawn ? "injected-provider" : "github.com",
+    repository_id: repositoryId,
+    repository,
+    workflow: productionControllerWorkflow,
+    workflow_revision: expected.controller_revision,
+    execution_ref: expected.controller_ref,
+    actor_id: expected.actor_id,
+    run_id: expected.run_id,
+    run_attempt: expected.run_attempt,
+    job_id: job.id,
+    check_run_id: checkRunId,
+    expires_at: new Date(expires * 1000).toISOString(),
+    api_requests: requests,
+    protection_enforcement: "unproven",
+    code_execution: "unproven",
+    artifact_production: "unproven",
+    authority: "none",
+  };
+}

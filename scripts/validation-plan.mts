@@ -236,6 +236,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/check-release-metadata.mts",
   "scripts/controller-canary.mts",
   "scripts/production-controller-admission.mts",
+  "scripts/assembler-job-identity.mts",
   "scripts/finalize-release-assets.mts",
   "scripts/trusted-release-assembly.mts",
   "scripts/generate-release-downloads.mts",
