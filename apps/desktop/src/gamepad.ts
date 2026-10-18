@@ -94,10 +94,35 @@ function overlapsRow(origin: FocusRect, candidate: FocusRect) {
 }
 
 function directionalGap(origin: FocusRect, candidate: FocusRect, direction: NavigationDirection) {
-  if (direction === "down") return candidate.top - (origin.top + origin.height);
-  if (direction === "up") return origin.top - (candidate.top + candidate.height);
-  if (direction === "right") return candidate.left - (origin.left + origin.width);
-  return origin.left - (candidate.left + candidate.width);
+  const gap =
+    direction === "down"
+      ? candidate.top - (origin.top + origin.height)
+      : direction === "up"
+        ? origin.top - (candidate.top + candidate.height)
+        : direction === "right"
+          ? candidate.left - (origin.left + origin.width)
+          : origin.left - (candidate.left + candidate.width);
+  // A card and its sibling Favorite can have contained hit regions. Edge-only
+  // scoring otherwise makes the smaller control unreachable from every side.
+  const contains = (outer: FocusRect, inner: FocusRect) =>
+    outer.left <= inner.left &&
+    outer.top <= inner.top &&
+    outer.left + outer.width >= inner.left + inner.width &&
+    outer.top + outer.height >= inner.top + inner.height;
+  if (gap < -1 && (contains(origin, candidate) || contains(candidate, origin))) {
+    const a = center(origin);
+    const b = center(candidate);
+    const toward =
+      direction === "down"
+        ? b.y - a.y
+        : direction === "up"
+          ? a.y - b.y
+          : direction === "right"
+            ? b.x - a.x
+            : a.x - b.x;
+    if (toward > 0) return 0;
+  }
+  return gap;
 }
 
 /** Button edges and repeat timing belong to the controller session, not a render. */

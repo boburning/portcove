@@ -96,6 +96,23 @@ describe("gamepad focus movement", () => {
     expect(spatialTargetIndex(rects, 7, "up", groups)).toBe(2);
   });
 
+  it("reaches contained sibling hit regions without admitting partial overlaps or equal centers", () => {
+    const card = { left: 0, top: 0, width: 220, height: 500 };
+    const favorite = { left: 172, top: 452, width: 32, height: 32 };
+    const next = { left: 236, top: 0, width: 220, height: 500 };
+    const rects = [card, favorite, next];
+    expect(spatialTargetIndex(rects, 0, "right")).toBe(1);
+    expect(spatialTargetIndex(rects, 0, "down")).toBe(1);
+    expect(spatialTargetIndex(rects, 1, "left")).toBe(0);
+    expect(spatialTargetIndex(rects, 1, "up")).toBe(0);
+    expect(spatialTargetIndex(rects, 1, "right")).toBe(2);
+    expect(spatialTargetIndex(rects, 0, "up")).toBe(-1);
+    expect(spatialTargetIndex([card, { ...favorite, left: 210 }], 0, "down")).toBe(-1);
+    expect(
+      spatialTargetIndex([card, { left: 100, top: 240, width: 20, height: 20 }], 0, "down"),
+    ).toBe(-1);
+  });
+
   it("reaches GitHub actions before the more closely aligned theme options", () => {
     const rects = [
       { left: 1020, top: 24, width: 180, height: 42 },

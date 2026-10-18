@@ -9335,6 +9335,205 @@ mod tests {
         path
     }
 
+    #[tokio::test]
+    async fn unavailable_artwork_does_not_block_reviewed_install_update_or_supervised_launch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("library");
+        let library = Library::open(&root).unwrap();
+        let first = register_launch_probe(&library, "v1", false);
+        let service = PortcoveService::with_provider(
+            library.clone(),
+            Arc::new(RepublishedReleaseProvider {
+                version: "v1".into(),
+                sha256: first.artifact.sha256.clone(),
+            }),
+        )
+        .unwrap();
+        let png = temporary.path().join("cover.png");
+        image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+            12,
+            24,
+            image::Rgb([24, 80, 160]),
+        ))
+        .save(&png)
+        .unwrap();
+        let selected = service
+            .import_artwork("zelda64-recomp", crate::ArtworkSlot::Cover, &png, 0)
+            .unwrap();
+        let detail_png = temporary.path().join("detail.png");
+        image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+            12,
+            24,
+            image::Rgb([160, 80, 24]),
+        ))
+        .save(&detail_png)
+        .unwrap();
+        let detail_before = service
+            .import_artwork("zelda64-recomp", crate::ArtworkSlot::Detail, &detail_png, 0)
+            .unwrap();
+        assert_ne!(
+            selected.choice.asset_sha256,
+            detail_before.choice.asset_sha256
+        );
+        let original = crate::artwork::original_path(
+            &library,
+            selected.choice.asset_sha256.as_deref().unwrap(),
+        )
+        .unwrap();
+        fs::remove_file(&original).unwrap();
+        let unavailable = service
+            .artwork("zelda64-recomp", crate::ArtworkSlot::Cover)
+            .unwrap();
+        assert_eq!(
+            unavailable.availability,
+            crate::ArtworkAvailability::Unavailable
+        );
+        assert_eq!(unavailable.choice, selected.choice);
+        assert!(
+            service
+                .artwork_thumbnail(
+                    "zelda64-recomp",
+                    crate::ArtworkSlot::Cover,
+                    selected.choice.revision
+                )
+                .is_err()
+        );
+
+        let review = service.plan_game_install("zelda64-recomp").await.unwrap();
+        assert_eq!(review.plan.action, crate::InstallPlanAction::UseStaged);
+        assert_eq!(review.selected_install.as_ref().unwrap().id, first.id);
+        let grant = service
+            .authorize_game_install("zelda64-recomp", &review.plan_sha256)
+            .await
+            .unwrap();
+        let installed = service
+            .apply_game_install("zelda64-recomp", &grant.token, |_| {})
+            .await
+            .unwrap();
+        assert_eq!(installed.id, first.id);
+        assert_eq!(
+            service.status("zelda64-recomp").unwrap().active.unwrap().id,
+            first.id
+        );
+        assert_eq!(
+            service
+                .artwork("zelda64-recomp", crate::ArtworkSlot::Cover)
+                .unwrap()
+                .choice,
+            selected.choice
+        );
+        drop(service);
+
+        let second = register_launch_probe(&library, "v2", false);
+        let service = PortcoveService::with_provider(
+            library.clone(),
+            Arc::new(RepublishedReleaseProvider {
+                version: "v2".into(),
+                sha256: second.artifact.sha256.clone(),
+            }),
+        )
+        .unwrap();
+        let review = service
+            .plan_game_update("zelda64-recomp", true)
+            .await
+            .unwrap();
+        assert_eq!(review.plan.action, crate::InstallPlanAction::UseStaged);
+        assert_eq!(
+            review.assessment.availability,
+            crate::PortActionAvailability::Allowed
+        );
+        let grant = service
+            .authorize_game_update("zelda64-recomp", true, &review.plan_sha256)
+            .await
+            .unwrap();
+        service
+            .apply_game_update("zelda64-recomp", true, &grant.token, |_| {})
+            .await
+            .unwrap();
+        let status = service.status("zelda64-recomp").unwrap();
+        assert_eq!(status.active.unwrap().id, second.id);
+        assert_eq!(status.previous.unwrap().id, first.id);
+        assert_eq!(
+            service
+                .artwork("zelda64-recomp", crate::ArtworkSlot::Cover)
+                .unwrap()
+                .choice,
+            selected.choice
+        );
+
+        let started = temporary.path().join("started");
+        let outcome = service
+            .supervise_launch(
+                "zelda64-recomp",
+                None,
+                &[
+                    started.display().to_string(),
+                    "0".into(),
+                    "saved-without-artwork".into(),
+                    "0".into(),
+                ],
+                LaunchStdio::Null,
+                |_| {},
+            )
+            .unwrap();
+        assert!(outcome.successful);
+        assert_eq!(outcome.exit_code, Some(0));
+        assert!(started.is_file());
+        assert_eq!(
+            fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
+            b"saved-without-artwork"
+        );
+        assert!(library.launch_sessions().unwrap().is_empty());
+        assert_eq!(
+            service
+                .status("zelda64-recomp")
+                .unwrap()
+                .successful_launches,
+            1
+        );
+        let request = library
+            .launch_request(&outcome.session_id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(request.install_id, second.id);
+        assert_eq!(request.install_root, second.path);
+        assert_eq!(request.outcome, Some(LaunchSessionOutcome::Succeeded));
+        assert_eq!(request.exit_code, Some(0));
+        assert!(request.finished_at.is_some());
+        drop(service);
+        drop(library);
+        let reopened = PortcoveService::new(Library::open(&root).unwrap()).unwrap();
+        assert_eq!(
+            reopened
+                .status("zelda64-recomp")
+                .unwrap()
+                .active
+                .unwrap()
+                .id,
+            second.id
+        );
+        let retained = reopened
+            .artwork("zelda64-recomp", crate::ArtworkSlot::Cover)
+            .unwrap();
+        assert_eq!(
+            retained.availability,
+            crate::ArtworkAvailability::Unavailable
+        );
+        assert_eq!(retained.choice, selected.choice);
+        assert_eq!(retained.selection, selected.selection);
+        let detail_after = reopened
+            .artwork("zelda64-recomp", crate::ArtworkSlot::Detail)
+            .unwrap();
+        assert_eq!(
+            detail_after.availability,
+            crate::ArtworkAvailability::Available
+        );
+        assert_eq!(detail_after.choice, detail_before.choice);
+        assert_eq!(detail_after.selection, detail_before.selection);
+        assert!(png.is_file());
+        assert!(detail_png.is_file());
+    }
+
     fn register_launch_probe(library: &Library, version: &str, active: bool) -> InstallRecord {
         let artifact = ArtifactIdentity {
             asset_name: format!("zelda64-recomp-{version}.zip"),

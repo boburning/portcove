@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
+import { act } from "react";
 import { cleanup, render } from "vitest-browser-react/pure";
 import { PortBrowser } from "../components/PortBrowser";
 import { ArtworkProvider } from "../artwork";
@@ -7,6 +8,7 @@ import { desktopApi } from "../api";
 import { artworkState, portDefinition, portStatus } from "../test-fixtures";
 import { install } from "../dev-scenarios/interactive/scenarios";
 import type { PortStatus } from "../types";
+import { useGamepadNavigation } from "../gamepad";
 
 const names = [
   "Ready game",
@@ -35,7 +37,9 @@ const statuses = new Map<string, PortStatus>(
 afterEach(async () => {
   await cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   delete document.documentElement.dataset.theme;
+  delete document.documentElement.dataset.inputMode;
   document.documentElement.style.removeProperty("font-size");
 });
 
@@ -228,5 +232,123 @@ it.each(["library", "catalog"] as const)(
       element: metadata.lastElementChild!,
       path: `../../../../outputs/slice5-cards/expanded-${view}-960-actions.png`,
     });
+  },
+);
+
+function NavigableCards({ view, onSelect }: { view: "library" | "catalog"; onSelect: () => void }) {
+  useGamepadNavigation(() => {});
+  const navigationPorts = ports.slice(0, 4);
+  const ready = new Map(
+    navigationPorts.map((port) => [
+      port.id,
+      {
+        ...portStatus(),
+        port_id: port.id,
+        active: { ...install, port_id: port.id },
+        readiness: { launchable: true, pending_setup: false, blockers: [] },
+      },
+    ]),
+  );
+  return (
+    <main data-focus-region="workspace" style={{ padding: 24, marginInlineStart: 220 }}>
+      <PortBrowser
+        view={view}
+        ports={navigationPorts}
+        statuses={ready}
+        overview={{ installed: 4, ready: 4, needsSetup: 0, staged: 0 }}
+        filter="all"
+        setFilter={() => {}}
+        onSelect={onSelect}
+        onContinue={() => {}}
+        loading={false}
+        favorites={{
+          ids: new Set(),
+          only: false,
+          busy: false,
+          toggle: vi.fn(async () => true),
+          setOnly: vi.fn(),
+          refresh: vi.fn(async () => true),
+          failure: undefined,
+        }}
+      />
+    </main>
+  );
+}
+
+it.each([
+  ["library", 960],
+  ["catalog", 960],
+  ["library", 1280],
+  ["catalog", 1280],
+] as const)(
+  "traverses real %s portrait controls and activates once at %spx",
+  async (view, width) => {
+    await page.viewport(width, 640);
+    const frame = async () => new Promise(requestAnimationFrame);
+    const onSelect = vi.fn();
+    await render(<NavigableCards view={view} onSelect={onSelect} />);
+    await document.fonts.ready;
+    const controls = [...document.querySelectorAll<HTMLElement>(".port-grid button")];
+    expect(controls).toHaveLength(view === "library" ? 16 : 8);
+    const edges = new Map<HTMLElement, Set<HTMLElement>>();
+    // Exercise the real hook and its live geometry. This finite graph proves
+    // reachability without prescribing cosmetic nearest-neighbor preferences.
+    for (const origin of controls) {
+      const targets = new Set<HTMLElement>();
+      for (const key of ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]) {
+        await act(async () => {
+          origin.focus();
+          origin.dispatchEvent(
+            new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+          );
+        });
+        await frame();
+        const target = document.activeElement;
+        if (target instanceof HTMLElement && controls.includes(target)) targets.add(target);
+        if (document.querySelector("[data-portcove-focus-scope]:not([data-closed])")) {
+          await userEvent.keyboard("{Escape}");
+        }
+        await expect
+          .poll(() => document.querySelector("[data-portcove-focus-scope]:not([data-closed])"))
+          .toBeNull();
+      }
+      edges.set(origin, targets);
+    }
+    const reached = new Set<HTMLElement>([controls[0]!]);
+    for (const origin of reached) for (const target of edges.get(origin) ?? []) reached.add(target);
+    expect(reached.size).toBe(controls.length);
+    expect(window.scrollY).toBeGreaterThan(0);
+    const first = document.querySelector<HTMLElement>(
+      view === "library"
+        ? '[aria-label="View details for Ready game"]'
+        : '[data-detail-origin="catalog:card:portrait-0"]',
+    )!;
+    first.focus();
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const buttons = Array.from({ length: 17 }, () => ({
+      pressed: false,
+      touched: false,
+      value: 0,
+    }));
+    vi.spyOn(navigator, "getGamepads").mockImplementation(() => [
+      {
+        id: "Owned injected controller",
+        index: 0,
+        mapping: "standard",
+        axes: [0, 0],
+        buttons,
+      } as unknown as Gamepad,
+    ]);
+    await frame();
+    expect(document.activeElement).toBe(first);
+    buttons[0]!.pressed = true;
+    buttons[0]!.value = 1;
+    await frame();
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    for (let held = 0; held < 30; held++) await frame();
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    buttons[0]!.pressed = false;
+    buttons[0]!.value = 0;
+    await frame();
   },
 );
