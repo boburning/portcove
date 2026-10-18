@@ -28,7 +28,11 @@ type Entry = { mode: string; type: string; oid: string };
  * original compilation, source-selection authority or permission to execute.
  * The supplied reader must bound each response/subprocess before collection.
  */
-export function collectReleaseSourceChanges(reader: GitHubRestReader, rawOpportunity: unknown) {
+export function collectReleaseSourceChanges(
+  reader: GitHubRestReader,
+  rawOpportunity: unknown,
+  options: { readCommitObject?: (oid: string) => Buffer } = {},
+) {
   const opportunity = object(structuredClone(rawOpportunity));
   oid(opportunity.base_commit);
   oid(opportunity.source_commit);
@@ -49,13 +53,18 @@ export function collectReleaseSourceChanges(reader: GitHubRestReader, rawOpportu
     if (response.status !== 200) throw new Error("release source provider unavailable");
     return response;
   };
-  const original = inspectRemoteCommitObject(request(`${base}/git/commits/${source}`).body, source);
+  const inspect = (raw: unknown, id: string) => {
+    checkTime();
+    const result = inspectRemoteCommitObject(raw, id, options.readCommitObject?.(id));
+    checkTime();
+    return result;
+  };
+  const original = inspect(request(`${base}/git/commits/${source}`).body, source);
   if (original.tree !== opportunity.source_tree) throw new Error("release source tree differs");
   const previous =
-    before === source
-      ? original
-      : inspectRemoteCommitObject(request(`${base}/git/commits/${before}`).body, before);
+    before === source ? original : inspect(request(`${base}/git/commits/${before}`).body, before);
   const comparisonPath = `/${base}/compare/${before}...${source}`;
+  const comparisonById = `/repositories/1354613114/compare/${before}...${source}`;
   let baseline: string | null = null;
   const commits = GitHubApiClient.prototype.paginateRest
     .call(
@@ -71,7 +80,7 @@ export function collectReleaseSourceChanges(reader: GitHubRestReader, rawOpportu
             url.username ||
             url.password ||
             url.hash ||
-            url.pathname !== comparisonPath ||
+            ![comparisonPath, comparisonById].includes(url.pathname) ||
             keys.some((key) => !["per_page", "page"].includes(key)) ||
             new Set(keys).size !== keys.length ||
             url.searchParams.get("per_page") !== "100" ||
@@ -126,7 +135,7 @@ export function collectReleaseSourceChanges(reader: GitHubRestReader, rawOpportu
     .map((raw: unknown) => {
       const value = object(raw);
       oid(value.sha);
-      const parsed = inspectRemoteCommitObject(
+      const parsed = inspect(
         { ...object(value.commit), sha: value.sha, parents: value.parents },
         value.sha,
       );
