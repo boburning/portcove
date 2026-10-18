@@ -11,6 +11,259 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Proposed execution boundary
 
+### Bounded unblock proposal — 2026-10-18
+
+This section records recommendations, not appointed authorities or an execution
+grant. Pickup found no commits on remote `main` after
+`c65cb34bc707265c7cd6b1ae12fd490b476da897`. Fresh owner checkpoints retain #254
+Closed/Done and #315, #534 and #246 Open/Blocked/Required. The sixteen delivered
+component receipts remain scoped evidence. No old canary is eligible by reuse.
+
+Read-only provider observations found repository rulesets 22155633 (main),
+22334556 (release tags) and 24845568 (the exhausted controller canary). Main's
+effective rules require the five CI contexts but zero approving reviews. A
+merged PR alone therefore cannot authenticate semantic release classification.
+The proposed new control refs below have no observed protection. Named pause
+and controller variable reads, and the personal-account billing summary read,
+were unavailable; these are coverage gaps, not proof of absence or free capacity.
+The operator account was observed as `boburning`, numeric ID `43177418`.
+
+### Recommended input authorities: decision D1
+
+Use immutable Git input documents in this same repository and the existing raw
+Git-object verification, classification parser and coordinator. These documents
+contain no allocation, retry, publication phase or second journal. The existing
+coordinator remains the only reservation and recovery authority.
+
+| Input                   | Proposed exact location                                                                            | Authorized writer to appoint                                                                                                                                                                                                                             | Reader and interpretation                                                                                                                                                                                                                                                                             |
+| ----------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reviewed classification | `refs/heads/portcove-release-inputs`, path `classification/<source-commit>/<net-tree-sha256>.json` | A dedicated GitHub App named `portcove-release-review`, installed only on repository 1354613114, with contents write and metadata read. Its numeric App/installation IDs must be recorded after owner-approved creation; a display name is insufficient. | Fixed controller's read-only admission job. Read the ref, fetch the exact commit/tree/blob, reconstruct object IDs and pass the complete opportunity to the existing #532/#533 parsers. Require the original source/tree/base and net-tree digest to match #2120 and the retained preparation intent. |
+| Publication pause       | `refs/heads/portcove-release-pause`, path `publication.json`                                       | Existing repository administrator `boburning` (43177418), for rare pause/resume administration, not individual releases. No candidate job or classification App is an authorized pause writer.                                                           | Same fixed reader; exact document `{"schema_version":1,"publication_paused":true}` or explicit `false`. Missing/unknown fields, nonboolean values, unavailable protection, conflicting reads or a pause all HOLD.                                                                                     |
+
+Appointing the review App and configuring these refs/rules is the owner decision.
+Recommendation: no candidate credentials can update either ref. Use active
+creation/update/deletion restrictions and non-fast-forward protection, with only
+the review App allowed to update the classification ref and only the owner
+administrator role allowed to update the pause ref. Verify the complete bypass
+actor sets, actual administrator inventory and effective restrictions before
+accepting inputs. A role that includes additional administrators is not evidence
+of an owner-only boundary. Do not give the generic GitHub Actions App a bypass:
+that would also authorize candidate workflows using the same App identity.
+
+The dedicated App persists already independently reviewed classification; it
+does not introduce a new semantic classifier or infer change kind from filenames,
+green CI or an AI version guess. Its credential may be released only to a fixed,
+separately reviewed writer workflow on its specifically protected ref, with no
+candidate checkout, candidate commands, shared cache or candidate-supplied policy.
+The owner must approve this new writer role and its credential boundary. App
+installation tokens are scoped and short-lived; private App credentials stay
+outside candidate jobs. No App or credential is created by this preparation.
+
+The concrete proposed writer identity is
+`.github/workflows/release-reviewed-inputs.yml` at
+`refs/tags/portcove-production-controller-slice4-review-20261018-r1`, with App
+credential access confined to environment `production-release-classification`
+and that exact tag. This is a proposed workflow/ref/environment, not an existing
+executed producer. Its reviewed source/digest, numeric App/installation identity
+and the authenticated output boundary of the existing non-writing review process
+must be bound before appointment is consumed. The App alone proves persistence,
+not that a semantic review occurred. Approval of D1 enables this dependent writer
+and reader implementation; it is not permission to accept an unidentified review
+producer or run a protected candidate.
+
+Classification documents use the existing whole opportunity fields: source and
+base commits, source tree, complete change-set flag/digest, meaningful/docs-only/
+urgency flags, channel and reviewed classification. Use
+`portcove-release-net-tree-delta-v1` for the digest scope. A complete independent
+review must cover semantic flags and compatibility, not merely the Git digest.
+Record its exact inputs and reviewer evidence with the document; validate known
+fields rather than treating an arbitrary `reviewed:true` as authority. Identical
+input retries reuse the accepted record; changed source/base/tree/digest or policy
+requires new dependent acceptance. Do not expire an otherwise identical frozen
+classification merely because a queued opportunity advanced or a retry took time.
+
+For both refs, acquire current protection and ref identities before and after
+collection. Re-read the pause and authority configuration immediately before
+each protected effect, within 60 seconds, and refuse any drift; never cache a
+resume across jobs. Expiration of this read window requires a fresh read, not
+another personal approval. A pause cannot undo an effect already committed;
+recovery preserves that effect's evidence and blocks further effects. These
+timing and reader rules are proposed adapter behavior, not implemented claims.
+
+[GitHub rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets)
+provide branch/tag restrictions and API-visible enforcement. Their documented
+availability is not proof that the proposed actor sets are installed here.
+Repository variables were rejected as the primary pause source: their values
+and `updated_at` are readable through a separately permissioned API, but the
+current job has no such permission, the record does not identify its writer,
+and a value captured at job start cannot prove a later pre-effect read.
+See the [variables API](https://docs.github.com/en/rest/actions/variables).
+
+### Fresh zero-cost admission: decision D2 and provider capability gap
+
+Use GitHub's own account billing facts, never cache byte totals or candidate
+claims. Proposed usage source:
+`GET /users/boburning/settings/billing/usage/summary?year=<UTC-year>&month=<UTC-month>`.
+Its authenticated response must identify the account and current period; retain
+the exact bounded response, acquisition time and product/SKU coverage. The
+[documented user endpoint](https://docs.github.com/en/rest/billing/usage#get-billing-usage-summary-for-a-user)
+requires a GitHub App **user** access token or fine-grained personal token with
+Plan user permission read. An installation token or ordinary `GITHUB_TOKEN`
+cannot be assumed to supply it. Recommend a separately protected, read-only
+billing reader; no account token enters candidate or package jobs. Establishing
+that credential boundary is D2, not implied by repository write access.
+
+Positive capacity requires all of: standard public runners, current visibility,
+no larger runners or paid fallback, provider-enforced zero paid spending, complete
+current account-wide usage and allowance coverage, and conservative remaining
+artifact/retention headroom for this candidate plus overlapping account use.
+The current proposal remains five job ceilings of 5/25/30/5/20 minutes, seven-day
+retention and existing archive limits; those limits are not a storage reservation.
+Fresh reads must bracket admission and precede every storage-producing effect;
+read age is at most five minutes, with no optimistic reuse across billing periods.
+Missing, stale, partial, inconsistent or inaccessible facts mean
+`free_capacity_available:false` and HOLD in the existing planner.
+
+**Capability limit:** the published budgets REST API manages organization budgets;
+its user scope describes users inside an organization, not the personal
+`boburning` account's Actions budget. Do not invent a personal budget endpoint or
+change repository ownership to obtain one. Usage summaries also do not establish
+the current allowance or hard-stop configuration. The live usage read remained
+unavailable. D2 must include an owner-controlled account-budget/settings readback
+and an executable way to verify the needed invariant; approval alone cannot make
+an unsupported or inaccessible provider read work. Until that exists, no positive
+capacity adapter or protected run is represented as ready. A one-time screenshot
+or declared budget cannot serve as a fresh per-run capacity verdict.
+
+The [billing contract](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
+distinguishes public standard runner use, accrued artifact/Packages storage and
+separate cache allowance. The
+[budget contract](https://docs.github.com/en/billing/concepts/budgets-and-alerts)
+also warns about usage predating a newly created budget. Verify the actual
+account controls; a zero-dollar notification or today's artifact count is
+insufficient. No budget, payment setting or account credential was changed here.
+
+### Exact current payload and staged execution decision
+
+The reviewable implementation payload remains source
+`c65cb34bc707265c7cd6b1ae12fd490b476da897`, tree
+`d11d37cc726f86d0d7c6db422c95da1f95fd7056`:
+
+| Item                                      | Exact proposed or observed identity                                                                                                                                                                                                                                  |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Existing runnable admission-only workflow | `.github/workflows/application-update-production.yml`, 2,254 bytes, SHA-256 `0765f9d51002761abf51108364470096f702abeb419f12cd82cff45ef8e12750`                                                                                                                       |
+| Held aggregate workflow                   | `application-update-production.aggregate.yml` alongside this packet, 12,639 bytes, SHA-256 `bee2037f33ae9a317af0b93a49eede17ddb81298f83d77e12f69bae7c4fd0a35`                                                                                                        |
+| Proposed new full execution ref           | `refs/tags/portcove-production-controller-slice4-aggregate-20261018-r1`                                                                                                                                                                                              |
+| Proposed operator                         | `boburning`, actor `43177418`; first `workflow_dispatch` attempt only                                                                                                                                                                                                |
+| Proposed coordinator namespace            | `portcove-production-slice4-aggregate`                                                                                                                                                                                                                               |
+| Candidate/reservation                     | No currently eligible accepted reservation or complete retained Release artifacts were established. Do not copy the exhausted canary reservation or invent a new version/run. The existing coordinator must allocate once from complete accepted inputs after D1/D2. |
+
+These are exact payload identities, not a final runnable aggregate controller.
+The held file cannot be substituted for the runnable file under the latter's
+digest. D1-selected adapters, D2 capability and executed-producer acceptance are
+unfinished. It would be false to offer an execution grant against today's inert
+workflow as if those changes were included. No protected execution approval is
+requested at this stage. After D1/D2, finish dependent implementation, separate
+review and exact-head CI, then replace this row with the actual final controller
+commit and workflow digest and the real existing-journal candidate/reservation.
+Any subsequent source, permission, digest or boundary change invalidates that
+dependent execution decision and must be reconciled before dispatch.
+
+For that later **aggregate-only** decision, retain the job permission/destination
+table below: contents/actions read for input and verification, own-job OIDC for
+assembly, attestation/OIDC write only for attesting, immutable same-run Actions
+uploads and repository attestations, seven days, no overwrite. A new ref requires
+observed provider protection; the canary ruleset does not cover it by analogy.
+Preflight observes all controls and exact reservation, executes one admitted
+attempt, verifies fresh producer/artifact/bundle identities, then exercises only
+the specifically admitted refusal/interruption/recovery cases. Existing
+first-attempt policy means a retry needs an eligible admission, not a blind rerun.
+
+Assembly/attestation does **not** finish #534. Payload signing, immutable public
+Release publication, application metadata signing, Preview promotion, Pages feed
+publication, snapshot/timestamp finalization and their readback/recovery still
+need their separately scoped permissions, keys and exact destinations. Stable
+promotion remains outside the initial proof. The existing custody section and
+production environments remain required; root/targets custody is manual evidence,
+not supplied by GitHub OIDC or this aggregate's attestation certificate.
+
+### Catalog decision D3 and honest #246 baseline
+
+Recommend the same static host with separate catalog origins:
+`https://boburning.github.io/portcove/catalog/metadata/` and
+`https://boburning.github.io/portcove/catalog/targets/`. These are proposed locations;
+no TLS/content/deployment availability is claimed. No application-update root,
+key, target path or grant is reused. D3 appoints the catalog authority and scoped
+publisher, not an application signer or all-port publisher.
+
+Use the existing fixed-anchor TUF contract: independent catalog root threshold
+2-of-3, separate offline targets, snapshot and timestamp material; terminating
+`official-definitions` delegation exactly `definitions/index.json` and
+`sha256/*.json`; distinct `official-policy` signer exactly
+`policy/official/*.json`; launch-assessment targets use that same existing
+`official-policy` role at `policy/official/<stable-id>.launch.json`, with the
+existing exact bindings and checks. Public key fingerprints, signed root
+bytes, expiry/rotation policy and custody evidence are still absent. Do not
+generate or install a provisional root. D3 enables their preparation through the
+existing process; physical quorum/backup/loss/rotation observations cannot be
+replaced by an approval.
+
+For Gen2, recommend scope `official/gen2recomp-gold`, template `generated-cache`,
+Windows x86-64, repository `UNDERdecoded/Gen2Recomped` (numeric ID 1328250646),
+`github.com` plus `release-assets.githubusercontent.com`, at most one redirect,
+and only the schema-2 managed install/update/prepare/launch set. Verify that
+numeric repository identity against retained and fresh provider records before
+granting it; the proposal is not a signed policy. Use the actual ZIPs, not MSIX
+installation as a substitute for the existing route:
+
+| Release   | Release / ZIP asset       | Bytes / provider SHA-256                                                        |
+| --------- | ------------------------- | ------------------------------------------------------------------------------- |
+| `v0.7.49` | `387619558` / `559511636` | 15,382,734 / `66781ce17aa55c77d1cb21dd0d0f76e465db3ddae862fdf7a1b4b12530e98287` |
+| `v0.7.50` | `387832535` / `560829469` | 15,593,494 / `fed3bd31fd263d14b09316c53f5dcae9592396cd6d3ba38cbbc5c724f0438ffc` |
+
+These exact retained provider observations and static inspections support the
+ordinary artifact and compatible correction legs independently of Chameleon.
+The actual Shipwright scheduled receipt remains observation evidence for its
+own target, not a Gen2 scheduled event or protected publication. Reuse it only
+where target-specific observation is not required; collect the selected target's
+actual configured scheduled observation for final combined proof.
+
+**New-definition constraint:** all three Gen2 stable IDs already occur in the
+96-port compiled catalog at this payload. A first authenticated managed revision
+is not, without an explicit accepted interpretation, a definition absent from
+that client. Preserve those entries. Do not delete them, alias IDs, edit the
+database, inject qualification content or declare the minimum demonstrated.
+Gen2 is ready as an artifact/correction proposal, not a proved complete minimum.
+The strict new-definition leg requires a genuinely absent supported definition
+or an actually existing capable ordinary baseline predating it. Neither was
+established here. No weaker acceptance interpretation is recommended silently.
+
+The ordinary baseline recipe is a release-profile `portcove-cli` build with
+default features, no `qualification-fixtures`, after the authorized public root
+is compiled at `crates/portcove-core/catalog/official-definition-root.json`, and
+before publication of the selected genuinely new definition. Record source/tree,
+Cargo.lock, compiler/target/features, compiled catalog/root hashes, executable
+SHA-256 and size, API/engine capability output, canonical isolated library identity,
+and configuration. Use `catalog definition-authority` review and its exact
+`--apply --expected-plan ... --yes` consent only under that grant. Capture initial
+absence through ordinary Core/CLI state before delivery. Current root bytes are
+literally `null`; no positive capable binary, package hash or initial-absence
+observation can honestly be manufactured from that state. A configured build is
+a new baseline, never a relabelled old executable. Its executable and compiled
+catalog stay fixed through authenticated refresh, real artifact progression and
+safe correction; retain install/staged/previous/source/save/pin and hold readback.
+
+For Chameleon, D3's **separate schema-4 scope** is limited to
+`official/chameleon-twist-jp-recompiled`, template `n64-recomp-portable`, Windows
+x86-64 and repository 803577244, with the same two hosts and redirect bound.
+It requires both `curated_acquisition_checks:1` and `scoped_launch_checks:1`, the
+existing coupled operations, exact definition/index hashes and monotonic policy
+revision. Use the existing prepared release 190757282 / asset 213295268 / commit
+`a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9` and expected archive digest, not a
+blanket publisher grant. Independent provenance review can be completed now;
+protected acceptance and the signed policy remain unset. No reopening of #245,
+new per-artifact owner ritual or inherited compiler/native proof is introduced.
+
 Use the repository's GitHub Actions principal and job-scoped `GITHUB_TOKEN` in
 repository `boburning/portcove`, immutable numeric identity `1354613114`, on
 GitHub-hosted Ubuntu 22.04 runners. A fixed operator numeric actor ID, protected
