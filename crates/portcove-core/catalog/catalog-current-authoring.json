@@ -678,6 +678,44 @@
         "claim": "Pinned v1.22.420 PC Dark Forces engine startup and data use; Windows portable settings/source-selection parser and original GOB/LFD companions are separately reviewed. This source supports format/use compatibility, not an independently published hash allowlist or gameplay result.",
         "immutable_url": "https://github.com/TheForceEngine/TheForceEngine/blob/cc25205cc94c36a396f6f50295772f6ec83069a2/TheForceEngine/TFE_DarkForces/darkForcesMain.cpp",
         "live_url": "https://github.com/TheForceEngine/TheForceEngine/blob/master/TheForceEngine/TFE_DarkForces/darkForcesMain.cpp"
+      },
+      {
+        "id": "sonic-the-hedgehog-2-recomp-0-8-3-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SonicTheHedgehog2Recomp",
+        "authority_ref": "e1451eee49cf2238164e282d0c1a8f79ce8a76aa",
+        "reviewed_at": "2026-10-18",
+        "claim": "Pins selected v0.8.3 original-input compatibility. Exact source identity is independently enforced by Core; package selection is not gameplay or native acceptance.",
+        "immutable_url": "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/e1451eee49cf2238164e282d0c1a8f79ce8a76aa/game/game.toml",
+        "live_url": "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/main/game/game.toml"
+      },
+      {
+        "id": "sonic-the-hedgehog-2-genesis-world-reva-no-intro-byte-identity",
+        "role": "byte_identity",
+        "authority": "libretro/libretro-database No-Intro",
+        "authority_ref": "12c21cf79f1e20eff6ac68b80875816c717d0a7a",
+        "reviewed_at": "2026-10-18",
+        "claim": "Unique full-file 1048576-byte original maps to SHA-1 8bca5dcef1af3e00098666fd892dc1c2a76333f9; ordinary file admission enforces observed SHA-1 without requiring unobserved CRC. Raw big-endian original, unchanged byte-identical copy.",
+        "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat/no-intro/Sega%20-%20Mega%20Drive%20-%20Genesis.dat"
+      },
+      {
+        "id": "sonic-3-and-knuckles-recomp-0-5-3-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/Sonic3AndKnucklesRecomp",
+        "authority_ref": "74e8aeadb5b8b8da7e776beb0d28f915e3efeb85",
+        "reviewed_at": "2026-10-18",
+        "claim": "Pins selected v0.5.3 original-input compatibility. Exact source identity is independently enforced by Core; package selection is not gameplay or native acceptance. Upstream expected CRC is disabled (0u); do not infer upstream CRC enforcement.",
+        "immutable_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/74e8aeadb5b8b8da7e776beb0d28f915e3efeb85/game/sonic3k/sonic3k_spec.c",
+        "live_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/main/game/sonic3k/sonic3k_spec.c"
+      },
+      {
+        "id": "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity",
+        "role": "byte_identity",
+        "authority": "libretro/libretro-database No-Intro",
+        "authority_ref": "12c21cf79f1e20eff6ac68b80875816c717d0a7a",
+        "reviewed_at": "2026-10-18",
+        "claim": "Unique full-file 4194304-byte original maps to SHA-1 cfbf98c36c776677290a872547ac47c53d2761d6; ordinary file admission enforces observed SHA-1 without requiring unobserved CRC. Raw big-endian original, unchanged byte-identical copy.",
+        "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat/no-intro/Sega%20-%20Mega%20Drive%20-%20Genesis.dat"
       }
     ],
     "identities": [
@@ -5940,6 +5978,90 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "sonic-the-hedgehog-2-genesis-world-reva",
+        "label": "Sonic the Hedgehog 2 (World) Rev A raw big-endian Genesis original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "exact-stock",
+            "title": "Sonic the Hedgehog 2",
+            "region": "World",
+            "revision": "Rev A",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-big-endian-bin",
+                "extensions": [
+                  "bin"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "8bca5dcef1af3e00098666fd892dc1c2a76333f9",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "sonic-the-hedgehog-2-recomp-0-8-3-source-contract",
+                  "sonic-the-hedgehog-2-genesis-world-reva-no-intro-byte-identity"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "sonic-the-hedgehog-2-recomp-0-8-3-source-contract",
+              "sonic-the-hedgehog-2-genesis-world-reva-no-intro-byte-identity"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "sonic-3-and-knuckles-genesis-usa-lockon",
+        "label": "Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "exact-stock",
+            "title": "Sonic & Knuckles + Sonic the Hedgehog 3",
+            "region": "USA",
+            "revision": "Lock-On",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-big-endian-bin",
+                "extensions": [
+                  "bin"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "cfbf98c36c776677290a872547ac47c53d2761d6",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "sonic-3-and-knuckles-recomp-0-5-3-source-contract",
+                  "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "sonic-3-and-knuckles-recomp-0-5-3-source-contract",
+              "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -8634,6 +8756,62 @@
           {
             "upstream_ref": "1.22.420",
             "artifact_sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "sonic-the-hedgehog-2-recomp-game-source",
+        "port_id": "sonic-the-hedgehog-2-recomp",
+        "role": "game",
+        "profile_id": "sonic-the-hedgehog-2-genesis-world-reva",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "exact-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "sonic-the-hedgehog-2-recomp-0-8-3-source-contract",
+          "sonic-the-hedgehog-2-genesis-world-reva-no-intro-byte-identity"
+        ],
+        "authority_ref": "e1451eee49cf2238164e282d0c1a8f79ce8a76aa",
+        "reviewed_at": "2026-10-18",
+        "immutable_review_url": "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/e1451eee49cf2238164e282d0c1a8f79ce8a76aa/game/game.toml",
+        "live_review_url": "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/main/game/game.toml",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.8.3",
+            "artifact_sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "sonic-3-and-knuckles-recomp-game-source",
+        "port_id": "sonic-3-and-knuckles-recomp",
+        "role": "game",
+        "profile_id": "sonic-3-and-knuckles-genesis-usa-lockon",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "exact-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "sonic-3-and-knuckles-recomp-0-5-3-source-contract",
+          "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity"
+        ],
+        "authority_ref": "74e8aeadb5b8b8da7e776beb0d28f915e3efeb85",
+        "reviewed_at": "2026-10-18",
+        "immutable_review_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/74e8aeadb5b8b8da7e776beb0d28f915e3efeb85/game/sonic3k/sonic3k_spec.c",
+        "live_review_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/main/game/sonic3k/sonic3k_spec.c",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.5.3",
+            "artifact_sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99"
           }
         ],
         "aliases": [],
@@ -17501,6 +17679,187 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Extract the exact official v1.22.420 Windows package into a fresh local folder outside your Portcove library. Place the reviewed owned PC installed-data member set under GameData/ and register GameData/DARK.GOB as the original source. Prepare portable settings.ini with [Game] game=\"Dark Forces\" and [Dark_Forces] sourcePath=\"GameData/\". Preserve a compatible owned DARKPILO.CFG, or create a deliberately fresh pilot using the reviewed non-overwriting procedure at https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-prepared-windows-2026-10-18.md . Core neither seeds nor imports pilots. A present required pilot skips automatic absent-file imports while observed present; TFE may regenerate a malformed local pilot. Keep the shipped package, GameData and built-in Mods/TFE immutable. Additional mods/editor output require separate qualification. Settings, input mappings, pilot, saves, screenshots and fixed logs remain player-owned; registration-only removal preserves all files. Updates are user-managed; no acquisition, managed maintenance, backup or external deletion is offered. Sequential checks do not freeze external writes or sandbox TFE. Windows registration, revalidation, startup, ordinary close, restart and removal were observed with the exact qualification CLI/private catalog. Gameplay, in-game save/load, visual correctness, audio, controllers and other platforms remain unqualified."
       }
+    },
+    {
+      "id": "sonic-the-hedgehog-2-recomp",
+      "name": "SonicTheHedgehog2Recomp",
+      "summary": "Native Sonic the Hedgehog 2 recompilation with a player-prepared Windows runtime.",
+      "project_url": "https://github.com/mstan/SonicTheHedgehog2Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "mstan/SonicTheHedgehog2Recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "version": "v0.8.3",
+            "archive_name": "SonicTheHedgehog2Recomp-windows-x64-v0.8.3.zip",
+            "archive_size": 7204657,
+            "archive_sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f",
+            "executable": "SonicTheHedgehog2Recomp.exe",
+            "immutable_tree_sha256": "f48f6ca9b1c1068d4438f23cc4c6101ca7a3c134ec497bd59eb21780f833ff0e",
+            "source_argument_extension": null,
+            "mutable_paths": [
+              "settings.ini",
+              "rom-Sonic2.cfg",
+              "dispatch_misses.toml",
+              "dispatch_misses.toml.tmp",
+              "dispatch_misses.prev.toml",
+              "floor_coverage.toml",
+              "floor_coverage.toml.tmp",
+              "floor_coverage.prev.toml",
+              "interior_label_misses.toml",
+              "interior_label_misses.toml.tmp",
+              "interior_label_misses.prev.toml",
+              "floor_unsafe.toml",
+              "floor_unsafe.toml.tmp",
+              "floor_unsafe.prev.toml",
+              "sonic2-party.ini",
+              "sonic2-party.ini.tmp",
+              "native_save_1.bin",
+              "native_save_1.bin.thumb",
+              "native_save_2.bin",
+              "native_save_2.bin.thumb",
+              "native_save_3.bin",
+              "native_save_3.bin.thumb",
+              "native_save_4.bin",
+              "native_save_4.bin.thumb",
+              "native_save_5.bin",
+              "native_save_5.bin.thumb",
+              "native_save_6.bin",
+              "native_save_6.bin.thumb",
+              "native_save_7.bin",
+              "native_save_7.bin.thumb",
+              "native_save_8.bin",
+              "native_save_8.bin.thumb",
+              "native_save_9.bin",
+              "native_save_9.bin.thumb"
+            ]
+          }
+        }
+      },
+      "source_profile": "sonic-the-hedgehog-2-genesis-world-reva",
+      "executable_hints": {
+        "windows-x86-64": [
+          "SonicTheHedgehog2Recomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "sonic-the-hedgehog-2-genesis-world-reva",
+            "label": "Sonic the Hedgehog 2 (World) Rev A raw big-endian Genesis original",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Extract the exact official v0.8.3 Windows ZIP outside the Portcove library. Place a byte-identical copy of the exact original in the package root as game.bin and register game.bin separately; it remains immutable and is passed directly with --no-launcher. Use only the exact World Rev A original. Optional party settings and nine fixed local-state slots are preserved, without operation acceptance. Campaign stores, configurable destinations and PID-named temporary files are outside this route; do not enable campaign modifications. Keep debug.ini and legacy interp_fallbacks.log absent; unknown files refuse verification before launch. Preserve all package licenses and notices. PolyForm Noncommercial terms do not establish ROM rights or redistribution permission. Use short Windows-code-page representable paths. Settings/saves remain player-owned. Updates are user-managed; no acquisition, managed maintenance, backup or external deletion is offered. Sequential checks do not sandbox the runtime or disable inherited developer opt-ins. Windows consent-bound registration, revalidation, two Core-mediated startup/ordinary-close/restart cycles, immutable/original checks and registration-only removal were observed with the recorded qualification CLI/private catalog and named developer opt-ins cleared in the child environment. Gameplay, in-game save/load, optional features, controller/audio/visual correctness and other platforms remain unqualified.",
+        "artwork": {
+          "game_id": 4438,
+          "cover_id": 259939,
+          "image_id": "co5kkj",
+          "image_sha256": "ed88c95469e863e440f5edf598a957211bb6f28a3e7a78fe06fe79bbf84b656f",
+          "game_slug": "sonic-the-hedgehog-2",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "game.bin"
+      ]
+    },
+    {
+      "id": "sonic-3-and-knuckles-recomp",
+      "name": "Sonic3KRecomp",
+      "summary": "Native Sonic & Knuckles + Sonic the Hedgehog 3 recompilation with a player-prepared Windows runtime.",
+      "project_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "mstan/Sonic3AndKnucklesRecomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "version": "v0.5.3",
+            "archive_name": "Sonic3KRecomp-windows-x64-v0.5.3.zip",
+            "archive_size": 16694619,
+            "archive_sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99",
+            "executable": "Sonic3KRecomp.exe",
+            "immutable_tree_sha256": "c25d601197f0abefb362275df0d3248cde2991c09d0358e70390bf18a17b24b1",
+            "source_argument_extension": null,
+            "mutable_paths": [
+              "settings.ini",
+              "rom-Sonic3K.cfg",
+              "game.srm",
+              "dispatch_misses.toml",
+              "floor_coverage.toml",
+              "yield_log_native.log",
+              "floor_unsafe.log",
+              "interior_label_misses.log",
+              "sonic3k-mods.ini",
+              "sonic3k-mods.ini.tmp",
+              "native_save_1.bin",
+              "native_save_2.bin",
+              "native_save_3.bin",
+              "native_save_4.bin",
+              "native_save_5.bin",
+              "native_save_6.bin",
+              "native_save_7.bin",
+              "native_save_8.bin",
+              "native_save_9.bin"
+            ]
+          }
+        }
+      },
+      "source_profile": "sonic-3-and-knuckles-genesis-usa-lockon",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Sonic3KRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "sonic-3-and-knuckles-genesis-usa-lockon",
+            "label": "Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Extract the exact official v0.5.3 Windows ZIP outside the Portcove library. Place a byte-identical copy of the exact original in the package root as game.bin and register game.bin separately; it remains immutable and is passed directly with --no-launcher. Use the combined Sonic3K package only. Upstream validates size but disables its expected ROM CRC, so Core strong source admission and immutable game.bin bind the reviewed original. README says 0.5.2 while exact build-info and release say 0.5.3; preserve both. The fixed game.srm is player-owned SRAM. Optional mod settings and local states are preserved without operation acceptance; extra donor assets remain immutable. Keep debug.ini and legacy interp_fallbacks.log absent; unknown files refuse verification before launch. Preserve all package licenses and notices. PolyForm Noncommercial terms do not establish ROM rights or redistribution permission. Use short Windows-code-page representable paths. Settings/saves remain player-owned. Updates are user-managed; no acquisition, managed maintenance, backup or external deletion is offered. Sequential checks do not sandbox the runtime or disable inherited developer opt-ins. Windows consent-bound registration, revalidation, two Core-mediated startup/ordinary-close/restart cycles, immutable/original checks and registration-only removal were observed with the recorded qualification CLI/private catalog and named developer opt-ins cleared in the child environment. Gameplay, in-game save/load, optional features, controller/audio/visual correctness and other platforms remain unqualified.",
+        "artwork": {
+          "game_id": 11219,
+          "cover_id": 342176,
+          "image_id": "co7c0w",
+          "image_sha256": "b1861fa5813026f582beb11e665cefee8eaa27e8871e154ddc91a22819c7989e",
+          "game_slug": "sonic-the-hedgehog-3-and-knuckles",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "game.bin"
+      ]
     }
   ]
 }
