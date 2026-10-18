@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
+import { collectReleaseSourceChanges } from "./release-source-changes.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import {
   prepareFrozenSemanticInputs,
@@ -66,6 +67,72 @@ function fixture() {
   };
   return { f, opportunity, api };
 }
+
+void test("exact Git bytes recover normalized unsigned offsets without trusting omitted provider headers", () => {
+  const raw = Buffer.from(
+    `tree ${"a".repeat(40)}\nauthor Example <fixture@example.invalid> 1704067200 -0400\ncommitter Example <fixture@example.invalid> 1704067200 -0400\n\nUnsigned offset fixture\n`,
+  );
+  const id = createHash("sha1").update(`commit ${raw.length}\0`).update(raw).digest("hex");
+  const actor = { name: "Example", email: "fixture@example.invalid", date: "2024-01-01T00:00:00Z" };
+  const record = {
+    sha: id,
+    tree: { sha: "a".repeat(40) },
+    parents: [],
+    author: actor,
+    committer: actor,
+    message: "Unsigned offset fixture",
+    verification: { verified: false, reason: "unsigned", payload: null, signature: null },
+  };
+  assert.throws(() => inspectRemoteCommitObject(record, id), /differ/);
+  assert.deepEqual(inspectRemoteCommitObject(record, id, raw).object.bytes, raw);
+  for (const changed of [
+    { ...record, tree: { sha: "b".repeat(40) } },
+    { ...record, author: { ...actor, date: "2024-01-01T00:00:01Z" } },
+    { ...record, message: "changed" },
+  ])
+    assert.throws(() => inspectRemoteCommitObject(changed, id, raw), /disagree/);
+  assert.throws(
+    () =>
+      inspectRemoteCommitObject(record, id, Buffer.from(raw.toString().replace("-0400", "+0000"))),
+    /differ/,
+  );
+  const extra = Buffer.from(raw.toString().replace("\n\n", "\nencoding invented\n\n"));
+  const extraId = createHash("sha1").update(`commit ${extra.length}\0`).update(extra).digest("hex");
+  assert.throws(
+    () => inspectRemoteCommitObject({ ...record, sha: extraId }, extraId, extra),
+    /supported headers/,
+  );
+});
+
+void test("provider numeric repository comparison links retain the exact appointed repository boundary", () => {
+  for (const repositoryId of [1354613114, 1354613115]) {
+    const f = releaseSourceFixture(101),
+      routes: string[] = [];
+    const api = {
+      request(method: string, route: string) {
+        routes.push(route);
+        const mapped = route.replace("/repositories/1354613114/", "/repos/boburning/portcove/");
+        const result = f.api.request(method, mapped);
+        const link = result.headers.get("link");
+        return link
+          ? {
+              ...result,
+              headers: new Map([
+                [
+                  "link",
+                  link.replace("/repos/boburning/portcove/", `/repositories/${repositoryId}/`),
+                ],
+              ]),
+            }
+          : result;
+      },
+    };
+    if (repositoryId === 1354613114) {
+      assert.equal(collectReleaseSourceChanges(api, f.opportunity).commits.length, 101);
+      assert.ok(routes.some((route) => route.includes("/repositories/1354613114/")));
+    } else assert.throws(() => collectReleaseSourceChanges(api, f.opportunity), /escaped/);
+  }
+});
 
 void test("frozen source collection binds actual Git blobs, publication and complete provider delta; caller mutation cannot change expected inputs", async (t) => {
   const { f, opportunity, api } = fixture();

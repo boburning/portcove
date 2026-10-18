@@ -21,6 +21,28 @@ objects, 16 MiB per blob/manifest and 192 MiB aggregate blob framing. Oversize o
 incomplete history refuses. Caller-supplied classification/compatibility evidence
 is review input. It cannot appoint authority or establish acceptance.
 
+Live preparation exposed REST normalization of unsigned actor offsets and a
+terminal message LF. The existing Git verifier now optionally accepts exact local
+commit bytes only after their Git OID, provider tree/ordered parents, actor
+identity/epoch, message and supported headers agree. Raw bytes are never rewritten;
+only the observed single omitted LF is allowed in metadata comparison. Signature
+metadata does not confer authority. A bounded local batch preflights at most 1,600
+commits, 128 KiB each/32 MiB total, without replacements or fetching. Provider
+comparison links may use the observed numeric route for repository 1354613114;
+every other repository, path or pagination escape still refuses.
+
+One actual inert bundle was prepared for source
+`0e0cd308aea7fec52bc78c3e8e50344ce5e504af`, tree
+`598b3daddb6e4df2dc63e1605f933f8a06d2b5f0`, against published alpha.2 release
+384894721 / commit `27328c8a1b30bf92868bcf3cde313f2720c8fd1e`. It covers 1,385
+accumulated commits, both complete snapshots and 1,608 unique blobs / 50,608,461
+bytes. Bundle SHA-256:
+`8b136a032f5eb9fa2ec8a73e9becd9020653f3d2ec8cdb024724e7a3b4df6a37`.
+The classification is explicitly an unaccepted proposal and compatibility evidence
+is Unknown. No runtime was invoked. This frozen preparation predates the verifier
+repairs; a later activation candidate must rebuild and review its exact final
+source, rather than treating this bundle as a grant for subsequent changes.
+
 `release-semantic-runtime.mts` accepts only builder-branded, integrity-checked
 inputs. It copies the complete manifest/files before any await and validates the
 exact object bijection, lengths, SHA-256, Git blob OIDs and snapshot references.

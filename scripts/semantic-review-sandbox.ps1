@@ -29,17 +29,16 @@ foreach($entry in Get-ChildItem -LiteralPath $runPath -Recurse -Force) {
   foreach($rule in @($childAcl.Access | Where-Object { -not $_.IsInherited })) { $childAcl.RemoveAccessRuleSpecific($rule) }
   Set-Acl -LiteralPath $entry.FullName -AclObject $childAcl
 }
-$profile=[PortcoveReviewContainer+Profile]::new()
+$reviewContainer=[PortcoveReviewContainer+Profile]::new()
 $result=$null
 $deleted=$false
 try {
-  $profileSid=[Security.Principal.SecurityIdentifier]::new($profile.Sid)
-  & icacls.exe $runPath /grant "*$($profile.Sid):(RX)" > (Join-Path $runPath 'capture/root-acl.txt')
+  & icacls.exe $runPath /grant "*$($reviewContainer.Sid):(RX)" > (Join-Path $runPath 'capture/root-acl.txt')
   if($LASTEXITCODE -ne 0) { throw 'root traversal ACL failed' }
   foreach($directory in @('runtime','inputs','work')) {
     $directoryPath=Join-Path $runPath $directory
     $rights=if($directory -eq 'work'){'M'}else{'RX'}
-    & icacls.exe $directoryPath /grant "*$($profile.Sid):(OI)(CI)$rights" > (Join-Path $runPath "capture/$directory-acl.txt")
+    & icacls.exe $directoryPath /grant "*$($reviewContainer.Sid):(OI)(CI)$rights" > (Join-Path $runPath "capture/$directory-acl.txt")
     if($LASTEXITCODE -ne 0) { throw 'review directory ACL failed' }
   }
   $workPath=Join-Path $runPath 'work'
@@ -57,10 +56,10 @@ try {
     $timeout=1800000
   }
   $environment=@("SystemRoot=$env:SystemRoot","WINDIR=$env:SystemRoot","TEMP=$workPath","TMP=$workPath","LOCALAPPDATA=$workPath","PATH=$runtime","PORTCOVE_REVIEW_INPUTS=$inputs")
-  $result=[PortcoveReviewContainer]::Run($profile,$executable,[string[]]$arguments,$workPath,(Join-Path $inputs 'instructions.txt'),(Join-Path $runPath 'capture/stdout.jsonl'),(Join-Path $runPath 'capture/stderr.txt'),[string[]]$environment,$timeout)
+  $result=[PortcoveReviewContainer]::Run($reviewContainer,$executable,[string[]]$arguments,$workPath,(Join-Path $inputs 'instructions.txt'),(Join-Path $runPath 'capture/stdout.jsonl'),(Join-Path $runPath 'capture/stderr.txt'),[string[]]$environment,$timeout)
 } finally {
-  try { $profile.Dispose(); $deleted=$true } finally {
-    [ordered]@{schema_version=1;mode=$Mode;profile_name=$profile.Name;expected_sid=$profile.Sid;profile_deleted=$deleted;broker_sid=$identity.Value;process=$result;qualification='OS containment/process evidence only; not semantic acceptance or credential authority'} | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath (Join-Path $runPath 'capture/isolation.json') -Encoding utf8NoBOM
+  try { $reviewContainer.Dispose(); $deleted=$true } finally {
+    [ordered]@{schema_version=1;mode=$Mode;profile_name=$reviewContainer.Name;expected_sid=$reviewContainer.Sid;profile_deleted=$deleted;broker_sid=$identity.Value;process=$result;qualification='OS containment/process evidence only; not semantic acceptance or credential authority'} | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath (Join-Path $runPath 'capture/isolation.json') -Encoding utf8NoBOM
   }
 }
 if(-not $result.TreeEmpty -or $result.ForcedTermination -or $result.ExitCode -ne 0) { throw 'reviewer failed or required forced tree termination; credentials remain withheld' }

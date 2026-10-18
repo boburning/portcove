@@ -27,6 +27,80 @@ function git(root: string, args: string[], input?: Buffer) {
   });
 }
 
+/** REST normalizes unsigned actor offsets. Reuse exact local Git objects, whose
+ * hashes and metadata the existing verifier checks against provider identities.
+ * Batch before collection: no per-commit process loop, fetching or replacement. */
+export function readSemanticSourceChanges(
+  api: GitHubRestReader,
+  root: string,
+  opportunity: unknown,
+) {
+  if (!isRecord(opportunity) || !oid(opportunity.base_commit) || !oid(opportunity.source_commit))
+    throw new Error("semantic source requires exact commits");
+  const listed = git(root, [
+    "rev-list",
+    "--max-count=1601",
+    opportunity.source_commit,
+    `^${opportunity.base_commit}`,
+    "--",
+  ])
+    .toString()
+    .trim()
+    .split("\n")
+    .filter(Boolean);
+  if (listed.length > 1600 || listed.some((id) => !oid(id)))
+    throw new Error("semantic commit inventory exceeds bound");
+  const ids = [...new Set([opportunity.base_commit, opportunity.source_commit, ...listed])];
+  const input = Buffer.from(ids.join("\n") + "\n");
+  const sizes = git(root, ["cat-file", "--batch-check"], input).toString().trim().split("\n");
+  let total = 0;
+  if (sizes.length !== ids.length) throw new Error("semantic commit preflight incomplete");
+  for (const [index, row] of sizes.entries()) {
+    const match = /^([a-f0-9]{40}) commit ([0-9]+)$/u.exec(row),
+      size = Number(match?.[2]);
+    if (
+      !match ||
+      match[1] !== ids[index] ||
+      !Number.isSafeInteger(size) ||
+      size < 1 ||
+      size > 128 * 1024 ||
+      (total += size + 100) > 32 * 1024 * 1024
+    )
+      throw new Error("semantic commit preflight exceeds bound");
+  }
+  const bytes = git(root, ["cat-file", "--batch"], input),
+    objects = new Map<string, Buffer>();
+  let cursor = 0;
+  for (const id of ids) {
+    const end = bytes.indexOf(10, cursor),
+      match = /^([a-f0-9]{40}) commit ([0-9]+)$/u.exec(bytes.subarray(cursor, end).toString());
+    const size = Number(match?.[2]);
+    if (
+      end < cursor ||
+      !match ||
+      match[1] !== id ||
+      !Number.isSafeInteger(size) ||
+      size < 1 ||
+      size > 128 * 1024
+    )
+      throw new Error("semantic commit batch differs");
+    cursor = end + 1;
+    const raw = bytes.subarray(cursor, cursor + size);
+    if (raw.length !== size || bytes[cursor + size] !== 10)
+      throw new Error("semantic commit bytes incomplete");
+    objects.set(id, raw);
+    cursor += size + 1;
+  }
+  if (cursor !== bytes.length) throw new Error("semantic commit batch trailing bytes");
+  return collectReleaseSourceChanges(api, opportunity, {
+    readCommitObject(id) {
+      const raw = objects.get(id);
+      if (!raw) throw new Error("provider comparison commit missing from local bounded inventory");
+      return raw;
+    },
+  });
+}
+
 /** Provider readback selects no new baseline policy: the existing coordinator's
  * expected version must equal the latest published release in this repository.
  * Resolve its tag twice, rather than treating target_commitish as provenance.
@@ -191,7 +265,7 @@ export function prepareFrozenSemanticInputs(
   );
   if (baseline.commit !== opportunity.base_commit)
     throw new Error("opportunity omits accumulated publication delta");
-  const source = collectReleaseSourceChanges(api, opportunity);
+  const source = readSemanticSourceChanges(api, root, opportunity);
   if (source.change_set_sha256 !== opportunity.change_set_sha256)
     throw new Error("review opportunity change set differs");
   for (const [commit, tree] of [

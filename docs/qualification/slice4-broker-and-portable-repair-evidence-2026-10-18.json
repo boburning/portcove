@@ -128,6 +128,41 @@
         "tree": "d8101837debca830c00032a70a03b8ecdd0e5f3d",
         "qualification": "provider publication/tag identity readback; semantic review still required"
       }
+    },
+    "frozen_input_preparation": {
+      "receipt": {
+        "path": "work/slice4/frozen-opportunity-preparation-provider-route/receipt.json",
+        "sha256": "97100d0e230ce403a8e8c4c92263e1b0a679de3949cf96553bc1f1e70c6d7b2a",
+        "bytes": 1034
+      },
+      "manifest": {
+        "path": "work/slice4/frozen-opportunity-preparation-provider-route/manifest.json",
+        "sha256": "d331cfc529b88cdfdbca7cab071135872c55c173c058b576471668d8b00c38ca",
+        "bytes": 926308
+      },
+      "observed": {
+        "authority": "none",
+        "status": "prepared-unaccepted-no-runtime-invocation",
+        "source": "0e0cd308aea7fec52bc78c3e8e50344ce5e504af",
+        "source_tree": "598b3daddb6e4df2dc63e1605f933f8a06d2b5f0",
+        "baseline": {
+          "repository_id": 1354613114,
+          "release_id": 384894721,
+          "tag": "v0.1.0-alpha.2",
+          "published_at": "2026-09-08T16:48:17Z",
+          "tag_object": "27328c8a1b30bf92868bcf3cde313f2720c8fd1e",
+          "commit": "27328c8a1b30bf92868bcf3cde313f2720c8fd1e",
+          "tree": "d8101837debca830c00032a70a03b8ecdd0e5f3d",
+          "qualification": "provider publication/tag identity readback; semantic review still required"
+        },
+        "bundle_sha256": "8b136a032f5eb9fa2ec8a73e9becd9020653f3d2ec8cdb024724e7a3b4df6a37",
+        "opportunity_sha256": "2313d8b0442cf04e9ffc3a5c1b58471664eb4e87ba8ad143e0e86a16ff78ec0c",
+        "files": 1608,
+        "bytes": 50608461,
+        "accepted": false,
+        "qualification": "actual inert source preparation only; proposed classification/compatibility not accepted; no candidate eligibility/reservation/producer binding"
+      },
+      "scope": "one frozen unaccepted source preparation at0e0cd308, before verifier repairs; not final activation candidate or semantic acceptance"
     }
   },
   "upstream": {
@@ -254,6 +289,71 @@
       "path": "work/slice4/broker-observed-publication-baseline.json",
       "sha256": "bd6a3f2ad7c30ed87a83565d80171ec18e34daf123b950162b901306e42e2bd5",
       "bytes": 600
+    },
+    {
+      "path": "work/slice4/broker-integration-final-contracts.log",
+      "sha256": "588cc4670ac81c55b6c77f2bb8fd26a33e0017a3cc2b7644539d94025a031cea",
+      "bytes": 4554
+    },
+    {
+      "path": "work/slice4/broker-integration-final-lint.log",
+      "sha256": "ffa7642c11ad027372acd3efd9214ae42868f0e823e9fb0c1fa58d6f46bd977a",
+      "bytes": 127
+    },
+    {
+      "path": "work/slice4/broker-raw-identity-contracts-2.log",
+      "sha256": "37e71ab68086ad0006b4a6f8919139acd491850eda07737c1581e023245b5dca",
+      "bytes": 9711
+    },
+    {
+      "path": "work/slice4/broker-state-refusal-isolated-readback.log",
+      "sha256": "49f30cb16d92b072da96319b913aa9a6e852f7afbbb1766afd615ee5cd9bb64a",
+      "bytes": 207
+    },
+    {
+      "path": "work/slice4/broker-powershell-lint-repaired.log",
+      "sha256": "899f6ce87c5f3812e32f963ec9c87241ffb0ba8ac9976e166e34f08e4b81f116",
+      "bytes": 58
+    },
+    {
+      "path": "work/slice4/semantic-isolation-renamed-normal.log",
+      "sha256": "64dd838996954bb1e56ca3292c32b371d336a7a07a996fa9caa03cd9543ed689",
+      "bytes": 1290
+    },
+    {
+      "path": "work/slice4/broker-ci-failure.log",
+      "sha256": "16171e3e8c8a04be298f47119842ad7ae52e5823dfa3b003bb211f8bfc1a055e",
+      "bytes": 12906
+    },
+    {
+      "path": "work/slice4/broker-live-frozen-inputs.log",
+      "sha256": "388268334554c958da2f8d098ca7a2165ddc26abc319f06c0e6ae3b85fff0dea",
+      "bytes": 479
+    },
+    {
+      "path": "work/slice4/broker-live-frozen-inputs-raw-identity.log",
+      "sha256": "e158c3c50c737e3fe2697132001f5a6c82fd99552190c1c29e295d769f279f34",
+      "bytes": 2504
+    },
+    {
+      "path": "work/slice4/broker-live-frozen-inputs-raw-identity-2.log",
+      "sha256": "36f0ad1ae5e1fda324c69e9e67e5b9f16b94d315df0c82f40e0ff3303e2b5168",
+      "bytes": 474
+    },
+    {
+      "path": "work/slice4/broker-live-frozen-inputs-terminal-lf.log",
+      "sha256": "1242f140b78c8710387f63a16bffdedac197bb20dc2e222f05a51d718c8e5b67",
+      "bytes": 450
+    },
+    {
+      "path": "work/slice4/broker-live-comparison-link.json",
+      "sha256": "d6da842ad9ce8adb8ae0ab049259f920b184485446280f5f05eb0a3e2bfc62dc",
+      "bytes": 562
+    },
+    {
+      "path": "work/slice4/broker-live-frozen-inputs-provider-route.log",
+      "sha256": "76f8a8a00c0ba30ffcbc02110ef3e2d4904fd1ff7b556da4e21db3bb4d5b8e01",
+      "bytes": 1180
     }
   ],
   "preserved": {
@@ -274,6 +374,30 @@
     "failed": 0,
     "typed_lint": "PASS seven files",
     "maintained_native_probe": "PASS normal inert mode; root/readable/deny facts all true; distinct SID; empty tree",
-    "maintained_negative_probes": "PASS hardlink/flood/descendant with exact expected failure and successful readback; unrelated startup/transport failures cannot qualify"
+    "maintained_negative_probes": "PASS hardlink/flood/descendant with exact expected failure and successful readback; unrelated startup/transport failures cannot qualify",
+    "integration_focused_tests": {
+      "tests": 41,
+      "passed": 41,
+      "failed": 0,
+      "scope": "new broker, serializer/consumer, validation-plan and source contracts"
+    },
+    "raw_identity_typed_lint": "PASS four changed files",
+    "powershell_lint": "PASS22 tracked scripts after automatic PROFILE/unused variable repair",
+    "broader_local_coordinator_run": {
+      "tests": 67,
+      "passed": 66,
+      "failed": 1,
+      "failure": "existing inert-import fixture setup Git subprocess ETIMEDOUT, retained; no product timeout changes"
+    },
+    "isolated_same_import_case": "PASS1 under unchanged product/test timeouts; not a causal repair or full-suite pass",
+    "renamed_native_probe": "PASS normal inert mode after PowerShell variable-only repair",
+    "initial_hosted_run": {
+      "id": 39144512462,
+      "attempt": 1,
+      "head": "0e0cd308aea7fec52bc78c3e8e50344ce5e504af",
+      "conclusion": "failure",
+      "failed_leaves": ["windows-helper-contracts", "catalog"],
+      "cause": "PSScriptAnalyzer automatic PROFILE assignment and unused profileSid, corrected; other four required contexts PASS"
+    }
   }
 }
