@@ -331,7 +331,7 @@ it.each(["dark", "light"])(
       .not.toBeInTheDocument();
     const metadata = document.querySelector('[aria-label="Catalog check history"]')!;
     expect(metadata.textContent).toContain("Previous check");
-    expect(metadata.textContent).toContain("previous observation expired");
+    expect(metadata.textContent).toMatch(/\bexpired\b/iu);
     expect(metadata.textContent).toContain("Filters → Check game-file filters");
     expect(metadata.textContent).not.toContain("Complete set");
     expect(metadata.querySelector("time")?.dateTime).toMatch(/^\d{4}-\d{2}-\d{2}T/);

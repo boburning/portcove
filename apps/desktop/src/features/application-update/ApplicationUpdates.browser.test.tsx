@@ -333,9 +333,11 @@ describe("ApplicationUpdateSettings", () => {
     await render();
     await click("Check for updates");
 
-    expect(check).toHaveBeenCalledOnce();
+    expect(check).toHaveBeenCalledExactlyOnceWith(expect.any(Function));
     expect(host.textContent).toContain("Portcove 0.2.0-beta.3 has been downloaded and checked");
-    expect(host.textContent).toContain("Manual checks never use a URL supplied by this screen.");
+    const checkPanel = host.querySelector('[aria-labelledby="application-check-title"]');
+    expect(checkPanel?.textContent).toMatch(/trusted\s+release source/iu);
+    expect(checkPanel?.textContent).toMatch(/verifies them before installation/iu);
   });
 
   it.each([
