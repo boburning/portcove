@@ -28,7 +28,7 @@ function Get-OwnedDisk {
   $images=@(Get-DiskImage -ImagePath $image -ErrorAction Stop)
   if($images.Count -ne 1 -or -not $images[0].Attached) { throw 'owned image attachment unavailable or ambiguous' }
   $disks=@($images[0] | Get-Disk)
-  if($disks.Count -ne 1 -or [string]::IsNullOrWhiteSpace($disks[0].UniqueId) -or $disks[0].Size -ne 536870912 -or $disks[0].IsBoot -or $disks[0].IsSystem -or [string]$disks[0].BusType -ne 'FileBackedVirtual') { throw 'owned fixed disk identity unavailable; no numeric-disk fallback' }
+  if($disks.Count -ne 1 -or [string]::IsNullOrWhiteSpace($disks[0].UniqueId) -or $disks[0].Size -ne 536870912 -or $disks[0].IsBoot -ne $false -or $disks[0].IsSystem -ne $false -or [string]$disks[0].BusType -ne 'File Backed Virtual') { throw 'owned fixed disk identity unavailable; no numeric-disk fallback' }
   return $disks[0]
 }
 if($Operation -eq 'Provision') {

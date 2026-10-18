@@ -158,3 +158,61 @@ void test("workflow runs bounded Windows controls and pinned lint under the exis
   );
   assert.equal((catalog.match(/PORTCOVE_TARGETED_RESULTS:/gu) ?? []).length, 1);
 });
+
+void test(
+  "semantic storage accepts the observed Windows bus type and refuses unsafe disk associations",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const { execFileSync } = await import("node:child_process");
+    const { fileURLToPath } = await import("node:url");
+    const helper = fileURLToPath(
+      new URL("./prepare-semantic-storage.ps1", import.meta.url),
+    ).replaceAll("'", "''");
+    const script = `
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${helper}',[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'helper parse failed'}
+$functions=@($ast.FindAll({param($node)$node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-OwnedDisk'},$true))
+if($functions.Count -ne 1){throw 'exact production guard missing'}
+foreach($command in $functions[0].FindAll({param($node)$node -is [Management.Automation.Language.CommandAst]},$true)){if($command.GetCommandName() -notin @('Get-DiskImage','Get-Disk')){throw 'guard contains an unexpected command'}}
+Invoke-Expression $functions[0].Extent.Text
+$image='X:/inert-only/reviewer.vhd'
+$script:imageSet=@();$script:diskSet=@()
+function Get-DiskImage {param($ImagePath,$ErrorAction) if($ImagePath -ne $image){throw 'wrong fixed path'};$script:imageSet}
+function Get-Disk {param([Parameter(ValueFromPipeline=$true)]$InputObject) process{$script:diskSet}}
+function Reset-Fixture {$script:imageSet=@([pscustomobject]@{Attached=$true});$script:diskSet=@([pscustomobject]@{UniqueId='observed-disk';Size=536870912;IsBoot=$false;IsSystem=$false;BusType='File Backed Virtual'})}
+function Must-Refuse {try{$null=Get-OwnedDisk}catch{return};throw 'unsafe association was accepted'}
+Reset-Fixture
+if((Get-OwnedDisk).UniqueId -ne 'observed-disk'){throw 'observed provider representation was refused'}
+$cases=1
+foreach($change in @(@{UniqueId=''},@{Size=536870911},@{IsBoot=$true},@{IsSystem=$true},@{IsBoot=$null},@{IsSystem=$null},@{BusType='SATA'},@{BusType='Virtual'},@{BusType='FileBackedVirtual'})){
+ Reset-Fixture
+ foreach($key in $change.Keys){$script:diskSet[0].$key=$change[$key]}
+ Must-Refuse;$cases++
+}
+Reset-Fixture;$script:imageSet[0].Attached=$false;Must-Refuse;$cases++
+Reset-Fixture;$script:imageSet=@();Must-Refuse;$cases++
+Reset-Fixture;$script:imageSet=@($script:imageSet[0],$script:imageSet[0]);Must-Refuse;$cases++
+Reset-Fixture;$script:diskSet=@();Must-Refuse;$cases++
+Reset-Fixture;$script:diskSet=@($script:diskSet[0],$script:diskSet[0]);Must-Refuse;$cases++
+@{cases=$cases;mutations='none; extracted production guard with inert provider functions'}|ConvertTo-Json -Compress
+`;
+    const output = execFileSync(
+      "pwsh.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-OutputFormat",
+        "Text",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 20000 },
+    );
+    assert.deepEqual(JSON.parse(output), {
+      cases: 15,
+      mutations: "none; extracted production guard with inert provider functions",
+    });
+  },
+);
