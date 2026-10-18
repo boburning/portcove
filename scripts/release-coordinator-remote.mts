@@ -4,6 +4,8 @@ import type { IncludedResponse } from "./github-api.mts";
 import { sanitizeOperationError } from "./github-api.mts";
 import { exportCoordinatorCheckpoint } from "./release-coordinator-state.mts";
 import { isRecord } from "./runtime-values.mts";
+import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+export { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
 export interface CoordinatorRemoteApi {
   request(method: string, endpoint: string, body?: unknown): IncludedResponse;
@@ -17,15 +19,6 @@ const zero = "0".repeat(40);
 const maximumRequests = 16;
 const executionMilliseconds = 120_000;
 const collectionMilliseconds = 30_000;
-
-export class CoordinatorRemoteError extends Error {
-  readonly evidence: unknown;
-  constructor(message: string, evidence: unknown) {
-    super(message);
-    this.name = "CoordinatorRemoteError";
-    this.evidence = evidence;
-  }
-}
 
 function namespace(configuration: unknown): string {
   if (

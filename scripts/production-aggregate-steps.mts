@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
-import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
+import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import { assembleReleaseArtifacts } from "./release-artifact-assembly.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { prepareAggregateAttestation } from "./trusted-aggregate-attestation.mts";
@@ -178,7 +178,7 @@ async function main() {
       if (mode === "assemble") {
         const root = await mkdtemp(path.join(temp, "portcove-aggregate-"));
         const recover = () =>
-          recoverRemoteCoordinator(root, descriptor.coordinator, { transport: { cwd: root } });
+          readRemoteCoordinatorSnapshot(root, descriptor.coordinator, { transport: { cwd: root } });
         const before = await recover();
         await requireReservedAggregate(raw!, before);
         stage("assemble-accepted-archives");
@@ -213,7 +213,7 @@ async function main() {
           return archive.artifact_id;
         });
         const root = await mkdtemp(path.join(temp, "portcove-binding-"));
-        const recovered = await recoverRemoteCoordinator(root, descriptor.coordinator, {
+        const recovered = await readRemoteCoordinatorSnapshot(root, descriptor.coordinator, {
           transport: { cwd: root },
         });
         await requireReservedAggregate(raw!, recovered);
