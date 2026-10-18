@@ -27,7 +27,10 @@
     "dino-crisis-usa-rev1-psx",
     "dino-crisis-2-usa-psx",
     "alien-resurrection-europe-psx",
-    "brave-fencer-musashi-usa-psx"
+    "brave-fencer-musashi-usa-psx",
+    "super-mario-world-snes-usa",
+    "a-link-to-the-past-snes-usa",
+    "sonic-the-hedgehog-genesis-jue-rev00"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -58,6 +61,9 @@
     "alexbeav-dino-crisis-recomp",
     "alexbeav-dino-crisis-2-recomp",
     "alexbeav-alien-resurrection-recomp",
-    "alexbeav-brave-fencer-musashi-recomp"
+    "alexbeav-brave-fencer-musashi-recomp",
+    "super-mario-world-recomp",
+    "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+    "sonic-the-hedgehog-recomp"
   ]
 }
