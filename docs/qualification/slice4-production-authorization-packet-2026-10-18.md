@@ -43,12 +43,48 @@ coordinator remains the only reservation and recovery authority.
 Appointing the review App and configuring these refs/rules is the owner decision.
 Recommendation: no candidate credentials can update either ref. Use active
 creation/update/deletion restrictions and non-fast-forward protection, with only
-the review App allowed to update the classification ref and only the owner
-administrator role allowed to update the pause ref. Verify the complete bypass
-actor sets, actual administrator inventory and effective restrictions before
-accepting inputs. A role that includes additional administrators is not evidence
-of an owner-only boundary. Do not give the generic GitHub Actions App a bypass:
+the review App allowed to update the classification ref and only the exact
+`User` actor 43177418 allowed to update the pause ref, as supported by the current
+ruleset schema. Verify the complete bypass actor sets and effective restrictions
+before accepting inputs; do not broaden this to an administrator role. Do not
+give the generic GitHub Actions App a bypass:
 that would also authorize candidate workflows using the same App identity.
+
+**Verified permission limit:** the [ruleset API](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset)
+omits `bypass_actors` from an ordinary public/read-only response. A live anonymous
+read of ruleset 22155633 omitted it; the owner-authorized read included it. The
+history/version endpoints require Administration **write**, not read, and cannot
+be treated as a read-only freshness workaround. Missing bypass data is UNKNOWN,
+not an empty actor set. Do not add Administration write to the admission,
+candidate, assembler or publisher token merely to inspect protection.
+
+The concrete recommendation for that necessary inspection is a separately
+isolated `protection_observation` job in the proposed fixed review-input workflow,
+environment `production-release-protection-observer`, with a dedicated GitHub App
+`portcove-protection-reader`, installed only on repository 1354613114. GitHub's
+coarse API permission requires Administration write even though this job's
+reviewed code may perform only bounded GETs. That is an explicit additional D1
+permission decision and risk, not a current grant. It gets no contents-write
+permission or candidate code, and its credential never enters downstream jobs.
+Its separate job token would have contents read and id-token write only, so the
+existing own-job OIDC verifier can bind the observation producer; that token
+does not carry the App's Administration permission. No attestation or publication
+write is proposed for this observer.
+Bind its exact workflow/revision/job/attempt and bounded protection result through
+the existing job-identity/evidence machinery; then the read-only admission
+consumer can compare the complete actor sets and ref policy. This is proposed
+dependent integration, not an implemented observer or another allocation journal.
+The current assembler identity verifier fixes the production workflow and
+`Trusted package assembly` job; it cannot accept this observer unchanged. Extend
+that existing machinery narrowly for the exact observer identity and signed
+result handoff after D1, and prove bootstrap protection before releasing its
+admin-capable token. No generic caller-selected trusted job is proposed.
+If this coarse permission is declined, this source design must remain HOLD;
+public API fields, timestamps or an owner screenshot cannot replace the missing
+fresh complete protection proof. The observer's proposed five-minute ceiling
+would add to the current aggregate-only ceilings and must be included in the
+later exact capacity/execution packet before use. No protection-reader App,
+workflow, environment or permission was created here.
 
 The dedicated App persists already independently reviewed classification; it
 does not introduce a new semantic classifier or infer change kind from filenames,
