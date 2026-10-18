@@ -111,6 +111,8 @@ jobs:
       subject_name: ${{ steps.bind.outputs.subject_name }}
       subject_digest: ${{ steps.bind.outputs.subject_digest }}
       predicate: ${{ steps.bind.outputs.predicate }}
+      artifact_id: ${{ steps.bind.outputs.artifact_id }}
+      artifact_sha256: ${{ steps.bind.outputs.artifact_sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -155,6 +157,9 @@ jobs:
       contents: read
       id-token: write
       attestations: write
+    outputs:
+      bundle_artifact_id: ${{ steps.bundle.outputs.artifact-id }}
+      bundle_artifact_sha256: ${{ steps.bundle.outputs.artifact-digest }}
     steps:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
@@ -180,6 +185,41 @@ jobs:
           subject-digest: ${{ needs.aggregate.outputs.subject_digest }}
           predicate-type: https://portcove.dev/attestations/package-aggregate/v1
           predicate-path: ${{ runner.temp }}/aggregate-predicate.json
+      - name: Normalize only the completed bounded public bundle
+        env:
+          PORTCOVE_ATTESTATION_BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { constants } from 'node:fs';
+          import { open, writeFile } from 'node:fs/promises';
+          import path from 'node:path';
+          const source = process.env.PORTCOVE_ATTESTATION_BUNDLE_PATH;
+          if (!source || !path.isAbsolute(source)) throw Error('bundle path missing');
+          const handle = await open(source, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+          try {
+            const before = await handle.stat();
+            if (!before.isFile() || before.size < 1 || before.size > 512 * 1024) throw Error('bundle size/type');
+            const bytes = Buffer.alloc(before.size + 1);
+            let length = 0;
+            while (length < bytes.length) {
+              const part = await handle.read(bytes, length, bytes.length - length, null);
+              if (!part.bytesRead) break;
+              length += part.bytesRead;
+            }
+            const after = await handle.stat();
+            if (length !== before.size || after.size !== before.size || after.mtimeMs !== before.mtimeMs || after.ctimeMs !== before.ctimeMs) throw Error('bundle changed');
+            await writeFile(path.join(process.env.RUNNER_TEMP, 'aggregate-attestation.json'), bytes.subarray(0, length), {flag:'wx', mode:0o600});
+          } finally { await handle.close(); }
+          NODE
+      - id: bundle
+        name: Upload only the exact normalized bundle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-release-attestation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/aggregate-attestation.json
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 7
       - name: Retain declared predicate and any completed public bundle
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -188,6 +228,46 @@ jobs:
           path: |
             ${{ runner.temp }}/aggregate-predicate.json
             ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7
+
+  verify:
+    if: ${{ false }}
+    needs: [admission, independent_admission, aggregate, attest]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_HOST: github.com
+      PORTCOVE_ACCEPTED_AGGREGATE: ${{ needs.independent_admission.outputs.descriptor }}
+      PORTCOVE_CONTROLLER_REVISION: ${{ vars.PORTCOVE_CONTROLLER_REVISION }}
+      PORTCOVE_CONTROLLER_REF: ${{ vars.PORTCOVE_CONTROLLER_REF }}
+      PORTCOVE_NEW_ARTIFACT_ID: ${{ needs.aggregate.outputs.artifact_id }}
+      PORTCOVE_NEW_ARTIFACT_SHA256: ${{ needs.aggregate.outputs.artifact_sha256 }}
+      PORTCOVE_BUNDLE_ARTIFACT_ID: ${{ needs.attest.outputs.bundle_artifact_id }}
+      PORTCOVE_BUNDLE_ARTIFACT_SHA256: ${{ needs.attest.outputs.bundle_artifact_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - run: node scripts/production-aggregate-steps.mts verify
+      - name: Retain token-free verification association and outcome
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-release-verification-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/portcove-aggregate-verify-receipt.jsonl
+            ${{ runner.temp }}/portcove-aggregate-verification-result.json
           if-no-files-found: warn
           overwrite: false
           retention-days: 7

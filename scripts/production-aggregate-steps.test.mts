@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, readdir, mkdir, copyFile } from "node:fs/promises";
-import { execFileSync } from "node:child_process";
+import { mkdtemp, readFile, rm, readdir, mkdir, copyFile, writeFile } from "node:fs/promises";
+import { execFileSync, spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import os from "node:os";
 import path from "node:path";
@@ -218,7 +218,7 @@ void test("held full workflow preserves privilege separation and refuses unavail
   );
   assert.deepEqual(parseDocument(template, { uniqueKeys: true }).errors, []);
   assert.doesNotMatch(live, /: write|production-aggregate-steps/u);
-  for (const job of ["independent_admission", "aggregate", "attest"])
+  for (const job of ["independent_admission", "aggregate", "attest", "verify"])
     assert.match(
       template,
       new RegExp(`  ${job}:\\n(?:    #[^\\n]*\\n)*    if: \\$\\{\\{ false \\}\\}`),
@@ -234,7 +234,7 @@ void test("held full workflow preserves privilege separation and refuses unavail
     template,
     /PORTCOVE_NEW_ARTIFACT_SHA256: \$\{\{ steps.upload.outputs.artifact-digest \}\}/u,
   );
-  const attester = template.split("  attest:")[1]!;
+  const attester = template.split("  attest:")[1]!.split("  verify:")[0]!;
   assert.match(attester, /attestations: write/u);
   assert.doesNotMatch(
     attester,
@@ -246,8 +246,72 @@ void test("held full workflow preserves privilege separation and refuses unavail
   );
   const assembler = template.split("  aggregate:")[1]!.split("  attest:")[0]!;
   assert.doesNotMatch(assembler, /pnpm |npm |action-setup/u);
+  const verifier = template.split("  verify:")[1]!;
+  assert.match(verifier, /production-aggregate-steps.mts verify/u);
+  assert.match(verifier, /actions: read/u);
+  assert.doesNotMatch(verifier, /: write|download-artifact|pnpm |npm |action-setup/u);
   assert.match(
     template,
     /pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir/u,
+  );
+});
+
+void test("the actual held attester normalizes only a bounded completed bundle and refuses repeat, oversized or absent input", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-bundle-copy-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const template: unknown = parseDocument(
+    await readFile(
+      new URL("../docs/qualification/application-update-production.aggregate.yml", import.meta.url),
+      "utf8",
+    ),
+  ).toJS();
+  assert.ok(isRecord(template) && isRecord(template.jobs) && isRecord(template.jobs.attest));
+  assert.ok(Array.isArray(template.jobs.attest.steps));
+  const step: unknown = template.jobs.attest.steps.find(
+    (step: unknown) =>
+      isRecord(step) && step.name === "Normalize only the completed bounded public bundle",
+  );
+  assert.ok(isRecord(step) && typeof step.run === "string");
+  const script = step.run.match(/^node --input-type=module <<'NODE'\n([\s\S]*)\nNODE\n?$/u)?.[1];
+  assert.ok(script);
+  const source = path.join(root, "source.json");
+  await writeFile(source, "public synthetic bundle");
+  const run = () =>
+    spawnSync(process.execPath, ["--input-type=module"], {
+      input: script,
+      encoding: "utf8",
+      env: { ...process.env, RUNNER_TEMP: root, PORTCOVE_ATTESTATION_BUNDLE_PATH: source },
+      timeout: 15000,
+      windowsHide: true,
+    });
+  assert.equal(run().status, 0);
+  assert.equal(
+    await readFile(path.join(root, "aggregate-attestation.json"), "utf8"),
+    "public synthetic bundle",
+  );
+  assert.notEqual(run().status, 0);
+  assert.equal(
+    await readFile(path.join(root, "aggregate-attestation.json"), "utf8"),
+    "public synthetic bundle",
+  );
+  await rm(path.join(root, "aggregate-attestation.json"));
+  await writeFile(source, Buffer.alloc(512 * 1024 + 1, 1));
+  assert.notEqual(run().status, 0);
+  assert.ok(!(await readdir(root)).includes("aggregate-attestation.json"));
+  await writeFile(source, "");
+  assert.notEqual(run().status, 0);
+  assert.ok(!(await readdir(root)).includes("aggregate-attestation.json"));
+  await rm(source);
+  assert.notEqual(run().status, 0);
+  await t.test(
+    "actual POSIX FIFO source refuses without waiting for a writer",
+    { skip: process.platform === "win32" },
+    () => {
+      execFileSync("mkfifo", [source]);
+      const refused = run();
+      assert.equal(refused.error, undefined);
+      assert.equal(refused.signal, null);
+      assert.notEqual(refused.status, 0);
+    },
   );
 });

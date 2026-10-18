@@ -7,7 +7,7 @@ its [custody amendment](https://github.com/boburning/portcove/issues/534#issueco
 and [controller proposal](https://github.com/boburning/portcove/issues/534#issuecomment-6119064584).
 It grants nothing. The runnable workflow remains admission-only. The
 [held complete workflow](application-update-production.aggregate.yml) is outside
-`.github/workflows`; its three new jobs also have literal false conditions.
+`.github/workflows`; its four new jobs also have literal false conditions.
 
 ## Proposed execution boundary
 
@@ -36,6 +36,7 @@ control and executed-producer acceptance.
 | Independent input admission, held | `contents:read`, `actions:read`                         | Existing reservation plus complete independently accepted source/tree, qualification, policy, classification, pause and free-capacity facts; no candidate execution                             |
 | Trusted package assembly, held    | `contents:read`, `actions:read`, `id-token:write`       | Bounded candidate archives; new same-repository `trusted-release-final-<own-run>-<attempt>` Actions artifact, seven-day retention, no overwrite; fresh own-job identity JWT kept only in memory |
 | Attest, held                      | `contents:read`, `id-token:write`, `attestations:write` | Existing pinned `actions/attest`, custom aggregate predicate in GitHub repository attestation service; no package extraction or candidate checkout                                              |
+| Verify, held                      | `contents:read`, `actions:read`                         | Exact aggregate and dedicated bundle artifact IDs/bytes, existing pinned certificate/predicate verifier and reservation readback; no OIDC, signing or publication                               |
 
 There is no requested `contents:write`, Pages deployment, public Release upload,
 feed mutation, package signing key, long-lived PAT or GitHub App installation in
@@ -100,6 +101,26 @@ workflow's signed predicate associates the assembler job. Original compiler
 identity remains unknown unless independently proven. Release authorization,
 SBOM finalization, installed/native acceptance and #706 remain separate gates.
 
+The attester normalizes its actual completed public bundle into one bounded
+`aggregate-attestation.json` and uploads only that file without overwrite. The
+separate held verifier receives exact upload IDs/digests through trusted job
+outputs and candidate facts through the independently admitted descriptor. It
+never derives expectations from an unverified bundle. Direct controller
+run/attempt and artifact reads are bracketed around download and verification;
+the controller is still active, so the completed-Release collector cannot be
+used here. The opaque bundle ZIP must contain exactly that fixed member, with
+size/CRC checks before invoking the existing certificate/predicate verifier.
+Acquired opaque inputs and sanitized failure association are retained in owned
+private directories. The job retains bounded orchestration/result metadata.
+
+Controlled tests exercise this integration and the actual held normalization
+script, including changed identities, expired objects, changed bytes,
+extra/aliased members and oversized metadata. Successful injected CLI output is
+a synthetic verification boundary, not cryptographic or hosted execution
+evidence. The four literal holds and missing independent control acceptance
+remain. Aggregate verification confers no original compiler identity or
+release authorization.
+
 ## Key roles and manual custody
 
 Preserve the accepted design: three distinct offline root keys with a two-of-three
@@ -153,7 +174,7 @@ exists. Loss of the sole unbacked key is not recoverable by weakening signatures
 6. Reconcile the actual outcome on #534. Only the separately granted signing/feed
    and capable-client paths may then supply #246/#315 protected delivery proof.
 
-The proposed job ceilings are 5/25/30/5 minutes and seven-day artifact retention.
+The proposed job ceilings are 5/25/30/5/20 minutes and seven-day artifact retention.
 Input acquisition has a 15-minute overall bound, at most 160 API reads with
 120 seconds cumulative API transport time, bounded independent recovery reads,
 16-page/1,600-record inventories and four policy-selected archives of at most
@@ -161,6 +182,12 @@ Input acquisition has a 15-minute overall bound, at most 160 API reads with
 dependency setup and diagnostic collection. These are refusal limits, not a
 promise that every repository history will fit. Oversized history holds until
 an explicitly reviewed existing-source strategy can prove completeness.
+The new verifier permits eight direct provider reads, two bounded opaque
+downloads and one existing 30-second CLI verifier invocation within ten minutes;
+its 20-minute job ceiling also accommodates two existing bounded reservation
+reads and setup/collection. Bundle ZIP input is at most 1 MiB compressed and
+512 KiB expanded; aggregate input retains the existing 512 MiB limit. This inert
+ceiling is not a free-capacity claim or permission to dispatch.
 The held jobs use `always()` retention for bounded orchestration JSONL receipts,
 the declared predicate and any completed public attestation bundle. A receipt is
 created exclusively before effects, appends its terminal stage without exception
