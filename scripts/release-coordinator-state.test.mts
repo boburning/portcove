@@ -1351,6 +1351,61 @@ async function remoteCapacityFixture(t: test.TestContext) {
   await publishCoordinatorCheckpoint(f.bare, migrated.checkpoint, f.config, { api: f.api });
   return { ...f, capacity, migrated, options: { remote: { configuration: f.config, api: f.api } } };
 }
+void test(
+  "separate executors cannot share an identical remote pending intent",
+  { timeout: 60000 },
+  async (t) => {
+    const f = await remoteCapacityFixture(t);
+    const contender = path.join(f.repository, "contender.git");
+    execFileSync("git", ["clone", "--mirror", "--quiet", f.bare, contender], { windowsHide: true });
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    let effects = 0;
+    const request = { kind: "upload" as const, destination: "artifact:exclusive" };
+    const first = runBoundedCapacityOperation(
+      f.bare,
+      f.migrated.checkpoint,
+      request,
+      async () => f.capacity.boundary,
+      async (record) => {
+        effects++;
+        entered.resolve();
+        await release.promise;
+        await record("artifact:first-executor", "a".repeat(64));
+      },
+      f.options,
+    ).then(
+      (result) => ({ result }),
+      (error: unknown) => {
+        entered.reject(error);
+        return { error };
+      },
+    );
+    await entered.promise;
+    let secondError: unknown;
+    try {
+      await runBoundedCapacityOperation(
+        contender,
+        f.migrated.checkpoint,
+        request,
+        async () => f.capacity.boundary,
+        async (record) => {
+          effects++;
+          await record("artifact:second-executor", "b".repeat(64));
+        },
+        f.options,
+      );
+    } catch (error) {
+      secondError = error;
+    } finally {
+      release.resolve();
+    }
+    const outcome = await first;
+    assert.equal(effects, 1, "only the remote claim creator may enter its effect");
+    assert.ok(secondError instanceof CoordinatorRemoteError);
+    assert.ok("result" in outcome, "the winning executor retains its pending effect receipt");
+  },
+);
 void test("remote capacity intent and completed effects are durable before handoff", async (t) => {
   const f = await remoteCapacityFixture(t);
   const result = await runBoundedCapacityOperation(

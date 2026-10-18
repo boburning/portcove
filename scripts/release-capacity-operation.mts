@@ -13,6 +13,7 @@ import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { isRecord } from "./runtime-values.mts";
 import { sanitizeOperationError } from "./github-api.mts";
+import { randomBytes } from "node:crypto";
 
 export class ProviderCapacityRefusal extends Error {
   readonly receipt: { remote_identity: string; evidence_sha256: string };
@@ -82,6 +83,10 @@ export async function runBoundedCapacityOperation(
       substantive_repairs: candidate.substantive_repairs,
     },
     destination: request.destination,
+    // An invocation-generated claim makes independent executors' pending bytes
+    // distinct. Seeing somebody else's identical logical operation is not an
+    // execution grant. There is no caller-supplied nonce or resume entry point.
+    ...(remote ? { executor_nonce: randomBytes(32).toString("hex") } : {}),
     kind: request.kind,
     policy_sha256: ready.resource_policy_sha256,
     ratification_sha256: ready.ratification_sha256,
