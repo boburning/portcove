@@ -19,7 +19,11 @@ function oid(value: unknown): asserts value is string {
     throw new Error("recovery requires exact Git object identities");
 }
 
-function verified(kind: CoordinatorGitObject["kind"], expected: string, bytes: Buffer) {
+export function inspectRemoteGitObject(
+  kind: CoordinatorGitObject["kind"],
+  expected: string,
+  bytes: Buffer,
+) {
   oid(expected);
   if (
     bytes.length < 1 ||
@@ -84,11 +88,53 @@ export function inspectRemoteCommitObject(value: unknown, expected: string) {
   if (isRecord(verification) && (verification.payload != null || verification.signature != null)) {
     const payload = utf8(verification.payload, 96 * 1024);
     const signature = utf8(verification.signature, 16 * 1024);
-    if (payload !== unsigned || !signature || signature.includes("\r"))
+    const boundary = payload.indexOf("\n\n");
+    const lines = payload.slice(0, boundary).split("\n");
+    const leading = [`tree ${value.tree.sha}`, ...parents.map((parent) => `parent ${parent}`)];
+    const actorMatches = (line: string | undefined, role: string, actor: unknown) => {
+      // REST dates are normalized to UTC; the signed payload preserves Git's
+      // original offset. Epoch seconds and actor identity must still match.
+      const prefix = `${role} ${person(actor).slice(0, -6)} `;
+      return (
+        typeof line === "string" &&
+        line.startsWith(prefix) &&
+        /^[+-](?:0[0-9]|1[0-4])[0-5][0-9]$/u.test(line.slice(prefix.length))
+      );
+    };
+    if (
+      boundary < 0 ||
+      lines.length !== leading.length + 2 ||
+      leading.some((line, index) => lines[index] !== line) ||
+      !actorMatches(lines[leading.length], "author", value.author) ||
+      !actorMatches(lines[leading.length + 1], "committer", value.committer) ||
+      payload.slice(boundary + 2) !== message ||
+      !signature ||
+      signature.includes("\r")
+    )
       throw new Error("unsupported signed Git commit payload");
-    raw = `${header}\ngpgsig ${signature.replace(/\n$/u, "").replaceAll("\n", "\n ")}\n\n${message}`;
+    // GitHub may expose a terminal signature newline that corresponds to an
+    // empty continuation line. Support only these two bounded encodings; the
+    // exact raw-object hash, never the verification boolean, chooses one.
+    for (const form of new Set([signature.replace(/\n$/u, ""), signature])) {
+      raw = `${payload.slice(0, boundary)}\ngpgsig ${form.replaceAll("\n", "\n ")}\n\n${message}`;
+      try {
+        return {
+          object: inspectRemoteGitObject("commit", expected, Buffer.from(raw)),
+          tree: value.tree.sha,
+          parents,
+        };
+      } catch {
+        // No mutation or transport occurs here. An unmatched encoding remains
+        // unsupported; do not drop headers or trust a provider's valid marker.
+      }
+    }
+    throw new Error("remote signed Git commit bytes are unsupported or differ from their identity");
   }
-  return { object: verified("commit", expected, Buffer.from(raw)), tree: value.tree.sha, parents };
+  return {
+    object: inspectRemoteGitObject("commit", expected, Buffer.from(raw)),
+    tree: value.tree.sha,
+    parents,
+  };
 }
 
 /** Read the minimum raw recovery closure without Git writes, planner imports,
@@ -202,7 +248,7 @@ export async function readRemoteCoordinatorSnapshot(
       throw new Error("checkpoint tree is not inert state.json");
     oid(entry.sha);
     add(
-      verified(
+      inspectRemoteGitObject(
         "tree",
         result.tree,
         Buffer.concat([Buffer.from("100644 state.json\0"), Buffer.from(entry.sha, "hex")]),
@@ -227,7 +273,7 @@ export async function readRemoteCoordinatorSnapshot(
       Buffer.from(bytes.toString("utf8")).compare(bytes) !== 0
     )
       throw new Error("checkpoint blob encoding differs");
-    add(verified("blob", entry.sha, bytes));
+    add(inspectRemoteGitObject("blob", entry.sha, bytes));
     const input: unknown = JSON.parse(bytes.toString("utf8"));
     if (!isRecord(input) || !isRecord(input.input)) throw new Error("incomplete checkpoint");
     const previous = input.previous;

@@ -488,6 +488,17 @@ the tool verifies its supplied shape, not remote publication. Pause/capacity
 snapshots retain the active candidate. Recovering an old snapshot does not renew
 its inventory freshness for a future action.
 
+An allocating caller may copy that preceding input's whole `opportunity` into
+the optional `active_candidate.frozen_opportunity`. The state transition requires
+canonical equality with the preceding checkpoint and the active original
+source/tree. Once present it cannot be changed or removed; once absent it cannot
+be added to an already active reservation. Resume/retry/repair plans include it
+only when present, so legacy serialized plans and checkpoint inputs retain their
+existing bytes/digests. Legacy absence is not normalized to `null` or reconstructed
+from a later queued opportunity. The existing 64 KiB checkpoint bound still
+applies to the whole duplicated snapshot. This preserves a consistency record,
+not classification authority or a recurring personal approval requirement.
+
 This supplies nonproduction local persistence/refusal controls for #534. Trusted
 execution/principal enforcement, producer-job/attempt/artifact binding, isolated
 candidate runners/caches, protected remote durability, custody, signing/feed
@@ -701,13 +712,61 @@ connects existing reservation recovery, assembly, a new immutable upload, fresh
 own-job binding and an isolated attester. It is outside `.github/workflows` and
 keeps literal holds on all new jobs. `production-aggregate-steps.mts` is its
 bounded transport/orchestration adapter; it never admits its input authority or
-allocates/advances a reservation. Independent candidate/file-matrix admission,
-fresh qualification/classification/pause/capacity sources and production
+allocates/advances a reservation. The read-only input gate acquires bounded
+provider facts but always holds. Independent candidate/file-matrix acceptance,
+authenticated fresh classification/pause/capacity sources and production
 configuration remain missing. The
 [dated authorization packet](qualification/slice4-production-authorization-packet-2026-10-18.md)
 records exact proposed permission scopes and the remaining owner decisions.
 Merging this inert preparation cannot activate the runnable admission-only
 workflow or grant protected execution/signing/publication.
+
+### Frozen source consistency
+
+`collectReleaseSourceChanges` in `scripts/release-source-changes.mts` collects the
+complete provider `base...source` commit comparison with explicit ancestry,
+stable totals, unique identities, fixed-path pagination and source closure. It
+does not use the comparison endpoint's bounded first-page file list. Each
+returned commit is reconstructed through the existing raw Git validator. Two
+nontruncated recursive tree inventories are reconstructed, including every
+subtree, under their exact original commit/tree identities. Symlinks and gitlinks
+remain opaque modes/OIDs; nothing is checked out, followed or executed.
+
+The versioned net tree delta uses SHA-256 over UTF-8 `JSON.stringify` bytes with
+no trailing newline. Its object keys, in order, are `schema_version:1`,
+`scope:"portcove-release-net-tree-delta-v1"`, `base_commit`, `base_tree`,
+`source_commit`, `source_tree`, `changes`. Changes are sorted by UTF-8 path bytes
+and contain `path`, `before`, `after` in that order. Each side is `null` or an
+object with `mode`, `type`, `oid` in that order. Changed directory entries are
+included; renames are deletions/additions. No locale-sensitive ordering, path
+normalization, rename inference or semantic classification enters this digest.
+It binds the accumulated final-tree difference, not all intermediate touched
+paths, meaningfulness, documentation-only status, urgency or compatibility.
+
+The input gate interprets a frozen classification's `change_set_sha256` with
+this encoding only when its explicit `change_set_scope` equals that scope. It
+requires the frozen opportunity and classification digests to match the acquired
+facts, and associates the already retained preparation proposal's source/base,
+version/change/channel fields and compatibility/migration notes. It neither
+reallocates a version nor invents historical publication input for a retry. A
+later coalesced opportunity cannot replace this original classification. Missing
+frozen data or an opaque legacy hash remains a hold; mismatched facts refuse.
+Source/writer authority is still independently required.
+
+Collection permits at most 20 reads within two minutes, 16 comparison pages /
+1,600 commits, 5,000 entries per tree and the unchanged 128 KiB raw-object bound.
+Each caller must also bound provider response/subprocess bytes; the input gate
+uses its existing 2 MiB/15-second runner. Truncated, oversized, unsupported empty
+trees, escaping pagination and incomplete ancestry refuse. The existing overall
+admission budget and literal workflow holds remain unchanged.
+
+Signed Git commit reconstruction permits bounded known offset/header forms
+whose actor epoch/identity matches REST and whose complete bytes hash to the
+expected object. A terminal signature continuation is accepted only if that
+exact hash matches. The provider's `verified` marker is never authority. The
+retained four-case legacy planner oracle is fixture-scoped; the live read-only
+`903f25e...799da57` comparison proves Git/API compatibility and consistency only,
+not classification, controller execution or release authorization.
 
 `prepareAggregateAttestation` in `scripts/trusted-aggregate-attestation.mts`
 prepares inputs for the existing pinned `actions/attest` action. The reviewed

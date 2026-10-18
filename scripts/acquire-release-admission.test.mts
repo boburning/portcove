@@ -8,6 +8,7 @@ import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import type { IncludedResponse } from "./github-api.mts";
 import { rateLimitFromResponse } from "./github-api.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 function commit(tree: string, parents: string[], message: string) {
@@ -26,9 +27,18 @@ function commit(tree: string, parents: string[], message: string) {
 }
 async function fixture(t: test.TestContext) {
   const f = await trustedAssemblyFixture(t);
-  const original = commit("1".repeat(40), [], "fixture source; never execute\n");
+  const sourceFacts = releaseSourceFixture();
+  const original = sourceFacts.original;
   const intent = JSON.stringify({
-    proposal: { source_commit: original.sha, version: f.request.version },
+    proposal: {
+      schema_version: 1,
+      source_commit: original.sha,
+      base_version: "0.1.0-alpha.2",
+      version: f.request.version,
+      change: "prerelease",
+      github_prerelease: true,
+      channels: ["preview"],
+    },
     compatibility: "compatible",
     migration_notes: "",
   });
@@ -63,7 +73,7 @@ async function fixture(t: test.TestContext) {
     opportunity: {
       source_commit: original.sha,
       source_tree: original.tree.sha,
-      base_commit: "4".repeat(40),
+      base_commit: sourceFacts.base.sha,
       change_set_sha256: "a".repeat(64),
       complete_change_set: true,
       meaningful: true,
@@ -258,6 +268,12 @@ async function fixture(t: test.TestContext) {
         }
         if (route === `/git/commits/${original.sha}`) return response(original);
         if (route === `/git/commits/${prepared.sha}`) return response(prepared);
+        if (
+          route.startsWith("/git/trees/") ||
+          route.startsWith("/compare/") ||
+          route === `/git/commits/${sourceFacts.base.sha}`
+        )
+          return response(sourceFacts.api.request(method, endpoint).body);
         if (route === "/actions/runs/12345" || route === "/actions/runs/12345/attempts/1")
           return response(run);
         if (route === "/actions/runs/12345/attempts/1/jobs")
@@ -312,6 +328,7 @@ async function fixture(t: test.TestContext) {
   };
   return {
     ...f,
+    sourceFacts,
     original,
     prepared,
     input,
@@ -345,6 +362,49 @@ void test("read-only acquisition constructs the full internally observed matrix 
   );
   assert.equal(f.calls.filter((call) => call.startsWith("ZIP ")).length, 4);
   assert.ok((await readdir(f.root)).some((name) => name.startsWith("release-admission-")));
+});
+
+void test("frozen net source facts bind the original classification and preparation despite a newer queued opportunity", async (t) => {
+  const f = await fixture(t);
+  f.input.opportunity.change_set_sha256 = f.sourceFacts.expectedHash;
+  Object.assign(f.input.opportunity.classification, {
+    change_set_sha256: f.sourceFacts.expectedHash,
+    change_set_scope: "portcove-release-net-tree-delta-v1",
+  });
+  const frozen = structuredClone(f.input.opportunity);
+  Object.assign(f.input.active_candidate, { frozen_opportunity: frozen });
+  f.input.opportunity.source_commit = "7".repeat(40);
+  f.input.opportunity.classification.source_commit = "7".repeat(40);
+  f.input.opportunity.classification.reviewed_commit = "7".repeat(40);
+  const result = await acquireReleaseAdmission(f.root, f.config, f.options);
+  assert.equal(result.source_changes?.source_commit, f.original.sha);
+  assert.equal(result.source_changes?.change_set_sha256, f.sourceFacts.expectedHash);
+  assert.equal(result.decision, "hold");
+  assert.equal(result.descriptor, null);
+  assert.ok(
+    result.holds.includes("independent-classification-pause-and-capacity-sources-unconfigured"),
+  );
+  frozen.change_set_sha256 = "f".repeat(64);
+  await assert.rejects(acquireReleaseAdmission(f.root, f.config, f.options), /source-consistency/u);
+});
+
+void test("legacy absence and opaque digest scope remain explicit holds without backfilling the latest classification", async (t) => {
+  const f = await fixture(t);
+  const absent = await acquireReleaseAdmission(f.root, f.config, f.options);
+  assert.equal(absent.source_changes, null);
+  assert.ok(
+    absent.holds.includes(
+      "active-frozen-opportunity-unavailable-no-latest-opportunity-substitution",
+    ),
+  );
+  Object.assign(f.input.active_candidate, {
+    frozen_opportunity: structuredClone(f.input.opportunity),
+  });
+  const opaque = await acquireReleaseAdmission(f.root, f.config, f.options);
+  assert.equal(opaque.source_changes, null);
+  assert.ok(
+    opaque.holds.includes("frozen-change-set-scope-unsupported-no-legacy-hash-reinterpretation"),
+  );
 });
 
 void test("complete ref and release inventories cross real pagination boundaries without trusting titles or target_commitish", async (t) => {

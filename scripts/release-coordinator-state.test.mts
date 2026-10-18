@@ -26,6 +26,79 @@ import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 const execute = promisify(execFile);
 const moduleUrl = new URL("./release-coordinator-state.mts", import.meta.url).href;
 
+void test("optional frozen opportunity binds allocation and cannot be changed, removed or retroactively supplied", async (t) => {
+  const f = await fixture(t);
+  assert.ok(f.input.active_candidate);
+  const original = structuredClone(f.input.opportunity);
+  f.input.active_candidate.frozen_opportunity = structuredClone(original);
+  const saved = await checkpointReleaseOpportunity(f.repository, f.initial.checkpoint, f.input);
+  const queued = structuredClone(f.input);
+  queued.opportunity.source_commit = "7".repeat(40);
+  queued.opportunity.classification.source_commit = "7".repeat(40);
+  queued.opportunity.classification.reviewed_commit = "7".repeat(40);
+  const next = await checkpointReleaseOpportunity(f.repository, saved.checkpoint, queued);
+  assert.ok("active_candidate" in next.plan);
+  assert.deepEqual(next.plan.active_candidate.frozen_opportunity, original);
+  const recovered = await recoverReleaseOpportunity(f.repository, next.checkpoint);
+  assert.ok(isRecord(recovered.input.active_candidate));
+  assert.deepEqual(recovered.input.active_candidate.frozen_opportunity, original);
+  for (const mutation of ["remove", "change", "null"]) {
+    const changed = structuredClone(queued);
+    assert.ok(changed.active_candidate);
+    if (mutation === "remove") delete changed.active_candidate.frozen_opportunity;
+    else if (mutation === "null") changed.active_candidate.frozen_opportunity = null;
+    else changed.active_candidate.frozen_opportunity = { ...original, urgency: true };
+    await assert.rejects(checkpointReleaseOpportunity(f.repository, next.checkpoint, changed));
+    assert.equal(f.git("rev-parse", coordinatorStateRef).trim(), next.checkpoint);
+  }
+  const legacy = await fixture(t);
+  const legacySaved = await checkpointReleaseOpportunity(
+    legacy.repository,
+    legacy.initial.checkpoint,
+    legacy.input,
+  );
+  assert.ok(legacy.input.active_candidate);
+  legacy.input.active_candidate.frozen_opportunity = structuredClone(legacy.input.opportunity);
+  await assert.rejects(
+    checkpointReleaseOpportunity(legacy.repository, legacySaved.checkpoint, legacy.input),
+    /cannot be added/u,
+  );
+  const legacyRecovered = await recoverReleaseOpportunity(
+    legacy.repository,
+    legacySaved.checkpoint,
+  );
+  assert.ok(isRecord(legacyRecovered.input.active_candidate));
+  assert.equal(Object.hasOwn(legacyRecovered.input.active_candidate, "frozen_opportunity"), false);
+});
+
+void test("allocation snapshot must match the whole preceding opportunity and never widens checkpoint bytes", async (t) => {
+  const f = await fixture(t);
+  assert.ok(f.input.active_candidate);
+  f.input.active_candidate.frozen_opportunity = {
+    ...structuredClone(f.input.opportunity),
+    urgency: true,
+  };
+  await assert.rejects(
+    checkpointReleaseOpportunity(f.repository, f.initial.checkpoint, f.input),
+    /preceding preparation input/u,
+  );
+  assert.equal(f.git("rev-parse", coordinatorStateRef).trim(), f.initial.checkpoint);
+  const candidate = structuredClone(f.input.active_candidate);
+  delete candidate.frozen_opportunity;
+  f.input.active_candidate = null;
+  f.input.publication.reserved_versions = [];
+  Object.assign(f.input.opportunity.classification, { evidence_note: "x".repeat(33000) });
+  const larger = await checkpointReleaseOpportunity(f.repository, f.initial.checkpoint, f.input);
+  candidate.frozen_opportunity = structuredClone(f.input.opportunity);
+  f.input.active_candidate = candidate;
+  f.input.publication.reserved_versions = [f.prepared.version];
+  await assert.rejects(
+    checkpointReleaseOpportunity(f.repository, larger.checkpoint, f.input),
+    /byte bound/u,
+  );
+  assert.equal(f.git("rev-parse", coordinatorStateRef).trim(), larger.checkpoint);
+});
+
 async function recoveryFixture(t: test.TestContext, signed = false) {
   const local = await fixture(t, signed);
   const saved = await checkpointReleaseOpportunity(

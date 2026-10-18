@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 
 import { planReleaseOpportunity } from "./release-coordinator.mts";
 
@@ -81,6 +82,67 @@ function active(overrides = {}) {
     ...overrides,
   };
 }
+
+void test("immutable delivered legacy prepare/resume/retry/repair serializations remain unchanged", async () => {
+  const oracle: unknown = JSON.parse(
+    await readFile(new URL("./fixtures/release-coordinator-legacy.json", import.meta.url), "utf8"),
+  );
+  assert.ok(isRecord(oracle) && Array.isArray(oracle.rows));
+  assert.equal(oracle.source_revision, "799da5783d339b61748de78c372c746f3011164b");
+  assert.equal(
+    oracle.source_sha256,
+    "43412a89993e0eedc675d80db898390f5f0a2b40fe6c712ec67a23824c60dbac",
+  );
+  assert.equal(oracle.rows.length, 4);
+  for (const row of oracle.rows) {
+    assert.ok(isRecord(row));
+    const result = planReleaseOpportunity(row.input);
+    assert.equal(result.action, row.action);
+    assert.equal(
+      createHash("sha256").update(JSON.stringify(result)).digest("hex"),
+      row.serialized_sha256,
+    );
+    if ("active_candidate" in result && isRecord(result.active_candidate))
+      assert.equal(Object.hasOwn(result.active_candidate, "frozen_opportunity"), false);
+  }
+});
+
+void test("an explicit frozen opportunity survives queued source changes and all active recovery plans", () => {
+  const original = fixture().opportunity;
+  for (const change of [
+    {},
+    { phase: "failed", failure_kind: "transient" },
+    { phase: "failed", failure_kind: "substantive" },
+  ]) {
+    const request = fixture({
+      active_candidate: active({ ...change, frozen_opportunity: structuredClone(original) }),
+      publication: { reserved_versions: ["0.1.0-alpha.3"] },
+    });
+    assert.ok(isRecord(request.opportunity) && isRecord(request.opportunity.classification));
+    request.opportunity.source_commit = "7".repeat(40);
+    request.opportunity.classification = {
+      ...request.opportunity.classification,
+      source_commit: "7".repeat(40),
+      reviewed_commit: "7".repeat(40),
+    };
+    const result = planReleaseOpportunity(request);
+    assert.ok("active_candidate" in result && isRecord(result.active_candidate));
+    assert.deepEqual(result.active_candidate.frozen_opportunity, original);
+    assert.equal(result.active_candidate.source_commit, commit);
+    const legacy = structuredClone(request);
+    assert.ok(isRecord(legacy.active_candidate));
+    delete legacy.active_candidate.frozen_opportunity;
+    assert.notEqual(planReleaseOpportunity(legacy).plan_sha256, result.plan_sha256);
+  }
+  for (const frozen of [
+    null,
+    [],
+    { ...(isRecord(original) ? original : {}), source_commit: "8".repeat(40) },
+  ])
+    assert.throws(() =>
+      planReleaseOpportunity(fixture({ active_candidate: active({ frozen_opportunity: frozen }) })),
+    );
+});
 
 void test("prepares one deterministic Preview from complete reviewed authority", () => {
   const first = planReleaseOpportunity(fixture());
