@@ -433,3 +433,40 @@ fn prepared_nested_directory_requires_version_three_and_staged_adapter() {
             .contains("prepared runtime subdirectory requires staged-source")
     );
 }
+
+#[test]
+fn prepared_required_mutable_files_require_version_four_and_complete_projection() {
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("dkc3-recomp")
+        .unwrap()
+        .clone();
+    let legacy = entry_for_port(&port);
+    assert!(inspect(&legacy).is_ok());
+    for runtime in port.release.user_prepared.values_mut() {
+        runtime.mutable_paths.push("settings.ini".into());
+        runtime.required_mutable_files.push("settings.ini".into());
+    }
+    let mut entry = entry_for_port(&port);
+    for minimum in [1, 2, 3] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        entry["required_capabilities"][0]["maximum_version"] = json!(4);
+        assert!(inspect(&entry).is_err());
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(4);
+    assert!(inspect(&entry).is_ok());
+    let platform = serde_json::to_value(port.platforms[0]).unwrap();
+    let platform = platform.as_str().unwrap();
+    entry["port"]["release"]["user_prepared"][platform]["unimplemented_selector_semantics"] =
+        json!(true);
+    assert!(inspect(&entry).is_err());
+    assert!(inspect(&legacy).is_ok());
+    port.adapter = crate::AdapterKind::N64RecompPortable;
+    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    *document
+        .ports
+        .iter_mut()
+        .find(|candidate| candidate.id == "dkc3-recomp")
+        .unwrap() = port;
+    assert!(crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).is_err());
+}

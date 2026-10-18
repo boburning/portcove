@@ -1330,6 +1330,11 @@ export interface UserPreparedRuntimeSpec {
    */
   library_user_data?: boolean;
   mutable_paths: string[];
+  /**
+   * Regular, single-link mutable selectors that must remain present before launch.
+   * Contents remain player-owned and are never frozen or seeded by registration.
+   */
+  required_mutable_files?: string[];
   source_argument_extension: string | null;
   version: string;
   [k: string]: unknown;

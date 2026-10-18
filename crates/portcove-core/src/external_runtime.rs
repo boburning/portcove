@@ -23,6 +23,79 @@ const MAX_FILES: usize = 100_000;
 const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_TREE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 
+/// Required selectors are existence/type constraints, never content authority.
+pub(crate) fn validate_required_mutable_files(spec: &UserPreparedRuntimeSpec) -> Result<()> {
+    if spec.required_mutable_files.len() > 64 {
+        return Err(PortcoveError::usage("too many required mutable files"));
+    }
+    let mut seen = BTreeSet::new();
+    for required in &spec.required_mutable_files {
+        let (_, key) = crate::archive::validate_relative_path(required, false)?;
+        let covered = spec.mutable_paths.iter().any(|mutable| {
+            let Ok((_, normalized)) = crate::archive::validate_relative_path(mutable, true) else {
+                return false;
+            };
+            // Match the existing inventory exemption exactly. Do not normalize
+            // a trailing separator into a broader mutable surface for a retained
+            // tree whose immutable identity was computed with literal keys.
+            mutable.to_ascii_lowercase() == normalized
+                && (key == normalized || key.starts_with(&format!("{normalized}/")))
+        });
+        if !covered || !seen.insert(key) {
+            return Err(PortcoveError::usage(
+                "required mutable files must be unique paths within declared mutable data",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn check_required_mutable_files(root: &Path, spec: &UserPreparedRuntimeSpec) -> Result<()> {
+    validate_required_mutable_files(spec)?;
+    for required in &spec.required_mutable_files {
+        let (relative, _) = crate::archive::validate_relative_path(required, false)?;
+        let file = open_object(&root.join(relative), false).map_err(|error| {
+            PortcoveError::verification("required mutable selector is missing or unsafe")
+                .detail("path", required)
+                .detail("cause", error.message)
+        })?;
+        if link_count(&file)? != 1 {
+            return Err(PortcoveError::verification(
+                "required mutable selector must not share a hard-linked file",
+            )
+            .detail("path", required));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn link_count(file: &fs::File) -> Result<u64> {
+    use std::os::unix::fs::MetadataExt;
+    Ok(file.metadata()?.nlink())
+}
+
+#[cfg(windows)]
+fn link_count(file: &fs::File) -> Result<u64> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Storage::FileSystem::{
+        BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle,
+    };
+    // SAFETY: the initialized output is valid and the borrowed handle stays alive.
+    let mut information: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
+    if unsafe { GetFileInformationByHandle(file.as_raw_handle() as _, &mut information) } == 0 {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    Ok(u64::from(information.nNumberOfLinks))
+}
+
+#[cfg(not(any(unix, windows)))]
+fn link_count(_file: &fs::File) -> Result<u64> {
+    Err(PortcoveError::unsupported(
+        "mutable selector identity is unavailable on this platform",
+    ))
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum ObjectIdentity {
     #[cfg(unix)]
@@ -129,6 +202,7 @@ pub(crate) fn check_registered_location(
             "external executable differs from its retained location contract",
         ));
     }
+    check_required_mutable_files(&root, spec)?;
     Ok(())
 }
 
@@ -160,6 +234,7 @@ pub(crate) fn inspect_with_checkpoint(
         ));
     }
     let root_identity = object_identity(&open_object(&root, true)?)?;
+    check_required_mutable_files(&root, spec)?;
     let library = fs::canonicalize(library_root)?;
     if root.starts_with(&library) || library.starts_with(&root) {
         return Err(PortcoveError::conflict(
@@ -218,6 +293,10 @@ pub(crate) fn inspect_with_checkpoint(
     if object_identity(&open_object(&root, true)?)? != root_identity {
         return Err(changed_during_inspection());
     }
+    // Required mutable entries do not disappear with the immutable exemptions.
+    // This final presence/type observation has no cancellation callback. Settings
+    // contents may change, and these sequential checks do not freeze execution.
+    check_required_mutable_files(&root, spec)?;
     Ok(InspectedExternalRuntime {
         root,
         executable,
@@ -586,6 +665,7 @@ mod tests {
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: None,
             library_user_data: false,
+            required_mutable_files: vec![],
             mutable_paths: vec!["runtime-state".into()],
         };
         let mismatch = inspect(&runtime, &spec, &library).unwrap_err();
@@ -611,6 +691,114 @@ mod tests {
             registered_at: 1,
             retained_definition: None,
         }
+    }
+
+    #[test]
+    fn required_mutable_selector_preserves_content_and_requires_presence() {
+        let (_temporary, library, runtime, mut spec) = fixture();
+        spec.mutable_paths.push("settings.ini".into());
+        spec.required_mutable_files.push("settings.ini".into());
+        assert!(inspect(&runtime, &spec, &library).is_err());
+        fs::write(runtime.join("settings.ini"), b"").unwrap();
+        let accepted = inspect(&runtime, &spec, &library).unwrap();
+        let record = location_record(&runtime, &spec, &library);
+        fs::write(runtime.join("settings.ini"), b"player preference changed").unwrap();
+        assert_eq!(
+            inspect(&runtime, &spec, &library)
+                .unwrap()
+                .immutable_tree_sha256,
+            accepted.immutable_tree_sha256
+        );
+        check_registered_location(&record, &spec, &library).unwrap();
+        fs::remove_file(runtime.join("settings.ini")).unwrap();
+        assert!(inspect(&runtime, &spec, &library).is_err());
+        assert!(check_registered_location(&record, &spec, &library).is_err());
+        assert_eq!(
+            fs::read(runtime.join("game.exe")).unwrap(),
+            b"accepted executable"
+        );
+    }
+
+    #[test]
+    fn required_mutable_selector_refuses_directory_hardlink_and_final_deletion() {
+        let (_temporary, library, runtime, mut spec) = fixture();
+        spec.mutable_paths.push("settings.ini".into());
+        spec.required_mutable_files.push("settings.ini".into());
+        let selector = runtime.join("settings.ini");
+        fs::create_dir(&selector).unwrap();
+        assert!(inspect(&runtime, &spec, &library).is_err());
+        fs::remove_dir(&selector).unwrap();
+        fs::hard_link(runtime.join("game.exe"), &selector).unwrap();
+        assert!(inspect(&runtime, &spec, &library).is_err());
+        fs::remove_file(&selector).unwrap();
+        fs::write(&selector, b"player settings").unwrap();
+        let calls = std::cell::Cell::new(0);
+        inspect_with_checkpoint(&runtime, &spec, &library, &|| {
+            calls.set(calls.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+        let final_checkpoint = calls.get();
+        assert!(
+            inspect_at_checkpoint(&runtime, &spec, &library, final_checkpoint, || {
+                fs::remove_file(&selector).unwrap()
+            })
+            .is_err()
+        );
+        assert!(!selector.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn required_mutable_selector_refuses_redirected_leaf() {
+        let (_temporary, library, runtime, mut spec) = fixture();
+        spec.mutable_paths.push("settings.ini".into());
+        spec.required_mutable_files.push("settings.ini".into());
+        let outside = library.join("player-settings");
+        fs::write(&outside, b"preserve outside data").unwrap();
+        std::os::unix::fs::symlink(&outside, runtime.join("settings.ini")).unwrap();
+        assert!(inspect(&runtime, &spec, &library).is_err());
+        assert_eq!(fs::read(&outside).unwrap(), b"preserve outside data");
+    }
+
+    #[test]
+    fn required_mutable_selector_validates_exact_portable_boundaries() {
+        let (_temporary, _library, _runtime, mut spec) = fixture();
+        spec.required_mutable_files = vec!["runtime-state/settings.ini".into()];
+        validate_required_mutable_files(&spec).unwrap();
+        spec.mutable_paths = vec!["runtime-state/".into()];
+        assert!(validate_required_mutable_files(&spec).is_err());
+        spec.mutable_paths = vec!["runtime-state".into()];
+        for paths in [
+            vec!["runtime-state-elsewhere/settings.ini"],
+            vec!["../settings.ini"],
+            vec!["game.exe"],
+            vec!["runtime-state/settings.ini", "RUNTIME-STATE/SETTINGS.INI"],
+        ] {
+            spec.required_mutable_files = paths.into_iter().map(str::to_owned).collect();
+            assert!(validate_required_mutable_files(&spec).is_err());
+        }
+        spec.required_mutable_files = (0..65)
+            .map(|index| format!("runtime-state/{index}.ini"))
+            .collect();
+        assert!(validate_required_mutable_files(&spec).is_err());
+    }
+
+    #[test]
+    fn required_mutable_selector_nested_content_remains_mutable() {
+        let (_temporary, library, runtime, mut spec) = fixture();
+        fs::create_dir(runtime.join("runtime-state")).unwrap();
+        let selector = runtime.join("runtime-state/settings.ini");
+        fs::write(&selector, b"").unwrap();
+        spec.required_mutable_files = vec!["runtime-state/settings.ini".into()];
+        let original = inspect(&runtime, &spec, &library).unwrap();
+        fs::write(&selector, b"legitimate nested preferences").unwrap();
+        assert_eq!(
+            inspect(&runtime, &spec, &library)
+                .unwrap()
+                .immutable_tree_sha256,
+            original.immutable_tree_sha256
+        );
     }
 
     fn inspect_at_checkpoint(

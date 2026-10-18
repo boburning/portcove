@@ -9646,6 +9646,22 @@ fn main() {
         runtime_directory: Option<&str>,
         executable: &str,
     ) -> (tempfile::TempDir, PortcoveService, ExternalRuntimeRecord) {
+        external_location_fixture_with_selector(
+            private,
+            other,
+            runtime_directory,
+            executable,
+            false,
+        )
+    }
+
+    fn external_location_fixture_with_selector(
+        private: bool,
+        other: Option<bool>,
+        runtime_directory: Option<&str>,
+        executable: &str,
+        required_selector: bool,
+    ) -> (tempfile::TempDir, PortcoveService, ExternalRuntimeRecord) {
         let temporary = tempfile::tempdir().unwrap();
         let library_root = temporary.path().join("library");
         let library = Library::open(&library_root).unwrap();
@@ -9668,8 +9684,14 @@ fn main() {
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: None,
             library_user_data: private,
+            required_mutable_files: vec![],
             mutable_paths: vec!["player-save".into()],
         };
+        if required_selector {
+            runtime.mutable_paths.push("settings.ini".into());
+            runtime.required_mutable_files.push("settings.ini".into());
+            fs::write(external.join("settings.ini"), b"").unwrap();
+        }
         let mismatch =
             crate::external_runtime::inspect(&external, &runtime, &library_root).unwrap_err();
         runtime.immutable_tree_sha256 = mismatch.details["actual_tree_sha256"].clone();
@@ -9741,7 +9763,7 @@ fn main() {
                 "support_tier": "stable",
                 "channels": ["stable"],
                 "platforms": [platform],
-                "adapter": if runtime.library_user_data { "staged-source-portable" } else { "n64-recomp-portable" },
+                "adapter": if runtime.library_user_data || !runtime.required_mutable_files.is_empty() { "staged-source-portable" } else { "n64-recomp-portable" },
                 "user_data_environment": "FIXTURE_USER_DIR",
                 "release": {
                     "provider": "user-prepared",
@@ -9767,6 +9789,109 @@ fn main() {
             None,
             &OperationCoordinator::new("launch", None),
         )
+    }
+
+    #[test]
+    fn required_mutable_files_retain_launch_guard_and_allow_registration_only_removal() {
+        let (_temporary, mut service, record) =
+            external_location_fixture_with_selector(false, None, None, "game.exe", true);
+        let retained: String = service
+            .library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT retained_catalog_json FROM external_runtime_registrations WHERE port_id=?1",
+                [&record.port_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(Catalog::from_json(&retained).is_err());
+        let mut browsing_budget = crate::signed_catalog::MAX_CATALOG_BYTES as u64;
+        let (_, bounded_catalog) = service
+            .library
+            .external_runtime_with_port_bounded(&record.port_id, &mut browsing_budget)
+            .unwrap()
+            .unwrap();
+        assert!(
+            !bounded_catalog
+                .port(&record.port_id)
+                .unwrap()
+                .release
+                .user_prepared
+                .values()
+                .next()
+                .unwrap()
+                .required_mutable_files
+                .is_empty()
+        );
+        fs::write(record.path.join("settings.ini"), b"player settings").unwrap();
+        fs::write(record.path.join("player-save"), b"player save").unwrap();
+        prepare_external_location_fixture_launch(&service, &record).unwrap();
+        service
+            .preview_external_runtime(&record.port_id, &record.path)
+            .unwrap();
+        let mut current = service.catalog.authoritative_document();
+        for spec in current.ports[0].release.user_prepared.values_mut() {
+            spec.required_mutable_files.clear();
+        }
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&current).unwrap()).unwrap(),
+        );
+        fs::remove_file(record.path.join("settings.ini")).unwrap();
+        assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+        assert_external_location_readiness(&service, true);
+        let removal = service.preview_external_removal(&record.port_id).unwrap();
+        let authorization = service
+            .authorize_external_removal(&record.port_id, &removal.preview_sha256)
+            .unwrap();
+        service
+            .remove_external_runtime(&record.port_id, &authorization.token)
+            .unwrap();
+        assert!(!record.path.join("settings.ini").exists());
+        assert_eq!(fs::read(&record.executable).unwrap(), b"accepted runtime");
+        assert_eq!(
+            fs::read(record.path.join("player-save")).unwrap(),
+            b"player save"
+        );
+    }
+
+    #[test]
+    fn required_mutable_files_revalidate_before_spending_registration_consent() {
+        let (_temporary, service, record) =
+            external_location_fixture_with_selector(false, None, None, "game.exe", true);
+        let removal = service.preview_external_removal(&record.port_id).unwrap();
+        let removal_authorization = service
+            .authorize_external_removal(&record.port_id, &removal.preview_sha256)
+            .unwrap();
+        service
+            .remove_external_runtime(&record.port_id, &removal_authorization.token)
+            .unwrap();
+        let preview = service
+            .preview_external_runtime(&record.port_id, &record.path)
+            .unwrap();
+        let authorization = service
+            .authorize_external_runtime(&record.port_id, &record.path, &preview.preview_sha256)
+            .unwrap();
+        fs::remove_file(record.path.join("settings.ini")).unwrap();
+        assert!(
+            service
+                .preview_external_runtime(&record.port_id, &record.path)
+                .is_err()
+        );
+        assert!(
+            service
+                .register_external_runtime(&record.port_id, &record.path, &authorization.token)
+                .is_err()
+        );
+        fs::write(record.path.join("settings.ini"), b"new legitimate content").unwrap();
+        let registered = service
+            .register_external_runtime(&record.port_id, &record.path, &authorization.token)
+            .unwrap();
+        prepare_external_location_fixture_launch(&service, &registered).unwrap();
+        assert_eq!(
+            fs::read(record.path.join("settings.ini")).unwrap(),
+            b"new legitimate content"
+        );
     }
 
     #[test]
@@ -10412,6 +10537,7 @@ fn main() {
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: Some("z64".into()),
             library_user_data: false,
+            required_mutable_files: vec![],
             mutable_paths: vec!["general.json".into()],
         };
         runtime.immutable_tree_sha256 =
@@ -10666,6 +10792,7 @@ fn main() {
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: None,
             library_user_data: false,
+            required_mutable_files: vec![],
             mutable_paths: vec!["general.json".into()],
         };
         let mismatch =

@@ -4740,6 +4740,13 @@
             },
             "type": "array"
           },
+          "required_mutable_files": {
+            "description": "Regular, single-link mutable selectors that must remain present before launch.\nContents remain player-owned and are never frozen or seeded by registration.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "source_argument_extension": {
             "default": null,
             "type": [
@@ -14488,6 +14495,13 @@
             },
             "type": "array"
           },
+          "required_mutable_files": {
+            "description": "Regular, single-link mutable selectors that must remain present before launch.\nContents remain player-owned and are never frozen or seeded by registration.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "source_argument_extension": {
             "default": null,
             "type": [
@@ -20105,6 +20119,13 @@
           },
           "mutable_paths": {
             "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "required_mutable_files": {
+            "description": "Regular, single-link mutable selectors that must remain present before launch.\nContents remain player-owned and are never frozen or seeded by registration.",
             "items": {
               "type": "string"
             },
