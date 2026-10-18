@@ -1333,6 +1333,256 @@ async function capacityStateFixture(t: Parameters<typeof fixture>[0]) {
   const migrated = await checkpointReleaseOpportunity(f.repository, saved.checkpoint, input);
   return { ...f, capacity, migrated };
 }
+async function remoteCapacityFixture(t: test.TestContext) {
+  const f = await remoteFixture(t);
+  await publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, { api: f.api });
+  const capacity = capacityFixture();
+  const input = {
+    ...f.input,
+    schema_version: 2,
+    controller: {
+      workflow: f.input.controller.workflow,
+      revision: f.input.controller.revision,
+      publication_paused: false,
+      capacity_attempt: capacity,
+    },
+  };
+  const migrated = await checkpointReleaseOpportunity(f.bare, f.saved.checkpoint, input);
+  await publishCoordinatorCheckpoint(f.bare, migrated.checkpoint, f.config, { api: f.api });
+  return { ...f, capacity, migrated, options: { remote: { configuration: f.config, api: f.api } } };
+}
+void test("remote capacity intent and completed effects are durable before handoff", async (t) => {
+  const f = await remoteCapacityFixture(t);
+  const result = await runBoundedCapacityOperation(
+    f.bare,
+    f.migrated.checkpoint,
+    { kind: "upload", destination: "artifact:durable" },
+    async () => f.capacity.boundary,
+    async (record) => {
+      const pending = await recoverReleaseOpportunity(f.bare, f.refs.get(f.stateRef)!);
+      assert.ok(
+        isRecord(pending.input.controller) && isRecord(pending.input.controller.capacity_attempt),
+      );
+      const operation = pending.input.controller.capacity_attempt.operation;
+      assert.ok(isRecord(operation));
+      assert.equal(operation.outcome, "pending");
+      // Lost POST acknowledgement is accepted only after the existing readback
+      // confirms exact refs; this does not repeat the mutation.
+      f.faults.mutation = "after";
+      await record("artifact:observed", "d".repeat(64));
+      const recorded = await recoverReleaseOpportunity(f.bare, f.refs.get(f.stateRef)!);
+      assert.ok(
+        isRecord(recorded.input.controller) && isRecord(recorded.input.controller.capacity_attempt),
+      );
+      const saved = recorded.input.controller.capacity_attempt.operation;
+      assert.ok(isRecord(saved));
+      assert.deepEqual(saved.completed_effects, [
+        { remote_identity: "artifact:observed", evidence_sha256: "d".repeat(64) },
+      ]);
+    },
+    f.options,
+  );
+  assert.equal(result.durable_checkpoint, result.checkpoint);
+  assert.equal(result.completion, "readback-required");
+  assert.equal(result.operation.outcome, "pending");
+  assert.equal(f.refs.get(f.stateRef), result.checkpoint);
+  assert.equal(result.availability, "unknown");
+  assert.equal(result.headroom, "unknown");
+});
+for (const partial of [false, true]) {
+  void test(`remote checkpoint refusal ${partial ? "after partial progress" : "before effect"} stops without a second mutation`, async (t) => {
+    const f = await remoteCapacityFixture(t);
+    let effects = 0;
+    if (!partial) f.faults.mutation = "before";
+    const before = f.counts().mutations;
+    let retained = "";
+    await assert.rejects(
+      runBoundedCapacityOperation(
+        f.bare,
+        f.migrated.checkpoint,
+        { kind: "upload", destination: "artifact:durability-refused" },
+        async () => f.capacity.boundary,
+        async (record) => {
+          effects++;
+          f.faults.mutation = "before";
+          await record("artifact:completed-before-checkpoint-refusal", "e".repeat(64));
+        },
+        f.options,
+      ),
+      (error: unknown) => {
+        assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+        retained = String(error.evidence.checkpoint);
+        assert.equal(error.evidence.retry, "forbidden");
+        assert.ok(error.evidence.checkpoint_transport_error);
+        return true;
+      },
+    );
+    assert.equal(effects, partial ? 1 : 0);
+    assert.equal(f.counts().mutations - before, partial ? 2 : 1);
+    const state = await recoverReleaseOpportunity(f.bare, retained);
+    assert.ok(
+      isRecord(state.input.controller) && isRecord(state.input.controller.capacity_attempt),
+    );
+    const operation = state.input.controller.capacity_attempt.operation;
+    assert.ok(isRecord(operation));
+    assert.equal(operation.outcome, "ambiguous");
+    assert.equal((operation.completed_effects as unknown[]).length, partial ? 1 : 0);
+    await assert.rejects(
+      runBoundedCapacityOperation(
+        f.bare,
+        retained,
+        { kind: "dispatch", destination: "run:must-not-retry" },
+        async () => f.capacity.boundary,
+        async () => {
+          assert.fail("recovery required");
+        },
+        f.options,
+      ),
+    );
+  });
+}
+void test("ambiguous remote pending POST retains its attempt and requires readback before effect", async (t) => {
+  const f = await remoteCapacityFixture(t);
+  const api: CoordinatorRemoteApi = {
+    request: f.api.request,
+    graphql(query, variables) {
+      try {
+        return f.api.graphql(query, variables);
+      } finally {
+        if (query.startsWith("mutation")) f.faults.snapshot = "after";
+      }
+    },
+  };
+  f.faults.mutation = "after";
+  const before = f.counts().mutations;
+  let checkpoint = "";
+  await assert.rejects(
+    runBoundedCapacityOperation(
+      f.bare,
+      f.migrated.checkpoint,
+      { kind: "dispatch", destination: "run:ambiguous-intent" },
+      async () => f.capacity.boundary,
+      async () => {
+        assert.fail("unconfirmed pending intent");
+      },
+      { remote: { configuration: f.config, api } },
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+      assert.equal(error.evidence.durable_checkpoint, null);
+      assert.ok(isRecord(error.evidence.checkpoint_transport_error));
+      assert.ok(error.evidence.checkpoint_transport_error.mutationError);
+      assert.ok(error.evidence.checkpoint_transport_error.readbackError);
+      checkpoint = String(error.evidence.checkpoint);
+      return true;
+    },
+  );
+  assert.equal(f.counts().mutations - before, 1);
+  const retained = await recoverReleaseOpportunity(f.bare, checkpoint);
+  assert.ok(
+    isRecord(retained.input.controller) && isRecord(retained.input.controller.capacity_attempt),
+  );
+  const operation = retained.input.controller.capacity_attempt.operation;
+  assert.ok(isRecord(operation));
+  assert.equal(operation.outcome, "ambiguous");
+  // Simulated provider did apply the original pending intent despite the failed
+  // response. Its state stays pending; no subsequent outcome POST was attempted.
+  const remote: unknown = JSON.parse(
+    execFileSync("git", ["-C", f.bare, "show", `${f.refs.get(f.stateRef)!}:state.json`], {
+      encoding: "utf8",
+      windowsHide: true,
+    }),
+  );
+  assert.ok(
+    isRecord(remote) &&
+      isRecord(remote.input) &&
+      isRecord(remote.input.controller) &&
+      isRecord(remote.input.controller.capacity_attempt),
+  );
+  const remoteOperation = remote.input.controller.capacity_attempt.operation;
+  assert.ok(isRecord(remoteOperation));
+  assert.equal(remoteOperation.outcome, "pending");
+});
+void test("configured mode cannot be cleared mid-effect and final handoff readback failure stays blocking", async (t) => {
+  const f = await remoteCapacityFixture(t);
+  let checkpoint = "";
+  await assert.rejects(
+    runBoundedCapacityOperation(
+      f.bare,
+      f.migrated.checkpoint,
+      { kind: "upload", destination: "artifact:final-handoff" },
+      async () => f.capacity.boundary,
+      async (record) => {
+        Reflect.deleteProperty(f.options, "remote");
+        await record("artifact:completed", "e".repeat(64));
+        f.faults.snapshot = "after";
+      },
+      f.options,
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+      checkpoint = String(error.evidence.checkpoint);
+      assert.ok(error.evidence.durable_checkpoint);
+      assert.ok(isRecord(error.evidence.checkpoint_transport_error));
+      assert.match(
+        String(error.evidence.checkpoint_transport_error.message),
+        /readback unavailable/,
+      );
+      return true;
+    },
+  );
+  const state = await recoverReleaseOpportunity(f.bare, checkpoint);
+  assert.ok(isRecord(state.input.controller) && isRecord(state.input.controller.capacity_attempt));
+  const operation = state.input.controller.capacity_attempt.operation;
+  assert.ok(isRecord(operation));
+  assert.equal(operation.outcome, "ambiguous");
+  assert.equal((operation.completed_effects as unknown[]).length, 1);
+  await assert.rejects(
+    runBoundedCapacityOperation(
+      f.bare,
+      checkpoint,
+      { kind: "dispatch", destination: "run:forbidden-after-handoff" },
+      async () => f.capacity.boundary,
+      async () => {
+        assert.fail("explicit recovery required");
+      },
+    ),
+  );
+});
+void test("throwing null from initial transport cannot clear the failure latch or discard diagnostics", async (t) => {
+  const f = await remoteCapacityFixture(t);
+  let calls = 0;
+  const api: CoordinatorRemoteApi = {
+    request() {
+      calls++;
+      // Deliberately malformed provider exception exercises the failure latch.
+      // oxlint-disable-next-line typescript/only-throw-error
+      throw null;
+    },
+    graphql() {
+      assert.fail("transport already failed");
+    },
+  };
+  await assert.rejects(
+    runBoundedCapacityOperation(
+      f.bare,
+      f.migrated.checkpoint,
+      { kind: "dispatch", destination: "run:null-transport" },
+      async () => f.capacity.boundary,
+      async () => {
+        assert.fail("missing durable intent");
+      },
+      { remote: { configuration: f.config, api } },
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+      assert.ok(isRecord(error.evidence.checkpoint_transport_error));
+      assert.equal(error.evidence.checkpoint_transport_error.code, "operation_failed");
+      return true;
+    },
+  );
+  assert.equal(calls, 1);
+});
 void test(
   "journal history refuses A B A despite intervening completed operations",
   { timeout: 60000 },
