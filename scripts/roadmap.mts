@@ -1,3 +1,9 @@
+import {
+  collectRoadmapInventory,
+  requireRoadmapInventory,
+  invalidateRoadmapInventory,
+} from "./roadmap-inventory.mts";
+import type { RoadmapInventory, InventoryCache } from "./roadmap-inventory.mts";
 import type { GitHubRunner } from "./github-api.mts";
 import type { PortDefinition } from "../apps/desktop/src/transport-types.generated.d.ts";
 import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
@@ -5346,10 +5352,14 @@ export class RoadmapClient {
     {
       includeDependencies = false,
       includeBodies = true,
+      includeArchived = false,
+      pageSize = 50,
       details: suppliedDetails = null,
     }: {
       includeDependencies?: boolean;
       includeBodies?: boolean;
+      includeArchived?: boolean;
+      pageSize?: 50 | 100;
       details?: ProjectDetails | null;
     } = {},
   ) {
@@ -5360,7 +5370,8 @@ export class RoadmapClient {
       ? "blockedBy(first: 10) { totalCount nodes { id number title url state } }"
       : "";
     const body = includeBodies ? "body" : "";
-    const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: 50, after: $after) { totalCount nodes { id content { __typename ... on DraftIssue { title ${body} } ... on Issue { id number title ${body} url state ${dependencies} } ... on PullRequest { number title ${body} url state merged } } fieldValues(first: 25) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } pageInfo { hasNextPage endCursor } } } pageInfo { hasNextPage endCursor } } } } }`;
+    const archive = includeArchived ? "archivedStates: [ARCHIVED, NOT_ARCHIVED]," : "";
+    const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: ${pageSize}, ${archive} after: $after) { totalCount nodes { id isArchived content { __typename ... on DraftIssue { id updatedAt title ${body} } ... on Issue { id number updatedAt title ${body} url state ${dependencies} } ... on PullRequest { id number updatedAt title ${body} url state merged } } fieldValues(first: 25) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } pageInfo { hasNextPage endCursor } } } pageInfo { hasNextPage endCursor } } } } }`;
     return this.readInventory(
       query,
       { id: details.id },
@@ -6360,15 +6371,21 @@ export class RoadmapClient {
     catalogId,
     portKey,
     onIssueCreated = () => {},
+    inventory,
+    body: suppliedBody,
   }: {
     title: string;
     upstream: string;
     catalogId?: string | null | undefined;
     portKey?: string | null | undefined;
     onIssueCreated?: (issue: RepositoryIssueObservation) => void;
+    inventory?: RoadmapInventory;
+    body?: string;
   }) {
     const issueTitle = `[Port] ${title}`;
-    const issues = this.repositoryIssues();
+    const issues = inventory
+      ? requireRoadmapInventory(inventory, this.config.repository, this).issues
+      : this.repositoryIssues();
     const duplicates = findPortIssueDuplicates(issues, {
       title,
       upstream,
@@ -6382,7 +6399,11 @@ export class RoadmapClient {
           .join("; ")}`,
       );
     }
-    const body = renderPortIssueBody({ title, upstream, catalogId, portKey });
+    const body = suppliedBody ?? renderPortIssueBody({ title, upstream, catalogId, portKey });
+    validateDurableIssueBody(body);
+    if (reconcilePortIssueMarkers(body, { upstream, catalogId, portKey }) !== body)
+      throw new Error("Intake body differs from reviewed canonical markers");
+    if (inventory) invalidateRoadmapInventory(inventory);
     const issue = repositoryIssueObservation(
       this.api.request("POST", `repos/${this.config.repository}/issues`, {
         title: issueTitle,
@@ -6403,9 +6424,11 @@ export class RoadmapClient {
   normalizePortIssue({
     number,
     catalog,
+    inventory,
   }: {
     number: number;
     catalog: QualificationCatalogObservation;
+    inventory?: RoadmapInventory;
   }) {
     const issue = this.repositoryIssue(number);
     const issueBody = issue.body ?? "";
@@ -6438,7 +6461,9 @@ export class RoadmapClient {
     if (catalogId && !(catalog?.ports ?? []).some((port) => port.id === catalogId)) {
       throw new Error(`issue #${number} claims unknown catalog ID ${catalogId}`);
     }
-    const repositoryIssues = this.repositoryIssues();
+    const repositoryIssues = inventory
+      ? requireRoadmapInventory(inventory, this.config.repository, this).issues
+      : this.repositoryIssues();
     const duplicates = findPortIssueDuplicates(
       repositoryIssues.filter((candidate) => issueNumber(candidate) !== number),
       {
@@ -6456,7 +6481,11 @@ export class RoadmapClient {
       );
     }
 
-    const existingItems = this.itemList(this.config.project.number).filter(
+    const existingItems = (
+      inventory
+        ? [...inventory.items, ...inventory.archivedItems]
+        : this.itemList(this.config.project.number)
+    ).filter(
       (item) =>
         issueNumber(item) === number &&
         String(itemUrl(item) ?? "").toLowerCase() === String(issue.html_url).toLowerCase(),
@@ -6475,6 +6504,7 @@ export class RoadmapClient {
     const existingItem = existingItems[0] ?? null;
     const fieldUpdates = portFieldInitialization(existingItem);
 
+    if (inventory) invalidateRoadmapInventory(inventory);
     if (bodyChanged) {
       this.api.request("PATCH", `repos/${this.config.repository}/issues/${number}`, { body });
     }
@@ -6761,39 +6791,25 @@ function linkedRepositoryObservation(value: unknown): LinkedProjectRepository {
     throw new Error("Project linked repository identity is malformed");
   return value as Record<string, unknown> & LinkedProjectRepository;
 }
-async function runDoctor(
-  config: RoadmapConfig,
-  clientInput: unknown,
-  { quiet = false }: { quiet?: boolean } = {},
-) {
-  if (!isDoctorClient(clientInput))
-    throw new Error("Roadmap doctor client capabilities are unavailable");
-  const client = clientInput;
-  const log = quiet ? () => {} : console.log;
-  client.gh(["auth", "status"]);
-  const number = config.project.number;
-  const context = client.completeProjectContext(number);
-  const { details, fields } = context;
-  const projectId = details.id;
-  if (!projectId) throw new Error("Roadmap doctor Project identity is unavailable");
-  const views = client.viewList(projectId);
-  const rawAudit = client.projectAudit(projectId);
-  const audit = projectDetailsObservation(rawAudit);
-  const rawRepositories = nestedGitHubField(rawAudit, "repositories", "nodes");
-  if (rawRepositories != null && !Array.isArray(rawRepositories))
-    throw new Error("Project linked repository inventory is malformed");
-  const repositoryEntries: unknown[] = Array.isArray(rawRepositories) ? rawRepositories : [];
-  const drift = projectMachineDrift(config, {
-    details: audit,
-    fields,
-    views,
-    repositories: repositoryEntries.map(linkedRepositoryObservation),
-  });
-  const catalog = qualificationCatalogObservation(JSON.parse(await readFile(catalogPath, "utf8")));
-  const items = client.itemList(number, { includeDependencies: true, details });
-  const repositoryIssues = client.repositoryIssues();
+export function evaluateRoadmapDoctor({
+  config,
+  catalog,
+  items,
+  repositoryIssues,
+  drift,
+  risk706Approval,
+  now,
+}: {
+  config: RoadmapConfig;
+  catalog: QualificationCatalogObservation;
+  items: readonly RoadmapIssueItem[];
+  repositoryIssues: readonly RoadmapIssueItem[];
+  drift: readonly string[];
+  risk706Approval: unknown;
+  now: string;
+}) {
   const stage = validatePortStageSemantics(catalog, items);
-  const readiness = analyzeReleaseReadiness(items, config.active_release);
+  const readiness = analyzeReleaseReadiness(items, config.active_release, { risk706Approval, now });
   const roadmapErrors = [
     ...readiness.migrationConflicts.map(
       (item) => `${itemUrl(item)} retains an unmigrated active target`,
@@ -6836,6 +6852,62 @@ async function runDoctor(
     );
     throw Object.assign(error, { doctorErrors: [...drift, ...roadmapErrors] });
   }
+  return { warnings: stage.warnings, diagnostics: stage.diagnostics, readiness };
+}
+
+export async function runDoctor(
+  config: RoadmapConfig,
+  clientInput: unknown,
+  {
+    quiet = false,
+    cache,
+    inventory: suppliedInventory,
+  }: { quiet?: boolean; cache?: InventoryCache; inventory?: RoadmapInventory } = {},
+) {
+  if (!isDoctorClient(clientInput))
+    throw new Error("Roadmap doctor client capabilities are unavailable");
+  const client = clientInput;
+  const log = quiet ? () => {} : console.log;
+  client.gh(["auth", "status"]);
+  const number = config.project.number;
+  const inventory = suppliedInventory
+    ? requireRoadmapInventory(suppliedInventory, config.repository, clientInput)
+    : cache && clientInput instanceof RoadmapClient
+      ? collectRoadmapInventory(clientInput, cache)
+      : undefined;
+  const context = client.completeProjectContext(number);
+  const { details, fields } = context;
+  const projectId = details.id;
+  if (!projectId) throw new Error("Roadmap doctor Project identity is unavailable");
+  if (inventory && inventory.projectId !== projectId)
+    throw new Error("Doctor inventory belongs to a different Project");
+  const views = client.viewList(projectId);
+  const rawAudit = client.projectAudit(projectId);
+  const audit = projectDetailsObservation(rawAudit);
+  const rawRepositories = nestedGitHubField(rawAudit, "repositories", "nodes");
+  if (rawRepositories != null && !Array.isArray(rawRepositories))
+    throw new Error("Project linked repository inventory is malformed");
+  const repositoryEntries: unknown[] = Array.isArray(rawRepositories) ? rawRepositories : [];
+  const drift = projectMachineDrift(config, {
+    details: audit,
+    fields,
+    views,
+    repositories: repositoryEntries.map(linkedRepositoryObservation),
+  });
+  const catalog = qualificationCatalogObservation(JSON.parse(await readFile(catalogPath, "utf8")));
+  const items = inventory?.items ?? client.itemList(number, { includeDependencies: true, details });
+  const repositoryIssues = inventory?.issues ?? client.repositoryIssues();
+  const stage = evaluateRoadmapDoctor({
+    config,
+    catalog,
+    items,
+    repositoryIssues,
+    drift,
+    risk706Approval: JSON.parse(
+      await readFile(path.join(projectRoot, ".github/linux-beta-risk-706.json"), "utf8"),
+    ),
+    now: new Date().toISOString(),
+  });
   log(`Portcove Roadmap #${number} is reachable at ${details.url}.`);
   log(
     `Verified identity, PUBLIC visibility, repository linkage, ${fields.length} fields, and ${views.length} view layouts/filters/visible-field sets.`,
@@ -6850,7 +6922,7 @@ async function runDoctor(
       `Conservative Port-stage warnings:\n${stage.warnings.map((value) => `- ${value}`).join("\n")}`,
     );
   log(
-    `${config.active_release} readiness has ${readiness.unfinishedRequired.length} unfinished required outcomes and ${readiness.planned.length} planned outcomes.`,
+    `${config.active_release} readiness has ${stage.readiness.unfinishedRequired.length} unfinished required outcomes and ${stage.readiness.planned.length} planned outcomes.`,
   );
   log(
     `Grouping and sorting were read back; UI changes are required if they drift. Confirm built-in auto-add and completion workflows separately:\n${manualUiChecklist(config).slice(-2).join("\n")}`,
@@ -6864,6 +6936,7 @@ async function runDoctor(
     items,
     warnings: stage.warnings,
     diagnostics: stage.diagnostics,
+    inventory,
   };
 }
 
