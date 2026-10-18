@@ -613,6 +613,51 @@ candidate/scan/publication evidence, applicable qualification, authenticated
 producing run/attempt/job and exact artifact/attestation binding through the
 existing protected architecture.
 
+### Inactive assembler job identity verification
+
+`verifyAssemblerJobIdentity(token, expected, { transport })` in
+`scripts/assembler-job-identity.mts` verifies a GitHub job token's identity. It
+does not request a token, execute a workflow or establish code execution,
+artifact production, protection enforcement or permission. The caller supplies
+independently expected controller configuration and invocation facts; there is
+no default audience, subject, principal, controller revision/ref or transport.
+The subject must match the separately ratified actual GitHub subject format.
+
+Verification uses GitHub's existing [OIDC issuer and RS256
+keys](https://docs.github.com/en/actions/reference/security/oidc), with a fixed
+HTTPS JWKS location, no redirects, 15-second collection and a 128 KiB pre-parse
+response limit. Tokens are bounded to 16 KiB. Unsupported JOSE key selection,
+noncanonical encodings, missing/ambiguous/unsupported keys and invalid signatures
+refuse. Exact signed issuer, audience, subject, repository, actor, direct
+controller workflow/ref/revision, run/attempt, event and hosted-runner claims
+must match. Expiry/not-before/issued-at checks use the current clock without an
+expiry extension; expiry is rechecked around API calls. Raw bearer tokens are
+neither returned nor persisted.
+
+The bounded read-only GitHub API transport pins `github.com` and collects the
+complete current attempt job inventory, at most 1,600 unique jobs. A signed
+`check_run_id` must identify exactly one API `check_run_url`; its corresponding
+numeric job ID is retained independently. They need not be equal. The fixed job
+name additionally checks the expected assembly role, never replaces that signed
+identity association. A fresh numeric-job read must still match the run,
+attempt, controller revision and check-run URL while in progress, and the run
+identity is bracketed. API limits are 20 requests, 120 cooperative seconds and
+2 MiB per response, with a 15-second subprocess collection bound.
+
+The receipt says `oidc-job-identity-only` and `authority: none`. Injected key/API
+readers are labelled `injected-provider`. Protection enforcement, actual code
+execution and artifact production remain explicitly unproven. The helper does
+not assume a signed protection claim establishes platform ref/bypass controls.
+An attempt-two fixture proves matching only; current controller admission still
+permits attempt one and grants no retry authority through this helper.
+
+Actual producer binding still needs the fresh fixed trusted job to assemble the
+new aggregate, capture its own identity, upload a new immutable artifact, bind
+its exact artifact/package identities through existing attestation, and verify
+that attestation's workflow, subjects and claimed job association. Candidate
+input authority, isolation, strict Linux/SBOM/native qualification, custody,
+production permissions and the specifically authorized proof remain separate.
+
 ### Read-only release-run evidence
 
 `node scripts/release-run-evidence.mts REQUEST.json` collects bounded read-only
