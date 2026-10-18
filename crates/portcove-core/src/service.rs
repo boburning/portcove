@@ -13307,10 +13307,15 @@ fn main() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let saves = library.user_dir("ghostship").join("saves");
-        fs::create_dir_all(&saves).unwrap();
-        let outside = temporary.path().join("outside.json");
+        fs::create_dir_all(saves.parent().unwrap()).unwrap();
+        let outside_directory = temporary.path().join("outside-saves");
+        fs::create_dir(&outside_directory).unwrap();
+        let outside = outside_directory.join("global.json");
         fs::write(&outside, br#"{"version":1}"#).unwrap();
-        create_adoption_test_symlink(&outside, &saves.join("global.json"), false);
+        #[cfg(windows)]
+        create_adoption_test_junction(&outside_directory, &saves);
+        #[cfg(unix)]
+        create_adoption_test_symlink(&outside_directory, &saves, true);
         let service = PortcoveService::new(library).unwrap();
         let error = service
             .require_ghostship_data_compatibility("ghostship", "2.0.0", None)
@@ -13348,7 +13353,7 @@ fn main() {
             let mut operation =
                 LifecycleOperation::new(Uuid::new_v4().to_string(), kind, "ghostship");
             operation.install = target.clone();
-            operation.activate = true;
+            operation.activate = kind == LifecycleOperationKind::Install;
             if kind == LifecycleOperationKind::Install {
                 operation.phase = LifecyclePhase::PayloadPublished;
                 let staging = library.staging_dir().join(&operation.id);
@@ -13363,7 +13368,11 @@ fn main() {
             } else {
                 crate::recovery::recover_activation(&service, &store, &mut operation)
             };
-            assert!(result.unwrap_err().message.contains("schema-2 saves"));
+            let error = result.unwrap_err();
+            assert!(
+                error.message.contains("schema-2 saves"),
+                "{kind:?}: {error:?}"
+            );
             assert_eq!(store.all().unwrap()[0].phase, phase);
             assert_eq!(
                 library
