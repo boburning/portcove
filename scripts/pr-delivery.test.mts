@@ -1459,6 +1459,15 @@ void test("inspection verifies hashed finite references without converting decla
   assert.match(valid.next_action, /Verify current authority/);
   assert.match(valid.boundary, /no approval/);
   assert.match((await inspect(declaration, { checks: [] })).next_action, /Continue the existing/);
+  assert.match(
+    (
+      await inspect(declaration, {
+        checks: [],
+        workflow: { status: "completed", conclusion: "failure" },
+      })
+    ).next_action,
+    /terminal workflow.*cannot resume/,
+  );
   for (const [options, now] of [
     [{ checks: [], workflow: { run_attempt: 2 } }, Date.parse("2026-10-18T00:00:00Z")],
     [{ checks: [] }, Date.parse(declaration.watcher.deadline)],

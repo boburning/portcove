@@ -1603,7 +1603,9 @@ export async function inspectDelivery(
                 ? "Inspect failed exact-head jobs and retained evidence before any repair or retry."
                 : checks.some((check) => check.outcome !== "success")
                   ? watcher.state === "referenced"
-                    ? "Continue the existing source-bound watcher with its original run, attempt and deadline."
+                    ? watcher.status === "completed"
+                      ? "Inspect the identified terminal workflow and missing or pending gates; its watcher cannot resume or renew the deadline."
+                      : "Continue the existing source-bound watcher with its original run, attempt and deadline."
                     : "Inspect the retained source-head run and reconcile its watcher binding; do not resume a stale wait or renew its deadline."
                   : review.state !== "referenced" || review.result !== "clear"
                     ? "Complete or reconcile independent review against this source and target."
