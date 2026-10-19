@@ -229,14 +229,15 @@ export function PortBrowser({
     onConnectGameFiles && (
       <section
         aria-label="Connect your game files"
-        className="mb-4 rounded-pc-lg border border-pc-border bg-pc-surface p-4"
+        className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-pc-border pb-4"
         data-focus-group
       >
-        <h2 className="m-0 text-lg font-semibold">Find ports for your game files</h2>
-        <p className="my-2 text-pc-muted-foreground">
-          Connect your game-file folders to discover setup options. Your originals stay in place;
-          you choose which games to review and set up. You can also keep browsing the catalog.
-        </p>
+        <div className="min-w-0 flex-1">
+          <h2 className="m-0 text-sm font-semibold">Find ports for games you own</h2>
+          <p className="mt-1 mb-0 text-sm text-pc-muted-foreground">
+            Browse below, or connect a folder to find matching games. Your originals stay in place.
+          </p>
+        </div>
         <Button data-focusable variant="outline" onClick={onConnectGameFiles}>
           Connect game-file folder
         </Button>
@@ -281,7 +282,7 @@ export function PortBrowser({
   const renderFilters = () =>
     !firstUseEmpty && (
       <div
-        className="filter-row mb-[18px] flex flex-wrap items-center gap-[7px]"
+        className="filter-row flex flex-1 flex-wrap items-center gap-2"
         data-focus-group
         role="group"
         aria-label={view === "library" ? "Library filters" : "Release channel filters"}
@@ -299,7 +300,6 @@ export function PortBrowser({
                 : "outline"
             }
             size="sm"
-            className="capitalize"
             disabled={!composedLibrary && unresolvedFilter && item !== "all"}
             onClick={() =>
               composedLibrary
@@ -343,7 +343,7 @@ export function PortBrowser({
   const renderSort = () =>
     view === "catalog" &&
     setCatalogSort && (
-      <div className="mb-4 ml-auto w-52">
+      <div className="w-52 shrink-0">
         <ChoiceSelect
           label="Sort"
           value={catalogSort}
@@ -385,9 +385,11 @@ export function PortBrowser({
           These filters are not supported. Reset filters to choose a supported query.
         </p>
       )}
-      {renderFilters()}
-      {renderSort()}
-      {renderDeclaredFilters()}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        {renderFilters()}
+        {renderDeclaredFilters()}
+        {renderSort()}
+      </div>
       <BrowserResults
         view={view}
         ports={visiblePorts}
@@ -516,7 +518,7 @@ function BrowserResults({
     );
   return (
     <section
-      className="port-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),1fr))] gap-4"
+      className="port-grid grid w-full max-w-[66.5rem] grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),1fr))] gap-4"
       data-focus-group
     >
       {ports.map((port) => (
@@ -904,14 +906,33 @@ function PortCardContents({
 }) {
   const title = (
     <div className="flex items-start justify-between gap-2">
-      <h2 className="m-0 text-lg leading-[var(--leading-tight)]">{port.name}</h2>
+      <h2 className="m-0 min-h-[3.6em] text-base leading-[1.2]" title={port.name}>
+        {view === "library" ? (
+          <button
+            className={cn(
+              controlFocus,
+              "block w-full cursor-pointer text-start hover:text-pc-interactive-foreground",
+            )}
+            data-focusable
+            aria-label={`View details for ${port.name}`}
+            data-detail-game-id={port.id}
+            aria-describedby={input ? setupDescriptionId : undefined}
+            data-detail-origin={detailOrigin}
+            onClick={() => onSelect(port.id, detailOrigin)}
+          >
+            <span className="line-clamp-3 max-[60rem]:line-clamp-none">{port.name}</span>
+          </button>
+        ) : (
+          <span className="line-clamp-3 max-[60rem]:line-clamp-none">{port.name}</span>
+        )}
+      </h2>
     </div>
   );
   const renderStateLabel = () => (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <span
         className={cn(
-          `readiness ${state.tone} inline-flex items-center gap-[6px] text-[length:var(--text-2xs)] font-[750] tracking-[0.025em] text-[var(--color-text-secondary)]`,
+          `readiness ${state.tone} inline-flex min-h-8 items-center gap-[6px] text-xs font-semibold text-[var(--color-text-secondary)]`,
           "[&.ready]:text-[var(--color-success-text-raised)] [&.setup]:text-[var(--color-warning-text)] [&.staged]:text-[var(--color-interactive-text-strong)]",
         )}
       >
@@ -949,10 +970,7 @@ function PortCardContents({
         {title}
         {stateLabel}
         {setup && (
-          <div
-            id={setupDescriptionId}
-            className="mt-2 space-y-1 text-xs text-[var(--color-text-secondary)]"
-          >
+          <div id={setupDescriptionId} className="sr-only">
             {setup.routes.map((route) => (
               <p key={route.action} className="m-0 mt-[9px]">
                 <strong>{route.route}: </strong>
@@ -962,10 +980,7 @@ function PortCardContents({
           </div>
         )}
         {input && (
-          <div
-            id={setupDescriptionId}
-            className="mt-2 space-y-1 text-xs text-[var(--color-text-secondary)]"
-          >
+          <div id={setupDescriptionId} className="sr-only">
             {input.reasons.map((reason) => (
               <p key={reason} className="m-0 mt-[9px]">
                 {reason}
@@ -1055,11 +1070,12 @@ function PortCardStatus({
   detailOrigin: string;
 }) {
   const overflowOrigin = `library:card-more:${port.id}`;
+  const reviewOrigin = `${detailOrigin}:review`;
   return (
     <div
       className={cn(
         `mt-auto flex min-h-11 flex-wrap items-center gap-2 border-t border-pc-border pt-3 text-xs ${view === "library" ? "justify-end" : "justify-between"}`,
-        hasFavorite && (view === "library" ? "ps-9" : "pe-9"),
+        hasFavorite && (view === "library" ? "ps-8" : "pe-9"),
       )}
     >
       {view === "catalog" && (
@@ -1077,23 +1093,29 @@ function PortCardStatus({
       )}
       {view === "library" ? (
         <span className="inline-flex flex-wrap items-center justify-end gap-1 text-[var(--color-interactive-text-strong)]">
-          <Button
-            data-focusable
-            variant="outline"
-            size="sm"
-            aria-label={`View details for ${port.name}`}
-            aria-describedby={inputDescriptionId}
-            data-detail-origin={detailOrigin}
-            onClick={() => onSelect(port.id, detailOrigin)}
-          >
-            Details
-          </Button>
+          {!(
+            status?.readiness?.launchable === true &&
+            status.readiness.blockers.length === 0 &&
+            !portActionPresentation(status, "launch").blocked &&
+            onLaunch
+          ) && (
+            <Button
+              data-focusable
+              variant="outline"
+              size="sm"
+              aria-label={`Review ${port.name}`}
+              aria-describedby={inputDescriptionId}
+              data-detail-origin={reviewOrigin}
+              onClick={() => onSelect(port.id, reviewOrigin)}
+            >
+              Review game
+            </Button>
+          )}
           {status?.readiness?.launchable === true &&
             status.readiness.blockers.length === 0 &&
             !portActionPresentation(status, "launch").blocked &&
             onLaunch && (
               <Button data-focusable variant="primary" size="sm" onClick={() => onLaunch(port.id)}>
-                <Icon glyph={Gamepad2} size="sm" />
                 {status.readiness.pending_setup
                   ? "Start setup"
                   : hasUnconfirmedLaunchInput(status, port)

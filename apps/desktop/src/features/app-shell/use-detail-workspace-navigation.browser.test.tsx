@@ -91,6 +91,20 @@ describe("detail workspace navigation", () => {
     expect(document.activeElement).toBe(commandTrigger);
   });
 
+  it("returns to the same game title if repair replaces the review opener", async () => {
+    const unrelated = document.createElement("button");
+    unrelated.dataset.detailGameId = "port-b";
+    const title = document.createElement("button");
+    title.dataset.detailGameId = "port-a";
+    const review = document.createElement("button");
+    review.dataset.detailOrigin = "library:card:port-a:review";
+    document.body.append(unrelated, title, review);
+    await act(async () => navigation.open("port-a", review.dataset.detailOrigin));
+    review.remove();
+    await act(async () => navigation.close());
+    expect(document.activeElement).toBe(title);
+  });
+
   it("focuses an overflow destination and returns to its exact card trigger", async () => {
     const trigger = document.createElement("button");
     trigger.dataset.detailOrigin = "library:card-more:port-a";

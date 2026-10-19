@@ -65,6 +65,28 @@ it("opens current Settings read surfaces without fixture refusals", async () => 
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });
 
+it.each([
+  [960, 640, 3],
+  [1280, 800, 4],
+  [1600, 1000, 5],
+] as const)(
+  "keeps independent portrait frames in the actual %sx%s app grid",
+  async (width, height, columns) => {
+    await page.viewport(width, height);
+    await mount("library");
+    const grid = document.querySelector<HTMLElement>(".port-grid")!;
+    expect(getComputedStyle(grid).gridTemplateColumns.split(" ")).toHaveLength(columns);
+    const frames = [...grid.querySelectorAll<HTMLElement>(".card-art")];
+    expect(frames.length).toBeGreaterThan(0);
+    for (const frame of frames) {
+      const box = frame.getBoundingClientRect();
+      expect(box.height / box.width).toBeCloseTo(1.5, 1);
+    }
+    expect(grid.getBoundingClientRect().width).toBeLessThanOrEqual(1064);
+    expect(grid.scrollWidth).toBeLessThanOrEqual(grid.clientWidth);
+  },
+);
+
 it.each(["game", "bios"] as const)(
   "carries the selected %s repair path into inspection without asking for it again",
   async (purpose) => {

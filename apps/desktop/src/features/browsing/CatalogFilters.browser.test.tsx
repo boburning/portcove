@@ -2,6 +2,7 @@ import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { CatalogFilters } from "./CatalogFilters";
 import type { CatalogQuery, CatalogQueryContext } from "./catalog-query";
 import { portDefinition, portStatus } from "../../test-fixtures";
@@ -134,6 +135,26 @@ afterEach(async () => {
   host.remove();
   vi.unstubAllGlobals();
 });
+it("starts with ordinary filters and exposes technical groups on request", async () => {
+  await render();
+  await click("Filters (0)");
+  await expect.element(page.getByRole("group", { name: "Platforms", exact: true })).toBeVisible();
+  expect(document.querySelector<HTMLDetailsElement>("[role=dialog] details")?.open).toBe(false);
+  await page.getByText("Advanced filters", { exact: true }).click();
+  await expect
+    .element(page.getByRole("group", { name: "Setup methods", exact: true }))
+    .toBeVisible();
+});
+it("keeps advanced choices open and focus visible after clearing their last selection", async () => {
+  await render({ version: 1, installationMethods: ["portable-package"] });
+  await act(async () => setContext(retainedContext(new Map())));
+  await click("Filters (1)");
+  const choice = page.getByRole("button", { name: "Portable upstream package (3)", exact: true });
+  await choice.click();
+  expect(document.querySelector<HTMLDetailsElement>("[role=dialog] details")?.open).toBe(true);
+  await expect.element(choice).toHaveFocus();
+  await expect.element(choice).toBeVisible();
+});
 it("uses distinct self-excluding counts and functional OR/AND selections", async () => {
   await render();
   await click("Filters (0)");
@@ -220,9 +241,7 @@ it("keeps selections editable when candidate facts are unavailable instead of cl
   await click("Filters (1)");
   expect(button("Linux (unavailable)").disabled).toBe(false);
   expect(button("Linux (unavailable)").getAttribute("aria-pressed")).toBe("true");
-  expect(document.body.textContent).toContain(
-    "Missing retained platform or setup facts remain unavailable",
-  );
+  expect(document.body.textContent).toContain("unavailable facts stay unavailable");
   expect(button("Remove Linux filter")).toBeDefined();
 });
 
