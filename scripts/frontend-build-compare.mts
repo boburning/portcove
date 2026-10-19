@@ -126,7 +126,7 @@ export function comparisonInputs(baseline: string, candidate: string, dependency
   }));
 }
 
-export function assetInventory(root: string) {
+function assetInventory(root: string) {
   const entries: AssetObservation[] = [];
   const walk = (directory: string) => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {

@@ -2,7 +2,7 @@ import { lstat, realpath } from "node:fs/promises";
 import path from "node:path";
 import { errorCode } from "./runtime-values.mts";
 
-function contains(parent: string, child: string): boolean {
+export function releasePathContains(parent: string, child: string): boolean {
   const relative = path.relative(parent, child);
   return (
     relative === "" ||
@@ -17,7 +17,7 @@ export async function assertOwnedUnlinkedPath(
 ): Promise<string> {
   const project = path.resolve(projectRoot);
   const candidate = path.resolve(candidatePath);
-  if (candidate === project || !contains(project, candidate)) {
+  if (candidate === project || !releasePathContains(project, candidate)) {
     throw new Error(`${label} must be a child path inside the project`);
   }
 
@@ -40,7 +40,7 @@ export async function assertOwnedUnlinkedPath(
       throw new Error(`${label} contains a non-directory ancestor: ${current}`);
     }
     const canonicalCurrent = await realpath(current);
-    if (!contains(canonicalProject, canonicalCurrent)) {
+    if (!releasePathContains(canonicalProject, canonicalCurrent)) {
       throw new Error(`${label} resolves outside the project: ${current}`);
     }
   }

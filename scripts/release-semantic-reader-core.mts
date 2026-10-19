@@ -4,7 +4,7 @@ import type { prepareFrozenSemanticInputs } from "./release-semantic-inputs.mts"
 import { isRecord } from "./runtime-values.mts";
 
 export const semanticReaderServer = "portcove_frozen_bundle";
-export const semanticReaderTools = ["list", "read", "search"] as const;
+const semanticReaderTools = ["list", "read", "search"] as const;
 const pageBytes = 16 * 1024;
 
 /** A child may read only the payload pinned by its trusted parent's fixed argv.

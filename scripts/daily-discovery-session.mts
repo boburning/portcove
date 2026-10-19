@@ -111,7 +111,7 @@ function atomic(file: string, value: unknown) {
   writeFileSync(temp, JSON.stringify(value, null, 2), { flag: "wx" });
   renameSync(temp, file);
 }
-export const discoveryMaterial = (v: ReturnType<typeof investigateDiscoveryUpstream>) =>
+const discoveryMaterial = (v: ReturnType<typeof investigateDiscoveryUpstream>) =>
   observationHash({
     repository_id: v.metadata.id,
     repository: v.metadata.full_name,

@@ -42,7 +42,7 @@ export function captureCheckoutContext(
   };
 }
 
-export function assertCheckoutContext(context: GuardedCheckoutContext, expectedHead?: string) {
+function assertCheckoutContext(context: GuardedCheckoutContext, expectedHead?: string) {
   if (expectedHead !== undefined) {
     if (!/^[a-f0-9]{40}$/u.test(expectedHead))
       throw new Error("--expected-head must be a full lowercase Git SHA");
@@ -55,7 +55,7 @@ export function assertCheckoutContext(context: GuardedCheckoutContext, expectedH
   }
 }
 
-export function assertCheckoutUnchanged(
+function assertCheckoutUnchanged(
   before: GuardedCheckoutContext,
   after: GuardedCheckoutContext,
 ) {

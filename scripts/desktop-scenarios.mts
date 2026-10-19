@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { isRecord } from "./runtime-values.mts";
 
-export interface DesktopScenario {
+interface DesktopScenario {
   id: string;
   description: string;
   runnable: boolean;

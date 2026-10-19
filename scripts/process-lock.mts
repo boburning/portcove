@@ -1,10 +1,10 @@
 import { errorCode, isRecord } from "./runtime-values.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-export interface ProcessLockOwner {
+interface ProcessLockOwner {
   format_version: 1;
   pid: number;
   token: string;
@@ -96,6 +96,44 @@ async function releaseOwnedLock(lockPath: string, token: string, label: string) 
   await rm(released, { recursive: true });
 }
 
+async function reclaimStaleOwner(
+  resolved: string,
+  active: ProcessLockOwner,
+  verifiedActive: (owner: ProcessLockOwner) => boolean,
+  label: string,
+) {
+  // Retain one exclusive claim for this exact stale owner, as the Rust-test
+  // lock does. Deleting the claim would let a delayed observer claim the old
+  // token again and rename a successor. Hash metadata before using it in a path.
+  const identity = createHash("sha256")
+    .update(JSON.stringify([active.token, active.pid, active.created_at, active.process_identity]))
+    .digest("hex");
+  const claim = `${resolved}.reclaim-${identity}`;
+  try {
+    await mkdir(claim);
+  } catch (claimError) {
+    if (errorCode(claimError) === "EEXIST") return;
+    throw claimError;
+  }
+  const current = await readOwner(resolved, label);
+  if (
+    current.token !== active.token ||
+    current.pid !== active.pid ||
+    current.created_at !== active.created_at ||
+    current.process_identity !== active.process_identity ||
+    verifiedActive(current)
+  )
+    return;
+  const stalePath = `${resolved}.stale-${randomUUID()}`;
+  try {
+    await rename(resolved, stalePath);
+  } catch (renameError) {
+    if (["ENOENT", "EEXIST"].includes(errorCode(renameError) ?? "")) return;
+    throw renameError;
+  }
+  await rm(stalePath, { recursive: true });
+}
+
 export async function acquireOwnedProcessLock(
   lockPath: string,
   metadata: ProcessLockMetadata = {},
@@ -144,11 +182,12 @@ export async function acquireOwnedProcessLock(
         await rm(resolved, { recursive: true }).catch(() => {});
         throw error;
       }
+      let released: Promise<void> | undefined;
       return {
         lockPath: resolved,
         owner,
         inherited: false,
-        release: () => releaseOwnedLock(resolved, token, label),
+        release: () => (released ??= releaseOwnedLock(resolved, token, label)),
       };
     } catch (error) {
       if (errorCode(error) !== "EEXIST") throw error;
@@ -169,14 +208,7 @@ export async function acquireOwnedProcessLock(
           ),
           { code: "PORTCOVE_RESOURCE_RECOVERY_REQUIRED" },
         );
-      const stalePath = `${resolved}.stale-${randomUUID()}`;
-      try {
-        await rename(resolved, stalePath);
-      } catch (renameError) {
-        if (["ENOENT", "EEXIST"].includes(errorCode(renameError) ?? "")) continue;
-        throw renameError;
-      }
-      await rm(stalePath, { recursive: true });
+      await reclaimStaleOwner(resolved, active, verifiedActive, label);
     }
   }
   throw new Error(`${label} lock changed repeatedly; retry after the active run settles`);

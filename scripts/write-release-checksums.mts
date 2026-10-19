@@ -11,7 +11,10 @@ import {
   packagesForPlatform,
   workspaceVersion,
 } from "./release-package-policy.mts";
-import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
+import {
+  assertOwnedUnlinkedPath,
+  releasePathContains as contains,
+} from "./release-path-safety.mts";
 import type { ReleasePackageEntry } from "./release-package-policy.mts";
 
 export interface ReleaseProducerLineage {
@@ -76,14 +79,6 @@ function validateLabel(label: unknown): asserts label is string {
       `invalid release platform label: ${typeof label === "string" ? label : "missing"}`,
     );
   }
-}
-
-function contains(parent: string, child: string) {
-  const relative = path.relative(parent, child);
-  return (
-    relative === "" ||
-    (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))
-  );
 }
 
 export function validateStageRoot(

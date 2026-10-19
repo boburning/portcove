@@ -30,7 +30,7 @@ function git(root: string, args: string[], input?: Buffer) {
 /** REST normalizes unsigned actor offsets. Reuse exact local Git objects, whose
  * hashes and metadata the existing verifier checks against provider identities.
  * Batch before collection: no per-commit process loop, fetching or replacement. */
-export function readSemanticSourceChanges(
+function readSemanticSourceChanges(
   api: GitHubRestReader,
   root: string,
   opportunity: unknown,

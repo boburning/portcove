@@ -120,6 +120,12 @@ void test("tooling graph includes maintained command entries without promoting h
     "scripts/container-build-entry",
     "scripts/container-build",
     "scripts/rust-test-tree-supervisor",
+    "scripts/daily-discovery",
+    "scripts/qualify-semantic-isolation",
+    "scripts/release-reviewed-inputs",
+    "apps/desktop/scripts/browser-script.test",
+    "apps/desktop/scripts/desktop-controller-test.test",
+    "apps/desktop/scripts/desktop-source-dialog-test.test",
     "apps/desktop/src/main",
   ]) {
     assert.ok(
@@ -300,5 +306,65 @@ void test("repository graph preserves the established Desktop shared-to-feature 
     );
   } finally {
     rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("native-test export credits retain outside consumers without masking other exports", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-fallow-native-consumers-"));
+  function put(name: string, contents: string) {
+    const target = path.join(directory, name);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, contents);
+  }
+  try {
+    put(".fallow-tooling.json", JSON.stringify(desktopConfig));
+    put(
+      "package.json",
+      JSON.stringify({
+        type: "module",
+        main: "src/main.ts",
+        devDependencies: { "axe-core": "4.13.0" },
+      }),
+    );
+    put("src/main.ts", "console.log('production');");
+    put("scripts/desktop-test.mts", 'import "../test/capture-target";');
+    put(
+      "test/capture-target.ts",
+      'import axe from "axe-core"; console.log(axe); export const requireCompleteCaptureTarget = 1; export const unconsumed = 2;',
+    );
+    const raw = record(analyze(directory, ["dead-code"]));
+    const unused = values(raw.unused_exports).map(record);
+    assert.ok(unused.some((item) => item.export_name === "unconsumed"));
+    assert.ok(!unused.some((item) => item.export_name === "requireCompleteCaptureTarget"));
+    assert.equal(
+      values(raw.dev_dependencies_in_production).length,
+      0,
+      "native test dependencies must not become production requirements",
+    );
+    put("src/main.ts", 'import axe from "axe-core"; console.log(axe);');
+    const production = record(analyze(directory, ["dead-code"]));
+    assert.equal(
+      values(production.dev_dependencies_in_production).length,
+      1,
+      "real production imports of development dependencies must remain findings",
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+  for (const [source, name, consumer] of [
+    [
+      "scripts/desktop-bootstrap-recovery-test.mts",
+      "technicalDetailHasSeparation",
+      "scripts/desktop-scenarios.test.mts",
+    ],
+    ["scripts/transport-values.mts", "checkTransportSchemas", "scripts/transport-values.test.mts"],
+    ["test/capture-target.ts", "requireCompleteCaptureTarget", "scripts/capture-target.test.mts"],
+  ]) {
+    const text = readFileSync(path.join(root, consumer!), "utf8");
+    assert.ok(
+      text.includes(name!),
+      `${source} export credit lost its outside consumer ${consumer}`,
+    );
+    assert.ok(text.includes(`apps/desktop/${source}`), `${consumer} no longer imports ${source}`);
   }
 });

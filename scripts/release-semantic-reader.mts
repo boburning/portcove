@@ -5,11 +5,7 @@ import {
   createSemanticSnapshotReader,
   createSemanticSnapshotRpc,
 } from "./release-semantic-reader-core.mts";
-export {
-  isSemanticReaderCall,
-  semanticReaderServer,
-  semanticReaderTools,
-} from "./release-semantic-reader-core.mts";
+export { isSemanticReaderCall, semanticReaderServer } from "./release-semantic-reader-core.mts";
 type Bundle = ReturnType<typeof prepareFrozenSemanticInputs>;
 export function createSemanticBundleReader(raw: Bundle) {
   return createSemanticSnapshotReader(requireFrozenSemanticInputs(raw));

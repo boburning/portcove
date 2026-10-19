@@ -194,6 +194,14 @@ headers, the pre-mutation reserve and exact readback remain authoritative when
 another host uses the same account. Missing quota metadata or insufficient
 reserve blocks mutation and reports the provider reset time.
 
+Automatic recovery of a positively dead generic lock owner retains one exclusive
+recovery claim for that exact owner and rechecks canonical identity before rename.
+The claim remains after recovery, preventing a delayed observer from replacing a
+successor. An interrupted claim is retained; do not delete it to bypass unresolved
+ownership. Releasing the same lease repeatedly shares its original release result.
+Native/resource callers that require separate quiescence proof still refuse
+automatic stale recovery.
+
 A promoted draft or port implementation issue must state:
 
 - user outcome;
