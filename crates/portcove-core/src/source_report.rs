@@ -520,6 +520,16 @@ fn report_message(
         ),
         (
             _,
+            SourceAdmission::Rejected {
+                reason: SourceRejectionReason::CheckFailed,
+            },
+        ) => (
+            "check_failed",
+            "The game files failed a required format check.",
+            "Review the check result and choose valid original game files before continuing.",
+        ),
+        (
+            _,
             SourceAdmission::Admitted {
                 mode: SourceAdmissionMode::InformationalConsent,
             },
@@ -836,12 +846,66 @@ mod tests {
     }
 
     #[test]
+    fn malformed_registered_n64_retains_byte_health_and_a_rejected_check() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("original.z64");
+        std::fs::write(&path, [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4]).unwrap();
+        let service = crate::PortcoveService::new(
+            crate::Library::open(temporary.path().join("library")).unwrap(),
+        )
+        .unwrap();
+        let registered = service.register_source("star-fox-64", &path).unwrap();
+        std::fs::write(&path, [0_u8; 1024]).unwrap();
+        let changed = service.inspect_registered_source("star-fox-64").unwrap();
+        assert_eq!(changed.health, SourceHealth::Changed);
+        assert_eq!(changed.state_code, "source_changed");
+        assert!(matches!(
+            changed.inspection.unwrap().assessment.admission,
+            SourceAdmission::Rejected {
+                reason: SourceRejectionReason::CheckFailed
+            }
+        ));
+        assert_eq!(
+            service
+                .library()
+                .source("star-fox-64")
+                .unwrap()
+                .unwrap()
+                .sha256,
+            registered.sha256
+        );
+
+        // A legacy baseline can match readable bytes that fail the new format
+        // check. Current byte health still does not mean admitted input.
+        let (hash, size) = crate::adapter::hash_file(&path).unwrap();
+        let mut legacy = registered;
+        legacy.sha256 = hash.clone();
+        legacy.storage_sha256 = hash;
+        legacy.size = size;
+        legacy.storage_size = size;
+        legacy.observed_identity = None;
+        service.library().register_source(&legacy).unwrap();
+        let baseline_before =
+            serde_json::to_value(service.library().source("star-fox-64").unwrap()).unwrap();
+        let current = service.inspect_registered_source("star-fox-64").unwrap();
+        assert_eq!(current.health, SourceHealth::Current);
+        assert_eq!(current.state_code, "check_failed");
+        assert!(current.inspection.unwrap().assessment.known_input_failure());
+        assert!(service.verify_source("star-fox-64").is_err());
+        assert_eq!(
+            serde_json::to_value(service.library().source("star-fox-64").unwrap()).unwrap(),
+            baseline_before
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), [0_u8; 1024]);
+    }
+
+    #[test]
     fn intake_shapes_are_core_owned_and_read_only() {
         let temporary = tempfile::tempdir().unwrap();
         let library = crate::Library::open(temporary.path().join("library")).unwrap();
         let service = crate::PortcoveService::new(library.clone()).unwrap();
         let selected = temporary.path().join("selected.z64");
-        std::fs::write(&selected, b"read-only intake fixture").unwrap();
+        std::fs::write(&selected, b"\x80\x37\x12\x40read-only intake fixture").unwrap();
         let before = std::fs::read(&selected).unwrap();
 
         let empty = service.inspect_source_intake("star-fox-64", &[]).unwrap();
