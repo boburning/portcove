@@ -164,7 +164,7 @@ void test("analyzer status and advisory review verdict never become a quality pa
         stdout: JSON.stringify({
           kind: "audit-brief",
           schema_version: 13,
-          version: "3.34.0",
+          version: "3.34.1",
           verdict: "fail",
           changed_files_count: 3,
           base_ref: "base",
@@ -186,11 +186,11 @@ void test("CSS and review routes accept only their reviewed report contracts", (
     for (const mode of ["css", "review"] as const) {
       const value =
         mode === "css"
-          ? { kind: "health", schema_version: 12, version: "3.34.0", summary: {}, findings: [] }
+          ? { kind: "health", schema_version: 12, version: "3.34.1", summary: {}, findings: [] }
           : {
               kind: "audit-brief",
               schema_version: 13,
-              version: "3.34.0",
+              version: "3.34.1",
               verdict: "warn",
               changed_files_count: 1,
               base_ref: "base",
@@ -207,7 +207,7 @@ void test("CSS and review routes accept only their reviewed report contracts", (
       assert.equal(run(value).exitCode, 0);
       for (const invalid of [
         { ...value, schema_version: value.schema_version - 1 },
-        { ...value, version: "3.34.1" },
+        { ...value, version: "3.34.2" },
         { ...value, kind: "unknown" },
       ])
         assert.throws(() => run(invalid), /Unsupported .* report/);
