@@ -2245,3 +2245,377 @@ fn links_and_special_files_are_rejected_without_inspection_or_copy() {
         ErrorCode::SourceInvalid
     );
 }
+
+#[test]
+fn started_cancellation_preserves_current_location_registration() {
+    assert_started_cancellation(SourceImportMode::UseCurrentLocation);
+}
+
+#[test]
+fn started_cancellation_preserves_reused_copy_destination() {
+    assert_started_cancellation(SourceImportMode::Copy);
+}
+
+#[test]
+fn started_cancellation_preserves_reused_move_destination() {
+    assert_started_cancellation(SourceImportMode::Move);
+}
+
+fn assert_started_cancellation(mode: SourceImportMode) {
+    let (_temporary, library, service, source) = fixture();
+    let previous = if mode == SourceImportMode::UseCurrentLocation {
+        service.register_source(PROFILE, &source).unwrap()
+    } else {
+        import(&service, &source, SourceImportMode::Copy).registered
+    };
+    let original_bytes = fs::read(&source).unwrap();
+    let previous_bytes = fs::read(&previous.path).unwrap();
+    let plan = service.plan_source_import(PROFILE, &source, mode).unwrap();
+    assert!(plan.reuse_existing);
+    let authorization = (mode == SourceImportMode::Move).then(|| {
+        service
+            .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
+            .unwrap()
+    });
+    let mut finished = false;
+    let error = service
+        .import_source_with_progress(
+            PROFILE,
+            &source,
+            mode,
+            &plan.plan_sha256,
+            authorization
+                .as_ref()
+                .map(|authorization| authorization.token.as_str()),
+            |event| {
+                if matches!(event.event, crate::OperationEventKind::Started) {
+                    service.request_cancellation(&event.operation_id).unwrap();
+                }
+                if let crate::OperationEventKind::Finished { result } = event.event {
+                    assert_eq!(result, OperationResult::Cancelled);
+                    finished = true;
+                }
+            },
+        )
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Cancelled);
+    assert!(finished);
+    assert_eq!(fs::read(&source).unwrap(), original_bytes);
+    assert_eq!(fs::read(&previous.path).unwrap(), previous_bytes);
+    assert_saved_source(&library.source(PROFILE).unwrap().unwrap(), &previous);
+    assert!(
+        OperationStore::new(library.clone())
+            .all()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        library.activities(1).unwrap()[0].status,
+        ActivityStatus::Cancelled
+    );
+}
+
+struct RequestAtImportBoundary {
+    service: PortcoveService,
+    point: LifecycleFaultPoint,
+    accepted: bool,
+}
+impl LifecycleFaultInjector for RequestAtImportBoundary {
+    fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+        if point == self.point {
+            let activity = self.service.library().activities(1)?.remove(0);
+            let requested = self.service.request_cancellation(&activity.id);
+            if self.accepted {
+                requested.unwrap();
+            } else {
+                assert_eq!(requested.unwrap_err().code, ErrorCode::Conflict);
+            }
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn copy_completion_cancellation_precedes_prepared_intent_and_move_deletion() {
+    for mode in [SourceImportMode::Copy, SourceImportMode::Move] {
+        let (_temporary, library, requester, source) = fixture();
+        let service = traced_service_with_faults(
+            library.clone(),
+            Arc::new(RequestAtImportBoundary {
+                service: requester,
+                point: LifecycleFaultPoint::SourceImportCopied,
+                accepted: true,
+            }),
+        )
+        .unwrap();
+        let plan = service.plan_source_import(PROFILE, &source, mode).unwrap();
+        let authorization = (mode == SourceImportMode::Move).then(|| {
+            service
+                .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
+                .unwrap()
+        });
+        let error = service
+            .import_source(
+                PROFILE,
+                &source,
+                mode,
+                &plan.plan_sha256,
+                authorization
+                    .as_ref()
+                    .map(|authorization| authorization.token.as_str()),
+            )
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::Cancelled);
+        assert!(source.is_file());
+        assert!(!plan.destination.exists());
+        assert!(library.source(PROFILE).unwrap().is_none());
+        assert!(
+            OperationStore::new(library.clone())
+                .all()
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            ActivityStatus::Cancelled
+        );
+    }
+}
+
+#[test]
+fn prepared_import_refuses_cancellation_and_completes_move() {
+    let (_temporary, library, requester, source) = fixture();
+    let service = traced_service_with_faults(
+        library.clone(),
+        Arc::new(RequestAtImportBoundary {
+            service: requester,
+            point: LifecycleFaultPoint::SourceImportVerified,
+            accepted: false,
+        }),
+    )
+    .unwrap();
+    let result = import(&service, &source, SourceImportMode::Move);
+    assert!(result.original_deleted);
+    assert!(!source.exists());
+    assert!(result.registered.path.is_file());
+    assert_saved_source(
+        &library.source(PROFILE).unwrap().unwrap(),
+        &result.registered,
+    );
+    assert_eq!(
+        library.activities(1).unwrap()[0].status,
+        ActivityStatus::Succeeded
+    );
+}
+
+#[test]
+fn interrupted_copy_honors_accepted_cancellation_before_recovery() {
+    for mode in [SourceImportMode::Copy, SourceImportMode::Move] {
+        let (_temporary, library, source) = library_fixture();
+        let service = traced_service_with_faults(
+            library.clone(),
+            Arc::new(FailAt(LifecycleFaultPoint::SourceImportCopied)),
+        )
+        .unwrap();
+        let plan = service.plan_source_import(PROFILE, &source, mode).unwrap();
+        let authorization = (mode == SourceImportMode::Move).then(|| {
+            service
+                .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
+                .unwrap()
+        });
+        service
+            .import_source(
+                PROFILE,
+                &source,
+                mode,
+                &plan.plan_sha256,
+                authorization
+                    .as_ref()
+                    .map(|authorization| authorization.token.as_str()),
+            )
+            .unwrap_err();
+        let operation = OperationStore::new(library.clone())
+            .all()
+            .unwrap()
+            .remove(0);
+        service.request_cancellation(&operation.id).unwrap();
+        drop(service);
+        let recovered = traced_service(library.clone()).unwrap();
+        assert!(source.is_file());
+        assert!(!plan.destination.exists());
+        assert!(!operation.paths.staging.unwrap().exists());
+        assert!(recovered.library().source(PROFILE).unwrap().is_none());
+        assert!(
+            OperationStore::new(library.clone())
+                .all()
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            ActivityStatus::Cancelled
+        );
+    }
+}
+
+struct ReplaceVerificationRegistration {
+    library: Library,
+    replacement: SourceRecord,
+}
+impl LifecycleFaultInjector for ReplaceVerificationRegistration {
+    fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+        if point == LifecycleFaultPoint::SourceVerificationCaptured {
+            self.library.register_source(&self.replacement)?;
+        }
+        Ok(())
+    }
+}
+#[test]
+fn verification_retains_one_baseline_when_registration_changes_during_inspection() {
+    let (temporary, library, service, source) = fixture();
+    let first = service.register_source(PROFILE, &source).unwrap();
+    let other = temporary.path().join("replacement.iso");
+    fs::write(&other, b"other synthetic source baseline").unwrap();
+    let replacement = service.inspect_source_record(PROFILE, &other).unwrap();
+    let service = traced_service_with_faults(
+        library.clone(),
+        Arc::new(ReplaceVerificationRegistration {
+            library: library.clone(),
+            replacement: replacement.clone(),
+        }),
+    )
+    .unwrap();
+    let before = library.activities(100).unwrap().len();
+    let verification = service.verify_source(PROFILE).unwrap();
+    assert_eq!(verification.path, first.path);
+    assert_eq!(verification.sha256, first.sha256);
+    assert_eq!(verification.storage_sha256, first.storage_sha256);
+    assert_eq!(verification.registered_at, first.updated_at);
+    assert_saved_source(verification.inspection.registered.as_ref().unwrap(), &first);
+    assert_eq!(verification.inspection.inspection.unwrap().path, first.path);
+    assert_saved_source(&library.source(PROFILE).unwrap().unwrap(), &replacement);
+    assert_eq!(library.activities(100).unwrap().len(), before);
+}
+
+#[test]
+fn legacy_prepared_and_published_requests_never_discard_publication_intent() {
+    for point in [
+        LifecycleFaultPoint::SourceImportVerified,
+        LifecycleFaultPoint::SourceImportPublished,
+    ] {
+        let (_temporary, library, source) = library_fixture();
+        let service = traced_service_with_faults(library.clone(), Arc::new(FailAt(point))).unwrap();
+        let plan = service
+            .plan_source_import(PROFILE, &source, SourceImportMode::Move)
+            .unwrap();
+        let authorization = service
+            .authorize_source_move(PROFILE, &source, &plan.plan_sha256)
+            .unwrap();
+        service
+            .import_source(
+                PROFILE,
+                &source,
+                SourceImportMode::Move,
+                &plan.plan_sha256,
+                Some(&authorization.token),
+            )
+            .unwrap_err();
+        let id = library.activities(1).unwrap()[0].id.clone();
+        // Older releases could retain an accepted request alongside Prepared/Published.
+        library.connection().unwrap().execute("UPDATE activity_history SET cancellation_phase='preparing', cancel_requested=1 WHERE id=?1", [&id]).unwrap();
+        drop(service);
+        let recovered = traced_service(library.clone()).unwrap();
+        assert!(plan.destination.is_file());
+        assert!(!source.exists());
+        assert_eq!(
+            recovered.library().source(PROFILE).unwrap().unwrap().path,
+            plan.destination
+        );
+        assert!(
+            OperationStore::new(library.clone())
+                .all()
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            library.activities(1).unwrap()[0].status,
+            ActivityStatus::Succeeded
+        );
+    }
+}
+
+#[test]
+fn normal_verification_is_read_only_and_changed_bytes_are_rejected() {
+    let (_temporary, library, service, source) = fixture();
+    let registered = service.register_source(PROFILE, &source).unwrap();
+    let activities = library.activities(100).unwrap();
+    let result = service.verify_source(PROFILE).unwrap();
+    assert_saved_source(result.inspection.registered.as_ref().unwrap(), &registered);
+    assert_eq!(result.sha256, registered.sha256);
+    assert_eq!(result.size, registered.size);
+    assert_eq!(result.storage_size, registered.storage_size);
+    fs::write(&source, b"changed source bytes").unwrap();
+    assert_eq!(
+        service.verify_source(PROFILE).unwrap_err().code,
+        ErrorCode::SourceInvalid
+    );
+    assert_saved_source(&library.source(PROFILE).unwrap().unwrap(), &registered);
+    assert_eq!(library.activities(100).unwrap(), activities);
+}
+
+fn assert_saved_source(actual: &SourceRecord, expected: &SourceRecord) {
+    assert_eq!(actual.profile_id, expected.profile_id);
+    assert_eq!(actual.path, expected.path);
+    assert_eq!(actual.sha256, expected.sha256);
+    assert_eq!(actual.size, expected.size);
+    assert_eq!(actual.storage_sha256, expected.storage_sha256);
+    assert_eq!(actual.storage_size, expected.storage_size);
+    assert_eq!(actual.updated_at, expected.updated_at);
+    assert_eq!(actual.observed_identity, expected.observed_identity);
+}
+
+#[test]
+fn cancelled_recovery_retains_uncheckable_private_work_and_reports_pending_state() {
+    let (_temporary, library, source) = library_fixture();
+    let service = traced_service_with_faults(
+        library.clone(),
+        Arc::new(FailAt(LifecycleFaultPoint::SourceImportCopied)),
+    )
+    .unwrap();
+    let plan = service
+        .plan_source_import(PROFILE, &source, SourceImportMode::Copy)
+        .unwrap();
+    service
+        .import_source(
+            PROFILE,
+            &source,
+            SourceImportMode::Copy,
+            &plan.plan_sha256,
+            None,
+        )
+        .unwrap_err();
+    let store = OperationStore::new(library.clone());
+    let operation = store.all().unwrap().remove(0);
+    let staging = operation.paths.staging.as_ref().unwrap();
+    let original_private_bytes = fs::read(staging).unwrap();
+    // The existing checked cleanup refuses an empty/unsupported staging member.
+    fs::write(staging.parent().unwrap().join("uncheckable"), b"").unwrap();
+    service.request_cancellation(&operation.id).unwrap();
+    drop(service);
+    let recovered = traced_service(library.clone()).unwrap();
+    let retained = store.get(&operation.id).unwrap().unwrap();
+    assert!(
+        retained
+            .last_error
+            .unwrap()
+            .contains("Cancellation is pending")
+    );
+    assert_eq!(fs::read(staging).unwrap(), original_private_bytes);
+    assert!(source.is_file());
+    assert!(!plan.destination.exists());
+    assert!(recovered.library().source(PROFILE).unwrap().is_none());
+    assert_eq!(
+        library.activities(1).unwrap()[0].status,
+        ActivityStatus::Running
+    );
+}

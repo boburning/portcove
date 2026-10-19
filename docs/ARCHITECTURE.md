@@ -92,6 +92,18 @@ scope; they do not certify later builds.
 
 ## Source import journal interpretation
 
+Source import admits publication through the existing atomic cancellation boundary
+before registration at the current location or recording prepared copy intent.
+Accepted requests prevent registration, destination publication and Move cleanup.
+Recovery resumes cancellation only for existing prepublication copy activities;
+prepared and published legacy journals retain their completion and ownership
+contracts even if they carry an old request bit. Checked private cleanup must
+succeed before cancellation settles; otherwise the recoverable work is retained.
+
+Source verification captures one saved registration for its compatibility fields
+and nested inspection. Concurrent registration changes may leave that response
+older than the latest row, but cannot mix two baselines or rewrite either one.
+
 `PortcoveService` remains the source-operation facade. Its private
 `service::sources` module owns inspection, registration, verification and removal
 of source references, including their consent fingerprints. Registration and
