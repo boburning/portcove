@@ -224,7 +224,8 @@ function RegisterExternalDialog({
                 {preview.shared_preferences.binding.path}, discard unknown entries and affect other
                 copies in your Windows account. Portcove does not back up, restore or delete this
                 file. You must accept this shared write scope in a separate confirmation before
-                registration.
+                registration. If the shared location is unavailable, the game can instead rewrite{" "}
+                {preview.shared_preferences.local_fallback_path}.
               </p>
             )}
           </div>

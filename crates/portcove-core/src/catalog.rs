@@ -735,7 +735,8 @@ impl Catalog {
                         if runtime.shared_preferences.is_some()
                             && (*platform != crate::Platform::WindowsX86_64
                                 || port.adapter != AdapterKind::StagedSourcePortable
-                                || port.runtime_subdirectory.is_some())
+                                || port.runtime_subdirectory.is_some()
+                                || port.launch_arguments != ["--save-dir", "saves"])
                         {
                             return Err(PortcoveError::usage(
                                 "shared preferences require the Windows staged-source root route",

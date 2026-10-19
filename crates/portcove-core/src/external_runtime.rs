@@ -358,6 +358,7 @@ fn visit(
             .map_err(|_| PortcoveError::state("external runtime path escaped its root"))?;
         let relative = crate::path::unicode(relative, "user-prepared runtime")?.replace('\\', "/");
         let kind = entry.file_type()?;
+        shared_preferences::check_tree_path(spec, &path, kind.is_dir())?;
         let (_, key) = crate::archive::validate_relative_path(&relative, kind.is_dir())?;
         if kind.is_dir() {
             visit(root, &path, spec, files, seen, total_bytes, pass)?;

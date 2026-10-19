@@ -2338,8 +2338,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 if let Some(shared) = &preview.shared_preferences {
                     if mode == OutputMode::Human {
                         println!(
-                            "This game can rewrite shared preferences at {}, discard unknown entries and affect other runtime copies. Portcove does not own, back up, restore or delete this file.",
-                            shared.binding.path.display()
+                            "This game can rewrite shared preferences at {}, discard unknown entries and affect other runtime copies. If that location is unavailable, it can instead rewrite {}. Portcove does not own, back up, restore or delete these files.",
+                            shared.binding.path.display(),
+                            shared.local_fallback_path.display()
                         );
                     }
                     if !acknowledge_shared_preferences {

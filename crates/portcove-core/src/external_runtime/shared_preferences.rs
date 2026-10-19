@@ -1,6 +1,7 @@
 //! Read-only recognition of one shared preference scope. Never creates or owns it.
 #[cfg(any(windows, test))]
-use std::{fs, path::Path};
+use std::fs;
+use std::path::Path;
 
 use crate::{
     ExternalRuntimeRecord, PortcoveError, PreparedSharedPreferencesContract, Result,
@@ -29,6 +30,16 @@ pub(crate) fn validate(spec: &UserPreparedRuntimeSpec) -> Result<()> {
             || spec.archive_sha256
                 != "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6"
             || spec.library_user_data
+            || spec.source_argument_extension.as_deref() != Some("gbc")
+            || !spec
+                .mutable_paths
+                .iter()
+                .any(|path| path == "runtime_prefs.ini")
+            || !spec.mutable_paths.iter().any(|path| path == "config.ini")
+            || !spec.mutable_paths.iter().any(|path| path == "saves")
+            || !spec.mutable_paths.iter().any(|path| path == "snapshots")
+            || spec.mutable_paths.len() != 4
+            || !spec.required_mutable_files.is_empty()
             || spec.settings_contract.is_some())
     {
         return Err(PortcoveError::verification(
@@ -38,9 +49,67 @@ pub(crate) fn validate(spec: &UserPreparedRuntimeSpec) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn inspect(spec: &UserPreparedRuntimeSpec) -> Result<Option<SharedPreferencesReview>> {
+pub(crate) fn inspect(
+    spec: &UserPreparedRuntimeSpec,
+    runtime_root: &Path,
+) -> Result<Option<SharedPreferencesReview>> {
     validate(spec)?;
-    spec.shared_preferences.map(resolve).transpose()
+    spec.shared_preferences
+        .map(|contract| resolve(contract, runtime_root))
+        .transpose()
+}
+
+/// The selected artifact converts SDL UTF-8 paths into narrow Windows paths.
+/// Until broader encoding support is proved, accept only the congruent subset.
+pub(crate) fn check_runtime_path(spec: &UserPreparedRuntimeSpec, path: &Path) -> Result<()> {
+    if spec.shared_preferences.is_some() {
+        require_narrow_windows_path(path, "")?;
+    }
+    Ok(())
+}
+
+pub(super) fn check_tree_path(
+    spec: &UserPreparedRuntimeSpec,
+    path: &Path,
+    directory: bool,
+) -> Result<()> {
+    if spec.shared_preferences.is_none() {
+        return Ok(());
+    }
+    require_narrow_windows_path(path, "")?;
+    #[cfg(any(windows, test))]
+    {
+        check_path(path, directory)?;
+        Ok(())
+    }
+    #[cfg(not(any(windows, test)))]
+    {
+        let _ = directory;
+        Err(PortcoveError::unsupported(
+            "shared preferences require Windows",
+        ))
+    }
+}
+
+fn require_narrow_windows_path(path: &Path, suffix: &str) -> Result<()> {
+    let text = path.to_str().ok_or_else(|| {
+        PortcoveError::unsupported("this runtime requires a printable ASCII Windows path")
+    })?;
+    let ordinary = text.strip_prefix("\\\\?\\").unwrap_or(text);
+    let length = if text.starts_with("\\\\?\\UNC\\") {
+        ordinary.len().saturating_sub(2)
+    } else {
+        ordinary.len()
+    };
+    if ordinary.is_empty()
+        || !ordinary.bytes().all(|byte| (32..127).contains(&byte))
+        || length.saturating_add(suffix.len()) >= 260
+    {
+        return Err(PortcoveError::unsupported(
+            "this exact runtime requires printable ASCII Windows paths shorter than MAX_PATH",
+        ));
+    }
+    Ok(())
 }
 
 pub(crate) fn check_record(
@@ -48,7 +117,7 @@ pub(crate) fn check_record(
     spec: &UserPreparedRuntimeSpec,
 ) -> Result<()> {
     check_binding(record, spec)?;
-    let actual = inspect(spec)?.map(|review| review.binding);
+    let actual = inspect(spec, &record.path)?.map(|review| review.binding);
     if record.shared_preferences != actual {
         return Err(PortcoveError::conflict(
             "shared preferences account or location changed; review registration again",
@@ -85,14 +154,20 @@ pub(crate) fn check_binding(
 }
 
 #[cfg(not(windows))]
-fn resolve(_contract: PreparedSharedPreferencesContract) -> Result<SharedPreferencesReview> {
+fn resolve(
+    _contract: PreparedSharedPreferencesContract,
+    _runtime_root: &Path,
+) -> Result<SharedPreferencesReview> {
     Err(PortcoveError::unsupported(
         "this shared preference contract requires Windows",
     ))
 }
 
 #[cfg(windows)]
-fn resolve(contract: PreparedSharedPreferencesContract) -> Result<SharedPreferencesReview> {
+fn resolve(
+    contract: PreparedSharedPreferencesContract,
+    runtime_root: &Path,
+) -> Result<SharedPreferencesReview> {
     use crate::AcceptedSharedPreferencesBinding;
     use std::{ffi::OsString, os::windows::ffi::OsStringExt};
     use windows_sys::Win32::UI::Shell::{CSIDL_APPDATA, SHGFP_TYPE_CURRENT, SHGetFolderPathW};
@@ -121,13 +196,32 @@ fn resolve(contract: PreparedSharedPreferencesContract) -> Result<SharedPreferen
         return Err(PortcoveError::verification("empty roaming directory"));
     }
     let raw = std::path::PathBuf::from(OsString::from_wide(&buffer[..end]));
+    // This final-file bound is stricter than SDL's organization/application
+    // directory bound and also leaves the terminating NUL inside MAX_PATH.
+    require_narrow_windows_path(&raw, "\\gbrecompiled\\runtime\\runtime_prefs.ini")?;
     check_path(&raw, true)?;
     let root = fs::canonicalize(raw)?;
     let path = root
         .join("gbrecompiled")
         .join("runtime")
         .join("runtime_prefs.ini");
+    require_narrow_windows_path(&path, "")?;
     let present = check_path(&path, false)?;
+    let local_fallback_path = runtime_root.join("runtime_prefs.ini");
+    // Leave room for ordinary save-state transaction names that do not exist
+    // during review. The selected artifact uses this fixed save identifier.
+    require_narrow_windows_path(
+        runtime_root,
+        "\\saves\\Resident_Evil_Gaiden__USA_.state2147483647.tmp-v1",
+    )?;
+    require_narrow_windows_path(&local_fallback_path, "")?;
+    let local_fallback_present = check_path(&local_fallback_path, false)?;
+    check_path(&runtime_root.join("config.ini"), false)?;
+    if !check_path(&runtime_root.join("saves"), true)? {
+        return Err(PortcoveError::verification(
+            "this runtime requires an existing safe saves directory",
+        ));
+    }
     Ok(SharedPreferencesReview {
         binding: AcceptedSharedPreferencesBinding {
             contract,
@@ -135,6 +229,8 @@ fn resolve(contract: PreparedSharedPreferencesContract) -> Result<SharedPreferen
             path,
         },
         present,
+        local_fallback_path,
+        local_fallback_present,
     })
 }
 
@@ -253,12 +349,26 @@ fn account_sid_sha256() -> Result<String> {
 mod tests {
     use super::*;
     #[test]
+    fn narrow_windows_paths_refuse_encoding_control_and_max_path_boundaries() {
+        for path in ["", "C:\\caf\u{e9}", "C:\\game\nfile", "C:\\game\u{0}file"] {
+            assert!(require_narrow_windows_path(Path::new(path), "").is_err());
+        }
+        assert!(require_narrow_windows_path(Path::new(&"a".repeat(259)), "").is_ok());
+        assert!(require_narrow_windows_path(Path::new(&"a".repeat(260)), "").is_err());
+        assert!(
+            require_narrow_windows_path(Path::new(&format!("\\\\?\\{}", "a".repeat(259))), "")
+                .is_ok()
+        );
+        assert!(require_narrow_windows_path(Path::new(&"a".repeat(258)), "ab").is_err());
+    }
+    #[test]
     fn retained_shared_scope_requires_binding_and_refuses_unknown_semantics() {
         let spec: UserPreparedRuntimeSpec = serde_json::from_value(serde_json::json!({
             "version":"0.4.1", "archive_name":"Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip",
             "archive_size":33085815, "archive_sha256":"d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6",
             "executable":"Resident_Evil_Gaiden__USA_.exe", "immutable_tree_sha256":"a".repeat(64),
-            "shared_preferences":"regaiden041-windows"
+            "shared_preferences":"regaiden041-windows", "source_argument_extension":"gbc",
+            "mutable_paths":["runtime_prefs.ini", "config.ini", "saves", "snapshots"]
         })).unwrap();
         validate(&spec).unwrap();
         let mut wrong_artifact = spec.clone();
@@ -311,6 +421,8 @@ mod tests {
                     path: "shared-preferences".into(),
                 },
                 present: false,
+                local_fallback_path: "external/runtime_prefs.ini".into(),
+                local_fallback_present: false,
             }),
         };
         assert!(require_ack(&preview, None).is_err());

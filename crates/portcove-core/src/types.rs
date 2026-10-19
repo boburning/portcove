@@ -363,6 +363,8 @@ pub struct AcceptedSharedPreferencesBinding {
 pub struct SharedPreferencesReview {
     pub binding: AcceptedSharedPreferencesBinding,
     pub present: bool,
+    pub local_fallback_path: PathBuf,
+    pub local_fallback_present: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

@@ -462,6 +462,17 @@ fresh registration. Other copies can overwrite this shared file and discard
 unknown entries. Portcove does not own, migrate, back up, restore or delete it.
 This is an explicit shared write scope, without private isolation or a sandbox.
 Forwarded launch arguments are refused for this exact prepared contract.
+
+This closed contract supplies `--rom` before the separately validated raw
+`.gbc` source. Its only catalog arguments are `--save-dir saves`; an existing
+safe `saves` directory is required. The four game-owned mutable paths are
+`config.ini`, `runtime_prefs.ini`, `saves` and `snapshots`. Review also discloses
+the local preference fallback. Existing files must be regular and single-link,
+and existing ancestors must not redirect through reparse points. Inspection,
+registration and removal create no preference or save data. Printable ASCII
+Windows paths and a conservative MAX_PATH allowance for generated transaction
+filenames preserve the selected runtime's narrow-path behavior. These are
+sequential path observations, not filesystem isolation after launch.
 Indexed entries require minimum staged-source version 8; versions 1–7 remain
 available. Older retained readers refuse through the existing strict envelope.
 
