@@ -21,6 +21,7 @@ import {
   assertPrimaryReviewAction,
   captureAccessibilityReport,
   reviewControls,
+  selectGameFilesSettings,
 } from "./desktop-review-controls.mts";
 
 import {
@@ -476,7 +477,10 @@ export async function selectedSetupCompletionScenario({
         assert.equal(required(initial.coverage).batches, 1);
         assert.equal(required(initial.coverage).can_resume, true);
         await screenshot("connected-folder-management");
-      } else await click(By.xpath('//nav//button[contains(., "Settings")]'));
+      } else {
+        await click(By.xpath('//nav//button[contains(., "Settings")]'));
+        await selectGameFilesSettings(browser);
+      }
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await click(button("Refresh folders"));
       const initialSnapshot = required(await read("get_game_file_scan_snapshot"));
@@ -1134,6 +1138,7 @@ export async function selectedSetupCompletionScenario({
       );
       assert.deepEqual(core(["source", "list"]), biosSources);
       await restartClick(By.xpath('//nav//button[contains(., "Settings")]'));
+      await selectGameFilesSettings(browser);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await browser.wait(
         async () => {

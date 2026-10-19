@@ -20,10 +20,13 @@ namespace Portcove.ReferenceClient
         private readonly TextBox source = new TextBox();
         private readonly TextBox bios = new TextBox();
         private readonly TextBox technical = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 220 };
+        private readonly TextBox preparationNotes = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 220 };
+        private readonly Expander preparationNotesSection = new Expander { Header = "Compatibility and technical notes", Visibility = Visibility.Collapsed };
         private readonly List<Button> actions = new List<Button>();
         private readonly List<Button> pathButtons = new List<Button>();
         private readonly Button cancel = new Button { Content = "Request cancellation", IsEnabled = false, Margin = new Thickness(4), Padding = new Thickness(10, 6, 10, 6) };
         private Button cleanupAction;
+        private Button preparationHelp;
         private Button installAction;
         private Button updateAction;
         private Button prepareAction;
@@ -58,6 +61,10 @@ namespace Portcove.ReferenceClient
             window.Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             panel.Children.Add(new TextBlock { Text = game.Name, FontSize = 24, TextWrapping = TextWrapping.Wrap });
             panel.Children.Add(state);
+            preparationNotesSection.Content = preparationNotes;
+            panel.Children.Add(preparationNotesSection);
+            preparationHelp = AddAction(panel, "Open detailed preparation guide", OpenPreparationGuide);
+            preparationHelp.Visibility = Visibility.Collapsed;
             panel.Children.Add(new TextBlock
             {
                 Text = "Original game files stay yours. Supply a source or BIOS path only when needed; blank fields use Portcove's registered files. Portcove checks requirements and trusted downloads.",
@@ -112,6 +119,14 @@ namespace Portcove.ReferenceClient
                     "Disconnect from operation", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) args.Cancel = true;
                 else { detached = true; if (busy) CurrentStatus = null; }
             };
+        }
+
+        private Task OpenPreparationGuide()
+        {
+            var help = SetupInstructions.HelpUrl(Json.OptionalObjectField(currentCatalog, "presentation"));
+            if (help == null) throw new InvalidOperationException("No preparation guide is available for this game.");
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(help) { UseShellExecute = true });
+            return Task.CompletedTask;
         }
 
         private void AddPath(Panel panel, string label, TextBox field, bool allowFolder)
@@ -318,9 +333,12 @@ namespace Portcove.ReferenceClient
             var definitionOperations = DefinitionOperations.Summary(status);
             var portActions = PortActions.Summary(status);
             var presentation = Json.OptionalObjectField(catalog, "presentation");
-            object preparation;
-            var preparationText = presentation != null && Json.TryField(presentation, "manual_preparation", out preparation)
-                ? preparation as string : null;
+            var preparationText = SetupInstructions.Summary(presentation);
+            preparationNotes.Text = SetupInstructions.TechnicalNotes(presentation) ?? "";
+            preparationNotesSection.Visibility = externalRoute && !string.IsNullOrWhiteSpace(preparationNotes.Text)
+                ? Visibility.Visible : Visibility.Collapsed;
+            preparationHelp.Visibility = externalRoute && SetupInstructions.HelpUrl(presentation) != null
+                ? Visibility.Visible : Visibility.Collapsed;
             state.Text = (active != null ? "Installed: " + Json.Text(active, "version") + "." :
                 external != null ? "External runtime registered: " + Json.Text(external, "version") + ". Portcove does not own its files." :
                 externalRoute ? "User-prepared runtime not registered. Choose its prepared folder below for a checked review." : "Not installed.") + "\n" +

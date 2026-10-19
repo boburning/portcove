@@ -670,6 +670,7 @@ export interface TransportOutputs {
   upstream_observation_report: OutputUpstreamObservationReport;
   desktop_application_update_check_phase: OutputDesktopApplicationUpdateCheckPhase;
   desktop_application_update_check_result: ApplicationUpdateCheckResult;
+  desktop_application_update_manual_check_result: OutputDesktopApplicationUpdateManualCheckResult;
   desktop_application_update_notice: OutputDesktopApplicationUpdateNotice;
   desktop_application_update_preferences: ApplicationUpdatePreferences;
   desktop_application_update_production_transition: ApplicationUpdateProductionTransition;
@@ -1321,9 +1322,28 @@ export interface PortPresentation {
   artwork?: IgdbArtwork | null;
   installation_method: InstallationMethod;
   manual_preparation?: string | null;
+  manual_setup?: ManualSetupGuide | null;
+  /**
+   * Descriptive display metadata only. This never replaces the port, source,
+   * release or library identity, and does not group different implementations.
+   */
+  original_game_title?: string | null;
   saves_and_settings: SavesAndSettingsBehavior;
   source_requirements: SourceRequirementPresentation[];
+  variant_label?: string | null;
   [k: string]: unknown;
+}
+/**
+ * Authored instructions only; these steps grant no operation or file authority.
+ */
+export interface ManualSetupGuide {
+  help_url?: string | null;
+  steps: ManualSetupStep[];
+  warnings: string[];
+}
+export interface ManualSetupStep {
+  instruction: string;
+  title: string;
 }
 export interface SourceRequirementPresentation {
   label: string;
@@ -2744,6 +2764,11 @@ export interface ApplicationUpdateCandidateSummary {
   bytes: number;
   channel: ApplicationChannel;
   version: string;
+}
+export interface OutputDesktopApplicationUpdateManualCheckResult {
+  checked_channel: ApplicationChannel;
+  result: ApplicationUpdateCheckResult;
+  [k: string]: unknown;
 }
 export interface OutputDesktopApplicationUpdateNotice {
   notice: ApplicationUpdateNotice | null;

@@ -219,6 +219,17 @@ the outside runtime or grant ownership of it. On another host or after moving
 the external folder, prepare and register it again against an accepted catalog
 entry.
 
+Schema 71 adds optional catalog presentation `original_game_title` and
+`variant_label`. These are descriptive labels: `name` remains the port project's
+name, and `id`, source contracts, installations and launch authority are unchanged.
+Clients may ignore these additive display fields; a game-led client should search
+both game and project names and keep alternative projects as distinct entries.
+Older catalog and retained definitions may omit either label.
+The same schema adds optional `presentation.manual_setup`: authored numbered
+steps, essential warnings and an optional HTTPS help link. These display facts
+grant no preparation or operation authority. `manual_preparation` remains the
+legacy fallback and the retained detailed compatibility notes.
+
 Schema 70 adds optional readiness `source_assessment` and `bios_assessment`,
 plus the `incompatible_bios` blocker/action reason. These assessments bind input
 identity and compatibility to the retained installed release; unchanged bytes
@@ -643,7 +654,7 @@ folder remains a host-integration action after core validates and creates the
 profile directory. A move requires a separately reviewed plan and explicit
 confirmation before the adapter grants the core's single-use authorization.
 
-API schema 70 adds optional `auxiliary_downloads` and `temporary_space` to install
+API schema 71 adds optional `auxiliary_downloads` and `temporary_space` to install
 plans. The cold `download_bytes` total includes the primary artifact, bundled
 runtime and every required recipe archive. A primary cache hit can reduce the
 download but does not remove recipe auxiliary acquisitions, which have no curated

@@ -215,7 +215,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -223,7 +223,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var privateSchema in new[] { 58, 59, 64, 71 })
+        foreach (var privateSchema in new[] { 58, 59, 64, 72 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -396,7 +396,10 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "input assessment schema preserves legacy recovery without adding operation authority");
         bad["schema_version"] = 71;
-        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond input assessments rejected");
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "display metadata preserves input assessments and legacy recovery");
+        bad["schema_version"] = 72;
+        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond display metadata rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
@@ -486,16 +489,30 @@ internal static class ContractTests
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
+            var displayed = PersonalLibrary.Read(catalog, statuses, "compiled-game-title-library");
+            Check(displayed.Count > 0 && displayed.All(game => {
+                var definition = catalog.First(port => Json.Text(port, "id") == game.PortId);
+                var presentation = Json.Field(definition, "presentation");
+                return game.Name.StartsWith(Json.Text(presentation, "original_game_title"), StringComparison.Ordinal)
+                    && game.GameId == Identity.Game("compiled-game-title-library", game.PortId);
+            }), "compiled schema71 catalog titles lead actual reader names without changing port identities");
+            var prepared = catalog.Where(port => Json.Text(Json.Field(port, "release"), "provider") == "user-prepared").ToArray();
+            Check(prepared.Length == 11 && prepared.All(port => SetupInstructions.Summary(Json.Field(port, "presentation")).Contains("1. ")),
+                "compiled schema71 authored setup steps are consumed by the actual client");
+            Check(prepared.All(port => SetupInstructions.TechnicalNotes(Json.Field(port, "presentation"))
+                    == Json.Text(Json.Field(port, "presentation"), "manual_preparation"))
+                && prepared.Count(port => SetupInstructions.HelpUrl(Json.Field(port, "presentation")) != null) == 1,
+                "compiled schema71 technical notes and the optional preparation link reach dedicated client controls");
             Check(real.ApiSchemaVersion == ProtocolStream.Schema && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
                 PortActions.Read(status).Count(value => value.Action == "update") == 1),
-                "compiled schema70 producer and actual reader consume one rollback and update assessment per catalog status");
+                "compiled schema71 producer and actual reader consume one rollback and update assessment per catalog status");
             var portId = Json.Text(statuses[0], "port_id");
             var inventory = await real.Read("backup.list", "backup", "list", portId);
             Check(PortActionDecision.Read(Json.Field(inventory, "create_assessment")).Action == "backup_create",
-                "compiled schema70 backup producer and actual strict reader consume creation assessment");
+                "compiled schema71 backup producer and actual strict reader consume creation assessment");
             Check(PortActionDecision.Read(Json.Field(inventory, "restore_assessment")).Action == "backup_restore",
-                "compiled schema70 backup producer and actual strict reader consume restore assessment");
+                "compiled schema71 backup producer and actual strict reader consume restore assessment");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
     }
@@ -667,6 +684,8 @@ internal static class ContractTests
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "legacy recovery schema preserves caller-bound external review");
         capabilities["schema_version"] = 70;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "input assessment schema preserves caller-bound external review");
+        capabilities["schema_version"] = 71;
+        Check(ProtocolStream.SupportsReviewedExternal(capabilities), "display metadata preserves caller-bound external review");
         var representationStatus = Json.Parse(Json.Print(new {
             readiness = new { required_source_extension = "z64", blockers = new[] { "incompatible_source" } },
             port_actions = new[] {
@@ -701,7 +720,7 @@ internal static class ContractTests
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 71 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 72 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);
@@ -773,6 +792,25 @@ internal static class ContractTests
         var available = PersonalLibrary.Read(catalog, statuses, "library-a");
         Check(available.Count == 2 && available[0].GameId != available[1].GameId,
             "compatible implementations retain distinct stable identities despite matching titles");
+        Json.Object(catalog[0])["presentation"] = Json.Parse("{\"original_game_title\":\"Recognizable Game\",\"variant_label\":\"US edition\"}");
+        Json.Object(catalog[1])["presentation"] = Json.Parse("{\"original_game_title\":\"Recognizable Game\"}");
+        var titled = PersonalLibrary.Read(catalog, statuses, "library-a");
+        Check(titled[0].Name == "Recognizable Game (Same Game) · US edition" && titled[1].Name == "Recognizable Game (Same Game)",
+            "original game title leads project and relevant variant in actual library metadata");
+        Check(titled[0].GameId == available[0].GameId && titled[1].GameId == available[1].GameId,
+            "display metadata never merges implementations or changes library identity");
+        Json.Object(Json.Field(catalog[0], "presentation"))["original_game_title"] = "Pokémon Red";
+        var pokemon = PersonalLibrary.Read(catalog, statuses, "library-a")[0];
+        Check(pokemon.MatchesSearch("pokemon red") && pokemon.MatchesSearch("Pokémon") && pokemon.MatchesSearch("Same Game") && pokemon.MatchesSearch("shape-a"),
+            "catalog search finds accented game titles with ordinary ASCII spelling and retains project and ID search");
+        foreach (var invalidTitle in new object[] { "", " padded", "two\nlines", 42 }) {
+            Json.Object(Json.Field(catalog[0], "presentation"))["original_game_title"] = invalidTitle;
+            Reject(() => PersonalLibrary.Read(catalog, statuses, "library-a"), "malformed descriptive title is refused");
+        }
+        Json.Object(catalog[0]).Remove("presentation");
+        Json.Object(catalog[1]).Remove("presentation");
+        Check(PersonalLibrary.Read(catalog, statuses, "library-a")[0].Name == available[0].Name,
+            "legacy omitted presentation retains the original project label");
         var initial = PersonalLibrary.Default(available, Array.Empty<string>());
         Check(initial.Count == 1 && initial[0].PortId == "shape-a" && initial[0].Metadata().IsInstalled,
             "personal default imports installed games without dumping the compatible catalog");
@@ -800,6 +838,39 @@ internal static class ContractTests
 
     private static void CheckGuidedSetup()
     {
+        var instructions = Json.Parse("{\"manual_setup\":{\"steps\":[{\"title\":\"Prepare a copy\",\"instruction\":\"Keep the original unchanged.\"}],\"warnings\":[\"Preserve saves.\"]},\"manual_preparation\":\"Long legacy notes\"}");
+        var summary = SetupInstructions.Summary(instructions);
+        Check(summary.Contains("Before you begin: Preserve saves.") && summary.Contains("1. Prepare a copy: Keep the original unchanged.") && !summary.Contains("Long legacy notes"),
+            "authored steps and essential warnings replace default prose while technical data remains retained");
+        Check(SetupInstructions.Summary(Json.Parse("{\"manual_preparation\":\"Legacy fallback\"}")) == "Legacy fallback", "legacy setup prose remains usable");
+        Check(SetupInstructions.Summary(null) == null, "omitted setup guidance stays omitted");
+        Check(SetupInstructions.Summary(Json.Parse("{}")) == null,
+            "presentation without optional legacy instructions stays usable");
+        Check(SetupInstructions.TechnicalNotes(instructions) == "Long legacy notes",
+            "authored setup retains complete technical notes for the dedicated disclosure");
+        Check(SetupInstructions.TechnicalNotes(Json.Parse("{\"manual_preparation\":\"Legacy fallback\"}")) == null
+            && SetupInstructions.TechnicalNotes(null) == null,
+            "legacy prose stays in the summary without a duplicate technical disclosure");
+        foreach (var help in new[] { "http://example.com/guide", "file:///C:/private", "https://user:secret@example.com/guide" })
+        {
+            var unsafeGuide = Json.Object(Json.Parse(Json.Print(instructions)));
+            Json.Object(Json.Field(unsafeGuide, "manual_setup"))["help_url"] = help;
+            Reject(() => SetupInstructions.Summary(unsafeGuide), "unsafe preparation link is refused");
+            Reject(() => SetupInstructions.HelpUrl(unsafeGuide), "unsafe preparation link cannot reach the opener");
+        }
+        var linkedInstructions = Json.Object(Json.Parse(Json.Print(instructions)));
+        Json.Object(Json.Field(linkedInstructions, "manual_setup"))["help_url"] = "https://example.com/guide";
+        Check(SetupInstructions.HelpUrl(linkedInstructions) == "https://example.com/guide"
+            && SetupInstructions.HelpUrl(instructions) == null && SetupInstructions.HelpUrl(null) == null,
+            "named preparation action receives only a checked optional HTTPS URL");
+        var stepsOnly = Json.Parse("{\"manual_setup\":{\"steps\":[{\"title\":\"Prepare a copy\",\"instruction\":\"Keep the original unchanged.\"}],\"warnings\":[]}}");
+        Check(SetupInstructions.Summary(stepsOnly).Contains("1. Prepare a copy")
+            && SetupInstructions.TechnicalNotes(stepsOnly) == null && SetupInstructions.HelpUrl(stepsOnly) == null,
+            "authored guidance accepts omitted optional notes and help links");
+        var unknownStep = Json.Parse("{\"manual_setup\":{\"steps\":[{\"title\":\"Prepare a copy\",\"instruction\":\"Keep it unchanged.\",\"unknown_warning\":\"Do not drop this\"}],\"warnings\":[]}}");
+        Reject(() => SetupInstructions.Summary(unknownStep), "unknown setup step fields are not silently dropped");
+        Json.Object(Json.Field(linkedInstructions, "manual_setup"))["help_url"] = 42;
+        Reject(() => SetupInstructions.HelpUrl(linkedInstructions), "omitted optional text does not relax present-field typing");
         var catalog = Json.Parse("{\"source_profile\":\"game-source\",\"bios_source_profile\":null,\"release\":{\"provider\":\"github\"}}");
         var missing = Json.Parse("{\"active\":null,\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"missing_source\"]},\"port_actions\":[{\"action\":\"install\",\"availability\":\"waiting\",\"reason\":\"missing_source\"}]}");
         Check(GuidedSetup.Choose(missing, catalog, "", "").Kind == GuidedStepKind.ChooseSource,
@@ -898,8 +969,9 @@ internal static class ContractTests
 
     private static async Task ConsumerMeasurements()
     {
-        var root = Path.Combine(Path.GetDirectoryName(Binary), "measurement library 雪");
+        var root = Path.Combine(Path.GetDirectoryName(Binary), "measurement library 雪-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
+        var completed = false;
         try
         {
             var client = new PublicCli(Binary, root);
@@ -931,16 +1003,52 @@ internal static class ContractTests
             await client.Read("status", "status", "shape-a");
             using (var launch = await client.Launch("shape-a", "measurement-request"))
             {
-                var launchPid = Path.Combine(root, "measurement-launch-pid");
-                for (var attempt = 0; attempt < 100 && !File.Exists(launchPid); attempt++)
-                    await Task.Delay(10);
-                if (!File.Exists(launchPid)) throw new Exception("The offline launch fixture did not start within one second.");
-                var record = await client.Read("launch.show", "launch", "show", "measurement-request");
-                var observation = LaunchObservation.Read(record, "measurement-request", "shape-a", launch.ProcessId);
-                Check(observation != null && observation.Outcome == "succeeded",
-                    "prepared offline launch is observed through the public launch record");
+                Exception readinessFailure = null;
+                try
+                {
+                    var launchPid = Path.Combine(root, "measurement-launch-pid");
+                    var readiness = Stopwatch.StartNew();
+                    // Match the held-session fixture's functional readiness bound;
+                    // elapsed performance is reported below, not gated at one second.
+                    while (!File.Exists(launchPid) && readiness.Elapsed < TimeSpan.FromSeconds(5))
+                        await Task.Delay(10);
+                    if (!File.Exists(launchPid)) throw new TimeoutException("The offline launch fixture did not publish readiness within five seconds: " + root);
+                    var record = await client.Read("launch.show", "launch", "show", "measurement-request");
+                    var observation = LaunchObservation.Read(record, "measurement-request", "shape-a", launch.ProcessId);
+                    Check(observation != null && observation.Outcome == "succeeded",
+                        "prepared offline launch is observed through the public launch record");
+                    launchTimer.Stop();
+                }
+                catch (Exception error)
+                {
+                    readinessFailure = error;
+                    Console.Error.WriteLine("MEASUREMENT_LAUNCH_FAILURE " + Json.Print(new
+                    {
+                        root, process_id = launch.ProcessId, process_exited = launch.HasExited,
+                        pid_publication = ReadFixtureEvidence(root, "measurement-launch-pid"), error = error.ToString()
+                    }));
+                    throw;
+                }
+                finally
+                {
+                    var exited = launch.WaitForExitAsync();
+                    if (await Task.WhenAny(exited, Task.Delay(5000)) != exited)
+                    {
+                        var message = "Owned offline fixture has not exited; its files are retained at " + root;
+                        if (readinessFailure == null) throw new TimeoutException(message);
+                        Console.Error.WriteLine("MEASUREMENT_EXIT_FAILURE " + message);
+                    }
+                    else
+                    {
+                        try { await exited; }
+                        catch (Exception error)
+                        {
+                            if (readinessFailure == null) throw;
+                            Console.Error.WriteLine("MEASUREMENT_EXIT_FAILURE " + error);
+                        }
+                    }
+                }
             }
-            launchTimer.Stop();
             Check(client.InvocationCount - launchStart == 4,
                 "launch readiness, identity, raw exec and first observation stay within four CLI processes");
 
@@ -969,10 +1077,12 @@ internal static class ContractTests
                 polling = new { processes_per_observation = 1, overlapping_polls = 0 },
                 prepared_offline = true
             }));
+            completed = true;
         }
         finally
         {
-            if (Directory.Exists(root)) Directory.Delete(root, true);
+            if (completed && Directory.Exists(root)) Directory.Delete(root, true);
+            else Console.Error.WriteLine("MEASUREMENT_FIXTURE_RETAINED " + root);
         }
     }
 

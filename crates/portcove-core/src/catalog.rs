@@ -478,6 +478,53 @@ impl Catalog {
                 }
             }
             if let Some(presentation) = &port.presentation {
+                for (name, value) in [
+                    ("original game title", &presentation.original_game_title),
+                    ("variant label", &presentation.variant_label),
+                ] {
+                    if value.as_ref().is_some_and(|value| {
+                        value.trim().is_empty()
+                            || value.trim() != value
+                            || value.chars().any(char::is_control)
+                    }) {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has an invalid presentation {name}",
+                            port.id
+                        )));
+                    }
+                }
+                if let Some(guide) = &presentation.manual_setup {
+                    let invalid_text = |text: &str| {
+                        text.trim().is_empty()
+                            || text.trim() != text
+                            || text.chars().any(char::is_control)
+                    };
+                    let invalid_url = guide.help_url.as_ref().is_some_and(|value| {
+                        invalid_text(value)
+                            || match reqwest::Url::parse(value) {
+                                Ok(url) => {
+                                    url.scheme() != "https"
+                                        || url.host_str().is_none()
+                                        || !url.username().is_empty()
+                                        || url.password().is_some()
+                                }
+                                Err(_) => true,
+                            }
+                    });
+                    if !(1..=8).contains(&guide.steps.len())
+                        || guide.warnings.len() > 8
+                        || guide.steps.iter().any(|step| {
+                            invalid_text(&step.title) || invalid_text(&step.instruction)
+                        })
+                        || guide.warnings.iter().any(|warning| invalid_text(warning))
+                        || invalid_url
+                    {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has invalid manual setup guidance",
+                            port.id
+                        )));
+                    }
+                }
                 if let Some(artwork) = &presentation.artwork
                     && (artwork.game_id == 0
                         || artwork.cover_id == 0
@@ -2245,6 +2292,164 @@ mod tests {
                         + usize::from(port.bios_source_profile.is_some())
             })
         }));
+    }
+
+    #[test]
+    fn game_titles_describe_ports_without_combining_their_identities() {
+        let catalog = Catalog::embedded().unwrap();
+        assert!(catalog.ports().iter().all(|port| {
+            port.presentation
+                .as_ref()
+                .and_then(|presentation| presentation.original_game_title.as_ref())
+                .is_some_and(|title| !title.is_empty())
+        }));
+        let majora = catalog
+            .ports()
+            .iter()
+            .filter(|port| {
+                port.presentation
+                    .as_ref()
+                    .unwrap()
+                    .original_game_title
+                    .as_deref()
+                    == Some("The Legend of Zelda: Majora's Mask")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(majora.len(), 2);
+        assert_ne!(majora[0].id, majora[1].id);
+        assert_ne!(majora[0].name, majora[1].name);
+        let red = catalog
+            .ports()
+            .iter()
+            .find(|port| port.id == "gen1recomp")
+            .unwrap();
+        assert_eq!(
+            red.presentation
+                .as_ref()
+                .unwrap()
+                .original_game_title
+                .as_deref(),
+            Some("Pokémon Red")
+        );
+        assert_eq!(
+            red.presentation.as_ref().unwrap().variant_label.as_deref(),
+            Some("US edition")
+        );
+    }
+
+    #[test]
+    fn older_catalog_presentation_can_omit_game_title_metadata() {
+        let mut document: serde_json::Value =
+            serde_json::from_str(include_str!("../catalog/catalog.json")).unwrap();
+        for port in document["ports"].as_array_mut().unwrap() {
+            let presentation = port["presentation"].as_object_mut().unwrap();
+            presentation.remove("original_game_title");
+            presentation.remove("variant_label");
+        }
+        let catalog = Catalog::from_json(&document.to_string()).unwrap();
+        assert!(catalog.ports().iter().all(|port| {
+            port.presentation
+                .as_ref()
+                .unwrap()
+                .original_game_title
+                .is_none()
+        }));
+    }
+
+    #[test]
+    fn game_title_metadata_rejects_blank_padded_and_control_text() {
+        let original: serde_json::Value =
+            serde_json::from_str(include_str!("../catalog/catalog.json")).unwrap();
+        for field in ["original_game_title", "variant_label"] {
+            for value in ["", " ", " Padded", "Padded ", "Two\nlines", "Control\0text"] {
+                let mut document = original.clone();
+                document["ports"][0]["presentation"][field] = value.into();
+                let error = Catalog::from_json(&document.to_string()).unwrap_err();
+                assert!(
+                    error.message.contains("invalid presentation"),
+                    "{field}: {value:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn prepared_routes_have_authored_steps_with_legacy_notes_preserved() {
+        let catalog = Catalog::embedded().unwrap();
+        let prepared = catalog
+            .ports()
+            .iter()
+            .filter(|port| port.release.provider == ReleaseSource::UserPrepared)
+            .collect::<Vec<_>>();
+        assert_eq!(prepared.len(), 11);
+        for port in prepared {
+            let presentation = port.presentation.as_ref().unwrap();
+            let guide = presentation.manual_setup.as_ref().unwrap();
+            assert!((1..=8).contains(&guide.steps.len()), "{}", port.id);
+            assert!(presentation.manual_preparation.is_some(), "{}", port.id);
+        }
+        let mut document: serde_json::Value =
+            serde_json::from_str(include_str!("../catalog/catalog.json")).unwrap();
+        for port in document["ports"].as_array_mut().unwrap() {
+            port["presentation"]
+                .as_object_mut()
+                .unwrap()
+                .remove("manual_setup");
+        }
+        let legacy = Catalog::from_json(&document.to_string()).unwrap();
+        assert!(
+            legacy.ports().iter().all(|port| port
+                .presentation
+                .as_ref()
+                .unwrap()
+                .manual_setup
+                .is_none())
+        );
+    }
+
+    #[test]
+    fn manual_setup_rejects_unusable_steps_and_unsafe_help_links() {
+        let original: serde_json::Value =
+            serde_json::from_str(include_str!("../catalog/catalog.json")).unwrap();
+        let guide = serde_json::json!({
+            "steps": [{"title": "Prepare files", "instruction": "Keep your original unchanged."}],
+            "warnings": ["Use a private working copy."],
+            "help_url": "https://example.com/preparation"
+        });
+        let mut invalid = Vec::new();
+        for value in ["", " Padded", "Two\nlines"] {
+            for field in ["title", "instruction"] {
+                let mut bad = guide.clone();
+                bad["steps"][0][field] = value.into();
+                invalid.push(bad);
+            }
+        }
+        for value in [
+            "http://example.com/guide",
+            "file:///C:/private",
+            "https://user:secret@example.com/guide",
+            " https://example.com/guide",
+            "https://example.com/\tguide",
+            "invalid",
+        ] {
+            let mut bad = guide.clone();
+            bad["help_url"] = value.into();
+            invalid.push(bad);
+        }
+        let mut no_steps = guide.clone();
+        no_steps["steps"] = serde_json::json!([]);
+        invalid.push(no_steps);
+        let mut empty_warning = guide.clone();
+        empty_warning["warnings"] = serde_json::json!([""]);
+        invalid.push(empty_warning);
+        for bad in invalid {
+            let mut document = original.clone();
+            document["ports"][0]["presentation"]["manual_setup"] = bad;
+            assert!(Catalog::from_json(&document.to_string()).is_err());
+        }
+        let mut valid = original;
+        valid["ports"][0]["presentation"]["manual_setup"] = guide;
+        assert!(Catalog::from_json(&valid.to_string()).is_ok());
     }
 
     #[test]

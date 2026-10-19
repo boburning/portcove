@@ -179,13 +179,13 @@ impl ApplicationUpdateHostProvider {
 
     async fn select_fresh(
         &self,
-        choice: &crate::application_update_preferences::ApplicationUpdateChoice,
+        channel: crate::application_update::ApplicationChannel,
     ) -> Result<ApplicationUpdateFreshSelection, ApplicationUpdateFreshSelectionError> {
         let installed = self
             .installed
             .observe()
             .map_err(ApplicationUpdateFreshSelectionError::InstalledContext)?;
-        let authenticated = self.repository.select(choice.channel, &installed).await?;
+        let authenticated = self.repository.select(channel, &installed).await?;
         Ok(ApplicationUpdateFreshSelection {
             installed,
             authenticated,
@@ -199,7 +199,7 @@ impl ApplicationUpdateFreshSelectionProvider for ApplicationUpdateHostProvider {
         &self,
         choice: &crate::application_update_preferences::ApplicationUpdateChoice,
     ) -> Result<ApplicationUpdateFreshSelection, ApplicationUpdateFreshSelectionError> {
-        self.select_fresh(choice).await
+        self.select_fresh(choice.channel).await
     }
 }
 
@@ -207,9 +207,9 @@ impl ApplicationUpdateFreshSelectionProvider for ApplicationUpdateHostProvider {
 impl ApplicationUpdateChecker for ApplicationUpdateHostProvider {
     async fn check(
         &self,
-        choice: crate::application_update_preferences::ApplicationUpdateChoice,
+        channel: crate::application_update::ApplicationChannel,
     ) -> Result<AuthenticatedCandidateSelection, CandidateLoadError> {
-        self.select_fresh(&choice)
+        self.select_fresh(channel)
             .await
             .map(|selection| selection.authenticated)
             .map_err(|error| match error {

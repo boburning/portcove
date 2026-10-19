@@ -1,4 +1,5 @@
 import { GameFileObservationSummary } from "../features/browsing/GameFileObservationSummary";
+import { gameTitle, gameProjectLabel } from "../port-identity";
 import type { GameFileObservationPresentation } from "../features/browsing/use-game-file-observation";
 import { cn } from "cn";
 import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
@@ -313,6 +314,13 @@ export function DetailPanel(props: DetailPanelProps) {
       ));
   const renderDetailBody = () => (
     <DetailBody
+      header={
+        <DetailHero
+          port={port}
+          state={state}
+          missingSourceLabels={!installed ? missingSourceLabels : []}
+        />
+      }
       observations={
         <>
           {!props.browsingMatch && (
@@ -388,11 +396,6 @@ export function DetailPanel(props: DetailPanelProps) {
         <Icon glyph={ArrowLeft} />
         Back
       </Button>
-      <DetailHero
-        port={port}
-        state={state}
-        missingSourceLabels={!installed ? missingSourceLabels : []}
-      />
       {renderCancellations()}
       {renderDetailBody()}
     </section>
@@ -417,21 +420,26 @@ function DetailHero({
   missingSourceLabels: string[];
 }) {
   return (
-    <div className="detail-hero flex min-h-[175px] items-end gap-5 overflow-hidden rounded-pc-lg border border-[var(--color-border-strong)] bg-pc-surface p-8 shadow-[var(--shadow-raised)] [@media((max-height:_43.75rem))]:min-h-[8.125rem]">
+    <div className="detail-hero flex items-start gap-4">
       <ArtworkImage
         port={port}
-        className="detail-cover aspect-[2/3] w-24 flex-none rounded-pc-md bg-[var(--art-color)]"
+        className="detail-cover aspect-[2/3] w-16 flex-none rounded-pc-md bg-[var(--art-color)]"
       />
       <div className="min-w-0">
-        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-text-secondary)]">
+        <p className="mb-1 text-xs text-[var(--color-text-secondary)]">
           {port.platforms.map((platform) => platformLabel(platform)).join(" · ")}
         </p>
         <h1
           className="detail-title mb-0 text-[length:var(--text-2xl)] text-[var(--color-text)]"
           id="port-detail-title"
         >
-          {port.name}
+          {gameTitle(port)}
         </h1>
+        {gameProjectLabel(port) && (
+          <p className="m-0 mt-1 text-sm text-pc-muted-foreground">
+            Port project: {gameProjectLabel(port)}
+          </p>
+        )}
         <span
           className={cn(
             `hero-state mt-[10px] inline-flex items-center gap-2 text-[length:var(--text-xs)] font-[750] text-[var(--color-text)] ${state.tone}`,
@@ -465,6 +473,7 @@ function DetailHero({
 }
 
 function DetailBody({
+  header,
   observations,
   installCancellations,
   perform,
@@ -499,6 +508,7 @@ function DetailBody({
   actions,
   openLibraryStorage,
 }: {
+  header: ReactNode;
   observations: ReactNode;
   installCancellations?: ActivityRecord[] | undefined;
   perform?: Perform | undefined;
@@ -538,28 +548,40 @@ function DetailBody({
     (port.adapter === "upstream-managed-setup" || port.adapter === "libultraship-portable") &&
     port.setup_output_paths.length,
   );
+  const compactActions = installed && !status?.external_runtime && launchReady && !pendingSetup;
   return (
-    <div className="detail-body px-8 pt-7 pb-10 [@media((max-height:_43.75rem))]:pt-5">
-      <StatusActionsGroup
-        installCancellations={installCancellations}
-        port={port}
-        status={status}
-        stagedVersion={stagedVersion}
-        sources={sources}
-        installed={installed}
-        sourceReady={sourceReady}
-        biosReady={biosReady}
-        launchReady={launchReady}
-        pendingSetup={pendingSetup}
-        runtimeUpdateAvailable={runtimeUpdateAvailable}
-        managedPreparation={managedPreparation}
-        installPlan={installPlan}
-        busy={busy}
-        libraryGeneration={libraryGeneration}
-        onChanged={externalRuntimeChanged}
-        actions={actions}
-        openLibraryStorage={openLibraryStorage}
-      />
+    <div className="detail-body pb-10">
+      <div
+        className={cn(
+          "detail-summary grid gap-3 border-b border-pc-border pb-5",
+          compactActions &&
+            "@min-[48rem]/detail:grid-cols-[minmax(0,1fr)_16rem] @min-[48rem]/detail:items-center",
+        )}
+      >
+        {header}
+        <div className={compactActions ? "w-full max-w-80" : undefined}>
+          <StatusActionsGroup
+            installCancellations={installCancellations}
+            port={port}
+            status={status}
+            stagedVersion={stagedVersion}
+            sources={sources}
+            installed={installed}
+            sourceReady={sourceReady}
+            biosReady={biosReady}
+            launchReady={launchReady}
+            pendingSetup={pendingSetup}
+            runtimeUpdateAvailable={runtimeUpdateAvailable}
+            managedPreparation={managedPreparation}
+            installPlan={installPlan}
+            busy={busy}
+            libraryGeneration={libraryGeneration}
+            onChanged={externalRuntimeChanged}
+            actions={actions}
+            openLibraryStorage={openLibraryStorage}
+          />
+        </div>
+      </div>
       <RequirementsGroup
         key={`requirements:${port.id}:${libraryGeneration}`}
         port={port}
@@ -575,10 +597,15 @@ function DetailBody({
       <p className="leading-[var(--leading-relaxed)] text-[var(--color-text-secondary)]">
         {port.summary}
       </p>
-      {observations}
+      <details className="my-4">
+        <summary className="cursor-pointer py-2 text-sm font-medium">
+          File and filter details
+        </summary>
+        {observations}
+      </details>
       <NavigationHints />
-      <ArtworkControls key={`${port.id}:${libraryGeneration}`} port={port} />
-      <DetailArtwork key={`${port.id}:${libraryGeneration}`} port={port} />
+      <ArtworkControls key={`controls:${port.id}:${libraryGeneration}`} port={port} />
+      <DetailArtwork key={`artwork:${port.id}:${libraryGeneration}`} port={port} />
       {status?.active && (
         <DetailGroup title="Installation and version">
           <InstallationVersionSummary status={status} selectedChannel={selectedChannel} />
@@ -701,7 +728,7 @@ function StatusActionsGroup({
     );
   if (port.release.provider === "user-prepared" || status?.external_runtime) {
     return (
-      <DetailGroup title="Status and actions">
+      <section aria-label="Game actions" className="grid gap-3">
         <RetiredNotice port={port} />
         {status?.external_runtime && actionPresentation.blocked && (
           <p role="status">{actionPresentation.reason}</p>
@@ -731,12 +758,12 @@ function StatusActionsGroup({
           busy={Boolean(busy)}
           onChanged={onChanged}
         />
-      </DetailGroup>
+      </section>
     );
   }
   if (!installed && actionPresentation.blocked)
     return (
-      <DetailGroup title="Status and actions">
+      <section aria-label="Game actions" className="grid gap-3">
         <RetiredNotice port={port} />
         <p role="status">{actionPresentation.reason}</p>
         <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
@@ -754,10 +781,10 @@ function StatusActionsGroup({
             </Button>
           )}
         </div>
-      </DetailGroup>
+      </section>
     );
   return (
-    <DetailGroup title="Status and actions">
+    <section aria-label="Game actions" className="grid gap-3">
       <RetiredNotice port={port} />
       {actionPresentation.blocked && <p role="status">{actionPresentation.reason}</p>}
       <PrimaryActions
@@ -779,7 +806,7 @@ function StatusActionsGroup({
         actions={actions}
         openLibraryStorage={openLibraryStorage}
       />
-    </DetailGroup>
+    </section>
   );
 }
 

@@ -367,6 +367,7 @@ impl PortcoveService {
         let store = OperationStore::new(self.library().clone());
         let result = (|| {
             let _guards = self.lock_source_dependents(profile_id, None)?;
+            coordinator.checkpoint()?;
             let plan = self.plan_source_import(profile_id, path, mode)?;
             require_expected_plan(&plan, expected_plan_sha256)?;
             if mode == SourceImportMode::Move {
@@ -389,6 +390,7 @@ impl PortcoveService {
 
             if mode == SourceImportMode::UseCurrentLocation {
                 let registered = revalidate_source(self, &plan, &plan.source.path)?;
+                coordinator.begin_publication()?;
                 self.library().register_source(&registered)?;
                 return Ok(SourceImportResult {
                     import_id: activity.id.clone(),
@@ -479,8 +481,9 @@ pub(crate) fn recover(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<SourceImportResult> {
-    let profile_id = SourceImportOperation::decode(operation)?.profile_id.0;
-    let coordinator = OperationCoordinator::resume(
+    let import = SourceImportOperation::decode(operation)?;
+    let profile_id = import.profile_id.0;
+    let mut coordinator = OperationCoordinator::resume(
         &operation.id,
         ActivityOperation::ImportSource.to_string(),
         Some(crate::OperationTarget {
@@ -488,7 +491,35 @@ pub(crate) fn recover(
             id: profile_id,
         }),
     );
-    continue_import(service, store, operation, &coordinator, &mut |_| {}, true)
+    // Prepared and later released journals already carry publication intent.
+    // A legacy request bit must never reinterpret them as disposable copy state.
+    if import.phase == ImportPhase::Copying
+        && crate::cancellation::cancellation_state(service.library(), &operation.id)?.is_some()
+    {
+        coordinator.resume_cancellation(service.library())?;
+        let owned: bool = service.library().connection()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM activity_history WHERE id=?1 AND status='running' AND operation=?2 AND target_kind=?3 AND target_id=?4)",
+            rusqlite::params![operation.id, ActivityOperation::ImportSource.to_string(), ActivityTargetKind::Source.to_string(), operation.port_id],
+            |row| row.get(0),
+        )?;
+        if !owned {
+            return Err(PortcoveError::verification(
+                "source import activity ownership changed",
+            ));
+        }
+    }
+    let result = continue_import(service, store, operation, &coordinator, &mut |_| {}, true);
+    if let Err(error) = &result
+        && error.code == crate::ErrorCode::Cancelled
+    {
+        cleanup_cancelled_import(store, &operation.id)?;
+        service.library().finish_activity(
+            &operation.id,
+            ActivityStatus::Cancelled,
+            Some(&error.message),
+        )?;
+    }
+    result
 }
 
 fn continue_import<F>(
@@ -506,6 +537,7 @@ where
     let plan = import.plan.clone();
 
     if import.phase == ImportPhase::Copying {
+        coordinator.checkpoint()?;
         revalidate_source(service, &plan, &plan.source.path)?;
         ensure_profile_directory(service, &plan.profile_id)?;
         require_capacity(&plan.destination, plan.required_bytes)?;
@@ -548,6 +580,7 @@ where
             let staged = revalidate_source(service, &plan, staging)?;
             require_equivalent(&plan.source, &staged, "staged source")?;
         }
+        coordinator.begin_publication()?;
         operation.last_error = None;
         import.advance(ImportPhase::ReadyToPublish, operation, store)?;
         service
@@ -1599,33 +1632,43 @@ fn cleanup_source_equivalent(
 }
 
 fn cleanup_cancelled_import(store: &OperationStore, id: &str) -> Result<()> {
-    if let Some(operation) = store
-        .all()?
-        .into_iter()
-        .find(|operation| operation.id == id)
-    {
-        let import = SourceImportOperation::decode(&operation)?;
-        if import.phase != ImportPhase::Copying {
-            return Ok(());
-        }
-        if let Some(staging) = operation.paths.staging
-            && let Some(root) = staging.parent()
-            && root.try_exists()?
+    let cleanup = (|| {
+        if let Some(operation) = store
+            .all()?
+            .into_iter()
+            .find(|operation| operation.id == id)
         {
-            require_owned_staging_tree(
-                root,
-                operation
-                    .paths
-                    .final_path
-                    .as_ref()
-                    .and_then(|path| path.parent())
-                    .ok_or_else(|| PortcoveError::state("import destination has no parent"))?,
-            )?;
-            fs::remove_dir_all(root)?;
+            let import = SourceImportOperation::decode(&operation)?;
+            if import.phase != ImportPhase::Copying {
+                return Ok(());
+            }
+            if let Some(staging) = operation.paths.staging
+                && let Some(root) = staging.parent()
+                && root.try_exists()?
+            {
+                require_owned_staging_tree(
+                    root,
+                    operation
+                        .paths
+                        .final_path
+                        .as_ref()
+                        .and_then(|path| path.parent())
+                        .ok_or_else(|| PortcoveError::state("import destination has no parent"))?,
+                )?;
+                fs::remove_dir_all(root)?;
+            }
+            store.remove(id)?;
         }
-        store.remove(id)?;
-    }
-    Ok(())
+        Ok(())
+    })();
+    cleanup.map_err(|error: PortcoveError| {
+        PortcoveError::conflict(
+            "Cancellation is pending; source import private work was retained for review",
+        )
+        .detail("import_id", id)
+        .detail("recovery_action", "manual_review")
+        .detail("cause", error.message)
+    })
 }
 
 pub(crate) fn import_message(outcome: SourceImportOutcome) -> &'static str {

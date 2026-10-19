@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { gameIdentityLabel } from "../../port-identity";
 import type { SourceIntakeRequest } from "../../components/SourceIntake";
 import type { CatalogDocument } from "../../types";
 
@@ -11,7 +12,7 @@ export function useSourceIntakeState(catalog: CatalogDocument | undefined) {
       if (port && profile)
         setRequest({
           portId,
-          portName: port.name,
+          portName: gameIdentityLabel(port),
           profile,
           purpose: port.bios_source_profile === profileId ? "bios" : "game",
           paths,

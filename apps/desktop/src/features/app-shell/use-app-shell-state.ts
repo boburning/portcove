@@ -1,6 +1,7 @@
 import { useCallback, useState, type SetStateAction } from "react";
 import { type CatalogSort, type Filter, type View } from "../../view-model";
 import type { CatalogQuery } from "../browsing/catalog-query";
+import type { SettingsCategory } from "./settings-categories";
 
 type BrowserState = { filter: Filter | CatalogQuery; query: string; readiness?: string };
 export type BrowsingInputs = {
@@ -45,11 +46,18 @@ function restoredBrowserState(initial?: BrowsingInputs): Record<View, BrowserSta
   ) as Record<View, BrowserState>;
 }
 
-export function useAppShellState(initialView: View = "library", initial?: BrowsingInputs) {
+export function useAppShellState(
+  initialView: View = "library",
+  initial?: BrowsingInputs,
+  initialSettingsCategory: SettingsCategory = "appearance",
+) {
   const [view, setViewState] = useState<View>(initialView);
   const [browserState, setBrowserState] = useState(() => restoredBrowserState(initial));
   const [catalogSort, setCatalogSort] = useState<CatalogSort>(initial?.catalogSort ?? "catalog");
   const [selectedId, setSelectedId] = useState<string>();
+  const [reviewedActivityId, setReviewedActivityId] = useState<string>();
+  const [settingsCategory, setSettingsCategory] =
+    useState<SettingsCategory>(initialSettingsCategory);
   const [sourcePath, setSourcePath] = useState("");
   const [biosPath, setBiosPath] = useState("");
   const [adoptOpen, setAdoptOpen] = useState(false);
@@ -114,6 +122,10 @@ export function useAppShellState(initialView: View = "library", initial?: Browsi
     setCatalogSort,
     selectedId,
     setSelectedId,
+    reviewedActivityId,
+    setReviewedActivityId,
+    settingsCategory,
+    setSettingsCategory,
     sourcePath,
     setSourcePath,
     biosPath,

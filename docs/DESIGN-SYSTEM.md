@@ -181,6 +181,15 @@ shown and distinguish that preview from the history loaded by core. Put
 interruption guidance inline, and describe older diagnostic availability as
 possible when retention is not known.
 
+Use **Updates & activity** consistently for the combined workspace. An available
+or saved update opens the existing fresh Core review directly from its row.
+Play is independent and uses the current version when Core permits launch.
+Reviewing an immediate update defaults to installation; keeping it for later
+requires a new download-only plan and confirmation. Neither choice changes the
+saved update policy. A successful launch activity says **Process exited**, with
+an explicit explanation that successful process termination does not establish
+tested gameplay. Keep update and activity statuses in readable sentence case.
+
 Use **Check method** for a configured way to inspect game files; say whether a check
 actually ran and what it found separately. Show the planned output folder with
 version and download size when the installation plan downloads a release; a plan
@@ -290,6 +299,32 @@ Long words wrap, filters can wrap, and the collection scrolls rather than shrink
 covers to fit a row count. The grid chooses columns from available width; a
 reference composition's fixed frame width or column count is not a window rule.
 
+The collection now caps at 66.5rem so the 1600x1000 reference retains five
+approximately 200x300 artwork frames, while the actual desktop shell reflows to
+four columns at 1280x800 and three at 960x640. Title space reserves three lines;
+the recognizable original-game title leads. A separate one-line project row
+follows it and precedes status. Relevant variants remain visible as wrapping
+labels in the state area, with the full identity in the accessible card name
+and details. Named collection-container queries expand text when its available
+width is below 60rem, including enlarged root text, without changing
+the artwork frame. Search matches the game, project, variant and stable port ID;
+name sorting uses the game title. Matching game titles never combine cards.
+Long titles retain their complete accessible name and detail destination, and
+expand at narrower viewports. Library titles open details. The footer keeps the
+current Play/trial action or Review game alongside Favorite and the bounded menu;
+it does not repeat a separate Details action. Detailed input reasons remain
+available to assistive technology and on the game page rather than stretching a
+card into a setup runbook.
+
+Game details place title, readiness and the primary action in one compact summary.
+Routine installed Play sits beside the title when space permits; setup and repair
+keep the space required for their controls. File and filter diagnostics are an
+optional disclosure below the primary action. Catalog filters start with platform,
+channel and membership; advanced groups and their interpretation are disclosed on
+request. Expansion is independent of filter selection, so clearing the last
+advanced choice does not hide the focused control. Back restores the exact opener,
+or the same game's stable title when successful repair replaces that opener.
+
 The current account-free fallback is a core-owned style with a stable identity,
 initials and palette per port and slot. Desktop renders a reviewed IGDB catalog
 cover when mapped and no local image is chosen; other slots use the generated style.
@@ -388,9 +423,25 @@ hero and one dominant Play, Install, or Review action. Evidence may justify a
 roughly 36–40rem surface on large displays or a restrained sticky primary action,
 but focus, controller navigation, compact layouts, and safety information must
 remain intact. Infrequent maintenance and technical controls use progressive
-disclosure without becoming hidden safety state. Settings grows through clear
-Appearance, Library and storage, Game files, Updates, Integrations, and Advanced
-grouping using the smallest scalable structure, not an automatic second sidebar.
+disclosure without becoming hidden safety state. Settings uses Appearance,
+Library and storage, Game files, Updates, Integrations, Advanced, and About
+categories. Keep their navigation visible beside the selected panel on wide
+windows and wrapping above it at smaller widths. Category changes hide rather
+than unmount panels, preserving unsaved drafts and pending operations; they do
+not persist settings or cancel work. Move focus to the selected heading. Direct
+recovery links select the owning category before focusing its relevant control.
+The sidebar About entry opens About directly. Updates explains application/game
+updates and the bundled game catalog; optional custom catalog trust controls
+belong under Advanced. Category selection is ephemeral presentation state.
+Recovery items expose read-only navigation beside their collapsed recorded
+locations: setup opens the game, missing installations and backup problems open
+Saves and storage, and unfinished operations reveal their exact loaded activity
+or game details when its activity is not loaded. A selected older activity stays visible beyond the
+short history and receives focus. Orphaned folders and unavailable game identities
+lead to Library and storage; they do not infer ownership or enable deletion.
+Unknown recovery kinds retain details without an action. Navigation never resumes,
+removes or retries work; retained setup cleanup keeps its fresh Core preview and
+explicit confirmation.
 In GitHub settings, lead with connection purpose and signed-in state; keep
 credential provenance and request accounting in Connection details. Token entry
 has a persistent visible label, while environment-controlled credentials keep

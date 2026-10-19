@@ -5325,3 +5325,38 @@ fn resumed_zip_file_set_conflict_preserves_the_exact_published_snapshot() {
     assert!(error.message.contains("source identity changed"));
     assert_eq!(library.stored_game_file_scan_payload().unwrap(), original);
 }
+
+#[test]
+fn public_fresh_saved_root_scan_recovers_malformed_prior_payload() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "INSERT INTO game_file_scan_state(singleton, snapshot_json) VALUES (1, ?1)",
+            ["not json"],
+        )
+        .unwrap();
+    let service = PortcoveService::new_read_only(library.clone()).unwrap();
+    assert_eq!(service.library().game_file_roots().unwrap().len(), 1);
+    assert!(service.game_file_scan_snapshot().is_err());
+    assert!(service.game_file_scan_snapshot().is_err());
+    let scanned = service
+        .scan_game_file_roots(&SourceDiscoveryLimits::default())
+        .unwrap();
+    assert_eq!(scanned.freshness, GameFileScanFreshness::InputsMatch);
+    assert_eq!(scanned.roots.len(), 1);
+    assert!(scanned.report.candidates.is_empty());
+    let restored = service.game_file_scan_snapshot().unwrap().unwrap();
+    assert_eq!(restored.catalog_sha256, scanned.catalog_sha256);
+    assert_eq!(restored.roots, scanned.roots);
+    assert_eq!(restored.freshness, GameFileScanFreshness::InputsMatch);
+    assert_ne!(
+        library.stored_game_file_scan_payload().unwrap().as_deref(),
+        Some("not json")
+    );
+}

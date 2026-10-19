@@ -882,3 +882,62 @@ void test("containment authorities invalidate every reusable audit receipt domai
     assert.equal(selectTransitionAudit(context).profile, "complete");
   }
 });
+
+void test("optional audit receipts reject changed helper inputs at their real stage consumers", (t) => {
+  const stages = AUDIT_STAGES.filter((stage) =>
+    ["development-tools", "repository-tooling", "release-unit", "rust"].includes(stage.id),
+  );
+  for (const [pathname, consumers] of [
+    ["scripts/retained-package.mts", ["development-tools", "release-unit"]],
+    ["scripts/retained-evidence.mts", ["development-tools", "release-unit"]],
+    ["scripts/native-helper-dependencies.mts", ["development-tools"]],
+    ["scripts/github-api.mts", ["repository-tooling", "release-unit", "development-tools"]],
+    [
+      "scripts/runtime-values.mts",
+      ["repository-tooling", "release-unit", "development-tools", "rust"],
+    ],
+    ["scripts/release-semantic-reader-core.mts", ["release-unit"]],
+    [
+      "scripts/unclassified-behavior.mts",
+      ["repository-tooling", "release-unit", "development-tools", "rust"],
+    ],
+  ] as const) {
+    const receiptRoot = temporaryDirectory(t);
+    const before = inventory("a".repeat(40), [file(pathname, "old implementation")]);
+    executeAudit(planAudit({ stages, inventory: before, runtime, receiptRoot }), {
+      execute: () => ({ status: 0 }),
+    });
+    assert.ok(
+      planAudit({ stages, inventory: before, runtime, receiptRoot }).stages.every(
+        (stage) => stage.action === "reuse",
+      ),
+    );
+    for (const entries of [
+      [file(pathname, "changed implementation")],
+      [],
+      [file("scripts/moved-helper.mts", "old implementation")],
+    ]) {
+      const plan = planAudit({
+        stages,
+        inventory: inventory("b".repeat(40), entries),
+        runtime,
+        receiptRoot,
+      });
+      for (const id of consumers)
+        assert.equal(
+          plan.stages.find((stage) => stage.id === id)?.action,
+          "run",
+          `${pathname}:${id}`,
+        );
+    }
+    if (pathname === "scripts/release-semantic-reader-core.mts") {
+      const plan = planAudit({
+        stages,
+        inventory: inventory("c".repeat(40), [file(pathname, "changed implementation")]),
+        runtime,
+        receiptRoot,
+      });
+      assert.equal(plan.stages.find((stage) => stage.id === "rust")?.action, "reuse");
+    }
+  }
+});

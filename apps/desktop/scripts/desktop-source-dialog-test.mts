@@ -256,6 +256,7 @@ import {
   clickVisible,
   openCatalogPortAfterRefresh,
   reviewControls,
+  selectGameFilesSettings,
 } from "./desktop-review-controls.mts";
 
 async function progressiveScanNavigation({
@@ -669,6 +670,7 @@ export async function sourceDialogScenario({
     );
 
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await selectGameFilesSettings(browser);
     const discoveryTrigger = await browser.wait(
       until.elementLocated(button("Find required files")),
       15_000,
@@ -783,7 +785,7 @@ export async function sourceDialogScenario({
       (item) => item.id === sourceRegistration.id,
     );
     const sourceActivityInRecentPreview = sourceRegistrationIndex < 8;
-    await click(By.xpath('//nav//button[contains(., "Game updates")]'));
+    await click(By.xpath('//nav//button[contains(., "Updates & activity")]'));
     const sourceActivity = By.xpath(
       `//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file location update"]]//button[@aria-label=${JSON.stringify(`Open Game files settings for ${profileLabel}`)}]`,
     );
@@ -830,7 +832,7 @@ export async function sourceDialogScenario({
       artifacts.push(settingsScreenshot);
     }
 
-    await click(By.xpath('//nav//button[contains(., "Game updates")]'));
+    await click(By.xpath('//nav//button[contains(., "Updates & activity")]'));
     const discoveryActivity = By.xpath(
       '//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file search"]]//button[@aria-label="Open Game files settings for Portcove library"]',
     );
@@ -1299,6 +1301,7 @@ async function preliminarySourceReviewScenario(context: SelectedSetupContext) {
           '//nav[@aria-label="Primary navigation"]//button[./span[normalize-space(.)="Settings"]]',
         ),
       );
+      await selectGameFilesSettings(browser);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await click(button("Refresh folders"));
       await browser.wait(
@@ -1439,6 +1442,7 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
           '//nav[@aria-label="Primary navigation"]//button[./span[normalize-space(.)="Settings"]]',
         ),
       );
+      await selectGameFilesSettings(browser);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await click(button("Refresh folders"));
       await enabled(button("Scan saved folders"));
@@ -1806,6 +1810,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
           '//nav[@aria-label="Primary navigation"]//button[./span[normalize-space(.)="Settings"]]',
         ),
       );
+      await selectGameFilesSettings(browser);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await click(button("Refresh folders"));
       await browser.wait(async () => {
@@ -2077,6 +2082,7 @@ export async function selectedSetupScenario({
           '//nav[@aria-label="Primary navigation"]//button[./span[normalize-space(.)="Settings"]]',
         ),
       );
+      await selectGameFilesSettings(browser);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await click(button("Refresh folders"));
       report.observations.initial_scan = await scan();

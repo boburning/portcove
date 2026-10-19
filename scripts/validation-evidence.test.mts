@@ -199,3 +199,63 @@ void test("persisted fingerprint runtime rejects unsafe fields while retaining u
   }
   assert.equal(isFingerprintRuntime({ ...runtime, cargo: undefined }), true);
 });
+
+void test("behavioral script consumers invalidate optional audit fingerprints independently of format membership", () => {
+  const cases: [string, ValidationDomain[]][] = [
+    ["scripts/unclassified-helper.mts", ["development", "release", "repository"]],
+    ["scripts/retained-package.mts", ["development", "release"]],
+    ["scripts/retained-evidence.mts", ["development", "release"]],
+    ["scripts/native-helper-dependencies.mts", ["development", "repository"]],
+    ["scripts/github-api.mts", ["repository", "roadmap", "development", "release"]],
+    ["scripts/runtime-values.mts", ["development", "release", "repository", "roadmap"]],
+    ["scripts/release-semantic-reader-core.mts", ["release"]],
+  ];
+  const runtime = validationRuntime(undefined, { commandVersion: () => "fixture" });
+  const inventory = (
+    file: string,
+    identity: string,
+  ): Pick<RepositoryInventory, "objectFormat" | "files"> => ({
+    objectFormat: "sha1",
+    files: [
+      {
+        path: file,
+        kind: "file",
+        headBlob: identity,
+        indexBlob: identity,
+        headMode: "100644",
+        indexMode: "100644",
+        worktreeMode: "100644",
+        gitBlob: identity,
+        sha256: identity,
+        domains: [...domainsForPath(file).domains],
+        ambiguous: false,
+        untracked: false,
+      },
+    ],
+  });
+  for (const [file, domains] of cases)
+    for (const domain of domains) {
+      const stage = { id: "actual-consumer", recipe: "unchanged", domain };
+      const before = fingerprintStage(stage, inventory(file, "a".repeat(64)), runtime);
+      assert.notEqual(
+        before,
+        fingerprintStage(stage, inventory(file, "b".repeat(64)), runtime),
+        `${file}:${domain}`,
+      );
+      assert.notEqual(
+        before,
+        fingerprintStage(stage, { objectFormat: "sha1", files: [] }, runtime),
+        `deleted ${file}:${domain}`,
+      );
+      assert.notEqual(
+        before,
+        fingerprintStage(stage, inventory("scripts/renamed-helper.mts", "a".repeat(64)), runtime),
+        `renamed ${file}:${domain}`,
+      );
+    }
+  const stage = { id: "unchanged-rust", recipe: "unchanged", domain: "rust" as const };
+  assert.equal(
+    fingerprintStage(stage, inventory("docs/README.md", "a".repeat(64)), runtime),
+    fingerprintStage(stage, inventory("docs/README.md", "b".repeat(64)), runtime),
+  );
+});

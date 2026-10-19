@@ -57,6 +57,45 @@ async function click(label: string) {
   await act(async () => button?.click());
 }
 
+it("shows authored steps and essential warnings while preserving detailed notes behind disclosure", async () => {
+  const open = vi.spyOn(desktopApi, "openExternalUrl").mockResolvedValue(undefined);
+  const register = vi.spyOn(desktopApi, "registerExternalRuntime");
+  const guided = {
+    ...port,
+    presentation: {
+      ...port.presentation,
+      manual_preparation: "Exact compatibility, ownership and developer-option notes.",
+      manual_setup: {
+        steps: [
+          { title: "Prepare a working copy", instruction: "Keep your original unchanged." },
+          { title: "Review the folder", instruction: "Choose the prepared folder below." },
+        ],
+        warnings: ["Preserve the existing pilot; do not overwrite it."],
+        help_url: "https://example.com/guide",
+      },
+    },
+  };
+  await root.rerender(
+    <ExternalRuntimeControl port={guided} status={portStatus()} generation={9} busy={false} />,
+  );
+  const section = host.querySelector('[aria-label="Prepare this port"]')!;
+  expect(section.querySelectorAll("ol > li")).toHaveLength(2);
+  expect(section.textContent).toContain("You need your own original game files");
+  const warning = section.querySelector("aside")!;
+  expect(warning.textContent).toContain("Preserve the existing pilot");
+  expect(warning.closest("details")).toBeNull();
+  const notes = [...section.querySelectorAll("details")].find((element) =>
+    element.textContent?.includes("developer-option notes"),
+  );
+  expect(notes?.open).toBe(false);
+  const help = section.querySelector<HTMLAnchorElement>("a")!;
+  expect(help.textContent).toBe("Detailed preparation guide");
+  await act(async () => help.click());
+  expect(open).toHaveBeenCalledExactlyOnceWith("https://example.com/guide");
+  expect(register).not.toHaveBeenCalled();
+  expect(pickInstallFolder).not.toHaveBeenCalled();
+});
+
 it("reviews an exact player-owned folder before registering it", async () => {
   vi.mocked(pickInstallFolder).mockResolvedValue(record.path);
   const preview = vi.spyOn(desktopApi, "previewExternalRuntime").mockResolvedValue({

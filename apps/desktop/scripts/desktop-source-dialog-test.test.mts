@@ -13,8 +13,70 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInstallFixture } from "./desktop-install-fixture.mts";
 import { fixtureObject as object } from "./desktop-scenario-state.mts";
-import { Session, WebDriver } from "selenium-webdriver";
+import { Session, WebDriver, WebElement } from "selenium-webdriver";
 import type { GameFileScanSnapshot } from "../src/transport-types.generated.d.ts";
+import { selectGameFilesSettings } from "./desktop-review-controls.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+
+it("selects the Game files category and waits for its mounted panel to become visible", async () => {
+  let selected = false;
+  let headingVisibilityChecks = 0;
+  const browser = new WebDriver(new Session("settings-category", {}), {
+    execute: async (command) => {
+      const parameters: unknown = command.getParameters();
+      assert.ok(isRecord(parameters));
+      switch (command.getName()) {
+        case "findElements":
+          assert.ok(typeof parameters.value === "string");
+          if (parameters.value.includes("game-file-libraries-heading")) {
+            assert.equal(selected, true, "select the category before using its mounted panel");
+            return [{ ELEMENT: "heading" }];
+          }
+          assert.match(parameters.value, /Settings categories/);
+          return [{ ELEMENT: "category" }];
+        case "executeScript":
+        case "isElementEnabled":
+          return true;
+        case "isElementDisplayed":
+        case "clickElement": {
+          assert.ok(isRecord(parameters.id));
+          const handle: Record<string, string> = {};
+          for (const [key, value] of Object.entries(parameters.id)) {
+            assert.ok(typeof value === "string");
+            handle[key] = value;
+          }
+          assert.ok(WebElement.isId(handle));
+          const id = WebElement.extractId(handle);
+          if (command.getName() === "isElementDisplayed")
+            return id === "heading" ? ++headingVisibilityChecks > 1 : true;
+          assert.equal(id, "category");
+          selected = true;
+          return;
+        }
+        default:
+          assert.fail(`Unexpected settings navigation command: ${command.getName()}`);
+      }
+    },
+  });
+  await selectGameFilesSettings(browser);
+  assert.equal(selected, true);
+  assert.ok(headingVisibilityChecks >= 2, "a located but hidden panel is not ready");
+});
+
+it("preserves Settings navigation failures before using a hidden Game files panel", async () => {
+  const failure = new Error("Settings category unavailable");
+  const browser = new WebDriver(new Session("settings-category-refusal", {}), {
+    execute: async (command) => {
+      assert.equal(command.getName(), "findElements");
+      const parameters: unknown = command.getParameters();
+      assert.ok(isRecord(parameters));
+      assert.ok(typeof parameters.value === "string");
+      assert.match(parameters.value, /Settings categories/);
+      throw failure;
+    },
+  });
+  await assert.rejects(selectGameFilesSettings(browser), (error: unknown) => error === failure);
+});
 
 it("waits for the native scan control before reading newly completed activity", async () => {
   let release: ((enabled: boolean) => void) | undefined;

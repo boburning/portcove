@@ -61,9 +61,7 @@ namespace Portcove.ReferenceClient
             search.TextChanged += (sender, args) =>
             {
                 var query = search.Text.Trim();
-                list.ItemsSource = choices.Where(choice => query.Length == 0 ||
-                    choice.Game.Name.IndexOf(query, StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                    choice.Game.PortId.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0).ToArray();
+                list.ItemsSource = choices.Where(choice => choice.Game.MatchesSearch(query)).ToArray();
             };
             panel.Children.Add(list);
             window.Content = panel;

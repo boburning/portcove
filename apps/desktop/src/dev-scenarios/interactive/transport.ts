@@ -11,7 +11,7 @@ import {
   workspace,
   type Journey,
 } from "./scenarios";
-import type { ArtworkSlot, OperationEvent } from "../../types";
+import type { ArtworkSlot, OperationEvent, ApplicationUpdateCheckPhase } from "../../types";
 import type { desktopApi } from "../../api";
 
 export const recoveryKey = "portcove.interactive.fixture-recovery";
@@ -263,6 +263,39 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       return { notice: null, revision: 0 } satisfies Awaited<
         ReturnType<typeof desktopApi.applicationUpdateNotice>
       >;
+    },
+    check_application_update: (args) => {
+      const request = args?.request;
+      if (request != null && (typeof request !== "object" || Array.isArray(request)))
+        return unsupported("check_application_update (invalid request)");
+      const fields = (request ?? {}) as Record<string, unknown>;
+      requireArgs(
+        "check_application_update request",
+        fields,
+        fields.channel === undefined ? {} : { channel: fields.channel },
+      );
+      const selected = fields.channel ?? "preview";
+      if (selected !== "stable" && selected !== "preview")
+        return unsupported("check_application_update (invalid channel)");
+      if (!(args?.onEvent instanceof Channel))
+        return unsupported("check_application_update (missing event channel)");
+      requireArgs(
+        "check_application_update",
+        args,
+        args && "request" in args ? { request, onEvent: args.onEvent } : { onEvent: args?.onEvent },
+      );
+      const events = args.onEvent as Channel<ApplicationUpdateCheckPhase>;
+      events.onmessage("checking");
+      events.onmessage("complete");
+      return {
+        checked_channel: selected,
+        result: {
+          kind: "no-candidate",
+          candidate: null,
+          reasons: ["Renderer fixture only: no update service or native trust checks were run."],
+          staged: false,
+        },
+      } satisfies Awaited<ReturnType<typeof desktopApi.checkApplicationUpdate>>;
     },
     get_cli_command_context: (args) => {
       requireArgs("get_cli_command_context", args, { generation });

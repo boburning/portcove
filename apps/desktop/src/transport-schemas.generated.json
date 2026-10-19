@@ -3635,6 +3635,51 @@
         ],
         "type": "string"
       },
+      "ManualSetupGuide": {
+        "additionalProperties": false,
+        "description": "Authored instructions only; these steps grant no operation or file authority.",
+        "properties": {
+          "help_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/$defs/ManualSetupStep"
+            },
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps",
+          "warnings"
+        ],
+        "type": "object"
+      },
+      "ManualSetupStep": {
+        "additionalProperties": false,
+        "properties": {
+          "instruction": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "instruction"
+        ],
+        "type": "object"
+      },
       "PersistentFilePattern": {
         "properties": {
           "prefix": {
@@ -4005,6 +4050,23 @@
               "null"
             ]
           },
+          "manual_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManualSetupGuide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "original_game_title": {
+            "description": "Descriptive display metadata only. This never replaces the port, source,\nrelease or library identity, and does not group different implementations.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "saves_and_settings": {
             "$ref": "#/$defs/SavesAndSettingsBehavior"
           },
@@ -4013,6 +4075,12 @@
               "$ref": "#/$defs/SourceRequirementPresentation"
             },
             "type": "array"
+          },
+          "variant_label": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -15758,6 +15826,51 @@
         ],
         "type": "string"
       },
+      "ManualSetupGuide": {
+        "additionalProperties": false,
+        "description": "Authored instructions only; these steps grant no operation or file authority.",
+        "properties": {
+          "help_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/$defs/ManualSetupStep"
+            },
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps",
+          "warnings"
+        ],
+        "type": "object"
+      },
+      "ManualSetupStep": {
+        "additionalProperties": false,
+        "properties": {
+          "instruction": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "instruction"
+        ],
+        "type": "object"
+      },
       "PersistentFilePattern": {
         "properties": {
           "prefix": {
@@ -15804,6 +15917,23 @@
               "null"
             ]
           },
+          "manual_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManualSetupGuide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "original_game_title": {
+            "description": "Descriptive display metadata only. This never replaces the port, source,\nrelease or library identity, and does not group different implementations.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "saves_and_settings": {
             "$ref": "#/$defs/SavesAndSettingsBehavior"
           },
@@ -15812,6 +15942,12 @@
               "$ref": "#/$defs/SourceRequirementPresentation"
             },
             "type": "array"
+          },
+          "variant_label": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -20210,6 +20346,51 @@
         ],
         "type": "string"
       },
+      "ManualSetupGuide": {
+        "additionalProperties": false,
+        "description": "Authored instructions only; these steps grant no operation or file authority.",
+        "properties": {
+          "help_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/$defs/ManualSetupStep"
+            },
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps",
+          "warnings"
+        ],
+        "type": "object"
+      },
+      "ManualSetupStep": {
+        "additionalProperties": false,
+        "properties": {
+          "instruction": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "instruction"
+        ],
+        "type": "object"
+      },
       "PersistentFilePattern": {
         "properties": {
           "prefix": {
@@ -20580,6 +20761,23 @@
               "null"
             ]
           },
+          "manual_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManualSetupGuide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "original_game_title": {
+            "description": "Descriptive display metadata only. This never replaces the port, source,\nrelease or library identity, and does not group different implementations.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "saves_and_settings": {
             "$ref": "#/$defs/SavesAndSettingsBehavior"
           },
@@ -20588,6 +20786,12 @@
               "$ref": "#/$defs/SourceRequirementPresentation"
             },
             "type": "array"
+          },
+          "variant_label": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [

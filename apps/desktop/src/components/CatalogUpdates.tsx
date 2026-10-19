@@ -31,11 +31,12 @@ export function CatalogSettings({
       <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
         CATALOG
       </p>
-      <h2>Catalog updates</h2>
+      <h2>Custom catalog sources</h2>
       <CatalogOrigin provenance={provenance} />
       <p>
-        Optional signed updates refresh port information and release locations. Choose a publisher
-        you trust and review each update. The built-in catalog is always available offline.
+        Install a signed catalog from a publisher you trust and review each update. This is
+        optional; ordinary catalog changes can arrive with Portcove updates. The built-in catalog
+        remains available offline.
       </p>
       <Button
         data-focusable
@@ -52,7 +53,7 @@ export function CatalogSettings({
   );
 }
 
-function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance | undefined }) {
+export function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance | undefined }) {
   if (!provenance) return <p>Loading catalog information…</p>;
   return (
     <>

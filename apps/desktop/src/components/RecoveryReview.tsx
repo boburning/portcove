@@ -4,6 +4,8 @@ import { desktopApi } from "../api";
 import type { DoctorReport, PortDefinition, PreparationCleanupPreview } from "../types";
 import { useActionReview } from "../use-action-review";
 import { errorText, formatBytes, formatCountMessage } from "../view-model";
+import type { DetailDestination } from "../view-model";
+import { gameIdentityLabel } from "../port-identity";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
@@ -34,6 +36,10 @@ export function RecoveryReview({
   refresh,
   generation = 0,
   cleanupChanged = refresh,
+  onSelect,
+  onOpenStorage,
+  onReviewActivity,
+  availableActivityIds,
 }: {
   repair?: Repair | undefined;
   ports: PortDefinition[];
@@ -43,9 +49,14 @@ export function RecoveryReview({
   refresh: () => Promise<unknown>;
   generation?: number;
   cleanupChanged?: () => Promise<unknown>;
+  onSelect?: (portId: string, originKey?: string, destination?: DetailDestination) => void;
+  onOpenStorage?: () => void;
+  onReviewActivity?: (activityId: string) => void;
+  availableActivityIds?: ReadonlySet<string>;
 }) {
   const [cleanupOperation, setCleanupOperation] = useState<string>();
-  const names = new Map(ports.map((port) => [port.id, port.name]));
+  const names = new Map(ports.map((port) => [port.id, gameIdentityLabel(port)]));
+  const occurrences = new Map<string, number>();
   const state =
     refreshing && !repair
       ? "loading"
@@ -108,57 +119,90 @@ export function RecoveryReview({
       {!!repair?.items.length && (
         <>
           <p className="mb-0 text-sm text-pc-secondary-foreground">
-            Open an item to review its saved location and suggested next step. Opening these details
-            does not change files.
+            Use Review to open the relevant screen, or expand an item for its recorded location and
+            guidance. These links do not change files.
           </p>
           <div className="recovery-review-list grid gap-3" data-focus-group>
-            {repair.items.map((item, index) => (
-              <details
-                className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-3 break-words"
-                key={`${item.operation_id ?? item.port_id ?? "library"}:${item.kind}:${item.path}:${index}`}
-                data-recovery-operation={item.operation_id ?? undefined}
-              >
-                <summary className="cursor-pointer" data-focusable>
-                  {item.port_id ? (names.get(item.port_id) ?? item.port_id) : "Library"} ·{" "}
-                  {Object.hasOwn(labels, item.kind)
-                    ? labels[item.kind]
-                    : "Recovery information needs review"}
-                </summary>
-                <dl className="text-xs">
-                  <dt>Recorded location</dt>
-                  <dd className="mt-1 mb-3">
-                    {item.path ? (
-                      <code className="whitespace-normal">{item.path}</code>
-                    ) : (
-                      "No location was recorded."
-                    )}
-                  </dd>
-                  <dt>Suggested next step</dt>
-                  <dd className="mt-1 mb-3">
-                    {item.proposed_action || "No recovery guidance was recorded."}
-                  </dd>
-                  {item.operation_id && (
-                    <>
-                      <dt>Operation reference</dt>
+            {repair.items.map((item) => {
+              const portId = item.port_id;
+              const operationId = item.operation_id;
+              const identity = JSON.stringify([operationId, portId, item.kind, item.path]);
+              const occurrence = occurrences.get(identity) ?? 0;
+              occurrences.set(identity, occurrence + 1);
+              const origin = `updates:recovery:${identity}:${occurrence}`;
+              const action = recoveryNavigation(item, {
+                game:
+                  portId && names.has(portId) && onSelect
+                    ? (destination) => onSelect(portId, origin, destination)
+                    : undefined,
+                storage: onOpenStorage,
+                activity:
+                  operationId && availableActivityIds?.has(operationId) && onReviewActivity
+                    ? () => onReviewActivity(operationId)
+                    : undefined,
+              });
+              return (
+                <div
+                  className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-3 break-words"
+                  key={origin}
+                  data-recovery-operation={item.operation_id ?? undefined}
+                >
+                  <details>
+                    <summary className="cursor-pointer" data-focusable>
+                      {item.port_id ? (names.get(item.port_id) ?? item.port_id) : "Library"} ·{" "}
+                      {Object.hasOwn(labels, item.kind)
+                        ? labels[item.kind]
+                        : "Recovery information needs review"}
+                    </summary>
+                    <dl className="text-xs">
+                      <dt>Recorded location</dt>
                       <dd className="mt-1 mb-3">
-                        <code className="whitespace-normal">{item.operation_id}</code>
+                        {item.path ? (
+                          <code className="whitespace-normal">{item.path}</code>
+                        ) : (
+                          "No location was recorded."
+                        )}
                       </dd>
-                    </>
+                      <dt>Suggested next step</dt>
+                      <dd className="mt-1 mb-3">
+                        {item.proposed_action || "No recovery guidance was recorded."}
+                      </dd>
+                      {item.operation_id && (
+                        <>
+                          <dt>Operation reference</dt>
+                          <dd className="mt-1 mb-3">
+                            <code className="whitespace-normal">{item.operation_id}</code>
+                          </dd>
+                        </>
+                      )}
+                    </dl>
+                    {item.kind === "retained_preparation" && item.operation_id && (
+                      <Button
+                        data-focusable
+                        variant="destructive"
+                        size="sm"
+                        className="mt-2"
+                        onClick={() => setCleanupOperation(item.operation_id ?? undefined)}
+                      >
+                        Review unfinished setup files
+                      </Button>
+                    )}
+                  </details>
+                  {action && (
+                    <Button
+                      data-focusable
+                      data-detail-origin={origin}
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={action.open}
+                    >
+                      {action.label}
+                    </Button>
                   )}
-                </dl>
-                {item.kind === "retained_preparation" && item.operation_id && (
-                  <Button
-                    data-focusable
-                    variant="destructive"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => setCleanupOperation(item.operation_id ?? undefined)}
-                  >
-                    Review unfinished setup files
-                  </Button>
-                )}
-              </details>
-            ))}
+                </div>
+              );
+            })}
           </div>
         </>
       )}
@@ -173,6 +217,40 @@ export function RecoveryReview({
       )}
     </section>
   );
+}
+
+function recoveryNavigation(
+  item: Item,
+  destinations: {
+    game?: ((destination?: DetailDestination) => void) | undefined;
+    storage?: (() => void) | undefined;
+    activity?: (() => void) | undefined;
+  },
+): { label: string; open: () => void } | undefined {
+  const game = destinations.game;
+  const storage = destinations.storage
+    ? { label: "Review library storage", open: destinations.storage }
+    : undefined;
+  switch (item.kind) {
+    case "retained_preparation":
+      return game ? { label: "Review game setup", open: () => game() } : storage;
+    case "partial_operation":
+    case "cleanup_pending":
+      return destinations.activity
+        ? { label: "Review activity", open: destinations.activity }
+        : game
+          ? { label: "Review game details", open: () => game() }
+          : storage;
+    case "missing_registered_path":
+      return game ? { label: "Review game installation", open: () => game("saves") } : storage;
+    case "degraded_backup":
+    case "backup_recovery_required":
+      return game ? { label: "Review saves and backups", open: () => game("saves") } : storage;
+    case "orphaned_final_directory":
+      return storage;
+    default:
+      return undefined;
+  }
 }
 
 function PreparationCleanupDialog({
