@@ -1,8 +1,9 @@
 # Dr. Mario USA original-driven Core recipe
 
-Fixed slice 6B-Prepared-reuse-3, owners #136/#157. This is a narrow reuse of the
-delivered Yoshi build mechanism. It is not title catalog admission, an executable
-hash grant or a generalized recompiler framework.
+Fixed slice 6B-Prepared-reuse-3, owners #136/#157. This records narrow reuse of the
+delivered Yoshi build mechanism and the exact Windows title declaration.
+Repository admission, actual operation acceptance and protected production
+delivery are separate.
 
 ## Exact inputs
 
@@ -116,8 +117,10 @@ The shared write contract is config.ini/config.ini.tmp/saves and cyc_shot_*.png;
 debug.ini remains refused. Core backed up the runtime-created 1507-byte config,
 restored controlled inactive changes in both active/canonical coordinates with a
 safety backup, and consent-deleted only that new safety backup. Retained backup
-`8d7af3c4-e38a-4c27-8338-fb27c8616355` contains original config SHA256
+`8d7af3c4-e38a-4c27-8338-fb27c8616355` has backup tree aggregate SHA256
 `6272c6221d0834efc38f6f1e83e67cd8086c0de30e39e0af58ab593f60949b9f`.
+Its original config file SHA256 is
+`1c0e237593d73358aeb13ff2377bf62052d6a025a78834c46257e2196843373c`.
 This is config preservation, not an in-game save/load probe.
 
 After wrong-preview and missing-consent refusals, a fresh Core preview and consent
