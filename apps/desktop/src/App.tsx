@@ -707,6 +707,11 @@ function Workspace({
           onAbout={() => {
             ui.setSettingsCategory("about");
             setPrimaryView("settings");
+            window.requestAnimationFrame(() => {
+              const heading = document.getElementById("settings-about-heading");
+              heading?.scrollIntoView({ block: "start" });
+              heading?.focus({ preventScroll: true });
+            });
           }}
         />
         <main
