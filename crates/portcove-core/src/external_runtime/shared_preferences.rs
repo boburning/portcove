@@ -38,7 +38,8 @@ pub(crate) fn validate(spec: &UserPreparedRuntimeSpec) -> Result<()> {
             || !spec.mutable_paths.iter().any(|path| path == "config.ini")
             || !spec.mutable_paths.iter().any(|path| path == "saves")
             || !spec.mutable_paths.iter().any(|path| path == "snapshots")
-            || spec.mutable_paths.len() != 4
+            || !spec.mutable_paths.iter().any(|path| path == "imgui.ini")
+            || spec.mutable_paths.len() != 5
             || !spec.required_mutable_files.is_empty()
             || spec.settings_contract.is_some())
     {
@@ -217,6 +218,7 @@ fn resolve(
     require_narrow_windows_path(&local_fallback_path, "")?;
     let local_fallback_present = check_path(&local_fallback_path, false)?;
     check_path(&runtime_root.join("config.ini"), false)?;
+    check_path(&runtime_root.join("imgui.ini"), false)?;
     if !check_path(&runtime_root.join("saves"), true)? {
         return Err(PortcoveError::verification(
             "this runtime requires an existing safe saves directory",
@@ -368,9 +370,17 @@ mod tests {
             "archive_size":33085815, "archive_sha256":"d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6",
             "executable":"Resident_Evil_Gaiden__USA_.exe", "immutable_tree_sha256":"a".repeat(64),
             "shared_preferences":"regaiden041-windows", "source_argument_extension":"gbc",
-            "mutable_paths":["runtime_prefs.ini", "config.ini", "saves", "snapshots"]
+            "mutable_paths":["runtime_prefs.ini", "config.ini", "saves", "snapshots", "imgui.ini"]
         })).unwrap();
         validate(&spec).unwrap();
+        let mut missing_window_state = spec.clone();
+        missing_window_state
+            .mutable_paths
+            .retain(|path| path != "imgui.ini");
+        assert!(validate(&missing_window_state).is_err());
+        let mut extra_path = spec.clone();
+        extra_path.mutable_paths.push("arbitrary.ini".into());
+        assert!(validate(&extra_path).is_err());
         let mut wrong_artifact = spec.clone();
         wrong_artifact.archive_sha256 = "f".repeat(64);
         assert!(validate(&wrong_artifact).is_err());

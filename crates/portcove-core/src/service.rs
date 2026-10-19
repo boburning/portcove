@@ -10658,7 +10658,7 @@ fn main() {
             "archive_size":33085815, "archive_sha256":"d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6",
             "executable":executable, "immutable_tree_sha256":"0".repeat(64),
             "source_argument_extension":"gbc", "shared_preferences":"regaiden041-windows",
-            "mutable_paths":["config.ini", "runtime_prefs.ini", "saves", "snapshots"]
+            "mutable_paths":["config.ini", "runtime_prefs.ini", "saves", "snapshots", "imgui.ini"]
         })).unwrap();
         runtime.immutable_tree_sha256 =
             crate::external_runtime::inspect(&external, &runtime, library.root())
@@ -10768,13 +10768,23 @@ fn main() {
                 "saves".into()
             ]
         );
-        for relative in ["config.ini", "saves/state.tmp-v1", "snapshots/state_00.bin"] {
+        for relative in [
+            "config.ini",
+            "imgui.ini",
+            "saves/state.tmp-v1",
+            "snapshots/state_00.bin",
+        ] {
             let target = external.join(relative);
             fs::create_dir_all(target.parent().unwrap()).unwrap();
             fs::hard_link(external.join(executable), &target).unwrap();
             assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
             fs::remove_file(target).unwrap();
         }
+        fs::create_dir(external.join("imgui.ini")).unwrap();
+        assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+        fs::remove_dir(external.join("imgui.ini")).unwrap();
+        fs::write(external.join("imgui.ini"), b"player window preferences").unwrap();
+        prepare_external_location_fixture_launch(&service, &record).unwrap();
         fs::remove_dir(external.join("saves")).unwrap();
         assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
         fs::create_dir(external.join("saves")).unwrap();
@@ -10908,6 +10918,10 @@ fn main() {
             parent_before
         );
         assert!(external.join(executable).is_file());
+        assert_eq!(
+            fs::read(external.join("imgui.ini")).unwrap(),
+            b"player window preferences"
+        );
     }
 
     #[test]

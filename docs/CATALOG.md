@@ -465,8 +465,8 @@ Forwarded launch arguments are refused for this exact prepared contract.
 
 This closed contract supplies `--rom` before the separately validated raw
 `.gbc` source. Its only catalog arguments are `--save-dir saves`; an existing
-safe `saves` directory is required. The four game-owned mutable paths are
-`config.ini`, `runtime_prefs.ini`, `saves` and `snapshots`. Review also discloses
+safe `saves` directory is required. The five game-owned mutable paths are
+`config.ini`, `runtime_prefs.ini`, `imgui.ini`, `saves` and `snapshots`. Review also discloses
 the local preference fallback. Existing files must be regular and single-link,
 and existing ancestors must not redirect through reparse points. Inspection,
 registration and removal create no preference or save data. Printable ASCII

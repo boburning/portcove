@@ -119,7 +119,8 @@
               "config.ini",
               "runtime_prefs.ini",
               "saves",
-              "snapshots"
+              "snapshots",
+                "imgui.ini"
             ]
           }
         }
@@ -146,7 +147,7 @@
           }
         ],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the exact authenticated v0.4.1 Windows archive outside the Portcove library and create its empty saves directory. Keep all package files and notices unchanged except config.ini. Register the exact original separately. Explicitly accept the resolved account-wide roaming preference file and local fallback; running the game may create or overwrite these files and discard unknown entries. Existing safe printable ASCII paths and MAX_PATH bounds apply. Portcove does not own, update, back up, restore or delete the external runtime, local outputs or shared preferences. Removal unregisters only. MIT/clean-room/original-mod-assets statements are attributed upstream assertions, not blanket redistribution rights. Optional replacement music/HD changes, extra CLI options and gameplay acceptance are outside this private proposal."
+        "manual_preparation": "Extract the exact authenticated v0.4.1 Windows archive outside the Portcove library and create its empty saves directory. Keep all package files and notices unchanged except config.ini and game-owned imgui.ini window state. Register the exact original separately. Explicitly accept the resolved account-wide roaming preference file and local fallback; running the game may create or overwrite these files and discard unknown entries. Existing safe printable ASCII paths and MAX_PATH bounds apply. Portcove does not own, update, back up, restore or delete the external runtime, local outputs or shared preferences. Removal unregisters only. MIT/clean-room/original-mod-assets statements are attributed upstream assertions, not blanket redistribution rights. Optional replacement music/HD changes, extra CLI options and gameplay acceptance are outside this private proposal."
       }
     }
   ]
