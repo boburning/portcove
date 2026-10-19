@@ -253,6 +253,7 @@ jobs:
             work/linux-packaged-security/*.json
             work/linux-packaged-security/*.log
             work/linux-packaged-security/*.deb
+            work/linux-packaged-security/media-probe-*/**
             work/linux-packaged-security/payload/usr/bin/portcove-desktop
             work/linux-packaged-security/frontend/**
             work/linux-packaged-security/native/**
@@ -260,6 +261,8 @@ jobs:
             work/linux-packaged-security/private-x11-*/runtime-receipt.json
             work/linux-packaged-security/private-x11-*/outer-join.json
             work/linux-packaged-security/private-x11-*/failed-outer-join.json
+            work/linux-packaged-security/private-x11-*/media-probe-stdout.log
+            work/linux-packaged-security/private-x11-*/media-probe-output.json
             work/linux-packaged-security/private-x11-*/xdg_cache_home/external-browser-profile/network.json
             ${{ runner.temp }}/pcv-package2-retained-inputs/**
             !work/linux-packaged-security/native/webview/**

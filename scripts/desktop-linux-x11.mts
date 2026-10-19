@@ -299,22 +299,39 @@ async function virtualDisplay(config: X11Configuration, runtime: string) {
           ],
           environment,
         );
-        let mediaResult = "";
+        const mediaChunks: Buffer[] = [];
+        let mediaBytes = 0;
+        let retainedBytes = 0;
         mediaProbe.child.stdout.on("data", (chunk: Buffer) => {
-          if (mediaResult.length < 16384) mediaResult += chunk.toString();
+          mediaBytes += chunk.length;
+          const prefix = chunk.subarray(0, Math.max(0, 16384 - retainedBytes));
+          if (prefix.length) mediaChunks.push(prefix);
+          retainedBytes += prefix.length;
         });
         mediaProbe.child.stderr.pipe(process.stderr);
         await mediaProbe.ready();
         const mediaExit = await waitExit(mediaProbe, 10_000);
         await close(mediaProbe, "media_probe_join");
         mediaProbe = undefined;
+        const mediaResult = Buffer.concat(mediaChunks);
+        await writeFile(path.join(runtime, "media-probe-stdout.log"), mediaResult, { flag: "wx" });
+        await writeFile(
+          path.join(runtime, "media-probe-output.json"),
+          JSON.stringify({
+            bytes: mediaBytes,
+            retained_bytes: mediaResult.length,
+            limit: 16384,
+            overflow: mediaBytes >= 16384,
+          }) + "\n",
+          { flag: "wx" },
+        );
         assert.equal(
           mediaExit.code,
           0,
           "Synthetic devices must work in the app's mapped namespace",
         );
-        assert.ok(mediaResult.length < 16384);
-        receipt.media_readiness = JSON.parse(mediaResult);
+        assert.ok(mediaBytes < 16384, "Media control message exceeded its UTF-8 byte bound");
+        receipt.media_readiness = JSON.parse(mediaResult.toString("utf8"));
         await record();
       }
       environment.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT = path.join(
