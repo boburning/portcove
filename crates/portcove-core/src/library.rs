@@ -765,7 +765,7 @@ impl Library {
     }
 
     pub fn try_lock_port(&self, port_id: &str, operation: &str) -> Result<PortOperationGuard> {
-        self.lock_port(port_id, operation, None)
+        self.lock_port(port_id, operation, None, None)
     }
 
     /// Hold the port lock while an inventory classifies private paths. The
@@ -820,7 +820,42 @@ impl Library {
         port_id: &str,
         session_id: &str,
     ) -> Result<PortOperationGuard> {
-        self.lock_port(port_id, "launch-recovery", Some(session_id))
+        self.lock_port(port_id, "launch-recovery", Some(session_id), None)
+    }
+
+    pub(crate) fn try_lock_port_for_ghostship_recovery(
+        &self,
+        operation_id: &str,
+    ) -> Result<PortOperationGuard> {
+        self.lock_port(
+            "ghostship",
+            "legacy-data-recovery",
+            None,
+            Some(operation_id),
+        )
+    }
+
+    pub(crate) fn require_no_ghostship_recovery(&self, port_id: &str) -> Result<()> {
+        self.require_ghostship_recovery_owner(port_id, None)
+    }
+
+    fn require_ghostship_recovery_owner(
+        &self,
+        port_id: &str,
+        allowed_operation: Option<&str>,
+    ) -> Result<()> {
+        let blocked: bool = self.connection()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1
+             AND kind='ghostship_recovery' AND (?2 IS NULL OR id<>?2))",
+            rusqlite::params![port_id, allowed_operation],
+            |row| row.get(0),
+        )?;
+        if blocked {
+            return Err(PortcoveError::conflict(
+                "Ghostship legacy data recovery must finish before another mutation",
+            ));
+        }
+        Ok(())
     }
 
     fn lock_port(
@@ -828,11 +863,13 @@ impl Library {
         port_id: &str,
         operation: &str,
         allowed_session_id: Option<&str>,
+        allowed_operation_id: Option<&str>,
     ) -> Result<PortOperationGuard> {
         let key = hex::encode(Sha256::digest(port_id.as_bytes()));
         let mut file = self
             .acquire_lock(&key, port_id, operation)
             .map_err(|error| error.detail("port_id", port_id))?;
+        self.require_ghostship_recovery_owner(port_id, allowed_operation_id)?;
         if let Some(session) = self.launch_session_for_port(port_id)?
             && Some(session.id.as_str()) != allowed_session_id
         {
@@ -1570,6 +1607,13 @@ impl Library {
 
     pub fn source(&self, profile_id: &str) -> Result<Option<SourceRecord>> {
         let connection = self.connection()?;
+        Self::source_from(&connection, profile_id)
+    }
+
+    pub(crate) fn source_from(
+        connection: &Connection,
+        profile_id: &str,
+    ) -> Result<Option<SourceRecord>> {
         let stored = connection.query_row(
             "SELECT profile_id, path, sha256, size, storage_sha256, storage_size, updated_at, observed_identity_json FROM sources WHERE profile_id=?1",
             [profile_id],
@@ -2295,7 +2339,10 @@ impl Library {
         Ok((statuses, metrics))
     }
 
-    fn install_by_id(connection: &Connection, id: Option<&str>) -> Result<Option<InstallRecord>> {
+    pub(crate) fn install_by_id(
+        connection: &Connection,
+        id: Option<&str>,
+    ) -> Result<Option<InstallRecord>> {
         let Some(id) = id else { return Ok(None) };
         let raw = connection
             .query_row(

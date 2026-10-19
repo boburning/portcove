@@ -43,6 +43,8 @@ mod ghostship_compatibility;
 #[cfg(test)]
 mod ghostship_persistence_tests;
 mod ghostship_recovery;
+mod ghostship_recovery_execution;
+mod ghostship_safety;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
@@ -191,6 +193,7 @@ pub struct BackupActionPreview {
     pub backup: BackupRecord,
     pub current_user_data_exists: bool,
     pub safety_backup_will_be_created: bool,
+    pub retained_runtime_copy_will_be_deleted: bool,
     pub preview_sha256: String,
 }
 
@@ -548,6 +551,15 @@ impl PortcoveService {
                     Err(error) if error.code == crate::ErrorCode::Conflict => continue,
                     Err(error) => return Err(error),
                 }
+            } else if candidate.kind == LifecycleOperationKind::GhostshipRecovery {
+                match self
+                    .library
+                    .try_lock_port_for_ghostship_recovery(&candidate.id)
+                {
+                    Ok(guard) => vec![guard],
+                    Err(error) if error.code == crate::ErrorCode::Conflict => continue,
+                    Err(error) => return Err(error),
+                }
             } else {
                 match self
                     .library
@@ -689,6 +701,9 @@ impl PortcoveService {
                 crate::source_import::recover(self, store, operation)
                     .map(|result| Some(crate::source_import::import_message(result.outcome).into()))
             }
+            LifecycleOperationKind::GhostshipRecovery => self
+                .recover_ghostship_legacy(store, operation)
+                .map(|()| None),
         }
     }
 
@@ -4734,12 +4749,24 @@ impl PortcoveService {
         }
         refuse_symlink_ancestors(&original)?;
         refuse_symlink_ancestors(&quarantine)?;
+        if let Some(binding) = &operation.backup_deletion {
+            if binding.backup.id != backup_id
+                || binding.backup.port_id != operation.port_id
+                || binding.backup.path != original
+            {
+                return Err(PortcoveError::verification(
+                    "runtime safety deletion binding differs from its journal backup identity",
+                ));
+            }
+            ghostship_safety::validate_binding(binding)?;
+        }
         Ok(backups::BackupDeletionOperation::from_validated_paths(
             operation, original, quarantine, backup_id,
         ))
     }
 
     pub(crate) fn synchronize_restored_user_data(&self, port_id: &str) -> Result<()> {
+        self.library.require_no_ghostship_recovery(port_id)?;
         let port = self.catalog.port(port_id)?;
         let user_root = self.library.user_dir(port_id);
         for path in self.library.port_install_paths(port_id)? {
@@ -4785,6 +4812,7 @@ impl PortcoveService {
         port: &PortDefinition,
         install_root: &Path,
     ) -> Result<Vec<PathBuf>> {
+        self.library.require_no_ghostship_recovery(&port.id)?;
         let contract = self.persistence_contract(port, install_root)?;
         let port = &contract.port;
         self.require_completed_restore(&port.id)?;
@@ -4815,6 +4843,7 @@ impl PortcoveService {
         port: &PortDefinition,
         install_root: &Path,
     ) -> Result<()> {
+        self.library.require_no_ghostship_recovery(&port.id)?;
         let contract = self.persistence_contract(port, install_root)?;
         let port = &contract.port;
         let install_root = self.managed_install_root(&port.id, install_root)?;

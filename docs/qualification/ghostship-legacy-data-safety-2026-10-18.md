@@ -1,9 +1,10 @@
 # Ghostship legacy reader and transition safety
 
 Owner: [#53](https://github.com/boburning/portcove/issues/53). This finite
-component holds an unsafe historical transition. It does not complete the
-port's cross-version acceptance or change catalog admission, platforms,
-qualification, channels or publication authority.
+component holds an unsafe historical transition and provides a qualified
+snapshot recovery route. Its exact native observations below do not complete
+whole-port acceptance or change catalog admission, platforms, qualification,
+channels or publication authority.
 
 ## Exact source comparison
 
@@ -134,6 +135,56 @@ Playnite accepts schema 68 for its existing commands within its supported 65–6
 window; schema-67 external-route cleanup remains supported. Playnite does not
 invoke the new preparation mode.
 
+### Qualified pre-transition snapshot recovery
+
+The separate schema-69 recovery route is limited to Windows, active 3.0.0 and
+the exact retained, prepared 2.0.0 installation. Core records a private
+qualification only after a positively identified owned launch exits successfully,
+collection succeeds, the full installation verifies, and the source, receipt,
+generated archive and bounded canonical data match. Backup publication associates
+that qualification only with the exact copied content and backup manifest.
+Ordinary or imported backup metadata cannot create this authority. The Core
+qualification is distinct from native observation and from gameplay or save/load
+acceptance; historical successful sessions are not retroactively qualified.
+
+`backup ghostship-legacy-plan <backup-id>` reviews the selected qualified snapshot,
+retained source/code identities, complete installation pointer tuple, canonical
+and newer-runtime preimages, and conservative capacity. Application requires the
+same plan hash and explicit consent through
+`backup ghostship-legacy-recover <backup-id> --expected-plan <hash> --yes`.
+All unfinished Ghostship launch/lifecycle work must be resolved first.
+
+Recovery preserves both existing installations. It builds a fresh checked
+derivative of retained 2.0.0 code, preserves the complete retained admission
+envelope, and overlays only that definition's persistent entries from the
+qualified snapshot. Absent entries remain absent. Receipt, generated immutable
+archive and executable bytes cannot come from an ordinary data backup. Current
+publisher policy remains authoritative at publication and registration.
+
+Before replacement, a complete canonical safety backup retains an independently
+verified `legacy-recovery-runtime/` companion containing the effective newer
+runtime's persistent entries, including empty directories and absence. Ordinary
+restore reads only `data/`. Deletion preview and native consent disclose that
+deleting the safety backup also deletes the companion; its full identity remains
+bound through interrupted deletion. Changed or added members are held.
+
+The dedicated journal fences other mutations from Preparing. Preparing failures
+retain private files and safety evidence for review; they are not automatically
+promoted, discarded or presented as resumable validated payloads. Prepared
+recovery validates the phase-owned payload/data and rechecks current authority
+before publication renames. A single database transaction compares the complete
+expected installation/source tuple, registers the derivative, selects it as
+active with 3.0.0 previous, preserves another staged installation, admits the
+safety receipt and records MetadataCommitted. Subsequent recovery is forward-only
+and never collects newer runtime data into the selected legacy snapshot.
+The result identifies the committed install, selected restored backup, actual
+safety backup and fixed companion path in `GhostshipRecoveryResult`.
+
+Schema 69 also adds the backup deletion disclosure to generated contracts.
+Playnite's 65–69 window preserves its existing decisions; it does not invoke
+the optional compound recovery or backup deletion commands. These implementation
+contracts do not themselves establish actual compound recovery acceptance.
+
 ### Actual evidence and preserved failures
 
 The private qualification catalog selects official 2.0.0 without changing the
@@ -201,6 +252,63 @@ establish a qualified pre-transition snapshot or compound data/pointer restore,
 2↔3 cross-version compatibility, protected installed-client delivery, production
 admission of historical artifacts, or whole-#53 completion.
 
+### Actual qualified snapshot and compound recovery, October 19
+
+A fresh owned library under `E:/pcs6 ghostship compound 20261019` establishes
+this separate route. Preparation A1 used the exact official 2.0.0 bytes and
+original above, displayed Yes/Yes/No, obtained captured exit zero and published
+install `afef931d-4ef3-4b0c-9f28-864238074207`. All 947 original-install files
+and 336 directories were unchanged. Its newly generated 18,060,635-byte archive
+has SHA-256 `398a04a25e1beb4d44654597efd28f16de2775c65a9036a42a9016f9035be84d`.
+This differs from the earlier archive; no deterministic-byte identity is claimed.
+
+Qualification A4 uses CLI SHA-256
+`8b70100319ad8aac7e7343fbbd4d0cf70e18f065a254f9e5ea344b06ae41d640`.
+It retains A3's unchanged-source 50 Ghostship, 61 database, 77 CLI and three
+backup test passes. Fresh native/headless exports, generated types, 19 transport
+tests and 432 compiled Playnite checks pass. Fresh parity checks bracket exact
+source, generated-file and CLI hashes. The unchanged frontend consent behavior
+also has 37 browser tests across both explicitly selected files. A3's linker
+failure remains retained; disabling Rust incremental compilation allowed export
+and the remaining qualification to complete without a source repair.
+
+Compound packet A1 observed legacy Play request
+`f5ec6efa-a159-4748-bf83-5487971f679c` render the Mario title screen and close
+normally. Captured process identity, Core success/exit zero, collection and full
+verification qualified backup `4b132a30-6914-465d-80e4-533a86a39375`.
+The selected exact 3.0.0 artifact is `Nautilus-Alfa-Win64.zip`, 20,379,303 bytes,
+SHA-256 `49a0ab6c6624ccb20d29bb433f391d017f638f2b7db0601eae7808574a62aa18`.
+After the actual update, request `7b596e55-e8fa-4453-95ea-db133f8084f0` offered
+O2R generation, consumed the same verified original through its file selector,
+rendered a Mario/Bowser attract scene and closed normally with captured/Core
+exit zero. The packet then stopped on a harness assertion expecting "3.0.0"
+in the correct rollback refusal naming the held 2.0.0 reader. A1 remains failed;
+compound recovery had not run.
+
+Reviewed continuation A2 reused those exact successful cycles through current
+Core records, request/process identities, observation receipts and the qualified
+backup seal. A fresh refusal/preimage comparison passed. Explicit plan-bound
+consent then committed derivative `c5db1de4-c9fd-4c5d-8dd1-724aab8c441d`, restored
+the selected snapshot as canonical data, selected 2.0.0 with 3.0.0 previous,
+and retired the journal. Safety backup `835d3b19-2ea4-4fbd-83ca-a4241486d3ac`
+retains the exact pre-recovery canonical data and verified newer-runtime
+companion. The recovered derivative rendered the Mario title screen and closed
+normally with captured/Core exit zero and full post-verification. Final full
+tree comparisons preserve both historical installs, the selected backup and
+the complete safety backup. Their private authority records remain unchanged.
+Positive process proof preceded native lease release; supervisor exit was zero.
+
+Evidence is under `E:/Codex-Evidence/slice6-20261018/` in
+`ghostship-compound-native-preparation-a1`, `ghostship-compound-qualification-a3`
+and `-a4`, and `ghostship-compound-play-recovery-a1` and `-a2`. These are agent
+startup/ordinary-close observations, not human or gameplay acceptance. The
+selected snapshot contains config, UI settings, generated archive and empty
+save/mod directories; populated game-save/global-data round trips remain
+unobserved. The route restores historical bytes rather than asserting backward
+O2R compatibility or migrating newer saves. Physical deletion of this unique
+safety backup was not performed; interrupted companion deletion is covered by
+the reviewed Windows fixtures and consent tests.
+
 ## Evidence and remaining acceptance
 
 Reuse [#501's exact Windows 3.0.0 lifecycle](https://github.com/boburning/portcove/issues/53#issuecomment-5577349494)
@@ -211,11 +319,11 @@ old launch preparation, source-independent refusal and file/pointer preservation
 Synthetic fixture executables are never run. Activity failure records in SQLite
 remain expected; refusal preserves game installations, generated data and saves.
 
-Required remaining #53 acceptance: a reviewed, explicitly consented
-pre-transition data recovery or compatible migration/regeneration treatment;
-exact source/O2R/settings/save forward and backward observations for offered
-transitions; and applicable protected unchanged-client delivery through
-#246/#534. An executable rollback alone cannot establish data rollback.
+The qualified snapshot route now has exact source/O2R/settings preservation,
+forward generation and compound data/pointer recovery observations at the
+scope above. Populated game-save/global-data round trips and applicable
+protected unchanged-client delivery through #246/#534 remain unresolved #53
+requirements. An executable rollback alone cannot establish data rollback.
 Optional gameplay/audio/controller/in-game-save observations and other platforms
 remain separate. This receipt grants no source redistribution, signing,
 publisher, release, support or whole-issue completion authority.

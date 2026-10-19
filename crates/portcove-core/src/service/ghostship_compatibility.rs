@@ -101,6 +101,7 @@ impl PortcoveService {
             active_version,
             None,
             None,
+            None,
         )
     }
 
@@ -114,6 +115,7 @@ impl PortcoveService {
             &target.version,
             active_version,
             Some(target),
+            None,
             None,
         )
     }
@@ -190,6 +192,48 @@ impl PortcoveService {
             active_version,
             Some(target),
             Some(&catalog),
+            None,
+        )
+    }
+
+    /// Content checks only; callers establish the selected backup or private
+    /// recovery-stage ownership. This does not grant an ordinary 3→2 activation.
+    pub(crate) fn require_ghostship_snapshot_compatibility(
+        &self,
+        target: &crate::InstallRecord,
+        data_root: &std::path::Path,
+    ) -> Result<()> {
+        let installer = crate::Installer::new(self.library.clone())?;
+        if target.port_id != "ghostship"
+            || target.version != "2.0.0"
+            || installer.retained_preparation_mode(target)?
+                != Some(crate::PreparationMode::Ghostship200Legacy)
+        {
+            return Err(PortcoveError::verification(
+                "snapshot target is not the exact prepared legacy runtime",
+            ));
+        }
+        let catalog = installer.retained_catalog(target)?.ok_or_else(|| {
+            PortcoveError::verification("snapshot target has no retained contract")
+        })?;
+        crate::preparation::require_legacy_no_binary_importer(&target.path)?;
+        let archive = crate::external_runtime::hash_stable_regular(
+            &data_root.join("sm64.o2r"),
+            512 * 1024 * 1024,
+            &|| Ok(()),
+        )?;
+        if archive.1 == 0 {
+            return Err(PortcoveError::verification(
+                "legacy snapshot has no generated archive",
+            ));
+        }
+        self.require_ghostship_data_compatibility_for_target(
+            "ghostship",
+            "2.0.0",
+            None,
+            Some(target),
+            Some(&catalog),
+            Some(data_root),
         )
     }
 
@@ -200,6 +244,7 @@ impl PortcoveService {
         active_version: Option<&str>,
         target: Option<&crate::InstallRecord>,
         staged_catalog: Option<&crate::Catalog>,
+        data_root: Option<&std::path::Path>,
     ) -> Result<()> {
         if port_id != "ghostship" || target_version != "2.0.0" {
             return Ok(());
@@ -220,7 +265,10 @@ impl PortcoveService {
         }
         // Installation history can disappear after removal. Inspect the shared
         // SHIP_HOME data as well, before any mutation or old-reader execution.
-        let user = self.library.user_dir(port_id);
+        let user = data_root.map_or_else(
+            || self.library.user_dir(port_id),
+            std::path::Path::to_path_buf,
+        );
         let legacy_binary = user.join("default.sav");
         refuse_symlink_ancestors(&legacy_binary)
             .map_err(|_| held("legacy binary save data contains an unsafe path"))?;

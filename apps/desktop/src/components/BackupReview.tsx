@@ -164,6 +164,12 @@ function BackupReviewDetails({ review }: { review: BackupReview }) {
       ) : (
         <>
           <p>Current saved data, other backups and installed game versions are preserved.</p>
+          {preview.retained_runtime_copy_will_be_deleted && (
+            <p>
+              This also permanently deletes the retained Ghostship 3.0.0 runtime saves/settings copy
+              stored with this backup.
+            </p>
+          )}
           <p>
             This snapshot cannot be recovered after deletion. No safety copy of the deleted snapshot
             is created.

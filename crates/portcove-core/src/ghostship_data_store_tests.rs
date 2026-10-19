@@ -5,7 +5,7 @@ use crate::{
     LaunchSessionPhase, Library, ReleaseChannel,
 };
 
-fn fixture(library: &Library) -> LegacyDataSeal {
+pub(crate) fn fixture(library: &Library) -> LegacyDataSeal {
     let activity = library
         .begin_activity(
             ActivityOperation::Launch,

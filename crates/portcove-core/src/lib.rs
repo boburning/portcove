@@ -159,6 +159,7 @@ pub use game_file_root::{
     GameFileRoot, GameFileRootAvailability, GameFileScanCoverage, GameFileScanFreshness,
     GameFileScanSnapshot,
 };
+pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
     HostPreferenceStore, HostPreferences, HostToolPreference, LibrarySelection,
@@ -240,7 +241,7 @@ pub use types::*;
 // Public 66 adds reviewed update assessments while retaining both delivered scopes.
 // Public 67 adds caller-bound external review and retained source representation readiness.
 // Public 68 adds the closed Ghostship legacy preparation mode and plan/receipt v2.
-pub const API_SCHEMA_VERSION: u32 = 68;
+pub const API_SCHEMA_VERSION: u32 = 69;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

@@ -215,7 +215,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -223,7 +223,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var privateSchema in new[] { 58, 59, 64, 69 })
+        foreach (var privateSchema in new[] { 58, 59, 64, 70 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -390,7 +390,10 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "closed preparation mode does not add reference-client preparation exposure");
         bad["schema_version"] = 69;
-        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond closed preparation rejected");
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "legacy recovery schema preserves existing launch decisions without exposing recovery or backup deletion");
+        bad["schema_version"] = 70;
+        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond legacy recovery rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
@@ -657,6 +660,8 @@ internal static class ContractTests
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "exact schema and capability enable reviewed external flow");
         capabilities["schema_version"] = 68;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "preparation schema preserves caller-bound external review");
+        capabilities["schema_version"] = 69;
+        Check(ProtocolStream.SupportsReviewedExternal(capabilities), "legacy recovery schema preserves caller-bound external review");
         var representationStatus = Json.Parse(Json.Print(new {
             readiness = new { required_source_extension = "z64", blockers = new[] { "incompatible_source" } },
             port_actions = new[] {
@@ -669,7 +674,7 @@ internal static class ContractTests
         Check(true, "public source representation status preserves rollback and update contracts");
         Reject(() => PortActions.ValidateStatus(representationStatus, 66),
             "older public envelope cannot carry consequential source representation guidance");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 69 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 70 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);

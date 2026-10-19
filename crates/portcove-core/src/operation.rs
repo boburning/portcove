@@ -45,6 +45,7 @@ pub(crate) enum LifecycleOperationKind {
     Activate,
     Relocate,
     ImportSource,
+    GhostshipRecovery,
 }
 
 impl fmt::Display for LifecycleOperationKind {
@@ -59,6 +60,7 @@ impl fmt::Display for LifecycleOperationKind {
             Self::Activate => "activate",
             Self::Relocate => "relocate",
             Self::ImportSource => "import_source",
+            Self::GhostshipRecovery => "ghostship_recovery",
         })
     }
 }
@@ -77,6 +79,7 @@ impl FromStr for LifecycleOperationKind {
             "activate" => Some(Self::Activate),
             "relocate" => Some(Self::Relocate),
             "import_source" => Some(Self::ImportSource),
+            "ghostship_recovery" => Some(Self::GhostshipRecovery),
             _ => None,
         };
         kind.ok_or_else(|| {
@@ -141,6 +144,8 @@ pub(crate) struct LifecycleOperation {
     pub relocation: Option<OutputRelocationPlan>,
     pub source_import: Option<SourceImportPlan>,
     pub preparation: Option<crate::PreparationPlan>,
+    pub ghostship_recovery: Option<crate::ghostship_data_store::GhostshipRecoveryIntent>,
+    pub backup_deletion: Option<crate::ghostship_data_store::BackupDeletionBinding>,
     /// `Some(true)` is durable proof that no setup process from this operation
     /// can still own the private tree. `None` is legacy or non-preparation state.
     pub preparation_process_quiesced: Option<bool>,
@@ -172,6 +177,8 @@ impl LifecycleOperation {
             relocation: None,
             source_import: None,
             preparation: None,
+            ghostship_recovery: None,
+            backup_deletion: None,
             preparation_process_quiesced: None,
             original_paths: Vec::new(),
             activate: false,
@@ -193,6 +200,12 @@ impl OperationStore {
     }
 
     pub fn put(&self, operation: &mut LifecycleOperation) -> Result<()> {
+        validate_private_family(
+            operation.kind,
+            &operation.port_id,
+            operation.ghostship_recovery.is_some(),
+            operation.backup_deletion.is_some(),
+        )?;
         operation.updated_at = Library::now();
         for path in operation
             .paths
@@ -225,6 +238,16 @@ impl OperationStore {
             .as_ref()
             .map(serde_json::to_string)
             .transpose()?;
+        let ghostship_recovery_json = operation
+            .ghostship_recovery
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+        let backup_deletion_json = operation
+            .backup_deletion
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
         let mut connection = database::connect(self.library.root())?;
         let transaction = connection.transaction()?;
         crate::ghostship_data_store::invalidate(&transaction, &operation.port_id)?;
@@ -232,8 +255,8 @@ impl OperationStore {
             "INSERT INTO lifecycle_operations(
                id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
-               preparation_process_quiesced
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+               preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)
              ON CONFLICT(id) DO UPDATE SET
                kind=excluded.kind,
                port_id=excluded.port_id,
@@ -247,6 +270,8 @@ impl OperationStore {
                original_paths_json=excluded.original_paths_json,
                preparation_json=excluded.preparation_json,
                preparation_process_quiesced=excluded.preparation_process_quiesced,
+               ghostship_recovery_json=excluded.ghostship_recovery_json,
+               backup_deletion_json=excluded.backup_deletion_json,
                activate=excluded.activate,
                last_error=excluded.last_error,
                updated_at=excluded.updated_at",
@@ -268,6 +293,8 @@ impl OperationStore {
                 operation.updated_at,
                 preparation_json,
                 operation.preparation_process_quiesced.map(i64::from),
+                ghostship_recovery_json,
+                backup_deletion_json,
             ],
         )?;
         transaction.commit()?;
@@ -300,7 +327,7 @@ impl OperationStore {
         let mut statement = connection.prepare(&format!(
             "SELECT id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                     install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
-                    preparation_process_quiesced
+                    preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json
              FROM lifecycle_operations
              {where_or_order}"
         ))?;
@@ -323,6 +350,8 @@ impl OperationStore {
                 row.get::<_, i64>(14)?,
                 row.get::<_, Option<String>>(15)?,
                 row.get::<_, Option<i64>>(16)?,
+                row.get::<_, Option<String>>(17)?,
+                row.get::<_, Option<String>>(18)?,
             ))
         })?;
         rows.map(|row| {
@@ -344,10 +373,19 @@ impl OperationStore {
                 updated_at,
                 preparation_json,
                 preparation_process_quiesced,
+                ghostship_recovery_json,
+                backup_deletion_json,
             ) = row?;
+            let kind = kind.parse()?;
+            validate_private_family(
+                kind,
+                &port_id,
+                ghostship_recovery_json.is_some(),
+                backup_deletion_json.is_some(),
+            )?;
             Ok(LifecycleOperation {
                 id,
-                kind: kind.parse()?,
+                kind,
                 port_id,
                 phase: phase.parse()?,
                 paths: LifecyclePaths {
@@ -369,6 +407,12 @@ impl OperationStore {
                     .map(|value| serde_json::from_str(&value))
                     .transpose()?,
                 preparation_process_quiesced: preparation_process_quiesced.map(|value| value != 0),
+                ghostship_recovery: ghostship_recovery_json
+                    .map(|value| serde_json::from_str(&value))
+                    .transpose()?,
+                backup_deletion: backup_deletion_json
+                    .map(|value| serde_json::from_str(&value))
+                    .transpose()?,
                 activate: activate != 0,
                 last_error,
                 created_at,
@@ -377,6 +421,23 @@ impl OperationStore {
         })
         .collect()
     }
+}
+
+fn validate_private_family(
+    kind: LifecycleOperationKind,
+    port_id: &str,
+    ghostship: bool,
+    deletion: bool,
+) -> Result<()> {
+    if ghostship != (kind == LifecycleOperationKind::GhostshipRecovery)
+        || (deletion && kind != LifecycleOperationKind::DeleteBackup)
+        || (ghostship && port_id != "ghostship")
+    {
+        return Err(PortcoveError::state(
+            "lifecycle journal has a missing or foreign recovery-family payload",
+        ));
+    }
+    Ok(())
 }
 
 fn path_string(path: Option<&PathBuf>) -> Result<Option<String>> {
@@ -395,6 +456,18 @@ pub(crate) enum LifecycleFaultPoint {
     PreparationPrepared,
     PreparationPublished,
     PreparationRegistered,
+    GhostshipRecoveryJournaled,
+    GhostshipRecoverySafetyRecorded,
+    GhostshipRecoverySafetyPublished,
+    GhostshipRecoveryDataStaged,
+    GhostshipRecoveryPrepared,
+    GhostshipRecoveryBeforePublication,
+    GhostshipRecoveryPayloadPublished,
+    GhostshipRecoveryCanonicalQuarantined,
+    GhostshipRecoveryCanonicalPublished,
+    GhostshipRecoveryPublicationRecorded,
+    GhostshipRecoveryMetadataCommitted,
+    GhostshipRecoveryCleanup,
     SourcePrepared,
     LaunchReadyToSpawn,
     LaunchChildStarted,

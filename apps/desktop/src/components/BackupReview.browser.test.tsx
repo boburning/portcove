@@ -22,6 +22,7 @@ const review: BackupReview = {
     },
     current_user_data_exists: true,
     safety_backup_will_be_created: true,
+    retained_runtime_copy_will_be_deleted: false,
     preview_sha256: "reviewed-data",
   },
 };
@@ -83,6 +84,7 @@ it("explains permanent deletion and can dismiss without authorizing it", async (
       ...review.preview,
       action: "delete",
       safety_backup_will_be_created: false,
+      retained_runtime_copy_will_be_deleted: true,
     },
   });
   const apply = vi.fn();
@@ -100,6 +102,9 @@ it("explains permanent deletion and can dismiss without authorizing it", async (
     "other backups and installed game versions are preserved",
   );
   expect(document.body.textContent).toContain("cannot be recovered after deletion");
+  expect(document.body.textContent).toContain(
+    "permanently deletes the retained Ghostship 3.0.0 runtime saves/settings copy",
+  );
   expect(document.body.textContent).toContain("not a reversible cancellation");
   await click("Cancel");
   expect(close).toHaveBeenCalledOnce();
@@ -175,6 +180,7 @@ it("ignores an old review after the library or selected backup changes", async (
           path: "current/snapshot",
         },
         safety_backup_will_be_created: false,
+        retained_runtime_copy_will_be_deleted: false,
       },
     });
   const apply = vi.fn();

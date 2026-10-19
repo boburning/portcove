@@ -251,6 +251,16 @@ const MIGRATIONS: &[Migration] = &[
 fn verify_migration_37(connection: &Connection) -> Result<()> {
     require_columns(
         connection,
+        "lifecycle_operations",
+        &["ghostship_recovery_json", "backup_deletion_json"],
+    )?;
+    require_columns(
+        connection,
+        "ghostship_runtime_safety",
+        &["backup_id", "receipt_sha256", "receipt_json"],
+    )?;
+    require_columns(
+        connection,
         "ghostship_legacy_qualifications",
         &["port_id", "seal_json"],
     )?;

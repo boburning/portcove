@@ -68,7 +68,7 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–57, 60–63 or 65–68 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57, 60–63 or 65–69 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -76,6 +76,7 @@ prove their narrower command/format sets without requiring unused management or
 raw-stream contracts. Additional object fields are tolerated; incompatible schema
 versions and missing required capabilities produce an upgrade message before
 management. A product version string is not used as a compatibility guess.
+Schema 69 adds the optional reviewed Ghostship legacy recovery commands and backup deletion disclosure. This client does not invoke those commands or backup deletion; its existing lifecycle decisions remain unchanged.
 Schema 68 adds a closed preparation mode. This client does not invoke preparation plan/run/bootstrap,
 so it preserves its existing required commands and lifecycle decisions; schema
 acceptance grants no bootstrap or compound recovery operation. Retained-preparation
@@ -89,7 +90,7 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 or schema-66 or schema-67 or schema-68 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 or schema-66 or schema-67 or schema-68 or schema-69 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
