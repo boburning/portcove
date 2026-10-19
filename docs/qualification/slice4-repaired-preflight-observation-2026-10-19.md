@@ -6,7 +6,7 @@ remain accurately scoped: the reviewer never resumed, no metadata/startup/auth
 progress occurred, and the original numeric Win32 error is Unknown.
 
 The owner executed the included `RecoverDetach` on October 19, 06:43 EDT.
-Independent exact-image readback at `2026-10-19T10:45:40Z` confirms detached,
+Independent exact-image readback at `2026-10-19T10:46:36.8024433Z` confirms detached,
 logical 536870912/backing 536871424 bytes, original/new markers and isolation
 receipt unchanged. TreeEmpty/profile_deleted true and cleanup_errors empty
 remain bound to the actual new receipt. `grants_removed: false` is retained;
