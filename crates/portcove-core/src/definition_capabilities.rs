@@ -268,7 +268,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(2));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 7, 7)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 8, 8)).unwrap();
         assert!(!future.compatible);
     }
 
