@@ -1,3 +1,4 @@
+import { fixtureSuccess as success, fixtureObject as object } from "./desktop-scenario-state.mts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
@@ -34,15 +35,6 @@ interface Context {
   ) => Promise<WebDriver>;
 }
 
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
-}
-function success(value: unknown) {
-  const reply = object(value);
-  assert.equal(reply.ok, true, JSON.stringify(reply));
-  return reply.value;
-}
 function samePath(left: string, right: string) {
   const ordinary = (value: string) => path.resolve(value.replace(/^\\\\\?\\/u, "")).toLowerCase();
   return ordinary(left) === ordinary(right);

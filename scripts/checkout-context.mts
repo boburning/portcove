@@ -55,10 +55,7 @@ function assertCheckoutContext(context: GuardedCheckoutContext, expectedHead?: s
   }
 }
 
-function assertCheckoutUnchanged(
-  before: GuardedCheckoutContext,
-  after: GuardedCheckoutContext,
-) {
+function assertCheckoutUnchanged(before: GuardedCheckoutContext, after: GuardedCheckoutContext) {
   for (const key of [
     "root",
     "head",

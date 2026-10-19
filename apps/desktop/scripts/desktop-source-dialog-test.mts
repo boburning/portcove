@@ -1,3 +1,7 @@
+import {
+  requiredFixtureValue as required,
+  fixtureObject as object,
+} from "./desktop-scenario-state.mts";
 import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import type { WebDriver } from "selenium-webdriver";
 import type { FixtureCommand, OwnedFixtureContext } from "./desktop-scenario-state.mts";
@@ -31,10 +35,6 @@ interface SelectedSetupContext extends Omit<SourceDialogContext, "command">, Own
   fixture: SetupFixture;
   invoke: (name: string, args?: Record<string, unknown>) => Promise<unknown>;
 }
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
-}
 /** Raw authoring catalogs precede Core defaults; only the consumed label is read. */
 export function sourceProfileLabel(value: unknown, profile: string): string {
   const identities: unknown = object(object(value).source_catalog).identities;
@@ -46,10 +46,6 @@ export function sourceProfileLabel(value: unknown, profile: string): string {
     "raw source profile must have a text label",
   );
   return identity.label;
-}
-function required<Value>(value: Value | null | undefined): Value {
-  assert.ok(value !== null && value !== undefined);
-  return value;
 }
 function gameFileRoot(value: unknown): GameFileRoot {
   return required(transportValue("game_file_roots", [value])[0]);

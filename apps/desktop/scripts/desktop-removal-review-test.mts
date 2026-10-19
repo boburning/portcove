@@ -1,23 +1,14 @@
+import { fixtureSuccess as success, fixtureObject as object } from "./desktop-scenario-state.mts";
 import type { InstallRecord } from "../src/transport-types.generated.d.ts";
 import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
-import { isRecord } from "../../../scripts/runtime-values.mts";
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
-}
 function installObservation(value: unknown) {
   const item = object(value);
   assert.ok(typeof item.id === "string" && typeof item.path === "string");
   const checked: Pick<InstallRecord, "id" | "path"> = { id: item.id, path: item.path };
   return { ...item, ...checked };
-}
-function success(value: unknown) {
-  const reply = object(value);
-  assert.equal(reply.ok, true, JSON.stringify(reply));
-  return reply.value;
 }
 import type { PortDefinition } from "../src/transport-types.generated.d.ts";
 interface RemovalContext extends ScenarioContext {

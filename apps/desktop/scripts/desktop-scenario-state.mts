@@ -24,6 +24,22 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
 
+export function fixtureObject(value: unknown): Record<string, unknown> {
+  assert.ok(isRecord(value));
+  return value;
+}
+
+export function requiredFixtureValue<Value>(value: Value | null | undefined): Value {
+  assert.ok(value !== null && value !== undefined);
+  return value;
+}
+
+export function fixtureSuccess(value: unknown) {
+  const reply = fixtureObject(value);
+  assert.equal(reply.ok, true, JSON.stringify(reply));
+  return reply.value;
+}
+
 // Optional native fixtures use their own CLI/library, never the application's adapter.
 export function ownedFixtureCommand(
   { cli, library, output, catalogPath }: OwnedFixtureContext,

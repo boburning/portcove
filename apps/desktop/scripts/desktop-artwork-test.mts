@@ -1,3 +1,8 @@
+import {
+  fixtureSuccess as success,
+  requiredFixtureValue as required,
+  fixtureObject as object,
+} from "./desktop-scenario-state.mts";
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
 import type { ScenarioInvoke } from "./desktop-scenario-context.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
@@ -9,20 +14,7 @@ interface ArtworkContext extends ScenarioContext {
   command: FixtureCommand;
   confirmNative: ReturnType<typeof nativeConfirmation>;
 }
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
-}
-function required<Value>(value: Value | null | undefined): Value {
-  assert.ok(value !== null && value !== undefined);
-  return value;
-}
-function success(value: unknown) {
-  const reply = object(value);
-  assert.equal(reply.ok, true, JSON.stringify(reply));
-  return reply.value;
-}
-import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
+import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 // Owned local artwork exercises real file selection, core IPC and rendered images.
 import assert from "node:assert/strict";

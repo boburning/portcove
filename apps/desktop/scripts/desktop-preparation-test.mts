@@ -1,5 +1,9 @@
+import {
+  requiredFixtureValue as required,
+  fixtureObject as object,
+} from "./desktop-scenario-state.mts";
 import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
-import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
+import { errorMessage } from "../../../scripts/runtime-values.mts";
 import type { Locator, IRectangle, WebElement } from "selenium-webdriver";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
@@ -44,17 +48,9 @@ export interface PreparationContext {
   captureLivePreparation: (executable: string) => unknown;
   chooseOwnedLibrary: ReturnType<typeof nativeConfirmation>;
 }
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
-}
 // Preserve original error identity, including deliberate non-Error boundary failures.
 function rethrowFailure(error: unknown): never {
   throw error;
-}
-function required<Value>(value: Value | null | undefined): Value {
-  assert.ok(value !== null && value !== undefined);
-  return value;
 }
 import { executeBrowserScript } from "./browser-script.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";

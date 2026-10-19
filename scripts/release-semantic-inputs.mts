@@ -30,11 +30,7 @@ function git(root: string, args: string[], input?: Buffer) {
 /** REST normalizes unsigned actor offsets. Reuse exact local Git objects, whose
  * hashes and metadata the existing verifier checks against provider identities.
  * Batch before collection: no per-commit process loop, fetching or replacement. */
-function readSemanticSourceChanges(
-  api: GitHubRestReader,
-  root: string,
-  opportunity: unknown,
-) {
+function readSemanticSourceChanges(api: GitHubRestReader, root: string, opportunity: unknown) {
   if (!isRecord(opportunity) || !oid(opportunity.base_commit) || !oid(opportunity.source_commit))
     throw new Error("semantic source requires exact commits");
   const listed = git(root, [
