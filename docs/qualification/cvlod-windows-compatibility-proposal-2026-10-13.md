@@ -94,3 +94,7 @@ unchanged-client delivery, and #534 production custody/signing/publication.
 This proposal grants no protected authority. #320 remains open; no broader
 beta outcome, gameplay, save/load, other-platform or support claim is completed.
 Game, helper and upstream executable execution and lifecycle replay: **Not run**.
+
+The [October 19 diagnosis and maintenance result](cvlod-shutdown-and-maintenance-2026-10-19.md)
+adds later actual observations at their exact scope. It preserves this proposal
+as historical metadata/source evidence and retains the affected clean-close hold.

@@ -215,7 +215,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -223,7 +223,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var privateSchema in new[] { 58, 59, 64, 70 })
+        foreach (var privateSchema in new[] { 58, 59, 64, 71 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -393,7 +393,10 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "legacy recovery schema preserves existing launch decisions without exposing recovery or backup deletion");
         bad["schema_version"] = 70;
-        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond legacy recovery rejected");
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "input assessment schema preserves legacy recovery without adding operation authority");
+        bad["schema_version"] = 71;
+        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond input assessments rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
@@ -486,13 +489,13 @@ internal static class ContractTests
             Check(real.ApiSchemaVersion == ProtocolStream.Schema && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
                 PortActions.Read(status).Count(value => value.Action == "update") == 1),
-                "compiled schema68 producer and actual reader consume one rollback and update assessment per catalog status");
+                "compiled schema70 producer and actual reader consume one rollback and update assessment per catalog status");
             var portId = Json.Text(statuses[0], "port_id");
             var inventory = await real.Read("backup.list", "backup", "list", portId);
             Check(PortActionDecision.Read(Json.Field(inventory, "create_assessment")).Action == "backup_create",
-                "compiled schema68 backup producer and actual strict reader consume creation assessment");
+                "compiled schema70 backup producer and actual strict reader consume creation assessment");
             Check(PortActionDecision.Read(Json.Field(inventory, "restore_assessment")).Action == "backup_restore",
-                "compiled schema68 backup producer and actual strict reader consume restore assessment");
+                "compiled schema70 backup producer and actual strict reader consume restore assessment");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
     }
@@ -662,6 +665,8 @@ internal static class ContractTests
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "preparation schema preserves caller-bound external review");
         capabilities["schema_version"] = 69;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "legacy recovery schema preserves caller-bound external review");
+        capabilities["schema_version"] = 70;
+        Check(ProtocolStream.SupportsReviewedExternal(capabilities), "input assessment schema preserves caller-bound external review");
         var representationStatus = Json.Parse(Json.Print(new {
             readiness = new { required_source_extension = "z64", blockers = new[] { "incompatible_source" } },
             port_actions = new[] {
@@ -674,7 +679,29 @@ internal static class ContractTests
         Check(true, "public source representation status preserves rollback and update contracts");
         Reject(() => PortActions.ValidateStatus(representationStatus, 66),
             "older public envelope cannot carry consequential source representation guidance");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 70 })
+        var biosStatus = Json.Object(Json.Parse(Json.Print(representationStatus)));
+        var biosReadiness = Json.Object(Json.Field(biosStatus, "readiness"));
+        biosReadiness.Remove("required_source_extension");
+        biosReadiness["bios"] = "current";
+        biosReadiness["launchable"] = false;
+        biosReadiness["blockers"] = new[] { "incompatible_bios" };
+        var biosAssessment = Json.Object(InputAssessmentFixture("bios-original"));
+        biosAssessment["contract"] = Json.Parse(Json.Print(new { state = "recognized_not_listed", contract_id = "fixture-release" }));
+        biosReadiness["bios_assessment"] = biosAssessment;
+        var launchDecision = Json.Array(Json.Field(biosStatus, "port_actions")).Select(Json.Object).Single(value => Json.Text(value, "action") == "launch");
+        launchDecision["reason"] = "incompatible_bios";
+        PortActions.ValidateStatus(biosStatus, 70);
+        Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema cannot carry new BIOS assessment semantics");
+        Check(SourceInputAssessment.KnownFailure(biosReadiness, "bios"), "new BIOS incompatibility is consumed as a known input failure");
+        biosReadiness["launchable"] = true;
+        Reject(() => PortActions.ValidateStatus(biosStatus, 70), "known input failure cannot advertise launchable");
+        biosReadiness["launchable"] = false;
+        Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 cannot silently carry new BIOS semantics");
+        biosReadiness.Remove("bios_assessment");
+        biosReadiness["blockers"] = new object[0];
+        Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
+        Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 71 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);
@@ -764,6 +791,13 @@ internal static class ContractTests
             "migration review identifies only visible prior Portcove entries and preserves current and foreign games");
     }
 
+    private static object InputAssessmentFixture(string profile) => Json.Parse(Json.Print(new {
+        health = "current",
+        classification = new { state = "recognized", identity = new { game_id = profile, variant_id = "fixture-edition", representation_id = "fixture-raw" } },
+        contract = new { state = "supported", contract_id = "fixture-installed-release" },
+        admission = new { state = "admitted", mode = "exact_identity" }, evidence = new object[0]
+    }));
+
     private static void CheckGuidedSetup()
     {
         var catalog = Json.Parse("{\"source_profile\":\"game-source\",\"bios_source_profile\":null,\"release\":{\"provider\":\"github\"}}");
@@ -794,9 +828,32 @@ internal static class ContractTests
         var needsSetup = Json.Parse("{\"active\":{\"version\":\"1\"},\"external_runtime\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":true,\"blockers\":[\"preparation_required\"]}}");
         Check(GuidedSetup.Choose(needsSetup, catalog, "", "").Kind == GuidedStepKind.FinishSetup,
             "an installed game with pending private preparation leads to reviewed setup");
+        var upstreamSetup = Json.Object(Json.Parse(Json.Print(needsSetup)));
+        var upstreamReadiness = Json.Object(Json.Field(upstreamSetup, "readiness"));
+        upstreamReadiness["launchable"] = true; upstreamReadiness["blockers"] = new object[0];
+        Check(GuidedSetup.Choose(upstreamSetup, catalog, "", "").Label == "Start setup", "permitted upstream first setup is distinguished from ordinary play");
+        upstreamReadiness["blockers"] = new[] { "missing_source" };
+        Check(GuidedSetup.Choose(upstreamSetup, catalog, "", "").Kind == GuidedStepKind.ReviewProblem, "contradictory blockers cannot advertise play");
         var playable = Json.Parse("{\"active\":{\"version\":\"1\"},\"external_runtime\":null,\"readiness\":{\"launchable\":true,\"pending_setup\":false,\"blockers\":[]}}");
         Check(GuidedSetup.Choose(playable, catalog, "", "").Kind == GuidedStepKind.Play,
             "a core-ready installed game leads to Play instead of updating or reinstalling");
+        Check(GuidedSetup.Choose(playable, catalog, "", "").Label == "Try launch",
+            "missing legacy compatibility stays launchable but is not confirmed");
+        var inputReadiness = Json.Object(Json.Field(playable, "readiness"));
+        inputReadiness["source"] = "current";
+        inputReadiness["source_assessment"] = InputAssessmentFixture(Json.Text(catalog, "source_profile"));
+        SourceInputAssessment.Validate(inputReadiness, 70);
+        Reject(() => SourceInputAssessment.Validate(inputReadiness, 69), "legacy recovery schema cannot silently carry input assessments");
+        Check(GuidedSetup.Choose(playable, catalog, "", "").Label == "Play", "confirmed current-release input is consumed by the actual guidance");
+        Reject(() => SourceInputAssessment.Validate(inputReadiness, 68), "old schema cannot silently carry input assessments");
+        var sourceAssessment = Json.Object(inputReadiness["source_assessment"]);
+        sourceAssessment["contract"] = Json.Parse(Json.Print(new { state = "unreviewed_for_release" }));
+        Check(GuidedSetup.Choose(playable, catalog, "", "").Label == "Try launch", "unreviewed release does not become a compatibility claim or blanket launch block");
+        sourceAssessment["health"] = "changed";
+        Reject(() => SourceInputAssessment.Validate(inputReadiness, 70), "assessment cannot contradict current-byte health");
+        sourceAssessment["health"] = "current";
+        sourceAssessment["contract"] = Json.Parse(Json.Print(new { state = "future_contract" }));
+        Reject(() => SourceInputAssessment.Validate(inputReadiness, 70), "unknown compatibility is not silently treated as confirmed");
         var launchHeld = Json.Parse("{\"active\":{\"version\":\"1\"},\"external_runtime\":null,\"readiness\":{\"launchable\":true,\"pending_setup\":false,\"blockers\":[]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"held\",\"reason\":\"invalid_installation\"}]}");
         Check(GuidedSetup.Choose(launchHeld, catalog, "", "").Kind == GuidedStepKind.ReviewProblem,
             "a held core launch cannot be advertised as Play even when readiness is otherwise launchable");

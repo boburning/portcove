@@ -235,7 +235,11 @@ fn fixture(root: &Path, export: &Path) -> LibraryMetadata {
         PortcoveService::new(library).unwrap()
     });
     let original_source = root.with_extension("original.z64");
-    fs::write(&original_source, b"synthetic imported source identity").unwrap();
+    fs::write(
+        &original_source,
+        b"\x80\x37\x12\x40synthetic imported source identity\0\0",
+    )
+    .unwrap();
     service
         .register_source("star-fox-64", &original_source)
         .unwrap();

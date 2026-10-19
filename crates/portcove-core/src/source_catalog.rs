@@ -259,6 +259,20 @@ pub struct SourceContractApplicability {
     pub artifact_sha256: Option<String>,
 }
 
+impl PortSourceContract {
+    pub(crate) fn applies_to_release(&self, upstream_ref: &str, artifact_sha256: &str) -> bool {
+        artifact_sha256.len() == 64
+            && artifact_sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+            && self.applicability.iter().any(|binding| {
+                binding.upstream_ref == upstream_ref
+                    && binding
+                        .artifact_sha256
+                        .as_ref()
+                        .is_none_or(|hash| hash.eq_ignore_ascii_case(artifact_sha256))
+            })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SourceValidatorContract {

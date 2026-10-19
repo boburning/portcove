@@ -1442,6 +1442,8 @@ impl PortcoveService {
                     required_source_extension: None,
                     source: None,
                     bios: None,
+                    source_assessment: None,
+                    bios_assessment: None,
                 });
                 return Ok(status);
             }
@@ -1532,6 +1534,58 @@ impl PortcoveService {
         }) {
             blockers.push(LaunchBlocker::InvalidInstallation);
         }
+        let release = status
+            .active
+            .as_ref()
+            .map(|install| (install.version.as_str(), install.artifact.sha256.as_str()))
+            .or_else(|| {
+                status
+                    .external_runtime
+                    .as_ref()
+                    .map(|runtime| (runtime.version.as_str(), runtime.archive_sha256.as_str()))
+            });
+        let source_assessment = port
+            .source_profile
+            .as_deref()
+            .zip(source)
+            .map(|(id, health)| {
+                crate::source_inspection::registered_launch_assessment(
+                    catalog,
+                    id,
+                    health,
+                    registered_sources.get(id),
+                    &port.id,
+                    crate::PortSourceRole::Game,
+                    release,
+                )
+            });
+        let bios_assessment = port
+            .bios_source_profile
+            .as_deref()
+            .zip(bios)
+            .map(|(id, health)| {
+                crate::source_inspection::registered_launch_assessment(
+                    catalog,
+                    id,
+                    health,
+                    registered_sources.get(id),
+                    &port.id,
+                    crate::PortSourceRole::Bios,
+                    release,
+                )
+            });
+        for (assessment, blocker) in [
+            (&source_assessment, LaunchBlocker::IncompatibleSource),
+            (&bios_assessment, LaunchBlocker::IncompatibleBios),
+        ] {
+            if assessment
+                .as_ref()
+                .is_some_and(crate::SourceAssessment::known_input_failure)
+                && !blockers.contains(&blocker)
+            {
+                blockers.push(blocker);
+            }
+        }
         status.readiness = Some(LaunchReadiness {
             launchable: installed && blockers.is_empty(),
             blockers,
@@ -1539,6 +1593,8 @@ impl PortcoveService {
             required_source_extension,
             source,
             bios,
+            source_assessment,
+            bios_assessment,
         });
         Ok(status)
     }
@@ -4432,6 +4488,13 @@ impl PortcoveService {
                     operation.checkpoint()
                 })?
             };
+            crate::source_inspection::require_launch_source_compatibility(
+                retained_catalog,
+                &retained_port.id,
+                &source,
+                crate::PortSourceRole::Game,
+                (&record.version, &record.archive_sha256),
+            )?;
             if let Some(extension) = spec.source_argument_extension.as_deref() {
                 crate::external_runtime::shared_preferences::check_runtime_path(
                     spec,
@@ -4918,6 +4981,7 @@ fn port_action_blocker(blocker: LaunchBlocker) -> (PortActionAvailability, PortA
         LaunchBlocker::MissingBios => (Availability::Waiting, Reason::MissingBios),
         LaunchBlocker::UnreadableBios => (Availability::Held, Reason::UnreadableBios),
         LaunchBlocker::ChangedBios => (Availability::Held, Reason::ChangedBios),
+        LaunchBlocker::IncompatibleBios => (Availability::Waiting, Reason::IncompatibleBios),
         LaunchBlocker::MissingRuntime => (Availability::Held, Reason::MissingRuntime),
         LaunchBlocker::PreparationRequired => (Availability::Waiting, Reason::PreparationRequired),
         LaunchBlocker::InvalidInstallation => (Availability::Held, Reason::InvalidInstallation),
@@ -6560,7 +6624,7 @@ mod tests {
             .active
             .unwrap();
         let source = temporary.path().join("original-source");
-        fs::write(&source, b"original source").unwrap();
+        fs::write(&source, b"\x80\x37\x12\x40original source\0").unwrap();
         let (sha256, size) = crate::adapter::hash_file(&source).unwrap();
         library
             .register_source(&SourceRecord {
@@ -6738,7 +6802,10 @@ mod tests {
             fs::read(quarantine.join("sentinel")).unwrap(),
             b"other family intent"
         );
-        assert_eq!(fs::read(&source).unwrap(), b"original source");
+        assert_eq!(
+            fs::read(&source).unwrap(),
+            b"\x80\x37\x12\x40original source\0"
+        );
         assert_eq!(fs::read(&saved).unwrap(), b"original saved settings");
         assert_eq!(
             serde_json::to_vec(&library.all_installs().unwrap()).unwrap(),
@@ -6775,7 +6842,10 @@ mod tests {
             fs::read(quarantine.join("sentinel")).unwrap(),
             b"other family intent"
         );
-        assert_eq!(fs::read(&source).unwrap(), b"original source");
+        assert_eq!(
+            fs::read(&source).unwrap(),
+            b"\x80\x37\x12\x40original source\0"
+        );
         assert_eq!(
             serde_json::to_vec(&library.sources().unwrap()).unwrap(),
             sources
@@ -10613,13 +10683,17 @@ fn main() {
                 .unwrap();
         }
         let raw = temporary.path().join("original.Z64");
-        fs::write(&raw, b"synthetic original source").unwrap();
+        fs::write(&raw, b"\x80\x37\x12\x40synthetic original source\0\0\0").unwrap();
         let zipped = temporary.path().join("original.zip");
         let mut archive = zip::ZipWriter::new(fs::File::create(&zipped).unwrap());
         archive
             .start_file("original.z64", zip::write::SimpleFileOptions::default())
             .unwrap();
-        std::io::Write::write_all(&mut archive, b"synthetic original source").unwrap();
+        std::io::Write::write_all(
+            &mut archive,
+            b"\x80\x37\x12\x40synthetic original source\0\0\0",
+        )
+        .unwrap();
         archive.finish().unwrap();
         service.register_source("star-fox-64", &zipped).unwrap();
         let zip_bytes = fs::read(&zipped).unwrap();
@@ -10747,7 +10821,10 @@ fn main() {
                 .code,
             crate::ErrorCode::SourceInvalid
         );
-        assert_eq!(fs::read(&raw).unwrap(), b"synthetic original source");
+        assert_eq!(
+            fs::read(&raw).unwrap(),
+            b"\x80\x37\x12\x40synthetic original source\0\0\0"
+        );
         assert_eq!(fs::read(&zipped).unwrap(), zip_bytes);
         assert!(
             !external.join("general.json").exists(),
@@ -12240,7 +12317,7 @@ fn main() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let source = temporary.path().join("star-fox-64.z64");
-        fs::write(&source, b"original source").unwrap();
+        fs::write(&source, b"\x80\x37\x12\x40original source\0").unwrap();
         let service = PortcoveService::new(library.clone()).unwrap();
         let registered = service.register_source("star-fox-64", &source).unwrap();
         assert_eq!(
@@ -12507,7 +12584,7 @@ fn main() {
             action(&pending, PortAction::Launch).reason,
             PortActionReason::PreparationRequired
         );
-        fs::write(&source_path, b"changed source").unwrap();
+        fs::write(&source_path, b"\x80\x37\x12\x40changed source\0\0").unwrap();
         let held = service.status("opengoal-jak1").unwrap();
         assert_eq!(
             action(&held, PortAction::Launch).availability,
@@ -12760,7 +12837,7 @@ fn main() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let source = temporary.path().join("mario-kart-64.z64");
-        fs::write(&source, b"not the supported source").unwrap();
+        fs::write(&source, b"\x80\x37\x12\x40not the supported source").unwrap();
         let (storage_sha256, storage_size) = crate::adapter::hash_file(&source).unwrap();
         library
             .register_source(&SourceRecord {
@@ -12768,7 +12845,7 @@ fn main() {
                 path: source,
                 sha256: "d6b8538dd63f0132ecb2856e7d32816ed3c30e3e479aecd23cf83fb6ba17a5da".into(),
                 size: storage_size,
-                storage_sha256,
+                storage_sha256: storage_sha256.clone(),
                 storage_size,
                 updated_at: Library::now(),
                 observed_identity: None,
@@ -12776,6 +12853,20 @@ fn main() {
             .unwrap();
         let service = PortcoveService::new(library).unwrap();
 
+        let error = service.verify_source("mario-kart-64").unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
+        assert!(error.message.contains("changed since registration"));
+        assert_eq!(
+            error.details.get("actual_storage_sha256"),
+            Some(&storage_sha256)
+        );
+        let mut baseline = service.library().source("mario-kart-64").unwrap().unwrap();
+        assert_eq!(error.details.get("recorded_sha256"), Some(&baseline.sha256));
+
+        // Even a baseline matching the actual bytes cannot manufacture input
+        // compatibility. Verification still inspects the unsupported content.
+        baseline.sha256 = storage_sha256;
+        service.library().register_source(&baseline).unwrap();
         let error = service.verify_source("mario-kart-64").unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
         assert!(error.message.contains("not a supported"));
@@ -12913,11 +13004,11 @@ fn main() {
         let executable = write_host_test_executable(&install, "starship");
         register_existing_test_install(&library, "starship", "v1", &install, true);
         let source = temporary.path().join("star-fox-64.z64");
-        fs::write(&source, b"original source").unwrap();
+        fs::write(&source, b"\x80\x37\x12\x40original source\0").unwrap();
         let service = PortcoveService::new(library).unwrap();
         service.register_source("star-fox-64", &source).unwrap();
 
-        fs::write(&source, b"changed source").unwrap();
+        fs::write(&source, b"\x80\x37\x12\x40changed source\0\0").unwrap();
         let error = service.prepare_launch("starship", None).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
         assert!(!install.join(LAUNCH_MARKER).exists());
@@ -12946,7 +13037,7 @@ fn main() {
         write_host_test_executable(&install, "starship");
         register_existing_test_install(&library, "starship", "v1", &install, true);
         let source = temporary.path().join("star-fox-64.z64");
-        fs::write(&source, b"initial verified source").unwrap();
+        fs::write(&source, b"\x80\x37\x12\x40initial verified source\0").unwrap();
         let service = PortcoveService::with_provider_and_faults(
             library.clone(),
             Arc::new(StaticReleaseProvider {
@@ -12976,7 +13067,7 @@ fn main() {
         write_host_test_executable(&install, "starship");
         register_existing_test_install(&library, "starship", "v1", &install, true);
         let source = temporary.path().join("owned-source.z64");
-        fs::write(&source, b"original source").unwrap();
+        fs::write(&source, b"\x80\x37\x12\x40original source\0").unwrap();
         let mut service = PortcoveService::with_provider(
             library.clone(),
             Arc::new(StaticReleaseProvider {
@@ -13074,7 +13165,10 @@ fn main() {
             serde_json::to_value(library.source("star-fox-64").unwrap().unwrap()).unwrap(),
             serde_json::to_value(registered).unwrap()
         );
-        assert_eq!(fs::read(&source).unwrap(), b"original source");
+        assert_eq!(
+            fs::read(&source).unwrap(),
+            b"\x80\x37\x12\x40original source\0"
+        );
         fs::write(&source, b"changed after registration").unwrap();
         assert_eq!(
             service.prepare_launch("starship", None).unwrap_err().code,

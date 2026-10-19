@@ -3202,7 +3202,7 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let selected = temporary.path().join("source.z64");
-        std::fs::write(&selected, b"adapter parity source").unwrap();
+        std::fs::write(&selected, b"\x80\x37\x12\x40adapter parity source\0\0\0").unwrap();
         let service = PortcoveService::new(library).unwrap();
         service.register_source("star-fox-64", &selected).unwrap();
 
@@ -3255,7 +3255,11 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let selected = temporary.path().join("source.z64");
-        fs::write(&selected, b"desktop read-only intake source").unwrap();
+        fs::write(
+            &selected,
+            b"\x80\x37\x12\x40desktop read-only intake source\0",
+        )
+        .unwrap();
         let before = fs::read(&selected).unwrap();
         let service = PortcoveService::new(library.clone()).unwrap();
         let paths = vec![selected.clone()];
