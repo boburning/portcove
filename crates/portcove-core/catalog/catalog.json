@@ -754,6 +754,44 @@
         "reviewed_at": "2026-10-18",
         "claim": "Unique full-file 65552-byte original maps to SHA-1 0f18c2a5760be0647339b0e3cab9183af86fdd8c; ordinary file admission enforces observed SHA-1 without requiring unobserved CRC. Exact full headered NES2 identity; no normalization.",
         "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat/no-intro/Nintendo%20-%20Nintendo%20Entertainment%20System.dat"
+      },
+      {
+        "id": "super-metroid-recomp-0-3-12-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SuperMetroidRecomp",
+        "authority_ref": "494df8541eb4dbd4bacf7eba08c53b52d9fba5ac",
+        "reviewed_at": "2026-10-19",
+        "claim": "Exact v0.3.12 headerless 3145728-byte original required by primary rom_identity.txt and compiled identity. Windows artifact 651733446 is authenticated independently. Runtime and gameplay acceptance remain separate.",
+        "immutable_url": "https://github.com/mstan/SuperMetroidRecomp/blob/494df8541eb4dbd4bacf7eba08c53b52d9fba5ac/rom_identity.txt",
+        "live_url": "https://github.com/mstan/SuperMetroidRecomp/blob/main/rom_identity.txt"
+      },
+      {
+        "id": "super-metroid-snes-japan-usa-no-intro-byte-identity",
+        "role": "byte_identity",
+        "authority": "libretro/libretro-database No-Intro",
+        "authority_ref": "12c21cf79f1e20eff6ac68b80875816c717d0a7a",
+        "reviewed_at": "2026-10-19",
+        "claim": "Unique full-file original 3145728 bytes SHA-1 da957f0d63d14cb441d215462904c4fa8519c613, SHA256 12b77c4bc9c1832cee8881244659065ee1d84c70c3d29e6eaf92e6798cc2ca72, CRC32 d63ed5f8. Core original-file admission enforces SHA-1 and checked runtime copy enforces SHA256; no header normalization.",
+        "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat/no-intro/Nintendo%20-%20Super%20Nintendo%20Entertainment%20System.dat"
+      },
+      {
+        "id": "mega-man-x2-snes-recomp-0-1-4-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/MegaManX2Recomp",
+        "authority_ref": "c62a096873fd6b98f197bb06b0b6929432de1bc3",
+        "reviewed_at": "2026-10-19",
+        "claim": "Exact v0.1.4 headerless 1572864-byte original required by primary rom_identity.txt and compiled identity. Windows artifact 654443273 is authenticated independently. Runtime and gameplay acceptance remain separate.",
+        "immutable_url": "https://github.com/mstan/MegaManX2Recomp/blob/c62a096873fd6b98f197bb06b0b6929432de1bc3/rom_identity.txt",
+        "live_url": "https://github.com/mstan/MegaManX2Recomp/blob/master/rom_identity.txt"
+      },
+      {
+        "id": "mega-man-x2-snes-usa-no-intro-byte-identity",
+        "role": "byte_identity",
+        "authority": "libretro/libretro-database No-Intro",
+        "authority_ref": "12c21cf79f1e20eff6ac68b80875816c717d0a7a",
+        "reviewed_at": "2026-10-19",
+        "claim": "Unique full-file original 1572864 bytes SHA-1 637079014421563283cded6aeaa0604597b2e33c, SHA256 f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed, CRC32 947b0355. Core original-file admission enforces SHA-1 and checked runtime copy enforces SHA256; no header normalization.",
+        "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat/no-intro/Nintendo%20-%20Super%20Nintendo%20Entertainment%20System.dat"
       }
     ],
     "identities": [
@@ -6184,6 +6222,92 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "super-metroid-snes-japan-usa",
+        "label": "Super Metroid (Japan, USA) exact headerless SNES original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "exact-stock",
+            "title": "Super Metroid",
+            "region": "Japan, USA",
+            "revision": "Retail",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headerless-sfc",
+                "extensions": [
+                  "sfc",
+                  "smc"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "da957f0d63d14cb441d215462904c4fa8519c613",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "super-metroid-recomp-0-3-12-source-contract",
+                  "super-metroid-snes-japan-usa-no-intro-byte-identity"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "super-metroid-recomp-0-3-12-source-contract",
+              "super-metroid-snes-japan-usa-no-intro-byte-identity"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "mega-man-x2-snes-usa",
+        "label": "Mega Man X2 (USA) exact headerless SNES original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "exact-stock",
+            "title": "Mega Man X2",
+            "region": "USA",
+            "revision": "Retail",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headerless-sfc",
+                "extensions": [
+                  "sfc",
+                  "smc"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "637079014421563283cded6aeaa0604597b2e33c",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "mega-man-x2-snes-recomp-0-1-4-source-contract",
+                  "mega-man-x2-snes-usa-no-intro-byte-identity"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "mega-man-x2-snes-recomp-0-1-4-source-contract",
+              "mega-man-x2-snes-usa-no-intro-byte-identity"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -8990,6 +9114,62 @@
           {
             "upstream_ref": "v1.3.0",
             "artifact_sha256": "80e9606b0795bf09cadc57cd5ac97ff292f35436011800a406060f3a1a86ae5f"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "super-metroid-recomp-game-source",
+        "port_id": "super-metroid-recomp",
+        "role": "game",
+        "profile_id": "super-metroid-snes-japan-usa",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "exact-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "super-metroid-recomp-0-3-12-source-contract",
+          "super-metroid-snes-japan-usa-no-intro-byte-identity"
+        ],
+        "authority_ref": "494df8541eb4dbd4bacf7eba08c53b52d9fba5ac",
+        "reviewed_at": "2026-10-19",
+        "immutable_review_url": "https://github.com/mstan/SuperMetroidRecomp/blob/494df8541eb4dbd4bacf7eba08c53b52d9fba5ac/rom_identity.txt",
+        "live_review_url": "https://github.com/mstan/SuperMetroidRecomp/blob/main/rom_identity.txt",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.12",
+            "artifact_sha256": "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "mega-man-x2-snes-recomp-game-source",
+        "port_id": "mega-man-x2-snes-recomp",
+        "role": "game",
+        "profile_id": "mega-man-x2-snes-usa",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "exact-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "mega-man-x2-snes-recomp-0-1-4-source-contract",
+          "mega-man-x2-snes-usa-no-intro-byte-identity"
+        ],
+        "authority_ref": "c62a096873fd6b98f197bb06b0b6929432de1bc3",
+        "reviewed_at": "2026-10-19",
+        "immutable_review_url": "https://github.com/mstan/MegaManX2Recomp/blob/c62a096873fd6b98f197bb06b0b6929432de1bc3/rom_identity.txt",
+        "live_review_url": "https://github.com/mstan/MegaManX2Recomp/blob/master/rom_identity.txt",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07"
           }
         ],
         "aliases": [],
@@ -18166,6 +18346,170 @@
           "suffix": ".png"
         }
       ]
+    },
+    {
+      "id": "super-metroid-recomp",
+      "name": "Super Metroid Recompiled",
+      "summary": "Native Super Metroid recompilation with an exact original and pinned Windows runtime.",
+      "project_url": "https://github.com/mstan/SuperMetroidRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.3.12",
+            "url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.3.12/supermetroid-0.3.12-windows-x64.zip",
+            "size": 13802349,
+            "sha256": "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
+            "published_at": "2026-10-17T22:09:41Z"
+          }
+        }
+      },
+      "source_profile": "super-metroid-snes-japan-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "SuperMetroidSNESRecomp.exe"
+        ]
+      },
+      "runtime_source_filename": "game.sfc",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "game.sfc": "12b77c4bc9c1832cee8881244659065ee1d84c70c3d29e6eaf92e6798cc2ca72"
+      },
+      "launch_arguments": [
+        "game.sfc"
+      ],
+      "launch_environment": {
+        "SNESRECOMP_NO_LAUNCHER": "1"
+      },
+      "persistent_paths": [
+        "game.sfc",
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "saves",
+        "screenshots",
+        "sm-video.ini",
+        "sm-video.ini.tmp"
+      ],
+      "runtime_mutable_paths": [
+        ".snesrecomp_write_probe",
+        "last_run_report.json"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "crash_report_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "crash_minidump_",
+          "suffix": ".dmp"
+        }
+      ],
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "super-metroid-snes-japan-usa",
+            "label": "Super Metroid (Japan, USA) exact headerless SNES original",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. This route stays pinned to its reviewed release until another build passes compatibility review. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included."
+      }
+    },
+    {
+      "id": "mega-man-x2-snes-recomp",
+      "name": "Mega Man X2 Recompiled",
+      "summary": "Native Mega Man X2 recompilation with an exact original and pinned Windows runtime.",
+      "project_url": "https://github.com/mstan/MegaManX2Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.1.4",
+            "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.1.4/MegaManX2SNESRecomp-windows-x64-v0.1.4.zip",
+            "size": 13043789,
+            "sha256": "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
+            "published_at": "2026-10-18T20:43:48Z"
+          }
+        }
+      },
+      "source_profile": "mega-man-x2-snes-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "MegaManX2SNESRecomp.exe"
+        ]
+      },
+      "runtime_source_filename": "game.sfc",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "game.sfc": "f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed"
+      },
+      "launch_arguments": [
+        "game.sfc"
+      ],
+      "launch_environment": {
+        "SNESRECOMP_NO_LAUNCHER": "1"
+      },
+      "persistent_paths": [
+        "game.sfc",
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "saves",
+        "screenshots",
+        "mods/preloaded/state.toml",
+        "mods/preloaded/state.toml.tmp"
+      ],
+      "runtime_mutable_paths": [
+        ".snesrecomp_write_probe",
+        "last_run_report.json"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "crash_report_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "crash_minidump_",
+          "suffix": ".dmp"
+        }
+      ],
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "mega-man-x2-snes-usa",
+            "label": "Mega Man X2 (USA) exact headerless SNES original",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. This route stays pinned to its reviewed release until another build passes compatibility review. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included."
+      }
     }
   ]
 }
