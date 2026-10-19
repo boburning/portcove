@@ -225,6 +225,7 @@ function RegisterExternalDialog({
 }) {
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
     identity: JSON.stringify([mode, port.id, path, generation]),
+    retainOnCancel: true,
     load: async (): Promise<ExternalRuntimePreview & { previous_path?: string }> => {
       if (mode === "relink") {
         const relink = await desktopApi.previewExternalRuntimeRelink(port.id, path, generation);
