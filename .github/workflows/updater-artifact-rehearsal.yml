@@ -75,6 +75,18 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/bootstrap-quality-tools.ps1 -Desktop
+      - name: Check Windows updater runtime prerequisite before building fixtures
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $stateJson = node scripts/tool-cache.mts --state
+          if ($LASTEXITCODE -ne 0) { throw 'Could not read provisioned desktop tools' }
+          $actual = [string](($stateJson | ConvertFrom-Json).desktop.webview2_version)
+          $minimum = [string]((Get-Content apps/desktop/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).bundle.windows.minimumWebview2Version)
+          New-Item -ItemType Directory -Path work/updater-prerequisites | Out-Null
+          @{ registered_webview2 = $actual; minimum_webview2 = $minimum; source_commit = '${{ github.sha }}'; observation = 'registered Evergreen runtime; application-selected runtime is recorded separately at launch' } | ConvertTo-Json | Set-Content work/updater-prerequisites/windows-runtime.json
+          if ($actual -notmatch '^\d+\.\d+\.\d+\.\d+$' -or $minimum -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Unknown Windows updater runtime prerequisite' }
+          if ([version]$actual -lt [version]$minimum) { throw "Updater environment has WebView2 $actual; requires $minimum or later. Prepare a supported Evergreen runtime before another rehearsal." }
       - name: Test signature rejection and inventory identity
         run: |
           cargo test --locked -p portcove-release-tools
@@ -124,6 +136,7 @@ jobs:
         with:
           name: updater-rehearsal-${{ matrix.label }}
           path: |
+            work/updater-prerequisites/windows-runtime.json
             work/updater-rehearsal/*.json
             work/updater-rehearsal/*.patch
             work/updater-rehearsal/*.pub
@@ -146,6 +159,8 @@ jobs:
             work/updater-rehearsal/windows-installed-update-qualification/repository/**
             work/updater-rehearsal/windows-installed-update-qualification/trusted-root.json
             work/updater-rehearsal/installer-test/run-*/installed-update-helper.*.log
+            work/updater-rehearsal/installer-test/run-*/predecessor-smoke.*.log
+            work/updater-rehearsal/installer-test/run-*/candidate-smoke.*.log
             work/updater-rehearsal/installer-test/run-*/installed-update-*-stage.*.log
             work/updater-rehearsal/installer-test/run-*/application-update/worker-stage-error.txt
             work/updater-rehearsal/installer-test/run-*/application-update/workers/revision-*/attempt-*/worker.json

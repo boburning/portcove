@@ -31,6 +31,59 @@ const policy = await loadPackagePolicy();
 const version = "0.3.0";
 const revision = "a".repeat(40);
 
+void test(
+  "Windows smoke journals retain runtime diagnostics and the original failed exit",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-smoke-output-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const harness = fileURLToPath(new URL("./test-windows-installer.ps1", import.meta.url));
+    const script = `
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $errors = $null
+$ast = [Management.Automation.Language.Parser]::ParseFile('${harness.replaceAll("'", "''")}', [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw 'Installer harness parse failed' }
+foreach ($name in @('Start-JournaledProcess', 'Complete-JournaledProcess')) {
+ $functions = @($ast.FindAll({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name}, $true))
+ if ($functions.Count -ne 1) { throw 'Missing journal function' }
+ Invoke-Expression $functions[0].Extent.Text
+}
+function Write-InstallerEvidence { param($Phase) }
+$evidence = @{ phase = 'fixture'; process_runs = @() }
+$runRoot = '${root.replaceAll("'", "''")}'; $TestFault = ''
+$program = (Get-Process -Id $PID).Path
+$command = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes('[Console]::Out.WriteLine("fixture stdout"); [Console]::Error.WriteLine("insufficient runtime fixture"); Start-Sleep -Milliseconds 700; exit 1'))
+foreach ($role in @('predecessor_smoke', 'candidate_smoke')) {
+ $launch = Start-JournaledProcess $role $program @('-NoProfile', '-NonInteractive', '-EncodedCommand', $command)
+ try {
+  if (-not $launch.process.WaitForExit(10000)) { throw 'Fixture process did not exit' }
+  Complete-JournaledProcess $launch.run $launch.process 'exit_observed'
+  if ($launch.run.exit_code -ne 1) { throw 'Original failed exit lost' }
+  if (-not $launch.run.observed_image_path) { throw 'Live executable identity was not verified' }
+  if ((Get-Content (Join-Path $runRoot $launch.run.output_relative) -Raw).Trim() -ne 'fixture stdout') { throw 'stdout lost' }
+  if ((Get-Content (Join-Path $runRoot $launch.run.error_relative) -Raw).Trim() -ne 'insufficient runtime fixture') { throw 'runtime diagnostic lost' }
+ } finally {
+  if (-not $launch.process.HasExited) { $launch.process.Kill(); $launch.process.WaitForExit() }
+  $launch.process.Dispose()
+ }
+}
+@{ smoke_roles = $evidence.process_runs.Count; failed_exit_preserved = $true } | ConvertTo-Json -Compress
+`;
+    const result = spawnSync(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 30000 },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), { smoke_roles: 2, failed_exit_preserved: true });
+  },
+);
+
 function runPowerShellScript(
   relativePath: string,
   args: string[],
