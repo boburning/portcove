@@ -1047,11 +1047,14 @@ $stageExit=$LASTEXITCODE
     windowsHide: true,
   });
   assert.equal(result.status, 0, result.stderr);
-  const observed = JSON.parse(result.stdout);
+  const observed: unknown = JSON.parse(result.stdout);
+  assert.ok(isRecord(observed));
+  assert.ok(isRecord(observed.selection));
+  assert.ok(isRecord(observed.stage));
   assert.equal(observed.selection.mode, "--portcove-qualify-update-selection");
   assert.equal(observed.stage.mode, "--portcove-qualify-update-stage");
   assert.equal(observed.selection_exit, 0);
   assert.equal(observed.stage_exit, 0);
-  assert.match(observed.selection_stderr, /Portcove WebView runtime version: 2\.52\.6/u);
-  assert.match(observed.stage_stderr, /Portcove WebView runtime version: 2\.52\.6/u);
+  assert.match(text(observed.selection_stderr), /Portcove WebView runtime version: 2\.52\.6/u);
+  assert.match(text(observed.stage_stderr), /Portcove WebView runtime version: 2\.52\.6/u);
 });
