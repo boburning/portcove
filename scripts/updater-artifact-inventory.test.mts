@@ -31,6 +31,137 @@ const policy = await loadPackagePolicy();
 const version = "0.3.0";
 const revision = "a".repeat(40);
 
+void test(
+  "Windows smoke journals retain runtime diagnostics and the original failed exit",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-smoke-output-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const harness = fileURLToPath(new URL("./test-windows-installer.ps1", import.meta.url));
+    const script = `
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $errors = $null
+$ast = [Management.Automation.Language.Parser]::ParseFile('${harness.replaceAll("'", "''")}', [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw 'Installer harness parse failed' }
+foreach ($name in @('Start-JournaledProcess', 'Complete-JournaledProcess')) {
+ $functions = @($ast.FindAll({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name}, $true))
+ if ($functions.Count -ne 1) { throw 'Missing journal function' }
+ Invoke-Expression $functions[0].Extent.Text
+}
+function Write-InstallerEvidence { param($Phase) }
+$evidence = @{ phase = 'fixture'; process_runs = @() }
+$runRoot = '${root.replaceAll("'", "''")}'; $TestFault = ''
+$program = (Get-Process -Id $PID).Path
+$command = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes('[Console]::Out.WriteLine("fixture stdout"); [Console]::Error.WriteLine("insufficient runtime fixture"); Start-Sleep -Milliseconds 700; exit 1'))
+foreach ($role in @('predecessor_smoke', 'candidate_smoke')) {
+ $launch = Start-JournaledProcess $role $program @('-NoProfile', '-NonInteractive', '-EncodedCommand', $command)
+ try {
+  if (-not $launch.process.WaitForExit(10000)) { throw 'Fixture process did not exit' }
+  Complete-JournaledProcess $launch.run $launch.process 'exit_observed'
+  if ($launch.run.exit_code -ne 1) { throw 'Original failed exit lost' }
+  if (-not $launch.run.observed_image_path) { throw 'Live executable identity was not verified' }
+  if ((Get-Content (Join-Path $runRoot $launch.run.output_relative) -Raw).Trim() -ne 'fixture stdout') { throw 'stdout lost' }
+  if ((Get-Content (Join-Path $runRoot $launch.run.error_relative) -Raw).Trim() -ne 'insufficient runtime fixture') { throw 'runtime diagnostic lost' }
+ } finally {
+  if (-not $launch.process.HasExited) { $launch.process.Kill(); $launch.process.WaitForExit() }
+  $launch.process.Dispose()
+ }
+}
+# A deterministic provider fixture models a child already gone before live
+# image observation. Blank StartInfo must not become an identity fallback.
+function Start-Process {
+ param($FilePath, $ArgumentList, [switch]$PassThru, $WindowStyle, $RedirectStandardOutput, $RedirectStandardError)
+ $process = [pscustomobject]@{ Id = 123; StartTime = [DateTime]::UtcNow; StartInfo = @{ FileName = '' }; Path = $null; HasExited = $true }
+ $process | Add-Member -MemberType ScriptMethod -Name Refresh -Value {}
+ $process
+}
+function Stop-JournaledProcess { param($Run, $Process, $Status, $Reason) }
+foreach ($role in @('predecessor_smoke', 'candidate_smoke')) {
+ $refused = $false
+ try { Start-JournaledProcess $role $program @() | Out-Null }
+ catch {
+  if ($_.Exception.Message -ne "$role exited before its executable image could be verified") { throw }
+  $refused = $true
+ }
+ if (-not $refused) { throw 'Smoke without executable identity was accepted' }
+}
+@{ smoke_roles = 2; failed_exit_preserved = $true; unverified_smokes_refused = $true } | ConvertTo-Json -Compress
+`;
+    const result = spawnSync(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 30000 },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      smoke_roles: 2,
+      failed_exit_preserved: true,
+      unverified_smokes_refused: true,
+    });
+  },
+);
+
+void test(
+  "Windows updater preflight records and refuses unsuitable runtimes before fixture builds",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-runtime-preflight-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const workflow = await readFile(
+      new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
+      "utf8",
+    );
+    const block = workflow.match(
+      /- name: Check Windows updater runtime prerequisite before building fixtures\r?\n[\s\S]*?        run: \|\r?\n(?<body>[\s\S]*?)      - name: Test signature/,
+    );
+    assert.ok(block?.groups?.body);
+    assert.ok(workflow.includes("work/updater-prerequisites/windows-runtime.json"));
+    const step = block.groups.body.replace(/^          /gmu, "");
+    for (const [index, actual] of [
+      "155.0.4283.60",
+      "155.0.4283.62",
+      "155.0.4283.63",
+      "155.0.4283.62 dev",
+      "",
+    ].entries()) {
+      const cwd = path.join(root, String(index));
+      await mkdir(path.join(cwd, "apps/desktop/src-tauri"), { recursive: true });
+      await writeFile(
+        path.join(cwd, "apps/desktop/src-tauri/tauri.conf.json"),
+        JSON.stringify({ bundle: { windows: { minimumWebview2Version: "155.0.4283.62" } } }),
+      );
+      const script = `$ErrorActionPreference = 'Stop'\nfunction node { $global:LASTEXITCODE = 0; '{"desktop":{"webview2_version":"${actual}"}}' }\n${step}`;
+      const result = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-EncodedCommand",
+          Buffer.from(script, "utf16le").toString("base64"),
+        ],
+        { cwd, encoding: "utf8", windowsHide: true, timeout: 10000 },
+      );
+      assert.equal(result.status, index === 1 || index === 2 ? 0 : 1, result.stderr);
+      const receipt = object(
+        JSON.parse(
+          await readFile(path.join(cwd, "work/updater-prerequisites/windows-runtime.json"), "utf8"),
+        ),
+      );
+      assert.equal(receipt.registered_webview2, actual);
+      assert.equal(receipt.minimum_webview2, "155.0.4283.62");
+      assert.match(
+        text(receipt.observation),
+        /application-selected runtime is recorded separately/,
+      );
+    }
+  },
+);
+
 function runPowerShellScript(
   relativePath: string,
   args: string[],
@@ -999,3 +1130,62 @@ function first<T>(values: readonly T[]): T {
   assert.ok(value !== undefined);
   return value;
 }
+
+void test("packaged AppImage JSON commands retain runtime diagnostics separately", async (t) => {
+  const source = await readFile(
+    new URL("./test-linux-appimage-update.ps1", import.meta.url),
+    "utf8",
+  );
+  const statements = source
+    .split(/\r?\n/u)
+    .filter((line) =>
+      /^\s+\$(?:selectionStderr|packagedSelectionOutput|stageStderr|stageOutput) = /u.test(line),
+    );
+  assert.equal(statements.length, 4);
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-appimage-streams-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
+  const fixture = path.join(root, "fixture.cjs");
+  await writeFile(
+    fixture,
+    `process.stderr.write("Portcove WebView runtime version: 2.52.6\\n");process.stdout.write(JSON.stringify({mode:process.argv[2],state:"update-available",version:"0.3.0"}));`,
+  );
+  const executable = path.join(root, process.platform === "win32" ? "fixture.cmd" : "fixture.sh");
+  await writeFile(
+    executable,
+    process.platform === "win32"
+      ? `@echo off\r\n"${process.execPath}" "${fixture}" %*\r\n`
+      : `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(fixture)} "$@"\n`,
+    { mode: 0o700 },
+  );
+  const script = path.join(root, "exercise.ps1");
+  await writeFile(
+    script,
+    `$ErrorActionPreference='Stop'
+$state=${quote(root)}
+$stable=${quote(executable)}
+$candidate='unused'
+${statements.slice(0, 2).join("\n")}
+$selectionExit=$LASTEXITCODE
+${statements.slice(2).join("\n")}
+$stageExit=$LASTEXITCODE
+[ordered]@{ selection=($packagedSelectionOutput|ConvertFrom-Json); stage=($stageOutput|ConvertFrom-Json); selection_exit=$selectionExit; stage_exit=$stageExit; selection_stderr=[IO.File]::ReadAllText($selectionStderr); stage_stderr=[IO.File]::ReadAllText($stageStderr) }|ConvertTo-Json -Depth 4
+`,
+  );
+  const result = spawnSync("pwsh", ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", script], {
+    encoding: "utf8",
+    timeout: 15_000,
+    windowsHide: true,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const observed: unknown = JSON.parse(result.stdout);
+  assert.ok(isRecord(observed));
+  assert.ok(isRecord(observed.selection));
+  assert.ok(isRecord(observed.stage));
+  assert.equal(observed.selection.mode, "--portcove-qualify-update-selection");
+  assert.equal(observed.stage.mode, "--portcove-qualify-update-stage");
+  assert.equal(observed.selection_exit, 0);
+  assert.equal(observed.stage_exit, 0);
+  assert.match(text(observed.selection_stderr), /Portcove WebView runtime version: 2\.52\.6/u);
+  assert.match(text(observed.stage_stderr), /Portcove WebView runtime version: 2\.52\.6/u);
+});

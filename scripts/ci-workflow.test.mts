@@ -207,9 +207,9 @@ void test("ordinary Linux package operation is fixed and isolated from fixture b
   );
   assert.match(
     block,
-    /if: \$\{\{ inputs\.operation == 'linux-package-boundary' && inputs\.runner == 'ubuntu-22\.04' && !inputs\.edge_driver_proof \}\}/u,
+    /if: \$\{\{ inputs\.operation == 'linux-package-boundary' && \(inputs\.runner == 'ubuntu-22\.04' \|\| inputs\.runner == 'ubuntu-24\.04'\) && !inputs\.edge_driver_proof \}\}/u,
   );
-  assert.match(block, /runs-on: ubuntu-22\.04/u);
+  assert.match(block, /runs-on: \$\{\{ inputs\.runner \}\}/u);
   assert.doesNotMatch(
     block,
     /VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE|--features|secrets\.|continue-on-error|sysctl|apparmor_parser/u,
@@ -554,13 +554,55 @@ void test("EdgeDriver trust proof is manual, isolated, and does not launch the a
   );
 });
 
+void test("ordinary AppImage observations use restored source and default production configuration", async () => {
+  const workflow = await readFile(
+    new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
+    "utf8",
+  );
+  const ordinary = workflow
+    .split(/(?=      - name:)/u)
+    .find((step) =>
+      step.startsWith("      - name: Prove ordinary default-feature AppImage startup and IPC"),
+    );
+  assert.ok(ordinary);
+  assert.match(ordinary, /if: runner\.os == 'Linux'/u);
+  assert.match(
+    ordinary,
+    /git diff --exit-code HEAD -- Cargo\.toml Cargo\.lock apps\/desktop\/package\.json apps\/desktop\/src-tauri\/tauri\.conf\.json/u,
+  );
+  assert.match(
+    ordinary,
+    /node scripts\/run-rust-tests\.mts --guard-command pnpm --dir apps\/desktop tauri build --bundles appimage --ci/u,
+  );
+  assert.doesNotMatch(ordinary, /--features|--config|native-linux-packaged-webview-boundary/u);
+  for (const variable of [
+    "TAURI_CONFIG",
+    "TAURI_SIGNING_PRIVATE_KEY",
+    "TAURI_SIGNING_PRIVATE_KEY_PATH",
+    "APPIMAGE_EXTRACT_AND_RUN",
+  ]) {
+    assert.ok(ordinary.includes(`test -z "\${${variable}:-}"`));
+  }
+  assert.match(ordinary, /--app "\$ordinary\/Portcove\.AppImage"/u);
+  assert.match(ordinary, /--scenario native-error-recovery/u);
+  for (const artifact of [
+    "Portcove.AppImage",
+    "artifact.sha256",
+    "native/*.json",
+    "native/*.png",
+    "native/*.log",
+  ]) {
+    assert.ok(workflow.includes(`work/updater-rehearsal/ordinary-appimage/${artifact}`));
+  }
+});
+
 void test("native design compatibility remains explicit, isolated, and non-publishing", () => {
   assert.match(nativeDesignCompatibilityWorkflow, /^ {2}workflow_dispatch:$/m);
   assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /^ {2}(pull_request|push|schedule):/m);
   assert.match(nativeDesignCompatibilityWorkflow, /^permissions:\r?\n {2}contents: read$/m);
   assert.match(
     nativeDesignCompatibilityWorkflow,
-    /options:\r?\n {10}- ubuntu-22\.04\r?\n {10}- macos-15\r?\n {10}- macos-15-intel/,
+    /options:\r?\n {10}- ubuntu-22\.04\r?\n {10}- ubuntu-24\.04\r?\n {10}- macos-15\r?\n {10}- macos-15-intel/,
   );
   assert.match(nativeDesignCompatibilityWorkflow, /--scenario native-design-system-compatibility/);
   assert.match(nativeDesignCompatibilityWorkflow, /test:desktop \\\r?\n {14}--app/);
@@ -914,7 +956,7 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   );
   assert.match(
     updaterRehearsal,
-    /linux_runner:\r?\n\s+description: [^\r\n]+\r?\n\s+type: choice\r?\n\s+default: ubuntu-22\.04\r?\n\s+options: \[ubuntu-22\.04, ubuntu-24\.04\]/,
+    /linux_runner:\r?\n\s+description: [^\r\n]+\r?\n\s+type: choice\r?\n\s+default: ubuntu-24\.04\r?\n\s+options: \[ubuntu-22\.04, ubuntu-24\.04\]/,
   );
   assert.match(
     updaterRehearsal,

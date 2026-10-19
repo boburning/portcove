@@ -86,6 +86,7 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
         .values()
         .map(|recipe| match recipe {
             crate::CartridgeBuildRecipe::YoshisCookieNesCycle110 => 6,
+            crate::CartridgeBuildRecipe::DrMarioNesCycle130Usa => 7,
         })
         .max()
     {

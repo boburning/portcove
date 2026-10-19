@@ -182,6 +182,8 @@ impl crate::application_update_host::InstalledApplicationContextSource
                 error.to_string(),
             )
         })?;
+        crate::runtime_support::check()
+            .map_err(crate::application_update::InstalledApplicationContextError::Unavailable)?;
         windows_nsis_context_for_version(env!("CARGO_PKG_VERSION")).map_err(|error| {
             crate::application_update::InstalledApplicationContextError::Unavailable(
                 error.to_string(),
@@ -556,6 +558,7 @@ pub fn reconcile_windows_application_update(
 #[cfg(windows)]
 pub fn current_windows_installed_application_context()
 -> Result<InstalledApplicationContext, WindowsApplicationUpdateError> {
+    crate::runtime_support::check().map_err(WindowsApplicationUpdateError::InstalledContext)?;
     let current_executable = std::env::current_exe()?;
     let registrations = inventory_portcove_registrations()?;
     evaluate_windows_nsis_installation(

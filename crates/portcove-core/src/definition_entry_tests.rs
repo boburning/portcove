@@ -144,6 +144,7 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             .values()
             .map(|recipe| match recipe {
                 crate::CartridgeBuildRecipe::YoshisCookieNesCycle110 => 6,
+                crate::CartridgeBuildRecipe::DrMarioNesCycle130Usa => 7,
             })
             .max()
         {

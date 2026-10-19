@@ -33,6 +33,7 @@ on:
         type: choice
         options:
           - ubuntu-22.04
+          - ubuntu-24.04
           - macos-15
           - macos-15-intel
           - windows-2022
@@ -107,6 +108,12 @@ jobs:
           ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver
           version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
           cargo install tauri-driver --locked --version "$version"
+          {
+            uname -m
+            dpkg-query -W -f='${Package}=${Version}\n' libwebkit2gtk-4.1-0 libjavascriptcoregtk-4.1-0
+            pkg-config --modversion webkit2gtk-4.1
+            pkg-config --modversion glib-2.0
+          } > work/native-compatibility-evidence/linux-packages.txt
       - name: Run the existing Linux native harness
         if: runner.os == 'Linux'
         env:
@@ -148,8 +155,8 @@ jobs:
           retention-days: 14
 
   linux_package_boundary:
-    if: ${{ inputs.operation == 'linux-package-boundary' && inputs.runner == 'ubuntu-22.04' && !inputs.edge_driver_proof }}
-    runs-on: ubuntu-22.04
+    if: ${{ inputs.operation == 'linux-package-boundary' && (inputs.runner == 'ubuntu-22.04' || inputs.runner == 'ubuntu-24.04') && !inputs.edge_driver_proof }}
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

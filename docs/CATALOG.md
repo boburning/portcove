@@ -434,8 +434,17 @@ UI and mods are disabled by the recipe, and the common process policy excludes
 inherited developer controls. New fitting consumers require their own reviewed
 source, build and runtime facts; this enum is not a universal NES builder.
 
-Indexed definitions using a managed recipe must require staged-source minimum
-version 6. Versions 1–5 remain advertised. Retained contracts preserve the whole
+Staged-source version 7 adds the fixed `dr-mario-nes-cycle-v1.3.0-usa` recipe.
+It binds the unchanged full Japan/USA Rev1 NES2 original, Dr. Mario v1.3.0 USA
+release input and exact game source. The engine, UI, toolchain and checked patch
+are shared with Yoshi. Its explicit USA region selects `game-usa.toml`, NTSC and
+the pinned `cyc_seeds.txt`; generated cartridge/PRG identities and the separately
+measured 92-object graph must match. Its executable is `DrMarioRecomp.exe`; the
+ordinary argument, environment, persistence and protected-companion contracts
+above are unchanged. Yoshi retains its 101-object graph and storage identity.
+
+Indexed definitions must require minimum version 6 for Yoshi and 7 for Dr. Mario.
+Versions 1–6 remain advertised. Retained contracts preserve the whole
 recipe declaration; older readers that cannot preserve it must refuse the strict
 projection. Newly supplied plain legacy catalogs may discard unknown fields and
 are not a compatible delivery route. Engine capability implementation alone

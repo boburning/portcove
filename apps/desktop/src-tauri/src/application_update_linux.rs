@@ -365,6 +365,7 @@ pub(crate) fn recover_linux_application_update_before_startup(
 pub fn current_linux_appimage_context()
 -> Result<InstalledApplicationContext, LinuxApplicationUpdateError> {
     let _execution = current_linux_appimage_execution()?;
+    crate::runtime_support::check().map_err(LinuxApplicationUpdateError::InstalledContext)?;
     linux_appimage_context_for_version(env!("CARGO_PKG_VERSION"))
 }
 

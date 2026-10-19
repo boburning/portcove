@@ -131,6 +131,47 @@ async function processIdentity(pid: string | number): Promise<ProcessIdentity> {
   return { pid: Number(pid), parent: Number(fields[1]), start_ticks: required(fields[19]) };
 }
 
+export function mappedWebKitLibraries(maps: string): string[] {
+  assert.ok(Buffer.byteLength(maps) <= 4 * 1024 * 1024, "Bounded process mapping evidence");
+  const libraries = [
+    ...new Set(
+      maps.split("\n").flatMap((line) => {
+        const file = line.match(/\/.*$/u)?.[0];
+        if (!file || !/\/lib(?:webkit2gtk-4\.1|javascriptcoregtk-4\.1|glib-2\.0)\.so\./u.test(file))
+          return [];
+        assert.ok(
+          !file.endsWith(" (deleted)"),
+          "A deleted engine mapping cannot establish current bytes",
+        );
+        return [file];
+      }),
+    ),
+  ].sort();
+  assert.ok(
+    libraries.some((file) => /\/libwebkit2gtk-4\.1\.so\./u.test(file)),
+    "Loaded WebKitGTK library required",
+  );
+  return libraries;
+}
+
+// Read only the already attributed live application. Package-manager versions
+// alone cannot identify libraries bundled and loaded by an AppImage.
+export async function loadedWebKitLibraries(pid: number) {
+  const before = await processIdentity(pid);
+  const libraries = await Promise.all(
+    mappedWebKitLibraries(await readFile(`/proc/${pid}/maps`, "utf8")).map(async (file) => ({
+      path: file,
+      sha256: await sha256(`/proc/${pid}/root${file}`),
+    })),
+  );
+  assert.deepEqual(
+    await processIdentity(pid),
+    before,
+    "Engine evidence process generation changed",
+  );
+  return { process: before, libraries };
+}
+
 async function listenerIdentity(
   { port, launch, app, expectedSha256 }: ListenerOptions,
   deadline: number,
@@ -196,6 +237,7 @@ async function listenerIdentity(
     namespacePids?.length && namespacePids.every((pid) => Number.isSafeInteger(pid) && pid > 0),
   );
   assert.notEqual(namespace, await readlink("/proc/self/ns/pid"));
+  const loaded_engine = await loadedWebKitLibraries(owner.pid);
   assert.deepEqual(await processIdentity(owner.pid), owner, "Listener generation must remain live");
   return {
     ...owner,
@@ -205,6 +247,7 @@ async function listenerIdentity(
     namespace,
     namespaces,
     namespace_pid: required(namespacePids.at(-1)),
+    loaded_engine,
   };
 }
 

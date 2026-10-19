@@ -2301,7 +2301,7 @@ authorized mutations.
 ### Fixed original-driven cartridge builds
 
 The private Core [`cartridge_build`](../crates/portcove-core/src/cartridge_build.rs)
-module owns the checked NES cycle recipe. Catalog data selects a shipped enum;
+module owns the checked NES cycle recipes. Catalog data selects a shipped enum;
 it cannot supply build commands or arbitrary executable identities. The service
 binds the verified original before the installer admits download/build work.
 The recipe reuses bounded archive acquisition/extraction, the common
@@ -2317,7 +2317,13 @@ from reusing the official downloaded executable as a locally built runtime.
 Cancellation acknowledgment does not release the private tree while its worker
 is blocked or a compiler child remains unproven. CLI/Tauri add no recipe runner,
 durable state or alternate acquisition authority. [The catalog contract](CATALOG.md)
-owns the exact source, output, persistence and version-6 compatibility conditions.
+owns the exact source, output, persistence and versioned compatibility conditions.
+Private immutable facts distinguish the Yoshi v1.1.0 and Dr. Mario USA v1.3.0
+recipes, including their separate originals, targets, generated identities and
+measured fixed compile graphs (101 and 92 objects). They share the existing
+build mechanism. Dr. Mario requires staged-source v7; Yoshi retains v6, including
+its original storage tuple and configuration. No catalog-supplied build command
+or arbitrary consumer extension is introduced.
 Source/unit fixtures, a compiler run, game operation acceptance and protected
 production delivery remain separate evidence scopes.
 

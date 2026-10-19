@@ -16,7 +16,7 @@ on:
       linux_runner:
         description: Ubuntu baseline for the installed AppImage rehearsal
         type: choice
-        default: ubuntu-22.04
+        default: ubuntu-24.04
         options: [ubuntu-22.04, ubuntu-24.04]
 
 permissions:
@@ -75,6 +75,18 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/bootstrap-quality-tools.ps1 -Desktop
+      - name: Check Windows updater runtime prerequisite before building fixtures
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $stateJson = node scripts/tool-cache.mts --state
+          if ($LASTEXITCODE -ne 0) { throw 'Could not read provisioned desktop tools' }
+          $actual = [string](($stateJson | ConvertFrom-Json).desktop.webview2_version)
+          $minimum = [string]((Get-Content apps/desktop/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).bundle.windows.minimumWebview2Version)
+          New-Item -ItemType Directory -Path work/updater-prerequisites | Out-Null
+          @{ registered_webview2 = $actual; minimum_webview2 = $minimum; source_commit = '${{ github.sha }}'; observation = 'registered Evergreen runtime; application-selected runtime is recorded separately at launch' } | ConvertTo-Json | Set-Content work/updater-prerequisites/windows-runtime.json
+          if ($actual -notmatch '^\d+\.\d+\.\d+\.\d+$' -or $minimum -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Unknown Windows updater runtime prerequisite' }
+          if ([version]$actual -lt [version]$minimum) { throw "Updater environment has WebView2 $actual; requires $minimum or later. Prepare a supported Evergreen runtime before another rehearsal." }
       - name: Test signature rejection and inventory identity
         run: |
           cargo test --locked -p portcove-release-tools
@@ -94,16 +106,46 @@ jobs:
             pkg-config --modversion webkit2gtk-4.1 || true
             dpkg-query -W -f='${Package} ${Version}\n' libfuse2 libfuse2t64 2>/dev/null || true
           } > work/updater-rehearsal/linux-host-baseline.txt
+      - name: Prove ordinary default-feature AppImage startup and IPC
+        if: runner.os == 'Linux'
+        timeout-minutes: 20
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code HEAD -- Cargo.toml Cargo.lock apps/desktop/package.json apps/desktop/src-tauri/tauri.conf.json
+          test -z "${TAURI_CONFIG:-}"
+          test -z "${TAURI_SIGNING_PRIVATE_KEY:-}"
+          test -z "${TAURI_SIGNING_PRIVATE_KEY_PATH:-}"
+          test -z "${APPIMAGE_EXTRACT_AND_RUN:-}"
+          node scripts/run-rust-tests.mts --guard-command pnpm --dir apps/desktop tauri build --bundles appimage --ci
+          version=$(node scripts/check-release-metadata.mts --print-version)
+          ordinary="$PWD/work/updater-rehearsal/ordinary-appimage"
+          mkdir "$ordinary"
+          install -m 0755 "target/release/bundle/appimage/Portcove_${version}_amd64.AppImage" "$ordinary/Portcove.AppImage"
+          sha256sum "$ordinary/Portcove.AppImage" > "$ordinary/artifact.sha256"
+          xvfb-run -a dbus-run-session -- \
+            pnpm --dir apps/desktop test:desktop \
+              --app "$ordinary/Portcove.AppImage" \
+              --driver "$(command -v tauri-driver)" \
+              --native-driver "$(command -v WebKitWebDriver)" \
+              --output "$ordinary/native" \
+              --scenario native-error-recovery
       - name: Retain bounded rehearsal evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: updater-rehearsal-${{ matrix.label }}
           path: |
+            work/updater-prerequisites/windows-runtime.json
             work/updater-rehearsal/*.json
             work/updater-rehearsal/*.patch
             work/updater-rehearsal/*.pub
             work/updater-rehearsal/linux-host-baseline.txt
+            work/updater-rehearsal/ordinary-appimage/Portcove.AppImage
+            work/updater-rehearsal/ordinary-appimage/artifact.sha256
+            work/updater-rehearsal/ordinary-appimage/native/*.json
+            work/updater-rehearsal/ordinary-appimage/native/*.png
+            work/updater-rehearsal/ordinary-appimage/native/*.log
             work/updater-rehearsal/0.1.0-${{ matrix.label }}/**
             work/updater-rehearsal/0.2.0-${{ matrix.label }}/**
             work/updater-rehearsal/0.3.0-${{ matrix.label }}/**
@@ -117,6 +159,8 @@ jobs:
             work/updater-rehearsal/windows-installed-update-qualification/repository/**
             work/updater-rehearsal/windows-installed-update-qualification/trusted-root.json
             work/updater-rehearsal/installer-test/run-*/installed-update-helper.*.log
+            work/updater-rehearsal/installer-test/run-*/predecessor-smoke.*.log
+            work/updater-rehearsal/installer-test/run-*/candidate-smoke.*.log
             work/updater-rehearsal/installer-test/run-*/installed-update-*-stage.*.log
             work/updater-rehearsal/installer-test/run-*/application-update/worker-stage-error.txt
             work/updater-rehearsal/installer-test/run-*/application-update/workers/revision-*/attempt-*/worker.json
@@ -143,6 +187,8 @@ jobs:
             work/updater-rehearsal/linux-appimage-qualification/application-update-evidence.json
             work/updater-rehearsal/linux-appimage-qualification/inputs/*.json
             work/updater-rehearsal/linux-appimage-qualification/state/application-update-*.json
+            work/updater-rehearsal/linux-appimage-qualification/state/packaged-selection.stderr.log
+            work/updater-rehearsal/linux-appimage-qualification/state/packaged-stage.stderr.log
             work/updater-rehearsal/linux-appimage-qualification/state/packaged-selection-state/trust/*.json
             work/updater-rehearsal/linux-appimage-qualification/state/update-state/*.json
             work/updater-rehearsal/linux-appimage-qualification/state/library/logs/portcove-desktop.jsonl*

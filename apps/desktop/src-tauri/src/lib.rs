@@ -43,6 +43,8 @@ mod library_transfer;
 mod output_location;
 mod preparation;
 mod removal;
+#[cfg(any(windows, target_os = "linux"))]
+mod runtime_support;
 mod source_removal;
 pub mod steam_entries;
 pub mod steam_entry_commands;
@@ -2464,6 +2466,11 @@ pub fn run() -> std::process::ExitCode {
     report_application_update_qualification_stage("runtime lease");
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     recover_application_update_after_interrupted_replacement(&_application_runtime);
+    #[cfg(any(windows, target_os = "linux"))]
+    if let Err(message) = runtime_support::check() {
+        runtime_support::report_failure(&message);
+        return std::process::ExitCode::FAILURE;
+    }
     let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
         .map(PathBuf::from);

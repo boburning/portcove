@@ -42,11 +42,17 @@ This primitive supplies no title, package, generated-output or native acceptance
 
 Staged-source portable version 6 implements the fixed Core-owned
 `release.managed_build` original-driven cartridge recipe described in
-[the catalog contract](CATALOG.md). An indexed entry using that field must require
+[the catalog contract](CATALOG.md). An indexed Yoshi entry must require
 minimum version 6; a window admitting older engines is refused. Versions 1–5
 remain available. Full recipe retention, source/tool/output checks and the
 ordinary lifecycle remain necessary after negotiation. This adds no definition
 publisher, signing or protected delivery authority.
+
+Staged-source portable version 7 adds the fixed Dr. Mario USA v1.3.0 cartridge
+recipe. Its indexed entry must require minimum version 7; admitting v6 engines
+is refused. Yoshi's existing recipe continues to require version 6, and versions
+1–6 remain supported by the new client. Negotiation is not recipe execution,
+title admission, source permission or protected publication acceptance.
 
 API schema 45 exposes the inventory as `capabilities.engine_templates`. The CLI
 `catalog check-capabilities <file>` and Tauri `check_definition_capabilities`

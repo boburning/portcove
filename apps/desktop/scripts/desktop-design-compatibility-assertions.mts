@@ -215,9 +215,9 @@ export async function assertDesignCompatibility({
     "the dialog remains centered in right-to-left direction",
   );
   const selectTrigger = await browser.findElement(By.id("fixture-channel"));
-  const sendEscape = embeddedMacKeyboard
-    ? () => browser.actions().sendKeys(Key.ESCAPE).perform()
-    : () => selectTrigger.sendKeys(Key.ESCAPE);
+  // Element sendKeys refocuses the trigger and dismisses an aligned open Select.
+  // Deliver Escape to the current popup focus, as a keyboard user does.
+  const sendEscape = () => browser.actions().sendKeys(Key.ESCAPE).perform();
   if (embeddedMacKeyboard) {
     // The qualification-only embedded driver focuses buttons for element sendKeys
     // but dispatches key events through WebDriver actions.

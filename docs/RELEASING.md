@@ -62,6 +62,12 @@ Tauri v2 updater artifacts, current-user NSIS with passive updater installation,
 and ad-hoc macOS signing. Ordinary configuration still disables updater artifacts;
 no endpoint, runtime updater plugin, or production key is installed by this overlay.
 An updater signature is distinct from Authenticode, notarization, and catalog trust.
+The Windows overlay keeps an explicit `bundle.windows.nsis` options object.
+With the pinned Tauri CLI 2.12.2, the [versioned NSIS bundler](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.12.2/crates/tauri-bundler/src/bundle/windows/nsis/mod.rs#L345-L417)
+reads the generic WebView2 minimum only inside that options branch. A null
+NSIS configuration silently omits it. Inspect the generated `installer.nsi`:
+`MINIMUMWEBVIEW2VERSION` must equal the declared engine floor; an empty value
+does not establish the installer's minimum-runtime update behavior.
 Tauri's bundler requires the corresponding public key in its merged updater
 configuration. The rehearsal creates a temporary copy of the overlay containing
 its disposable public key; a bare overlay without that key deliberately cannot
@@ -75,11 +81,17 @@ package for the selected fixture transition: `legacy-adjacent` uses 0.1.0 to
 same installed-app selection, staging, replacement and restart path. The default
 remains `legacy-skipped`; choosing a profile is not evidence it passed.
 It checks native package versions and
-executable permissions. The Linux job defaults to Ubuntu 22.04; the dispatch-only
-`linux_runner` choice can run the same installed AppImage path on Ubuntu 24.04.
+executable permissions. The Linux job defaults to the approved Ubuntu 24.04
+support environment; `linux_runner` retains Ubuntu 22.04 for scoped diagnostic
+observations, which cannot qualify the supported minimum.
 Its retained host baseline records the actual OS, kernel, glibc, WebKitGTK and
-FUSE package versions. This choice does not change the production Linux support
-floor or establish Steam Deck compatibility. Windows builds a disposable
+FUSE package versions. Production Linux bundles are produced on Ubuntu 24.04 so
+the AppImage does not inherit the older Jammy WebKit engine. Compilation-only
+Ubuntu 22.04 checks remain separate. Inspect the distributed AppImage's actual
+loaded libraries; the host's installed package version alone is insufficient.
+The [design-system support policy](DESIGN-SYSTEM.md#compatibility-and-qualification-boundary)
+and #993 own the exact engine floor and still-required minimum observations.
+No Steam Deck compatibility follows. Windows builds a disposable
 test-signed TUF repository,
 embeds its public trust and local repository URLs in a qualification-only
 predecessor NSIS package, and uses the installed predecessor to select the signed
@@ -186,7 +198,7 @@ distribution compatibility, Steam Deck behavior, every interruption phase, or th
 remaining distro evidence tracked by the live roadmap issue.
 
 The manual **Linux package ownership rehearsal** is the smaller DEB/RPM companion.
-It builds only those two native packages on Ubuntu 22.04, then verifies DEB through
+It builds only those two native packages on Ubuntu 24.04, then verifies DEB through
 Ubuntu's package database and RPM through a Fedora container's native DNF transaction
 and RPM database. Each installed desktop executable runs the GUI-independent
 eligibility inspection with no display. The run requires format-specific guidance

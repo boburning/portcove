@@ -478,9 +478,10 @@ try {
     Remove-Item Env:APPIMAGE_EXTRACT_AND_RUN -ErrorAction SilentlyContinue
     $selectionState = Join-Path $state "packaged-selection-state"
     $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $selectionState
-    $packagedSelectionOutput = & $stable --portcove-qualify-update-selection 2>&1 | Out-String
+    $selectionStderr = Join-Path $state "packaged-selection.stderr.log"
+    $packagedSelectionOutput = & $stable --portcove-qualify-update-selection 2> $selectionStderr | Out-String
     $evidence.packaged_selection.exit_code = $LASTEXITCODE
-    if ($LASTEXITCODE -ne 0) { throw "Installed AppImage selection failed: $packagedSelectionOutput" }
+    if ($LASTEXITCODE -ne 0) { throw "Installed AppImage selection failed: $packagedSelectionOutput $([IO.File]::ReadAllText($selectionStderr))" }
     $packagedSelection = $packagedSelectionOutput.Trim() | ConvertFrom-Json
     if ($packagedSelection.state -ne "update-available" -or
         $packagedSelection.version -ne $CandidateVersion -or
@@ -591,8 +592,9 @@ try {
     $evidence.truncated_payload_data_preserved = $true
     Write-Evidence "truncated-payload-rejected"
 
-    $stageOutput = & $stable --portcove-qualify-update-stage $candidate 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) { throw "Installed AppImage staging failed: $stageOutput" }
+    $stageStderr = Join-Path $state "packaged-stage.stderr.log"
+    $stageOutput = & $stable --portcove-qualify-update-stage $candidate 2> $stageStderr | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Installed AppImage staging failed: $stageOutput $([IO.File]::ReadAllText($stageStderr))" }
     $installedStage = $stageOutput.Trim() | ConvertFrom-Json
     if ($installedStage.version -ne $CandidateVersion -or $installedStage.sha256 -ne $candidateHash -or
         $installedStage.bytes -ne $candidateBytes) {
