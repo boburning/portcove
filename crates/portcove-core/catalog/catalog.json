@@ -9886,6 +9886,7 @@
         "oot-mq.o2r"
       ],
       "presentation": {
+        "original_game_title": "The Legend of Zelda: Ocarina of Time",
         "installation_method": "portable-package",
         "artwork": {
           "game_id": 194694,
@@ -9973,6 +9974,7 @@
         "logs/2 Ship 2 Harkinian.10.log"
       ],
       "presentation": {
+        "original_game_title": "The Legend of Zelda: Majora's Mask",
         "installation_method": "portable-package",
         "source_requirements": [
           {
@@ -10074,6 +10076,7 @@
         "controllerPak_file_15.sav"
       ],
       "presentation": {
+        "original_game_title": "Mario Kart 64",
         "installation_method": "portable-package",
         "source_requirements": [
           {
@@ -10151,6 +10154,7 @@
         "logs/Ghostship.10.log"
       ],
       "presentation": {
+        "original_game_title": "Super Mario 64",
         "installation_method": "portable-package",
         "source_requirements": [
           {
@@ -10232,6 +10236,7 @@
         "logs"
       ],
       "presentation": {
+        "original_game_title": "Paper Mario",
         "installation_method": "generated-game-data",
         "source_requirements": [
           {
@@ -10292,6 +10297,7 @@
         "config.json"
       ],
       "presentation": {
+        "original_game_title": "Star Fox 64",
         "installation_method": "portable-package",
         "source_requirements": [
           {
@@ -10362,6 +10368,7 @@
         "bk.o2r"
       ],
       "presentation": {
+        "original_game_title": "Banjo-Kazooie",
         "installation_method": "portable-package",
         "source_requirements": [
           {
@@ -10428,6 +10435,7 @@
         "states.json"
       ],
       "presentation": {
+        "original_game_title": "The Legend of Zelda: Twilight Princess",
         "installation_method": "referenced-disc",
         "source_requirements": [
           {
@@ -10511,6 +10519,7 @@
       ],
       "runtime_source_filename": "mm.n64.us.1.0.z64",
       "presentation": {
+        "original_game_title": "The Legend of Zelda: Majora's Mask",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -10594,6 +10603,7 @@
       ],
       "runtime_source_filename": "bk.n64.us.1.0.z64",
       "presentation": {
+        "original_game_title": "Banjo-Kazooie",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -10669,6 +10679,7 @@
       ],
       "runtime_source_filename": "bm64_us.z64",
       "presentation": {
+        "original_game_title": "Bomberman 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -10752,6 +10763,7 @@
       ],
       "runtime_source_filename": "harvest_moon_64.z64",
       "presentation": {
+        "original_game_title": "Harvest Moon 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -10823,6 +10835,8 @@
       ],
       "runtime_source_filename": "dino.z64",
       "presentation": {
+        "original_game_title": "Dinosaur Planet",
+        "variant_label": "December 2000 prototype",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -10890,6 +10904,7 @@
         "dkr-runtime-data"
       ],
       "presentation": {
+        "original_game_title": "Diddy Kong Racing",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -10970,6 +10985,7 @@
       ],
       "runtime_source_filename": "DK64.z64",
       "presentation": {
+        "original_game_title": "Donkey Kong 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -11044,6 +11060,7 @@
       ],
       "runtime_source_filename": "Automobili Lamborghini (USA).z64",
       "presentation": {
+        "original_game_title": "Automobili Lamborghini",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -11115,6 +11132,7 @@
       ],
       "runtime_source_filename": "AeroGauge (USA).z64",
       "presentation": {
+        "original_game_title": "AeroGauge",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -11209,6 +11227,7 @@
       "portable_marker": true,
       "runtime_source_filename": "extremeg.us.z64",
       "presentation": {
+        "original_game_title": "Extreme-G",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -11295,6 +11314,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Bomberman Fantasy Race",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -11389,6 +11409,7 @@
         "psx_last_run_report.json"
       ],
       "presentation": {
+        "original_game_title": "Bomberman Party Edition",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -11475,6 +11496,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Bomberman World",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -11574,6 +11596,8 @@
         "--no-launcher"
       ],
       "presentation": {
+        "original_game_title": "Final Fantasy VII",
+        "variant_label": "PlayStation",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -11660,6 +11684,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Klonoa: Door to Phantomile",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -11746,6 +11771,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Legend of Mana",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -11832,6 +11858,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Marvel vs. Capcom: Clash of Super Heroes",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -11918,6 +11945,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Star Wars: Masters of Teräs Käsi",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12004,6 +12032,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Metal Slug X",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12091,6 +12120,8 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Mortal Kombat 4",
+        "variant_label": "PlayStation",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12183,6 +12214,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Rampage Through Time",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12269,6 +12301,8 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Star Wars: Episode I – Jedi Power Battles",
+        "variant_label": "PlayStation",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12355,6 +12389,8 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Street Fighter Alpha 3",
+        "variant_label": "PlayStation",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12441,6 +12477,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Tomba!",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12525,6 +12562,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Twisted Metal 4",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12596,6 +12634,7 @@
         "PSX_PORTABLE": "1"
       },
       "presentation": {
+        "original_game_title": "Yu-Gi-Oh! Forbidden Memories",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12663,6 +12702,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Revelations: Persona",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12735,6 +12775,7 @@
       "runtime_subdirectory": "BeetleRecomp-Windows-x64",
       "runtime_source_filename": "bar.n64.us.z64",
       "presentation": {
+        "original_game_title": "Beetle Adventure Racing!",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -12806,6 +12847,7 @@
       ],
       "runtime_source_filename": "quest64_us.z64",
       "presentation": {
+        "original_game_title": "Quest 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -12878,6 +12920,7 @@
       ],
       "runtime_source_filename": "wcw.nwo.worldtour.us.z64",
       "presentation": {
+        "original_game_title": "WCW vs. nWo: World Tour",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -12950,6 +12993,7 @@
       ],
       "runtime_source_filename": "vpw.vpw64.jp.z64",
       "presentation": {
+        "original_game_title": "Virtual Pro Wrestling 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13022,6 +13066,7 @@
       ],
       "runtime_source_filename": "wcw.nwo.revenge.us.z64",
       "presentation": {
+        "original_game_title": "WCW/nWo Revenge",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13094,6 +13139,7 @@
       ],
       "runtime_source_filename": "wwf.wm2k.us.z64",
       "presentation": {
+        "original_game_title": "WWF WrestleMania 2000",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13160,6 +13206,7 @@
       ],
       "runtime_source_filename": "vpw.vpw2.jp.z64",
       "presentation": {
+        "original_game_title": "Virtual Pro Wrestling 2",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13232,6 +13279,7 @@
       ],
       "runtime_source_filename": "wwf.nomercy.us.z64",
       "presentation": {
+        "original_game_title": "WWF No Mercy",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13310,6 +13358,7 @@
       ],
       "runtime_source_filename": "megaman.n64.us.1.0.z64",
       "presentation": {
+        "original_game_title": "Mega Man 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13384,6 +13433,7 @@
         "drmario64.us.z64"
       ],
       "presentation": {
+        "original_game_title": "Dr. Mario 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13469,6 +13519,8 @@
         "options.lua"
       ],
       "presentation": {
+        "original_game_title": "Pokémon Red",
+        "variant_label": "US edition",
         "installation_method": "generated-game-data",
         "source_requirements": [
           {
@@ -13549,6 +13601,7 @@
         "crash.txt"
       ],
       "presentation": {
+        "original_game_title": "Pokémon Gold",
         "installation_method": "generated-game-data",
         "source_requirements": [
           {
@@ -13629,6 +13682,7 @@
         "crash.txt"
       ],
       "presentation": {
+        "original_game_title": "Pokémon Silver",
         "installation_method": "generated-game-data",
         "source_requirements": [
           {
@@ -13709,6 +13763,7 @@
         "crash.txt"
       ],
       "presentation": {
+        "original_game_title": "Pokémon Crystal",
         "installation_method": "generated-game-data",
         "source_requirements": [
           {
@@ -13779,6 +13834,8 @@
         "REX_GAME_DATA_ROOT": "assets"
       },
       "presentation": {
+        "original_game_title": "Castlevania: Symphony of the Night",
+        "variant_label": "Xbox Live Arcade",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -13829,6 +13886,7 @@
         "config"
       ],
       "presentation": {
+        "original_game_title": "Blue Dragon",
         "installation_method": "generated-game-data",
         "source_requirements": [
           {
@@ -13904,6 +13962,7 @@
       ],
       "runtime_source_filename": "bmhero.z64",
       "presentation": {
+        "original_game_title": "Bomberman Hero",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13982,6 +14041,7 @@
       ],
       "runtime_source_filename": "snowboardkids2.n64.us.z64",
       "presentation": {
+        "original_game_title": "Snowboard Kids 2",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -14055,6 +14115,7 @@
         "troublemakers.n64.us.1.z64"
       ],
       "presentation": {
+        "original_game_title": "Mischief Makers",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -14130,6 +14191,7 @@
       ],
       "runtime_source_filename": "mnsg.us.z64",
       "presentation": {
+        "original_game_title": "Mystical Ninja Starring Goemon",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -14205,6 +14267,7 @@
       ],
       "runtime_source_filename": "data/pd.ntsc-final.z64",
       "presentation": {
+        "original_game_title": "Perfect Dark",
         "installation_method": "generated-game-data",
         "source_requirements": [
           {
@@ -14298,6 +14361,7 @@
         "sound.json.bak"
       ],
       "presentation": {
+        "original_game_title": "Space Station Silicon Valley",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -14360,6 +14424,7 @@
         "texture_pack"
       ],
       "presentation": {
+        "original_game_title": "Animal Crossing",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -14470,6 +14535,7 @@
         }
       ],
       "presentation": {
+        "original_game_title": "The Legend of Zelda: The Minish Cap",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -14550,6 +14616,7 @@
         "screenshots"
       ],
       "presentation": {
+        "original_game_title": "Super Smash Bros.",
         "installation_method": "portable-package",
         "source_requirements": [
           {
@@ -14643,6 +14710,8 @@
         "screenshots"
       ],
       "presentation": {
+        "original_game_title": "F-Zero X",
+        "variant_label": "Expansion Kit",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -14780,6 +14849,7 @@
         "debug-updater.log"
       ],
       "presentation": {
+        "original_game_title": "The Legend of Dragoon",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -14844,6 +14914,7 @@
         "library"
       ],
       "presentation": {
+        "original_game_title": "Spyro the Dragon",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -14962,6 +15033,7 @@
         "data/out"
       ],
       "presentation": {
+        "original_game_title": "Jak and Daxter: The Precursor Legacy",
         "installation_method": "upstream-setup",
         "source_requirements": [
           {
@@ -15080,6 +15152,7 @@
         "data/out"
       ],
       "presentation": {
+        "original_game_title": "Jak II",
         "installation_method": "upstream-setup",
         "source_requirements": [
           {
@@ -15198,6 +15271,7 @@
         "data/out"
       ],
       "presentation": {
+        "original_game_title": "Jak 3",
         "installation_method": "upstream-setup",
         "source_requirements": [
           {
@@ -15282,6 +15356,7 @@
         "psx_last_run_report.json"
       ],
       "presentation": {
+        "original_game_title": "Mega Man X6",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -15342,6 +15417,7 @@
         "Paper Mario ReCut/user"
       ],
       "presentation": {
+        "original_game_title": "Paper Mario",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -15415,6 +15491,7 @@
       "runtime_source_filename": "pokemonsnap.z64",
       "runtime_source_materialization": "n64-big-endian",
       "presentation": {
+        "original_game_title": "Pokémon Snap",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -15498,6 +15575,7 @@
       "runtime_source_filename": "rom.z64",
       "runtime_source_materialization": "n64-big-endian",
       "presentation": {
+        "original_game_title": "Castlevania: Legacy of Darkness",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -15572,6 +15650,7 @@
         "dkr-v80.z64"
       ],
       "presentation": {
+        "original_game_title": "Diddy Kong Racing",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -15636,6 +15715,8 @@
       ],
       "source_environment": "STARFOX_RETAIL_ROM",
       "presentation": {
+        "original_game_title": "Star Fox",
+        "variant_label": "SNES",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -15706,6 +15787,7 @@
       "runtime_source_filename": "dnzh.us.z64",
       "runtime_source_materialization": "n64-big-endian",
       "presentation": {
+        "original_game_title": "Duke Nukem: Zero Hour",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -15797,6 +15879,7 @@
         "disc1.bin": "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a"
       },
       "presentation": {
+        "original_game_title": "Ape Escape",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -15888,6 +15971,7 @@
         "disc1.bin": "be731bc4b9d3211b9267a34b8a68c769199a15479b14004ff25b67cdfebe8af4"
       },
       "presentation": {
+        "original_game_title": "Mega Man X5",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -15964,6 +16048,7 @@
         "pikmin_settings.conf"
       ],
       "presentation": {
+        "original_game_title": "Pikmin",
         "installation_method": "upstream-setup",
         "source_requirements": [
           {
@@ -16041,6 +16126,7 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Wave Race 64",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -16105,6 +16191,7 @@
         "--launch"
       ],
       "presentation": {
+        "original_game_title": "Wave Race 64",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -16172,6 +16259,8 @@
         ]
       },
       "presentation": {
+        "original_game_title": "F-Zero",
+        "variant_label": "SNES",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -16279,6 +16368,7 @@
         "traffic-events.log"
       ],
       "presentation": {
+        "original_game_title": "Road Rash 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -16346,6 +16436,7 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Donkey Kong Country 3: Dixie Kong's Double Trouble!",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -16438,6 +16529,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Ape Escape",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -16527,6 +16619,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Alundra",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -16616,6 +16709,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Armored Core",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -16705,6 +16799,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Blood Omen: Legacy of Kain",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -16794,6 +16889,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Digimon World 2003",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -16875,6 +16971,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Duke Nukem: Land of the Babes",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -16964,6 +17061,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Driver",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17053,6 +17151,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Duke Nukem: Time to Kill",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17142,6 +17241,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Fade to Black",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17240,6 +17340,8 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Diablo",
+        "variant_label": "PlayStation",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17344,6 +17446,8 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Ace Combat 3: Electrosphere",
+        "variant_label": "Japan · two discs",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17451,6 +17555,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Dino Crisis",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17564,6 +17669,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Dino Crisis 2",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17677,6 +17783,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Alien Resurrection",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17790,6 +17897,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Brave Fencer Musashi",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17865,6 +17973,7 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Super Mario World",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -17940,6 +18049,7 @@
         ]
       },
       "presentation": {
+        "original_game_title": "The Legend of Zelda: A Link to the Past",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -18026,6 +18136,7 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Sonic the Hedgehog",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -18102,6 +18213,8 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Star Wars: Dark Forces",
+        "variant_label": "PC",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -18188,6 +18301,7 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Sonic the Hedgehog 2",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -18271,6 +18385,8 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Sonic 3 & Knuckles",
+        "variant_label": "Combined Sonic 3 + Sonic & Knuckles",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -18330,6 +18446,7 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Yoshi's Cookie",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -18394,6 +18511,8 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Dr. Mario",
+        "variant_label": "NES",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -18493,6 +18612,7 @@
         }
       ],
       "presentation": {
+        "original_game_title": "Super Metroid",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -18575,6 +18695,7 @@
         }
       ],
       "presentation": {
+        "original_game_title": "Mega Man X2",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -18637,6 +18758,7 @@
       ],
       "persistent_paths": [],
       "presentation": {
+        "original_game_title": "Resident Evil Gaiden",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {

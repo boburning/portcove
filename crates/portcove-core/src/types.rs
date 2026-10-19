@@ -183,6 +183,12 @@ pub enum SavesAndSettingsBehavior {
 /// documents may omit this object; current embedded definitions provide it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PortPresentation {
+    /// Descriptive display metadata only. This never replaces the port, source,
+    /// release or library identity, and does not group different implementations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_game_title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variant_label: Option<String>,
     pub installation_method: InstallationMethod,
     pub source_requirements: Vec<SourceRequirementPresentation>,
     pub saves_and_settings: SavesAndSettingsBehavior,

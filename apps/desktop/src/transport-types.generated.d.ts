@@ -1319,8 +1319,14 @@ export interface PortPresentation {
   artwork?: IgdbArtwork | null;
   installation_method: InstallationMethod;
   manual_preparation?: string | null;
+  /**
+   * Descriptive display metadata only. This never replaces the port, source,
+   * release or library identity, and does not group different implementations.
+   */
+  original_game_title?: string | null;
   saves_and_settings: SavesAndSettingsBehavior;
   source_requirements: SourceRequirementPresentation[];
+  variant_label?: string | null;
   [k: string]: unknown;
 }
 export interface SourceRequirementPresentation {

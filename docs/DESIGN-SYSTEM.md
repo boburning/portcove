@@ -293,7 +293,14 @@ reference composition's fixed frame width or column count is not a window rule.
 The collection now caps at 66.5rem so the 1600x1000 reference retains five
 approximately 200x300 artwork frames, while the actual desktop shell reflows to
 four columns at 1280x800 and three at 960x640. Title space reserves three lines;
-long titles retain their complete accessible name and detail destination, and
+the recognizable original-game title leads. A separate one-line project row
+follows it and precedes status. Relevant variants remain visible as wrapping
+labels in the state area, with the full identity in the accessible card name
+and details. Named collection-container queries expand text when its available
+width is below 60rem, including enlarged root text, without changing
+the artwork frame. Search matches the game, project, variant and stable port ID;
+name sorting uses the game title. Matching game titles never combine cards.
+Long titles retain their complete accessible name and detail destination, and
 expand at narrower viewports. Library titles open details. The footer keeps the
 current Play/trial action or Review game alongside Favorite and the bounded menu;
 it does not repeat a separate Details action. Detailed input reasons remain

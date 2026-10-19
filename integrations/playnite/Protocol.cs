@@ -679,7 +679,7 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 69;
+        internal const int Schema = 70;
         private static bool SupportedSchema(long version) => (version >= 42 && version <= 57) || (version >= 60 && version <= 63) || (version >= 65 && version <= Schema);
         internal static bool SupportsReviewedExternal(object capabilities) =>
             Json.Number(capabilities, "schema_version") >= 67 &&

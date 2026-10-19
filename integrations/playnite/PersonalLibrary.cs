@@ -1,6 +1,7 @@
 using Playnite.SDK.Models;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace Portcove.ReferenceClient
@@ -14,6 +15,10 @@ namespace Portcove.ReferenceClient
         internal string LibraryId { get; set; }
         internal string GameId => Identity.Game(LibraryId, PortId);
         internal bool IsInstalled => Installation != null;
+
+        internal bool MatchesSearch(string query) => string.IsNullOrEmpty(query) ||
+            CultureInfo.CurrentCulture.CompareInfo.IndexOf(Name, query, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0 ||
+            PortId.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
 
         internal GameMetadata Metadata() => new GameMetadata
         {
@@ -44,13 +49,36 @@ namespace Portcove.ReferenceClient
                 result.Add(new PortcoveCatalogGame
                 {
                     PortId = portId,
-                    Name = Json.Text(port, "name"),
+                    Name = DisplayName(port),
                     Summary = Json.Text(port, "summary"),
                     Installation = StatusInstallation.Current(status),
                     LibraryId = libraryId
                 });
             }
             return result;
+        }
+
+        // Presentation changes never replace the library/port identity or merge
+        // independent implementations. Include the project to disambiguate them.
+        private static string DisplayName(object port)
+        {
+            var project = Json.Text(port, "name");
+            object presentation;
+            if (!Json.TryField(port, "presentation", out presentation) || presentation == null) return project;
+            var title = DisplayText(presentation, "original_game_title") ?? project;
+            var variant = DisplayText(presentation, "variant_label");
+            var label = title == project ? title : title + " (" + project + ")";
+            return variant == null ? label : label + " · " + variant;
+        }
+
+        private static string DisplayText(object presentation, string key)
+        {
+            object value;
+            if (!Json.TryField(presentation, key, out value) || value == null) return null;
+            var text = value as string;
+            if (string.IsNullOrWhiteSpace(text) || text.Trim() != text || text.Any(char.IsControl))
+                throw new InvalidOperationException("Portcove catalog presentation contains invalid " + key + ". Refresh the catalog.");
+            return text;
         }
 
         internal static IReadOnlyList<PortcoveCatalogGame> Default(

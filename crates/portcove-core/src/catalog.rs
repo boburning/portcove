@@ -478,6 +478,21 @@ impl Catalog {
                 }
             }
             if let Some(presentation) = &port.presentation {
+                for (name, value) in [
+                    ("original game title", &presentation.original_game_title),
+                    ("variant label", &presentation.variant_label),
+                ] {
+                    if value.as_ref().is_some_and(|value| {
+                        value.trim().is_empty()
+                            || value.trim() != value
+                            || value.chars().any(char::is_control)
+                    }) {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has an invalid presentation {name}",
+                            port.id
+                        )));
+                    }
+                }
                 if let Some(artwork) = &presentation.artwork
                     && (artwork.game_id == 0
                         || artwork.cover_id == 0
@@ -2245,6 +2260,85 @@ mod tests {
                         + usize::from(port.bios_source_profile.is_some())
             })
         }));
+    }
+
+    #[test]
+    fn game_titles_describe_ports_without_combining_their_identities() {
+        let catalog = Catalog::embedded().unwrap();
+        assert!(catalog.ports().iter().all(|port| {
+            port.presentation
+                .as_ref()
+                .and_then(|presentation| presentation.original_game_title.as_ref())
+                .is_some_and(|title| !title.is_empty())
+        }));
+        let majora = catalog
+            .ports()
+            .iter()
+            .filter(|port| {
+                port.presentation
+                    .as_ref()
+                    .unwrap()
+                    .original_game_title
+                    .as_deref()
+                    == Some("The Legend of Zelda: Majora's Mask")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(majora.len(), 2);
+        assert_ne!(majora[0].id, majora[1].id);
+        assert_ne!(majora[0].name, majora[1].name);
+        let red = catalog
+            .ports()
+            .iter()
+            .find(|port| port.id == "gen1recomp")
+            .unwrap();
+        assert_eq!(
+            red.presentation
+                .as_ref()
+                .unwrap()
+                .original_game_title
+                .as_deref(),
+            Some("Pokémon Red")
+        );
+        assert_eq!(
+            red.presentation.as_ref().unwrap().variant_label.as_deref(),
+            Some("US edition")
+        );
+    }
+
+    #[test]
+    fn older_catalog_presentation_can_omit_game_title_metadata() {
+        let mut document: serde_json::Value =
+            serde_json::from_str(include_str!("../catalog/catalog.json")).unwrap();
+        for port in document["ports"].as_array_mut().unwrap() {
+            let presentation = port["presentation"].as_object_mut().unwrap();
+            presentation.remove("original_game_title");
+            presentation.remove("variant_label");
+        }
+        let catalog = Catalog::from_json(&document.to_string()).unwrap();
+        assert!(catalog.ports().iter().all(|port| {
+            port.presentation
+                .as_ref()
+                .unwrap()
+                .original_game_title
+                .is_none()
+        }));
+    }
+
+    #[test]
+    fn game_title_metadata_rejects_blank_padded_and_control_text() {
+        let original: serde_json::Value =
+            serde_json::from_str(include_str!("../catalog/catalog.json")).unwrap();
+        for field in ["original_game_title", "variant_label"] {
+            for value in ["", " ", " Padded", "Padded ", "Two\nlines", "Control\0text"] {
+                let mut document = original.clone();
+                document["ports"][0]["presentation"][field] = value.into();
+                let error = Catalog::from_json(&document.to_string()).unwrap_err();
+                assert!(
+                    error.message.contains("invalid presentation"),
+                    "{field}: {value:?}"
+                );
+            }
+        }
     }
 
     #[test]

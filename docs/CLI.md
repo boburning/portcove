@@ -189,6 +189,13 @@ the outside runtime or grant ownership of it. On another host or after moving
 the external folder, prepare and register it again against an accepted catalog
 entry.
 
+Schema 70 adds optional catalog presentation `original_game_title` and
+`variant_label`. These are descriptive labels: `name` remains the port project's
+name, and `id`, source contracts, installations and launch authority are unchanged.
+Clients may ignore these additive display fields; a game-led client should search
+both game and project names and keep alternative projects as distinct entries.
+Older catalog and retained definitions may omit either label.
+
 Schema 69 adds optional readiness `source_assessment` and `bios_assessment`,
 plus the `incompatible_bios` blocker/action reason. These assessments bind input
 identity and compatibility to the retained installed release; unchanged bytes

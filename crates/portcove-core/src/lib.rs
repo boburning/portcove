@@ -240,7 +240,8 @@ pub use types::*;
 // Public 67 adds caller-bound external review and retained source representation readiness.
 // Public 68 adds the closed Ghostship legacy preparation mode and plan/receipt v2.
 // Public 69 adds release-scoped input assessments and BIOS incompatibility guidance.
-pub const API_SCHEMA_VERSION: u32 = 69;
+// Public 70 adds optional descriptive original-game titles and variant labels.
+pub const API_SCHEMA_VERSION: u32 = 70;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

@@ -934,6 +934,13 @@ that disagree with those bindings. Existing platform, channel, support,
 upstream-state, and qualification fields remain the structured authority for
 those facts. Older catalogs may omit presentation and remain readable; clients
 must report the missing detail instead of inferring it from an adapter ID.
+`original_game_title` and optional `variant_label` are reviewed descriptive
+presentation metadata. They do not change the project `name`, port/source IDs,
+release selection, support or qualification, and never group implementations.
+Current entries provide a recognizable game title; retained and older definitions
+may omit it and display their project name instead. A variant may describe an
+edition, prototype or original-platform distinction, without widening the source
+contract. Empty, padded or control-bearing display text is rejected.
 Signed format 1 may update presentation without changing its frozen execution,
 source, persistence, or installed-code contracts.
 Summaries remain one outcome sentence and do not duplicate channel, platform,

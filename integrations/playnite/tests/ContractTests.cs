@@ -215,7 +215,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -223,7 +223,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var privateSchema in new[] { 58, 59, 64, 70 })
+        foreach (var privateSchema in new[] { 58, 59, 64, 71 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -386,7 +386,7 @@ internal static class ContractTests
         bad["schema_version"] = 67;
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "public reviewed external schema negotiated with actual reader support");
-        bad["schema_version"] = 70;
+        bad["schema_version"] = 71;
         Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond reviewed external decisions rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -477,16 +477,23 @@ internal static class ContractTests
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
+            var displayed = PersonalLibrary.Read(catalog, statuses, "compiled-game-title-library");
+            Check(displayed.Count > 0 && displayed.All(game => {
+                var definition = catalog.First(port => Json.Text(port, "id") == game.PortId);
+                var presentation = Json.Field(definition, "presentation");
+                return game.Name.StartsWith(Json.Text(presentation, "original_game_title"), StringComparison.Ordinal)
+                    && game.GameId == Identity.Game("compiled-game-title-library", game.PortId);
+            }), "compiled schema70 catalog titles lead actual reader names without changing port identities");
             Check(real.ApiSchemaVersion == ProtocolStream.Schema && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
                 PortActions.Read(status).Count(value => value.Action == "update") == 1),
-                "compiled schema69 producer and actual reader consume one rollback and update assessment per catalog status");
+                "compiled schema70 producer and actual reader consume one rollback and update assessment per catalog status");
             var portId = Json.Text(statuses[0], "port_id");
             var inventory = await real.Read("backup.list", "backup", "list", portId);
             Check(PortActionDecision.Read(Json.Field(inventory, "create_assessment")).Action == "backup_create",
-                "compiled schema69 backup producer and actual strict reader consume creation assessment");
+                "compiled schema70 backup producer and actual strict reader consume creation assessment");
             Check(PortActionDecision.Read(Json.Field(inventory, "restore_assessment")).Action == "backup_restore",
-                "compiled schema69 backup producer and actual strict reader consume restore assessment");
+                "compiled schema70 backup producer and actual strict reader consume restore assessment");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
     }
@@ -656,6 +663,8 @@ internal static class ContractTests
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "schema68 preserves the existing reviewed external contract");
         capabilities["schema_version"] = 69;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "schema69 preserves the existing reviewed external contract");
+        capabilities["schema_version"] = 70;
+        Check(ProtocolStream.SupportsReviewedExternal(capabilities), "schema70 preserves the existing reviewed external contract");
         var representationStatus = Json.Parse(Json.Print(new {
             readiness = new { required_source_extension = "z64", blockers = new[] { "incompatible_source" } },
             port_actions = new[] {
@@ -688,7 +697,7 @@ internal static class ContractTests
         biosReadiness.Remove("bios_assessment");
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 70 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 71 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);
@@ -760,6 +769,25 @@ internal static class ContractTests
         var available = PersonalLibrary.Read(catalog, statuses, "library-a");
         Check(available.Count == 2 && available[0].GameId != available[1].GameId,
             "compatible implementations retain distinct stable identities despite matching titles");
+        Json.Object(catalog[0])["presentation"] = Json.Parse("{\"original_game_title\":\"Recognizable Game\",\"variant_label\":\"US edition\"}");
+        Json.Object(catalog[1])["presentation"] = Json.Parse("{\"original_game_title\":\"Recognizable Game\"}");
+        var titled = PersonalLibrary.Read(catalog, statuses, "library-a");
+        Check(titled[0].Name == "Recognizable Game (Same Game) · US edition" && titled[1].Name == "Recognizable Game (Same Game)",
+            "original game title leads project and relevant variant in actual library metadata");
+        Check(titled[0].GameId == available[0].GameId && titled[1].GameId == available[1].GameId,
+            "display metadata never merges implementations or changes library identity");
+        Json.Object(Json.Field(catalog[0], "presentation"))["original_game_title"] = "Pokémon Red";
+        var pokemon = PersonalLibrary.Read(catalog, statuses, "library-a")[0];
+        Check(pokemon.MatchesSearch("pokemon red") && pokemon.MatchesSearch("Pokémon") && pokemon.MatchesSearch("Same Game") && pokemon.MatchesSearch("shape-a"),
+            "catalog search finds accented game titles with ordinary ASCII spelling and retains project and ID search");
+        foreach (var invalidTitle in new object[] { "", " padded", "two\nlines", 42 }) {
+            Json.Object(Json.Field(catalog[0], "presentation"))["original_game_title"] = invalidTitle;
+            Reject(() => PersonalLibrary.Read(catalog, statuses, "library-a"), "malformed descriptive title is refused");
+        }
+        Json.Object(catalog[0]).Remove("presentation");
+        Json.Object(catalog[1]).Remove("presentation");
+        Check(PersonalLibrary.Read(catalog, statuses, "library-a")[0].Name == available[0].Name,
+            "legacy omitted presentation retains the original project label");
         var initial = PersonalLibrary.Default(available, Array.Empty<string>());
         Check(initial.Count == 1 && initial[0].PortId == "shape-a" && initial[0].Metadata().IsInstalled,
             "personal default imports installed games without dumping the compatible catalog");

@@ -15,6 +15,7 @@ import type {
   UpdateSnapshot,
 } from "./types";
 import { portActionPresentation } from "./features/port-actions/port-action-presentation";
+import { gameTitle, gameIdentityLabel } from "./port-identity";
 
 const unfinishedActivityAfterSeconds = 24 * 60 * 60;
 
@@ -412,7 +413,7 @@ function addSourceNeed(
     profile,
     requiredBy: [],
   };
-  requirement.requiredBy.push({ portId: port.id, portName: port.name, role });
+  requirement.requiredBy.push({ portId: port.id, portName: gameIdentityLabel(port), role });
   requirements.set(profileId, requirement);
 }
 
@@ -427,7 +428,7 @@ export function filterPorts(
 ) {
   const selectedStatuses =
     typeof filter !== "string" && context.library ? context.library.statuses : statuses;
-  const normalizedQuery = query.trim().toLowerCase();
+  const normalizedQuery = normalizeGameSearchText(query.trim());
   const legacyFilter = typeof filter === "string" ? filter : "all";
   const structuredQuery =
     typeof filter !== "string"
@@ -449,7 +450,7 @@ export function filterPorts(
     .sort((left, right) => {
       const comparison =
         catalogSort === "name"
-          ? left.port.name.localeCompare(right.port.name, "en", { sensitivity: "base" })
+          ? gameTitle(left.port).localeCompare(gameTitle(right.port), "en", { sensitivity: "base" })
           : Number(
               Boolean(
                 selectedStatuses.get(right.port.id)?.active ||
@@ -491,7 +492,13 @@ function searchableText(port: PortDefinition) {
   const installationMethod = port.presentation?.installation_method
     ? installationMethodLabel(port)
     : "";
-  return `${port.name} ${port.summary} ${port.id} ${installationMethod} ${port.platforms.join(" ")} ${port.platforms.map(platformLabel).join(" ")}`.toLowerCase();
+  return normalizeGameSearchText(
+    `${gameTitle(port)} ${port.name} ${port.presentation?.variant_label ?? ""} ${port.summary} ${port.id} ${installationMethod} ${port.platforms.join(" ")} ${port.platforms.map(platformLabel).join(" ")}`,
+  );
+}
+
+function normalizeGameSearchText(value: string): string {
+  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
 export function errorText(error: unknown) {

@@ -4001,6 +4001,13 @@
               "null"
             ]
           },
+          "original_game_title": {
+            "description": "Descriptive display metadata only. This never replaces the port, source,\nrelease or library identity, and does not group different implementations.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "saves_and_settings": {
             "$ref": "#/$defs/SavesAndSettingsBehavior"
           },
@@ -4009,6 +4016,12 @@
               "$ref": "#/$defs/SourceRequirementPresentation"
             },
             "type": "array"
+          },
+          "variant_label": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -14852,6 +14865,13 @@
               "null"
             ]
           },
+          "original_game_title": {
+            "description": "Descriptive display metadata only. This never replaces the port, source,\nrelease or library identity, and does not group different implementations.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "saves_and_settings": {
             "$ref": "#/$defs/SavesAndSettingsBehavior"
           },
@@ -14860,6 +14880,12 @@
               "$ref": "#/$defs/SourceRequirementPresentation"
             },
             "type": "array"
+          },
+          "variant_label": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -19628,6 +19654,13 @@
               "null"
             ]
           },
+          "original_game_title": {
+            "description": "Descriptive display metadata only. This never replaces the port, source,\nrelease or library identity, and does not group different implementations.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "saves_and_settings": {
             "$ref": "#/$defs/SavesAndSettingsBehavior"
           },
@@ -19636,6 +19669,12 @@
               "$ref": "#/$defs/SourceRequirementPresentation"
             },
             "type": "array"
+          },
+          "variant_label": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [

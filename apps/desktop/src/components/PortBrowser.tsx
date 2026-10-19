@@ -1,4 +1,5 @@
 import { controlFocus, floatingMotion } from "./ui/control-style";
+import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity";
 import { cn } from "cn";
 import { Notice } from "./ui/patterns";
 import type { useFavorites } from "../features/favorites/use-favorites";
@@ -518,7 +519,7 @@ function BrowserResults({
     );
   return (
     <section
-      className="port-grid grid w-full max-w-[66.5rem] grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),1fr))] gap-4"
+      className="port-grid @container/collection grid w-full max-w-[66.5rem] grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),1fr))] gap-4"
       data-focus-group
     >
       {ports.map((port) => (
@@ -662,7 +663,7 @@ function ContinueCard({
       className="continue-card mb-[13px] grid min-h-[92px] grid-cols-[72px_minmax(0,_1fr)_auto] items-center gap-[17px] rounded-pc-lg border border-[var(--color-interactive-active)] bg-pc-surface p-3 shadow-[var(--shadow-raised)] max-[65rem]:grid-cols-[4.25rem_minmax(0,_1fr)]"
       data-focus-group
       data-successful-launches={status.successful_launches}
-      aria-label={`Continue ${port.name}`}
+      aria-label={`Continue ${gameIdentityLabel(port)}`}
     >
       <ArtworkImage
         port={port}
@@ -672,7 +673,10 @@ function ContinueCard({
         <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
           CONTINUE
         </p>
-        <h2 className="m-0 text-lg">{port.name}</h2>
+        <h2 className="m-0 text-lg">{gameTitle(port)}</h2>
+        {gameProjectLabel(port) && (
+          <p className="m-0 mt-1 text-xs text-pc-muted-foreground">{gameProjectLabel(port)}</p>
+        )}
         {(status.active || status.external_runtime) && (
           <p className="m-0 mt-[5px] text-xs text-pc-muted-foreground">
             {status.active
@@ -822,7 +826,7 @@ function PortCard({
           "absolute bottom-4 z-10 bg-pc-surface",
           view === "library" ? "start-4" : "end-4",
         )}
-        aria-label={`Favorite ${port.name}`}
+        aria-label={`Favorite ${gameIdentityLabel(port)}`}
         aria-pressed={favorites.ids?.has(port.id) ?? false}
         disabled={!favorites.ids}
         aria-disabled={favorites.busy}
@@ -837,7 +841,7 @@ function PortCard({
       </Button>
     );
   const favoriteToggle = renderFavoriteToggle();
-  const accessibleLabel = `${port.name}. ${state.label}. ${status?.staged ? "Update downloaded. " : ""}${state.action}.`;
+  const accessibleLabel = `${gameIdentityLabel(port)}. ${state.label}. ${status?.staged ? "Update downloaded. " : ""}${state.action}.`;
   if (view === "library")
     return (
       <article
@@ -906,7 +910,7 @@ function PortCardContents({
 }) {
   const title = (
     <div className="flex items-start justify-between gap-2">
-      <h2 className="m-0 min-h-[3.6em] text-base leading-[1.2]" title={port.name}>
+      <h2 className="m-0 min-h-[3.6em] text-base leading-[1.2]" title={gameTitle(port)}>
         {view === "library" ? (
           <button
             className={cn(
@@ -914,16 +918,20 @@ function PortCardContents({
               "block w-full cursor-pointer text-start hover:text-pc-interactive-foreground",
             )}
             data-focusable
-            aria-label={`View details for ${port.name}`}
+            aria-label={`View details for ${gameIdentityLabel(port)}`}
             data-detail-game-id={port.id}
             aria-describedby={input ? setupDescriptionId : undefined}
             data-detail-origin={detailOrigin}
             onClick={() => onSelect(port.id, detailOrigin)}
           >
-            <span className="line-clamp-3 max-[60rem]:line-clamp-none">{port.name}</span>
+            <span className="line-clamp-3 @max-[60rem]/collection:line-clamp-none">
+              {gameTitle(port)}
+            </span>
           </button>
         ) : (
-          <span className="line-clamp-3 max-[60rem]:line-clamp-none">{port.name}</span>
+          <span className="line-clamp-3 @max-[60rem]/collection:line-clamp-none">
+            {gameTitle(port)}
+          </span>
         )}
       </h2>
     </div>
@@ -939,6 +947,11 @@ function PortCardContents({
         <i className="size-[6px] rounded-full border border-current bg-current" />
         {state.label}
       </span>
+      {port.presentation?.variant_label && (
+        <span className="card-variant max-w-full text-xs leading-normal wrap-anywhere text-pc-muted-foreground">
+          {port.presentation.variant_label}
+        </span>
+      )}
       {view === "catalog" && channel && (
         <span
           className={cn(
@@ -968,6 +981,14 @@ function PortCardContents({
       />
       <div className="card-content flex min-w-0 flex-1 flex-col gap-2 p-4 wrap-anywhere">
         {title}
+        <p
+          className="m-0 min-h-[1.5em] text-xs leading-normal text-pc-muted-foreground"
+          title={gameProjectLabel(port) ? port.name : undefined}
+        >
+          <span className="line-clamp-1 @max-[60rem]/collection:line-clamp-none">
+            {gameProjectLabel(port) ? port.name : undefined}
+          </span>
+        </p>
         {stateLabel}
         {setup && (
           <div id={setupDescriptionId} className="sr-only">
@@ -1103,7 +1124,7 @@ function PortCardStatus({
               data-focusable
               variant="outline"
               size="sm"
-              aria-label={`Review ${port.name}`}
+              aria-label={`Review ${gameIdentityLabel(port)}`}
               aria-describedby={inputDescriptionId}
               data-detail-origin={reviewOrigin}
               onClick={() => onSelect(port.id, reviewOrigin)}
@@ -1131,7 +1152,7 @@ function PortCardStatus({
                   data-detail-origin={overflowOrigin}
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`More actions for ${port.name}`}
+                  aria-label={`More actions for ${gameIdentityLabel(port)}`}
                 >
                   <Icon glyph={MoreHorizontal} size="sm" />
                 </Button>
@@ -1146,7 +1167,7 @@ function PortCardStatus({
               >
                 <Menu.Popup
                   data-portcove-focus-scope
-                  aria-label={`More actions for ${port.name}`}
+                  aria-label={`More actions for ${gameIdentityLabel(port)}`}
                   className={cn(
                     floatingMotion,
                     "max-h-(--available-height) min-w-48 origin-(--transform-origin) overflow-y-auto rounded-pc-md border border-pc-border bg-pc-surface p-1 text-pc-foreground shadow-(--shadow-floating)",

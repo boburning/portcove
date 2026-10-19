@@ -1,4 +1,5 @@
 import { GameFileObservationSummary } from "../features/browsing/GameFileObservationSummary";
+import { gameTitle, gameProjectLabel } from "../port-identity";
 import type { GameFileObservationPresentation } from "../features/browsing/use-game-file-observation";
 import { cn } from "cn";
 import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
@@ -432,8 +433,13 @@ function DetailHero({
           className="detail-title mb-0 text-[length:var(--text-2xl)] text-[var(--color-text)]"
           id="port-detail-title"
         >
-          {port.name}
+          {gameTitle(port)}
         </h1>
+        {gameProjectLabel(port) && (
+          <p className="m-0 mt-1 text-sm text-pc-muted-foreground">
+            Port project: {gameProjectLabel(port)}
+          </p>
+        )}
         <span
           className={cn(
             `hero-state mt-[10px] inline-flex items-center gap-2 text-[length:var(--text-xs)] font-[750] text-[var(--color-text)] ${state.tone}`,

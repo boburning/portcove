@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { gameIdentityLabel } from "./port-identity";
 import {
   Boxes,
   Download,
@@ -105,8 +106,10 @@ export function commandSurfaceCommands({
     },
     {
       id: "continue",
-      label: "Open the last played port",
-      description: recent ? `Open ${recent.port.name}` : "No successful launch is recorded yet",
+      label: "Open recent game",
+      description: recent
+        ? `Open ${gameIdentityLabel(recent.port)}`
+        : "No completed launch is recorded yet",
       icon: Gamepad2,
       disabled: !recent,
       action: () => recent && setSelectedId(recent.port.id),
