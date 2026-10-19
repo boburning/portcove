@@ -55,6 +55,7 @@ export function useAppShellState(
   const [browserState, setBrowserState] = useState(() => restoredBrowserState(initial));
   const [catalogSort, setCatalogSort] = useState<CatalogSort>(initial?.catalogSort ?? "catalog");
   const [selectedId, setSelectedId] = useState<string>();
+  const [reviewedActivityId, setReviewedActivityId] = useState<string>();
   const [settingsCategory, setSettingsCategory] =
     useState<SettingsCategory>(initialSettingsCategory);
   const [sourcePath, setSourcePath] = useState("");
@@ -121,6 +122,8 @@ export function useAppShellState(
     setCatalogSort,
     selectedId,
     setSelectedId,
+    reviewedActivityId,
+    setReviewedActivityId,
     settingsCategory,
     setSettingsCategory,
     sourcePath,

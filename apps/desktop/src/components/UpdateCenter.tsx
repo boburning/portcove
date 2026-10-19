@@ -1,6 +1,10 @@
 import { FailureDetails } from "./FailureDetails";
 import { ActivityDiagnostic } from "./ActivityDiagnostic";
 import { RecoveryReview } from "./RecoveryReview";
+import { focusAndReveal } from "../focus";
+import { gameIdentityLabel } from "../port-identity";
+import { controlFocus } from "./ui/control-style";
+import type { DetailDestination } from "../view-model";
 import {
   activityHistoryPreview,
   activityPresentationState,
@@ -113,6 +117,8 @@ export function UpdateCenter({
   diagnosticFailure,
   refreshDiagnostics,
   cleanupChanged = refreshDiagnostics,
+  reviewedActivityId,
+  onReviewActivity,
 }: {
   generation: number;
   repair?: DoctorReport["repair"] | undefined;
@@ -121,6 +127,8 @@ export function UpdateCenter({
   diagnosticFailure?: unknown;
   refreshDiagnostics: () => Promise<unknown>;
   cleanupChanged?: () => Promise<unknown>;
+  reviewedActivityId?: string | undefined;
+  onReviewActivity?: (activityId: string) => void;
   ports: PortDefinition[];
   sourceProfiles?: SourceProfile[];
   statuses: Map<string, PortStatus>;
@@ -130,12 +138,23 @@ export function UpdateCenter({
   batchRead?: UpdateBatchRead;
   busy?: string | undefined;
   checkAll: () => void | Promise<void>;
-  onSelect: (portId: string, originKey?: string) => void;
+  onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
   const earlierBatch =
     batchRead !== undefined && ["pending", "failed", "cancelled"].includes(batchRead.status);
   const [nowSeconds, setNowSeconds] = useState(initialActivityNowSeconds);
+  const [reviewedActivity, setReviewedActivity] = useState<{ id: string; request: number }>();
+  useEffect(() => {
+    if (!reviewedActivity) return;
+    const frame = window.requestAnimationFrame(() => {
+      const row = [...document.querySelectorAll<HTMLElement>("[data-activity-id]")].find(
+        (element) => element.dataset.activityId === reviewedActivity.id,
+      );
+      if (row) focusAndReveal(row);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [reviewedActivity]);
   useEffect(() => {
     const refreshNow = () => setNowSeconds(Date.now() / 1000);
     refreshNow();
@@ -370,6 +389,13 @@ export function UpdateCenter({
         failure={diagnosticFailure}
         refresh={refreshDiagnostics}
         cleanupChanged={cleanupChanged}
+        onSelect={onSelect}
+        onOpenStorage={() => onOpenSettings("library-storage")}
+        availableActivityIds={new Set(activities.map((activity) => activity.id))}
+        onReviewActivity={(id) => {
+          onReviewActivity?.(id);
+          setReviewedActivity((previous) => ({ id, request: (previous?.request ?? 0) + 1 }));
+        }}
       />
       <ActivityHistory
         ports={ports}
@@ -380,6 +406,7 @@ export function UpdateCenter({
         onOpenSettings={onOpenSettings}
         generation={generation}
         nowSeconds={nowSeconds}
+        reviewedActivityId={onReviewActivity ? reviewedActivityId : reviewedActivity?.id}
       />
     </section>
   );
@@ -474,9 +501,11 @@ function ActivityHistory({
   onOpenSettings,
   generation,
   nowSeconds,
+  reviewedActivityId,
 }: {
   generation: number;
   nowSeconds: number;
+  reviewedActivityId?: string | undefined;
   ports: PortDefinition[];
   sourceProfiles: SourceProfile[];
   activities: ActivityRecord[];
@@ -484,7 +513,7 @@ function ActivityHistory({
   onSelect: (portId: string, originKey?: string) => void;
   onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
-  const names = new Map(ports.map((port) => [port.id, port.name]));
+  const names = new Map(ports.map((port) => [port.id, gameIdentityLabel(port)]));
   const sourceNames = new Map(sourceProfiles.map((profile) => [profile.id, profile.label]));
   const protectedActivityIds = activityFeed
     ? [
@@ -493,7 +522,10 @@ function ActivityHistory({
         ...activityFeed.recovery_required_activity_ids,
       ]
     : [];
-  const visibleActivities = activityHistoryPreview(activities, nowSeconds, protectedActivityIds);
+  const visibleActivities = activityHistoryPreview(activities, nowSeconds, [
+    ...protectedActivityIds,
+    ...(reviewedActivityId ? [reviewedActivityId] : []),
+  ]);
   const protectedIds = new Set(protectedActivityIds);
   const visibleFinishedCount = visibleActivities.filter(
     (activity) =>
@@ -579,9 +611,11 @@ function ActivityRow({
   const tone = activityTones[presentation.state];
   return (
     <div
-      className={`activity-row ${presentation.state} grid min-h-14 grid-cols-[1.5rem_minmax(0,1fr)_max-content_max-content] items-center gap-3 rounded-pc-md border border-pc-border bg-pc-surface px-3 py-2.5 max-[65rem]:grid-cols-[1.5rem_minmax(0,1fr)_4.5rem]`}
+      className={`activity-row ${presentation.state} ${controlFocus} grid min-h-14 grid-cols-[1.5rem_minmax(0,1fr)_max-content_max-content] items-center gap-3 rounded-pc-md border border-pc-border bg-pc-surface px-3 py-2.5 max-[65rem]:grid-cols-[1.5rem_minmax(0,1fr)_4.5rem]`}
       title={activity.failure?.presentation.summary}
       data-focus-group
+      data-activity-id={activity.id}
+      tabIndex={-1}
     >
       <span
         className={`grid size-6 place-items-center rounded-pc-sm ${tone?.indicator ?? "bg-pc-secondary text-pc-muted-foreground"}`}

@@ -105,6 +105,7 @@ import {
   preparationRecoveryPort,
   requiredSourceNeeds,
   summarizeLibrary,
+  type DetailDestination,
 } from "./view-model";
 
 export const missingBootstrapError = {
@@ -988,7 +989,7 @@ function CurrentView({
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
   hostToolActions: HostToolActions;
   applicationUpdates: ReactNode;
-  openPortDetails: (portId: string, originKey?: string) => void;
+  openPortDetails: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   setupSource?: SourceRecord | undefined;
   setSetupSource: (source?: SourceRecord) => void;
 }) {
@@ -1001,6 +1002,8 @@ function CurrentView({
         statuses={model.statusMap}
         activities={data.activities}
         activityFeed={data.activityFeed}
+        reviewedActivityId={ui.reviewedActivityId}
+        onReviewActivity={ui.setReviewedActivityId}
         outcomes={updates.outcomes}
         batchRead={updates.batchRead}
         busy={operations.busy}

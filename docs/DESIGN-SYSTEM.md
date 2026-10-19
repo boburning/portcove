@@ -424,6 +424,15 @@ recovery links select the owning category before focusing its relevant control.
 The sidebar About entry opens About directly. Updates explains application/game
 updates and the bundled game catalog; optional custom catalog trust controls
 belong under Advanced. Category selection is ephemeral presentation state.
+Recovery items expose read-only navigation beside their collapsed recorded
+locations: setup opens the game, missing installations and backup problems open
+Saves and storage, and unfinished operations reveal their exact loaded activity
+or game details when its activity is not loaded. A selected older activity stays visible beyond the
+short history and receives focus. Orphaned folders and unavailable game identities
+lead to Library and storage; they do not infer ownership or enable deletion.
+Unknown recovery kinds retain details without an action. Navigation never resumes,
+removes or retries work; retained setup cleanup keeps its fresh Core preview and
+explicit confirmation.
 In GitHub settings, lead with connection purpose and signed-in state; keep
 credential provenance and request accounting in Connection details. Token entry
 has a persistent visible label, while environment-controlled credentials keep
