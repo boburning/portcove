@@ -56,6 +56,15 @@ Current-release check/update, backup/restore and owned removal have the actual
 evidence below. No previous version exists, so rollback is not offered in this
 state; no successful rollback claim follows.
 
+The focused release-input fixture accepts the independently pinned upstream
+tuple and separately changes version, channel, asset name, size and digest.
+Each change returns the exact build-input Verification refusal without creating
+output. All 17 focused cartridge tests pass, including this check and existing
+joined cancellation, source/tool identity, retained reuse and old-reader cases.
+This is an inert build-input check, not a compiler/game run or proof that every
+update/check entry point rejects every changed release label. Retained-copy reuse
+precedes that builder guard and still requires its own exact retained contract.
+
 ## Actual evidence and limits
 
 [The owning acceptance receipt](https://github.com/boburning/portcove/issues/155#issuecomment-6257869672)
