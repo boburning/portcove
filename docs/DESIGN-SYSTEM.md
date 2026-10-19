@@ -290,6 +290,25 @@ Long words wrap, filters can wrap, and the collection scrolls rather than shrink
 covers to fit a row count. The grid chooses columns from available width; a
 reference composition's fixed frame width or column count is not a window rule.
 
+The collection now caps at 66.5rem so the 1600x1000 reference retains five
+approximately 200x300 artwork frames, while the actual desktop shell reflows to
+four columns at 1280x800 and three at 960x640. Title space reserves three lines;
+long titles retain their complete accessible name and detail destination, and
+expand at narrower viewports. Library titles open details. The footer keeps the
+current Play/trial action or Review game alongside Favorite and the bounded menu;
+it does not repeat a separate Details action. Detailed input reasons remain
+available to assistive technology and on the game page rather than stretching a
+card into a setup runbook.
+
+Game details place title, readiness and the primary action in one compact summary.
+Routine installed Play sits beside the title when space permits; setup and repair
+keep the space required for their controls. File and filter diagnostics are an
+optional disclosure below the primary action. Catalog filters start with platform,
+channel and membership; advanced groups and their interpretation are disclosed on
+request. Expansion is independent of filter selection, so clearing the last
+advanced choice does not hide the focused control. Back restores the exact opener,
+or the same game's stable title when successful repair replaces that opener.
+
 The current account-free fallback is a core-owned style with a stable identity,
 initials and palette per port and slot. Desktop renders a reviewed IGDB catalog
 cover when mapped and no local image is chosen; other slots use the generated style.
