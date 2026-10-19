@@ -13,6 +13,37 @@ type FrontendRunner = (
   options: SpawnSyncOptions,
 ) => { status: number | null };
 
+function validateBuildValue(flag: string, value: string | undefined) {
+  if (
+    value !== undefined &&
+    (!value.trim() ||
+      Array.from(value).some((character) => {
+        const code = character.charCodeAt(0);
+        return code < 32 || code === 127;
+      }))
+  )
+    throw new Error(`${flag} requires a nonempty value without control characters`);
+}
+
+function profileName(value: string | undefined) {
+  if (
+    value !== undefined &&
+    (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/u.test(value) ||
+      /^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])$/iu.test(value))
+  )
+    throw new Error("--profile name must be a portable basename (letters, digits, _ or -, max 64)");
+  return value ?? "build";
+}
+
+function debugFeatures(value: string | undefined) {
+  if (
+    value !== undefined &&
+    (value.startsWith("-") || !/^[a-zA-Z0-9_*:-]+(?:,[a-zA-Z0-9_*:-]+)*$/u.test(value))
+  )
+    throw new Error("--debug expects comma-separated Vite debug features");
+  return value ?? true;
+}
+
 export function parseBuildArguments(args: readonly string[]) {
   const options: { fresh: boolean; profile?: string; debug?: string | true; filter?: string } = {
     fresh: false,
@@ -34,32 +65,11 @@ export function parseBuildArguments(args: readonly string[]) {
     }
     if (value === undefined && args[index + 1] && !args[index + 1]!.startsWith("-"))
       value = args[++index];
-    if (
-      value !== undefined &&
-      (!value.trim() ||
-        Array.from(value).some((character) => {
-          const code = character.charCodeAt(0);
-          return code < 32 || code === 127;
-        }))
-    )
-      throw new Error(`${flag} requires a nonempty value without control characters`);
+    validateBuildValue(flag, value);
     if (flag === "--profile") {
-      if (
-        value !== undefined &&
-        (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/u.test(value) ||
-          /^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])$/iu.test(value))
-      )
-        throw new Error(
-          "--profile name must be a portable basename (letters, digits, _ or -, max 64)",
-        );
-      options.profile = value ?? "build";
+      options.profile = profileName(value);
     } else if (flag === "--debug") {
-      if (
-        value !== undefined &&
-        (value.startsWith("-") || !/^[a-zA-Z0-9_*:-]+(?:,[a-zA-Z0-9_*:-]+)*$/u.test(value))
-      )
-        throw new Error("--debug expects comma-separated Vite debug features");
-      options.debug = value ?? true;
+      options.debug = debugFeatures(value);
     } else {
       if (value === undefined || value.startsWith("-"))
         throw new Error("--filter requires a debug-log substring");

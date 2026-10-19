@@ -4,7 +4,8 @@ import { lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "n
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { deflateRawSync } from "node:zlib";
-import { AUDIT_STAGES, hostedAuditIdentity, receiptEnvelope, validateReceipt } from "./audit.mts";
+import { AUDIT_STAGES, hostedAuditIdentity } from "./audit-contract.mts";
+import { receiptEnvelope, validateReceipt } from "./validation-evidence.mts";
 import { recordsDevelopmentPolicy } from "./dependency-security.mts";
 
 export const AUDIT_BUNDLE_LIMITS = Object.freeze({

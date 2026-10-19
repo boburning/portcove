@@ -91,6 +91,27 @@ function validateAdvisory(report: unknown, mode: string) {
     throw new Error("Incomplete review report");
 }
 
+function reuseFallowReport(reuse: string, metadata: unknown): FallowProcessResult {
+  const previous: unknown = JSON.parse(readFileSync(path.join(reuse, "metadata.json"), "utf8"));
+  if (
+    !isRecord(previous) ||
+    (previous.status !== null && typeof previous.status !== "number") ||
+    typeof previous.stdout !== "string" ||
+    typeof previous.stderr !== "string"
+  )
+    throw new Error("Fallow report reuse refused: invalid retained metadata");
+  if (JSON.stringify(previous.identity) !== JSON.stringify(metadata))
+    throw new Error("Fallow report reuse refused: source, scope, base or tool changed");
+  const stdout = readFileSync(previous.stdout, "utf8");
+  const stderr = readFileSync(previous.stderr, "utf8");
+  if (
+    previous.stdout_sha256 !== createHash("sha256").update(stdout).digest("hex") ||
+    previous.stderr_sha256 !== createHash("sha256").update(stderr).digest("hex")
+  )
+    throw new Error("Fallow report reuse refused: retained bytes changed");
+  return { status: previous.status, stdout, stderr };
+}
+
 export function runFallow({
   spawn = spawnSync,
   mode = "desktop",
@@ -105,24 +126,7 @@ export function runFallow({
   const metadata = { format_version: 1, mode, version, args, source };
   let result: FallowProcessResult;
   if (reuse) {
-    const previous: unknown = JSON.parse(readFileSync(path.join(reuse, "metadata.json"), "utf8"));
-    if (
-      !isRecord(previous) ||
-      (previous.status !== null && typeof previous.status !== "number") ||
-      typeof previous.stdout !== "string" ||
-      typeof previous.stderr !== "string"
-    )
-      throw new Error("Fallow report reuse refused: invalid retained metadata");
-    if (JSON.stringify(previous.identity) !== JSON.stringify(metadata))
-      throw new Error("Fallow report reuse refused: source, scope, base or tool changed");
-    const stdout = readFileSync(previous.stdout, "utf8");
-    const stderr = readFileSync(previous.stderr, "utf8");
-    result = { status: previous.status, stdout, stderr };
-    if (
-      previous.stdout_sha256 !== createHash("sha256").update(stdout).digest("hex") ||
-      previous.stderr_sha256 !== createHash("sha256").update(stderr).digest("hex")
-    )
-      throw new Error("Fallow report reuse refused: retained bytes changed");
+    result = reuseFallowReport(reuse, metadata);
   } else {
     result = spawn(process.execPath, [cli, ...args], {
       cwd: root,

@@ -1,3 +1,4 @@
+import { normalizeRepositoryPath } from "./repository-path.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -147,13 +148,6 @@ function isFormatInput(file: string) {
     !oxfmtExcludedPath.test(file) &&
     !oxfmtExcludedFile.test(file)
   );
-}
-
-function normalizeRepositoryPath(value: string) {
-  const normalized = String(value).replaceAll("\\", "/").replace(/^\.\//u, "");
-  if (!normalized || normalized.startsWith("/") || normalized.includes("../"))
-    throw new Error(`unsafe repository path: ${value}`);
-  return normalized;
 }
 
 function add(domains: Set<ValidationDomain>, ...values: ValidationDomain[]) {
