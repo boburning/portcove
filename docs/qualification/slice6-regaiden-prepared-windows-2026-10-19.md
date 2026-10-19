@@ -145,3 +145,11 @@ registration-only removal preserved the same 18 external files, original
 directory bytes and shared-preference absence. The three prior successful
 sessions remained intact. This checks the refreshed dependency composition;
 it does not relabel earlier receipts or repeat their unchanged negatives.
+
+The first hosted run, CI39212560446/1 at c03c2cd8331a38113f7c6cc0b43de92741d55860,
+retains 1,958 passing and two failing tests. Two synthetic official-projection
+helpers still declared the new port below v8; production inspection correctly
+refused them. The repair declares v8 in both fixtures and retains older-reader
+refusal. Final live-link readback also corrects the two README metadata
+references from nonexistent main to verified master; immutable evidence and
+runtime identities are unchanged. The original CI failure remains evidence.

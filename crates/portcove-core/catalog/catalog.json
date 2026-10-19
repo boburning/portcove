@@ -801,7 +801,7 @@
         "reviewed_at": "2026-10-19",
         "claim": "Pinned primary README specifies exact USA original 2097152 bytes SHA256 9a97678cbd8da02c8763e977674e17f460c06ea8b73bad35c52fe6817f506d44. Independently matched unchanged original working copy. Package and runtime admission remain separate.",
         "immutable_url": "https://github.com/sergiomanzur/regaiden-recomp/blob/2b1bd51e09c8599d5436ba56f5ad17bd22550d2e/README.md",
-        "live_url": "https://github.com/sergiomanzur/regaiden-recomp/blob/main/README.md"
+        "live_url": "https://github.com/sergiomanzur/regaiden-recomp/blob/master/README.md"
       }
     ],
     "identities": [
@@ -9241,7 +9241,7 @@
         "authority_ref": "2b1bd51e09c8599d5436ba56f5ad17bd22550d2e",
         "reviewed_at": "2026-10-19",
         "immutable_review_url": "https://github.com/sergiomanzur/regaiden-recomp/blob/2b1bd51e09c8599d5436ba56f5ad17bd22550d2e/README.md",
-        "live_review_url": "https://github.com/sergiomanzur/regaiden-recomp/blob/main/README.md",
+        "live_review_url": "https://github.com/sergiomanzur/regaiden-recomp/blob/master/README.md",
         "evidence_gap": null,
         "applicability": [
           {
