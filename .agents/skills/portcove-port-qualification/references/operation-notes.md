@@ -1,5 +1,17 @@
 # Operation notes
 
+When qualification refuses materialized-input content changes, preserve the
+failed operation, receipts and checkpoint. Matching identity, size, timestamps or
+original-source hashes do not establish destination integrity or identify its
+writer. Keep attribution unknown without direct evidence. Resume only after a
+demonstrated corrected condition; restored bytes, rewritten witnesses or a new
+directory alone do not establish that condition.
+
+After a native stage fails with incomplete process-closure proof, preserve its
+journal, database/WAL and failure archive. A later source repair or passing CI
+cannot establish historical quiescence. Resume through a supported recovery
+route that preserves failure provenance and satisfies every retained-state guard.
+
 Use only the paragraphs relevant to the explicitly selected operation. The
 entrypoint and canonical QUALITY/CONTRIBUTION contracts own current routing;
 old blanket document-load and local-check wording below does not add a gate.

@@ -1,5 +1,17 @@
 # Operation notes
 
+When revising retrospective plans, map each original finding to current canonical
+owners and delivered helpers. Similar wording or equal outcome counts do not
+establish matching scope. Apply new requirements prospectively and reconcile
+only matching finite obligations while preserving completed evidence and broader
+owners.
+
+For release-scope amendments, distinguish explicit product deferrals from
+technical holds and duplicates. Preserve historical inventory, reconcile retained
+obligations separately, and amend conflicting parent acceptance alongside proposed
+Project fields. Record concrete tradeoffs and reconsideration triggers; issue
+counts alone do not establish effort savings.
+
 Use only the paragraphs relevant to the explicitly selected operation. The
 entrypoint and canonical QUALITY/CONTRIBUTION contracts own current routing;
 old blanket document-load and local-check wording below does not add a gate.

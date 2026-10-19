@@ -2,6 +2,30 @@
 
 Read only the checks relevant to the selected native acceptance or harness change. These supplement the existing identity, isolation and evidence rules; lower-level tests do not replace actual native acceptance.
 
+## Platform, preflight and input custody
+
+For minimum-platform claims, retain the exact OS build/architecture, shipped
+artifact and runtime identities, and the WebView engine actually loaded by that
+artifact. Newer systems, compiler targets, build images and installed host
+packages cannot establish the claimed baseline. Exercise native behavior and
+insufficient-runtime handling on that baseline.
+
+For restricted Windows preflights, resolve system names such as privilege LUIDs
+before impersonation; query the actual reviewer token and protected metadata
+under impersonation. Preserve refusal, reversion and teardown. Capture native
+error codes at the failing call; uncaptured historical codes remain unknown.
+Broker controls and inert fixtures do not establish reviewer startup acceptance.
+
+For launch/readiness races, acquire the existing shared exclusion before checking
+intent, including legacy paths with no intent, and retain it through teardown and
+evidence capture. Exercise preparation, launch and recovery interleavings through
+the real helpers with inert provider effects.
+
+Before a native run, retain immutable copies of declared source/helper inputs
+and verify their hashes against the receipt. Record compiled application identity
+separately from the executed harness revision. Later checkout edits or
+reconstructed bytes cannot replace missing capture; preserve failed evidence.
+
 ## Harness coverage and consumers
 
 When adding native regressions, inspect the required hosted Windows test owner and inventory before pushing. Prefer the cohesive existing suite that owns the behavior; otherwise wire the new suite explicitly and prove it executes on Windows rather than merely skips elsewhere.
