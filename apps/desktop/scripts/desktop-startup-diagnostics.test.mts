@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vite-plus/test";
 import vm from "node:vm";
 import type { WebDriver } from "selenium-webdriver";
 import { captureStartupDiagnostics } from "./desktop-startup-diagnostics.mts";
 
-await test("startup failure retains bounded document evidence when browser logs are unsupported", async () => {
+test("startup failure retains bounded document evidence when browser logs are unsupported", async () => {
   const root = {
     childElementCount: 0,
     textContent: "x".repeat(9000),
@@ -53,7 +53,7 @@ await test("startup failure retains bounded document evidence when browser logs 
   assert.equal(report.browser_logs_unavailable, true);
 });
 
-await test("unavailable window and failed logs retain independent diagnostic errors", async () => {
+test("unavailable window and failed logs retain independent diagnostic errors", async () => {
   const fail = async () => {
     throw new Error("window closed");
   };
