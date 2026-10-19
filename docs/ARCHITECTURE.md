@@ -527,6 +527,30 @@ migrates, backs up, restores or deletes this shared data. Other runtime copies
 can rewrite the same file and discard unknown entries; this contract provides
 neither private isolation nor a cross-application lock.
 
+The exact SMB1R 1.1-stable Windows opt-in reuses this non-owning shared-write
+boundary for the effective APPDATA/SMB1R directory. It binds account and location,
+requires separate consent, accepts only the exact five-file immutable stock tree
+and fixed disabled-mods arguments, and has no portable marker or local fallback.
+Core does not seed the original or own shared data. A bounded read-only check
+requires the exact recognized World original at baserom.nes and constructor-free
+settings before launch, including the immediate spawn check. The selected Godot
+ConfigFile parser can instantiate objects/load resources: disabling mods alone
+is insufficient. The conservative settings filter rejects constructors, unsafe
+paths, non-single-link files and excessive bytes/depth/token work. It is not a
+Godot parser, sandbox or cross-application lock. Missing/unsafe manual inputs
+report preparation_required without offering managed preparation. Staged template
+version 10 makes the new executable semantics explicit; versions 1–9 are retained.
+
+The limited vanilla route also rejects Godot loader sidecars (.remap, .import
+and .uid), custom levels/autosaves, blueprints, custom-character files and
+extra resource packs. These can reach unrestricted Variant parsing or executable
+scene loaders even with mods disabled. Existing import directories may remain
+empty; generated BaseAssets PNGs and its root pack_info.json remain mutable.
+Existing visuals.resource_packs settings must select only BaseAssets. Core
+refuses unreviewed inputs without changing them; manual relocation is explicit.
+This does not prevent a player from independently importing files while the
+game is running and does not qualify the optional editor/import workflow.
+
 For an inspected successor catalog projection, core carries an immutable exact
 definition snapshot with the catalog for its selected port only. Catalog clones
 share that snapshot; a newly parsed unrelated catalog does not inherit it. This

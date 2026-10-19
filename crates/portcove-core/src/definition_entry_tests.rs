@@ -138,13 +138,18 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port
+        let version = if let Some(minimum) = port
             .release
             .user_prepared
             .values()
-            .any(|runtime| runtime.shared_preferences.is_some())
+            .filter_map(|runtime| {
+                runtime
+                    .shared_preferences
+                    .map(|contract| contract.minimum_template_version())
+            })
+            .max()
         {
-            8
+            minimum
         } else if let Some(version) = port
             .release
             .managed_build

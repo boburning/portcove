@@ -679,6 +679,21 @@ function StatusActionsGroup({
         {status?.external_runtime && actionPresentation.blocked && (
           <p role="status">{actionPresentation.reason}</p>
         )}
+        {status?.external_runtime?.shared_preferences?.contract === "smb1r-1.1-stable-windows" &&
+          status.readiness?.blockers.some(
+            (blocker) => blocker === "preparation_required" || blocker === "invalid_installation",
+          ) && (
+            <p role="status">
+              Copy your recognized Super Mario Bros. (World) NES original to{" "}
+              <code>{status.external_runtime.shared_preferences.path}</code> as{" "}
+              <code>baserom.nes</code>. If <code>settings.cfg</code> exists there, review it as
+              ordinary data without Godot object or resource constructors and use only the
+              BaseAssets resource pack. Move custom levels and autosaves, blueprints, custom
+              characters, extra resource packs and Godot loader metadata elsewhere manually,
+              preserving their files. Refresh afterward. Portcove does not seed, own, update, back
+              up or delete this shared directory.
+            </p>
+          )}
         {status?.external_runtime && (
           <PrimaryActions
             trial={trial}
