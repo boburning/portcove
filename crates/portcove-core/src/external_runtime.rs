@@ -23,6 +23,7 @@ const MAX_FILES: usize = 100_000;
 const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_TREE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 
+pub(crate) mod shared_preferences;
 mod tfe_settings;
 
 /// Required selectors are existence/type constraints, never content authority.
@@ -161,6 +162,8 @@ pub struct ExternalRuntimePreview {
     pub immutable_tree_sha256: String,
     pub immutable_file_count: usize,
     pub preview_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_preferences: Option<crate::SharedPreferencesReview>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -220,6 +223,7 @@ pub(crate) fn check_registered_location(
         ));
     }
     check_required_mutable_files(&root, spec)?;
+    shared_preferences::check_record(record, spec)?;
     Ok(())
 }
 
@@ -684,6 +688,7 @@ mod tests {
             library_user_data: false,
             required_mutable_files: vec![],
             settings_contract: None,
+            shared_preferences: None,
             mutable_paths: vec!["runtime-state".into()],
         };
         let mismatch = inspect(&runtime, &spec, &library).unwrap_err();
@@ -708,6 +713,7 @@ mod tests {
             immutable_tree_sha256: inspected.immutable_tree_sha256,
             registered_at: 1,
             retained_definition: None,
+            shared_preferences: None,
         }
     }
 

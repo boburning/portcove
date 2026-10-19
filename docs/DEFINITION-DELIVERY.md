@@ -48,6 +48,14 @@ remain available. Full recipe retention, source/tool/output checks and the
 ordinary lifecycle remain necessary after negotiation. This adds no definition
 publisher, signing or protected delivery authority.
 
+Staged-source portable version 8 adds the typed `regaiden041-windows` shared
+preferences opt-in for the exact reviewed ReGaiden 0.4.1 Windows package.
+Indexed entries declaring it must require minimum version 8. Versions 1–7
+remain supported. Preview, explicit consumer acknowledgment, retained
+account/path and launch-time checks are consequential semantics; accepting the
+field alone is insufficient. Retained external registrations use the existing
+strict installed-contract envelope so older readers refuse lost semantics.
+
 Staged-source portable version 7 adds the fixed Dr. Mario USA v1.3.0 cartridge
 recipe. Its indexed entry must require minimum version 7; admitting v6 engines
 is refused. Yoshi's existing recipe continues to require version 6, and versions

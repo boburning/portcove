@@ -3517,12 +3517,19 @@ impl PortcoveService {
             self.library.root(),
             checkpoint,
         )?;
-        let preview_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&(
+        let shared_preferences = crate::external_runtime::shared_preferences::inspect(spec)?;
+        let identity = (
             port,
             &inspected.root,
             &inspected.immutable_tree_sha256,
             inspected.immutable_file_count,
-        ))?));
+        );
+        let preview_bytes = if let Some(shared) = &shared_preferences {
+            serde_json::to_vec(&(identity, shared))?
+        } else {
+            serde_json::to_vec(&identity)?
+        };
+        let preview_sha256 = hex::encode(Sha256::digest(preview_bytes));
         Ok(ExternalRuntimePreview {
             port_id: port_id.to_owned(),
             path: inspected.root,
@@ -3532,6 +3539,7 @@ impl PortcoveService {
             immutable_tree_sha256: inspected.immutable_tree_sha256,
             immutable_file_count: inspected.immutable_file_count,
             preview_sha256,
+            shared_preferences,
         })
     }
 
@@ -3541,12 +3549,33 @@ impl PortcoveService {
         requested_root: &Path,
         expected_preview_sha256: &str,
     ) -> Result<crate::DestructiveAuthorization> {
+        self.authorize_external_runtime_with_shared_preferences_ack(
+            port_id,
+            requested_root,
+            expected_preview_sha256,
+            None,
+        )
+    }
+
+    /// The acknowledgment must come from a consumer that disclosed the shared
+    /// scope. Legacy generic confirmation cannot authorize this new write scope.
+    pub fn authorize_external_runtime_with_shared_preferences_ack(
+        &self,
+        port_id: &str,
+        requested_root: &Path,
+        expected_preview_sha256: &str,
+        acknowledged_preview_sha256: Option<&str>,
+    ) -> Result<crate::DestructiveAuthorization> {
         let preview = self.preview_external_runtime(port_id, requested_root)?;
         if preview.preview_sha256 != expected_preview_sha256 {
             return Err(PortcoveError::conflict(
                 "user-prepared runtime changed after review",
             ));
         }
+        crate::external_runtime::shared_preferences::require_ack(
+            &preview,
+            acknowledged_preview_sha256,
+        )?;
         self.library
             .issue_authorization("register_external", port_id, &preview.preview_sha256)
     }
@@ -3586,6 +3615,7 @@ impl PortcoveService {
                 immutable_tree_sha256: preview.immutable_tree_sha256,
                 registered_at: Library::now(),
                 retained_definition: self.catalog.definition_selection(port_id).cloned(),
+                shared_preferences: preview.shared_preferences.map(|review| review.binding),
             };
             self.library
                 .register_external_runtime(&record, &self.catalog)?;
@@ -3744,7 +3774,9 @@ impl PortcoveService {
                     .release
                     .user_prepared
                     .get(&record.platform)
-                    .is_some_and(|runtime| runtime.settings_contract.is_some())
+                    .is_some_and(|runtime| {
+                        runtime.settings_contract.is_some() || runtime.shared_preferences.is_some()
+                    })
             {
                 return Err(PortcoveError::usage(
                     "this prepared settings contract does not allow forwarded launch arguments",
@@ -3873,6 +3905,19 @@ impl PortcoveService {
             // ordered either before this launch or after child creation.
             // Release it before publishing subsequent session database writes.
             let mut spawn = || {
+                if let Some((record, retained_catalog)) = external.as_ref() {
+                    let accepted = retained_catalog
+                        .port(&record.port_id)?
+                        .release
+                        .user_prepared
+                        .get(&record.platform)
+                        .ok_or_else(|| {
+                            PortcoveError::verification(
+                                "retained external runtime has no platform contract",
+                            )
+                        })?;
+                    crate::external_runtime::shared_preferences::check_record(record, accepted)?;
+                }
                 if let Some(install) = active.as_ref() {
                     Installer::new(self.library.clone())?.require_curated_operation(
                         install,
@@ -4264,6 +4309,7 @@ impl PortcoveService {
                 "external runtime record differs from its retained accepted identity",
             ));
         }
+        crate::external_runtime::shared_preferences::check_record(record, spec)?;
         let inspected = crate::external_runtime::inspect_with_checkpoint(
             &record.path,
             spec,
@@ -9402,6 +9448,7 @@ fn main() {
             library_user_data: private,
             required_mutable_files: vec![],
             settings_contract: None,
+            shared_preferences: None,
             mutable_paths: vec!["player-save".into()],
         };
         if required_selector {
@@ -10355,6 +10402,7 @@ fn main() {
             library_user_data: false,
             required_mutable_files: vec![],
             settings_contract: None,
+            shared_preferences: None,
             mutable_paths: vec!["general.json".into()],
         };
         runtime.immutable_tree_sha256 =
@@ -10611,6 +10659,7 @@ fn main() {
             library_user_data: false,
             required_mutable_files: vec![],
             settings_contract: None,
+            shared_preferences: None,
             mutable_paths: vec!["general.json".into()],
         };
         let mismatch =

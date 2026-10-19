@@ -342,6 +342,29 @@ pub enum PreparedRuntimeSettingsContract {
     TfeDarkForces122420,
 }
 
+/// A reviewed shared write scope, never a caller-selected external path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum PreparedSharedPreferencesContract {
+    Regaiden041Windows,
+}
+
+/// Explicitly accepted account and location; mutable contents are not authority.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedSharedPreferencesBinding {
+    pub contract: PreparedSharedPreferencesContract,
+    pub account_sid_sha256: String,
+    pub path: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SharedPreferencesReview {
+    pub binding: AcceptedSharedPreferencesBinding,
+    pub present: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UserPreparedRuntimeSpec {
     pub version: String,
@@ -365,6 +388,9 @@ pub struct UserPreparedRuntimeSpec {
     /// Read-only, version-scoped source-selection semantics; never seeds settings.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub settings_contract: Option<PreparedRuntimeSettingsContract>,
+    /// Explicit consent to the exact runtime's non-owned, shared preferences.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_preferences: Option<PreparedSharedPreferencesContract>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -595,6 +621,8 @@ pub struct ExternalRuntimeRecord {
     pub registered_at: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retained_definition: Option<crate::DefinitionSelectionIdentity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_preferences: Option<AcceptedSharedPreferencesBinding>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

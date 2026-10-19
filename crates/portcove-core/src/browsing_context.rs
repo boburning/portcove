@@ -622,6 +622,7 @@ mod tests {
             immutable_tree_sha256: "c".repeat(64),
             registered_at: 1,
             retained_definition: None,
+            shared_preferences: None,
         });
         let retained = HashMap::from([(
             id.clone(),
@@ -744,6 +745,7 @@ mod tests {
             immutable_tree_sha256: package.immutable_tree_sha256.clone(),
             registered_at: 1,
             retained_definition: None,
+            shared_preferences: None,
         });
         let facts = HashMap::from([(
             port.id.clone(),

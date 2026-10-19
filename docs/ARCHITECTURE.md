@@ -501,6 +501,20 @@ marker nor collects, backs up, restores, relocates, or removes player-owned
 files. CLI and Tauri call the same core preview, authorization, registration,
 launch, and registration-only removal operations.
 
+The exact ReGaiden 0.4.1 Windows opt-in also declares a non-owned shared
+preference file. Core resolves SDL's roaming directory through Windows without
+creating it, fingerprints the current account SID and resolved path in the
+review, and requires a separate acknowledgment before issuing registration
+authorization. CLI uses an explicit acknowledgment flag and reviewed digest;
+Tauri presents a separate native disclosure and positive acceptance. Generic
+registration consent cannot authorize the new scope. Retained metadata carries
+the accepted account/path, without freezing ordinary preference contents.
+Readiness and launch recheck the account, location, safe ancestors and regular
+single-link leaf, including immediately before spawning. Core never creates,
+migrates, backs up, restores or deletes this shared data. Other runtime copies
+can rewrite the same file and discard unknown entries; this contract provides
+neither private isolation nor a cross-application lock.
+
 For an inspected successor catalog projection, core carries an immutable exact
 definition snapshot with the catalog for its selected port only. Catalog clones
 share that snapshot; a newly parsed unrelated catalog does not inherit it. This

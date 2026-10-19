@@ -434,6 +434,27 @@ UI and mods are disabled by the recipe, and the common process policy excludes
 inherited developer controls. New fitting consumers require their own reviewed
 source, build and runtime facts; this enum is not a universal NES builder.
 
+Staged-source version 8 adds optional prepared-runtime `shared_preferences`
+with the single value `regaiden041-windows`. It is restricted to the exact
+ReGaiden 0.4.1 Windows x64 archive and staged-source use-in-place route. It
+accepts no arbitrary external path. Windows resolves the shared roaming file
+`gbrecompiled/runtime/runtime_prefs.ini` without creating it. Review discloses
+the resolved path, current account fingerprint and present/absent state;
+registration requires explicit acknowledgment of that exact preview. CLI
+requires `--acknowledge-shared-preferences` with `--expected-preview`, in
+addition to ordinary consent; Desktop presents a separate native acceptance.
+Generic confirmation or the legacy Core authorization method cannot opt in.
+
+The retained binding preserves the accepted account and path. Preference
+contents may change normally; safe directory ancestors and a regular
+single-link file are rechecked before launch. Account/path changes require
+fresh registration. Other copies can overwrite this shared file and discard
+unknown entries. Portcove does not own, migrate, back up, restore or delete it.
+This is an explicit shared write scope, without private isolation or a sandbox.
+Forwarded launch arguments are refused for this exact prepared contract.
+Indexed entries require minimum staged-source version 8; versions 1–7 remain
+available. Older retained readers refuse through the existing strict envelope.
+
 Staged-source version 7 adds the fixed `dr-mario-nes-cycle-v1.3.0-usa` recipe.
 It binds the unchanged full Japan/USA Rev1 NES2 original, Dr. Mario v1.3.0 USA
 release input and exact game source. The engine, UI, toolchain and checked patch

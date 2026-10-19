@@ -54,6 +54,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 7,
         });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 8,
+        });
         supported
     }
 }
@@ -268,7 +272,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(2));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 8, 8)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 9, 9)).unwrap();
         assert!(!future.compatible);
     }
 
@@ -292,6 +296,29 @@ mod tests {
         );
         assert!(
             !check_definition_capabilities(&request("n64-recomp-portable", 6, 6))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn shared_preferences_require_v8_and_refuse_v7_readers() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| entry.contract_version <= 7)
+            .collect();
+        let required = request("staged-source-portable", 8, 8);
+        let old = check_with_inventory(&required, &previous).unwrap();
+        assert!(!old.compatible);
+        assert_eq!(old.checks[0].installed_version, Some(7));
+        assert!(check_definition_capabilities(&required).unwrap().compatible);
+        assert!(
+            !check_definition_capabilities(&request("n64-recomp-portable", 8, 8))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("staged-source-portable", 7, 7))
                 .unwrap()
                 .compatible
         );
