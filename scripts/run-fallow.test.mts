@@ -207,7 +207,7 @@ void test("CSS and review routes accept only their reviewed report contracts", (
       assert.equal(run(value).exitCode, 0);
       for (const invalid of [
         { ...value, schema_version: value.schema_version - 1 },
-        { ...value, version: "3.34.1" },
+        { ...value, version: "3.34.2" },
         { ...value, kind: "unknown" },
       ])
         assert.throws(() => run(invalid), /Unsupported .* report/);
