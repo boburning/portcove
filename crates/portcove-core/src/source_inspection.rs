@@ -1657,9 +1657,25 @@ pub(crate) fn inspect_file_identity_with_compound(
     let observed_digests = observed_digests(identity);
     if requires_n64_shape(catalog, profile_id, identity) && identity.canonical_n64_sha256.is_none()
     {
-        return Err(PortcoveError::source(
-            "This file is not a valid N64 ROM: its byte-order header is missing or invalid. Choose an original N64 ROM file.",
-        ));
+        return Ok(SourceInspection {
+            profile_id: profile_id.into(),
+            path: path.into(),
+            observed_digests,
+            archive_member_name: identity.archive_member_name.clone(),
+            components: Vec::new(),
+            validator: None,
+            assessment: SourceAssessment {
+                health: crate::SourceHealth::NotBaselined,
+                classification: SourceClassification::Unrecognized,
+                contract: SourceContractResult::NotEvaluated,
+                admission: SourceAdmission::Rejected {
+                    reason: SourceRejectionReason::CheckFailed,
+                },
+                evidence: Vec::new(),
+            },
+            record: None,
+            message: "This file is not a valid N64 ROM: its byte-order header is missing or invalid. Choose an original N64 ROM file.".into(),
+        });
     }
     if matching_compound_format(catalog, profile_id, identity, &observed_digests)
         .is_some_and(|format| Some(format) != validated_compound)
@@ -1864,7 +1880,11 @@ pub(crate) fn registered_launch_assessment(
         .map(|digest| digest.value.clone()),
         canonical_n64_size: canonical.map(|digest| digest.size),
     };
-    if matching_compound_format(catalog, profile_id, &identity, &facts.digests).is_some() {
+    if (requires_n64_shape(catalog, profile_id, &identity) && canonical.is_none())
+        || matching_compound_format(catalog, profile_id, &identity, &facts.digests).is_some()
+    {
+        // Old registrations can omit structural facts. Their absence is not a
+        // fresh observation of malformed content.
         return assessment;
     }
     let Ok(inspected) =
@@ -2437,8 +2457,16 @@ mod tests {
                 hashed: 0,
                 max_zip_entries: 4096,
             };
-            let error = inspect_file(&catalog, "ocarina-of-time", &path, u64::MAX, &mut budget)
-                .unwrap_err();
+            let inspection =
+                inspect_file(&catalog, "ocarina-of-time", &path, u64::MAX, &mut budget).unwrap();
+            assert!(matches!(
+                inspection.assessment.admission,
+                SourceAdmission::Rejected {
+                    reason: SourceRejectionReason::CheckFailed
+                }
+            ));
+            assert!(!inspection.observed_digests.is_empty());
+            let error = inspection.require_admitted_record().unwrap_err();
             assert!(error.message.contains("not a valid N64 ROM"));
         }
         let invalid_path = temporary.path().join("invalid.z64");

@@ -238,7 +238,11 @@ fn ghostship_staged_preparation_requires_exact_ownership_before_absent_archive_s
         )
         .unwrap();
     let source_path = staging.join("inert-original.z64");
-    fs::write(&source_path, b"inert unsupported original").unwrap();
+    fs::write(
+        &source_path,
+        b"\x80\x37\x12\x40inert unsupported original\0\0",
+    )
+    .unwrap();
     let (sha256, size) = crate::adapter::hash_file(&source_path).unwrap();
     let source = SourceRecord {
         profile_id: "ghostship-source".into(),

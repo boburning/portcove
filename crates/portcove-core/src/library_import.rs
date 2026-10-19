@@ -575,7 +575,11 @@ mod tests {
         let bundle = temporary.path().join("bundle");
         let destination = temporary.path().join("destination");
         let service = PortcoveService::new(Library::open(&source_library).unwrap()).unwrap();
-        fs::write(&original, b"synthetic source identity").unwrap();
+        fs::write(
+            &original,
+            b"\x80\x37\x12\x40synthetic source identity\0\0\0",
+        )
+        .unwrap();
         service.register_source("star-fox-64", &original).unwrap();
         service.write_library_metadata(&metadata_path).unwrap();
         fs::create_dir_all(&bundle).unwrap();

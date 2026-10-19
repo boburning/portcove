@@ -6555,7 +6555,7 @@ mod tests {
             .active
             .unwrap();
         let source = temporary.path().join("original-source");
-        fs::write(&source, b"original source").unwrap();
+        fs::write(&source, b"\x80\x37\x12\x40original source\0").unwrap();
         let (sha256, size) = crate::adapter::hash_file(&source).unwrap();
         library
             .register_source(&SourceRecord {
@@ -6733,7 +6733,10 @@ mod tests {
             fs::read(quarantine.join("sentinel")).unwrap(),
             b"other family intent"
         );
-        assert_eq!(fs::read(&source).unwrap(), b"original source");
+        assert_eq!(
+            fs::read(&source).unwrap(),
+            b"\x80\x37\x12\x40original source\0"
+        );
         assert_eq!(fs::read(&saved).unwrap(), b"original saved settings");
         assert_eq!(
             serde_json::to_vec(&library.all_installs().unwrap()).unwrap(),
@@ -6770,7 +6773,10 @@ mod tests {
             fs::read(quarantine.join("sentinel")).unwrap(),
             b"other family intent"
         );
-        assert_eq!(fs::read(&source).unwrap(), b"original source");
+        assert_eq!(
+            fs::read(&source).unwrap(),
+            b"\x80\x37\x12\x40original source\0"
+        );
         assert_eq!(
             serde_json::to_vec(&library.sources().unwrap()).unwrap(),
             sources
@@ -10608,13 +10614,17 @@ fn main() {
                 .unwrap();
         }
         let raw = temporary.path().join("original.Z64");
-        fs::write(&raw, b"synthetic original source").unwrap();
+        fs::write(&raw, b"\x80\x37\x12\x40synthetic original source\0\0\0").unwrap();
         let zipped = temporary.path().join("original.zip");
         let mut archive = zip::ZipWriter::new(fs::File::create(&zipped).unwrap());
         archive
             .start_file("original.z64", zip::write::SimpleFileOptions::default())
             .unwrap();
-        std::io::Write::write_all(&mut archive, b"synthetic original source").unwrap();
+        std::io::Write::write_all(
+            &mut archive,
+            b"\x80\x37\x12\x40synthetic original source\0\0\0",
+        )
+        .unwrap();
         archive.finish().unwrap();
         service.register_source("star-fox-64", &zipped).unwrap();
         let zip_bytes = fs::read(&zipped).unwrap();
@@ -10742,7 +10752,10 @@ fn main() {
                 .code,
             crate::ErrorCode::SourceInvalid
         );
-        assert_eq!(fs::read(&raw).unwrap(), b"synthetic original source");
+        assert_eq!(
+            fs::read(&raw).unwrap(),
+            b"\x80\x37\x12\x40synthetic original source\0\0\0"
+        );
         assert_eq!(fs::read(&zipped).unwrap(), zip_bytes);
         assert!(
             !external.join("general.json").exists(),
@@ -12235,7 +12248,7 @@ fn main() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let source = temporary.path().join("star-fox-64.z64");
-        fs::write(&source, b"original source").unwrap();
+        fs::write(&source, b"\x80\x37\x12\x40original source\0").unwrap();
         let service = PortcoveService::new(library.clone()).unwrap();
         let registered = service.register_source("star-fox-64", &source).unwrap();
         assert_eq!(
@@ -12502,7 +12515,7 @@ fn main() {
             action(&pending, PortAction::Launch).reason,
             PortActionReason::PreparationRequired
         );
-        fs::write(&source_path, b"changed source").unwrap();
+        fs::write(&source_path, b"\x80\x37\x12\x40changed source\0\0").unwrap();
         let held = service.status("opengoal-jak1").unwrap();
         assert_eq!(
             action(&held, PortAction::Launch).availability,
@@ -12755,7 +12768,7 @@ fn main() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let source = temporary.path().join("mario-kart-64.z64");
-        fs::write(&source, b"not the supported source").unwrap();
+        fs::write(&source, b"\x80\x37\x12\x40not the supported source").unwrap();
         let (storage_sha256, storage_size) = crate::adapter::hash_file(&source).unwrap();
         library
             .register_source(&SourceRecord {
@@ -12908,11 +12921,11 @@ fn main() {
         let executable = write_host_test_executable(&install, "starship");
         register_existing_test_install(&library, "starship", "v1", &install, true);
         let source = temporary.path().join("star-fox-64.z64");
-        fs::write(&source, b"original source").unwrap();
+        fs::write(&source, b"\x80\x37\x12\x40original source\0").unwrap();
         let service = PortcoveService::new(library).unwrap();
         service.register_source("star-fox-64", &source).unwrap();
 
-        fs::write(&source, b"changed source").unwrap();
+        fs::write(&source, b"\x80\x37\x12\x40changed source\0\0").unwrap();
         let error = service.prepare_launch("starship", None).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
         assert!(!install.join(LAUNCH_MARKER).exists());
@@ -12941,7 +12954,7 @@ fn main() {
         write_host_test_executable(&install, "starship");
         register_existing_test_install(&library, "starship", "v1", &install, true);
         let source = temporary.path().join("star-fox-64.z64");
-        fs::write(&source, b"initial verified source").unwrap();
+        fs::write(&source, b"\x80\x37\x12\x40initial verified source\0").unwrap();
         let service = PortcoveService::with_provider_and_faults(
             library.clone(),
             Arc::new(StaticReleaseProvider {
@@ -12971,7 +12984,7 @@ fn main() {
         write_host_test_executable(&install, "starship");
         register_existing_test_install(&library, "starship", "v1", &install, true);
         let source = temporary.path().join("owned-source.z64");
-        fs::write(&source, b"original source").unwrap();
+        fs::write(&source, b"\x80\x37\x12\x40original source\0").unwrap();
         let mut service = PortcoveService::with_provider(
             library.clone(),
             Arc::new(StaticReleaseProvider {
@@ -13069,7 +13082,10 @@ fn main() {
             serde_json::to_value(library.source("star-fox-64").unwrap().unwrap()).unwrap(),
             serde_json::to_value(registered).unwrap()
         );
-        assert_eq!(fs::read(&source).unwrap(), b"original source");
+        assert_eq!(
+            fs::read(&source).unwrap(),
+            b"\x80\x37\x12\x40original source\0"
+        );
         fs::write(&source, b"changed after registration").unwrap();
         assert_eq!(
             service.prepare_launch("starship", None).unwrap_err().code,
