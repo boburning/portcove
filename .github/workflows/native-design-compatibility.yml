@@ -167,15 +167,23 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - name: Prepare bounded namespace diagnostics
         run: command -v strace || sudo -n apt-get install --no-install-recommends -y strace
+      - name: Grant user namespaces only to this disposable qualification interpreter
+        id: namespace_profile
+        run: node scripts/desktop-linux-namespace-profile.mts --prepare
       - name: Preflight the actual ordinary-account qualification namespace mechanism
         timeout-minutes: 3
         run: node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts
+      - name: Withdraw only the quiescent qualification profile
+        if: ${{ always() && steps.namespace_profile.outcome == 'success' }}
+        run: '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup'
       - name: Retain original namespace results and diagnostic failures
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: linux-namespace-preflight-${{ github.sha }}-${{ github.run_attempt }}
-          path: work/linux-namespace-preflight/**
+          path: |
+            work/linux-namespace-preflight/**
+            work/linux-namespace-profile/**
           if-no-files-found: error
           retention-days: 14
 
@@ -198,6 +206,9 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - name: Prepare bounded namespace diagnostics
         run: command -v strace || sudo -n apt-get install --no-install-recommends -y strace
+      - name: Grant user namespaces only to this disposable qualification interpreter
+        id: namespace_profile
+        run: node scripts/desktop-linux-namespace-profile.mts --prepare
       - name: Admit the complete namespace mechanism before building or provisioning media
         timeout-minutes: 3
         run: node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts
@@ -226,6 +237,9 @@ jobs:
       - name: Remove only this operation's quiescent media fixture
         if: ${{ always() && steps.media_preparation.outcome != 'skipped' }}
         run: node scripts/desktop-linux-media.mts --cleanup
+      - name: Withdraw only the quiescent qualification profile
+        if: ${{ always() && steps.namespace_profile.outcome == 'success' }}
+        run: '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup'
       - name: Retain ordinary package and bounded native evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -233,6 +247,7 @@ jobs:
           name: linux-package-boundary-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             work/linux-namespace-preflight/**
+            work/linux-namespace-profile/**
             work/linux-packaged-security/*.json
             work/linux-packaged-security/*.log
             work/linux-packaged-security/*.deb
