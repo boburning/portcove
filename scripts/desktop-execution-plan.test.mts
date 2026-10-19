@@ -103,7 +103,10 @@ void test("selected completion captures and verifies its serialized focus observ
       1,
     );
   }
-  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-focus-custody-"));
+  // Retained custody must stay outside disposable TMP/TEMP roots from dev-storage.
+  const parent = path.join(os.homedir(), ".portcove-test-fixtures");
+  await mkdir(parent, { recursive: true, mode: 0o700 });
+  const directory = await mkdtemp(path.join(parent, "portcove-focus-custody-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, source);
   await mkdir(path.dirname(file), { recursive: true });

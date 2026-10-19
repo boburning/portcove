@@ -369,7 +369,10 @@ void test("native receipt capture binds schema validation and reproduction input
         source,
       );
   }
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-transport-custody-"));
+  // Retained custody must stay outside disposable TMP/TEMP roots from dev-storage.
+  const parent = path.join(os.homedir(), ".portcove-test-fixtures");
+  await mkdir(parent, { recursive: true, mode: 0o700 });
+  const directory = await mkdtemp(path.join(parent, "pcv-transport-custody-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   for (const source of expected) {
     const destination = path.join(directory, source);
