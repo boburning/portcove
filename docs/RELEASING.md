@@ -62,6 +62,12 @@ Tauri v2 updater artifacts, current-user NSIS with passive updater installation,
 and ad-hoc macOS signing. Ordinary configuration still disables updater artifacts;
 no endpoint, runtime updater plugin, or production key is installed by this overlay.
 An updater signature is distinct from Authenticode, notarization, and catalog trust.
+The Windows overlay keeps an explicit `bundle.windows.nsis` options object.
+With the pinned Tauri CLI 2.12.2, the [versioned NSIS bundler](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.12.2/crates/tauri-bundler/src/bundle/windows/nsis/mod.rs#L345-L417)
+reads the generic WebView2 minimum only inside that options branch. A null
+NSIS configuration silently omits it. Inspect the generated `installer.nsi`:
+`MINIMUMWEBVIEW2VERSION` must equal the declared engine floor; an empty value
+does not establish the installer's minimum-runtime update behavior.
 Tauri's bundler requires the corresponding public key in its merged updater
 configuration. The rehearsal creates a temporary copy of the overlay containing
 its disposable public key; a bare overlay without that key deliberately cannot
