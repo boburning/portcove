@@ -67,9 +67,7 @@ test("preparation summary accounts for installations from earlier full-profile j
 });
 
 test("all-ready summary still requires the prepared fixture and native readiness of every entry", () => {
-  assert.throws(() =>
-    assertPreparedLibrarySummary("0 in library All can launch", [], "prepared"),
-  );
+  assert.throws(() => assertPreparedLibrarySummary("0 in library All can launch", [], "prepared"));
   for (const changes of [
     { readiness: { ...prepared.readiness, launchable: false } },
     { readiness: { ...prepared.readiness, pending_setup: true } },
