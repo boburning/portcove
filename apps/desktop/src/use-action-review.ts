@@ -63,10 +63,12 @@ export function useActionReview<T>({
     inFlight.current = "apply";
     setPending("apply");
     setError(undefined);
+    let cancelled = false;
     try {
       const result = await callbacks.current.apply(preview);
       if (!requests.current.isCurrent(request)) return;
-      if (result) callbacks.current.close();
+      if (result === true) callbacks.current.close();
+      else if (result === "cancelled") cancelled = true;
       else setError(callbacks.current.failureMessage);
     } catch (value) {
       if (requests.current.isCurrent(request)) setError(value);
@@ -74,7 +76,7 @@ export function useActionReview<T>({
       if (requests.current.isCurrent(request)) {
         inFlight.current = undefined;
         setPending(undefined);
-        setReviewed(undefined);
+        if (!cancelled) setReviewed(undefined);
       }
     }
   };
