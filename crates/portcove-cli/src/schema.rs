@@ -418,6 +418,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 serde_json::json!(schema_for_contract::<BackupActionPreview>(contract)),
             ),
             (
+                "ghostship_recovery_plan",
+                serde_json::json!(schema_for_contract::<portcove_core::GhostshipRecoveryPlan>(
+                    contract
+                )),
+            ),
+            (
+                "ghostship_recovery_result",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::GhostshipRecoveryResult>(contract)
+                ),
+            ),
+            (
                 "restore_result",
                 serde_json::json!(schema_for_contract::<RestoreResult>(contract)),
             ),

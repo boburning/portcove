@@ -4924,6 +4924,22 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
     assert_eq!(count(&library, "curated_artifact_scopes"), 0);
     assert_eq!(count(&library, "curated_artifact_admissions"), 0);
     assert_eq!(count(&library, "curated_transition_receipts"), 0);
+    assert_eq!(count(&library, "ghostship_legacy_qualifications"), 0);
+    assert_eq!(count(&library, "ghostship_qualified_backups"), 0);
+    assert_eq!(count(&library, "ghostship_runtime_safety"), 0);
+    assert_eq!(
+        library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM lifecycle_operations
+             WHERE ghostship_recovery_json IS NOT NULL OR backup_deletion_json IS NOT NULL",
+                [],
+                |row| row.get::<_, u64>(0),
+            )
+            .unwrap(),
+        0,
+    );
     library.connection().unwrap().execute_batch(
         "BEGIN IMMEDIATE;
          CREATE TABLE historical_admission (
@@ -4942,6 +4958,11 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
          DROP TABLE curated_artifact_admissions;
          DROP TABLE curated_artifact_history;
          DROP TABLE curated_transition_receipts;
+         DROP TABLE ghostship_runtime_safety;
+         DROP TABLE ghostship_qualified_backups;
+         DROP TABLE ghostship_legacy_qualifications;
+         ALTER TABLE lifecycle_operations DROP COLUMN ghostship_recovery_json;
+         ALTER TABLE lifecycle_operations DROP COLUMN backup_deletion_json;
          DELETE FROM schema_migrations WHERE version>33;
          COMMIT;"
     ).unwrap();

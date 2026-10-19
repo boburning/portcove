@@ -660,6 +660,9 @@
           "preview_sha256": {
             "type": "string"
           },
+          "retained_runtime_copy_will_be_deleted": {
+            "type": "boolean"
+          },
           "safety_backup_will_be_created": {
             "type": "boolean"
           }
@@ -669,6 +672,7 @@
           "backup",
           "current_user_data_exists",
           "safety_backup_will_be_created",
+          "retained_runtime_copy_will_be_deleted",
           "preview_sha256"
         ],
         "type": "object"
