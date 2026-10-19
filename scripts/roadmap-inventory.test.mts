@@ -504,6 +504,20 @@ void test("hydration identity mismatch remains fatal and identifies the affected
   };
   assert.throws(() => collectRoadmapInventory(f.client), /identity.*#1/);
 });
+void test("reconciliation never inherits a changed repository provider identity or name", () => {
+  for (const replacement of [{ id: "OTHER" }, { nameWithOwner: "foreign/repository" }]) {
+    const f = fixture();
+    const graphql = f.client.graphql.bind(f.client);
+    let markers = 0;
+    f.client.graphql = (query, vars) => {
+      const data = graphql(query, vars);
+      if (query.includes("UPDATED_AT") && ++markers > 1)
+        Object.assign((data as { repository: Record<string, unknown> }).repository, replacement);
+      return data;
+    };
+    assert.throws(() => collectRoadmapInventory(f.client), /provider identity changed/);
+  }
+});
 void test("incomplete, duplicate, racing and redacted observations never become valid inventories", () => {
   const malformed = fixture();
   malformed.alter(() => ({

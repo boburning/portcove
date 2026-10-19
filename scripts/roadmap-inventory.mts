@@ -87,13 +87,24 @@ export function collectRoadmapInventory(
   const [owner, name] = repository.split("/");
   if (!owner || !name) throw new Error("Invalid repository binding");
   const markerQuery = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){id nameWithOwner issues(first:1,orderBy:{field:UPDATED_AT,direction:DESC}){totalCount nodes{id updatedAt}}}}`;
-  const marker = () => object(object(client.graphql(markerQuery, { owner, name })).repository);
+  let repositoryIdentity: string | undefined;
+  const marker = () => {
+    const value = object(object(client.graphql(markerQuery, { owner, name })).repository);
+    if (
+      repositoryIdentity !== undefined &&
+      (value.id !== repositoryIdentity ||
+        String(value.nameWithOwner).toLowerCase() !== repository.toLowerCase())
+    )
+      throw new Error("Repository provider identity changed during inventory collection");
+    return value;
+  };
   const before = marker();
   if (
     typeof before.id !== "string" ||
     String(before.nameWithOwner).toLowerCase() !== repository.toLowerCase()
   )
     throw new Error("Wrong repository inventory identity");
+  repositoryIdentity = before.id;
   if (cache?.repository_node_id && cache.repository_node_id !== before.id)
     throw new Error("Repository provider identity changed; preserve the historical baseline");
   const query = `query($owner:String!,$name:String!,$after:String){repository(owner:$owner,name:$name){issues(first:100,after:$after,orderBy:{field:CREATED_AT,direction:ASC}){totalCount nodes{id number title url state updatedAt} pageInfo{hasNextPage endCursor}}}}`;
