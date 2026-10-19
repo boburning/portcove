@@ -8,6 +8,14 @@
     "test/browser-setup.mts",
     "scripts/*.native.test.mts"
   ],
+  "framework": [
+    {
+      "name": "portcove-desktop-unit-tests",
+      "detection": { "type": "fileExists", "pattern": "scripts/**/*.test.{ts,mts}" },
+      "entryPoints": ["scripts/**/*.test.{ts,mts}"],
+      "entryPointRole": "test"
+    }
+  ],
   "boundaries": {
     "zones": [
       {

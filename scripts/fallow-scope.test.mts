@@ -13,7 +13,11 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const binary = path.join(root, "node_modules/fallow/bin/fallow");
 
-function analyze(directory: string, args: readonly string[]): unknown {
+function analyze(
+  directory: string,
+  args: readonly string[],
+  configuration = ".fallow-tooling.json",
+): unknown {
   const result = spawnSync(
     process.execPath,
     [
@@ -21,7 +25,7 @@ function analyze(directory: string, args: readonly string[]): unknown {
       "--root",
       directory,
       "--config",
-      path.join(directory, ".fallow-tooling.json"),
+      path.join(directory, configuration),
       "--threads",
       "2",
       "--format",
@@ -183,6 +187,77 @@ void test("tooling graph follows cross-root consumers and still finds an unrefer
       "work/generated.mjs",
     ])
       assert.ok(!unused.includes(retained), `${retained} was incorrectly unused`);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("Desktop unit-test discovery retains test roots without promoting production helpers", () => {
+  const actual = inventoryReport(
+    analyze(
+      path.join(root, "apps/desktop"),
+      ["list", "--entry-points", "--files", "--plugins"],
+      ".fallowrc.json",
+    ),
+  );
+  const actualEntries = new Set(actual.entry_points.map((entry) => entry.path));
+  for (const file of [
+    "scripts/browser-script.test.mts",
+    "scripts/desktop-controller-test.test.mts",
+    "scripts/desktop-source-dialog-test.test.mts",
+  ])
+    assert.ok(actualEntries.has(file), `missing maintained Desktop test root: ${file}`);
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-fallow-desktop-tests-"));
+  function put(name: string, contents: string) {
+    const target = path.join(directory, name);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, contents);
+  }
+  try {
+    put(".fallow-tooling.json", JSON.stringify(desktopConfig));
+    put("package.json", JSON.stringify({ type: "module", main: "src/main.ts" }));
+    put("src/main.ts", "console.log('production');");
+    put("scripts/helper.ts", "export const helper = 1;");
+    put("scripts/orphan.mts", "export const orphan = 2;");
+    const tests = [
+      "scripts/browser-script.test.mts",
+      "scripts/desktop-controller-test.test.mts",
+      "scripts/desktop-source-dialog-test.test.mts",
+      "scripts/nested/example.test.mts",
+      "scripts/nested/example.test.ts",
+    ];
+    for (const file of tests) {
+      const helper = file.includes("/nested/") ? "../helper" : "./helper";
+      put(file, `import { helper } from "${helper}"; console.log(helper);`);
+    }
+    const inventory = inventoryReport(
+      analyze(directory, ["list", "--entry-points", "--files", "--plugins"]),
+    );
+    const entries = new Set(inventory.entry_points.map((entry) => entry.path));
+    for (const file of tests) assert.ok(entries.has(file), `missing Desktop test root: ${file}`);
+    assert.ok(!entries.has("scripts/helper.ts"), "test helpers must remain dependencies");
+    const unused = deadCodeReport(analyze(directory, ["dead-code"])).unused_files;
+    assert.ok(unused.includes("scripts/orphan.mts"), "unreachable ordinary scripts stay visible");
+    for (const file of [...tests, "scripts/helper.ts"])
+      assert.ok(!unused.includes(file), `test dependency incorrectly unused: ${file}`);
+    const production = inventoryReport(
+      analyze(directory, ["list", "--entry-points", "--files", "--plugins", "--production"]),
+    );
+    assert.deepEqual(
+      production.entry_points.map((entry) => entry.path),
+      ["src/main.ts"],
+    );
+    put(
+      "src/shared/example.ts",
+      'import { feature } from "../features/example/model"; console.log(feature);',
+    );
+    put("src/features/example/model.ts", "export const feature = 3;");
+    put("scripts/boundary.test.mts", 'import "../src/shared/example";');
+    assert.equal(
+      deadCodeReport(analyze(directory, ["dead-code"])).boundary_violations?.length,
+      1,
+      "test discovery must preserve shared-to-feature enforcement",
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
