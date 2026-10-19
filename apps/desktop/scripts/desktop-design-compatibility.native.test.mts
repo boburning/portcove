@@ -66,7 +66,8 @@ void test("design assertions execute erased serialized callbacks and refuse miss
     }
     const root = new HTMLElement("root"),
       trigger = new HTMLElement("fixture-open-dialog"),
-      channel = new HTMLElement("fixture-channel");
+      channel = new HTMLElement("fixture-channel"),
+      selectedOption = new HTMLElement("selected-option");
     const document = {
       readyState: "complete",
       activeElement: trigger,
@@ -90,6 +91,7 @@ void test("design assertions execute erased serialized callbacks and refuse miss
         }
       } else {
         select = true;
+        document.activeElement = selectedOption;
         if (mode === "missing-select") omitted = '[data-slot="select-content"]';
       }
     }
@@ -130,7 +132,14 @@ void test("design assertions execute erased serialized callbacks and refuse miss
         return {
           getId: async () => "owned-fixture",
           getAttribute: async (name: string) => root.getAttribute(name),
-          sendKeys: async (key: string) => keyboard(key),
+          sendKeys: async (key: string) => {
+            if (locator.selector === "fixture-channel") {
+              // Base UI dismisses an aligned popup when element keys refocus its trigger.
+              if (select && document.activeElement !== channel) select = false;
+              document.activeElement = channel;
+            }
+            keyboard(key);
+          },
           click: async () => {
             clicks.push(locator.selector);
             if (locator.selector === "fixture-theme-light") {
