@@ -108,3 +108,77 @@ review. Fixture source checks establish the tested cleanup and transport
 contracts, not native acceptance. Exact final source, hosted CI, guarded merge
 and remote readback are recorded on the owning issue and follow-up PR. Retained
 reports and failures are under `E:/Codex-Evidence/fallow-main-gate-20261019`.
+
+## Follow-up: trustworthy reports and bounded capability trials (#2211)
+
+This work starts at current main `05da1abb3b448700bfc9ff08918a4e94ff47f395`,
+with pinned Fallow 3.34.1 and Node 24.22.0. It preserves the completed cleanup
+and passing whole-Desktop gate above. Historical finding totals are not a new
+cleanup backlog.
+
+### Confirmed findings and corrections
+
+The native malformed-source control reproduces exit 0 and no check failures
+without opt-in parser enforcement. Whole-Desktop now requests and requires the
+native parse-error gate, and separately refuses source-read failures (including
+invalid UTF-8) and an unexpectedly empty required scope. Optional missing churn,
+ownership and ranking information stays advisory and is disclosed beside results.
+
+The dirty discovery-input and inherited production-option reuse holes also
+still applied. Reuse now inventories every Git-visible regular input, fixes the
+maintained routes' effective scope, and binds supported coverage/baseline contents
+and retained streams. Old metadata needs fresh analysis. The existing saved-report
+renderer, four route distinctions, caches, resource admission, two-thread default
+and selected hosted complete-history checkout already worked and were preserved;
+no general history fetch or new mandatory scan was added. Expanded custom review
+summaries retain native and display omissions, consumer samples, optional states,
+effort-adjusted priority and coverage provenance.
+
+### Advisory trials and adoption decisions
+
+[Hosted trial run](https://github.com/boburning/portcove/actions/runs/39330689787)
+uses an unmerged disposable experiment branch `c29164d`, with unchanged Desktop
+source from the starting main. Reports, arguments, streams, hashes, copied-source
+integrity and timings are retained in its artifact. Approximately 30 seconds of
+native/test command time excludes provisioning and artifact upload. No trial
+configuration, runner, dependency, threshold or workflow change is adopted into
+main merely to run these experiments.
+
+| Capability                     | Observed value, limitation and decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Command cost                               |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Inspect and guard              | `concurrency-state.ts`: 13 importers, eight exports and private `drain` complexity 12; guard confirms shared is restricted to shared while a selected feature caller is unrestricted. Adopt selectively before consequential refactors; declared policy does not cover every caller.                                                                                                                                                                                                                                                                                                         | 1.04 s / 0.11 s                            |
+| Exact semantic consumers       | Matching companion is available. Explicit Desktop tsconfig gives 12 direct consumers, 60 affected files and 46 static test identities for `LatestRequestGeneration`. Both best-effort and complete results are partial with 104 evidence-limit omissions; complete exits 1. Adopt positive consumer evidence selectively; defer absence/deletion conclusions until complete.                                                                                                                                                                                                                 | 12 s each                                  |
+| Dependency trace               | Tauri API trace locates 18 importers, 137 invoke call sites and 184 use sites; ten displayed with a continuation cursor. Adopt selectively for upgrades, then read wrappers, constructors and unresolved uses manually. Native wrappers are empty despite `desktopApi`; Channel has zero call sites but real constructor references. Static reach is not runtime compatibility.                                                                                                                                                                                                              | 0.20 s                                     |
+| Four React structure/API rules | Warn-only absent-component-props, prop-drilling, thin-wrapper and duplicate-prop-shape report no candidates in nine representative files. Defer permanent enablement: recurring value was not demonstrated; missing findings are not complete dynamic/external consumer proof. Intentional dialog primitive wrappers remain.                                                                                                                                                                                                                                                                 | 0.22 s combined                            |
+| Semantic and near duplication  | Fourteen groups, 12 displayed, two omitted; 555 groups below three occurrences filtered. Clipboard request guards in ActivityDiagnostic, FailureDetails and SourceIdentity add useful semantic visibility, but reset/lifetime ownership differs. Adopt semantic investigation selectively and retain those implementations. Less-than-exact near-miss benefit was not demonstrated; defer model-based similar-code.                                                                                                                                                                          | 0.25 s                                     |
+| CSS token consumers            | All 37 recognized theme tokens have consumers. One-use heading, loading and progress aliases have real dialog/progress callers; muted-foreground has 103 source consumers but only 20 native locations sampled. Adopt the compact view selectively for token-change impact. These are lower bounds including tests, separate from ordinary custom properties; zero is insufficient deletion evidence.                                                                                                                                                                                        | 1.03 s                                     |
+| Measured test coverage         | Nine maintained baseline evaluator Node tests, copied with four exact source files, produce V8 evidence matching 38/38 functions. Validator estimated CRAP 462 becomes about 21 with 97.06% measured coverage; unexecuted helpers stay zero-covered. Adopt selectively for a concrete risk investigation, without a coverage program or score gate. This is baseline function execution, not current whole-repository, renderer, native or Rust coverage; target-effort rankings were not captured.                                                                                          | 0.13 s capture; 0.11 s per health report   |
+| Mutation testing               | The actual Vite+ test import works through native Vitest on a disposable coalescing-helper copy: two mutants, one killed and one surviving, partial by limit (122 total). Source review finds the surviving private drain guard apparently equivalent under reachable scheduling; preserve the guard, not a new test-gap claim. Adopt selectively with inspected plans, tiny counts and concurrency one. A Node helper plan has all 19 mutants without test-role coverage, so defer that plan; this does not establish Node or `.mts` incompatibility. Browser/native routes remain untried. | 0.12 s plan / 1.31 s run; 0.18 s Node plan |
+
+No new architecture invariant was needed beyond the existing shared-to-feature
+rule. Entry-weight and broader security scans had no concrete startup or product
+trust question in this adapter work, so were omitted; source reach is not bundle
+size or startup time, and Fallow does not analyze Rust or replace runtime,
+transport, provenance or native checks.
+
+### Completed walkthrough and evidence scope
+
+The hosted guide completed in 3.4 seconds on `c29164d`, graph
+`graph:b05afabfdb0f49bc`. The independent reviewer read both emitted contract
+questions and their outside-diff consumers: container/resource admission already
+requests `includeAll: true`; report-summary consumes a bounded string without
+parsing its lines. The reviewer submitted both judgments on the unchanged graph.
+[Native validation](https://github.com/boburning/portcove/actions/runs/39331160226)
+returned `stale: false`, two accepted signal anchors, zero rejected and zero
+unanchored judgments. Their reasoning remains `deterministic: false`: validation
+establishes emitted anchors and snapshot identity, not reasoning or behavior.
+Adopt selectively for substantive contract review; ordinary independent source
+review and exact-head CI remain separate.
+
+Original local trial admission failures are preserved: a foreign checkout's child
+resource record became NUL-filled. It was neither modified nor bypassed. Hosted
+execution used the established CI resource route independently. The initial native
+parser fixture also timed out after inheriting parent repository history; giving
+that disposable fixture its own Git boundary repaired it without raising budgets.
+Detailed trial outputs and failed evidence remain under
+`E:/Codex-Evidence/fallow-evidence-workflow-20261019` and the linked hosted artifacts.
