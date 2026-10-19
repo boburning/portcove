@@ -9,6 +9,19 @@ It grants nothing. The runnable workflow remains admission-only. The
 [held complete workflow](application-update-production.aggregate.yml) is outside
 `.github/workflows`; its four new jobs also have literal false conditions.
 
+## Current local runtime checkpoint
+
+The [bounded diagnostic result](slice4-bounded-runtime-result-2026-10-18.md)
+records the failed `CODEX_HOME` metadata startup and completed matching recovery.
+Its grant is fulfilled; both images remain detached and retained. The delivered
+metadata preflight is still unqualified natively. The
+[next retained-image observation](slice4-next-storage-observation-2026-10-18.md)
+prepares one fresh credential-free diagnostic and phase-specific recovery, using
+the existing second image and preserving the original marker byte-for-byte.
+It requires a new exact operation grant after delivery; no reattach or repeated
+fixture has occurred. The older preparation checkpoints below retain their
+historical scope. Production, authentication, issuer and acceptance holds remain.
+
 ## Continuation after merged #2125
 
 The [producer and #144 checkpoint](slice4-producer-and-144-checkpoint-2026-10-18.md)
