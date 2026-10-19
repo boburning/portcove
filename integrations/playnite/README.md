@@ -68,7 +68,7 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–57, 60–63 or 65–69 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57, 60–63 or 65–70 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -90,7 +90,7 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 or schema-66 or schema-67 or schema-68 or schema-69 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 or schema-66 or schema-67 or schema-68 or schema-69 or schema-70 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
@@ -106,6 +106,14 @@ from readiness and Play. Playnite Uninstall removes only this reviewed
 registration and verifies the installed route is absent before changing its
 installed state. External files remain. Cancel makes no mutation; Playnite's
 ordinary cancellation dialog must be acknowledged to restore the action.
+
+Schema 70 adds separate source/BIOS assessments and BIOS incompatibility guidance.
+The reference consumes these claims in guided setup: absent or unreviewed
+compatibility offers an explained **Try launch** when Core permits launch, while
+confirmed input can offer **Play**. Neither a clean process exit nor a current
+file baseline establishes gameplay. Unknown reasons and contradictory assessment
+health require a compatible reader or refreshed state. Schema 67 reviewed
+external setup remains supported alongside schemas 68, 69 and 70.
 
 Schema 67 readiness also supplies the effective runtime's required source
 extension. If a validated ZIP cannot be passed to that runtime, management asks

@@ -1,7 +1,13 @@
 import { ApplicationUpdateSettings } from "../features/application-update/ApplicationUpdates";
 import { ApplicationUpdateNotices } from "../features/application-update/ApplicationUpdateNotices";
 import { fixtureValue } from "../test-fixtures";
-import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
+import {
+  failureReport,
+  portDefinition,
+  portStatus,
+  sourceProfile,
+  confirmedSourceAssessment,
+} from "../test-fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 import type {
@@ -328,6 +334,7 @@ describe("desktop components", () => {
         launchable: false,
         pending_setup: false,
         source: "current",
+        source_assessment: confirmedSourceAssessment(),
         required_source_extension: "z64",
         blockers: ["incompatible_source"],
       },
@@ -642,6 +649,7 @@ describe("desktop components", () => {
             blockers: ["preparation_required"],
             pending_setup: true,
             source: "current",
+            source_assessment: confirmedSourceAssessment(),
           },
         }}
       />,
@@ -666,6 +674,7 @@ describe("desktop components", () => {
           blockers: ["preparation_required"],
           pending_setup: true,
           source: "current",
+          source_assessment: confirmedSourceAssessment(),
         },
       };
       const props = {
@@ -731,6 +740,7 @@ describe("desktop components", () => {
           blockers: ["preparation_required"],
           pending_setup: true,
           source: "current",
+          source_assessment: confirmedSourceAssessment(),
         },
       };
       const props = {
@@ -895,7 +905,13 @@ describe("desktop components", () => {
       channel: "stable",
       active: install,
       staged: downloaded,
-      readiness: { launchable: true, blockers: [], pending_setup: false, source: "current" },
+      readiness: {
+        launchable: true,
+        blockers: [],
+        pending_setup: false,
+        source: "current",
+        source_assessment: confirmedSourceAssessment(),
+      },
       last_update_check: {
         checked_at: 2,
         check: {
@@ -1086,6 +1102,7 @@ describe("desktop components", () => {
             blockers: [],
             pending_setup: false,
             source: "current",
+            source_assessment: confirmedSourceAssessment(),
             bios: health,
           },
         }}
@@ -2217,13 +2234,15 @@ describe("desktop components", () => {
       "No ports in your library yet. File requirements will appear here after you add a port.",
     );
     expect(noInstalledPorts).not.toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
-    expect(complete).toContain("Required files have been added for ports in your library");
+    expect(complete).toContain("Required file locations are saved");
     expect(complete).toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
     expect(complete).toContain("No game files or BIOS files have been added yet");
     expect(singular).toContain("1 game-file requirement needs attention");
     expect(plural).toContain("2 game-file requirements need attention");
     expect(singular).toContain("Game files and BIOS");
-    expect(singular).toContain("Portcove checks files locally and never uploads or changes them");
+    expect(singular).toContain(
+      "File checks run locally without uploading or changing your originals",
+    );
     expect(singular).toContain("confirms that the file is an exact match");
     expect(singular).toContain("Sample source set");
     expect(singular).toContain("Sample Port · Game files");
@@ -2353,6 +2372,7 @@ describe("desktop components", () => {
           active: installRecord(),
           readiness: {
             source: "current",
+            source_assessment: confirmedSourceAssessment(),
             launchable: true,
             blockers: [],
             pending_setup: false,
@@ -2364,7 +2384,7 @@ describe("desktop components", () => {
     expect(html).toContain("Selected path has not been checked");
     expect(html).not.toContain("Current registered bytes checked");
     expect(html).not.toContain("Ready to launch");
-    expect(html).toContain(">Play</button>");
+    expect(html).toContain(">Try launch</button>");
   });
 
   it("renders installed and uninstalled detail actions", () => {
@@ -2413,6 +2433,7 @@ describe("desktop components", () => {
         blockers: [],
         pending_setup: false,
         source: "current",
+        source_assessment: confirmedSourceAssessment(),
       },
     };
     const installed = renderToStaticMarkup(
@@ -2420,6 +2441,15 @@ describe("desktop components", () => {
         port={port}
         status={status}
         sourcePath="source.z64"
+        source={{
+          profile_id: port.source_profile!,
+          path: "source.z64",
+          sha256: "a".repeat(64),
+          size: 1,
+          storage_sha256: "a".repeat(64),
+          storage_size: 1,
+          updated_at: 1,
+        }}
         setSourcePath={vi.fn()}
         actions={actions}
         backupCreateAssessment={{
@@ -3336,6 +3366,7 @@ describe("desktop components", () => {
         blockers: [],
         pending_setup: false,
         source: "current",
+        source_assessment: confirmedSourceAssessment(),
       },
       last_update_check: {
         checked_at: 2,
@@ -3384,7 +3415,7 @@ describe("desktop components", () => {
     expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);
     expect(html).toContain(">Play</button>");
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);
-    expect(html).toContain("All ready to play");
+    expect(html).toContain("All can launch");
     expect(html).not.toContain("updates downloaded");
     expect(html).toContain("Update available");
     expect(html).not.toContain("need attention");
@@ -3416,6 +3447,7 @@ describe("desktop components", () => {
         blockers: [],
         pending_setup: false,
         source: "current",
+        source_assessment: confirmedSourceAssessment(),
       },
     };
     const html = renderToStaticMarkup(
@@ -3441,7 +3473,13 @@ describe("desktop components", () => {
 
   it.each([
     {
-      readiness: { launchable: true, blockers: [], pending_setup: false, source: "current" },
+      readiness: {
+        launchable: true,
+        blockers: [],
+        pending_setup: false,
+        source: "current",
+        source_assessment: confirmedSourceAssessment(),
+      },
       label: "Ready to play",
       action: "View details",
     },
@@ -3451,6 +3489,7 @@ describe("desktop components", () => {
         blockers: ["missing_runtime"],
         pending_setup: false,
         source: "current",
+        source_assessment: confirmedSourceAssessment(),
       },
       label: "Runtime required",
       action: "Finish setup",
@@ -3499,6 +3538,7 @@ describe("desktop components", () => {
         blockers: [],
         pending_setup: false,
         source: "current",
+        source_assessment: confirmedSourceAssessment(),
       },
     };
     const html = renderToStaticMarkup(

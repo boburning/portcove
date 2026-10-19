@@ -670,7 +670,7 @@ function sourceDisplayState(report: SourceInspectionReport) {
   const admission = report.inspection?.assessment.admission;
   const unknownEditionLabel =
     admission?.state === "admitted" && admission.mode === "structural_checks"
-      ? "Required file checks passed · edition unknown"
+      ? "Basic file checks passed · compatibility unconfirmed"
       : "Edition unknown · review check details";
   const known = {
     recognized_exact: { label: "Exact match", tone: "success", icon: Check },

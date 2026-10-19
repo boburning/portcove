@@ -56,6 +56,7 @@ import {
   currentUpdateSnapshot,
   defaultReleaseChannel,
   formatBytes,
+  hasUnconfirmedLaunchInput,
   installationMethodLabel,
   platformLabel,
   releaseChannelPresentation,
@@ -223,22 +224,39 @@ export function DetailPanel(props: DetailPanelProps) {
               tone: "setup",
               icon: AlertTriangle,
             }
-          : detailState({
-              installed,
-              launchReady,
-              stagedVersion: status?.staged?.version,
-              pendingSetup,
-              runtimeNeeded: Boolean(status?.readiness?.blockers.includes("missing_runtime")),
-              runtimeUpdateAvailable,
-              sourceHealth: status?.readiness?.source,
-              biosHealth: status?.readiness?.bios,
-              selectedRequirement,
-              missingRequirement,
-              invalidInstallation: Boolean(
-                status?.readiness?.blockers.includes("invalid_installation"),
-              ),
-              externalRuntime: port.release.provider === "user-prepared",
-            });
+          : installed &&
+              launchReady &&
+              !pendingSetup &&
+              !selectedRequirement &&
+              hasUnconfirmedLaunchInput(status, port)
+            ? {
+                title: "Compatibility unconfirmed",
+                description:
+                  "The files are available, but this edition has not been confirmed for the installed version. Try launch to let the port check them; setup may still be needed.",
+                tone: "setup",
+                icon: AlertTriangle,
+                ...(status?.staged
+                  ? {
+                      updateAttention: `Update ${status.staged.version} is downloaded. You can review it separately.`,
+                    }
+                  : {}),
+              }
+            : detailState({
+                installed,
+                launchReady,
+                stagedVersion: status?.staged?.version,
+                pendingSetup,
+                runtimeNeeded: Boolean(status?.readiness?.blockers.includes("missing_runtime")),
+                runtimeUpdateAvailable,
+                sourceHealth: status?.readiness?.source,
+                biosHealth: status?.readiness?.bios,
+                selectedRequirement,
+                missingRequirement,
+                invalidInstallation: Boolean(
+                  status?.readiness?.blockers.includes("invalid_installation"),
+                ),
+                externalRuntime: port.release.provider === "user-prepared",
+              });
   const sources: SourceControls = {
     port,
     source,
@@ -676,6 +694,11 @@ function StatusActionsGroup({
   openLibraryStorage?: (() => void) | undefined;
 }) {
   const actionPresentation = portActionPresentation(status, installed ? "launch" : "install");
+  const trial =
+    hasUnconfirmedLaunchInput(status, port) ||
+    Boolean(
+      selectedSourceRequirement(sources.source, sources.sourcePath, sources.bios, sources.biosPath),
+    );
   if (port.release.provider === "user-prepared" || status?.external_runtime) {
     return (
       <DetailGroup title="Status and actions">
@@ -684,7 +707,15 @@ function StatusActionsGroup({
           <p role="status">{actionPresentation.reason}</p>
         )}
         {status?.external_runtime && (
-          <InstalledPlayActions
+          <PrimaryActions
+            trial={trial}
+            sources={sources}
+            invalidInstallation={false}
+            runtimeNeeded={false}
+            runtimeUpdateAvailable={false}
+            installed
+            sourceReady={sourceReady}
+            biosReady={biosReady}
             preparationRequired={false}
             launchReady={launchReady}
             pendingSetup={false}
@@ -730,6 +761,7 @@ function StatusActionsGroup({
       <RetiredNotice port={port} />
       {actionPresentation.blocked && <p role="status">{actionPresentation.reason}</p>}
       <PrimaryActions
+        trial={trial}
         installCancellations={installCancellations}
         sources={sources}
         invalidInstallation={Boolean(status?.readiness?.blockers.includes("invalid_installation"))}
@@ -1242,18 +1274,22 @@ function detailReadiness(
   biosPath: string | undefined,
 ) {
   const installed = Boolean(status?.active || status?.external_runtime);
-  const sourceReady = sourceRequirementReady(
-    Boolean(port.source_profile),
-    installed,
-    status?.readiness?.source,
-    Boolean(source || sourcePath.trim()),
-  );
-  const biosReady = sourceRequirementReady(
-    Boolean(port.bios_source_profile),
-    installed,
-    status?.readiness?.bios,
-    Boolean(bios || biosPath?.trim()),
-  );
+  const sourceReady =
+    !status?.readiness?.blockers.includes("incompatible_source") &&
+    sourceRequirementReady(
+      Boolean(port.source_profile),
+      installed,
+      status?.readiness?.source,
+      Boolean(source || sourcePath.trim()),
+    );
+  const biosReady =
+    !status?.readiness?.blockers.includes("incompatible_bios") &&
+    sourceRequirementReady(
+      Boolean(port.bios_source_profile),
+      installed,
+      status?.readiness?.bios,
+      Boolean(bios || biosPath?.trim()),
+    );
   return {
     sourceReady,
     biosReady,
@@ -1675,6 +1711,7 @@ function sourceFieldCopy(profile: SourceProfile | undefined, bios: boolean) {
 }
 
 function PrimaryActions({
+  trial,
   installCancellations,
   sources,
   invalidInstallation,
@@ -1692,6 +1729,7 @@ function PrimaryActions({
   actions,
   openLibraryStorage,
 }: {
+  trial: boolean;
   installCancellations?: ActivityRecord[] | undefined;
   sources: SourceControls;
   invalidInstallation: boolean;
@@ -1793,6 +1831,7 @@ function PrimaryActions({
     );
   return (
     <InstalledPlayActions
+      trial={trial}
       preparationRequired={preparationRequired}
       launchReady={launchReady}
       pendingSetup={pendingSetup}
@@ -1804,6 +1843,7 @@ function PrimaryActions({
 }
 
 function InstalledPlayActions({
+  trial = false,
   preparationRequired,
   launchReady,
   pendingSetup,
@@ -1811,6 +1851,7 @@ function InstalledPlayActions({
   busy,
   actions,
 }: {
+  trial?: boolean;
   preparationRequired: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
@@ -1829,7 +1870,9 @@ function InstalledPlayActions({
           preparationRequired
             ? "Prepare game data before playing"
             : launchReady
-              ? "Launch this port"
+              ? trial
+                ? "Try launching; compatibility is unconfirmed"
+                : "Launch this port"
               : "Review the current launch requirements"
         }
         disabled={preparationRequired || !launchReady || Boolean(busy)}
@@ -1843,8 +1886,10 @@ function InstalledPlayActions({
           : !launchReady
             ? "Play unavailable"
             : pendingSetup
-              ? "Complete setup and play"
-              : "Play"}
+              ? "Start setup"
+              : trial
+                ? "Try launch"
+                : "Play"}
       </Button>
       <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />
     </div>

@@ -7,6 +7,15 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# These complete Windows import-preservation fixtures timed out at 30s while
+# still creating their backup. Bounded diagnostics completed at 29.4s and 44.6s.
+# Keep every lifecycle/assertion, two workers and zero retries; give only these
+# exact cases finite 60s headroom. Product deadlines are unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^import_execution::tests::changed_import_destination_is_retained_and_never_published$/) | test(/^import_execution::tests::changed_import_input_is_retained_and_never_published$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
 # Retain this bounded diagnostic's phase timings when the unchanged test passes.
 # Output is displayed at completion; assertions and execution limits still apply.
 [[profile.default.overrides]]

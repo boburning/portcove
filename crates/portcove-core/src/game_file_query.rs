@@ -810,16 +810,7 @@ fn evaluate_report(
         result.reason = GameFileQueryReason::ReleaseNotBound;
         return Ok(());
     };
-    if artifact_sha256.len() != 64
-        || !artifact_sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
-        || !contract.applicability.iter().any(|binding| {
-            binding.upstream_ref == upstream_ref
-                && binding
-                    .artifact_sha256
-                    .as_ref()
-                    .is_none_or(|hash| hash.eq_ignore_ascii_case(artifact_sha256))
-        })
-    {
+    if !contract.applies_to_release(upstream_ref, artifact_sha256) {
         result.reason = GameFileQueryReason::ReleaseNotBound;
         return Ok(());
     }

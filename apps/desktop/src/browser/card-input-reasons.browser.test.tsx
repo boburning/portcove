@@ -123,6 +123,34 @@ afterEach(() => {
   host.remove();
   delete document.documentElement.dataset.theme;
 });
+it("keeps a legacy required-input card unconfirmed when health and assessment are absent", async () => {
+  const port = { ...portDefinition(), source_profile: "original" };
+  const status = {
+    ...portStatus(),
+    active: install,
+    readiness: { launchable: true, pending_setup: false, blockers: [] },
+  };
+  flushSync(() =>
+    root.render(
+      <PortBrowser
+        view="library"
+        ports={[port]}
+        statuses={new Map([[port.id, status]])}
+        overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }}
+        filter="all"
+        setFilter={() => {}}
+        onSelect={() => {}}
+        onContinue={launch}
+        loading={false}
+      />,
+    ),
+  );
+  const card = page.getByRole("article");
+  await expect.element(card).toMatchTextContent("Compatibility unconfirmed");
+  await expect.element(card).not.toMatchTextContent("Ready to play");
+  await userEvent.click(card.getByRole("button", { name: "Try launch", exact: true }));
+  expect(launch).toHaveBeenCalledWith(port.id);
+});
 it.each([
   ["catalog", "dark"],
   ["catalog", "light"],

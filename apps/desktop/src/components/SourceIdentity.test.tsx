@@ -106,7 +106,7 @@ describe("source identity presentation", () => {
     if (admission?.state !== "admitted") throw new Error("expected admitted fixture");
     admission.mode = "structural_checks";
     const html = renderToStaticMarkup(<SourceIdentityPanel report={structural} />);
-    expect(html).toContain("Required file checks passed · edition unknown");
+    expect(html).toContain("Basic file checks passed · compatibility unconfirmed");
     expect(html).not.toContain("Exact match");
   });
 
