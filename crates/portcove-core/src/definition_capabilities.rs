@@ -66,6 +66,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 10,
         });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 11,
+        });
         supported
     }
 }
@@ -280,13 +284,13 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(2));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 11, 11)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 12, 12)).unwrap();
         assert!(!future.compatible);
     }
 
     #[test]
-    fn narrow_windows_paths_require_v10_and_preserve_older_capabilities() {
-        let requirement = request("staged-source-portable", 10, 10);
+    fn narrow_windows_paths_require_v11_and_preserve_older_capabilities() {
+        let requirement = request("staged-source-portable", 11, 11);
         assert!(
             check_definition_capabilities(&requirement)
                 .unwrap()
@@ -295,12 +299,12 @@ mod tests {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
             .filter(|entry| {
-                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 10
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 11
             })
             .collect();
         let old = check_with_inventory(&requirement, &previous).unwrap();
         assert!(!old.compatible);
-        assert_eq!(old.checks[0].installed_version, Some(9));
+        assert_eq!(old.checks[0].installed_version, Some(10));
         assert_eq!(
             old.checks[0].outcome,
             DefinitionCapabilityOutcome::UnsupportedVersion
@@ -369,6 +373,24 @@ mod tests {
         );
         assert!(
             check_definition_capabilities(&request("staged-source-portable", 7, 7))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn shared_smb_data_requires_v10_without_replacing_old_shared_preferences() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| entry.contract_version <= 9)
+            .collect();
+        let required = request("staged-source-portable", 10, 10);
+        let old = check_with_inventory(&required, &previous).unwrap();
+        assert!(!old.compatible);
+        assert_eq!(old.checks[0].installed_version, Some(9));
+        assert!(check_definition_capabilities(&required).unwrap().compatible);
+        assert!(
+            check_definition_capabilities(&request("staged-source-portable", 8, 8))
                 .unwrap()
                 .compatible
         );

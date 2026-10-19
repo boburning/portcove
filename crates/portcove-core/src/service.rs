@@ -1535,6 +1535,15 @@ impl PortcoveService {
         {
             blockers.push(LaunchBlocker::PreparationRequired);
         }
+        if let Some(record) = status.external_runtime.as_ref()
+            && let Some(spec) = port.release.user_prepared.get(&record.platform)
+            && !crate::external_runtime::shared_preferences::original_ready(record, spec)
+                .unwrap_or(false)
+        {
+            // Manual external setup is not corruption of the registered runtime
+            // or a request for Core to seed files in an unowned shared directory.
+            blockers.push(LaunchBlocker::PreparationRequired);
+        }
         if status.active.as_ref().is_some_and(|active| {
             self.require_ghostship_install_data_compatibility(active, None)
                 .is_err()
@@ -4079,6 +4088,9 @@ impl PortcoveService {
                             )
                         })?;
                     crate::external_runtime::shared_preferences::check_record(record, accepted)?;
+                    crate::external_runtime::shared_preferences::require_original(
+                        record, accepted,
+                    )?;
                 }
                 if let Some(install) = active.as_ref() {
                     Installer::new(self.library.clone())?.require_curated_operation(
@@ -4489,6 +4501,7 @@ impl PortcoveService {
             ));
         }
         crate::external_runtime::shared_preferences::check_record(record, spec)?;
+        crate::external_runtime::shared_preferences::require_original(record, spec)?;
         let inspected = crate::external_runtime::inspect_with_checkpoint(
             &record.path,
             spec,
@@ -4588,7 +4601,8 @@ impl PortcoveService {
         }
         operation.checkpoint()?;
         Ok(crate::LaunchSpec {
-            fixed_arguments_only: false,
+            fixed_arguments_only: spec.shared_preferences
+                == Some(crate::PreparedSharedPreferencesContract::Smb1r11Windows),
             executable: record.executable.clone(),
             install_root: record.path.clone(),
             working_directory,
@@ -11322,7 +11336,7 @@ fn main() {
         let shared = preview.shared_preferences.as_ref().unwrap();
         let global_before = fs::read(&shared.binding.path).ok();
         let parent_before = shared.binding.path.parent().unwrap().exists();
-        assert!(!shared.local_fallback_path.exists());
+        assert!(!shared.local_fallback_path.as_ref().unwrap().exists());
         assert!(
             service
                 .authorize_external_runtime("dkc3-recomp", &external, &preview.preview_sha256)
@@ -11435,7 +11449,7 @@ fn main() {
             }
         }
         service.faults = Arc::new(RedirectPreferencesAtSpawn(
-            shared.local_fallback_path.clone(),
+            shared.local_fallback_path.clone().unwrap(),
         ));
         let refusal = service
             .supervise_launch("dkc3-recomp", None, &[], LaunchStdio::Null, |_| {
@@ -11443,8 +11457,8 @@ fn main() {
             })
             .unwrap_err();
         assert_eq!(refusal.code, crate::ErrorCode::Verification);
-        assert!(shared.local_fallback_path.is_dir());
-        fs::remove_dir(&shared.local_fallback_path).unwrap();
+        assert!(shared.local_fallback_path.as_ref().unwrap().is_dir());
+        fs::remove_dir(shared.local_fallback_path.as_ref().unwrap()).unwrap();
         service.faults = Arc::new(crate::operation::NoLifecycleFaults);
         assert_eq!(record.shared_preferences.as_ref().unwrap(), &shared.binding);
         assert!(
@@ -11475,11 +11489,19 @@ fn main() {
             crate::external_runtime::shared_preferences::check_binding(&missing_binding, spec)
                 .is_err()
         );
-        assert!(!shared.local_fallback_path.exists());
+        assert!(!shared.local_fallback_path.as_ref().unwrap().exists());
         // Player changes remain mutable. An alias at the fallback still refuses readiness.
-        fs::write(&shared.local_fallback_path, b"player preferences").unwrap();
+        fs::write(
+            shared.local_fallback_path.as_ref().unwrap(),
+            b"player preferences",
+        )
+        .unwrap();
         crate::external_runtime::shared_preferences::check_record(&record, spec).unwrap();
-        fs::hard_link(&shared.local_fallback_path, external.join("alias")).unwrap();
+        fs::hard_link(
+            shared.local_fallback_path.as_ref().unwrap(),
+            external.join("alias"),
+        )
+        .unwrap();
         assert!(crate::external_runtime::shared_preferences::check_record(&record, spec).is_err());
         fs::remove_file(external.join("alias")).unwrap();
         let mut reopened = service_with_release(Library::open(library.root()).unwrap(), "v1");
@@ -11517,7 +11539,7 @@ fn main() {
             .remove_external_runtime("dkc3-recomp", &authorization.token)
             .unwrap();
         assert_eq!(
-            fs::read(&shared.local_fallback_path).unwrap(),
+            fs::read(shared.local_fallback_path.as_ref().unwrap()).unwrap(),
             b"player preferences"
         );
         assert_eq!(fs::read(&shared.binding.path).ok(), global_before);

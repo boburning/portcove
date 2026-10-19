@@ -81,14 +81,19 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
     let version = if typed.windows_runtime_path_policy.is_some() {
-        10
-    } else if typed
+        11
+    } else if let Some(minimum) = typed
         .release
         .user_prepared
         .values()
-        .any(|runtime| runtime.shared_preferences.is_some())
+        .filter_map(|runtime| {
+            runtime
+                .shared_preferences
+                .map(|scope| scope.minimum_template_version())
+        })
+        .max()
     {
-        8
+        minimum
     } else if let Some(version) = typed
         .release
         .managed_build
@@ -185,13 +190,13 @@ fn windows_runtime_path_policy_cannot_omit_its_engine_capability() {
     let valid = entry(&document, &contract, position);
     inspect(&valid, &contract).unwrap();
     let mut stale = valid;
-    stale["required_capabilities"][0]["minimum_version"] = json!(9);
-    stale["required_capabilities"][0]["maximum_version"] = json!(9);
+    stale["required_capabilities"][0]["minimum_version"] = json!(10);
+    stale["required_capabilities"][0]["maximum_version"] = json!(10);
     assert!(
         inspect(&stale, &contract)
             .unwrap_err()
             .message
-            .contains("capability version 10")
+            .contains("capability version 11")
     );
     stale["required_capabilities"][0]["minimum_version"] = json!(1);
     stale["required_capabilities"][0]["maximum_version"] = json!(10);
@@ -199,7 +204,7 @@ fn windows_runtime_path_policy_cannot_omit_its_engine_capability() {
         inspect(&stale, &contract)
             .unwrap_err()
             .message
-            .contains("capability version 10")
+            .contains("capability version 11")
     );
 }
 

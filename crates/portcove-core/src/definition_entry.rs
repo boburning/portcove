@@ -135,24 +135,30 @@ impl DefinitionContentIndex {
         if port.windows_runtime_path_policy.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"
-                    && requirement.minimum_version >= 10
+                    && requirement.minimum_version >= 11
             })
         {
             return Err(PortcoveError::verification(
-                "Windows runtime paths require staged-source capability version 10",
+                "Windows runtime paths require staged-source capability version 11",
             ));
         }
-        if port
+        if let Some(minimum) = port
             .release
             .user_prepared
             .values()
-            .any(|runtime| runtime.shared_preferences.is_some())
+            .filter_map(|runtime| {
+                runtime
+                    .shared_preferences
+                    .map(|scope| scope.minimum_template_version())
+            })
+            .max()
             && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "staged-source-portable" && requirement.minimum_version >= 8
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= minimum
             })
         {
             return Err(PortcoveError::verification(
-                "shared preferences require staged-source capability version 8",
+                "shared write scope requires its staged-source capability version",
             ));
         }
         if let Some(minimum) = port

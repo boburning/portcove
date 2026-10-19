@@ -907,7 +907,7 @@ it grants no relocation or adoption permission. Source files may remain in their
 original Unicode locations when the adapter passes a checked relative runtime copy.
 This policy currently excludes external runtimes, setup executables and managed
 build recipes. Independent definition entries must require staged-source template
-version10. Absent policy retains the prior route contract; this is not a blanket
+version11. Absent policy retains the prior route contract; this is not a blanket
 ASCII restriction or a claim that every other runtime supports Unicode paths.
 
 Ghostship 3.0.0 writes its disposable extraction cache to `torch.hash.yml` and

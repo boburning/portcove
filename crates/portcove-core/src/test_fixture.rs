@@ -100,7 +100,19 @@ impl<'a> IndexedCatalogFixture<'a> {
         let port = self.port;
         let port_id = &port.id;
         let capability_version = if port.windows_runtime_path_policy.is_some() {
-            10
+            11
+        } else if let Some(minimum) = port
+            .release
+            .user_prepared
+            .values()
+            .filter_map(|runtime| {
+                runtime
+                    .shared_preferences
+                    .map(|scope| scope.minimum_template_version())
+            })
+            .max()
+        {
+            minimum
         } else if let Some(minimum) = port
             .release
             .managed_build
