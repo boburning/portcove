@@ -342,6 +342,14 @@ An optional `presentation.manual_preparation` gives the exact player-created
 steps for a user-prepared runtime; the short port summary remains an outcome
 description. The Wave Race pilot requires an empty `portable.txt` beside its
 executable, in addition to the extracted upstream ZIP files.
+Optional `presentation.manual_setup` supplies authored `steps` (one to eight
+objects with nonempty `title` and `instruction`), up to eight essential `warnings`,
+and an optional HTTPS `help_url` without credentials. These are presentation
+facts, never executable recipes or evidence that a step was completed. Current
+prepared routes supply them separately from the retained `manual_preparation`
+compatibility and technical notes. Older definitions keep their prose fallback.
+Clients keep warnings visible, show numbered steps, and disclose the longer notes
+without parsing free-form prose or changing file/operation authority.
 A platform-specific prepared spec may opt into `library_user_data: true` for
 `staged-source-portable`, with a safe `user_data_environment` name on the port.
 After retained-package and original-source revalidation, Core creates only the

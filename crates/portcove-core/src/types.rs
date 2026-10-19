@@ -195,7 +195,26 @@ pub struct PortPresentation {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub manual_preparation: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manual_setup: Option<ManualSetupGuide>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<IgdbArtwork>,
+}
+
+/// Authored instructions only; these steps grant no operation or file authority.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ManualSetupGuide {
+    pub steps: Vec<ManualSetupStep>,
+    pub warnings: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help_url: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ManualSetupStep {
+    pub title: String,
+    pub instruction: String,
 }
 
 /// Maintainer-reviewed catalog mapping. These public IDs never contain Twitch

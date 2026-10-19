@@ -16145,6 +16145,25 @@
           "image_sha256": "ff7d17084337bec6a851bfca8706b670eb6441afad1ecc03d99aa1a143d1d196",
           "game_slug": "wave-race-64",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the complete official v1.0.2 Windows ZIP into a writable folder outside your Portcove library."
+            },
+            {
+              "title": "Keep saves beside the game",
+              "instruction": "Create an empty file named portable.txt beside WaveRace64Recomp.exe. It is not included in the download."
+            },
+            {
+              "title": "Connect your game files",
+              "instruction": "Choose and check your own supported Wave Race 64 original in Portcove, then choose the extracted port folder below for review."
+            }
+          ],
+          "warnings": [
+            "Keep portable.txt when updating this folder so the game continues to use its local saves and settings."
+          ]
         }
       }
     },
@@ -16210,6 +16229,25 @@
           "image_sha256": "ff7d17084337bec6a851bfca8706b670eb6441afad1ecc03d99aa1a143d1d196",
           "game_slug": "wave-race-64",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the complete official v1.0.0 Windows ZIP into a writable folder outside your Portcove library. Keep its DLLs, assets and notices together."
+            },
+            {
+              "title": "Connect the original",
+              "instruction": "Choose and check your own uncompressed Wave Race 64 USA Rev A .z64 file in Portcove."
+            },
+            {
+              "title": "Review the port folder",
+              "instruction": "Choose the extracted folder below. Portcove will use the checked original when you launch the game."
+            }
+          ],
+          "warnings": [
+            "Preserve the .runtime folder when updating outside Portcove; it contains imported game data, settings and saves."
+          ]
         }
       },
       "persistent_paths": []
@@ -16279,6 +16317,25 @@
           "image_sha256": "c504dbfa253882ca87b76d75a5cd290aef6b717a368617107d69e836bd651553",
           "game_slug": "f-zero",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the complete official v1.8.3 Windows ZIP outside your Portcove library."
+            },
+            {
+              "title": "Connect the original",
+              "instruction": "Choose and check your own headerless F-Zero (USA) .sfc file in Portcove."
+            },
+            {
+              "title": "Review the game folder",
+              "instruction": "Choose the extracted FZeroSNESRecomp-1.8.3-windows-x64 folder below."
+            }
+          ],
+          "warnings": [
+            "Windows runtime and gameplay are untested. Crash reports or other extra files may prevent later checks; preserve them for troubleshooting."
+          ]
         }
       }
     },
@@ -16455,6 +16512,26 @@
           "image_sha256": "f4e13f77be3f1695208fb6de7e5ad3cc902e95e75505315bf183d1373d29648c",
           "game_slug": "donkey-kong-country-3-dixie-kong-s-double-trouble",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the complete official v0.0.6 Windows ZIP outside your Portcove library."
+            },
+            {
+              "title": "Connect the original",
+              "instruction": "Choose and check your own headerless North American English/French DKC3 .sfc file in Portcove."
+            },
+            {
+              "title": "Review the game folder",
+              "instruction": "Choose DKC3Recomp-v0.0.6-windows-x64 below. Portcove passes the checked original directly and skips the upstream launcher; in-game settings remain available."
+            }
+          ],
+          "warnings": [
+            "Use short package and ROM paths whose characters Windows can represent in its system code page.",
+            "Upstream reports skipped game logic at startup. Gameplay, visual correctness and save/load remain unqualified."
+          ]
         }
       },
       "launch_environment": {
@@ -17992,6 +18069,31 @@
           "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
           "game_slug": "super-mario-world",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the exact official v0.12.0 Windows ZIP outside your Portcove library."
+            },
+            {
+              "title": "Make a working copy of the original",
+              "instruction": "Copy your exact stock headerless 512 KiB USA ROM into the extracted package root as smw.sfc. Keep your original file unchanged."
+            },
+            {
+              "title": "Connect that working copy",
+              "instruction": "Choose and check this same smw.sfc file in Portcove."
+            },
+            {
+              "title": "Review the game folder",
+              "instruction": "Choose the folder containing SuperMarioWorldSNESRecomp.exe below. Keep smw.sfc and the shipped mods/packages unchanged."
+            }
+          ],
+          "warnings": [
+            "Use short paths whose characters Windows can represent in its system code page.",
+            "Use ordinary runtime defaults. Clear the inherited developer options listed in the technical notes before starting Portcove; trace options can write elsewhere and the Lua option can open a local listener.",
+            "Gameplay, save/load, visual correctness, audio and controller behavior remain unqualified."
+          ]
         }
       },
       "launch_arguments": [
@@ -18068,6 +18170,31 @@
           "image_sha256": "915a51bfc7b7945bdae988ef18d315b98ad8d70855136f4b2f24f4e30ebe007a",
           "game_slug": "the-legend-of-zelda-a-link-to-the-past",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the exact official v0.6.1 Windows ZIP outside your Portcove library. Preserve its README and other notices."
+            },
+            {
+              "title": "Make a working copy of the original",
+              "instruction": "Copy your exact stock headerless 1 MiB USA ROM into the extracted package root as zelda.sfc. Keep your original file unchanged."
+            },
+            {
+              "title": "Connect that working copy",
+              "instruction": "Choose and check this same zelda.sfc file in Portcove."
+            },
+            {
+              "title": "Review the game folder",
+              "instruction": "Choose the folder containing ZeldaALttPSNESRecomp.exe below. Keep zelda.sfc and the shipped mods/packages unchanged."
+            }
+          ],
+          "warnings": [
+            "Use short paths whose characters Windows can represent in its system code page. Clear the inherited developer options listed in the technical notes before starting Portcove; trace options can write outside this folder.",
+            "The project license and completeness of dependency notices remain unresolved. The README directs personal prebuilt use; it does not grant redistribution rights.",
+            "Gameplay, save/load, visual correctness, audio and controller behavior remain unqualified."
+          ]
         }
       },
       "launch_arguments": [
@@ -18155,6 +18282,26 @@
           "image_sha256": "ac739a2272e2eab518c7d9814becf6f64cc61e8de57e5b357562f577d0d845d3",
           "game_slug": "sonic-the-hedgehog",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the exact official v0.6.0 Windows ZIP outside your Portcove library. Keep its licenses and notices unchanged."
+            },
+            {
+              "title": "Connect the original",
+              "instruction": "Choose and check your exact raw big-endian 512 KiB JUE REV00 Genesis .bin. If it uses .md, make a byte-identical .bin working copy. Do not convert byte order or add a header."
+            },
+            {
+              "title": "Review the game folder",
+              "instruction": "Choose the folder containing SonicTheHedgehogRecomp.exe below. Portcove passes the checked file directly without copying or changing it."
+            }
+          ],
+          "warnings": [
+            "Keep debug.ini absent; it prevents package verification. Use short paths whose characters Windows can represent in its system code page.",
+            "Upstream reports Green Hill complete and later zones partial. Full-game correctness and gameplay acceptance remain unknown."
+          ]
         }
       }
     },
@@ -18225,7 +18372,32 @@
           }
         ],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the exact official v1.22.420 Windows package into a fresh local folder outside your Portcove library. Place the reviewed owned PC installed-data member set under GameData/ and register GameData/DARK.GOB as the original source. Prepare portable settings.ini with [Game] game=\"Dark Forces\" and [Dark_Forces] sourcePath=\"GameData/\". Preserve a compatible owned DARKPILO.CFG, or create a deliberately fresh pilot using the reviewed non-overwriting procedure at https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-prepared-windows-2026-10-18.md . Core neither seeds nor imports pilots. A present required pilot skips automatic absent-file imports while observed present; TFE may regenerate a malformed local pilot. Keep the shipped package, GameData and built-in Mods/TFE immutable. Additional mods/editor output require separate qualification. Settings, input mappings, pilot, saves, screenshots and fixed logs remain player-owned; registration-only removal preserves all files. Updates are user-managed; no acquisition, managed maintenance, backup or external deletion is offered. Sequential checks do not freeze external writes or sandbox TFE. Windows registration, revalidation, startup, ordinary close, restart and removal were observed with the exact qualification CLI/private catalog. Gameplay, in-game save/load, visual correctness, audio, controllers and other platforms remain unqualified."
+        "manual_preparation": "Extract the exact official v1.22.420 Windows package into a fresh local folder outside your Portcove library. Place the reviewed owned PC installed-data member set under GameData/ and register GameData/DARK.GOB as the original source. Prepare portable settings.ini with [Game] game=\"Dark Forces\" and [Dark_Forces] sourcePath=\"GameData/\". Preserve a compatible owned DARKPILO.CFG, or create a deliberately fresh pilot using the reviewed non-overwriting procedure at https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-prepared-windows-2026-10-18.md . Core neither seeds nor imports pilots. A present required pilot skips automatic absent-file imports while observed present; TFE may regenerate a malformed local pilot. Keep the shipped package, GameData and built-in Mods/TFE immutable. Additional mods/editor output require separate qualification. Settings, input mappings, pilot, saves, screenshots and fixed logs remain player-owned; registration-only removal preserves all files. Updates are user-managed; no acquisition, managed maintenance, backup or external deletion is offered. Sequential checks do not freeze external writes or sandbox TFE. Windows registration, revalidation, startup, ordinary close, restart and removal were observed with the exact qualification CLI/private catalog. Gameplay, in-game save/load, visual correctness, audio, controllers and other platforms remain unqualified.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the exact official v1.22.420 Windows package into a fresh local folder outside your Portcove library."
+            },
+            {
+              "title": "Provide the complete original game data",
+              "instruction": "Place the reviewed owned PC installed-data member set under GameData/. Choose and check GameData/DARK.GOB in Portcove; that one file does not replace the complete required member set."
+            },
+            {
+              "title": "Prepare settings and a pilot",
+              "instruction": "Create portable settings.ini with [Game] game=\"Dark Forces\" and [Dark_Forces] sourcePath=\"GameData/\". Preserve a compatible owned DARKPILO.CFG, or follow the preparation guide to create a fresh pilot without overwriting an existing one."
+            },
+            {
+              "title": "Review the game folder",
+              "instruction": "Choose the extracted folder below. Keep the shipped package, GameData and built-in Mods/TFE unchanged."
+            }
+          ],
+          "warnings": [
+            "Portcove neither seeds nor imports a pilot. The game may regenerate a malformed pilot; preserve an existing compatible copy before preparing this folder.",
+            "Additional mods or editor output need separate qualification. Gameplay and in-game save/load remain unqualified."
+          ],
+          "help_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-prepared-windows-2026-10-18.md"
+        }
       }
     },
     {
@@ -18320,6 +18492,26 @@
           "image_sha256": "ed88c95469e863e440f5edf598a957211bb6f28a3e7a78fe06fe79bbf84b656f",
           "game_slug": "sonic-the-hedgehog-2",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the exact official v0.8.3 Windows ZIP outside your Portcove library. Keep all package licenses and notices."
+            },
+            {
+              "title": "Make a working copy of the original",
+              "instruction": "Copy the exact World Rev A original into the package root as game.bin, without changing its bytes."
+            },
+            {
+              "title": "Connect and review",
+              "instruction": "Choose and check that same game.bin in Portcove, then choose the extracted port folder below. Portcove launches with the upstream launcher skipped."
+            }
+          ],
+          "warnings": [
+            "Keep debug.ini and interp_fallbacks.log absent. Do not enable campaign modifications or configurable save destinations; this route covers only fixed local outputs.",
+            "Use short Windows-code-page representable paths and ordinary runtime defaults. Optional features and gameplay remain unqualified; inherited developer options are not sandboxed."
+          ]
         }
       },
       "launch_arguments": [
@@ -18405,6 +18597,26 @@
           "image_sha256": "b1861fa5813026f582beb11e665cefee8eaa27e8871e154ddc91a22819c7989e",
           "game_slug": "sonic-the-hedgehog-3-and-knuckles",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the combined port",
+              "instruction": "Extract the exact official v0.5.3 combined Sonic3K Windows ZIP outside your Portcove library. Keep all package licenses, notices and donor assets unchanged."
+            },
+            {
+              "title": "Make a working copy of the original",
+              "instruction": "Copy the exact combined Sonic3K original into the package root as game.bin, without changing its bytes."
+            },
+            {
+              "title": "Connect and review",
+              "instruction": "Choose and check that same game.bin in Portcove, then choose the extracted port folder below. Portcove launches with the upstream launcher skipped."
+            }
+          ],
+          "warnings": [
+            "Keep debug.ini and interp_fallbacks.log absent. Preserve the fixed game.srm SRAM file; optional mod settings and local states are preserved without operation acceptance.",
+            "The shipped README says 0.5.2 while release/build information says 0.5.3. Preserve both. Use short Windows-code-page representable paths and ordinary runtime defaults; gameplay remains unqualified."
+          ]
         }
       },
       "launch_arguments": [
@@ -18769,7 +18981,31 @@
           }
         ],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the exact authenticated v0.4.1 Windows archive outside the Portcove library and create its empty saves directory. Keep all package files and notices unchanged except config.ini and game-owned imgui.ini window state. Register the exact original separately. Explicitly accept the resolved account-wide roaming preference file and local fallback; running the game may create or overwrite these files and discard unknown entries. Existing safe printable ASCII paths and MAX_PATH bounds apply. Portcove does not own, update, back up, restore or delete the external runtime, local outputs or shared preferences. Removal unregisters only. MIT/clean-room/original-mod-assets statements are attributed upstream assertions, not blanket redistribution rights. Optional replacement music/HD changes, extra CLI options and gameplay acceptance are outside the offered route."
+        "manual_preparation": "Extract the exact authenticated v0.4.1 Windows archive outside the Portcove library and create its empty saves directory. Keep all package files and notices unchanged except config.ini and game-owned imgui.ini window state. Register the exact original separately. Explicitly accept the resolved account-wide roaming preference file and local fallback; running the game may create or overwrite these files and discard unknown entries. Existing safe printable ASCII paths and MAX_PATH bounds apply. Portcove does not own, update, back up, restore or delete the external runtime, local outputs or shared preferences. Removal unregisters only. MIT/clean-room/original-mod-assets statements are attributed upstream assertions, not blanket redistribution rights. Optional replacement music/HD changes, extra CLI options and gameplay acceptance are outside the offered route.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the exact authenticated v0.4.1 Windows archive outside your Portcove library. Keep its package files and notices unchanged."
+            },
+            {
+              "title": "Create a local save folder",
+              "instruction": "Create an empty saves directory in the extracted package. Only config.ini and game-owned imgui.ini window state may change among package files."
+            },
+            {
+              "title": "Connect your original",
+              "instruction": "Choose and check the exact supported original separately in Portcove."
+            },
+            {
+              "title": "Review the folder and shared preferences",
+              "instruction": "Choose the port folder below. Review and explicitly accept the resolved account-wide roaming preference file and its local fallback before launch."
+            }
+          ],
+          "warnings": [
+            "The game may create or overwrite shared preference files and discard unknown entries. Portcove does not own or back up those shared preferences.",
+            "Use safe printable ASCII paths within the Windows MAX_PATH limit. Optional music/HD changes, extra launch options and gameplay acceptance are outside this route."
+          ]
+        }
       }
     }
   ]
