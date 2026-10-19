@@ -88,6 +88,15 @@ their evidence in the same batch using the existing generator:
 node scripts/generate-catalog.mts --prepare-artwork PROPOSAL.json --identities FACTS.json --credentials-file PRIVATE.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY
 ```
 
+Maintainers can save an existing private credentials-file path once per user with
+`node scripts/maintainer-config.mts set-igdb-credentials-file ABSOLUTE_PATH` and
+inspect its redacted, no-network status with `node scripts/maintainer-config.mts check`.
+The versioned `~/.portcove/maintainer.json` contains only the path and is shared
+across worktrees outside Git. Explicit `--credentials-file` takes precedence.
+Configuration and credentials are read only when provider authentication is
+needed; accepted reuse and fallback do not require them. Credentials, tokens and
+private paths stay out of proposal evidence and client bundles.
+
 The optional facts document is keyed by stable port ID. Ordinary port matching
 uses the definition's public name and exact project URL without a supplied IGDB
 ID; a unique exact name/alias plus matching provider project website is required.
@@ -333,6 +342,73 @@ This declaration requires staged-source template contract version 2. It does not
 migrate AppData, qualify an upstream package, or grant update/backup ownership.
 Removing the external registration preserves both the external folder and private
 user files. No current title is admitted by this generic engine component.
+
+A `staged-source-portable` prepared spec may declare up to 64
+`required_mutable_files`, each an exact relative file path within its declared
+`mutable_paths`. Portable path keys must be unique, including case aliases.
+For example, The Force Engine's portable selector is a mutable `settings.ini`:
+its presence selects the program directory instead of host Documents, while its
+contents legitimately change. Core observes each required file as a regular,
+non-redirected file with exactly one filesystem link before inspection, at the
+final callback-free inspection boundary, and during registered-location readiness.
+Missing files, directories, symlinks, reparse paths and hardlink aliases refuse
+readiness or the affected review/launch operation. Contents are neither hashed
+into immutable identity nor frozen between observations. These checks do not
+provide an atomic tree snapshot or an execution sandbox.
+
+This declaration requires staged-source template contract version 4; versions
+1–3 and omitted/empty declarations retain their previous behavior. Independently
+delivered entries must declare version 4, and complete typed projection prevents
+an older reader from silently dropping the new constraint. The retained
+registration contract continues to enforce it after a current definition changes.
+Registration creates no selector, claims no external ownership and changes no
+original files. Preparation instructions must explain how the player creates
+the reviewed selector; removal of registration remains available if it is missing
+and preserves all external files. This capability alone admits no TFE package,
+source input, native operation or managed maintenance route.
+
+Registrations using required mutable files retain the existing strict contract
+envelope instead of a raw catalog document. Older external-runtime readers
+refuse that envelope because they require a raw catalog's schema and port list;
+they cannot silently drop the selector requirement after a client downgrade.
+
+Staged-source version 5 adds the optional `settings_contract` value
+`tfe-dark-forces-v1.22.420`. This is a narrow read-only contract for the pinned
+Windows x64 TFE parser, requiring version `1.22.420`, a root executable/working
+directory, no runtime subdirectory or launch arguments, no source argument or
+private user-data binding, and required mutable `settings.ini`. `GameData` must
+remain wholly immutable; all four GOB files must be regular, non-redirected
+objects. The accepted tree authenticates their bytes and required companions.
+The settings reader requires one effective `[Game] game="Dark Forces"` and one
+`[Dark_Forces] sourcePath="GameData/"` assignment. It checks the existing opened
+selector at each inspection boundary, without writing settings or granting
+ownership. Other preferences remain mutable.
+
+This reader follows the consequential rules in TFE commit
+`cc25205cc94c36a396f6f50295772f6ec83069a2`: case-insensitive section/key/game names,
+whitespace/comma/equals separators, comments even inside quotes, and empty-quote
+tokens. It conservatively refuses malformed sections, duplicate effective
+selectors, unmatched quotes, NUL bytes, files exceeding 1 MiB, raw lines of
+4096 bytes or more, tokens of 1024 bytes or more, and decoded CVar values of 256
+bytes or more. A string CVar's second space-delimited word must also contain at
+least two bytes when present, avoiding the pinned reader's empty-tail write.
+Forwarded launch arguments are refused using the retained declaration before a
+launch session is created. These limits protect the reviewed line/token/CVar buffers;
+they do not establish general upstream memory safety. Valid selected data prevents
+Dark Forces source fallback while observed valid; TFE may still probe host paths
+for other games. Sequential observations neither freeze player writes nor
+provide a sandbox.
+
+Independently delivered entries must require version 5. Retained registrations
+reuse the strict installed-contract envelope: older v4 readers reject the
+noncanonical projection when they cannot preserve this field. This refusal
+does not extend to newly supplied plain legacy catalogs, whose older decoders
+may discard unknown fields. Such catalogs are not a compatible delivery route
+for this declaration. The component alone admits no TFE package or source and
+claims no native operation, production-client delivery or managed maintenance.
+Both ordinary and bounded readers decode the same retained contract. Registrations
+without this opt-in keep their existing encoding; no library-wide schema migration
+or external-file ownership is introduced.
 
 Hosted
 installation still requires a provider digest or verified checksum sidecar;

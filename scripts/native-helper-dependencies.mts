@@ -54,6 +54,7 @@ export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
   ]),
 });
 export const nativeHelperSharedSources = Object.freeze([
+  "apps/desktop/test/capture-target.ts",
   // Launcher and admission code is already loaded when prelaunch capture begins.
   // These are trusted verifier/reproduction observations, never proof that a
   // retained copy was the immutable module consumed by the target process.

@@ -69,7 +69,7 @@ function person(value: unknown) {
  * proves that reconstruction is complete. Unsupported forms remain Unknown.
  * A signature is reconstructed for byte identity, never treated as authority.
  */
-export function inspectRemoteCommitObject(value: unknown, expected: string) {
+export function inspectRemoteCommitObject(value: unknown, expected: string, exactBytes?: Buffer) {
   if (!isRecord(value) || value.sha !== expected || !isRecord(value.tree))
     throw new Error("remote commit identity differs");
   oid(value.tree.sha);
@@ -84,6 +84,41 @@ export function inspectRemoteCommitObject(value: unknown, expected: string) {
   const header = `tree ${value.tree.sha}\n${parents.map((parent) => `parent ${parent}\n`).join("")}author ${person(value.author)}\ncommitter ${person(value.committer)}`;
   const unsigned = `${header}\n\n${message}`;
   const verification = value.verification;
+  if (exactBytes !== undefined) {
+    const checked = inspectRemoteGitObject("commit", expected, exactBytes);
+    const text = exactBytes.toString("utf8");
+    const boundary = text.indexOf("\n\n");
+    const lines = text.slice(0, boundary).split("\n");
+    const leading = [`tree ${value.tree.sha}`, ...parents.map((parent) => `parent ${parent}`)];
+    const actor = (line: string | undefined, role: string, raw: unknown) => {
+      const prefix = `${role} ${person(raw).slice(0, -6)} `;
+      return (
+        typeof line === "string" &&
+        line.startsWith(prefix) &&
+        /^[+-](?:0[0-9]|1[0-4])[0-5][0-9]$/u.test(line.slice(prefix.length))
+      );
+    };
+    const extra = lines.slice(leading.length + 2);
+    const rawMessage = text.slice(boundary + 2);
+    if (
+      !Buffer.from(text).equals(exactBytes) ||
+      text.includes("\0") ||
+      boundary < 0 ||
+      text.slice(0, boundary).includes("\r") ||
+      // REST omits the single terminal LF on observed unsigned commits. Never
+      // rewrite raw history: its exact Git hash selects the retained bytes.
+      (rawMessage !== message && rawMessage !== `${message}\n`) ||
+      leading.some((line, index) => lines[index] !== line) ||
+      !actor(lines[leading.length], "author", value.author) ||
+      !actor(lines[leading.length + 1], "committer", value.committer) ||
+      (extra.length > 0 &&
+        (!extra[0]!.startsWith("gpgsig ") || extra.slice(1).some((line) => !line.startsWith(" "))))
+    )
+      throw new Error(
+        `exact Git commit ${expected} bytes disagree with provider metadata or supported headers`,
+      );
+    return { object: checked, tree: value.tree.sha, parents };
+  }
   let raw = unsigned;
   if (isRecord(verification) && (verification.payload != null || verification.signature != null)) {
     const payload = utf8(verification.payload, 96 * 1024);

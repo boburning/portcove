@@ -72,8 +72,11 @@ native exit immediately.
 
 Retain raw JSON, then use `node scripts/report-summary.mts KIND FILE`
 to inspect decision-relevant fields within 16 KiB, with omission counts and raw
-evidence references. `--help`/usage lists supported report kinds. CI summaries
-accept REST and `gh` job IDs and never claim complete pagination. Delivery watch
+evidence references. `--help`/usage lists supported report kinds. The `native`
+kind shows recorded runner/executable identities, outcomes, selected
+checks and gaps. It omits custody trees and does not infer compiled-source,
+installed-package or human acceptance from the receipt.
+CI summaries accept REST and `gh` job IDs and never claim complete pagination. Delivery watch
 retains its existing observations under ignored `work/pr-delivery`; inspect those
 snapshots instead of issuing duplicate status queries. Fetch logs for the identified
 failed job rather than an entire multi-job workflow. Fallow retains
@@ -353,11 +356,17 @@ repository with `extensions.worktreeConfig`, the adapter asks that exact local
 CLI to generate its dispatcher in an isolated scratch Git directory, then installs
 those generated files and writes only this worktree's preferences. It preserves
 sibling configuration and explicit disable choices. It owns no staged-file policy. The
-project-owned `.vite-hooks/pre-commit` checks staged whitespace and runs
+project-owned `.vite-hooks/pre-commit` checks staged whitespace, Node test
+registration and affected indexed catalog coherence, then runs
 `vp staged`. Its standard `vp check --fix` workflow formats, lints and stages
 safe fixes while lint-staged's backup and partial-staging isolation remain on.
 Review the resulting diff before committing. Required CI and separate review
 remain independent gates.
+
+`node scripts/catalog-staged-check.mts --staged` reads the four current catalog
+inputs from the Git index. It shares the generator's authoring projection and
+independent compatibility expectations, preserves partial staging, and never
+regenerates or stages files. Unrelated commits skip this optional local check.
 
 Existing foreign hook managers are preserved by the installer. To replace an
 old Portcove Husky hook, inspect `git config --show-origin --get core.hooksPath`,
@@ -917,6 +926,21 @@ and after PNG capture, retains and hashes the exact image, then publishes the
 capture receipt. Loading, offscreen targets, changed state, timeouts and retention
 failures produce diagnostic evidence; they cannot publish an accepted capture.
 Other legacy diagnostic screenshots retain their existing scope.
+
+The test-only `apps/desktop/test/capture-target.ts` preflight is shared by the
+browser adapter and selected native keyboard captures. Callers identify a single
+target, scroll it into view, and require two unchanged observations within a finite
+budget. Visual capture accepts decorative `aria-hidden` content while refusing
+hidden/transparent ancestors, ancestor overflow clipping, zero area and targets
+outside the viewport. Semantic readiness retains its own checks. Oversized panels
+cannot supply a complete-panel image: capture identified title/actions instead.
+Vitest annotations retain bounded JSON geometry/outcome attachments for successful
+and refused browser captures. Ordinary hosted browser diagnostics retain annotation
+JSON and the selected capture PNGs for seven days on success and failure through
+the existing artifact upload. Native adapters retain successful geometry through
+`captureSettledVisual` and refused preflight observations in bounded failure
+receipts, preserving the original failure and existing receipt. Actual pixel inspection and journey assertions remain
+separate obligations. These helpers are excluded from production imports.
 
 Controller capability receipts distinguish API absence, access failure/restriction,
 no exposed device and exposed-device inventory. The exact opt-in
@@ -1855,8 +1879,30 @@ revision, exact admitted `pnpm --dir apps/desktop desktop:build --bundles nsis` 
 empty qualification-feature list, hashes of the normal Tauri configuration,
 Windows overlay and Desktop Cargo manifest, installer, and completed
 `test-windows-installer.ps1` evidence. Its retained executable must match the
-installed hash. Produce it with that existing script's `-RetainExecutablePath`
-and `-EvidencePath`; preserve package/build logs with the manifest.
+installed hash. Produce it through the maintained launcher:
+
+```text
+just desktop-test --prepare-retained-package --output <new-absolute-external-directory>
+just desktop-test --finalize-retained-package --output <completed-absolute-directory>
+```
+
+Preparation requires a clean Windows checkout and a new output directory outside
+the checkout and Cargo target. It builds an ordinary unsigned NSIS package without
+qualification features or signing/configuration overrides, copies the installer
+and raw executable under the build lease, then releases that lease before isolated
+install/smoke/persistent-data-preservation/uninstall under native admission. Original
+process logs, doctor, configuration and file identities remain in that directory.
+The resulting `ordinary-package-manifest.json` passes the existing verifier and
+binds separate raw UNK, bundled NSS and retained installed executable identities.
+The installer script remains the underlying installation mechanism.
+
+Finalization is file-only recovery for a completed original run: it verifies file
+bindings, unique bundle-marker substitution and the strict existing package
+contract, then writes only missing derived manifest/result files. An unchanged
+repeat performs no writes; conflicting or incomplete evidence is preserved and
+refused. It never builds, installs, runs a doctor, invokes Git, acquires resources
+or changes Registry state. Preserve a failed preparation directory and its logs;
+finalization does not turn an incomplete installation into acceptance.
 
 Shared main-window assertions check application-origin assets and legitimate
 IPC, unavailable qualification commands, actual inline CSP violation, browser

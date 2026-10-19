@@ -381,20 +381,17 @@ relevant authority before final merge or a remote write. Compare actual deltas
 and repeat only affected obligations, without ceremonial stage-by-stage reads.
 Use `roadmap.mts next` for the common Required/Planned queue and
 `roadmap.mts context --issue <number> --runner <reported-instance> --json`
-for full current task requirements. The configured `delivery_mode` is
-`single-local-runner` (a legacy transport name for retiring the coordinator board,
-not a limit on workers or models). Context skips the retired operational board and does not
-require an accepted coordinator assignment. Its retirement is not proof of
-writer inactivity or release. Check current handoffs, branch heads, local
-processes and source-owner release before taking conflicting work; unresolved
-writer overlap blocks only overlapping work. Caller identity is reported, not
-native authentication. Missing task/Project API coverage remains a limitation.
+for full current task requirements. Context reads the owning issue and relevant
+Project state without a coordinator assignment or fixed worker lanes. Check
+current handoffs, branch heads, local processes and source-owner release before
+taking conflicting work; unresolved writer overlap blocks only overlapping work.
+Caller identity is reported, not native authentication. Missing task/Project API
+coverage remains a limitation.
 
-`runner_coordination` retains the old operational issue and three fixed comment
-IDs as discovery pointers. Preserve their history and unresolved evidence;
-ordinary pickup does not read or rewrite them. Legacy coordinated configurations
-remain readable for historical protocol tests; coordinator planners refuse in
-single-runner mode rather than issue new grants, ACKs or transfer records.
+The retired board and fixed checkpoints remain in GitHub history. Supported
+commands neither read them for ordinary pickup nor issue grants, acknowledgments
+or transfers. Exact historical consumed-requirements comments remain readable
+through explicit context references; they support comparison only.
 The [prior fixed-board contract](https://github.com/boburning/portcove/blob/7805cebfde4a6f751b06c7ae1c6706d14a753c1f/docs/PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep)
 is historical. Explicit owning comment/PR references and optional consumed-file
 baselines remain evidence, never grants. Do not scan enormous coordination

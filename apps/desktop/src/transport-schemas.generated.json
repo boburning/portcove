@@ -3630,6 +3630,13 @@
         ],
         "type": "string"
       },
+      "PreparedRuntimeSettingsContract": {
+        "description": "Catalog-accepted identity for a runtime the player prepares outside Portcove.\nPortcove never downloads or owns this package through this route.",
+        "enum": [
+          "tfe-dark-forces-v1.22.420"
+        ],
+        "type": "string"
+      },
       "ReleaseAsset": {
         "properties": {
           "name": {
@@ -4709,7 +4716,6 @@
         "type": "string"
       },
       "UserPreparedRuntimeSpec": {
-        "description": "Catalog-accepted identity for a runtime the player prepares outside Portcove.\nPortcove never downloads or owns this package through this route.",
         "properties": {
           "archive_name": {
             "type": "string"
@@ -4739,6 +4745,24 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "required_mutable_files": {
+            "description": "Regular, single-link mutable selectors that must remain present before launch.\nContents remain player-owned and are never frozen or seeded by registration.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "settings_contract": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparedRuntimeSettingsContract"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Read-only, version-scoped source-selection semantics; never seeds settings."
           },
           "source_argument_extension": {
             "default": null,
@@ -14209,6 +14233,13 @@
         ],
         "type": "string"
       },
+      "PreparedRuntimeSettingsContract": {
+        "description": "Catalog-accepted identity for a runtime the player prepares outside Portcove.\nPortcove never downloads or owns this package through this route.",
+        "enum": [
+          "tfe-dark-forces-v1.22.420"
+        ],
+        "type": "string"
+      },
       "ReleaseAsset": {
         "properties": {
           "name": {
@@ -14457,7 +14488,6 @@
         "type": "string"
       },
       "UserPreparedRuntimeSpec": {
-        "description": "Catalog-accepted identity for a runtime the player prepares outside Portcove.\nPortcove never downloads or owns this package through this route.",
         "properties": {
           "archive_name": {
             "type": "string"
@@ -14487,6 +14517,24 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "required_mutable_files": {
+            "description": "Regular, single-link mutable selectors that must remain present before launch.\nContents remain player-owned and are never frozen or seeded by registration.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "settings_contract": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparedRuntimeSettingsContract"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Read-only, version-scoped source-selection semantics; never seeds settings."
           },
           "source_argument_extension": {
             "default": null,
@@ -19000,6 +19048,13 @@
         ],
         "type": "string"
       },
+      "PreparedRuntimeSettingsContract": {
+        "description": "Catalog-accepted identity for a runtime the player prepares outside Portcove.\nPortcove never downloads or owns this package through this route.",
+        "enum": [
+          "tfe-dark-forces-v1.22.420"
+        ],
+        "type": "string"
+      },
       "ReleaseAsset": {
         "properties": {
           "name": {
@@ -20079,7 +20134,6 @@
         "type": "string"
       },
       "UserPreparedRuntimeSpec": {
-        "description": "Catalog-accepted identity for a runtime the player prepares outside Portcove.\nPortcove never downloads or owns this package through this route.",
         "properties": {
           "archive_name": {
             "type": "string"
@@ -20109,6 +20163,24 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "required_mutable_files": {
+            "description": "Regular, single-link mutable selectors that must remain present before launch.\nContents remain player-owned and are never frozen or seeded by registration.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "settings_contract": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparedRuntimeSettingsContract"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Read-only, version-scoped source-selection semantics; never seeds settings."
           },
           "source_argument_extension": {
             "default": null,

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "../../api";
-import { StatusLayer } from "../../components/Chrome";
+import { ApplicationUpdateNotices } from "./ApplicationUpdateNotices";
 import type {
   ApplicationUpdateNoticeSnapshot,
   ApplicationUpdatePreferences,
@@ -20,6 +20,19 @@ import {
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
 }));
+
+const defaultNoticeProps = {
+  updateNotice: undefined,
+  updateChoiceRequired: false,
+  productionTransitionRequired: false,
+  productionTransitionBusy: false,
+  reviewUpdate: vi.fn(),
+  dismissUpdate: vi.fn().mockResolvedValue(undefined),
+  dismissUpdateChoice: vi.fn(),
+  useStable: vi.fn(),
+  keepPreview: vi.fn(),
+  dismissProductionTransition: vi.fn(),
+};
 
 const notice = (revision: number, version: string): ApplicationUpdateNoticeSnapshot => ({
   revision,
@@ -92,8 +105,8 @@ describe("application update notice", () => {
     const review = vi.fn();
     const dismiss = vi.fn().mockResolvedValue(undefined);
     await root.rerender(
-      <StatusLayer
-        clearError={() => {}}
+      <ApplicationUpdateNotices
+        {...defaultNoticeProps}
         updateNotice={notice(1, "0.2.0-beta.3").notice}
         reviewUpdate={review}
         dismissUpdate={dismiss}
@@ -120,8 +133,8 @@ describe("application update notice", () => {
     const review = vi.fn();
     const staged = notice(2, "0.2.0-beta.3").notice!;
     await root.rerender(
-      <StatusLayer
-        clearError={() => {}}
+      <ApplicationUpdateNotices
+        {...defaultNoticeProps}
         updateNotice={{ ...staged, result: { ...staged.result, staged: true } }}
         reviewUpdate={review}
       />,
@@ -188,8 +201,8 @@ describe("application update notice", () => {
     const review = vi.fn();
     const dismiss = vi.fn();
     await root.rerender(
-      <StatusLayer
-        clearError={() => {}}
+      <ApplicationUpdateNotices
+        {...defaultNoticeProps}
         updateChoiceRequired
         reviewUpdate={review}
         dismissUpdateChoice={dismiss}
@@ -299,8 +312,8 @@ describe("application update notice", () => {
     const keepPreview = vi.fn();
     const dismiss = vi.fn();
     await root.rerender(
-      <StatusLayer
-        clearError={() => {}}
+      <ApplicationUpdateNotices
+        {...defaultNoticeProps}
         productionTransitionRequired
         useStable={useStable}
         keepPreview={keepPreview}
@@ -365,8 +378,8 @@ describe("application update notice", () => {
 
   it("keeps a current update notice ahead of the production transition offer", async () => {
     await root.rerender(
-      <StatusLayer
-        clearError={() => {}}
+      <ApplicationUpdateNotices
+        {...defaultNoticeProps}
         updateNotice={notice(2, "1.0.1").notice}
         productionTransitionRequired
       />,

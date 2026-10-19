@@ -15,20 +15,23 @@ The [producer and #144 checkpoint](slice4-producer-and-144-checkpoint-2026-10-18
 adds new evidence only. D2 bounded-attempt capacity is delivered at
 `dbf8f979b90ca4513d46dca7ff766fea12d1f2d3`; availability/headroom remain Unknown,
 with no capacity reservation. D1/D3 remain selected. Prepared schema-2 semantic
-serialization/consumption binds actual report bytes and exact inputs; the existing
-local implementation-review runtime has no appointed isolated authenticated
-completion-to-CheckRun transport. The [specific proposed remedy](slice4-semantic-producer-transport.proposed.json)
-reuses that runtime with a direct-capture broker and distinct Checks issuer.
-It does not promote PR clearance or App-authored text to semantic acceptance.
+serialization/consumption binds actual report bytes and exact inputs. The owner
+subsequently appointed the [specific transport role](slice4-semantic-producer-transport.proposed.json)
+at merged #2128. Its broker implementation and inert isolation evidence are now
+prepared; actual Codex execution remains held on storage and safe-reader enforcement.
+The [current checkpoint](slice4-broker-and-portable-repair-checkpoint-2026-10-18.md)
+records that precise blocker. PR clearance or App-authored text is not semantic acceptance.
 
 The guarded capacity reader uses the selected owner pause ref, `capacity.json`,
 and existing fresh protection/job provenance; a hash does not establish live
 settings. #144's real .35/.36 native startup and controlled retained-state
 readback succeeded at component scope, but default mod-resource state retains
 an absolute old executable-root path. This pair is not selected for the complete
-#246 journey. An upstream portable-path fix or separately reviewed finite client
-capability is the next bounded action; the candidate remains outside the compiled
-catalog. No configured baseline or initial absence is claimed.
+#246 journey. The selected upstream portable-default repair is now prepared and
+tested at framework scope. Upstream submission/adoption and two actual repaired
+game artifacts remain pending; a client path-rebase capability is not introduced.
+The candidate remains outside the compiled catalog. No configured baseline or
+initial absence is claimed.
 
 The source, workflow, permission and execution identities below do not become
 current through this continuation. Final runnable revision/digest, provider
@@ -718,3 +721,219 @@ OIDC runner variables and job permission semantics follow the
 The implementation additionally bounds the request/response, refuses redirects,
 and never persists or emits the bearer token. Endpoint compatibility still needs
 actual admitted-run observation; synthetic tests do not prove it.
+
+## Current delta after owner appointment at #2128
+
+The owner explicitly selected the semantic producer transport role and isolated
+runtime/broker boundary proposed at `6c43cb2e6fd0ba2e3a8060befc7b851fbae2af33`.
+This supersedes the earlier outstanding appointment decision; do not ask for that
+mechanism selection again. Implementation, isolation preparation and independent
+review are authorized. Exact credential provisioning and protected execution are
+separate, ungranted actions.
+
+The [broker/portable repair checkpoint](slice4-broker-and-portable-repair-checkpoint-2026-10-18.md)
+and [exact evidence](slice4-broker-and-portable-repair-evidence-2026-10-18.json)
+record the new work. Input serialization, direct-parent capture and the fixed
+CheckRun broker are implemented as held preparation. Native inert AppContainer,
+hardlink, bounded-output and descendant-teardown observations are retained.
+Actual Codex mode refuses before effects because hard-bounded writable profile
+storage and a safe source reader that cannot execute candidate bytes remain
+unassembled. No credential provisioning request or actual producer/check binding
+is ready. A role appointment, token or syntactically accepted report cannot remove
+that engineering hold.
+
+The #144 generated-default repair is prepared for the actual upstream repository,
+with regression and immutable source/local-test-artifact identities. The real
+.35/.36 pair remains failed; no legacy absolute-path migration, new client rebase
+capability, compiled catalog entry or complete Core/feed journey is asserted.
+The [exact upstream submission proposal](slice4-144-upstream-submission-2026-10-18.md)
+is ready for a separate communication decision. Adoption and two repaired real
+game artifacts are external dependencies that approval cannot supply.
+
+D1/D2/D3 and all spending/resource/admission restrictions remain selected. Capacity
+is bounded-attempt eligibility, availability/headroom Unknown and reservation none.
+The existing authenticated configuration and pending/recovery components retain
+their scope. Remote pending durability, exclusive protected executor/readback,
+actual eligible reservation, custody/public keys and operator-observed protections
+remain execution prerequisites. The held controller is not a final runnable
+revision/digest eligible for an execution grant. Assembly/attestation is one stage;
+signing, publication, feeds, custody and recovery retain their separate obligations.
+#254 stays Done; #315/#534/#246 acceptance stays pending; Chameleon
+protected_acceptance remains unset. Production stays held and slice 5 excluded.
+
+## Current delta: upstream submission and held reader integration
+
+The owner authorized the prepared upstream contribution after #2132. It is now
+[psxrecomp PR #685](https://github.com/RetroPortingToolKit/psxrecomp/pull/685),
+source `572558394b5b737690138f8374c80b032c3d84ba`, targeting master
+`53a057f548cd1f93f1b4d8300caaeded72f4160d`. The exact-title submission and
+passing repair/package assertions disclose the separate file-identity runtime
+failure. Legacy absolute-path migration is excluded. Upstream adoption and two
+real repaired game assets remain absent; .35/.36 remain failed candidates.
+
+The fixed reader now serves only bounded list/read/literal-search operations over
+validated frozen snapshots. The stdio child cannot acquire builder or producer
+provenance by loading a payload. Direct capture accepts only the required paired
+reader operations; wrong issuer, changed inputs, incomplete review, malformed or
+ambiguous results still refuse. Valid changes-required/refused reports are retained
+without accepted handoff authority. Runtime, Node, PowerShell and reader inputs
+are pinned/read back. Fixture tests are not an actual semantic producer binding.
+
+The native preparation replaces the real profile DACL and seals the disposable registry,
+verifies LPAC capability/impersonation identity and tests individual mutation
+rights, while retaining direct bounded capture and job-tree teardown. The installed
+Codex 0.162.0 inert, credential-free attempt failed to initialize its in-process
+app-server with access denied before any review event. Earlier hostname panic,
+Node startup/timeout and qualification setup failures remain separate retained
+observations. A native probe exposed a retained critical profile ACE; replacing the DACL made
+real-profile writes refuse. An earlier probe still failed because Windows
+redirected TEMP to an absent package path (error 3). The candidate materializes
+and locks that path. One follow-up hit its resource deadline without payload;
+later qualification passed storage and the fixed reader. The retained failures
+and subsequent bounded tree-settlement repair are recorded in the checkpoint.
+Authentication/network and complete-opportunity review are unproven.
+The parent login status is not an authenticated isolated reviewer observation.
+
+The conditional host proposal is the separately ungranted
+[fixed-storage configuration](slice4-semantic-local-storage.proposed.json) and
+[qualification/recovery procedure](slice4-semantic-local-storage-qualification-2026-10-18.md).
+The subsequent read-only storage and isolated fixed-reader stages pass, as do normal and persistent-descendant teardown. The inert installed Codex still fails before events with app-server access denied. The next narrow host decision is the fixed-volume diagnostic, bound to the final reviewed delivery; it is not a proven fix or authentication grant.
+Its fixed 512 MiB NTFS VHD is a bounded writable-state differential, not an asserted
+fix. The current owner token is not elevated and lacks SeManageVolumePrivilege;
+Storage cmdlet presence does not grant the operator action. No volume, quota,
+authentication, issuer App or key has been provisioned. Reviewer-controlled paths
+are never recursively traversed for ACL cleanup: the marker/image/grants are retained
+and exact-attempt positive teardown is required before identity-checked detach.
+
+Production mode remains an unconditional HOLD. The old scope-specific native and
+Git-timeout evidence is retained; no complete runtime-suite pass, two repaired
+game assets or full client journey is claimed. No full opportunity review is
+started before the inert/authenticated path works, and the older frozen bundle
+is not relabelled as current-source review. Issuer credential provisioning is not
+ready to request. Final runnable source/digest, semantic producer binding, remote
+pending/exclusive executor/readback, eligible reservation, custody/public-key and
+operator protection/spending observations remain prerequisites to a separate
+protected-execution grant. D1/D2/D3 and all spending/resource/admission restrictions
+remain unchanged. #254 Done; #315/#534/#246 pending; Chameleon protected_acceptance
+unset; #144 outside compiled catalog; production held; slice 5 excluded.
+
+Delivery details and exact evidence: [reader/upstream checkpoint](slice4-reader-and-upstream-checkpoint-2026-10-18.md), [evidence](slice4-reader-and-upstream-evidence-2026-10-18.json).
+
+## Local storage diagnostic: approved attempt failed; matching recovery complete
+
+The owner subsequently approved the exact #2153 retained-image completion,
+single conditional credential-free diagnostic and matching recovery. That grant
+is now fulfilled. The
+[actual bounded-runtime result](slice4-bounded-runtime-result-2026-10-18.md)
+records successful storage completion, a failed single non-elevated diagnostic
+and positive exact-image detach readback. Codex could not read the bounded
+`CODEX_HOME`; no authentication error or review event was observed. Both images,
+markers and original/new failure evidence remain retained. No operator command
+remains for this attempt. The proposed/ungranted wording below is historical,
+superseded only within that consumed exact grant. No repeat or permission
+widening is authorized.
+
+The bounded storage branch now prepares a fail-closed metadata preflight on the
+actual suspended reviewer token. It verifies the impersonated AppContainer SID,
+observes the token's enabled bypass-traverse privilege and probes the fixed
+mount/attempt/home/work/temp directories with `GetFileAttributesW`. The broker
+retains owner/group/DACL/mandatory-label descriptors separately in a bounded
+CreateNew capture, with a digest and per-path results in the isolation receipt.
+This probe is not a trace or replacement for every Rust filesystem operation.
+Missing descriptors, denied or unknown metadata, wrong identity or failed
+preparation prevent `ResumeThread`; the common owned-job termination, empty-tree
+and profile teardown path still supplies the actual result. No ACL is widened.
+Descriptor queries use existing broker access; they do not enable a privilege
+or appoint an authority ([Windows query rights](https://learn.microsoft.com/en-us/windows/win32/secauthz/security-information)).
+Inert verification is preparation only. This new preflight has not run in a
+native attempt; the consumed grant authorizes no mounted observation or repeat.
+
+Later preparation supersedes the pending-operation wording below: the owner ran
+the corrected Provision once. It failed at `Add-PartitionAccessPath` after the
+earlier initialization/format stages; no fixture ran. The second exact image
+was detached by the owner under its approved exact cleanup, with positive
+independent readback and the backing file retained. The cleanup grant is
+fulfilled; neither the
+earlier intent phase nor the failed command proves absence of partial effects.
+Further VHD provisioning and fixture retries are stopped. These are retained
+diagnostic failures, not semantic acceptance.
+
+The elevated cleanup readback established the exact GPT/NTFS partitions and the
+provider identifier mismatch behind the mount failure. The one-line repair now
+passes the returned partition object. The
+[retained-volume completion proposal](slice4-semantic-retained-volume-completion-2026-10-18.md)
+prepares completion of that exact existing image without creating, initializing
+or formatting a disk. It includes an exclusive completion/recovery lock, fresh
+provider readback and matching recovery for one subsequent credential-free
+fixture. It is preparation only: that completion/diagnostic grant remains
+outstanding, and no attachment or fixture was performed during implementation.
+
+Pinned Codex `rust-v0.162.0` source at
+`c1382380de69521303b416720a52f42d51af6248` shows that app-server initialization
+calls `resolve_installation_id`, which opens `CODEX_HOME/installation_id` with
+read/write/create and locks it even if the UUID is already present. The retained
+read-only-home fixture cannot satisfy that startup path. This establishes a
+necessary writable-home condition, not the exact failing operation (bootstrap
+can fail earlier), or a requirement to use a VHD. A supported authenticated
+runtime path remains unqualified; production mode stays held.
+
+### Capacity checkpoint transport integration preparation
+
+The inactive bounded-operation seam can now be supplied the existing explicit
+remote coordinator configuration and authenticated API adapter. In that mode,
+exact remote pending-checkpoint readback precedes the provider effect. Completed
+effect receipts also pass through the same transport. After observed effects,
+the remote path returns `readback-required` and retains the operation as pending
+until the existing explicit readback/recovery closes the handoff. It does not
+write an immutable local success before confirming a terminal remote handoff.
+An unavailable, refused or ambiguous checkpoint publication never falls back to
+local-only execution and stops further remote writes for that attempt. Local
+ambiguous state, completed effects, last confirmed remote checkpoint and the
+original transport evidence remain available for explicit readback/recovery.
+
+The existing no-transport seam remains local preparation evidence only. Remote
+CAS/readback is not an executor lease: protected configuration provenance,
+exclusive executor/readback ownership, actual eligible reservation and the exact
+execution grant remain separate requirements. No workflow is activated, new
+credential provisioned or authority added. Availability/headroom remain Unknown;
+there is no capacity reservation or automatic retry.
+
+Remote invocations additionally generate a fresh 256-bit `executor_nonce` inside
+the existing operation identity before persisting pending intent. Separate
+executors starting from the same checkpoint therefore propose different pending
+bytes; only the successful remote CAS claimant can enter its effect. The nonce
+is generated by the fixed implementation, not accepted from a caller, and remains
+bound to receipts and recovery by the operation digest. Legacy local preparation
+records remain readable. A restarted invocation cannot adopt an unresolved claim
+or use a new nonce to bypass the existing pending/retry holds.
+
+This is duplicate-execution exclusion in the inactive adapter, not an authenticated
+operator identity, expiring lease or proof that a previous executor terminated.
+Actual exclusive readback/recovery still requires the protected caller's observed
+executor settlement and exact provider readback before resolving pending state.
+No timeout-based takeover, new authority, capacity reservation or production
+activation is introduced.
+
+The owner authorized one #2143 Provision, one conditional inert fixture and its
+matching recovery. Provision created and attached the exact 512 MiB VHD but
+failed before intent/storage.json: the helper expected `FileBackedVirtual`, while
+the elevated provider reports `File Backed Virtual`. The retained observation
+binds disk ID `6002248078D013B408E10955E24A9B4F`, RAW/non-boot/non-system,
+with the exact image path and size. No fixture ran.
+
+The separately approved partial-Provision detach succeeded with no provider or
+readback error. Subsequent exact-image readback confirms Attached=false and the
+536871424-byte backing file retained. This is recovery of a partial allocation,
+not storage qualification or a Codex startup observation.
+
+The corrected helper and fresh proposed root are prepared through the ordinary
+review/CI process. The [host procedure](slice4-semantic-local-storage-qualification-2026-10-18.md#corrected-next-attempt--awaiting-a-new-operation-grant)
+binds the new helper/configuration hashes and one new same-owner elevated
+Provision proposal. Its operation grant is outstanding; the first grant does not
+authorize another Provision. The original root/image/markers/logs remain retained.
+
+Only the bus-type representation and explicit known-false boot/system checks
+change. Inert tests execute the actual guard against the observed representation
+and unsafe alternatives. No new storage operation, fixture, fill probe or
+credential action has occurred. Authentication/issuer/production and all prior
+D1/D2/D3, status, Chameleon and slice-5 boundaries remain unchanged.

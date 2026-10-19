@@ -98,6 +98,11 @@ pub trait Adapter: Send + Sync {
 #[derive(Debug, Clone, Copy)]
 struct StandardAdapter(AdapterKind);
 
+/// Built-in dispatch without allocating an erased adapter for internal callers.
+pub(crate) fn standard(kind: AdapterKind) -> impl Adapter {
+    StandardAdapter(kind)
+}
+
 pub(crate) fn launch_working_directory(
     kind: AdapterKind,
     port: &PortDefinition,
@@ -1600,7 +1605,7 @@ pub struct AdapterRegistry;
 
 impl AdapterRegistry {
     pub fn get(&self, kind: AdapterKind) -> Box<dyn Adapter> {
-        Box::new(StandardAdapter(kind))
+        Box::new(standard(kind))
     }
 }
 

@@ -1,3 +1,4 @@
+import { MetadataGrid } from "./ui/patterns";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, FolderOpen, HardDrive, RotateCcw, ShieldCheck } from "lucide-react";
 import { desktopApi } from "../api";
@@ -19,7 +20,6 @@ const outputReviewClass =
   "output-location-review grid gap-3 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-4";
 const outputReviewTitleClass =
   "output-review-title flex flex-wrap items-start justify-between gap-3";
-const outputFactsClass = "m-0 grid grid-cols-2 gap-2 max-[48rem]:grid-cols-1";
 const outputCodeClass =
   "block [overflow-wrap:anywhere] rounded-pc-md bg-[var(--color-bg-inset)] p-2 text-[var(--color-interactive-text)]";
 const outputReviewCodeClass =
@@ -436,10 +436,10 @@ function CurrentOutputDestination({
         </span>
       </div>
       {preview && (
-        <dl className={outputFactsClass}>
+        <MetadataGrid className="max-[48rem]:grid-cols-1">
           <OutputFact label="Capacity">{outputCapacityLabel(preview)}</OutputFact>
           <OutputFact label="Ownership">{outputOwnershipLabel(preview.ownership)}</OutputFact>
-        </dl>
+        </MetadataGrid>
       )}
       {preview && preview.validation_errors.length > 0 && (
         <ul
@@ -602,7 +602,7 @@ function OutputLocationReview({
       <DialogContent
         finalFocus={finalFocus}
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
+        reviewSize="standard"
         aria-describedby="output-location-review-description"
       >
         <DialogTitle id="output-location-review-title" className="mb-2 text-xl">
@@ -627,7 +627,7 @@ function OutputLocationReview({
           >
             {preview.proposed.effective_output_directory}
           </code>
-          <dl className={outputFactsClass}>
+          <MetadataGrid className="max-[48rem]:grid-cols-1">
             <OutputFact label="Source">
               {outputSourceLabel(preview.proposed.selection_source)}
             </OutputFact>
@@ -638,7 +638,7 @@ function OutputLocationReview({
                 ? "None"
                 : `${preview.affected_installs.length} remain at their recorded locations`}
             </OutputFact>
-          </dl>
+          </MetadataGrid>
           <p className={outputReviewCopyClass}>
             <Icon glyph={ShieldCheck} size="sm" />
             Future placement only; this review does not move an existing installation.
@@ -723,7 +723,7 @@ function OutputRelocationReview({
     <DialogContent
       finalFocus={finalFocus}
       showCloseButton={false}
-      className="max-h-[calc(100dvh-var(--space-8))] w-[min(760px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
+      reviewSize="wide"
       aria-describedby="output-relocation-review-description"
     >
       <DialogTitle id="output-relocation-review-title" className="mb-2 text-xl">
@@ -745,7 +745,7 @@ function OutputRelocationReview({
         <code className={outputReviewCodeClass} title={plan.destination_root}>
           {plan.destination_root}
         </code>
-        <dl className={outputFactsClass}>
+        <MetadataGrid className="max-[48rem]:grid-cols-1">
           <OutputFact label="Copy required">{formatBytes(plan.required_bytes)}</OutputFact>
           <OutputFact label="Capacity">
             {plan.available_bytes == null
@@ -761,7 +761,7 @@ function OutputRelocationReview({
               ? "Unexpected move requested"
               : "Stay in their current folders"}
           </OutputFact>
-        </dl>
+        </MetadataGrid>
         <ul
           className="output-relocation-installs m-0 grid max-h-[210px] list-none gap-2 overflow-auto p-0"
           aria-label="Versions to move"

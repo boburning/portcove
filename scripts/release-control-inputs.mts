@@ -286,6 +286,19 @@ function classificationPath(opportunity: ReturnType<typeof validateOpportunity>)
   return `classification/${opportunity.source_commit}/${opportunity.change_set_sha256}.json`;
 }
 
+/** Read-only reuse by the fixed producer broker; no persistence or authority. */
+export function readIndependentSemanticReview(
+  api: CoordinatorRemoteApi,
+  rawConfig: unknown,
+  rawOpportunity: unknown,
+  checkId: number,
+) {
+  numeric(checkId);
+  const config = configuration(rawConfig);
+  const opportunity = validateOpportunity(rawOpportunity);
+  return review(session(api).get, checkId, config, opportunity);
+}
+
 /** Persistence adapter, not a classifier or execution grant. An admitted fixed
  * writer job supplies its independently ratified producer and writer App IDs.
  * This module never discovers credentials, edits protections, or writes pause.

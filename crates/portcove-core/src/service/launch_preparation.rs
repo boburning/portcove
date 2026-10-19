@@ -7,7 +7,7 @@
 use std::path::Path;
 
 use crate::{
-    Catalog, DefinitionOperation, InstallQualification, InstallRecord, Installer,
+    Adapter, Catalog, DefinitionOperation, InstallQualification, InstallRecord, Installer,
     OperationCoordinator, Platform, PortDefinition, PortcoveError, Result, SourceRecord,
     definition_eligibility::DefinitionOperationContext, operation::LifecycleFaultPoint,
 };
@@ -144,21 +144,18 @@ impl PortcoveService {
         let selected_executable =
             Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
         checkpoint()?;
-        let spec = self
-            .adapters
-            .get(port.adapter)
-            .prepare_launch_with_executable(
-                crate::LaunchSpecRequest {
-                    library: &self.library,
-                    port,
-                    platform: Platform::current()?,
-                    install_root: &active.path,
-                    selected_executable: &selected_executable,
-                    source: source.as_ref().map(|record| record.path.as_path()),
-                    source_record: source.as_ref(),
-                },
-                &checkpoint,
-            )?;
+        let spec = crate::adapter::standard(port.adapter).prepare_launch_with_executable(
+            crate::LaunchSpecRequest {
+                library: &self.library,
+                port,
+                platform: Platform::current()?,
+                install_root: &active.path,
+                selected_executable: &selected_executable,
+                source: source.as_ref().map(|record| record.path.as_path()),
+                source_record: source.as_ref(),
+            },
+            &checkpoint,
+        )?;
         self.faults.check(LifecycleFaultPoint::SourcePrepared)?;
         checkpoint()?;
         if let Some(source) = &source {

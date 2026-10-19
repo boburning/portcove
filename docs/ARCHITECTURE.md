@@ -92,6 +92,13 @@ scope; they do not certify later builds.
 
 ## Source import journal interpretation
 
+`PortcoveService` remains the source-operation facade. Its private
+`service::sources` module owns inspection, registration, verification and removal
+of source references, including their consent fingerprints. Registration and
+removal acquire the source and dependent-port locks before checking current
+state. Removal forgets a registration and preserves the source files. Import
+transactions and their recovery remain with the source-import owner below.
+
 The source-import owner decodes the released lifecycle envelope into a private
 profile identity and import phase before normal execution, recovery or cancelled
 staging cleanup. The persisted `port_id` column continues to hold the source
@@ -2262,6 +2269,11 @@ backup manifest.
 
 ## Adapter boundary
 
+The supervised launch path uses the concrete built-in adapter directly, without
+allocating a boxed trait object or storing a registry in the service. The public
+`Adapter` trait and `AdapterRegistry::get` return type remain compatible; callers
+using that boundary retain the same built-in behavior.
+
 Adapter `launch_spec` and `launch_spec_with_executable` observe current inputs and
 assemble paths, environment and arguments without creating directories, copying
 sources, writing markers/configuration, cleaning transient data or invoking setup.
@@ -2389,7 +2401,7 @@ Manual host-tool selection crosses that policy only through the core registry's 
 
 Core also owns the fixed host-tool registry and resolution order. Each definition fixes its stable ID, display name, supported platforms, official HTTPS reference, and bounded probe policy. Resolution is environment override, saved host preference, reviewed discovery, then missing. An invalid environment or saved path is reported as misconfigured and blocks lower-priority fallback. Tool paths share the versioned host-preference document outside the movable library; changing them does not modify a library or source tree.
 
-Native game executables receive catalog-owned arguments plus literal caller arguments. Windows `.bat` and `.cmd` launchers are represented as `WindowsBatch`; caller arguments are rejected, and fixed catalog arguments pass a strict metacharacter check before the implicit `cmd.exe` boundary. Setup tools, validators, builders, conversion tools, and host integration require native executables. `scripts/check-child-process-policy.mts` prevents a production adapter from reintroducing direct `Command::new` construction outside the core policy.
+Native game executables receive catalog-owned arguments plus literal caller arguments. Windows `.bat` and `.cmd` launchers are represented as `WindowsBatch`; caller arguments are rejected, and fixed catalog arguments pass a strict metacharacter check before the implicit `cmd.exe` boundary. Setup tools, validators, builders, conversion tools, and host integration require native executables. `scripts/check-child-process-policy.mts` supplements review with a literal `Command::new` spelling check outside reviewed policy/test files, including multiline whitespace. It does not resolve Rust aliases and may match comments or strings; a pass is not proof that every child uses the policy. The typed construction boundary and process behavior tests protect environment filtering, literal arguments and owned-child cleanup.
 
 Supervised native games run in their own process group. The CLI intercepts Ctrl-C and, on Unix, termination. Before child creation it durably cancels its known request ID; if the core has already closed cancellation, the CLI forwards the pending signal after the exact child is recorded and continues waiting so core can complete exact-install save collection. A nonzero exit or signal is a failed launch outcome and never advances successful-launch history, but it does not skip collection. The desktop supervisor is detached from the UI process and uses null standard streams; closing the window therefore cannot become a save-lifecycle decision. Desktop completion observation queries only its exact request primary key and emits one refresh after the durable terminal outcome; it never polls the complete launch-session table per launch.
 

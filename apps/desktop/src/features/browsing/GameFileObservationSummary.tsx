@@ -19,23 +19,23 @@ export function GameFileObservationSummary({
   const status =
     outcome === "checking"
       ? catalog
-        ? "Checking complete catalog context…"
-        : "Checking selected route…"
+        ? "Checking game files for the catalog…"
+        : "Checking game files for this setup…"
       : outcome === "waiting"
         ? "Waiting for the previous check to finish."
         : outcome === "failed"
-          ? "The latest check failed. No current observation is available."
+          ? "The latest check failed. No current file check is available."
           : outcome === "cancelled"
-            ? "The latest check was canceled. No current observation is available."
+            ? "The latest check was canceled. No current file check is available."
             : expired
-              ? "Observation expired. Check again."
+              ? "The file check expired. Check again."
               : usable
                 ? catalog
-                  ? "Complete route observations available for filtering."
-                  : "Current observation."
+                  ? "Game-file checks are ready to use in Filters."
+                  : "Game-file check is current."
                 : catalog
-                  ? "Game-file choices need a current complete observation."
-                  : "No current observation for this selection.";
+                  ? "Check game files before using game-file filters."
+                  : "No current game-file check for this selection. Check again.";
   return (
     <div className="space-y-1">
       <p role="status">{status}</p>
@@ -52,7 +52,7 @@ export function GameFileObservationSummary({
           </p>
           <p>
             {catalog
-              ? `Complete catalog (${lastAccepted.routes.length} ${lastAccepted.routes.length === 1 ? "port" : "ports"})`
+              ? `Catalog (${lastAccepted.routes.length} ${lastAccepted.routes.length === 1 ? "port" : "ports"})`
               : "Selected port"}
             {" · "}
             {routes.find((route) => route.value === scope.route)?.label}
@@ -64,7 +64,7 @@ export function GameFileObservationSummary({
           {!usable && (
             <p>
               {expired
-                ? "The previous observation expired. "
+                ? "The previous file check expired. "
                 : "The previous check is informational only. "}
               {catalog
                 ? "To check again, open Filters → Check game-file filters."

@@ -210,6 +210,11 @@ export type InstallationMethod =
 export type SavesAndSettingsBehavior = "portcove-managed" | "external-user-owned";
 export type PortSourceRole = "game" | "bios";
 export type SourceVerificationMethod = "catalog-identity" | "upstream-validator" | "catalog-rules";
+/**
+ * Catalog-accepted identity for a runtime the player prepares outside Portcove.
+ * Portcove never downloads or owns this package through this route.
+ */
+export type PreparedRuntimeSettingsContract = "tfe-dark-forces-v1.22.420";
 export type RuntimeSourceMaterialization =
   "n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory";
 export type SupportTier = "stable" | "beta" | "rolling";
@@ -1312,10 +1317,6 @@ export interface DirectReleaseSpec {
   version: string;
   [k: string]: unknown;
 }
-/**
- * Catalog-accepted identity for a runtime the player prepares outside Portcove.
- * Portcove never downloads or owns this package through this route.
- */
 export interface UserPreparedRuntimeSpec {
   archive_name: string;
   archive_sha256: string;
@@ -1330,6 +1331,15 @@ export interface UserPreparedRuntimeSpec {
    */
   library_user_data?: boolean;
   mutable_paths: string[];
+  /**
+   * Regular, single-link mutable selectors that must remain present before launch.
+   * Contents remain player-owned and are never frozen or seeded by registration.
+   */
+  required_mutable_files?: string[];
+  /**
+   * Read-only, version-scoped source-selection semantics; never seeds settings.
+   */
+  settings_contract?: PreparedRuntimeSettingsContract | null;
   source_argument_extension: string | null;
   version: string;
   [k: string]: unknown;

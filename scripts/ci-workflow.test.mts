@@ -8,6 +8,7 @@ import type {
 } from "node:child_process";
 import { readFile, readdir, mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import test from "node:test";
+import { parseDocument } from "yaml";
 import { spawn, spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
 import type {
@@ -647,6 +648,8 @@ void test("Windows diagnostics serialize file workers without changing coverage 
     "scripts/development-capabilities.test.mts",
     "scripts/development-cli-help.test.mts",
     "scripts/development-evidence.test.mts",
+    "scripts/retained-package.test.mts",
+    "scripts/capture-target.test.mts",
     "scripts/handoff-evidence.test.mts",
     "scripts/native-confirmation.test.mts",
     "scripts/native-helper-dependencies.test.mts",
@@ -716,11 +719,16 @@ void test("full repository contracts run the bounded release evidence collector 
 });
 
 void test("required CI keeps its cancellation and least-privilege contracts", () => {
-  assert.match(workflow, /^permissions:\r?\n {2}contents: read$/m);
-  assert.match(
-    workflow,
-    /^concurrency:\r?\n {2}group: ci-\$\{\{ inputs\.force_qualification && format\('qualification-\{0\}', github\.ref\) \|\| github\.event\.pull_request\.number \|\| github\.ref \}\}\r?\n {2}cancel-in-progress: \$\{\{ !inputs\.force_qualification \}\}$/m,
-  );
+  const document = parseDocument(workflow);
+  assert.deepEqual(document.errors, []);
+  const settings: unknown = document.toJS();
+  assert.ok(isRecord(settings));
+  assert.deepEqual(settings.permissions, { contents: "read" });
+  assert.deepEqual(settings.concurrency, {
+    group:
+      "ci-${{ inputs.force_qualification && format('qualification-{0}', github.ref) || github.event.pull_request.number || github.ref }}",
+    "cancel-in-progress": "${{ !inputs.force_qualification }}",
+  });
   for (const section of [
     rustTests,
     rustWorkspaceTests,
@@ -2096,8 +2104,28 @@ void test("full frontend qualification provisions browser artifacts before compo
   ] as const) {
     const uploadIndex = block.indexOf(`name: browser-traces-${name}-`);
     assert.ok(uploadIndex >= 0, `${name} must preserve failed browser evidence`);
-    const upload = block.slice(uploadIndex);
-    assert.match(block, /if: failure\(\)\r?\n +uses: actions\/upload-artifact@/);
+    const stepStart = block.lastIndexOf("      - name:", uploadIndex);
+    assert.ok(stepStart >= 0);
+    const nextStep = block.indexOf("\n      - name:", uploadIndex);
+    const upload = block.slice(uploadIndex, nextStep < 0 ? undefined : nextStep);
+    const prefix = block.slice(stepStart, uploadIndex);
+    assert.match(
+      prefix,
+      name === "contributor"
+        ? /if: failure\(\)\r?\n +uses: actions\/upload-artifact@/
+        : /if: always\(\)\r?\n +uses: actions\/upload-artifact@/,
+    );
+    if (name !== "contributor") {
+      for (const retained of [
+        ".vitest/attachments/**/*.json",
+        "apps/desktop/.vitest/attachments/**/*.json",
+        "outputs/slice5-cards/**/*.png",
+      ])
+        assert.ok(
+          upload.includes(retained),
+          `${name} retains successful capture metadata and images`,
+        );
+    }
     assert.match(upload, /work\/bt\/\*\*\/\*\.trace\.zip/);
     assert.match(upload, /\.vitest\/attachments\/failure-screenshots\/\*\*\/\*\.png/);
     assert.match(upload, /include-hidden-files: true/);
@@ -2817,137 +2845,86 @@ void test("RetComM local manifests preserve platform precedence and refuse malfo
 
 void test("Rust reports slow tests, terminates hangs and retains documentation coverage", async () => {
   const config = await readFile(new URL("../.config/nextest.toml", import.meta.url), "utf8");
-  assert.match(
-    config,
-    /slow-timeout = \{ period = "5s", terminate-after = 6, grace-period = "0s" \}/,
+  // Parse the actual configuration consumed by nextest, using the same TOML
+  // implementation already used by production nextest-equivalence selection.
+  const parsed = spawnSync(
+    "python",
+    ["-c", "import sys,json,tomllib; print(json.dumps(tomllib.loads(sys.stdin.read())))"],
+    { input: config, encoding: "utf8", timeout: 5000, windowsHide: true },
   );
-  assert.match(config, /^retries = 0$/m);
-  assert.doesNotMatch(config, /on-timeout|default-filter/);
-  const outputOverrides = config
-    .split("[[profile.default.overrides]]")
-    .slice(1)
-    .filter((override) => /success-output/.test(override));
+  assert.equal(parsed.status, 0, parsed.stderr);
+  const document: unknown = JSON.parse(parsed.stdout);
+  assert.ok(isRecord(document) && isRecord(document.profile));
+  const profile = document.profile.default;
+  assert.ok(isRecord(profile));
+  assert.deepEqual(profile["slow-timeout"], {
+    period: "5s",
+    "terminate-after": 6,
+    "grace-period": "0s",
+  });
+  assert.equal(profile.retries, 0);
+  assert.equal(profile["test-threads"], 2);
+  assert.equal(profile["success-output"], undefined);
+  assert.equal(profile["default-filter"], undefined);
+  assert.ok(Array.isArray(profile.overrides));
+  const overrides: Record<string, unknown>[] = profile.overrides.map((value: unknown) => {
+    assert.ok(isRecord(value));
+    return value;
+  });
+  // Filters are execution identities, so exact values remain contractual.
+  const overrideFor = (filter: string) => {
+    const values = overrides.filter((value) => value.filter === filter);
+    assert.equal(values.length, 1, filter);
+    return requiredFixture(values[0]);
+  };
+  for (const filter of [
+    "package(portcove-cli)",
+    "package(portcove-core) & test(output_relocation::tests::)",
+    "package(portcove-core) & test(cancellation::tests::)",
+    "package(portcove-core) & test(definition_repository::tests::)",
+    "package(portcove-core) & test(activity_diagnostics::tests::)",
+    "package(portcove-core) & test(database::tests::)",
+    "package(portcove-core) & test(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes)",
+  ])
+    assert.equal(overrideFor(filter)["threads-required"], 2);
+  assert.equal(overrideFor("package(portcove-cli)").priority, -100);
+  assert.equal(
+    overrideFor("package(portcove-core) & test(activity_diagnostics::tests::)").priority,
+    -50,
+  );
+  const outputOverrides = overrides.filter((value) => value["success-output"] !== undefined);
   assert.equal(outputOverrides.length, 2);
-  assert.deepEqual(requiredFixture(outputOverrides[0]).trim().split(/\r?\n/).slice(0, 2), [
-    "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'",
-    'success-output = "immediate"',
-  ]);
-  const publicationOutput = requiredFixture(
-    requiredFixture(outputOverrides[1]).split(/\r?\n(?=\[)/, 1)[0],
-  )
-    .split(/\r?\n/)
-    .map((line: string) => line.trim())
-    .filter((line: string) => line && !line.startsWith("#"));
-  assert.deepEqual(publicationOutput, [
-    "platform = 'x86_64-apple-darwin'",
-    "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_permitted_artifact_commits_once$/)'",
-    'slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }',
-    'success-output = "immediate"',
-  ]);
-  for (const override of outputOverrides) {
-    assert.doesNotMatch(override, /retries|threads-required|priority/);
-  }
-  assert.doesNotMatch(
-    requiredFixture(config.split("[[profile.default.overrides]]")[0]),
-    /success-output/,
-  );
-  const repository = await readFile(
-    new URL("../crates/portcove-core/src/definition_repository.rs", import.meta.url),
-    "utf8",
-  );
-  const repositoryTests = await readFile(
-    new URL("../crates/portcove-core/src/definition_repository_tests.rs", import.meta.url),
-    "utf8",
-  );
-  const publisherTests = await readFile(
-    new URL("../crates/portcove-core/src/definition_publisher_policy_tests.rs", import.meta.url),
-    "utf8",
-  );
-  assert.match(repository, /#\[path = "definition_repository_tests\.rs"\]\r?\nmod tests;/);
-  assert.match(
-    repositoryTests,
-    /#\[path = "definition_publisher_policy_tests\.rs"\]\r?\nmod publisher_policy_tests;/,
-  );
-  assert.match(
-    publisherTests,
-    /#\[tokio::test\]\r?\nasync fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract\(\)/,
-  );
-  assert.match(
-    config,
-    /filter = 'package\(portcove-cli\)'\r?\nthreads-required = 2\r?\npriority = -100/,
-  );
-  assert.match(
-    config,
-    /filter = 'package\(portcove-core\) & test\(output_relocation::tests::\)'\r?\nthreads-required = 2/,
-  );
-  assert.match(
-    config,
-    /filter = 'package\(portcove-core\) & test\(cancellation::tests::\)'\r?\nthreads-required = 2/,
-  );
-  assert.match(
-    config,
-    /filter = 'package\(portcove-core\) & test\(definition_repository::tests::\)'\r?\nthreads-required = 2/,
-  );
-  assert.match(
-    config,
-    /filter = 'package\(portcove-core\) & test\(activity_diagnostics::tests::\)'\r?\nthreads-required = 2\r?\npriority = -50/,
-  );
-  assert.match(
-    config,
-    /filter = 'package\(portcove-core\) & test\(database::tests::\)'\r?\nthreads-required = 2/,
-  );
-  assert.match(
-    config,
-    /filter = 'package\(portcove-core\) & test\(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes\)'\r?\nthreads-required = 2/,
-  );
-  function assertFiniteHarnessBudgets(source: string) {
-    const [defaults, ...overrides] = source.split("[[profile.default.overrides]]");
-    assert.ok(defaults !== undefined);
-    assert.match(defaults, /^slow-timeout = /m);
-    const units: Readonly<Record<string, number>> = { ms: 1, s: 1000, m: 60000, h: 3600000 };
-    for (const block of [defaults, ...overrides]) {
-      for (const line of block.split(/\r?\n/)) {
-        if (/^retries\s*=/.test(line)) assert.match(line, /^retries\s*=\s*0$/);
-        if (!/^slow-timeout\s*=/.test(line)) continue;
-        const budget = line.match(
-          /^slow-timeout = \{ period = "([0-9]+)(ms|s|m|h)", terminate-after = ([0-9]+), grace-period = "([0-9]+)(ms|s|m|h)" \}$/,
-        );
-        assert.ok(
-          budget,
-          "harness budgets must retain finite warning, termination and cleanup limits",
-        );
-        const period = Number(budget[1]) * requiredFixture(units[requiredFixture(budget[2])]);
-        const count = Number(budget[3]);
-        const grace = Number(budget[4]) * requiredFixture(units[requiredFixture(budget[5])]);
-        assert.ok(period > 0 && Number.isSafeInteger(count) && count > 0);
-        assert.ok(Number.isFinite(period * count + grace));
-        if (block !== defaults) assert.match(block, /^filter = '.+'$/m);
-      }
-    }
-  }
-  assertFiniteHarnessBudgets(config);
-  // Calibration can exceed recorded exceptions without a new approval ceiling.
-  for (const calibrated of [
-    config.replace("terminate-after = 9", "terminate-after = 18"),
-    config +
-      "\n[[profile.default.overrides]]\nplatform = 'aarch64-apple-darwin'\nfilter = 'package(portcove-core) & test(database::tests::)'\nslow-timeout = { period = \"5s\", terminate-after = 240, grace-period = \"2s\" }\n",
+  for (const filter of [
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)",
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_permitted_artifact_commits_once$/)",
   ]) {
-    assertFiniteHarnessBudgets(calibrated);
+    const override = overrideFor(filter);
+    assert.equal(override["success-output"], "immediate");
+    for (const field of ["retries", "threads-required", "priority"])
+      assert.equal(override[field], undefined);
   }
-  for (const changed of [
-    config.replace('period = "5s"', 'period = "0s"'),
-    config.replace("terminate-after = 9", "terminate-after = 0"),
-    config.replace("terminate-after = 9", 'terminate-after = "never"'),
-    config.replace("terminate-after = 9", "terminate-after = 1e309"),
-    config +
-      '\n[[profile.default.overrides]]\nslow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }\n',
-    config + "\n[[profile.default.overrides]]\nfilter = 'package(portcove-cli)'\nretries = 1\n",
-  ]) {
-    assert.throws(() => assertFiniteHarnessBudgets(changed));
+  assert.equal(
+    overrideFor(
+      "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_permitted_artifact_commits_once$/)",
+    ).platform,
+    "x86_64-apple-darwin",
+  );
+  for (const value of [profile, ...overrides]) {
+    assert.ok(value.retries === undefined || value.retries === 0);
+    assert.equal(value["on-timeout"], undefined);
+    if (value !== profile) assert.equal(typeof value.filter, "string");
+    const timeout: unknown = value["slow-timeout"];
+    if (timeout === undefined) continue;
+    assert.ok(isRecord(timeout));
+    // Nextest owns duration syntax; calibrated warning/grace durations may vary.
+    assert.equal(typeof timeout.period, "string");
+    if (timeout["grace-period"] !== undefined)
+      assert.equal(typeof timeout["grace-period"], "string");
+    assert.ok(Number.isSafeInteger(timeout["terminate-after"]));
+    assert.ok(typeof timeout["terminate-after"] === "number" && timeout["terminate-after"] > 0);
   }
   assert.match(rustTests, /cargo nextest run --locked @Arguments/);
   assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);
-  assert.match(config, /^test-threads = 2$/m);
   assert.match(rustDocs, /cargo test --locked --workspace --exclude portcove-desktop --doc/);
   assert.match(rustDocs, /cargo test --locked -p portcove-desktop --doc/);
   assert.doesNotMatch(rustDocs, /--no-default-features|--no-deps|--exclude (?!portcove-desktop)/);

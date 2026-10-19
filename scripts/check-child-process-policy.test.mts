@@ -25,11 +25,27 @@ void test("test-like names do not grant general direct-spawn authority", () => {
   );
 });
 
-void test("reports a production bypass with its source line", () => {
+void test("reports direct constructor spelling with its source line", () => {
   assert.deepEqual(
     findDirectChildProcessCalls([
       ["apps/desktop/src-tauri/src/lib.rs", "fn launch() {\n  Command::new(game);\n}"],
     ]),
     [{ path: "apps/desktop/src-tauri/src/lib.rs", line: 2 }],
   );
+});
+
+void test("checks multiline spelling while documenting aliases and comment limitations", () => {
+  const file = "crates/portcove-core/src/adapter.rs";
+  assert.deepEqual(findDirectChildProcessCalls([[file, "Command\n :: new\n (program)"]]), [
+    { path: file, line: 1 },
+  ]);
+  assert.deepEqual(
+    findDirectChildProcessCalls([
+      [file, "use std::process::Command as Process;\nProcess::new(program)"],
+    ]),
+    [],
+  );
+  assert.deepEqual(findDirectChildProcessCalls([[file, "// Command::new(program)"]]), [
+    { path: file, line: 1 },
+  ]);
 });

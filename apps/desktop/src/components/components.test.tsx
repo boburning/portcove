@@ -1,3 +1,5 @@
+import { ApplicationUpdateSettings } from "../features/application-update/ApplicationUpdates";
+import { ApplicationUpdateNotices } from "../features/application-update/ApplicationUpdateNotices";
 import { fixtureValue } from "../test-fixtures";
 import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -112,6 +114,19 @@ const actions: DetailActions = {
   setChannel: vi.fn(),
   setPolicy: vi.fn(),
   verify: vi.fn(),
+};
+
+const defaultNoticeProps = {
+  updateNotice: undefined,
+  updateChoiceRequired: false,
+  productionTransitionRequired: false,
+  productionTransitionBusy: false,
+  reviewUpdate: vi.fn(),
+  dismissUpdate: vi.fn().mockResolvedValue(undefined),
+  dismissUpdateChoice: vi.fn(),
+  useStable: vi.fn(),
+  keepPreview: vi.fn(),
+  dismissProductionTransition: vi.fn(),
 };
 
 describe("operation cancellation", () => {
@@ -1253,18 +1268,38 @@ describe("desktop components", () => {
     expect(html).toContain("/brand/logo/portcove-logo-v2-transparent.png");
   });
 
+  it("places feature-owned notices alongside failures and current operation progress", () => {
+    const html = renderToStaticMarkup(
+      <StatusLayer
+        error="Disk unavailable"
+        clearError={vi.fn()}
+        busy="backup"
+        featureNotices={
+          <ApplicationUpdateNotices
+            {...defaultNoticeProps}
+            updateChoiceRequired
+            reviewUpdate={vi.fn()}
+          />
+        }
+      />,
+    );
+    expect(html).toContain("Disk unavailable");
+    expect(html).toContain("Choose how Portcove updates");
+    expect(html).toContain("Backup in progress");
+  });
+
   it("uses semantic shared actions for application update notices", () => {
     const choice = renderToStaticMarkup(
-      <StatusLayer
-        clearError={vi.fn()}
+      <ApplicationUpdateNotices
+        {...defaultNoticeProps}
         updateChoiceRequired
         reviewUpdate={vi.fn()}
         dismissUpdateChoice={vi.fn()}
       />,
     );
     const transition = renderToStaticMarkup(
-      <StatusLayer
-        clearError={vi.fn()}
+      <ApplicationUpdateNotices
+        {...defaultNoticeProps}
         productionTransitionRequired
         useStable={vi.fn()}
         keepPreview={vi.fn()}
@@ -1467,6 +1502,7 @@ describe("desktop components", () => {
   it("groups every settings capability by the six player-facing tasks", () => {
     const html = renderToStaticMarkup(
       <SettingsView
+        applicationUpdates={<ApplicationUpdateSettings currentVersion="0.1.0-alpha.2" />}
         libraryRoot="C:/Portcove"
         appearance={{
           preference: "system",
@@ -1842,7 +1878,11 @@ describe("desktop components", () => {
 
   it("keeps all Settings tasks in ordered full-width rows with their actions and warnings", () => {
     const html = renderToStaticMarkup(
-      <SettingsView createSupportBundle={vi.fn()} refreshDiagnostics={vi.fn()} />,
+      <SettingsView
+        applicationUpdates={<ApplicationUpdateSettings currentVersion="0.1.0-alpha.2" />}
+        createSupportBundle={vi.fn()}
+        refreshDiagnostics={vi.fn()}
+      />,
     );
     const appearance = html.slice(
       html.indexOf('data-settings-group="appearance"'),

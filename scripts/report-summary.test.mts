@@ -223,3 +223,60 @@ void test("UI projections expose requested/discovered/executed and skips rather 
   );
   assert.match(result.text, /requested 1; discovered 1; executed 0; passed 0; skipped 1/);
 });
+
+void test("native CLI bounds complete Unicode output and omits custody trees without inferring acceptance", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "native-summary-"));
+  try {
+    const file = path.join(root, "native.json");
+    for (const version of [2, 3]) {
+      const report = {
+        format_version: version,
+        revision: "a".repeat(40),
+        source_state: { clean: null },
+        executable: { path: "recorded.exe", bytes: 17, sha256: "b".repeat(64) },
+        outcome: "failed",
+        qualification_complete: false,
+        selected_scenarios: ["keyboard"],
+        setup_checks: [{ scenario: "doctor", outcome: "failed", reason: "missing driver" }],
+        checks: Array.from({ length: 5000 }, (_, index) => ({
+          scenario: `鍵盤-${index}`,
+          outcome: "passed",
+        })),
+        known_gaps: [{ scenario: "physical", reason: "not observed" }],
+        execution_binding: { sentinel: "PRIVATE_CUSTODY_SENTINEL".repeat(1000) },
+      };
+      const bytes = JSON.stringify(report);
+      writeFileSync(file, bytes);
+      const result = spawnSync(
+        process.execPath,
+        [path.resolve("scripts/report-summary.mts"), "native", file],
+        { encoding: "utf8", windowsHide: true },
+      );
+      assert.equal(result.status, 0, result.stderr);
+      assert(Buffer.byteLength(result.stdout) <= 16384);
+      assert(result.stdout.endsWith("\n"));
+      assert.match(result.stdout, /checks 5000; setup 1; selected 1; gaps 1/);
+      assert.match(
+        result.stdout,
+        /Recorded outcome: failed; recorded qualification_complete: false/,
+      );
+      assert.match(result.stdout, /runner revision: a{40}; clean: unknown/);
+      assert.match(result.stdout, /Setup doctor: failed; missing driver/);
+      assert.match(result.stdout, /Gap physical: not observed/);
+      assert.match(result.stdout, /omitted: [1-9]/);
+      assert(result.stdout.includes(file));
+      assert(!result.stdout.includes("PRIVATE_CUSTODY_SENTINEL"));
+      assert.equal(readFileSync(file, "utf8"), bytes);
+    }
+    const report = { format_version: 2, checks: [], outcome: "not-run" };
+    const result = summarizeReport("native", report, "raw.json");
+    assert.match(result.text, /qualification_complete: unknown/);
+    assert.match(result.text, /Executable: unknown/);
+    const oversized = summarizeReport("native", report, "鍵".repeat(10000));
+    assert.match(oversized.text, /Raw evidence reference omitted/);
+    assert(Buffer.byteLength(oversized.text + "\n") <= 16384);
+    assert.throws(() => summarizeReport("native", { format_version: 99, checks: [] }, "raw.json"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

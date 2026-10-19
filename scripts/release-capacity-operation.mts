@@ -9,7 +9,11 @@ import {
   inspectPriorCapacityOperations,
 } from "./release-capacity.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
+import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { isRecord } from "./runtime-values.mts";
+import { sanitizeOperationError } from "./github-api.mts";
+import { randomBytes } from "node:crypto";
 
 export class ProviderCapacityRefusal extends Error {
   readonly receipt: { remote_identity: string; evidence_sha256: string };
@@ -40,7 +44,18 @@ export async function runBoundedCapacityOperation(
   effect: (
     recordCompleted: (remoteIdentity: string, evidenceSha256: string) => Promise<void>,
   ) => Promise<void>,
+  options: { remote?: { configuration: unknown; api: CoordinatorRemoteApi } } = {},
 ) {
+  // Freeze the selected mode before any await or caller-provided callback.
+  const remote = options.remote
+    ? {
+        configuration: structuredClone(options.remote.configuration),
+        api: {
+          request: options.remote.api.request.bind(options.remote.api),
+          graphql: options.remote.api.graphql.bind(options.remote.api),
+        },
+      }
+    : null;
   const recovered = await recoverReleaseOpportunity(repository, expected);
   const input = structuredClone(recovered.input);
   if (
@@ -68,6 +83,10 @@ export async function runBoundedCapacityOperation(
       substantive_repairs: candidate.substantive_repairs,
     },
     destination: request.destination,
+    // An invocation-generated claim makes independent executors' pending bytes
+    // distinct. Seeing somebody else's identical logical operation is not an
+    // execution grant. There is no caller-supplied nonce or resume entry point.
+    ...(remote ? { executor_nonce: randomBytes(32).toString("hex") } : {}),
     kind: request.kind,
     policy_sha256: ready.resource_policy_sha256,
     ratification_sha256: ready.ratification_sha256,
@@ -90,8 +109,25 @@ export async function runBoundedCapacityOperation(
   // Commit the intent BEFORE entering the caller's effect. A crash thereafter
   // leaves pending, which prevents a second invocation through this same seam.
   let current = (await checkpointReleaseOpportunity(repository, expected, input)).checkpoint;
+  let durableCheckpoint: string | null = null;
+  let remoteFailure: unknown = null;
+  let remoteFailed = false;
+  const publish = async () => {
+    if (!remote) return;
+    try {
+      await publishCoordinatorCheckpoint(repository, current, remote.configuration, {
+        api: remote.api,
+      });
+      durableCheckpoint = current;
+    } catch (error) {
+      remoteFailed = true;
+      remoteFailure = error;
+      throw error;
+    }
+  };
   const save = async () => {
     current = (await checkpointReleaseOpportunity(repository, current, input)).checkpoint;
+    await publish();
   };
   let acceptingReceipts = true;
   let receiptFailure: Error | undefined;
@@ -117,6 +153,10 @@ export async function runBoundedCapacityOperation(
     return task;
   };
   try {
+    // An explicitly configured remote transport must confirm the pending intent
+    // before any provider effect. No fallback to local-only execution is allowed.
+    // This does not establish the independently required exclusive executor.
+    await publish();
     const fresh = assessBoundedCapacity({
       ...capacity,
       boundary: structuredClone(await readBoundary()),
@@ -138,11 +178,20 @@ export async function runBoundedCapacityOperation(
     // No generic function return is treated as an actual remote success.
     if (operation.completed_effects.length === 0)
       throw new Error("exact provider result evidence missing");
-    operation.outcome = "succeeded";
-    await save();
+    if (remote) {
+      // Completed effects remain durably pending until the existing explicit
+      // readback/recovery closes the handoff. Do not write a locally immutable
+      // terminal outcome before its remote handoff can be confirmed.
+      await publish();
+    } else {
+      operation.outcome = "succeeded";
+      await save();
+    }
     return {
       checkpoint: current,
       operation: structuredClone(operation),
+      durable_checkpoint: durableCheckpoint,
+      completion: remote ? "readback-required" : "recorded",
       availability: "unknown",
       headroom: "unknown",
       authority: "none",
@@ -155,7 +204,10 @@ export async function runBoundedCapacityOperation(
     operation.outcome = error instanceof ProviderCapacityRefusal ? "capacity-refused" : "ambiguous";
     operation.failure_evidence = error instanceof ProviderCapacityRefusal ? error.receipt : null;
     try {
-      await save();
+      current = (await checkpointReleaseOpportunity(repository, current, input)).checkpoint;
+      // A lost/refused checkpoint response requires explicit readback/recovery.
+      // Do not post another checkpoint after an ambiguous transport outcome.
+      if (!remoteFailed) await publish();
     } catch {
       /* existing pending intent remains blocking */
     }
@@ -166,6 +218,12 @@ export async function runBoundedCapacityOperation(
         operation: structuredClone(operation),
         retry: "forbidden",
         reservation: structuredClone(candidate),
+        durable_checkpoint: durableCheckpoint,
+        checkpoint_transport_error: remoteFailed
+          ? remoteFailure instanceof CoordinatorRemoteError
+            ? remoteFailure.evidence
+            : sanitizeOperationError(remoteFailure)
+          : null,
         authority: "none",
       },
     );

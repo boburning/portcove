@@ -27,11 +27,11 @@ export function findDirectChildProcessCalls(
   const violations: { path: string; line: number }[] = [];
   for (const [path, source] of files) {
     if (ALLOWED_DIRECT_COMMAND_FILES.has(path.replaceAll("\\", "/"))) continue;
-    source.split(/\r?\n/u).forEach((line, index) => {
-      if (/\bCommand::new\s*\(/u.test(line)) {
-        violations.push({ path, line: index + 1 });
-      }
-    });
+    // Supplemental spelling check, not Rust name resolution. Whitespace may
+    // span lines; aliases are not resolved and comments/strings can match.
+    for (const match of source.matchAll(/\bCommand\s*::\s*new\s*\(/gu)) {
+      violations.push({ path, line: source.slice(0, match.index).split(/\r?\n/u).length });
+    }
   }
   return violations;
 }
@@ -44,14 +44,14 @@ export function main() {
   if (violations.length > 0) {
     for (const violation of violations) {
       console.error(
-        `${violation.path}:${violation.line}: direct child process creation bypasses ChildProcessPolicy`,
+        `${violation.path}:${violation.line}: direct Command::new spelling outside reviewed policy/test files; inspect ChildProcessPolicy use`,
       );
     }
     process.exitCode = 1;
     return;
   }
   console.log(
-    "Child-process policy gate passed: every production child uses portcove-core policy.",
+    "Child-process spelling check passed: no Command::new calls found outside reviewed policy/test files. Aliases are not resolved; comments and strings can match.",
   );
 }
 

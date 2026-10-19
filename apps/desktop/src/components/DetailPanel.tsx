@@ -11,6 +11,7 @@ import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
 import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
 import {
+  type LucideIcon,
   AlertTriangle,
   ArrowLeft,
   ArchiveX,
@@ -194,7 +195,7 @@ export function DetailPanel(props: DetailPanelProps) {
     !status?.readiness?.blockers.includes("invalid_installation") &&
     !status?.readiness?.blockers.includes("missing_runtime"),
   );
-  const state =
+  const state: DetailState =
     !installed && port.release.provider !== "user-prepared" && actionPresentation.blocked
       ? {
           title: "Setup unavailable",
@@ -222,20 +223,22 @@ export function DetailPanel(props: DetailPanelProps) {
               tone: "setup",
               icon: AlertTriangle,
             }
-          : detailState(
+          : detailState({
               installed,
               launchReady,
-              status?.staged?.version,
+              stagedVersion: status?.staged?.version,
               pendingSetup,
-              Boolean(status?.readiness?.blockers.includes("missing_runtime")),
+              runtimeNeeded: Boolean(status?.readiness?.blockers.includes("missing_runtime")),
               runtimeUpdateAvailable,
-              status?.readiness?.source,
-              status?.readiness?.bios,
+              sourceHealth: status?.readiness?.source,
+              biosHealth: status?.readiness?.bios,
               selectedRequirement,
               missingRequirement,
-              Boolean(status?.readiness?.blockers.includes("invalid_installation")),
-              port.release.provider === "user-prepared",
-            );
+              invalidInstallation: Boolean(
+                status?.readiness?.blockers.includes("invalid_installation"),
+              ),
+              externalRuntime: port.release.provider === "user-prepared",
+            });
   const sources: SourceControls = {
     port,
     source,
@@ -377,7 +380,13 @@ export function DetailPanel(props: DetailPanelProps) {
   );
 }
 
-type DetailState = ReturnType<typeof detailState>;
+interface DetailState {
+  title: string;
+  description: string;
+  tone: "setup" | "available" | "ready";
+  icon: LucideIcon;
+  updateAttention?: string;
+}
 
 function DetailHero({
   port,
@@ -1951,7 +1960,7 @@ export function InstallAction({
             showCloseButton={false}
             finalFocus={reviewButton}
             portaled={portaled}
-            className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
+            reviewSize="standard"
             aria-describedby="install-review-description"
           >
             <DialogTitle id="install-review-title" className="mb-2 text-xl">
@@ -2344,20 +2353,35 @@ function UpdateCheckAction({
   );
 }
 
-function detailState(
-  installed: boolean,
-  launchReady: boolean,
-  stagedVersion: string | undefined,
-  pendingSetup: boolean,
-  runtimeNeeded: boolean,
-  runtimeUpdateAvailable: boolean,
-  sourceHealth?: SourceHealth | null,
-  biosHealth?: SourceHealth | null,
-  selectedRequirement?: "game" | "bios" | "both",
-  missingRequirement?: SelectedRequirement,
-  invalidInstallation = false,
-  externalRuntime = false,
-) {
+interface DetailStateInput {
+  installed: boolean;
+  launchReady: boolean;
+  stagedVersion: string | undefined;
+  pendingSetup: boolean;
+  runtimeNeeded: boolean;
+  runtimeUpdateAvailable: boolean;
+  sourceHealth: SourceHealth | null | undefined;
+  biosHealth: SourceHealth | null | undefined;
+  selectedRequirement: SelectedRequirement | undefined;
+  missingRequirement: SelectedRequirement | undefined;
+  invalidInstallation: boolean;
+  externalRuntime: boolean;
+}
+
+function detailState({
+  installed,
+  launchReady,
+  stagedVersion,
+  pendingSetup,
+  runtimeNeeded,
+  runtimeUpdateAvailable,
+  sourceHealth,
+  biosHealth,
+  selectedRequirement,
+  missingRequirement,
+  invalidInstallation,
+  externalRuntime,
+}: DetailStateInput): DetailState {
   if (invalidInstallation)
     return {
       title: "Installation needs repair",
@@ -2438,7 +2462,7 @@ function availableInstallState(
   selectedRequirement?: SelectedRequirement,
   missingRequirement?: SelectedRequirement,
   externalRuntime = false,
-) {
+): DetailState {
   if (missingRequirement) {
     const requirement =
       missingRequirement === "both"
@@ -2483,7 +2507,7 @@ function availableInstallState(
   return { title: "Available to install", description, tone: "available", icon: Download };
 }
 
-function runtimeRequirementState(updateAvailable: boolean) {
+function runtimeRequirementState(updateAvailable: boolean): DetailState {
   return updateAvailable
     ? {
         title: "Update required before playing",
@@ -2501,7 +2525,7 @@ function runtimeRequirementState(updateAvailable: boolean) {
       };
 }
 
-function selectedRequirementState(requirement: SelectedRequirement) {
+function selectedRequirementState(requirement: SelectedRequirement): DetailState {
   if (requirement === "bios")
     return {
       title: "BIOS file needs checking",
@@ -2527,7 +2551,10 @@ function selectedRequirementState(requirement: SelectedRequirement) {
   };
 }
 
-function sourceHealthState(kind: "game" | "bios", health?: SourceHealth | null) {
+function sourceHealthState(
+  kind: "game" | "bios",
+  health?: SourceHealth | null,
+): DetailState | undefined {
   const label = kind === "bios" ? "Required BIOS file" : "Game files";
   const chooseAgain =
     kind === "bios"

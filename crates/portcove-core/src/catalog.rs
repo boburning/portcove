@@ -716,6 +716,24 @@ impl Catalog {
                                 port.id
                             )));
                         };
+                        if !runtime.required_mutable_files.is_empty()
+                            && port.adapter != AdapterKind::StagedSourcePortable
+                        {
+                            return Err(PortcoveError::usage(format!(
+                                "{} required mutable files require staged-source portable",
+                                port.id
+                            )));
+                        }
+                        crate::external_runtime::validate_required_mutable_files(runtime)?;
+                        if runtime.settings_contract.is_some()
+                            && (*platform != crate::Platform::WindowsX86_64
+                                || port.runtime_subdirectory.is_some()
+                                || !port.launch_arguments.is_empty())
+                        {
+                            return Err(PortcoveError::usage(
+                                "TFE settings contract requires Windows x86_64, root working directory and no launch arguments",
+                            ));
+                        }
                         if runtime.version.trim().is_empty()
                             || !is_safe_basename(&runtime.archive_name)
                             || !runtime.archive_name.to_ascii_lowercase().ends_with(".zip")

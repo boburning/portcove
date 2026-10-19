@@ -132,6 +132,33 @@ impl DefinitionContentIndex {
             ));
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        if port
+            .release
+            .user_prepared
+            .values()
+            .any(|runtime| runtime.settings_contract.is_some())
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable" && requirement.minimum_version >= 5
+            })
+        {
+            return Err(PortcoveError::verification(
+                "prepared settings contract requires staged-source capability version 5",
+            ));
+        }
+
+        if port
+            .release
+            .user_prepared
+            .values()
+            .any(|runtime| !runtime.required_mutable_files.is_empty())
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable" && requirement.minimum_version >= 4
+            })
+        {
+            return Err(PortcoveError::verification(
+                "required mutable files require staged-source capability version 4",
+            ));
+        }
         if port.n64_windows_initial_d3d12
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "n64-recomp-portable" && requirement.minimum_version >= 2

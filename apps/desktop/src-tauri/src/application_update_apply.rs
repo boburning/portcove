@@ -25,7 +25,7 @@ use crate::application_update_staging::{
     ApplicationUpdateStagingError, ApplicationUpdateStagingSnapshot, ApplicationUpdateStagingStore,
     StagedApplicationUpdate,
 };
-use crate::application_update_storage::write_bytes_atomically;
+use crate::application_update_storage::{read_bytes_with_overflow, write_bytes_atomically};
 
 const APPLY_SCHEMA_VERSION: u32 = 4;
 const LEGACY_APPLY_SCHEMA_VERSIONS: [u32; 2] = [2, 3];
@@ -377,7 +377,7 @@ impl ApplicationUpdateApplyStore {
                 "apply state is not a bounded direct file".into(),
             ));
         }
-        let bytes = fs::read(path)?;
+        let bytes = read_bytes_with_overflow(&path, MAX_APPLY_STATE_BYTES)?;
         if bytes.is_empty() || bytes.len() as u64 > MAX_APPLY_STATE_BYTES {
             return Err(ApplicationUpdateApplyError::InvalidState(
                 "apply state changed size while being read".into(),
@@ -724,7 +724,7 @@ impl ApplicationUpdateApplyStore {
     }
 
     fn recovery_revision(&self) -> u64 {
-        fs::read(self.root.join(APPLY_FILE))
+        read_bytes_with_overflow(&self.root.join(APPLY_FILE), MAX_APPLY_STATE_BYTES)
             .ok()
             .filter(|bytes| !bytes.is_empty() && bytes.len() as u64 <= MAX_APPLY_STATE_BYTES)
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
@@ -1446,6 +1446,32 @@ mod tests {
             store.load().unwrap(),
             ApplicationUpdateApplyState::default()
         );
+    }
+
+    #[test]
+    fn empty_and_oversized_state_recover_without_retaining_an_untrusted_revision() {
+        let temporary = tempfile::tempdir().unwrap();
+        let store = ApplicationUpdateApplyStore::new(temporary.path().join("updates")).unwrap();
+        fs::create_dir_all(&store.root).unwrap();
+        let path = store.root.join(APPLY_FILE);
+        for length in [0, MAX_APPLY_STATE_BYTES + 1] {
+            fs::write(&path, br#"{"schema_version":99,"revision":42}"#).unwrap();
+            File::options()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_len(length)
+                .unwrap();
+            assert!(matches!(
+                store.load(),
+                Err(ApplicationUpdateApplyError::InvalidState(_))
+            ));
+            let recovered = store.recover_invalid().unwrap();
+            assert_eq!(recovered.revision, 1);
+            assert!(recovered.intent.is_none());
+            assert_eq!(store.load().unwrap(), recovered);
+            assert!(store.recover_invalid().is_err());
+        }
     }
 
     #[test]

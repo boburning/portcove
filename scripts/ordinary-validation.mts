@@ -354,7 +354,6 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/desktop-verify.mts",
     "scripts/testdata/desktop-execution-baseline.json",
     "apps/desktop/scripts/desktop-owned-fixture-journeys.mts",
-    "apps/desktop/scripts/desktop-test.mts",
   ].map((file): [string, string[]] => [
     file,
     [
@@ -455,6 +454,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     [
       "scripts/desktop-execution-plan.test.mts",
       "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-verify.test.mts",
+      "scripts/frontend-command-preflight.test.mts",
+      "scripts/native-helper-dependencies.test.mts",
+      "scripts/windows-helper-checks.test.mts",
       "scripts/development-evidence.test.mts",
       "scripts/native-session-lock.test.mts",
     ],

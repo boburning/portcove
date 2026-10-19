@@ -628,8 +628,8 @@ function ApplicationUpdateCheckPanel({
             Check for application updates
           </h3>
           <p className={updateMutedCopyClass}>
-            Uses the saved channel and host-compiled signed repository. Manual checks never use a
-            URL supplied by this screen.
+            Checks the update channel you saved. Portcove only downloads updates from its trusted
+            release source and verifies them before installation.
           </p>
         </div>
         {operation.busy ? (

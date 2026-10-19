@@ -133,7 +133,7 @@ export function SteamEntryDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
+        reviewSize="standard"
         aria-describedby="steam-entry-description"
       >
         <DialogTitle id="steam-entry-title" className="mb-2 text-xl">
@@ -299,7 +299,7 @@ export function SteamBatchEntryDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
+        reviewSize="standard"
         aria-describedby="steam-batch-description"
       >
         <DialogTitle id="steam-batch-title" className="mb-2 text-xl">

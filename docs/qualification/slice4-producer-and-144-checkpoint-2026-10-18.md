@@ -184,12 +184,13 @@ completed effects and evidence; explicit existing readback/recovery is required
 before a later bounded attempt. No new journal, retry loop, remote effect or
 eligible reservation is asserted here.
 
-The next new owner decision is the **specific semantic producer transport role**
-above, once its prepared boundary is reviewed. Approval selects the runtime/broker
-and producer issuer authority; it does not create the isolated execution host,
-App installation/custody, actual report or provider observations. Those require
-provisioning and demonstrated readback. D1 classification writer/observer and D3
-catalog separation are already selected and are not mechanism questions again.
+The owner subsequently selected the **specific semantic producer transport role**
+above at the merged #2128 proposal identity. That decision is resolved. The
+[new implementation checkpoint](slice4-broker-and-portable-repair-checkpoint-2026-10-18.md)
+records broker preparation, inert OS-boundary evidence, the remaining enforcement
+blocker and the upstream repair. Selection does not create App installation/custody,
+an actual report or provider observations. D1 classification writer/observer and D3
+catalog separation remain selected and are not mechanism questions again.
 
 Protected execution additionally needs a final runnable controller revision,
 workflow digest/full protected ref, actual operator/namespace/permissions and

@@ -28,7 +28,7 @@ it("shows recorded catalog time/scope outside current matching evidence, excludi
   expect(html).toContain("Previous check");
   expect(html).toContain('dateTime="2023-11-14T22:13:20.000Z"');
   expect(html).toContain(new Date(1700000000000).toLocaleString());
-  expect(html).toContain("Complete catalog (1 port)");
+  expect(html).toContain("Catalog (1 port)");
   expect(html).toContain("Existing installation setup");
   expect(html).toContain("Linux");
   expect(html).toContain("Preview");
@@ -50,7 +50,7 @@ it.each(["checking", "failed", "cancelled"] as const)(
     );
     expect(html).toContain(
       outcome === "checking"
-        ? "Checking selected route"
+        ? "Checking game files for this setup"
         : outcome === "failed"
           ? "latest check failed"
           : "latest check was canceled",

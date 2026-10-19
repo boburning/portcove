@@ -1,4 +1,14 @@
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync, symlinkSync } from "node:fs";
+import { Buffer } from "node:buffer";
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  existsSync,
+  rmSync,
+  symlinkSync,
+  readdirSync,
+  readFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import assert from "node:assert/strict";
@@ -56,6 +66,57 @@ describe("browser trace invocation custody", () => {
     const file = raw(run, "screenshots/failure.png");
     run.reporter.onTestRunEnd([], [], "passed");
     expect(existsSync(file)).toBe(true);
+  });
+  it("materializes exact bounded capture annotations on success and refusal", () => {
+    const root = fixture();
+    const run = createBrowserTraceRun(root);
+    for (const outcome of ["captured", "refused"]) {
+      const body = Buffer.from(
+        JSON.stringify({ capture_target: { label: "portrait 漢字", outcome } }) + "\n",
+      );
+      run.reporter.onTestCaseAnnotate({} as never, {
+        message: "Capture target geometry",
+        type: "capture-target",
+        attachment: {
+          contentType: "application/json",
+          body: body.toString("base64"),
+          bodyEncoding: "base64",
+        },
+      });
+      const directory = path.join(root, ".vitest/attachments/capture-target");
+      const files = readdirSync(directory);
+      expect(files).toHaveLength(outcome === "captured" ? 1 : 2);
+      expect(files.some((file) => readFileSync(path.join(directory, file)).equals(body))).toBe(
+        true,
+      );
+    }
+    raw(run);
+    run.reporter.onTestRunEnd([], [], "passed");
+    expect(existsSync(run.directory)).toBe(false);
+    expect(readdirSync(path.join(root, ".vitest/attachments/capture-target"))).toHaveLength(2);
+  });
+  it("refuses malformed, oversized or redirected capture annotations without writing", () => {
+    const root = fixture();
+    const run = createBrowserTraceRun(root);
+    const annotate = (body: string) =>
+      run.reporter.onTestCaseAnnotate({} as never, {
+        message: "Capture target geometry",
+        type: "capture-target",
+        attachment: { contentType: "application/json", body, bodyEncoding: "base64" },
+      });
+    expect(() => annotate("not base64!")).toThrow("invalid base64");
+    expect(() => annotate(Buffer.alloc(16385).toString("base64"))).toThrow("exceeds16KiB");
+    expect(() => annotate(Buffer.from("{}").toString("base64"))).toThrow("capture outcome");
+    expect(existsSync(path.join(root, ".vitest"))).toBe(false);
+    mkdirSync(path.join(root, ".vitest"));
+    const outside = fixture();
+    symlinkSync(outside, path.join(root, ".vitest/attachments"), "junction");
+    expect(() =>
+      annotate(
+        Buffer.from(JSON.stringify({ capture_target: { outcome: "captured" } })).toString("base64"),
+      ),
+    ).toThrow("outside the checkout");
+    expect(readdirSync(outside)).toHaveLength(0);
   });
   it("honors a probe's owned outer namespace without taking ownership of siblings", () => {
     const root = fixture();

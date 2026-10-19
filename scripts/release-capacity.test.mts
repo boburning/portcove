@@ -70,7 +70,7 @@ void test("resource estimate pins both held sources and preserves existing limit
   assert.equal(slice4CapacityResources.overwrite, false);
 });
 
-function operationFixture(outcome = "succeeded") {
+function operationFixture(outcome = "succeeded", executorNonce?: string) {
   const capacity = capacityFixture();
   const identity = {
     before_checkpoint: "a".repeat(40),
@@ -82,6 +82,7 @@ function operationFixture(outcome = "succeeded") {
       substantive_repairs: 0,
     },
     destination: "artifact:A",
+    ...(executorNonce === undefined ? {} : { executor_nonce: executorNonce }),
     kind: "upload",
     sequence: 1,
     policy_sha256: capacity.ratification.resource_policy_sha256,
@@ -96,6 +97,52 @@ function operationFixture(outcome = "succeeded") {
     recovery: null,
   };
 }
+void test("executor nonce is retained and cannot be changed or removed from an existing operation", () => {
+  const operation = operationFixture("succeeded", "1".repeat(64));
+  assert.equal(inspectCapacityOperation(operation)?.executor_nonce, "1".repeat(64));
+  assert.throws(
+    () => inspectCapacityOperation({ ...operation, executor_nonce: "2".repeat(64) }),
+    /identity differs/,
+  );
+  assert.throws(() => inspectCapacityOperation({ ...operation, executor_nonce: "not-a-nonce" }));
+  const { executor_nonce: _nonce, ...removed } = operation;
+  assert.throws(() => inspectCapacityOperation(removed), /identity differs/);
+  assert.equal(inspectCapacityOperation(operationFixture())?.id, operationFixture().id);
+});
+void test("fresh executor nonce cannot repeat a completed logical effect", () => {
+  const before = inspectCapacityOperation(operationFixture("succeeded", "1".repeat(64)))!;
+  const {
+    id: _id,
+    outcome: _outcome,
+    completed_effects: _effects,
+    failure_evidence: _failure,
+    recovery: _recovery,
+    ...identity
+  } = operationFixture("pending", "2".repeat(64));
+  const nextIdentity = { ...identity, before_checkpoint: "e".repeat(40), sequence: 2 };
+  const after = {
+    ...nextIdentity,
+    id: capacityDigest(nextIdentity),
+    outcome: "pending",
+    completed_effects: [],
+    failure_evidence: null,
+    recovery: null,
+  };
+  const capacity = capacityFixture();
+  const previous = {
+    schema_version: 2,
+    active_candidate: before.candidate,
+    controller: { capacity_attempt: { ...capacity, operation: before } },
+  };
+  const next = {
+    ...previous,
+    controller: { capacity_attempt: { ...capacity, operation: after, prior_operations: [before] } },
+  };
+  assert.throws(
+    () => validateCapacityTransition(previous, next, nextIdentity.before_checkpoint),
+    /completed operation cannot be repeated/,
+  );
+});
 void test("receipt contradictions cannot release capacity hold", () => {
   const operation = operationFixture();
   assert.throws(

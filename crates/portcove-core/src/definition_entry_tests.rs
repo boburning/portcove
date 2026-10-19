@@ -136,7 +136,37 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["stable_id"] = json!(port.id);
         value["port"] = serde_json::to_value(port).unwrap();
         value["required_capabilities"][0]["template"] = json!(port.adapter);
-        let version = if port.n64_windows_initial_d3d12 { 2 } else { 1 };
+        // These synthetic envelopes must declare the semantics of the real port.
+        // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
+        let version = if port
+            .release
+            .user_prepared
+            .values()
+            .any(|r| r.settings_contract.is_some())
+        {
+            5
+        } else if port
+            .release
+            .user_prepared
+            .values()
+            .any(|r| !r.required_mutable_files.is_empty())
+        {
+            4
+        } else if port.release.provider == crate::ReleaseSource::UserPrepared
+            && port.runtime_subdirectory.is_some()
+        {
+            3
+        } else if port.n64_windows_initial_d3d12
+            || port
+                .release
+                .user_prepared
+                .values()
+                .any(|r| r.library_user_data)
+        {
+            2
+        } else {
+            1
+        };
         value["required_capabilities"][0]["minimum_version"] = json!(version);
         value["required_capabilities"][0]["maximum_version"] = json!(version);
         let entry = inspect(&value).unwrap();
@@ -432,4 +462,106 @@ fn prepared_nested_directory_requires_version_three_and_staged_adapter() {
             .message
             .contains("prepared runtime subdirectory requires staged-source")
     );
+}
+
+#[test]
+fn prepared_settings_require_version_five_and_narrow_declaration() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("dkc3-recomp").unwrap().clone();
+    for runtime in port.release.user_prepared.values_mut() {
+        runtime.version = "1.22.420".into();
+        runtime.source_argument_extension = None;
+        runtime.mutable_paths.push("settings.ini".into());
+        runtime.required_mutable_files.push("settings.ini".into());
+        runtime.settings_contract =
+            Some(crate::PreparedRuntimeSettingsContract::TfeDarkForces122420);
+    }
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(5);
+    for minimum in 1..5 {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        assert!(inspect(&entry).is_err());
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(5);
+    assert!(inspect(&entry).is_ok());
+    let mut document = catalog.authoritative_document();
+    *document
+        .ports
+        .iter_mut()
+        .find(|p| p.id == "dkc3-recomp")
+        .unwrap() = port;
+    let valid = serde_json::to_value(document).unwrap();
+    assert!(crate::Catalog::from_json(&valid.to_string()).is_ok());
+    let index = valid["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|p| p["id"] == "dkc3-recomp")
+        .unwrap();
+    for (field, value) in [
+        ("version", json!("1.22.419")),
+        ("executable", json!("bin/DKC3Recomp.exe")),
+        ("source_argument_extension", json!("gob")),
+        ("library_user_data", json!(true)),
+        ("required_mutable_files", json!([])),
+        (
+            "mutable_paths",
+            json!(["settings.ini", "GameData/DARK.GOB"]),
+        ),
+    ] {
+        let mut changed = valid.clone();
+        changed["ports"][index]["release"]["user_prepared"]["windows-x86-64"][field] = value;
+        assert!(
+            crate::Catalog::from_json(&changed.to_string()).is_err(),
+            "{field}"
+        );
+    }
+    for (field, value) in [
+        ("runtime_subdirectory", json!("bin")),
+        ("launch_arguments", json!(["-gOUTLAWS"])),
+    ] {
+        let mut changed = valid.clone();
+        changed["ports"][index][field] = value;
+        assert!(
+            crate::Catalog::from_json(&changed.to_string()).is_err(),
+            "{field}"
+        );
+    }
+}
+
+#[test]
+fn prepared_required_mutable_files_require_version_four_and_complete_projection() {
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("dkc3-recomp")
+        .unwrap()
+        .clone();
+    let legacy = entry_for_port(&port);
+    assert!(inspect(&legacy).is_ok());
+    for runtime in port.release.user_prepared.values_mut() {
+        runtime.mutable_paths.push("settings.ini".into());
+        runtime.required_mutable_files.push("settings.ini".into());
+    }
+    let mut entry = entry_for_port(&port);
+    for minimum in [1, 2, 3] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        entry["required_capabilities"][0]["maximum_version"] = json!(4);
+        assert!(inspect(&entry).is_err());
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(4);
+    assert!(inspect(&entry).is_ok());
+    let platform = serde_json::to_value(port.platforms[0]).unwrap();
+    let platform = platform.as_str().unwrap();
+    entry["port"]["release"]["user_prepared"][platform]["unimplemented_selector_semantics"] =
+        json!(true);
+    assert!(inspect(&entry).is_err());
+    assert!(inspect(&legacy).is_ok());
+    port.adapter = crate::AdapterKind::N64RecompPortable;
+    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    *document
+        .ports
+        .iter_mut()
+        .find(|candidate| candidate.id == "dkc3-recomp")
+        .unwrap() = port;
+    assert!(crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).is_err());
 }

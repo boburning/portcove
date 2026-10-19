@@ -16,8 +16,8 @@ use uuid::Uuid;
 #[cfg(any(test, not(feature = "qualification-fixtures")))]
 use crate::operation::NoLifecycleFaults;
 use crate::{
-    ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, AdapterRegistry,
-    BackupProblemKind, BackupRecord, Catalog, ChildProcessPolicy, CompositeReleaseProvider,
+    ActivityOperation, ActivityRecord, ActivityStatus, ActivityTargetKind, BackupProblemKind,
+    BackupRecord, Catalog, ChildProcessPolicy, CompositeReleaseProvider,
     DefinitionEligibilityOutcome, DefinitionOperation, DefinitionOperationAssessment, DoctorReport,
     ExternalRuntimePreview, ExternalRuntimeRecord, ExternalRuntimeRemovalPreview, InstallPlan,
     InstallPlanAction, InstallQualification, InstallRecord, InstallRequest,
@@ -28,8 +28,8 @@ use crate::{
     PortActionReason, PortDefinition, PortOutputLocation, PortPaths, PortStatus, PortcoveError,
     ReconcileAction, ReconcileResult, ReleaseChannel, ReleaseProvider, ReleaseSource, RepairItem,
     RepairItemKind, RepairPlan, ResolvedRelease, Result, SourceHealth, SourceRecord,
-    SourceRemovalPreview, SourceRequirementRole, SourceVerification, SupervisedLaunchOutcome,
-    UpdateCheck, UpdatePolicy, VerificationReport, WorkspaceSnapshot,
+    SourceRequirementRole, SupervisedLaunchOutcome, UpdateCheck, UpdatePolicy, VerificationReport,
+    WorkspaceSnapshot,
     definition_eligibility::DefinitionOperationContext,
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
@@ -45,6 +45,7 @@ pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
 mod forbidden_memories_qualification;
 mod launch_preparation;
 mod removal;
+mod sources;
 pub(crate) use removal::{RemovalOperation, RemovalPhase};
 
 const LAUNCH_MARKER: &str = ".portcove-launched";
@@ -201,7 +202,6 @@ pub struct PortcoveService {
     catalog_provenance: crate::CatalogProvenance,
     pub(crate) library: Library,
     releases: Arc<dyn ReleaseProvider>,
-    adapters: AdapterRegistry,
     faults: Arc<dyn LifecycleFaultInjector>,
 }
 
@@ -287,7 +287,6 @@ impl PortcoveService {
             catalog_provenance,
             library,
             releases,
-            adapters: AdapterRegistry,
             faults,
         })
     }
@@ -315,7 +314,6 @@ impl PortcoveService {
             catalog_provenance,
             library,
             releases,
-            adapters: AdapterRegistry,
             faults,
         })
     }
@@ -341,7 +339,6 @@ impl PortcoveService {
             catalog_provenance,
             library,
             releases,
-            adapters: AdapterRegistry,
             faults,
         })
     }
@@ -360,7 +357,6 @@ impl PortcoveService {
             catalog_provenance,
             library,
             releases,
-            adapters: AdapterRegistry,
             faults,
         })
     }
@@ -2128,351 +2124,6 @@ impl PortcoveService {
         self.status(port_id)
     }
 
-    pub fn register_source(&self, profile_id: &str, path: &Path) -> Result<SourceRecord> {
-        self.register_source_checked(profile_id, path, None)
-    }
-
-    /// Inspect selected source bytes without registering them or changing their baseline.
-    pub fn inspect_source(&self, profile_id: &str, path: &Path) -> Result<crate::SourceInspection> {
-        crate::source_inspection::inspect(&self.catalog, profile_id, path)
-    }
-
-    /// Inspect explicitly selected bytes and attach the active catalog's complete
-    /// expected identity, dependent contracts, evidence, applicability, and
-    /// qualification context without registering or modifying anything.
-    pub fn inspect_source_report(
-        &self,
-        profile_id: &str,
-        path: &Path,
-    ) -> Result<crate::SourceInspectionReport> {
-        let inspection = self.inspect_source(profile_id, path)?;
-        crate::source_report::available_report(&self.catalog, None, inspection)
-    }
-
-    /// Inspect paths offered by a host intake surface without registering,
-    /// copying, moving, deleting, or installing anything.
-    pub fn inspect_source_intake(
-        &self,
-        profile_id: &str,
-        paths: &[PathBuf],
-    ) -> Result<crate::SourceIntakeInspection> {
-        self.catalog.source_profile(profile_id)?;
-        let static_result =
-            |state_code: &str, summary: &str, next_action: &str| crate::SourceIntakeInspection {
-                schema_version: crate::SOURCE_INTAKE_INSPECTION_SCHEMA_VERSION,
-                profile_id: profile_id.to_owned(),
-                input_count: paths.len(),
-                state_code: state_code.to_owned(),
-                summary: summary.to_owned(),
-                next_action: next_action.to_owned(),
-                report: None,
-                problem: None,
-            };
-        if paths.is_empty() {
-            return Ok(static_result(
-                "no_paths",
-                "No game files were offered for inspection.",
-                "Choose one file or one source folder, then check it again.",
-            ));
-        }
-        if paths.len() != 1 {
-            return Ok(static_result(
-                "multiple_paths",
-                "Portcove cannot determine one source from multiple dropped paths.",
-                "Choose one file or one source folder that contains the complete required set.",
-            ));
-        }
-        match self.inspect_source_report(profile_id, &paths[0]) {
-            Ok(report) => Ok(crate::SourceIntakeInspection {
-                schema_version: crate::SOURCE_INTAKE_INSPECTION_SCHEMA_VERSION,
-                profile_id: profile_id.to_owned(),
-                input_count: 1,
-                state_code: report.state_code.clone(),
-                summary: report.summary.clone(),
-                next_action: report.next_action.clone(),
-                report: Some(report),
-                problem: None,
-            }),
-            Err(error) => {
-                let state_code = match error.code {
-                    crate::ErrorCode::NotFound => "source_missing",
-                    crate::ErrorCode::Usage
-                    | crate::ErrorCode::Unsupported
-                    | crate::ErrorCode::SourceInvalid => "unsupported_shape",
-                    _ => "source_could_not_be_checked",
-                };
-                Ok(crate::SourceIntakeInspection {
-                    schema_version: crate::SOURCE_INTAKE_INSPECTION_SCHEMA_VERSION,
-                    profile_id: profile_id.to_owned(),
-                    input_count: 1,
-                    state_code: state_code.to_owned(),
-                    summary: match state_code {
-                        "source_missing" => "The selected game files could not be found.",
-                        "unsupported_shape" => {
-                            "The selected path is not a supported shape for this game."
-                        }
-                        _ => "The selected game files could not be checked.",
-                    }
-                    .to_owned(),
-                    next_action: "Choose the expected file or source folder and check it again."
-                        .to_owned(),
-                    report: None,
-                    problem: Some(crate::source_report::problem_from_error(&error)),
-                })
-            }
-        }
-    }
-
-    /// Inspect the registered source and preserve missing/unreadable states as a
-    /// machine-readable report. The saved baseline and source bytes are unchanged.
-    pub fn inspect_registered_source(
-        &self,
-        profile_id: &str,
-    ) -> Result<crate::SourceInspectionReport> {
-        self.catalog.source_profile(profile_id)?;
-        let registered = self.library.source(profile_id)?.ok_or_else(|| {
-            PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
-        })?;
-        crate::source_report::registered_report(&self.catalog, registered)
-    }
-
-    pub(crate) fn inspect_source_record(
-        &self,
-        profile_id: &str,
-        path: &Path,
-    ) -> Result<SourceRecord> {
-        self.inspect_source(profile_id, path)?
-            .require_admitted_record()
-    }
-
-    pub fn register_source_with_digest(
-        &self,
-        profile_id: &str,
-        path: &Path,
-        expected_sha256: &str,
-    ) -> Result<SourceRecord> {
-        if expected_sha256.len() != 64
-            || !expected_sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
-        {
-            return Err(PortcoveError::usage(
-                "source acceptance requires the reviewed SHA-256",
-            ));
-        }
-        self.register_source_checked(profile_id, path, Some(expected_sha256))
-    }
-
-    fn register_source_checked(
-        &self,
-        profile_id: &str,
-        path: &Path,
-        expected_sha256: Option<&str>,
-    ) -> Result<SourceRecord> {
-        let activity = self.library.begin_activity(
-            ActivityOperation::RegisterSource,
-            ActivityTargetKind::Source,
-            Some(profile_id),
-        )?;
-        let result = (|| {
-            let _guards = self.lock_source_dependents(profile_id, None)?;
-            let source = self.inspect_source_record(profile_id, path)?;
-            if expected_sha256.is_some_and(|expected| !source.sha256.eq_ignore_ascii_case(expected))
-            {
-                return Err(PortcoveError::conflict(
-                    "source changed after discovery; review it again",
-                ));
-            }
-            self.library.register_source(&source)?;
-            Ok(source)
-        })();
-        self.finish_activity(activity, result)
-    }
-
-    pub(crate) fn lock_source_dependents(
-        &self,
-        profile_id: &str,
-        already_locked: Option<&str>,
-    ) -> Result<Vec<crate::PortOperationGuard>> {
-        let mut guards = vec![self.library.try_lock_source(profile_id)?];
-        let mut ports: Vec<_> = self
-            .catalog
-            .ports()
-            .iter()
-            .filter(|port| {
-                port.source_profile.as_deref() == Some(profile_id)
-                    || port.bios_source_profile.as_deref() == Some(profile_id)
-            })
-            .map(|port| port.id.as_str())
-            .collect();
-        ports.sort_unstable();
-        guards.extend(
-            ports
-                .into_iter()
-                .filter(|id| Some(*id) != already_locked)
-                .map(|id| self.library.try_lock_port(id, "change-source-reference"))
-                .collect::<Result<Vec<_>>>()?,
-        );
-        Ok(guards)
-    }
-
-    pub fn preview_source_removal(&self, profile_id: &str) -> Result<SourceRemovalPreview> {
-        let source = self.library.source(profile_id)?.ok_or_else(|| {
-            PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
-        })?;
-        let mut dependent_port_ids = self
-            .catalog
-            .ports()
-            .iter()
-            .filter(|port| {
-                port.source_profile.as_deref() == Some(profile_id)
-                    || port.bios_source_profile.as_deref() == Some(profile_id)
-            })
-            .map(|port| port.id.clone())
-            .collect::<Vec<_>>();
-        dependent_port_ids.sort();
-        let mut installed_dependent_port_ids = Vec::new();
-        for port_id in &dependent_port_ids {
-            if self.status(port_id)?.active.is_some() {
-                installed_dependent_port_ids.push(port_id.clone());
-            }
-        }
-        Ok(SourceRemovalPreview {
-            preview_sha256: source_removal_fingerprint(
-                &source,
-                &dependent_port_ids,
-                &installed_dependent_port_ids,
-            )?,
-            source,
-            dependent_port_ids,
-            installed_dependent_port_ids,
-        })
-    }
-
-    pub fn authorize_source_removal(
-        &self,
-        profile_id: &str,
-        expected_preview_sha256: &str,
-    ) -> Result<crate::DestructiveAuthorization> {
-        let preview = self.preview_source_removal(profile_id)?;
-        if preview.preview_sha256 != expected_preview_sha256 {
-            return Err(PortcoveError::conflict(
-                "the source or its installed dependents changed after the removal preview",
-            )
-            .detail("profile_id", profile_id));
-        }
-        self.library
-            .issue_authorization("remove_source", profile_id, &preview.preview_sha256)
-    }
-
-    pub fn remove_source(
-        &self,
-        profile_id: &str,
-        authorization_token: &str,
-    ) -> Result<SourceRemovalPreview> {
-        let activity = self.library.begin_activity(
-            ActivityOperation::RemoveSource,
-            ActivityTargetKind::Source,
-            Some(profile_id),
-        )?;
-        let result = (|| {
-            let _guards = self.lock_source_dependents(profile_id, None)?;
-            let locked_preview = self.preview_source_removal(profile_id).map_err(|error| {
-                if error.code == crate::ErrorCode::NotFound {
-                    PortcoveError::conflict("the registered source was removed after its preview")
-                        .detail("profile_id", profile_id)
-                } else {
-                    error
-                }
-            })?;
-            self.library.consume_authorization(
-                authorization_token,
-                "remove_source",
-                profile_id,
-                &locked_preview.preview_sha256,
-            )?;
-            if !self.library.remove_source(profile_id)? {
-                return Err(PortcoveError::conflict(
-                    "the registered source was removed concurrently",
-                )
-                .detail("profile_id", profile_id));
-            }
-            Ok(locked_preview)
-        })();
-        self.finish_activity(activity, result)
-    }
-
-    pub fn verify_source(&self, profile_id: &str) -> Result<SourceVerification> {
-        self.verify_source_untracked(profile_id)
-    }
-
-    fn verify_source_untracked(&self, profile_id: &str) -> Result<SourceVerification> {
-        let registered = self.library.source(profile_id)?.ok_or_else(|| {
-            PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
-        })?;
-        let inspection = self.inspect_registered_source(profile_id)?;
-        require_current_admitted_inspection(&inspection)?;
-        Ok(SourceVerification {
-            profile_id: registered.profile_id,
-            path: registered.path,
-            sha256: registered.sha256,
-            size: registered.size,
-            storage_sha256: registered.storage_sha256,
-            storage_size: registered.storage_size,
-            registered_at: registered.updated_at,
-            verified_at: Library::now(),
-            inspection,
-        })
-    }
-
-    pub(crate) fn verify_source_record(&self, registered: &SourceRecord) -> Result<()> {
-        crate::source_inspection::verify_registered(&self.catalog, registered)
-    }
-
-    fn verified_source_record(&self, profile_id: &str) -> Result<SourceRecord> {
-        let registered = self.library.source(profile_id)?.ok_or_else(|| {
-            PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
-        })?;
-        self.verify_source_record(&registered)?;
-        Ok(registered)
-    }
-
-    fn verified_source_record_with_checkpoint(
-        &self,
-        catalog: &Catalog,
-        profile_id: &str,
-        checkpoint: &dyn Fn() -> Result<()>,
-    ) -> Result<SourceRecord> {
-        let registered = self.library.source(profile_id)?.ok_or_else(|| {
-            PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
-        })?;
-        Self::verify_source_record_with_checkpoint(catalog, &registered, checkpoint)?;
-        Ok(registered)
-    }
-
-    fn verify_source_record_with_checkpoint(
-        catalog: &Catalog,
-        registered: &SourceRecord,
-        checkpoint: &dyn Fn() -> Result<()>,
-    ) -> Result<()> {
-        let profile_id = &registered.profile_id;
-        let (storage_sha256, storage_size) =
-            crate::adapter::source_storage_identity_with_checkpoint(&registered.path, checkpoint)?;
-        if storage_sha256 != registered.storage_sha256 || storage_size != registered.storage_size {
-            return Err(PortcoveError::source(format!(
-                "source changed since registration: {}",
-                registered.path.display()
-            ))
-            .detail("profile_id", profile_id)
-            .detail("recorded_storage_sha256", &registered.storage_sha256)
-            .detail("actual_storage_sha256", storage_sha256)
-            .detail("recorded_storage_size", registered.storage_size.to_string())
-            .detail("actual_storage_size", storage_size.to_string()));
-        }
-        checkpoint()?;
-        crate::source_inspection::verify_registered(catalog, registered)?;
-        checkpoint()?;
-        Ok(())
-    }
-
     pub async fn install<F>(
         &self,
         port_id: &str,
@@ -4047,6 +3698,19 @@ impl PortcoveService {
             let port = launch_catalog.port(port_id)?;
             let active = self.library.status(port_id, default_channel(port))?.active;
             let external = self.library.external_runtime_with_port(port_id)?;
+            if !arguments.is_empty()
+                && let Some((record, retained_catalog)) = &external
+                && retained_catalog
+                    .port(port_id)?
+                    .release
+                    .user_prepared
+                    .get(&record.platform)
+                    .is_some_and(|runtime| runtime.settings_contract.is_some())
+            {
+                return Err(PortcoveError::usage(
+                    "this prepared settings contract does not allow forwarded launch arguments",
+                ));
+            }
             let (install_id, install_root, owner_kind) = match (&active, &external) {
                 (Some(_), Some(_)) => {
                     return Err(PortcoveError::state(
@@ -5122,95 +4786,6 @@ fn require_valid_output_preview(preview: &OutputDestinationPreview) -> Result<()
     )
     .detail("preview_sha256", preview.preview_sha256.clone())
     .detail("validation_errors", preview.validation_errors.join("; ")))
-}
-
-fn require_current_admitted_inspection(report: &crate::SourceInspectionReport) -> Result<()> {
-    if let Some(problem) = &report.problem {
-        return Err(PortcoveError::source(problem.message.clone())
-            .detail("profile_id", &report.profile_id)
-            .detail("inspection_state", &report.state_code));
-    }
-    let registered = report
-        .registered
-        .as_ref()
-        .ok_or_else(|| PortcoveError::state("registered source inspection omitted its baseline"))?;
-    let inspection = report.inspection.as_ref().ok_or_else(|| {
-        PortcoveError::state("available source inspection omitted its observed facts")
-    })?;
-    if !matches!(
-        inspection.assessment.admission,
-        crate::SourceAdmission::Admitted { .. }
-    ) {
-        return Err(PortcoveError::source(inspection.message.clone())
-            .detail("profile_id", &report.profile_id)
-            .detail("inspection_state", &report.state_code));
-    }
-    if report.health != SourceHealth::Current {
-        let actual_content = inspection.observed_digests.iter().find(|digest| {
-            digest.algorithm == crate::SourceDigestAlgorithm::Sha256
-                && digest.scope != crate::DigestScope::OriginalContainer
-        });
-        let actual_storage = inspection
-            .observed_digests
-            .iter()
-            .find(|digest| {
-                digest.algorithm == crate::SourceDigestAlgorithm::Sha256
-                    && digest.scope == crate::DigestScope::OriginalContainer
-            })
-            .or_else(|| {
-                inspection.observed_digests.iter().find(|digest| {
-                    digest.algorithm == crate::SourceDigestAlgorithm::Sha256
-                        && digest.scope == crate::DigestScope::OriginalFile
-                })
-            });
-        return Err(PortcoveError::source(format!(
-            "source changed since registration: {}",
-            registered.path.display()
-        ))
-        .detail("profile_id", &report.profile_id)
-        .detail("recorded_sha256", &registered.sha256)
-        .detail(
-            "actual_sha256",
-            actual_content.map_or("", |digest| digest.value.as_str()),
-        )
-        .detail("recorded_size", registered.size.to_string())
-        .detail(
-            "actual_size",
-            actual_content.map_or_else(String::new, |digest| digest.size.to_string()),
-        )
-        .detail("recorded_storage_sha256", &registered.storage_sha256)
-        .detail(
-            "actual_storage_sha256",
-            actual_storage.map_or("", |digest| digest.value.as_str()),
-        )
-        .detail("recorded_storage_size", registered.storage_size.to_string())
-        .detail(
-            "actual_storage_size",
-            actual_storage.map_or_else(String::new, |digest| digest.size.to_string()),
-        )
-        .detail("inspection_state", &report.state_code));
-    }
-    Ok(())
-}
-
-fn source_removal_fingerprint(
-    source: &SourceRecord,
-    dependent_port_ids: &[String],
-    installed_dependent_port_ids: &[String],
-) -> Result<String> {
-    let path = crate::path::unicode(&source.path, "source")?;
-    let encoded = serde_json::to_vec(&(
-        source.profile_id.as_str(),
-        path,
-        source.sha256.as_str(),
-        source.size,
-        source.storage_sha256.as_str(),
-        source.storage_size,
-        source.updated_at,
-        dependent_port_ids,
-        installed_dependent_port_ids,
-    ))?;
-    Ok(hex::encode(Sha256::digest(encoded)))
 }
 
 fn validate_reviewed_fingerprint(label: &str, fingerprint: &str) -> Result<()> {
@@ -9646,6 +9221,22 @@ fn main() {
         runtime_directory: Option<&str>,
         executable: &str,
     ) -> (tempfile::TempDir, PortcoveService, ExternalRuntimeRecord) {
+        external_location_fixture_with_selector(
+            private,
+            other,
+            runtime_directory,
+            executable,
+            false,
+        )
+    }
+
+    fn external_location_fixture_with_selector(
+        private: bool,
+        other: Option<bool>,
+        runtime_directory: Option<&str>,
+        executable: &str,
+        required_selector: bool,
+    ) -> (tempfile::TempDir, PortcoveService, ExternalRuntimeRecord) {
         let temporary = tempfile::tempdir().unwrap();
         let library_root = temporary.path().join("library");
         let library = Library::open(&library_root).unwrap();
@@ -9668,8 +9259,15 @@ fn main() {
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: None,
             library_user_data: private,
+            required_mutable_files: vec![],
+            settings_contract: None,
             mutable_paths: vec!["player-save".into()],
         };
+        if required_selector {
+            runtime.mutable_paths.push("settings.ini".into());
+            runtime.required_mutable_files.push("settings.ini".into());
+            fs::write(external.join("settings.ini"), b"").unwrap();
+        }
         let mismatch =
             crate::external_runtime::inspect(&external, &runtime, &library_root).unwrap_err();
         runtime.immutable_tree_sha256 = mismatch.details["actual_tree_sha256"].clone();
@@ -9741,7 +9339,7 @@ fn main() {
                 "support_tier": "stable",
                 "channels": ["stable"],
                 "platforms": [platform],
-                "adapter": if runtime.library_user_data { "staged-source-portable" } else { "n64-recomp-portable" },
+                "adapter": if runtime.library_user_data || !runtime.required_mutable_files.is_empty() { "staged-source-portable" } else { "n64-recomp-portable" },
                 "user_data_environment": "FIXTURE_USER_DIR",
                 "release": {
                     "provider": "user-prepared",
@@ -9767,6 +9365,208 @@ fn main() {
             None,
             &OperationCoordinator::new("launch", None),
         )
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn tfe_settings_retain_source_guard_and_do_not_spend_failed_consent() {
+        let (_temporary, mut service, record) =
+            external_location_fixture_with_selector(false, None, None, "game.exe", true);
+        let removal = service.preview_external_removal(&record.port_id).unwrap();
+        let authorization = service
+            .authorize_external_removal(&record.port_id, &removal.preview_sha256)
+            .unwrap();
+        service
+            .remove_external_runtime(&record.port_id, &authorization.token)
+            .unwrap();
+        let valid = b"[Game]\ngame=\"Dark Forces\"\n[Dark_Forces]\nsourcePath=\"GameData/\"\n";
+        fs::write(record.path.join("settings.ini"), valid).unwrap();
+        fs::create_dir(record.path.join("GameData")).unwrap();
+        for name in ["DARK.GOB", "SOUNDS.GOB", "SPRITES.GOB", "TEXTURES.GOB"] {
+            fs::write(record.path.join("GameData").join(name), name).unwrap();
+        }
+        let mut document = service.catalog.authoritative_document();
+        let spec = document.ports[0]
+            .release
+            .user_prepared
+            .values_mut()
+            .next()
+            .unwrap();
+        spec.version = "1.22.420".into();
+        spec.settings_contract = Some(crate::PreparedRuntimeSettingsContract::TfeDarkForces122420);
+        let mismatch = crate::external_runtime::inspect(&record.path, spec, service.library.root())
+            .unwrap_err();
+        spec.immutable_tree_sha256 = mismatch.details["actual_tree_sha256"].clone();
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        let preview = service
+            .preview_external_runtime(&record.port_id, &record.path)
+            .unwrap();
+        let authorization = service
+            .authorize_external_runtime(&record.port_id, &record.path, &preview.preview_sha256)
+            .unwrap();
+        fs::write(
+            record.path.join("settings.ini"),
+            String::from_utf8_lossy(valid).replace("GameData/", "ElseData/"),
+        )
+        .unwrap();
+        assert!(
+            service
+                .register_external_runtime(&record.port_id, &record.path, &authorization.token)
+                .is_err()
+        );
+        fs::write(record.path.join("settings.ini"), valid).unwrap();
+        let registered = service
+            .register_external_runtime(&record.port_id, &record.path, &authorization.token)
+            .unwrap();
+        prepare_external_location_fixture_launch(&service, &registered).unwrap();
+        for runtime in document.ports[0].release.user_prepared.values_mut() {
+            runtime.settings_contract = None;
+        }
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        let forwarded = service
+            .supervise_launch(
+                &record.port_id,
+                None,
+                &["-gOUTLAWS".into()],
+                LaunchStdio::Null,
+                |_| panic!("must refuse before spawn"),
+            )
+            .unwrap_err();
+        assert!(forwarded.message.contains("forwarded launch arguments"));
+        let sessions: usize = service
+            .library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM launch_sessions WHERE port_id=?1",
+                [&record.port_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(sessions, 0);
+        fs::write(
+            record.path.join("settings.ini"),
+            String::from_utf8_lossy(valid).replace("Dark Forces", "Outlaws"),
+        )
+        .unwrap();
+        assert!(prepare_external_location_fixture_launch(&service, &registered).is_err());
+        assert_external_location_readiness(&service, true);
+        let removal = service.preview_external_removal(&record.port_id).unwrap();
+        let authorization = service
+            .authorize_external_removal(&record.port_id, &removal.preview_sha256)
+            .unwrap();
+        service
+            .remove_external_runtime(&record.port_id, &authorization.token)
+            .unwrap();
+        assert!(record.path.join("GameData/DARK.GOB").is_file());
+        assert!(record.path.join("settings.ini").is_file());
+    }
+
+    #[test]
+    fn required_mutable_files_retain_launch_guard_and_allow_registration_only_removal() {
+        let (_temporary, mut service, record) =
+            external_location_fixture_with_selector(false, None, None, "game.exe", true);
+        let retained: String = service
+            .library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT retained_catalog_json FROM external_runtime_registrations WHERE port_id=?1",
+                [&record.port_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(Catalog::from_json(&retained).is_err());
+        let mut browsing_budget = crate::signed_catalog::MAX_CATALOG_BYTES as u64;
+        let (_, bounded_catalog) = service
+            .library
+            .external_runtime_with_port_bounded(&record.port_id, &mut browsing_budget)
+            .unwrap()
+            .unwrap();
+        assert!(
+            !bounded_catalog
+                .port(&record.port_id)
+                .unwrap()
+                .release
+                .user_prepared
+                .values()
+                .next()
+                .unwrap()
+                .required_mutable_files
+                .is_empty()
+        );
+        fs::write(record.path.join("settings.ini"), b"player settings").unwrap();
+        fs::write(record.path.join("player-save"), b"player save").unwrap();
+        prepare_external_location_fixture_launch(&service, &record).unwrap();
+        service
+            .preview_external_runtime(&record.port_id, &record.path)
+            .unwrap();
+        let mut current = service.catalog.authoritative_document();
+        for spec in current.ports[0].release.user_prepared.values_mut() {
+            spec.required_mutable_files.clear();
+        }
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&current).unwrap()).unwrap(),
+        );
+        fs::remove_file(record.path.join("settings.ini")).unwrap();
+        assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+        assert_external_location_readiness(&service, true);
+        let removal = service.preview_external_removal(&record.port_id).unwrap();
+        let authorization = service
+            .authorize_external_removal(&record.port_id, &removal.preview_sha256)
+            .unwrap();
+        service
+            .remove_external_runtime(&record.port_id, &authorization.token)
+            .unwrap();
+        assert!(!record.path.join("settings.ini").exists());
+        assert_eq!(fs::read(&record.executable).unwrap(), b"accepted runtime");
+        assert_eq!(
+            fs::read(record.path.join("player-save")).unwrap(),
+            b"player save"
+        );
+    }
+
+    #[test]
+    fn required_mutable_files_revalidate_before_spending_registration_consent() {
+        let (_temporary, service, record) =
+            external_location_fixture_with_selector(false, None, None, "game.exe", true);
+        let removal = service.preview_external_removal(&record.port_id).unwrap();
+        let removal_authorization = service
+            .authorize_external_removal(&record.port_id, &removal.preview_sha256)
+            .unwrap();
+        service
+            .remove_external_runtime(&record.port_id, &removal_authorization.token)
+            .unwrap();
+        let preview = service
+            .preview_external_runtime(&record.port_id, &record.path)
+            .unwrap();
+        let authorization = service
+            .authorize_external_runtime(&record.port_id, &record.path, &preview.preview_sha256)
+            .unwrap();
+        fs::remove_file(record.path.join("settings.ini")).unwrap();
+        assert!(
+            service
+                .preview_external_runtime(&record.port_id, &record.path)
+                .is_err()
+        );
+        assert!(
+            service
+                .register_external_runtime(&record.port_id, &record.path, &authorization.token)
+                .is_err()
+        );
+        fs::write(record.path.join("settings.ini"), b"new legitimate content").unwrap();
+        let registered = service
+            .register_external_runtime(&record.port_id, &record.path, &authorization.token)
+            .unwrap();
+        prepare_external_location_fixture_launch(&service, &registered).unwrap();
+        assert_eq!(
+            fs::read(record.path.join("settings.ini")).unwrap(),
+            b"new legitimate content"
+        );
     }
 
     #[test]
@@ -10412,6 +10212,8 @@ fn main() {
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: Some("z64".into()),
             library_user_data: false,
+            required_mutable_files: vec![],
+            settings_contract: None,
             mutable_paths: vec!["general.json".into()],
         };
         runtime.immutable_tree_sha256 =
@@ -10666,6 +10468,8 @@ fn main() {
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: None,
             library_user_data: false,
+            required_mutable_files: vec![],
+            settings_contract: None,
             mutable_paths: vec!["general.json".into()],
         };
         let mismatch =
