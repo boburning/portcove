@@ -165,6 +165,14 @@ runtime, shared data and original remained unchanged; the new runtime matched
 all five immutable files. Core copied or moved no external files. No game ran
 in this relink packet, and earlier native receipts retain their original producer.
 
+CI `39336577642/1` at `8a6c55dec03cf5bebcd6c37962b33f0196cb4dd9`
+retains its failed quality lane: the new disclosure test used the unpinned
+`vitest` import and omitted an expected rejection message. The repair switches
+to `vite-plus/test` and asserts the exact inconsistent-scope error for all four
+negative cases. Product behavior is unchanged. `smb-lint-repair-a1` passed the
+complete Vite+ check and all three exact disclosure unit tests. Required hosted
+qualification belongs to the subsequent source head, not this failed run.
+
 The offered minimum is original-bound vanilla Windows registration, manual
 shared-data preparation, launch, retained folder relink and registration-only removal. Gameplay,
 populated-save/load, audio, controller, other platforms, installed Desktop and

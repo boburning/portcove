@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { ExternalRuntimePreview } from "../types";
 import { sharedRuntimeDisclosure } from "./external-runtime-disclosure";
 
@@ -30,7 +30,9 @@ describe("shared runtime consent disclosure", () => {
       { ...review, binding: { ...review.binding, contract: "unknown" } },
       { ...review, binding: { ...review.binding, contract: "regaiden041-windows" } },
     ])
-      expect(() => sharedRuntimeDisclosure(changed as SharedReview)).toThrow();
+      expect(() => sharedRuntimeDisclosure(changed as SharedReview)).toThrow(
+        "Unsupported or inconsistent shared write scope review.",
+      );
   });
   it("preserves ReGaiden's real local fallback disclosure", () => {
     expect(
