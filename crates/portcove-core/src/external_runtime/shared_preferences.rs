@@ -12,8 +12,20 @@ pub(crate) fn require_ack(
     preview: &super::ExternalRuntimePreview,
     acknowledged: Option<&str>,
 ) -> Result<()> {
-    match (preview.shared_preferences.is_some(), acknowledged) {
-        (true, Some(value)) if value == preview.preview_sha256 => Ok(()),
+    require_scoped_ack(
+        preview.shared_preferences.is_some(),
+        &preview.preview_sha256,
+        acknowledged,
+    )
+}
+
+pub(crate) fn require_scoped_ack(
+    shared_preferences_present: bool,
+    preview_sha256: &str,
+    acknowledged: Option<&str>,
+) -> Result<()> {
+    match (shared_preferences_present, acknowledged) {
+        (true, Some(value)) if value == preview_sha256 => Ok(()),
         (false, None) => Ok(()),
         _ => Err(PortcoveError::usage(
             "explicit acknowledgment of the reviewed shared preferences is required",

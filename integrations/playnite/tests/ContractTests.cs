@@ -215,7 +215,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -223,7 +223,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var privateSchema in new[] { 58, 59, 64, 72 })
+        foreach (var privateSchema in new[] { 58, 59, 64, 73 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -399,7 +399,10 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "display metadata preserves input assessments and legacy recovery");
         bad["schema_version"] = 72;
-        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond display metadata rejected");
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "folder relink preserves existing launch authority");
+        bad["schema_version"] = 73;
+        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond folder relink rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
@@ -647,6 +650,18 @@ internal static class ContractTests
         var record = Json.Object(Json.Parse(Json.Print(preview)));
         record["id"] = "registration-a"; record["platform"] = "windows-x86-64";
         Check(review.RequireRegistered(record) == "registration-a", "external result checks all reviewed identities");
+        var relink = Json.Parse(Json.Print(new Dictionary<string, object> {
+            { "port_id", "shape-b" }, { "registration_id", "registration-a" },
+            { "previous_path", @"H:\Previous folder" }, { "proposed", preview },
+            { "external_files_will_be_preserved", true }, { "preview_sha256", new string('e', 64) }
+        }));
+        var changedFolder = ExternalRuntimeReview.ReadRelink(relink, "shape-b", folder);
+        Check(changedFolder.Fingerprint == new string('e', 64) && changedFolder.RequireRegistered(record) == "registration-a",
+            "folder relink consumes outer consent identity and retains registration");
+        var replacedRegistration = Json.Object(Json.Parse(Json.Print(record))); replacedRegistration["id"] = "registration-b";
+        Reject(() => changedFolder.RequireRegistered(replacedRegistration), "folder relink cannot replace registration identity");
+        var noPreservation = Json.Object(Json.Parse(Json.Print(relink))); noPreservation["external_files_will_be_preserved"] = false;
+        Reject(() => ExternalRuntimeReview.ReadRelink(noPreservation, "shape-b", folder), "folder relink must preserve external files");
         foreach (var field in new[] { "port_id", "path", "executable", "version", "archive_sha256", "immutable_tree_sha256", "platform", "id" })
         {
             var changed = Json.Object(Json.Parse(Json.Print(record)));
@@ -720,7 +735,7 @@ internal static class ContractTests
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 72 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 73 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);

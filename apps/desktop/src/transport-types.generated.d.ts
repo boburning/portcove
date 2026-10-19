@@ -48,6 +48,7 @@ export type ActivityOperation =
   | "remove"
   | "remove_source"
   | "register_external"
+  | "relink_external"
   | "remove_external"
   | "register_source"
   | "verify_source";
@@ -605,8 +606,9 @@ export interface TransportOutputs {
   destination_artwork_bytes: OutputDestinationArtworkBytes;
   destination_artwork_handoff: DestinationArtworkHandoff;
   doctor: OutputDoctor;
-  external_runtime_preview: OutputExternalRuntimePreview;
+  external_runtime_preview: ExternalRuntimePreview;
   external_runtime_record: ExternalRuntimeRecord;
+  external_runtime_relink_preview: OutputExternalRuntimeRelinkPreview;
   external_runtime_removal_preview: OutputExternalRuntimeRemovalPreview;
   game_file_query_request: OutputGameFileQueryRequest;
   game_file_query_snapshot: OutputGameFileQuerySnapshot;
@@ -684,8 +686,9 @@ export interface TransportOutputs {
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
   desktop_cli_command_context: OutputDesktopCliCommandContext;
   desktop_desktop_error: FailureReport;
-  desktop_external_runtime_preview: OutputExternalRuntimePreview;
+  desktop_external_runtime_preview: ExternalRuntimePreview;
   desktop_external_runtime_record: ExternalRuntimeRecord;
+  desktop_external_runtime_relink_preview: OutputExternalRuntimeRelinkPreview;
   desktop_external_runtime_removal_preview: OutputExternalRuntimeRemovalPreview;
   desktop_game_file_query_snapshot: OutputGameFileQuerySnapshot;
   desktop_game_file_roots: OutputGameFileRoots;
@@ -1798,7 +1801,7 @@ export interface RepairItem {
   proposed_action: string;
   [k: string]: unknown;
 }
-export interface OutputExternalRuntimePreview {
+export interface ExternalRuntimePreview {
   archive_sha256: string;
   executable: string;
   immutable_file_count: number;
@@ -1815,6 +1818,19 @@ export interface SharedPreferencesReview {
   local_fallback_path: string;
   local_fallback_present: boolean;
   present: boolean;
+}
+/**
+ * Review of a location change for the same retained external installation.
+ * No files are moved, adopted, deleted or upgraded by this operation.
+ */
+export interface OutputExternalRuntimeRelinkPreview {
+  external_files_will_be_preserved: boolean;
+  port_id: string;
+  preview_sha256: string;
+  previous_path: string;
+  proposed: ExternalRuntimePreview;
+  registration_id: string;
+  [k: string]: unknown;
 }
 export interface OutputExternalRuntimeRemovalPreview {
   external_files_will_be_preserved: boolean;

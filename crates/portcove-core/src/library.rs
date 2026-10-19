@@ -33,6 +33,23 @@ struct StoredSourceRow {
     observed_identity_json: Option<String>,
 }
 
+/// One SQLite observation, including the exact retained authority bytes. This
+/// ephemeral binding is not an authorization or proof of files at either path.
+pub(crate) struct ExternalRuntimeRelinkState {
+    pub record: ExternalRuntimeRecord,
+    pub catalog: Catalog,
+    pub row_sha256: String,
+}
+
+fn external_runtime_row_sha256(port_id: &str, record: &str, catalog: &str) -> Result<String> {
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&(
+        "portcove-external-runtime-row-v1",
+        port_id,
+        record,
+        catalog,
+    ))?)))
+}
+
 /// Old external readers expect a raw CatalogDocument and must refuse retained
 /// semantics they cannot preserve. Reuse the existing strict retained-contract
 /// envelope for opt-in selectors; legacy registrations keep their original shape.
@@ -1987,6 +2004,34 @@ impl Library {
         .transpose()
     }
 
+    pub(crate) fn external_runtime_relink_state(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<ExternalRuntimeRelinkState>> {
+        let row = self.connection()?.query_row(
+            "SELECT record_json, retained_catalog_json FROM external_runtime_registrations WHERE port_id=?1",
+            [port_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        ).optional()?;
+        row.map(|(record_json, catalog_json)| {
+            let row_sha256 = external_runtime_row_sha256(port_id, &record_json, &catalog_json)?;
+            let record: ExternalRuntimeRecord = serde_json::from_str(&record_json)?;
+            let catalog = decode_external_catalog(&catalog_json, port_id)?;
+            if record.port_id != port_id || catalog.port(port_id).is_err() {
+                return Err(PortcoveError::state(
+                    "retained external runtime has a mismatched port identity",
+                ));
+            }
+            check_external_preferences_binding(&record, &catalog)?;
+            Ok(ExternalRuntimeRelinkState {
+                record,
+                catalog,
+                row_sha256,
+            })
+        })
+        .transpose()
+    }
+
     /// Read retained browsing metadata without allocating an oversized SQLite
     /// value in Rust. This is not runtime verification or registration authority.
     pub(crate) fn external_runtime_with_port_bounded(
@@ -2075,6 +2120,110 @@ impl Library {
         )?;
         transaction.commit()?;
         Ok(())
+    }
+
+    /// Replace location and freshly acknowledged preferences only. Preserve the
+    /// registration identity, admitted artifact, original admission time, and
+    /// exact retained catalog/envelope bytes, including historical reader fences.
+    pub(crate) fn relink_external_runtime(
+        &self,
+        port_id: &str,
+        expected_row_sha256: &str,
+        proposed: &crate::ExternalRuntimePreview,
+    ) -> Result<ExternalRuntimeRecord> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let row: Option<(String, String)> = transaction.query_row(
+            "SELECT record_json, retained_catalog_json FROM external_runtime_registrations WHERE port_id=?1",
+            [port_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).optional()?;
+        let (record_json, catalog_json) = row.ok_or_else(|| {
+            PortcoveError::not_found("external runtime registration no longer exists")
+        })?;
+        if external_runtime_row_sha256(port_id, &record_json, &catalog_json)? != expected_row_sha256
+        {
+            return Err(PortcoveError::conflict(
+                "external runtime registration changed after review",
+            ));
+        }
+        let mut record: ExternalRuntimeRecord = serde_json::from_str(&record_json)?;
+        let catalog = decode_external_catalog(&catalog_json, port_id)?;
+        let port = catalog.port(port_id)?;
+        let spec = port
+            .release
+            .user_prepared
+            .get(&record.platform)
+            .ok_or_else(|| {
+                PortcoveError::verification("retained external runtime has no platform contract")
+            })?;
+        if record.port_id != port_id
+            || proposed.port_id != port_id
+            || port.release.provider != crate::ReleaseSource::UserPrepared
+            || record.version != spec.version
+            || proposed.version != record.version
+            || !record
+                .archive_sha256
+                .eq_ignore_ascii_case(&spec.archive_sha256)
+            || !record
+                .immutable_tree_sha256
+                .eq_ignore_ascii_case(&spec.immutable_tree_sha256)
+            || !proposed
+                .archive_sha256
+                .eq_ignore_ascii_case(&record.archive_sha256)
+            || !proposed
+                .immutable_tree_sha256
+                .eq_ignore_ascii_case(&record.immutable_tree_sha256)
+            || !proposed.path.is_absolute()
+        {
+            return Err(PortcoveError::verification(
+                "folder relinking cannot change the retained runtime identity",
+            ));
+        }
+        crate::external_runtime::require_retained_executable_path(
+            &record.path,
+            &record.executable,
+            &spec.executable,
+        )?;
+        crate::external_runtime::require_retained_executable_path(
+            &proposed.path,
+            &proposed.executable,
+            &spec.executable,
+        )?;
+        let (active_launch, managed_install): (bool, bool) = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM launch_sessions WHERE port_id=?1 AND outcome IS NULL),
+                    EXISTS(SELECT 1 FROM installs WHERE port_id=?1)",
+            [port_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        if active_launch {
+            return Err(PortcoveError::conflict(
+                "close the game and resolve its pending launch before changing its folder",
+            ));
+        }
+        if managed_install {
+            return Err(PortcoveError::conflict(
+                "port already has a managed installation",
+            ));
+        }
+        record.path = proposed.path.clone();
+        record.executable = proposed.executable.clone();
+        record.shared_preferences = proposed
+            .shared_preferences
+            .as_ref()
+            .map(|review| review.binding.clone());
+        check_external_preferences_binding(&record, &catalog)?;
+        let changed = transaction.execute(
+            "UPDATE external_runtime_registrations SET record_json=?2 WHERE port_id=?1",
+            params![port_id, serde_json::to_string(&record)?],
+        )?;
+        if changed != 1 {
+            return Err(PortcoveError::conflict(
+                "external runtime registration changed before publication",
+            ));
+        }
+        transaction.commit()?;
+        Ok(record)
     }
 
     pub(crate) fn remove_external_runtime(&self, expected: &ExternalRuntimeRecord) -> Result<()> {
