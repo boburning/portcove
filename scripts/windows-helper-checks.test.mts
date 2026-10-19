@@ -141,7 +141,7 @@ Write-ObservationRecord (Join-Path $root 'observation-recovery-intent.json') @{c
 @{provider_calls='mocked only';marker='byte preserved';partial_attach='retained, no retry';handoff='exclusive and identity bound'}|ConvertTo-Json -Compress
 `;
     const marker = await readFile(
-      new URL("./fixtures/semantic-review-retained-marker.json", import.meta.url),
+      new URL("./fixtures/semantic-review-retained-marker.json.txt", import.meta.url),
     );
     const output = execFileSync(
       "pwsh.exe",
