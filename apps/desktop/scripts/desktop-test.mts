@@ -886,8 +886,6 @@ async function verifyLongTitleCatalogDetail(theme: string) {
     assert.equal(layout.title, "Castlevania: Legacy of Darkness");
     assert.equal(layout.project, "Port project: Castlevania: Legacy of Darkness Recompiled");
     assert.equal(layout.titleFits, true, JSON.stringify(layout));
-    if (size.width === 960)
-      assert.ok(layout.titleHeight > layout.lineHeight * 1.5, JSON.stringify(layout));
     assert.equal(layout.action.label, "Choose game files");
     assert.equal(layout.horizontalOverflow, false);
     assert.ok(

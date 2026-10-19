@@ -1151,6 +1151,8 @@ export async function preparationScenarios({
         return {
           tag: element.tagName,
           details: (details.textContent ?? "").trim(),
+          details_tag: details.tagName,
+          details_label: details.getAttribute("aria-label"),
           details_slot: details.getAttribute("data-slot"),
           details_variant: details.getAttribute("data-variant"),
           play: play.textContent.trim(),
@@ -1166,7 +1168,7 @@ export async function preparationScenarios({
             playBounds.right <= cardBounds.right &&
             moreBounds.right <= cardBounds.right,
           details_color: detailsStyle.color,
-          details_background: detailsStyle.backgroundColor,
+          details_background: getComputedStyle(element).backgroundColor,
           nested_interactive: element.querySelectorAll("button button, button a, a button, a a")
             .length,
           details_focused: document.activeElement === details,
@@ -1181,14 +1183,16 @@ export async function preparationScenarios({
     } = cardActions;
     assert.deepEqual(cardStructure, {
       tag: "ARTICLE",
-      details: "Details",
-      details_slot: "button",
-      details_variant: "outline",
+      details: "Jak and Daxter: The Precursor Legacy",
+      details_tag: "BUTTON",
+      details_label: `View details for Jak and Daxter: The Precursor Legacy · ${port.name}`,
+      details_slot: null,
+      details_variant: null,
       play: "Try launch",
       play_disabled: false,
       play_slot: "button",
       play_variant: "primary",
-      more_label: `More actions for ${port.name}`,
+      more_label: `More actions for Jak and Daxter: The Precursor Legacy · ${port.name}`,
       more_popup: "menu",
       workspace_horizontal_overflow: false,
       card_horizontal_overflow: false,
@@ -1196,6 +1200,7 @@ export async function preparationScenarios({
       nested_interactive: 0,
       details_focused: true,
     });
+    assert.match(detailsBackground, /^rgb\(/u, "Card contrast requires its opaque painted surface");
     const detailsContrast = contrastRatio(detailsColor, detailsBackground);
     assert.ok(
       detailsContrast >= 4.5,
