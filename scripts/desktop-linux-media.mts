@@ -523,6 +523,22 @@ export async function readMediaConfiguration(file: string): Promise<MediaConfigu
   return config;
 }
 
+export async function retainMediaVideoObservations(
+  directory: string,
+  video: string,
+  after: string,
+) {
+  // Keep the existing per-command bound. Verbose driver controls belong in
+  // retained files, not twice inside the 16 KiB namespace control message.
+  for (const value of [video, after]) assert.ok(Buffer.byteLength(value) <= 128 * 1024);
+  const retained = await mkdtemp(path.join(directory, "media-probe-"));
+  const beforeFile = path.join(retained, "video-before.log");
+  const afterFile = path.join(retained, "video-after.log");
+  await writeFile(beforeFile, video, { flag: "wx", mode: 0o600 });
+  await writeFile(afterFile, after, { flag: "wx", mode: 0o600 });
+  return { video: await fileIdentity(beforeFile), video_after_read: await fileIdentity(afterFile) };
+}
+
 async function probe(file: string) {
   const config = await readMediaConfiguration(file);
   assert.equal(config.source_head, revision());
@@ -578,8 +594,7 @@ async function probe(file: string) {
     outcome: "ready",
     uid: uid(),
     uid_map: (await readFile("/proc/self/uid_map", "utf8")).trim(),
-    video,
-    video_after_read: videoAfterRead,
+    ...(await retainMediaVideoObservations(output, video, videoAfterRead)),
     sources,
     positive_reads: { video_buffers: 1, audio_buffers: 1 },
     scope:

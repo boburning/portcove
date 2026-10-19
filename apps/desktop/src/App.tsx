@@ -664,6 +664,16 @@ function Workspace({
         request={sourceIntake}
         close={closeSourceIntake}
         onAdded={data.refreshAfterMutation}
+        returnFocus={() => {
+          const detail = [...document.querySelectorAll<HTMLElement>("[data-detail-port-id]")].find(
+            (element) => element.dataset.detailPortId === sourceIntake.portId,
+          );
+          return (
+            detail?.querySelector<HTMLButtonElement>(".primary-actions button:not(:disabled)") ??
+            detail?.querySelector<HTMLButtonElement>(".detail-back") ??
+            null
+          );
+        }}
         openEvidence={(evidenceId) => {
           void operations.perform(
             "open source evidence",
@@ -1261,7 +1271,10 @@ function SelectedPortPanel({
           { refresh: "none", invalidateDiagnostics: false },
         );
       }}
-      inspectSource={(profile) => openSourceIntake(model.port.id, profile.id)}
+      inspectSource={(profile) => {
+        const path = profile.id === model.port.bios_source_profile ? ui.biosPath : ui.sourcePath;
+        openSourceIntake(model.port.id, profile.id, path.trim() ? [path] : []);
+      }}
       openHostTool={openHostTool}
       openLibraryStorage={openLibraryStorage}
       actions={detailActions({

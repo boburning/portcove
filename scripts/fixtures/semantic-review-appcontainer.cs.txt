@@ -176,7 +176,7 @@ public static class PortcoveReviewContainer {
     public bool ReviewerResumed; public StoragePreflight Storage;
   }
   public sealed class StorageObservation {
-    public string Path,Sddl; public uint? Attributes; public uint MetadataError,DescriptorError;
+    public string Path,Sddl; public uint? Attributes,BrokerAttributes,BrokerMetadataError; public uint MetadataError,DescriptorError;
   }
   public sealed class StoragePreflight {
     public bool Passed,IdentityVerified,Reverted; public bool? BypassTraverseEnabled;
@@ -201,7 +201,15 @@ public static class PortcoveReviewContainer {
     }catch(Exception e){result.Error=e.GetType().Name+": "+e.Message;var native=e as Win32Exception;if(native!=null)result.NativeErrorCode=native.NativeErrorCode;if(result.Error.Length>256)result.Error=result.Error.Substring(0,256);}
     finally {if(entered)result.Reverted=revert();}
     result.Passed=result.Error==null && result.IdentityVerified && result.Reverted;
-    if(paths!=null)foreach(var p in paths)result.Passed=result.Passed && p!=null && p.MetadataError==0 && p.DescriptorError==0 && p.Sddl!=null && p.Attributes.HasValue && (p.Attributes.Value&0x10)!=0;
+    if(paths!=null)for(int i=0;i<paths.Length;i++) {
+      var p=paths[i];result.Passed=result.Passed && p!=null && p.DescriptorError==0 && !String.IsNullOrEmpty(p.Sddl);
+      // The mount is broker-only ancestry. Its reviewer metadata result is
+      // diagnostic; requiring access there contradicts the intentionally private
+      // mount ACL. The four assigned child paths must still be reviewer-readable.
+      if(p!=null)result.Passed=result.Passed && (i==0
+        ? p.BrokerMetadataError==0 && p.BrokerAttributes.HasValue && (p.BrokerAttributes.Value&0x10)!=0
+        : p.MetadataError==0 && p.Attributes.HasValue && (p.Attributes.Value&0x10)!=0);
+    }
     return result;
   }
   static string ActualContainerSid(IntPtr token) {
@@ -230,6 +238,9 @@ public static class PortcoveReviewContainer {
       int descriptorBytes=0;
       for(int i=0;i<5;i++) {
         var p=observations[i]=new StorageObservation{Path=paths[i]};IntPtr owner,group,dacl,sacl,descriptor;
+        // Observe the mounting directory as broker; BoundedVolume.Open already
+        // locks and validates the distinct target volume identity and size.
+        if(i==0){uint attributes=GetFileAttributesW(p.Path);if(attributes==UInt32.MaxValue)p.BrokerMetadataError=(uint)Marshal.GetLastWin32Error();else{p.BrokerAttributes=attributes;p.BrokerMetadataError=0;}}
         p.DescriptorError=GetNamedSecurityInfoW(p.Path,1,0x17,out owner,out group,out dacl,out sacl,out descriptor);
         try {
           if(p.DescriptorError!=0)continue;

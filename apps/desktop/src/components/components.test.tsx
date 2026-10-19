@@ -2795,7 +2795,7 @@ describe("desktop components", () => {
     expect(selected).toContain("Available to install");
     expect(selected).not.toContain("Required BIOS file needed");
     expect(selected).toContain(
-      "Selected BIOS file has not been checked. Portcove validates it when you continue.",
+      "Selected BIOS file has not been checked. Choose Check required BIOS to check and save this location.",
     );
     expect(selected).toContain("The selected BIOS file has not been checked");
     expect(selected).not.toContain("Selected game files have not been checked");

@@ -11,6 +11,24 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+October 19, after #2179: the owner approved and completed its one-observation
+sequence. The [actual storage-access result](slice4-storage-access-result-2026-10-19.md)
+records verified privilege lookup/impersonation followed by metadata error 5 on
+all five paths, before reviewer resume. Matching recovery is independently
+observed detached with all evidence retained. The grant is fulfilled; no further
+operator action or repeated native observation is proposed. The narrow preflight
+repair distinguishes broker-only mount diagnostics from mandatory reviewer child
+access without widening ACLs. Child access remains unresolved and would still
+refuse this capture. Earlier pending-grant/recovery statements are historical.
+
+October 19: matching MdzaNi recovery is now independently observed detached,
+with bytes/markers/receipt retained. The prior grant is fulfilled. The
+[repaired-preflight observation proposal](slice4-repaired-preflight-observation-2026-10-19.md)
+reuses the same image and helper with separately named records, pins the completed
+recovery and repaired source, and prepares one credential-free observation with
+matching recovery. It requires a fresh exact grant after delivery. No new archive,
+attach or fixture has occurred; prior pending-recovery statements are historical.
+
 The owner approved the #2161 retained-image observation. Its single diagnostic
 now has an [actual preflight failure and narrow repair](slice4-storage-preflight-result-2026-10-18.md):
 privilege-name lookup failed before reviewer resume, with positive owned-tree

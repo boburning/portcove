@@ -6,6 +6,41 @@ import { BrowsingMatchDetails } from "./BrowsingMatchDetails";
 import type { CatalogBrowsingContext } from "../../types";
 import type { CatalogQueryResult } from "./catalog-query";
 import type { GameFileFilterContext } from "./game-file-query-context";
+import { portDefinition } from "../../test-fixtures";
+
+it.each([true, false])(
+  "reports filter membership independently of absent version context: %s",
+  async (matches) => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const host = document.body.appendChild(document.createElement("div"));
+    const root = createRoot(host);
+    const port = { ...portDefinition(), id: "port" };
+    const result: CatalogQueryResult = {
+      state: "matched",
+      query: { version: 1 },
+      ports: matches ? [port] : [],
+      counts: {} as CatalogQueryResult["counts"],
+      matchingContexts: new Map(),
+    };
+    try {
+      await act(async () =>
+        root.render(<BrowsingMatchDetails portId="port" result={result} binding="workspace" />),
+      );
+      expect(host.textContent?.includes("no longer matches")).toBe(!matches);
+      expect(host.textContent?.includes("Version details are unavailable")).toBe(matches);
+      result.state = "unavailable";
+      await act(async () =>
+        root.render(<BrowsingMatchDetails portId="port" result={result} binding="workspace" />),
+      );
+      expect(host.textContent).toContain("filter results are unavailable");
+      expect(host.textContent).not.toContain("no longer matches");
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+      vi.unstubAllGlobals();
+    }
+  },
+);
 
 it.each(["first-workspace", "changed-workspace"])(
   "requires a fresh choice when an explicit context disappears under %s",

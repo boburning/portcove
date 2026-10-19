@@ -10,6 +10,7 @@ on:
         options:
           [
             compatibility,
+            linux-namespace-preflight,
             linux-package-boundary,
             linux-preparation-continuity,
             bootstrap,
@@ -154,6 +155,39 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  linux_namespace_preflight:
+    if: ${{ inputs.operation == 'linux-namespace-preflight' && inputs.runner == 'ubuntu-24.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-rust
+      - name: Prepare bounded namespace diagnostics
+        run: command -v strace || sudo -n apt-get install --no-install-recommends -y strace
+      - name: Grant user namespaces only to this disposable qualification interpreter
+        id: namespace_profile
+        if: inputs.runner == 'ubuntu-24.04'
+        run: node scripts/desktop-linux-namespace-profile.mts --prepare
+      - name: Preflight the actual ordinary-account qualification namespace mechanism
+        timeout-minutes: 3
+        run: node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts
+      - name: Withdraw only the quiescent qualification profile
+        if: ${{ always() && steps.namespace_profile.outcome == 'success' }}
+        run: '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup'
+      - name: Retain original namespace results and diagnostic failures
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linux-namespace-preflight-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            work/linux-namespace-preflight/**
+            work/linux-namespace-profile/**
+          if-no-files-found: error
+          retention-days: 14
+
   linux_package_boundary:
     if: ${{ inputs.operation == 'linux-package-boundary' && (inputs.runner == 'ubuntu-22.04' || inputs.runner == 'ubuntu-24.04') && !inputs.edge_driver_proof }}
     runs-on: ${{ inputs.runner }}
@@ -170,10 +204,20 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
+      - uses: ./.github/actions/setup-rust
+      - name: Prepare bounded namespace diagnostics
+        run: command -v strace || sudo -n apt-get install --no-install-recommends -y strace
+      - name: Grant user namespaces only to this disposable qualification interpreter
+        id: namespace_profile
+        if: inputs.runner == 'ubuntu-24.04'
+        run: node scripts/desktop-linux-namespace-profile.mts --prepare
+      - name: Admit the complete namespace mechanism before building or provisioning media
+        timeout-minutes: 3
+        run: node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts
       - name: Prepare disposable distribution media devices
+        id: media_preparation
         timeout-minutes: 15
         run: node scripts/desktop-linux-media.mts --prepare
-      - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           key: linux-package-boundary
@@ -193,17 +237,23 @@ jobs:
           PORTCOVE_RETAINED_EVIDENCE_DIR: ${{ runner.temp }}/pcv-package2-retained-inputs
         run: node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-media.mts --run
       - name: Remove only this operation's quiescent media fixture
-        if: always()
+        if: ${{ always() && steps.media_preparation.outcome != 'skipped' }}
         run: node scripts/desktop-linux-media.mts --cleanup
+      - name: Withdraw only the quiescent qualification profile
+        if: ${{ always() && steps.namespace_profile.outcome == 'success' }}
+        run: '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup'
       - name: Retain ordinary package and bounded native evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: linux-package-boundary-${{ github.sha }}-${{ github.run_attempt }}
           path: |
+            work/linux-namespace-preflight/**
+            work/linux-namespace-profile/**
             work/linux-packaged-security/*.json
             work/linux-packaged-security/*.log
             work/linux-packaged-security/*.deb
+            work/linux-packaged-security/media-probe-*/**
             work/linux-packaged-security/payload/usr/bin/portcove-desktop
             work/linux-packaged-security/frontend/**
             work/linux-packaged-security/native/**
@@ -211,6 +261,8 @@ jobs:
             work/linux-packaged-security/private-x11-*/runtime-receipt.json
             work/linux-packaged-security/private-x11-*/outer-join.json
             work/linux-packaged-security/private-x11-*/failed-outer-join.json
+            work/linux-packaged-security/private-x11-*/media-probe-stdout.log
+            work/linux-packaged-security/private-x11-*/media-probe-output.json
             work/linux-packaged-security/private-x11-*/xdg_cache_home/external-browser-profile/network.json
             ${{ runner.temp }}/pcv-package2-retained-inputs/**
             !work/linux-packaged-security/native/webview/**

@@ -224,7 +224,19 @@ void test("ordinary Linux package operation is fixed and isolated from fixture b
     block,
     /desktop-linux-media\.mts --prepare[\s\S]*desktop-linux-media\.mts --build[\s\S]*desktop-linux-media\.mts --run/u,
   );
-  assert.match(block, /if: always\(\)[\s\S]*desktop-linux-media\.mts --cleanup/u);
+  assert.match(
+    block,
+    /if: \$\{\{ always\(\) && steps\.media_preparation\.outcome != 'skipped' \}\}[\s\S]*desktop-linux-media\.mts --cleanup/u,
+  );
+  assert.ok(
+    block.indexOf("desktop-linux-namespace-preflight.mts") <
+      block.indexOf("desktop-linux-media.mts --prepare"),
+  );
+  assert.match(block, /desktop-linux-namespace-profile\.mts --prepare/u);
+  assert.match(
+    block,
+    /PORTCOVE_NAMESPACE_ORIGINAL_NODE.*desktop-linux-namespace-profile\.mts --cleanup/u,
+  );
   assert.match(block, /!\*\*\/private-authority/u);
   assert.match(block, /!\*\*\/auth\.cookie/u);
 });

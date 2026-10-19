@@ -17,12 +17,30 @@ import {
   publishApplicationMediaReadiness,
   awaitApplicationMediaReadiness,
   verifyApplicationMediaInputs,
+  retainMediaVideoObservations,
 } from "./desktop-linux-media.mts";
 import { fileIdentity } from "./development-evidence.mts";
 import type { ConsumedInput } from "./retained-evidence.mts";
 import { isRecord } from "./runtime-values.mts";
 import { executionAdmission } from "./retained-evidence.mts";
 const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+void test("media video observations retain verbose UTF-8 bytes outside the bounded control message", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-video-"));
+  const video = "Video Capture 640/360 YUYV 30/1\n" + "控制=1\n".repeat(10_000);
+  const after = video + "unchanged mode\n";
+  const report = await retainMediaVideoObservations(directory, video, after);
+  assert.ok(Buffer.byteLength(JSON.stringify(report)) < 16384);
+  for (const [record, expected] of [
+    [report.video, video],
+    [report.video_after_read, after],
+  ] as const) {
+    assert.equal(await readFile(record.path, "utf8"), expected);
+    assert.equal(record.bytes, Buffer.byteLength(expected));
+    assert.deepEqual(await fileIdentity(record.path), record);
+  }
+  await assert.rejects(retainMediaVideoObservations(directory, "x".repeat(128 * 1024 + 1), ""));
+});
 
 void test("application media verifies mixed retained and raw inputs without downgrading malformed custody", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-mixed-inputs-"));
