@@ -775,7 +775,7 @@ export async function sourceDialogScenario({
       (item) => item.id === sourceRegistration.id,
     );
     const sourceActivityInRecentPreview = sourceRegistrationIndex < 8;
-    await click(By.xpath('//nav//button[contains(., "Game updates")]'));
+    await click(By.xpath('//nav//button[contains(., "Updates & activity")]'));
     const sourceActivity = By.xpath(
       `//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file location update"]]//button[@aria-label=${JSON.stringify(`Open Game files settings for ${profileLabel}`)}]`,
     );
@@ -822,7 +822,7 @@ export async function sourceDialogScenario({
       artifacts.push(settingsScreenshot);
     }
 
-    await click(By.xpath('//nav//button[contains(., "Game updates")]'));
+    await click(By.xpath('//nav//button[contains(., "Updates & activity")]'));
     const discoveryActivity = By.xpath(
       '//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file search"]]//button[@aria-label="Open Game files settings for Portcove library"]',
     );
