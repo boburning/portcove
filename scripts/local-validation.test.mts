@@ -47,6 +47,14 @@ import { buildValidationPlan } from "./validation-plan.mts";
 import { resolveUiSelection } from "./ui-test-selection.mts";
 
 const allFilesExist = () => true;
+
+void test("hook implementation-only edits select the real Git hook contract", () => {
+  for (const file of ["scripts/hooks-install.mts", "scripts/precommit.mts"]) {
+    const selection = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selection.nodeTests.has("scripts/precommit-check.test.mts"));
+    assert.ok(!selection.unknown.has(file));
+  }
+});
 function requiredFixture<T>(value: T | null | undefined): T {
   assert.ok(value !== null && value !== undefined, "expected fixture entry is missing");
   return value;
