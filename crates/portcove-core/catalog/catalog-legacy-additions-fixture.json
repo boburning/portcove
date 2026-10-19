@@ -38,7 +38,8 @@
     "dr-mario-nes-japan-usa-rev1",
     "super-metroid-snes-japan-usa",
     "mega-man-x2-snes-usa",
-    "resident-evil-gaiden-gbc-usa"
+    "resident-evil-gaiden-gbc-usa",
+    "earthbound-snes-usa"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -80,6 +81,7 @@
     "dr-mario-nes-recomp",
     "super-metroid-recomp",
     "mega-man-x2-snes-recomp",
-    "resident-evil-gaiden-recomp"
+    "resident-evil-gaiden-recomp",
+    "earthbound-recomp"
   ]
 }
