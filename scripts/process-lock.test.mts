@@ -50,6 +50,9 @@ void test("a delayed stale reclaimer cannot replace a live successor", async () 
   const resume = path.join(root, "resume");
   const result = path.join(root, "result.json");
   let worker: ReturnType<typeof spawn> | undefined;
+  let workerExit: Promise<void> | undefined;
+  let workerEnded = false;
+  let workerFailure: Error | undefined;
   let winner: Awaited<ReturnType<typeof acquireOwnedProcessLock>> | undefined;
   const waitFor = async (file: string) => {
     const deadline = Date.now() + 15_000;
@@ -59,6 +62,8 @@ void test("a delayed stale reclaimer cannot replace a live successor", async () 
       } catch (error) {
         if (!isRecord(error) || error.code !== "ENOENT") throw error;
       }
+      if (workerFailure) throw workerFailure;
+      if (workerEnded) throw new Error(`Contender exited before publishing ${file}`);
       await delay(5);
     }
     throw new Error(`Lock fixture did not publish ${file}`);
@@ -102,18 +107,23 @@ void test("a delayed stale reclaimer cannot replace a live successor", async () 
     `,
     );
     worker = spawn(process.execPath, [script], { stdio: "ignore", windowsHide: true });
-    const exited = new Promise<void>((resolve, reject) => {
-      worker!.once("error", reject);
-      worker!.once("exit", (code) =>
-        code === 0 ? resolve() : reject(new Error(`Contender exited ${code}`)),
-      );
+    workerExit = new Promise<void>((resolve) => {
+      worker!.once("error", (error) => {
+        workerFailure = error;
+      });
+      worker!.once("close", (code) => {
+        workerEnded = true;
+        if (code !== 0) workerFailure ??= new Error(`Contender exited ${code}`);
+        resolve();
+      });
     });
     await waitFor(ready);
     winner = await acquireOwnedProcessLock(lockPath, {}, { ownerToken: "winner" });
     const before = await readFile(path.join(lockPath, "owner.json"), "utf8");
     await writeFile(resume, "resume");
     const observed = record(JSON.parse(await waitFor(result)));
-    await exited;
+    await workerExit;
+    if (workerFailure) throw workerFailure;
     assert.equal(
       observed.acquired,
       false,
@@ -124,7 +134,8 @@ void test("a delayed stale reclaimer cannot replace a live successor", async () 
     await winner.release();
     winner = undefined;
   } finally {
-    worker?.kill();
+    if (worker?.pid && !workerEnded) worker.kill();
+    await workerExit;
     await rm(root, { recursive: true, force: true });
   }
 });
