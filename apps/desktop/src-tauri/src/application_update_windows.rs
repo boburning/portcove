@@ -556,6 +556,7 @@ pub fn reconcile_windows_application_update(
 #[cfg(windows)]
 pub fn current_windows_installed_application_context()
 -> Result<InstalledApplicationContext, WindowsApplicationUpdateError> {
+    crate::runtime_support::check().map_err(WindowsApplicationUpdateError::InstalledContext)?;
     let current_executable = std::env::current_exe()?;
     let registrations = inventory_portcove_registrations()?;
     evaluate_windows_nsis_installation(
@@ -573,7 +574,6 @@ pub fn current_windows_installed_application_context()
 pub fn windows_nsis_context_for_version(
     current_version: &str,
 ) -> Result<InstalledApplicationContext, WindowsApplicationUpdateError> {
-    crate::runtime_support::check().map_err(WindowsApplicationUpdateError::InstalledContext)?;
     let os = windows_version::OsVersion::current();
     let catalog_format = portcove_core::Catalog::embedded()
         .map_err(|error| WindowsApplicationUpdateError::InstalledContext(error.to_string()))?

@@ -14,15 +14,6 @@ fn version_at_least(actual: &str, floor: &[u32]) -> bool {
 }
 
 pub fn check() -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        let os = windows_version::OsVersion::current();
-        if (os.major, os.minor, os.build) < (10, 0, 26200) {
-            return Err(
-                "Portcove requires Windows 11 25H2 or later with normal security updates.".into(),
-            );
-        }
-    }
     let version = tauri::webview_version().map_err(|error| {
         format!("Portcove could not find its required WebView runtime: {error}. Repair the runtime before starting Portcove.")
     })?;

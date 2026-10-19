@@ -192,7 +192,7 @@ distribution compatibility, Steam Deck behavior, every interruption phase, or th
 remaining distro evidence tracked by the live roadmap issue.
 
 The manual **Linux package ownership rehearsal** is the smaller DEB/RPM companion.
-It builds only those two native packages on Ubuntu 22.04, then verifies DEB through
+It builds only those two native packages on Ubuntu 24.04, then verifies DEB through
 Ubuntu's package database and RPM through a Fedora container's native DNF transaction
 and RPM database. Each installed desktop executable runs the GUI-independent
 eligibility inspection with no display. The run requires format-specific guidance

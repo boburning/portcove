@@ -45,11 +45,13 @@ updates and the WebView2 Evergreen production Runtime, initially 155.0.4283.62
 or later. Keep Evergreen automatic updates enabled. The normal NSIS installer
 uses Tauri's Evergreen bootstrapper and minimum-version update behavior; an
 offline or failed runtime installation does not establish a usable application.
-Desktop refuses an older Windows build, unavailable engine, preview identity or
-engine below the floor. On Windows it displays a native diagnostic; on Linux
+Desktop refuses an unavailable engine, preview identity or engine below the
+floor. On Windows it displays a native diagnostic; on Linux
 it writes a diagnostic to standard error. Repair the runtime using the ordinary
 installer/package source before starting again. No supported historical-engine
-claim follows from compiler targets or a newer-host pass.
+claim follows from compiler targets or a newer-host pass. The support policy
+does not add a Windows OS startup gate: existing Server diagnostic routes can
+still execute, without establishing support for Server or an older client OS.
 
 Ordinary Linux support is updated Ubuntu 24.04 LTS x86-64 with maintained
 `libwebkit2gtk-4.1-0`, initially 2.52.6-0ubuntu0.24.04.1 or later. The DEB declares
