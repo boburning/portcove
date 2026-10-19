@@ -119,8 +119,54 @@ registration was launchable with two successful launches; update, rollback and
 managed removal remained explicitly unoffered. The original registration and
 replacement registration retain their distinct identities in the receipt.
 
+## Relink composition at API 73
+
+Main advanced through `59c190da51e334aa58371d4e1465f7ae683e87b4`, including
+the independently delivered API 72 retained-folder relink capability. Merge
+`5c6fda42d86b3ca5acbca59edf0023d3321c2729` preserves it and exposes the
+combined SMB contract as API 73. CLI and Tauri relink use the closed Core shared
+disclosure and acknowledgment bound to the outer relink preview. React validates
+the same disclosure for registration and relink. Playnite accepts the known
+72–73 relink capability window while preserving its explicit refusal of relinking
+shared-scope runtimes through that client; Desktop and CLI offer the reviewed flow.
+
+`smb-core-a7` passed 16 shared-data and four relink tests. Its subsequent CLI
+compile failed on one newly composed caller's nonnullable fallback assumption;
+the retained failure is repaired by calling `write_scope_disclosure()`.
+`smb-core-a7-resume-a1` completed the remaining CLI build, native/Core schema
+parity and TypeScript generation without repeating the unchanged Core tests.
+The clean committed producer `smb-core-a8` has SHA256
+`7770bfa4eaddd32de2823029c8dd58303fee8a7a193afa7bd7cc0b57fbe8a398`.
+
+`smb-clients-a2` preserved a failing future-schema fixture that still rejected
+newly supported 73. Test-only commit
+`38361b38ba1fb5f1cd9f308c65c3af1570827b56` moves that unknown case to 74;
+product behavior is unchanged. `smb-clients-a3` passed all 499 compiled client
+checks and three disclosure unit tests, then refused an incomplete browser run
+because this worktree lacked the pinned Chromium shell. Its failure remains.
+`smb-clients-a3-resume-a1` provisioned the repository browser dependency, executed
+the previously unexecuted browser file (37 passed, none skipped), passed frontend
+types and consumed an actual API 73 producer preview with the compiled client.
+Producer and consumer source identities remain separate in their receipts.
+
+`smb-relink-a1` copied the unchanged five-file runtime through the private harness,
+then exercised actual Core relinking to that new folder. Changed APPDATA location,
+unsafe shared loader metadata, missing shared acknowledgment, inner-preview
+identity and stale outer-preview identity were refused. The APPDATA negative
+tests a location change, not a different Windows account. Every refused mutation
+left the entire registration unchanged. A valid outer-preview acknowledgment
+changed the actual path and executable while retaining registration ID, timestamp,
+version, shared binding and two-launch history. With the cached original
+temporarily retained outside the shared directory, relink remained possible but
+readiness required manual preparation; the actual compiled client consumed that
+precise guidance without offering managed setup. Restoring the preserved original
+returned launchable readiness. Complete bounded manifests proved that the old
+runtime, shared data and original remained unchanged; the new runtime matched
+all five immutable files. Core copied or moved no external files. No game ran
+in this relink packet, and earlier native receipts retain their original producer.
+
 The offered minimum is original-bound vanilla Windows registration, manual
-shared-data preparation, launch and registration-only removal. Gameplay,
+shared-data preparation, launch, retained folder relink and registration-only removal. Gameplay,
 populated-save/load, audio, controller, other platforms, installed Desktop and
 human consent comprehension remain unobserved optional or separate evidence.
 No original, modified executable or protected catalog was published.
