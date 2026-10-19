@@ -17,6 +17,29 @@ function Write-StoragePreflightCapture([string]$Root,$ProcessResult) {
   $processReceipt|Add-Member -NotePropertyName Storage -NotePropertyValue $summary
   return $processReceipt
 }
+function Open-ObservationHandoff([string]$Root,[string]$ConfigurationHash,[string]$NativeHash,[string]$LauncherHash,[string]$OperatorHash,[string]$QualifierHash,[string]$OwnerSid) {
+  if(-not (Test-Path -LiteralPath (Join-Path $Root 'observation-intent.json'))) { return $null }
+  $lockPath=Join-Path $Root 'completion-operation.lock'
+  if((Get-Item -LiteralPath $lockPath).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'observation operator lock replaced' }
+  $gate=[IO.File]::Open($lockPath,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+  try {
+    if(Test-Path -LiteralPath (Join-Path $Root 'observation-recovery-intent.json')) { throw 'observation recovery already claimed; no launch' }
+    $records=@()
+    foreach($name in @('observation-intent.json','observation-result.json')) {
+      $file=Get-Item -LiteralPath (Join-Path $Root $name)
+      if($file.Length -gt 8192 -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'observation handoff record differs' }
+      $records += Get-Content -Raw -LiteralPath $file.FullName|ConvertFrom-Json
+    }
+    $intent=$records[0];$ready=$records[1]
+    foreach($record in @($intent,$ready)) {
+      if($record.schema_version -ne 1 -or $record.owner_sid -ne $OwnerSid -or $record.source_revision -notmatch '^[a-f0-9]{40}$' -or $record.image -ne (Join-Path $Root 'reviewer.vhd') -or $record.configuration_sha256 -ne $ConfigurationHash -or $record.native_helper_sha256 -ne $NativeHash -or $record.launcher_sha256 -ne $LauncherHash -or $record.qualifier_sha256 -ne $QualifierHash -or $record.operator_helper_sha256 -ne $OperatorHash) { throw 'observation source/identity handoff differs' }
+    }
+    if($ready.ready -ne $true -or $null -ne $ready.provider_error -or $null -ne $ready.readback_error -or $ready.source_revision -ne $intent.source_revision) { throw 'observation preparation is not positively ready' }
+    $archive=Get-Item -LiteralPath (Join-Path $Root 'reviewer-active.semantic-isolation-ttTNEZ.retained.json')
+    if(($archive.Attributes -band [IO.FileAttributes]::ReparsePoint) -or (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant() -ne '0ab15171c42aa3ce88e410a58768fb329af24e516afb938fcb29da8dc56dc52a') { throw 'original marker archive differs' }
+    return $gate
+  } catch { $gate.Dispose();throw }
+}
 if($Mode -eq 'codex') { throw 'HOLD: reviewer writable profile storage and fixed read-only input reader are not yet enforced; credential provisioning cannot remove this hold' }
 if($Mode -in @('fixture','reader-fixture') -and -not $ReadOnlyStorage) { throw 'inert actual-runtime fixture requires read-only LPAC preparation; no credentials' }
 if($StorageProbe -and ($Mode -ne 'probe' -or -not $ReadOnlyStorage)) { throw 'native storage probe requires read-only preparation' }
@@ -29,6 +52,7 @@ $nativeBytes=[IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'fixtures/semantic
 $nativeSha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($nativeBytes)).ToLowerInvariant()
 Add-Type -TypeDefinition ([Text.Encoding]::UTF8.GetString($nativeBytes))
 $boundaryLocks=[PortcoveReviewContainer]::LockBoundary($runPath)
+$observationLock=$null
 try {
 foreach($entry in @((Get-Item -LiteralPath $runPath)) + @(Get-ChildItem -LiteralPath $runPath -Recurse -Force)) {
   if(($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'reparse run boundary refused' }
@@ -136,6 +160,7 @@ try {
     $storage=Get-Content -Raw -LiteralPath (Join-Path $storageRoot 'storage.json') | ConvertFrom-Json
     $boundedMount=Join-Path $storageRoot 'data'
     if($storage.configuration_sha256 -ne $storageHash -or $storage.mount -ne $boundedMount -or $storage.maximum_bytes -ne 536870912 -or $storage.credentials -ne 'none') { throw 'operator storage receipt differs' }
+    $observationLock=Open-ObservationHandoff $storageRoot $storageHash $nativeSha ((Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()) ((Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'prepare-semantic-observation.ps1') -Algorithm SHA256).Hash.ToLowerInvariant()) ((Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'qualify-semantic-isolation.mts') -Algorithm SHA256).Hash.ToLowerInvariant()) $identity.Value
     $boundedVolume=[PortcoveReviewContainer+BoundedVolume]::Open($boundedMount,$storage.volume_guid)
     $boundedGuid=$boundedVolume.Guid
     $activeMarkerPath=Join-Path $storageRoot 'reviewer-active.json'
@@ -216,4 +241,4 @@ try {
   } catch { throw 'isolation receipt unavailable; preserve all state for recovery' }
 }
 if($cleanupErrors.Count -ne 0 -or -not $result.TreeEmpty -or $result.ForcedTermination -or $result.ExitCode -ne 0) { throw 'reviewer failed or required forced tree termination; credentials remain withheld' }
-} finally { $boundaryLocks.Dispose() }
+} finally { try { if($null -ne $observationLock) { $observationLock.Dispose() } } finally { $boundaryLocks.Dispose() } }
