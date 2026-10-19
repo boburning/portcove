@@ -377,6 +377,11 @@ pub(crate) fn is_credential_name(name: &str) -> bool {
 
 pub(crate) fn is_reviewed_session_variable(name: &str) -> bool {
     let normalized = name.to_ascii_uppercase();
+    // SDL interprets this as a native library to load, not an ordinary hint.
+    // Inherited host settings cannot select a different SDL implementation DLL.
+    if normalized == "SDL_DYNAMIC_API" {
+        return false;
+    }
     matches!(
         normalized.as_str(),
         "PATH"
@@ -466,6 +471,33 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+
+    #[test]
+    fn native_library_override_is_filtered_without_losing_sdl_hints() {
+        for name in ["SDL_DYNAMIC_API", "sdl_dynamic_api", "sDl_DyNaMiC_aPi"] {
+            let spec = ChildProcessPolicy::tool_spec_with_environment(
+                "never-spawned",
+                [
+                    (name.into(), "unreviewed-native-library".into()),
+                    ("SDL_RENDER_DRIVER".into(), "software".into()),
+                    ("PATH".into(), "reviewed-path".into()),
+                    ("VK_DRIVER_FILES".into(), "reviewed-driver-setting".into()),
+                ],
+            );
+            let command = spec.command().unwrap();
+            let environment = command
+                .get_envs()
+                .map(|(key, value)| (key.to_owned(), value.unwrap().to_owned()))
+                .collect::<BTreeMap<_, _>>();
+            assert!(!environment.contains_key(OsStr::new(name)));
+            assert_eq!(environment[OsStr::new("SDL_RENDER_DRIVER")], "software");
+            assert_eq!(environment[OsStr::new("PATH")], "reviewed-path");
+            assert_eq!(
+                environment[OsStr::new("VK_DRIVER_FILES")],
+                "reviewed-driver-setting"
+            );
+        }
+    }
 
     #[test]
     fn tool_spec_carries_complete_filtered_launch_input() {
@@ -578,7 +610,7 @@ mod tests {
 fn main() {
     let output = env::var_os("PROBE_OUTPUT").expect("PROBE_OUTPUT");
     let mut lines = env::args().skip(1).map(|arg| format!("arg={arg}")).collect::<Vec<_>>();
-    for key in ["PORTCOVE_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN", "SAMPLE_API_KEY", "PATH", "DISPLAY", "PORTCOVE_PORT_ID"] {
+    for key in ["PORTCOVE_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN", "SAMPLE_API_KEY", "PATH", "DISPLAY", "PORTCOVE_PORT_ID", "SDL_DYNAMIC_API", "SDL_RENDER_DRIVER"] {
         lines.push(format!("env:{key}={}", env::var(key).unwrap_or_default()));
     }
     fs::write(output, lines.join("\n")).expect("write probe");
@@ -622,6 +654,14 @@ fn main() {
             ),
             (OsString::from("PATH"), OsString::from("reviewed-path")),
             (OsString::from("DISPLAY"), OsString::from(":42")),
+            (
+                OsString::from("SDL_DYNAMIC_API"),
+                OsString::from("unreviewed-native-library"),
+            ),
+            (
+                OsString::from("SDL_RENDER_DRIVER"),
+                OsString::from("software"),
+            ),
         ];
         let mut command = ChildProcessPolicy::command_with_environment(
             ChildProcessClass::Game,
@@ -646,6 +686,9 @@ fn main() {
         assert!(observed.contains("env:PATH=reviewed-path"));
         assert!(observed.contains("env:DISPLAY=:42"));
         assert!(observed.contains("env:PORTCOVE_PORT_ID=test-port"));
+        assert!(observed.contains("env:SDL_DYNAMIC_API=\n"));
+        assert!(observed.contains("env:SDL_RENDER_DRIVER=software"));
+        assert!(!observed.contains("unreviewed-native-library"));
         assert!(!observed.contains("secret"));
     }
 
