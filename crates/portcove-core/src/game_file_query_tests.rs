@@ -690,7 +690,7 @@ fn register_inert_query_source(
     service: &PortcoveService,
     path: std::path::PathBuf,
 ) -> crate::SourceRecord {
-    let bytes = b"inert registered-input fixture";
+    let bytes = b"\x80\x37\x12\x40inert registered-input fixture___";
     std::fs::write(&path, bytes).unwrap();
     let hash = hex::encode(Sha256::digest(bytes));
     let record = crate::SourceRecord {
@@ -735,7 +735,7 @@ fn explicit_refresh_constructs_its_own_batch_and_does_not_mutate_source_or_activ
     );
     assert_eq!(
         std::fs::read(record.path).unwrap(),
-        b"inert registered-input fixture"
+        b"\x80\x37\x12\x40inert registered-input fixture___"
     );
 }
 
@@ -980,7 +980,7 @@ fn cancellation_after_inspection_waits_for_the_actual_blocking_refresh_worker() 
     assert!(state.requested);
     assert_eq!(
         std::fs::read(&record.path).unwrap(),
-        b"inert registered-input fixture"
+        b"\x80\x37\x12\x40inert registered-input fixture___"
     );
     release.send(()).unwrap();
     let result = worker.join().unwrap();
@@ -1059,7 +1059,7 @@ fn tracked_refresh_settles_cancellation_only_after_worker_exit() {
     );
     assert_eq!(
         std::fs::read(source.path).unwrap(),
-        b"inert registered-input fixture"
+        b"\x80\x37\x12\x40inert registered-input fixture___"
     );
 }
 

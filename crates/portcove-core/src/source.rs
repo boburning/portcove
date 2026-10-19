@@ -84,7 +84,7 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let original = temporary.path().join("original.z64");
         let replacement = temporary.path().join("relocated.z64");
-        fs::write(&original, b"synthetic source fixture").unwrap();
+        fs::write(&original, b"\x80\x37\x12\x40synthetic source fixture").unwrap();
         fs::copy(&original, &replacement).unwrap();
         let service =
             PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();

@@ -13,6 +13,8 @@ import { useActionReview } from "../use-action-review";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
+import { ExternalLink } from "./ExternalLink";
+import { platformLabel } from "../view-model";
 
 function ReviewCancelButton({ pending, dismiss }: { pending: boolean; dismiss: () => void }) {
   return (
@@ -40,26 +42,68 @@ export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
 }
 
 function ExternalPreparationRequirements({ port }: { port: PortDefinition }) {
+  const guide = port.presentation?.manual_setup;
   return (
-    <>
+    <section aria-label="Prepare this port" className="grid gap-4 text-sm leading-relaxed">
+      <h3 className="text-base font-semibold">Set up using your own files</h3>
       <p>
-        Prepare the required version, then choose the folder containing the game. Portcove checks
-        the required files before using the folder and at every launch. It does not copy, update,
-        back up, or delete these files.
+        You need your own original game files; the port download does not include them. Prepare the
+        required version, then choose its folder below for a checked review.
       </p>
-      {port.presentation?.manual_preparation && <p>{port.presentation.manual_preparation}</p>}
+      {guide ? (
+        <>
+          {guide.warnings.length > 0 && (
+            <aside
+              aria-label="Before you begin"
+              className="border-pc-warning rounded-pc-md border bg-pc-warning-subtle p-3 text-pc-warning-foreground"
+            >
+              <h4 className="font-semibold">Before you begin</h4>
+              <ul className="mt-2 grid list-disc gap-2 pl-5">
+                {guide.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </aside>
+          )}
+          <ol className="grid list-decimal gap-4 pl-5 marker:font-semibold">
+            {guide.steps.map((step, index) => (
+              <li key={`${index}:${step.title}`} className="pl-1">
+                <h4 className="font-semibold">{step.title}</h4>
+                <p>{step.instruction}</p>
+              </li>
+            ))}
+          </ol>
+          {guide.help_url && (
+            <ExternalLink href={guide.help_url}>Detailed preparation guide</ExternalLink>
+          )}
+          {port.presentation?.manual_preparation && (
+            <details className="text-xs">
+              <summary data-focusable className="cursor-pointer font-medium">
+                Compatibility and technical notes
+              </summary>
+              <p className="mt-2">{port.presentation.manual_preparation}</p>
+            </details>
+          )}
+        </>
+      ) : port.presentation?.manual_preparation ? (
+        <p>{port.presentation.manual_preparation}</p>
+      ) : null}
+      <p>
+        Portcove checks required files before using the folder and at every launch. You manage this
+        installation and its updates. Portcove does not copy, back up, or delete these files.
+      </p>
       <ul>
         {Object.entries(port.release.user_prepared).map(([platform, required]) => (
           <li key={platform}>
-            {platform}: Prepare {required.archive_name} version {required.version}, then choose the
-            folder containing <code>{required.executable}</code>.{" "}
+            {platformLabel(platform)}: Prepare {required.archive_name} version {required.version},
+            then choose the folder containing <code>{required.executable}</code>.{" "}
             <details>
               <summary>File details</summary>Archive SHA-256: <code>{required.archive_sha256}</code>
             </details>
           </li>
         ))}
       </ul>
-    </>
+    </section>
   );
 }
 
@@ -168,6 +212,7 @@ function RegisterExternalDialog({
 }) {
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
     identity: `${port.id}:${path}:${generation}`,
+    retainOnCancel: true,
     load: () => desktopApi.previewExternalRuntime(port.id, path, generation),
     apply: async (preview) => {
       const record = await desktopApi.registerExternalRuntime(

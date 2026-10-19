@@ -294,7 +294,12 @@ impl PortcoveService {
         let registered = self.library.source(profile_id)?.ok_or_else(|| {
             PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
         })?;
-        let inspection = self.inspect_registered_source(profile_id)?;
+        #[cfg(test)]
+        self.check_lifecycle_fault(
+            crate::operation::LifecycleFaultPoint::SourceVerificationCaptured,
+        )?;
+        let inspection =
+            crate::source_report::registered_report(&self.catalog, registered.clone())?;
         require_current_admitted_inspection(&inspection)?;
         Ok(SourceVerification {
             profile_id: registered.profile_id,
@@ -373,14 +378,6 @@ fn require_current_admitted_inspection(report: &crate::SourceInspectionReport) -
     let inspection = report.inspection.as_ref().ok_or_else(|| {
         PortcoveError::state("available source inspection omitted its observed facts")
     })?;
-    if !matches!(
-        inspection.assessment.admission,
-        crate::SourceAdmission::Admitted { .. }
-    ) {
-        return Err(PortcoveError::source(inspection.message.clone())
-            .detail("profile_id", &report.profile_id)
-            .detail("inspection_state", &report.state_code));
-    }
     if report.health != SourceHealth::Current {
         let actual_content = inspection.observed_digests.iter().find(|digest| {
             digest.algorithm == crate::SourceDigestAlgorithm::Sha256
@@ -425,6 +422,14 @@ fn require_current_admitted_inspection(report: &crate::SourceInspectionReport) -
             actual_storage.map_or_else(String::new, |digest| digest.size.to_string()),
         )
         .detail("inspection_state", &report.state_code));
+    }
+    if !matches!(
+        inspection.assessment.admission,
+        crate::SourceAdmission::Admitted { .. }
+    ) {
+        return Err(PortcoveError::source(inspection.message.clone())
+            .detail("profile_id", &report.profile_id)
+            .detail("inspection_state", &report.state_code));
     }
     Ok(())
 }

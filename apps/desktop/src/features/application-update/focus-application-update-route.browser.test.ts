@@ -12,8 +12,9 @@ it("focuses update options, check, and activity at their own destinations", () =
   settings.className = "application-update-settings";
   settings.innerHTML = `
     <h2 id="application-update-settings-title" tabindex="-1">Choose how Portcove updates</h2>
-    <button>Preview</button>
     <section><h3 id="application-check-title" tabindex="-1">Check for application updates</h3><button>Check for updates</button></section>
+    <h3 id="application-preferences-title" tabindex="-1">Future update behavior</h3>
+    <div aria-label="Application update channel"><button>Preview</button></div>
     <section><h3 id="application-status-title" tabindex="-1">Update activity</h3><button>Refresh update status</button></section>`;
   document.body.append(settings);
 
@@ -25,4 +26,9 @@ it("focuses update options, check, and activity at their own destinations", () =
   focusApplicationUpdateRoute("status");
   expect(document.activeElement?.id).toBe("application-status-title");
   expect(settings.querySelector<HTMLElement>("#application-check-title")?.tabIndex).toBe(-1);
+  settings.querySelector<HTMLButtonElement>(
+    '[aria-label="Application update channel"] button',
+  )!.disabled = true;
+  focusApplicationUpdateRoute("choice");
+  expect(document.activeElement?.id).toBe("application-preferences-title");
 });

@@ -1,4 +1,5 @@
 import { controlFocus, floatingMotion } from "./ui/control-style";
+import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity";
 import { cn } from "cn";
 import { Notice } from "./ui/patterns";
 import type { useFavorites } from "../features/favorites/use-favorites";
@@ -18,6 +19,7 @@ import {
 import {
   catalogSetupPresentation,
   installedCardInputPresentation,
+  portActionPresentation,
 } from "../features/port-actions/port-action-presentation";
 import type { PortDefinition, PortStatus } from "../types";
 import { observedUpdateCandidate } from "../features/browsing/update-query-context";
@@ -26,6 +28,7 @@ import {
   filterPorts,
   platformLabel,
   portReadiness,
+  hasUnconfirmedLaunchInput,
   releaseChannelPresentation,
   type Filter,
   type CatalogSort,
@@ -227,14 +230,15 @@ export function PortBrowser({
     onConnectGameFiles && (
       <section
         aria-label="Connect your game files"
-        className="mb-4 rounded-pc-lg border border-pc-border bg-pc-surface p-4"
+        className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-pc-border pb-4"
         data-focus-group
       >
-        <h2 className="m-0 text-lg font-semibold">Find ports for your game files</h2>
-        <p className="my-2 text-pc-muted-foreground">
-          Connect your game-file folders to discover setup options. Your originals stay in place;
-          you choose which games to review and set up. You can also keep browsing the catalog.
-        </p>
+        <div className="min-w-0 flex-1">
+          <h2 className="m-0 text-sm font-semibold">Find ports for games you own</h2>
+          <p className="mt-1 mb-0 text-sm text-pc-muted-foreground">
+            Browse below, or connect a folder to find matching games. Your originals stay in place.
+          </p>
+        </div>
         <Button data-focusable variant="outline" onClick={onConnectGameFiles}>
           Connect game-file folder
         </Button>
@@ -279,7 +283,7 @@ export function PortBrowser({
   const renderFilters = () =>
     !firstUseEmpty && (
       <div
-        className="filter-row mb-[18px] flex flex-wrap items-center gap-[7px]"
+        className="filter-row flex flex-1 flex-wrap items-center gap-2"
         data-focus-group
         role="group"
         aria-label={view === "library" ? "Library filters" : "Release channel filters"}
@@ -297,7 +301,6 @@ export function PortBrowser({
                 : "outline"
             }
             size="sm"
-            className="capitalize"
             disabled={!composedLibrary && unresolvedFilter && item !== "all"}
             onClick={() =>
               composedLibrary
@@ -341,7 +344,7 @@ export function PortBrowser({
   const renderSort = () =>
     view === "catalog" &&
     setCatalogSort && (
-      <div className="mb-4 ml-auto w-52">
+      <div className="w-52 shrink-0">
         <ChoiceSelect
           label="Sort"
           value={catalogSort}
@@ -383,9 +386,11 @@ export function PortBrowser({
           These filters are not supported. Reset filters to choose a supported query.
         </p>
       )}
-      {renderFilters()}
-      {renderSort()}
-      {renderDeclaredFilters()}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        {renderFilters()}
+        {renderDeclaredFilters()}
+        {renderSort()}
+      </div>
       <BrowserResults
         view={view}
         ports={visiblePorts}
@@ -514,7 +519,7 @@ function BrowserResults({
     );
   return (
     <section
-      className="port-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),1fr))] gap-4"
+      className="port-grid @container/collection grid w-full max-w-[66.5rem] grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),1fr))] gap-4"
       data-focus-group
     >
       {ports.map((port) => (
@@ -648,13 +653,17 @@ function ContinueCard({
   details: (portId: string, originKey?: string) => void;
 }) {
   const { port, status } = recent;
-  const launchable = status.readiness?.launchable === true;
+  const launchable =
+    status.readiness?.launchable === true &&
+    status.readiness.blockers.length === 0 &&
+    !portActionPresentation(status, "launch").blocked;
+  const trial = hasUnconfirmedLaunchInput(status, port);
   return (
     <section
       className="continue-card mb-[13px] grid min-h-[92px] grid-cols-[72px_minmax(0,_1fr)_auto] items-center gap-[17px] rounded-pc-lg border border-[var(--color-interactive-active)] bg-pc-surface p-3 shadow-[var(--shadow-raised)] max-[65rem]:grid-cols-[4.25rem_minmax(0,_1fr)]"
       data-focus-group
       data-successful-launches={status.successful_launches}
-      aria-label={`Continue ${port.name}`}
+      aria-label={`Continue ${gameIdentityLabel(port)}`}
     >
       <ArtworkImage
         port={port}
@@ -664,13 +673,19 @@ function ContinueCard({
         <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
           CONTINUE
         </p>
-        <h2 className="m-0 text-lg">{port.name}</h2>
+        <h2 className="m-0 text-lg">{gameTitle(port)}</h2>
+        {gameProjectLabel(port) && (
+          <p className="m-0 mt-1 text-xs text-pc-muted-foreground">{gameProjectLabel(port)}</p>
+        )}
         {(status.active || status.external_runtime) && (
           <p className="m-0 mt-[5px] text-xs text-pc-muted-foreground">
             {status.active
               ? `Version ${status.active.version}`
               : `External version ${status.external_runtime?.version}`}
           </p>
+        )}
+        {trial && (
+          <p className="m-0 mt-1 text-xs text-pc-warning-foreground">Compatibility unconfirmed</p>
         )}
       </div>
       <div className="continue-actions flex gap-2 max-[65rem]:col-span-full max-[65rem]:justify-end">
@@ -693,7 +708,13 @@ function ContinueCard({
           }
         >
           <Icon glyph={Gamepad2} />
-          {launchable ? "Play again" : "Review launch"}
+          {launchable
+            ? status.readiness?.pending_setup
+              ? "Start setup"
+              : trial
+                ? "Try launch"
+                : "Play again"
+            : "Review launch"}
         </Button>
       </div>
     </section>
@@ -709,9 +730,7 @@ function LibrarySummary({ overview }: { overview: LibraryOverview }) {
       <strong className="text-pc-foreground">{overview.installed} in library</strong>
       <span className="inline-flex items-center gap-1 text-[var(--color-success-text-raised)]">
         <Icon glyph={CheckCircle2} size="sm" />
-        {overview.ready === overview.installed
-          ? "All ready to play"
-          : `${overview.ready} ready to play`}
+        {overview.ready === overview.installed ? "All can launch" : `${overview.ready} can launch`}
       </span>
       {overview.needsSetup > 0 && (
         <span className="inline-flex items-center gap-1 text-pc-warning-foreground">
@@ -761,7 +780,7 @@ function PortCard({
   const setupDescriptionId = useId();
   const resolveCardPresentation = () => {
     const input = installedCardInputPresentation(status);
-    const originalState = readinessPresentation(readiness, view, status);
+    const originalState = readinessPresentation(readiness, view, status, port);
     const state = input ? { ...originalState, label: input.label } : originalState;
     const setup =
       view === "catalog" && !status?.active && !status?.external_runtime
@@ -807,7 +826,7 @@ function PortCard({
           "absolute bottom-4 z-10 bg-pc-surface",
           view === "library" ? "start-4" : "end-4",
         )}
-        aria-label={`Favorite ${port.name}`}
+        aria-label={`Favorite ${gameIdentityLabel(port)}`}
         aria-pressed={favorites.ids?.has(port.id) ?? false}
         disabled={!favorites.ids}
         aria-disabled={favorites.busy}
@@ -822,7 +841,7 @@ function PortCard({
       </Button>
     );
   const favoriteToggle = renderFavoriteToggle();
-  const accessibleLabel = `${port.name}. ${state.label}. ${status?.staged ? "Update downloaded. " : ""}${state.action}.`;
+  const accessibleLabel = `${gameIdentityLabel(port)}. ${state.label}. ${status?.staged ? "Update downloaded. " : ""}${state.action}.`;
   if (view === "library")
     return (
       <article
@@ -891,20 +910,48 @@ function PortCardContents({
 }) {
   const title = (
     <div className="flex items-start justify-between gap-2">
-      <h2 className="m-0 text-lg leading-[var(--leading-tight)]">{port.name}</h2>
+      <h2 className="m-0 min-h-[3.6em] text-base leading-[1.2]" title={gameTitle(port)}>
+        {view === "library" ? (
+          <button
+            className={cn(
+              controlFocus,
+              "block w-full cursor-pointer text-start hover:text-pc-interactive-foreground",
+            )}
+            data-focusable
+            aria-label={`View details for ${gameIdentityLabel(port)}`}
+            data-detail-game-id={port.id}
+            aria-describedby={input ? setupDescriptionId : undefined}
+            data-detail-origin={detailOrigin}
+            onClick={() => onSelect(port.id, detailOrigin)}
+          >
+            <span className="line-clamp-3 @max-[60rem]/collection:line-clamp-none">
+              {gameTitle(port)}
+            </span>
+          </button>
+        ) : (
+          <span className="line-clamp-3 @max-[60rem]/collection:line-clamp-none">
+            {gameTitle(port)}
+          </span>
+        )}
+      </h2>
     </div>
   );
   const renderStateLabel = () => (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <span
         className={cn(
-          `readiness ${state.tone} inline-flex items-center gap-[6px] text-[length:var(--text-2xs)] font-[750] tracking-[0.025em] text-[var(--color-text-secondary)]`,
+          `readiness ${state.tone} inline-flex min-h-8 items-center gap-[6px] text-xs font-semibold text-[var(--color-text-secondary)]`,
           "[&.ready]:text-[var(--color-success-text-raised)] [&.setup]:text-[var(--color-warning-text)] [&.staged]:text-[var(--color-interactive-text-strong)]",
         )}
       >
         <i className="size-[6px] rounded-full border border-current bg-current" />
         {state.label}
       </span>
+      {port.presentation?.variant_label && (
+        <span className="card-variant max-w-full text-xs leading-normal wrap-anywhere text-pc-muted-foreground">
+          {port.presentation.variant_label}
+        </span>
+      )}
       {view === "catalog" && channel && (
         <span
           className={cn(
@@ -934,12 +981,17 @@ function PortCardContents({
       />
       <div className="card-content flex min-w-0 flex-1 flex-col gap-2 p-4 wrap-anywhere">
         {title}
+        <p
+          className="m-0 min-h-[1.5em] text-xs leading-normal text-pc-muted-foreground"
+          title={gameProjectLabel(port) ? port.name : undefined}
+        >
+          <span className="line-clamp-1 @max-[60rem]/collection:line-clamp-none">
+            {gameProjectLabel(port) ? port.name : undefined}
+          </span>
+        </p>
         {stateLabel}
         {setup && (
-          <div
-            id={setupDescriptionId}
-            className="mt-2 space-y-1 text-xs text-[var(--color-text-secondary)]"
-          >
+          <div id={setupDescriptionId} className="sr-only">
             {setup.routes.map((route) => (
               <p key={route.action} className="m-0 mt-[9px]">
                 <strong>{route.route}: </strong>
@@ -949,10 +1001,7 @@ function PortCardContents({
           </div>
         )}
         {input && (
-          <div
-            id={setupDescriptionId}
-            className="mt-2 space-y-1 text-xs text-[var(--color-text-secondary)]"
-          >
+          <div id={setupDescriptionId} className="sr-only">
             {input.reasons.map((reason) => (
               <p key={reason} className="m-0 mt-[9px]">
                 {reason}
@@ -1042,11 +1091,12 @@ function PortCardStatus({
   detailOrigin: string;
 }) {
   const overflowOrigin = `library:card-more:${port.id}`;
+  const reviewOrigin = `${detailOrigin}:review`;
   return (
     <div
       className={cn(
         `mt-auto flex min-h-11 flex-wrap items-center gap-2 border-t border-pc-border pt-3 text-xs ${view === "library" ? "justify-end" : "justify-between"}`,
-        hasFavorite && (view === "library" ? "ps-9" : "pe-9"),
+        hasFavorite && (view === "library" ? "ps-8" : "pe-9"),
       )}
     >
       {view === "catalog" && (
@@ -1064,23 +1114,36 @@ function PortCardStatus({
       )}
       {view === "library" ? (
         <span className="inline-flex flex-wrap items-center justify-end gap-1 text-[var(--color-interactive-text-strong)]">
-          <Button
-            data-focusable
-            variant="outline"
-            size="sm"
-            aria-label={`View details for ${port.name}`}
-            aria-describedby={inputDescriptionId}
-            data-detail-origin={detailOrigin}
-            onClick={() => onSelect(port.id, detailOrigin)}
-          >
-            Details
-          </Button>
-          {status?.readiness?.launchable === true && onLaunch && (
-            <Button data-focusable variant="primary" size="sm" onClick={() => onLaunch(port.id)}>
-              <Icon glyph={Gamepad2} size="sm" />
-              Play
+          {!(
+            status?.readiness?.launchable === true &&
+            status.readiness.blockers.length === 0 &&
+            !portActionPresentation(status, "launch").blocked &&
+            onLaunch
+          ) && (
+            <Button
+              data-focusable
+              variant="outline"
+              size="sm"
+              aria-label={`Review ${gameIdentityLabel(port)}`}
+              aria-describedby={inputDescriptionId}
+              data-detail-origin={reviewOrigin}
+              onClick={() => onSelect(port.id, reviewOrigin)}
+            >
+              Review game
             </Button>
           )}
+          {status?.readiness?.launchable === true &&
+            status.readiness.blockers.length === 0 &&
+            !portActionPresentation(status, "launch").blocked &&
+            onLaunch && (
+              <Button data-focusable variant="primary" size="sm" onClick={() => onLaunch(port.id)}>
+                {status.readiness.pending_setup
+                  ? "Start setup"
+                  : hasUnconfirmedLaunchInput(status, port)
+                    ? "Try launch"
+                    : "Play"}
+              </Button>
+            )}
           <Menu.Root>
             <Menu.Trigger
               render={
@@ -1089,7 +1152,7 @@ function PortCardStatus({
                   data-detail-origin={overflowOrigin}
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`More actions for ${port.name}`}
+                  aria-label={`More actions for ${gameIdentityLabel(port)}`}
                 >
                   <Icon glyph={MoreHorizontal} size="sm" />
                 </Button>
@@ -1104,7 +1167,7 @@ function PortCardStatus({
               >
                 <Menu.Popup
                   data-portcove-focus-scope
-                  aria-label={`More actions for ${port.name}`}
+                  aria-label={`More actions for ${gameIdentityLabel(port)}`}
                   className={cn(
                     floatingMotion,
                     "max-h-(--available-height) min-w-48 origin-(--transform-origin) overflow-y-auto rounded-pc-md border border-pc-border bg-pc-surface p-1 text-pc-foreground shadow-(--shadow-floating)",
@@ -1150,7 +1213,19 @@ function filterLabel(filter: Filter) {
   return releaseChannelPresentation(filter).label;
 }
 
-function readinessPresentation(readiness: PortReadiness, view: View, status?: PortStatus) {
+function readinessPresentation(
+  readiness: PortReadiness,
+  view: View,
+  status?: PortStatus,
+  port?: PortDefinition,
+) {
+  if (
+    (status?.active || status?.external_runtime) &&
+    portActionPresentation(status, "launch").blocked
+  )
+    return { label: "Launch needs review", action: "View details", tone: "setup" } as const;
+  if ((readiness === "ready" || readiness === "staged") && hasUnconfirmedLaunchInput(status, port))
+    return { label: "Compatibility unconfirmed", action: "View details", tone: "setup" } as const;
   if (view === "catalog" && !status?.active && !status?.external_runtime)
     return {
       label: catalogSetupPresentation(status).label,

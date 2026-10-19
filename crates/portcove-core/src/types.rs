@@ -183,13 +183,38 @@ pub enum SavesAndSettingsBehavior {
 /// documents may omit this object; current embedded definitions provide it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PortPresentation {
+    /// Descriptive display metadata only. This never replaces the port, source,
+    /// release or library identity, and does not group different implementations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_game_title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variant_label: Option<String>,
     pub installation_method: InstallationMethod,
     pub source_requirements: Vec<SourceRequirementPresentation>,
     pub saves_and_settings: SavesAndSettingsBehavior,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub manual_preparation: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manual_setup: Option<ManualSetupGuide>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<IgdbArtwork>,
+}
+
+/// Authored instructions only; these steps grant no operation or file authority.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ManualSetupGuide {
+    pub steps: Vec<ManualSetupStep>,
+    pub warnings: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help_url: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ManualSetupStep {
+    pub title: String,
+    pub instruction: String,
 }
 
 /// Maintainer-reviewed catalog mapping. These public IDs never contain Twitch
@@ -1301,6 +1326,12 @@ pub struct LaunchReadiness {
     pub source: Option<SourceHealth>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bios: Option<SourceHealth>,
+    /// Descriptive input evidence for this retained installed release. Missing
+    /// legacy fields and unreviewed contracts never establish compatibility.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_assessment: Option<crate::SourceAssessment>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bios_assessment: Option<crate::SourceAssessment>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -1313,6 +1344,7 @@ pub enum LaunchBlocker {
     MissingBios,
     UnreadableBios,
     ChangedBios,
+    IncompatibleBios,
     MissingRuntime,
     PreparationRequired,
     InvalidInstallation,

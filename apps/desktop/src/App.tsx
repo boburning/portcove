@@ -28,7 +28,10 @@ import {
 } from "./features/app-shell/use-library-browsing-context";
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
 import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
-import { focusSettingsTarget } from "./features/app-shell/focus-settings-target";
+import {
+  focusSettingsTarget,
+  settingsCategoryForTarget,
+} from "./features/app-shell/focus-settings-target";
 import { GameFileScanProvider } from "./features/game-file-discovery/use-game-file-scan";
 import {
   SetupReviewSelectionProvider,
@@ -102,6 +105,7 @@ import {
   preparationRecoveryPort,
   requiredSourceNeeds,
   summarizeLibrary,
+  type DetailDestination,
 } from "./view-model";
 
 export const missingBootstrapError = {
@@ -485,6 +489,7 @@ function Workspace({
   );
   const openHostTool = (toolId: string) => {
     setPendingToolId(toolId);
+    ui.setSettingsCategory("game-files");
     setPrimaryView("settings");
     window.requestAnimationFrame(() => focusDiscTool());
   };
@@ -554,6 +559,7 @@ function Workspace({
     openOfficial: (toolId: string) => desktopApi.openHostToolOfficialSite(toolId),
   };
   const reviewApplicationUpdate = (route: Parameters<typeof focusApplicationUpdateRoute>[0]) => {
+    ui.setSettingsCategory("updates");
     setPrimaryView("settings");
     window.requestAnimationFrame(() => focusApplicationUpdateRoute(route));
   };
@@ -623,6 +629,7 @@ function Workspace({
         openSourceIntake={openSourceIntake}
         openHostTool={openHostTool}
         openLibraryStorage={() => {
+          ui.setSettingsCategory("library-storage");
           setPrimaryView("settings");
           window.requestAnimationFrame(() => focusSettingsTarget("library-storage"));
         }}
@@ -699,6 +706,15 @@ function Workspace({
           }
           activities={data.activities}
           onAdopt={() => ui.setAdoptOpen(true)}
+          onAbout={() => {
+            ui.setSettingsCategory("about");
+            setPrimaryView("settings");
+            window.requestAnimationFrame(() => {
+              const heading = document.getElementById("settings-about-heading");
+              heading?.scrollIntoView({ block: "start" });
+              heading?.focus({ preventScroll: true });
+            });
+          }}
         />
         <main
           className="w-full max-w-(--layout-content-max) overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
@@ -973,7 +989,7 @@ function CurrentView({
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
   hostToolActions: HostToolActions;
   applicationUpdates: ReactNode;
-  openPortDetails: (portId: string, originKey?: string) => void;
+  openPortDetails: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   setupSource?: SourceRecord | undefined;
   setSetupSource: (source?: SourceRecord) => void;
 }) {
@@ -986,6 +1002,8 @@ function CurrentView({
         statuses={model.statusMap}
         activities={data.activities}
         activityFeed={data.activityFeed}
+        reviewedActivityId={ui.reviewedActivityId}
+        onReviewActivity={ui.setReviewedActivityId}
         outcomes={updates.outcomes}
         batchRead={updates.batchRead}
         busy={operations.busy}
@@ -998,8 +1016,15 @@ function CurrentView({
           Promise.allSettled([data.refresh(), data.refreshDiagnosticsAfterMutation()])
         }
         checkAll={updates.checkAll}
+        perform={operations.perform}
+        onLaunch={(portId) => {
+          void operations.perform("launch", () =>
+            desktopApi.launch(portId, "", bootstrap.generation),
+          );
+        }}
         onSelect={openPortDetails}
         onOpenSettings={(target, sourceProfileId) => {
+          ui.setSettingsCategory(settingsCategoryForTarget(target));
           ui.setView("settings");
           window.requestAnimationFrame(() => focusSettingsTarget(target, sourceProfileId));
         }}
@@ -1008,6 +1033,8 @@ function CurrentView({
   if (ui.view === "settings")
     return (
       <SettingsView
+        category={ui.settingsCategory}
+        onCategoryChange={ui.setSettingsCategory}
         generation={bootstrap.generation}
         ports={data.catalog?.ports ?? []}
         statuses={model.statusMap}
@@ -1130,6 +1157,7 @@ function CurrentView({
       }}
       onBrowseCatalog={() => ui.setView("catalog")}
       onConnectGameFiles={() => {
+        ui.setSettingsCategory("game-files");
         ui.setView("settings");
         window.requestAnimationFrame(() => focusSettingsTarget("add-game-file-root"));
       }}

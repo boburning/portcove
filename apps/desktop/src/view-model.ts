@@ -14,6 +14,8 @@ import type {
   SourceRecord,
   UpdateSnapshot,
 } from "./types";
+import { portActionPresentation } from "./features/port-actions/port-action-presentation";
+import { gameTitle, gameIdentityLabel } from "./port-identity";
 
 const unfinishedActivityAfterSeconds = 24 * 60 * 60;
 
@@ -295,9 +297,27 @@ export function portReadiness(status: PortStatus | undefined): PortReadiness {
   if (biosMissing) return "bios";
   if (assessment.blockers.includes("missing_runtime")) return "runtime";
   if (assessment.pending_setup) return "setup";
-  if (!assessment.launchable) return "blocked";
+  if (!assessment.launchable || portActionPresentation(status, "launch").blocked) return "blocked";
   if (status.staged) return "staged";
   return "ready";
+}
+
+/** Presentation only. Core still owns whether a launch is permitted. */
+export function hasUnconfirmedLaunchInput(status: PortStatus | undefined, port?: PortDefinition) {
+  const readiness = status?.readiness;
+  return (["source", "bios"] as const).some((role) => {
+    const required = role === "source" ? port?.source_profile : port?.bios_source_profile;
+    if (!required && readiness?.[role] == null) return false;
+    const assessment =
+      role === "source" ? readiness?.source_assessment : readiness?.bios_assessment;
+    return (
+      assessment?.health !== "current" ||
+      assessment.classification.state !== "recognized" ||
+      assessment.contract.state !== "supported" ||
+      assessment.admission.state !== "admitted" ||
+      assessment.admission.mode !== "exact_identity"
+    );
+  });
 }
 
 const SOURCE_BLOCKERS: ReadinessBlocker[] = [
@@ -306,7 +326,12 @@ const SOURCE_BLOCKERS: ReadinessBlocker[] = [
   "changed_source",
   "incompatible_source",
 ];
-const BIOS_BLOCKERS: ReadinessBlocker[] = ["missing_bios", "unreadable_bios", "changed_bios"];
+const BIOS_BLOCKERS: ReadinessBlocker[] = [
+  "missing_bios",
+  "unreadable_bios",
+  "changed_bios",
+  "incompatible_bios",
+];
 
 export function summarizeLibrary(
   ports: PortDefinition[],
@@ -388,7 +413,7 @@ function addSourceNeed(
     profile,
     requiredBy: [],
   };
-  requirement.requiredBy.push({ portId: port.id, portName: port.name, role });
+  requirement.requiredBy.push({ portId: port.id, portName: gameIdentityLabel(port), role });
   requirements.set(profileId, requirement);
 }
 
@@ -403,7 +428,7 @@ export function filterPorts(
 ) {
   const selectedStatuses =
     typeof filter !== "string" && context.library ? context.library.statuses : statuses;
-  const normalizedQuery = query.trim().toLowerCase();
+  const normalizedQuery = normalizeGameSearchText(query.trim());
   const legacyFilter = typeof filter === "string" ? filter : "all";
   const structuredQuery =
     typeof filter !== "string"
@@ -425,7 +450,7 @@ export function filterPorts(
     .sort((left, right) => {
       const comparison =
         catalogSort === "name"
-          ? left.port.name.localeCompare(right.port.name, "en", { sensitivity: "base" })
+          ? gameTitle(left.port).localeCompare(gameTitle(right.port), "en", { sensitivity: "base" })
           : Number(
               Boolean(
                 selectedStatuses.get(right.port.id)?.active ||
@@ -467,7 +492,13 @@ function searchableText(port: PortDefinition) {
   const installationMethod = port.presentation?.installation_method
     ? installationMethodLabel(port)
     : "";
-  return `${port.name} ${port.summary} ${port.id} ${installationMethod} ${port.platforms.join(" ")} ${port.platforms.map(platformLabel).join(" ")}`.toLowerCase();
+  return normalizeGameSearchText(
+    `${gameTitle(port)} ${port.name} ${port.presentation?.variant_label ?? ""} ${port.summary} ${port.id} ${installationMethod} ${port.platforms.join(" ")} ${port.platforms.map(platformLabel).join(" ")}`,
+  );
+}
+
+function normalizeGameSearchText(value: string): string {
+  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
 export function errorText(error: unknown) {

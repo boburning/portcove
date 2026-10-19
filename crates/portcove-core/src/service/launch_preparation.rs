@@ -95,6 +95,20 @@ impl PortcoveService {
         } else {
             None
         };
+        for (source, role) in [
+            (source.as_ref(), crate::PortSourceRole::Game),
+            (bios.as_ref(), crate::PortSourceRole::Bios),
+        ] {
+            if let Some(source) = source {
+                crate::source_inspection::require_launch_source_compatibility(
+                    &catalog,
+                    &port.id,
+                    source,
+                    role,
+                    (&active.version, &active.artifact.sha256),
+                )?;
+            }
+        }
         self.require_definition_operation(
             &catalog,
             port,

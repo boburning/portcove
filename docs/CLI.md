@@ -219,6 +219,27 @@ the outside runtime or grant ownership of it. On another host or after moving
 the external folder, prepare and register it again against an accepted catalog
 entry.
 
+Schema 71 adds optional catalog presentation `original_game_title` and
+`variant_label`. These are descriptive labels: `name` remains the port project's
+name, and `id`, source contracts, installations and launch authority are unchanged.
+Clients may ignore these additive display fields; a game-led client should search
+both game and project names and keep alternative projects as distinct entries.
+Older catalog and retained definitions may omit either label.
+The same schema adds optional `presentation.manual_setup`: authored numbered
+steps, essential warnings and an optional HTTPS help link. These display facts
+grant no preparation or operation authority. `manual_preparation` remains the
+legacy fallback and the retained detailed compatibility notes.
+
+Schema 70 adds optional readiness `source_assessment` and `bios_assessment`,
+plus the `incompatible_bios` blocker/action reason. These assessments bind input
+identity and compatibility to the retained installed release; unchanged bytes
+alone do not confirm compatibility. Missing legacy facts, unreviewed releases and
+unreconstructable observations remain unknown. Unknown compatibility alone is
+not a launch prohibition: clients may offer an explained trial/setup action
+when Core permits it. Known input rejection is checked again before launch side
+effects. Clean process exits and launch-history counts never establish gameplay.
+Clients must understand these fields/reasons before accepting schema 70; the
+maintained reference reader retains its supported older schema membership.
 Schema 68 adds `ghostship200_legacy` to preparation modes. On the exact reviewed
 Ghostship 2.0.0 Windows installation, the ordinary default request returns this
 explicit mode with plan/receipt format 2. It uses a private zero-argument setup;

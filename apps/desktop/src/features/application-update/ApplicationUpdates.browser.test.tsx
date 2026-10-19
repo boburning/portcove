@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { desktopApi } from "../../api";
 import type {
   ApplicationUpdateCheckResult,
+  ApplicationUpdateManualCheckResult,
   ApplicationUpdateNoticeSnapshot,
   ApplicationUpdatePreferences,
   ApplicationUpdateStatus,
@@ -17,6 +18,11 @@ const missingChoice: ApplicationUpdatePreferences = {
   revision: 0,
   choice: null,
 };
+
+const manualCheck = (
+  result: ApplicationUpdateCheckResult,
+  checked_channel: "preview" | "stable" = "preview",
+): ApplicationUpdateManualCheckResult => ({ checked_channel, result });
 
 const savedChoice: ApplicationUpdatePreferences = {
   schema_version: 1,
@@ -41,11 +47,13 @@ function SettingsFixture({
   onPreferencesChanged,
   generation,
   visible = true,
+  currentVersion = "0.1.0-alpha.2",
 }: {
   automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"] | undefined;
   onPreferencesChanged?: ((preferences: ApplicationUpdatePreferences) => void) | undefined;
   generation?: number;
   visible?: boolean;
+  currentVersion?: string;
 }) {
   const state = useApplicationUpdateChoice();
   useEffect(() => {
@@ -56,7 +64,7 @@ function SettingsFixture({
       <output data-preference-revision={state.preferences?.revision} />
       {visible && (
         <ApplicationUpdateSettings
-          currentVersion="0.1.0-alpha.2"
+          currentVersion={currentVersion}
           generation={generation}
           automaticNotice={automaticNotice}
           preferencesState={state}
@@ -85,7 +93,11 @@ describe("ApplicationUpdateSettings", () => {
   });
 
   const button = (label: string) => {
-    const match = [...host.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
+    const scope =
+      label === "Stable" || label === "Preview"
+        ? host.querySelector('[aria-label="Application update channel"]')!
+        : host;
+    const match = [...scope.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
       item.textContent?.includes(label),
     );
     expect(match, `button containing ${label}`).toBeDefined();
@@ -168,8 +180,7 @@ describe("ApplicationUpdateSettings", () => {
     expect(read).toHaveBeenCalledTimes(1);
     expect(host.querySelector("output")?.getAttribute("data-preference-revision")).toBe("4");
     await click("Stable");
-    expect(host.textContent).toContain("Save or discard your changes before checking for updates.");
-    expect(button("Check for updates").disabled).toBe(true);
+    expect(button("Check for updates").disabled).toBe(false);
     await click("Save application update settings");
     expect(read).toHaveBeenCalledTimes(1);
     expect(host.querySelector("output")?.getAttribute("data-preference-revision")).toBe("5");
@@ -313,35 +324,161 @@ describe("ApplicationUpdateSettings", () => {
     }
   });
 
-  it("runs one host-owned check and reports verified staging progress", async () => {
+  it("checks metadata without downloading under saved automatic settings", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
       ...savedChoice,
       choice: { channel: "preview", mode: "automatic", paused: false },
     });
     const check = vi.spyOn(desktopApi, "checkApplicationUpdate").mockImplementation((onEvent) => {
       onEvent("checking");
-      onEvent("acquiring-and-verifying");
-      onEvent("staged");
-      return Promise.resolve({
-        kind: "update-available",
-        candidate: { version: "0.2.0-beta.3", channel: "preview", bytes: 25 * 1024 * 1024 },
-        reasons: [],
-        staged: true,
-      });
+      onEvent("complete");
+      return Promise.resolve(
+        manualCheck({
+          kind: "update-available",
+          candidate: { version: "0.2.0-beta.3", channel: "preview", bytes: 25 * 1024 * 1024 },
+          reasons: [],
+          staged: false,
+        }),
+      );
     });
 
     await render();
     await click("Check for updates");
 
-    expect(check).toHaveBeenCalledExactlyOnceWith(expect.any(Function));
-    expect(host.textContent).toContain("Portcove 0.2.0-beta.3 has been downloaded and checked");
+    expect(check).toHaveBeenCalledExactlyOnceWith(expect.any(Function), { channel: "preview" });
+    expect(host.textContent).toContain("Its download has not started.");
+    expect(host.textContent).not.toContain("has been downloaded and checked");
     const checkPanel = host.querySelector('[aria-labelledby="application-check-title"]');
-    expect(checkPanel?.textContent).toMatch(/trusted\s+release source/iu);
-    expect(checkPanel?.textContent).toMatch(/verifies them before installation/iu);
+    expect(checkPanel?.textContent).toMatch(/trusted release metadata/iu);
+    expect(checkPanel?.textContent).toContain("does not download or install Portcove");
+    expect(desktopApi.applicationUpdateStatus).toHaveBeenCalledTimes(1);
   });
 
   it.each([
-    ["consent-required", "Update settings required", "Save your update settings before checking."],
+    missingChoice,
+    {
+      ...savedChoice,
+      choice: { channel: "preview" as const, mode: "automatic" as const, paused: true },
+    },
+  ])("checks a one-time channel without saving missing or paused choices", async (preferences) => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(preferences);
+    const save = vi.spyOn(desktopApi, "setApplicationUpdatePreferences");
+    const download = vi.spyOn(desktopApi, "downloadApplicationUpdate");
+    const check = vi
+      .spyOn(desktopApi, "checkApplicationUpdate")
+      .mockImplementation(async (_onEvent, request) => {
+        const channel = request?.channel ?? "preview";
+        return manualCheck(
+          {
+            kind: "update-available",
+            candidate: { version: "1.0.0", channel, bytes: 42 },
+            reasons: [],
+            staged: false,
+          },
+          channel,
+        );
+      });
+    await render();
+    await click("Stable"); // An unsaved automatic-update draft is independent.
+    const selector = host.querySelector('[aria-label="One-time update channel"]')!;
+    expect(selector.querySelector('[aria-pressed="true"]')?.textContent).toContain("Preview");
+    await act(async () =>
+      [...selector.querySelectorAll("button")]
+        .find((item) => item.textContent?.includes("Stable"))!
+        .click(),
+    );
+    expect(button("Check for updates").disabled).toBe(false);
+    await click("Check for updates");
+    expect(check).toHaveBeenCalledExactlyOnceWith(expect.any(Function), { channel: "stable" });
+    expect(host.textContent).toContain("One-time check · Stable");
+    expect(button("Download and verify update").disabled).toBe(true);
+    expect(save).not.toHaveBeenCalled();
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it("invalidates a one-time result when its selector changes away and back", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    const check = vi.spyOn(desktopApi, "checkApplicationUpdate").mockResolvedValue(
+      manualCheck({
+        kind: "update-available",
+        candidate: { version: "0.2.0-beta.9", channel: "preview", bytes: 42 },
+        reasons: [],
+        staged: false,
+      }),
+    );
+    await render();
+    await click("Check for updates");
+    expect(host.textContent).toContain("0.2.0-beta.9");
+    const selector = host.querySelector('[aria-label="One-time update channel"]')!;
+    for (const label of ["Stable", "Preview"]) {
+      await act(async () =>
+        [...selector.querySelectorAll("button")]
+          .find((item) => item.textContent?.includes(label))!
+          .click(),
+      );
+      expect(host.textContent).not.toContain("0.2.0-beta.9");
+    }
+    expect(check).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["stable", "preview", false, "returned a different channel"],
+    ["preview", "stable", false, "returned a different channel"],
+    ["preview", "preview", true, "unexpected download result"],
+  ] as const)(
+    "rejects inconsistent one-time result %s/%s/staged:%s",
+    async (checkedChannel, candidateChannel, staged, message) => {
+      vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+      vi.spyOn(desktopApi, "checkApplicationUpdate").mockResolvedValue(
+        manualCheck(
+          {
+            kind: "update-available",
+            candidate: { version: "1.0.0", channel: candidateChannel, bytes: 42 },
+            reasons: [],
+            staged,
+          },
+          checkedChannel,
+        ),
+      );
+      const download = vi.spyOn(desktopApi, "downloadApplicationUpdate");
+      await render();
+      await click("Check for updates");
+      expect(host.textContent).toContain(message);
+      expect(host.textContent).not.toContain("Download and verify update");
+      expect(download).not.toHaveBeenCalled();
+    },
+  );
+
+  it("defaults the one-time selector to Stable for a production build", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(missingChoice);
+    await root.rerender(<SettingsFixture currentVersion="1.0.0" />);
+    const selector = host.querySelector('[aria-label="One-time update channel"]')!;
+    expect(selector.querySelector('[aria-pressed="true"]')?.textContent).toContain("Stable");
+  });
+
+  it("can check metadata while saved preferences are still loading", async () => {
+    let resolvePreferences!: (preferences: ApplicationUpdatePreferences) => void;
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePreferences = resolve;
+        }),
+    );
+    const check = vi
+      .spyOn(desktopApi, "checkApplicationUpdate")
+      .mockResolvedValue(
+        manualCheck({ kind: "no-candidate", candidate: null, reasons: [], staged: false }),
+      );
+    await render();
+    expect(button("Check for updates").disabled).toBe(false);
+    await click("Check for updates");
+    expect(check).toHaveBeenCalledExactlyOnceWith(expect.any(Function), { channel: "preview" });
+    expect(host.textContent).toContain("No eligible release");
+    await act(async () => resolvePreferences(savedChoice));
+  });
+
+  it.each([
+    ["consent-required", "Automatic updates are off", "You can still check once."],
     ["offline", "Couldn't check for updates", "Connect to the internet and try again."],
     ["paused", "Automatic update checks are paused", "Manual checks remain available."],
     ["manual-mode", "Automatic update checks are off", "Use Check for updates"],
@@ -394,12 +531,14 @@ describe("ApplicationUpdateSettings", () => {
       channel: "preview" as const,
       bytes: 25 * 1024 * 1024,
     };
-    vi.spyOn(desktopApi, "checkApplicationUpdate").mockResolvedValue({
-      kind: "update-available",
-      candidate,
-      reasons: [],
-      staged: false,
-    });
+    vi.spyOn(desktopApi, "checkApplicationUpdate").mockResolvedValue(
+      manualCheck({
+        kind: "update-available",
+        candidate,
+        reasons: [],
+        staged: false,
+      }),
+    );
     const download = vi
       .spyOn(desktopApi, "downloadApplicationUpdate")
       .mockImplementation((_request, onEvent) => {
@@ -469,12 +608,14 @@ describe("ApplicationUpdateSettings", () => {
       channel: "preview" as const,
       bytes: 26 * 1024 * 1024,
     };
-    vi.spyOn(desktopApi, "checkApplicationUpdate").mockResolvedValue({
-      kind: "update-available",
-      candidate: currentCandidate,
-      reasons: [],
-      staged: false,
-    });
+    vi.spyOn(desktopApi, "checkApplicationUpdate").mockResolvedValue(
+      manualCheck({
+        kind: "update-available",
+        candidate: currentCandidate,
+        reasons: [],
+        staged: false,
+      }),
+    );
 
     await render({
       preference_revision: 3,
@@ -492,18 +633,20 @@ describe("ApplicationUpdateSettings", () => {
     expect(button("Download and verify update")).toBeDefined();
   });
 
-  it("requires a fresh check after the saved update choice changes", async () => {
+  it("retains a one-time result but refuses a cross-channel download after settings change", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
-    vi.spyOn(desktopApi, "checkApplicationUpdate").mockResolvedValue({
-      kind: "update-available",
-      candidate: {
-        version: "0.2.0-beta.3",
-        channel: "preview",
-        bytes: 25 * 1024 * 1024,
-      },
-      reasons: [],
-      staged: false,
-    });
+    vi.spyOn(desktopApi, "checkApplicationUpdate").mockResolvedValue(
+      manualCheck({
+        kind: "update-available",
+        candidate: {
+          version: "0.2.0-beta.3",
+          channel: "preview",
+          bytes: 25 * 1024 * 1024,
+        },
+        reasons: [],
+        staged: false,
+      }),
+    );
     vi.spyOn(desktopApi, "setApplicationUpdatePreferences").mockResolvedValue({
       ...savedChoice,
       revision: 5,
@@ -518,8 +661,11 @@ describe("ApplicationUpdateSettings", () => {
     await click("Stable");
     await click("Save application update settings");
 
-    expect(host.textContent).not.toContain("Download and verify update");
-    expect(host.textContent).not.toContain("0.2.0-beta.3");
+    expect(button("Download and verify update").disabled).toBe(true);
+    expect(host.textContent).toContain("0.2.0-beta.3");
+    expect(host.textContent).toContain(
+      "Save Preview as your update channel before downloading this result.",
+    );
     expect(download).not.toHaveBeenCalled();
   });
 
@@ -537,6 +683,11 @@ describe("ApplicationUpdateSettings", () => {
     await render();
     await act(async () => button("Check for updates").click());
     expect(button("Cancel check").hasAttribute("data-focusable")).toBe(true);
+    for (const control of host.querySelectorAll<HTMLButtonElement>(
+      '[aria-label="One-time update channel"] button',
+    )) {
+      expect(control.disabled).toBe(true);
+    }
 
     await click("Cancel check");
     expect(cancel).toHaveBeenCalledOnce();

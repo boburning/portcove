@@ -342,6 +342,14 @@ An optional `presentation.manual_preparation` gives the exact player-created
 steps for a user-prepared runtime; the short port summary remains an outcome
 description. The Wave Race pilot requires an empty `portable.txt` beside its
 executable, in addition to the extracted upstream ZIP files.
+Optional `presentation.manual_setup` supplies authored `steps` (one to eight
+objects with nonempty `title` and `instruction`), up to eight essential `warnings`,
+and an optional HTTPS `help_url` without credentials. These are presentation
+facts, never executable recipes or evidence that a step was completed. Current
+prepared routes supply them separately from the retained `manual_preparation`
+compatibility and technical notes. Older definitions keep their prose fallback.
+Clients keep warnings visible, show numbered steps, and disclose the longer notes
+without parsing free-form prose or changing file/operation authority.
 A platform-specific prepared spec may opt into `library_user_data: true` for
 `staged-source-portable`, with a safe `user_data_environment` name on the port.
 After retained-package and original-source revalidation, Core creates only the
@@ -964,6 +972,13 @@ that disagree with those bindings. Existing platform, channel, support,
 upstream-state, and qualification fields remain the structured authority for
 those facts. Older catalogs may omit presentation and remain readable; clients
 must report the missing detail instead of inferring it from an adapter ID.
+`original_game_title` and optional `variant_label` are reviewed descriptive
+presentation metadata. They do not change the project `name`, port/source IDs,
+release selection, support or qualification, and never group implementations.
+Current entries provide a recognizable game title; retained and older definitions
+may omit it and display their project name instead. A variant may describe an
+edition, prototype or original-platform distinction, without widening the source
+contract. Empty, padded or control-bearing display text is rejected.
 Signed format 1 may update presentation without changing its frozen execution,
 source, persistence, or installed-code contracts.
 Summaries remain one outcome sentence and do not duplicate channel, platform,

@@ -5,7 +5,7 @@ import { page } from "vite-plus/test/browser";
 import { startInteractiveScenarios, stopInteractiveScenarios } from "./entry";
 import { recoveryKey } from "./transport";
 import { desktopApi } from "../../api";
-import { workspace } from "./scenarios";
+import { doctor, workspace } from "./scenarios";
 import { sourceProfile } from "../../test-fixtures";
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -58,12 +58,197 @@ it("opens actual game details, returns to Library and resets the selected journe
   expect(document.querySelectorAll("#scenario-preview .app-shell")).toHaveLength(1);
 });
 
+it("returns to the exact older recovery activity after opening its game", async () => {
+  const snapshot = workspace("library");
+  snapshot.activities = {
+    ...snapshot.activities,
+    terminal_history_count: 13,
+    records: Array.from({ length: 13 }, (_, index) => ({
+      id: `recovery-history-${index}`,
+      operation: "install",
+      target_kind: "port",
+      target_id: "sample",
+      status: "failed",
+      started_at: 100 - index,
+      finished_at: 101 - index,
+      message: null,
+      failure: null,
+      cancellation: null,
+    })),
+  };
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+  vi.spyOn(desktopApi, "doctor").mockResolvedValue({
+    ...doctor,
+    repair: {
+      generated_at: 1,
+      items: [
+        {
+          kind: "partial_operation",
+          port_id: "sample",
+          operation_id: "recovery-history-12",
+          path: "fixture/retained",
+          message: "Retained fixture operation",
+          proposed_action: "Review current state",
+        },
+      ],
+    },
+  });
+  await mount("library");
+  await page.getByRole("button", { name: /^Updates & activity/ }).click();
+  await page.getByRole("button", { name: "Review activity", exact: true }).click();
+  await expect
+    .poll(() => document.activeElement?.getAttribute("data-activity-id"))
+    .toBe("recovery-history-12");
+  const origin = "updates:activity:recovery-history-12:target";
+  const opener = document.querySelector<HTMLButtonElement>(`[data-detail-origin="${origin}"]`);
+  expect(opener).not.toBeNull();
+  await act(async () => opener!.click());
+  await expect
+    .element(page.getByRole("button", { name: "Back to previous workspace", exact: true }))
+    .toBeVisible();
+  await click("Back to previous workspace");
+  await expect.poll(() => document.activeElement?.getAttribute("data-detail-origin")).toBe(origin);
+  expect(document.querySelector('[data-activity-id="recovery-history-12"]')).not.toBeNull();
+});
+
 it("opens current Settings read surfaces without fixture refusals", async () => {
   await mount("library");
   await act(async () => page.getByRole("button", { name: /^Settings/ }).click());
   expect(document.body.textContent).toContain("Color theme");
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });
+
+it("keeps unsaved update choices while switching Settings categories", async () => {
+  await mount("library");
+  await page.getByRole("button", { name: /^Settings/ }).click();
+  const navigation = page.getByRole("navigation", { name: "Settings categories" });
+  await navigation.getByRole("button", { name: "Updates", exact: true }).click();
+  const preview = page
+    .getByRole("group", { name: "Application update channel" })
+    .getByRole("button", { name: "Preview", exact: true });
+  await expect.element(preview).toBeEnabled();
+  await preview.click();
+  await navigation.getByRole("button", { name: "Appearance", exact: true }).click();
+  await expect
+    .element(page.getByRole("heading", { name: "Color theme", exact: true }))
+    .toBeVisible();
+  await navigation.getByRole("button", { name: "Updates", exact: true }).click();
+  await expect.element(preview).toHaveAttribute("aria-pressed", "true");
+  expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
+});
+
+it("opens About directly and keeps custom catalog trust under Advanced", async () => {
+  await mount("library");
+  await page.getByRole("button", { name: "About Portcove", exact: true }).click();
+  await expect
+    .element(
+      page
+        .getByRole("navigation", { name: "Settings categories" })
+        .getByRole("button", { name: "About", exact: true }),
+    )
+    .toHaveAttribute("aria-current", "page");
+  const navigation = page.getByRole("navigation", { name: "Settings categories" });
+  await navigation.getByRole("button", { name: "Updates", exact: true }).click();
+  await page.getByRole("button", { name: "Manage custom catalog sources", exact: true }).click();
+  await expect
+    .element(navigation.getByRole("button", { name: "Advanced", exact: true }))
+    .toHaveAttribute("aria-current", "page");
+  await expect
+    .element(page.getByRole("heading", { name: "Custom catalog sources", exact: true }))
+    .toBeVisible();
+});
+
+it("opens the Updates category before focusing an application-update notice", async () => {
+  vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
+    schema_version: 1,
+    revision: 1,
+    choice: null,
+  });
+  await mount("library");
+  await page.getByRole("button", { name: /^Settings/ }).click();
+  await expect
+    .element(page.getByRole("heading", { name: "Color theme", exact: true }))
+    .toBeVisible();
+  await page.getByRole("button", { name: "Review options", exact: true }).click();
+  await expect
+    .element(
+      page
+        .getByRole("navigation", { name: "Settings categories" })
+        .getByRole("button", { name: "Updates", exact: true }),
+    )
+    .toHaveAttribute("aria-current", "page");
+  await vi.waitFor(() =>
+    expect(document.activeElement?.closest(".application-update-settings")).not.toBeNull(),
+  );
+  expect(document.activeElement?.closest("[hidden]")).toBeNull();
+});
+
+it("opens application updates from Updates & activity without entering custom catalog settings", async () => {
+  await mount("library");
+  await page.getByRole("button", { name: /^Updates & activity/ }).click();
+  await page.getByRole("button", { name: "Open Portcove update settings", exact: true }).click();
+  await expect
+    .element(
+      page
+        .getByRole("navigation", { name: "Settings categories" })
+        .getByRole("button", { name: "Updates", exact: true }),
+    )
+    .toHaveAttribute("aria-current", "page");
+  await vi.waitFor(() => expect(document.activeElement?.id).toBe("settings-updates-heading"));
+  const advanced = document.querySelector<HTMLElement>('[data-settings-group="advanced"]');
+  expect(advanced?.hidden).toBe(true);
+  expect(advanced && getComputedStyle(advanced).display).toBe("none");
+});
+
+it("checks a one-time update channel in actual Settings without saving consent", async () => {
+  const save = vi.spyOn(desktopApi, "setApplicationUpdatePreferences");
+  await mount("library");
+  await page.getByRole("button", { name: /^Settings/ }).click();
+  await page
+    .getByRole("navigation", { name: "Settings categories" })
+    .getByRole("button", { name: "Updates", exact: true })
+    .click();
+  await page
+    .getByRole("group", { name: "One-time update channel", exact: true })
+    .getByRole("button", { name: "Stable", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Check for updates", exact: true }).click();
+  await expect.element(page.getByText("One-time check · Stable", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      page.getByText("Renderer fixture only: no update service or native trust checks were run.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Save application update settings", exact: true }))
+    .toBeDisabled();
+  expect(save).not.toHaveBeenCalled();
+  expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
+});
+
+it.each([
+  [960, 640, 3],
+  [1280, 800, 4],
+  [1600, 1000, 5],
+] as const)(
+  "keeps independent portrait frames in the actual %sx%s app grid",
+  async (width, height, columns) => {
+    await page.viewport(width, height);
+    await mount("library");
+    const grid = document.querySelector<HTMLElement>(".port-grid")!;
+    expect(getComputedStyle(grid).gridTemplateColumns.split(" ")).toHaveLength(columns);
+    const frames = [...grid.querySelectorAll<HTMLElement>(".card-art")];
+    expect(frames.length).toBeGreaterThan(0);
+    for (const frame of frames) {
+      const box = frame.getBoundingClientRect();
+      expect(box.height / box.width).toBeCloseTo(1.5, 1);
+    }
+    expect(grid.getBoundingClientRect().width).toBeLessThanOrEqual(1064);
+    expect(grid.scrollWidth).toBeLessThanOrEqual(grid.clientWidth);
+  },
+);
 
 it.each(["game", "bios"] as const)(
   "carries the selected %s repair path into inspection without asking for it again",

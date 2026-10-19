@@ -9963,6 +9963,7 @@
         "oot-mq.o2r"
       ],
       "presentation": {
+        "original_game_title": "The Legend of Zelda: Ocarina of Time",
         "installation_method": "portable-package",
         "artwork": {
           "game_id": 194694,
@@ -10050,6 +10051,7 @@
         "logs/2 Ship 2 Harkinian.10.log"
       ],
       "presentation": {
+        "original_game_title": "The Legend of Zelda: Majora's Mask",
         "installation_method": "portable-package",
         "source_requirements": [
           {
@@ -10151,6 +10153,7 @@
         "controllerPak_file_15.sav"
       ],
       "presentation": {
+        "original_game_title": "Mario Kart 64",
         "installation_method": "portable-package",
         "source_requirements": [
           {
@@ -10228,6 +10231,7 @@
         "logs/Ghostship.10.log"
       ],
       "presentation": {
+        "original_game_title": "Super Mario 64",
         "installation_method": "portable-package",
         "source_requirements": [
           {
@@ -10309,6 +10313,7 @@
         "logs"
       ],
       "presentation": {
+        "original_game_title": "Paper Mario",
         "installation_method": "generated-game-data",
         "source_requirements": [
           {
@@ -10369,6 +10374,7 @@
         "config.json"
       ],
       "presentation": {
+        "original_game_title": "Star Fox 64",
         "installation_method": "portable-package",
         "source_requirements": [
           {
@@ -10439,6 +10445,7 @@
         "bk.o2r"
       ],
       "presentation": {
+        "original_game_title": "Banjo-Kazooie",
         "installation_method": "portable-package",
         "source_requirements": [
           {
@@ -10505,6 +10512,7 @@
         "states.json"
       ],
       "presentation": {
+        "original_game_title": "The Legend of Zelda: Twilight Princess",
         "installation_method": "referenced-disc",
         "source_requirements": [
           {
@@ -10588,6 +10596,7 @@
       ],
       "runtime_source_filename": "mm.n64.us.1.0.z64",
       "presentation": {
+        "original_game_title": "The Legend of Zelda: Majora's Mask",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -10671,6 +10680,7 @@
       ],
       "runtime_source_filename": "bk.n64.us.1.0.z64",
       "presentation": {
+        "original_game_title": "Banjo-Kazooie",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -10746,6 +10756,7 @@
       ],
       "runtime_source_filename": "bm64_us.z64",
       "presentation": {
+        "original_game_title": "Bomberman 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -10829,6 +10840,7 @@
       ],
       "runtime_source_filename": "harvest_moon_64.z64",
       "presentation": {
+        "original_game_title": "Harvest Moon 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -10900,6 +10912,8 @@
       ],
       "runtime_source_filename": "dino.z64",
       "presentation": {
+        "original_game_title": "Dinosaur Planet",
+        "variant_label": "December 2000 prototype",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -10967,6 +10981,7 @@
         "dkr-runtime-data"
       ],
       "presentation": {
+        "original_game_title": "Diddy Kong Racing",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -11047,6 +11062,7 @@
       ],
       "runtime_source_filename": "DK64.z64",
       "presentation": {
+        "original_game_title": "Donkey Kong 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -11121,6 +11137,7 @@
       ],
       "runtime_source_filename": "Automobili Lamborghini (USA).z64",
       "presentation": {
+        "original_game_title": "Automobili Lamborghini",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -11192,6 +11209,7 @@
       ],
       "runtime_source_filename": "AeroGauge (USA).z64",
       "presentation": {
+        "original_game_title": "AeroGauge",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -11286,6 +11304,7 @@
       "portable_marker": true,
       "runtime_source_filename": "extremeg.us.z64",
       "presentation": {
+        "original_game_title": "Extreme-G",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -11372,6 +11391,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Bomberman Fantasy Race",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -11466,6 +11486,7 @@
         "psx_last_run_report.json"
       ],
       "presentation": {
+        "original_game_title": "Bomberman Party Edition",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -11552,6 +11573,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Bomberman World",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -11651,6 +11673,8 @@
         "--no-launcher"
       ],
       "presentation": {
+        "original_game_title": "Final Fantasy VII",
+        "variant_label": "PlayStation",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -11737,6 +11761,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Klonoa: Door to Phantomile",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -11823,6 +11848,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Legend of Mana",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -11909,6 +11935,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Marvel vs. Capcom: Clash of Super Heroes",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -11995,6 +12022,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Star Wars: Masters of Teräs Käsi",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12081,6 +12109,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Metal Slug X",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12168,6 +12197,8 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Mortal Kombat 4",
+        "variant_label": "PlayStation",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12260,6 +12291,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Rampage Through Time",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12346,6 +12378,8 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Star Wars: Episode I – Jedi Power Battles",
+        "variant_label": "PlayStation",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12432,6 +12466,8 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Street Fighter Alpha 3",
+        "variant_label": "PlayStation",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12518,6 +12554,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Tomba!",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12602,6 +12639,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Twisted Metal 4",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12673,6 +12711,7 @@
         "PSX_PORTABLE": "1"
       },
       "presentation": {
+        "original_game_title": "Yu-Gi-Oh! Forbidden Memories",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12740,6 +12779,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Revelations: Persona",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -12812,6 +12852,7 @@
       "runtime_subdirectory": "BeetleRecomp-Windows-x64",
       "runtime_source_filename": "bar.n64.us.z64",
       "presentation": {
+        "original_game_title": "Beetle Adventure Racing!",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -12883,6 +12924,7 @@
       ],
       "runtime_source_filename": "quest64_us.z64",
       "presentation": {
+        "original_game_title": "Quest 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -12955,6 +12997,7 @@
       ],
       "runtime_source_filename": "wcw.nwo.worldtour.us.z64",
       "presentation": {
+        "original_game_title": "WCW vs. nWo: World Tour",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13027,6 +13070,7 @@
       ],
       "runtime_source_filename": "vpw.vpw64.jp.z64",
       "presentation": {
+        "original_game_title": "Virtual Pro Wrestling 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13099,6 +13143,7 @@
       ],
       "runtime_source_filename": "wcw.nwo.revenge.us.z64",
       "presentation": {
+        "original_game_title": "WCW/nWo Revenge",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13171,6 +13216,7 @@
       ],
       "runtime_source_filename": "wwf.wm2k.us.z64",
       "presentation": {
+        "original_game_title": "WWF WrestleMania 2000",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13237,6 +13283,7 @@
       ],
       "runtime_source_filename": "vpw.vpw2.jp.z64",
       "presentation": {
+        "original_game_title": "Virtual Pro Wrestling 2",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13309,6 +13356,7 @@
       ],
       "runtime_source_filename": "wwf.nomercy.us.z64",
       "presentation": {
+        "original_game_title": "WWF No Mercy",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13387,6 +13435,7 @@
       ],
       "runtime_source_filename": "megaman.n64.us.1.0.z64",
       "presentation": {
+        "original_game_title": "Mega Man 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13461,6 +13510,7 @@
         "drmario64.us.z64"
       ],
       "presentation": {
+        "original_game_title": "Dr. Mario 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -13546,6 +13596,8 @@
         "options.lua"
       ],
       "presentation": {
+        "original_game_title": "Pokémon Red",
+        "variant_label": "US edition",
         "installation_method": "generated-game-data",
         "source_requirements": [
           {
@@ -13626,6 +13678,7 @@
         "crash.txt"
       ],
       "presentation": {
+        "original_game_title": "Pokémon Gold",
         "installation_method": "generated-game-data",
         "source_requirements": [
           {
@@ -13706,6 +13759,7 @@
         "crash.txt"
       ],
       "presentation": {
+        "original_game_title": "Pokémon Silver",
         "installation_method": "generated-game-data",
         "source_requirements": [
           {
@@ -13786,6 +13840,7 @@
         "crash.txt"
       ],
       "presentation": {
+        "original_game_title": "Pokémon Crystal",
         "installation_method": "generated-game-data",
         "source_requirements": [
           {
@@ -13856,6 +13911,8 @@
         "REX_GAME_DATA_ROOT": "assets"
       },
       "presentation": {
+        "original_game_title": "Castlevania: Symphony of the Night",
+        "variant_label": "Xbox Live Arcade",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -13906,6 +13963,7 @@
         "config"
       ],
       "presentation": {
+        "original_game_title": "Blue Dragon",
         "installation_method": "generated-game-data",
         "source_requirements": [
           {
@@ -13981,6 +14039,7 @@
       ],
       "runtime_source_filename": "bmhero.z64",
       "presentation": {
+        "original_game_title": "Bomberman Hero",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -14059,6 +14118,7 @@
       ],
       "runtime_source_filename": "snowboardkids2.n64.us.z64",
       "presentation": {
+        "original_game_title": "Snowboard Kids 2",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -14132,6 +14192,7 @@
         "troublemakers.n64.us.1.z64"
       ],
       "presentation": {
+        "original_game_title": "Mischief Makers",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -14207,6 +14268,7 @@
       ],
       "runtime_source_filename": "mnsg.us.z64",
       "presentation": {
+        "original_game_title": "Mystical Ninja Starring Goemon",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -14282,6 +14344,7 @@
       ],
       "runtime_source_filename": "data/pd.ntsc-final.z64",
       "presentation": {
+        "original_game_title": "Perfect Dark",
         "installation_method": "generated-game-data",
         "source_requirements": [
           {
@@ -14375,6 +14438,7 @@
         "sound.json.bak"
       ],
       "presentation": {
+        "original_game_title": "Space Station Silicon Valley",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -14437,6 +14501,7 @@
         "texture_pack"
       ],
       "presentation": {
+        "original_game_title": "Animal Crossing",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -14547,6 +14612,7 @@
         }
       ],
       "presentation": {
+        "original_game_title": "The Legend of Zelda: The Minish Cap",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -14627,6 +14693,7 @@
         "screenshots"
       ],
       "presentation": {
+        "original_game_title": "Super Smash Bros.",
         "installation_method": "portable-package",
         "source_requirements": [
           {
@@ -14720,6 +14787,8 @@
         "screenshots"
       ],
       "presentation": {
+        "original_game_title": "F-Zero X",
+        "variant_label": "Expansion Kit",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -14857,6 +14926,7 @@
         "debug-updater.log"
       ],
       "presentation": {
+        "original_game_title": "The Legend of Dragoon",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -14921,6 +14991,7 @@
         "library"
       ],
       "presentation": {
+        "original_game_title": "Spyro the Dragon",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -15039,6 +15110,7 @@
         "data/out"
       ],
       "presentation": {
+        "original_game_title": "Jak and Daxter: The Precursor Legacy",
         "installation_method": "upstream-setup",
         "source_requirements": [
           {
@@ -15157,6 +15229,7 @@
         "data/out"
       ],
       "presentation": {
+        "original_game_title": "Jak II",
         "installation_method": "upstream-setup",
         "source_requirements": [
           {
@@ -15275,6 +15348,7 @@
         "data/out"
       ],
       "presentation": {
+        "original_game_title": "Jak 3",
         "installation_method": "upstream-setup",
         "source_requirements": [
           {
@@ -15359,6 +15433,7 @@
         "psx_last_run_report.json"
       ],
       "presentation": {
+        "original_game_title": "Mega Man X6",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -15419,6 +15494,7 @@
         "Paper Mario ReCut/user"
       ],
       "presentation": {
+        "original_game_title": "Paper Mario",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -15492,6 +15568,7 @@
       "runtime_source_filename": "pokemonsnap.z64",
       "runtime_source_materialization": "n64-big-endian",
       "presentation": {
+        "original_game_title": "Pokémon Snap",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -15575,6 +15652,7 @@
       "runtime_source_filename": "rom.z64",
       "runtime_source_materialization": "n64-big-endian",
       "presentation": {
+        "original_game_title": "Castlevania: Legacy of Darkness",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -15649,6 +15727,7 @@
         "dkr-v80.z64"
       ],
       "presentation": {
+        "original_game_title": "Diddy Kong Racing",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -15713,6 +15792,8 @@
       ],
       "source_environment": "STARFOX_RETAIL_ROM",
       "presentation": {
+        "original_game_title": "Star Fox",
+        "variant_label": "SNES",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -15783,6 +15864,7 @@
       "runtime_source_filename": "dnzh.us.z64",
       "runtime_source_materialization": "n64-big-endian",
       "presentation": {
+        "original_game_title": "Duke Nukem: Zero Hour",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -15874,6 +15956,7 @@
         "disc1.bin": "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a"
       },
       "presentation": {
+        "original_game_title": "Ape Escape",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -15965,6 +16048,7 @@
         "disc1.bin": "be731bc4b9d3211b9267a34b8a68c769199a15479b14004ff25b67cdfebe8af4"
       },
       "presentation": {
+        "original_game_title": "Mega Man X5",
         "installation_method": "staged-game-files",
         "source_requirements": [
           {
@@ -16041,6 +16125,7 @@
         "pikmin_settings.conf"
       ],
       "presentation": {
+        "original_game_title": "Pikmin",
         "installation_method": "upstream-setup",
         "source_requirements": [
           {
@@ -16118,6 +16203,7 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Wave Race 64",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -16136,6 +16222,25 @@
           "image_sha256": "ff7d17084337bec6a851bfca8706b670eb6441afad1ecc03d99aa1a143d1d196",
           "game_slug": "wave-race-64",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the complete official v1.0.2 Windows ZIP into a writable folder outside your Portcove library."
+            },
+            {
+              "title": "Keep saves beside the game",
+              "instruction": "Create an empty file named portable.txt beside WaveRace64Recomp.exe. It is not included in the download."
+            },
+            {
+              "title": "Connect your game files",
+              "instruction": "Choose and check your own supported Wave Race 64 original in Portcove, then choose the extracted port folder below for review."
+            }
+          ],
+          "warnings": [
+            "Keep portable.txt when updating this folder so the game continues to use its local saves and settings."
+          ]
         }
       }
     },
@@ -16182,6 +16287,7 @@
         "--launch"
       ],
       "presentation": {
+        "original_game_title": "Wave Race 64",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -16200,6 +16306,25 @@
           "image_sha256": "ff7d17084337bec6a851bfca8706b670eb6441afad1ecc03d99aa1a143d1d196",
           "game_slug": "wave-race-64",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the complete official v1.0.0 Windows ZIP into a writable folder outside your Portcove library. Keep its DLLs, assets and notices together."
+            },
+            {
+              "title": "Connect the original",
+              "instruction": "Choose and check your own uncompressed Wave Race 64 USA Rev A .z64 file in Portcove."
+            },
+            {
+              "title": "Review the port folder",
+              "instruction": "Choose the extracted folder below. Portcove will use the checked original when you launch the game."
+            }
+          ],
+          "warnings": [
+            "Preserve the .runtime folder when updating outside Portcove; it contains imported game data, settings and saves."
+          ]
         }
       },
       "persistent_paths": []
@@ -16249,6 +16374,8 @@
         ]
       },
       "presentation": {
+        "original_game_title": "F-Zero",
+        "variant_label": "SNES",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -16267,6 +16394,25 @@
           "image_sha256": "c504dbfa253882ca87b76d75a5cd290aef6b717a368617107d69e836bd651553",
           "game_slug": "f-zero",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the complete official v1.8.3 Windows ZIP outside your Portcove library."
+            },
+            {
+              "title": "Connect the original",
+              "instruction": "Choose and check your own headerless F-Zero (USA) .sfc file in Portcove."
+            },
+            {
+              "title": "Review the game folder",
+              "instruction": "Choose the extracted FZeroSNESRecomp-1.8.3-windows-x64 folder below."
+            }
+          ],
+          "warnings": [
+            "Windows runtime and gameplay are untested. Crash reports or other extra files may prevent later checks; preserve them for troubleshooting."
+          ]
         }
       }
     },
@@ -16356,6 +16502,7 @@
         "traffic-events.log"
       ],
       "presentation": {
+        "original_game_title": "Road Rash 64",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -16423,6 +16570,7 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Donkey Kong Country 3: Dixie Kong's Double Trouble!",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -16441,6 +16589,26 @@
           "image_sha256": "f4e13f77be3f1695208fb6de7e5ad3cc902e95e75505315bf183d1373d29648c",
           "game_slug": "donkey-kong-country-3-dixie-kong-s-double-trouble",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the complete official v0.0.6 Windows ZIP outside your Portcove library."
+            },
+            {
+              "title": "Connect the original",
+              "instruction": "Choose and check your own headerless North American English/French DKC3 .sfc file in Portcove."
+            },
+            {
+              "title": "Review the game folder",
+              "instruction": "Choose DKC3Recomp-v0.0.6-windows-x64 below. Portcove passes the checked original directly and skips the upstream launcher; in-game settings remain available."
+            }
+          ],
+          "warnings": [
+            "Use short package and ROM paths whose characters Windows can represent in its system code page.",
+            "Upstream reports skipped game logic at startup. Gameplay, visual correctness and save/load remain unqualified."
+          ]
         }
       },
       "launch_environment": {
@@ -16515,6 +16683,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Ape Escape",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -16604,6 +16773,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Alundra",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -16693,6 +16863,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Armored Core",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -16782,6 +16953,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Blood Omen: Legacy of Kain",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -16871,6 +17043,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Digimon World 2003",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -16952,6 +17125,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Duke Nukem: Land of the Babes",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17041,6 +17215,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Driver",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17130,6 +17305,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Duke Nukem: Time to Kill",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17219,6 +17395,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Fade to Black",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17317,6 +17494,8 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Diablo",
+        "variant_label": "PlayStation",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17421,6 +17600,8 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Ace Combat 3: Electrosphere",
+        "variant_label": "Japan · two discs",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17528,6 +17709,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Dino Crisis",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17641,6 +17823,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Dino Crisis 2",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17754,6 +17937,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Alien Resurrection",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17867,6 +18051,7 @@
       ],
       "runtime_subdirectory": "build-portcove",
       "presentation": {
+        "original_game_title": "Brave Fencer Musashi",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -17942,6 +18127,7 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Super Mario World",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -17960,6 +18146,31 @@
           "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
           "game_slug": "super-mario-world",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the exact official v0.12.0 Windows ZIP outside your Portcove library."
+            },
+            {
+              "title": "Make a working copy of the original",
+              "instruction": "Copy your exact stock headerless 512 KiB USA ROM into the extracted package root as smw.sfc. Keep your original file unchanged."
+            },
+            {
+              "title": "Connect that working copy",
+              "instruction": "Choose and check this same smw.sfc file in Portcove."
+            },
+            {
+              "title": "Review the game folder",
+              "instruction": "Choose the folder containing SuperMarioWorldSNESRecomp.exe below. Keep smw.sfc and the shipped mods/packages unchanged."
+            }
+          ],
+          "warnings": [
+            "Use short paths whose characters Windows can represent in its system code page.",
+            "Use ordinary runtime defaults. Clear the inherited developer options listed in the technical notes before starting Portcove; trace options can write elsewhere and the Lua option can open a local listener.",
+            "Gameplay, save/load, visual correctness, audio and controller behavior remain unqualified."
+          ]
         }
       },
       "launch_arguments": [
@@ -18017,6 +18228,7 @@
         ]
       },
       "presentation": {
+        "original_game_title": "The Legend of Zelda: A Link to the Past",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -18035,6 +18247,31 @@
           "image_sha256": "915a51bfc7b7945bdae988ef18d315b98ad8d70855136f4b2f24f4e30ebe007a",
           "game_slug": "the-legend-of-zelda-a-link-to-the-past",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the exact official v0.6.1 Windows ZIP outside your Portcove library. Preserve its README and other notices."
+            },
+            {
+              "title": "Make a working copy of the original",
+              "instruction": "Copy your exact stock headerless 1 MiB USA ROM into the extracted package root as zelda.sfc. Keep your original file unchanged."
+            },
+            {
+              "title": "Connect that working copy",
+              "instruction": "Choose and check this same zelda.sfc file in Portcove."
+            },
+            {
+              "title": "Review the game folder",
+              "instruction": "Choose the folder containing ZeldaALttPSNESRecomp.exe below. Keep zelda.sfc and the shipped mods/packages unchanged."
+            }
+          ],
+          "warnings": [
+            "Use short paths whose characters Windows can represent in its system code page. Clear the inherited developer options listed in the technical notes before starting Portcove; trace options can write outside this folder.",
+            "The project license and completeness of dependency notices remain unresolved. The README directs personal prebuilt use; it does not grant redistribution rights.",
+            "Gameplay, save/load, visual correctness, audio and controller behavior remain unqualified."
+          ]
         }
       },
       "launch_arguments": [
@@ -18103,6 +18340,7 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Sonic the Hedgehog",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -18121,6 +18359,26 @@
           "image_sha256": "ac739a2272e2eab518c7d9814becf6f64cc61e8de57e5b357562f577d0d845d3",
           "game_slug": "sonic-the-hedgehog",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the exact official v0.6.0 Windows ZIP outside your Portcove library. Keep its licenses and notices unchanged."
+            },
+            {
+              "title": "Connect the original",
+              "instruction": "Choose and check your exact raw big-endian 512 KiB JUE REV00 Genesis .bin. If it uses .md, make a byte-identical .bin working copy. Do not convert byte order or add a header."
+            },
+            {
+              "title": "Review the game folder",
+              "instruction": "Choose the folder containing SonicTheHedgehogRecomp.exe below. Portcove passes the checked file directly without copying or changing it."
+            }
+          ],
+          "warnings": [
+            "Keep debug.ini absent; it prevents package verification. Use short paths whose characters Windows can represent in its system code page.",
+            "Upstream reports Green Hill complete and later zones partial. Full-game correctness and gameplay acceptance remain unknown."
+          ]
         }
       }
     },
@@ -18179,6 +18437,8 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Star Wars: Dark Forces",
+        "variant_label": "PC",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -18189,7 +18449,32 @@
           }
         ],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the exact official v1.22.420 Windows package into a fresh local folder outside your Portcove library. Place the reviewed owned PC installed-data member set under GameData/ and register GameData/DARK.GOB as the original source. Prepare portable settings.ini with [Game] game=\"Dark Forces\" and [Dark_Forces] sourcePath=\"GameData/\". Preserve a compatible owned DARKPILO.CFG, or create a deliberately fresh pilot using the reviewed non-overwriting procedure at https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-prepared-windows-2026-10-18.md . Core neither seeds nor imports pilots. A present required pilot skips automatic absent-file imports while observed present; TFE may regenerate a malformed local pilot. Keep the shipped package, GameData and built-in Mods/TFE immutable. Additional mods/editor output require separate qualification. Settings, input mappings, pilot, saves, screenshots and fixed logs remain player-owned; registration-only removal preserves all files. Updates are user-managed; no acquisition, managed maintenance, backup or external deletion is offered. Sequential checks do not freeze external writes or sandbox TFE. Windows registration, revalidation, startup, ordinary close, restart and removal were observed with the exact qualification CLI/private catalog. Gameplay, in-game save/load, visual correctness, audio, controllers and other platforms remain unqualified."
+        "manual_preparation": "Extract the exact official v1.22.420 Windows package into a fresh local folder outside your Portcove library. Place the reviewed owned PC installed-data member set under GameData/ and register GameData/DARK.GOB as the original source. Prepare portable settings.ini with [Game] game=\"Dark Forces\" and [Dark_Forces] sourcePath=\"GameData/\". Preserve a compatible owned DARKPILO.CFG, or create a deliberately fresh pilot using the reviewed non-overwriting procedure at https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-prepared-windows-2026-10-18.md . Core neither seeds nor imports pilots. A present required pilot skips automatic absent-file imports while observed present; TFE may regenerate a malformed local pilot. Keep the shipped package, GameData and built-in Mods/TFE immutable. Additional mods/editor output require separate qualification. Settings, input mappings, pilot, saves, screenshots and fixed logs remain player-owned; registration-only removal preserves all files. Updates are user-managed; no acquisition, managed maintenance, backup or external deletion is offered. Sequential checks do not freeze external writes or sandbox TFE. Windows registration, revalidation, startup, ordinary close, restart and removal were observed with the exact qualification CLI/private catalog. Gameplay, in-game save/load, visual correctness, audio, controllers and other platforms remain unqualified.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the exact official v1.22.420 Windows package into a fresh local folder outside your Portcove library."
+            },
+            {
+              "title": "Provide the complete original game data",
+              "instruction": "Place the reviewed owned PC installed-data member set under GameData/. Choose and check GameData/DARK.GOB in Portcove; that one file does not replace the complete required member set."
+            },
+            {
+              "title": "Prepare settings and a pilot",
+              "instruction": "Create portable settings.ini with [Game] game=\"Dark Forces\" and [Dark_Forces] sourcePath=\"GameData/\". Preserve a compatible owned DARKPILO.CFG, or follow the preparation guide to create a fresh pilot without overwriting an existing one."
+            },
+            {
+              "title": "Review the game folder",
+              "instruction": "Choose the extracted folder below. Keep the shipped package, GameData and built-in Mods/TFE unchanged."
+            }
+          ],
+          "warnings": [
+            "Portcove neither seeds nor imports a pilot. The game may regenerate a malformed pilot; preserve an existing compatible copy before preparing this folder.",
+            "Additional mods or editor output need separate qualification. Gameplay and in-game save/load remain unqualified."
+          ],
+          "help_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-prepared-windows-2026-10-18.md"
+        }
       }
     },
     {
@@ -18265,6 +18550,7 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Sonic the Hedgehog 2",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -18283,6 +18569,26 @@
           "image_sha256": "ed88c95469e863e440f5edf598a957211bb6f28a3e7a78fe06fe79bbf84b656f",
           "game_slug": "sonic-the-hedgehog-2",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the exact official v0.8.3 Windows ZIP outside your Portcove library. Keep all package licenses and notices."
+            },
+            {
+              "title": "Make a working copy of the original",
+              "instruction": "Copy the exact World Rev A original into the package root as game.bin, without changing its bytes."
+            },
+            {
+              "title": "Connect and review",
+              "instruction": "Choose and check that same game.bin in Portcove, then choose the extracted port folder below. Portcove launches with the upstream launcher skipped."
+            }
+          ],
+          "warnings": [
+            "Keep debug.ini and interp_fallbacks.log absent. Do not enable campaign modifications or configurable save destinations; this route covers only fixed local outputs.",
+            "Use short Windows-code-page representable paths and ordinary runtime defaults. Optional features and gameplay remain unqualified; inherited developer options are not sandboxed."
+          ]
         }
       },
       "launch_arguments": [
@@ -18348,6 +18654,8 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Sonic 3 & Knuckles",
+        "variant_label": "Combined Sonic 3 + Sonic & Knuckles",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -18366,6 +18674,26 @@
           "image_sha256": "b1861fa5813026f582beb11e665cefee8eaa27e8871e154ddc91a22819c7989e",
           "game_slug": "sonic-the-hedgehog-3-and-knuckles",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the combined port",
+              "instruction": "Extract the exact official v0.5.3 combined Sonic3K Windows ZIP outside your Portcove library. Keep all package licenses, notices and donor assets unchanged."
+            },
+            {
+              "title": "Make a working copy of the original",
+              "instruction": "Copy the exact combined Sonic3K original into the package root as game.bin, without changing its bytes."
+            },
+            {
+              "title": "Connect and review",
+              "instruction": "Choose and check that same game.bin in Portcove, then choose the extracted port folder below. Portcove launches with the upstream launcher skipped."
+            }
+          ],
+          "warnings": [
+            "Keep debug.ini and interp_fallbacks.log absent. Preserve the fixed game.srm SRAM file; optional mod settings and local states are preserved without operation acceptance.",
+            "The shipped README says 0.5.2 while release/build information says 0.5.3. Preserve both. Use short Windows-code-page representable paths and ordinary runtime defaults; gameplay remains unqualified."
+          ]
         }
       },
       "launch_arguments": [
@@ -18407,6 +18735,7 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Yoshi's Cookie",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -18471,6 +18800,8 @@
         ]
       },
       "presentation": {
+        "original_game_title": "Dr. Mario",
+        "variant_label": "NES",
         "installation_method": "managed-recompilation",
         "source_requirements": [
           {
@@ -18570,6 +18901,7 @@
         }
       ],
       "presentation": {
+        "original_game_title": "Super Metroid",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -18652,6 +18984,7 @@
         }
       ],
       "presentation": {
+        "original_game_title": "Mega Man X2",
         "installation_method": "portable-recompilation",
         "source_requirements": [
           {
@@ -18714,6 +19047,7 @@
       ],
       "persistent_paths": [],
       "presentation": {
+        "original_game_title": "Resident Evil Gaiden",
         "installation_method": "user-prepared-runtime",
         "source_requirements": [
           {
@@ -18724,7 +19058,31 @@
           }
         ],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the exact authenticated v0.4.1 Windows archive outside the Portcove library and create its empty saves directory. Keep all package files and notices unchanged except config.ini and game-owned imgui.ini window state. Register the exact original separately. Explicitly accept the resolved account-wide roaming preference file and local fallback; running the game may create or overwrite these files and discard unknown entries. Existing safe printable ASCII paths and MAX_PATH bounds apply. Portcove does not own, update, back up, restore or delete the external runtime, local outputs or shared preferences. Removal unregisters only. MIT/clean-room/original-mod-assets statements are attributed upstream assertions, not blanket redistribution rights. Optional replacement music/HD changes, extra CLI options and gameplay acceptance are outside the offered route."
+        "manual_preparation": "Extract the exact authenticated v0.4.1 Windows archive outside the Portcove library and create its empty saves directory. Keep all package files and notices unchanged except config.ini and game-owned imgui.ini window state. Register the exact original separately. Explicitly accept the resolved account-wide roaming preference file and local fallback; running the game may create or overwrite these files and discard unknown entries. Existing safe printable ASCII paths and MAX_PATH bounds apply. Portcove does not own, update, back up, restore or delete the external runtime, local outputs or shared preferences. Removal unregisters only. MIT/clean-room/original-mod-assets statements are attributed upstream assertions, not blanket redistribution rights. Optional replacement music/HD changes, extra CLI options and gameplay acceptance are outside the offered route.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the port",
+              "instruction": "Extract the exact authenticated v0.4.1 Windows archive outside your Portcove library. Keep its package files and notices unchanged."
+            },
+            {
+              "title": "Create a local save folder",
+              "instruction": "Create an empty saves directory in the extracted package. Only config.ini and game-owned imgui.ini window state may change among package files."
+            },
+            {
+              "title": "Connect your original",
+              "instruction": "Choose and check the exact supported original separately in Portcove."
+            },
+            {
+              "title": "Review the folder and shared preferences",
+              "instruction": "Choose the port folder below. Review and explicitly accept the resolved account-wide roaming preference file and its local fallback before launch."
+            }
+          ],
+          "warnings": [
+            "The game may create or overwrite shared preference files and discard unknown entries. Portcove does not own or back up those shared preferences.",
+            "Use safe printable ASCII paths within the Windows MAX_PATH limit. Optional music/HD changes, extra launch options and gameplay acceptance are outside this route."
+          ]
+        }
       }
     },
     {

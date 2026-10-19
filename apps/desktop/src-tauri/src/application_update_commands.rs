@@ -5,8 +5,10 @@
 //! signatures, payload keys, or filesystem paths.
 
 pub use crate::desktop_contract::{
-    ApplicationUpdateCheckPhase, ApplicationUpdateCheckResult, ApplicationUpdateCheckResultKind,
-    ApplicationUpdateDownloadRequest, ApplicationUpdateNotice, ApplicationUpdateNoticeSnapshot,
+    ApplicationChannel, ApplicationUpdateCheckPhase, ApplicationUpdateCheckResult,
+    ApplicationUpdateCheckResultKind, ApplicationUpdateDownloadRequest,
+    ApplicationUpdateManualCheckRequest, ApplicationUpdateManualCheckResult,
+    ApplicationUpdateNotice, ApplicationUpdateNoticeSnapshot,
 };
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -44,6 +46,7 @@ use crate::{DesktopError, DesktopResult};
 
 enum ApplicationUpdateCommandRequest {
     Check(ApplicationUpdateCheckEnvironment),
+    CheckOnce(ApplicationChannel),
     Download(ApplicationUpdateDownloadRequest),
 }
 
@@ -72,6 +75,11 @@ impl ApplicationUpdateCommandRunner for ConfiguredApplicationUpdateCommandRunner
         cancellation: &CancellationToken,
     ) -> Result<ApplicationUpdateOperationOutcome, ApplicationUpdateOperationError> {
         match request {
+            ApplicationUpdateCommandRequest::CheckOnce(channel) => {
+                self.operation
+                    .check_once(channel, &self.provider, progress, cancellation)
+                    .await
+            }
             ApplicationUpdateCommandRequest::Check(environment) => {
                 self.operation
                     .check_and_stage(
@@ -332,7 +340,8 @@ fn log_automatic_outcome(outcome: &ApplicationUpdateOperationOutcome) {
             operation_id = "application-update-automatic",
             "automatic application update result was superseded by a preference change"
         ),
-        ApplicationUpdateOperationOutcome::Held(_) => {}
+        ApplicationUpdateOperationOutcome::Held(_)
+        | ApplicationUpdateOperationOutcome::MetadataChecked { .. } => {}
     }
 }
 
@@ -521,14 +530,10 @@ impl ApplicationUpdateProgressSink for ChannelProgress {
 #[tauri::command]
 pub(crate) async fn check_application_update(
     state: tauri::State<'_, ApplicationUpdateCommandState>,
-    app: tauri::AppHandle,
+    request: Option<ApplicationUpdateManualCheckRequest>,
     on_event: tauri::ipc::Channel<ApplicationUpdateCheckPhase>,
-) -> DesktopResult<ApplicationUpdateCheckResult> {
-    let result = run_check(state.inner(), &ChannelProgress(on_event)).await;
-    if result.is_ok() {
-        state.clear_notice(&app);
-    }
-    result
+) -> DesktopResult<ApplicationUpdateManualCheckResult> {
+    run_check(state.inner(), request, &ChannelProgress(on_event)).await
 }
 
 #[tauri::command]
@@ -552,14 +557,40 @@ pub(crate) async fn download_application_update(
 
 async fn run_check(
     state: &ApplicationUpdateCommandState,
+    request: Option<ApplicationUpdateManualCheckRequest>,
     progress: &dyn ApplicationUpdateProgressSink,
-) -> DesktopResult<ApplicationUpdateCheckResult> {
-    run_command(
+) -> DesktopResult<ApplicationUpdateManualCheckResult> {
+    let channel = match request.and_then(|request| request.channel) {
+        Some(channel) => channel,
+        None => default_check_channel(env!("CARGO_PKG_VERSION"))?,
+    };
+    let outcome = run_operation(
         state,
-        ApplicationUpdateCommandRequest::Check(manual_environment()),
+        ApplicationUpdateCommandRequest::CheckOnce(channel),
         progress,
     )
-    .await
+    .await?;
+    let ApplicationUpdateOperationOutcome::MetadataChecked { selection } = outcome else {
+        return Err(portcove_core::PortcoveError::state(
+            "A one-time update check returned an unexpected result.",
+        )
+        .into());
+    };
+    Ok(ApplicationUpdateManualCheckResult {
+        checked_channel: channel,
+        result: result_from_selection(selection, false),
+    })
+}
+
+fn default_check_channel(version: &str) -> DesktopResult<ApplicationChannel> {
+    let version = semver::Version::parse(version).map_err(|_| {
+        portcove_core::PortcoveError::state("The compiled application version is invalid.")
+    })?;
+    Ok(if version.major >= 1 && version.pre.is_empty() {
+        ApplicationChannel::Stable
+    } else {
+        ApplicationChannel::Preview
+    })
 }
 
 async fn run_command(
@@ -620,6 +651,9 @@ pub(crate) fn dismiss_application_update_notice(
 
 fn result_from_outcome(outcome: ApplicationUpdateOperationOutcome) -> ApplicationUpdateCheckResult {
     match outcome {
+        ApplicationUpdateOperationOutcome::MetadataChecked { selection } => {
+            result_from_selection(selection, false)
+        }
         ApplicationUpdateOperationOutcome::Held(decision) => ApplicationUpdateCheckResult {
             kind: match decision {
                 ApplicationUpdateCheckDecision::CheckNow => {
@@ -737,7 +771,7 @@ fn coordinator_error(error: ApplicationUpdateCoordinatorError) -> DesktopError {
             )
             .into(),
             CandidateLoadFailureKind::RateLimited => portcove_core::PortcoveError::network(
-                "The application update service rate limit was reached. Portcove kept the last trusted state and deferred the next automatic check.",
+                "The application update service rate limit was reached. Portcove kept the last trusted state. Try again later.",
             )
             .into(),
             CandidateLoadFailureKind::Stale => portcove_core::PortcoveError::verification(
@@ -861,6 +895,30 @@ mod tests {
         observed: Arc<Mutex<Option<ApplicationUpdateCheckEnvironment>>>,
     }
 
+    struct MetadataRunner(Arc<Mutex<Vec<ApplicationChannel>>>);
+
+    #[async_trait]
+    impl ApplicationUpdateCommandRunner for MetadataRunner {
+        async fn run(
+            &self,
+            request: ApplicationUpdateCommandRequest,
+            _progress: &dyn ApplicationUpdateProgressSink,
+            _cancellation: &CancellationToken,
+        ) -> Result<ApplicationUpdateOperationOutcome, ApplicationUpdateOperationError> {
+            let ApplicationUpdateCommandRequest::CheckOnce(channel) = request else {
+                panic!("one-time query used saved-policy execution")
+            };
+            self.0.lock().unwrap().push(channel);
+            Ok(ApplicationUpdateOperationOutcome::MetadataChecked {
+                selection: ApplicationUpdateSelectionSummary {
+                    state: crate::application_update::CandidateState::Current,
+                    candidate: None,
+                    reasons: Vec::new(),
+                },
+            })
+        }
+    }
+
     #[async_trait]
     impl ApplicationUpdateCommandRunner for CancelledRunner {
         async fn run(
@@ -908,6 +966,89 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn one_time_command_returns_checked_channel_without_clearing_automatic_notice() {
+        let observed = Arc::new(Mutex::new(Vec::new()));
+        let state = state_with(Arc::new(MetadataRunner(observed.clone())));
+        let notice = state.update_notice(Some(ApplicationUpdateNotice {
+            preference_revision: 7,
+            result: ApplicationUpdateCheckResult {
+                kind: ApplicationUpdateCheckResultKind::Current,
+                candidate: None,
+                reasons: Vec::new(),
+                staged: false,
+            },
+        }));
+        let default = run_check(&state, None, &NoopApplicationUpdateProgressSink)
+            .await
+            .unwrap();
+        assert_eq!(
+            default.checked_channel,
+            default_check_channel(env!("CARGO_PKG_VERSION")).unwrap()
+        );
+        for channel in [ApplicationChannel::Stable, ApplicationChannel::Preview] {
+            let checked = run_check(
+                &state,
+                Some(ApplicationUpdateManualCheckRequest {
+                    channel: Some(channel),
+                }),
+                &NoopApplicationUpdateProgressSink,
+            )
+            .await
+            .unwrap();
+            assert_eq!(checked.checked_channel, channel);
+            assert!(!checked.result.staged);
+            assert_eq!(state.notice(), notice);
+        }
+        assert_eq!(
+            *observed.lock().unwrap(),
+            [
+                default.checked_channel,
+                ApplicationChannel::Stable,
+                ApplicationChannel::Preview
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn one_time_request_defaults_and_channel_are_host_owned() {
+        assert_eq!(
+            default_check_channel("0.1.0-alpha.2").unwrap(),
+            ApplicationChannel::Preview
+        );
+        assert_eq!(
+            default_check_channel("0.9.0").unwrap(),
+            ApplicationChannel::Preview
+        );
+        assert_eq!(
+            default_check_channel("1.0.0-beta.1").unwrap(),
+            ApplicationChannel::Preview
+        );
+        assert_eq!(
+            default_check_channel("1.0.0").unwrap(),
+            ApplicationChannel::Stable
+        );
+        assert!(default_check_channel("invalid").is_err());
+        assert!(
+            serde_json::from_value::<ApplicationUpdateManualCheckRequest>(
+                serde_json::json!({"channel":"nightly"})
+            )
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<ApplicationUpdateManualCheckRequest>(
+                serde_json::json!({"channel":"stable", "url":"https://invalid.example"})
+            )
+            .is_err()
+        );
+        assert_eq!(
+            serde_json::from_value::<ApplicationUpdateManualCheckRequest>(serde_json::json!({}))
+                .unwrap()
+                .channel,
+            None
+        );
+    }
+
+    #[tokio::test]
     async fn one_check_can_be_cancelled_and_releases_process_ownership() {
         let started = Arc::new(Semaphore::new(0));
         let state = state_with(Arc::new(CancelledRunner {
@@ -915,7 +1056,7 @@ mod tests {
         }));
         let running_state = state.clone();
         let running = tokio::spawn(async move {
-            run_check(&running_state, &NoopApplicationUpdateProgressSink).await
+            run_check(&running_state, None, &NoopApplicationUpdateProgressSink).await
         });
         started.acquire().await.unwrap().forget();
         assert_eq!(
@@ -923,7 +1064,7 @@ mod tests {
             portcove_core::ErrorCode::Conflict
         );
 
-        let busy = run_check(&state, &NoopApplicationUpdateProgressSink)
+        let busy = run_check(&state, None, &NoopApplicationUpdateProgressSink)
             .await
             .unwrap_err();
         assert_eq!(busy.code, portcove_core::ErrorCode::Conflict);
@@ -1132,7 +1273,8 @@ mod tests {
         assert_eq!(error.code, portcove_core::ErrorCode::Network);
         assert!(error.message.contains("rate limit"));
         assert!(error.message.contains("last trusted state"));
-        assert!(error.message.contains("deferred"));
+        assert!(error.message.contains("Try again later"));
+        assert!(!error.message.contains("automatic"));
         assert!(!error.message.contains("9999"));
     }
 }

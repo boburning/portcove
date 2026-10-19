@@ -1,7 +1,13 @@
 import { ApplicationUpdateSettings } from "../features/application-update/ApplicationUpdates";
 import { ApplicationUpdateNotices } from "../features/application-update/ApplicationUpdateNotices";
 import { fixtureValue } from "../test-fixtures";
-import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
+import {
+  failureReport,
+  portDefinition,
+  portStatus,
+  sourceProfile,
+  confirmedSourceAssessment,
+} from "../test-fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 import type {
@@ -328,6 +334,7 @@ describe("desktop components", () => {
         launchable: false,
         pending_setup: false,
         source: "current",
+        source_assessment: confirmedSourceAssessment(),
         required_source_extension: "z64",
         blockers: ["incompatible_source"],
       },
@@ -642,6 +649,7 @@ describe("desktop components", () => {
             blockers: ["preparation_required"],
             pending_setup: true,
             source: "current",
+            source_assessment: confirmedSourceAssessment(),
           },
         }}
       />,
@@ -666,6 +674,7 @@ describe("desktop components", () => {
           blockers: ["preparation_required"],
           pending_setup: true,
           source: "current",
+          source_assessment: confirmedSourceAssessment(),
         },
       };
       const props = {
@@ -731,6 +740,7 @@ describe("desktop components", () => {
           blockers: ["preparation_required"],
           pending_setup: true,
           source: "current",
+          source_assessment: confirmedSourceAssessment(),
         },
       };
       const props = {
@@ -895,7 +905,13 @@ describe("desktop components", () => {
       channel: "stable",
       active: install,
       staged: downloaded,
-      readiness: { launchable: true, blockers: [], pending_setup: false, source: "current" },
+      readiness: {
+        launchable: true,
+        blockers: [],
+        pending_setup: false,
+        source: "current",
+        source_assessment: confirmedSourceAssessment(),
+      },
       last_update_check: {
         checked_at: 2,
         check: {
@@ -1086,6 +1102,7 @@ describe("desktop components", () => {
             blockers: [],
             pending_setup: false,
             source: "current",
+            source_assessment: confirmedSourceAssessment(),
             bios: health,
           },
         }}
@@ -1257,7 +1274,7 @@ describe("desktop components", () => {
     );
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*aria-label="Dismiss error"/u);
     expect(html).toContain("Port catalog");
-    expect(html).toMatch(/<span[^>]*>Game updates<\/span>/u);
+    expect(html).toMatch(/<span[^>]*>Updates &amp; activity<\/span>/u);
     expect(html).toContain('aria-label="2 in library"');
     expect(html).toContain("Problem");
     expect(html).toContain("C:/Portcove");
@@ -1284,7 +1301,7 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Disk unavailable");
-    expect(html).toContain("Choose how Portcove updates");
+    expect(html).toContain("Portcove updates");
     expect(html).toContain("Backup in progress");
   });
 
@@ -1336,7 +1353,7 @@ describe("desktop components", () => {
     expect(catalog).toContain('<h1 tabindex="-1">Port catalog</h1>');
     expect(catalog).toContain("Browse 61 native game ports.");
     expect(catalog).toContain('id="port-search"');
-    expect(updates).toContain('<h1 tabindex="-1">Game updates &amp; activity</h1>');
+    expect(updates).toContain('<h1 tabindex="-1">Updates &amp; activity</h1>');
     expect(settings).toContain('<h1 tabindex="-1">Settings</h1>');
     for (const header of [library, catalog, updates, settings]) {
       expect(header).not.toContain('class="eyebrow"');
@@ -1499,7 +1516,7 @@ describe("desktop components", () => {
     }
   });
 
-  it("groups every settings capability by the six player-facing tasks", () => {
+  it("groups Settings capabilities with a separate About destination", () => {
     const html = renderToStaticMarkup(
       <SettingsView
         applicationUpdates={<ApplicationUpdateSettings currentVersion="0.1.0-alpha.2" />}
@@ -1519,6 +1536,7 @@ describe("desktop components", () => {
       "updates",
       "integrations",
       "advanced",
+      "about",
     ]);
     for (const group of groups) {
       expect(html).toContain(
@@ -1538,12 +1556,13 @@ describe("desktop components", () => {
     expect(groupMarkup("library-storage")).toContain("Files and capacity");
     expect(groupMarkup("game-files")).toContain("Game files and BIOS");
     expect(groupMarkup("game-files")).toContain("Disc tools");
-    expect(groupMarkup("updates")).toContain("Choose how Portcove updates");
+    expect(groupMarkup("updates")).toContain("Portcove updates");
     expect(groupMarkup("updates")).toContain("Portcove &amp; catalog updates");
     expect(groupMarkup("updates")).toContain(
-      "Game updates and activity are in the Game updates workspace.",
+      "Open Updates &amp; activity for game updates and recent tasks.",
     );
-    expect(groupMarkup("updates")).toContain("Catalog updates");
+    expect(groupMarkup("updates")).toContain("Game catalog");
+    expect(groupMarkup("updates")).not.toContain("Publisher public key");
     expect(groupMarkup("updates")).toContain('class="settings-section-description ');
     expect(groupMarkup("updates")).toContain('class="settings-section-content ');
     expect(groupMarkup("integrations")).toContain("GitHub connection");
@@ -1551,10 +1570,10 @@ describe("desktop components", () => {
     expect(advanced.indexOf("Create support bundle")).toBeLessThan(
       advanced.indexOf("Original game files stay local"),
     );
-    expect(advanced.indexOf("Original game files stay local")).toBeLessThan(
-      advanced.indexOf("About Portcove"),
-    );
-    expect(html).not.toContain("<nav");
+    expect(advanced).toContain("Custom catalog sources");
+    expect(advanced).not.toContain("About Portcove");
+    expect(groupMarkup("about")).toContain("About Portcove");
+    expect(html).toContain('aria-label="Settings categories"');
   });
 
   it("shows the shared library path and volume capacity", () => {
@@ -1854,10 +1873,10 @@ describe("desktop components", () => {
     expect(html).toContain("Refresh status");
   });
 
-  it("offers the six Settings sections as direct, shared-control jumps", () => {
+  it("offers persistent Settings categories with current and controlled-panel semantics", () => {
     const html = renderToStaticMarkup(<SettingsView />);
     const index = html.match(
-      /<div[^>]*aria-label="Settings sections"[^>]*>([\s\S]*?)<\/div>/u,
+      /<nav[^>]*aria-label="Settings categories"[^>]*>([\s\S]*?)<\/nav>/u,
     )?.[1];
     expect(index).toBeDefined();
     for (const id of [
@@ -1867,13 +1886,16 @@ describe("desktop components", () => {
       "updates",
       "integrations",
       "advanced",
+      "about",
     ]) {
       expect(html).toContain(`data-settings-group="${id}"`);
       expect(html).toContain(`id="settings-${id}-heading"`);
+      expect(index).toContain(`aria-controls="settings-${id}"`);
     }
-    expect(index?.match(/data-slot="button"/gu)).toHaveLength(6);
+    expect(index?.match(/data-slot="button"/gu)).toHaveLength(7);
+    expect(index?.match(/aria-current="page"/gu)).toHaveLength(1);
     expect(index).toContain("Library and storage");
-    expect(index).toContain("Portcove &amp; catalog updates");
+    expect(index).toContain("Updates");
   });
 
   it("keeps all Settings tasks in ordered full-width rows with their actions and warnings", () => {
@@ -1894,7 +1916,8 @@ describe("desktop components", () => {
       ["game-files", "updates", 3],
       ["updates", "integrations", 2],
       ["integrations", "advanced", 1],
-      ["advanced", null, 3],
+      ["advanced", "about", 3],
+      ["about", null, 1],
     ] as const;
     for (const [id, next, rowCount] of groups) {
       const start = html.indexOf(`data-settings-group="${id}"`);
@@ -1904,19 +1927,22 @@ describe("desktop components", () => {
       expect(section.match(/class="settings-row(?: |")/gu)).toHaveLength(rowCount);
       expect(section).not.toContain('class="settings-card');
     }
-    const advanced = html.slice(html.indexOf('data-settings-group="advanced"'));
+    const advanced = html.slice(
+      html.indexOf('data-settings-group="advanced"'),
+      html.indexOf('data-settings-group="about"'),
+    );
     expect(appearance.indexOf("Color theme")).toBeLessThan(appearance.indexOf("Language"));
     expect(html.indexOf("Library at startup")).toBeLessThan(html.indexOf("Files and capacity"));
     expect(html.indexOf("Game-file libraries")).toBeLessThan(html.indexOf("Game files and BIOS"));
     expect(html.indexOf("Game files and BIOS")).toBeLessThan(html.indexOf("Disc tools"));
-    expect(html.indexOf("Choose how Portcove updates")).toBeLessThan(
-      html.indexOf("Catalog updates"),
-    );
+    expect(html.indexOf("Portcove updates")).toBeLessThan(html.indexOf("Game catalog"));
     expect(advanced.indexOf("metadata may remain")).toBeLessThan(
       advanced.indexOf(">Create support bundle</button>"),
     );
     expect(advanced).toContain("Original game files stay local");
-    expect(advanced).toContain("Open project repository");
+    expect(html.slice(html.indexOf('data-settings-group="about"'))).toContain(
+      "Open project repository",
+    );
   });
 
   it("hides unavailable device sign-in without exposing build configuration", () => {
@@ -2217,13 +2243,15 @@ describe("desktop components", () => {
       "No ports in your library yet. File requirements will appear here after you add a port.",
     );
     expect(noInstalledPorts).not.toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
-    expect(complete).toContain("Required files have been added for ports in your library");
+    expect(complete).toContain("Required file locations are saved");
     expect(complete).toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
     expect(complete).toContain("No game files or BIOS files have been added yet");
     expect(singular).toContain("1 game-file requirement needs attention");
     expect(plural).toContain("2 game-file requirements need attention");
     expect(singular).toContain("Game files and BIOS");
-    expect(singular).toContain("Portcove checks files locally and never uploads or changes them");
+    expect(singular).toContain(
+      "File checks run locally without uploading or changing your originals",
+    );
     expect(singular).toContain("confirms that the file is an exact match");
     expect(singular).toContain("Sample source set");
     expect(singular).toContain("Sample Port · Game files");
@@ -2353,6 +2381,7 @@ describe("desktop components", () => {
           active: installRecord(),
           readiness: {
             source: "current",
+            source_assessment: confirmedSourceAssessment(),
             launchable: true,
             blockers: [],
             pending_setup: false,
@@ -2364,7 +2393,7 @@ describe("desktop components", () => {
     expect(html).toContain("Selected path has not been checked");
     expect(html).not.toContain("Current registered bytes checked");
     expect(html).not.toContain("Ready to launch");
-    expect(html).toContain(">Play</button>");
+    expect(html).toContain(">Try launch</button>");
   });
 
   it("renders installed and uninstalled detail actions", () => {
@@ -2413,6 +2442,7 @@ describe("desktop components", () => {
         blockers: [],
         pending_setup: false,
         source: "current",
+        source_assessment: confirmedSourceAssessment(),
       },
     };
     const installed = renderToStaticMarkup(
@@ -2420,6 +2450,15 @@ describe("desktop components", () => {
         port={port}
         status={status}
         sourcePath="source.z64"
+        source={{
+          profile_id: port.source_profile!,
+          path: "source.z64",
+          sha256: "a".repeat(64),
+          size: 1,
+          storage_sha256: "a".repeat(64),
+          storage_size: 1,
+          updated_at: 1,
+        }}
         setSourcePath={vi.fn()}
         actions={actions}
         backupCreateAssessment={{
@@ -2467,7 +2506,7 @@ describe("desktop components", () => {
       "Required for setup: <strong>Sample cartridge · PlayStation SCPH-1001 BIOS</strong>",
     );
     expect(missingBoth.indexOf("Required for setup:")).toBeLessThan(
-      missingBoth.indexOf("Status and actions"),
+      missingBoth.indexOf('aria-label="Game actions"'),
     );
     expect(missingBoth).toMatch(
       /<details class="future-setup-disclosure advanced-settings is-deferred[^"]*">/u,
@@ -3153,7 +3192,7 @@ describe("desktop components", () => {
       />,
     );
     const headings = [
-      "Status and actions",
+      'aria-label="Game actions"',
       "Requirements",
       "Installation and version",
       "Updates",
@@ -3336,6 +3375,7 @@ describe("desktop components", () => {
         blockers: [],
         pending_setup: false,
         source: "current",
+        source_assessment: confirmedSourceAssessment(),
       },
       last_update_check: {
         checked_at: 2,
@@ -3375,7 +3415,8 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Ready to play");
-    expect(html).toContain(">Details</button>");
+    expect(html).toContain(`aria-label="View details for ${port.name}"`);
+    expect(html).not.toContain(">Details</button>");
     expect(html).toContain(`aria-label="More actions for ${port.name}"`);
     expect(html).toContain('data-slot="button"');
     expect(html).toContain('data-variant="outline"');
@@ -3384,7 +3425,7 @@ describe("desktop components", () => {
     expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);
     expect(html).toContain(">Play</button>");
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);
-    expect(html).toContain("All ready to play");
+    expect(html).toContain("All can launch");
     expect(html).not.toContain("updates downloaded");
     expect(html).toContain("Update available");
     expect(html).not.toContain("need attention");
@@ -3396,7 +3437,7 @@ describe("desktop components", () => {
       /<article class="port-card [^"]*\bport-card-library\b[^>]*>[\s\S]*?<\/article>/u,
     )?.[0];
     expect(card).toBeDefined();
-    expect(card).toMatch(/<h2[^>]*>Sample Port<\/h2>[\s\S]*?Ready to play/u);
+    expect(card).toMatch(/<h2[^>]*>[\s\S]*?Sample Port[\s\S]*?<\/h2>[\s\S]*?Ready to play/u);
     expect(card).not.toContain(port.summary);
     expect(card).not.toContain(">Windows</span>");
     expect(card).not.toContain(install.version);
@@ -3416,6 +3457,7 @@ describe("desktop components", () => {
         blockers: [],
         pending_setup: false,
         source: "current",
+        source_assessment: confirmedSourceAssessment(),
       },
     };
     const html = renderToStaticMarkup(
@@ -3433,7 +3475,7 @@ describe("desktop components", () => {
 
     expect(html).toContain("Update downloaded");
     expect(html).toContain("1 update downloaded");
-    expect(html).toMatch(/<h2[^>]*>Sample Port<\/h2>[\s\S]*?Ready to play/u);
+    expect(html).toMatch(/<h2[^>]*>[\s\S]*?Sample Port[\s\S]*?<\/h2>[\s\S]*?Ready to play/u);
     expect(html).toContain("View details for Sample Port");
     expect(html).not.toContain("Update staged");
     expect(html).not.toContain("Staged updates");
@@ -3441,7 +3483,13 @@ describe("desktop components", () => {
 
   it.each([
     {
-      readiness: { launchable: true, blockers: [], pending_setup: false, source: "current" },
+      readiness: {
+        launchable: true,
+        blockers: [],
+        pending_setup: false,
+        source: "current",
+        source_assessment: confirmedSourceAssessment(),
+      },
       label: "Ready to play",
       action: "View details",
     },
@@ -3451,6 +3499,7 @@ describe("desktop components", () => {
         blockers: ["missing_runtime"],
         pending_setup: false,
         source: "current",
+        source_assessment: confirmedSourceAssessment(),
       },
       label: "Runtime required",
       action: "Finish setup",
@@ -3499,6 +3548,7 @@ describe("desktop components", () => {
         blockers: [],
         pending_setup: false,
         source: "current",
+        source_assessment: confirmedSourceAssessment(),
       },
     };
     const html = renderToStaticMarkup(

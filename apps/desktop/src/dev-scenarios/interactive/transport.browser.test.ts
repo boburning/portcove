@@ -22,6 +22,29 @@ it("refuses unknown and malformed commands visibly without forwarding IPC", asyn
   );
   expect(refuse).toHaveBeenCalledTimes(3);
 });
+
+it("models metadata-only update queries while refusing consent or repository arguments", async () => {
+  const refuse = vi.fn();
+  transport = installInteractiveTransport("library", refuse);
+  const before = await desktopApi.applicationUpdatePreferences();
+  const phases: string[] = [];
+  const checked = await desktopApi.checkApplicationUpdate((phase) => phases.push(phase), {
+    channel: "stable",
+  });
+  expect(checked.checked_channel).toBe("stable");
+  expect(checked.result.staged).toBe(false);
+  expect(phases).toEqual(["checking", "complete"]);
+  expect(await desktopApi.applicationUpdatePreferences()).toEqual(before);
+  await expect(
+    invoke("check_application_update", {
+      request: { channel: "stable", url: "https://invalid.example" },
+    }),
+  ).rejects.toThrow("unexpected arguments");
+  await expect(
+    invoke("check_application_update", { request: { channel: "nightly" } }),
+  ).rejects.toThrow("invalid channel");
+  expect(refuse).toHaveBeenCalledTimes(2);
+});
 it("supports current read surfaces without hiding unsupported mutations", async () => {
   const refuse = vi.fn();
   transport = installInteractiveTransport("library", refuse);

@@ -320,10 +320,43 @@ void test("publication pagination cannot leave the fixed repository release inve
 
 void test("only explicit complete-opportunity acceptance passes event integrity; imported captures never acquire producer provenance", async () => {
   const opportunity = fixture().opportunity;
-  const bundle = {
-    manifest: { opportunity_sha256: capacityDigest(opportunity) },
-    bundle_sha256: "a".repeat(64),
+  const blob = (text: string) => {
+    const bytes = Buffer.from(text);
+    const oid = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+    return {
+      oid,
+      file: {
+        name: `objects/${oid}.data`,
+        bytes,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      },
+    };
   };
+  const before = blob("fn main() { old_behavior(); }\n"),
+    after = blob("fn main() { repaired_behavior(); }\n");
+  const manifest = {
+    opportunity,
+    opportunity_sha256: capacityDigest(opportunity),
+    baseline: { commit: opportunity.base_commit },
+    source: {
+      changes: [{ path: "app.rs", before: { oid: before.oid }, after: { oid: after.oid } }],
+    },
+    evidence: {
+      classification: "prerelease: preserved public contract",
+      compatibility: "fixture API unchanged",
+    },
+    snapshots: {
+      baseline: [{ path: "app.rs", oid: before.oid, mode: "100644" }],
+      source: [{ path: "app.rs", oid: after.oid, mode: "100644" }],
+    },
+  };
+  // Imported inert data exercises observation checks; it has no builder or producer brand.
+  const bundle = {
+    manifest,
+    bundle_sha256: capacityDigest(manifest),
+    files: [before.file, after.file],
+  } as unknown as Parameters<typeof inspectSemanticRuntimeEvents>[1];
+
   const result = {
     schema_version: 1,
     outcome: "accepted",
@@ -344,7 +377,109 @@ void test("only explicit complete-opportunity acceptance passes event integrity;
         .map((x) => JSON.stringify(x))
         .join("\n"),
     );
-  assert.equal(inspectSemanticRuntimeEvents(events(result), bundle).report, result.report);
+  assert.throws(() => inspectSemanticRuntimeEvents(events(result), bundle), /lacks relevant/);
+  const readEvents = (
+    snapshot: string,
+    path: string,
+    bytes: Buffer,
+    length = bytes.length,
+    offset = 0,
+  ) => {
+    const call = {
+      id: `${snapshot}:${path}:${offset}`,
+      type: "mcp_tool_call",
+      server: "portcove_frozen_bundle",
+      tool: "read",
+      arguments: { snapshot, path, offset, length },
+    };
+    return [
+      { type: "item.started", item: { ...call, status: "in_progress" } },
+      {
+        type: "item.completed",
+        item: {
+          ...call,
+          status: "completed",
+          result: {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  bytes: bytes.length,
+                  sha256: createHash("sha256").update(bytes).digest("hex"),
+                  offset,
+                  encoding: "base64",
+                  data: bytes.subarray(offset, offset + length).toString("base64"),
+                  next: offset + length < bytes.length ? offset + length : null,
+                }),
+              },
+            ],
+          },
+          error: null,
+        },
+      },
+    ];
+  };
+  const metadata = readEvents("manifest", "manifest.json", Buffer.from(JSON.stringify(manifest)));
+  const meaningful = [
+    ...metadata,
+    ...readEvents("baseline", "app.rs", before.file.bytes),
+    ...readEvents("source", "app.rs", after.file.bytes),
+  ];
+  assert.equal(
+    inspectSemanticRuntimeEvents(events(result, meaningful), bundle).report,
+    result.report,
+  );
+  for (const incomplete of [
+    metadata,
+    [
+      ...metadata,
+      ...readEvents("baseline", "app.rs", before.file.bytes, 1),
+      ...readEvents("source", "app.rs", after.file.bytes, 1),
+    ],
+    [...metadata, ...readEvents("source", "app.rs", after.file.bytes)],
+  ])
+    assert.throws(
+      () => inspectSemanticRuntimeEvents(events(result, incomplete), bundle),
+      /lacks relevant/,
+    );
+  const manifestBytes = Buffer.from(JSON.stringify(manifest));
+  const split = Math.floor(manifestBytes.length / 2);
+  const paged = [
+    ...readEvents("manifest", "manifest.json", manifestBytes, split),
+    ...readEvents("manifest", "manifest.json", manifestBytes, manifestBytes.length - split, split),
+    ...meaningful.slice(2),
+  ];
+  assert.equal(inspectSemanticRuntimeEvents(events(result, paged), bundle).report, result.report);
+  for (const replacement of [
+    "",
+    "{malformed",
+    JSON.stringify({ data: "" }),
+    JSON.stringify({
+      bytes: 0,
+      offset: 0,
+      sha256: "0".repeat(64),
+      encoding: "base64",
+      data: "",
+      next: null,
+    }),
+  ]) {
+    const corrupt = {
+      ...metadata[1],
+      item: { ...metadata[1]!.item, result: { content: [{ type: "text", text: replacement }] } },
+    };
+    assert.throws(() =>
+      inspectSemanticRuntimeEvents(
+        events(result, [metadata[0], corrupt, ...meaningful.slice(2)]),
+        bundle,
+      ),
+    );
+  }
+  assert.throws(() =>
+    inspectSemanticRuntimeEvents(events(result, meaningful), {
+      ...bundle,
+      bundle_sha256: "0".repeat(64),
+    }),
+  );
   for (const changed of [
     { ...result, bundle_sha256: "b".repeat(64) },
     { ...result, coverage: { ...result.coverage, compatibility: false } },
@@ -374,7 +509,63 @@ void test("only explicit complete-opportunity acceptance passes event integrity;
     type: "item.completed",
     item: { ...call, status: "completed", result: { content: [] }, error: null },
   };
-  assert.ok(inspectSemanticRuntimeEvents(events(result, [start, end]), bundle));
+  assert.throws(() => inspectSemanticRuntimeEvents(events(result, [start, end]), bundle));
+  const listEnd = {
+    ...end,
+    item: {
+      ...end.item,
+      result: {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ total: 1, entries: manifest.snapshots.source, next: null }),
+          },
+        ],
+      },
+    },
+  };
+  assert.throws(
+    () => inspectSemanticRuntimeEvents(events(result, [start, listEnd]), bundle),
+    /lacks relevant/,
+  );
+  const emptyReads = [
+    ...metadata,
+    ...readEvents("baseline", "app.rs", before.file.bytes, 1, before.file.bytes.length),
+    ...readEvents("source", "app.rs", after.file.bytes, 1, after.file.bytes.length),
+  ];
+  assert.throws(
+    () => inspectSemanticRuntimeEvents(events(result, emptyReads), bundle),
+    /lacks relevant/,
+  );
+  const searchCall = {
+    ...call,
+    tool: "search",
+    arguments: { snapshot: "source", literal: "repaired" },
+  };
+  const searchEvents = [
+    { type: "item.started", item: { ...searchCall, status: "in_progress" } },
+    {
+      type: "item.completed",
+      item: {
+        ...searchCall,
+        status: "completed",
+        result: {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ matches: [{ path: "app.rs", offset: 12 }], truncated: true }),
+            },
+          ],
+        },
+        error: null,
+      },
+    },
+  ];
+  assert.throws(
+    () => inspectSemanticRuntimeEvents(events(result, [...meaningful, ...searchEvents]), bundle),
+    /differs/,
+  );
+
   const fixtureCall = {
     ...call,
     tool: "read",

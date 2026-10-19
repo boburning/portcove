@@ -1,4 +1,4 @@
-import { useRef, type Dispatch, type SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { ListFilter, X } from "lucide-react";
 import type { PortDefinition } from "../../types";
 import {
@@ -130,6 +130,10 @@ export function CatalogFilters({
         0,
       );
   const additional = additionalCount > 0;
+  const hasAdvancedSelection =
+    selected.some(({ group }) => !["platforms", "channels", "membership"].includes(group)) ||
+    additional;
+  const [advancedOpen, setAdvancedOpen] = useState(hasAdvancedSelection);
   const activeCount = selected.length + additionalCount;
   const remove = (group: Group, value: string) =>
     setFilter((current) => {
@@ -150,25 +154,19 @@ export function CatalogFilters({
       };
     });
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2" data-focus-group>
+    <div className="flex flex-wrap items-center gap-2" data-focus-group>
       <Dialog>
-        <DialogTrigger render={<Button ref={trigger} data-focusable variant="outline" size="sm" />}>
+        <DialogTrigger
+          onClick={() => setAdvancedOpen((current) => current || hasAdvancedSelection)}
+          render={<Button ref={trigger} data-focusable variant="outline" size="sm" />}
+        >
           <ListFilter /> Filters ({activeCount})
         </DialogTrigger>
         <DialogContent finalFocus={trigger}>
           <DialogTitle>{view === "library" ? "Library" : "Catalog"} filters</DialogTitle>
           <DialogDescription>
-            Match any selected value in each group and all groups together for one setup or
-            installed context. Platforms describe catalog targets or the retained installation; they
-            do not confirm tested compatibility. Library membership means an active managed
-            installation or a registered external runtime in the selected library; it does not
-            confirm readiness. Installation attention uses observed Core reasons for the current
-            installation. Changed or unreadable files are not missing; these choices do not
-            establish game-file compatibility or authorize an action. Observed updates match the
-            current managed version and its last checked candidate. Available excludes that
-            candidate when it is verified and staged. Other downloaded versions do not establish a
-            matching staged update. Filtering never checks for a newer release. Missing retained
-            platform or setup facts remain unavailable. For this device uses Core's host platform.
+            Choose what to show. Choices within a group are combined; each selected group must
+            match. Filtering does not check files or look for updates.
           </DialogDescription>
           {!editable && (
             <p role="alert">
@@ -183,33 +181,28 @@ export function CatalogFilters({
               Additional restored filters remain active. Reset {view} filters to remove them.
             </p>
           )}
-          {gameFileQuery && <GameFileFilterControls state={gameFileQuery} />}
-          {groups.map((group) => (
-            <fieldset key={group.key} className="grid gap-2">
-              <legend className="mb-2 font-medium">{group.label}</legend>
-              <div className="flex flex-wrap gap-2">
-                {group.values.map((value) => (
-                  <Button
-                    key={value}
-                    data-focusable
-                    size="sm"
-                    variant={
-                      supported && query[group.key]?.includes(value) ? "selected" : "outline"
-                    }
-                    aria-pressed={supported && query[group.key]?.includes(value) === true}
-                    disabled={!editable || result.counts[group.key][value] === null}
-                    onClick={() => toggle(group.key, value)}
-                  >
-                    {label(group.key, value)} (
-                    {candidates === undefined
-                      ? "unavailable"
-                      : (result.counts[group.key][value] ?? "unavailable")}
-                    )
-                  </Button>
-                ))}
-              </div>
-            </fieldset>
-          ))}
+          {groups
+            .filter((group) => ["platforms", "channels", "membership"].includes(group.key))
+            .map(renderGroup)}
+          <details
+            open={advancedOpen}
+            onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
+          >
+            <summary className="cursor-pointer py-2 font-medium">Advanced filters</summary>
+            <div className="grid gap-4 pt-3">
+              {gameFileQuery && <GameFileFilterControls state={gameFileQuery} />}
+              {groups
+                .filter((group) => !["platforms", "channels", "membership"].includes(group.key))
+                .map(renderGroup)}
+              <p className="text-xs text-pc-muted-foreground">
+                Platforms describe available targets, not tested compatibility. In my library means
+                installed or registered, not ready to play. File and attention filters use current
+                Core observations; unavailable facts stay unavailable. Update filters use the last
+                checked candidate for the installed version and do not contact upstream. A matching
+                staged candidate is shown as downloaded rather than available.
+              </p>
+            </div>
+          </details>
           <Button data-focusable variant="outline" onClick={() => setFilter("all")}>
             Reset {view} filters
           </Button>
@@ -244,4 +237,31 @@ export function CatalogFilters({
       )}
     </div>
   );
+
+  function renderGroup(group: (typeof groups)[number]) {
+    return (
+      <fieldset key={group.key} className="grid gap-2">
+        <legend className="mb-2 font-medium">{group.label}</legend>
+        <div className="flex flex-wrap gap-2">
+          {group.values.map((value) => (
+            <Button
+              key={value}
+              data-focusable
+              size="sm"
+              variant={supported && query[group.key]?.includes(value) ? "selected" : "outline"}
+              aria-pressed={supported && query[group.key]?.includes(value) === true}
+              disabled={!editable || result.counts[group.key][value] === null}
+              onClick={() => toggle(group.key, value)}
+            >
+              {label(group.key, value)} (
+              {candidates === undefined
+                ? "unavailable"
+                : (result.counts[group.key][value] ?? "unavailable")}
+              )
+            </Button>
+          ))}
+        </div>
+      </fieldset>
+    );
+  }
 }

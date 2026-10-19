@@ -122,7 +122,7 @@ it("retains every recorded item and full long names and paths", () => {
     />,
   );
   expect(html).toContain("40 recorded items need review.");
-  expect(html.match(/<details /g)).toHaveLength(40);
+  expect(html.match(/<details(?:\s|>)/g)).toHaveLength(40);
   expect(html).toContain(longPath);
   expect(html).toContain("operation-39");
   expect(html).not.toContain("raw-machine-secret");

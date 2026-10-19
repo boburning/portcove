@@ -3,7 +3,7 @@ use crate::{Catalog, ErrorCode, Library, SourceClassification};
 
 fn fixture() -> (tempfile::TempDir, PortcoveService, SourceRecord) {
     let temporary = tempfile::tempdir().unwrap();
-    let bytes = b"inert registered-input fixture";
+    let bytes = b"\x80\x37\x12\x40inert registered-input fixture\0\0";
     let path = temporary.path().join("input.z64");
     std::fs::write(&path, bytes).unwrap();
     let service =
@@ -79,7 +79,7 @@ fn batch_preserves_legacy_unknown_identity_and_registration_without_writes() {
     );
     assert_eq!(
         std::fs::read(&record.path).unwrap(),
-        b"inert registered-input fixture"
+        b"\x80\x37\x12\x40inert registered-input fixture\0\0"
     );
 }
 
@@ -309,7 +309,7 @@ fn raw_observation_reuses_schema_two_recognition_and_structural_unknown_logic() 
     service.replace_catalog_for_test(raw_fixture_catalog(&service, &record, false));
     for changed in [false, true] {
         if changed {
-            std::fs::write(&record.path, b"different exact input").unwrap();
+            std::fs::write(&record.path, b"\x80\x37\x12\x40different exact input\0\0\0").unwrap();
         }
         let mut budget = HashBudget {
             operation: Some(operation()),

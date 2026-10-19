@@ -17,8 +17,11 @@ import {
   writeFile,
 } from "node:fs/promises";
 import os from "node:os";
+import { fileURLToPath } from "node:url";
 import path from "node:path";
 import test from "node:test";
+import { parseDocument, stringify } from "yaml";
+import { isRecord } from "./runtime-values.mts";
 
 import {
   loadPackagePolicy,
@@ -37,38 +40,69 @@ const macosVerifier = await readFile(
   "utf8",
 );
 
-function job(name: string, next?: string) {
-  const suffix = next ? `(?=^ {2}${next}:)` : "(?![\\s\\S])";
-  return workflow.match(new RegExp(`^ {2}${name}:\\r?\\n([\\s\\S]*?)${suffix}`, "m"))?.[1] ?? "";
+function parsedWorkflow(text: string) {
+  const document = parseDocument(text, { uniqueKeys: true });
+  assert.deepEqual(document.errors, []);
+  const parsed: unknown = document.toJS();
+  assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
+  return parsed as Record<string, unknown> & { jobs: Record<string, Record<string, unknown>> };
 }
-
-const identitySection = job("identity", "qualification");
-const qualificationSection = job("qualification", "validate");
-const validateSection = job("validate", "build");
-const buildSection = job("build", "build_intel");
-const intelBuildSection = job("build_intel", "verify_intel");
-const intelSection = job("verify_intel", "release_gate");
-const gateSection = job("release_gate", "assemble");
-const assembleSection = job("assemble", "rehearse");
-const rehearseSection = job("rehearse", "attest");
-const attestSection = job("attest", "authorize_publication");
-const publishSection = job("publish", "cleanup");
+const workflowData = parsedWorkflow(workflow);
+function job(name: string) {
+  const selected = workflowData.jobs[name];
+  assert.ok(selected, `missing release job ${name}`);
+  // Script-content checks below deliberately inspect commands, not YAML layout.
+  return stringify(selected, { lineWidth: 0 });
+}
+function steps(name: string, data = workflowData) {
+  const selected = data.jobs[name]?.steps;
+  assert.ok(Array.isArray(selected));
+  return selected as Record<string, unknown>[];
+}
+function needs(name: string, expected: string[], data = workflowData) {
+  const actual = data.jobs[name]?.needs;
+  const entries: unknown[] = Array.isArray(actual) ? actual : [actual];
+  assert.ok(entries.every((entry) => typeof entry === "string"));
+  const compare = (left: string, right: string) => left.localeCompare(right);
+  assert.deepEqual(entries.map(String).sort(compare), [...expected].sort(compare));
+}
+function artifact(
+  name: string,
+  action: string,
+  expected: Record<string, unknown>,
+  data = workflowData,
+) {
+  const selected = steps(name, data).find(
+    (step) =>
+      typeof step.uses === "string" &&
+      step.uses.startsWith(`actions/${action}@`) &&
+      isRecord(step.with) &&
+      Object.entries(expected).every(
+        ([key, value]) => (step.with as Record<string, unknown>)[key] === value,
+      ),
+  );
+  assert.ok(selected, `missing ${name} ${action} relationship ${JSON.stringify(expected)}`);
+}
+const identitySection = job("identity");
+const qualificationSection = job("qualification");
+const validateSection = job("validate");
+const buildSection = job("build");
+const intelBuildSection = job("build_intel");
+const intelSection = job("verify_intel");
+const gateSection = job("release_gate");
+const assembleSection = job("assemble");
+const rehearseSection = job("rehearse");
+const attestSection = job("attest");
+const publishSection = job("publish");
 const cleanupSection = job("cleanup");
 
-function inlineRunScript(section: string, stepName: string) {
-  const escaped = stepName.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-  const block = section.match(
-    new RegExp(`^ {6}- name: ${escaped}\\r?\\n[\\s\\S]*?^ {8}run: \\|\\r?\\n([\\s\\S]*)`, "m"),
-  )?.[1];
-  assert.ok(block, `missing inline run script for ${stepName}`);
-  return block
-    .split(/\r?\n/u)
-    .map((line: string) => line.replace(/^ {10}/u, ""))
-    .join("\n")
-    .trimEnd();
+function inlineRunScript(name: string, stepName: string) {
+  const step = steps(name).find((step) => step.name === stepName);
+  assert.ok(step && typeof step.run === "string", `missing inline run script for ${stepName}`);
+  return step.run;
 }
 
-const publicationScript = inlineRunScript(publishSection, "Create or reconcile draft release");
+const publicationScript = inlineRunScript("publish", "Create or reconcile draft release");
 // The publisher runs only on Ubuntu. Windows Git Bash process startup is both
 // materially slower and a different host contract; exact hosted Linux CI runs
 // this fixture against the same Bash boundary as the privileged job.
@@ -95,19 +129,28 @@ function mockPublisherArguments(script: string, bin: string, ghShim: string) {
   ];
 }
 
-void test("write authority is split across isolated attestation publication and cleanup jobs", () => {
-  assert.match(workflow, /^permissions:\r?\n {2}contents: read$/m);
-  assert.match(buildSection, /^ {4}permissions:\r?\n {6}contents: read$/m);
-  assert.match(intelBuildSection, /^ {4}permissions:\r?\n {6}contents: read$/m);
-  assert.match(assembleSection, /^ {4}permissions:\r?\n {6}contents: read$/m);
-  assert.match(rehearseSection, /^ {4}permissions:\r?\n {6}contents: read$/m);
-  assert.match(
-    attestSection,
-    /^ {4}permissions:\r?\n {6}artifact-metadata: write\r?\n {6}attestations: write\r?\n {6}contents: read\r?\n {6}id-token: write$/m,
+function assertWriteAuthority(data: typeof workflowData) {
+  assert.deepEqual(data.permissions, { contents: "read" });
+  for (const name of ["build", "build_intel", "assemble", "rehearse"])
+    assert.deepEqual(data.jobs[name]?.permissions, { contents: "read" });
+  assert.deepEqual(data.jobs.attest?.permissions, {
+    "artifact-metadata": "write",
+    attestations: "write",
+    contents: "read",
+    "id-token": "write",
+  });
+  assert.deepEqual(data.jobs.publish?.permissions, { contents: "write" });
+  assert.deepEqual(data.jobs.cleanup?.permissions, { actions: "write" });
+  assert.equal(
+    Object.values(data.jobs).filter(
+      (job) => isRecord(job.permissions) && job.permissions.contents === "write",
+    ).length,
+    1,
   );
-  assert.match(publishSection, /^ {4}permissions:\r?\n {6}contents: write$/m);
-  assert.match(cleanupSection, /^ {4}permissions:\r?\n {6}actions: write$/m);
-  assert.equal((workflow.match(/contents: write/g) ?? []).length, 1);
+}
+
+void test("write authority is split across isolated attestation publication and cleanup jobs", () => {
+  assertWriteAuthority(workflowData);
   assert.doesNotMatch(attestSection, /actions\/checkout|run:/);
   assert.doesNotMatch(publishSection, /actions\/checkout|setup-node|node scripts/);
 });
@@ -119,11 +162,11 @@ void test("cheap identity unlocks qualification and builds before the explicit r
     identitySection,
     /select-release-channel\.test|reconstruct-application-update-records\.test/,
   );
-  assert.match(qualificationSection, /^ {4}needs: identity$/m);
+  needs("qualification", ["identity"]);
   assert.match(qualificationSection, /\.\/\.github\/workflows\/qualification\.yml/);
   assert.match(qualificationSection, /qualification_caller: release/);
   assert.match(qualificationSection, /provenance_scope: release-qualification/);
-  assert.match(validateSection, /^ {4}needs: \[identity, qualification\]$/m);
+  needs("validate", ["identity", "qualification"]);
   assert.match(validateSection, /just audit --fresh --profile release/);
   assert.match(validateSection, /needs\.qualification\.outputs\.plan_digest/);
   assert.match(validateSection, /needs\.qualification\.outputs\.plan_gzip_base64/);
@@ -135,25 +178,37 @@ void test("cheap identity unlocks qualification and builds before the explicit r
     /workflow-provenance-release-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/,
   );
   assert.match(validateSection, /retention-days: 7/);
-  assert.match(buildSection, /^ {4}needs: \[identity, validate\]$/m);
-  assert.match(intelBuildSection, /^ {4}needs: \[identity, validate\]$/m);
-  assert.match(buildSection, /needs: \[identity, validate\]/);
-  assert.match(intelBuildSection, /needs: \[identity, validate\]/);
-  assert.match(gateSection, /^ {4}if: always\(\)$/m);
-  assert.match(
-    gateSection,
-    /^ {4}needs: \[identity, qualification, validate, build, build_intel, verify_intel\]$/m,
-  );
+  needs("build", ["identity", "validate"]);
+  needs("build_intel", ["identity", "validate"]);
+
+  assert.equal(workflowData.jobs.release_gate?.if, "always()");
+  needs("release_gate", [
+    "identity",
+    "qualification",
+    "validate",
+    "build",
+    "build_intel",
+    "verify_intel",
+  ]);
   assert.match(gateSection, /scripts\/release-result-gate\.mts/);
-  assert.match(assembleSection, /^ {4}needs: release_gate$/m);
+  needs("assemble", ["release_gate"]);
 });
 
 void test("every builder uploads only the staged checksummed payload with short fallback retention", () => {
   for (const label of releaseLabels.filter((label) => label !== "macos-x86_64"))
     assert.match(buildSection, new RegExp(`label: ${label}`));
   assert.match(intelBuildSection, /--label macos-x86_64/);
-  assert.match(buildSection, /name: release-build-\$\{\{ matrix\.label \}\}/);
-  assert.match(intelBuildSection, /name: release-build-macos-x86_64/);
+  artifact("build", "upload-artifact", {
+    name: "release-build-${{ matrix.label }}",
+    path: "release-upload/**",
+    "retention-days": 1,
+    overwrite: true,
+  });
+  artifact("build_intel", "upload-artifact", {
+    name: "release-build-macos-x86_64",
+    "retention-days": 1,
+    overwrite: true,
+  });
   assert.match(buildSection, /--stage-dir release-upload/);
   assert.match(buildSection, /path: release-upload\/\*\*/);
   assert.match(buildSection, /retention-days: 1/);
@@ -172,12 +227,8 @@ void test("builders package the versioned CLI smoke test it and request explicit
   assert.match(buildSection, /bundles: nsis/);
   assert.match(buildSection, /bundles: appimage,deb,rpm/);
   assert.equal((buildSection.match(/bundles: dmg/g) ?? []).length, 1);
-  assert.match(
-    buildSection,
-    /\$arguments = @\("tauri", "build", "--bundles", "\$\{\{ matrix\.bundles \}\}"\)/,
-  );
   assert.match(buildSection, /target: aarch64-apple-darwin/);
-  assert.match(intelBuildSection, /^ {4}runs-on: macos-15$/m);
+  assert.equal(workflowData.jobs.build_intel?.["runs-on"], "macos-15");
   assert.match(intelBuildSection, /--target x86_64-apple-darwin/);
   assert.match(intelBuildSection, /--bundles dmg/);
   assert.doesNotMatch(buildSection, /os: macos-15-intel/);
@@ -185,42 +236,28 @@ void test("builders package the versioned CLI smoke test it and request explicit
 });
 
 void test("cross-built Intel artifacts receive native Intel package and launch verification", () => {
-  assert.match(intelSection, /^ {4}needs: \[identity, build_intel\]$/m);
-  assert.match(intelSection, /^ {4}runs-on: macos-15-intel$/m);
+  needs("verify_intel", ["identity", "build_intel"]);
+  assert.equal(workflowData.jobs.verify_intel?.["runs-on"], "macos-15-intel");
   assert.match(intelSection, /name: release-build-macos-x86_64/);
   assert.match(intelSection, /scripts\/smoke-test-cli-archive\.ps1/);
   assert.match(intelSection, /scripts\/verify-macos-release\.ps1/);
   assert.match(intelSection, /Architecture x86_64/);
-  assert.match(macosVerifier, /StandardInput\.WriteLine\(\$Response\)/);
-  assert.match(macosVerifier, /Environment\["PAGER"\] = "\/bin\/cat"/);
-  assert.match(macosVerifier, /IndexOf\("<\?xml"\)/);
-  assert.match(macosVerifier, /Substring\(\$plistStart\)/);
-  assert.match(macosVerifier, /WriteAllText\(\$attachPath, \$attachPlist\)/);
+
   assert.doesNotMatch(macosVerifier, /-acceptlicense/);
 });
 
-void test("CLI packaging uses the BSD-compatible chmod form required by macOS", () => {
+void test("supplemental macOS packaging source check retains BSD-compatible chmod syntax", () => {
   assert.match(cliPackager, /& chmod \+x \$temporaryExecutable/);
   assert.doesNotMatch(cliPackager, /& chmod \+x --/);
 });
 
-void test("packaged CLI smoke covers the plugin-free launcher path and library contract", () => {
-  assert.match(cliSmoke, /\$unicodeMarker = \[char\]0x03A9/);
-  assert.match(cliSmoke, /steam launch \$unicodeMarker/);
-  assert.match(cliSmoke, /standalone CLI/);
-  assert.match(cliSmoke, /Library \$unicodeMarker space/);
-  assert.match(cliSmoke, /--library \$library --json library show/);
-  assert.match(cliSmoke, /data\.source -cne "invocation"/);
-  assert.match(cliSmoke, /Resolve-Path -LiteralPath \(\[string\]\$selectionOutput\.data\.root\)/);
-  assert.match(cliSmoke, /data\.raw_stream_commands\) -cnotcontains "exec"/);
-  assert.match(cliSmoke, /data\.commands\) -cnotcontains "launch\.show"/);
-  assert.match(cliSmoke, /data\.commands\) -cnotcontains "launch\.recover"/);
+void test("supplemental CLI smoke source guard excludes shell-based launcher detours", () => {
   assert.doesNotMatch(cliSmoke, /Start-Process|cmd(?:\.exe)?|\/bin\/sh/iu);
 });
 
 void test("assembler reconciles the full matrix then generates and checksums the release SBOM", () => {
-  assert.match(assembleSection, /^ {4}needs: release_gate$/m);
-  assert.match(assembleSection, /pattern: release-build-\*/);
+  needs("assemble", ["release_gate"]);
+  artifact("assemble", "download-artifact", { pattern: "release-build-*" });
   const reconcile = assembleSection.indexOf("reconcile-release-assets.mts");
   const sbom = assembleSection.indexOf("anchore/sbom-action@");
   const finalize = assembleSection.indexOf("finalize-release-assets.mts");
@@ -242,8 +279,8 @@ void test("assembler reconciles the full matrix then generates and checksums the
 });
 
 void test("manual rehearsal verifies every finalized checksum without release write access", () => {
-  assert.match(rehearseSection, /^ {4}if: github\.event_name == 'workflow_dispatch'$/m);
-  assert.match(rehearseSection, /^ {4}needs: assemble$/m);
+  assert.equal(workflowData.jobs.rehearse?.if, "github.event_name == 'workflow_dispatch'");
+  needs("rehearse", ["assemble"]);
   assert.match(rehearseSection, /name: release-final/);
   assert.match(rehearseSection, /sha256sum --check --strict SHA256SUMS\.txt/);
   assert.match(rehearseSection, /name: release-attestation-metadata/);
@@ -255,8 +292,8 @@ void test("manual rehearsal verifies every finalized checksum without release wr
 });
 
 void test("tag releases attest exact final bytes and the SBOM before draft mutation", () => {
-  assert.match(attestSection, /^ {4}if: github\.event_name == 'push'$/m);
-  assert.match(attestSection, /^ {4}needs: assemble$/m);
+  assert.equal(workflowData.jobs.attest?.if, "github.event_name == 'push'");
+  needs("attest", ["assemble"]);
   assert.equal((attestSection.match(/actions\/attest@/g) ?? []).length, 2);
   assert.match(attestSection, /subject-path: release-assets-aggregate\/\*/);
   assert.match(attestSection, /name: release-attestation-metadata/);
@@ -269,13 +306,13 @@ void test("tag releases attest exact final bytes and the SBOM before draft mutat
     /subject-checksums: release-assets-aggregate\/SHA256SUMS\.txt/,
   );
   assert.match(attestSection, /sbom-path: release-assets-aggregate\/Portcove-SBOM\.spdx\.json/);
-  assert.match(publishSection, /^ {4}needs: \[assemble, attest, authorize_publication\]$/m);
+  needs("publish", ["assemble", "attest", "authorize_publication"]);
 });
 
 void test("publisher mutates drafts only from precomputed metadata and attested assets", () => {
-  assert.match(publishSection, /^ {4}if: github\.event_name == 'push'$/m);
-  assert.match(publishSection, /name: release-final/);
-  assert.match(publishSection, /name: release-publication-metadata/);
+  assert.equal(workflowData.jobs.publish?.if, "github.event_name == 'push'");
+  artifact("publish", "download-artifact", { name: "release-final" });
+  artifact("publish", "download-artifact", { name: "release-publication-metadata" });
   assert.match(publishSection, /Refusing to modify non-draft release/);
   assert.match(
     publishSection,
@@ -675,4 +712,142 @@ void test("cleanup deletes transient artifacts only after successful rehearsal o
   assert.match(cleanupSection, /release-final/);
   assert.match(cleanupSection, /release-attestation-metadata/);
   assert.match(cleanupSection, /release-publication-metadata/);
+});
+
+void test("release job semantics survive YAML key and job reordering", () => {
+  const reordered = structuredClone(workflowData);
+  reordered.jobs = Object.fromEntries(
+    Object.entries(reordered.jobs)
+      .reverse()
+      .map(([name, job]) => [name, Object.fromEntries(Object.entries(job).reverse())]),
+  );
+  assert.deepEqual(parsedWorkflow(stringify(reordered, { indent: 4 })), workflowData);
+  const wrongPermission = structuredClone(reordered);
+  wrongPermission.jobs.publish!.permissions = { contents: "read" };
+  assert.throws(() => assertWriteAuthority(parsedWorkflow(stringify(wrongPermission))));
+  assertWriteAuthority(parsedWorkflow(stringify(reordered, { indent: 4 })));
+  const wrongDependency = structuredClone(reordered);
+  wrongDependency.jobs.publish!.needs = ["assemble"];
+  assert.throws(() =>
+    needs(
+      "publish",
+      ["assemble", "attest", "authorize_publication"],
+      parsedWorkflow(stringify(wrongDependency)),
+    ),
+  );
+  needs(
+    "publish",
+    ["assemble", "attest", "authorize_publication"],
+    parsedWorkflow(stringify(reordered, { indent: 4 })),
+  );
+  const expectedArtifact = { name: "release-final" };
+  artifact("publish", "download-artifact", expectedArtifact, parsedWorkflow(stringify(reordered)));
+  const wrongArtifact = structuredClone(reordered);
+  const download = steps("publish", wrongArtifact).find(
+    (step) => isRecord(step.with) && step.with.name === "release-final",
+  )!;
+  download.with = { name: "foreign-final" };
+  assert.throws(() =>
+    artifact(
+      "publish",
+      "download-artifact",
+      expectedArtifact,
+      parsedWorkflow(stringify(wrongArtifact)),
+    ),
+  );
+});
+
+void test("PowerShell release consumers execute library identity and prefixed plist fixtures", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-release-consumers-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const helper = path.join(root, "respond.mjs");
+  await writeFile(
+    helper,
+    'let text="";process.stdin.setEncoding("utf8");process.stdin.on("data",x=>text+=x);process.stdin.on("end",()=>{if(text.trim()!=="Y"||process.env.PAGER!=="/bin/cat")process.exit(9);process.stdout.write("license text\\n<?xml version=\\"1.0\\"?><plist/>");});',
+  );
+  const fixture = path.join(root, "fixture.ps1");
+  const buildScript = path.join(root, "build.ps1");
+  await writeFile(
+    buildScript,
+    inlineRunScript("build", "Build desktop bundles").replaceAll("${{ matrix.bundles }}", "dmg"),
+  );
+  const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
+  await writeFile(
+    fixture,
+    `
+$ErrorActionPreference = 'Stop'
+function Parse-Source($path) {
+  $errors = $null
+  $ast = [Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$errors)
+  if ($errors.Count) { throw 'production parse failure' }
+  return $ast
+}
+$buildScript = ${quote(buildScript)}
+function pnpm { $global:observedArguments = @($args); $global:LASTEXITCODE = 0 }
+foreach ($target in @('', 'aarch64-apple-darwin')) {
+  $env:RELEASE_TARGET = $target
+  & $buildScript
+  $expected = @('tauri','build','--bundles','dmg')
+  if ($target) { $expected += @('--target',$target) }
+  if (($global:observedArguments | ConvertTo-Json -Compress) -cne ($expected | ConvertTo-Json -Compress)) { throw 'desktop bundle arguments differ' }
+}
+$ast = Parse-Source ${quote(fileURLToPath(new URL("./smoke-test-cli-archive.ps1", import.meta.url)))}
+$temporaryParent = ${quote(root)}
+$pathAssignments = $ast.FindAll({param($n) $n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -in @('$unicodeMarker','$temporaryDirectory','$extractDirectory','$library')}, $false)
+foreach ($statement in $pathAssignments) { . ([scriptblock]::Create($statement.Extent.Text)) }
+if ($pathAssignments.Count -ne 4 -or $library -notmatch '[^\\x00-\\x7f]' -or $library -notmatch '\\s' -or $extractDirectory -notmatch '\\s') { throw 'CLI fixture paths omit spaces or Unicode' }
+[IO.Directory]::CreateDirectory($library) | Out-Null
+
+$assignment = $ast.Find({param($n) $n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq '$selectionOutput'}, $true)
+$statements = @($assignment.Parent.Statements)
+$first = [Array]::IndexOf($statements, $assignment)
+$last = [Array]::FindIndex($statements, [Predicate[object]]{param($n) $n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq '$doctorOutput'})
+if ($first -lt 0 -or $last -le $first) { throw 'library consumer unavailable' }
+$consumer = [scriptblock]::Create(($statements[$first..($last-1)] | ForEach-Object { $_.Extent.Text }) -join "\n")
+$PlatformLabel = 'windows-x86_64'
+$executable = 'Invoke-FixtureCli'
+function Invoke-FixtureCli {
+  $global:LASTEXITCODE = 0
+  if ($args[-1] -eq 'capabilities') { return $script:capabilities | ConvertTo-Json -Compress }
+  return $script:selection | ConvertTo-Json -Compress
+}
+foreach ($case in @('valid','wrong-library','wrong-provenance','missing-root','missing-exec','missing-show','missing-recover','wrong-capabilities-command')) {
+  $script:selection = @{ok=$true; command='library.show'; data=@{source='invocation';root=$library}}
+  $script:capabilities = @{ok=$true; command='capabilities'; data=@{raw_stream_commands=@('exec');commands=@('launch.show','launch.recover')}}
+  if ($case -eq 'missing-exec') { $script:capabilities.data.raw_stream_commands = @() }
+  if ($case -eq 'missing-show') { $script:capabilities.data.commands = @('launch.recover') }
+  if ($case -eq 'missing-recover') { $script:capabilities.data.commands = @('launch.show') }
+  if ($case -eq 'wrong-capabilities-command') { $script:capabilities.command = 'other' }
+  if ($case -eq 'valid') { $script:selection.data.root = "  $library  " }
+  if ($case -eq 'wrong-library') { $script:selection.data.root = [IO.Path]::GetTempPath() }
+  if ($case -eq 'wrong-provenance') { $script:selection.data.source = 'environment' }
+  if ($case -eq 'missing-root') { $script:selection.data.root = Join-Path $library 'absent' }
+  $rejected = $false
+  try { & $consumer } catch { $rejected = $true }
+  if ($rejected -eq ($case -eq 'valid')) { throw "library case $case result differs" }
+}
+$ast = Parse-Source ${quote(fileURLToPath(new URL("./verify-macos-release.ps1", import.meta.url)))}
+$definition = $ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Invoke-CheckedWithResponse'}, $true)
+. ([scriptblock]::Create($definition.Extent.Text))
+$attach = Invoke-CheckedWithResponse ${quote(process.execPath)} @(${quote(helper)}) 'Y'
+$try = $ast.Find({param($n) $n -is [Management.Automation.Language.TryStatementAst] -and $n.Body.Statements[0].Extent.Text -like '$attach =*'}, $false)
+$statements = @($try.Body.Statements)
+$last = [Array]::FindIndex($statements, [Predicate[object]]{param($n) $n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq '$attachJson'})
+if ($last -lt 2) { throw 'plist consumer unavailable' }
+$consumer = [scriptblock]::Create(($statements[1..($last-1)] | ForEach-Object { $_.Extent.Text }) -join "\n")
+$temporaryRoot = ${quote(root)}
+& $consumer
+if ([IO.File]::ReadAllText((Join-Path $temporaryRoot 'attach.plist')) -cne '<?xml version="1.0"?><plist/>') { throw 'prefixed plist extraction differs' }
+$attach = 'license text without property list'
+$rejected = $false
+try { & $consumer } catch { $rejected = $true }
+if (-not $rejected) { throw 'missing property list accepted' }
+`,
+  );
+  const result = spawnSync("pwsh", ["-NoProfile", "-File", fixture], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 20000,
+  });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 });

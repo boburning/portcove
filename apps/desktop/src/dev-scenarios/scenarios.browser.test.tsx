@@ -77,7 +77,7 @@ describe("static development scenarios", () => {
     const libraryReference = renderScenario("library-reference-long-title");
     expect(libraryReference).toContain("The Unreasonably Long Scenario Game Title");
     expect(libraryReference).toContain('aria-label="Library filters"');
-    expect(libraryReference).toContain("All ready to play");
+    expect(libraryReference).toContain("All can launch");
     expect(libraryReference).toContain(">Play</button>");
     expect(libraryReference).not.toContain('class="detail-panel ');
     const libraryAttention = renderScenario("library-reference-attention-narrow");

@@ -141,6 +141,26 @@ export function portStatus(): PortStatus {
   };
 }
 
+/** An explicit positive Core claim for renderer tests; byte health alone is not one. */
+export function confirmedSourceAssessment(
+  profileId = "sample",
+): NonNullable<NonNullable<PortStatus["readiness"]>["source_assessment"]> {
+  return {
+    health: "current",
+    classification: {
+      state: "recognized",
+      identity: {
+        game_id: profileId,
+        variant_id: "fixture-edition",
+        representation_id: "fixture-raw",
+      },
+    },
+    contract: { state: "supported", contract_id: "fixture-installed-release" },
+    admission: { state: "admitted", mode: "exact_identity" },
+    evidence: [],
+  };
+}
+
 export function sourceProfile(): SourceProfile {
   return {
     id: "sample",

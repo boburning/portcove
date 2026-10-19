@@ -65,7 +65,12 @@ export function useDetailWorkspaceNavigation(
               `[data-detail-origin="${CSS.escape(origin.originKey)}"]`,
             )
           : null;
-        if (target) target.focus({ preventScroll: true });
+        const sameGame =
+          target ??
+          document.querySelector<HTMLElement>(
+            `[data-detail-game-id="${CSS.escape(origin.portId)}"]`,
+          );
+        if (sameGame) sameGame.focus({ preventScroll: true });
         else focusRegion("workspace");
       });
     },

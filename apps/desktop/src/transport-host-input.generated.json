@@ -89,6 +89,33 @@
     "title": "ApplicationUpdateDownloadRequest",
     "type": "object"
   },
+  "application_update_manual_check_request": {
+    "$defs": {
+      "ApplicationChannel": {
+        "enum": [
+          "preview",
+          "stable"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "channel": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ApplicationChannel"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "title": "ApplicationUpdateManualCheckRequest",
+    "type": "object"
+  },
   "application_update_production_decision": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "enum": [

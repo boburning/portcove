@@ -92,6 +92,18 @@ scope; they do not certify later builds.
 
 ## Source import journal interpretation
 
+Source import admits publication through the existing atomic cancellation boundary
+before registration at the current location or recording prepared copy intent.
+Accepted requests prevent registration, destination publication and Move cleanup.
+Recovery resumes cancellation only for existing prepublication copy activities;
+prepared and published legacy journals retain their completion and ownership
+contracts even if they carry an old request bit. Checked private cleanup must
+succeed before cancellation settles; otherwise the recoverable work is retained.
+
+Source verification captures one saved registration for its compatibility fields
+and nested inspection. Concurrent registration changes may leave that response
+older than the latest row, but cannot mix two baselines or rewrite either one.
+
 `PortcoveService` remains the source-operation facade. Its private
 `service::sources` module owns inspection, registration, verification and removal
 of source references, including their consent fingerprints. Registration and
@@ -1588,6 +1600,25 @@ operation authorizations or a second matcher. Existing validators and lifecycle
 checks remain authoritative. Schema export exposes the contract for subsequent
 inspection integration; current verification responses retain their existing
 fields and read-only behavior.
+
+Launch readiness additionally exposes optional source and BIOS assessments for
+the effective retained installed definition and artifact. `Current` byte health
+means the registered storage baseline still matches; it does not mean an edition
+is compatible. Core reassesses validated registration facts using the existing
+file matcher, without a second hash pass or implicit validator execution. Legacy
+facts and shapes whose structural proof cannot be reconstructed remain
+unevaluated. Confirmed compatibility requires an exact recognized identity, an
+enforced contract for the correct port/input role, and applicability to that
+installed release and artifact. Missing fields in older responses remain unknown.
+Known input rejection prevents launch and is checked again before launch side
+effects; unconfirmed compatibility alone permits an explained setup/trial route.
+No assessment, clean process exit or launch-history counter proves gameplay.
+
+For catalog-declared canonical N64 inputs, inspection rejects a missing/invalid
+byte-order header using canonical facts from the existing bounded hash pass,
+including ZIP members. This happens before structural admission and acquisition.
+A valid header alone establishes plausible format, never game identity. Other
+file kinds do not inherit an N64 requirement from their filename extension.
 
 Evidence relevance compares the exact port, platform, artifact, upstream ref,
 contract, source variant/representation and check version. An unspecified legacy

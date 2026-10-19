@@ -184,6 +184,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 const button = (name: string) => page.getByRole("button", { name, exact: true });
+async function openAdvancedFilters(name: string) {
+  await userEvent.click(button(name));
+  if (!document.querySelector<HTMLDetailsElement>("[role=dialog] details")?.open)
+    await userEvent.click(page.getByText("Advanced filters", { exact: true }));
+}
 async function closeFilters() {
   await userEvent.keyboard("{Escape}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
@@ -203,7 +208,7 @@ it.each(["dark", "light"])(
     await page.viewport(960, 900);
     document.documentElement.dataset.theme = theme;
     flushSync(() => root.render(<Fixture />));
-    await userEvent.click(button("Filters (0)"));
+    await openAdvancedFilters("Filters (0)");
     await expect
       .element(button("Compatible complete files available (unavailable)"))
       .toBeDisabled();
@@ -236,7 +241,7 @@ it.each(["dark", "light"])(
       .element(button("Remove Compatible complete files available filter"))
       .toBeInTheDocument();
     await userEvent.fill(page.getByRole("textbox", { name: "Search catalog" }), "no match");
-    await userEvent.click(button("Filters (1)"));
+    await openAdvancedFilters("Filters (1)");
     await expect.element(button("Compatible complete files available (0)")).toBeEnabled();
     await closeFilters();
     noAdditionalChecks();
@@ -246,7 +251,7 @@ it.each(["dark", "light"])(
 
 it("retains unavailable choices across library invalidation, persistence and isolation without rechecking", async () => {
   flushSync(() => root.render(<Fixture />));
-  await userEvent.click(button("Filters (0)"));
+  await openAdvancedFilters("Filters (0)");
   await userEvent.click(button("Check game-file filters"));
   await userEvent.click(button("Needs checking (1)"));
   await closeFilters();
@@ -263,7 +268,7 @@ it("retains unavailable choices across library invalidation, persistence and iso
     .not.toBeInTheDocument();
   await userEvent.click(button("Back to catalog"));
   await expect.element(button("Remove Needs checking filter")).toBeInTheDocument();
-  await userEvent.click(button("Filters (1)"));
+  await openAdvancedFilters("Filters (1)");
   await expect.element(button("Needs checking (unavailable)")).toBeDisabled();
   await closeFilters();
   await userEvent.click(button("Switch library"));
@@ -289,7 +294,7 @@ it.each(["dark", "light"])(
     await page.viewport(520, 780);
     document.documentElement.dataset.theme = theme;
     flushSync(() => root.render(<Fixture />));
-    await userEvent.click(button("Filters (0)"));
+    await openAdvancedFilters("Filters (0)");
     await userEvent.click(button("Check game-file filters"));
     await closeFilters();
     await userEvent.click(page.getByRole("button", { name: /^Complete game\./ }));
@@ -320,7 +325,7 @@ it.each(["dark", "light"])(
     document.documentElement.dataset.theme = theme;
     const monotonic = vi.spyOn(performance, "now").mockReturnValue(1000);
     flushSync(() => root.render(<Fixture />));
-    await userEvent.click(button("Filters (0)"));
+    await openAdvancedFilters("Filters (0)");
     await userEvent.click(button("Check game-file filters"));
     await closeFilters();
     await userEvent.click(page.getByRole("button", { name: /^Complete game\./ }));
@@ -341,7 +346,7 @@ it.each(["dark", "light"])(
       path: `../../../../outputs/observation-clarity/catalog-expired-${theme}-520.png`,
     });
     await userEvent.click(button("Back to catalog"));
-    await userEvent.click(button("Filters (0)"));
+    await openAdvancedFilters("Filters (0)");
     await expect
       .element(button("Compatible complete files available (unavailable)"))
       .toBeDisabled();
@@ -351,7 +356,7 @@ it.each(["dark", "light"])(
 
 it("retains catalog history through Catalog/Library section navigation without inspection", async () => {
   flushSync(() => root.render(<Fixture />));
-  await userEvent.click(button("Filters (0)"));
+  await openAdvancedFilters("Filters (0)");
   await userEvent.click(button("Check game-file filters"));
   const recordedTime = page
     .getByLabelText("Catalog check history")
@@ -359,14 +364,14 @@ it("retains catalog history through Catalog/Library section navigation without i
     .querySelector("time")!.dateTime;
   await closeFilters();
   await userEvent.click(button("Go to Library"));
-  await userEvent.click(button("Filters (0)"));
+  await openAdvancedFilters("Filters (0)");
   await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
   expect(
     page.getByLabelText("Catalog check history").element().querySelector("time")!.dateTime,
   ).toBe(recordedTime);
   await closeFilters();
   await userEvent.click(button("Go to Catalog"));
-  await userEvent.click(button("Filters (0)"));
+  await openAdvancedFilters("Filters (0)");
   await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
   noAdditionalChecks();
 });

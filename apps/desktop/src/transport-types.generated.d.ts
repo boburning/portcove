@@ -112,6 +112,7 @@ export type PortActionReason =
   | "missing_bios"
   | "unreadable_bios"
   | "changed_bios"
+  | "incompatible_bios"
   | "missing_runtime"
   | "preparation_required"
   | "invalid_installation"
@@ -130,6 +131,82 @@ export type PortActionReason =
  */
 export type SourceHealth =
   "unregistered" | "current" | "missing" | "unreadable" | "changed" | "not_checked" | "not_baselined";
+export type SourceAdmission =
+  | {
+      state: "not_evaluated";
+      [k: string]: unknown;
+    }
+  | {
+      mode: SourceAdmissionMode;
+      state: "admitted";
+      [k: string]: unknown;
+    }
+  | {
+      reason: SourceRejectionReason;
+      state: "rejected";
+      [k: string]: unknown;
+    };
+export type SourceAdmissionMode =
+  "exact_identity" | "structural_checks" | "informational_consent" | "upstream_validator";
+export type SourceRejectionReason =
+  | "missing"
+  | "unreadable"
+  | "changed"
+  | "known_mismatch"
+  | "ambiguous_identity"
+  | "missing_tool"
+  | "check_failed"
+  | "consent_required";
+export type SourceClassification =
+  | {
+      state: "not_evaluated";
+      [k: string]: unknown;
+    }
+  | {
+      state: "unrecognized";
+      [k: string]: unknown;
+    }
+  | {
+      identity: SourceIdentity;
+      state: "recognized";
+      [k: string]: unknown;
+    }
+  | {
+      candidates: SourceIdentity[];
+      state: "ambiguous";
+      [k: string]: unknown;
+    };
+export type SourceContractResult =
+  | {
+      state: "not_evaluated";
+      [k: string]: unknown;
+    }
+  | {
+      state: "unreviewed_for_release";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "supported";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "recognized_not_listed";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "known_incompatible";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "informational";
+      [k: string]: unknown;
+    };
+export type SourceEvidenceKind = "structural_check" | "automated_lifecycle" | "hands_on" | "known_failure";
+export type SourceEvidenceOutcome = "passed" | "failed" | "not_run" | "unknown";
 export type LaunchBlocker =
   | "missing_source"
   | "unreadable_source"
@@ -138,6 +215,7 @@ export type LaunchBlocker =
   | "missing_bios"
   | "unreadable_bios"
   | "changed_bios"
+  | "incompatible_bios"
   | "missing_runtime"
   | "preparation_required"
   | "invalid_installation";
@@ -308,8 +386,6 @@ export type DigestScope =
   | "file-set-member"
   | "disc-set-member";
 export type CompoundSourceFormat = "stfs-live";
-export type SourceEvidenceKind = "structural_check" | "automated_lifecycle" | "hands_on" | "known_failure";
-export type SourceEvidenceOutcome = "passed" | "failed" | "not_run" | "unknown";
 export type CatalogOrigin = "embedded" | "signed_active" | "signed_previous" | "definition_selected";
 export type CatalogUpdateSource =
   | {
@@ -386,80 +462,6 @@ export type SourceDigestAlgorithm = "sha1" | "sha256" | "crc32";
 export type SourceComponentKind = "file_set_member" | "optical_disc";
 export type SourceValidatorResult = "not_run" | "passed" | "failed" | "missing_tool";
 export type SourceDiscoveryLimit = "entries" | "depth" | "file_size" | "hash_bytes" | "candidates";
-export type SourceAdmission =
-  | {
-      state: "not_evaluated";
-      [k: string]: unknown;
-    }
-  | {
-      mode: SourceAdmissionMode;
-      state: "admitted";
-      [k: string]: unknown;
-    }
-  | {
-      reason: SourceRejectionReason;
-      state: "rejected";
-      [k: string]: unknown;
-    };
-export type SourceAdmissionMode =
-  "exact_identity" | "structural_checks" | "informational_consent" | "upstream_validator";
-export type SourceRejectionReason =
-  | "missing"
-  | "unreadable"
-  | "changed"
-  | "known_mismatch"
-  | "ambiguous_identity"
-  | "missing_tool"
-  | "check_failed"
-  | "consent_required";
-export type SourceClassification =
-  | {
-      state: "not_evaluated";
-      [k: string]: unknown;
-    }
-  | {
-      state: "unrecognized";
-      [k: string]: unknown;
-    }
-  | {
-      identity: SourceIdentity;
-      state: "recognized";
-      [k: string]: unknown;
-    }
-  | {
-      candidates: SourceIdentity[];
-      state: "ambiguous";
-      [k: string]: unknown;
-    };
-export type SourceContractResult =
-  | {
-      state: "not_evaluated";
-      [k: string]: unknown;
-    }
-  | {
-      state: "unreviewed_for_release";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "supported";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "recognized_not_listed";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "known_incompatible";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "informational";
-      [k: string]: unknown;
-    };
 export type InstallPlanAction = "already_active" | "use_staged" | "reuse_retained" | "blocked_unverified" | "download";
 export type SourceRequirementRole = "game_source" | "bios";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
@@ -672,6 +674,7 @@ export interface TransportOutputs {
   upstream_observation_report: OutputUpstreamObservationReport;
   desktop_application_update_check_phase: OutputDesktopApplicationUpdateCheckPhase;
   desktop_application_update_check_result: ApplicationUpdateCheckResult;
+  desktop_application_update_manual_check_result: OutputDesktopApplicationUpdateManualCheckResult;
   desktop_application_update_notice: OutputDesktopApplicationUpdateNotice;
   desktop_application_update_preferences: ApplicationUpdatePreferences;
   desktop_application_update_production_transition: ApplicationUpdateProductionTransition;
@@ -1008,6 +1011,7 @@ export interface PortActionAssessment {
 }
 export interface LaunchReadiness {
   bios?: SourceHealth | null;
+  bios_assessment?: SourceAssessment | null;
   blockers: LaunchBlocker[];
   launchable: boolean;
   pending_setup: boolean;
@@ -1018,6 +1022,67 @@ export interface LaunchReadiness {
    */
   required_source_extension?: string | null;
   source?: SourceHealth | null;
+  /**
+   * Descriptive input evidence for this retained installed release. Missing
+   * legacy fields and unreviewed contracts never establish compatibility.
+   */
+  source_assessment?: SourceAssessment | null;
+  [k: string]: unknown;
+}
+export interface SourceAssessment {
+  admission: SourceAdmission;
+  classification: SourceClassification;
+  contract: SourceContractResult;
+  evidence: SourceEvidence[];
+  health: SourceHealth;
+  [k: string]: unknown;
+}
+/**
+ * Stable catalog identifiers, never display names or inferred hash-array pairs.
+ */
+export interface SourceIdentity {
+  game_id: string;
+  representation_id: string;
+  variant_id: string;
+  [k: string]: unknown;
+}
+export interface SourceEvidence {
+  /**
+   * Reviewed catalog evidence IDs. A renderer must not treat these as URLs.
+   */
+  evidence_ids: string[];
+  kind: SourceEvidenceKind;
+  method: string;
+  observed_at: number;
+  outcome: SourceEvidenceOutcome;
+  portcove_commit: string | null;
+  portcove_version: string | null;
+  scope: SourceEvidenceScope;
+  [k: string]: unknown;
+}
+export interface SourceEvidenceScope {
+  artifact_sha256: string | null;
+  /**
+   * Version of the tested adapter/tool/check contract, not today's app build.
+   */
+  check_version: string | null;
+  contract_id: string | null;
+  platform: Platform;
+  port_id: string;
+  upstream_ref: string | null;
+  /**
+   * Missing legacy scope is explicit, not a wildcard for a newly selected variant.
+   */
+  variant:
+    | {
+        state: "unspecified";
+        [k: string]: unknown;
+      }
+    | {
+        identity: SourceIdentity;
+        state: "exact";
+        [k: string]: unknown;
+      };
   [k: string]: unknown;
 }
 /**
@@ -1261,9 +1326,28 @@ export interface PortPresentation {
   artwork?: IgdbArtwork | null;
   installation_method: InstallationMethod;
   manual_preparation?: string | null;
+  manual_setup?: ManualSetupGuide | null;
+  /**
+   * Descriptive display metadata only. This never replaces the port, source,
+   * release or library identity, and does not group different implementations.
+   */
+  original_game_title?: string | null;
   saves_and_settings: SavesAndSettingsBehavior;
   source_requirements: SourceRequirementPresentation[];
+  variant_label?: string | null;
   [k: string]: unknown;
+}
+/**
+ * Authored instructions only; these steps grant no operation or file authority.
+ */
+export interface ManualSetupGuide {
+  help_url?: string | null;
+  steps: ManualSetupStep[];
+  warnings: string[];
+}
+export interface ManualSetupStep {
+  instruction: string;
+  title: string;
 }
 export interface SourceRequirementPresentation {
   label: string;
@@ -1473,54 +1557,6 @@ export interface SourceDiscIdentity {
   label: string;
   track_counts: number[];
   volume_ids: string[];
-}
-export interface SourceEvidence {
-  /**
-   * Reviewed catalog evidence IDs. A renderer must not treat these as URLs.
-   */
-  evidence_ids: string[];
-  kind: SourceEvidenceKind;
-  method: string;
-  observed_at: number;
-  outcome: SourceEvidenceOutcome;
-  portcove_commit: string | null;
-  portcove_version: string | null;
-  scope: SourceEvidenceScope;
-  [k: string]: unknown;
-}
-export interface SourceEvidenceScope {
-  artifact_sha256: string | null;
-  /**
-   * Version of the tested adapter/tool/check contract, not today's app build.
-   */
-  check_version: string | null;
-  contract_id: string | null;
-  platform: Platform;
-  port_id: string;
-  upstream_ref: string | null;
-  /**
-   * Missing legacy scope is explicit, not a wildcard for a newly selected variant.
-   */
-  variant:
-    | {
-        state: "unspecified";
-        [k: string]: unknown;
-      }
-    | {
-        identity: SourceIdentity;
-        state: "exact";
-        [k: string]: unknown;
-      };
-  [k: string]: unknown;
-}
-/**
- * Stable catalog identifiers, never display names or inferred hash-array pairs.
- */
-export interface SourceIdentity {
-  game_id: string;
-  representation_id: string;
-  variant_id: string;
-  [k: string]: unknown;
 }
 export interface SourceValidatorContract {
   evidence_ids: string[];
@@ -1967,14 +2003,6 @@ export interface SourceInspection {
   profile_id: string;
   record: SourceRecord | null;
   validator?: ObservedSourceValidator | null;
-  [k: string]: unknown;
-}
-export interface SourceAssessment {
-  admission: SourceAdmission;
-  classification: SourceClassification;
-  contract: SourceContractResult;
-  evidence: SourceEvidence[];
-  health: SourceHealth;
   [k: string]: unknown;
 }
 /**
@@ -2720,6 +2748,11 @@ export interface ApplicationUpdateCandidateSummary {
   bytes: number;
   channel: ApplicationChannel;
   version: string;
+}
+export interface OutputDesktopApplicationUpdateManualCheckResult {
+  checked_channel: ApplicationChannel;
+  result: ApplicationUpdateCheckResult;
+  [k: string]: unknown;
 }
 export interface OutputDesktopApplicationUpdateNotice {
   notice: ApplicationUpdateNotice | null;

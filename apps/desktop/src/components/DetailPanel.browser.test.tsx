@@ -48,6 +48,7 @@ for (const width of [1200, 960]) {
     const gap = action.getBoundingClientRect().top - hero.getBoundingClientRect().bottom;
     expect(gap).toBeGreaterThanOrEqual(0);
     expect(gap).toBeLessThan(160);
+    await page.getByText("File and filter details", { exact: true }).click();
     const routeCheck = page.getByRole("heading", { name: "Game files for this route" });
     expect(routeCheck.element().getBoundingClientRect().top).toBeGreaterThan(
       action.getBoundingClientRect().bottom,
