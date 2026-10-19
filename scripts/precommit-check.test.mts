@@ -52,7 +52,7 @@ function fixture() {
     'export default { fmt: {}, staged: { "*.js": "vp fmt --config vite.config.ts --ignore-path .gitignore" } };\n',
   );
   writeFileSync(path.join(cwd, "sample.js"), "export const value = 1;\n");
-  writeFileSync(path.join(cwd, ".gitignore"), ".vite-hooks/_/\nnode_modules/\n");
+  writeFileSync(path.join(cwd, ".gitignore"), ".vite-hooks/_/\n/node_modules\n");
   writeFileSync(path.join(cwd, ".node-version"), process.versions.node);
   symlinkSync(path.join(root, "node_modules"), path.join(cwd, "node_modules"), "junction");
   mkdirSync(path.join(cwd, ".vite-hooks"));
@@ -72,6 +72,7 @@ function fixture() {
   );
   git(cwd, "add", ".");
   git(cwd, "commit", "-qm", "fixture baseline");
+  assert.equal(git(cwd, "ls-files", "--", "node_modules").trim(), "");
   return cwd;
 }
 
