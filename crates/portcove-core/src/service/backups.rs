@@ -465,7 +465,9 @@ impl PortcoveService {
         self.faults.check(LifecycleFaultPoint::BackupStagingKept)?;
         publish_backup_directory(&staging_path, &final_path, &parent, directory_sync)?;
         self.faults.check(LifecycleFaultPoint::BackupPublished)?;
-        Ok(backup_record(manifest, final_path))
+        let record = backup_record(manifest, final_path);
+        self.qualify_legacy_backup(&record)?;
+        Ok(record)
     }
 
     pub fn list_backups(&self, port_id: &str) -> Result<BackupInventory> {

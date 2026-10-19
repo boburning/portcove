@@ -225,7 +225,10 @@ impl OperationStore {
             .as_ref()
             .map(serde_json::to_string)
             .transpose()?;
-        database::connect(self.library.root())?.execute(
+        let mut connection = database::connect(self.library.root())?;
+        let transaction = connection.transaction()?;
+        crate::ghostship_data_store::invalidate(&transaction, &operation.port_id)?;
+        transaction.execute(
             "INSERT INTO lifecycle_operations(
                id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
@@ -267,6 +270,7 @@ impl OperationStore {
                 operation.preparation_process_quiesced.map(i64::from),
             ],
         )?;
+        transaction.commit()?;
         Ok(())
     }
 

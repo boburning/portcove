@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 36;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 37;
 
 struct Migration {
     version: i64,
@@ -240,7 +240,26 @@ const MIGRATIONS: &[Migration] = &[
         apply: crate::curated_acquisition::migrate,
         verify: verify_migration_36,
     },
+    Migration {
+        version: 37,
+        name: "qualified legacy data snapshots",
+        apply: crate::ghostship_data_store::migrate,
+        verify: verify_migration_37,
+    },
 ];
+
+fn verify_migration_37(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "ghostship_legacy_qualifications",
+        &["port_id", "seal_json"],
+    )?;
+    require_columns(
+        connection,
+        "ghostship_qualified_backups",
+        &["backup_id", "port_id", "manifest_sha256", "seal_json"],
+    )
+}
 
 fn verify_migration_36(connection: &Connection) -> Result<()> {
     require_columns(
@@ -1784,6 +1803,7 @@ mod tests {
         schema_33: 33,
         schema_34: 34,
         schema_35: 35,
+        schema_36: 36,
     }
 
     #[test]
@@ -1885,7 +1905,7 @@ mod tests {
         );
         assert_eq!(
             recorded_versions(&connection).unwrap(),
-            (1..=36).collect::<Vec<_>>()
+            (1..=CURRENT_SCHEMA_VERSION).collect::<Vec<_>>()
         );
         verify_migration_34(&connection).unwrap();
         verify_migration_35(&connection).unwrap();

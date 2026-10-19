@@ -36,6 +36,7 @@ mod external_runtime;
 mod failure;
 mod game_file_query;
 mod game_file_root;
+mod ghostship_data_store;
 mod gitlab;
 mod host_preferences;
 mod host_tools;

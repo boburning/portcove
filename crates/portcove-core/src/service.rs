@@ -42,6 +42,7 @@ mod backups;
 mod ghostship_compatibility;
 #[cfg(test)]
 mod ghostship_persistence_tests;
+mod ghostship_recovery;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
@@ -3770,6 +3771,7 @@ impl PortcoveService {
         )?;
         let mut session_created = false;
         let mut child_state_uncertain = false;
+        let mut legacy_data_seal = None;
         let result = (|| {
             self.require_completed_restore(port_id)?;
             let launch_catalog = self.catalog_for_installed_fallback(port_id)?;
@@ -4128,6 +4130,9 @@ impl PortcoveService {
             if let Some(error) = first_error {
                 Err(error)
             } else {
+                if status.success() && owner_kind == crate::LaunchOwnerKind::Managed {
+                    legacy_data_seal = self.qualify_legacy_consumption(&session)?;
+                }
                 child_state_uncertain = false;
                 Ok(SupervisedLaunchOutcome {
                     session_id: session.id,
@@ -4163,10 +4168,13 @@ impl PortcoveService {
                     Some(error.message.as_str()),
                 ),
             };
-            if let Err(error) =
-                self.library
-                    .finish_launch_session(&activity.id, outcome, exit_code, message)
-            {
+            if let Err(error) = self.library.finish_launch_session_with_legacy_seal(
+                &activity.id,
+                outcome,
+                exit_code,
+                message,
+                legacy_data_seal.as_ref(),
+            ) {
                 return result.and(Err(error));
             }
         } else {

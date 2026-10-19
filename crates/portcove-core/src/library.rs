@@ -1318,7 +1318,10 @@ impl Library {
 
     pub(crate) fn create_launch_session(&self, session: &LaunchSessionRecord) -> Result<()> {
         let install_root = crate::path::unicode(&session.install_root, "install")?;
-        self.connection()?.execute(
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        crate::ghostship_data_store::invalidate(&transaction, &session.port_id)?;
+        transaction.execute(
             "INSERT INTO launch_sessions(
                id, port_id, install_id, install_root, supervisor_pid, supervisor_identity,
                child_pid, child_identity, phase, outcome, exit_code, message,
@@ -1339,6 +1342,7 @@ impl Library {
                 session.owner_kind.to_string(),
             ],
         )?;
+        transaction.commit()?;
         Ok(())
     }
 
@@ -1377,6 +1381,17 @@ impl Library {
         exit_code: Option<i32>,
         message: Option<&str>,
     ) -> Result<()> {
+        self.finish_launch_session_with_legacy_seal(id, outcome, exit_code, message, None)
+    }
+
+    pub(crate) fn finish_launch_session_with_legacy_seal(
+        &self,
+        id: &str,
+        outcome: LaunchSessionOutcome,
+        exit_code: Option<i32>,
+        message: Option<&str>,
+        seal: Option<&crate::ghostship_data_store::LegacyDataSeal>,
+    ) -> Result<()> {
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let now = Self::now();
@@ -1397,6 +1412,18 @@ impl Library {
             LaunchSessionOutcome::Cancelled => ActivityStatus::Cancelled,
         };
         Self::finish_activity_on(&transaction, id, activity_status, message)?;
+        if let Some(seal) = seal {
+            if seal.session.id != id
+                || outcome != LaunchSessionOutcome::Succeeded
+                || exit_code != Some(0)
+                || message.is_some()
+            {
+                return Err(PortcoveError::verification(
+                    "legacy seal cannot complete another or unsuccessful session",
+                ));
+            }
+            crate::ghostship_data_store::finish_consumption(&transaction, seal)?;
+        }
         transaction.execute(
             "DELETE FROM launch_sessions
              WHERE outcome IS NOT NULL
