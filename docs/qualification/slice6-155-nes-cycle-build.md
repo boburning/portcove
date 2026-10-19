@@ -92,6 +92,55 @@ The inherited scope text in `nes-cycle-diagnostics-test-a1-result.json` is broad
 than that run; its exact log and appended scope correction describe the nine
 ledger tests and make no worker-cancellation or compiler-execution claim.
 
+## Second Core attempt and finite compiler groups
+
+The clean reviewed diagnostic-repair head
+`93040a5c6085953b5d3221779e4baf56a5b6cc8b` completed host configure,
+host compilation/import inspection and game configuration. During the full
+Ninja compile it reached step 76/102, then the unchanged Windows supervisor
+reported `event_capacity` at its 4096-debug-event bound. It retained 158 process
+identities, with accounting active=0 and all retained handles signaled, but
+membership completeness=false. The failed command therefore supplies no Core
+quiescence proof. Publication was refused and operation
+`f3cc6cd4-aa32-4900-94a3-3ecaf5f8c7e0` and its private inputs/outputs remain held
+for review under the existing recovery boundary. They are not reused or removed.
+The CLI exited 13 normally (`killed:false`); the outer supervisor settled in
+230861 ms. Exact error, diagnostics and bindings remain in
+`nes-cycle-core-install-a2` and its separate supervisor/log artifacts.
+
+The next candidate reads the bounded generated `build.ninja`, requires exactly
+101 unique safe relative objects under the fixed target and pinned compiler
+rule names, and seals that manifest plus its sole `CMakeFiles/rules.ninja`
+include. It compiles eight objects per supervised Ninja invocation, with two
+jobs each and seal checks between groups. Every group must prove complete
+quiescence; the cumulative proof cannot recover from an earlier failed scope.
+Full inputs and generated identity are rechecked, and the ordinary final CMake
+target links the compiled objects and performs remaining target work. The
+4096-event and 512-member limits are unchanged. Actual changed-head execution
+is still needed to show that this partition fits them.
+
+Separate review also found malformed CMake `COMPILER_ARG1` serialization in
+both retained host/game configurations: quoted configuration-directory paths
+became semicolons and broken quotes. Those compiles do not prove the intended
+compiler configuration restriction. The repair uses only path-free arguments:
+`--config-user-dir= --config-system-dir= --no-default-config --config=x86_64-w64-windows-gnu.cfg`.
+At the pinned LLVM revision, empty directories disable those searches; explicit
+configuration lookup falls back to the authenticated compiler directory and
+loads its bundled MinGW configuration, including its relative common config.
+No compiler flags or toolchain bytes are replaced. A focused real C/C++ CMake
+experiment checks generated compiler files, rules and driver arguments before
+another full Core attempt. Space-containing Ninja object targets decode only
+the supported `$ ` escape into literal argument spaces; unsupported escapes,
+unescaped multiple targets, unsafe paths and collisions remain refused.
+
+The focused experiment `nes config space a1` passed with space-containing source
+and build directories: real C/C++ detection, compilation and linking, exact
+generated `ARG1` strings and verbose compiler/driver evidence. All 15683 toolchain
+files matched the authenticated archive inventory both before and after.
+The compiler's own path did not contain spaces in this experiment; the next
+fresh full Core root exercises that additional case. Its inert output was not
+executed. Separate non-writing review of the complete repair is clear.
+
 ## Remaining acceptance
 
 Core-driven compilation/publication and native offered-operation acceptance

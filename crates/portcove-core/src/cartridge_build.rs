@@ -596,10 +596,13 @@ fn configure_arguments(inputs: &BuildInputs, project: &Path, build: &Path) -> Re
     ] {
         args.push(format!("-D{variable}={}", cmake_path(&inputs.tool(tool)?)?));
     }
-    let config = cmake_path(&inputs.roots[3].join("bin"))?;
+    // CMake serializes ARG1 into quoted source and splits it on spaces during
+    // compiler identification. Keep it path-free: empty search directories
+    // restrict explicit config lookup to the authenticated driver's own bin.
+    // The explicit bundled config remains enabled with no-default-config.
     for variable in ["CMAKE_C_COMPILER_ARG1", "CMAKE_CXX_COMPILER_ARG1"] {
         args.push(format!(
-            "-D{variable}=--config-user-dir=\"{config}\" --config-system-dir=\"{config}\""
+            "-D{variable}=--config-user-dir= --config-system-dir= --no-default-config --config=x86_64-w64-windows-gnu.cfg"
         ));
     }
     args.extend(
@@ -617,6 +620,115 @@ fn configure_arguments(inputs: &BuildInputs, project: &Path, build: &Path) -> Re
         .map(String::from),
     );
     Ok(args)
+}
+
+const COMPILE_OBJECTS: usize = 101;
+const OBJECTS_PER_INVOCATION: usize = 8;
+
+fn decode_object_target(encoded: &str) -> Result<String> {
+    let mut bytes = encoded.bytes();
+    let mut target = String::new();
+    while let Some(byte) = bytes.next() {
+        match byte {
+            b'$' if bytes.next() == Some(b' ') => target.push(' '),
+            c if c.is_ascii_alphanumeric() || b"/._-".contains(&c) => target.push(c as char),
+            _ => {
+                return Err(PortcoveError::verification(
+                    "build graph has an unsupported object target escape",
+                ));
+            }
+        }
+    }
+    crate::archive::validate_relative_path(&target, false)?;
+    Ok(target)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct CompilePlan {
+    manifest_sha256: String,
+    rules_sha256: String,
+    object_targets: Vec<String>,
+}
+
+impl CompilePlan {
+    fn read(build: &Path) -> Result<Self> {
+        let bytes = crate::path::read_bounded_regular(&build.join("build.ninja"), 1024 * 1024)?;
+        let manifest = std::str::from_utf8(&bytes)
+            .map_err(|_| PortcoveError::verification("build graph is not UTF-8"))?;
+        let includes: Vec<_> = manifest
+            .lines()
+            .filter(|line| line.starts_with("include ") || line.starts_with("subninja "))
+            .collect();
+        if includes != ["include CMakeFiles/rules.ninja"] {
+            return Err(PortcoveError::verification(
+                "build graph include inventory differs",
+            ));
+        }
+        let rules =
+            crate::path::read_bounded_regular(&build.join("CMakeFiles/rules.ninja"), 1024 * 1024)?;
+        let rule_text = std::str::from_utf8(&rules)
+            .map_err(|_| PortcoveError::verification("compiler rules are not UTF-8"))?;
+        if rule_text
+            .lines()
+            .any(|line| line.starts_with("include ") || line.starts_with("subninja "))
+        {
+            return Err(PortcoveError::verification(
+                "compiler rules introduce another build graph",
+            ));
+        }
+        let mut object_targets = Vec::new();
+        let mut identities = std::collections::BTreeSet::new();
+        for line in manifest.lines() {
+            let Some(line) = line.strip_prefix("build ") else {
+                continue;
+            };
+            let Some((target, rest)) = line.split_once(": ") else {
+                continue;
+            };
+            if !target.ends_with(".obj") {
+                continue;
+            }
+            let target = decode_object_target(target)?;
+            let rule = rest.split_whitespace().next().unwrap_or_default();
+            if !target.starts_with("CMakeFiles/YoshisCookieRecomp.dir/")
+                || target.len() > 1024
+                || !matches!(
+                    rule,
+                    "C_COMPILER__YoshisCookieRecomp_unscanned_Release"
+                        | "CXX_COMPILER__YoshisCookieRecomp_unscanned_Release"
+                )
+                || !identities.insert(target.to_ascii_lowercase())
+                || object_targets.len() == COMPILE_OBJECTS
+            {
+                return Err(PortcoveError::verification(
+                    "build graph has an undeclared compiler object",
+                ));
+            }
+            object_targets.push(target);
+        }
+        if object_targets.len() != COMPILE_OBJECTS {
+            return Err(PortcoveError::verification(
+                "build graph compiler object inventory differs",
+            ));
+        }
+        Ok(Self {
+            manifest_sha256: digest(&bytes),
+            rules_sha256: digest(&rules),
+            object_targets,
+        })
+    }
+
+    fn require_unchanged(&self, build: &Path) -> Result<()> {
+        let bytes = crate::path::read_bounded_regular(&build.join("build.ninja"), 1024 * 1024)?;
+        let rules =
+            crate::path::read_bounded_regular(&build.join("CMakeFiles/rules.ninja"), 1024 * 1024)?;
+        if digest(&bytes) != self.manifest_sha256 || digest(&rules) != self.rules_sha256 {
+            return Err(PortcoveError::verification(
+                "build graph changed between compiler groups",
+            ));
+        }
+        Ok(())
+    }
 }
 
 fn generated_identity(build: &Path) -> Result<(String, String)> {
@@ -924,6 +1036,33 @@ fn prepare_install_inner(
     )?;
     inputs.verify(&preparation.source, &checkpoint)?;
     let generated = generated_identity(&work.join("build"))?;
+    let compile_plan = CompilePlan::read(&work.join("build"))?;
+    // A full Ninja compile exceeds the unchanged native supervisor's finite
+    // debug-event budget. Each object group drains its own complete process
+    // scope; the final target then links the already compiled objects.
+    for (index, objects) in compile_plan
+        .object_targets
+        .chunks(OBJECTS_PER_INVOCATION)
+        .enumerate()
+    {
+        compile_plan.require_unchanged(&work.join("build"))?;
+        let mut arguments = vec![
+            "-C".into(),
+            cmake_path(&work.join("build"))?,
+            "-j".into(),
+            "2".into(),
+        ];
+        arguments.extend(objects.iter().cloned());
+        session.run(
+            &arguments,
+            "bin/ninja.exe",
+            &format!("install.cartridge.objects.{index}"),
+            quiesced,
+        )?;
+        compile_plan.require_unchanged(&work.join("build"))?;
+    }
+    inputs.verify(&preparation.source, &checkpoint)?;
+    compile_plan.require_unchanged(&work.join("build"))?;
     session.run(
         &[
             "--build".into(),
@@ -940,6 +1079,7 @@ fn prepare_install_inner(
         quiesced,
     )?;
     inputs.verify(&preparation.source, &checkpoint)?;
+    compile_plan.require_unchanged(&work.join("build"))?;
     if generated_identity(&work.join("build"))? != generated {
         return Err(PortcoveError::verification(
             "generated source identity changed during compilation",
@@ -1036,6 +1176,7 @@ fn prepare_install_inner(
     }
     let output = inventory(&package, &checkpoint)?;
     let mut receipt = serde_json::json!({"format_version":1,"recipe":preparation.recipe,"runtime_origin":"locally-built","original_sha256":ORIGINAL_SHA256,"original_size":ORIGINAL_SIZE,"sources":[{"archive_sha256":GAME.sha256,"tree_sha256":digest(&serde_json::to_vec(&inputs.identities[0])?)},{"archive_sha256":ENGINE.sha256,"tree_sha256":digest(&serde_json::to_vec(&inputs.identities[1])?)},{"archive_sha256":UI.sha256,"tree_sha256":digest(&serde_json::to_vec(&inputs.identities[2])?)}],"auxiliary_archives":[GAME,ENGINE,UI,TOOLCHAIN],"auxiliary_transport":"HTTPS to fixed GitHub/codeload/artifact CDN hosts; no delegated primary grant","toolchain_archive_sha256":TOOLCHAIN.sha256,"toolchain_tree_sha256":digest(&serde_json::to_vec(&inputs.identities[3])?),"source_patch":{"path":PATCH_PATH,"before_sha256":PATCH_BEFORE,"after_sha256":PATCH_AFTER},"configure_arguments":arguments,"cartridge_identity":"DCEE267B","prg_identity":"F586F909","generated_manifest_sha256":generated.0,"generated_dispatch_sha256":generated.1,"imports":imports,"runtime_files":output,"builder_quiesced":*quiesced,"game_executed_by_builder":false});
+    receipt["compilation"] = serde_json::json!({"plan": compile_plan, "objects_per_invocation": OBJECTS_PER_INVOCATION, "supervisor_event_limit_unchanged": true});
     receipt["host_compiler"] = serde_json::json!({"sha256":host_identity.0,"size":host_identity.1,"imports":host_imports,"configure_arguments":host_arguments});
     if !*quiesced {
         return Err(PortcoveError::state(

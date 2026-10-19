@@ -215,9 +215,12 @@ fn host_configuration_uses_the_authenticated_tool_paths_and_config_directories()
             .iter()
             .find(|a| a.starts_with(&format!("-D{compiler}=")))
             .unwrap();
-        let config = cmake_path(&tool.join("bin")).unwrap();
-        assert!(value.contains(&format!("--config-user-dir=\"{config}\"")));
-        assert!(value.contains(&format!("--config-system-dir=\"{config}\"")));
+        assert_eq!(
+            value,
+            &format!(
+                "-D{compiler}=--config-user-dir= --config-system-dir= --no-default-config --config=x86_64-w64-windows-gnu.cfg"
+            )
+        );
     }
     assert!(
         arguments
@@ -282,4 +285,76 @@ fn cartridge_storage_identity_cannot_reuse_downloaded_artifact_root() {
             .storage_identity(&"a".repeat(64))
             .unwrap()
     );
+}
+
+#[test]
+fn compiler_groups_bind_the_complete_fixed_manifest_and_refuse_changed_or_unsafe_targets() {
+    let temporary = tempfile::tempdir().unwrap();
+    let graph = temporary.path().join("build.ninja");
+    fs::create_dir(temporary.path().join("CMakeFiles")).unwrap();
+    let rules = temporary.path().join("CMakeFiles/rules.ninja");
+    fs::write(&rules, b"inert rules fixture; never executed").unwrap();
+    let objects: String = (0..COMPILE_OBJECTS).map(|i| format!("build CMakeFiles/YoshisCookieRecomp.dir/object{i}.c.obj: C_COMPILER__YoshisCookieRecomp_unscanned_Release source{i}.c\n")).collect();
+    let manifest = format!("include CMakeFiles/rules.ninja\n{objects}");
+    fs::write(&graph, &manifest).unwrap();
+    let plan = CompilePlan::read(temporary.path()).unwrap();
+    assert_eq!(plan.object_targets.len(), 101);
+    assert_eq!(
+        plan.object_targets.chunks(OBJECTS_PER_INVOCATION).count(),
+        13
+    );
+    assert!(
+        plan.object_targets
+            .chunks(OBJECTS_PER_INVOCATION)
+            .all(|objects| objects.len() <= 8)
+    );
+    plan.require_unchanged(temporary.path()).unwrap();
+    for bad in [
+        manifest.replace("object0.c.obj", "../outside.c.obj"),
+        manifest.replace("object0.c.obj", "object 0.c.obj"),
+        manifest.replace("object0.c.obj", "object$unknown.c.obj"),
+        manifest.replace("object0.c.obj", "object$$0.c.obj"),
+        manifest.replace("object0.c.obj", "object$:0.c.obj"),
+        manifest.replace("object0.c.obj", "object1.c.obj"),
+        manifest.replace(
+            "C_COMPILER__YoshisCookieRecomp_unscanned_Release",
+            "CUSTOM_COMMAND",
+        ),
+        manifest.replacen(
+            "CMakeFiles/YoshisCookieRecomp.dir/",
+            "CMakeFiles/Other.dir/",
+            1,
+        ),
+        format!(
+            "include CMakeFiles/rules.ninja\n{}",
+            objects.lines().skip(1).collect::<Vec<_>>().join("\n")
+        ),
+        format!(
+            "{manifest}build CMakeFiles/YoshisCookieRecomp.dir/extra.c.obj: C_COMPILER__YoshisCookieRecomp_unscanned_Release extra.c\n"
+        ),
+    ] {
+        fs::write(&graph, bad).unwrap();
+        assert!(CompilePlan::read(temporary.path()).is_err());
+        assert!(plan.require_unchanged(temporary.path()).is_err());
+    }
+    fs::write(&graph, &manifest).unwrap();
+    assert_eq!(CompilePlan::read(temporary.path()).unwrap(), plan);
+    fs::write(
+        &graph,
+        manifest.replace("object0.c.obj", "E_/private$ root/object$ 0.c.obj"),
+    )
+    .unwrap();
+    let spaced = CompilePlan::read(temporary.path()).unwrap();
+    assert_eq!(
+        spaced.object_targets[0],
+        "CMakeFiles/YoshisCookieRecomp.dir/E_/private root/object 0.c.obj"
+    );
+    fs::write(&graph, &manifest).unwrap();
+    fs::write(&rules, b"changed compiler rule fixture").unwrap();
+    assert!(plan.require_unchanged(temporary.path()).is_err());
+    fs::write(&rules, b"include another.ninja\n").unwrap();
+    assert!(CompilePlan::read(temporary.path()).is_err());
+    fs::write(&rules, b"inert rules fixture; never executed").unwrap();
+    fs::write(&graph, format!("{manifest}include additional.ninja\n")).unwrap();
+    assert!(CompilePlan::read(temporary.path()).is_err());
 }
