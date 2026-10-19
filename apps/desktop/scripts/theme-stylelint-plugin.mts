@@ -2,14 +2,15 @@ import stylelint from "stylelint";
 import type { RuleBase } from "stylelint";
 const ruleName = "portcove/semantic-colors";
 const rule: RuleBase<boolean, unknown> = () => (root, result) => {
+  const file = root.source?.input.file?.replaceAll("\\", "/") ?? "";
+  const isTokenFile = file.endsWith("/styles/tokens.css");
   root.walkDecls((declaration) => {
     const selector =
       declaration.parent?.type === "rule" && "selector" in declaration.parent
         ? declaration.parent.selector
         : "";
-    const file = root.source?.input.file?.replaceAll("\\", "/") ?? "";
     if (
-      file.endsWith("/styles/tokens.css") &&
+      isTokenFile &&
       (selector === ":root" || /^:root\[data-theme=["']light["']\]$/u.test(selector))
     )
       return;

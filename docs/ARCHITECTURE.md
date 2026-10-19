@@ -2365,7 +2365,9 @@ authorized mutations.
 ### Fixed original-driven cartridge builds
 
 The private Core [`cartridge_build`](../crates/portcove-core/src/cartridge_build.rs)
-module owns the checked NES cycle recipes. Catalog data selects a shipped enum;
+module owns the checked NES cycle recipes and its private
+[`cartridge_source_build`](../crates/portcove-core/src/cartridge_source_build.rs)
+child owns the fixed GBA/SNES source recipes. Catalog data selects a shipped enum;
 it cannot supply build commands or arbitrary executable identities. The service
 binds the verified original before the installer admits download/build work.
 The recipe reuses bounded archive acquisition/extraction, the common
@@ -2390,6 +2392,16 @@ its original storage tuple and configuration. No catalog-supplied build command
 or arbitrary consumer extension is introduced.
 Source/unit fixtures, a compiler run, game operation acceptance and protected
 production delivery remain separate evidence scopes.
+
+Staged-source v9 adds exact Advance Wars USA Rev 1 and EarthBound USA recipes.
+They acquire authenticated game/framework sources, SDL2 SDK and toolchain;
+Core verifies its owned original before generation and packaging. GBA translation
+and the SNES Python HiROM backend use fixed tool invocations and bounded compiler
+groups. These recipes retain the common installer, worker drain and recovery
+authority, require their fixed original argument, and refuse forwarded arguments
+and inherited `SDL_DYNAMIC_API`. EarthBound alone permits the reviewed
+`dbghelp.dll` import. The NES compile graphs and storage identities are unchanged.
+A shipped recipe alone admits neither a catalog title nor a runtime operation.
 
 ### Setup configuration dispositions
 

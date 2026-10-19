@@ -408,6 +408,113 @@ function install(
       return { ...observation, callback_present: present(entry) };
     }),
   });
+  const handleSelection: typeof fetch = async function (this: unknown, input, request) {
+    const body = decode(request);
+    if (body.path !== reviewed || Object.keys(body).length !== 1 || rewrites >= 2) {
+      mismatches.push("Unexpected library-selection input");
+      throw new Error("Controlled library-selection input mismatch");
+    }
+    rewrites++;
+    return original.call(this, input, {
+      ...request,
+      body: JSON.stringify({ path: currentRoot }),
+    });
+  };
+  const validateListenerBinding = (entry: ListenerEntry) => {
+    if (
+      !Number.isSafeInteger(entry.handler) ||
+      (typeof entry.handler === "number" && initial.has(entry.handler)) ||
+      typeof entry.binding !== "function"
+    )
+      mismatches.push("Listener callback identity unavailable");
+  };
+  const handleListen: typeof fetch = async function (this: unknown, input, request) {
+    const body = decode(request);
+    if (body.event === "portcove://operation") {
+      const entry: ListenerEntry = {
+        handler: body.handler,
+        binding: typeof body.handler === "number" ? native.callbacks.get(body.handler) : undefined,
+        held: mode === "late" && listeners.length === 0,
+        event_id: null,
+        unlistened: false,
+      };
+      validateListenerBinding(entry);
+      listeners.push(entry);
+      observeResponse(request, "listen");
+      const reject = mode === "reject" && listeners.length === 1;
+      if (
+        reject &&
+        (JSON.stringify(body.target) !== JSON.stringify({ kind: "Any" }) ||
+          Object.keys(body).sort().join(",") !== "event,handler,target")
+      ) {
+        mismatches.push("Unexpected event registration target or fields");
+        throw new Error("Controlled event input mismatch");
+      }
+      const response = await original.call(
+        this,
+        input,
+        reject
+          ? {
+              ...request,
+              body: JSON.stringify({ ...body, event: "portcove invalid registration" }),
+            }
+          : request,
+      );
+      if (reject) {
+        entry.rejection_response = {
+          http_ok: response.ok,
+          outcome: response.headers.get("Tauri-Response"),
+          value: await response.clone().json(),
+        };
+        entry.rejected =
+          response.ok &&
+          entry.rejection_response.outcome === "error" &&
+          typeof entry.rejection_response.value === "string" &&
+          entry.rejection_response.value.includes(
+            "Event name must include only alphanumeric characters, `-`, `/`, `:` and `_`.",
+          );
+        if (!entry.rejected)
+          mismatches.push("Actual native registration did not reject the invalid event");
+        return response;
+      }
+      entry.event_id = await response.clone().json();
+      if (
+        !response.ok ||
+        response.headers.get("Tauri-Response") !== "ok" ||
+        !Number.isSafeInteger(entry.event_id)
+      )
+        mismatches.push("Actual event registration did not return an ID");
+      if (entry.held) await gate;
+      return response;
+    }
+
+    return original.call(this, input, request);
+  };
+  const handleUnlisten: typeof fetch = async function (this: unknown, input, request) {
+    const body = decode(request);
+    const entry = listeners.find((item) => item.event_id === body.eventId);
+    if (entry) {
+      entry.unlisten_count = (entry.unlisten_count ?? 0) + 1;
+      if (body.event !== "portcove://operation" || entry.unlisten_count !== 1)
+        mismatches.push("Unexpected owned unlisten identity/count");
+      observeResponse(request, "unlisten");
+    }
+    const response = await original.call(this, input, request);
+    if (entry) {
+      entry.unlisten_response = {
+        http_ok: response.ok,
+        outcome: response.headers.get("Tauri-Response"),
+        value: await response.clone().json(),
+      };
+      entry.unlistened =
+        response.ok &&
+        entry.unlisten_response.outcome === "ok" &&
+        entry.unlisten_response.value === null;
+      if (!entry.unlistened || present(entry))
+        mismatches.push("Owned unlisten did not remove its callback");
+    }
+    return response;
+  };
   const wrapper: typeof fetch = async function (this: unknown, input, request) {
     if (typeof input === "string" && privileged.includes(input)) privilegedRequests++;
     if (mode === "reject" && input === workspace && manualRefresh && !manualRefresh.received) {
@@ -420,109 +527,9 @@ function install(
       await gate;
       return response;
     }
-    if (input === select) {
-      const body = decode(request);
-      if (body.path !== reviewed || Object.keys(body).length !== 1 || rewrites >= 2) {
-        mismatches.push("Unexpected library-selection input");
-        throw new Error("Controlled library-selection input mismatch");
-      }
-      rewrites++;
-      return original.call(this, input, {
-        ...request,
-        body: JSON.stringify({ path: currentRoot }),
-      });
-    }
-    if (input === listen) {
-      const body = decode(request);
-      if (body.event === "portcove://operation") {
-        const entry: ListenerEntry = {
-          handler: body.handler,
-          binding:
-            typeof body.handler === "number" ? native.callbacks.get(body.handler) : undefined,
-          held: mode === "late" && listeners.length === 0,
-          event_id: null,
-          unlistened: false,
-        };
-        if (
-          !Number.isSafeInteger(entry.handler) ||
-          (typeof entry.handler === "number" && initial.has(entry.handler)) ||
-          typeof entry.binding !== "function"
-        )
-          mismatches.push("Listener callback identity unavailable");
-        listeners.push(entry);
-        observeResponse(request, "listen");
-        const reject = mode === "reject" && listeners.length === 1;
-        if (
-          reject &&
-          (JSON.stringify(body.target) !== JSON.stringify({ kind: "Any" }) ||
-            Object.keys(body).sort().join(",") !== "event,handler,target")
-        ) {
-          mismatches.push("Unexpected event registration target or fields");
-          throw new Error("Controlled event input mismatch");
-        }
-        const response = await original.call(
-          this,
-          input,
-          reject
-            ? {
-                ...request,
-                body: JSON.stringify({ ...body, event: "portcove invalid registration" }),
-              }
-            : request,
-        );
-        if (reject) {
-          entry.rejection_response = {
-            http_ok: response.ok,
-            outcome: response.headers.get("Tauri-Response"),
-            value: await response.clone().json(),
-          };
-          entry.rejected =
-            response.ok &&
-            entry.rejection_response.outcome === "error" &&
-            typeof entry.rejection_response.value === "string" &&
-            entry.rejection_response.value.includes(
-              "Event name must include only alphanumeric characters, `-`, `/`, `:` and `_`.",
-            );
-          if (!entry.rejected)
-            mismatches.push("Actual native registration did not reject the invalid event");
-          return response;
-        }
-        entry.event_id = await response.clone().json();
-        if (
-          !response.ok ||
-          response.headers.get("Tauri-Response") !== "ok" ||
-          !Number.isSafeInteger(entry.event_id)
-        )
-          mismatches.push("Actual event registration did not return an ID");
-        if (entry.held) await gate;
-        return response;
-      }
-    }
-    if (input === unlisten) {
-      const body = decode(request);
-      const entry = listeners.find((item) => item.event_id === body.eventId);
-      if (entry) {
-        entry.unlisten_count = (entry.unlisten_count ?? 0) + 1;
-        if (body.event !== "portcove://operation" || entry.unlisten_count !== 1)
-          mismatches.push("Unexpected owned unlisten identity/count");
-        observeResponse(request, "unlisten");
-      }
-      const response = await original.call(this, input, request);
-      if (entry) {
-        entry.unlisten_response = {
-          http_ok: response.ok,
-          outcome: response.headers.get("Tauri-Response"),
-          value: await response.clone().json(),
-        };
-        entry.unlistened =
-          response.ok &&
-          entry.unlisten_response.outcome === "ok" &&
-          entry.unlisten_response.value === null;
-        if (!entry.unlistened || present(entry))
-          mismatches.push("Owned unlisten did not remove its callback");
-      }
-      return response;
-    }
+    if (input === select) return handleSelection.call(this, input, request);
+    if (input === listen) return handleListen.call(this, input, request);
+    if (input === unlisten) return handleUnlisten.call(this, input, request);
     return original.call(this, input, request);
   };
   window.fetch = wrapper;
@@ -530,6 +537,31 @@ function install(
     released = true;
     release();
   };
+  const trustworthyRestoration = (ownsFetch: boolean) => {
+    const retired = listeners[0];
+    const successor = listeners[1];
+    return (
+      ownsFetch &&
+      mismatches.length === 0 &&
+      listeners.length === 2 &&
+      retired !== undefined &&
+      retiredListenerReleased(retired) &&
+      !present(retired) &&
+      successor !== undefined &&
+      present(successor) &&
+      (mode === "late" || (manualRefresh?.accepted === true && released)) &&
+      responses.length === 3 &&
+      responses.every(
+        (entry, index) =>
+          responseSettled(entry) &&
+          entry.outcome === (mode === "reject" && index === 0 ? "error" : "ok"),
+      )
+    );
+  };
+  const retiredListenerReleased = (entry: ListenerEntry) =>
+    mode === "late"
+      ? entry.unlistened === true && entry.unlisten_count === 1
+      : entry.rejected === true && entry.event_id === null && !entry.unlisten_count;
   const probe: ListenerProbe = {
     capture: snapshot,
     release: releaseResponse,
@@ -556,26 +588,7 @@ function install(
         return {
           ...report,
           restored: ownsFetch,
-          trustworthy:
-            ownsFetch &&
-            mismatches.length === 0 &&
-            listeners.length === 2 &&
-            listeners[0] !== undefined &&
-            (mode === "late"
-              ? listeners[0]?.unlistened === true && listeners[0].unlisten_count === 1
-              : listeners[0]?.rejected === true &&
-                listeners[0].event_id === null &&
-                !listeners[0].unlisten_count) &&
-            !present(listeners[0]) &&
-            listeners[1] !== undefined &&
-            present(listeners[1]) &&
-            (mode === "late" || (manualRefresh?.accepted === true && released)) &&
-            responses.length === 3 &&
-            responses.every(
-              (entry, index) =>
-                responseSettled(entry) &&
-                entry.outcome === (mode === "reject" && index === 0 ? "error" : "ok"),
-            ),
+          trustworthy: trustworthyRestoration(ownsFetch),
         };
       })();
       return restored;

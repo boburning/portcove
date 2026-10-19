@@ -197,67 +197,17 @@ export function DetailPanel(props: DetailPanelProps) {
     !status?.readiness?.blockers.includes("invalid_installation") &&
     !status?.readiness?.blockers.includes("missing_runtime"),
   );
-  const state: DetailState =
-    !installed && port.release.provider !== "user-prepared" && actionPresentation.blocked
-      ? {
-          title: "Setup unavailable",
-          description: actionPresentation.reason,
-          tone: "setup",
-          icon: AlertTriangle,
-        }
-      : !installed &&
-          port.release.provider !== "user-prepared" &&
-          !missingRequirement &&
-          !status?.port_actions?.some((assessment) => assessment.action === "install")
-        ? {
-            title: "Setup status unknown",
-            description: selectedRequirement
-              ? `${availableInstallState(selectedRequirement).description} Current setup availability is unavailable. Refresh the workspace to check again.`
-              : "Current setup availability is unavailable. Refresh the workspace to check again.",
-            tone: "setup",
-            icon: AlertTriangle,
-          }
-        : installed && typeof status?.readiness?.launchable !== "boolean"
-          ? {
-              title: "Readiness unavailable",
-              description:
-                "Current launch readiness is unavailable. Reopen Portcove to check again.",
-              tone: "setup",
-              icon: AlertTriangle,
-            }
-          : installed &&
-              launchReady &&
-              !pendingSetup &&
-              !selectedRequirement &&
-              hasUnconfirmedLaunchInput(status, port)
-            ? {
-                title: "Compatibility unconfirmed",
-                description:
-                  "The files are available, but this edition has not been confirmed for the installed version. Try launch to let the port check them; setup may still be needed.",
-                tone: "setup",
-                icon: AlertTriangle,
-                ...(status?.staged
-                  ? {
-                      updateAttention: `Update ${status.staged.version} is downloaded. You can review it separately.`,
-                    }
-                  : {}),
-              }
-            : detailState({
-                installed,
-                launchReady,
-                stagedVersion: status?.staged?.version,
-                pendingSetup,
-                runtimeNeeded: Boolean(status?.readiness?.blockers.includes("missing_runtime")),
-                runtimeUpdateAvailable,
-                sourceHealth: status?.readiness?.source,
-                biosHealth: status?.readiness?.bios,
-                selectedRequirement,
-                missingRequirement,
-                invalidInstallation: Boolean(
-                  status?.readiness?.blockers.includes("invalid_installation"),
-                ),
-                externalRuntime: port.release.provider === "user-prepared",
-              });
+  const state = presentDetailState({
+    port,
+    status,
+    actionPresentation,
+    installed,
+    launchReady,
+    pendingSetup,
+    selectedRequirement,
+    missingRequirement,
+    runtimeUpdateAvailable,
+  });
   const sources: SourceControls = {
     port,
     source,
@@ -543,11 +493,8 @@ function DetailBody({
   actions: DetailActions;
   openLibraryStorage?: (() => void) | undefined;
 }) {
-  const managedPreparation = Boolean(
-    installed &&
-    (port.adapter === "upstream-managed-setup" || port.adapter === "libultraship-portable") &&
-    port.setup_output_paths.length,
-  );
+  const managedPreparation = needsManagedPreparation(port, installed);
+  const external = port.release.provider === "user-prepared" || Boolean(status?.external_runtime);
   const compactActions = installed && !status?.external_runtime && launchReady && !pendingSetup;
   return (
     <div className="detail-body pb-10">
@@ -611,7 +558,7 @@ function DetailBody({
           <InstallationVersionSummary status={status} selectedChannel={selectedChannel} />
         </DetailGroup>
       )}
-      {port.release.provider !== "user-prepared" && !status?.external_runtime && (
+      {!external && (
         <UpdatesGroup
           perform={perform}
           port={port}
@@ -625,7 +572,7 @@ function DetailBody({
           actions={actions}
         />
       )}
-      {port.release.provider === "user-prepared" || status?.external_runtime ? (
+      {external ? (
         <DetailGroup title="Saves and storage">
           <p>
             Game-owned settings and saves in the external runtime remain outside Portcove's backup,
@@ -664,8 +611,7 @@ function DetailBody({
       <DetailGroup title="Project and release">
         <ProjectReleaseSummary port={port} />
       </DetailGroup>
-      {((port.release.provider !== "user-prepared" && !status?.external_runtime) ||
-        hasRecordedChecks(port, sources)) && (
+      {(!external || hasRecordedChecks(port, sources)) && (
         <TechnicalDetails
           libraryGeneration={libraryGeneration}
           port={port}
@@ -2370,44 +2316,7 @@ function DataActions({
   assessment?: BackupInventory["create_assessment"] | undefined;
   readState?: BackupReadState | undefined;
 }) {
-  const current =
-    readState?.status === "current" &&
-    readState.hasInventory &&
-    assessment?.action === "backup_create";
-  const available =
-    current &&
-    assessment?.availability === "allowed" &&
-    assessment.reason === "available" &&
-    assessment.definition == null;
-  const consistent =
-    assessment?.definition == null &&
-    (available ||
-      (assessment?.availability === "waiting" && assessment.reason === "missing_data") ||
-      (assessment?.availability === "held" &&
-        ["unreadable_data", "unsafe_data", "recovery_required", "assessment_incomplete"].includes(
-          assessment.reason,
-        )));
-  const explanation = !current
-    ? readState?.status === "current"
-      ? "Current backup availability is unavailable. Refresh the backup inventory to check again."
-      : readState?.status === "failed"
-        ? "Your saved data could not be checked. Retry the backup inventory read."
-        : "Checking your saved data…"
-    : available
-      ? "Back up owned saves and settings."
-      : !consistent
-        ? "Current backup availability is unavailable. Refresh the backup inventory to check again."
-        : assessment.reason === "missing_data"
-          ? "There are no owned saves or settings to back up yet."
-          : assessment.reason === "recovery_required"
-            ? "Restart Portcove to retry recovery, then check your backups again."
-            : assessment.reason === "unsafe_data"
-              ? "The saved-data location needs path and ownership review."
-              : assessment.reason === "assessment_incomplete"
-                ? "The saved-data check did not finish. Your data is preserved."
-                : assessment.reason === "unreadable_data"
-                  ? "Your saved data could not be read. Check its location, then retry."
-                  : "Current backup availability is unavailable. Refresh the backup inventory to check again.";
+  const { available, explanation } = backupCreatePresentation(assessment, readState);
   return (
     <div className="flex flex-wrap gap-2">
       <p role="status" className="w-full" id="backup-create-explanation">
@@ -2698,4 +2607,179 @@ function sourceHealthState(
       icon: AlertTriangle,
     };
   return undefined;
+}
+
+function presentDetailState({
+  port,
+  status,
+  actionPresentation,
+  installed,
+  launchReady,
+  pendingSetup,
+  selectedRequirement,
+  missingRequirement,
+  runtimeUpdateAvailable,
+}: {
+  port: PortDefinition;
+  status: PortStatus | undefined;
+  actionPresentation: ReturnType<typeof portActionPresentation>;
+  installed: boolean;
+  launchReady: boolean;
+  pendingSetup: boolean;
+  selectedRequirement: SelectedRequirement | undefined;
+  missingRequirement: SelectedRequirement | undefined;
+  runtimeUpdateAvailable: boolean;
+}): DetailState {
+  const setup = presentSetupState(
+    port,
+    status,
+    actionPresentation,
+    installed,
+    selectedRequirement,
+    missingRequirement,
+  );
+  if (setup) return setup;
+  return installed && typeof status?.readiness?.launchable !== "boolean"
+    ? {
+        title: "Readiness unavailable",
+        description: "Current launch readiness is unavailable. Reopen Portcove to check again.",
+        tone: "setup",
+        icon: AlertTriangle,
+      }
+    : installed &&
+        launchReady &&
+        !pendingSetup &&
+        !selectedRequirement &&
+        hasUnconfirmedLaunchInput(status, port)
+      ? {
+          title: "Compatibility unconfirmed",
+          description:
+            "The files are available, but this edition has not been confirmed for the installed version. Try launch to let the port check them; setup may still be needed.",
+          tone: "setup",
+          icon: AlertTriangle,
+          ...(status?.staged
+            ? {
+                updateAttention: `Update ${status.staged.version} is downloaded. You can review it separately.`,
+              }
+            : {}),
+        }
+      : detailState({
+          installed,
+          launchReady,
+          stagedVersion: status?.staged?.version,
+          pendingSetup,
+          runtimeNeeded: Boolean(status?.readiness?.blockers.includes("missing_runtime")),
+          runtimeUpdateAvailable,
+          sourceHealth: status?.readiness?.source,
+          biosHealth: status?.readiness?.bios,
+          selectedRequirement,
+          missingRequirement,
+          invalidInstallation: Boolean(
+            status?.readiness?.blockers.includes("invalid_installation"),
+          ),
+          externalRuntime: port.release.provider === "user-prepared",
+        });
+}
+
+function presentSetupState(
+  port: PortDefinition,
+  status: PortStatus | undefined,
+  actionPresentation: ReturnType<typeof portActionPresentation>,
+  installed: boolean,
+  selectedRequirement: SelectedRequirement | undefined,
+  missingRequirement: SelectedRequirement | undefined,
+): DetailState | undefined {
+  return !installed && port.release.provider !== "user-prepared" && actionPresentation.blocked
+    ? {
+        title: "Setup unavailable",
+        description: actionPresentation.reason,
+        tone: "setup",
+        icon: AlertTriangle,
+      }
+    : !installed &&
+        port.release.provider !== "user-prepared" &&
+        !missingRequirement &&
+        !status?.port_actions?.some((assessment) => assessment.action === "install")
+      ? {
+          title: "Setup status unknown",
+          description: selectedRequirement
+            ? `${availableInstallState(selectedRequirement).description} Current setup availability is unavailable. Refresh the workspace to check again.`
+            : "Current setup availability is unavailable. Refresh the workspace to check again.",
+          tone: "setup",
+          icon: AlertTriangle,
+        }
+      : undefined;
+}
+
+function backupCreatePresentation(
+  assessment: BackupInventory["create_assessment"] | undefined,
+  readState: BackupReadState | undefined,
+) {
+  const current =
+    readState?.status === "current" &&
+    readState.hasInventory &&
+    assessment?.action === "backup_create";
+  const available =
+    current &&
+    assessment?.availability === "allowed" &&
+    assessment.reason === "available" &&
+    assessment.definition == null;
+  const consistent =
+    assessment?.definition == null &&
+    (available ||
+      (assessment?.availability === "waiting" && assessment.reason === "missing_data") ||
+      (assessment?.availability === "held" &&
+        ["unreadable_data", "unsafe_data", "recovery_required", "assessment_incomplete"].includes(
+          assessment.reason,
+        )));
+
+  return {
+    available,
+    explanation: backupCreateExplanation(
+      assessment,
+      readState,
+      Boolean(current),
+      Boolean(available),
+      consistent,
+    ),
+  };
+}
+
+function backupCreateExplanation(
+  assessment: BackupInventory["create_assessment"] | undefined,
+  readState: BackupReadState | undefined,
+  current: boolean,
+  available: boolean,
+  consistent: boolean,
+) {
+  const unavailable =
+    "Current backup availability is unavailable. Refresh the backup inventory to check again.";
+  if (!current) {
+    if (readState?.status === "current") return unavailable;
+    if (readState?.status === "failed")
+      return "Your saved data could not be checked. Retry the backup inventory read.";
+    return "Checking your saved data…";
+  }
+  if (available) return "Back up owned saves and settings.";
+  if (!consistent) return unavailable;
+  const reasons: Partial<
+    Record<NonNullable<BackupInventory["create_assessment"]>["reason"], string>
+  > = {
+    missing_data: "There are no owned saves or settings to back up yet.",
+    recovery_required: "Restart Portcove to retry recovery, then check your backups again.",
+    unsafe_data: "The saved-data location needs path and ownership review.",
+    assessment_incomplete: "The saved-data check did not finish. Your data is preserved.",
+    unreadable_data: "Your saved data could not be read. Check its location, then retry.",
+  };
+  return assessment && Object.hasOwn(reasons, assessment.reason)
+    ? reasons[assessment.reason]!
+    : unavailable;
+}
+
+function needsManagedPreparation(port: PortDefinition, installed: boolean) {
+  return Boolean(
+    installed &&
+    (port.adapter === "upstream-managed-setup" || port.adapter === "libultraship-portable") &&
+    port.setup_output_paths.length,
+  );
 }

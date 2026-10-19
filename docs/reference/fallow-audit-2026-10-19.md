@@ -80,3 +80,31 @@ approved source; all 87 shared-contract controls pass after this repair.
 This report does not claim a full Fallow quality-gate pass, native acceptance,
 release qualification or measured coverage. Current exact-head CI, separate
 review, guarded delivery and remote readback are recorded on the owning issue.
+
+## Follow-up: complete the Desktop gate
+
+The owner subsequently requested a passing full Fallow gate. Dispositioning the
+remaining critical findings had completed triage, but had not completed that
+intended outcome. Issue #2186 was reopened with full gate acceptance.
+
+Fresh analysis of `2cd81f287a0e4b1661e2f9ddd6e005b0dfb605eb` found 18 critical
+Desktop functions, including intervening UI changes. The follow-up separates
+request state from rendering, settings sections from navigation, setup and backup
+assessment presentation from detail assembly, and native listener routing from
+its response and restoration oracles. Existing condition priority, request
+generations, callback identities, cleanup and fail-closed decisions are retained.
+
+The candidate's maintained `node scripts/run-fallow.mts desktop` passes with zero
+check findings and zero critical complexity findings. Its complete combined
+report includes Git-derived rankings. No threshold, exclusion, suppression,
+coverage estimate or gate policy was changed. Lower-severity complexity and
+duplicate groups remain visible under the existing policy. This supersedes the
+earlier retained-critical disposition for Desktop gate completion; the original
+audit ledger remains a dated historical snapshot.
+
+Validation includes all 415 tests in 11 affected UI test files, five native fixture
+source controls, formatting, lint and type checks, plus independent non-writing
+review. Fixture source checks establish the tested cleanup and transport
+contracts, not native acceptance. Exact final source, hosted CI, guarded merge
+and remote readback are recorded on the owning issue and follow-up PR. Retained
+reports and failures are under `E:/Codex-Evidence/fallow-main-gate-20261019`.

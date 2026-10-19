@@ -377,6 +377,13 @@ safe fixes while lint-staged's backup and partial-staging isolation remain on.
 Review the resulting diff before committing. Required CI and separate review
 remain independent gates.
 
+Hook installation captures the stable pinned Node executable in an ignored,
+checkout-local launcher. Git hooks and their children use that runtime even when
+an editor's Git environment has no Node on PATH. Re-run `pnpm hooks:enable` with
+the pinned runtime active after installing or moving it; missing or mismatched
+setup refuses the commit with that repair instruction. The installer changes
+neither the generated Vite+ dispatcher nor persistent machine/user PATH.
+
 `node scripts/catalog-staged-check.mts --staged` reads the four current catalog
 inputs from the Git index. It shares the generator's authoring projection and
 independent compatibility expectations, preserves partial staging, and never

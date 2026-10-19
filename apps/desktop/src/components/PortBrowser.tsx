@@ -908,7 +908,7 @@ function PortCardContents({
   hasFavorite: boolean;
   detailOrigin: string;
 }) {
-  const title = (
+  const renderTitle = () => (
     <div className="flex items-start justify-between gap-2">
       <h2 className="m-0 min-h-[3.6em] text-base leading-[1.2]" title={gameTitle(port)}>
         {view === "library" ? (
@@ -980,7 +980,7 @@ function PortCardContents({
         className="card-art relative aspect-2/3 w-full shrink-0 overflow-hidden"
       />
       <div className="card-content flex min-w-0 flex-1 flex-col gap-2 p-4 wrap-anywhere">
-        {title}
+        {renderTitle()}
         <p
           className="m-0 min-h-[1.5em] text-xs leading-normal text-pc-muted-foreground"
           title={gameProjectLabel(port) ? port.name : undefined}
@@ -1090,6 +1090,12 @@ function PortCardStatus({
   hasFavorite: boolean;
   detailOrigin: string;
 }) {
+  const canLaunch = Boolean(
+    status?.readiness?.launchable === true &&
+    status.readiness.blockers.length === 0 &&
+    !portActionPresentation(status, "launch").blocked &&
+    onLaunch,
+  );
   const overflowOrigin = `library:card-more:${port.id}`;
   const reviewOrigin = `${detailOrigin}:review`;
   return (
@@ -1101,25 +1107,12 @@ function PortCardStatus({
     >
       {view === "catalog" && (
         <strong className="font-semibold text-[var(--color-text-secondary)]">
-          {!status
-            ? "Installation status unknown"
-            : status.active
-              ? status.active.version
-              : status?.external_runtime
-                ? `External ${status.external_runtime.version}`
-                : port.release.provider === "user-prepared"
-                  ? "Prepare game"
-                  : "Not installed"}
+          {cardInstallationLabel(port, status)}
         </strong>
       )}
       {view === "library" ? (
         <span className="inline-flex flex-wrap items-center justify-end gap-1 text-[var(--color-interactive-text-strong)]">
-          {!(
-            status?.readiness?.launchable === true &&
-            status.readiness.blockers.length === 0 &&
-            !portActionPresentation(status, "launch").blocked &&
-            onLaunch
-          ) && (
+          {!canLaunch && (
             <Button
               data-focusable
               variant="outline"
@@ -1132,18 +1125,15 @@ function PortCardStatus({
               Review game
             </Button>
           )}
-          {status?.readiness?.launchable === true &&
-            status.readiness.blockers.length === 0 &&
-            !portActionPresentation(status, "launch").blocked &&
-            onLaunch && (
-              <Button data-focusable variant="primary" size="sm" onClick={() => onLaunch(port.id)}>
-                {status.readiness.pending_setup
-                  ? "Start setup"
-                  : hasUnconfirmedLaunchInput(status, port)
-                    ? "Try launch"
-                    : "Play"}
-              </Button>
-            )}
+          {canLaunch && (
+            <Button data-focusable variant="primary" size="sm" onClick={() => onLaunch?.(port.id)}>
+              {status?.readiness?.pending_setup
+                ? "Start setup"
+                : hasUnconfirmedLaunchInput(status, port)
+                  ? "Try launch"
+                  : "Play"}
+            </Button>
+          )}
           <Menu.Root>
             <Menu.Trigger
               render={
@@ -1265,4 +1255,16 @@ function readinessPresentation(
     },
   } as const;
   return values[readiness];
+}
+
+function cardInstallationLabel(port: PortDefinition, status: PortStatus | undefined) {
+  return !status
+    ? "Installation status unknown"
+    : status.active
+      ? status.active.version
+      : status?.external_runtime
+        ? `External ${status.external_runtime.version}`
+        : port.release.provider === "user-prepared"
+          ? "Prepare game"
+          : "Not installed";
 }
