@@ -24,6 +24,8 @@ pub(crate) mod tests;
 pub enum CartridgeBuildRecipe {
     #[serde(rename = "yoshis-cookie-nes-cycle-v1.1.0")]
     YoshisCookieNesCycle110,
+    #[serde(rename = "dr-mario-nes-cycle-v1.3.0-usa")]
+    DrMarioNesCycle130Usa,
 }
 
 #[cfg(test)]
@@ -100,14 +102,92 @@ pub(crate) const RECEIPT: &str = ".portcove-cartridge-build.json";
 // directories and selected runtime fit within this per-operation allowance.
 pub(crate) const STAGING_CAPACITY_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 
+#[derive(Clone, Copy)]
+struct RecipeFacts {
+    game: BuildArchive,
+    port_id: &'static str,
+    repository: &'static str,
+    target: &'static str,
+    release_version: &'static str,
+    asset_name: &'static str,
+    asset_size: u64,
+    asset_sha256: &'static str,
+    original_sha1: &'static str,
+    original_sha256: &'static str,
+    original_size: u64,
+    payload_sha256: &'static str,
+    cartridge_identity: &'static str,
+    prg_identity: &'static str,
+    compile_objects: usize,
+}
+
 impl CartridgeBuildRecipe {
+    fn facts(self) -> RecipeFacts {
+        match self {
+            Self::YoshisCookieNesCycle110 => RecipeFacts {
+                game: GAME,
+                port_id: "yoshis-cookie-recomp",
+                repository: "mstan/YoshisCookieRecomp",
+                target: "YoshisCookieRecomp",
+                release_version: "v1.1.0",
+                asset_name: "YoshisCookieRecomp-windows-x64.zip",
+                asset_size: 3_919_022,
+                asset_sha256: "3f0b2219479960664312429f464a6c2de2ae155bb112278320e14e94b07bb947",
+                original_sha1: ORIGINAL_SHA1,
+                original_sha256: ORIGINAL_SHA256,
+                original_size: ORIGINAL_SIZE,
+                payload_sha256: "24b117a0830fcb91d88d9150ff89a374134a9ddebd5eedcb5df21eab580eb2c0",
+                cartridge_identity: "DCEE267B",
+                prg_identity: "F586F909",
+                compile_objects: 101,
+            },
+            Self::DrMarioNesCycle130Usa => RecipeFacts {
+                game: BuildArchive {
+                    name: "dr-mario-8d800cab034c08ddf13f7ba7a6f76018fef7ca01.zip",
+                    url: "https://codeload.github.com/mstan/DrMarioNesRecomp/zip/8d800cab034c08ddf13f7ba7a6f76018fef7ca01",
+                    size: 5_878_644,
+                    sha256: "0865d0235ce43d0f90d6c800bad375f7bc7ba851454ad57a6be9e25c6bacaada",
+                    root: "DrMarioNesRecomp-8d800cab034c08ddf13f7ba7a6f76018fef7ca01",
+                },
+                port_id: "dr-mario-nes-recomp",
+                repository: "mstan/DrMarioNesRecomp",
+                target: "DrMarioRecomp",
+                release_version: "v1.3.0",
+                asset_name: "DrMarioRecomp-usa-windows-x64.zip",
+                asset_size: 3_709_949,
+                asset_sha256: "80e9606b0795bf09cadc57cd5ac97ff292f35436011800a406060f3a1a86ae5f",
+                original_sha1: "0f18c2a5760be0647339b0e3cab9183af86fdd8c",
+                original_sha256: "5f4849329f0ece227a3c7d6a63c0ecb6c9a1edee424e70e7bc6fa4bfda4a82d8",
+                original_size: 65_552,
+                payload_sha256: "d2fbe8b10f762099d320016ddfd4d2961a591fe6dfaaab2efbeb77282264d06a",
+                cartridge_identity: "7422B8F0",
+                prg_identity: "8F8C755E",
+                compile_objects: 92,
+            },
+        }
+    }
+
+    pub(crate) fn archives(self) -> [BuildArchive; 4] {
+        [self.facts().game, ENGINE, UI, TOOLCHAIN]
+    }
+
+    pub(crate) fn minimum_template_version(self) -> u32 {
+        match self {
+            Self::YoshisCookieNesCycle110 => 6,
+            Self::DrMarioNesCycle130Usa => 7,
+        }
+    }
+
     pub(crate) fn storage_identity(self, primary_sha256: &str) -> Result<String> {
+        let facts = self.facts();
+        // Preserve the existing tuple's domain, ordering and archive projection.
+        // Serializing RecipeFacts here would change retained Yoshi storage identity.
         Ok(digest(&serde_json::to_vec(&(
             "Portcove cartridge build storage v1",
             self,
             primary_sha256,
-            ORIGINAL_SHA256,
-            GAME,
+            facts.original_sha256,
+            facts.game,
             ENGINE,
             UI,
             TOOLCHAIN,
@@ -121,20 +201,25 @@ pub(crate) fn validate_port(port: &PortDefinition, profile: &SourceProfile) -> R
     if port.release.managed_build.is_empty() {
         return Ok(());
     }
-    let expected_recipe = std::collections::BTreeMap::from([(
-        Platform::WindowsX86_64,
-        CartridgeBuildRecipe::YoshisCookieNesCycle110,
-    )]);
-    let original_identity = profile.accepted_sha1 == [ORIGINAL_SHA1]
+    let recipe = port
+        .release
+        .managed_build
+        .get(&Platform::WindowsX86_64)
+        .copied()
+        .ok_or_else(|| PortcoveError::verification("cartridge recipe requires Windows x64"))?;
+    let facts = recipe.facts();
+    let executable = format!("{}.exe", facts.target);
+    let expected_recipe = BTreeMap::from([(Platform::WindowsX86_64, recipe)]);
+    let original_identity = profile.accepted_sha1 == [facts.original_sha1]
         && profile.accepted_sha256.is_empty()
-        || profile.accepted_sha256 == [ORIGINAL_SHA256] && profile.accepted_sha1.is_empty();
+        || profile.accepted_sha256 == [facts.original_sha256] && profile.accepted_sha1.is_empty();
     if port.release.managed_build != expected_recipe
-        || port.id != "yoshis-cookie-recomp"
+        || port.id != facts.port_id
         || port.release.provider != ReleaseSource::Github
         || !port
             .release
             .repository
-            .eq_ignore_ascii_case("mstan/YoshisCookieRecomp")
+            .eq_ignore_ascii_case(facts.repository)
         || port.platforms != [Platform::WindowsX86_64]
         || port.channels != [crate::ReleaseChannel::Stable]
         || port.adapter != AdapterKind::StagedSourcePortable
@@ -144,10 +229,7 @@ pub(crate) fn validate_port(port: &PortDefinition, profile: &SourceProfile) -> R
         || !port.release.direct.is_empty()
         || port.runtime_subdirectory.is_some()
         || port.executable_hints
-            != BTreeMap::from([(
-                Platform::WindowsX86_64,
-                vec!["YoshisCookieRecomp.exe".into()],
-            )])
+            != BTreeMap::from([(Platform::WindowsX86_64, vec![executable.clone()])])
         || port.persistent_paths != ["config.ini", "config.ini.tmp", "saves"]
         || !port.runtime_mutable_paths.is_empty()
         || !port.bundled_runtime.is_empty()
@@ -169,7 +251,7 @@ pub(crate) fn validate_port(port: &PortDefinition, profile: &SourceProfile) -> R
     let forbidden = [
         "game.nes",
         RECEIPT,
-        "YoshisCookieRecomp.exe",
+        executable.as_str(),
         "SDL2.dll",
         "libc++.dll",
         "libunwind.dll",
@@ -199,7 +281,7 @@ pub(crate) fn validate_port(port: &PortDefinition, profile: &SourceProfile) -> R
 
 impl CartridgeBuildPreparation {
     pub(crate) fn new(recipe: CartridgeBuildRecipe, source: SourceRecord) -> Result<Self> {
-        verify_original(&source, &|| Ok(()))?;
+        verify_original(recipe, &source, &|| Ok(()))?;
         Ok(Self {
             recipe,
             source,
@@ -209,12 +291,12 @@ impl CartridgeBuildPreparation {
     }
 
     pub(crate) fn verify_release(&self, release: &ResolvedRelease) -> Result<()> {
-        if release.version != "v1.1.0"
+        let facts = self.recipe.facts();
+        if release.version != facts.release_version
             || release.channel != crate::ReleaseChannel::Stable
-            || release.asset.name != "YoshisCookieRecomp-windows-x64.zip"
-            || release.asset.size != 3_919_022
-            || release.asset.sha256
-                != "3f0b2219479960664312429f464a6c2de2ae155bb112278320e14e94b07bb947"
+            || release.asset.name != facts.asset_name
+            || release.asset.size != facts.asset_size
+            || release.asset.sha256 != facts.asset_sha256
         {
             return Err(PortcoveError::verification(
                 "cartridge build requires its exact reviewed release input",
@@ -225,14 +307,16 @@ impl CartridgeBuildPreparation {
 }
 
 pub(crate) fn verify_original(
+    recipe: CartridgeBuildRecipe,
     source: &SourceRecord,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     checkpoint()?;
-    if source.sha256 != ORIGINAL_SHA256
-        || source.storage_sha256 != ORIGINAL_SHA256
-        || source.size != ORIGINAL_SIZE
-        || source.storage_size != ORIGINAL_SIZE
+    let facts = recipe.facts();
+    if source.sha256 != facts.original_sha256
+        || source.storage_sha256 != facts.original_sha256
+        || source.size != facts.original_size
+        || source.storage_size != facts.original_size
     {
         return Err(PortcoveError::source(
             "cartridge build requires the unchanged full NES2 original",
@@ -243,8 +327,8 @@ pub(crate) fn verify_original(
     checkpoint()
 }
 
-pub(crate) fn source_roots(work: &Path) -> [PathBuf; 4] {
-    [GAME, ENGINE, UI, TOOLCHAIN].map(|archive| {
+pub(crate) fn source_roots(work: &Path, recipe: CartridgeBuildRecipe) -> [PathBuf; 4] {
+    recipe.archives().map(|archive| {
         work.join(archive.name.trim_end_matches(".zip"))
             .join(archive.root)
     })
@@ -389,13 +473,18 @@ fn apply_patch(engine: &Path) -> Result<()> {
 }
 
 struct BuildInputs {
+    recipe: CartridgeBuildRecipe,
     roots: [PathBuf; 4],
     identities: [Vec<FileIdentity>; 4],
 }
 
 impl BuildInputs {
-    fn capture(work: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Result<Self> {
-        let roots = source_roots(work);
+    fn capture(
+        work: &Path,
+        recipe: CartridgeBuildRecipe,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<Self> {
+        let roots = source_roots(work, recipe);
         let identities = roots
             .each_ref()
             .map(|r| inventory(r, checkpoint))
@@ -404,10 +493,14 @@ impl BuildInputs {
         let identities = identities
             .try_into()
             .map_err(|_| PortcoveError::state("build input count differs"))?;
-        Ok(Self { roots, identities })
+        Ok(Self {
+            recipe,
+            roots,
+            identities,
+        })
     }
     fn verify(&self, source: &SourceRecord, checkpoint: &dyn Fn() -> Result<()>) -> Result<()> {
-        verify_original(source, checkpoint)?;
+        verify_original(self.recipe, source, checkpoint)?;
         for (root, expected) in self.roots.iter().zip(&self.identities) {
             if inventory(root, checkpoint)? != *expected {
                 return Err(PortcoveError::verification(
@@ -622,7 +715,6 @@ fn configure_arguments(inputs: &BuildInputs, project: &Path, build: &Path) -> Re
     Ok(args)
 }
 
-const COMPILE_OBJECTS: usize = 101;
 const OBJECTS_PER_INVOCATION: usize = 8;
 
 fn decode_object_target(encoded: &str) -> Result<String> {
@@ -651,7 +743,11 @@ struct CompilePlan {
 }
 
 impl CompilePlan {
-    fn read(build: &Path) -> Result<Self> {
+    fn read(build: &Path, recipe: CartridgeBuildRecipe) -> Result<Self> {
+        let facts = recipe.facts();
+        let target_prefix = format!("CMakeFiles/{}.dir/", facts.target);
+        let c_rule = format!("C_COMPILER__{}_unscanned_Release", facts.target);
+        let cxx_rule = format!("CXX_COMPILER__{}_unscanned_Release", facts.target);
         let bytes = crate::path::read_bounded_regular(&build.join("build.ninja"), 1024 * 1024)?;
         let manifest = std::str::from_utf8(&bytes)
             .map_err(|_| PortcoveError::verification("build graph is not UTF-8"))?;
@@ -690,15 +786,11 @@ impl CompilePlan {
             }
             let target = decode_object_target(target)?;
             let rule = rest.split_whitespace().next().unwrap_or_default();
-            if !target.starts_with("CMakeFiles/YoshisCookieRecomp.dir/")
+            if !target.starts_with(&target_prefix)
                 || target.len() > 1024
-                || !matches!(
-                    rule,
-                    "C_COMPILER__YoshisCookieRecomp_unscanned_Release"
-                        | "CXX_COMPILER__YoshisCookieRecomp_unscanned_Release"
-                )
+                || (rule != c_rule && rule != cxx_rule)
                 || !identities.insert(target.to_ascii_lowercase())
-                || object_targets.len() == COMPILE_OBJECTS
+                || object_targets.len() == facts.compile_objects
             {
                 return Err(PortcoveError::verification(
                     "build graph has an undeclared compiler object",
@@ -706,7 +798,7 @@ impl CompilePlan {
             }
             object_targets.push(target);
         }
-        if object_targets.len() != COMPILE_OBJECTS {
+        if object_targets.len() != facts.compile_objects {
             return Err(PortcoveError::verification(
                 "build graph compiler object inventory differs",
             ));
@@ -731,17 +823,15 @@ impl CompilePlan {
     }
 }
 
-fn generated_identity(build: &Path) -> Result<(String, String)> {
-    let root = build.join("cycle-YoshisCookieRecomp");
+fn generated_identity(build: &Path, recipe: CartridgeBuildRecipe) -> Result<(String, String)> {
+    let facts = recipe.facts();
+    let root = build.join(format!("cycle-{}", facts.target));
     let manifest = crate::path::read_bounded_regular(&root.join("sources.cmake"), 64 * 1024)?;
     let text = std::str::from_utf8(&manifest)
         .map_err(|_| PortcoveError::verification("generated source manifest is not UTF-8"))?;
     for (name, value) in [
-        ("CYC_PROJECT_ROM_SHA256", ORIGINAL_SHA256),
-        (
-            "CYC_PROJECT_LAUNCHER_SHA256",
-            "24b117a0830fcb91d88d9150ff89a374134a9ddebd5eedcb5df21eab580eb2c0",
-        ),
+        ("CYC_PROJECT_ROM_SHA256", facts.original_sha256),
+        ("CYC_PROJECT_LAUNCHER_SHA256", facts.payload_sha256),
     ] {
         if text
             .matches(&format!("set({name}\n  [=[{value}]=]\n)"))
@@ -785,10 +875,16 @@ fn generated_identity(build: &Path) -> Result<(String, String)> {
     let text = std::str::from_utf8(&generated)
         .map_err(|_| PortcoveError::verification("generated identity is not UTF-8"))?;
     for expected in [
-        "const uint32_t cyc_native_cart_hash = 0xDCEE267Bu;",
-        "const uint32_t cyc_native_prg_hash = 0xF586F909u;",
+        format!(
+            "const uint32_t cyc_native_cart_hash = 0x{}u;",
+            facts.cartridge_identity
+        ),
+        format!(
+            "const uint32_t cyc_native_prg_hash = 0x{}u;",
+            facts.prg_identity
+        ),
     ] {
-        if text.matches(expected).count() != 1 {
+        if text.matches(expected.as_str()).count() != 1 {
             return Err(PortcoveError::verification(
                 "generated cartridge or PRG identity differs",
             ));
@@ -941,10 +1037,13 @@ fn prepare_install_inner(
         ));
     }
     let checkpoint = || operation.checkpoint();
-    verify_original(&preparation.source, &checkpoint)?;
-    let before = BuildInputs::capture(work, &checkpoint)?;
+    let recipe = preparation.recipe;
+    let facts = recipe.facts();
+    let executable = format!("{}.exe", facts.target);
+    verify_original(recipe, &preparation.source, &checkpoint)?;
+    let before = BuildInputs::capture(work, recipe, &checkpoint)?;
     apply_patch(&before.roots[1])?;
-    let inputs = BuildInputs::capture(work, &checkpoint)?;
+    let inputs = BuildInputs::capture(work, recipe, &checkpoint)?;
     for part in [0, 2, 3] {
         if before.identities[part] != inputs.identities[part] {
             return Err(PortcoveError::verification(
@@ -975,7 +1074,7 @@ fn prepare_install_inner(
         library,
         operation,
         deadline: Instant::now(),
-        port_id: "yoshis-cookie-recomp",
+        port_id: facts.port_id,
     };
     // Bootstrap separately: upstream's nested configure does not forward the
     // authenticated Clang configuration arguments to its host compiler.
@@ -1032,6 +1131,16 @@ fn prepare_install_inner(
         "-DNESRECOMP_DEV_UI=OFF".into(),
         "-DRECOMP_UI_ENABLE_MODS=OFF".into(),
     ]);
+    match recipe {
+        CartridgeBuildRecipe::YoshisCookieNesCycle110 => {}
+        CartridgeBuildRecipe::DrMarioNesCycle130Usa => arguments.extend([
+            "-DDRMARIO_REGION=usa".into(),
+            format!(
+                "-DNESRECOMP_CYCLE_SEEDS={}",
+                cmake_path(&inputs.roots[0].join("cyc_seeds.txt"))?
+            ),
+        ]),
+    }
     session.run(
         &arguments,
         "bin/cmake.exe",
@@ -1039,8 +1148,8 @@ fn prepare_install_inner(
         quiesced,
     )?;
     inputs.verify(&preparation.source, &checkpoint)?;
-    let generated = generated_identity(&work.join("build"))?;
-    let compile_plan = CompilePlan::read(&work.join("build"))?;
+    let generated = generated_identity(&work.join("build"), recipe)?;
+    let compile_plan = CompilePlan::read(&work.join("build"), recipe)?;
     // A full Ninja compile exceeds the unchanged native supervisor's finite
     // debug-event budget. Each object group drains its own complete process
     // scope; the final target then links the already compiled objects.
@@ -1076,7 +1185,7 @@ fn prepare_install_inner(
             "--parallel".into(),
             "2".into(),
             "--target".into(),
-            "YoshisCookieRecomp".into(),
+            facts.target.into(),
         ],
         "bin/cmake.exe",
         "install.cartridge.compile",
@@ -1084,14 +1193,14 @@ fn prepare_install_inner(
     )?;
     inputs.verify(&preparation.source, &checkpoint)?;
     compile_plan.require_unchanged(&work.join("build"))?;
-    if generated_identity(&work.join("build"))? != generated {
+    if generated_identity(&work.join("build"), recipe)? != generated {
         return Err(PortcoveError::verification(
             "generated source identity changed during compilation",
         ));
     }
     let package = work.join("runtime");
     fs::create_dir(&package)?;
-    for name in ["YoshisCookieRecomp.exe", "SDL2.dll"] {
+    for name in [executable.as_str(), "SDL2.dll"] {
         copy_verified(
             &work.join("build").join(name),
             &package.join(name),
@@ -1155,7 +1264,7 @@ fn prepare_install_inner(
     )?;
     let mut imports = BTreeMap::new();
     for (index, name) in [
-        "YoshisCookieRecomp.exe",
+        executable.as_str(),
         "SDL2.dll",
         "libc++.dll",
         "libunwind.dll",
@@ -1179,7 +1288,7 @@ fn prepare_install_inner(
         ));
     }
     let output = inventory(&package, &checkpoint)?;
-    let mut receipt = serde_json::json!({"format_version":1,"recipe":preparation.recipe,"runtime_origin":"locally-built","original_sha256":ORIGINAL_SHA256,"original_size":ORIGINAL_SIZE,"sources":[{"archive_sha256":GAME.sha256,"tree_sha256":digest(&serde_json::to_vec(&inputs.identities[0])?)},{"archive_sha256":ENGINE.sha256,"tree_sha256":digest(&serde_json::to_vec(&inputs.identities[1])?)},{"archive_sha256":UI.sha256,"tree_sha256":digest(&serde_json::to_vec(&inputs.identities[2])?)}],"auxiliary_archives":[GAME,ENGINE,UI,TOOLCHAIN],"auxiliary_transport":"HTTPS to fixed GitHub/codeload/artifact CDN hosts; no delegated primary grant","toolchain_archive_sha256":TOOLCHAIN.sha256,"toolchain_tree_sha256":digest(&serde_json::to_vec(&inputs.identities[3])?),"source_patch":{"path":PATCH_PATH,"before_sha256":PATCH_BEFORE,"after_sha256":PATCH_AFTER},"configure_arguments":arguments,"cartridge_identity":"DCEE267B","prg_identity":"F586F909","generated_manifest_sha256":generated.0,"generated_dispatch_sha256":generated.1,"imports":imports,"runtime_files":output,"builder_quiesced":*quiesced,"game_executed_by_builder":false});
+    let mut receipt = serde_json::json!({"format_version":1,"recipe":preparation.recipe,"runtime_origin":"locally-built","original_sha256":facts.original_sha256,"original_size":facts.original_size,"sources":[{"archive_sha256":facts.game.sha256,"tree_sha256":digest(&serde_json::to_vec(&inputs.identities[0])?)},{"archive_sha256":ENGINE.sha256,"tree_sha256":digest(&serde_json::to_vec(&inputs.identities[1])?)},{"archive_sha256":UI.sha256,"tree_sha256":digest(&serde_json::to_vec(&inputs.identities[2])?)}],"auxiliary_archives":recipe.archives(),"auxiliary_transport":"HTTPS to fixed GitHub/codeload/artifact CDN hosts; no delegated primary grant","toolchain_archive_sha256":TOOLCHAIN.sha256,"toolchain_tree_sha256":digest(&serde_json::to_vec(&inputs.identities[3])?),"source_patch":{"path":PATCH_PATH,"before_sha256":PATCH_BEFORE,"after_sha256":PATCH_AFTER},"configure_arguments":arguments,"cartridge_identity":facts.cartridge_identity,"prg_identity":facts.prg_identity,"generated_manifest_sha256":generated.0,"generated_dispatch_sha256":generated.1,"imports":imports,"runtime_files":output,"builder_quiesced":*quiesced,"game_executed_by_builder":false});
     receipt["compilation"] = serde_json::json!({"plan": compile_plan, "objects_per_invocation": OBJECTS_PER_INVOCATION, "supervisor_event_limit_unchanged": true});
     receipt["host_compiler"] = serde_json::json!({"sha256":host_identity.0,"size":host_identity.1,"imports":host_imports,"configure_arguments":host_arguments});
     if !*quiesced {
@@ -1191,7 +1300,7 @@ fn prepare_install_inner(
         &package.join(RECEIPT),
         &serde_json::to_vec_pretty(&receipt)?,
     )?;
-    verify_original(&preparation.source, &checkpoint)?;
+    verify_original(recipe, &preparation.source, &checkpoint)?;
     // Only the installer-owned, unpublished download payload is replaced. The
     // caller's lifecycle retains the manifest/publication admission boundary.
     let parent = work

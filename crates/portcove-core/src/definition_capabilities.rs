@@ -50,6 +50,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 6,
         });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 7,
+        });
         supported
     }
 }
@@ -288,6 +292,24 @@ mod tests {
         );
         assert!(
             !check_definition_capabilities(&request("n64-recomp-portable", 6, 6))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn dr_mario_cartridge_version_refuses_v6_inventory_and_preserves_yoshi_v6() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| entry.contract_version <= 6)
+            .collect();
+        let required = request("staged-source-portable", 7, 7);
+        let old = check_with_inventory(&required, &previous).unwrap();
+        assert!(!old.compatible);
+        assert_eq!(old.checks[0].installed_version, Some(6));
+        assert!(check_definition_capabilities(&required).unwrap().compatible);
+        assert!(
+            check_definition_capabilities(&request("staged-source-portable", 6, 6))
                 .unwrap()
                 .compatible
         );

@@ -210,7 +210,7 @@ export type InstallationMethod =
 export type SavesAndSettingsBehavior = "portcove-managed" | "external-user-owned";
 export type PortSourceRole = "game" | "bios";
 export type SourceVerificationMethod = "catalog-identity" | "upstream-validator" | "catalog-rules";
-export type CartridgeBuildRecipe = "yoshis-cookie-nes-cycle-v1.1.0";
+export type CartridgeBuildRecipe = "yoshis-cookie-nes-cycle-v1.1.0" | "dr-mario-nes-cycle-v1.3.0-usa";
 /**
  * Catalog-accepted identity for a runtime the player prepares outside Portcove.
  * Portcove never downloads or owns this package through this route.
