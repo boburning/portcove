@@ -94,6 +94,30 @@ jobs:
             pkg-config --modversion webkit2gtk-4.1 || true
             dpkg-query -W -f='${Package} ${Version}\n' libfuse2 libfuse2t64 2>/dev/null || true
           } > work/updater-rehearsal/linux-host-baseline.txt
+      - name: Prove ordinary default-feature AppImage startup and IPC
+        if: runner.os == 'Linux'
+        timeout-minutes: 20
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code HEAD -- Cargo.toml Cargo.lock apps/desktop/package.json apps/desktop/src-tauri/tauri.conf.json
+          test -z "${TAURI_CONFIG:-}"
+          test -z "${TAURI_SIGNING_PRIVATE_KEY:-}"
+          test -z "${TAURI_SIGNING_PRIVATE_KEY_PATH:-}"
+          test -z "${APPIMAGE_EXTRACT_AND_RUN:-}"
+          node scripts/run-rust-tests.mts --guard-command pnpm --dir apps/desktop tauri build --bundles appimage --ci
+          version=$(node scripts/check-release-metadata.mts --print-version)
+          ordinary="$PWD/work/updater-rehearsal/ordinary-appimage"
+          mkdir "$ordinary"
+          install -m 0755 "target/release/bundle/appimage/Portcove_${version}_amd64.AppImage" "$ordinary/Portcove.AppImage"
+          sha256sum "$ordinary/Portcove.AppImage" > "$ordinary/artifact.sha256"
+          xvfb-run -a dbus-run-session -- \
+            pnpm --dir apps/desktop test:desktop \
+              --app "$ordinary/Portcove.AppImage" \
+              --driver "$(command -v tauri-driver)" \
+              --native-driver "$(command -v WebKitWebDriver)" \
+              --output "$ordinary/native" \
+              --scenario native-error-recovery
       - name: Retain bounded rehearsal evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -104,6 +128,11 @@ jobs:
             work/updater-rehearsal/*.patch
             work/updater-rehearsal/*.pub
             work/updater-rehearsal/linux-host-baseline.txt
+            work/updater-rehearsal/ordinary-appimage/Portcove.AppImage
+            work/updater-rehearsal/ordinary-appimage/artifact.sha256
+            work/updater-rehearsal/ordinary-appimage/native/*.json
+            work/updater-rehearsal/ordinary-appimage/native/*.png
+            work/updater-rehearsal/ordinary-appimage/native/*.log
             work/updater-rehearsal/0.1.0-${{ matrix.label }}/**
             work/updater-rehearsal/0.2.0-${{ matrix.label }}/**
             work/updater-rehearsal/0.3.0-${{ matrix.label }}/**
