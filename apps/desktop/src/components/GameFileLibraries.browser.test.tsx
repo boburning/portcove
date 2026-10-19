@@ -1898,3 +1898,15 @@ it("discards a relink picker after the originating library is replaced", async (
   await act(async () => release("E:/Old relink"));
   expect(relink).not.toHaveBeenCalled();
 });
+
+it("keeps a roots-only add preflight from confirming an older observation after mutation failure", async () => {
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+  await click("Refresh folders");
+  expect(button("Review game files").disabled).toBe(false);
+  vi.mocked(desktopApi.gameFileRoots).mockResolvedValue([{ ...saved, path: "E:/Changed root" }]);
+  vi.spyOn(desktopApi, "addGameFileRoot").mockRejectedValue(new Error("save failed"));
+  await click("Add folder");
+  expect(document.body.textContent).toContain("save failed");
+  expect(button("Review game files").disabled).toBe(true);
+  expect(document.body.textContent).not.toContain("Saved roots and catalog match this snapshot");
+});

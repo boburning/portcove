@@ -649,7 +649,10 @@ function useSavedFolderView(generation: number, setError: (error: string) => voi
     readConfirmed,
     refresh,
     refreshRoots,
-    setRootsForPreflight: setRoots,
+    acceptRootPreflight: (savedRoots: GameFileRoot[]) => {
+      setRoots(savedRoots);
+      setReadConfirmed(false);
+    },
   };
 }
 
@@ -705,7 +708,7 @@ export function GameFileLibraries({
   const { scanning, operationId, candidates: liveCandidates } = scanState;
   const [error, setError] = useState<string>();
   const view = useSavedFolderView(generation, setError);
-  const { roots, snapshot, readConfirmed, refresh, refreshRoots, setRootsForPreflight } = view;
+  const { roots, snapshot, readConfirmed, refresh, refreshRoots, acceptRootPreflight } = view;
   const owner = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
     owner.current = generation;
@@ -826,7 +829,7 @@ export function GameFileLibraries({
       if (!path || !accepts()) return;
       const currentRoots = await refreshRoots();
       if (!accepts()) return;
-      setRootsForPreflight(currentRoots);
+      acceptRootPreflight(currentRoots);
       if (availableRootCount(currentRoots) >= maxAvailableRootsPerScan) {
         setNotice(
           "A scan supports at most eight available folders. Remove an available folder before adding another.",
