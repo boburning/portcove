@@ -123,6 +123,18 @@ export function reviewControls(browser: WebDriver) {
   };
 }
 
+/** Settings panels stay mounted while hidden; locating their controls is insufficient. */
+export async function selectGameFilesSettings(browser: WebDriver) {
+  await reviewControls(browser).click(
+    By.xpath('//nav[@aria-label="Settings categories"]//button[normalize-space(.)="Game files"]'),
+  );
+  const heading = await browser.wait(
+    until.elementLocated(By.id("game-file-libraries-heading")),
+    5_000,
+  );
+  await browser.wait(until.elementIsVisible(heading), 5_000);
+}
+
 export async function assertCompactReview(browser: WebDriver, selector: string) {
   await browser.manage().window().setRect({ width: 960, height: 640 });
   await waitForEntrance(browser, await browser.findElement(By.css(selector)));

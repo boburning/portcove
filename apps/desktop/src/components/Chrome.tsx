@@ -1538,7 +1538,8 @@ export function SettingsView({
       description="Review saved file locations and the optional disc tools used to check or prepare files."
     >
       <GameFileLibraries
-        key={librarySelection?.root ?? libraryRoot}
+        key={generation}
+        generation={generation}
         ports={ports}
         statuses={statuses}
         profiles={sourceProfiles}

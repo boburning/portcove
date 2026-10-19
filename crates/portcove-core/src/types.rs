@@ -1210,10 +1210,27 @@ pub struct InstallPlan {
     pub release: ResolvedRelease,
     pub bundled_runtime: Option<BundledRuntime>,
     pub download_bytes: u64,
+    /// Required recipe inputs in addition to the primary release and bundled runtime.
+    /// These are cold acquisition quantities; existing cache reuse is not guaranteed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub auxiliary_downloads: Vec<ReleaseAsset>,
+    /// Execution's temporary free-space floor, not a final installed-size estimate.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temporary_space: Option<InstallSpaceRequirement>,
     pub action: InstallPlanAction,
     pub source_requirements: Vec<InstallSourceRequirement>,
     pub storage: StorageSummary,
     pub output_location: PortOutputLocation,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct InstallSpaceRequirement {
+    pub path: PathBuf,
+    pub required_bytes: u64,
+    pub available_bytes: Option<u64>,
+    pub volume_identity: Option<String>,
+    /// Unknown when capacity could not be observed. Execution always rechecks.
+    pub sufficient: Option<bool>,
 }
 
 /// Exact registered-input review for the first managed installation.

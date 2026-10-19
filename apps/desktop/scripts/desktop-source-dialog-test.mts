@@ -51,7 +51,13 @@ function gameFileRoot(value: unknown): GameFileRoot {
   return required(transportValue("game_file_roots", [value])[0]);
 }
 type SetupInvoke = SelectedSetupContext["invoke"];
-function selectedSetupRead(invoke: SetupInvoke) {
+export async function selectedSetupGeneration(invoke: SetupInvoke) {
+  const response = object(await invoke("get_bootstrap_status"));
+  assert.equal(response.ok, true, JSON.stringify(response.error));
+  return transportValue("desktop_bootstrap_status", response.value).generation;
+}
+
+export function selectedSetupRead(invoke: SetupInvoke, generation: number) {
   function read(
     name: "get_game_file_scan_snapshot",
     args?: Record<string, unknown>,
@@ -64,7 +70,9 @@ function selectedSetupRead(invoke: SetupInvoke) {
   function read(name: "get_statuses", args?: Record<string, unknown>): Promise<PortStatus[]>;
   function read(name: "plan_port", args?: Record<string, unknown>): Promise<InstallPlan>;
   async function read(name: string, args?: Record<string, unknown>): Promise<unknown> {
-    const response = object(await invoke(name, args));
+    const response = object(
+      await invoke(name, name === "get_game_file_scan_snapshot" ? { ...args, generation } : args),
+    );
     assert.equal(response.ok, true, JSON.stringify(response.error));
     switch (name) {
       case "get_game_file_scan_snapshot":
@@ -248,6 +256,7 @@ import {
   clickVisible,
   openCatalogPortAfterRefresh,
   reviewControls,
+  selectGameFilesSettings,
 } from "./desktop-review-controls.mts";
 
 async function progressiveScanNavigation({
@@ -661,6 +670,7 @@ export async function sourceDialogScenario({
     );
 
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await selectGameFilesSettings(browser);
     const discoveryTrigger = await browser.wait(
       until.elementLocated(button("Find required files")),
       15_000,
@@ -775,7 +785,7 @@ export async function sourceDialogScenario({
       (item) => item.id === sourceRegistration.id,
     );
     const sourceActivityInRecentPreview = sourceRegistrationIndex < 8;
-    await click(By.xpath('//nav//button[contains(., "Game updates")]'));
+    await click(By.xpath('//nav//button[contains(., "Updates & activity")]'));
     const sourceActivity = By.xpath(
       `//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file location update"]]//button[@aria-label=${JSON.stringify(`Open Game files settings for ${profileLabel}`)}]`,
     );
@@ -822,7 +832,7 @@ export async function sourceDialogScenario({
       artifacts.push(settingsScreenshot);
     }
 
-    await click(By.xpath('//nav//button[contains(., "Game updates")]'));
+    await click(By.xpath('//nav//button[contains(., "Updates & activity")]'));
     const discoveryActivity = By.xpath(
       '//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file search"]]//button[@aria-label="Open Game files settings for Portcove library"]',
     );
@@ -1270,25 +1280,28 @@ async function preliminarySourceReviewScenario(context: SelectedSetupContext) {
     const owned = fixture.preliminaryJourney;
     assert.ok(owned, "Only the standalone selection supplies the inert disc fixture");
     const command = selectedSetupCommand({ cli, library, output, fixture });
+    let generation: number;
     const { button, click } = reviewControls(browser);
     const before = await readFile(owned.before);
     const expectedHash = createHash("sha256").update(before).digest("hex");
-    const sourcesBefore = transportValues("source", command(["source", "list"]));
-    assert.deepEqual(sourcesBefore, []);
-    const previousOperations = new Set(
-      transportValue("activity", command(["activity"])).records.map((record) => record.id),
-    );
     const report: SetupReport = {
       scope: "inert first-party disc selection; actual Core scan and deliberate review/cancel only",
       observations: {},
     };
     const artifact = path.join(output, "preliminary-source-review.json");
     try {
+      generation = await selectedSetupGeneration(invoke);
+      const sourcesBefore = transportValues("source", command(["source", "list"]));
+      assert.deepEqual(sourcesBefore, []);
+      const previousOperations = new Set(
+        transportValue("activity", command(["activity"])).records.map((record) => record.id),
+      );
       await click(
         By.xpath(
           '//nav[@aria-label="Primary navigation"]//button[./span[normalize-space(.)="Settings"]]',
         ),
       );
+      await selectGameFilesSettings(browser);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await click(button("Refresh folders"));
       await browser.wait(
@@ -1306,7 +1319,7 @@ async function preliminarySourceReviewScenario(context: SelectedSetupContext) {
           ),
         15_000,
       );
-      const response = object(await invoke("get_game_file_scan_snapshot"));
+      const response = object(await invoke("get_game_file_scan_snapshot", { generation }));
       assert.equal(response.ok, true);
       const snapshot = required(transportValue("game_file_scan_snapshot", response.value));
       const selection = required(snapshot.report.preliminary_selections).find(
@@ -1378,6 +1391,9 @@ async function preliminarySourceReviewScenario(context: SelectedSetupContext) {
       report.observations.registration_unchanged = true;
       report.observations.input_unchanged = true;
       report.observations.no_setup_acquisition = true;
+    } catch (error) {
+      await recordSelectedSetupFailure(browser, report, error);
+      throw error;
     } finally {
       await writeFile(artifact, JSON.stringify(report, null, 2), { flag: "wx" });
       artifacts.push(artifact);
@@ -1392,7 +1408,7 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
     assert.ok(owned && fixture.preliminarySetupJourney);
     const command = selectedSetupCommand({ cli, library, output, fixture });
     const { button, click } = reviewControls(browser);
-    const read = selectedSetupRead(invoke);
+    let read: ReturnType<typeof selectedSetupRead>;
     const enabled = async (locator: Parameters<WebDriver["findElements"]>[0]) =>
       browser.wait(async () => {
         const matches = await browser.findElements(locator);
@@ -1419,12 +1435,14 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
     };
     const artifact = path.join(output, "preliminary-selected-setup.json");
     try {
+      read = selectedSetupRead(invoke, await selectedSetupGeneration(invoke));
       assert.deepEqual(transportValues("source", command(["source", "list"])), []);
       await click(
         By.xpath(
           '//nav[@aria-label="Primary navigation"]//button[./span[normalize-space(.)="Settings"]]',
         ),
       );
+      await selectGameFilesSettings(browser);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await click(button("Refresh folders"));
       await enabled(button("Scan saved folders"));
@@ -1762,7 +1780,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
     assertOwnedSelectedSetupPath(required(owned.root).path, owned.directory);
     const command = selectedSetupCommand({ cli, library, output, fixture });
     const { button, click } = reviewControls(browser);
-    const nativeRead = selectedSetupRead(invoke);
+    let nativeRead: ReturnType<typeof selectedSetupRead>;
     const report: SetupReport = {
       scope: "Actual saved hash-batch continuation and fresh source review/cancel",
       limitations: [
@@ -1784,6 +1802,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       );
     };
     try {
+      nativeRead = selectedSetupRead(invoke, await selectedSetupGeneration(invoke));
       report.checkpoint = "initial persisted batch";
       assert.deepEqual(transportValues("source", command(["source", "list"])), []);
       await click(
@@ -1791,6 +1810,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
           '//nav[@aria-label="Primary navigation"]//button[./span[normalize-space(.)="Settings"]]',
         ),
       );
+      await selectGameFilesSettings(browser);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await click(button("Refresh folders"));
       await browser.wait(async () => {
@@ -1996,7 +2016,7 @@ export async function selectedSetupScenario({
       .update(await readFile(owned.biosBefore))
       .digest("hex");
     const { button, click } = reviewControls(browser);
-    const nativeRead = selectedSetupRead(invoke);
+    let nativeRead: ReturnType<typeof selectedSetupRead>;
     const report: SetupReport = {
       scope: "real saved-root scan and UI guarded registration; uninstalled requirements only",
       limitations: [
@@ -2050,17 +2070,19 @@ export async function selectedSetupScenario({
       return snapshot;
     };
     let rootMoved = false;
-    let journeyFailure;
-    let cleanupFailure;
-    let artifactFailure;
+    let journeyFailure: { error: unknown } | undefined;
+    let cleanupFailure: { error: unknown } | undefined;
+    let artifactFailure: { error: unknown } | undefined;
     const missingRoot = `${owned.directory}-unavailable`;
     try {
+      nativeRead = selectedSetupRead(invoke, await selectedSetupGeneration(invoke));
       assert.deepEqual(transportValues("source", command(["source", "list"])), []);
       await click(
         By.xpath(
           '//nav[@aria-label="Primary navigation"]//button[./span[normalize-space(.)="Settings"]]',
         ),
       );
+      await selectGameFilesSettings(browser);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await click(button("Refresh folders"));
       report.observations.initial_scan = await scan();
@@ -2463,7 +2485,7 @@ export async function selectedSetupScenario({
         "Read-only plans must not acquire or install the inert package",
       );
     } catch (error) {
-      journeyFailure = error;
+      journeyFailure = { error };
       await recordSelectedSetupFailure(browser, report, error);
     } finally {
       try {
@@ -2473,7 +2495,7 @@ export async function selectedSetupScenario({
         assert.deepEqual(await readFile(owned.biosPath), await readFile(owned.biosBefore));
         report.original_inputs_restored = true;
       } catch (error) {
-        cleanupFailure = error;
+        cleanupFailure = { error };
         report.cleanup_failure = String(error);
       }
       const artifact = path.join(output, "selected-setup-journey.json");
@@ -2483,12 +2505,12 @@ export async function selectedSetupScenario({
       } catch (error) {
         // Retain both observations in the harness log if its artifact cannot be written.
         console.error(JSON.stringify({ report, artifact_write_failure: String(error) }));
-        artifactFailure = error;
+        artifactFailure = { error };
       }
     }
     // Cleanup/report failures must not replace the original journey error.
-    if (journeyFailure) rethrowFailure(journeyFailure);
-    if (cleanupFailure) rethrowFailure(cleanupFailure);
-    if (artifactFailure) rethrowFailure(artifactFailure);
+    if (journeyFailure) rethrowFailure(journeyFailure.error);
+    if (cleanupFailure) rethrowFailure(cleanupFailure.error);
+    if (artifactFailure) rethrowFailure(artifactFailure.error);
   });
 }
