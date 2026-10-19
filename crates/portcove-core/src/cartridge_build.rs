@@ -824,8 +824,8 @@ impl BuildSession<'_> {
         quiesced: &mut bool,
     ) -> Result<Vec<String>> {
         let output = self.run(
-            &["--private-headers".into(), cmake_path(image)?],
-            "bin/llvm-objdump.exe",
+            &["--coff-imports".into(), cmake_path(image)?],
+            "bin/llvm-readobj.exe",
             phase,
             quiesced,
         )?;
@@ -836,7 +836,7 @@ impl BuildSession<'_> {
 fn validate_imports(output: &str) -> Result<Vec<String>> {
     let mut names = std::collections::BTreeSet::new();
     for line in output.lines() {
-        if let Some(name) = line.trim().strip_prefix("DLL Name:") {
+        if let Some(name) = line.trim().strip_prefix("Name:") {
             let name = name.trim().to_ascii_lowercase();
             if name.is_empty()
                 || name.len() > 128

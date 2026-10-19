@@ -390,7 +390,7 @@ fn runtime_imports_accept_reviewed_windows_names_but_refuse_unsafe_or_unknown_de
     ];
     let output = names
         .iter()
-        .map(|name| format!("    DLL Name: {name}\n"))
+        .map(|name| format!("    Name: {name}\n"))
         .collect::<String>();
     let parsed = validate_imports(&output).unwrap();
     assert_eq!(parsed.len(), names.len());
@@ -402,11 +402,11 @@ fn runtime_imports_accept_reviewed_windows_names_but_refuse_unsafe_or_unknown_de
         "C:\\WS2_32.dll",
         "WS2_32 .dll",
         "arbitrary.dll",
-        "WS2_32.dll\nDLL Name: ws2_32.DLL",
-        "WS2_32.dll\nDLL Name: arbitrary.dll",
+        "WS2_32.dll\nName: ws2_32.DLL",
+        "WS2_32.dll\nName: arbitrary.dll",
     ] {
         assert!(
-            validate_imports(&format!("DLL Name: {bad}\n")).is_err(),
+            validate_imports(&format!("Name: {bad}\n")).is_err(),
             "{bad}"
         );
     }

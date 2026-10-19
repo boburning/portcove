@@ -169,6 +169,36 @@ Sixteen focused Core tests pass, including the 24 observed imports and malformed
 unknown, duplicate and path controls; separate non-writing repair review is clear.
 Changed-head actual Core publication and native offered operations remain required.
 
+## Fourth Core attempt and import-only inspection
+
+Reviewed head `0ef0022767216b8d5f8be703fabb37a167f4de02` produced CLI
+SHA-256 `7d7ff550cfbaa63e4daafd348169528f1cd9ce2339f68ba5c1abf31922134a9c`.
+The fresh `E:\pcs6y core4 20261018` attempt passed compilation, linking and
+game/SDL import checks, then refused the libc++ private-header report because
+its 193945 bytes exceeded the existing 64 KiB command-result summary. The
+separate 2 MiB diagnostic capture was complete and untruncated. Normal CLI exit
+was 11 (`killed:false`), outer supervision settled in 298515 ms, and independent
+terminal readback again found zero lifecycle journals, installs and launch
+sessions, with the original unchanged. No output was published or game run.
+
+The repair uses the same authenticated toolchain's `llvm-readobj --coff-imports`
+and its `Name:` records. At the pinned LLVM revision, this enumerates normal
+and delay imports while omitting exports; imported symbols use a distinct
+`Symbol:` field. Dependency policy and completeness, process and output limits
+are unchanged. The admitted static proof `nes-cycle-import-only-a1` produced
+6754/2437 bytes for authenticated libc++/libunwind DLLs, with tool/DLL hashes
+unchanged before/after. The libc++ dependency set exactly matches the complete
+fourth-attempt report. Sixteen focused tests pass and separate source review is
+clear. A fresh Core attempt is still necessary.
+
+Optional local Clippy runs `a5` and `a6` remain failed: an access violation and
+then an internal compiler panic (`unexpected unresolved segments`, lowering
+unchanged `psx::config_string_end`) under Rust/Clippy 1.99.1. The latter disabled
+incremental compilation; this did not repair the tool failure. Neither is a
+Clippy pass or a source diagnostic. Ordinary Rust compilation/tests and the
+qualification CLI build passed; required exact-head hosted quality remains a
+separate pending gate. No PSX source or compiler policy is changed here.
+
 ## Remaining acceptance
 
 Core-driven compilation/publication and native offered-operation acceptance
