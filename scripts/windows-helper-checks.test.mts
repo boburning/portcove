@@ -121,7 +121,13 @@ $markerBytes=[Convert]::FromBase64String('__MARKER_BASE64__')
 [IO.File]::WriteAllBytes($archive,$markerBytes)
 $record=@{schema_version=1;owner_sid=$ownerSid;source_revision=('a'*40);image=$image;configuration_sha256=$configHash;native_helper_sha256=$nativeHash;launcher_sha256=$launcherHash;qualifier_sha256=$qualifierHash;operator_helper_sha256=$scriptHash;ready=$true;provider_error=$null;readback_error=$null}
 function Open-Gate {Open-ObservationHandoff $root $configHash $nativeHash $launcherHash $scriptHash $qualifierHash $ownerSid}
-if($null -ne (Open-Gate)){throw 'legacy path changed'}
+$legacy=Open-Gate
+try{
+ Refuses {[IO.File]::Open((Join-Path $root 'completion-operation.lock'),[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)}
+ # A preparation arriving after the legacy intent check cannot enter its lock,
+ # so it cannot archive/attach while this launcher retains legacy ownership.
+ if(Test-Path $intentPath){throw 'legacy fixture unexpectedly has intent'}
+}finally{$legacy.Dispose()}
 Write-ObservationRecord $intentPath $record;Refuses {Open-Gate}
 Write-ObservationRecord $resultPath $record
 $held=Open-Gate

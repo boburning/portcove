@@ -18,11 +18,13 @@ function Write-StoragePreflightCapture([string]$Root,$ProcessResult) {
   return $processReceipt
 }
 function Open-ObservationHandoff([string]$Root,[string]$ConfigurationHash,[string]$NativeHash,[string]$LauncherHash,[string]$OperatorHash,[string]$QualifierHash,[string]$OwnerSid) {
-  if(-not (Test-Path -LiteralPath (Join-Path $Root 'observation-intent.json'))) { return $null }
   $lockPath=Join-Path $Root 'completion-operation.lock'
-  if((Get-Item -LiteralPath $lockPath).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'observation operator lock replaced' }
-  $gate=[IO.File]::Open($lockPath,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+  if((Test-Path -LiteralPath $lockPath) -and ((Get-Item -LiteralPath $lockPath).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'observation operator lock replaced' }
+  $gate=[IO.File]::Open($lockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
   try {
+    # Retain the same lock even for legacy storage with no observation intent.
+    # Preparation cannot archive its marker/attach between this read and launch.
+    if(-not (Test-Path -LiteralPath (Join-Path $Root 'observation-intent.json'))) { return $gate }
     if(Test-Path -LiteralPath (Join-Path $Root 'observation-recovery-intent.json')) { throw 'observation recovery already claimed; no launch' }
     $records=@()
     foreach($name in @('observation-intent.json','observation-result.json')) {

@@ -25,8 +25,8 @@ All image-relative names below are under
 | Partitions                             | reserved offset 17408 / size 16759808; data offset 16777216 / size 520028160; associated through the disk's provider Path          |
 | Existing NTFS volume                   | `\\?\Volume{12961e64-153d-4f34-9ada-6f0dcdb1f392}\`; PortcoveSemantic; 520024064 bytes; existing `data` mount must resolve to it   |
 | Configuration                          | `slice4-semantic-local-storage.proposed.json`; SHA-256 `4cdb2ef63a9c85a917b6d2f6962eddb6f40da561357433cde0bdd3d1e57ad0db`          |
-| New operator                           | `scripts/prepare-semantic-observation.ps1`; SHA-256 `043bd5542222d053b61d1aac48d864cb703131e9ca262c638908b3cc864eba32`             |
-| Launcher                               | `scripts/semantic-review-sandbox.ps1`; SHA-256 `b8b6db681550118d7d4e258ec4313a3c57de29eb6c28266e21958248c4be2f1e`                  |
+| New operator                           | `scripts/prepare-semantic-observation.ps1`; SHA-256 `3e1dce63f73146eb0c38b734a3f759e217fe5b4746756b03157ff7c7f707d336`             |
+| Launcher                               | `scripts/semantic-review-sandbox.ps1`; SHA-256 `dbfdc66cee9e0b0ececa0b0afb2a38507a5af928e6b60a345e6160b784088445`                  |
 | Native helper                          | `scripts/fixtures/semantic-review-appcontainer.cs.txt`; SHA-256 `a2cf7668d6de8cd0cd4760e0e72c01f423bc245c6de02d65941892c471bded87` |
 | Qualifier                              | `scripts/qualify-semantic-isolation.mts`; SHA-256 `15d1e751a4abbaffd3743043361714921486675bef34c59630f6ffb00d5c090b`               |
 | Existing receipt-bound recovery helper | `scripts/prepare-semantic-storage.ps1`; SHA-256 `fa61e13beb04e892c50c63b6158b2b880d3555b046bb802f6c22a9738ca90179`                 |
