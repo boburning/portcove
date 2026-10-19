@@ -64,6 +64,34 @@ Local evidence is retained under `E:\Codex-Evidence\slice6-20261018`:
 `nes-cycle-core-clippy-a1` failure / `a2` PASS, source/build prototype receipts,
 `nes-cycle-proposal-a1`, and the paired v5/v6 capability-check JSON files.
 
+## First actual Core attempt and diagnostic repair
+
+The clean reviewed candidate `8a4afad58ac48ed515bb1eb8fecfdebb105acfc2`
+compiled a qualification CLI with SHA-256
+`6f5355e23e56823ece3a09d0136e35df2933d374210875050466cd397a84858e`.
+Its private proposal SHA-256 is
+`e2a069bb1716a2b9aa61d36b647de6515e39866654cffa9e4a2eb08c4585fa48`.
+The first actual Core-driven install acquired/extracted the fixed inputs but
+failed at host-configure diagnostic capture: `diagnostic capture requires its
+running preparation activity`. The CLI exited 14 normally (`killed:false`);
+the outer resource supervisor settled in 105754 ms. Failed stdout/stderr,
+process facts, proposal/compiled bindings and independent terminal SQL readback
+are retained under `nes-cycle-core-install-a1`. That readback found one failed
+install activity, zero installs, zero lifecycle journals and zero launch
+sessions; the original hash is unchanged. No successful compilation, publication
+or native game operation is inferred from this attempt.
+
+The narrow repair retains the preparation-only recorder and adds a private
+compiler recorder bound to `install.cartridge.*`, the expected port and that
+same running install/update/reconcile activity. It shares the existing atomic
+ledger insertion, redaction, retention and quota boundaries. All nine diagnostic
+ledger tests pass, including wrong port/kind/phase/operation and finished-row
+refusal, preservation of prior captures, redaction and retention regressions.
+Separate non-writing review is clear. A changed-head Core retry remains necessary.
+The inherited scope text in `nes-cycle-diagnostics-test-a1-result.json` is broader
+than that run; its exact log and appended scope correction describe the nine
+ledger tests and make no worker-cancellation or compiler-execution claim.
+
 ## Remaining acceptance
 
 Core-driven compilation/publication and native offered-operation acceptance

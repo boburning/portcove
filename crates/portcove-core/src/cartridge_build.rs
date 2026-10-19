@@ -439,6 +439,7 @@ struct BuildSession<'a> {
     library: &'a crate::Library,
     operation: &'a OperationCoordinator,
     deadline: Instant,
+    port_id: &'a str,
 }
 
 impl BuildSession<'_> {
@@ -455,6 +456,7 @@ impl BuildSession<'_> {
             library,
             operation,
             deadline,
+            port_id,
         } = self;
         let checkpoint = || {
             operation.checkpoint()?;
@@ -531,7 +533,7 @@ impl BuildSession<'_> {
                     phase,
                     record: &mut |snapshot| {
                         captured = Some(snapshot.clone());
-                        library.record_activity_diagnostic(snapshot)
+                        library.record_managed_install_diagnostic(snapshot, port_id)
                     },
                 }),
                 quiesced: Some(&mut || {
@@ -542,7 +544,7 @@ impl BuildSession<'_> {
         );
         *quiesced = previous && child_quiesced;
         if let Some(snapshot) = captured {
-            library.record_activity_diagnostic(&snapshot)?;
+            library.record_managed_install_diagnostic(&snapshot, port_id)?;
         }
         let result = result?;
         if !result.status.success() {
@@ -857,6 +859,7 @@ fn prepare_install_inner(
         library,
         operation,
         deadline: Instant::now(),
+        port_id: "yoshis-cookie-recomp",
     };
     // Bootstrap separately: upstream's nested configure does not forward the
     // authenticated Clang configuration arguments to its host compiler.

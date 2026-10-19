@@ -218,6 +218,28 @@ impl Library {
         capture: &ActivityDiagnostic,
         retained_limit: i64,
     ) -> Result<()> {
+        self.record_diagnostic_for_activity(capture, retained_limit, None)
+    }
+
+    pub(crate) fn record_managed_install_diagnostic(
+        &self,
+        capture: &ActivityDiagnostic,
+        port_id: &str,
+    ) -> Result<()> {
+        if !capture.phase.starts_with("install.cartridge.") || port_id.is_empty() {
+            return Err(PortcoveError::conflict(
+                "managed-install diagnostics require their owned compiler phase and port",
+            ));
+        }
+        self.record_diagnostic_for_activity(capture, RETAINED_LIMIT, Some(port_id))
+    }
+
+    fn record_diagnostic_for_activity(
+        &self,
+        capture: &ActivityDiagnostic,
+        retained_limit: i64,
+        managed_port: Option<&str>,
+    ) -> Result<()> {
         let payload = serde_json::to_string(capture)?;
         #[cfg(test)]
         count_work(|counts| counts.serializations += 1);
@@ -227,16 +249,21 @@ impl Library {
             connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let changed = transaction.execute(
             "INSERT INTO activity_diagnostics(activity_id,payload,updated_at,payload_bytes,phase)
-             SELECT id,?2,?3,?4,?5 FROM activity_history WHERE id=?1 AND status='running' AND operation='prepare'
+             SELECT id,?2,?3,?4,?5 FROM activity_history WHERE id=?1 AND status='running'
+             AND ((?6 IS NULL AND operation='prepare')
+               OR (?6 IS NOT NULL AND operation IN ('install','update','reconcile')
+                   AND target_kind='port' AND target_id=?6))
              ON CONFLICT(activity_id,phase) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at,payload_bytes=excluded.payload_bytes",
-            params![capture.activity_id, payload, capture.updated_at, payload.len() as i64, capture.phase],
+            params![capture.activity_id, payload, capture.updated_at, payload.len() as i64, capture.phase, managed_port],
         )?;
         #[cfg(test)]
         count_work(|counts| counts.database_writes += 1);
         if changed != 1 {
-            return Err(PortcoveError::conflict(
-                "diagnostic capture requires its running preparation activity",
-            ));
+            return Err(PortcoveError::conflict(if managed_port.is_some() {
+                "diagnostic capture requires its running managed-install port activity"
+            } else {
+                "diagnostic capture requires its running preparation activity"
+            }));
         }
         let mut retained: i64 = transaction.query_row(
             "SELECT coalesce(sum(payload_bytes),0) FROM activity_diagnostics",
@@ -470,6 +497,108 @@ mod tests {
         assert_eq!(view.stdout.observed_bytes, (STREAM_LIMIT + 100) as u64);
         assert_eq!(view.stderr.text, "stderr after a verbose stdout");
         assert!(!view.stderr.truncated);
+    }
+
+    #[test]
+    fn cartridge_diagnostics_bind_running_install_family_port_and_phase() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let capture = DiagnosticCapture::default();
+        capture
+            .record(0, b"compiler output token=fixture-private")
+            .unwrap();
+        for operation in [
+            ActivityOperation::Install,
+            ActivityOperation::Update,
+            ActivityOperation::Reconcile,
+        ] {
+            let activity = library
+                .begin_activity(operation, ActivityTargetKind::Port, Some("owned"))
+                .unwrap();
+            let snapshot = capture
+                .snapshot(&activity.id, "install.cartridge.host.configure", false)
+                .unwrap();
+            assert!(
+                library.record_activity_diagnostic(&snapshot).is_err(),
+                "preparation API must remain preparation-only"
+            );
+            assert!(
+                library
+                    .record_managed_install_diagnostic(&snapshot, "other")
+                    .is_err()
+            );
+            assert!(
+                library
+                    .activity_diagnostic(&activity.id)
+                    .unwrap()
+                    .is_empty()
+            );
+            library
+                .record_managed_install_diagnostic(&snapshot, "owned")
+                .unwrap();
+            let retained = library.activity_diagnostic(&activity.id).unwrap();
+            assert_eq!(retained, vec![snapshot.clone()]);
+            assert!(!retained[0].stdout.text.contains("fixture-private"));
+            let wrong_phase = capture
+                .snapshot(&activity.id, "preparation.setup", false)
+                .unwrap();
+            assert!(
+                library
+                    .record_managed_install_diagnostic(&wrong_phase, "owned")
+                    .is_err()
+            );
+            library
+                .finish_activity(
+                    &activity.id,
+                    ActivityStatus::Failed,
+                    Some("fixture terminal"),
+                )
+                .unwrap();
+            assert!(
+                library
+                    .record_managed_install_diagnostic(&snapshot, "owned")
+                    .is_err()
+            );
+            assert_eq!(library.activity_diagnostic(&activity.id).unwrap(), retained);
+        }
+        for operation in [
+            ActivityOperation::Prepare,
+            ActivityOperation::Launch,
+            ActivityOperation::Restore,
+        ] {
+            let activity = library
+                .begin_activity(operation, ActivityTargetKind::Port, Some("owned"))
+                .unwrap();
+            let snapshot = capture
+                .snapshot(&activity.id, "install.cartridge.host.configure", false)
+                .unwrap();
+            assert!(
+                library
+                    .record_managed_install_diagnostic(&snapshot, "owned")
+                    .is_err()
+            );
+            assert!(
+                library
+                    .activity_diagnostic(&activity.id)
+                    .unwrap()
+                    .is_empty()
+            );
+        }
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Install,
+                ActivityTargetKind::Source,
+                Some("owned"),
+            )
+            .unwrap();
+        let snapshot = capture
+            .snapshot(&activity.id, "install.cartridge.host.configure", false)
+            .unwrap();
+        assert!(
+            library
+                .record_managed_install_diagnostic(&snapshot, "owned")
+                .is_err()
+        );
     }
 
     #[test]
