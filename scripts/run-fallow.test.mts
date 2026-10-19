@@ -163,8 +163,8 @@ void test("analyzer status and advisory review verdict never become a quality pa
         stderr: "",
         stdout: JSON.stringify({
           kind: "audit-brief",
-          schema_version: 12,
-          version: "3.33.1",
+          schema_version: 13,
+          version: "3.34.0",
           verdict: "fail",
           changed_files_count: 3,
           base_ref: "base",
@@ -175,6 +175,43 @@ void test("analyzer status and advisory review verdict never become a quality pa
     });
     assert.equal(review.exitCode, 0);
     assert.match(review.text, /advisory findings, not acceptance/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("CSS and review routes accept only their reviewed report contracts", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-contract-"));
+  try {
+    for (const mode of ["css", "review"] as const) {
+      const value =
+        mode === "css"
+          ? { kind: "health", schema_version: 12, version: "3.34.0", summary: {}, findings: [] }
+          : {
+              kind: "audit-brief",
+              schema_version: 13,
+              version: "3.34.0",
+              verdict: "warn",
+              changed_files_count: 1,
+              base_ref: "base",
+              attribution: {},
+            };
+      const run = (reportValue: unknown) =>
+        runFallow({
+          mode,
+          base: "origin/main",
+          evidenceDirectory: path.join(directory, mode),
+          identity: () => fixtureIdentity(),
+          spawn: () => ({ status: 0, stderr: "", stdout: JSON.stringify(reportValue) }),
+        });
+      assert.equal(run(value).exitCode, 0);
+      for (const invalid of [
+        { ...value, schema_version: value.schema_version - 1 },
+        { ...value, version: "3.34.1" },
+        { ...value, kind: "unknown" },
+      ])
+        assert.throws(() => run(invalid), /Unsupported .* report/);
+    }
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

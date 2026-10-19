@@ -14,6 +14,14 @@ void test("accepts a clean report", () => {
   assert.deepEqual(evaluateFallowReport(report()).failures, []);
 });
 
+void test("future versions and schemas require explicit compatibility review", () => {
+  for (const value of [
+    { ...report(), version: "3.34.1" },
+    { ...report(), schema_version: 15 },
+  ])
+    assert.throws(() => evaluateFallowReport(value), /Unsupported Fallow report/);
+});
+
 void test("malformed request-outcome containers cannot pass as an empty request inventory", () => {
   for (const request_outcomes of [false, 0, "", []]) {
     assert.throws(
@@ -71,10 +79,10 @@ void test("missing data, incompatible and error envelopes cannot pass", () => {
       r.kind = "audit";
     },
     (r: ReturnType<typeof report>) => {
-      r.schema_version = 14;
+      r.schema_version = 13;
     },
     (r: ReturnType<typeof report>) => {
-      r.version = "3.34.0";
+      r.version = "3.33.1";
     },
     (r: ReturnType<typeof report>) => {
       // @ts-expect-error Remove required gate coverage.

@@ -7,7 +7,7 @@ void test("combined projection makes checks, duplicate identity and complexity a
     {
       kind: "combined",
       schema_version: "1",
-      version: "3.33.1",
+      version: "3.34.0",
       elapsed_ms: 100,
       check: {
         total_issues: 4,
@@ -72,7 +72,7 @@ void test("combined projection makes checks, duplicate identity and complexity a
   );
   for (const expected of [
     "Raw evidence: work/report.json",
-    "Fallow 3.33.1",
+    "Fallow 3.34.0",
     "warn; introduced",
     "scripts/owner.mts:7; unusedOwner",
     "inherited; package.json:2; unused-package",
@@ -95,7 +95,7 @@ void test("audit brief retains introduced/inherited context and reviewer questio
       kind: "review-brief",
       command: "review",
       schema_version: "1",
-      version: "3.33.1",
+      version: "3.34.0",
       base_ref: "origin/main",
       changed_files_count: 5,
       verdict: "pass",
@@ -300,6 +300,76 @@ void test("projection tolerates unavailable optional sections without asserting 
     const summary = summarizeFallow(report, "raw.json");
     assert.doesNotMatch(summary, /(?:gate passed|quality passed)/i);
     assert.match(summary, /Raw evidence: raw.json/);
+  }
+});
+
+void test("review exposes capped static test reach and bounded guardrail evidence", () => {
+  const summary = summarizeFallow(
+    {
+      kind: "audit-brief",
+      test_reach: {
+        status: "measured",
+        masking: "capped",
+        total: 9,
+        counts: { direct: 1, transitive: 2, "mocked-only": 6 },
+        exports: Array.from({ length: 6 }, (_, index) => ({
+          file: `scripts/owner-${index}.mts`,
+          line: 3,
+          export_name: "recover",
+          change: "modified",
+          reach: index === 0 ? "future-class" : "mocked-only",
+        })),
+        exports_omitted: 3,
+        e2e_runner: true,
+      },
+      weakening: [
+        { file: "scripts/owner.test.mts", kind: "test-weakened", evidence: "test cases: 2 -> 1" },
+      ],
+      diff_risk: {
+        findings: [
+          {
+            path: "scripts/owner.test.mts",
+            line: 8,
+            rule: "weakened-tests",
+            severity: "warn",
+            message: "A test was removed",
+            evidence: "test cases: 2 -> 1",
+          },
+        ],
+      },
+    },
+    "review.json",
+  );
+  for (const expected of [
+    "advisory static graph, not executed coverage",
+    "direct=1, transitive=2, mocked-only=6",
+    "scripts/owner-0.mts:3; recover; modified; unknown future-class (needs attention)",
+    "2 omitted from Changed exports needing attention",
+    "Additional changed exports omitted by analyzer: 3",
+    "Mock detection capped; masking evidence incomplete",
+    "End-to-end runner present; its coverage is outside static test reach",
+    "Guardrail changes (advisory; verify evidence)",
+    "Diff risk (advisory; verify evidence)",
+    "scripts/owner.test.mts:8; weakened-tests",
+    "evidence test cases: 2 -> 1",
+    "Raw evidence: review.json",
+  ])
+    assert.ok(summary.includes(expected), expected);
+  assert.ok(!summary.includes("scripts/owner-4.mts"));
+  assert.doesNotMatch(summary, /(?:gate passed|quality passed)/i);
+});
+
+void test("missing or unavailable test reach never presents zero as clean coverage", () => {
+  for (const test_reach of [
+    undefined,
+    null,
+    {},
+    { status: "no-tests", total: 0, exports: [] },
+    { status: "future-status", total: 0 },
+  ]) {
+    const summary = summarizeFallow({ kind: "audit-brief", test_reach }, "review.json");
+    assert.match(summary, /Test reach unavailable; no clean-coverage conclusion/);
+    assert.doesNotMatch(summary, /Reach counts:|(?:gate passed|quality passed)/i);
   }
 });
 

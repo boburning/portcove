@@ -34,7 +34,7 @@ import { fallowSource } from "./fallow-source.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const cli = fileURLToPath(new URL("../node_modules/fallow/bin/fallow", import.meta.url));
-const version = "3.33.1";
+const version = "3.34.0";
 
 export function fallowArguments(
   mode: string,
@@ -67,7 +67,7 @@ export function fallowArguments(
 }
 
 function validateAdvisory(report: unknown, mode: string) {
-  const expected = mode === "css" ? ["health", 11] : ["audit-brief", 12];
+  const expected = mode === "css" ? ["health", 12] : ["audit-brief", 13];
   if (
     !isRecord(report) ||
     report.kind !== expected[0] ||
