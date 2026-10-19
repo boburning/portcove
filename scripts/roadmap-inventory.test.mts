@@ -82,7 +82,7 @@ function fixture(count = 2, bodySize = 32) {
             nodes: [
               {
                 id: rows.at(-1)?.id,
-                updatedAt: mutateMarker && marker > 1 ? "changed" : "unchanged",
+                updatedAt: mutateMarker && marker > 1 ? `changed-${marker}` : "unchanged",
               },
             ],
           },
@@ -195,6 +195,16 @@ void test("interrupted state preserves checkpoint work, matching review and the 
     title: "[Port] Fixture",
     body,
     state: "open",
+  });
+  session.client.api.request = () => ({
+    body: {
+      resources: {
+        core: { remaining: 5000, reset: 4070908800 },
+        graphql: { remaining: 5000, reset: 4070908800 },
+      },
+    },
+    headers: new Map(),
+    rateLimit: { resource: null, limit: null, remaining: null, used: null, resetAt: null },
   });
   session.client.viewList = () => [];
   session.client.projectAudit = () => ({
@@ -310,6 +320,44 @@ void test("delivered candidates make quiet repeats write nothing and review cann
     /Separate review/,
   );
 });
+void test("delivery provider preflight refuses before evidence refresh or any mutation", async (t) => {
+  const { session } = await temporarySession(t);
+  session.inventory = collectRoadmapInventory(fixture(1).client);
+  session.journal.candidates.waiting = {
+    id: "waiting",
+    kind: "comment",
+    title: "Fixture",
+    upstream: "https://github.com/example/fixture",
+    portKey: "fixture",
+    issue: 42,
+    body: "facts",
+    body_sha256: observationHash("facts"),
+    evidence_ids: [],
+    evidence_sha256: observationHash([]),
+    status: "reviewed",
+  };
+  let probes = 0;
+  session.client.api.request = (method, endpoint) => {
+    assert.equal(method, "GET");
+    assert.equal(endpoint, "rate_limit");
+    probes++;
+    return {
+      body: {
+        resources: {
+          core: { remaining: 5000, reset: 4070908800 },
+          graphql: { remaining: 0, reset: 4070908800 },
+        },
+      },
+      headers: new Map(),
+      rateLimit: { resource: null, limit: null, remaining: null, used: null, resetAt: null },
+    };
+  };
+  await assert.rejects(session.apply(), /graphql quota.*2099/);
+  assert.equal(probes, 1);
+  assert.equal(session.journal.candidates.waiting?.status, "reviewed");
+  assert.equal(session.budget.delivery, false);
+  assert.equal(session.wrote, false);
+});
 void test("malformed inventory JSON selects cold rebuild and retains the original corrupt bytes", async (t) => {
   const { state, run } = await temporarySession(t);
   const file = path.join(state, "inventory.json");
@@ -419,6 +467,43 @@ void test("warm inventory fetches changed bodies only and rejects corrupt cached
   invalidateRoadmapInventory(second);
   assert.throws(() => requireRoadmapInventory(second, config.repository), /collector-validated/);
 });
+void test("one hydration revision change reconciles the whole issue before fresh Project join", () => {
+  const f = fixture();
+  const graphql = f.client.graphql.bind(f.client);
+  let changed = false;
+  f.client.graphql = (query, vars) => {
+    if (query.includes("nodes(ids:") && !changed) {
+      changed = true;
+      Object.assign(f.rows[0]!, {
+        updatedAt: "2026-10-17T02:00:00Z",
+        title: "New title",
+        state: "CLOSED",
+        body: "new body",
+      });
+      Object.assign(f.project[0]!.content!, f.rows[0], { body: undefined });
+    }
+    return graphql(query, vars);
+  };
+  const got = collectRoadmapInventory(f.client);
+  assert.equal(got.issues[0]?.title, "New title");
+  assert.equal(got.issues[0]?.state, "CLOSED");
+  assert.equal(got.issues[0]?.body, "new body");
+  assert.equal(got.items[0]?.content?.body, "new body");
+  assert.equal(requireRoadmapInventory(got, config.repository, f.client), got);
+});
+void test("hydration identity mismatch remains fatal and identifies the affected issue", () => {
+  const f = fixture();
+  const graphql = f.client.graphql.bind(f.client);
+  f.client.graphql = (query, vars) => {
+    const data = graphql(query, vars);
+    if (query.includes("nodes(ids:")) {
+      const value = data as { nodes: { url: string }[] };
+      value.nodes[0]!.url = "https://github.com/foreign/repo/issues/1";
+    }
+    return data;
+  };
+  assert.throws(() => collectRoadmapInventory(f.client), /identity.*#1/);
+});
 void test("incomplete, duplicate, racing and redacted observations never become valid inventories", () => {
   const malformed = fixture();
   malformed.alter(() => ({
@@ -473,6 +558,10 @@ void test("1000 issue, 16 MiB corpus fits cold and warm two-candidate delivery r
   ordinary.reserveDelivery(cost.requests, cost.bytes);
   assert.ok(ordinary.remaining().requests >= 20);
   assert.ok(ordinary.remaining().bytes > 10 * 1024 * 1024);
+  assert.deepEqual(
+    cold.issues.map((i) => i.body),
+    warm.issues.map((i) => i.body),
+  );
   assert.equal(
     observationHash(cold.issues.map((i) => i.body)),
     observationHash(warm.issues.map((i) => i.body)),

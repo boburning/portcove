@@ -1,13 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { once } from "node:events";
-import { DiscoveryBudget, selectDiscoveryProfile } from "./discovery-budget.mts";
+import {
+  DiscoveryBudget,
+  selectDiscoveryProfile,
+  createDiscoveryTransport,
+} from "./discovery-budget.mts";
 import { boundedDiscoveryRequest } from "./discovery-http.mts";
 import { boundedDiscoveryInput } from "./daily-discovery-session.mts";
 import { readDiscoveryReport } from "./discovery-artifact.mts";
 import { deflateRawSync, crc32 } from "node:zlib";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   discoveryPost,
   recordDiscoveryComment,
@@ -23,6 +31,64 @@ const envelope = {
   maxRequests: 5,
   token: "test-secret",
 };
+void test("noninteractive run refuses before Git, credentials, inventory or lock acquisition", (t) => {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const state = mkdtempSync(path.join(root, "work/discovery-control-fixture-"));
+  t.after(() => rmSync(state, { recursive: true, force: true }));
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/daily-discovery.mts", "run", "--state-dir", state],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, PATH: "" },
+      input: "",
+      timeout: 10000,
+    },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /tty:true/);
+  assert.equal(existsSync(path.join(state, "investigation.lock")), false);
+  assert.equal(existsSync(path.join(state, "active-run.json")), false);
+  assert.match(readFileSync(path.join(state, "latest-startup.json"), "utf8"), /tty:true/);
+});
+void test("provider quota protects delivery independently of the local request allowance", () => {
+  const budget = new DiscoveryBudget("ordinary");
+  budget.reserveDelivery(60, 1024);
+  budget.observeProvider({ resource: "graphql", remaining: 600, resetAt: "2099-01-01T00:00:00Z" });
+  assert.throws(() => budget.admitProvider("graphql", 1), /delivery reserve/);
+  assert.equal(budget.remaining().requests, 140);
+  budget.delivery = true;
+  budget.admitProvider("graphql", 600);
+  assert.throws(() => budget.admitProvider("graphql", 601), /quota/);
+  assert.throws(() => budget.requireProviderCapacity(60), /core.*unknown/);
+  budget.observeProvider({ resource: "core", remaining: 61, resetAt: "2099-01-01T00:00:00Z" });
+  budget.requireProviderCapacity(60);
+  budget.observeProvider({ resource: "graphql", remaining: 0, resetAt: "2099-01-01T00:00:00Z" });
+  assert.throws(() => budget.requireProviderCapacity(1), /2099/);
+});
+void test("bounded transport charges quota observations and stops before spending delivery headroom", (t) => {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const state = mkdtempSync(path.join(root, "work/discovery-quota-fixture-"));
+  t.after(() => rmSync(state, { recursive: true, force: true }));
+  const worker = path.join(state, "worker.mjs");
+  writeFileSync(
+    worker,
+    `for await (const _ of process.stdin) {}\nprocess.stdout.write(JSON.stringify(${JSON.stringify({ requests: 1, bytes: 2, status: 200, headers: { "x-ratelimit-resource": "graphql", "x-ratelimit-remaining": "600", "x-ratelimit-reset": "4070908800" }, text: "{}" })}));`,
+  );
+  const budget = new DiscoveryBudget("ordinary");
+  const transport = createDiscoveryTransport(budget, "fixture-token", worker);
+  transport.request("POST", "https://api.github.com/graphql", "{}");
+  assert.equal(budget.usage.requests, 1);
+  assert.equal(budget.usage.bytes, 2);
+  assert.equal(budget.usage.provider_quotas?.graphql?.remaining, 600);
+  budget.reserveDelivery(60, 1024);
+  assert.throws(
+    () => transport.request("POST", "https://api.github.com/graphql", "{}"),
+    /delivery reserve/,
+  );
+  assert.equal(budget.usage.requests, 1);
+});
 void test("successful comment identity survives later readback denial and deletion without reposting", () => {
   const candidate: DiscoveryMutation = { status: "reviewed" };
   let posts = 0;
@@ -200,6 +266,16 @@ void test("timeouts, failed reads and Retry-After retain charged attempts withou
     async () => new Response("{}", { status: 429, headers: { "retry-after": "60" } }),
   );
   assert.ok(Date.parse(backoff.backoff_until ?? "") > Date.now() + 59000);
+  const exhausted = await boundedDiscoveryRequest(
+    envelope,
+    async () =>
+      new Response('{"errors":[{"type":"RATE_LIMITED"}]}', {
+        status: 200,
+        headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "4070908800" },
+      }),
+  );
+  assert.equal(exhausted.requests, 1);
+  assert.equal(exhausted.backoff_until, "2099-01-01T00:00:00.000Z");
   await assert.rejects(boundedDiscoveryRequest({ ...envelope, timeout: 21000 }), /Invalid bounded/);
 });
 function zip(text: string, declaredSize?: number) {
