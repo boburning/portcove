@@ -12,7 +12,7 @@ import { readDiscoveryReport } from "./discovery-artifact.mts";
 import { deflateRawSync, crc32 } from "node:zlib";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { mkdtempSync, rmSync, existsSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,6 +33,7 @@ const envelope = {
 };
 void test("noninteractive run refuses before Git, credentials, inventory or lock acquisition", (t) => {
   const root = fileURLToPath(new URL("../", import.meta.url));
+  mkdirSync(path.join(root, "work"), { recursive: true });
   const state = mkdtempSync(path.join(root, "work/discovery-control-fixture-"));
   t.after(() => rmSync(state, { recursive: true, force: true }));
   const result = spawnSync(
@@ -66,9 +67,14 @@ void test("provider quota protects delivery independently of the local request a
   budget.requireProviderCapacity(60);
   budget.observeProvider({ resource: "graphql", remaining: 0, resetAt: "2099-01-01T00:00:00Z" });
   assert.throws(() => budget.requireProviderCapacity(1), /2099/);
+  budget.observeProvider({ resource: "core", remaining: 0, resetAt: "2100-01-01T00:00:00Z" });
+  budget.observeProvider({ resource: "graphql", remaining: 0, resetAt: "2099-01-01T00:00:00Z" });
+  budget.retainBackoff("2098-01-01T00:00:00Z");
+  assert.equal(budget.usage.backoff_until, "2100-01-01T00:00:00Z");
 });
 void test("bounded transport charges quota observations and stops before spending delivery headroom", (t) => {
   const root = fileURLToPath(new URL("../", import.meta.url));
+  mkdirSync(path.join(root, "work"), { recursive: true });
   const state = mkdtempSync(path.join(root, "work/discovery-quota-fixture-"));
   t.after(() => rmSync(state, { recursive: true, force: true }));
   const worker = path.join(state, "worker.mjs");

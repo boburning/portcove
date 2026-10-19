@@ -91,8 +91,16 @@ export class DiscoveryBudget {
       throw new Error("Invalid provider quota observation");
     this.usage.provider_quotas ??= {};
     this.usage.provider_quotas[quota.resource] = quota;
-    if (quota.remaining === 0 && Date.parse(quota.resetAt) > this.now())
-      this.usage.backoff_until = quota.resetAt;
+    if (quota.remaining === 0) this.retainBackoff(quota.resetAt);
+    this.persist(this.usage);
+  }
+  retainBackoff(until: string) {
+    if (!Number.isFinite(Date.parse(until))) throw new Error("Invalid provider backoff");
+    if (
+      Date.parse(until) > this.now() &&
+      (!this.usage.backoff_until || Date.parse(until) > Date.parse(this.usage.backoff_until))
+    )
+      this.usage.backoff_until = until;
     this.persist(this.usage);
   }
   admitProvider(resource: string, points: number, required = false) {
@@ -243,8 +251,7 @@ export function createDiscoveryTransport(
         resetAt: new Date(Number(reset) * 1000).toISOString(),
       });
     if (typeof parsed.backoff_until === "string") {
-      budget.usage.backoff_until = parsed.backoff_until;
-      budget.persist(budget.usage);
+      budget.retainBackoff(parsed.backoff_until);
     }
     if (parsed.error)
       throw new Error(typeof parsed.error === "string" ? parsed.error : "Bounded transport failed");
