@@ -249,7 +249,7 @@ pub use types::*;
 // Public 71 adds descriptive game identity and authored manual setup guidance.
 // Public 72 adds retained-contract external folder relink and its activity operation.
 // Install plans also expose optional recipe acquisitions and temporary install capacity.
-pub const API_SCHEMA_VERSION: u32 = 72;
+pub const API_SCHEMA_VERSION: u32 = 73;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.
