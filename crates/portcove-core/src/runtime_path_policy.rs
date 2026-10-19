@@ -210,7 +210,7 @@ mod tests {
             let retained = crate::test_fixture::admitted_indexed_catalog(&catalog, &port_id);
             let install =
                 crate::test_fixture::register_qualification_install(&library, &retained, &port_id);
-            assert_eq!(install.selected_executable, "nested/inert.exe");
+            assert_eq!(install.selected_executable, Path::new("nested/inert.exe"));
             let original = std::fs::read(install.path.join(&install.selected_executable)).unwrap();
             let mut service = crate::PortcoveService::new(library).unwrap();
             // Current catalog drift must not remove or invent a retained restriction.
