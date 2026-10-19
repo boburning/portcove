@@ -141,6 +141,34 @@ The compiler's own path did not contain spaces in this experiment; the next
 fresh full Core root exercises that additional case. Its inert output was not
 executed. Separate non-writing review of the complete repair is clear.
 
+## Third Core attempt and import parser repair
+
+Clean reviewed head `79182d2b2b38c48d216152a0eb090469ebe7eb9c` produced
+qualification CLI SHA-256
+`6931c7e25849c519a3de7de6aa34b9e101c39cc93e82068213dd0816189e52ea`.
+The fresh `E:\pcs6y core3 20261018` attempt completed host bootstrap, game
+configuration, all thirteen object groups and final compilation/linking within
+unchanged process-supervision limits. Retained generated compiler/rule snapshots
+confirm exact path-free arguments with compiler paths containing spaces. Two
+earlier read-only snapshot attempts incorrectly expected a C++ compiler file
+in the C-only host project; their partial evidence remains retained.
+
+The first game import inspection then refused `WS2_32.dll`: the lexical parser
+omitted underscore although that exact Windows DLL was already allowlisted.
+This was a parser defect, not an unreviewed dependency. All 24 captured DLL names
+belong to the unchanged allowlist. Normal CLI exit was 11 (`killed:false`), and
+the outer supervisor settled in 320580 ms. Independent terminal SQL readback
+found one failed activity, zero lifecycle journals, zero installs and zero launch
+sessions, with the original unchanged and private staging removed by the existing
+lifecycle. No output was published and no game ran. Evidence remains under
+`nes-cycle-core-install-a3`, including complete import output and terminal readback.
+
+The narrow repair permits underscore during lexical validation, retaining the
+same dependency allowlist and case-insensitive duplicate/unsafe-path checks.
+Sixteen focused Core tests pass, including the 24 observed imports and malformed,
+unknown, duplicate and path controls; separate non-writing repair review is clear.
+Changed-head actual Core publication and native offered operations remain required.
+
 ## Remaining acceptance
 
 Core-driven compilation/publication and native offered-operation acceptance

@@ -829,66 +829,70 @@ impl BuildSession<'_> {
             phase,
             quiesced,
         )?;
-        let mut names = std::collections::BTreeSet::new();
-        for line in output.lines() {
-            if let Some(name) = line.trim().strip_prefix("DLL Name:") {
-                let name = name.trim().to_ascii_lowercase();
-                if name.is_empty()
-                    || name.len() > 128
-                    || !name
-                        .bytes()
-                        .all(|b| b.is_ascii_alphanumeric() || b"-+.".contains(&b))
-                    || !names.insert(name)
-                {
-                    return Err(PortcoveError::verification(
-                        "runtime import inventory is malformed",
-                    ));
-                }
+        validate_imports(&output)
+    }
+}
+
+fn validate_imports(output: &str) -> Result<Vec<String>> {
+    let mut names = std::collections::BTreeSet::new();
+    for line in output.lines() {
+        if let Some(name) = line.trim().strip_prefix("DLL Name:") {
+            let name = name.trim().to_ascii_lowercase();
+            if name.is_empty()
+                || name.len() > 128
+                || !name
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"_-+.".contains(&b))
+                || !names.insert(name)
+            {
+                return Err(PortcoveError::verification(
+                    "runtime import inventory is malformed",
+                ));
             }
         }
-        let allowed = [
-            "ws2_32.dll",
-            "sdl2.dll",
-            "opengl32.dll",
-            "d2d1.dll",
-            "dwrite.dll",
-            "ole32.dll",
-            "kernel32.dll",
-            "user32.dll",
-            "shell32.dll",
-            "comdlg32.dll",
-            "libc++.dll",
-            "libunwind.dll",
-            "advapi32.dll",
-            "gdi32.dll",
-            "imm32.dll",
-            "msvcrt.dll",
-            "oleaut32.dll",
-            "setupapi.dll",
-            "version.dll",
-            "winmm.dll",
-            "api-ms-win-crt-stdio-l1-1-0.dll",
-            "api-ms-win-crt-runtime-l1-1-0.dll",
-            "api-ms-win-crt-math-l1-1-0.dll",
-            "api-ms-win-crt-filesystem-l1-1-0.dll",
-            "api-ms-win-crt-conio-l1-1-0.dll",
-            "api-ms-win-crt-string-l1-1-0.dll",
-            "api-ms-win-crt-environment-l1-1-0.dll",
-            "api-ms-win-crt-locale-l1-1-0.dll",
-            "api-ms-win-crt-convert-l1-1-0.dll",
-            "api-ms-win-crt-heap-l1-1-0.dll",
-            "api-ms-win-crt-private-l1-1-0.dll",
-            "api-ms-win-crt-utility-l1-1-0.dll",
-            "api-ms-win-crt-multibyte-l1-1-0.dll",
-            "api-ms-win-crt-time-l1-1-0.dll",
-        ];
-        if names.is_empty() || names.iter().any(|n| !allowed.contains(&n.as_str())) {
-            return Err(PortcoveError::verification(
-                "runtime has an unreviewed native dependency",
-            ));
-        }
-        Ok(names.into_iter().collect())
     }
+    let allowed = [
+        "ws2_32.dll",
+        "sdl2.dll",
+        "opengl32.dll",
+        "d2d1.dll",
+        "dwrite.dll",
+        "ole32.dll",
+        "kernel32.dll",
+        "user32.dll",
+        "shell32.dll",
+        "comdlg32.dll",
+        "libc++.dll",
+        "libunwind.dll",
+        "advapi32.dll",
+        "gdi32.dll",
+        "imm32.dll",
+        "msvcrt.dll",
+        "oleaut32.dll",
+        "setupapi.dll",
+        "version.dll",
+        "winmm.dll",
+        "api-ms-win-crt-stdio-l1-1-0.dll",
+        "api-ms-win-crt-runtime-l1-1-0.dll",
+        "api-ms-win-crt-math-l1-1-0.dll",
+        "api-ms-win-crt-filesystem-l1-1-0.dll",
+        "api-ms-win-crt-conio-l1-1-0.dll",
+        "api-ms-win-crt-string-l1-1-0.dll",
+        "api-ms-win-crt-environment-l1-1-0.dll",
+        "api-ms-win-crt-locale-l1-1-0.dll",
+        "api-ms-win-crt-convert-l1-1-0.dll",
+        "api-ms-win-crt-heap-l1-1-0.dll",
+        "api-ms-win-crt-private-l1-1-0.dll",
+        "api-ms-win-crt-utility-l1-1-0.dll",
+        "api-ms-win-crt-multibyte-l1-1-0.dll",
+        "api-ms-win-crt-time-l1-1-0.dll",
+    ];
+    if names.is_empty() || names.iter().any(|n| !allowed.contains(&n.as_str())) {
+        return Err(PortcoveError::verification(
+            "runtime has an unreviewed native dependency",
+        ));
+    }
+    Ok(names.into_iter().collect())
 }
 
 pub(crate) fn prepare_install(

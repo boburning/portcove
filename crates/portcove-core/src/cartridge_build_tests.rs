@@ -358,3 +358,57 @@ fn compiler_groups_bind_the_complete_fixed_manifest_and_refuse_changed_or_unsafe
     fs::write(&graph, format!("{manifest}include additional.ninja\n")).unwrap();
     assert!(CompilePlan::read(temporary.path()).is_err());
 }
+
+#[test]
+fn runtime_imports_accept_reviewed_windows_names_but_refuse_unsafe_or_unknown_dependencies() {
+    // Names retained from the first real game import inspection. No PE runs here.
+    let names = [
+        "WS2_32.dll",
+        "SDL2.dll",
+        "OPENGL32.dll",
+        "d2d1.dll",
+        "DWrite.dll",
+        "ole32.dll",
+        "KERNEL32.dll",
+        "USER32.dll",
+        "SHELL32.dll",
+        "comdlg32.dll",
+        "libc++.dll",
+        "libunwind.dll",
+        "api-ms-win-crt-stdio-l1-1-0.dll",
+        "api-ms-win-crt-runtime-l1-1-0.dll",
+        "api-ms-win-crt-math-l1-1-0.dll",
+        "api-ms-win-crt-filesystem-l1-1-0.dll",
+        "api-ms-win-crt-conio-l1-1-0.dll",
+        "api-ms-win-crt-string-l1-1-0.dll",
+        "api-ms-win-crt-environment-l1-1-0.dll",
+        "api-ms-win-crt-locale-l1-1-0.dll",
+        "api-ms-win-crt-convert-l1-1-0.dll",
+        "api-ms-win-crt-heap-l1-1-0.dll",
+        "api-ms-win-crt-private-l1-1-0.dll",
+        "api-ms-win-crt-utility-l1-1-0.dll",
+    ];
+    let output = names
+        .iter()
+        .map(|name| format!("    DLL Name: {name}\n"))
+        .collect::<String>();
+    let parsed = validate_imports(&output).unwrap();
+    assert_eq!(parsed.len(), names.len());
+    assert!(parsed.contains(&"ws2_32.dll".to_owned()));
+    for bad in [
+        "",
+        " ",
+        "../WS2_32.dll",
+        "C:\\WS2_32.dll",
+        "WS2_32 .dll",
+        "arbitrary.dll",
+        "WS2_32.dll\nDLL Name: ws2_32.DLL",
+        "WS2_32.dll\nDLL Name: arbitrary.dll",
+    ] {
+        assert!(
+            validate_imports(&format!("DLL Name: {bad}\n")).is_err(),
+            "{bad}"
+        );
+    }
+    assert!(validate_imports("no import records").is_err());
+}
