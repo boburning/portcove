@@ -82,7 +82,7 @@ export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "mac
 /**
  * A reviewed shared write scope, never a caller-selected external path.
  */
-export type PreparedSharedPreferencesContract = "regaiden041-windows";
+export type PreparedSharedPreferencesContract = "regaiden041-windows" | "smb1r-1.1-stable-windows";
 /**
  * A read-only projection of the existing operation guards for client presentation.
  * An `allowed` result is not an authorization token: execution rechecks current
@@ -1815,7 +1815,7 @@ export interface ExternalRuntimePreview {
 }
 export interface SharedPreferencesReview {
   binding: AcceptedSharedPreferencesBinding;
-  local_fallback_path: string;
+  local_fallback_path: string | null;
   local_fallback_present: boolean;
   present: boolean;
 }

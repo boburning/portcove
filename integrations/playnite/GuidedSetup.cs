@@ -229,6 +229,15 @@ namespace Portcove.ReferenceClient
             if (external && !installed && !reviewedExternal)
                 return Step(GuidedStepKind.ReviewProblem, "Update Portcove CLI",
                     "Reviewed external registration requires supported public API schema 67 or later and external.review. Update the selected CLI; existing managed Play remains available.");
+            if (external && installed && blockers.Any(value => value == "preparation_required" || value == "invalid_installation"))
+            {
+                var runtime = Json.OptionalObjectField(status, "external_runtime");
+                var shared = runtime == null ? null : Json.OptionalObjectField(runtime, "shared_preferences");
+                if (shared != null && Json.Text(shared, "contract") == "smb1r-1.1-stable-windows")
+                    return Step(GuidedStepKind.ReviewProblem, "Prepare shared game data manually",
+                        "Copy your recognized Super Mario Bros. (World) NES original to " + Json.Text(shared, "path") +
+                        " as baserom.nes. If settings.cfg exists there, review it as ordinary data without Godot object or resource constructors and use only the BaseAssets resource pack. Move custom levels and autosaves, blueprints, custom characters, extra resource packs and Godot loader metadata elsewhere manually, preserving their files. Refresh afterward. Portcove does not seed, own, update, back up or delete this shared directory.");
+            }
             if (external)
                 return installed ? Step(GuidedStepKind.ReviewProblem, "Review external runtime",
                     "This player-owned runtime is registered but cannot launch. Review the readiness and launch-action reasons above; refresh after resolving them.") :

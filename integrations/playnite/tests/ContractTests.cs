@@ -402,7 +402,10 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "folder relink preserves existing launch authority");
         bad["schema_version"] = 73;
-        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond folder relink rejected");
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "shared vanilla runtime preserves existing launch authority");
+        bad["schema_version"] = 74;
+        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond shared vanilla runtime rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
@@ -686,6 +689,33 @@ internal static class ContractTests
         Reject(() => ExternalRuntimeReview.Read(removal, "shape-b", null, true), "external removal without preservation rejected");
         var replaced = Json.Object(Json.Parse(Json.Print(record))); replaced["path"] = @"H:\Other";
         Reject(() => remove.RequireRemoved(replaced), "another external registration cannot confirm removal");
+        var sharedPreview = Json.Object(Json.Parse(Json.Print(preview)));
+        var sharedBinding = Json.Parse(Json.Print(new { contract = "smb1r-1.1-stable-windows", account_sid_sha256 = new string('e', 64), path = @"H:\Account\SMB1R" }));
+        sharedPreview["shared_preferences"] = Json.Parse(Json.Print(new { binding = sharedBinding, present = false, local_fallback_path = (string)null, local_fallback_present = false }));
+        var sharedReview = ExternalRuntimeReview.Read(sharedPreview, "shape-b", folder);
+        Reject(() => sharedReview.RegistrationArguments(), "shared write acknowledgement cannot be inferred from ordinary registration");
+        Check(!sharedReview.ConfirmSharedScope(text => { Check(text.Contains("trash") && text.Contains("prune") && text.Contains("does not seed"), "shared-directory destructive cache and log scope disclosed"); return false; }), "shared consent cancellation is retained");
+        Reject(() => sharedReview.RegistrationArguments(), "cancelled shared consent cannot produce registration arguments");
+        Check(sharedReview.ConfirmSharedScope(text => true), "separate shared consent accepted");
+        var sharedArgs = sharedReview.RegistrationArguments();
+        Check(sharedArgs.Contains("--acknowledge-shared-preferences") && sharedArgs.Contains(review.Fingerprint), "actual shared consent binds acknowledgement to reviewed preview");
+        Check(!review.RegistrationArguments().Contains("--acknowledge-shared-preferences"), "ordinary registration cannot gain shared acknowledgement");
+        var sharedRecord = Json.Object(Json.Parse(Json.Print(record))); sharedRecord["shared_preferences"] = sharedBinding;
+        Check(sharedReview.RequireRegistered(sharedRecord) == "registration-a", "shared registration checks returned account and location");
+        Reject(() => sharedReview.RequireRegistered(record), "shared binding cannot disappear from registration result");
+        Reject(() => review.RequireRegistered(sharedRecord), "ordinary registration cannot acquire unreviewed shared scope");
+        foreach (var field in new[] { "contract", "account_sid_sha256", "path" })
+        {
+            var changed = Json.Object(Json.Parse(Json.Print(sharedRecord)));
+            Json.Object(Json.Field(changed, "shared_preferences"))[field] = field == "path" ? @"H:\Other" : field == "account_sid_sha256" ? new string('f', 64) : "unknown";
+            Reject(() => sharedReview.RequireRegistered(changed), "changed shared " + field + " cannot confirm registration");
+        }
+        var unknown = Json.Object(Json.Parse(Json.Print(sharedPreview)));
+        Json.Object(Json.Field(Json.Field(unknown, "shared_preferences"), "binding"))["contract"] = "unknown";
+        Reject(() => ExternalRuntimeReview.Read(unknown, "shape-b", folder), "unknown shared contract rejected before consent");
+        var contradictory = Json.Object(Json.Parse(Json.Print(sharedPreview)));
+        Json.Object(Json.Field(contradictory, "shared_preferences"))["local_fallback_present"] = true;
+        Reject(() => ExternalRuntimeReview.Read(contradictory, "shape-b", folder), "shared-directory fallback contradiction rejected");
         var capabilities = Json.Object(Json.Parse(Json.Print(Capabilities())));
         capabilities["schema_version"] = 57; capabilities["commands"] = new[] { "external", "external.review" };
         Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "older schema cannot claim caller-bound external review");
@@ -701,6 +731,20 @@ internal static class ContractTests
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "input assessment schema preserves caller-bound external review");
         capabilities["schema_version"] = 71;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "display metadata preserves caller-bound external review");
+        capabilities["schema_version"] = 73;
+        Check(ProtocolStream.SupportsReviewedExternal(capabilities), "shared-directory schema preserves reviewed external flow");
+        capabilities["commands"] = new[] { "external", "external.review", "external.relink" };
+        foreach (var supportedRelinkSchema in new[] { 72, 73 })
+        {
+            capabilities["schema_version"] = supportedRelinkSchema;
+            Check(ProtocolStream.SupportsExternalRelink(capabilities), "known relink schema preserves reviewed folder change");
+        }
+        foreach (var unsupportedRelinkSchema in new[] { 71, 74 })
+        {
+            capabilities["schema_version"] = unsupportedRelinkSchema;
+            Check(!ProtocolStream.SupportsExternalRelink(capabilities), "older and unknown relink schemas are refused");
+        }
+
         var representationStatus = Json.Parse(Json.Print(new {
             readiness = new { required_source_extension = "z64", blockers = new[] { "incompatible_source" } },
             port_actions = new[] {
@@ -735,7 +779,7 @@ internal static class ContractTests
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 73 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 74 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);
@@ -960,6 +1004,12 @@ internal static class ContractTests
         var registeredExternal = Json.Parse("{\"active\":null,\"external_runtime\":{\"path\":\"C:\\\\owned\\\\runtime\",\"version\":\"1\"},\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"invalid_installation\"]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"held\",\"reason\":\"invalid_installation\"}]}");
         Check(GuidedSetup.Choose(registeredExternal, external, "", "").Detail.Contains("is registered"),
             "registered but held external runtime receives its actual review path");
+        var sharedNeedsSetup = Json.Object(Json.Parse(Json.Print(registeredExternal)));
+        Json.Object(Json.Field(sharedNeedsSetup, "readiness"))["blockers"] = new[] { "preparation_required" };
+        Json.Object(Json.Field(sharedNeedsSetup, "external_runtime"))["shared_preferences"] = Json.Parse(Json.Print(new { contract = "smb1r-1.1-stable-windows", path = @"H:\Account\SMB1R", account_sid_sha256 = new string('a', 64) }));
+        sharedNeedsSetup["port_actions"] = new object[0];
+        var manualShared = GuidedSetup.Choose(sharedNeedsSetup, external, "", "");
+        Check(manualShared.Kind == GuidedStepKind.ReviewProblem && manualShared.Detail.Contains("baserom.nes") && manualShared.Detail.Contains("settings.cfg") && manualShared.Detail.Contains(@"H:\Account\SMB1R"), "shared manual preparation consumes actual directory without offering managed setup");
         var incompatible = Json.Parse("{\"active\":null,\"external_runtime\":{\"path\":\"C:\\\\owned\\\\runtime\",\"version\":\"1\"},\"readiness\":{\"launchable\":false,\"source\":\"current\",\"required_source_extension\":\"z64\",\"blockers\":[\"incompatible_source\"]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"waiting\",\"reason\":\"incompatible_source\"}]}");
         var guidance = GuidedSetup.Choose(incompatible, externalNeedsSource, "", "");
         Check(guidance.Kind == GuidedStepKind.ChooseSource && guidance.Detail.Contains(".z64") && guidance.Detail.Contains("uncompressed"),
@@ -1415,6 +1465,32 @@ internal static class ContractTests
         await client.Connect();
         connect.Stop();
         var port = args[3];
+
+        if (mode == "qualification-shared-external-preview")
+        {
+            if (args.Length != 5) throw new ArgumentException("Shared external review requires the exact selected runtime folder.");
+            var preview = await client.Read("external.preview", "external", "preview", port, args[4]);
+            var review = ExternalRuntimeReview.Read(preview, port, args[4]);
+            var before = client.InvocationCount;
+            Check(!review.ConfirmSharedScope(text => { Check(text.Contains("shared directory") && text.Contains("trash") && text.Contains("prune") && text.Contains("does not seed"), "compiled producer shared directory reaches actual client consent"); return false; }), "actual shared review cancellation retained");
+            Reject(() => review.RegistrationArguments(), "actual preview cannot register after shared consent cancellation");
+            Check(client.InvocationCount == before, "cancelled shared consent invokes no mutation");
+            Check(review.ConfirmSharedScope(text => true), "actual preview separate shared scope accepted for argument review");
+            var arguments = review.RegistrationArguments();
+            Check(arguments.Contains("--acknowledge-shared-preferences") && arguments.Contains(Json.Text(preview, "preview_sha256")), "compiled producer fingerprint binds actual consumer acknowledgement arguments");
+            Console.WriteLine("SHARED_PREVIEW " + Json.Print(new { schema = client.ApiSchemaVersion, fingerprint = review.Fingerprint, arguments, mutation_executed = false }));
+            return;
+        }
+        if (mode == "qualification-shared-external-setup")
+        {
+            var status = await Status(client, port);
+            var catalog = Json.Array(await client.Read("catalog.list", "catalog", "list")).Single(value => Json.Text(value, "id") == port);
+            var guided = GuidedSetup.Choose(status, catalog, "", "", true);
+            var shared = Json.Field(Json.Field(status, "external_runtime"), "shared_preferences");
+            Check(guided.Kind == GuidedStepKind.ReviewProblem && guided.Detail.Contains(Json.Text(shared, "path")) && guided.Detail.Contains("baserom.nes") && guided.Detail.Contains("settings.cfg"), "compiled producer manual shared setup consumes exact location without managed setup");
+            Console.WriteLine("SHARED_SETUP " + Json.Print(new { kind = guided.Kind.ToString(), guided.Detail }));
+            return;
+        }
 
         if (mode == "qualification-source-guidance")
         {

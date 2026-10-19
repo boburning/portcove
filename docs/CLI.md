@@ -1335,3 +1335,35 @@ requires separate setup, Play or explicit update; it cannot become an update
 through first-install consent. Existing `install`, `ensure` and `update`
 commands retain their contracts. `ensure` still reuses a ready active version
 without resolving the latest upstream release.
+
+### Shared-directory external runtimes (API 73)
+
+API 73 adds the closed `smb1r-1.1-stable-windows` shared-data contract.
+The registration preview binds the effective APPDATA/SMB1R directory and current
+Windows account. Its `local_fallback_path` is null and
+`local_fallback_present` is false. The existing ReGaiden file contract still
+returns its fallback path. Unknown or inconsistent variants must be refused.
+Review this directory separately and supply `--acknowledge-shared-preferences`
+with the exact preview digest; ordinary `--yes` does not grant shared writes.
+
+This non-owning route uses the exact five-file stock Windows 1.1-stable tree,
+fixed `--disable-mods` arguments and no portable marker. The game can share
+settings, saves, custom data and original files with other copies, regenerate
+or trash caches and prune logs. Portcove never seeds, owns, migrates, updates,
+backs up, restores or deletes that directory. Registration removal preserves it.
+Manually copy the recognized Super Mario Bros. (World) original to
+`baserom.nes` in the reviewed directory. Existing `settings.cfg` must be
+bounded ordinary data without Godot object/resource constructors; Core checks
+this and the original before launch and immediately before spawning. Missing or
+unsafe settings yield `preparation_required` without offering Core setup.
+Unsafe shared loader metadata or aliases fail existing registration-safety checks.
+This is an execution admission check, not a sandbox or lock against other apps.
+
+For SMB1R, this limited route accepts only vanilla BaseAssets. Shared Godot
+loader sidecars, custom levels/autosaves, blueprints, custom-character files
+and extra resource packs are refused without changes. Their empty directories
+may remain. Generated BaseAssets PNGs and its root pack_info.json remain mutable.
+Existing visuals.resource_packs must select only BaseAssets. Move unreviewed
+inputs elsewhere manually before using this route. Import/editor workflows are
+outside this offered route; independently importing files while the game runs
+is outside Core admission and its checks are not a sandbox.

@@ -132,17 +132,23 @@ impl DefinitionContentIndex {
             ));
         }
         let adapter = serde_json::to_value(port.adapter)?;
-        if port
+        if let Some(minimum) = port
             .release
             .user_prepared
             .values()
-            .any(|runtime| runtime.shared_preferences.is_some())
+            .filter_map(|runtime| {
+                runtime
+                    .shared_preferences
+                    .map(|scope| scope.minimum_template_version())
+            })
+            .max()
             && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "staged-source-portable" && requirement.minimum_version >= 8
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= minimum
             })
         {
             return Err(PortcoveError::verification(
-                "shared preferences require staged-source capability version 8",
+                "shared write scope requires its staged-source capability version",
             ));
         }
         if let Some(minimum) = port
