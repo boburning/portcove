@@ -642,9 +642,11 @@ export async function sourceDialogScenario({
     assert.ok(
       (await browser.findElement(intakeDialog).getText()).includes("Checking won't change them."),
     );
+    const chooseFiles = await browser.findElement(button("Choose game files to check"));
+    await browser.wait(until.elementIsEnabled(chooseFiles), 5_000);
     const intakeStyles = await assertPrimaryReviewAction(
       browser,
-      await browser.findElement(button("Choose game files to check")),
+      chooseFiles,
       await browser.findElement(button("Close")),
     );
     await assertCompactReview(browser, '[aria-labelledby="source-intake-title"]');
@@ -730,9 +732,11 @@ export async function sourceDialogScenario({
       flag: "wx",
     });
     await browser.findElement(By.id("source-search-root")).sendKeys(searchRoot);
+    const searchFolder = await browser.findElement(button("Search this folder"));
+    await browser.wait(until.elementIsEnabled(searchFolder), 5_000);
     const searchStyles = await assertPrimaryReviewAction(
       browser,
-      await browser.findElement(button("Search this folder")),
+      searchFolder,
       await browser.findElement(button("Close")),
     );
     await click(button("Search this folder"));

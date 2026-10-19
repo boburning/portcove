@@ -247,7 +247,7 @@ async function observeHeldLaunch({
   }
   await browser.wait(async () => {
     const play = await browser.findElement(By.css(".detail-panel .primary-actions button"));
-    return (await play.getText()) === "Play" && (await play.isEnabled());
+    return (await play.getText()) === "Try launch" && (await play.isEnabled());
   }, 10_000);
 }
 
@@ -406,15 +406,28 @@ async function assertUnavailableLayout(browser: WebDriver, summary: string) {
   assert.ok(layout.actionTop < layout.summaryTop, JSON.stringify(layout));
 }
 
-async function assertReadyLayout(browser: WebDriver, summary: string) {
+async function assertTrialLayout(browser: WebDriver, summary: string) {
   const layout = await detailLayout(browser, summary);
-  assertMeasured(layout, ["heroBottom", "actionTop", "actionBottom", "summaryTop", "artworkTop"]);
+  assert.equal(layout.state, "Compatibility unconfirmed");
+  assert.equal(
+    layout.reason,
+    "The files are available, but this edition has not been confirmed for the installed version. Try launch to let the port check them; setup may still be needed.",
+  );
+  assertMeasured(layout, [
+    "reasonBottom",
+    "heroBottom",
+    "actionTop",
+    "actionBottom",
+    "summaryTop",
+    "artworkTop",
+  ]);
+  assert.ok(layout.reasonBottom <= layout.actionTop, JSON.stringify(layout));
   assert.ok(layout.actionTop >= layout.heroBottom, JSON.stringify(layout));
   assert.ok(layout.actionTop >= 0, JSON.stringify(layout));
   assert.ok(layout.actionBottom <= layout.viewportHeight, JSON.stringify(layout));
   assert.ok(layout.actionBottom <= layout.summaryTop, JSON.stringify(layout));
   assert.ok(layout.actionBottom < layout.artworkTop, JSON.stringify(layout));
-  assert.equal(layout.hasReason, false, JSON.stringify(layout));
+  assert.equal(layout.hasReason, true, JSON.stringify(layout));
 }
 
 export async function readinessScenario({
@@ -588,7 +601,7 @@ export async function readinessScenario({
     await browser.wait(
       async () =>
         (await browser.findElement(By.css(".detail-panel .primary-actions button")).getText()) ===
-        "Play",
+        "Try launch",
       10_000,
     );
     assert.equal(
@@ -601,7 +614,7 @@ export async function readinessScenario({
       flag: "wx",
     });
     artifacts.push(readyImage);
-    await assertReadyLayout(browser, port.summary);
+    await assertTrialLayout(browser, port.summary);
     assert.equal(command(["status", port.id]).successful_launches, before.successful_launches);
     if (process.platform === "win32")
       await observeActionHolds({ browser, output, artifacts, command: rawCommand, port });
