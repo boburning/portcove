@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace Portcove.ReferenceClient
 {
@@ -16,6 +17,54 @@ namespace Portcove.ReferenceClient
         private string archive;
         private string tree;
         private bool removal;
+        private string sharedContract;
+        private string sharedAccount;
+        private string sharedPath;
+        private string sharedDescription;
+        private bool sharedAcknowledged;
+
+        internal bool ConfirmSharedScope(Func<string, bool> confirm)
+        {
+            if (sharedDescription == null) return true;
+            sharedAcknowledged = confirm(sharedDescription);
+            return sharedAcknowledged;
+        }
+
+        internal string[] RegistrationArguments()
+        {
+            if (removal || (sharedDescription != null && !sharedAcknowledged))
+                throw new InvalidOperationException("The reviewed shared write scope needs separate confirmation.");
+            var args = new List<string> { "external", "register", port, Path, "--expected-preview", Fingerprint, "--yes" };
+            if (sharedAcknowledged) args.Add("--acknowledge-shared-preferences");
+            return args.ToArray();
+        }
+
+        private void ReadSharedScope(object value)
+        {
+            var shared = Json.OptionalObjectField(value, "shared_preferences");
+            if (shared == null) return;
+            var binding = Json.Field(shared, "binding");
+            sharedContract = Text(binding, "contract");
+            sharedAccount = Digest(binding, "account_sid_sha256");
+            sharedPath = Text(binding, "path");
+            PublicCli.RequireAbsolute(sharedPath);
+            Json.Boolean(shared, "present");
+            var fallbackPresent = Json.Boolean(shared, "local_fallback_present");
+            object fallback;
+            Json.TryField(shared, "local_fallback_path", out fallback);
+            if (sharedContract == "regaiden041-windows" && fallback is string && !string.IsNullOrWhiteSpace((string)fallback))
+            {
+                PublicCli.RequireAbsolute((string)fallback);
+                sharedDescription = "This game can rewrite shared preferences at " + sharedPath +
+                    ", discard unknown entries and affect other runtime copies in this Windows account. If unavailable, it can instead rewrite " + fallback +
+                    ". Portcove does not own, migrate, back up, restore or delete these files.";
+            }
+            else if (sharedContract == "smb1r-1.1-stable-windows" && fallback == null && !fallbackPresent)
+                sharedDescription = "This game uses the shared directory " + sharedPath +
+                    " for original game files, settings, saves and custom data. Other copies use the same data. The game can regenerate or trash generated caches and prune its logs. This route accepts only vanilla BaseAssets; custom levels and autosaves, blueprints, custom characters and extra resource packs require manual relocation before use. Portcove refuses these inputs without changing them. Portcove does not seed, own, migrate, back up, restore or delete this directory or its files.";
+            else throw new InvalidOperationException("Unsupported or inconsistent shared write scope review.");
+        }
+
         private string registrationId;
 
         internal static ExternalRuntimeReview ReadRelink(object value, string port, string selectedPath)
@@ -89,6 +138,7 @@ namespace Portcove.ReferenceClient
                     throw new InvalidOperationException("External-runtime review has an inconsistent executable or inventory.");
                 review.archive = Digest(value, "archive_sha256");
                 review.tree = Digest(value, "immutable_tree_sha256");
+                review.ReadSharedScope(value);
                 review.Description = "Use this accepted runtime in place? Portcove rechecks the reviewed identity before registering it.\n\n" +
                     "Executable: " + review.executable + "\nAccepted package SHA-256: " + review.archive +
                     "\nChecked extracted-tree SHA-256: " + review.tree +
@@ -109,6 +159,11 @@ namespace Portcove.ReferenceClient
                 !string.Equals(Digest(record, "immutable_tree_sha256"), tree, StringComparison.OrdinalIgnoreCase) ||
                 Text(record, "platform") != "windows-x86-64")
                 throw new InvalidOperationException("Portcove did not confirm the reviewed external runtime. Refresh before retrying.");
+            var shared = Json.OptionalObjectField(record, "shared_preferences");
+            if (sharedContract == null ? shared != null : shared == null ||
+                Text(shared, "contract") != sharedContract || Digest(shared, "account_sid_sha256") != sharedAccount ||
+                !SamePath(Text(shared, "path"), sharedPath))
+                throw new InvalidOperationException("Portcove did not confirm the reviewed shared write location and account.");
             return Text(record, "id");
         }
 

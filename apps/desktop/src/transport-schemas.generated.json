@@ -1594,7 +1594,8 @@
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
         "enum": [
-          "regaiden041-windows"
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
         ],
         "type": "string"
       },
@@ -4211,7 +4212,8 @@
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
         "enum": [
-          "regaiden041-windows"
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
         ],
         "type": "string"
       },
@@ -7718,7 +7720,8 @@
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
         "enum": [
-          "regaiden041-windows"
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
         ],
         "type": "string"
       },
@@ -7729,7 +7732,10 @@
             "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
           },
           "local_fallback_path": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "local_fallback_present": {
             "type": "boolean"
@@ -7941,7 +7947,8 @@
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
         "enum": [
-          "regaiden041-windows"
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
         ],
         "type": "string"
       }
@@ -8088,7 +8095,8 @@
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
         "enum": [
-          "regaiden041-windows"
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
         ],
         "type": "string"
       },
@@ -8099,7 +8107,10 @@
             "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
           },
           "local_fallback_path": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "local_fallback_present": {
             "type": "boolean"
@@ -16118,7 +16129,8 @@
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
         "enum": [
-          "regaiden041-windows"
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
         ],
         "type": "string"
       },
@@ -21065,7 +21077,8 @@
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
         "enum": [
-          "regaiden041-windows"
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
         ],
         "type": "string"
       },
@@ -34505,7 +34518,8 @@
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
         "enum": [
-          "regaiden041-windows"
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
         ],
         "type": "string"
       },
