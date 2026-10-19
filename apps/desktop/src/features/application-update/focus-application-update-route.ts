@@ -4,17 +4,19 @@ export type ApplicationUpdateRoute = "choice" | "check" | "status";
 
 export function focusApplicationUpdateRoute(route: ApplicationUpdateRoute) {
   const settings = document.querySelector<HTMLElement>(".application-update-settings");
-  const heading = settings?.querySelector<HTMLElement>(
+  const heading =
     route === "choice"
-      ? "#application-update-settings-title"
-      : route === "check"
-        ? "#application-check-title"
-        : "#application-status-title",
-  );
+      ? (settings?.querySelector<HTMLElement>("#application-preferences-title") ??
+        settings?.querySelector<HTMLElement>("#application-update-settings-title"))
+      : settings?.querySelector<HTMLElement>(
+          route === "check" ? "#application-check-title" : "#application-status-title",
+        );
   if (!heading) return;
   const control =
     route === "choice"
-      ? settings?.querySelector<HTMLElement>("button:not(:disabled), a[href]")
+      ? settings?.querySelector<HTMLElement>(
+          '[aria-label="Application update channel"] button:not(:disabled)',
+        )
       : undefined;
   if (control) return focusAndReveal(control);
   heading.tabIndex = 0;

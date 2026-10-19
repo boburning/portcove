@@ -1,9 +1,23 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { focusSettingsTarget } from "./focus-settings-target";
+import { focusSettingsTarget, settingsCategoryForTarget } from "./focus-settings-target";
 
 afterEach(() => {
   document.body.replaceChildren();
   vi.restoreAllMocks();
+});
+
+it("separates application updates from custom catalog recovery", () => {
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  document.body.innerHTML = `
+    <section data-settings-group="updates"><h2 id="settings-updates-heading" tabindex="-1">Updates</h2></section>
+    <section data-settings-group="advanced"><h2 id="settings-advanced-heading" tabindex="-1">Advanced</h2>
+      <button data-settings-control="catalog-updates">Check custom catalog</button></section>`;
+  expect(settingsCategoryForTarget("application-updates")).toBe("updates");
+  focusSettingsTarget("application-updates");
+  expect(document.activeElement?.id).toBe("settings-updates-heading");
+  expect(settingsCategoryForTarget("catalog-updates")).toBe("advanced");
+  focusSettingsTarget("catalog-updates");
+  expect(document.activeElement?.textContent).toBe("Check custom catalog");
 });
 
 it("focuses the matching source action, requirement, or safe heading", () => {

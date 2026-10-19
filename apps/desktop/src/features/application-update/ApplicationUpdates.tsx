@@ -146,8 +146,8 @@ function applicationUpdateCheckCopy(result: ApplicationUpdateCheckResult) {
       };
     case "consent-required":
       return {
-        title: "Update settings required",
-        description: "Save your update settings before checking.",
+        title: "Automatic updates are off",
+        description: "Choose update settings to enable automatic checks. You can still check once.",
       };
     case "offline":
       return {
@@ -429,6 +429,10 @@ function ApplicationUpdateStatusPanel({
 }
 
 type ApplicationUpdateOperationState = {
+  checkChannel: ApplicationUpdateChoice["channel"];
+  changeCheckChannel: (channel: ApplicationUpdateChoice["channel"]) => void;
+  resultChannel: ApplicationUpdateChoice["channel"] | undefined;
+  isOneTimeResult: boolean;
   busy: boolean;
   active: "check" | "download" | undefined;
   phase: ApplicationUpdateCheckPhase | undefined;
@@ -439,8 +443,9 @@ type ApplicationUpdateOperationState = {
   cancel: () => Promise<void>;
 };
 
-type RevisionBoundCheckResult = {
+type BoundUpdateResult = {
   preferenceRevision: number | undefined;
+  checkedChannel?: ApplicationUpdateChoice["channel"];
   value: ApplicationUpdateCheckResult;
 };
 
@@ -450,18 +455,22 @@ function useApplicationUpdateOperation({
   onStart,
   onComplete,
   automaticNotice,
+  initialChannel,
 }: {
   preferences: ApplicationUpdatePreferences | undefined;
   changed: boolean;
   onStart: () => void;
   onComplete: () => Promise<void>;
   automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"] | undefined;
+  initialChannel: ApplicationUpdateChoice["channel"];
 }): ApplicationUpdateOperationState {
   const requests = useRef(new LatestRequestGeneration());
+  const running = useRef(false);
+  const [checkChannel, setCheckChannel] = useState(initialChannel);
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState<"check" | "download">();
   const [phase, setPhase] = useState<ApplicationUpdateCheckPhase>();
-  const [boundResult, setBoundResult] = useState<RevisionBoundCheckResult>();
+  const [boundResult, setBoundResult] = useState<BoundUpdateResult>();
   const [error, setError] = useState<string>();
   const currentAutomaticResult =
     automaticNotice && automaticNotice.preference_revision === preferences?.revision
@@ -470,11 +479,22 @@ function useApplicationUpdateOperation({
           value: automaticNotice.result,
         }
       : undefined;
-  const presentedResult = currentAutomaticResult ?? boundResult;
-  const result =
-    presentedResult && presentedResult.preferenceRevision === preferences?.revision
-      ? presentedResult.value
+  const eligibleBoundResult =
+    boundResult &&
+    (boundResult.checkedChannel
+      ? boundResult.checkedChannel === checkChannel
+      : boundResult.preferenceRevision === preferences?.revision)
+      ? boundResult
       : undefined;
+  const presentedResult = eligibleBoundResult ?? currentAutomaticResult;
+  const result = presentedResult?.value;
+  const resultChannel =
+    presentedResult && "checkedChannel" in presentedResult
+      ? presentedResult.checkedChannel
+      : preferences?.choice?.channel;
+  const isOneTimeResult = Boolean(
+    presentedResult && "checkedChannel" in presentedResult && presentedResult.checkedChannel,
+  );
 
   useEffect(() => {
     const tracker = requests.current;
@@ -485,10 +505,13 @@ function useApplicationUpdateOperation({
 
   const run = async (
     operation: "check" | "download",
-    execute: (
-      onEvent: (nextPhase: ApplicationUpdateCheckPhase) => void,
-    ) => Promise<ApplicationUpdateCheckResult>,
+    execute: (onEvent: (nextPhase: ApplicationUpdateCheckPhase) => void) => Promise<{
+      value: ApplicationUpdateCheckResult;
+      checkedChannel?: ApplicationUpdateChoice["channel"];
+    }>,
   ) => {
+    if (running.current) return;
+    running.current = true;
     const request = requests.current.begin();
     const preferenceRevision = preferences?.revision;
     setBusy(true);
@@ -502,11 +525,12 @@ function useApplicationUpdateOperation({
         if (requests.current.isCurrent(request)) setPhase(nextPhase);
       });
       if (!requests.current.isCurrent(request)) return;
-      setBoundResult({ preferenceRevision, value: nextResult });
-      await onComplete();
+      setBoundResult({ preferenceRevision, ...nextResult });
+      if (operation === "download") await onComplete();
     } catch (value) {
       if (requests.current.isCurrent(request)) setError(errorText(value));
     } finally {
+      running.current = false;
       if (requests.current.isCurrent(request)) {
         setBusy(false);
         setActive(undefined);
@@ -515,7 +539,28 @@ function useApplicationUpdateOperation({
     }
   };
 
-  const check = () => run("check", desktopApi.checkApplicationUpdate);
+  const check = () =>
+    run("check", async (onEvent) => {
+      const checked = await desktopApi.checkApplicationUpdate(onEvent, { channel: checkChannel });
+      if (
+        checked.checked_channel !== checkChannel ||
+        (checked.result.candidate && checked.result.candidate.channel !== checkChannel)
+      )
+        throw new Error("The update check returned a different channel. Check again.");
+      if (checked.result.staged)
+        throw new Error(
+          "The one-time check returned an unexpected download result. Refresh update activity to review it.",
+        );
+      return { value: checked.result, checkedChannel: checked.checked_channel };
+    });
+
+  const changeCheckChannel = (channel: ApplicationUpdateChoice["channel"]) => {
+    if (running.current || channel === checkChannel) return;
+    requests.current.begin();
+    setBoundResult(undefined);
+    setError(undefined);
+    setCheckChannel(channel);
+  };
 
   const download = async () => {
     const choice = preferences?.choice;
@@ -523,21 +568,22 @@ function useApplicationUpdateOperation({
       !choice ||
       choice.paused ||
       changed ||
+      choice.channel !== resultChannel ||
       result?.kind !== "update-available" ||
       !result.candidate ||
       result.staged
     )
       return;
     const expectedCandidate = result.candidate;
-    await run("download", (onEvent) =>
-      desktopApi.downloadApplicationUpdate(
+    await run("download", async (onEvent) => ({
+      value: await desktopApi.downloadApplicationUpdate(
         {
           expected_preference_revision: preferences.revision,
           expected_candidate: expectedCandidate,
         },
         onEvent,
       ),
-    );
+    }));
   };
 
   const cancel = async () => {
@@ -549,16 +595,33 @@ function useApplicationUpdateOperation({
     }
   };
 
-  return { busy, active, phase, result, error, check, download, cancel };
+  return {
+    busy,
+    active,
+    phase,
+    result,
+    error,
+    check,
+    download,
+    cancel,
+    checkChannel,
+    changeCheckChannel,
+    resultChannel,
+    isOneTimeResult,
+  };
 }
 
-function checkSettingsBlocker(
+function downloadSettingsBlocker(
   preferences: ApplicationUpdatePreferences | undefined,
   changed: boolean,
+  channel: ApplicationUpdateChoice["channel"] | undefined,
 ) {
-  if (!preferences) return undefined;
-  if (!preferences.choice) return "Save your update settings before checking for updates.";
-  if (changed) return "Save or discard your changes before checking for updates.";
+  if (!preferences?.choice)
+    return "Choose and save update settings before downloading. This check does not enable automatic updates.";
+  if (changed) return "Save or discard your update settings changes before downloading.";
+  if (preferences.choice.paused) return "Resume application update activity before downloading.";
+  if (channel !== preferences.choice.channel)
+    return `Save ${channel === "stable" ? "Stable" : "Preview"} as your update channel before downloading this result.`;
   return undefined;
 }
 
@@ -613,8 +676,8 @@ function ApplicationUpdateCheckPanel({
   preferences: ApplicationUpdatePreferences | undefined;
   operation: ApplicationUpdateOperationState;
 }) {
-  const actionsDisabled = disabled || settingsBusy || changed || !preferences?.choice;
-  const blocker = checkSettingsBlocker(preferences, changed);
+  const actionsDisabled = disabled;
+  const blocker = downloadSettingsBlocker(preferences, changed, operation.resultChannel);
 
   return (
     <section
@@ -628,8 +691,8 @@ function ApplicationUpdateCheckPanel({
             Check for application updates
           </h3>
           <p className={updateMutedCopyClass}>
-            Checks the update channel you saved. Portcove only downloads updates from its trusted
-            release source and verifies them before installation.
+            Check once without changing your update settings. This checks trusted release metadata;
+            it does not download or install Portcove.
           </p>
         </div>
         {operation.busy ? (
@@ -655,14 +718,38 @@ function ApplicationUpdateCheckPanel({
           </Button>
         )}
       </div>
+      <div role="group" aria-label="One-time update channel" className="flex flex-wrap gap-2">
+        <span className="self-center text-sm text-pc-muted-foreground">Channel for this check</span>
+        {(["stable", "preview"] as const).map((channel) => (
+          <Button
+            key={channel}
+            data-focusable
+            variant={operation.checkChannel === channel ? "selected" : "outline"}
+            size="sm"
+            aria-pressed={operation.checkChannel === channel}
+            disabled={actionsDisabled || operation.busy}
+            onClick={() => operation.changeCheckChannel(channel)}
+          >
+            {channel === "stable" ? "Stable" : "Preview"}
+          </Button>
+        ))}
+      </div>
       {operation.busy && operation.phase && (
         <p role="status">{checkProgressCopy[operation.phase]}</p>
       )}
-      {blocker && <p className={updateDisclosureClass}>{blocker}</p>}
+      {operation.result && (
+        <p className={updateMutedCopyClass}>
+          {operation.isOneTimeResult ? "One-time check" : "Saved update activity"} ·{" "}
+          {operation.resultChannel === "stable" ? "Stable" : "Preview"}
+        </p>
+      )}
+      {operation.result?.kind === "update-available" && blocker && (
+        <p className={updateDisclosureClass}>{blocker}</p>
+      )}
       {operation.result && (
         <ApplicationUpdateCheckResultItem
           result={operation.result}
-          downloadDisabled={actionsDisabled || Boolean(preferences?.choice?.paused)}
+          downloadDisabled={actionsDisabled || settingsBusy || Boolean(blocker)}
           onDownload={operation.download}
         />
       )}
@@ -749,6 +836,10 @@ export function ApplicationUpdateSettings({
   };
 
   const updateOperation = useApplicationUpdateOperation({
+    initialChannel:
+      Number(currentVersion.split(".")[0]) >= 1 && !currentVersion.includes("-")
+        ? "stable"
+        : "preview",
     preferences,
     changed,
     onStart: () => setNotice(undefined),
@@ -893,7 +984,6 @@ export function ApplicationUpdateSettings({
       className="application-update-settings grid min-h-0 gap-5"
       data-focus-group
       aria-labelledby="application-update-settings-title"
-      aria-busy={Boolean(busy)}
     >
       <div className="application-update-heading flex items-start justify-between gap-4 max-[65rem]:flex-col">
         <div>
@@ -901,13 +991,21 @@ export function ApplicationUpdateSettings({
             APPLICATION UPDATES
           </p>
           <h2 id="application-update-settings-title" ref={headingRef} tabIndex={-1}>
-            Choose how Portcove updates
+            Portcove updates
           </h2>
         </div>
         <p className="rounded-pc-md bg-[var(--color-bg-subtle)] px-3 py-2 text-xs whitespace-nowrap text-[var(--color-text-secondary)] max-[65rem]:whitespace-normal">
           Current version <strong>{currentVersion}</strong>
         </p>
       </div>
+
+      <ApplicationUpdateCheckPanel
+        disabled={disabled}
+        settingsBusy={Boolean(busy)}
+        changed={changed}
+        preferences={preferences}
+        operation={updateOperation}
+      />
 
       {!preferences && !busy && (
         <div className="flex flex-wrap gap-2">
@@ -935,7 +1033,14 @@ export function ApplicationUpdateSettings({
       )}
 
       {preferences && (
-        <>
+        <section
+          className="grid gap-5"
+          aria-labelledby="application-preferences-title"
+          aria-busy={Boolean(busy)}
+        >
+          <h3 id="application-preferences-title" tabIndex={-1}>
+            Future update behavior
+          </h3>
           {!preferences.choice && (
             <p className="application-update-consent rounded-pc-md border border-[var(--color-warning-border)] bg-pc-warning-subtle p-3 text-pc-warning-foreground">
               No application update choice is saved. Automatic checks remain off until you save one.
@@ -1074,16 +1179,8 @@ export function ApplicationUpdateSettings({
             Reset update preferences clears your saved choice and turns off automatic checks until
             you choose again.
           </p>
-        </>
+        </section>
       )}
-
-      <ApplicationUpdateCheckPanel
-        disabled={disabled}
-        settingsBusy={Boolean(busy)}
-        changed={changed}
-        preferences={preferences}
-        operation={updateOperation}
-      />
 
       <ApplicationUpdateStatusPanel
         status={status}

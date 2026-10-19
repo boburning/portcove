@@ -7,7 +7,7 @@ import { ArtworkProvider } from "../artwork";
 import { desktopApi } from "../api";
 import { artworkState, portDefinition, portStatus } from "../test-fixtures";
 import { install } from "../dev-scenarios/interactive/scenarios";
-import type { PortStatus } from "../types";
+import type { PortStatus, PortDefinition } from "../types";
 import { useGamepadNavigation } from "../gamepad";
 import { captureTargetScreenshot } from "./capture-target";
 
@@ -18,7 +18,34 @@ const names = [
   "An unusually long game title with an extended edition name",
   "Missing artwork",
 ];
-const ports = names.map((name, i) => ({ ...portDefinition(), id: `portrait-${i}`, name }));
+function presentation(
+  title: string,
+  variant?: string,
+): NonNullable<PortDefinition["presentation"]> {
+  return {
+    original_game_title: title,
+    ...(variant ? { variant_label: variant } : {}),
+    installation_method: "portable-package",
+    source_requirements: [],
+    saves_and_settings: "portcove-managed",
+  };
+}
+const ports = names.map((title, i) => ({
+  ...portDefinition(),
+  id: `portrait-${i}`,
+  name:
+    i === 3
+      ? "A deliberately long fictional port project with a full descriptive name"
+      : `Fictional Project ${i}`,
+  presentation: presentation(
+    title,
+    i === 1
+      ? "Fictional edition"
+      : i === 3
+        ? "Fictional prototype with a long edition label"
+        : undefined,
+  ),
+}));
 const statuses = new Map<string, PortStatus>(
   ports.map((port, i) => [
     port.id,
@@ -136,6 +163,30 @@ it.for([
         expect(frame.metadataTop).toBeGreaterThanOrEqual(frame.bottom - 0.5);
       }
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
+      const projectRows = [...document.querySelectorAll<HTMLElement>(".card-content > p[title]")];
+      expect(projectRows).toHaveLength(5);
+      const variants = [...document.querySelectorAll<HTMLElement>(".card-variant")];
+      expect(variants.map((variant) => variant.textContent)).toEqual([
+        "Fictional edition",
+        "Fictional prototype with a long edition label",
+      ]);
+      for (const variant of variants) {
+        expect(variant.scrollWidth).toBeLessThanOrEqual(variant.clientWidth + 1);
+        expect(variant.scrollHeight).toBeLessThanOrEqual(variant.clientHeight + 1);
+      }
+      const alignmentErrors: number[] = [];
+      if (width >= 1280) {
+        const alignedRows = new Map<number, number>();
+        for (const row of projectRows) {
+          const artworkTop = Math.round(
+            row.parentElement!.previousElementSibling!.getBoundingClientRect().top,
+          );
+          const projectTop = row.getBoundingClientRect().top;
+          if (!alignedRows.has(artworkTop)) alignedRows.set(artworkTop, projectTop);
+          alignmentErrors.push(Math.abs(projectTop - alignedRows.get(artworkTop)!));
+        }
+      }
+      expect(Math.max(0, ...alignmentErrors)).toBeLessThan(1);
       const fallback = document.querySelectorAll<HTMLElement>(".card-art")[4]!;
       expect(fallback.querySelector("img")).toBeNull();
       const palette = getComputedStyle(fallback).getPropertyValue("--art-color");
@@ -161,27 +212,27 @@ it.for([
         }
       }
       await page.screenshot({
-        path: `../../../../outputs/slice5-cards/after-${view}-${theme}-${width}-${frames[0]!.width}x${frames[0]!.height}-top.png`,
+        path: `../../../../outputs/uiux-game-titles/after-${view}-${theme}-${width}-${frames[0]!.width}x${frames[0]!.height}-top.png`,
       });
       fallback.scrollIntoView({ block: "end" });
       await page.screenshot({
-        path: `../../../../outputs/slice5-cards/after-${view}-${theme}-${width}-bottom.png`,
+        path: `../../../../outputs/uiux-game-titles/after-${view}-${theme}-${width}-bottom.png`,
       });
       await captureTargetScreenshot(
         fallback,
-        `../../../../outputs/slice5-cards/missing-art-${view}-${theme}-${width}.png`,
+        `../../../../outputs/uiux-game-titles/missing-art-${view}-${theme}-${width}.png`,
         "missing-art",
         context,
       );
       await captureTargetScreenshot(
         fallback.nextElementSibling!,
-        `../../../../outputs/slice5-cards/missing-details-${view}-${theme}-${width}.png`,
+        `../../../../outputs/uiux-game-titles/missing-details-${view}-${theme}-${width}.png`,
         "missing-details",
         context,
       );
       await captureTargetScreenshot(
         document.querySelector(".card-content")!,
-        `../../../../outputs/slice5-cards/ready-details-${view}-${theme}-${width}.png`,
+        `../../../../outputs/uiux-game-titles/ready-details-${view}-${theme}-${width}.png`,
         "ready-details",
         context,
       );
@@ -199,6 +250,10 @@ it.for(["library", "catalog"] as const)(
       ...portDefinition(),
       id: `large-${index}`,
       name: `Port${index}-${"LongUnbrokenEdition".repeat(8)}`,
+      presentation: presentation(
+        `Fictional Game ${index}-${"LongUnbrokenTitle".repeat(8)}`,
+        "Fictional edition",
+      ),
     }));
     await render(
       <main style={{ padding: 24, marginInlineStart: 220 }}>
@@ -222,18 +277,25 @@ it.for(["library", "catalog"] as const)(
       expect(frame.nextElementSibling!.getBoundingClientRect().top).toBeGreaterThanOrEqual(
         rect.bottom - 0.5,
       );
+      for (const text of frame.nextElementSibling!.querySelectorAll<HTMLElement>(
+        "h2 span, p[title] > span",
+      )) {
+        expect(text.scrollHeight).toBeLessThanOrEqual(text.clientHeight + 1);
+      }
     }
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(960);
     frames[99]!
       .nextElementSibling!.querySelector<HTMLElement>(view === "library" ? "button" : "h2")!
       .scrollIntoView();
     expect(window.scrollY).toBeGreaterThan(640);
-    await page.screenshot({ path: `../../../../outputs/slice5-cards/expanded-${view}-960.png` });
+    await page.screenshot({
+      path: `../../../../outputs/uiux-game-titles/expanded-${view}-960.png`,
+    });
     const metadata = frames[99]!.nextElementSibling!;
     const complete = () =>
       captureTargetScreenshot(
         metadata,
-        `../../../../outputs/slice5-cards/expanded-${view}-960-metadata.png`,
+        `../../../../outputs/uiux-game-titles/expanded-${view}-960-metadata.png`,
         "expanded-metadata",
         context,
       );
@@ -249,13 +311,13 @@ it.for(["library", "catalog"] as const)(
     );
     await captureTargetScreenshot(
       metadata.querySelector("h2")!,
-      `../../../../outputs/slice5-cards/expanded-${view}-960-title.png`,
+      `../../../../outputs/uiux-game-titles/expanded-${view}-960-title.png`,
       "expanded-title",
       context,
     );
     await captureTargetScreenshot(
       metadata.lastElementChild!,
-      `../../../../outputs/slice5-cards/expanded-${view}-960-actions.png`,
+      `../../../../outputs/uiux-game-titles/expanded-${view}-960-actions.png`,
       "expanded-actions",
       context,
     );
@@ -347,7 +409,7 @@ it.each([
     expect(window.scrollY).toBeGreaterThan(0);
     const first = document.querySelector<HTMLElement>(
       view === "library"
-        ? '[aria-label="View details for Ready game"]'
+        ? '[data-detail-game-id="portrait-0"]'
         : '[data-detail-origin="catalog:card:portrait-0"]',
     )!;
     first.focus();

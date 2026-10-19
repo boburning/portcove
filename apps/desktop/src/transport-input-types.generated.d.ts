@@ -29,6 +29,7 @@ export interface TransportInputs {
   source_discovery_request: InputSourceDiscoveryRequest;
   desktop_application_update_choice: InputDesktopApplicationUpdateChoice;
   desktop_application_update_download_request: InputDesktopApplicationUpdateDownloadRequest;
+  desktop_application_update_manual_check_request: InputDesktopApplicationUpdateManualCheckRequest;
   desktop_application_update_production_decision: InputDesktopApplicationUpdateProductionDecision;
   desktop_application_update_recovery_area: InputDesktopApplicationUpdateRecoveryArea;
   desktop_game_file_query_request: InputGameFileQueryRequest;
@@ -102,6 +103,9 @@ export interface ApplicationUpdateCandidateSummary {
   bytes: number;
   channel: ApplicationChannel;
   version: string;
+}
+export interface InputDesktopApplicationUpdateManualCheckRequest {
+  channel?: ApplicationChannel | null;
 }
 export interface InputDesktopInstallInput {
   bios?: string | null;

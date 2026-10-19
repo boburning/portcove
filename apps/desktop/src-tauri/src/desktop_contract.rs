@@ -138,6 +138,18 @@ pub struct ApplicationUpdateCheckResult {
     pub staged: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ApplicationUpdateManualCheckRequest {
+    pub channel: Option<ApplicationChannel>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct ApplicationUpdateManualCheckResult {
+    pub checked_channel: ApplicationChannel,
+    pub result: ApplicationUpdateCheckResult,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct ApplicationUpdateNotice {
     pub preference_revision: u64,
@@ -417,6 +429,7 @@ pub fn export_transport_schemas() -> Value {
             "application_update_production_transition_result": output::<ApplicationUpdateProductionTransitionResult>(),
             "application_update_status": output::<ApplicationUpdateStatus>(),
             "application_update_check_result": output::<ApplicationUpdateCheckResult>(),
+            "application_update_manual_check_result": output::<ApplicationUpdateManualCheckResult>(),
             "application_update_check_phase": output::<ApplicationUpdateCheckPhase>(),
             "application_update_notice": output::<ApplicationUpdateNoticeSnapshot>(),
             "workspace_snapshot": output::<DesktopWorkspaceSnapshot>(),
@@ -439,6 +452,7 @@ pub fn export_transport_schemas() -> Value {
             "application_update_production_decision": schemars::schema_for!(ApplicationUpdateProductionDecision),
             "application_update_recovery_area": schemars::schema_for!(ApplicationUpdateRecoveryArea),
             "application_update_download_request": schemars::schema_for!(ApplicationUpdateDownloadRequest),
+            "application_update_manual_check_request": schemars::schema_for!(ApplicationUpdateManualCheckRequest),
             "steam_entry_selection": schemars::schema_for!(SteamEntrySelection),
             "steam_batch_selection": schemars::schema_for!(SteamBatchSelection),
         },

@@ -243,7 +243,8 @@ pub use types::*;
 // Public 68 adds the closed Ghostship legacy preparation mode and plan/receipt v2.
 // Public 69 adds qualified Ghostship legacy snapshot recovery.
 // Public 70 adds release-scoped input assessments and BIOS incompatibility guidance.
-pub const API_SCHEMA_VERSION: u32 = 70;
+// Public 71 adds descriptive game identity and authored manual setup guidance.
+pub const API_SCHEMA_VERSION: u32 = 71;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

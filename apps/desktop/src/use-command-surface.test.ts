@@ -79,15 +79,15 @@ describe("command surface player-facing copy", () => {
     const { actions, commands: available } = commands();
     const command = available.find(({ id }) => id === "continue");
     expect(command).toMatchObject({
-      label: "Open the last played port",
+      label: "Open recent game",
       description: "Open Sample",
       disabled: false,
     });
     command?.action();
     expect(actions.setSelectedId).toHaveBeenCalledWith("sample");
     expect(commands(false).commands.find(({ id }) => id === "continue")).toMatchObject({
-      label: "Open the last played port",
-      description: "No successful launch is recorded yet",
+      label: "Open recent game",
+      description: "No completed launch is recorded yet",
       disabled: true,
     });
   });
