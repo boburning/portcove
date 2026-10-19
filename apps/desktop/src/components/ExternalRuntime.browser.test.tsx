@@ -57,6 +57,48 @@ async function click(label: string) {
   await act(async () => button?.click());
 }
 
+it("retains a reviewed folder after native cancellation and retries without choosing it again", async () => {
+  vi.mocked(pickInstallFolder).mockResolvedValue(record.path);
+  const preview = vi.spyOn(desktopApi, "previewExternalRuntime").mockResolvedValue({
+    port_id: port.id,
+    path: record.path,
+    executable: record.executable,
+    version: record.version,
+    archive_sha256: record.archive_sha256,
+    immutable_tree_sha256: record.immutable_tree_sha256,
+    immutable_file_count: 17,
+    preview_sha256: "reviewed-external",
+  });
+  const register = vi
+    .spyOn(desktopApi, "registerExternalRuntime")
+    .mockResolvedValueOnce(null)
+    .mockResolvedValueOnce(record);
+  const changed = vi.fn();
+  await root.rerender(
+    <ExternalRuntimeControl
+      port={port}
+      status={portStatus()}
+      generation={7}
+      busy={false}
+      onChanged={changed}
+    />,
+  );
+  await click("Choose game folder");
+  await click("Use this installation");
+  expect(changed).not.toHaveBeenCalled();
+  expect(document.body.querySelector('[data-slot="dialog-content"]')?.textContent).toContain(
+    record.path,
+  );
+  expect(document.body.textContent).not.toContain("Portcove couldn't use this installation");
+  await click("Use this installation");
+  expect(register).toHaveBeenCalledTimes(2);
+  expect(register).toHaveBeenLastCalledWith(port.id, record.path, "reviewed-external", 7);
+  expect(preview).toHaveBeenCalledOnce();
+  expect(pickInstallFolder).toHaveBeenCalledOnce();
+  expect(changed).toHaveBeenCalledOnce();
+  expect(document.body.querySelector('[data-slot="dialog-content"]')).toBeNull();
+});
+
 it("shows authored steps and essential warnings while preserving detailed notes behind disclosure", async () => {
   const open = vi.spyOn(desktopApi, "openExternalUrl").mockResolvedValue(undefined);
   const register = vi.spyOn(desktopApi, "registerExternalRuntime");
