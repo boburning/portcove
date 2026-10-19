@@ -1,14 +1,18 @@
 import { FailureDetails } from "./FailureDetails";
 import { ActivityDiagnostic } from "./ActivityDiagnostic";
 import { RecoveryReview } from "./RecoveryReview";
+import { GameUpdateControl } from "./GameUpdates";
+import type { Perform } from "../features/operations/use-operation-state";
+import { portActionPresentation } from "../features/port-actions/port-action-presentation";
 import { focusAndReveal } from "../focus";
-import { gameIdentityLabel } from "../port-identity";
+import { gameIdentityLabel, gameTitle, gameProjectLabel } from "../port-identity";
 import { controlFocus } from "./ui/control-style";
 import type { DetailDestination } from "../view-model";
 import {
   activityHistoryPreview,
   activityPresentationState,
   currentUpdateSnapshot,
+  hasUnconfirmedLaunchInput,
   errorText,
   failurePresentation,
   releaseChannelPresentation,
@@ -85,7 +89,7 @@ const updateRowClass =
   "update-row grid w-full grid-cols-[42px_minmax(180px,1fr)_minmax(214px,284px)_90px] cursor-pointer items-center gap-3.5 rounded-pc-lg border border-pc-border bg-pc-surface p-3 text-start text-pc-foreground shadow-[var(--shadow-control)] transition-[color,background-color,border-color,box-shadow,transform] duration-(--duration-normal) ease-(--ease-standard) hover:border-pc-interactive hover:bg-pc-secondary active:translate-y-px active:bg-pc-surface-muted active:shadow-[var(--shadow-pressed)] max-[65rem]:grid-cols-[2.625rem_minmax(11rem,1fr)_minmax(8rem,1fr)_5.625rem]";
 const updateMarkClass = "grid size-[42px] place-items-center rounded-pc-md text-xs font-black";
 const updateStateClass =
-  "justify-self-end rounded-full px-2 py-[5px] text-[length:var(--text-2xs)] font-extrabold tracking-[0.06em] uppercase";
+  "min-w-0 justify-self-end rounded-pc-md px-2 py-1 text-xs leading-snug font-medium [overflow-wrap:anywhere]";
 const libraryActivitySettingsTargets: Partial<
   Record<
     ActivityOperation,
@@ -119,6 +123,8 @@ export function UpdateCenter({
   cleanupChanged = refreshDiagnostics,
   reviewedActivityId,
   onReviewActivity,
+  perform,
+  onLaunch,
 }: {
   generation: number;
   repair?: DoctorReport["repair"] | undefined;
@@ -129,6 +135,8 @@ export function UpdateCenter({
   cleanupChanged?: () => Promise<unknown>;
   reviewedActivityId?: string | undefined;
   onReviewActivity?: (activityId: string) => void;
+  perform?: Perform | undefined;
+  onLaunch?: ((portId: string) => void) | undefined;
   ports: PortDefinition[];
   sourceProfiles?: SourceProfile[];
   statuses: Map<string, PortStatus>;
@@ -232,8 +240,8 @@ export function UpdateCenter({
       </div>
       <UpdateBatchNotice read={batchRead} />
       <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-        Checking only looks for updates. Open a game below to review a download or installation.
-        Saving its update settings runs no update.
+        Checking only looks for updates. Review an available update before downloading or installing
+        it. Play keeps using your current version.
       </p>
       <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
         Looking for Portcove or catalog updates?{" "}
@@ -281,10 +289,13 @@ export function UpdateCenter({
                   onClick={() => onSelect(port.id, `updates:installed:${port.id}`)}
                 >
                   <div className={`${updateMarkClass} ${updateMarkTones[state.tone]}`}>
-                    {port.name.slice(0, 2).toUpperCase()}
+                    {gameTitle(port).slice(0, 2).toUpperCase()}
                   </div>
                   <div className="update-title min-w-0">
-                    <strong className="block text-sm">{port.name}</strong>
+                    <strong className="block text-sm">{gameTitle(port)}</strong>
+                    <small className="block text-xs text-pc-muted-foreground">
+                      {gameProjectLabel(port)}
+                    </small>
                     <small className="mt-1 block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
                       {releaseChannelPresentation(status.channel).label} ·{" "}
                       {policyLabel(status.update_policy)}
@@ -312,6 +323,46 @@ export function UpdateCenter({
                     {state.label}
                   </span>
                 </button>
+                <div
+                  className="flex flex-wrap items-start justify-end gap-2"
+                  aria-label={`Actions for ${gameIdentityLabel(port)}`}
+                >
+                  {Boolean(status.staged || effectiveCheck(port.id)?.update_available) &&
+                    perform && (
+                      <GameUpdateControl
+                        key={JSON.stringify([
+                          generation,
+                          port.id,
+                          status.active?.id,
+                          status.active?.version,
+                          status.active?.artifact.sha256,
+                          status.staged?.id,
+                          status.channel,
+                        ])}
+                        portId={port.id}
+                        generation={generation}
+                        policy={status.update_policy}
+                        busy={Boolean(busy)}
+                        perform={perform}
+                        compact
+                        gameName={gameIdentityLabel(port)}
+                      />
+                    )}
+                  {onLaunch &&
+                    status.readiness?.launchable &&
+                    !status.readiness.pending_setup &&
+                    status.readiness.blockers.length === 0 &&
+                    !portActionPresentation(status, "launch").blocked && (
+                      <Button
+                        data-focusable
+                        variant="primary"
+                        disabled={Boolean(busy)}
+                        onClick={() => onLaunch(port.id)}
+                      >
+                        {hasUnconfirmedLaunchInput(status, port) ? "Try launch" : "Play"}
+                      </Button>
+                    )}
+                </div>
                 {outcome?.error && (
                   <section
                     aria-label={`Update check failure for ${port.name}`}
@@ -353,10 +404,13 @@ export function UpdateCenter({
                   onClick={() => onSelect(port.id, `updates:external:${port.id}`)}
                 >
                   <div className={`${updateMarkClass} ${updateMarkTones.muted}`}>
-                    {port.name.slice(0, 2).toUpperCase()}
+                    {gameTitle(port).slice(0, 2).toUpperCase()}
                   </div>
                   <div className="update-title min-w-0">
-                    <strong className="block text-sm">{port.name}</strong>
+                    <strong className="block text-sm">{gameTitle(port)}</strong>
+                    <small className="block text-xs text-pc-muted-foreground">
+                      {gameProjectLabel(port)}
+                    </small>
                     <small className="mt-1 block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
                       Registered user-prepared runtime
                     </small>
@@ -641,13 +695,18 @@ function ActivityRow({
         {presentation.time}
       </span>
       <span
-        className={`activity-status justify-self-end text-[length:var(--text-2xs)] font-extrabold tracking-[0.06em] whitespace-nowrap uppercase max-[65rem]:whitespace-normal ${tone?.status ?? "text-pc-muted-foreground"}`}
+        className={`activity-status justify-self-end text-xs font-medium whitespace-nowrap max-[65rem]:whitespace-normal ${tone?.status ?? "text-pc-muted-foreground"}`}
       >
         {presentation.label}
       </span>
       {presentation.state === "unfinished" && (
         <p className={activityDetailsClass}>
           This task has not reported completion. Review its details before retrying.
+        </p>
+      )}
+      {activity.operation === "launch" && presentation.state === "succeeded" && (
+        <p className={activityDetailsClass}>
+          The game process exited successfully. Gameplay was not checked.
         </p>
       )}
       {activity.cancellation && (
@@ -828,6 +887,9 @@ function activityPresentation(activity: ActivityRecord, nowSeconds: number) {
     };
     return {
       ...presentation,
+      ...(activity.operation === "launch" && state === "succeeded"
+        ? { label: "Process exited" }
+        : {}),
       time: `Started ${formatActivityTime(activity.started_at)}`,
     };
   }

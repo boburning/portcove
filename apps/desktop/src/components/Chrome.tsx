@@ -104,7 +104,7 @@ export function Sidebar({
   const items = [
     { view: "library", label: "Library", icon: Library, shortcut: "1" },
     { view: "catalog", label: "Port catalog", icon: Boxes, shortcut: "2" },
-    { view: "updates", label: "Game updates", icon: Download, shortcut: "3" },
+    { view: "updates", label: "Updates & activity", icon: Download, shortcut: "3" },
     { view: "settings", label: "Settings", icon: Settings, shortcut: "4" },
   ] satisfies Array<{
     view: View;
@@ -292,7 +292,7 @@ function pageCopy(view: View, portCount: number) {
       description: `Browse ${portCount} native game ${portCount === 1 ? "port" : "ports"}.`,
     },
     updates: {
-      title: "Game updates & activity",
+      title: "Updates & activity",
     },
     settings: {
       title: "Settings",
@@ -1596,11 +1596,11 @@ export function SettingsView({
           active={selectedCategory === "updates"}
           eyebrow="UPDATES"
           title="Portcove & catalog updates"
-          description="Manage verified Portcove application and catalog updates here. Game updates and activity are in the Game updates workspace."
+          description="Manage verified Portcove application and catalog updates here. Open Updates & activity for game updates and recent tasks."
           action={
             onOpenGameUpdates && (
               <Button data-focusable variant="link" size="xs" onClick={onOpenGameUpdates}>
-                Open Game updates
+                Open Updates & activity
               </Button>
             )
           }

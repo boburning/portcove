@@ -86,14 +86,18 @@ export function GameUpdateControl({
   policy,
   busy,
   perform,
+  compact = false,
+  gameName,
 }: {
   portId: string;
   generation: number;
   policy: UpdatePolicy;
   busy: boolean;
   perform?: Perform | undefined;
+  compact?: boolean;
+  gameName?: string;
 }) {
-  const [activate, setActivate] = useState(policy === "automatic");
+  const [activate, setActivate] = useState(compact || policy === "automatic");
   const [plan, setPlan] = useState<GameUpdatePlan>();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -101,6 +105,7 @@ export function GameUpdateControl({
   const [failure, setFailure] = useState<{ value: unknown }>();
   const [operation, setOperation] = useState<string>();
   const requests = useRef(new LatestRequestGeneration());
+  const pendingRequest = useRef(false);
   const reviewButton = useRef<HTMLButtonElement>(null);
   useEffect(
     () => () => {
@@ -109,24 +114,31 @@ export function GameUpdateControl({
     [],
   );
   const dismissReview = () => setPlan(undefined);
-  const review = async () => {
+  const review = async (useNow = activate) => {
+    if (pendingRequest.current || busy) return;
+    pendingRequest.current = true;
     const current = requests.current.begin();
+    setActivate(useNow);
     setPending(true);
-    setPlan(undefined);
     setError(undefined);
     setFailure(undefined);
     setMessage(undefined);
     try {
-      const value = await desktopApi.planGameUpdate(portId, activate, generation);
+      const value = await desktopApi.planGameUpdate(portId, useNow, generation);
       if (requests.current.isCurrent(current)) setPlan(value);
     } catch (error) {
-      if (requests.current.isCurrent(current)) setError(errorText(error));
+      if (requests.current.isCurrent(current)) {
+        setPlan(undefined);
+        setError(errorText(error));
+      }
     } finally {
+      pendingRequest.current = false;
       if (requests.current.isCurrent(current)) setPending(false);
     }
   };
   const apply = async () => {
-    if (!plan || !perform || !gameUpdateActionLabel(plan)) return;
+    if (pendingRequest.current || !plan || !perform || !gameUpdateActionLabel(plan)) return;
+    pendingRequest.current = true;
     const current = requests.current.begin();
     setPending(true);
     setError(undefined);
@@ -174,6 +186,7 @@ export function GameUpdateControl({
         setMessage(undefined);
       }
     } finally {
+      pendingRequest.current = false;
       if (requests.current.isCurrent(current)) {
         setPending(false);
         setPlan(undefined);
@@ -183,27 +196,29 @@ export function GameUpdateControl({
   };
   return (
     <section aria-label="Review game update">
-      <h3>Game update</h3>
-      <ChoiceSelect
-        label="This update"
-        value={activate ? "activate" : "stage"}
-        disabled={busy || pending}
-        onChange={(value) => {
-          setActivate(value === "activate");
-          setPlan(undefined);
-          setMessage(undefined);
-        }}
-        options={[
-          { value: "stage", label: "Keep update for later" },
-          { value: "activate", label: "Install update" },
-        ]}
-      />
+      {!compact && <h3>Game update</h3>}
+      {!compact && (
+        <ChoiceSelect
+          label="This update"
+          value={activate ? "activate" : "stage"}
+          disabled={busy || pending}
+          onChange={(value) => {
+            setActivate(value === "activate");
+            setPlan(undefined);
+            setMessage(undefined);
+          }}
+          options={[
+            { value: "stage", label: "Keep update for later" },
+            { value: "activate", label: "Install update" },
+          ]}
+        />
+      )}
       <Button
         ref={reviewButton}
         data-focusable
         className={plan ? "hidden" : undefined}
         hidden={Boolean(plan)}
-        variant="primary"
+        variant={compact ? "outline" : "primary"}
         disabled={busy || pending || !perform}
         onClick={() => {
           void review();
@@ -225,7 +240,7 @@ export function GameUpdateControl({
             aria-describedby="game-update-review-description"
           >
             <DialogTitle id="game-update-review-title" className="mb-2 text-xl">
-              Review game update
+              {gameName ? `${gameName} update` : "Review game update"}
             </DialogTitle>
             <DialogDescription id="game-update-review-description" className="mb-4 leading-relaxed">
               Confirm the release and what happens to your active version before updating.
@@ -264,6 +279,15 @@ export function GameUpdateControl({
                   Review game update again
                 </Button>
               )}
+              <Button
+                data-focusable
+                variant="outline"
+                hidden={!compact || !gameUpdateActionLabel(plan)}
+                disabled={busy || pending}
+                onClick={() => void review(!plan.activate)}
+              >
+                {plan.activate ? "Review download for later" : "Review install now"}
+              </Button>
               <Button
                 data-focusable
                 variant="outline"

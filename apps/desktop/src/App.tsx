@@ -1016,6 +1016,12 @@ function CurrentView({
           Promise.allSettled([data.refresh(), data.refreshDiagnosticsAfterMutation()])
         }
         checkAll={updates.checkAll}
+        perform={operations.perform}
+        onLaunch={(portId) => {
+          void operations.perform("launch", () =>
+            desktopApi.launch(portId, "", bootstrap.generation),
+          );
+        }}
         onSelect={openPortDetails}
         onOpenSettings={(target, sourceProfileId) => {
           ui.setSettingsCategory(settingsCategoryForTarget(target));

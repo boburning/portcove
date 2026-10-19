@@ -447,6 +447,40 @@ const priorResult: NonNullable<UpdateCheckOutcome["result"]> = {
     },
   },
 };
+
+it("describes a successful process exit without claiming tested gameplay", () => {
+  const html = renderToStaticMarkup(
+    <UpdateCenter
+      generation={1}
+      ports={[port]}
+      statuses={new Map()}
+      outcomes={[]}
+      activities={[
+        {
+          id: "exit",
+          operation: "launch",
+          target_kind: "port",
+          target_id: port.id,
+          status: "succeeded",
+          started_at: 100,
+          finished_at: 200,
+          message: null,
+          failure: null,
+          cancellation: null,
+        },
+      ]}
+      checkAll={vi.fn()}
+      onSelect={vi.fn()}
+      onOpenSettings={vi.fn()}
+      diagnosticsRefreshing={false}
+      diagnosticsStale={false}
+      refreshDiagnostics={vi.fn()}
+    />,
+  );
+  expect(html).toContain("Process exited");
+  expect(html).toContain("The game process exited successfully. Gameplay was not checked.");
+  expect(html).not.toContain(">Completed</span>");
+});
 function batchHtml(batchRead: UpdateBatchRead, outcomes: UpdateCheckOutcome[] = []) {
   return renderToStaticMarkup(
     <UpdateCenter

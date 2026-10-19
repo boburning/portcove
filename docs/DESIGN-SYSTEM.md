@@ -181,6 +181,15 @@ shown and distinguish that preview from the history loaded by core. Put
 interruption guidance inline, and describe older diagnostic availability as
 possible when retention is not known.
 
+Use **Updates & activity** consistently for the combined workspace. An available
+or saved update opens the existing fresh Core review directly from its row.
+Play is independent and uses the current version when Core permits launch.
+Reviewing an immediate update defaults to installation; keeping it for later
+requires a new download-only plan and confirmation. Neither choice changes the
+saved update policy. A successful launch activity says **Process exited**, with
+an explicit explanation that successful process termination does not establish
+tested gameplay. Keep update and activity statuses in readable sentence case.
+
 Use **Check method** for a configured way to inspect game files; say whether a check
 actually ran and what it found separately. Show the planned output folder with
 version and download size when the installation plan downloads a release; a plan

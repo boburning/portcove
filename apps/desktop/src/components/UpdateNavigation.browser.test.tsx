@@ -6,7 +6,7 @@ import { UpdateCenter } from "./UpdateCenter";
 import { portDefinition, portStatus } from "../test-fixtures";
 
 describe("update destination links", () => {
-  it("opens Game updates from application and catalog update settings", async () => {
+  it("opens Updates & activity from application and catalog update settings", async () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     const host = document.createElement("div");
     const root = createRoot(host);
@@ -14,7 +14,7 @@ describe("update destination links", () => {
     try {
       await act(async () => root.render(<SettingsView onOpenGameUpdates={onOpenGameUpdates} />));
       const link = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
-        (button) => button.textContent === "Open Game updates",
+        (button) => button.textContent === "Open Updates & activity",
       );
       expect(link?.closest("[data-settings-group]")?.getAttribute("data-settings-group")).toBe(
         "updates",
@@ -27,7 +27,7 @@ describe("update destination links", () => {
     }
   });
 
-  it("opens application and catalog update settings from Game updates", async () => {
+  it("opens application and catalog update settings from Updates & activity", async () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     const host = document.createElement("div");
     const root = createRoot(host);

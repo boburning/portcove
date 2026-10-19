@@ -1274,7 +1274,7 @@ describe("desktop components", () => {
     );
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*aria-label="Dismiss error"/u);
     expect(html).toContain("Port catalog");
-    expect(html).toMatch(/<span[^>]*>Game updates<\/span>/u);
+    expect(html).toMatch(/<span[^>]*>Updates &amp; activity<\/span>/u);
     expect(html).toContain('aria-label="2 in library"');
     expect(html).toContain("Problem");
     expect(html).toContain("C:/Portcove");
@@ -1353,7 +1353,7 @@ describe("desktop components", () => {
     expect(catalog).toContain('<h1 tabindex="-1">Port catalog</h1>');
     expect(catalog).toContain("Browse 61 native game ports.");
     expect(catalog).toContain('id="port-search"');
-    expect(updates).toContain('<h1 tabindex="-1">Game updates &amp; activity</h1>');
+    expect(updates).toContain('<h1 tabindex="-1">Updates &amp; activity</h1>');
     expect(settings).toContain('<h1 tabindex="-1">Settings</h1>');
     for (const header of [library, catalog, updates, settings]) {
       expect(header).not.toContain('class="eyebrow"');
@@ -1559,7 +1559,7 @@ describe("desktop components", () => {
     expect(groupMarkup("updates")).toContain("Portcove updates");
     expect(groupMarkup("updates")).toContain("Portcove &amp; catalog updates");
     expect(groupMarkup("updates")).toContain(
-      "Game updates and activity are in the Game updates workspace.",
+      "Open Updates &amp; activity for game updates and recent tasks.",
     );
     expect(groupMarkup("updates")).toContain("Game catalog");
     expect(groupMarkup("updates")).not.toContain("Publisher public key");
