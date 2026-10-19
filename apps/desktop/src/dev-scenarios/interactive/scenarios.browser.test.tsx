@@ -113,12 +113,20 @@ it("opens the Updates category before focusing an application-update notice", as
   });
   await mount("library");
   await page.getByRole("button", { name: /^Settings/ }).click();
-  await expect.element(page.getByRole("heading", { name: "Color theme", exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("heading", { name: "Color theme", exact: true }))
+    .toBeVisible();
   await page.getByRole("button", { name: "Review options", exact: true }).click();
   await expect
-    .element(page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Updates", exact: true }))
+    .element(
+      page
+        .getByRole("navigation", { name: "Settings categories" })
+        .getByRole("button", { name: "Updates", exact: true }),
+    )
     .toHaveAttribute("aria-current", "page");
-  await vi.waitFor(() => expect(document.activeElement?.closest(".application-update-settings")).not.toBeNull());
+  await vi.waitFor(() =>
+    expect(document.activeElement?.closest(".application-update-settings")).not.toBeNull(),
+  );
   expect(document.activeElement?.closest("[hidden]")).toBeNull();
 });
 
@@ -127,10 +135,16 @@ it("opens application updates from Game updates without entering custom catalog 
   await page.getByRole("button", { name: /^Game updates/ }).click();
   await page.getByRole("button", { name: "Open Portcove update settings", exact: true }).click();
   await expect
-    .element(page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Updates", exact: true }))
+    .element(
+      page
+        .getByRole("navigation", { name: "Settings categories" })
+        .getByRole("button", { name: "Updates", exact: true }),
+    )
     .toHaveAttribute("aria-current", "page");
   await vi.waitFor(() => expect(document.activeElement?.id).toBe("settings-updates-heading"));
-  await expect.element(page.getByRole("heading", { name: "Custom catalog sources", exact: true })).not.toBeVisible();
+  const advanced = document.querySelector<HTMLElement>('[data-settings-group="advanced"]');
+  expect(advanced?.hidden).toBe(true);
+  expect(advanced && getComputedStyle(advanced).display).toBe("none");
 });
 
 it.each([

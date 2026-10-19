@@ -407,9 +407,16 @@ hero and one dominant Play, Install, or Review action. Evidence may justify a
 roughly 36–40rem surface on large displays or a restrained sticky primary action,
 but focus, controller navigation, compact layouts, and safety information must
 remain intact. Infrequent maintenance and technical controls use progressive
-disclosure without becoming hidden safety state. Settings grows through clear
-Appearance, Library and storage, Game files, Updates, Integrations, and Advanced
-grouping using the smallest scalable structure, not an automatic second sidebar.
+disclosure without becoming hidden safety state. Settings uses Appearance,
+Library and storage, Game files, Updates, Integrations, Advanced, and About
+categories. Keep their navigation visible beside the selected panel on wide
+windows and wrapping above it at smaller widths. Category changes hide rather
+than unmount panels, preserving unsaved drafts and pending operations; they do
+not persist settings or cancel work. Move focus to the selected heading. Direct
+recovery links select the owning category before focusing its relevant control.
+The sidebar About entry opens About directly. Updates explains application/game
+updates and the bundled game catalog; optional custom catalog trust controls
+belong under Advanced. Category selection is ephemeral presentation state.
 In GitHub settings, lead with connection purpose and signed-in state; keep
 credential provenance and request accounting in Connection details. Token entry
 has a persistent visible label, while environment-controlled credentials keep
