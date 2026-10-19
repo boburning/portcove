@@ -6314,6 +6314,12 @@
         ],
         "type": "object"
       },
+      "CartridgeBuildRecipe": {
+        "enum": [
+          "yoshis-cookie-nes-cycle-v1.1.0"
+        ],
+        "type": "string"
+      },
       "CatalogAdmissionMode": {
         "enum": [
           "enforced",
@@ -8297,6 +8303,25 @@
               },
               "windows-x86-64": {
                 "$ref": "#/$defs/DirectReleaseSpec"
+              }
+            },
+            "type": "object"
+          },
+          "managed_build": {
+            "additionalProperties": false,
+            "description": "Core-owned fixed original-driven recipes, distinct from downloaded executables.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/CartridgeBuildRecipe"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/CartridgeBuildRecipe"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/CartridgeBuildRecipe"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/CartridgeBuildRecipe"
               }
             },
             "type": "object"

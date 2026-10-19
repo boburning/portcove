@@ -210,6 +210,7 @@ export type InstallationMethod =
 export type SavesAndSettingsBehavior = "portcove-managed" | "external-user-owned";
 export type PortSourceRole = "game" | "bios";
 export type SourceVerificationMethod = "catalog-identity" | "upstream-validator" | "catalog-rules";
+export type CartridgeBuildRecipe = "yoshis-cookie-nes-cycle-v1.1.0";
 /**
  * Catalog-accepted identity for a runtime the player prepares outside Portcove.
  * Portcove never downloads or owns this package through this route.
@@ -1272,6 +1273,15 @@ export interface ReleaseSpec {
     "macos-aarch64"?: DirectReleaseSpec;
     "macos-x86-64"?: DirectReleaseSpec;
     "windows-x86-64"?: DirectReleaseSpec;
+  };
+  /**
+   * Core-owned fixed original-driven recipes, distinct from downloaded executables.
+   */
+  managed_build?: {
+    "linux-x86-64"?: CartridgeBuildRecipe;
+    "macos-aarch64"?: CartridgeBuildRecipe;
+    "macos-x86-64"?: CartridgeBuildRecipe;
+    "windows-x86-64"?: CartridgeBuildRecipe;
   };
   provider: "github" | "gitlab" | "direct-manifest" | "user-prepared";
   repository: string;

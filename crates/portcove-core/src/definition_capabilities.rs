@@ -46,6 +46,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 5,
         });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 6,
+        });
         supported
     }
 }
@@ -260,8 +264,33 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(2));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 6, 6)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 7, 7)).unwrap();
         assert!(!future.compatible);
+    }
+
+    #[test]
+    fn cartridge_build_preserves_v5_and_refuses_v5_readers() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| entry.contract_version <= 5)
+            .collect();
+        let required = request("staged-source-portable", 6, 6);
+        let old = check_with_inventory(&required, &previous).unwrap();
+        assert!(!old.compatible);
+        assert_eq!(old.checks[0].installed_version, Some(5));
+        assert!(check_definition_capabilities(&required).unwrap().compatible);
+        assert_eq!(
+            check_definition_capabilities(&request("staged-source-portable", 5, 5))
+                .unwrap()
+                .checks[0]
+                .installed_version,
+            Some(5)
+        );
+        assert!(
+            !check_definition_capabilities(&request("n64-recomp-portable", 6, 6))
+                .unwrap()
+                .compatible
+        );
     }
 
     #[test]

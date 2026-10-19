@@ -40,6 +40,14 @@ Versions 1 and 2 remain supported. Other templates cannot declare a prepared
 runtime subdirectory. Capability schema and public envelope shapes are unchanged.
 This primitive supplies no title, package, generated-output or native acceptance.
 
+Staged-source portable version 6 implements the fixed Core-owned
+`release.managed_build` original-driven cartridge recipe described in
+[the catalog contract](CATALOG.md). An indexed entry using that field must require
+minimum version 6; a window admitting older engines is refused. Versions 1–5
+remain available. Full recipe retention, source/tool/output checks and the
+ordinary lifecycle remain necessary after negotiation. This adds no definition
+publisher, signing or protected delivery authority.
+
 API schema 45 exposes the inventory as `capabilities.engine_templates`. The CLI
 `catalog check-capabilities <file>` and Tauri `check_definition_capabilities`
 delegate to the same core negotiation. Tauri `get_engine_capabilities` returns

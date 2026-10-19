@@ -409,12 +409,15 @@ mod tests {
             .await
             .unwrap();
         // A changed retained target does not change the action or primary status.
+        // Keep its immutable manifest with the actual copy at the new location.
+        let changed_path = temporary.path().join("changed-copy");
+        std::fs::rename(&original_path, &changed_path).unwrap();
         library
             .connection()
             .unwrap()
             .execute(
                 "UPDATE installs SET path=?1",
-                [temporary.path().join("changed-copy").to_str().unwrap()],
+                [changed_path.to_str().unwrap()],
             )
             .unwrap();
         let changed = service.plan_game_install(PORT).await.unwrap();

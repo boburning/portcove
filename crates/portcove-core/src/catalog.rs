@@ -424,6 +424,12 @@ impl Catalog {
                     port.id
                 )));
             }
+            if !port.release.managed_build.is_empty() {
+                let profile = port.source_profile.as_deref().ok_or_else(|| {
+                    PortcoveError::verification("cartridge build requires an exact source profile")
+                })?;
+                crate::cartridge_build::validate_port(port, self.source_profile(profile)?)?;
+            }
             if let Some(profile) = &port.bios_source_profile
                 && (!profile_ids.contains(profile.as_str())
                     || port.adapter != AdapterKind::PsxRecompManaged)
