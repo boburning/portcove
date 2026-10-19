@@ -1113,3 +1113,8 @@ remain prominent and keep their failure exit even when notification is
 unchanged. Ordinary unchanged success with a matching prior report is quiet;
 `--json` always emits the complete evidence record. The report never authenticates
 a prior snapshot as lineage, publication or distribution authority.
+
+The exact ReGaiden v0.4.1 Windows prepared-runtime route uses this closed
+shared-preference contract. Its [qualification report](qualification/slice6-regaiden-prepared-windows-2026-10-19.md)
+records original/artifact identity, the preserved ImGui failure, corrected
+consent and operation acceptance, and the separate delivery boundaries.
