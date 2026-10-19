@@ -40,6 +40,8 @@ use crate::{
 
 mod backups;
 mod ghostship_compatibility;
+#[cfg(test)]
+mod ghostship_persistence_tests;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
@@ -55,6 +57,11 @@ struct RollbackTargetFailure {
     reason: PortActionReason,
     error: PortcoveError,
     definition: Option<crate::DefinitionEligibility>,
+}
+
+struct PersistenceContract {
+    port: PortDefinition,
+    writes_directly: bool,
 }
 
 #[cfg(test)]
@@ -1450,7 +1457,7 @@ impl PortcoveService {
             blockers.push(LaunchBlocker::MissingRuntime);
         }
         let pending_setup = status.active.as_ref().is_some_and(|active| {
-            if crate::preparation::managed(port) {
+            if crate::preparation::managed_install(port, active) {
                 let source = port
                     .source_profile
                     .as_ref()
@@ -1463,11 +1470,16 @@ impl PortcoveService {
                 .as_ref()
                 .is_some_and(|marker| !active.path.join(marker).is_file())
         });
-        if pending_setup && crate::preparation::managed(port) {
+        if pending_setup
+            && status
+                .active
+                .as_ref()
+                .is_some_and(|active| crate::preparation::managed_install(port, active))
+        {
             blockers.push(LaunchBlocker::PreparationRequired);
         }
         if status.active.as_ref().is_some_and(|active| {
-            self.require_ghostship_data_compatibility(&port.id, &active.version, None)
+            self.require_ghostship_install_data_compatibility(active, None)
                 .is_err()
         }) {
             blockers.push(LaunchBlocker::InvalidInstallation);
@@ -1610,7 +1622,7 @@ impl PortcoveService {
             return Ok(status);
         };
         let installed_port = installed_catalog.port(&active.port_id)?;
-        if crate::preparation::managed(installed_port) {
+        if crate::preparation::managed_install(installed_port, active) {
             status
                 .definition_operations
                 .push(DefinitionOperationAssessment {
@@ -1783,7 +1795,7 @@ impl PortcoveService {
                 Some(ineligible),
             )
         } else if status.active.as_ref().is_some_and(|active| {
-            self.require_ghostship_data_compatibility(&current_port.id, &active.version, None)
+            self.require_ghostship_install_data_compatibility(active, None)
                 .is_err()
         }) {
             assessed(Action::Launch, Availability::Held, Reason::UnsafeData, None)
@@ -2392,17 +2404,27 @@ impl PortcoveService {
             port,
             DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
         )?;
-        self.require_ghostship_data_compatibility(
-            &port.id,
-            &release.version,
-            status
-                .active
-                .as_ref()
-                .map(|install| install.version.as_str()),
-        )?;
         let runtime = crate::runtime::required(port, Platform::current()?);
+        let active_matches = status
+            .active
+            .as_ref()
+            .map(|active| self.install_matches_release(active, &release, runtime.as_ref()))
+            .transpose()?
+            .unwrap_or(false);
+        if let Some(active) = status.active.as_ref().filter(|_| active_matches) {
+            self.require_ghostship_install_data_compatibility(active, Some(&active.version))?;
+        } else {
+            self.require_ghostship_data_compatibility(
+                &port.id,
+                &release.version,
+                status
+                    .active
+                    .as_ref()
+                    .map(|install| install.version.as_str()),
+            )?;
+        }
         if let Some(active) = &status.active
-            && self.install_matches_release(active, &release, runtime.as_ref())?
+            && active_matches
         {
             self.managed_install_root(&port.id, &active.path)?;
             let qualification = self.installed_mutability_qualification(active)?;
@@ -2856,9 +2878,8 @@ impl PortcoveService {
                 error,
                 definition: None,
             })?;
-        self.require_ghostship_data_compatibility(
-            port_id,
-            &previous.version,
+        self.require_ghostship_install_data_compatibility(
+            previous,
             active.map(|install| install.version.as_str()),
         )
         .map_err(|error| RollbackTargetFailure {
@@ -2958,9 +2979,8 @@ impl PortcoveService {
         let staged = status
             .staged
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
-        self.require_ghostship_data_compatibility(
-            port_id,
-            &staged.version,
+        self.require_ghostship_install_data_compatibility(
+            &staged,
             status
                 .active
                 .as_ref()
@@ -3757,6 +3777,15 @@ impl PortcoveService {
             let active = self.library.status(port_id, default_channel(port))?.active;
             let external = self.library.external_runtime_with_port(port_id)?;
             if !arguments.is_empty()
+                && active.as_ref().is_some_and(|install| {
+                    install.port_id == "ghostship" && install.version == "2.0.0"
+                })
+            {
+                return Err(PortcoveError::usage(
+                    "the exact Ghostship 2.0.0 runtime requires zero added arguments",
+                ));
+            }
+            if !arguments.is_empty()
                 && let Some(install) = &active
                 && !self
                     .installed_catalog(install)?
@@ -3927,6 +3956,17 @@ impl PortcoveService {
                     )?;
                     let retained_catalog = self.installed_catalog(install)?;
                     let retained_port = retained_catalog.port(&install.port_id)?;
+                    if install.port_id == "ghostship" && install.version == "2.0.0" {
+                        self.require_ghostship_legacy_runtime_archive(
+                            install,
+                            &spec.working_directory,
+                        )?;
+                        if !spec.arguments.is_empty() {
+                            return Err(PortcoveError::conflict(
+                                "prepared legacy archive or zero-argument launch changed before spawning",
+                            ));
+                        }
+                    }
                     self.require_definition_operation(
                         &retained_catalog,
                         retained_port,
@@ -4562,11 +4602,32 @@ impl PortcoveService {
         }
     }
 
-    fn persistence_port(
+    fn persistence_contract_for_install(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<PersistenceContract> {
+        let port = self.installed_mutability_port(install)?;
+        let legacy = Installer::new(self.library.clone())?.retained_preparation_mode(install)?
+            == Some(crate::PreparationMode::Ghostship200Legacy);
+        let writes_directly = if legacy {
+            // This interpretation is retained separately from catalog facts.
+            // The pinned Windows runtime ignores SHIP_HOME and uses its CWD.
+            crate::preparation::legacy_execution_contract(&port, install, Platform::current()?)?;
+            false
+        } else {
+            writes_directly_to_user_root(&port)
+        };
+        Ok(PersistenceContract {
+            port,
+            writes_directly,
+        })
+    }
+
+    fn persistence_contract(
         &self,
         fallback: &PortDefinition,
         install_root: &Path,
-    ) -> Result<PortDefinition> {
+    ) -> Result<PersistenceContract> {
         let root = self.managed_install_root(&fallback.id, install_root)?;
         for install in self.library.all_installs()? {
             if install.port_id != fallback.id {
@@ -4579,12 +4640,15 @@ impl PortcoveService {
                 Err(error) => return Err(error.into()),
             };
             if registered == root {
-                return self.installed_mutability_port(&install);
+                return self.persistence_contract_for_install(&install);
             }
         }
         // An unpublished payload has no library record yet. Its caller owns
         // the qualification captured for that installation operation.
-        Ok(fallback.clone())
+        Ok(PersistenceContract {
+            port: fallback.clone(),
+            writes_directly: writes_directly_to_user_root(fallback),
+        })
     }
 
     fn require_completed_restore(&self, port_id: &str) -> Result<()> {
@@ -4679,10 +4743,10 @@ impl PortcoveService {
                 }
             }
             let install_root = self.managed_install_root(port_id, &path)?;
-            let retained_port = self.persistence_port(port, &install_root)?;
-            let port = &retained_port;
+            let contract = self.persistence_contract(port, &install_root)?;
+            let port = &contract.port;
             let persistent_root = self.persistence_root(port, &install_root)?;
-            if !writes_directly_to_user_root(port) {
+            if !contract.writes_directly {
                 for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])?
                 {
                     let source = user_root.join(&relative);
@@ -4713,8 +4777,8 @@ impl PortcoveService {
         port: &PortDefinition,
         install_root: &Path,
     ) -> Result<Vec<PathBuf>> {
-        let retained_port = self.persistence_port(port, install_root)?;
-        let port = &retained_port;
+        let contract = self.persistence_contract(port, install_root)?;
+        let port = &contract.port;
         self.require_completed_restore(&port.id)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, install_root)?;
@@ -4722,7 +4786,7 @@ impl PortcoveService {
         for relative in crate::persistence::entries(port, &[&persistent_root, &user_root])? {
             let source = persistent_root.join(&relative);
             let destination = user_root.join(&relative);
-            if writes_directly_to_user_root(port) {
+            if contract.writes_directly {
                 if destination.exists() {
                     copied.push(destination);
                 }
@@ -4743,15 +4807,15 @@ impl PortcoveService {
         port: &PortDefinition,
         install_root: &Path,
     ) -> Result<()> {
-        let retained_port = self.persistence_port(port, install_root)?;
-        let port = &retained_port;
+        let contract = self.persistence_contract(port, install_root)?;
+        let port = &contract.port;
         let install_root = self.managed_install_root(&port.id, install_root)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, &install_root)?;
         let marker = install_root.join(LAUNCH_MARKER);
         refuse_symlink_ancestors(&marker)?;
         let previously_launched = marker.is_file();
-        if !writes_directly_to_user_root(port) {
+        if !contract.writes_directly {
             for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])? {
                 let source = user_root.join(&relative);
                 let destination = persistent_root.join(&relative);

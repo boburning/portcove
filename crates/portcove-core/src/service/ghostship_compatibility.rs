@@ -10,11 +10,196 @@ use super::PortcoveService;
 mod legacy_save;
 
 impl PortcoveService {
+    pub(crate) fn require_ghostship_legacy_runtime_archive(
+        &self,
+        target: &crate::InstallRecord,
+        working: &std::path::Path,
+    ) -> Result<()> {
+        if working != target.path {
+            return Err(PortcoveError::verification(
+                "legacy runtime CWD differs from its managed installation",
+            ));
+        }
+        crate::preparation::require_legacy_no_binary_importer(working)?;
+        self.require_ghostship_install_data_compatibility(target, None)?;
+        let canonical = self.library.user_dir("ghostship").join("sm64.o2r");
+        let runtime = working.join("sm64.o2r");
+        let expected = crate::external_runtime::hash_stable_regular(
+            &canonical,
+            512 * 1024 * 1024,
+            &|| Ok(()),
+        )?;
+        let actual =
+            crate::external_runtime::hash_stable_regular(&runtime, 512 * 1024 * 1024, &|| Ok(()))?;
+        if actual.1 == 0 || actual != expected {
+            return Err(PortcoveError::verification(
+                "restored legacy runtime archive differs from its verified canonical data",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn prepare_ghostship_legacy_archive(
+        &self,
+        target: &crate::InstallRecord,
+    ) -> Result<()> {
+        if target.port_id != "ghostship"
+            || target.version != "2.0.0"
+            || crate::Installer::new(self.library.clone())?.retained_preparation_mode(target)?
+                != Some(crate::PreparationMode::Ghostship200Legacy)
+        {
+            return Ok(());
+        }
+        self.require_ghostship_install_data_compatibility(target, None)?;
+        let user = self.library.user_dir("ghostship");
+        let destination = user.join("sm64.o2r");
+        match fs::symlink_metadata(&destination) {
+            Ok(_) => return Ok(()),
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+        let source_root = target.path.join("prepared-game-data");
+        let source = source_root.join("sm64.o2r");
+        crate::Installer::new(self.library.clone())?.verify_recorded_member(target, &source)?;
+        let identity =
+            crate::external_runtime::hash_stable_regular(&source, 512 * 1024 * 1024, &|| Ok(()))?;
+        let reviewed = crate::library_transfer::reviewed_tree(&source_root)?;
+        if !reviewed.directories.is_empty()
+            || reviewed.files.len() != 1
+            || reviewed.files[0].relative_path != std::path::Path::new("sm64.o2r")
+            || reviewed.files[0].sha256 != identity.0
+            || reviewed.files[0].size != identity.1
+        {
+            return Err(PortcoveError::verification(
+                "legacy generated member differs from its exact reviewed seed",
+            ));
+        }
+        refuse_symlink_ancestors(&user)?;
+        fs::create_dir_all(&user)?;
+        refuse_symlink_ancestors(&user)?;
+        let staging = self.library.staging_dir();
+        refuse_symlink_ancestors(&staging)?;
+        fs::create_dir_all(&staging)?;
+        let work = tempfile::Builder::new()
+            .prefix("ghostship-legacy-seed-")
+            .tempdir_in(staging)?;
+        // Existing checked copy publishes one complete file without replacing any
+        // player data. A failed copy cannot expose a partial canonical archive.
+        crate::transfer_copy::copy_reviewed_tree(&source_root, &user, &reviewed, work.path())?;
+        self.require_ghostship_install_data_compatibility(target, None)
+    }
+
     pub(crate) fn require_ghostship_data_compatibility(
         &self,
         port_id: &str,
         target_version: &str,
         active_version: Option<&str>,
+    ) -> Result<()> {
+        self.require_ghostship_data_compatibility_for_target(
+            port_id,
+            target_version,
+            active_version,
+            None,
+            None,
+        )
+    }
+
+    pub(crate) fn require_ghostship_install_data_compatibility(
+        &self,
+        target: &crate::InstallRecord,
+        active_version: Option<&str>,
+    ) -> Result<()> {
+        self.require_ghostship_data_compatibility_for_target(
+            &target.port_id,
+            &target.version,
+            active_version,
+            Some(target),
+            None,
+        )
+    }
+
+    pub(crate) fn require_ghostship_staged_preparation_compatibility(
+        &self,
+        operation: &crate::operation::LifecycleOperation,
+        target: &crate::InstallRecord,
+        active_version: Option<&str>,
+    ) -> Result<()> {
+        use crate::operation::{LifecycleOperationKind, LifecyclePhase};
+        let invalid = || PortcoveError::state("invalid staged legacy preparation binding");
+        let staging = operation.paths.staging.as_ref().ok_or_else(invalid)?;
+        let original = operation.install.as_ref().ok_or_else(invalid)?;
+        let plan = operation.preparation.as_ref().ok_or_else(invalid)?;
+        let mut expected = original.clone();
+        expected.path = staging.join("payload");
+        if operation.kind != LifecycleOperationKind::Prepare
+            || operation.phase != LifecyclePhase::Prepared
+            || operation.port_id != "ghostship"
+            || operation.id != original.id
+            || original.port_id != operation.port_id
+            || operation.paths.final_path.as_ref() != Some(&original.path)
+            || operation.paths.quarantine.is_some()
+            || operation.relocation.is_some()
+            || operation.source_import.is_some()
+            || !operation.original_paths.is_empty()
+            || !operation.activate
+            || operation.preparation_process_quiesced != Some(true)
+            || plan.port_id != operation.port_id
+            || plan.inputs.install.port_id != operation.port_id
+            || plan.format_version != 2
+            || plan.inputs.options.mode != crate::PreparationMode::Ghostship200Legacy
+            || original.artifact != plan.inputs.install.artifact
+            || original.version != plan.inputs.install.version
+            || original.runtime != plan.inputs.install.runtime
+            || serde_json::to_value(&expected)? != serde_json::to_value(target)?
+        {
+            return Err(invalid());
+        }
+        crate::output_root::validate_staging_path(
+            &self.library,
+            &operation.port_id,
+            &operation.id,
+            staging,
+        )?;
+        let installer = crate::Installer::new(self.library.clone())?;
+        if !installer.verify(target)?.valid
+            || installer.retained_preparation_mode(target)?
+                != Some(crate::PreparationMode::Ghostship200Legacy)
+        {
+            return Err(PortcoveError::verification(
+                "staged legacy preparation differs from its journal manifest",
+            ));
+        }
+        let catalog = installer.retained_catalog(target)?.ok_or_else(invalid)?;
+        let port = catalog.port(&operation.port_id)?;
+        crate::preparation::legacy_execution_contract(port, target, crate::Platform::current()?)?;
+        let source = self.library.source("ghostship-source")?.ok_or_else(|| {
+            PortcoveError::source("the staged preparation's exact original is not registered")
+        })?;
+        crate::source_inspection::verify_registered(&catalog, &source)?;
+        // Run these even when canonical O2R is absent: location proof is not a
+        // shortcut around the closed receipt, executable or generated member.
+        self.validate_preparation_receipt_in_retained_catalog(
+            &catalog,
+            target,
+            Some(&source),
+            Some(plan),
+        )?;
+        self.require_ghostship_data_compatibility_for_target(
+            &target.port_id,
+            &target.version,
+            active_version,
+            Some(target),
+            Some(&catalog),
+        )
+    }
+
+    fn require_ghostship_data_compatibility_for_target(
+        &self,
+        port_id: &str,
+        target_version: &str,
+        active_version: Option<&str>,
+        target: Option<&crate::InstallRecord>,
+        staged_catalog: Option<&crate::Catalog>,
     ) -> Result<()> {
         if port_id != "ghostship" || target_version != "2.0.0" {
             return Ok(());
@@ -75,9 +260,40 @@ impl PortcoveService {
         match fs::symlink_metadata(&archive) {
             Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
             Err(_) => Err(held("generated O2R is unreadable")),
-            Ok(_) => Err(held(
-                "the retained generated O2R has no reviewed legacy-reader compatibility proof",
-            )),
+            Ok(_) => {
+                let target = target.ok_or_else(|| held("the retained generated O2R has no reviewed legacy-reader compatibility proof"))?;
+                let catalog = match staged_catalog {
+                    Some(catalog) => catalog.clone(),
+                    None => self.installed_catalog(target)?,
+                };
+                let source = self.library.source("ghostship-source")?.ok_or_else(|| {
+                    held("the prepared archive's exact original is not registered")
+                })?;
+                crate::source_inspection::verify_registered(&catalog, &source)?;
+                self.validate_preparation_receipt_in_retained_catalog(
+                    &catalog,
+                    target,
+                    Some(&source),
+                    None,
+                )?;
+                let generated = crate::preparation::legacy_generated_path(&target.path);
+                let expected = crate::external_runtime::hash_stable_regular(
+                    &generated,
+                    512 * 1024 * 1024,
+                    &|| Ok(()),
+                )?;
+                let actual = crate::external_runtime::hash_stable_regular(
+                    &archive,
+                    512 * 1024 * 1024,
+                    &|| Ok(()),
+                )?;
+                if actual.1 == 0 || actual != expected {
+                    return Err(held(
+                        "the retained generated O2R does not match the exact prepared legacy archive",
+                    ));
+                }
+                Ok(())
+            }
         }
     }
 }

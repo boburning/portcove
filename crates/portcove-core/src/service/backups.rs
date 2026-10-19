@@ -848,11 +848,12 @@ impl PortcoveService {
                         )
                         .detail("backup_assessment", "recovery_required"));
                     }
-                    let port = self.installed_mutability_port(active)?;
+                    let contract = self.persistence_contract_for_install(active)?;
+                    let port = contract.port;
                     let persistent_root = self.persistence_root(&port, &active.path)?;
                     let entries =
                         crate::persistence::entries(&port, &[&persistent_root, &user_root])?;
-                    if !super::writes_directly_to_user_root(&port) {
+                    if !contract.writes_directly {
                         for relative in entries {
                             crate::archive::validate_relative_path(&relative, false)?;
                             replaced.push(PathBuf::from(&relative));

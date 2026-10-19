@@ -15438,10 +15438,19 @@
       },
       "PreparationMode": {
         "description": "This family currently exposes the catalog's reviewed defaults only.",
-        "enum": [
-          "default"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "default"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ghostship200_legacy",
+            "description": "Exact historical Windows bootstrap; this is not a generic argument override.",
+            "type": "string"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -16004,10 +16013,19 @@
       },
       "PreparationMode": {
         "description": "This family currently exposes the catalog's reviewed defaults only.",
-        "enum": [
-          "default"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "default"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ghostship200_legacy",
+            "description": "Exact historical Windows bootstrap; this is not a generic argument override.",
+            "type": "string"
+          }
+        ]
       },
       "PreparationOptions": {
         "additionalProperties": false,

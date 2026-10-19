@@ -65,7 +65,7 @@ namespace Portcove.ReferenceClient
         internal void RequireReviewedExternal()
         {
             if (!reviewedExternal)
-                throw new InvalidOperationException("Reviewed external setup requires public API schema 67 with external.review. Update the selected CLI; existing managed Play remains available.");
+                throw new InvalidOperationException("Reviewed external setup requires supported public API schema 67 or later with external.review. Update the selected CLI; existing managed Play remains available.");
         }
 
         internal Task<object> Read(string command, params string[] arguments) => Run(command, arguments, false, null);

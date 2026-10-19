@@ -171,6 +171,21 @@ pub(crate) fn run_setup(
     run_tool(&mut command, checkpoint, observer)
 }
 
+/// The closed Ghostship 2.0.0 bootstrap discovers its verified adjacent ROM.
+/// Never append a source path: that exact runtime's nonempty argv loop is defective.
+pub(crate) fn run_setup_without_source_argument(
+    program: &Path,
+    working_directory: &Path,
+    environment: &BTreeMap<String, String>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: ToolProcessObserver<'_>,
+) -> Result<SetupOutput> {
+    let mut command =
+        ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, program)?;
+    command.current_dir(working_directory).envs(environment);
+    run_tool(&mut command, checkpoint, observer)
+}
+
 pub(crate) struct ToolDiagnosticSink<'a> {
     pub activity_id: &'a str,
     pub phase: &'a str,
