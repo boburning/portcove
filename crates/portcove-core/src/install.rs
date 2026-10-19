@@ -42,6 +42,8 @@ struct AssetAcquisition<'a> {
 
 #[derive(Debug, Clone)]
 pub struct InstallQualification {
+    native_build_recipe: Option<crate::CartridgeBuildRecipe>,
+    native_build_preparation: Option<crate::cartridge_build::CartridgeBuildPreparation>,
     acquisition: Option<crate::ScopedResolvedRelease>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
@@ -60,6 +62,36 @@ pub struct InstallQualification {
 }
 
 impl InstallQualification {
+    fn require_cartridge_build_preparation(
+        &self,
+        release: &ResolvedRelease,
+        other_builder: bool,
+    ) -> Result<()> {
+        match (self.native_build_recipe, &self.native_build_preparation) {
+            (Some(recipe), Some(preparation)) if recipe == preparation.recipe && !other_builder => {
+                preparation.verify_release(release)?;
+                crate::cartridge_build::verify_original(&preparation.source, &|| Ok(()))
+            }
+            (None, None) => Ok(()),
+            _ => Err(PortcoveError::verification(
+                "cartridge build has no matching Core source preparation or conflicts with another builder",
+            )),
+        }
+    }
+    pub(crate) fn with_cartridge_build_source(
+        mut self,
+        source: Option<&crate::SourceRecord>,
+    ) -> Result<Self> {
+        if let Some(recipe) = self.native_build_recipe {
+            let source = source.ok_or_else(|| {
+                PortcoveError::source("cartridge build requires its admitted original")
+            })?;
+            self.native_build_preparation = Some(
+                crate::cartridge_build::CartridgeBuildPreparation::new(recipe, source.clone())?,
+            );
+        }
+        Ok(self)
+    }
     pub(crate) fn with_acquisition_resolution(
         mut self,
         resolution: crate::ScopedResolvedRelease,
@@ -116,6 +148,8 @@ impl InstallQualification {
             )));
         }
         Ok(Self {
+            native_build_recipe: port.release.managed_build.get(&platform).copied(),
+            native_build_preparation: None,
             acquisition: None,
             retained_contract: None,
             platform,
@@ -136,6 +170,18 @@ impl InstallQualification {
             .then(|| port.runtime_source_filename.clone())
             .flatten()
             .into_iter()
+            .chain(
+                port.release
+                    .managed_build
+                    .contains_key(&platform)
+                    .then_some("game.nes".into()),
+            )
+            .chain(
+                port.release
+                    .managed_build
+                    .contains_key(&platform)
+                    .then_some(crate::cartridge_build::RECEIPT.into()),
+            )
             .collect(),
             protected_paths: port
                 .runtime_source_set
@@ -463,7 +509,13 @@ impl Installer {
         F: FnMut(OperationEvent),
     {
         self.require_acquisition(&request)?;
+        request
+            .qualification
+            .require_cartridge_build_preparation(&request.release, request.managed.is_some())?;
         let mut storage_key = artifact_storage_key(&request.release.asset.sha256)?;
+        if let Some(recipe) = request.qualification.native_build_recipe {
+            storage_key = recipe.storage_identity(&request.release.asset.sha256)?;
+        }
         if let Some(runtime) = &request.qualification.runtime {
             storage_key = hex::encode(Sha256::digest(serde_json::to_vec(&(
                 "Portcove composite installation v1",
@@ -471,13 +523,22 @@ impl Installer {
                 runtime.identity(),
             ))?));
         }
-        let required_bytes = request.release.asset.size.saturating_add(
-            request
-                .qualification
-                .runtime
-                .as_ref()
-                .map_or(0, |runtime| runtime.asset.size),
-        );
+        let required_bytes = request
+            .release
+            .asset
+            .size
+            .saturating_add(
+                request
+                    .qualification
+                    .runtime
+                    .as_ref()
+                    .map_or(0, |runtime| runtime.asset.size),
+            )
+            .saturating_add(if request.qualification.native_build_recipe.is_some() {
+                crate::cartridge_build::STAGING_CAPACITY_BYTES
+            } else {
+                0
+            });
         let prepared_root = crate::output_root::prepare_for_install(
             &self.library,
             &request.port_id,
@@ -671,6 +732,9 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
+        request
+            .qualification
+            .require_cartridge_build_preparation(&request.release, request.managed.is_some())?;
         let scope = self.require_acquisition(&request)?;
         // A retained resolution is provenance, not reusable upstream freshness.
         // Re-observe mutable identities before touching the artifact bytes.
@@ -741,6 +805,67 @@ impl Installer {
             let managed_root = payload_root.clone();
             run_managed_install_worker(lifecycle, operation, move |checkpoint| {
                 crate::psx::prepare_install(&managed_root, &preparation, &checkpoint)
+            })
+            .await?;
+            operation.checkpoint()?;
+        }
+        if let Some(preparation) = request.qualification.native_build_preparation.clone() {
+            emit(operation.message(
+                "info",
+                "Building the native runtime from the verified original",
+            ));
+            let work = lifecycle.operation_root.join("cartridge-build");
+            crate::path::refuse_symlink_ancestors(&work)?;
+            fs::create_dir(&work)?;
+            let mut downloader = self.clone();
+            downloader.client = reqwest::Client::builder()
+                .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
+                .connect_timeout(self.network_bounds.0)
+                .read_timeout(self.network_bounds.1)
+                .https_only(true)
+                .redirect(reqwest::redirect::Policy::custom(|attempt| {
+                    let permitted = attempt.url().scheme() == "https"
+                        && matches!(attempt.url().host_str(), Some("github.com" | "codeload.github.com" | "release-assets.githubusercontent.com" | "objects.githubusercontent.com"));
+                    if !permitted || attempt.previous().len() >= 5 {
+                        attempt.error("cartridge recipe archive redirect is outside its fixed HTTPS transport")
+                    } else {
+                        attempt.follow()
+                    }
+                }))
+                .build()
+                .map_err(|error| PortcoveError::network(error.to_string()))?;
+            for archive in [
+                crate::cartridge_build::GAME,
+                crate::cartridge_build::ENGINE,
+                crate::cartridge_build::UI,
+                crate::cartridge_build::TOOLCHAIN,
+            ] {
+                let unpacked = work.join(archive.name.trim_end_matches(".zip"));
+                fs::create_dir(&unpacked)?;
+                // These identities/transports are fixed by the client-owned recipe;
+                // they are not inferred from the primary artifact's publisher grant.
+                downloader
+                    .prepare_asset(
+                        &archive.asset(),
+                        &work.join(archive.name),
+                        &unpacked,
+                        operation,
+                        emit,
+                        None,
+                    )
+                    .await?;
+                operation.checkpoint()?;
+            }
+            let payload = payload_root.clone();
+            let library = self.library.clone();
+            run_managed_install_worker(lifecycle, operation, move |checkpoint| {
+                crate::cartridge_build::prepare_install(
+                    &work,
+                    &payload,
+                    &preparation,
+                    &library,
+                    &checkpoint,
+                )
             })
             .await?;
             operation.checkpoint()?;
@@ -2583,6 +2708,233 @@ mod tests {
             assert_eq!(staging.exists(), !quiesced);
             assert_eq!(store.get(&id).unwrap().is_some(), !quiesced);
         }
+    }
+
+    #[tokio::test]
+    async fn cartridge_worker_is_joined_before_cancellation_cleanup() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+        let (activity, operation) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Port,
+                Some("yoshis-cookie-recomp"),
+            )
+            .unwrap();
+        let staging = library.staging_dir().join(&activity.id);
+        fs::create_dir_all(&staging).unwrap();
+        fs::write(staging.join("owned-input"), b"retain until worker joins").unwrap();
+        let original = temporary.path().join("original.nes");
+        fs::write(&original, b"inert original fixture").unwrap();
+        let original_identity = hash_file(&original).unwrap();
+        let mut record = LifecycleOperation::new(
+            &activity.id,
+            LifecycleOperationKind::Install,
+            "yoshis-cookie-recomp",
+        );
+        record.paths.staging = Some(staging.clone());
+        let store = OperationStore::new(library.clone());
+        store.put(&mut record).unwrap();
+        let mut lifecycle = InstallLifecycle {
+            destination: staging.join("unused"),
+            operation_root: staging.clone(),
+            store: store.clone(),
+            record,
+        };
+        let latch = Arc::new((Mutex::new((false, false)), std::sync::Condvar::new()));
+        struct ReleaseOnDrop(Arc<(Mutex<(bool, bool)>, std::sync::Condvar)>);
+        impl Drop for ReleaseOnDrop {
+            fn drop(&mut self) {
+                self.0.0.lock().unwrap().1 = true;
+                self.0.1.notify_all();
+            }
+        }
+        let release = ReleaseOnDrop(latch.clone());
+        let preparation = crate::cartridge_build::CartridgeBuildPreparation {
+            recipe: crate::CartridgeBuildRecipe::YoshisCookieNesCycle110,
+            source: crate::SourceRecord {
+                profile_id: "inert-fixture".into(),
+                path: original.clone(),
+                sha256: original_identity.0.clone(),
+                size: original_identity.1,
+                storage_sha256: original_identity.0.clone(),
+                storage_size: original_identity.1,
+                updated_at: 0,
+                observed_identity: None,
+            },
+            worker_test_latch: Some(latch.clone()),
+        };
+        let worker_library = library.clone();
+        let worker_root = staging.clone();
+        let id = activity.id.clone();
+        let mut pending = tokio::spawn(async move {
+            let result =
+                run_managed_install_worker(&mut lifecycle, &operation, move |checkpoint| {
+                    crate::cartridge_build::prepare_install(
+                        &worker_root.join("cartridge-build"),
+                        &worker_root.join("payload"),
+                        &preparation,
+                        &worker_library,
+                        &checkpoint,
+                    )
+                })
+                .await;
+            (lifecycle, result)
+        });
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while !latch.0.lock().unwrap().0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        service.request_cancellation(&id).unwrap();
+        assert!(
+            tokio::time::timeout(Duration::from_millis(25), &mut pending)
+                .await
+                .is_err()
+        );
+        let retained = store.get(&id).unwrap().unwrap();
+        assert_eq!(retained.preparation_process_quiesced, Some(false));
+        assert!(crate::cancellation::discard_private_install(&library, &retained).is_err());
+        assert_eq!(
+            fs::read(staging.join("owned-input")).unwrap(),
+            b"retain until worker joins"
+        );
+        drop(release);
+        let (lifecycle, result) = tokio::time::timeout(Duration::from_secs(5), pending)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
+        assert_eq!(lifecycle.record.preparation_process_quiesced, Some(true));
+        assert_eq!(
+            store
+                .get(&id)
+                .unwrap()
+                .unwrap()
+                .preparation_process_quiesced,
+            Some(true)
+        );
+        assert_eq!(hash_file(&original).unwrap(), original_identity);
+        assert!(!lifecycle.destination.exists());
+        crate::cancellation::discard_private_install(&library, &lifecycle.record).unwrap();
+        assert!(!staging.exists());
+        assert!(store.get(&id).unwrap().is_none());
+    }
+
+    #[test]
+    fn cartridge_preparation_is_required_before_install_admission() {
+        let catalog = crate::cartridge_build::tests::fixture_catalog();
+        let qualification = InstallQualification::from_catalog(
+            &catalog,
+            "yoshis-cookie-recomp",
+            Platform::WindowsX86_64,
+        )
+        .unwrap();
+        let release = ResolvedRelease {
+            version: "v1.1.0".into(),
+            published_at: None,
+            channel: crate::ReleaseChannel::Stable,
+            asset: ReleaseAsset {
+                name: "YoshisCookieRecomp-windows-x64.zip".into(),
+                url: "https://invalid.example/never-requested".into(),
+                size: 3_919_022,
+                sha256: "3f0b2219479960664312429f464a6c2de2ae155bb112278320e14e94b07bb947".into(),
+            },
+        };
+        assert!(
+            qualification
+                .require_cartridge_build_preparation(&release, false)
+                .is_err()
+        );
+        assert!(
+            qualification
+                .require_cartridge_build_preparation(&release, true)
+                .is_err()
+        );
+        assert!(
+            qualification
+                .clone()
+                .with_cartridge_build_source(None)
+                .is_err()
+        );
+        InstallQualification::test("game.exe")
+            .require_cartridge_build_preparation(&release, false)
+            .unwrap();
+    }
+
+    #[test]
+    fn cartridge_retained_manifest_preserves_only_declared_data_and_refuses_debug_listener() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        for name in [
+            "YoshisCookieRecomp.exe",
+            "SDL2.dll",
+            "libc++.dll",
+            "libunwind.dll",
+            "game.nes",
+            crate::cartridge_build::RECEIPT,
+        ] {
+            fs::write(root.join(name), format!("inert fixture {name}")).unwrap();
+        }
+        let catalog = crate::cartridge_build::tests::fixture_catalog();
+        let qualification = InstallQualification::from_catalog(
+            &catalog,
+            "yoshis-cookie-recomp",
+            Platform::WindowsX86_64,
+        )
+        .unwrap();
+        let (installer, install) = create_test_install(&root, &qualification);
+        fs::create_dir(root.join("saves")).unwrap();
+        for name in [
+            "config.ini",
+            "config.ini.tmp",
+            "cyc_shot_0000.png",
+            "saves/game.cycstate",
+            "saves/game.cycstate.tmp",
+        ] {
+            fs::write(root.join(name), b"private user data fixture").unwrap();
+        }
+        installer.verify_critical(&install, &qualification).unwrap();
+        for name in ["debug.ini", "rom.cfg"] {
+            fs::write(root.join(name), b"undeclared control").unwrap();
+            let error = installer
+                .verify_critical(&install, &qualification)
+                .unwrap_err();
+            assert!(error.details["failures"].contains(name));
+            fs::remove_file(root.join(name)).unwrap();
+        }
+        for name in [
+            "game.nes",
+            crate::cartridge_build::RECEIPT,
+            "libc++.dll",
+            "YoshisCookieRecomp.exe",
+        ] {
+            let prior = fs::read(root.join(name)).unwrap();
+            fs::write(root.join(name), b"tampered protected fixture").unwrap();
+            assert!(
+                installer.verify_critical(&install, &qualification).is_err(),
+                "{name}"
+            );
+            fs::write(root.join(name), prior).unwrap();
+        }
+        let retained = installer.retained_catalog(&install).unwrap().unwrap();
+        assert_eq!(
+            retained
+                .port(&install.port_id)
+                .unwrap()
+                .release
+                .managed_build,
+            catalog
+                .port(&install.port_id)
+                .unwrap()
+                .release
+                .managed_build
+        );
+        installer.verify_critical(&install, &qualification).unwrap();
     }
 
     fn create_test_install(

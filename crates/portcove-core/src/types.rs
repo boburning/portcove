@@ -369,6 +369,9 @@ pub struct UserPreparedRuntimeSpec {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReleaseSpec {
+    /// Core-owned fixed original-driven recipes, distinct from downloaded executables.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub managed_build: BTreeMap<Platform, crate::CartridgeBuildRecipe>,
     /// Inert exact-byte proposal records; runtime authority is separately admitted.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub curated: BTreeMap<Platform, crate::CuratedAcquisitionRecord>,

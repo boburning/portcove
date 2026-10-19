@@ -12,6 +12,7 @@ mod auth;
 mod authorization;
 mod browsing_context;
 mod cancellation;
+mod cartridge_build;
 mod catalog;
 mod catalog_store;
 mod catalog_update;
@@ -107,6 +108,7 @@ pub use auth::{
 pub use authorization::DestructiveAuthorization;
 pub use browsing_context::{CatalogBrowsingContext, CatalogBrowsingSnapshot};
 pub use cancellation::{CancellationPhase, CancellationState};
+pub use cartridge_build::CartridgeBuildRecipe;
 pub use catalog::{Catalog, CatalogProposalInspection, CatalogProposalPortInspection};
 pub use catalog_store::CatalogStatus;
 pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};

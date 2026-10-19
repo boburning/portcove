@@ -2298,6 +2298,29 @@ and process authority remain in the service. All adapter launch-spec branches ar
 observational; explicit preparation and the full service API still perform
 authorized mutations.
 
+### Fixed original-driven cartridge builds
+
+The private Core [`cartridge_build`](../crates/portcove-core/src/cartridge_build.rs)
+module owns the checked NES cycle recipe. Catalog data selects a shipped enum;
+it cannot supply build commands or arbitrary executable identities. The service
+binds the verified original before the installer admits download/build work.
+The recipe reuses bounded archive acquisition/extraction, the common
+`ManagedBuilder` process policy and supervised tool diagnostics. It verifies the
+complete authenticated source/tool trees around compilation, bootstraps the host
+compiler with the same pinned configuration, and produces a fixed runtime plus
+an immutable local-build receipt. It never runs the game during compilation.
+
+The installer retains its existing private operation, worker-quiescence,
+manifest, publication and recovery authority. A distinct recipe/input storage
+identity and retained-recipe comparison prevent an equal upstream archive digest
+from reusing the official downloaded executable as a locally built runtime.
+Cancellation acknowledgment does not release the private tree while its worker
+is blocked or a compiler child remains unproven. CLI/Tauri add no recipe runner,
+durable state or alternate acquisition authority. [The catalog contract](CATALOG.md)
+owns the exact source, output, persistence and version-6 compatibility conditions.
+Source/unit fixtures, a compiler run, game operation acceptance and protected
+production delivery remain separate evidence scopes.
+
 ### Setup configuration dispositions
 
 The seven `AdapterKind` families retain catalog data and existing generic

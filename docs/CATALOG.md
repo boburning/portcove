@@ -410,6 +410,38 @@ Both ordinary and bounded readers decode the same retained contract. Registratio
 without this opt-in keep their existing encoding; no library-wide schema migration
 or external-file ownership is introduced.
 
+Staged-source version 6 adds the Core-owned `release.managed_build` recipe
+`yoshis-cookie-nes-cycle-v1.1.0` for Windows x64. This exact recipe binds the
+unchanged full USA NES2 original, reviewed game/framework/UI commits, authenticated
+CMake/Clang toolchain archive, one checked missing-header patch, generated
+cartridge/PRG identities and fixed output inventory. It is an original-driven
+build, with a manifest-bound `.portcove-cartridge-build.json` receipt; the
+upstream release executable is retained only as an authenticated input. No
+caller-supplied command, compiler, executable or recipe extension is accepted.
+The ordinary Core install, staging, activation, verification, user-data,
+rollback and recovery paths own the result. Compilation runs in its private
+operation under existing capacity, cancellation and child-quiescence boundaries.
+
+The declaration fixes `YoshisCookieRecomp.exe`, runtime-root CWD, `game.nes`,
+`NESRECOMP_NO_LAUNCHER=1`, and no forwarded arguments. It preserves `config.ini`,
+`config.ini.tmp`, `saves/`, and root files matching prefix `cyc_shot_` and suffix
+`.png`. The screenshot pattern is not constrained to numeric names. Original,
+receipt, executable, libraries, assets and notices remain protected. Undeclared
+launch-sensitive companions, including `debug.ini`, are refused before launch;
+that file can activate an upstream TCP interface despite developer UI being
+disabled. This is sequential verification, not a runtime sandbox. Net, developer
+UI and mods are disabled by the recipe, and the common process policy excludes
+inherited developer controls. New fitting consumers require their own reviewed
+source, build and runtime facts; this enum is not a universal NES builder.
+
+Indexed definitions using a managed recipe must require staged-source minimum
+version 6. Versions 1–5 remain advertised. Retained contracts preserve the whole
+recipe declaration; older readers that cannot preserve it must refuse the strict
+projection. Newly supplied plain legacy catalogs may discard unknown fields and
+are not a compatible delivery route. Engine capability implementation alone
+establishes no title admission, native operation acceptance, signed definition
+publication or installed-client delivery.
+
 Hosted
 installation still requires a provider digest or verified checksum sidecar;
 an exact direct manifest still requires an accepted HTTPS URL, size, version and

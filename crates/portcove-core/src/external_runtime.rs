@@ -87,13 +87,13 @@ fn check_required_mutable_files(root: &Path, spec: &UserPreparedRuntimeSpec) -> 
 }
 
 #[cfg(unix)]
-fn link_count(file: &fs::File) -> Result<u64> {
+pub(crate) fn link_count(file: &fs::File) -> Result<u64> {
     use std::os::unix::fs::MetadataExt;
     Ok(file.metadata()?.nlink())
 }
 
 #[cfg(windows)]
-fn link_count(file: &fs::File) -> Result<u64> {
+pub(crate) fn link_count(file: &fs::File) -> Result<u64> {
     use std::os::windows::io::AsRawHandle;
     use windows_sys::Win32::Storage::FileSystem::{
         BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle,
@@ -107,7 +107,7 @@ fn link_count(file: &fs::File) -> Result<u64> {
 }
 
 #[cfg(not(any(unix, windows)))]
-fn link_count(_file: &fs::File) -> Result<u64> {
+pub(crate) fn link_count(_file: &fs::File) -> Result<u64> {
     Err(PortcoveError::unsupported(
         "mutable selector identity is unavailable on this platform",
     ))
