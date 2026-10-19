@@ -60,6 +60,7 @@ export async function dailyDiscoveryMain(args: string[]) {
         head: git(["rev-parse", "HEAD"]),
         lock: await optional(path.join(state, "investigation.lock")),
         journal_file: path.join(state, "active-run.json"),
+        launch: { tty: true, login: false, keep_session_open_until: "explicit finish" },
       }),
     );
     return;
@@ -67,6 +68,10 @@ export async function dailyDiscoveryMain(args: string[]) {
   await mkdir(state, { recursive: true });
   const startedAt = new Date().toISOString();
   try {
+    if (!process.stdin.isTTY)
+      throw new Error(
+        "Discovery run requires persistent interactive stdin; use exec_command tty:true and keep its session open through explicit finish",
+      );
     await withCheckpointLock(path.join(state, "investigation"), async () => {
       if (git(["status", "--porcelain=v1"]))
         throw new Error("Dedicated metadata checkout is dirty; preserve and stop");

@@ -9,12 +9,20 @@ export const discoveryProfiles = {
   cold: { requests: 300, bytes: 64 * 1024 * 1024, milliseconds: 30 * 60000 },
 } as const;
 export type DiscoveryProfile = keyof typeof discoveryProfiles;
+// Planning headroom, not an atomic reservation or a bound on provider query cost.
+export const discoveryGraphqlPointHeadroom = 10;
+interface ProviderQuota {
+  resource: string;
+  remaining: number;
+  resetAt: string;
+}
 export interface Usage {
   requests: number;
   bytes: number;
   started_at: string;
   profile: DiscoveryProfile;
   backoff_until?: string;
+  provider_quotas?: Record<string, ProviderQuota>;
   attempts: { method: string; endpoint: string; status: string; requests: number; bytes: number }[];
 }
 export class DiscoveryBudget {
@@ -73,6 +81,50 @@ export class DiscoveryBudget {
       throw e;
     }
   }
+  observeProvider(quota: ProviderQuota) {
+    if (
+      !["core", "graphql", "search"].includes(quota.resource) ||
+      !Number.isSafeInteger(quota.remaining) ||
+      quota.remaining < 0 ||
+      !Number.isFinite(Date.parse(quota.resetAt))
+    )
+      throw new Error("Invalid provider quota observation");
+    this.usage.provider_quotas ??= {};
+    this.usage.provider_quotas[quota.resource] = quota;
+    if (quota.remaining === 0) this.retainBackoff(quota.resetAt);
+    this.persist(this.usage);
+  }
+  retainBackoff(until: string) {
+    if (!Number.isFinite(Date.parse(until))) throw new Error("Invalid provider backoff");
+    if (
+      Date.parse(until) > this.now() &&
+      (!this.usage.backoff_until || Date.parse(until) > Date.parse(this.usage.backoff_until))
+    )
+      this.usage.backoff_until = until;
+    this.persist(this.usage);
+  }
+  admitProvider(resource: string, points: number, required = false) {
+    const quota = this.usage.provider_quotas?.[resource];
+    if (!quota || Date.parse(quota.resetAt) <= this.now()) {
+      if (required)
+        throw new Error(
+          `GitHub ${resource} capacity unknown; refresh provider quota before delivery`,
+        );
+      return;
+    }
+    const reserve =
+      this.delivery || resource === "search"
+        ? 0
+        : this.reserve.requests * (resource === "graphql" ? discoveryGraphqlPointHeadroom : 1);
+    if (quota.remaining < points + reserve)
+      throw new Error(
+        `GitHub ${resource} quota cannot preserve delivery reserve: remaining ${quota.remaining}, needed ${points + reserve}; resume after ${quota.resetAt}`,
+      );
+  }
+  requireProviderCapacity(requests: number) {
+    this.admitProvider("core", requests, true);
+    this.admitProvider("graphql", requests * discoveryGraphqlPointHeadroom, true);
+  }
   charge(method: string, endpoint: string, requests: number, bytes: number, status: string) {
     if (
       !Number.isSafeInteger(requests) ||
@@ -109,6 +161,16 @@ export function createDiscoveryTransport(
   const request = (method: string, url: string, body?: string, binary = false) => {
     const left = budget.remaining();
     budget.admit(1, 1);
+    const target = new URL(url);
+    if (target.origin === "https://api.github.com" && target.pathname !== "/rate_limit")
+      budget.admitProvider(
+        target.pathname === "/graphql"
+          ? "graphql"
+          : target.pathname.startsWith("/search/")
+            ? "search"
+            : "core",
+        1,
+      );
     const cap = Math.min(2 * 1024 * 1024, left.bytes);
     const maxRequests = Math.min(5, left.requests);
     const timeout = Math.min(20000, left.milliseconds);
@@ -171,9 +233,25 @@ export function createDiscoveryTransport(
       parsed.bytes,
       String(parsed.status),
     );
+    const resource = parsed.headers["x-ratelimit-resource"];
+    const remaining = parsed.headers["x-ratelimit-remaining"];
+    const reset = parsed.headers["x-ratelimit-reset"];
+    if (
+      target.origin === "https://api.github.com" &&
+      typeof resource === "string" &&
+      ["core", "graphql", "search"].includes(resource) &&
+      typeof remaining === "string" &&
+      /^\d+$/u.test(remaining) &&
+      typeof reset === "string" &&
+      /^\d+$/u.test(reset)
+    )
+      budget.observeProvider({
+        resource,
+        remaining: Number(remaining),
+        resetAt: new Date(Number(reset) * 1000).toISOString(),
+      });
     if (typeof parsed.backoff_until === "string") {
-      budget.usage.backoff_until = parsed.backoff_until;
-      budget.persist(budget.usage);
+      budget.retainBackoff(parsed.backoff_until);
     }
     if (parsed.error)
       throw new Error(typeof parsed.error === "string" ? parsed.error : "Bounded transport failed");
