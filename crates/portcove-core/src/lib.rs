@@ -84,6 +84,7 @@ mod source_import;
 mod source_inbox;
 mod source_inspection;
 mod source_report;
+mod source_zip;
 mod stfs;
 #[cfg(test)]
 mod test_fixture;

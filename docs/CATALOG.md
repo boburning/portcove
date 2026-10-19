@@ -1023,6 +1023,16 @@ and multiple matching representations are an ambiguity rather than an automatic
 choice. Extension-only compatibility can pass existing structural admission but
 is never reported by discovery as an exact identity.
 
+An admitted cartridge archive member may be copied unchanged to a different fixed
+runtime filename, such as `game.md` inside a ZIP becoming `game.bin`. The source
+representation must explicitly admit that member extension; the runtime filename
+does not broaden source admission. Preparation binds both the outer ZIP identity
+and the checked member's name, size and SHA-256, and freshly verifies cached
+runtime bytes. This is exact byte copying, not interleaving or header conversion.
+Registrations without structured member observations retain legacy selection
+until checked again. The bounded ZIP32 source-reader limits and unsupported
+container recovery are documented in the architecture contract.
+
 File-set representations match only when every declared member has exactly one
 top-level filename match and one conjunctive digest identity. Directory
 symlinks and nested or traversal-shaped ZIP entries cannot satisfy a member.
