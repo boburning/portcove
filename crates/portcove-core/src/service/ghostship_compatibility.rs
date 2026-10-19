@@ -6,6 +6,9 @@ use crate::{PortcoveError, Result, path::refuse_symlink_ancestors};
 
 use super::PortcoveService;
 
+#[path = "ghostship_legacy_save.rs"]
+mod legacy_save;
+
 impl PortcoveService {
     pub(crate) fn require_ghostship_data_compatibility(
         &self,
@@ -33,6 +36,18 @@ impl PortcoveService {
         // Installation history can disappear after removal. Inspect the shared
         // SHIP_HOME data as well, before any mutation or old-reader execution.
         let user = self.library.user_dir(port_id);
+        let legacy_binary = user.join("default.sav");
+        refuse_symlink_ancestors(&legacy_binary)
+            .map_err(|_| held("legacy binary save data contains an unsafe path"))?;
+        match fs::symlink_metadata(&legacy_binary) {
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            Err(_) => return Err(held("legacy binary save data is unreadable")),
+            Ok(_) => {
+                return Err(held(
+                    "the legacy binary importer would replace JSON saves and has not been qualified",
+                ));
+            }
+        }
         for name in [
             "save_0.json",
             "save_1.json",
@@ -52,11 +67,8 @@ impl PortcoveService {
                 .map_err(|_| held("save data is not a bounded readable regular file"))?;
             let value: serde_json::Value =
                 serde_json::from_slice(&bytes).map_err(|_| held("save data is malformed"))?;
-            if value.get("version").and_then(serde_json::Value::as_u64) != Some(1) {
-                return Err(held(
-                    "the save version is unsupported by the schema-1 reader",
-                ));
-            }
+            legacy_save::validate(&value, name == "global.json")
+                .map_err(|reason| held(&format!("schema-1 reader: {reason}")))?;
         }
         let archive = user.join("sm64.o2r");
         refuse_symlink_ancestors(&archive).map_err(|_| held("generated O2R has an unsafe path"))?;
@@ -94,6 +106,7 @@ mod tests {
                 b"{",
                 b"{}",
                 br#"{"version":"1"}"#,
+                br#"{"version":1}"#,
             ] {
                 fs::write(&path, bytes).unwrap();
                 assert!(
@@ -103,11 +116,47 @@ mod tests {
                 );
                 assert_eq!(fs::read(&path).unwrap(), bytes);
             }
-            fs::write(&path, br#"{"version":1}"#).unwrap();
+            let valid = legacy_save::tests::vanilla(name == "global.json");
+            fs::write(&path, serde_json::to_vec(&valid).unwrap()).unwrap();
             service
                 .require_ghostship_data_compatibility("ghostship", "2.0.0", None)
                 .unwrap();
+            let mut invalid = valid;
+            if name == "global.json" {
+                invalid["coinScoreAges"][2] = serde_json::json!(-1);
+            } else {
+                invalid["courseStars"].as_object_mut().unwrap().remove("CG");
+            }
+            let bytes = serde_json::to_vec(&invalid).unwrap();
+            fs::write(&path, &bytes).unwrap();
+            assert!(
+                service
+                    .require_ghostship_data_compatibility("ghostship", "2.0.0", None)
+                    .is_err()
+            );
+            assert_eq!(fs::read(&path).unwrap(), bytes);
         }
+    }
+
+    #[test]
+    fn ghostship_legacy_binary_import_is_held_without_touching_any_save() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let user = library.user_dir("ghostship");
+        fs::create_dir_all(user.join("saves")).unwrap();
+        let binary = user.join("default.sav");
+        let json = user.join("saves/save_0.json");
+        let bytes = serde_json::to_vec(&legacy_save::tests::vanilla(false)).unwrap();
+        fs::write(&binary, b"retained legacy binary").unwrap();
+        fs::write(&json, &bytes).unwrap();
+        let service = PortcoveService::new(library).unwrap();
+        let error = service
+            .require_ghostship_data_compatibility("ghostship", "2.0.0", None)
+            .unwrap_err();
+        assert!(error.message.contains("legacy binary importer"));
+        assert_eq!(fs::read(&binary).unwrap(), b"retained legacy binary");
+        assert_eq!(fs::read(&json).unwrap(), bytes);
+        assert!(!user.join("default.sav.bak").exists());
     }
 
     #[test]

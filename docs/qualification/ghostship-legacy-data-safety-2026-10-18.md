@@ -39,11 +39,58 @@ Removal can preserve user data while deleting installation history. Before
 targeting or launching exact 2.0.0, Core therefore checks the five named save
 files independently of active-version provenance. Missing files are allowed;
 each existing file must be a bounded regular non-linked file with readable
-JSON and integer version 1. Reads are limited to 1 MiB per file through the
-existing path helper. This checks the reader's version marker; it does not
-validate all upstream save fields or qualify save gameplay. Malformed,
-oversized, unsafe, unreadable or unsupported-version files are held intact.
+JSON and integer version 1, with the complete nested reader checks described
+below. Reads are limited to 1 MiB per file through the existing path helper.
+Malformed, oversized, unsafe, unreadable or unsupported files are held intact.
 The check also contributes to normal launch readiness and action assessment.
+
+### Nested reader checks, October 19 correction
+
+The original version-marker check accepted `{"version":1}`, although the
+pinned reader requires nested members. That incomplete check is preserved
+in the earlier receipt; it is not save-compatibility evidence. The correction
+reads without rewriting, converting, filling fields or changing feature flags.
+
+The oracle combines the pinned `SaveConversion.h` and `Saves.cpp` with
+[course declarations](https://github.com/HarbourMasters/Ghostship/blob/762ce4a6dff8d69b934a41a326ae41e78431e6cd/levels/course_defines.h),
+[achievement initialization and consumers](https://github.com/HarbourMasters/Ghostship/blob/762ce4a6dff8d69b934a41a326ae41e78431e6cd/src/port/mods/achievements/Achievements.cpp),
+[randomizer types](https://github.com/HarbourMasters/Ghostship/blob/762ce4a6dff8d69b934a41a326ae41e78431e6cd/src/port/Rando/Types.h),
+[entrance mapping](https://github.com/HarbourMasters/Ghostship/blob/762ce4a6dff8d69b934a41a326ae41e78431e6cd/src/port/Rando/StaticData/Entrances.cpp)
+and their exact lookup/warp consumers. Verified Git-blob, size and SHA-256
+receipts, including the machine-readable oracle, remain in
+`E:/Codex-Evidence/slice6-20261018/ghostship2-recovery-primary-a1/`.
+
+Game files require the 25 star-map keys from BOB through CG, the first 15
+coin-map keys through RR, and a cap-position object. Missing optional cap
+coordinates, level, area and flags retain upstream defaults. Present values
+must be integers within their destination and intermediate-reader ranges;
+flags use the nonnegative signed-32 range of the upstream `int` getter.
+Global data requires four readable u32 coin ages and optional u16 sound mode;
+extra coin ages remain ignored as in the reader.
+
+Absent `shipSaveData` remains valid: `Saves.cpp` supplies false/false in memory.
+False feature flags leave their payloads unparsed, without changing the file.
+Enabled achievements require the complete 45 known, unique IDs in any order,
+boolean cheated state and signed-32 counters/progress. The unchecked upstream
+array capacity of 100 is not a safe population rule: short arrays leave entries
+unestablished and unknown IDs mutate maps used by later load/save loops.
+
+Enabled randomizer data requires the genuine complete 364-check, 25-entrance
+and ten-option shapes. Item IDs 0–3, acts -1–6, boolean states and u32 seed are
+checked. Entrance IDs match their array indexes; destinations are the mapped
+level IDs, with the original unknown sentinel only in slot zero. Repeated
+valid destinations are allowed. Options use their declared 0/1 domain. Complete
+feature arrays and supported level/option domains are qualification boundaries
+for this route, not claims that upstream rejects every other serialized value.
+
+An existing app-data `default.sav` invokes a separate legacy importer before
+normal JSON loading. It rewrites four JSON files and renames the binary input.
+That preimage is held intact until the importer is separately qualified; a
+valid five-file JSON inventory cannot establish which data that branch consumes.
+
+These checks establish static shape and supported-value compatibility only.
+They do not prove generated O2R provenance, successful consumption, a qualified
+pre-transition snapshot, native save/load, or compound restore/pointer recovery.
 
 A retained `sm64.o2r` without reviewed legacy-reader compatibility is held for
 2.0.0, including when installation provenance was removed. Core does not parse
