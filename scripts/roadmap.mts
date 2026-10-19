@@ -15,6 +15,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   GitHubApiClient,
+  GitHubApiError,
   createGitHubRunner,
   githubOperationEnvelope,
   githubRateLimitMessage,
@@ -3275,7 +3276,11 @@ export class RoadmapClient {
       }
       totalCount ??= page.totalCount;
       if (totalCount !== page.totalCount)
-        throw new Error("GitHub inventory changed during pagination; retry the read");
+        throw new GitHubApiError(
+          "inventory_changed",
+          `GitHub inventory changed during pagination; discard the read (connection ${typeof variables.id === "string" ? variables.id : "unknown"}, page ${cursors.size + 1}, cursor ${after ?? "initial"}, total ${totalCount} -> ${page.totalCount})`,
+          { operation: "readInventory" },
+        );
       const pageNodes: unknown[] = page.nodes;
       for (const node of pageNodes) {
         const key = node && identity(node);

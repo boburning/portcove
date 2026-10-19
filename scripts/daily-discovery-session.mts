@@ -5,8 +5,8 @@ import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline";
 import { Transform } from "node:stream";
 import { spawnSync } from "node:child_process";
-import { isRecord, errorMessage } from "./runtime-values.mts";
-import { GitHubApiClient } from "./github-api.mts";
+import { isRecord, errorMessage, errorCode } from "./runtime-values.mts";
+import { GitHubApiClient, GitHubApiError } from "./github-api.mts";
 import {
   discoveryPost,
   recordDiscoveryComment,
@@ -106,10 +106,30 @@ const text = (v: unknown) => {
   if (typeof v !== "string" || !v) throw new Error("Missing discovery message text");
   return v;
 };
-function atomic(file: string, value: unknown) {
+export function atomic(file: string, value: unknown) {
   const temp = `${file}.${randomUUID()}.next`;
   writeFileSync(temp, JSON.stringify(value, null, 2), { flag: "wx" });
-  renameSync(temp, file);
+  const deadline = performance.now() + 1000;
+  const waiter = new Int32Array(new SharedArrayBuffer(4));
+  for (let attempt = 0; ; attempt++) {
+    try {
+      renameSync(temp, file);
+      return;
+    } catch (error) {
+      const remaining = deadline - performance.now();
+      if (
+        process.platform !== "win32" ||
+        !["EPERM", "EACCES", "EBUSY"].includes(errorCode(error) ?? "") ||
+        attempt >= 40 ||
+        remaining <= 0
+      )
+        throw error;
+      // Retry only replacement of these already prepared bytes. Never unlink the
+      // old target. Persistent failure retains both files and the original error.
+      // This local wait counts toward the unchanged discovery session deadline.
+      Atomics.wait(waiter, 0, 0, Math.min(25, remaining));
+    }
+  }
 }
 export const discoveryMaterial = (v: ReturnType<typeof investigateDiscoveryUpstream>) =>
   observationHash({
@@ -130,30 +150,29 @@ export function discoveryDeliveryCost(
   const pages =
     Math.ceil(inventory.issues.length / 100) +
     Math.ceil((inventory.items.length + inventory.archivedItems.length) / 100) +
-    5;
+    8;
   const thin =
     Buffer.byteLength(
       JSON.stringify(
-        inventory.items.map((i) => ({
+        [...inventory.items, ...inventory.archivedItems].map((i) => ({
           ...i,
           content: i.content ? { ...i.content, body: undefined } : null,
         })),
       ),
     ) + Buffer.byteLength(JSON.stringify(inventory.issues.map((i) => ({ ...i, body: undefined }))));
+  const requests =
+    (candidates.length + 1) * pages +
+    candidates.length * 8 +
+    4 +
+    candidates.reduce((s, c) => s + (c.requests ?? 0), 0);
+  const bytes =
+    (candidates.length + 1) * thin +
+    candidates.reduce((s, c) => s + Buffer.byteLength(c.body) * 4 + (c.bytes ?? 0), 0) +
+    512 * 1024;
   return {
-    requests: Math.ceil(
-      ((candidates.length + 1) * pages +
-        candidates.length * 8 +
-        4 +
-        candidates.reduce((s, c) => s + (c.requests ?? 0), 0)) *
-        1.25,
-    ),
-    bytes: Math.ceil(
-      ((candidates.length + 1) * thin +
-        candidates.reduce((s, c) => s + Buffer.byteLength(c.body) * 4 + (c.bytes ?? 0), 0) +
-        512 * 1024) *
-        1.25,
-    ),
+    // Preserve the existing margin or a whole additional thin inventory, whichever is larger.
+    requests: Math.ceil(Math.max(requests * 1.25, requests + pages)),
+    bytes: Math.ceil(Math.max(bytes * 1.25, bytes + thin)),
   };
 }
 export class DiscoverySession {
@@ -167,6 +186,7 @@ export class DiscoverySession {
   readonly journalFile: string;
   wrote = false;
   inventoryStarted = false;
+  inventoryRecollections = 0;
   inventoryCache: InventoryCache | undefined;
   searches = 0;
   intakeAttempts = 0;
@@ -306,13 +326,76 @@ export class DiscoverySession {
     atomic(this.journalFile, this.journal);
     this.save("journal", this.journal);
   }
+  checkProviderCapacity(requests: number) {
+    const response = this.client.api.request("GET", "rate_limit");
+    this.save(`provider-admission-${this.budget.usage.requests}`, response.body);
+    const resources = object(object(response.body).resources);
+    for (const resource of ["core", "graphql"] as const) {
+      const quota = object(resources[resource]);
+      if (typeof quota.remaining !== "number" || typeof quota.reset !== "number")
+        throw new Error(`GitHub ${resource} capacity unknown`);
+      this.budget.observeProvider({
+        resource,
+        remaining: quota.remaining,
+        resetAt: new Date(quota.reset * 1000).toISOString(),
+      });
+    }
+    this.budget.requireProviderCapacity(requests);
+  }
   refresh() {
     const file = path.join(this.stateDir, "inventory.json");
     const old = this.inventoryCache;
-    this.inventory = collectRoadmapInventory(
-      this.client,
-      this.budget.usage.profile === "cold" && !this.inventoryStarted ? undefined : old,
-    );
+    const collect = () =>
+      collectRoadmapInventory(
+        this.client,
+        this.budget.usage.profile === "cold" && !this.inventoryStarted ? undefined : old,
+      );
+    const started = this.budget.usage.requests;
+    try {
+      this.inventory = collect();
+    } catch (error) {
+      if (
+        !(error instanceof GitHubApiError) ||
+        error.code !== "inventory_changed" ||
+        this.inventoryRecollections !== 0
+      )
+        throw error;
+      this.inventoryRecollections++;
+      const observation = {
+        phase: "inventory-recollection",
+        allowance: this.inventoryRecollections,
+        first: {
+          error: errorMessage(error),
+          requests_before: started,
+          requests_after: this.budget.usage.requests,
+        },
+        second: {
+          requests_before: this.budget.usage.requests,
+          requests_after: this.budget.usage.requests,
+          status: "pending",
+          error: "",
+        },
+      };
+      this.journal.notes.push(observation);
+      this.persist();
+      try {
+        if (this.inventory) {
+          const cost = discoveryDeliveryCost(this.inventory, []);
+          this.budget.admit(cost.requests, cost.bytes);
+        } else this.budget.admit(1, 1);
+        this.client._completeProjectContext = undefined;
+        this.client._projectContext = undefined;
+        this.inventory = collect();
+        observation.second.status = "complete";
+      } catch (second) {
+        observation.second.status = "failed";
+        observation.second.error = errorMessage(second);
+        throw second;
+      } finally {
+        observation.second.requests_after = this.budget.usage.requests;
+        this.persist();
+      }
+    }
     this.inventoryCache = this.inventory;
     this.inventoryStarted = true;
     if (this.budget.usage.profile === "cold")
@@ -361,6 +444,7 @@ export class DiscoverySession {
     return this.inventory;
   }
   start() {
+    this.checkProviderCapacity(this.budget.limits.requests);
     this.refresh();
     for (const id of [177, 1422]) {
       const issue = this.client.repositoryIssue(id);
@@ -739,6 +823,7 @@ export class DiscoverySession {
     this.journal.delivery = "pending";
     this.persist();
     try {
+      this.checkProviderCapacity(cost.requests);
       for (const c of candidates) {
         for (const id of c.status === "reviewed" ? c.evidence_ids : []) {
           const old = this.journal.evidence[id];
@@ -936,6 +1021,7 @@ export class DiscoverySession {
     if (!error && !this.journal.doctor) {
       try {
         this.budget.delivery = true;
+        this.checkProviderCapacity(discoveryDeliveryCost(this.inventory, []).requests);
         this.refresh();
         const doctor = await runDoctor(this.client.config, this.client, {
           quiet: true,

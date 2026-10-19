@@ -7,7 +7,7 @@ void test("combined projection makes checks, duplicate identity and complexity a
     {
       kind: "combined",
       schema_version: "1",
-      version: "3.34.0",
+      version: "3.34.1",
       elapsed_ms: 100,
       check: {
         total_issues: 4,
@@ -72,7 +72,7 @@ void test("combined projection makes checks, duplicate identity and complexity a
   );
   for (const expected of [
     "Raw evidence: work/report.json",
-    "Fallow 3.34.0",
+    "Fallow 3.34.1",
     "warn; introduced",
     "scripts/owner.mts:7; unusedOwner",
     "inherited; package.json:2; unused-package",
@@ -95,7 +95,7 @@ void test("audit brief retains introduced/inherited context and reviewer questio
       kind: "review-brief",
       command: "review",
       schema_version: "1",
-      version: "3.34.0",
+      version: "3.34.1",
       base_ref: "origin/main",
       changed_files_count: 5,
       verdict: "pass",

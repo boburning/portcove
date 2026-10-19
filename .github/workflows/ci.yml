@@ -386,6 +386,8 @@ jobs:
         run: node --test --test-timeout=30000 apps/desktop/scripts/*.native.test.mts
       - name: Check native helper dependency declarations
         run: node scripts/native-helper-dependencies.mts
+      - name: Test discovery state replacement under actual Windows reader sharing
+        run: node --test --test-timeout=30000 --test-name-pattern="Windows reader sharing" scripts/daily-discovery.test.mts
       - name: Test Windows helper and prerequisite controls
         run: node --test --test-concurrency=1 --test-timeout=30000 scripts/resource-capacity.test.mts scripts/resource-command.test.mts scripts/heavy-rust-test-lock.test.mts scripts/run-rust-tests.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/native-confirmation.test.mts scripts/native-session.test.mts scripts/native-session-lock.test.mts scripts/native-helper-dependencies.test.mts scripts/frontend-command-preflight.test.mts scripts/desktop-verify.test.mts scripts/windows-helper-checks.test.mts
       - name: Lint PowerShell scripts and exercise the causal fixture
