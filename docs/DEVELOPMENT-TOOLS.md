@@ -843,6 +843,10 @@ paths. General architecture, authority, review, and safety obligations remain in
 
 The daily discovery runner's `plan`, foreground `run` and read-only `status`
 commands are documented in [daily investigation](DAILY-PORT-DISCOVERY.md#maintained-runner).
+Codex starts `run` with `tty:true` and keeps its returned session open through
+explicit `finish`; a noninteractive launch is refused before Git or API work.
+The runner retains provider-capacity probes and performs at most one semantic
+inventory reconciliation while preserving the original failure and retry limits.
 
 The reusable Windows diagnostics skill is installed in the user's Codex skill
 directory and can be used outside Portcove. Keep a repository skill focused:

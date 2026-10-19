@@ -82,11 +82,7 @@ export async function boundedDiscoveryRequest(input: unknown, fetcher: typeof fe
         const seconds = Number(retry);
         const at = Number.isFinite(seconds) ? Date.now() + seconds * 1000 : Date.parse(retry);
         if (Number.isFinite(at)) backoff_until = new Date(at).toISOString();
-      } else if (
-        (status === 429 || status === 403) &&
-        reset &&
-        response.headers.get("x-ratelimit-remaining") === "0"
-      )
+      } else if (reset && response.headers.get("x-ratelimit-remaining") === "0")
         backoff_until = new Date(Number(reset) * 1000).toISOString();
       return {
         requests,

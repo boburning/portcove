@@ -306,6 +306,22 @@ export class DiscoverySession {
     atomic(this.journalFile, this.journal);
     this.save("journal", this.journal);
   }
+  checkProviderCapacity(requests: number) {
+    const response = this.client.api.request("GET", "rate_limit");
+    this.save(`provider-admission-${this.budget.usage.requests}`, response.body);
+    const resources = object(object(response.body).resources);
+    for (const resource of ["core", "graphql"] as const) {
+      const quota = object(resources[resource]);
+      if (typeof quota.remaining !== "number" || typeof quota.reset !== "number")
+        throw new Error(`GitHub ${resource} capacity unknown`);
+      this.budget.observeProvider({
+        resource,
+        remaining: quota.remaining,
+        resetAt: new Date(quota.reset * 1000).toISOString(),
+      });
+    }
+    this.budget.requireProviderCapacity(requests);
+  }
   refresh() {
     const file = path.join(this.stateDir, "inventory.json");
     const old = this.inventoryCache;
@@ -361,6 +377,7 @@ export class DiscoverySession {
     return this.inventory;
   }
   start() {
+    this.checkProviderCapacity(this.budget.limits.requests);
     this.refresh();
     for (const id of [177, 1422]) {
       const issue = this.client.repositoryIssue(id);
@@ -739,6 +756,7 @@ export class DiscoverySession {
     this.journal.delivery = "pending";
     this.persist();
     try {
+      this.checkProviderCapacity(cost.requests);
       for (const c of candidates) {
         for (const id of c.status === "reviewed" ? c.evidence_ids : []) {
           const old = this.journal.evidence[id];
@@ -936,6 +954,7 @@ export class DiscoverySession {
     if (!error && !this.journal.doctor) {
       try {
         this.budget.delivery = true;
+        this.checkProviderCapacity(discoveryDeliveryCost(this.inventory, []).requests);
         this.refresh();
         const doctor = await runDoctor(this.client.config, this.client, {
           quiet: true,

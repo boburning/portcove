@@ -9,7 +9,11 @@ metadata:
 Read [the daily investigation contract](../../../docs/DAILY-PORT-DISCOVERY.md).
 Use the existing portcove-roadmap skill for canonical intake and readback.
 Run the maintained `node scripts/daily-discovery.mts plan`, then `run` in the
-clean, detached dedicated metadata checkout. Keep that foreground session open
+clean, detached dedicated metadata checkout. Start `run` with `exec_command`
+using `tty:true`, `login:false` and the installed Vite+ Node environment. Retain
+its `session_id`; send protocol operations with `write_stdin` to that same
+process. A piped/noninteractive `run` is refused before Git or API work.
+Keep that foreground session open
 through collection, research, separate review, delivery and explicit `finish`.
 Use the structured protocol and completion criteria in the contract; `status`
 reads the latest receipt. Recover retained candidate identities before new intake.
