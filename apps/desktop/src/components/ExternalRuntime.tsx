@@ -15,6 +15,7 @@ import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { ExternalLink } from "./ExternalLink";
 import { platformLabel } from "../view-model";
+import { sharedRuntimeDisclosure } from "../shared/external-runtime-disclosure";
 
 function ReviewCancelButton({ pending, dismiss }: { pending: boolean; dismiss: () => void }) {
   return (
@@ -204,8 +205,13 @@ function RegisterExternalDialog({
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
     identity: `${port.id}:${path}:${generation}`,
     retainOnCancel: true,
-    load: () => desktopApi.previewExternalRuntime(port.id, path, generation),
+    load: async () => {
+      const value = await desktopApi.previewExternalRuntime(port.id, path, generation);
+      if (value.shared_preferences) sharedRuntimeDisclosure(value.shared_preferences);
+      return value;
+    },
     apply: async (preview) => {
+      if (preview.shared_preferences) sharedRuntimeDisclosure(preview.shared_preferences);
       const record = await desktopApi.registerExternalRuntime(
         port.id,
         path,
@@ -256,12 +262,7 @@ function RegisterExternalDialog({
             </span>
             {preview.shared_preferences && (
               <p className="col-span-2 [overflow-wrap:anywhere]">
-                This game can rewrite shared preferences at{" "}
-                {preview.shared_preferences.binding.path}, discard unknown entries and affect other
-                copies in your Windows account. Portcove does not back up, restore or delete this
-                file. You must accept this shared write scope in a separate confirmation before
-                registration. If the shared location is unavailable, the game can instead rewrite{" "}
-                {preview.shared_preferences.local_fallback_path}.
+                {sharedRuntimeDisclosure(preview.shared_preferences)}
               </p>
             )}
           </div>

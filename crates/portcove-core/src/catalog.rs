@@ -779,16 +779,9 @@ impl Catalog {
                         }
                         crate::external_runtime::validate_required_mutable_files(runtime)?;
                         crate::external_runtime::shared_preferences::validate(runtime)?;
-                        if runtime.shared_preferences.is_some()
-                            && (*platform != crate::Platform::WindowsX86_64
-                                || port.adapter != AdapterKind::StagedSourcePortable
-                                || port.runtime_subdirectory.is_some()
-                                || port.launch_arguments != ["--save-dir", "saves"])
-                        {
-                            return Err(PortcoveError::usage(
-                                "shared preferences require the Windows staged-source root route",
-                            ));
-                        }
+                        crate::external_runtime::shared_preferences::validate_route(
+                            port, *platform, runtime,
+                        )?;
                         if runtime.settings_contract.is_some()
                             && (*platform != crate::Platform::WindowsX86_64
                                 || port.runtime_subdirectory.is_some()

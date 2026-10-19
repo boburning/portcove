@@ -245,7 +245,7 @@ pub use types::*;
 // Public 70 adds release-scoped input assessments and BIOS incompatibility guidance.
 // Public 71 adds descriptive game identity and authored manual setup guidance.
 // Install plans also expose optional recipe acquisitions and temporary install capacity.
-pub const API_SCHEMA_VERSION: u32 = 71;
+pub const API_SCHEMA_VERSION: u32 = 72;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

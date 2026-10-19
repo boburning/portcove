@@ -453,12 +453,13 @@ namespace Portcove.ReferenceClient
             var preview = await cli.Read("external.preview", "external", "preview", port, selected);
             technical.Text = Json.Print(preview);
             var review = ExternalRuntimeReview.Read(preview, port, selected);
+            if (!review.ConfirmSharedScope(description => MessageBox.Show(window, description,
+                "Review shared game data", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.OK)) return;
             if (MessageBox.Show(window, review.Description, "Review external runtime", MessageBoxButton.OKCancel,
                 MessageBoxImage.Question) != MessageBoxResult.OK) return;
             await cli.AssertIdentity();
             CurrentStatus = null;
-            var result = await cli.Manage("external.register", new[] { "external", "register", port, review.Path,
-                "--expected-preview", review.Fingerprint, "--yes" }, OnProgress);
+            var result = await cli.Manage("external.register", review.RegistrationArguments(), OnProgress);
             var registration = review.RequireRegistered(result);
             var fresh = await cli.Read("status", "status", port);
             var record = Json.OptionalObjectField(fresh, "external_runtime");

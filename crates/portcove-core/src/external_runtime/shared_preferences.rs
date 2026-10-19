@@ -1,4 +1,4 @@
-//! Read-only recognition of one shared preference scope. Never creates or owns it.
+//! Read-only recognition of closed shared write scopes. Never creates or owns them.
 #[cfg(any(windows, test))]
 use std::fs;
 use std::path::Path;
@@ -7,6 +7,8 @@ use crate::{
     ExternalRuntimeRecord, PortcoveError, PreparedSharedPreferencesContract, Result,
     SharedPreferencesReview, UserPreparedRuntimeSpec,
 };
+
+mod smb1r;
 
 pub(crate) fn require_ack(
     preview: &super::ExternalRuntimePreview,
@@ -22,7 +24,10 @@ pub(crate) fn require_ack(
 }
 
 pub(crate) fn validate(spec: &UserPreparedRuntimeSpec) -> Result<()> {
-    if spec.shared_preferences.is_some()
+    if spec.shared_preferences == Some(PreparedSharedPreferencesContract::Smb1r11Windows) {
+        return smb1r::validate(spec);
+    }
+    if spec.shared_preferences == Some(PreparedSharedPreferencesContract::Regaiden041Windows)
         && (spec.version != "0.4.1"
             || spec.archive_name != "Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip"
             || spec.archive_size != 33_085_815
@@ -50,6 +55,36 @@ pub(crate) fn validate(spec: &UserPreparedRuntimeSpec) -> Result<()> {
     Ok(())
 }
 
+pub(crate) fn validate_route(
+    port: &crate::PortDefinition,
+    platform: crate::Platform,
+    spec: &UserPreparedRuntimeSpec,
+) -> Result<()> {
+    let Some(contract) = spec.shared_preferences else {
+        return Ok(());
+    };
+    let expected: &[&str] = match contract {
+        PreparedSharedPreferencesContract::Regaiden041Windows => &["--save-dir", "saves"],
+        PreparedSharedPreferencesContract::Smb1r11Windows => &["--disable-mods"],
+    };
+    if platform != crate::Platform::WindowsX86_64
+        || port.adapter != crate::AdapterKind::StagedSourcePortable
+        || port.runtime_subdirectory.is_some()
+        || (contract == PreparedSharedPreferencesContract::Smb1r11Windows
+            && !port.launch_environment.is_empty())
+        || port
+            .launch_arguments
+            .iter()
+            .map(String::as_str)
+            .ne(expected.iter().copied())
+    {
+        return Err(PortcoveError::usage(
+            "shared write scope requires its exact Windows root launch route",
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn inspect(
     spec: &UserPreparedRuntimeSpec,
     runtime_root: &Path,
@@ -63,7 +98,7 @@ pub(crate) fn inspect(
 /// The selected artifact converts SDL UTF-8 paths into narrow Windows paths.
 /// Until broader encoding support is proved, accept only the congruent subset.
 pub(crate) fn check_runtime_path(spec: &UserPreparedRuntimeSpec, path: &Path) -> Result<()> {
-    if spec.shared_preferences.is_some() {
+    if spec.shared_preferences == Some(PreparedSharedPreferencesContract::Regaiden041Windows) {
         require_narrow_windows_path(path, "")?;
     }
     Ok(())
@@ -77,7 +112,7 @@ pub(super) fn check_tree_path(
     if spec.shared_preferences.is_none() {
         return Ok(());
     }
-    require_narrow_windows_path(path, "")?;
+    check_runtime_path(spec, path)?;
     #[cfg(any(windows, test))]
     {
         check_path(path, directory)?;
@@ -127,6 +162,33 @@ pub(crate) fn check_record(
     Ok(())
 }
 
+pub(crate) fn original_ready(
+    record: &ExternalRuntimeRecord,
+    spec: &UserPreparedRuntimeSpec,
+) -> Result<bool> {
+    if spec.shared_preferences != Some(PreparedSharedPreferencesContract::Smb1r11Windows) {
+        return Ok(true);
+    }
+    check_binding(record, spec)?;
+    let binding = record
+        .shared_preferences
+        .as_ref()
+        .ok_or_else(|| PortcoveError::verification("shared original has no accepted location"))?;
+    smb1r::original_ready(spec, &binding.path)
+}
+
+pub(crate) fn require_original(
+    record: &ExternalRuntimeRecord,
+    spec: &UserPreparedRuntimeSpec,
+) -> Result<()> {
+    if !original_ready(record, spec)? {
+        return Err(PortcoveError::verification(
+            "SMB1R needs its recognized World original at the reviewed shared directory's baserom.nes; prepare this external file manually",
+        ));
+    }
+    Ok(())
+}
+
 /// Structural consistency is also checked when retained metadata is read for
 /// browsing. OS/account/path revalidation is reserved for readiness and launch.
 pub(crate) fn check_binding(
@@ -169,6 +231,9 @@ fn resolve(
     contract: PreparedSharedPreferencesContract,
     runtime_root: &Path,
 ) -> Result<SharedPreferencesReview> {
+    if contract == PreparedSharedPreferencesContract::Smb1r11Windows {
+        return smb1r::resolve();
+    }
     use crate::AcceptedSharedPreferencesBinding;
     use std::{ffi::OsString, os::windows::ffi::OsStringExt};
     use windows_sys::Win32::UI::Shell::{CSIDL_APPDATA, SHGFP_TYPE_CURRENT, SHGetFolderPathW};
@@ -231,7 +296,7 @@ fn resolve(
             path,
         },
         present,
-        local_fallback_path,
+        local_fallback_path: Some(local_fallback_path),
         local_fallback_present,
     })
 }
@@ -351,6 +416,41 @@ fn account_sid_sha256() -> Result<String> {
 mod tests {
     use super::*;
     #[test]
+    fn shared_review_refuses_unknown_or_inconsistent_fallback_semantics() {
+        let smb = serde_json::json!({
+            "binding":{"contract":"smb1r-1.1-stable-windows", "account_sid_sha256":"a".repeat(64), "path":"C:\\Roaming\\SMB1R"},
+            "present":false, "local_fallback_path":null, "local_fallback_present":false
+        });
+        let review: crate::SharedPreferencesReview = serde_json::from_value(smb.clone()).unwrap();
+        assert!(
+            review
+                .write_scope_disclosure()
+                .unwrap()
+                .contains("shared directory")
+        );
+        for patch in [
+            serde_json::json!({"local_fallback_path":"C:\\unexpected"}),
+            serde_json::json!({"local_fallback_present":true}),
+            serde_json::json!({"binding":{"contract":"arbitrary-path", "account_sid_sha256":"a".repeat(64), "path":"C:\\Roaming"}}),
+        ] {
+            let mut value = smb.clone();
+            value
+                .as_object_mut()
+                .unwrap()
+                .extend(patch.as_object().unwrap().clone());
+            assert!(serde_json::from_value::<crate::SharedPreferencesReview>(value).is_err());
+        }
+        let mut regaiden = smb;
+        regaiden["binding"]["contract"] = "regaiden041-windows".into();
+        assert!(
+            serde_json::from_value::<crate::SharedPreferencesReview>(regaiden.clone()).is_err()
+        );
+        regaiden["local_fallback_path"] = "C:\\Runtime\\runtime_prefs.ini".into();
+        let parsed: crate::SharedPreferencesReview =
+            serde_json::from_value(regaiden.clone()).unwrap();
+        assert_eq!(serde_json::to_value(parsed).unwrap(), regaiden);
+    }
+    #[test]
     fn narrow_windows_paths_refuse_encoding_control_and_max_path_boundaries() {
         for path in ["", "C:\\caf\u{e9}", "C:\\game\nfile", "C:\\game\u{0}file"] {
             assert!(require_narrow_windows_path(Path::new(path), "").is_err());
@@ -431,7 +531,7 @@ mod tests {
                     path: "shared-preferences".into(),
                 },
                 present: false,
-                local_fallback_path: "external/runtime_prefs.ini".into(),
+                local_fallback_path: Some("external/runtime_prefs.ini".into()),
                 local_fallback_present: false,
             }),
         };

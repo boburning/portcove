@@ -679,7 +679,7 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 71;
+        internal const int Schema = 72;
         private static bool SupportedSchema(long version) => (version >= 42 && version <= 57) || (version >= 60 && version <= 63) || (version >= 65 && version <= Schema);
         internal static bool SupportsReviewedExternal(object capabilities) =>
             Json.Number(capabilities, "schema_version") >= 67 &&
@@ -711,7 +711,7 @@ namespace Portcove.ReferenceClient
             if (type == null || (type as string) == "result")
             {
                 if (!SupportedSchema(Json.Number(record, "schema_version")) || Json.Text(record, "command") != command)
-                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 57, 60 through 63 or 65 through 71; install a matching CLI/client pair.");
+                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 57, 60 through 63 or 65 through 72; install a matching CLI/client pair.");
                 Json.Boolean(record, "ok");
                 result = record;
                 return;
@@ -834,7 +834,7 @@ namespace Portcove.ReferenceClient
         {
             var schema = Json.Number(capabilities, "schema_version");
             if (!SupportedSchema(schema) || Json.Text(capabilities, "product") != "Portcove")
-                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 57, 60 through 63 or 65 through 71. Select a compatible CLI or update the client.");
+                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 57, 60 through 63 or 65 through 72. Select a compatible CLI or update the client.");
             if (requiredCapabilities == null || requiredCapabilities.Length == 0)
                 throw new InvalidOperationException("Select at least one Portcove consumer capability before negotiation.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();

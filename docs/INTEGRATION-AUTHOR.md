@@ -57,7 +57,7 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference supports API 42–57, 60–63 or 65–71/events 2–3; schema 50 advertises
+JSONL. The reference supports API 42–57, 60–63 or 65–72/events 2–3; schema 50 advertises
 the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
@@ -219,7 +219,7 @@ existing decisions without granting either operation. Event schemas remain 2–3
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's supported 42–57, 60–63 or 65–71 membership. Some
+schema within the client's supported 42–57, 60–63 or 65–72 membership. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core
@@ -407,3 +407,12 @@ schemas and an identified released package or explicitly labeled candidate.
 Record private knowledge, workarounds, per-port branches and maintainer help; do
 not retroactively describe implementation work as an independent exercise.
 Agent-driven evidence is distinct from community adoption and human play.
+
+API 72 extends external shared-write review with the closed SMB1R shared-directory
+variant. Consume its directory scope, account/location binding, null fallback
+and cache/log mutation disclosure before issuing the separate acknowledgement.
+Reject unknown or contradictory variants; do not infer acknowledgement from
+generic registration consent. The reference client binds the returned
+registration to the reviewed shared account and path. External
+`preparation_required` remains manual preparation, not a managed setup action.
+See [the CLI shared-directory contract](CLI.md#shared-directory-external-runtimes-api-72).

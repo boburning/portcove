@@ -41,20 +41,19 @@ pub(crate) async fn register_external_runtime(
     }
     if let Some(shared) = &review.shared_preferences {
         let disclosure = format!(
-            "Running this game can rewrite shared preferences at {}. It can discard unknown entries and affect other runtime copies in this Windows account. The file is currently {}. If that location is unavailable, the game can instead rewrite {}. Portcove does not own, migrate, back up, restore, or delete these preferences. Accept this write scope?",
-            shared.binding.path.display(),
+            "{} The shared location is currently {}. Accept this write scope?",
+            shared.write_scope_disclosure()?,
             if shared.present {
                 "present"
             } else {
                 "absent; the game may create it"
             },
-            shared.local_fallback_path.display()
         );
         if !confirm_destructive(
             &app,
-            "Review shared preferences",
+            "Review shared game data",
             disclosure,
-            "Accept shared preferences",
+            "Accept shared write scope",
         )
         .await
         {

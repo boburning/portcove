@@ -1273,6 +1273,13 @@ marker, then waits at most 120 seconds for an explicit matching release; invalid
 controls, collisions and expired waits fail qualification. The marker cannot
 authorize operation recovery or process termination.
 
+The same instrumented observer supports `launch_ready_to_spawn` immediately
+before Core rechecks retained external-runtime inputs and creates the child.
+A qualification harness can change only its own disposable input after the
+observation, release the exact nonce and assert a real pre-spawn refusal. This
+does not authorize a child process, alter production deadlines or establish
+normal exit/gameplay; ordinary builds still ignore checkpoint controls.
+
 The five cases observe install Prepared, install payload Published, restore
 Prepared, whole-library move Published and whole-library import Published. Install payload publication precedes
 SQLite registration; it is not a post-database-commit crash. Each case independently

@@ -101,6 +101,18 @@ impl<'a> IndexedCatalogFixture<'a> {
         let port_id = &port.id;
         let capability_version = if let Some(minimum) = port
             .release
+            .user_prepared
+            .values()
+            .filter_map(|runtime| {
+                runtime
+                    .shared_preferences
+                    .map(|scope| scope.minimum_template_version())
+            })
+            .max()
+        {
+            minimum
+        } else if let Some(minimum) = port
+            .release
             .managed_build
             .values()
             .map(|recipe| recipe.minimum_template_version())
