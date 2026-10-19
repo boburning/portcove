@@ -734,30 +734,7 @@ export async function qualificationHistoryScenario({
         .catch((error: unknown) => ({ restored: false, error: errorMessage(error) }));
       // Keep raw replies before checking them: malformed transport results must
       // not prevent the independent window/source cleanup or its evidence.
-      observation.restoration = restored;
-      await browser
-        .manage()
-        .window()
-        .setRect(originalWindow)
-        .catch((error: unknown) => {
-          observation.window_restoration_error = errorMessage(error);
-          // Preserve the existing nested evidence contract for object replies,
-          // while still retaining malformed replies and independent cleanup.
-          if (isRecord(restored)) restored.window_error = observation.window_restoration_error;
-        });
-      const nativeRaw: unknown = await invoke("get_sources").catch((error: unknown) => ({
-        ok: false,
-        error: errorMessage(error),
-      }));
-      const nativeRecord = isRecord(nativeRaw) ? nativeRaw : undefined;
-      observation.native_source_restoration = nativeRecord
-        ? {
-            ok: nativeRecord.ok,
-            ...(Array.isArray(nativeRecord.value) ? { count: nativeRecord.value.length } : {}),
-            error: nativeRecord.error,
-          }
-        : { raw_reply: nativeRaw };
-      try {
+      function validateRestoration(restored: unknown, nativeRaw: unknown) {
         const rawRestoration = object(restored);
         assert.ok(typeof rawRestoration.restored === "boolean");
         const restoration: HistoryRestoration = {
@@ -788,6 +765,32 @@ export async function qualificationHistoryScenario({
           0,
           "Synthetic responses must not register source data",
         );
+      }
+      observation.restoration = restored;
+      await browser
+        .manage()
+        .window()
+        .setRect(originalWindow)
+        .catch((error: unknown) => {
+          observation.window_restoration_error = errorMessage(error);
+          // Preserve the existing nested evidence contract for object replies,
+          // while still retaining malformed replies and independent cleanup.
+          if (isRecord(restored)) restored.window_error = observation.window_restoration_error;
+        });
+      const nativeRaw: unknown = await invoke("get_sources").catch((error: unknown) => ({
+        ok: false,
+        error: errorMessage(error),
+      }));
+      const nativeRecord = isRecord(nativeRaw) ? nativeRaw : undefined;
+      observation.native_source_restoration = nativeRecord
+        ? {
+            ok: nativeRecord.ok,
+            ...(Array.isArray(nativeRecord.value) ? { count: nativeRecord.value.length } : {}),
+            error: nativeRecord.error,
+          }
+        : { raw_reply: nativeRaw };
+      try {
+        validateRestoration(restored, nativeRaw);
       } catch (error) {
         validationFailure = { error };
         observation.restoration_validation_failure = { message: errorMessage(error) };
