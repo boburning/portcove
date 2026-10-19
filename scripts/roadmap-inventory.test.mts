@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +12,7 @@ import {
 } from "./roadmap-inventory.mts";
 import type { RoadmapIssueItem } from "./roadmap.mts";
 import { GitHubApiClient } from "./github-api.mts";
+import { GitHubApiError } from "./github-api.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
 import { readDiscoveryCache } from "./discovery-cache.mts";
@@ -319,6 +320,94 @@ void test("delivered candidates make quiet repeats write nothing and review cann
       }),
     /Separate review/,
   );
+});
+void test("one complete recollection replaces Project count drift without joining abandoned pages", async (t) => {
+  const { session } = await temporarySession(t);
+  const f = fixture(101);
+  session.client.completeProjectContext = f.client.completeProjectContext;
+  session.client.itemList = RoadmapClient.prototype.itemList;
+  let traversals = 0;
+  let alwaysDrift = false;
+  session.client.graphql = (query, vars) => {
+    if (query.includes("items(first:")) {
+      if (vars?.after === null) traversals++;
+      const offset = vars?.after === null ? 0 : 100;
+      const drift = (traversals === 1 || alwaysDrift) && offset === 100;
+      const nodes = f.project.slice(offset, offset + 100).map((item) => ({
+        ...item,
+        content: { ...item.content, __typename: "Issue" },
+        fieldValues: {
+          totalCount: 0,
+          nodes: [],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      }));
+      return {
+        node: {
+          items: {
+            totalCount: drift ? 102 : 101,
+            nodes,
+            pageInfo: { hasNextPage: offset === 0, endCursor: offset === 0 ? "page2" : null },
+          },
+        },
+      };
+    }
+    return f.client.graphql(query, vars);
+  };
+  session.refresh();
+  assert.equal(traversals, 2);
+  assert.equal(session.inventoryRecollections, 1);
+  assert.equal(session.inventory.issues.length, 101);
+  assert.equal(session.inventory.items.length + session.inventory.archivedItems.length, 101);
+  assert.equal(
+    requireRoadmapInventory(session.inventory, config.repository, session.client),
+    session.inventory,
+  );
+  assert.match(JSON.stringify(session.journal.notes), /total 101 -> 102/);
+  alwaysDrift = true;
+  assert.throws(() => session.refresh(), /inventory changed during pagination/);
+  assert.equal(traversals, 3, "successful recollection must not reset the session allowance");
+});
+void test("transport denials never consume semantic recollection allowance", async (t) => {
+  const { session } = await temporarySession(t);
+  let calls = 0;
+  session.client.graphql = () => {
+    calls++;
+    throw new GitHubApiError("http_error", "denied", { status: 403 });
+  };
+  assert.throws(() => session.refresh(), /denied/);
+  assert.equal(calls, 1);
+  assert.equal(session.inventoryRecollections, 0);
+});
+void test("failed recollection retains both observations without publishing a cache", async (t) => {
+  const { session, state } = await temporarySession(t);
+  let calls = 0;
+  session.client.graphql = () => {
+    calls++;
+    throw new GitHubApiError("inventory_changed", `count drift attempt ${calls}`, {
+      operation: "readInventory",
+    });
+  };
+  assert.throws(() => session.refresh(), /count drift attempt 2/);
+  assert.equal(calls, 2);
+  assert.equal(session.inventoryRecollections, 1);
+  assert.equal(session.inventoryStarted, false);
+  assert.equal(existsSync(path.join(state, "inventory.json")), false);
+  const retained = JSON.stringify(session.journal.notes);
+  assert.match(retained, /count drift attempt 1/);
+  assert.match(retained, /count drift attempt 2/);
+  assert.match(retained, /"status":"failed"/);
+});
+void test("unclassified integrity failures never trigger semantic recollection", async (t) => {
+  const { session } = await temporarySession(t);
+  let calls = 0;
+  session.client.graphql = () => {
+    calls++;
+    throw new Error("Duplicate opaque identity in inventory");
+  };
+  assert.throws(() => session.refresh(), /Duplicate opaque identity/);
+  assert.equal(calls, 1);
+  assert.equal(session.inventoryRecollections, 0);
 });
 void test("delivery provider preflight refuses before evidence refresh or any mutation", async (t) => {
   const { session } = await temporarySession(t);
