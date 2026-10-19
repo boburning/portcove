@@ -217,7 +217,7 @@ export async function selectedSetupCompletionScenario({
     const owned = required(fixture.sourceJourney);
     const reviewPort = required(owned.reviewPort);
     const port = fixture.port;
-    let generation = await selectedSetupGeneration(invoke);
+    let generation: number;
     const { button, click } = reviewControls(browser);
     const coreEnvironment = {
       ...process.env,
@@ -362,6 +362,7 @@ export async function selectedSetupCompletionScenario({
     };
     let failure: { error: unknown } | undefined;
     try {
+      generation = await selectedSetupGeneration(invoke);
       assert.deepEqual(await read("get_sources"), []);
       assert.equal((await status()).active, null, "No adopted installation may seed completion");
       if (fixture.nativeConnectionJourney) {
