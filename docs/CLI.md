@@ -633,6 +633,17 @@ folder remains a host-integration action after core validates and creates the
 profile directory. A move requires a separately reviewed plan and explicit
 confirmation before the adapter grants the core's single-use authorization.
 
+API schema 70 adds optional `auxiliary_downloads` and `temporary_space` to install
+plans. The cold `download_bytes` total includes the primary artifact, bundled
+runtime and every required recipe archive. A primary cache hit can reduce the
+download but does not remove recipe auxiliary acquisitions, which have no curated
+cache restoration. `temporary_space` reports execution's free-space floor and
+the output folder/volume it concerns, with observed available bytes and an
+optional capacity result. Unknown capacity is not sufficient capacity; execution
+always rechecks. These quantities do not estimate final installed size. Plans for
+active, staged or retained reuse need no download and omit temporary acquisition
+capacity. Planning does not execute a cartridge build or grant title admission.
+
 API schema 34 adds an optional `tool_id` to source-inspection problems. The
 core exposes only the matching host-tool identifier, so CLI and desktop clients
 can offer the same readiness actions without receiving configured tool paths or

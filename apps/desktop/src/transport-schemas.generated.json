@@ -9013,6 +9013,13 @@
           "action": {
             "$ref": "#/$defs/InstallPlanAction"
           },
+          "auxiliary_downloads": {
+            "description": "Required recipe inputs in addition to the primary release and bundled runtime.\nThese are cold acquisition quantities; existing cache reuse is not guaranteed.",
+            "items": {
+              "$ref": "#/$defs/ReleaseAsset"
+            },
+            "type": "array"
+          },
           "bundled_runtime": {
             "anyOf": [
               {
@@ -9051,6 +9058,17 @@
           },
           "storage": {
             "$ref": "#/$defs/StorageSummary"
+          },
+          "temporary_space": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallSpaceRequirement"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Execution's temporary free-space floor, not a final installed-size estimate."
           }
         },
         "required": [
@@ -9168,6 +9186,47 @@
           "label",
           "role",
           "registered"
+        ],
+        "type": "object"
+      },
+      "InstallSpaceRequirement": {
+        "properties": {
+          "available_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "required_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sufficient": {
+            "description": "Unknown when capacity could not be observed. Execution always rechecks.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "volume_identity": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "required_bytes",
+          "available_bytes",
+          "volume_identity",
+          "sufficient"
         ],
         "type": "object"
       },
@@ -9454,6 +9513,13 @@
           "action": {
             "$ref": "#/$defs/InstallPlanAction"
           },
+          "auxiliary_downloads": {
+            "description": "Required recipe inputs in addition to the primary release and bundled runtime.\nThese are cold acquisition quantities; existing cache reuse is not guaranteed.",
+            "items": {
+              "$ref": "#/$defs/ReleaseAsset"
+            },
+            "type": "array"
+          },
           "bundled_runtime": {
             "anyOf": [
               {
@@ -9492,6 +9558,17 @@
           },
           "storage": {
             "$ref": "#/$defs/StorageSummary"
+          },
+          "temporary_space": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallSpaceRequirement"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Execution's temporary free-space floor, not a final installed-size estimate."
           }
         },
         "required": [
@@ -9538,6 +9615,47 @@
           "label",
           "role",
           "registered"
+        ],
+        "type": "object"
+      },
+      "InstallSpaceRequirement": {
+        "properties": {
+          "available_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "required_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sufficient": {
+            "description": "Unknown when capacity could not be observed. Execution always rechecks.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "volume_identity": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "required_bytes",
+          "available_bytes",
+          "volume_identity",
+          "sufficient"
         ],
         "type": "object"
       },
@@ -10963,6 +11081,47 @@
         ],
         "type": "object"
       },
+      "InstallSpaceRequirement": {
+        "properties": {
+          "available_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "required_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sufficient": {
+            "description": "Unknown when capacity could not be observed. Execution always rechecks.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "volume_identity": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "required_bytes",
+          "available_bytes",
+          "volume_identity",
+          "sufficient"
+        ],
+        "type": "object"
+      },
       "OutputLocationSource": {
         "enum": [
           "request_override",
@@ -11113,6 +11272,13 @@
       "action": {
         "$ref": "#/$defs/InstallPlanAction"
       },
+      "auxiliary_downloads": {
+        "description": "Required recipe inputs in addition to the primary release and bundled runtime.\nThese are cold acquisition quantities; existing cache reuse is not guaranteed.",
+        "items": {
+          "$ref": "#/$defs/ReleaseAsset"
+        },
+        "type": "array"
+      },
       "bundled_runtime": {
         "anyOf": [
           {
@@ -11151,6 +11317,17 @@
       },
       "storage": {
         "$ref": "#/$defs/StorageSummary"
+      },
+      "temporary_space": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/InstallSpaceRequirement"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Execution's temporary free-space floor, not a final installed-size estimate."
       }
     },
     "required": [

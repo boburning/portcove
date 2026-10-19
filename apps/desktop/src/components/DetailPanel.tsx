@@ -2010,14 +2010,15 @@ export function InstallAction({
                 state={activity.cancellation ?? undefined}
               />
             ))}
-            {librarySpaceBlocked(plan) && (
+            {installSpaceBlocked(plan) && (
               <p role="status" className="mt-3">
-                This download needs more free space in the Portcove library. Free space on its drive
-                or review the library location in Settings.
+                {usesLibraryOutput(plan)
+                  ? "This installation needs more free space in the Portcove library. Free space on its drive or review the library location in Settings."
+                  : "This installation needs more temporary free space in the install folder's drive."}
               </p>
             )}
             <DialogFooter className="mt-4">
-              {openLibraryStorage && librarySpaceBlocked(plan) && (
+              {openLibraryStorage && usesLibraryOutput(plan) && installSpaceBlocked(plan) && (
                 <Button
                   data-focusable
                   variant="outline"
@@ -2132,6 +2133,11 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
             Required component included · {formatBytes(plan.bundled_runtime.asset.size)}
           </span>
         )}
+        {(plan.auxiliary_downloads?.length ?? 0) > 0 && (
+          <span className="mt-[4px] block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)]">
+            Required build components included · Download may be reduced by cached files
+          </span>
+        )}
       </div>
       <div className="text-end">
         <strong className="block text-[length:var(--text-sm)]">
@@ -2140,7 +2146,9 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
         <span className="mt-[4px] block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
           {download
             ? libraryOutput
-              ? `${formatBytes(plan.storage.volume_available_bytes)} available in library`
+              ? plan.temporary_space?.available_bytes === null
+                ? "Destination capacity is unknown"
+                : `${formatBytes(plan.temporary_space?.available_bytes ?? plan.storage.volume_available_bytes)} available in library`
               : "Destination capacity checked at install"
             : localState}
         </span>
@@ -2151,6 +2159,18 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
           <code className="mt-[4px] block [overflow-wrap:anywhere] select-text">
             {plan.output_location.effective_output_directory}
           </code>
+          {plan.temporary_space ? (
+            <p className="mt-[4px] text-[length:var(--text-2xs)] text-[var(--color-text-secondary)]">
+              Temporary space required: {formatBytes(plan.temporary_space.required_bytes)} at{" "}
+              <code>{plan.temporary_space.path}</code>.{" "}
+              {plan.temporary_space.available_bytes === null
+                ? "Capacity is unknown."
+                : `${formatBytes(plan.temporary_space.available_bytes)} available on this drive.`}{" "}
+              Space is checked again at install. Final installed size is unknown.
+            </p>
+          ) : (
+            <p>Temporary space is checked at install. Final installed size is unknown.</p>
+          )}
         </div>
       )}
     </div>
@@ -2167,7 +2187,7 @@ function PlannedInstallButton({
   install: AsyncAction;
 }) {
   const blocked = plan.action === "blocked_unverified";
-  const insufficientSpace = librarySpaceBlocked(plan);
+  const insufficientSpace = installSpaceBlocked(plan);
   let label =
     plan.action === "download"
       ? `Install · ${formatBytes(plan.download_bytes)}`
@@ -2195,12 +2215,8 @@ function PlannedInstallButton({
   );
 }
 
-function librarySpaceBlocked(plan: InstallPlan) {
-  return (
-    plan.action === "download" &&
-    usesLibraryOutput(plan) &&
-    plan.download_bytes > plan.storage.volume_available_bytes
-  );
+function installSpaceBlocked(plan: InstallPlan) {
+  return plan.action === "download" && plan.temporary_space?.sufficient === false;
 }
 
 function usesLibraryOutput(plan: InstallPlan) {

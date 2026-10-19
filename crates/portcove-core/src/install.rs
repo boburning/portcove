@@ -529,21 +529,18 @@ impl Installer {
                 runtime.identity(),
             ))?));
         }
+        let required_bytes = request.release.asset.size.saturating_add(
+            request
+                .qualification
+                .runtime
+                .as_ref()
+                .map_or(0, |runtime| runtime.asset.size),
+        );
         let required_bytes = request
-            .release
-            .asset
-            .size
-            .saturating_add(
-                request
-                    .qualification
-                    .runtime
-                    .as_ref()
-                    .map_or(0, |runtime| runtime.asset.size),
-            )
-            .saturating_add(if request.qualification.native_build_recipe.is_some() {
-                crate::cartridge_build::STAGING_CAPACITY_BYTES
-            } else {
-                0
+            .qualification
+            .native_build_recipe
+            .map_or(required_bytes, |recipe| {
+                recipe.temporary_bytes(required_bytes)
             });
         let prepared_root = crate::output_root::prepare_for_install(
             &self.library,

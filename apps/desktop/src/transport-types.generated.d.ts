@@ -1987,6 +1987,11 @@ export interface OutputGameInstallPlan {
 }
 export interface InstallPlan {
   action: InstallPlanAction;
+  /**
+   * Required recipe inputs in addition to the primary release and bundled runtime.
+   * These are cold acquisition quantities; existing cache reuse is not guaranteed.
+   */
+  auxiliary_downloads?: ReleaseAsset[];
   bundled_runtime: BundledRuntime | null;
   channel: ReleaseChannel;
   download_bytes: number;
@@ -1996,6 +2001,10 @@ export interface InstallPlan {
   release: ResolvedRelease;
   source_requirements: InstallSourceRequirement[];
   storage: StorageSummary;
+  /**
+   * Execution's temporary free-space floor, not a final installed-size estimate.
+   */
+  temporary_space?: InstallSpaceRequirement | null;
   [k: string]: unknown;
 }
 export interface InstallSourceRequirement {
@@ -2003,6 +2012,17 @@ export interface InstallSourceRequirement {
   profile_id: string;
   registered: boolean;
   role: SourceRequirementRole;
+  [k: string]: unknown;
+}
+export interface InstallSpaceRequirement {
+  available_bytes: number | null;
+  path: string;
+  required_bytes: number;
+  /**
+   * Unknown when capacity could not be observed. Execution always rechecks.
+   */
+  sufficient: boolean | null;
+  volume_identity: string | null;
   [k: string]: unknown;
 }
 /**
