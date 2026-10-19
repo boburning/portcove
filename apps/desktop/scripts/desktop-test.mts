@@ -3721,27 +3721,32 @@ try {
           await executeBrowserScript(
             browser,
             () =>
-              document.activeElement?.closest(".application-update-settings") !== null &&
-              document.activeElement?.id === "application-preferences-title",
+              document.activeElement ===
+              document.querySelector(
+                '.application-update-settings [aria-label="Application update channel"] button:not(:disabled)',
+              ),
           ),
         15_000,
       );
     } catch (error) {
       const focus = await executeBrowserScript(browser, () => ({
         active: document.activeElement?.outerHTML,
-        firstControl: document.querySelector(".application-update-settings button:not(:disabled)")
-          ?.outerHTML,
+        firstControl: document.querySelector(
+          '.application-update-settings [aria-label="Application update channel"] button:not(:disabled)',
+        )?.outerHTML,
       }));
       throw new Error(`Review options focus: ${JSON.stringify(focus)}`, { cause: error });
     }
+    const initialChoice = await browser.switchTo().activeElement();
     await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
     await browser.wait(
       async () =>
         await executeBrowserScript(
           browser,
-          () =>
+          (initial) =>
             document.activeElement?.closest(".application-update-settings") !== null &&
-            document.activeElement?.id !== "application-preferences-title",
+            document.activeElement !== initial,
+          initialChoice,
         ),
       5_000,
       "Directional navigation left application update settings",

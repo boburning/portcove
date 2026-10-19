@@ -231,6 +231,18 @@ function moveFocus(direction: NavigationDirection) {
   const candidates = focusableControls(region ?? scope).filter(
     (item) => !region || item.closest("[data-focus-region]") === region,
   );
+  // A section heading can receive programmatic focus without joining the Tab
+  // order. Keep its position as the arrow origin instead of jumping to index 0.
+  if (
+    origin &&
+    !candidates.includes(origin) &&
+    (region ?? scope).contains(origin) &&
+    origin.matches("[tabindex]") &&
+    !origin.closest("[inert], [hidden], [aria-hidden=true]") &&
+    origin.getClientRects().length > 0 &&
+    getComputedStyle(origin).visibility !== "hidden"
+  )
+    candidates.unshift(origin);
   const target = spatialTargetIndex(
     candidates.map((item) => item.getBoundingClientRect()),
     origin ? candidates.indexOf(origin) : -1,

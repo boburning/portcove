@@ -1092,9 +1092,13 @@ export async function preparationScenarios({
     assert.equal(required(prepared.previous).id, install.id);
     const log = path.join(required(prepared.active).path, "data/log/setup.log");
     await writeFile(log, "setup must not run during desktop Play");
-    await browser.wait(until.elementLocated(button("Play")), 15_000);
-    await browser.wait(until.elementIsEnabled(await browser.findElement(button("Play"))), 15_000);
-    await browser.findElement(button("Play")).click();
+    // This fixture's preliminary source is available but has no exact identity.
+    // Preparation does not upgrade that evidence into confirmed compatibility.
+    const trialLaunch = By.css("section[data-detail-workspace] .primary-actions button");
+    const trial = await browser.wait(until.elementLocated(trialLaunch), 15_000);
+    assert.equal(await trial.getText(), "Try launch");
+    await browser.wait(until.elementIsEnabled(trial), 15_000);
+    await trial.click();
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
     await browser.findElement(By.css(".detail-back")).click();
@@ -1122,7 +1126,7 @@ export async function preparationScenarios({
           '[data-detail-origin^="library:card:"]',
         );
         const play = [...element.querySelectorAll("button")].find(
-          (button) => button.textContent?.trim() === "Play",
+          (button) => button.textContent?.trim() === "Try launch",
         );
         const more = element.querySelector('button[aria-label^="More actions for "]');
         const workspace = element.closest("main");
@@ -1170,7 +1174,7 @@ export async function preparationScenarios({
       details: "Details",
       details_slot: "button",
       details_variant: "outline",
-      play: "Play",
+      play: "Try launch",
       play_disabled: false,
       play_slot: "button",
       play_variant: "primary",
