@@ -40,6 +40,8 @@ use crate::{
 
 mod backups;
 mod ghostship_compatibility;
+#[cfg(test)]
+mod ghostship_persistence_tests;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
@@ -55,6 +57,11 @@ struct RollbackTargetFailure {
     reason: PortActionReason,
     error: PortcoveError,
     definition: Option<crate::DefinitionEligibility>,
+}
+
+struct PersistenceContract {
+    port: PortDefinition,
+    writes_directly: bool,
 }
 
 #[cfg(test)]
@@ -1450,7 +1457,7 @@ impl PortcoveService {
             blockers.push(LaunchBlocker::MissingRuntime);
         }
         let pending_setup = status.active.as_ref().is_some_and(|active| {
-            if crate::preparation::managed(port) {
+            if crate::preparation::managed_install(port, active) {
                 let source = port
                     .source_profile
                     .as_ref()
@@ -1463,11 +1470,16 @@ impl PortcoveService {
                 .as_ref()
                 .is_some_and(|marker| !active.path.join(marker).is_file())
         });
-        if pending_setup && crate::preparation::managed(port) {
+        if pending_setup
+            && status
+                .active
+                .as_ref()
+                .is_some_and(|active| crate::preparation::managed_install(port, active))
+        {
             blockers.push(LaunchBlocker::PreparationRequired);
         }
         if status.active.as_ref().is_some_and(|active| {
-            self.require_ghostship_data_compatibility(&port.id, &active.version, None)
+            self.require_ghostship_install_data_compatibility(active, None)
                 .is_err()
         }) {
             blockers.push(LaunchBlocker::InvalidInstallation);
@@ -1610,7 +1622,7 @@ impl PortcoveService {
             return Ok(status);
         };
         let installed_port = installed_catalog.port(&active.port_id)?;
-        if crate::preparation::managed(installed_port) {
+        if crate::preparation::managed_install(installed_port, active) {
             status
                 .definition_operations
                 .push(DefinitionOperationAssessment {
@@ -1783,7 +1795,7 @@ impl PortcoveService {
                 Some(ineligible),
             )
         } else if status.active.as_ref().is_some_and(|active| {
-            self.require_ghostship_data_compatibility(&current_port.id, &active.version, None)
+            self.require_ghostship_install_data_compatibility(active, None)
                 .is_err()
         }) {
             assessed(Action::Launch, Availability::Held, Reason::UnsafeData, None)
@@ -2392,17 +2404,27 @@ impl PortcoveService {
             port,
             DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
         )?;
-        self.require_ghostship_data_compatibility(
-            &port.id,
-            &release.version,
-            status
-                .active
-                .as_ref()
-                .map(|install| install.version.as_str()),
-        )?;
         let runtime = crate::runtime::required(port, Platform::current()?);
+        let active_matches = status
+            .active
+            .as_ref()
+            .map(|active| self.install_matches_release(active, &release, runtime.as_ref()))
+            .transpose()?
+            .unwrap_or(false);
+        if let Some(active) = status.active.as_ref().filter(|_| active_matches) {
+            self.require_ghostship_install_data_compatibility(active, Some(&active.version))?;
+        } else {
+            self.require_ghostship_data_compatibility(
+                &port.id,
+                &release.version,
+                status
+                    .active
+                    .as_ref()
+                    .map(|install| install.version.as_str()),
+            )?;
+        }
         if let Some(active) = &status.active
-            && self.install_matches_release(active, &release, runtime.as_ref())?
+            && active_matches
         {
             self.managed_install_root(&port.id, &active.path)?;
             let qualification = self.installed_mutability_qualification(active)?;
@@ -2856,9 +2878,8 @@ impl PortcoveService {
                 error,
                 definition: None,
             })?;
-        self.require_ghostship_data_compatibility(
-            port_id,
-            &previous.version,
+        self.require_ghostship_install_data_compatibility(
+            previous,
             active.map(|install| install.version.as_str()),
         )
         .map_err(|error| RollbackTargetFailure {
@@ -2958,9 +2979,8 @@ impl PortcoveService {
         let staged = status
             .staged
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
-        self.require_ghostship_data_compatibility(
-            port_id,
-            &staged.version,
+        self.require_ghostship_install_data_compatibility(
+            &staged,
             status
                 .active
                 .as_ref()
@@ -3517,12 +3537,21 @@ impl PortcoveService {
             self.library.root(),
             checkpoint,
         )?;
-        let preview_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&(
+        crate::external_runtime::shared_preferences::check_runtime_path(spec, &inspected.root)?;
+        let shared_preferences =
+            crate::external_runtime::shared_preferences::inspect(spec, &inspected.root)?;
+        let identity = (
             port,
             &inspected.root,
             &inspected.immutable_tree_sha256,
             inspected.immutable_file_count,
-        ))?));
+        );
+        let preview_bytes = if let Some(shared) = &shared_preferences {
+            serde_json::to_vec(&(identity, shared))?
+        } else {
+            serde_json::to_vec(&identity)?
+        };
+        let preview_sha256 = hex::encode(Sha256::digest(preview_bytes));
         Ok(ExternalRuntimePreview {
             port_id: port_id.to_owned(),
             path: inspected.root,
@@ -3532,6 +3561,7 @@ impl PortcoveService {
             immutable_tree_sha256: inspected.immutable_tree_sha256,
             immutable_file_count: inspected.immutable_file_count,
             preview_sha256,
+            shared_preferences,
         })
     }
 
@@ -3541,12 +3571,33 @@ impl PortcoveService {
         requested_root: &Path,
         expected_preview_sha256: &str,
     ) -> Result<crate::DestructiveAuthorization> {
+        self.authorize_external_runtime_with_shared_preferences_ack(
+            port_id,
+            requested_root,
+            expected_preview_sha256,
+            None,
+        )
+    }
+
+    /// The acknowledgment must come from a consumer that disclosed the shared
+    /// scope. Legacy generic confirmation cannot authorize this new write scope.
+    pub fn authorize_external_runtime_with_shared_preferences_ack(
+        &self,
+        port_id: &str,
+        requested_root: &Path,
+        expected_preview_sha256: &str,
+        acknowledged_preview_sha256: Option<&str>,
+    ) -> Result<crate::DestructiveAuthorization> {
         let preview = self.preview_external_runtime(port_id, requested_root)?;
         if preview.preview_sha256 != expected_preview_sha256 {
             return Err(PortcoveError::conflict(
                 "user-prepared runtime changed after review",
             ));
         }
+        crate::external_runtime::shared_preferences::require_ack(
+            &preview,
+            acknowledged_preview_sha256,
+        )?;
         self.library
             .issue_authorization("register_external", port_id, &preview.preview_sha256)
     }
@@ -3586,6 +3637,7 @@ impl PortcoveService {
                 immutable_tree_sha256: preview.immutable_tree_sha256,
                 registered_at: Library::now(),
                 retained_definition: self.catalog.definition_selection(port_id).cloned(),
+                shared_preferences: preview.shared_preferences.map(|review| review.binding),
             };
             self.library
                 .register_external_runtime(&record, &self.catalog)?;
@@ -3725,6 +3777,15 @@ impl PortcoveService {
             let active = self.library.status(port_id, default_channel(port))?.active;
             let external = self.library.external_runtime_with_port(port_id)?;
             if !arguments.is_empty()
+                && active.as_ref().is_some_and(|install| {
+                    install.port_id == "ghostship" && install.version == "2.0.0"
+                })
+            {
+                return Err(PortcoveError::usage(
+                    "the exact Ghostship 2.0.0 runtime requires zero added arguments",
+                ));
+            }
+            if !arguments.is_empty()
                 && let Some(install) = &active
                 && !self
                     .installed_catalog(install)?
@@ -3744,7 +3805,9 @@ impl PortcoveService {
                     .release
                     .user_prepared
                     .get(&record.platform)
-                    .is_some_and(|runtime| runtime.settings_contract.is_some())
+                    .is_some_and(|runtime| {
+                        runtime.settings_contract.is_some() || runtime.shared_preferences.is_some()
+                    })
             {
                 return Err(PortcoveError::usage(
                     "this prepared settings contract does not allow forwarded launch arguments",
@@ -3873,6 +3936,19 @@ impl PortcoveService {
             // ordered either before this launch or after child creation.
             // Release it before publishing subsequent session database writes.
             let mut spawn = || {
+                if let Some((record, retained_catalog)) = external.as_ref() {
+                    let accepted = retained_catalog
+                        .port(&record.port_id)?
+                        .release
+                        .user_prepared
+                        .get(&record.platform)
+                        .ok_or_else(|| {
+                            PortcoveError::verification(
+                                "retained external runtime has no platform contract",
+                            )
+                        })?;
+                    crate::external_runtime::shared_preferences::check_record(record, accepted)?;
+                }
                 if let Some(install) = active.as_ref() {
                     Installer::new(self.library.clone())?.require_curated_operation(
                         install,
@@ -3880,6 +3956,17 @@ impl PortcoveService {
                     )?;
                     let retained_catalog = self.installed_catalog(install)?;
                     let retained_port = retained_catalog.port(&install.port_id)?;
+                    if install.port_id == "ghostship" && install.version == "2.0.0" {
+                        self.require_ghostship_legacy_runtime_archive(
+                            install,
+                            &spec.working_directory,
+                        )?;
+                        if !spec.arguments.is_empty() {
+                            return Err(PortcoveError::conflict(
+                                "prepared legacy archive or zero-argument launch changed before spawning",
+                            ));
+                        }
+                    }
                     self.require_definition_operation(
                         &retained_catalog,
                         retained_port,
@@ -4264,6 +4351,7 @@ impl PortcoveService {
                 "external runtime record differs from its retained accepted identity",
             ));
         }
+        crate::external_runtime::shared_preferences::check_record(record, spec)?;
         let inspected = crate::external_runtime::inspect_with_checkpoint(
             &record.path,
             spec,
@@ -4290,11 +4378,20 @@ impl PortcoveService {
                 })?
             };
             if let Some(extension) = spec.source_argument_extension.as_deref() {
+                crate::external_runtime::shared_preferences::check_runtime_path(
+                    spec,
+                    &source.path,
+                )?;
                 if !source_path_has_extension(&source.path, extension) {
                     return Err(PortcoveError::source(format!(
                         "{} requires an uncompressed .{extension} original source",
                         retained_port.name
                     )));
+                }
+                if spec.shared_preferences
+                    == Some(crate::PreparedSharedPreferencesContract::Regaiden041Windows)
+                {
+                    arguments.push("--rom".into());
                 }
                 arguments.push(crate::path::unicode(
                     &source.path,
@@ -4505,11 +4602,32 @@ impl PortcoveService {
         }
     }
 
-    fn persistence_port(
+    fn persistence_contract_for_install(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<PersistenceContract> {
+        let port = self.installed_mutability_port(install)?;
+        let legacy = Installer::new(self.library.clone())?.retained_preparation_mode(install)?
+            == Some(crate::PreparationMode::Ghostship200Legacy);
+        let writes_directly = if legacy {
+            // This interpretation is retained separately from catalog facts.
+            // The pinned Windows runtime ignores SHIP_HOME and uses its CWD.
+            crate::preparation::legacy_execution_contract(&port, install, Platform::current()?)?;
+            false
+        } else {
+            writes_directly_to_user_root(&port)
+        };
+        Ok(PersistenceContract {
+            port,
+            writes_directly,
+        })
+    }
+
+    fn persistence_contract(
         &self,
         fallback: &PortDefinition,
         install_root: &Path,
-    ) -> Result<PortDefinition> {
+    ) -> Result<PersistenceContract> {
         let root = self.managed_install_root(&fallback.id, install_root)?;
         for install in self.library.all_installs()? {
             if install.port_id != fallback.id {
@@ -4522,12 +4640,15 @@ impl PortcoveService {
                 Err(error) => return Err(error.into()),
             };
             if registered == root {
-                return self.installed_mutability_port(&install);
+                return self.persistence_contract_for_install(&install);
             }
         }
         // An unpublished payload has no library record yet. Its caller owns
         // the qualification captured for that installation operation.
-        Ok(fallback.clone())
+        Ok(PersistenceContract {
+            port: fallback.clone(),
+            writes_directly: writes_directly_to_user_root(fallback),
+        })
     }
 
     fn require_completed_restore(&self, port_id: &str) -> Result<()> {
@@ -4622,10 +4743,10 @@ impl PortcoveService {
                 }
             }
             let install_root = self.managed_install_root(port_id, &path)?;
-            let retained_port = self.persistence_port(port, &install_root)?;
-            let port = &retained_port;
+            let contract = self.persistence_contract(port, &install_root)?;
+            let port = &contract.port;
             let persistent_root = self.persistence_root(port, &install_root)?;
-            if !writes_directly_to_user_root(port) {
+            if !contract.writes_directly {
                 for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])?
                 {
                     let source = user_root.join(&relative);
@@ -4656,8 +4777,8 @@ impl PortcoveService {
         port: &PortDefinition,
         install_root: &Path,
     ) -> Result<Vec<PathBuf>> {
-        let retained_port = self.persistence_port(port, install_root)?;
-        let port = &retained_port;
+        let contract = self.persistence_contract(port, install_root)?;
+        let port = &contract.port;
         self.require_completed_restore(&port.id)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, install_root)?;
@@ -4665,7 +4786,7 @@ impl PortcoveService {
         for relative in crate::persistence::entries(port, &[&persistent_root, &user_root])? {
             let source = persistent_root.join(&relative);
             let destination = user_root.join(&relative);
-            if writes_directly_to_user_root(port) {
+            if contract.writes_directly {
                 if destination.exists() {
                     copied.push(destination);
                 }
@@ -4686,15 +4807,15 @@ impl PortcoveService {
         port: &PortDefinition,
         install_root: &Path,
     ) -> Result<()> {
-        let retained_port = self.persistence_port(port, install_root)?;
-        let port = &retained_port;
+        let contract = self.persistence_contract(port, install_root)?;
+        let port = &contract.port;
         let install_root = self.managed_install_root(&port.id, install_root)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, &install_root)?;
         let marker = install_root.join(LAUNCH_MARKER);
         refuse_symlink_ancestors(&marker)?;
         let previously_launched = marker.is_file();
-        if !writes_directly_to_user_root(port) {
+        if !contract.writes_directly {
             for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])? {
                 let source = user_root.join(&relative);
                 let destination = persistent_root.join(&relative);
@@ -9402,6 +9523,7 @@ fn main() {
             library_user_data: private,
             required_mutable_files: vec![],
             settings_contract: None,
+            shared_preferences: None,
             mutable_paths: vec!["player-save".into()],
         };
         if required_selector {
@@ -10355,6 +10477,7 @@ fn main() {
             library_user_data: false,
             required_mutable_files: vec![],
             settings_contract: None,
+            shared_preferences: None,
             mutable_paths: vec!["general.json".into()],
         };
         runtime.immutable_tree_sha256 =
@@ -10583,6 +10706,288 @@ fn main() {
         );
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn shared_preferences_service_requires_fresh_ack_and_retains_nonowning_scope() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let external = temporary.path().join("external");
+        fs::create_dir(&external).unwrap();
+        let executable = "Resident_Evil_Gaiden__USA_.exe";
+        fs::create_dir(external.join("saves")).unwrap();
+        // Inert fixture: exact artifact metadata exercises consent, not executable acceptance.
+        fs::write(external.join(executable), b"inert fixture").unwrap();
+        let mut runtime: crate::UserPreparedRuntimeSpec = serde_json::from_value(serde_json::json!({
+            "version":"0.4.1", "archive_name":"Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip",
+            "archive_size":33085815, "archive_sha256":"d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6",
+            "executable":executable, "immutable_tree_sha256":"0".repeat(64),
+            "source_argument_extension":"gbc", "shared_preferences":"regaiden041-windows",
+            "mutable_paths":["config.ini", "runtime_prefs.ini", "saves", "snapshots", "imgui.ini"]
+        })).unwrap();
+        runtime.immutable_tree_sha256 =
+            crate::external_runtime::inspect(&external, &runtime, library.root())
+                .unwrap_err()
+                .details["actual_tree_sha256"]
+                .clone();
+        let mut service = service_with_release(library.clone(), "v1");
+        let mut document = service.catalog().authoritative_document();
+        let source = temporary.path().join("original.gbc");
+        let source_bytes = b"inert GBC source fixture";
+        fs::write(&source, source_bytes).unwrap();
+        let source_profile = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == "dkc3-na-en-fr")
+            .unwrap();
+        source_profile.variants[0].representations[0].extensions = vec!["gbc".into()];
+        let crate::SourceRepresentationKind::RawFile { identities } =
+            &mut source_profile.variants[0].representations[0].kind
+        else {
+            panic!("raw fixture required")
+        };
+        identities[0].sha1 = None;
+        identities[0].crc32 = None;
+        identities[0].sha256 = Some(hex::encode(Sha256::digest(source_bytes)));
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|p| p.id == "dkc3-recomp")
+            .unwrap();
+        port.platforms = vec![Platform::WindowsX86_64];
+        port.release.user_prepared = [(Platform::WindowsX86_64, runtime)].into();
+        port.executable_hints = [(Platform::WindowsX86_64, vec![executable.into()])].into();
+        port.launch_arguments = vec!["--save-dir".into(), "saves".into()];
+        let mut wrong_argv = document.clone();
+        wrong_argv
+            .ports
+            .iter_mut()
+            .find(|p| p.id == "dkc3-recomp")
+            .unwrap()
+            .launch_arguments
+            .push("--rom".into());
+        assert!(Catalog::from_json(&serde_json::to_string(&wrong_argv).unwrap()).is_err());
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        let preview = service
+            .preview_external_runtime("dkc3-recomp", &external)
+            .unwrap();
+        let shared = preview.shared_preferences.as_ref().unwrap();
+        let global_before = fs::read(&shared.binding.path).ok();
+        let parent_before = shared.binding.path.parent().unwrap().exists();
+        assert!(!shared.local_fallback_path.exists());
+        assert!(
+            service
+                .authorize_external_runtime("dkc3-recomp", &external, &preview.preview_sha256)
+                .is_err()
+        );
+        assert!(
+            service
+                .authorize_external_runtime_with_shared_preferences_ack(
+                    "dkc3-recomp",
+                    &external,
+                    &preview.preview_sha256,
+                    Some(&"f".repeat(64))
+                )
+                .is_err()
+        );
+        assert!(
+            service
+                .authorize_external_runtime_with_shared_preferences_ack(
+                    "dkc3-recomp",
+                    &external,
+                    &"f".repeat(64),
+                    Some(&preview.preview_sha256)
+                )
+                .is_err()
+        );
+        assert!(
+            library
+                .external_runtime_with_port("dkc3-recomp")
+                .unwrap()
+                .is_none()
+        );
+        let authorization = service
+            .authorize_external_runtime_with_shared_preferences_ack(
+                "dkc3-recomp",
+                &external,
+                &preview.preview_sha256,
+                Some(&preview.preview_sha256),
+            )
+            .unwrap();
+        let record = service
+            .register_external_runtime("dkc3-recomp", &external, &authorization.token)
+            .unwrap();
+        service.register_source("dkc3-na-en-fr", &source).unwrap();
+        let launch = prepare_external_location_fixture_launch(&service, &record).unwrap();
+        assert_eq!(
+            launch.arguments,
+            [
+                "--rom".to_owned(),
+                source.display().to_string(),
+                "--save-dir".into(),
+                "saves".into()
+            ]
+        );
+        for relative in [
+            "config.ini",
+            "imgui.ini",
+            "saves/state.tmp-v1",
+            "snapshots/state_00.bin",
+        ] {
+            let target = external.join(relative);
+            fs::create_dir_all(target.parent().unwrap()).unwrap();
+            fs::hard_link(external.join(executable), &target).unwrap();
+            assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+            fs::remove_file(target).unwrap();
+        }
+        fs::create_dir(external.join("imgui.ini")).unwrap();
+        assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+        fs::remove_dir(external.join("imgui.ini")).unwrap();
+        fs::write(external.join("imgui.ini"), b"player window preferences").unwrap();
+        prepare_external_location_fixture_launch(&service, &record).unwrap();
+        fs::remove_dir(external.join("saves")).unwrap();
+        assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+        fs::create_dir(external.join("saves")).unwrap();
+        let unicode_source = temporary.path().join("original-\u{e9}.gbc");
+        fs::write(&unicode_source, source_bytes).unwrap();
+        let (_, retained) = library
+            .external_runtime_with_port("dkc3-recomp")
+            .unwrap()
+            .unwrap();
+        assert!(
+            service
+                .prepare_launch_for_external(
+                    &record,
+                    &retained,
+                    Some(&unicode_source),
+                    &OperationCoordinator::new("launch", None)
+                )
+                .is_err()
+        );
+        let retained_json: String = library.connection().unwrap().query_row(
+            "SELECT retained_catalog_json FROM external_runtime_registrations WHERE port_id = ?1",
+            ["dkc3-recomp"], |row| row.get(0)).unwrap();
+        assert!(
+            serde_json::from_str::<serde_json::Value>(&retained_json)
+                .unwrap()
+                .get("format")
+                .is_some()
+        );
+        assert!(
+            Catalog::from_json(&retained_json).is_err(),
+            "legacy raw catalog reader must refuse strict retained envelope"
+        );
+        struct RedirectPreferencesAtSpawn(std::path::PathBuf);
+        impl LifecycleFaultInjector for RedirectPreferencesAtSpawn {
+            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                if point == LifecycleFaultPoint::LaunchReadyToSpawn {
+                    fs::create_dir(&self.0)?;
+                }
+                Ok(())
+            }
+        }
+        service.faults = Arc::new(RedirectPreferencesAtSpawn(
+            shared.local_fallback_path.clone(),
+        ));
+        let refusal = service
+            .supervise_launch("dkc3-recomp", None, &[], LaunchStdio::Null, |_| {
+                panic!("unsafe preferences must refuse before child creation")
+            })
+            .unwrap_err();
+        assert_eq!(refusal.code, crate::ErrorCode::Verification);
+        assert!(shared.local_fallback_path.is_dir());
+        fs::remove_dir(&shared.local_fallback_path).unwrap();
+        service.faults = Arc::new(crate::operation::NoLifecycleFaults);
+        assert_eq!(record.shared_preferences.as_ref().unwrap(), &shared.binding);
+        assert!(
+            service
+                .register_external_runtime("dkc3-recomp", &external, &authorization.token)
+                .is_err()
+        );
+        let mut wrong_account = record.clone();
+        wrong_account
+            .shared_preferences
+            .as_mut()
+            .unwrap()
+            .account_sid_sha256 = "f".repeat(64);
+        let spec = &document
+            .ports
+            .iter()
+            .find(|p| p.id == "dkc3-recomp")
+            .unwrap()
+            .release
+            .user_prepared[&Platform::WindowsX86_64];
+        assert!(
+            crate::external_runtime::shared_preferences::check_record(&wrong_account, spec)
+                .is_err()
+        );
+        let mut missing_binding = record.clone();
+        missing_binding.shared_preferences = None;
+        assert!(
+            crate::external_runtime::shared_preferences::check_binding(&missing_binding, spec)
+                .is_err()
+        );
+        assert!(!shared.local_fallback_path.exists());
+        // Player changes remain mutable. An alias at the fallback still refuses readiness.
+        fs::write(&shared.local_fallback_path, b"player preferences").unwrap();
+        crate::external_runtime::shared_preferences::check_record(&record, spec).unwrap();
+        fs::hard_link(&shared.local_fallback_path, external.join("alias")).unwrap();
+        assert!(crate::external_runtime::shared_preferences::check_record(&record, spec).is_err());
+        fs::remove_file(external.join("alias")).unwrap();
+        let mut reopened = service_with_release(Library::open(library.root()).unwrap(), "v1");
+        // Current catalog removal cannot erase the retained consent or prevent removal.
+        document.ports.retain(|p| p.id != "dkc3-recomp");
+        document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .qualification
+            .retain(|record| record.scope.port_id != "dkc3-recomp");
+        document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .contracts
+            .retain(|record| record.port_id != "dkc3-recomp");
+        reopened.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        assert_eq!(
+            library
+                .external_runtime_with_port("dkc3-recomp")
+                .unwrap()
+                .unwrap()
+                .0
+                .shared_preferences,
+            record.shared_preferences
+        );
+        let removal = reopened.preview_external_removal("dkc3-recomp").unwrap();
+        let authorization = reopened
+            .authorize_external_removal("dkc3-recomp", &removal.preview_sha256)
+            .unwrap();
+        reopened
+            .remove_external_runtime("dkc3-recomp", &authorization.token)
+            .unwrap();
+        assert_eq!(
+            fs::read(&shared.local_fallback_path).unwrap(),
+            b"player preferences"
+        );
+        assert_eq!(fs::read(&shared.binding.path).ok(), global_before);
+        assert_eq!(
+            shared.binding.path.parent().unwrap().exists(),
+            parent_before
+        );
+        assert!(external.join(executable).is_file());
+        assert_eq!(
+            fs::read(external.join("imgui.ini")).unwrap(),
+            b"player window preferences"
+        );
+    }
+
     #[test]
     fn external_runtime_register_launch_restart_and_remove_preserve_player_files() {
         let temporary = tempfile::tempdir().unwrap();
@@ -10611,6 +11016,7 @@ fn main() {
             library_user_data: false,
             required_mutable_files: vec![],
             settings_contract: None,
+            shared_preferences: None,
             mutable_paths: vec!["general.json".into()],
         };
         let mismatch =

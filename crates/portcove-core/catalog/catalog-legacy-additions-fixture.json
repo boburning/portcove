@@ -37,7 +37,8 @@
     "yoshis-cookie-nes-usa",
     "dr-mario-nes-japan-usa-rev1",
     "super-metroid-snes-japan-usa",
-    "mega-man-x2-snes-usa"
+    "mega-man-x2-snes-usa",
+    "resident-evil-gaiden-gbc-usa"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -78,6 +79,7 @@
     "yoshis-cookie-recomp",
     "dr-mario-nes-recomp",
     "super-metroid-recomp",
-    "mega-man-x2-snes-recomp"
+    "mega-man-x2-snes-recomp",
+    "resident-evil-gaiden-recomp"
   ]
 }

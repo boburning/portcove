@@ -175,7 +175,8 @@ impl PortcoveService {
                     .with_mutation_state(MutationState::NotStarted)
                     .during("preparation.review")
             })?;
-        let port = self.installed_port(&plan.inputs.install)?;
+        let admitted = self.installed_port(&plan.inputs.install)?;
+        let port = super::execution_contract(&plan, &admitted)?;
         let result = (|| -> Result<InstallRecord> {
             if !supports_single_source_setup_layout(&port) {
                 return Err(PortcoveError::unsupported(
@@ -241,7 +242,8 @@ impl PortcoveService {
             .path
             .parent()
             .ok_or_else(|| PortcoveError::state("installed preparation has no managed parent"))?;
-        let port = self.installed_port(original)?;
+        let admitted = self.installed_port(original)?;
+        let port = super::execution_contract(plan, &admitted)?;
         let required = preparation_capacity_bytes(
             plan.copy.total_bytes,
             plan.inputs.source.storage_size,
@@ -313,7 +315,7 @@ impl PortcoveService {
         self.collect_active_user_data_if_launched(&plan.port_id)?;
         operation.checkpoint()?;
         let receipt = PreparationReceipt {
-            format_version: 1,
+            format_version: plan.format_version,
             plan_sha256: plan.plan_sha256.clone(),
             inputs: plan.inputs.clone(),
         };
@@ -330,7 +332,13 @@ impl PortcoveService {
             plan.inputs.host,
         )?;
         let mut install = installer
-            .create_prepared_manifest(original, operation.operation_id(), &qualification, &payload)
+            .create_prepared_manifest(
+                original,
+                operation.operation_id(),
+                &qualification,
+                plan.inputs.options.mode,
+                &payload,
+            )
             .map_err(|error| error.detail("preparation_phase", "create manifest"))?;
         installer
             .verify_critical(&install, &qualification)
@@ -340,11 +348,16 @@ impl PortcoveService {
                 "prepared output failed its immutable manifest check",
             ));
         }
-        let port = self.installed_port(original)?;
+        let admitted = self.installed_port(original)?;
+        let port = super::execution_contract(plan, &admitted)?;
         let setup_root =
             setup_output_root(&port, &payload, &payload.join(&install.selected_executable))?;
-        crate::adapter::bind_upstream_setup_manifest(&setup_root, &install.manifest_sha256)
-            .map_err(|error| error.detail("preparation_phase", "bind manifest"))?;
+        super::bind_prepared_setup_manifest(
+            plan.inputs.options.mode,
+            &setup_root,
+            &install.manifest_sha256,
+        )
+        .map_err(|error| error.detail("preparation_phase", "bind manifest"))?;
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationOutputsValidated)?;
         install.path = destination;
         journal.install = Some(install.clone());
@@ -364,15 +377,71 @@ impl PortcoveService {
         operation: &OperationCoordinator,
         emit: &mut impl FnMut(OperationEvent),
     ) -> Result<()> {
-        let port = self.installed_port(&plan.inputs.install)?;
-        let qualification = InstallQualification::from_port(&port, plan.inputs.host)?;
+        let admitted = self.installed_port(&plan.inputs.install)?;
+        let port = super::execution_contract(plan, &admitted)?;
+        let legacy = plan.inputs.options.mode == super::PreparationMode::Ghostship200Legacy;
+        let qualification = InstallQualification::from_port(&admitted, plan.inputs.host)?;
         let copied = InstallRecord {
             path: payload.into(),
             ..plan.inputs.install.clone()
         };
         Installer::new(self.library().clone())?.verify_critical(&copied, &qualification)?;
+        if legacy {
+            // This must precede BOTH fresh generation and receipt reuse.
+            super::ghostship::require_no_binary_importer(payload)?;
+        }
+        if legacy
+            && Installer::new(self.library().clone())?
+                .retained_preparation_mode(&plan.inputs.install)?
+                == Some(super::PreparationMode::Ghostship200Legacy)
+        {
+            let bytes = Installer::new(self.library().clone())?.read_verified_member(
+                &plan.inputs.install,
+                RECEIPT_FILE,
+                1024 * 1024,
+            )?;
+            let previous: PreparationReceipt = serde_json::from_slice(&bytes)?;
+            self.validate_preparation_receipt(
+                &admitted,
+                &plan.inputs.install,
+                Some(&previous.inputs.source),
+            )?;
+            super::ghostship::require_source(&plan.inputs.source)?;
+            super::ghostship::require_source(&previous.inputs.source)?;
+            // This closed route accepts one raw original identity only. Reuse
+            // its immutable generated archive when its verified source is
+            // relinked, without executing upstream again or replacing data.
+            // The caller writes a fresh receipt bound to the reviewed new path.
+            Installer::new(self.library().clone())?
+                .verify_recorded_member(&copied, &super::ghostship::generated_path(payload))?;
+            // The derivative publisher deliberately uses no-clobber receipt
+            // creation. Remove only this already verified private copy after
+            // validating its retained provenance; the original stays intact.
+            fs::remove_file(payload.join(RECEIPT_FILE))?;
+            return operation.checkpoint();
+        }
         let setup_root =
             setup_output_root(&port, payload, &payload.join(&copied.selected_executable))?;
+        if legacy {
+            // Delete only reviewed copies inside this fresh operation, never the
+            // installed/canonical data. Bootstrap must not consume inherited O2R,
+            // player mods, save importers or settings from a previous session.
+            for relative in &admitted.persistent_paths {
+                let path = payload.join(relative);
+                crate::path::refuse_symlink_ancestors(&path)?;
+                match fs::symlink_metadata(&path) {
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(error) => return Err(error.into()),
+                    Ok(metadata) if metadata.is_file() => fs::remove_file(&path)?,
+                    Ok(metadata) if metadata.is_dir() => fs::remove_dir_all(&path)?,
+                    Ok(_) => {
+                        return Err(PortcoveError::verification(
+                            "legacy bootstrap copied data contains an unsupported entry",
+                        ));
+                    }
+                }
+            }
+        }
         for relative in &port.setup_output_paths {
             let target = payload.join(relative);
             crate::path::refuse_symlink_ancestors(&target)?;
@@ -393,7 +462,16 @@ impl PortcoveService {
         let operation_root = payload
             .parent()
             .ok_or_else(|| PortcoveError::state("private payload has no operation root"))?;
-        let source = setup_source_path(&port, payload, operation_root)?;
+        let legacy_home = operation_root.join("legacy-user-data");
+        let source = if legacy {
+            // Pinned Windows libultraship uses CWD, ignoring SHIP_HOME. Keep
+            // the single discoverable ROM here and none beside the executable:
+            // upstream searches both the executable bundle and CWD.
+            fs::create_dir(&legacy_home)?;
+            legacy_home.join(super::ghostship::ORIGINAL)
+        } else {
+            setup_source_path(&port, payload, operation_root)?
+        };
         if let Some(parent) = source.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -465,41 +543,101 @@ impl PortcoveService {
             })
             .collect::<Result<BTreeMap<_, _>>>()?;
         emit(operation.message("info", "Running the reviewed default upstream setup"));
-        record_preparation_process_quiescence(self, operation.operation_id(), false)?;
         let mut setup_quiesced =
             || record_preparation_process_quiescence(self, operation.operation_id(), true);
-        let isolated_setup = port.adapter == crate::AdapterKind::LibultrashipPortable;
-        let setup_directory = if isolated_setup {
+        let isolated_setup = port.adapter == crate::AdapterKind::LibultrashipPortable && !legacy;
+        let setup_directory = if legacy {
+            legacy_home
+        } else if isolated_setup {
             let directory = operation_root.join("setup-runtime");
             fs::create_dir(&directory)?;
             directory
         } else {
             setup_root.clone()
         };
+        let setup_home = setup_directory.clone();
+        let home_before = legacy
+            .then(|| crate::library_transfer::reviewed_tree(&setup_home))
+            .transpose()?;
+        let home_permissions = home_before
+            .as_ref()
+            .map(|tree| {
+                tree.files
+                    .iter()
+                    .map(|file| {
+                        Ok((
+                            file.relative_path.clone(),
+                            crate::permissions::executable_intent(
+                                &setup_home.join(&file.relative_path),
+                            )?,
+                        ))
+                    })
+                    .collect::<Result<BTreeMap<_, _>>>()
+            })
+            .transpose()?;
         let setup_environment = if isolated_setup {
             std::collections::BTreeMap::from([(
                 "SHIP_HOME".to_owned(),
-                crate::path::unicode(&setup_directory, "private setup directory")?,
+                crate::path::unicode(&setup_home, "private setup directory")?,
             )])
         } else {
             std::collections::BTreeMap::new()
         };
-        let output = crate::tool_process::run_setup(
-            &setup,
-            &port.setup_arguments,
-            &source,
-            &setup_directory,
-            &setup_environment,
-            &|| operation.checkpoint(),
-            crate::tool_process::ToolProcessObserver {
-                diagnostics: Some(crate::tool_process::ToolDiagnosticSink {
-                    activity_id: operation.operation_id(),
-                    phase: "preparation.setup",
-                    record: &mut |capture| self.library().record_activity_diagnostic(capture),
-                }),
-                quiesced: Some(&mut setup_quiesced),
-            },
-        )
+        let observer = crate::tool_process::ToolProcessObserver {
+            diagnostics: Some(crate::tool_process::ToolDiagnosticSink {
+                activity_id: operation.operation_id(),
+                phase: "preparation.setup",
+                record: &mut |capture| self.library().record_activity_diagnostic(capture),
+            }),
+            quiesced: Some(&mut setup_quiesced),
+        };
+        let output = if legacy {
+            super::ghostship::require_path(&setup_directory)?;
+            super::ghostship::require_path(&source)?;
+            super::ghostship::require_path(&setup_home.join("sm64.o2r"))?;
+            for file in &before.files {
+                super::ghostship::require_path(&payload.join(&file.relative_path))?;
+            }
+            super::ghostship::require_discovery_layout(
+                &before,
+                home_before.as_ref().ok_or_else(|| {
+                    PortcoveError::state("legacy setup has no private input preimage")
+                })?,
+            )?;
+            crate::path::refuse_symlink_ancestors(&source)?;
+            let (source_sha256, source_size) = crate::external_runtime::hash_stable_regular(
+                &source,
+                plan.inputs.source.size,
+                &|| operation.checkpoint(),
+            )?;
+            if source_sha256 != plan.inputs.source.sha256
+                || source_size != plan.inputs.source.size
+                || tool_identity(setup.clone(), ChildProcessClass::UpstreamSetup)? != actual
+            {
+                return Err(PortcoveError::verification(
+                    "legacy private source or executable changed before setup",
+                ));
+            }
+            record_preparation_process_quiescence(self, operation.operation_id(), false)?;
+            crate::tool_process::run_setup_without_source_argument(
+                &setup,
+                &setup_directory,
+                &setup_environment,
+                &|| operation.checkpoint(),
+                observer,
+            )
+        } else {
+            record_preparation_process_quiescence(self, operation.operation_id(), false)?;
+            crate::tool_process::run_setup(
+                &setup,
+                &port.setup_arguments,
+                &source,
+                &setup_directory,
+                &setup_environment,
+                &|| operation.checkpoint(),
+                observer,
+            )
+        }
         .map_err(|error| error.during("preparation.setup"))?;
         tracing::info!(
             port_id = port.id,
@@ -517,10 +655,63 @@ impl PortcoveService {
             .detail("exit_code", output.status.code().unwrap_or(-1).to_string()));
         }
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationToolCompleted)?;
+        let mut private_outputs = port.clone();
+        if legacy {
+            // This allowance is confined to fresh private output directories;
+            // the admitted persistent/mutable ownership contract is unchanged.
+            private_outputs
+                .runtime_mutable_paths
+                .extend(admitted.persistent_paths.iter().cloned());
+        }
+        if legacy {
+            // ShipInit creates this directory even when no randomizer is used.
+            // Only its empty, fresh private form is expected during bootstrap;
+            // never admit or remove randomizer files as incidental outputs.
+            let randomizer = setup_home.join("randomizer");
+            crate::path::refuse_symlink_ancestors(&randomizer)?;
+            match fs::symlink_metadata(&randomizer) {
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+                Ok(metadata) if metadata.is_dir() => fs::remove_dir(&randomizer)?,
+                Ok(_) => {
+                    return Err(PortcoveError::verification(
+                        "legacy bootstrap randomizer output is not an empty directory",
+                    ));
+                }
+            }
+            validate_outputs(
+                &private_outputs,
+                &setup_home,
+                home_before.as_ref().ok_or_else(|| {
+                    PortcoveError::state("legacy setup has no empty home preimage")
+                })?,
+                home_permissions.as_ref().ok_or_else(|| {
+                    PortcoveError::state("legacy setup has no input permission preimage")
+                })?,
+            )?;
+            let generated = setup_home.join("sm64.o2r");
+            crate::path::refuse_symlink_ancestors(&generated)?;
+            let metadata = fs::symlink_metadata(&generated)?;
+            if !metadata.is_file() || metadata.len() == 0 || metadata.len() > 512 * 1024 * 1024 {
+                return Err(PortcoveError::verification(
+                    "legacy bootstrap did not produce its bounded regular archive",
+                ));
+            }
+            crate::external_runtime::hash_stable_regular(&generated, 512 * 1024 * 1024, &|| {
+                operation.checkpoint()
+            })?;
+            let destination = super::ghostship::generated_path(payload);
+            fs::create_dir_all(
+                destination.parent().ok_or_else(|| {
+                    PortcoveError::state("legacy generated archive has no parent")
+                })?,
+            )?;
+            crate::durability::rename_noreplace(&generated, &destination)?;
+        }
         if isolated_setup {
             copy_setup_outputs(&port, &setup_directory, payload)?;
         }
-        validate_outputs(&port, payload, &before, &permissions)
+        validate_outputs(&private_outputs, payload, &before, &permissions)
             .map_err(|error| error.during("preparation.verify"))?;
         let marker = port
             .setup_marker
@@ -760,6 +951,14 @@ pub(crate) fn recover(
             .preparation
             .as_ref()
             .ok_or_else(|| PortcoveError::state("preparation journal has no reviewed plan"))?;
+        if plan.inputs.options.mode == super::PreparationMode::Ghostship200Legacy
+            && matches!(
+                journal.phase,
+                LifecyclePhase::Prepared | LifecyclePhase::PayloadPublished
+            )
+        {
+            super::execution_contract(plan, &service.installed_port(&plan.inputs.install)?)?;
+        }
         let install = journal.install.as_ref().ok_or_else(|| {
             PortcoveError::state("preparation journal has no validated installation")
         })?;
@@ -789,7 +988,7 @@ pub(crate) fn recover(
                 &journal.id,
             ))?));
         crate::path::refuse_symlink_ancestors(&install.path)?;
-        if plan.format_version != 1
+        if !super::format_matches(plan)
             || crate::signed_catalog::digest(&serde_json::to_vec(&bound_plan)?) != plan.plan_sha256
             || crate::path::resolve_existing_ancestor(&install.path)? != expected
         {
@@ -853,7 +1052,7 @@ fn retained_preparation_target(
     let plan = journal.preparation.as_ref()?;
     let mut bound_plan = plan.clone();
     bound_plan.plan_sha256.clear();
-    if plan.format_version != 1
+    if !super::format_matches(plan)
         || plan.port_id != journal.port_id
         || plan.inputs.install.port_id != journal.port_id
         || journal.install.as_ref().is_some_and(|install| {
@@ -934,7 +1133,7 @@ fn preparation_cleanup_preview(
         })?;
         let mut bound_plan = plan.clone();
         bound_plan.plan_sha256.clear();
-        if plan.format_version != 1
+        if !super::format_matches(plan)
             || journal.port_id != plan.port_id
             || plan.inputs.install.port_id != journal.port_id
             || crate::signed_catalog::digest(&serde_json::to_vec(&bound_plan)?) != plan.plan_sha256

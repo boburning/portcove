@@ -796,6 +796,27 @@
   },
   "api_response_port_status": {
     "$defs": {
+      "AcceptedSharedPreferencesBinding": {
+        "additionalProperties": false,
+        "description": "Explicitly accepted account and location; mutable contents are not authority.",
+        "properties": {
+          "account_sid_sha256": {
+            "type": "string"
+          },
+          "contract": {
+            "$ref": "#/$defs/PreparedSharedPreferencesContract"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "account_sid_sha256",
+          "path"
+        ],
+        "type": "object"
+      },
       "ArtifactIdentity": {
         "properties": {
           "asset_name": {
@@ -1047,6 +1068,16 @@
             "anyOf": [
               {
                 "$ref": "#/$defs/DefinitionSelectionIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shared_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
               },
               {
                 "type": "null"
@@ -1535,6 +1566,13 @@
           "successful_launches"
         ],
         "type": "object"
+      },
+      "PreparedSharedPreferencesContract": {
+        "description": "A reviewed shared write scope, never a caller-selected external path.",
+        "enum": [
+          "regaiden041-windows"
+        ],
+        "type": "string"
       },
       "RecoveryAction": {
         "enum": [
@@ -3644,6 +3682,13 @@
         ],
         "type": "string"
       },
+      "PreparedSharedPreferencesContract": {
+        "description": "A reviewed shared write scope, never a caller-selected external path.",
+        "enum": [
+          "regaiden041-windows"
+        ],
+        "type": "string"
+      },
       "ReleaseAsset": {
         "properties": {
           "name": {
@@ -4789,6 +4834,17 @@
               }
             ],
             "description": "Read-only, version-scoped source-selection semantics; never seeds settings."
+          },
+          "shared_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparedSharedPreferencesContract"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Explicit consent to the exact runtime's non-owned, shared preferences."
           },
           "source_argument_extension": {
             "default": null,
@@ -7111,6 +7167,60 @@
     "type": "object"
   },
   "external_runtime_preview": {
+    "$defs": {
+      "AcceptedSharedPreferencesBinding": {
+        "additionalProperties": false,
+        "description": "Explicitly accepted account and location; mutable contents are not authority.",
+        "properties": {
+          "account_sid_sha256": {
+            "type": "string"
+          },
+          "contract": {
+            "$ref": "#/$defs/PreparedSharedPreferencesContract"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "account_sid_sha256",
+          "path"
+        ],
+        "type": "object"
+      },
+      "PreparedSharedPreferencesContract": {
+        "description": "A reviewed shared write scope, never a caller-selected external path.",
+        "enum": [
+          "regaiden041-windows"
+        ],
+        "type": "string"
+      },
+      "SharedPreferencesReview": {
+        "additionalProperties": false,
+        "properties": {
+          "binding": {
+            "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
+          },
+          "local_fallback_path": {
+            "type": "string"
+          },
+          "local_fallback_present": {
+            "type": "boolean"
+          },
+          "present": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "binding",
+          "present",
+          "local_fallback_path",
+          "local_fallback_present"
+        ],
+        "type": "object"
+      }
+    },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
       "archive_sha256": {
@@ -7136,6 +7246,16 @@
       "preview_sha256": {
         "type": "string"
       },
+      "shared_preferences": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/SharedPreferencesReview"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "version": {
         "type": "string"
       }
@@ -7155,6 +7275,27 @@
   },
   "external_runtime_record": {
     "$defs": {
+      "AcceptedSharedPreferencesBinding": {
+        "additionalProperties": false,
+        "description": "Explicitly accepted account and location; mutable contents are not authority.",
+        "properties": {
+          "account_sid_sha256": {
+            "type": "string"
+          },
+          "contract": {
+            "$ref": "#/$defs/PreparedSharedPreferencesContract"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "account_sid_sha256",
+          "path"
+        ],
+        "type": "object"
+      },
       "AuthenticatedDefinitionProvenance": {
         "additionalProperties": false,
         "description": "Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.",
@@ -7270,6 +7411,13 @@
           "macos-aarch64"
         ],
         "type": "string"
+      },
+      "PreparedSharedPreferencesContract": {
+        "description": "A reviewed shared write scope, never a caller-selected external path.",
+        "enum": [
+          "regaiden041-windows"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -7303,6 +7451,16 @@
         "anyOf": [
           {
             "$ref": "#/$defs/DefinitionSelectionIdentity"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "shared_preferences": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
           },
           {
             "type": "null"
@@ -14273,6 +14431,13 @@
         ],
         "type": "string"
       },
+      "PreparedSharedPreferencesContract": {
+        "description": "A reviewed shared write scope, never a caller-selected external path.",
+        "enum": [
+          "regaiden041-windows"
+        ],
+        "type": "string"
+      },
       "ReleaseAsset": {
         "properties": {
           "name": {
@@ -14587,6 +14752,17 @@
               }
             ],
             "description": "Read-only, version-scoped source-selection semantics; never seeds settings."
+          },
+          "shared_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparedSharedPreferencesContract"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Explicit consent to the exact runtime's non-owned, shared preferences."
           },
           "source_argument_extension": {
             "default": null,
@@ -15262,10 +15438,19 @@
       },
       "PreparationMode": {
         "description": "This family currently exposes the catalog's reviewed defaults only.",
-        "enum": [
-          "default"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "default"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ghostship200_legacy",
+            "description": "Exact historical Windows bootstrap; this is not a generic argument override.",
+            "type": "string"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -15828,10 +16013,19 @@
       },
       "PreparationMode": {
         "description": "This family currently exposes the catalog's reviewed defaults only.",
-        "enum": [
-          "default"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "default"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ghostship200_legacy",
+            "description": "Exact historical Windows bootstrap; this is not a generic argument override.",
+            "type": "string"
+          }
+        ]
       },
       "PreparationOptions": {
         "additionalProperties": false,
@@ -19114,6 +19308,13 @@
         ],
         "type": "string"
       },
+      "PreparedSharedPreferencesContract": {
+        "description": "A reviewed shared write scope, never a caller-selected external path.",
+        "enum": [
+          "regaiden041-windows"
+        ],
+        "type": "string"
+      },
       "ReleaseAsset": {
         "properties": {
           "name": {
@@ -20259,6 +20460,17 @@
               }
             ],
             "description": "Read-only, version-scoped source-selection semantics; never seeds settings."
+          },
+          "shared_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparedSharedPreferencesContract"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Explicit consent to the exact runtime's non-owned, shared preferences."
           },
           "source_argument_extension": {
             "default": null,
@@ -31998,6 +32210,27 @@
   },
   "status": {
     "$defs": {
+      "AcceptedSharedPreferencesBinding": {
+        "additionalProperties": false,
+        "description": "Explicitly accepted account and location; mutable contents are not authority.",
+        "properties": {
+          "account_sid_sha256": {
+            "type": "string"
+          },
+          "contract": {
+            "$ref": "#/$defs/PreparedSharedPreferencesContract"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "account_sid_sha256",
+          "path"
+        ],
+        "type": "object"
+      },
       "ArtifactIdentity": {
         "properties": {
           "asset_name": {
@@ -32233,6 +32466,16 @@
             "anyOf": [
               {
                 "$ref": "#/$defs/DefinitionSelectionIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shared_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
               },
               {
                 "type": "null"
@@ -32479,6 +32722,13 @@
           "unsafe_data",
           "recovery_required",
           "assessment_incomplete"
+        ],
+        "type": "string"
+      },
+      "PreparedSharedPreferencesContract": {
+        "description": "A reviewed shared write scope, never a caller-selected external path.",
+        "enum": [
+          "regaiden041-windows"
         ],
         "type": "string"
       },

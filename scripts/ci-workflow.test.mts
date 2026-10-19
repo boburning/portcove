@@ -224,7 +224,19 @@ void test("ordinary Linux package operation is fixed and isolated from fixture b
     block,
     /desktop-linux-media\.mts --prepare[\s\S]*desktop-linux-media\.mts --build[\s\S]*desktop-linux-media\.mts --run/u,
   );
-  assert.match(block, /if: always\(\)[\s\S]*desktop-linux-media\.mts --cleanup/u);
+  assert.match(
+    block,
+    /if: \$\{\{ always\(\) && steps\.media_preparation\.outcome != 'skipped' \}\}[\s\S]*desktop-linux-media\.mts --cleanup/u,
+  );
+  assert.ok(
+    block.indexOf("desktop-linux-namespace-preflight.mts") <
+      block.indexOf("desktop-linux-media.mts --prepare"),
+  );
+  assert.match(block, /desktop-linux-namespace-profile\.mts --prepare/u);
+  assert.match(
+    block,
+    /PORTCOVE_NAMESPACE_ORIGINAL_NODE.*desktop-linux-namespace-profile\.mts --cleanup/u,
+  );
   assert.match(block, /!\*\*\/private-authority/u);
   assert.match(block, /!\*\*\/auth\.cookie/u);
 });
@@ -3532,7 +3544,10 @@ void test("export refuses links and oversized evidence instead of silently dropp
 
   void test("user-prepared entries retain their existing GitHub upstream coverage", async () => {
     const report = await collect(
-      catalog(port("managed", "owner/shared"), port("prepared", "owner/shared", "user-prepared")),
+      catalog(port("managed", "owner/shared"), {
+        ...port("prepared", "owner/shared", "user-prepared"),
+        project_url: "https://github.com/OWNER/shared",
+      }),
     );
     assert.equal(report.coverage.repositories, 1);
     assert.deepEqual(requiredFixture(report.observations[0]).port_ids, ["managed", "prepared"]);
@@ -3540,6 +3555,61 @@ void test("export refuses links and oversized evidence instead of silently dropp
       "github",
       "user-prepared",
     ]);
+    assert.deepEqual(requiredFixture(report.observations[0]).original_upstream_port_ids, [
+      "prepared",
+    ]);
+  });
+
+  void test("project-only prepared runtimes observe their upstream without claiming artifact delivery", async () => {
+    const report = await collect(
+      catalog({
+        id: "resident-evil-gaiden-recomp",
+        project_url: "https://github.com/sergiomanzur/regaiden-recomp",
+        release: { provider: "user-prepared" },
+      }),
+    );
+    assert.equal(report.outcome, "complete");
+    assert.equal(report.coverage.monitored_ports, 1);
+    assert.equal(report.coverage.repositories, 1);
+    const observed = requiredFixture(report.observations[0]);
+    assert.equal(observed.repository, "sergiomanzur/regaiden-recomp");
+    assert.equal(observed.status, "reachable");
+    assert.deepEqual(observed.release_providers, ["user-prepared"]);
+    assert.deepEqual(observed.original_upstream_port_ids, ["resident-evil-gaiden-recomp"]);
+    for (const claim of ["upstream-continuity", "accepted-artifact-availability"])
+      assert.ok(report.unassessed.includes(claim));
+    assert.equal(observed.artifact_identities, undefined);
+    assert.equal(observed.historical_artifact_identities, undefined);
+  });
+
+  void test("prepared project fallback preserves explicit repository and project validation", async () => {
+    const prepared = {
+      id: "prepared",
+      project_url: "https://github.com/owner/prepared",
+      release: { provider: "user-prepared" },
+    };
+    for (const repository of [null, "", "../project", "owner/project/extra", 42])
+      await assert.rejects(
+        collect(catalog({ ...prepared, release: { ...prepared.release, repository } })),
+        /Unsupported hosted catalog repository/,
+      );
+    for (const project_url of [
+      "not a URL",
+      "http://github.com/owner/prepared",
+      "https://github.com/owner/prepared?token=x",
+    ])
+      await assert.rejects(
+        collect(catalog({ ...prepared, project_url })),
+        /Unsupported original upstream/,
+      );
+    await assert.rejects(
+      collect(catalog({ ...prepared, id: "Invalid ID" })),
+      /unique stable port IDs/,
+    );
+    await assert.rejects(
+      collect(catalog({ ...prepared, release: { provider: "unknown" } })),
+      /Unsupported hosted/,
+    );
   });
 
   void test("remaining duration bounds the actual request abort signal", async () => {

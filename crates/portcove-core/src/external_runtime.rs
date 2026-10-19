@@ -23,6 +23,7 @@ const MAX_FILES: usize = 100_000;
 const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_TREE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 
+pub(crate) mod shared_preferences;
 mod tfe_settings;
 
 /// Required selectors are existence/type constraints, never content authority.
@@ -161,6 +162,8 @@ pub struct ExternalRuntimePreview {
     pub immutable_tree_sha256: String,
     pub immutable_file_count: usize,
     pub preview_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_preferences: Option<crate::SharedPreferencesReview>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -220,6 +223,7 @@ pub(crate) fn check_registered_location(
         ));
     }
     check_required_mutable_files(&root, spec)?;
+    shared_preferences::check_record(record, spec)?;
     Ok(())
 }
 
@@ -354,6 +358,7 @@ fn visit(
             .map_err(|_| PortcoveError::state("external runtime path escaped its root"))?;
         let relative = crate::path::unicode(relative, "user-prepared runtime")?.replace('\\', "/");
         let kind = entry.file_type()?;
+        shared_preferences::check_tree_path(spec, &path, kind.is_dir())?;
         let (_, key) = crate::archive::validate_relative_path(&relative, kind.is_dir())?;
         if kind.is_dir() {
             visit(root, &path, spec, files, seen, total_bytes, pass)?;
@@ -445,6 +450,31 @@ fn hash_bounded(
 
 fn changed_during_inspection() -> PortcoveError {
     PortcoveError::verification("user-prepared runtime changed during inspection")
+}
+
+/// Reuse the stable read-only object checks for one bounded Core-owned member.
+/// Hashing supplies no ownership, preparation provenance or mutation permission.
+pub(crate) fn hash_stable_regular(
+    path: &Path,
+    maximum: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<(String, u64)> {
+    crate::path::refuse_symlink_ancestors(path)?;
+    let canonical = fs::canonicalize(path)?;
+    let opened = open_object(&canonical, false)?;
+    let size = opened.metadata()?.len();
+    if size > maximum || size > MAX_FILE_BYTES || link_count(&opened)? != 1 {
+        return Err(PortcoveError::verification(
+            "bounded member is oversized or shares a hard-linked file",
+        ));
+    }
+    let inspected = hash_bounded(&canonical, size, checkpoint)?;
+    if file_snapshot(&opened)? != inspected.snapshot
+        || link_count(&open_object(&canonical, false)?)? != 1
+    {
+        return Err(changed_during_inspection());
+    }
+    Ok((inspected.sha256, size))
 }
 
 fn open_object(path: &Path, directory: bool) -> Result<fs::File> {
@@ -638,6 +668,33 @@ mod tests {
     use super::*;
 
     #[test]
+    fn stable_member_hash_refuses_oversize_links_and_same_size_replacement() {
+        let temporary = tempfile::tempdir().unwrap();
+        let file = temporary.path().join("generated.o2r");
+        fs::write(&file, b"fixture").unwrap();
+        assert_eq!(
+            hash_stable_regular(&file, 7, &|| Ok(())).unwrap(),
+            (hex::encode(Sha256::digest(b"fixture")), 7)
+        );
+        assert!(hash_stable_regular(&file, 6, &|| Ok(())).is_err());
+        let alias = temporary.path().join("alias.o2r");
+        fs::hard_link(&file, &alias).unwrap();
+        assert!(hash_stable_regular(&file, 7, &|| Ok(())).is_err());
+        fs::remove_file(alias).unwrap();
+        let changed = std::cell::Cell::new(false);
+        assert!(
+            hash_stable_regular(&file, 7, &|| {
+                if !changed.replace(true) {
+                    fs::write(&file, b"changed")?;
+                }
+                Ok(())
+            })
+            .is_err()
+        );
+        assert_eq!(fs::read(file).unwrap(), b"changed");
+    }
+
+    #[test]
     fn stable_query_metadata_enforces_byte_budget_and_regular_object() {
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path().join("manifest.json");
@@ -684,6 +741,7 @@ mod tests {
             library_user_data: false,
             required_mutable_files: vec![],
             settings_contract: None,
+            shared_preferences: None,
             mutable_paths: vec!["runtime-state".into()],
         };
         let mismatch = inspect(&runtime, &spec, &library).unwrap_err();
@@ -708,6 +766,7 @@ mod tests {
             immutable_tree_sha256: inspected.immutable_tree_sha256,
             registered_at: 1,
             retained_definition: None,
+            shared_preferences: None,
         }
     }
 

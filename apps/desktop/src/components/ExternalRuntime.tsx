@@ -218,6 +218,16 @@ function RegisterExternalDialog({
               <small className="mb-[5px] block text-[var(--color-text-muted)]">Checked files</small>
               {preview.immutable_file_count}
             </span>
+            {preview.shared_preferences && (
+              <p className="col-span-2 [overflow-wrap:anywhere]">
+                This game can rewrite shared preferences at{" "}
+                {preview.shared_preferences.binding.path}, discard unknown entries and affect other
+                copies in your Windows account. Portcove does not back up, restore or delete this
+                file. You must accept this shared write scope in a separate confirmation before
+                registration. If the shared location is unavailable, the game can instead rewrite{" "}
+                {preview.shared_preferences.local_fallback_path}.
+              </p>
+            )}
           </div>
         )}
         <ActionReviewFailure error={error} />

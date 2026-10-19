@@ -54,6 +54,8 @@ interface HelperSelectionPlan {
 }
 
 const helperPaths = new Set([
+  "scripts/daily-discovery-session.mts",
+  "scripts/daily-discovery.test.mts",
   ...nativeHelperSharedSources,
   "apps/desktop/scripts/browser-script.mts",
   "apps/desktop/scripts/browser-readiness.mts",

@@ -565,10 +565,12 @@ function inventory(catalog: HealthCatalog) {
       }
       continue;
     }
-    // Existing user-prepared entries declare a GitHub upstream repository;
-    // this check observes that location, never their externally prepared files.
-    const provider = releaseProvider === "user-prepared" ? "github" : releaseProvider;
+    // A prepared runtime may declare only project_url. The original-location
+    // pass below inventories that upstream without inferring release artifacts.
+    // An explicitly supplied repository still requires normal hosted validation.
     const repository = port.release?.repository;
+    if (releaseProvider === "user-prepared" && repository === undefined) continue;
+    const provider = releaseProvider === "user-prepared" ? "github" : releaseProvider;
     const pattern =
       provider === "github"
         ? /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u

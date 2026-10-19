@@ -58,7 +58,11 @@ export function BrowsingMatchDetails({
           again.
         </p>
       ) : contexts.length === 0 ? (
-        <p>This port no longer matches your filters.</p>
+        <p>
+          {result.ports.some((port) => port.id === portId)
+            ? "This game matches your filters. Version details are unavailable; Portcove checks requirements before setup or launch."
+            : "This port no longer matches your filters."}
+        </p>
       ) : (
         <>
           {lostChoice && (

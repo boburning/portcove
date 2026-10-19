@@ -34,6 +34,7 @@ interface SourceIntakeDialogProps {
   request: SourceIntakeRequest;
   close: () => void;
   onAdded?: () => Promise<unknown>;
+  returnFocus?: () => HTMLElement | null;
   openEvidence?: (evidenceId: string) => void;
   hostTools?: HostToolStatus[] | undefined;
   hostToolActions?: HostToolActions;
@@ -79,6 +80,7 @@ function SourceIntakeSession({
   request,
   close,
   onAdded,
+  returnFocus,
   openEvidence,
   hostTools = [],
   hostToolActions,
@@ -89,6 +91,8 @@ function SourceIntakeSession({
   const [busy, setBusy] = useState(request.paths.length > 0 ? copy.checking : "");
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
+  const [saved, setSaved] = useState(false);
+  const [refreshFailed, setRefreshFailed] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState(request.paths);
   const selectedPathsRef = useRef(request.paths);
   const intent = useRef(0);
@@ -120,6 +124,8 @@ function SourceIntakeSession({
       setNotice(undefined);
       setPlan(undefined);
       setResult(undefined);
+      setSaved(false);
+      setRefreshFailed(false);
       await loadInspection(paths, current);
     },
     [copy.checking, loadInspection],
@@ -199,15 +205,36 @@ function SourceIntakeSession({
       if (!imported)
         setNotice("Move cancelled. The original files and saved location were left unchanged.");
       else {
+        setSaved(true);
         setNotice(sourceImportNotice(imported));
         try {
           await onAdded?.();
         } catch {
-          if (intent.current === current) setNotice(sourceImportRefreshNotice(imported));
+          if (intent.current === current) {
+            setRefreshFailed(true);
+            setNotice(sourceImportRefreshNotice(imported));
+          }
         }
       }
     } catch (value) {
       if (intent.current === current) setError(errorText(value));
+    } finally {
+      if (intent.current === current) setBusy("");
+    }
+  };
+  const retryRefresh = async () => {
+    const current = ++intent.current;
+    setBusy("Refreshing saved file location…");
+    setError(undefined);
+    try {
+      await onAdded?.();
+      if (intent.current === current) {
+        setRefreshFailed(false);
+        setNotice("Saved file location refreshed. Return to the game to continue setup or play.");
+      }
+    } catch {
+      if (intent.current === current)
+        setError("The saved files could not be refreshed. Retry refresh; do not add them again.");
     } finally {
       if (intent.current === current) setBusy("");
     }
@@ -245,6 +272,7 @@ function SourceIntakeSession({
       }}
     >
       <DialogContent
+        finalFocus={saved && returnFocus ? () => returnFocus() ?? false : undefined}
         showCloseButton={false}
         className="max-h-[min(90vh,58rem)] w-[min(760px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="source-intake-description"
@@ -265,7 +293,7 @@ function SourceIntakeSession({
             data-autofocus
             variant="primary"
             type="button"
-            disabled={Boolean(busy)}
+            disabled={Boolean(busy) || saved}
             onClick={() => {
               void choose();
             }}
@@ -310,7 +338,7 @@ function SourceIntakeSession({
                 />
               </section>
             )}
-            {candidate && !plan && (
+            {candidate && !plan && !saved && (
               <div
                 className="grid gap-3 rounded-pc-md border border-[var(--color-success-border)] bg-pc-success-subtle p-4"
                 aria-label={copy.addLabel}
@@ -326,20 +354,20 @@ function SourceIntakeSession({
                     variant="primary"
                     disabled={Boolean(busy)}
                     onClick={() => {
-                      void review("copy");
+                      void review("use_current_location");
                     }}
                   >
-                    Copy into Portcove
+                    Use current location
                   </Button>
                   <Button
                     data-focusable
                     variant="outline"
                     disabled={Boolean(busy)}
                     onClick={() => {
-                      void review("use_current_location");
+                      void review("copy");
                     }}
                   >
-                    Use current location
+                    Copy into Portcove
                   </Button>
                   <Button
                     data-focusable
@@ -366,8 +394,13 @@ function SourceIntakeSession({
         {notice && <p role="status">{notice}</p>}
         {error && <p role="alert">{error}</p>}
         <DialogFooter className="mt-4">
+          {refreshFailed && (
+            <Button data-focusable disabled={Boolean(busy)} onClick={() => void retryRefresh()}>
+              Retry refresh
+            </Button>
+          )}
           <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
-            Close
+            {saved && !refreshFailed ? "Return to game" : "Close"}
           </Button>
         </DialogFooter>
       </DialogContent>

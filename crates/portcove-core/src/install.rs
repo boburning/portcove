@@ -1515,8 +1515,17 @@ impl Installer {
         qualification: &InstallQualification,
     ) -> Result<()> {
         let manifest = verified_manifest(install)?;
-        let selected = resolve_declared_executable(&install.path, qualification)?;
-        let (mut files, mutable_paths) = manifest_files(&install.path, qualification, &selected)?;
+        let mut qualification = qualification.clone();
+        if manifest.retained_contract.as_ref().is_some_and(|contract| {
+            contract.preparation_mode() == Some(crate::PreparationMode::Ghostship200Legacy)
+        }) {
+            qualification.critical_paths.extend([
+                crate::preparation::RECEIPT_FILE.into(),
+                "prepared-game-data/sm64.o2r".into(),
+            ]);
+        }
+        let selected = resolve_declared_executable(&install.path, &qualification)?;
+        let (mut files, mutable_paths) = manifest_files(&install.path, &qualification, &selected)?;
         if manifest.schema_version < 5 {
             for file in &mut files {
                 file.executable = false;
@@ -1595,9 +1604,22 @@ impl Installer {
         install: &InstallRecord,
         fallback: &InstallQualification,
     ) -> Result<InstallQualification> {
-        let mut qualification = match self.retained_catalog(install)? {
-            Some(catalog) => {
-                InstallQualification::from_catalog(&catalog, &install.port_id, fallback.platform)?
+        let manifest = verified_manifest(install)?;
+        let mut qualification = match manifest.retained_contract {
+            Some(contract) => {
+                let catalog = contract.catalog(&install.port_id)?;
+                let mut retained = InstallQualification::from_port(
+                    catalog.port(&install.port_id)?,
+                    fallback.platform,
+                )?;
+                if contract.preparation_mode() == Some(crate::PreparationMode::Ghostship200Legacy) {
+                    retained.critical_paths.extend([
+                        crate::preparation::RECEIPT_FILE.into(),
+                        "prepared-game-data/sm64.o2r".into(),
+                    ]);
+                }
+                retained.retained_contract = Some(contract);
+                retained
             }
             None => fallback.clone(),
         };
@@ -1605,6 +1627,15 @@ impl Installer {
             qualification.runtime_origin = runtime.origin;
         }
         Ok(qualification)
+    }
+
+    pub(crate) fn retained_preparation_mode(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<Option<crate::PreparationMode>> {
+        Ok(verified_manifest(install)?
+            .retained_contract
+            .and_then(|contract| contract.preparation_mode()))
     }
 
     pub(crate) fn refresh_verified_manifest(
@@ -1633,12 +1664,42 @@ impl Installer {
         original: &InstallRecord,
         operation_id: &str,
         qualification: &InstallQualification,
+        mode: crate::PreparationMode,
         root: &Path,
     ) -> Result<InstallRecord> {
         let mut qualification = self.retained_qualification(original, qualification)?;
         qualification
             .critical_paths
             .push(crate::preparation::RECEIPT_FILE.into());
+        if mode == crate::PreparationMode::Ghostship200Legacy {
+            crate::preparation::legacy_execution_contract(
+                &self
+                    .retained_catalog(original)?
+                    .ok_or_else(|| {
+                        PortcoveError::verification(
+                            "legacy preparation requires a retained definition",
+                        )
+                    })?
+                    .port(&original.port_id)?
+                    .clone(),
+                original,
+                Platform::WindowsX86_64,
+            )?;
+            qualification.retained_contract = Some(
+                qualification
+                    .retained_contract
+                    .as_ref()
+                    .ok_or_else(|| {
+                        PortcoveError::verification(
+                            "legacy preparation requires its verified original contract",
+                        )
+                    })?
+                    .for_ghostship_legacy_preparation()?,
+            );
+            qualification
+                .critical_paths
+                .push("prepared-game-data/sm64.o2r".into());
+        }
         let (manifest_sha256, selected_executable, runtime) = write_manifest(
             operation_id,
             &original.port_id,
@@ -2086,7 +2147,31 @@ fn verified_manifest_with_budget(
     }
     validate_runtime_manifest(&manifest)?;
     if let Some(contract) = &manifest.retained_contract {
-        contract.catalog(&install.port_id)?;
+        let catalog = contract.catalog(&install.port_id)?;
+        if contract.preparation_mode() == Some(crate::PreparationMode::Ghostship200Legacy) {
+            if manifest.platform != Some(Platform::WindowsX86_64) {
+                return Err(PortcoveError::verification(
+                    "legacy prepared manifest is not the reviewed Windows target",
+                ));
+            }
+            crate::preparation::legacy_execution_contract(
+                catalog.port(&install.port_id)?,
+                install,
+                Platform::WindowsX86_64,
+            )?;
+            for (path, maximum) in [
+                (crate::preparation::RECEIPT_FILE, 1024 * 1024),
+                ("prepared-game-data/sm64.o2r", 512 * 1024 * 1024),
+            ] {
+                if !manifest.files.iter().any(|file| {
+                    file.path == path && file.critical && file.size > 0 && file.size <= maximum
+                }) {
+                    return Err(PortcoveError::verification(
+                        "legacy prepared manifest lacks a bounded critical receipt or generated archive",
+                    ));
+                }
+            }
+        }
     }
     Ok(manifest)
 }
@@ -4062,6 +4147,146 @@ mod tests {
     }
 
     #[test]
+    fn ghostship_prepared_interpretation_survives_refresh_and_refuses_missing_critical_members() {
+        let temporary = tempfile::tempdir().unwrap();
+        let catalog = crate::test_fixture::admitted_indexed_catalog(
+            &crate::Catalog::embedded().unwrap(),
+            "ghostship",
+        );
+        let qualification =
+            InstallQualification::from_catalog(&catalog, "ghostship", Platform::WindowsX86_64)
+                .unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let installer = Installer::new(library.clone()).unwrap();
+        let root = temporary.path().join("original");
+        fs::create_dir(&root).unwrap();
+        // Inert fixture bytes: no package provenance or execution is claimed.
+        fs::write(root.join("Ghostship.exe"), b"inert fixture executable").unwrap();
+        let artifact = ArtifactIdentity {
+            asset_name: "Mary-Celeste-Alfa-Win64.zip".into(),
+            sha256: "a49f4c791377fcc611264b8920f2c3254b3ab25747c2a59da9305c32f92a6d3f".into(),
+            size: 21_561_620,
+        };
+        let (manifest_sha256, selected_executable, runtime) = write_manifest(
+            "original",
+            "ghostship",
+            "2.0.0",
+            &artifact,
+            &qualification,
+            &root,
+        )
+        .unwrap();
+        let original = InstallRecord {
+            id: "original".into(),
+            port_id: "ghostship".into(),
+            version: "2.0.0".into(),
+            path: root,
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 0,
+            verified: true,
+            staged: false,
+            artifact,
+            runtime,
+            manifest_sha256,
+            selected_executable,
+        };
+        let derived = temporary.path().join("prepared");
+        fs::create_dir_all(derived.join("prepared-game-data")).unwrap();
+        fs::write(derived.join("Ghostship.exe"), b"inert fixture executable").unwrap();
+        fs::write(
+            derived.join(crate::preparation::RECEIPT_FILE),
+            b"inert receipt",
+        )
+        .unwrap();
+        fs::write(
+            derived.join("prepared-game-data/sm64.o2r"),
+            b"inert generated member",
+        )
+        .unwrap();
+        let source = temporary.path().join("inert-original.z64");
+        fs::write(&source, b"inert original fixture").unwrap();
+        crate::adapter::record_prepared_setup(&derived, &source).unwrap();
+        let setup_metadata = derived.join(crate::adapter::UPSTREAM_SETUP_METADATA);
+        let original_metadata = fs::read(&setup_metadata).unwrap();
+        let prepared = installer
+            .create_prepared_manifest(
+                &original,
+                "prepared",
+                &qualification,
+                crate::PreparationMode::Ghostship200Legacy,
+                &derived,
+            )
+            .unwrap();
+        crate::preparation::bind_prepared_setup_manifest(
+            crate::PreparationMode::Ghostship200Legacy,
+            &derived,
+            &prepared.manifest_sha256,
+        )
+        .unwrap();
+        assert_eq!(fs::read(&setup_metadata).unwrap(), original_metadata);
+        let report = installer.verify(&prepared).unwrap();
+        assert!(report.valid, "{:?}", report.failures);
+        // Ordinary managed setup still binds metadata. Doing so here reproduces
+        // the real publication failure because this mode records it immutably.
+        crate::preparation::bind_prepared_setup_manifest(
+            crate::PreparationMode::Default,
+            &derived,
+            &prepared.manifest_sha256,
+        )
+        .unwrap();
+        assert!(!installer.verify(&prepared).unwrap().valid);
+        assert!(
+            !crate::adapter::upstream_setup_manifest_needs_refresh(
+                &derived,
+                &prepared.manifest_sha256,
+            )
+            .unwrap()
+        );
+        fs::write(&setup_metadata, original_metadata).unwrap();
+        assert!(installer.verify(&prepared).unwrap().valid);
+        let before = verified_manifest(&prepared).unwrap();
+        let contract = serde_json::to_value(&before.retained_contract).unwrap();
+        assert_eq!(contract["format"], 4);
+        assert_eq!(contract["original_format"], 3);
+        installer
+            .verify_import_contract(&prepared, &qualification)
+            .unwrap();
+        let refreshed = installer
+            .refresh_verified_manifest(&prepared, &qualification)
+            .unwrap();
+        let manifest = verified_manifest(&refreshed).unwrap();
+        assert_eq!(
+            serde_json::to_value(&manifest.retained_contract).unwrap(),
+            contract
+        );
+        for path in [
+            crate::preparation::RECEIPT_FILE,
+            "prepared-game-data/sm64.o2r",
+        ] {
+            for remove in [false, true] {
+                let mut malformed = serde_json::to_value(&manifest).unwrap();
+                let files = malformed["files"].as_array_mut().unwrap();
+                if remove {
+                    files.retain(|file| file["path"] != path);
+                } else {
+                    files.iter_mut().find(|file| file["path"] == path).unwrap()["critical"] =
+                        serde_json::json!(false);
+                }
+                let bytes = serde_json::to_vec(&malformed).unwrap();
+                fs::write(derived.join(".portcove-manifest.json"), &bytes).unwrap();
+                let mut changed = refreshed.clone();
+                changed.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
+                assert!(
+                    verified_manifest(&changed)
+                        .unwrap_err()
+                        .message
+                        .contains("bounded critical")
+                );
+            }
+        }
+    }
+
+    #[test]
     fn successor_manifest_refresh_and_preparation_preserve_exact_original_bytes() {
         assert_manifest_retention(true);
     }
@@ -4112,7 +4337,13 @@ mod tests {
         )
         .unwrap();
         let prepared = installer
-            .create_prepared_manifest(&refreshed, "prepared-id", &current, &derived)
+            .create_prepared_manifest(
+                &refreshed,
+                "prepared-id",
+                &current,
+                crate::PreparationMode::Default,
+                &derived,
+            )
             .unwrap();
         for version in [&refreshed, &prepared] {
             assert_eq!(

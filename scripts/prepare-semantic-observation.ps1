@@ -8,17 +8,17 @@ $workspace=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $root=Join-Path $workspace 'work/slice4/semantic-storage-2fda9f572e3843b5b16190a100b5275c'
 $image=Join-Path $root 'reviewer.vhd';$mount=Join-Path $root 'data'
 $active=Join-Path $root 'reviewer-active.json'
-$archive=Join-Path $root 'reviewer-active.semantic-isolation-ttTNEZ.retained.json'
-$oldMarkerHash='0ab15171c42aa3ce88e410a58768fb329af24e516afb938fcb29da8dc56dc52a'
+$archive=Join-Path $root 'reviewer-active.semantic-isolation-MdzaNi.retained.json'
+$oldMarkerHash='09cf56df3f76d65cf442992a37eab3b5d2338e48c5b11ccba42611053b68edd5'
 $ownerSid='S-1-5-21-1007133822-4277289207-646028416-1001'
 $diskId='6002248094AE6EFC7984F0EC20A288AC'
 $volumeId='\\?\Volume{12961e64-153d-4f34-9ada-6f0dcdb1f392}\'
 $configHash='4cdb2ef63a9c85a917b6d2f6962eddb6f40da561357433cde0bdd3d1e57ad0db'
-$nativeHash='a2cf7668d6de8cd0cd4760e0e72c01f423bc245c6de02d65941892c471bded87'
-$launcherHash='dbfdc66cee9e0b0ececa0b0afb2a38507a5af928e6b60a345e6160b784088445'
+$nativeHash='1c7e886ed148e3e9b2ccf6ca2bb821dbe6f4552f280c65ea299fc59308a03cf6'
+$launcherHash='0b37cd52e486320162f36e3f6bec68c6cb39769fafb55970951a175466716670'
 $qualifierHash='15d1e751a4abbaffd3743043361714921486675bef34c59630f6ffb00d5c090b'
-$intentPath=Join-Path $root 'observation-intent.json'
-$resultPath=Join-Path $root 'observation-result.json'
+$intentPath=Join-Path $root 'privilege-observation-intent.json'
+$resultPath=Join-Path $root 'privilege-observation-result.json'
 function Assert-ObservationFile([string]$Path,[string]$Hash) {
  for($entry=Get-Item -LiteralPath $Path -Force;$null -ne $entry;$entry=if($entry -is [IO.FileInfo]){$entry.Directory}else{$entry.Parent}) {
   if($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'observation record/source ancestry replaced' }
@@ -31,7 +31,12 @@ foreach($entry in @(
  @((Join-Path $root 'storage.json'),'e460767ea301dc5e8e7ac515d0e52a40622b10de031f63cdd3cd696174acaaec'),
  @((Join-Path $root 'completion-result.json'),'257e7ce199c1d89b7f24e325bc8479793c36578a08f56c29337ae17e73350015'),
  @((Join-Path $workspace 'work/slice4/semantic-isolation-ttTNEZ/capture/isolation.json'),'6e0df90d8548beab992da4b03fcebac791ba71497be3fd9eacfaa70f180f4ce8'),
- @((Join-Path $workspace 'work/slice4/semantic-bounded-storage-recovery-readback.json'),'12d8df568bfd44e49a8061eb07237e9868222490fa95240f4ccdca5119bd6701')
+ @((Join-Path $workspace 'work/slice4/semantic-bounded-storage-recovery-readback.json'),'12d8df568bfd44e49a8061eb07237e9868222490fa95240f4ccdca5119bd6701'),
+ @((Join-Path $root 'observation-intent.json'),'52161d279b1bb8b4741ed1bac61d57f694de010d3c81053f2aa83c57558e0d5d'),
+ @((Join-Path $root 'observation-result.json'),'a940573820f87cc2702ee5cc0e816e45fc6c327055c995292e4602ce0a9edfb1'),
+ @((Join-Path $root 'reviewer-active.semantic-isolation-ttTNEZ.retained.json'),'0ab15171c42aa3ce88e410a58768fb329af24e516afb938fcb29da8dc56dc52a'),
+ @((Join-Path $workspace 'work/slice4/semantic-isolation-MdzaNi/capture/isolation.json'),'1cce72f7715d044c61be1aaeaea5415d7486e5e23a2bef31d9a61341b2597d9a'),
+ @((Join-Path $workspace 'work/slice4/next-observation-recovery-readback.json'),'8e6c2ffc9e62b6ce88dee01046c0d77fb16ca5259c19a3591202d5cacad7f807')
 )) { Assert-ObservationFile $entry[0] $entry[1] }
 $config=Get-Content -Raw -LiteralPath (Join-Path $workspace 'docs/qualification/slice4-semantic-local-storage.proposed.json')|ConvertFrom-Json
 if($config.root -ne $root -or $config.owner_sid -ne $ownerSid -or $config.maximum_bytes -ne 536870912 -or $config.credentials -ne 'none' -or [IO.File]::ReadAllText((Join-Path $root '.portcove-semantic-storage-owned')) -ne $configHash) { throw 'fixed retained storage scope changed' }
@@ -54,8 +59,10 @@ function Get-ObservationImage {
 function Get-ObservationDisk {
  $observed=Get-ObservationImage
  if($observed.Attached -ne $true) { throw 'exact observation attachment unavailable' }
- $disks=@($observed|Get-Disk -ErrorAction Stop)
- if($disks.Count -ne 1 -or $disks[0].UniqueId -ne $diskId -or $disks[0].Size -ne 536870912 -or $disks[0].IsBoot -ne $false -or $disks[0].IsSystem -ne $false -or [string]$disks[0].BusType -ne 'File Backed Virtual' -or [string]$disks[0].PartitionStyle -ne 'GPT') { throw 'exact non-system observation disk differs; no numeric fallback' }
+ # DiskImage.Number can be absent. Select only the pinned opaque disk identity
+ # and require its backing Location to match the exact image, never its number.
+ $disks=@(Get-Disk -UniqueId $diskId -ErrorAction Stop)
+ if($disks.Count -ne 1 -or $disks[0].UniqueId -ne $diskId -or $disks[0].Location -ne $image -or $disks[0].Size -ne 536870912 -or $disks[0].IsBoot -ne $false -or $disks[0].IsSystem -ne $false -or [string]$disks[0].BusType -ne 'File Backed Virtual' -or [string]$disks[0].PartitionStyle -ne 'GPT') { throw 'exact non-system observation disk/location differs; no numeric fallback' }
  return $disks[0]
 }
 function Confirm-ObservationMount {
@@ -98,7 +105,7 @@ try {
   if(Test-Path -LiteralPath $active) { Assert-ObservationFile $active $oldMarkerHash }
   if(Test-Path -LiteralPath $archive) { Assert-ObservationFile $archive $oldMarkerHash }
   if((Test-Path -LiteralPath $active) -eq (Test-Path -LiteralPath $archive)) { throw 'original marker state missing or conflicting; reconcile before mutation' }
-  Write-ObservationRecord (Join-Path $root 'observation-recovery-intent.json') @{schema_version=1;observed_at=[DateTime]::UtcNow.ToString('o');operator_helper_sha256=$scriptHash;image=$image;scope='one exact-image detach before new fixture ownership'}
+  Write-ObservationRecord (Join-Path $root 'privilege-observation-recovery-intent.json') @{schema_version=1;observed_at=[DateTime]::UtcNow.ToString('o');operator_helper_sha256=$scriptHash;image=$image;scope='one exact-image detach before new fixture ownership'}
   if(-not (Test-Path -LiteralPath $active)) { Write-ObservationRecord $active @{kind='observation-recovery-before-fixture';operator_helper_sha256=$scriptHash;fixture_started=$false} }
   $providerError=$null;$readbackError=$null;$after=@()
   try { if((Get-ObservationImage).Attached -eq $true) { $null=Get-ObservationDisk;Dismount-DiskImage -ImagePath $image -ErrorAction Stop|Out-Null } } catch { $providerError=$_.Exception.Message }
@@ -107,7 +114,7 @@ try {
   $markerRetained=$false
   try { if(Test-Path -LiteralPath $archive) { Assert-ObservationFile $archive $oldMarkerHash } else { Assert-ObservationFile $active $oldMarkerHash };$markerRetained=$true } catch { $readbackError=$_.Exception.Message }
   $record=@{schema_version=1;observed_at=[DateTime]::UtcNow.ToString('o');image=$image;detached_observed=$detached;provider_error=$providerError;readback_error=$readbackError;backing_file_retained=(Test-Path -LiteralPath $image);markers_retained=$markerRetained;automatic_retry=$false;fixture_started=$false}
-  Write-ObservationRecord (Join-Path $root 'observation-recovery-result.json') $record
+  Write-ObservationRecord (Join-Path $root 'privilege-observation-recovery-result.json') $record
   $record|ConvertTo-Json
   if(-not $detached -or -not $record.backing_file_retained -or -not $markerRetained -or $readbackError) { throw 'recovery unconfirmed; retain state and reconcile actual readback' }
   exit 0
@@ -117,7 +124,7 @@ try {
  if($LASTEXITCODE -ne 0 -or $taskSourceHead -ne $ExpectedSourceRevision) { throw 'reviewed source revision differs' }
  $taskDirty=& git -C $workspace status --porcelain --untracked-files=no
  if($LASTEXITCODE -ne 0 -or $taskDirty) { throw 'tracked source differs from reviewed revision' }
- foreach($name in @('observation-intent.json','observation-result.json','observation-recovery-intent.json','observation-recovery-result.json')) { if(Test-Path -LiteralPath (Join-Path $root $name)) { throw 'observation already attempted; explicit readback/recovery, never repeat' } }
+ foreach($name in @('privilege-observation-intent.json','privilege-observation-result.json','privilege-observation-recovery-intent.json','privilege-observation-recovery-result.json')) { if(Test-Path -LiteralPath (Join-Path $root $name)) { throw 'observation already attempted; explicit readback/recovery, never repeat' } }
  if((Get-ObservationImage).Attached -ne $false) { throw 'observation must start from verified detached image' }
  if(Test-Path -LiteralPath $archive) { throw 'marker archive already exists' }
  Assert-ObservationFile $active $oldMarkerHash

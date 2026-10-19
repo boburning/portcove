@@ -160,6 +160,30 @@ node scripts/daily-discovery.mts status
 `run` stays in the foreground and emits JSON lines. Wait for `phase: ready`,
 retain its `run_id`, then send one JSON line at a time to that same process:
 
+For Codex shell execution, start `run` with `exec_command` using `tty:true`
+and `login:false`, with the installed Vite+ Node directories on PATH. Retain
+the returned `session_id` and use `write_stdin` for every operation and final
+`finish`. Do not pipe input, launch a detached shell or close the session after
+`ready`. The CLI refuses non-TTY stdin before lock acquisition, Git fetch,
+credentials or API collection and retains a local startup receipt. `plan` and
+`status` remain noninteractive. A later EOF is still an interrupted run, never
+successful completion. This launch contract avoids relying on a tool's default
+stdin lifetime.
+
+The runner reads GitHub's current core and GraphQL quota through its bounded,
+charged transport before inventory startup, immediately before a delivery batch,
+and before the final doctor when needed. It retains those observations in the
+run directory and normalized response quota observations in the budget ledger. Core requests
+and GraphQL points are distinct: GraphQL admission uses ten points per planned
+HTTP request as explicit planning headroom. This is a conservative heuristic,
+not a query-cost upper bound or an atomic reservation of shared account quota.
+Other consumers can spend after a probe; failed writes still require the same
+identity recovery and readback. Unknown or insufficient fresh capacity prevents
+delivery, preserving reset/continuation evidence. Successful responses reporting
+zero quota also retain backoff. Lower-priority API work stops at observed provider
+delivery headroom as well as the local request/byte reserve. No failed request
+is automatically retried and no identity is switched.
+
 | `op`           | Additional message fields and completion criterion                                                                                                                                                                                          |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `collect`      | Fixed registry snapshots, bounded manifest rotation and accessible source evidence saved. Each failure remains partial/inaccessible.                                                                                                        |
@@ -193,6 +217,18 @@ explicit active/archived Project membership. Only the maintained collector can
 produce the in-process validated inventory accepted by capture/normalization
 and doctor. Changed bodies are fetched once and shared by opaque identity;
 the doctor's established rules and active-item policy scope are preserved.
+
+If an issue revision moves during hydration or the repository revision marker
+moves before Project collection, perform one bounded reconciliation: enumerate
+the complete thin issue set again, require identical opaque membership, hydrate
+only changed bodies and bind title/state/revision/body to the same observation.
+A stable repository marker must bracket that pass, followed by a fresh complete
+Project enumeration and exact Project/repository revision agreement. This is
+semantic reconciliation within one run, not a failed-request retry. A further
+change, identity mismatch, malformed page, membership change, redaction or
+archive uncertainty blocks without validating or replacing the cached inventory.
+All reconciliation reads consume the existing budget; failure retains the issue
+number and revisions where available for diagnosis on a later admitted run.
 `canonical-baseline.json`, `project-items.json`, `checkpoint.json`,
 `active-run.json` and `runs/<run-id>/` retain identities, evidence and recovery.
 They are collection caches, never independent planning or support authority.
@@ -206,6 +242,15 @@ session deadline, while its transport bytes are outside the API-body ledger.
 Final receipts disclose actual charged requests/bytes and gaps. Fixture tests,
 manual runs and actual scheduled runs are different evidence scopes. Keep
 #2100 validating until three actual scheduled receipts have been evaluated.
+
+Discovery state uses an exclusive sibling file followed by atomic replacement.
+On Windows, replacement alone waits at most one second (25 ms intervals, at most
+41 attempts) for `EPERM`, `EACCES` or `EBUSY`. Readers without delete sharing can
+cause these errors; the code does not infer which process holds the file.
+The same prepared bytes are retried, with no unlink/truncate fallback. Persistent
+failure retains the old target and pending sibling. File creation, API requests,
+and whole runs are never retried by this mechanism. Local contention time counts
+toward the existing session deadline; it neither resets nor extends that deadline.
 
 ## Investigation and safe writes
 

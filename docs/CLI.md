@@ -189,6 +189,14 @@ the outside runtime or grant ownership of it. On another host or after moving
 the external folder, prepare and register it again against an accepted catalog
 entry.
 
+Schema 68 adds `ghostship200_legacy` to preparation modes. On the exact reviewed
+Ghostship 2.0.0 Windows installation, the ordinary default request returns this
+explicit mode with plan/receipt format 2. It uses a private zero-argument setup;
+other modes retain format 1. Unknown modes or mismatched format/mode pairs fail
+closed. The prepared installation retains contract format 4, which older readers
+must reject even when mutable runtime data is absent. This interpretation does
+not replace the admitted catalog or establish cross-version data acceptance.
+
 Schema 67 adds optional readiness `required_source_extension` and the
 `incompatible_source` launch blocker/action reason. These describe the effective
 runtime's required original-file representation, including its retained contract

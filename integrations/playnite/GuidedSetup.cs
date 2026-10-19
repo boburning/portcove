@@ -84,7 +84,7 @@ namespace Portcove.ReferenceClient
                     "Choose your own BIOS file. Portcove will validate it before use.");
             if (external && !installed && !reviewedExternal)
                 return Step(GuidedStepKind.ReviewProblem, "Update Portcove CLI",
-                    "Reviewed external registration requires public API schema 67 and external.review. Update the selected CLI; existing managed Play remains available.");
+                    "Reviewed external registration requires supported public API schema 67 or later and external.review. Update the selected CLI; existing managed Play remains available.");
             if (external)
                 return installed ? Step(GuidedStepKind.ReviewProblem, "Review external runtime",
                     "This player-owned runtime is registered but cannot launch. Review the readiness and launch-action reasons above; refresh after resolving them.") :

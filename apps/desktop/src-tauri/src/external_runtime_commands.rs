@@ -39,6 +39,28 @@ pub(crate) async fn register_external_runtime(
         )
         .into());
     }
+    if let Some(shared) = &review.shared_preferences {
+        let disclosure = format!(
+            "Running this game can rewrite shared preferences at {}. It can discard unknown entries and affect other runtime copies in this Windows account. The file is currently {}. If that location is unavailable, the game can instead rewrite {}. Portcove does not own, migrate, back up, restore, or delete these preferences. Accept this write scope?",
+            shared.binding.path.display(),
+            if shared.present {
+                "present"
+            } else {
+                "absent; the game may create it"
+            },
+            shared.local_fallback_path.display()
+        );
+        if !confirm_destructive(
+            &app,
+            "Review shared preferences",
+            disclosure,
+            "Accept shared preferences",
+        )
+        .await
+        {
+            return Ok(None);
+        }
+    }
     let consent = format!(
         "Register {} version {} at {}? Portcove will verify and launch this exact runtime. It will not copy, update, back up, or delete the external folder. Game-owned output there remains outside Portcove's save management.",
         review.port_id,
@@ -58,8 +80,15 @@ pub(crate) async fn register_external_runtime(
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
-        let authorization =
-            service.authorize_external_runtime(&port_id, &path, &expected_preview)?;
+        let authorization = service.authorize_external_runtime_with_shared_preferences_ack(
+            &port_id,
+            &path,
+            &expected_preview,
+            review
+                .shared_preferences
+                .as_ref()
+                .map(|_| expected_preview.as_str()),
+        )?;
         service
             .register_external_runtime(&port_id, &path, &authorization.token)
             .map(Some)

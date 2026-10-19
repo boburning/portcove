@@ -87,7 +87,8 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     assert!(pairs.contains(&("staged-source-portable", 5)));
     assert!(pairs.contains(&("staged-source-portable", 6)));
     assert!(pairs.contains(&("staged-source-portable", 7)));
-    assert_eq!(templates.len(), adapters.len() + 7);
+    assert!(pairs.contains(&("staged-source-portable", 8)));
+    assert_eq!(templates.len(), adapters.len() + 8);
     let requirements = temporary.path().join("prepared-directory.json");
     std::fs::write(&requirements, serde_json::to_vec(&json!({
         "capability_contract_schema": 1,

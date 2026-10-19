@@ -21,6 +21,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
   }
   let disposed = false;
   let prepared = false;
+  const favorites = new Set<string>();
   let pending:
     | { resolve: (value: typeof install) => void; reject: (reason: unknown) => void }
     | undefined;
@@ -41,7 +42,127 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
   ) => {
     if (!argsAre(args, expected)) unsupported(`${command} (unexpected arguments)`);
   };
+  const outputLocation = (
+    portId: string,
+  ): Awaited<ReturnType<typeof desktopApi.outputLocation>> => ({
+    port_id: portId,
+    library_root: "fixture/library",
+    default_output_directory: `fixture/library/${portId}`,
+    effective_output_directory: `fixture/library/${portId}`,
+    configured_output_directory: null,
+    selection_source: "library_default",
+    user_data_root: `fixture/library/user/${portId}`,
+  });
+  const requirePort = (
+    command: string,
+    args: Record<string, unknown> | undefined,
+    extra: Record<string, unknown> = {},
+  ) => {
+    if (!workspace(journey).catalog.ports.some((port) => port.id === args?.portId))
+      return unsupported(command);
+    requireArgs(command, args, { portId: args?.portId, generation, ...extra });
+    return String(args?.portId);
+  };
   const handlers: Record<string, (args: Record<string, unknown> | undefined) => unknown> = {
+    get_favorite_ports: (args) => {
+      requireArgs("get_favorite_ports", args, { generation });
+      return [...favorites];
+    },
+    set_port_favorite: (args) => {
+      if (
+        typeof args?.favorite !== "boolean" ||
+        !workspace(journey).catalog.ports.some((port) => port.id === args.portId)
+      )
+        return unsupported("set_port_favorite");
+      requireArgs("set_port_favorite", args, {
+        portId: args.portId,
+        favorite: args.favorite,
+        generation,
+      });
+      if (args.favorite) favorites.add(String(args.portId));
+      else favorites.delete(String(args.portId));
+    },
+    get_output_location: (args) => {
+      const portId = requirePort("get_output_location", args);
+      return outputLocation(portId);
+    },
+    preview_output_location: (args) => {
+      const portId = requirePort("preview_output_location", args, { path: null });
+      const active = workspace(journey).statuses.find((item) => item.port_id === portId)?.active;
+      return {
+        port_id: portId,
+        current: outputLocation(portId),
+        proposed: outputLocation(portId),
+        reset_to_default: true,
+        availability: "available",
+        ownership: "library_default",
+        available_bytes: doctor.library.volume_available_bytes,
+        total_bytes: doctor.library.volume_total_bytes,
+        volume_identity: "fixture-volume",
+        validation_errors: [],
+        affected_installs: active
+          ? [
+              {
+                install_id: active.id,
+                version: active.version,
+                path: active.path,
+                active: true,
+                previous: false,
+                staged: false,
+              },
+            ]
+          : [],
+        moves_existing_install: false,
+        preview_sha256: "b".repeat(64),
+      } satisfies Awaited<ReturnType<typeof desktopApi.previewOutputLocation>>;
+    },
+    get_output_relocation_status: (args) => {
+      requirePort("get_output_relocation_status", args);
+      return null;
+    },
+    get_application_update_status: (args) => {
+      requireArgs("get_application_update_status", args, {});
+      return {
+        schedule: null,
+        staged: null,
+        apply: null,
+        install_eligibility: "not-configured",
+        recovery_required: [],
+      } satisfies Awaited<ReturnType<typeof desktopApi.applicationUpdateStatus>>;
+    },
+    get_catalog_status: (args) => {
+      requireArgs("get_catalog_status", args, {});
+      return {
+        provenance: doctor.catalog_provenance,
+        trusted_keys: [],
+        highest_sequence: 0,
+        updates_enabled: false,
+        can_rollback: false,
+        can_use_cached: false,
+        state_sha256: "a".repeat(64),
+      } satisfies Awaited<ReturnType<typeof desktopApi.catalogStatus>>;
+    },
+    launch_port: (args) => {
+      const status = workspace(journey).statuses.find((item) => item.port_id === args?.portId);
+      if (
+        !status?.active ||
+        (status.readiness?.pending_setup && !prepared) ||
+        args?.source !== null ||
+        !Array.isArray(args.arguments) ||
+        args.arguments.length !== 0
+      )
+        return unsupported("launch_port");
+      requireArgs("launch_port", args, {
+        portId: args.portId,
+        generation,
+        source: null,
+        arguments: args.arguments,
+      });
+      return {
+        processId: null,
+        sessionId: `fixture-launch-${String(args.portId)}`,
+      } satisfies Awaited<ReturnType<typeof desktopApi.launch>>;
+    },
     report_frontend_error: (args) => {
       if (typeof args?.message !== "string" || typeof args?.componentStack !== "string")
         return unsupported("report_frontend_error");

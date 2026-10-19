@@ -138,7 +138,14 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if let Some(version) = port
+        let version = if port
+            .release
+            .user_prepared
+            .values()
+            .any(|runtime| runtime.shared_preferences.is_some())
+        {
+            8
+        } else if let Some(version) = port
             .release
             .managed_build
             .values()
@@ -442,6 +449,30 @@ fn prepared_private_data_requires_version_two_without_widening_legacy_entries() 
     assert!(inspect(&entry).is_err());
     entry["required_capabilities"][0]["minimum_version"] = json!(2);
     assert!(inspect(&entry).is_ok());
+}
+
+#[test]
+fn shared_preferences_require_v8_and_preserve_unknown_variant_refusal() {
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("dkc3-recomp")
+        .unwrap()
+        .clone();
+    for runtime in port.release.user_prepared.values_mut() {
+        runtime.shared_preferences =
+            Some(crate::PreparedSharedPreferencesContract::Regaiden041Windows);
+    }
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(8);
+    for minimum in 1..8 {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        assert!(inspect(&entry).is_err());
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(8);
+    assert!(inspect(&entry).is_ok());
+    entry["port"]["release"]["user_prepared"]["windows-x86-64"]["shared_preferences"] =
+        json!("arbitrary-path");
+    assert!(inspect(&entry).is_err());
 }
 
 #[test]

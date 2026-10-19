@@ -132,6 +132,19 @@ impl DefinitionContentIndex {
             ));
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        if port
+            .release
+            .user_prepared
+            .values()
+            .any(|runtime| runtime.shared_preferences.is_some())
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable" && requirement.minimum_version >= 8
+            })
+        {
+            return Err(PortcoveError::verification(
+                "shared preferences require staged-source capability version 8",
+            ));
+        }
         if let Some(minimum) = port
             .release
             .managed_build

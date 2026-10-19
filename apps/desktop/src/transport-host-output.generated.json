@@ -1139,6 +1139,60 @@
     "type": "object"
   },
   "external_runtime_preview": {
+    "$defs": {
+      "AcceptedSharedPreferencesBinding": {
+        "additionalProperties": false,
+        "description": "Explicitly accepted account and location; mutable contents are not authority.",
+        "properties": {
+          "account_sid_sha256": {
+            "type": "string"
+          },
+          "contract": {
+            "$ref": "#/$defs/PreparedSharedPreferencesContract"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "account_sid_sha256",
+          "path"
+        ],
+        "type": "object"
+      },
+      "PreparedSharedPreferencesContract": {
+        "description": "A reviewed shared write scope, never a caller-selected external path.",
+        "enum": [
+          "regaiden041-windows"
+        ],
+        "type": "string"
+      },
+      "SharedPreferencesReview": {
+        "additionalProperties": false,
+        "properties": {
+          "binding": {
+            "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
+          },
+          "local_fallback_path": {
+            "type": "string"
+          },
+          "local_fallback_present": {
+            "type": "boolean"
+          },
+          "present": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "binding",
+          "present",
+          "local_fallback_path",
+          "local_fallback_present"
+        ],
+        "type": "object"
+      }
+    },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
       "archive_sha256": {
@@ -1164,6 +1218,16 @@
       "preview_sha256": {
         "type": "string"
       },
+      "shared_preferences": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/SharedPreferencesReview"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "version": {
         "type": "string"
       }
@@ -1183,6 +1247,27 @@
   },
   "external_runtime_record": {
     "$defs": {
+      "AcceptedSharedPreferencesBinding": {
+        "additionalProperties": false,
+        "description": "Explicitly accepted account and location; mutable contents are not authority.",
+        "properties": {
+          "account_sid_sha256": {
+            "type": "string"
+          },
+          "contract": {
+            "$ref": "#/$defs/PreparedSharedPreferencesContract"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "account_sid_sha256",
+          "path"
+        ],
+        "type": "object"
+      },
       "AuthenticatedDefinitionProvenance": {
         "additionalProperties": false,
         "description": "Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.",
@@ -1298,6 +1383,13 @@
           "macos-aarch64"
         ],
         "type": "string"
+      },
+      "PreparedSharedPreferencesContract": {
+        "description": "A reviewed shared write scope, never a caller-selected external path.",
+        "enum": [
+          "regaiden041-windows"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1331,6 +1423,16 @@
         "anyOf": [
           {
             "$ref": "#/$defs/DefinitionSelectionIdentity"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "shared_preferences": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
           },
           {
             "type": "null"
@@ -5993,6 +6095,27 @@
   },
   "workspace_snapshot": {
     "$defs": {
+      "AcceptedSharedPreferencesBinding": {
+        "additionalProperties": false,
+        "description": "Explicitly accepted account and location; mutable contents are not authority.",
+        "properties": {
+          "account_sid_sha256": {
+            "type": "string"
+          },
+          "contract": {
+            "$ref": "#/$defs/PreparedSharedPreferencesContract"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "account_sid_sha256",
+          "path"
+        ],
+        "type": "object"
+      },
       "ActivityFeed": {
         "description": "A complete view of current and actionable work plus a bounded terminal window.\n\n`records` is deterministically ordered and contains each durable activity at\nmost once even when it belongs to several protected sets. The three ID lists\nare complete for the same SQLite snapshot. Failed attention remains complete\nwithin the durable 1,000-terminal-record retention policy; older terminal\nrecords are retired. Only the ordinary terminal-history presentation is\nwindowed further.",
         "properties": {
@@ -6978,6 +7101,16 @@
             "anyOf": [
               {
                 "$ref": "#/$defs/DefinitionSelectionIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shared_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
               },
               {
                 "type": "null"
@@ -8184,6 +8317,13 @@
         "description": "Catalog-accepted identity for a runtime the player prepares outside Portcove.\nPortcove never downloads or owns this package through this route.",
         "enum": [
           "tfe-dark-forces-v1.22.420"
+        ],
+        "type": "string"
+      },
+      "PreparedSharedPreferencesContract": {
+        "description": "A reviewed shared write scope, never a caller-selected external path.",
+        "enum": [
+          "regaiden041-windows"
         ],
         "type": "string"
       },
@@ -9578,6 +9718,17 @@
               }
             ],
             "description": "Read-only, version-scoped source-selection semantics; never seeds settings."
+          },
+          "shared_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparedSharedPreferencesContract"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Explicit consent to the exact runtime's non-owned, shared preferences."
           },
           "source_argument_extension": {
             "default": null,

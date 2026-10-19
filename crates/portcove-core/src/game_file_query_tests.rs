@@ -431,6 +431,7 @@ fn existing_external_registration_excludes_current_managed_install() {
         immutable_tree_sha256: "b".repeat(64),
         registered_at: Library::now(),
         retained_definition: None,
+        shared_preferences: None,
     };
     // A retained external instance may survive a newer managed definition.
     service

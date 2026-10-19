@@ -40,7 +40,7 @@ updates in the published Alpha 2.
 
 ### Required desktop runtime
 
-The first-beta Windows baseline is Windows 11 25H2 x86-64 with normal security
+The first-beta Windows baseline is Windows 11 26H2 x86-64 with normal security
 updates and the WebView2 Evergreen production Runtime, initially 155.0.4283.62
 or later. Keep Evergreen automatic updates enabled. The normal NSIS installer
 uses Tauri's Evergreen bootstrapper and minimum-version update behavior; an
@@ -49,8 +49,10 @@ Desktop refuses an unavailable engine, preview identity or engine below the
 floor. On Windows it displays a native diagnostic; on Linux
 it writes a diagnostic to standard error. Repair the runtime using the ordinary
 installer/package source before starting again. No supported historical-engine
-claim follows from compiler targets or a newer-host pass. The support policy
-does not add a Windows OS startup gate: existing Server diagnostic routes can
+claim follows from compiler targets or a newer-host pass. Windows 25H2 remains
+an unqualified follow-up compatibility target, not an initial-beta prerequisite;
+missing media does not establish incompatibility. The support policy does not
+add an installer or Windows OS startup gate: existing Server diagnostic routes can
 still execute, without establishing support for Server or an older client OS.
 
 Ordinary Linux support is updated Ubuntu 24.04 LTS x86-64 with maintained
