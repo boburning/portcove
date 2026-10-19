@@ -4562,6 +4562,7 @@ impl PortcoveService {
         }
         operation.checkpoint()?;
         Ok(crate::LaunchSpec {
+            fixed_arguments_only: false,
             executable: record.executable.clone(),
             install_root: record.path.clone(),
             working_directory,

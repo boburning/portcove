@@ -58,6 +58,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 8,
         });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 9,
+        });
         supported
     }
 }
@@ -272,8 +276,27 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(2));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 9, 9)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 10, 10)).unwrap();
         assert!(!future.compatible);
+    }
+
+    #[test]
+    fn fixed_source_builds_require_v9_and_preserve_older_capabilities() {
+        let request = request("staged-source-portable", 9, 9);
+        assert!(check_definition_capabilities(&request).unwrap().compatible);
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 9
+            })
+            .collect();
+        let old = check_with_inventory(&request, &previous).unwrap();
+        assert!(!old.compatible);
+        assert_eq!(
+            old.checks[0].outcome,
+            DefinitionCapabilityOutcome::UnsupportedVersion
+        );
+        assert_eq!(old.checks[0].installed_version, Some(8));
     }
 
     #[test]
