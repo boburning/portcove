@@ -220,9 +220,10 @@ it("keeps selections editable when candidate facts are unavailable instead of cl
   await click("Filters (1)");
   expect(button("Linux (unavailable)").disabled).toBe(false);
   expect(button("Linux (unavailable)").getAttribute("aria-pressed")).toBe("true");
-  expect(document.body.textContent).toContain(
-    "Missing retained platform or setup facts remain unavailable",
+  const attention = [...document.querySelectorAll("fieldset")].find(
+    (group) => group.querySelector("legend")?.textContent === "Installation attention",
   );
+  expect(attention?.textContent).toContain("Unavailable details remain unknown");
   expect(button("Remove Linux filter")).toBeDefined();
 });
 
