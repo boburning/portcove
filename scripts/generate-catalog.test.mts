@@ -125,6 +125,8 @@ function run(...args: string[]) {
   return spawnSync(process.execPath, ["scripts/generate-catalog.mts", ...args], {
     cwd: root,
     encoding: "utf8",
+    // Complete historical comparisons exceed Node's default 1 MiB capture.
+    maxBuffer: 4 * 1024 * 1024,
   });
 }
 
@@ -834,6 +836,7 @@ void test("current schema-2 authoring deterministically owns the embedded catalo
 
 void test("semantic comparison reports every historical-to-current difference", () => {
   const result = run("--compare-historical");
+  assert.ifError(result.error);
   assert.equal(result.status, 0, result.stderr);
   const comparison = fixtureJson(result.stdout);
   assert.equal(typeof comparison.equal, "boolean");
@@ -2363,6 +2366,9 @@ void test("ordinary generator prepares one complete retained batch and refuses o
     join(catalogRoot, "catalog-current-authoring.json"),
     "--output-dir",
     output,
+    // This zero-request control must never discover the maintainer's account.
+    "--credentials-file",
+    join(scratch, "intentionally-unavailable-credentials.json"),
   ];
   const generated = run(...args);
   assert.equal(generated.status, 0, generated.stderr);
