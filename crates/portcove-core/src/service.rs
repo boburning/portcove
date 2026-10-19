@@ -9587,7 +9587,7 @@ fn main() {
         let (temporary, mut service, record) = external_location_fixture();
         let before = service.library.connection().unwrap().query_row(
             "SELECT retained_catalog_json, registered_at FROM external_runtime_registrations WHERE port_id=?1",
-            [&record.port_id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            [&record.port_id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
         ).unwrap();
         let moved = temporary.path().join("moved-player-folder");
         fs::rename(&record.path, &moved).unwrap();
@@ -9614,7 +9614,7 @@ fn main() {
         assert_eq!(relinked.registered_at, record.registered_at);
         assert_eq!(relinked.version, record.version);
         assert_eq!(relinked.immutable_tree_sha256, record.immutable_tree_sha256);
-        assert_eq!(relinked.path, moved);
+        assert_eq!(relinked.path, fs::canonicalize(&moved).unwrap());
         assert_eq!(
             fs::read(relinked.path.join("player-save")).unwrap(),
             b"keep my save"
@@ -9622,7 +9622,7 @@ fn main() {
         assert!(!record.path.exists());
         let after = service.library.connection().unwrap().query_row(
             "SELECT retained_catalog_json, registered_at FROM external_runtime_registrations WHERE port_id=?1",
-            [&record.port_id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            [&record.port_id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
         ).unwrap();
         assert_eq!(before, after);
     }
@@ -9694,6 +9694,244 @@ fn main() {
         service
             .relink_external_runtime(&record.port_id, &moved, &authorization.token)
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn external_ownership_refuses_managed_provider_work_before_resolution() {
+        struct UnexpectedProvider(Arc<AtomicUsize>);
+        #[async_trait::async_trait]
+        impl ReleaseProvider for UnexpectedProvider {
+            async fn resolve(
+                &self,
+                _port: &PortDefinition,
+                _channel: ReleaseChannel,
+                _platform: Platform,
+            ) -> Result<ResolvedRelease> {
+                self.0.fetch_add(1, Ordering::SeqCst);
+                Err(PortcoveError::state(
+                    "external registration reached managed provider",
+                ))
+            }
+        }
+        let (_temporary, mut service, record) = external_location_fixture();
+        let calls = Arc::new(AtomicUsize::new(0));
+        service.releases = Arc::new(UnexpectedProvider(calls.clone()));
+        let results = [
+            service
+                .plan_install(&record.port_id, None)
+                .await
+                .map(|_| ()),
+            service
+                .install_at(
+                    &record.port_id,
+                    None,
+                    InstallOverrides {
+                        source: None,
+                        bios: None,
+                        output_directory: None,
+                    },
+                    true,
+                    |_| {},
+                )
+                .await
+                .map(|_| ()),
+            service
+                .ensure(&record.port_id, None, None, None, |_| {})
+                .await
+                .map(|_| ()),
+            service
+                .update(&record.port_id, None, None, true, |_| {})
+                .await
+                .map(|_| ()),
+            service.check_update(&record.port_id).await.map(|_| ()),
+        ];
+        for result in results {
+            assert!(result.unwrap_err().message.contains("external folder"));
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            serde_json::to_value(
+                service
+                    .library
+                    .external_runtime_with_port(&record.port_id)
+                    .unwrap()
+                    .unwrap()
+                    .0
+            )
+            .unwrap(),
+            serde_json::to_value(&record).unwrap()
+        );
+    }
+
+    #[test]
+    fn external_relink_refuses_generic_registration_consent_and_pending_game() {
+        let (_temporary, service, record) = external_location_fixture();
+        let generic = service
+            .preview_external_runtime(&record.port_id, &record.path)
+            .unwrap();
+        let generic_authorization = service
+            .authorize_external_runtime(&record.port_id, &record.path, &generic.preview_sha256)
+            .unwrap();
+        assert!(
+            service
+                .relink_external_runtime(
+                    &record.port_id,
+                    &record.path,
+                    &generic_authorization.token
+                )
+                .is_err()
+        );
+        let review = service
+            .preview_external_runtime_relink(&record.port_id, &record.path)
+            .unwrap();
+        let authorization = service
+            .authorize_external_runtime_relink(
+                &record.port_id,
+                &record.path,
+                &review.preview_sha256,
+                None,
+            )
+            .unwrap();
+        let now = Library::now();
+        service
+            .library
+            .create_launch_session(&LaunchSessionRecord {
+                id: "pending-external-relink".into(),
+                port_id: record.port_id.clone(),
+                install_id: record.id.clone(),
+                install_root: record.path.clone(),
+                owner_kind: crate::LaunchOwnerKind::External,
+                supervisor_pid: 1,
+                supervisor_identity: None,
+                child_pid: None,
+                child_identity: None,
+                phase: LaunchSessionPhase::Preparing,
+                outcome: None,
+                exit_code: None,
+                message: None,
+                started_at: now,
+                updated_at: now,
+                finished_at: None,
+            })
+            .unwrap();
+        let error = service
+            .relink_external_runtime(&record.port_id, &record.path, &authorization.token)
+            .unwrap_err();
+        assert!(error.message.contains("pending launch"));
+        assert_eq!(
+            serde_json::to_value(
+                service
+                    .library
+                    .external_runtime_with_port(&record.port_id)
+                    .unwrap()
+                    .unwrap()
+                    .0
+            )
+            .unwrap(),
+            serde_json::to_value(&record).unwrap()
+        );
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn external_relink_shared_scope_checks_new_folder_without_requiring_old_saves() {
+        // Inert files exercise the real Windows scope resolver. No shared file
+        // is written and this fixture grants no runtime/gameplay qualification.
+        let (temporary, mut service, record) = external_location_fixture();
+        let removal = service.preview_external_removal(&record.port_id).unwrap();
+        let authorization = service
+            .authorize_external_removal(&record.port_id, &removal.preview_sha256)
+            .unwrap();
+        service
+            .remove_external_runtime(&record.port_id, &authorization.token)
+            .unwrap();
+        let mut spec = service
+            .catalog
+            .port(&record.port_id)
+            .unwrap()
+            .release
+            .user_prepared[&Platform::WindowsX86_64]
+            .clone();
+        spec.version = "0.4.1".into();
+        spec.archive_name = "Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip".into();
+        spec.archive_size = 33_085_815;
+        spec.archive_sha256 =
+            "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6".into();
+        spec.executable = "Resident_Evil_Gaiden__USA_.exe".into();
+        spec.source_argument_extension = Some("gbc".into());
+        spec.shared_preferences =
+            Some(crate::PreparedSharedPreferencesContract::Regaiden041Windows);
+        spec.mutable_paths = [
+            "runtime_prefs.ini",
+            "config.ini",
+            "saves",
+            "snapshots",
+            "imgui.ini",
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+        fs::rename(&record.executable, record.path.join(&spec.executable)).unwrap();
+        fs::create_dir(record.path.join("saves")).unwrap();
+        let mismatch =
+            crate::external_runtime::inspect(&record.path, &spec, service.library.root())
+                .unwrap_err();
+        spec.immutable_tree_sha256 = mismatch.details["actual_tree_sha256"].clone();
+        service.replace_catalog_for_test(external_location_catalog(Platform::WindowsX86_64, spec));
+        let preview = service
+            .preview_external_runtime(&record.port_id, &record.path)
+            .unwrap();
+        let authorization = service
+            .authorize_external_runtime_with_shared_preferences_ack(
+                &record.port_id,
+                &record.path,
+                &preview.preview_sha256,
+                Some(&preview.preview_sha256),
+            )
+            .unwrap();
+        let registered = service
+            .register_external_runtime(&record.port_id, &record.path, &authorization.token)
+            .unwrap();
+        let moved = temporary.path().join("moved-shared-runtime");
+        fs::rename(&registered.path, &moved).unwrap();
+        assert!(!registered.path.exists());
+        let relink = service
+            .preview_external_runtime_relink(&record.port_id, &moved)
+            .unwrap();
+        assert!(
+            service
+                .authorize_external_runtime_relink(
+                    &record.port_id,
+                    &moved,
+                    &relink.preview_sha256,
+                    None
+                )
+                .is_err()
+        );
+        assert!(
+            service
+                .authorize_external_runtime_relink(
+                    &record.port_id,
+                    &moved,
+                    &relink.preview_sha256,
+                    Some(&relink.proposed.preview_sha256)
+                )
+                .is_err()
+        );
+        let authorization = service
+            .authorize_external_runtime_relink(
+                &record.port_id,
+                &moved,
+                &relink.preview_sha256,
+                Some(&relink.preview_sha256),
+            )
+            .unwrap();
+        let changed = service
+            .relink_external_runtime(&record.port_id, &moved, &authorization.token)
+            .unwrap();
+        assert_eq!(changed.id, registered.id);
+        assert_eq!(changed.shared_preferences, registered.shared_preferences);
+        assert_eq!(changed.path, fs::canonicalize(moved).unwrap());
     }
 
     fn external_location_fixture() -> (tempfile::TempDir, PortcoveService, ExternalRuntimeRecord) {

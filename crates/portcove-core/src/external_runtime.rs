@@ -187,6 +187,25 @@ pub struct ExternalRuntimeRelinkPreview {
     pub preview_sha256: String,
 }
 
+pub(crate) fn require_retained_executable_path(
+    root: &Path,
+    executable: &Path,
+    expected: &str,
+) -> Result<()> {
+    let relative = executable.strip_prefix(root).map_err(|_| {
+        PortcoveError::verification("external executable is outside its registered folder")
+    })?;
+    let relative = crate::path::unicode(relative, "external executable")?.replace('\\', "/");
+    let (_, actual) = crate::archive::validate_relative_path(&relative, false)?;
+    let (_, expected) = crate::archive::validate_relative_path(expected, false)?;
+    if actual != expected {
+        return Err(PortcoveError::verification(
+            "external executable differs from its retained contract",
+        ));
+    }
+    Ok(())
+}
+
 /// Observe the registered root and executable without reading or hashing the
 /// player-owned tree. Status is a point-in-time location assessment, not proof
 /// of immutable bytes or execution authority; launch still runs full inspection.

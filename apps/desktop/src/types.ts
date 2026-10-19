@@ -68,6 +68,8 @@ export type RestoreResult = Generated.TransportOutputs["restore_result"];
 
 export type AdoptionPreview = Generated.TransportOutputs["adoption_preview"];
 export type ExternalRuntimePreview = Generated.TransportOutputs["desktop_external_runtime_preview"];
+export type ExternalRuntimeRelinkPreview =
+  Generated.TransportOutputs["desktop_external_runtime_relink_preview"];
 export type ExternalRuntimeRemovalPreview =
   Generated.TransportOutputs["desktop_external_runtime_removal_preview"];
 export type ExternalRuntimeRecord = Generated.TransportOutputs["desktop_external_runtime_record"];

@@ -1516,6 +1516,7 @@ impl CapabilityDocument {
                 "catalog.definition-refresh".into(),
                 "external".into(),
                 "external.review".into(),
+                "external.relink".into(),
                 "source".into(),
                 "source.roots".into(),
                 "source.roots.scan".into(),

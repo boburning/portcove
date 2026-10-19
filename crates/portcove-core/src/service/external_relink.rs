@@ -3,7 +3,7 @@ use super::*;
 use crate::{ExternalRuntimeRelinkPreview, library::ExternalRuntimeRelinkState};
 
 impl PortcoveService {
-    fn require_managed_runtime_ownership(status: &PortStatus) -> Result<()> {
+    pub(super) fn require_managed_runtime_ownership(status: &PortStatus) -> Result<()> {
         if status.external_runtime.is_some() {
             return Err(PortcoveError::conflict(
                 "this game uses an external folder; change its folder or remove its registration before installing a managed copy",
@@ -53,13 +53,19 @@ impl PortcoveService {
                 .immutable_tree_sha256
                 .eq_ignore_ascii_case(&spec.immutable_tree_sha256)
             || !record.path.is_absolute()
-            || record.executable != record.path.join(&spec.executable)
         {
             return Err(PortcoveError::verification(
                 "external runtime record differs from its retained accepted identity",
             ));
         }
-        crate::external_runtime::shared_preferences::check_record(record, spec)?;
+        crate::external_runtime::require_retained_executable_path(
+            &record.path,
+            &record.executable,
+            &spec.executable,
+        )?;
+        // The old folder may be missing. Preserve its accepted binding without
+        // probing that folder, then revalidate the current account at the new root.
+        crate::external_runtime::shared_preferences::check_binding(record, spec)?;
         let context =
             DefinitionOperationContext::observed(DefinitionOperation::RegisterExternal, true, true);
         if record.retained_definition.is_some() {
@@ -69,6 +75,16 @@ impl PortcoveService {
         }
         let proposed =
             self.inspect_external_runtime_preview(port, spec, requested_root, checkpoint)?;
+        if record.shared_preferences
+            != proposed
+                .shared_preferences
+                .as_ref()
+                .map(|review| review.binding.clone())
+        {
+            return Err(PortcoveError::conflict(
+                "shared preferences account or location changed; folder relinking cannot transfer its accepted account scope",
+            ));
+        }
         let preview_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&(
             "portcove-external-runtime-relink-v1",
             &state.row_sha256,

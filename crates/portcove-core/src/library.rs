@@ -2175,12 +2175,21 @@ impl Library {
                 .immutable_tree_sha256
                 .eq_ignore_ascii_case(&record.immutable_tree_sha256)
             || !proposed.path.is_absolute()
-            || proposed.executable != proposed.path.join(&spec.executable)
         {
             return Err(PortcoveError::verification(
                 "folder relinking cannot change the retained runtime identity",
             ));
         }
+        crate::external_runtime::require_retained_executable_path(
+            &record.path,
+            &record.executable,
+            &spec.executable,
+        )?;
+        crate::external_runtime::require_retained_executable_path(
+            &proposed.path,
+            &proposed.executable,
+            &spec.executable,
+        )?;
         let (active_launch, managed_install): (bool, bool) = transaction.query_row(
             "SELECT EXISTS(SELECT 1 FROM launch_sessions WHERE port_id=?1 AND outcome IS NULL),
                     EXISTS(SELECT 1 FROM installs WHERE port_id=?1)",

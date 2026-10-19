@@ -57,6 +57,92 @@ async function click(label: string) {
   await act(async () => button?.click());
 }
 
+it("changes a retained external folder after its current catalog route becomes managed", async () => {
+  const replacement = "C:\\Player\\Moved game";
+  vi.mocked(pickInstallFolder).mockResolvedValue(replacement);
+  const proposed = {
+    ...record,
+    path: replacement,
+    executable: `${replacement}\\game.exe`,
+    immutable_file_count: 17,
+    preview_sha256: "inner-folder-check",
+  };
+  const preview = vi.spyOn(desktopApi, "previewExternalRuntimeRelink").mockResolvedValue({
+    port_id: port.id,
+    registration_id: record.id,
+    previous_path: record.path,
+    proposed,
+    external_files_will_be_preserved: true,
+    preview_sha256: "retained-record-and-folder",
+  });
+  const apply = vi
+    .spyOn(desktopApi, "relinkExternalRuntime")
+    .mockResolvedValue({ ...record, path: replacement, executable: proposed.executable });
+  const register = vi.spyOn(desktopApi, "registerExternalRuntime");
+  const remove = vi.spyOn(desktopApi, "removeExternalRuntime");
+  const changed = vi.fn();
+  await root.rerender(
+    <ExternalRuntimeControl
+      port={portDefinition()}
+      status={{ ...portStatus(), external_runtime: record }}
+      generation={9}
+      busy={false}
+      onChanged={changed}
+    />,
+  );
+  await click("Change game folder…");
+  expect(preview).toHaveBeenCalledExactlyOnceWith(port.id, replacement, 9);
+  expect(document.body.textContent).toContain(record.path);
+  expect(document.body.textContent).toContain(replacement);
+  expect(apply).not.toHaveBeenCalled();
+  await click("Change folder");
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    replacement,
+    "retained-record-and-folder",
+    9,
+  );
+  expect(register).not.toHaveBeenCalled();
+  expect(remove).not.toHaveBeenCalled();
+  expect(changed).toHaveBeenCalledOnce();
+});
+
+it("keeps folder repair context after native consent cancellation and permits retry", async () => {
+  vi.mocked(pickInstallFolder).mockResolvedValue("C:\\Moved");
+  vi.spyOn(desktopApi, "previewExternalRuntimeRelink").mockResolvedValue({
+    port_id: port.id,
+    registration_id: record.id,
+    previous_path: record.path,
+    proposed: {
+      ...record,
+      path: "C:\\Moved",
+      executable: "C:\\Moved\\game.exe",
+      immutable_file_count: 17,
+      preview_sha256: "inner",
+    },
+    external_files_will_be_preserved: true,
+    preview_sha256: "outer",
+  });
+  const apply = vi.spyOn(desktopApi, "relinkExternalRuntime").mockResolvedValue(null);
+  const changed = vi.fn();
+  await root.rerender(
+    <ExternalRuntimeControl
+      port={port}
+      status={{ ...portStatus(), external_runtime: record }}
+      generation={8}
+      busy={false}
+      onChanged={changed}
+    />,
+  );
+  await click("Change game folder…");
+  await click("Change folder");
+  expect(changed).not.toHaveBeenCalled();
+  expect(document.body.textContent).toContain("C:\\Moved");
+  await click("Change folder");
+  expect(apply).toHaveBeenCalledTimes(2);
+  expect(pickInstallFolder).toHaveBeenCalledOnce();
+});
+
 it("shows authored steps and essential warnings while preserving detailed notes behind disclosure", async () => {
   const open = vi.spyOn(desktopApi, "openExternalUrl").mockResolvedValue(undefined);
   const register = vi.spyOn(desktopApi, "registerExternalRuntime");
