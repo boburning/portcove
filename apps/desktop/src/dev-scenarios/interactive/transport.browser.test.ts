@@ -15,12 +15,59 @@ afterEach(() => {
 it("refuses unknown and malformed commands visibly without forwarding IPC", async () => {
   const refuse = vi.fn();
   transport = installInteractiveTransport("library", refuse);
-  await expect(desktopApi.launch("sample", "", 1)).rejects.toThrow("Unsupported fixture action");
+  await expect(desktopApi.launch("summit", "", 1)).rejects.toThrow("Unsupported fixture action");
   await expect(desktopApi.workspaceSnapshot(2)).rejects.toThrow("unexpected arguments");
   await expect(invoke("get_bootstrap_status", { extra: true })).rejects.toThrow(
     "unexpected arguments",
   );
   expect(refuse).toHaveBeenCalledTimes(3);
+});
+it("supports current read surfaces without hiding unsupported mutations", async () => {
+  const refuse = vi.fn();
+  transport = installInteractiveTransport("library", refuse);
+  expect(await desktopApi.favoritePorts(1)).toEqual([]);
+  await desktopApi.setPortFavorite("sample", true, 1);
+  expect(await desktopApi.favoritePorts(1)).toEqual(["sample"]);
+  expect(await desktopApi.outputLocation("sample", 1)).toMatchObject({
+    effective_output_directory: "fixture/library/sample",
+    configured_output_directory: null,
+  });
+  expect(await desktopApi.outputRelocationStatus("sample", 1)).toBeNull();
+  expect(await desktopApi.previewOutputLocation("sample", null, 1)).toMatchObject({
+    affected_installs: [{ install_id: "fixture-install", active: true }],
+    moves_existing_install: false,
+  });
+  expect(await desktopApi.applicationUpdateStatus()).toMatchObject({
+    install_eligibility: "not-configured",
+    staged: null,
+  });
+  expect(await desktopApi.catalogStatus()).toMatchObject({
+    provenance: { origin: "embedded" },
+    trusted_keys: [],
+  });
+  expect(refuse).not.toHaveBeenCalled();
+  await expect(desktopApi.resetOutputLocation("sample", "unreviewed", 1)).rejects.toThrow(
+    "Unsupported fixture action",
+  );
+  await expect(desktopApi.setPortFavorite("foreign", true, 1)).rejects.toThrow(
+    "Unsupported fixture action",
+  );
+  await expect(desktopApi.outputLocation("sample", 2)).rejects.toThrow("unexpected arguments");
+});
+it("models an eligible launch without claiming a native process and resets favorites", async () => {
+  transport = installInteractiveTransport("library", vi.fn());
+  await desktopApi.setPortFavorite("sample", true, 1);
+  expect(await desktopApi.launch("sample", "", 1)).toEqual({
+    processId: null,
+    sessionId: "fixture-launch-sample",
+  });
+  await expect(desktopApi.launch("sample", "foreign.rom", 1)).rejects.toThrow(
+    "Unsupported fixture action",
+  );
+  transport.dispose();
+  transport = installInteractiveTransport("setup", vi.fn());
+  expect(await desktopApi.favoritePorts(1)).toEqual([]);
+  await expect(desktopApi.launch("sample", "", 1)).rejects.toThrow("Unsupported fixture action");
 });
 it("keeps preparation pending until explicitly completed and removes it on disposal", async () => {
   transport = installInteractiveTransport("setup", vi.fn());

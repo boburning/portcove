@@ -1,6 +1,7 @@
 import { startDevelopmentScenarios } from "../start";
 import { act } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { startInteractiveScenarios, stopInteractiveScenarios } from "./entry";
 import { recoveryKey } from "./transport";
 beforeEach(() => {
@@ -45,12 +46,20 @@ async function click(label: string) {
 it("opens actual game details, returns to Library and resets the selected journey", async () => {
   await mount("library");
   await click("View details for Harbor Adventure");
+  expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')).not.toBeNull();
   await click("Back to previous workspace");
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')).toBeNull();
   await click("Reset journey");
   expect(document.querySelector("#port-search")).not.toBeNull();
   expect(document.querySelectorAll("#scenario-preview .app-shell")).toHaveLength(1);
+});
+
+it("opens current Settings read surfaces without fixture refusals", async () => {
+  await mount("library");
+  await act(async () => page.getByRole("button", { name: /^Settings/ }).click());
+  expect(document.body.textContent).toContain("Color theme");
+  expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });
 
 it("reviews preparation, preserves progress until cancellation, and shows controlled failure", async () => {
