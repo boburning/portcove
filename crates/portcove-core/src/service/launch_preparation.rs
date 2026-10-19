@@ -65,7 +65,9 @@ impl PortcoveService {
         checkpoint()?;
         self.managed_install_root(&port.id, &active.path)?;
         checkpoint()?;
-        Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
+        let executable =
+            Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
+        crate::runtime_path_policy::check_executable(port, Platform::current()?, &executable)?;
         checkpoint()?;
         let source = if let Some(path) = source_override {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {

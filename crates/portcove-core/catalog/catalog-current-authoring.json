@@ -16439,7 +16439,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own F-Zero (USA) .sfc file without a copier header. Portcove installs the Windows port and manages its saves and settings separately from existing external copies. This package enables BS Deluxe changes by default. Other mods, MSU music, developer tracing and capture setups are outside this reviewed route. Windows gameplay remains untested.",
+        "manual_preparation": "Provide your own F-Zero (USA) .sfc file without a copier header. Portcove installs the Windows port and manages its saves and settings separately from existing external copies. This package enables BS Deluxe changes by default. Other mods, MSU music, developer tracing and capture setups are outside this reviewed route. Windows gameplay remains untested. This Windows build needs a short installation folder using basic Latin characters; original game files can stay in their existing location.",
         "artwork": {
           "game_id": 3490,
           "cover_id": 319391,
@@ -16480,7 +16480,8 @@
           "prefix": "crash_minidump_",
           "suffix": ".dmp"
         }
-      ]
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "road-rash-64-recompiled",

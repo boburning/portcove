@@ -1050,6 +1050,12 @@ impl PortcoveService {
                 port.name
             )));
         }
+        let output_location = self.output_location(port_id, output_directory)?;
+        crate::runtime_path_policy::check_output_root(
+            port,
+            platform,
+            &output_location.effective_output_directory,
+        )?;
         let release = self
             .resolve_release(port, selected_channel, platform)
             .await?
@@ -1069,7 +1075,6 @@ impl PortcoveService {
             .fold(primary_and_runtime_bytes, |total, asset| {
                 total.saturating_add(asset.size)
             });
-        let output_location = self.output_location(port_id, output_directory)?;
         let temporary_space = if action == InstallPlanAction::Download {
             let required_bytes = recipe.map_or(primary_and_runtime_bytes, |recipe| {
                 recipe.temporary_bytes(primary_and_runtime_bytes)
@@ -2507,6 +2512,12 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
+        let output_location = self.output_location(&port.id, overrides.output_directory)?;
+        crate::runtime_path_policy::check_output_root(
+            port,
+            Platform::current()?,
+            &output_location.effective_output_directory,
+        )?;
         let release = resolution.release.clone();
         self.require_definition_operation(
             &self.catalog,

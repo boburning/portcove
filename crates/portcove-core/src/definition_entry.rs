@@ -132,6 +132,16 @@ impl DefinitionContentIndex {
             ));
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        if port.windows_runtime_path_policy.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 10
+            })
+        {
+            return Err(PortcoveError::verification(
+                "Windows runtime paths require staged-source capability version 10",
+            ));
+        }
         if port
             .release
             .user_prepared

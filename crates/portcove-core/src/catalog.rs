@@ -1754,6 +1754,10 @@ mod tests {
     fn f_zero_snes_recomp_pins_a_scoped_managed_windows_route_without_gameplay_claims() {
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port("f-zero-snes-recomp").unwrap();
+        assert_eq!(
+            port.windows_runtime_path_policy,
+            Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
+        );
         assert_eq!(port.platforms, [Platform::WindowsX86_64]);
         assert_eq!(port.support_tier, crate::SupportTier::Beta);
         assert_eq!(

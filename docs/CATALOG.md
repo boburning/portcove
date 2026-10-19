@@ -898,6 +898,18 @@ or persistent declarations. This contract cannot claim files in roaming AppData
 or another external user-profile directory; such state needs an upstream
 redirect or a separately reviewed ownership capability.
 
+`windows_runtime_path_policy: "printable-ascii-max-path"` declares a verified
+upstream limitation for a Windows-only managed staged-source runtime. Core rejects
+known unsuitable output roots before acquisition, and checks the selected executable
+and its probe filename budget during readiness and again before preparation. The
+requirement is retained with the installation and survives an output-folder move;
+it grants no relocation or adoption permission. Source files may remain in their
+original Unicode locations when the adapter passes a checked relative runtime copy.
+This policy currently excludes external runtimes, setup executables and managed
+build recipes. Independent definition entries must require staged-source template
+version10. Absent policy retains the prior route contract; this is not a blanket
+ASCII restriction or a claim that every other runtime supports Unicode paths.
+
 Ghostship 3.0.0 writes its disposable extraction cache to `torch.hash.yml` and
 rotates `logs/Ghostship.log` through `logs/Ghostship.10.log`. The catalog declares
 those exact runtime outputs through the existing nonpersistent runtime-path

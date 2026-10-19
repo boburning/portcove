@@ -215,7 +215,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -223,7 +223,24 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var privateSchema in new[] { 58, 59, 64, 73 })
+        foreach (var publicSchema in new[] { 72, 73 })
+        {
+            var relink = Json.Object(Json.Parse(Json.Print(Capabilities())));
+            relink["schema_version"] = publicSchema;
+            relink["operation_event_schema_version"] = 3;
+            relink["commands"] = Json.Array(Json.Field(relink, "commands")).Cast<string>()
+                .Concat(new[] { "external", "external.review", "external.relink" }).ToArray();
+            ProtocolStream.Negotiate(relink, ConsumerCapability.Library);
+            Check(ProtocolStream.SupportsExternalRelink(relink), "reviewed relink remains available at schema " + publicSchema);
+            relink["commands"] = Json.Array(Json.Field(relink, "commands")).Where(command => !Equals(command, "external.relink")).ToArray();
+            Check(!ProtocolStream.SupportsExternalRelink(relink), "relink still requires explicit command capability at schema " + publicSchema);
+        }
+        var result73 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result73["schema_version"] = 73;
+        var stream73 = new ProtocolStream("status");
+        stream73.Line(Json.Print(result73));
+        Check(Json.Array(stream73.Finish(0)).Length == 0, "schema 73 result crosses the actual protocol reader");
+        foreach (var privateSchema in new[] { 58, 59, 64, 74 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -402,7 +419,10 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "folder relink preserves existing launch authority");
         bad["schema_version"] = 73;
-        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond folder relink rejected");
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "runtime path policy keeps launch decisions in Core");
+        bad["schema_version"] = 74;
+        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond runtime paths rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
