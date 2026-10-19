@@ -819,7 +819,19 @@ unset; #144 outside compiled catalog; production held; slice 5 excluded.
 
 Delivery details and exact evidence: [reader/upstream checkpoint](slice4-reader-and-upstream-checkpoint-2026-10-18.md), [evidence](slice4-reader-and-upstream-evidence-2026-10-18.json).
 
-## Local storage diagnostic: cleanup complete; retained completion proposed
+## Local storage diagnostic: approved attempt failed; matching recovery complete
+
+The owner subsequently approved the exact #2153 retained-image completion,
+single conditional credential-free diagnostic and matching recovery. That grant
+is now fulfilled. The
+[actual bounded-runtime result](slice4-bounded-runtime-result-2026-10-18.md)
+records successful storage completion, a failed single non-elevated diagnostic
+and positive exact-image detach readback. Codex could not read the bounded
+`CODEX_HOME`; no authentication error or review event was observed. Both images,
+markers and original/new failure evidence remain retained. No operator command
+remains for this attempt. The proposed/ungranted wording below is historical,
+superseded only within that consumed exact grant. No repeat or permission
+widening is authorized.
 
 Later preparation supersedes the pending-operation wording below: the owner ran
 the corrected Provision once. It failed at `Add-PartitionAccessPath` after the
