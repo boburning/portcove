@@ -180,6 +180,12 @@ void test("real Git hooks use the installed runtime without ambient Node and rej
         : "/usr/bin:/bin",
   };
   const originalPath = process.env.PATH;
+  writeFileSync(
+    path.join(cwd, "vite.config.ts"),
+    'export default { staged: { "*.js": "node --version" } };\n',
+  );
+  writeFileSync(path.join(cwd, "sample.js"), "export const staged = true;\n");
+  git(cwd, "add", "vite.config.ts", "sample.js");
   const commit = (directory = cwd) =>
     spawnSync(gitPath, ["commit", "--allow-empty", "-qm", "runtime fixture"], {
       cwd: directory,
@@ -195,6 +201,8 @@ void test("real Git hooks use the installed runtime without ambient Node and rej
   git(cwd, "worktree", "add", "-qb", "runtime-linked", sibling);
   symlinkSync(path.join(root, "node_modules"), path.join(sibling, "node_modules"), "junction");
   configureHooks(sibling, "enable", env);
+  writeFileSync(path.join(sibling, "sample.js"), "export const linked = true;\n");
+  git(sibling, "add", "sample.js");
   const linked = commit(sibling);
   assert.equal(linked.status, 0, linked.stderr || linked.stdout);
   writeFileSync(path.join(cwd, ".node-version"), "0.0.0\n");

@@ -14,9 +14,13 @@ function installRuntime(directory: string) {
   const executable = realpathSync(process.execPath);
   const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
   if (/[\r\n]/u.test(executable)) throw new Error("Invalid hook runtime path");
+  const runtimeDirectory =
+    process.platform === "win32"
+      ? `runtime_dir="$(cygpath -u ${quote(path.dirname(executable))})" || exit 1`
+      : `runtime_dir=${quote(path.dirname(executable))}`;
   writeFileSync(
     path.join(directory, ".vite-hooks/_/portcove-node"),
-    `#!/usr/bin/env sh\nif [ ! -x ${quote(executable)} ]; then\n  printf '%s\\n' 'Hook runtime unavailable: activate pinned Node and run pnpm hooks:enable.' >&2\n  exit 1\nfi\nexport PATH=${quote(path.dirname(executable))}:"$PATH"\nexec ${quote(executable)} "$@"\n`,
+    `#!/usr/bin/env sh\nif [ ! -x ${quote(executable)} ]; then\n  printf '%s\\n' 'Hook runtime unavailable: activate pinned Node and run pnpm hooks:enable.' >&2\n  exit 1\nfi\n${runtimeDirectory}\nexport PATH="$runtime_dir:$PATH"\nexec ${quote(executable)} "$@"\n`,
   );
 }
 
