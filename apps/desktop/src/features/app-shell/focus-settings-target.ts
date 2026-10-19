@@ -1,4 +1,5 @@
 import { focusAndReveal } from "../../focus";
+import type { SettingsCategory } from "./settings-categories";
 
 export type ActivitySettingsTarget =
   | "source-profile"
@@ -9,13 +10,18 @@ export type ActivitySettingsTarget =
   | "catalog-updates";
 export type SettingsTarget = ActivitySettingsTarget | "add-game-file-root";
 
+export function settingsCategoryForTarget(target: SettingsTarget): SettingsCategory {
+  return target === "source-profile" ||
+    target === "discover-sources" ||
+    target === "add-game-file-root"
+    ? "game-files"
+    : target === "catalog-updates"
+      ? "updates"
+      : "library-storage";
+}
+
 export function focusSettingsTarget(target: SettingsTarget, sourceProfileId?: string) {
-  const group =
-    target === "source-profile" || target === "discover-sources" || target === "add-game-file-root"
-      ? "game-files"
-      : target === "catalog-updates"
-        ? "updates"
-        : "library-storage";
+  const group = settingsCategoryForTarget(target);
   const heading = document.getElementById(`settings-${group}-heading`);
   const section = heading?.closest("[data-settings-group]");
   const sourceRow =

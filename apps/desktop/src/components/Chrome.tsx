@@ -66,7 +66,7 @@ import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
 import { LibraryMoveButton } from "./LibraryMove";
 import { LibraryImportButton } from "./LibraryImport";
-import { CatalogSettings } from "./CatalogUpdates";
+import { CatalogOrigin, CatalogSettings } from "./CatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { GameFileLibraries } from "./GameFileLibraries";
 import { SourceIdentityPanel } from "./SourceIdentity";
@@ -76,6 +76,10 @@ import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { commandShortcut } from "../keyboard-shortcuts";
 import { LanguageSettings } from "./LanguageSettings";
+import {
+  settingsCategories,
+  type SettingsCategory,
+} from "../features/app-shell/settings-categories";
 
 export function Sidebar({
   view,
@@ -84,6 +88,7 @@ export function Sidebar({
   updateCount,
   activities,
   onAdopt,
+  onAbout,
   controller,
 }: {
   view: View;
@@ -92,6 +97,7 @@ export function Sidebar({
   updateCount: number;
   activities: ActivityRecord[];
   onAdopt: () => void;
+  onAbout?: (() => void) | undefined;
   controller?: string | undefined;
 }) {
   const activityState = navigationActivityState(activities);
@@ -150,6 +156,11 @@ export function Sidebar({
         ))}
       </nav>
       <div className="sidebar-footer mt-auto">
+        {onAbout && (
+          <Button data-focusable variant="ghost" className="mb-2 w-full" onClick={onAbout}>
+            About Portcove
+          </Button>
+        )}
         <Button
           data-focusable
           variant="outline"
@@ -1383,6 +1394,8 @@ function ThemeOption({
 }
 
 export function SettingsView({
+  category,
+  onCategoryChange,
   generation = 0,
   ports = [],
   statuses = new Map(),
@@ -1423,6 +1436,8 @@ export function SettingsView({
   diagnosticFailure,
   refreshDiagnostics,
 }: {
+  category?: SettingsCategory | undefined;
+  onCategoryChange?: ((category: SettingsCategory) => void) | undefined;
   generation?: number;
   ports?: PortDefinition[];
   statuses?: ReadonlyMap<string, PortStatus>;
@@ -1463,180 +1478,212 @@ export function SettingsView({
   diagnosticFailure?: unknown;
   refreshDiagnostics?: () => Promise<unknown>;
 }) {
-  const sections = [
-    { id: "appearance", label: "Appearance" },
-    { id: "library-storage", label: "Library and storage" },
-    { id: "game-files", label: "Game files" },
-    { id: "updates", label: "Portcove & catalog updates" },
-    { id: "integrations", label: "Integrations" },
-    { id: "advanced", label: "Advanced" },
-  ];
+  const [localCategory, setLocalCategory] = useState<SettingsCategory>("appearance");
+  const selectedCategory = category ?? localCategory;
   const jumpToSection = (id: string) => {
-    const heading = document.getElementById(`settings-${id}-heading`);
-    if (!heading) return;
-    heading.tabIndex = 0;
-    heading.focus({ preventScroll: true });
-    heading.scrollIntoView({ block: "start" });
-    heading.addEventListener("blur", () => (heading.tabIndex = -1), { once: true });
+    window.requestAnimationFrame(() => {
+      const heading = document.getElementById(`settings-${id}-heading`);
+      if (!heading || heading.closest("[hidden]")) return;
+      heading.focus({ preventScroll: true });
+      heading.scrollIntoView({ block: "start" });
+    });
   };
   return (
-    <section className="settings-grid grid gap-8">
-      <div
-        className="settings-section-index flex flex-wrap items-center gap-2"
-        role="group"
-        aria-label="Settings sections"
+    <section className="settings-grid grid items-start gap-6 min-[65rem]:grid-cols-[10rem_minmax(0,1fr)]">
+      <nav
+        className="settings-section-index sticky top-0 z-10 flex flex-wrap items-start gap-2 bg-pc-background py-2 min-[65rem]:flex-col"
+        aria-label="Settings categories"
         data-focus-group
       >
-        <span className="me-1 text-sm text-pc-muted-foreground">Jump to</span>
-        {sections.map(({ id, label }) => (
+        {settingsCategories.map(({ id, label }) => (
           <Button
             key={id}
             data-focusable
-            variant="outline"
+            variant={selectedCategory === id ? "selected" : "ghost"}
             size="sm"
-            className="max-w-full text-center whitespace-normal"
-            onClick={() => jumpToSection(id)}
+            className="max-w-full justify-start text-start whitespace-normal min-[65rem]:w-full"
+            aria-current={selectedCategory === id ? "page" : undefined}
+            aria-controls={`settings-${id}`}
+            onClick={() => {
+              (onCategoryChange ?? setLocalCategory)(id);
+              jumpToSection(id);
+            }}
           >
             {label}
           </Button>
         ))}
-      </div>
-      <SettingsSection
-        id="appearance"
-        eyebrow="DISPLAY"
-        title="Appearance"
-        description="Choose how Portcove looks on this device."
-      >
-        <AppearanceSettings appearance={appearance} />
-        <LanguageSettings />
-      </SettingsSection>
-      <SettingsSection
-        id="library-storage"
-        eyebrow="STORAGE LOCATIONS"
-        title="Library and storage"
-        description="Choose which Portcove library opens at startup. Each game’s install folder is reviewed separately from its game page."
-      >
-        <LibrarySelectionCard
-          selection={librarySelection}
-          busy={busy}
-          choose={chooseLibrary}
-          switchLibrary={switchLibrary}
-          reset={resetLibrary}
-        />
-        <StorageCard
-          libraryRoot={storage?.library_root ?? libraryRoot}
-          storage={storage}
-          busy={busy}
-          exportMetadata={exportMetadata}
-        />
-      </SettingsSection>
-      <SettingsSection
-        id="game-files"
-        eyebrow="GAME FILES"
-        title="Game files"
-        description="Review saved file locations and the optional disc tools used to check or prepare files."
-      >
-        <GameFileLibraries
-          key={librarySelection?.root ?? libraryRoot}
-          ports={ports}
-          statuses={statuses}
-          profiles={sourceProfiles}
-          registeredSources={sources}
-          workspaceRefreshFailed={workspaceRefreshFailed}
-          onAdded={onSourceAdded}
-          onOpenPort={onOpenPort}
-          setupSource={setupSource}
-          setSetupSource={setSetupSource}
-        />
-        <SourceHealth
-          generation={generation}
-          ports={ports}
-          sources={sources}
-          requirements={sourceNeeds}
-          requirementsState={sourceRequirementsState}
-          installedCount={installedCount}
-          outcomes={sourceOutcomes}
-          inspections={sourceInspections}
-          busy={busy}
-          verify={verifySources}
-          replace={replaceSource}
-          add={addSource}
-          profiles={sourceProfiles}
-          onAdded={onSourceAdded}
-          openEvidence={openSourceEvidence}
-        />
-        <HostReadiness
-          doctor={doctor}
-          busy={busy}
-          actions={hostToolActions}
-          refreshing={diagnosticsRefreshing}
-          refresh={refreshDiagnostics}
-          stale={diagnosticsStale}
-          failure={diagnosticFailure}
-        />
-      </SettingsSection>
-      <SettingsSection
-        id="updates"
-        eyebrow="UPDATES"
-        title="Portcove & catalog updates"
-        description="Manage verified Portcove application and catalog updates here. Game updates and activity are in the Game updates workspace."
-        action={
-          onOpenGameUpdates && (
-            <Button data-focusable variant="link" size="xs" onClick={onOpenGameUpdates}>
-              Open Game updates
+      </nav>
+      <div className="min-w-0">
+        <SettingsSection
+          id="appearance"
+          active={selectedCategory === "appearance"}
+          eyebrow="DISPLAY"
+          title="Appearance"
+          description="Choose how Portcove looks on this device."
+        >
+          <AppearanceSettings appearance={appearance} />
+          <LanguageSettings />
+        </SettingsSection>
+        <SettingsSection
+          id="library-storage"
+          active={selectedCategory === "library-storage"}
+          eyebrow="STORAGE LOCATIONS"
+          title="Library and storage"
+          description="Choose which Portcove library opens at startup. Each game’s install folder is reviewed separately from its game page."
+        >
+          <LibrarySelectionCard
+            selection={librarySelection}
+            busy={busy}
+            choose={chooseLibrary}
+            switchLibrary={switchLibrary}
+            reset={resetLibrary}
+          />
+          <StorageCard
+            libraryRoot={storage?.library_root ?? libraryRoot}
+            storage={storage}
+            busy={busy}
+            exportMetadata={exportMetadata}
+          />
+        </SettingsSection>
+        <SettingsSection
+          id="game-files"
+          active={selectedCategory === "game-files"}
+          eyebrow="GAME FILES"
+          title="Game files"
+          description="Review saved file locations and the optional disc tools used to check or prepare files."
+        >
+          <GameFileLibraries
+            key={librarySelection?.root ?? libraryRoot}
+            ports={ports}
+            statuses={statuses}
+            profiles={sourceProfiles}
+            registeredSources={sources}
+            workspaceRefreshFailed={workspaceRefreshFailed}
+            onAdded={onSourceAdded}
+            onOpenPort={onOpenPort}
+            setupSource={setupSource}
+            setSetupSource={setSetupSource}
+          />
+          <SourceHealth
+            generation={generation}
+            ports={ports}
+            sources={sources}
+            requirements={sourceNeeds}
+            requirementsState={sourceRequirementsState}
+            installedCount={installedCount}
+            outcomes={sourceOutcomes}
+            inspections={sourceInspections}
+            busy={busy}
+            verify={verifySources}
+            replace={replaceSource}
+            add={addSource}
+            profiles={sourceProfiles}
+            onAdded={onSourceAdded}
+            openEvidence={openSourceEvidence}
+          />
+          <HostReadiness
+            doctor={doctor}
+            busy={busy}
+            actions={hostToolActions}
+            refreshing={diagnosticsRefreshing}
+            refresh={refreshDiagnostics}
+            stale={diagnosticsStale}
+            failure={diagnosticFailure}
+          />
+        </SettingsSection>
+        <SettingsSection
+          id="updates"
+          active={selectedCategory === "updates"}
+          eyebrow="UPDATES"
+          title="Portcove & catalog updates"
+          description="Manage verified Portcove application and catalog updates here. Game updates and activity are in the Game updates workspace."
+          action={
+            onOpenGameUpdates && (
+              <Button data-focusable variant="link" size="xs" onClick={onOpenGameUpdates}>
+                Open Game updates
+              </Button>
+            )
+          }
+        >
+          {applicationUpdates}
+          <SettingsRow>
+            <h2>Game catalog</h2>
+            <CatalogOrigin provenance={doctor?.catalog_provenance} />
+            <p>
+              Portcove ships with a built-in catalog. Application updates may include new games and
+              port information. A signed catalog you explicitly install can replace it.
+            </p>
+            <Button
+              data-focusable
+              variant="link"
+              onClick={() => {
+                (onCategoryChange ?? setLocalCategory)("advanced");
+                jumpToSection("advanced");
+              }}
+            >
+              Manage custom catalog sources
             </Button>
-          )
-        }
-      >
-        {applicationUpdates}
-        <CatalogSettings
-          provenance={doctor?.catalog_provenance}
-          disabled={Boolean(busy)}
-          onChanged={onCatalogChanged}
-        />
-      </SettingsSection>
-      <SettingsSection
-        id="integrations"
-        eyebrow="INTEGRATIONS"
-        title="Integrations"
-        description="Connect optional services. You don't need an account to play."
-      >
-        <GithubSettings github={github} busy={busy} />
-      </SettingsSection>
-      <SettingsSection
-        id="advanced"
-        eyebrow="ADVANCED"
-        title="Advanced"
-        description="Find diagnostic tools, privacy information, and details about Portcove."
-      >
-        <DiagnosticsCard
-          busy={busy}
-          createSupportBundle={createSupportBundle}
-          refreshing={diagnosticsRefreshing}
-          stale={diagnosticsStale}
-          failure={diagnosticFailure}
-          refresh={refreshDiagnostics}
-          hasSnapshot={Boolean(doctor)}
-        />
-        <SettingsRow className="privacy-card">
-          <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-            PRIVACY
-          </p>
-          <h2>Original game files stay local</h2>
-          <p>
-            Portcove checks game files locally and does not upload them or collect telemetry. Use
-            their current location, copy them into Portcove, or explicitly move them after reviewing
-            the consequences. A completed move removes the original after its verified copy is
-            registered.
-          </p>
-        </SettingsRow>
-        <AboutCard />
-      </SettingsSection>
+          </SettingsRow>
+        </SettingsSection>
+        <SettingsSection
+          id="integrations"
+          active={selectedCategory === "integrations"}
+          eyebrow="INTEGRATIONS"
+          title="Integrations"
+          description="Connect optional services. You don't need an account to play."
+        >
+          <GithubSettings github={github} busy={busy} />
+        </SettingsSection>
+        <SettingsSection
+          id="advanced"
+          active={selectedCategory === "advanced"}
+          eyebrow="ADVANCED"
+          title="Advanced"
+          description="Review custom catalog sources, diagnostic tools and privacy information."
+        >
+          <CatalogSettings
+            provenance={doctor?.catalog_provenance}
+            disabled={Boolean(busy)}
+            onChanged={onCatalogChanged}
+          />
+          <DiagnosticsCard
+            busy={busy}
+            createSupportBundle={createSupportBundle}
+            refreshing={diagnosticsRefreshing}
+            stale={diagnosticsStale}
+            failure={diagnosticFailure}
+            refresh={refreshDiagnostics}
+            hasSnapshot={Boolean(doctor)}
+          />
+          <SettingsRow className="privacy-card">
+            <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
+              PRIVACY
+            </p>
+            <h2>Original game files stay local</h2>
+            <p>
+              Portcove checks game files locally and does not upload them or collect telemetry. Use
+              their current location, copy them into Portcove, or explicitly move them after
+              reviewing the consequences. A completed move removes the original after its verified
+              copy is registered.
+            </p>
+          </SettingsRow>
+        </SettingsSection>
+        <SettingsSection
+          id="about"
+          active={selectedCategory === "about"}
+          eyebrow="PORTCOVE"
+          title="About Portcove"
+          description="Version, project information and acknowledgements."
+        >
+          <AboutCard />
+        </SettingsSection>
+      </div>
     </section>
   );
 }
 
 function SettingsSection({
+  active = true,
   id,
   eyebrow,
   title,
@@ -1644,6 +1691,7 @@ function SettingsSection({
   action,
   children,
 }: {
+  active?: boolean;
   id: string;
   eyebrow: string;
   title: string;
@@ -1654,7 +1702,9 @@ function SettingsSection({
   const headingId = `settings-${id}-heading`;
   return (
     <section
-      className="settings-section @container/section grid gap-[15px]"
+      id={`settings-${id}`}
+      hidden={!active}
+      className={cn("settings-section @container/section gap-[15px]", active ? "grid" : "hidden")}
       data-settings-group={id}
       aria-labelledby={headingId}
     >

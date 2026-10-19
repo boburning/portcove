@@ -28,7 +28,10 @@ import {
 } from "./features/app-shell/use-library-browsing-context";
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
 import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
-import { focusSettingsTarget } from "./features/app-shell/focus-settings-target";
+import {
+  focusSettingsTarget,
+  settingsCategoryForTarget,
+} from "./features/app-shell/focus-settings-target";
 import { GameFileScanProvider } from "./features/game-file-discovery/use-game-file-scan";
 import {
   SetupReviewSelectionProvider,
@@ -485,6 +488,7 @@ function Workspace({
   );
   const openHostTool = (toolId: string) => {
     setPendingToolId(toolId);
+    ui.setSettingsCategory("game-files");
     setPrimaryView("settings");
     window.requestAnimationFrame(() => focusDiscTool());
   };
@@ -623,6 +627,7 @@ function Workspace({
         openSourceIntake={openSourceIntake}
         openHostTool={openHostTool}
         openLibraryStorage={() => {
+          ui.setSettingsCategory("library-storage");
           setPrimaryView("settings");
           window.requestAnimationFrame(() => focusSettingsTarget("library-storage"));
         }}
@@ -699,6 +704,10 @@ function Workspace({
           }
           activities={data.activities}
           onAdopt={() => ui.setAdoptOpen(true)}
+          onAbout={() => {
+            ui.setSettingsCategory("about");
+            setPrimaryView("settings");
+          }}
         />
         <main
           className="w-full max-w-(--layout-content-max) overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
@@ -1000,6 +1009,7 @@ function CurrentView({
         checkAll={updates.checkAll}
         onSelect={openPortDetails}
         onOpenSettings={(target, sourceProfileId) => {
+          ui.setSettingsCategory(settingsCategoryForTarget(target));
           ui.setView("settings");
           window.requestAnimationFrame(() => focusSettingsTarget(target, sourceProfileId));
         }}
@@ -1008,6 +1018,8 @@ function CurrentView({
   if (ui.view === "settings")
     return (
       <SettingsView
+        category={ui.settingsCategory}
+        onCategoryChange={ui.setSettingsCategory}
         generation={bootstrap.generation}
         ports={data.catalog?.ports ?? []}
         statuses={model.statusMap}
@@ -1130,6 +1142,7 @@ function CurrentView({
       }}
       onBrowseCatalog={() => ui.setView("catalog")}
       onConnectGameFiles={() => {
+        ui.setSettingsCategory("game-files");
         ui.setView("settings");
         window.requestAnimationFrame(() => focusSettingsTarget("add-game-file-root"));
       }}

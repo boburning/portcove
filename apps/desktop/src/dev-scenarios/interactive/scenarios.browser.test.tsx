@@ -65,6 +65,46 @@ it("opens current Settings read surfaces without fixture refusals", async () => 
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });
 
+it("keeps unsaved update choices while switching Settings categories", async () => {
+  await mount("library");
+  await page.getByRole("button", { name: /^Settings/ }).click();
+  const navigation = page.getByRole("navigation", { name: "Settings categories" });
+  await navigation.getByRole("button", { name: "Updates", exact: true }).click();
+  const preview = page
+    .getByRole("group", { name: "Application update channel" })
+    .getByRole("button", { name: "Preview", exact: true });
+  await expect.element(preview).toBeEnabled();
+  await preview.click();
+  await navigation.getByRole("button", { name: "Appearance", exact: true }).click();
+  await expect
+    .element(page.getByRole("heading", { name: "Color theme", exact: true }))
+    .toBeVisible();
+  await navigation.getByRole("button", { name: "Updates", exact: true }).click();
+  await expect.element(preview).toHaveAttribute("aria-pressed", "true");
+  expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
+});
+
+it("opens About directly and keeps custom catalog trust under Advanced", async () => {
+  await mount("library");
+  await page.getByRole("button", { name: "About Portcove", exact: true }).click();
+  await expect
+    .element(
+      page
+        .getByRole("navigation", { name: "Settings categories" })
+        .getByRole("button", { name: "About", exact: true }),
+    )
+    .toHaveAttribute("aria-current", "page");
+  const navigation = page.getByRole("navigation", { name: "Settings categories" });
+  await navigation.getByRole("button", { name: "Updates", exact: true }).click();
+  await page.getByRole("button", { name: "Manage custom catalog sources", exact: true }).click();
+  await expect
+    .element(navigation.getByRole("button", { name: "Advanced", exact: true }))
+    .toHaveAttribute("aria-current", "page");
+  await expect
+    .element(page.getByRole("heading", { name: "Custom catalog sources", exact: true }))
+    .toBeVisible();
+});
+
 it.each([
   [960, 640, 3],
   [1280, 800, 4],

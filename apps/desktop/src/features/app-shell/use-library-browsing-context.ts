@@ -156,7 +156,11 @@ export function useLibraryBrowsingContext({
   const preferenceFailure = useSyncExternalStore(feedback.subscribe, feedback.read, feedback.read);
   const unreadablePreference = useRef(preferenceFailure === "read");
   const [mountedRoot] = useState(root);
-  const ui = useAppShellState(returnToSelection ? "settings" : "library", restored.inputs);
+  const ui = useAppShellState(
+    returnToSelection ? "settings" : "library",
+    restored.inputs,
+    returnToSelection ? "library-storage" : "appearance",
+  );
   const serializedInputs = JSON.stringify(ui.browsingInputs);
   const [initialInputs] = useState(serializedInputs);
   const saveBrowsingPreferences = () => {
