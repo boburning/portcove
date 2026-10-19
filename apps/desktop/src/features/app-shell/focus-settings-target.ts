@@ -7,6 +7,7 @@ export type ActivitySettingsTarget =
   | "move-library"
   | "import-library"
   | "library-storage"
+  | "application-updates"
   | "catalog-updates";
 export type SettingsTarget = ActivitySettingsTarget | "add-game-file-root";
 
@@ -15,9 +16,11 @@ export function settingsCategoryForTarget(target: SettingsTarget): SettingsCateg
     target === "discover-sources" ||
     target === "add-game-file-root"
     ? "game-files"
-    : target === "catalog-updates"
+    : target === "application-updates"
       ? "updates"
-      : "library-storage";
+      : target === "catalog-updates"
+        ? "advanced"
+        : "library-storage";
 }
 
 export function focusSettingsTarget(target: SettingsTarget, sourceProfileId?: string) {

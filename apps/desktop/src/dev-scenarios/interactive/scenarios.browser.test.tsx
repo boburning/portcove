@@ -105,6 +105,34 @@ it("opens About directly and keeps custom catalog trust under Advanced", async (
     .toBeVisible();
 });
 
+it("opens the Updates category before focusing an application-update notice", async () => {
+  vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
+    schema_version: 1,
+    revision: 1,
+    choice: null,
+  });
+  await mount("library");
+  await page.getByRole("button", { name: /^Settings/ }).click();
+  await expect.element(page.getByRole("heading", { name: "Color theme", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Review options", exact: true }).click();
+  await expect
+    .element(page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Updates", exact: true }))
+    .toHaveAttribute("aria-current", "page");
+  await vi.waitFor(() => expect(document.activeElement?.closest(".application-update-settings")).not.toBeNull());
+  expect(document.activeElement?.closest("[hidden]")).toBeNull();
+});
+
+it("opens application updates from Game updates without entering custom catalog settings", async () => {
+  await mount("library");
+  await page.getByRole("button", { name: /^Game updates/ }).click();
+  await page.getByRole("button", { name: "Open Portcove update settings", exact: true }).click();
+  await expect
+    .element(page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Updates", exact: true }))
+    .toHaveAttribute("aria-current", "page");
+  await vi.waitFor(() => expect(document.activeElement?.id).toBe("settings-updates-heading"));
+  await expect.element(page.getByRole("heading", { name: "Custom catalog sources", exact: true })).not.toBeVisible();
+});
+
 it.each([
   [960, 640, 3],
   [1280, 800, 4],

@@ -51,11 +51,11 @@ describe("update destination links", () => {
         ),
       );
       const link = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
-        (button) => button.textContent === "Open Portcove & catalog update settings",
+        (button) => button.textContent === "Open Portcove update settings",
       );
       expect(link?.closest(".update-center")).not.toBeNull();
       await act(async () => link!.click());
-      expect(onOpenSettings).toHaveBeenCalledExactlyOnceWith("catalog-updates");
+      expect(onOpenSettings).toHaveBeenCalledExactlyOnceWith("application-updates");
     } finally {
       await act(async () => root.unmount());
       vi.unstubAllGlobals();

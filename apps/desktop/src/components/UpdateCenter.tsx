@@ -83,7 +83,10 @@ const updateMarkClass = "grid size-[42px] place-items-center rounded-pc-md text-
 const updateStateClass =
   "justify-self-end rounded-full px-2 py-[5px] text-[length:var(--text-2xs)] font-extrabold tracking-[0.06em] uppercase";
 const libraryActivitySettingsTargets: Partial<
-  Record<ActivityOperation, Exclude<ActivitySettingsTarget, "source-profile" | "library-storage">>
+  Record<
+    ActivityOperation,
+    Exclude<ActivitySettingsTarget, "source-profile" | "library-storage" | "application-updates">
+  >
 > = {
   discover_sources: "discover-sources",
   move_library: "move-library",
@@ -219,9 +222,9 @@ export function UpdateCenter({
           data-focusable
           variant="link"
           size="xs"
-          onClick={() => onOpenSettings("catalog-updates")}
+          onClick={() => onOpenSettings("application-updates")}
         >
-          Open Portcove &amp; catalog update settings
+          Open Portcove update settings
         </Button>
       </p>
       {installed.length > 0 && (

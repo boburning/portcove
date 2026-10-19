@@ -558,6 +558,7 @@ function Workspace({
     openOfficial: (toolId: string) => desktopApi.openHostToolOfficialSite(toolId),
   };
   const reviewApplicationUpdate = (route: Parameters<typeof focusApplicationUpdateRoute>[0]) => {
+    ui.setSettingsCategory("updates");
     setPrimaryView("settings");
     window.requestAnimationFrame(() => focusApplicationUpdateRoute(route));
   };
