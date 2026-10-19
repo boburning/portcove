@@ -12,6 +12,7 @@ import type {
 } from "../../types";
 import { ApplicationUpdateSettings } from "./ApplicationUpdates";
 import { useApplicationUpdateChoice } from "./use-application-update";
+import { focusApplicationUpdateRoute } from "./focus-application-update-route";
 
 const missingChoice: ApplicationUpdatePreferences = {
   schema_version: 1,
@@ -48,12 +49,14 @@ function SettingsFixture({
   generation,
   visible = true,
   currentVersion = "0.1.0-alpha.2",
+  disabled = false,
 }: {
   automaticNotice?: ApplicationUpdateNoticeSnapshot["notice"] | undefined;
   onPreferencesChanged?: ((preferences: ApplicationUpdatePreferences) => void) | undefined;
   generation?: number;
   visible?: boolean;
   currentVersion?: string;
+  disabled?: boolean;
 }) {
   const state = useApplicationUpdateChoice();
   useEffect(() => {
@@ -65,6 +68,7 @@ function SettingsFixture({
       {visible && (
         <ApplicationUpdateSettings
           currentVersion={currentVersion}
+          disabled={disabled}
           generation={generation}
           automaticNotice={automaticNotice}
           preferencesState={state}
@@ -119,6 +123,24 @@ describe("ApplicationUpdateSettings", () => {
       />,
     );
   };
+
+  it.each([true, false])(
+    "enters available update choices only while their pending heading still owns focus: %s",
+    async (retainHeadingFocus) => {
+      vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(missingChoice);
+      await root.rerender(<SettingsFixture disabled />);
+      focusApplicationUpdateRoute("choice");
+      expect(document.activeElement?.id).toBe("application-preferences-title");
+      const other = document.createElement("button");
+      other.textContent = "Another destination";
+      host.append(other);
+      if (!retainHeadingFocus) other.focus();
+
+      await root.rerender(<SettingsFixture disabled={false} />);
+
+      expect(document.activeElement).toBe(retainHeadingFocus ? button("Preview") : other);
+    },
+  );
 
   it("stores an explicit draft without starting update work", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(missingChoice);

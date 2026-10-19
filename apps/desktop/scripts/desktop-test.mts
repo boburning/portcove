@@ -3311,7 +3311,7 @@ try {
       "Game updates heading did not receive focus",
     );
     const applicationUpdatesLink = await browser.findElement(
-      By.xpath('//button[normalize-space(.)="Open Portcove & catalog update settings"]'),
+      By.xpath('//button[normalize-space(.)="Open Portcove update settings"]'),
     );
     await executeBrowserScript(
       browser,
@@ -3324,14 +3324,15 @@ try {
       until.elementLocated(By.css('[data-settings-group="updates"]')),
       15_000,
     );
-    assert.ok((await updateSettings.getText()).includes("Portcove & catalog updates"));
+    assert.ok((await updateSettings.getText()).includes("Portcove updates"));
     await browser.wait(
       () =>
-        executeBrowserScript(browser, () =>
-          document.activeElement?.matches('[data-settings-control="catalog-updates"]'),
+        executeBrowserScript(
+          browser,
+          () => document.activeElement?.id === "settings-updates-heading",
         ),
       5_000,
-      "Catalog update settings did not receive focus",
+      "Application update settings did not receive focus",
     );
 
     await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
