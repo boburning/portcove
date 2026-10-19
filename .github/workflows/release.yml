@@ -142,7 +142,7 @@ jobs:
             label: windows-x86_64
             bundles: nsis
             target: ""
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             label: linux-x86_64
             bundles: appimage,deb,rpm
             target: ""

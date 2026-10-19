@@ -38,6 +38,39 @@ update and staging recovery](media/application-update/README.md). It uses a
 disposable test feed and unreleased test versions; it does not enable automatic
 updates in the published Alpha 2.
 
+### Required desktop runtime
+
+The first-beta Windows baseline is Windows 11 25H2 x86-64 with normal security
+updates and the WebView2 Evergreen production Runtime, initially 155.0.4283.62
+or later. Keep Evergreen automatic updates enabled. The normal NSIS installer
+uses Tauri's Evergreen bootstrapper and minimum-version update behavior; an
+offline or failed runtime installation does not establish a usable application.
+Desktop refuses an unavailable engine, preview identity or engine below the
+floor. On Windows it displays a native diagnostic; on Linux
+it writes a diagnostic to standard error. Repair the runtime using the ordinary
+installer/package source before starting again. No supported historical-engine
+claim follows from compiler targets or a newer-host pass. The support policy
+does not add a Windows OS startup gate: existing Server diagnostic routes can
+still execute, without establishing support for Server or an older client OS.
+
+Ordinary Linux support is updated Ubuntu 24.04 LTS x86-64 with maintained
+`libwebkit2gtk-4.1-0`, initially 2.52.6-0ubuntu0.24.04.1 or later. The DEB declares
+WebKitGTK >=2.52.6. Desktop checks the loaded WebKitGTK version, including a
+library bundled by an AppImage; updating only the host package cannot fix an old
+bundled engine. Use a current qualified AppImage if its bundled runtime is too
+old. Other Linux distributions remain unqualified. See the
+[support and qualification boundary](DESIGN-SYSTEM.md#compatibility-and-qualification-boundary).
+
+Fresh updater installed-context selection also refuses an insufficient runtime.
+Windows release records must declare `minimum_os_version` at least
+`10.0.26200`; Linux's existing field describes its kernel, not an Ubuntu release.
+Do not encode `24.04` as a kernel version or infer distro support from that field.
+Keep actual Ubuntu/package eligibility and the exact loaded engine in the
+candidate's evidence. No production release record or publication identity is
+allocated by this policy change. Existing authenticated selection, ownership,
+consent, recovery and replacement checks continue to apply; startup recovery of
+an interrupted replacement runs before the new engine check.
+
 ### Linux package choice
 
 A DEB or RPM installation stays with the package manager and source that

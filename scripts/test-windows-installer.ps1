@@ -461,7 +461,7 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
     $outputTask = $null
     $errorTask = $null
     if ($evidence) { $evidence.process_runs += $run; Write-InstallerEvidence $evidence.phase }
-    if ($Role -in @("installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage", "installed_update_tampered_stage",
+    if ($Role -in @("predecessor_smoke", "candidate_smoke", "installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage", "installed_update_tampered_stage",
             "installed_update_recovery_status", "installed_update_recovery_repair", "installed_update_recovery_verified")) {
         $outputName = if ($Role -eq "installed_update_helper") { "installed-update-helper" }
             elseif ($recoveryCommand) { "$($Role.Replace('_', '-'))-stage" }
@@ -494,7 +494,7 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
         }
         $startInfoPath = $process.StartInfo.FileName
         if ([string]::IsNullOrWhiteSpace($startInfoPath)) {
-            if ($Role -notin @("installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage", "installed_update_tampered_stage")) {
+            if ($Role -notin @("predecessor_smoke", "candidate_smoke", "installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage", "installed_update_tampered_stage")) {
                 throw "$Role retained handle omitted the requested launch path"
             }
             $run.start_info_observation = "Start-Process omitted StartInfo.FileName with redirected qualification output; live process image verification is required"
@@ -518,8 +518,8 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
         } while ((Get-Date) -lt $imageDeadline)
         if ([string]::IsNullOrWhiteSpace($observedPath)) {
             if (-not $process.HasExited) { throw "$Role stable executable image path could not be observed while it was running" }
-            if ($Role -eq "installed_update_helper") {
-                throw "Installed update helper exited before its executable image could be verified"
+            if ($Role -in @("installed_update_helper", "predecessor_smoke", "candidate_smoke")) {
+                throw "$Role exited before its executable image could be verified"
             }
             $run.image_observation = "Process exited before a stable executable image path was observable; StartInfo and the retained handle identify the exact hash-journaled launch"
             if ($evidence) { Write-InstallerEvidence $evidence.phase }
@@ -1185,6 +1185,7 @@ try {
         $normalPackageManifest | Add-Member -NotePropertyName execution_context -NotePropertyValue 'current-installed' -Force
         $normalPackageManifest | Add-Member -NotePropertyName installer_evidence -NotePropertyValue ([ordered]@{
             path = $readyReceipt
+            bytes = (Get-Item -LiteralPath $readyReceipt).Length
             sha256 = (Get-FileHash -LiteralPath $readyReceipt -Algorithm SHA256).Hash.ToLowerInvariant()
         }) -Force
         $normalPackageManifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $boundManifest -Encoding utf8

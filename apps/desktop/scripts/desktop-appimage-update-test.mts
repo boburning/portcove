@@ -8,6 +8,7 @@ import { By } from "selenium-webdriver";
 import type { WebDriver } from "selenium-webdriver";
 import type { InstalledUpdateFailure } from "./desktop-installed-update-harness.mts";
 import { driveInstalledUpdateToRestart } from "./desktop-application-update-journey.mts";
+import { loadedWebKitLibraries } from "./desktop-linux-webkit-inspector.mts";
 import {
   awaitInstalledUpdateDriver,
   connectInstalledUpdateDriver,
@@ -84,6 +85,7 @@ interface AppImageUpdateReport extends InstalledUpdateFailure {
   driver?: ProcIdentity;
   staged?: Awaited<ReturnType<typeof verifyInstalledUpdateStaging>>;
   processes_before_restart?: ProcIdentity[];
+  loaded_engine_before_restart?: Awaited<ReturnType<typeof loadedWebKitLibraries>>;
   restart_action_attempted?: boolean;
   restart_click?: string;
   helper_process_marker?: ProcessMarker;
@@ -296,6 +298,14 @@ try {
     encoding: "base64",
   });
   report.processes_before_restart = await ownedProcessTree(driver.pid);
+  const engineProcesses = report.processes_before_restart.filter(
+    (entry) => path.basename(entry.command.split(" ")[0] ?? "") === "portcove-desktop",
+  );
+  assert.equal(engineProcesses.length, 1, "Exactly one owned running AppImage desktop required");
+  const engineProcess = engineProcesses[0];
+  assert.ok(engineProcess);
+  report.loaded_engine_before_restart = await loadedWebKitLibraries(engineProcess.pid);
+  assert.equal(report.loaded_engine_before_restart.process.start_ticks, engineProcess.start_ticks);
   await save();
   try {
     report.restart_action_attempted = true;
