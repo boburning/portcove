@@ -12,7 +12,7 @@ function Write-StoragePreflightCapture([string]$Root,$ProcessResult) {
   $file=[IO.File]::Open((Join-Path $Root 'capture/storage-preflight.json'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
   try { $file.Write($capture);$file.Flush($true) } finally { $file.Dispose() }
   $storage=$ProcessResult.Storage
-  $summary=[ordered]@{Passed=$storage.Passed;IdentityVerified=$storage.IdentityVerified;Reverted=$storage.Reverted;BypassTraverseEnabled=$storage.BypassTraverseEnabled;Error=$storage.Error;NativeErrorCode=$storage.NativeErrorCode;CaptureSha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($capture)).ToLowerInvariant();Paths=@($storage.Paths|Select-Object Path,Attributes,MetadataError,DescriptorError)}
+  $summary=[ordered]@{Passed=$storage.Passed;IdentityVerified=$storage.IdentityVerified;Reverted=$storage.Reverted;BypassTraverseEnabled=$storage.BypassTraverseEnabled;Error=$storage.Error;NativeErrorCode=$storage.NativeErrorCode;CaptureSha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($capture)).ToLowerInvariant();Paths=@($storage.Paths|Select-Object Path,Attributes,BrokerAttributes,BrokerMetadataError,MetadataError,DescriptorError)}
   $processReceipt=$ProcessResult|Select-Object * -ExcludeProperty Storage
   $processReceipt|Add-Member -NotePropertyName Storage -NotePropertyValue $summary
   return $processReceipt
