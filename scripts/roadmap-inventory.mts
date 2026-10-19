@@ -87,22 +87,30 @@ export function collectRoadmapInventory(
   const [owner, name] = repository.split("/");
   if (!owner || !name) throw new Error("Invalid repository binding");
   const markerQuery = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){id nameWithOwner issues(first:1,orderBy:{field:UPDATED_AT,direction:DESC}){totalCount nodes{id updatedAt}}}}`;
-  const marker = () => object(object(client.graphql(markerQuery, { owner, name })).repository);
+  let repositoryIdentity: string | undefined;
+  const marker = () => {
+    const value = object(object(client.graphql(markerQuery, { owner, name })).repository);
+    if (
+      repositoryIdentity !== undefined &&
+      (value.id !== repositoryIdentity ||
+        String(value.nameWithOwner).toLowerCase() !== repository.toLowerCase())
+    )
+      throw new Error("Repository provider identity changed during inventory collection");
+    return value;
+  };
   const before = marker();
   if (
     typeof before.id !== "string" ||
     String(before.nameWithOwner).toLowerCase() !== repository.toLowerCase()
   )
     throw new Error("Wrong repository inventory identity");
+  repositoryIdentity = before.id;
   if (cache?.repository_node_id && cache.repository_node_id !== before.id)
     throw new Error("Repository provider identity changed; preserve the historical baseline");
   const query = `query($owner:String!,$name:String!,$after:String){repository(owner:$owner,name:$name){issues(first:100,after:$after,orderBy:{field:CREATED_AT,direction:ASC}){totalCount nodes{id number title url state updatedAt} pageInfo{hasNextPage endCursor}}}}`;
-  const rows = connection(
-    client,
-    query,
-    { owner, name },
-    (v) => object(object(v).repository).issues,
-  );
+  const enumerate = () =>
+    connection(client, query, { owner, name }, (v) => object(object(v).repository).issues);
+  let rows = enumerate();
   const cached = new Map<string, RoadmapIssueItem>();
   if (cache?.format === 1 && cache.repository === repository && Array.isArray(cache.issues)) {
     for (const issue of cache.issues) {
@@ -132,12 +140,13 @@ export function collectRoadmapInventory(
     else needs.push(row);
   }
   let bodyReads = 0;
-  const hydrate = (wanted: RoadmapIssueItem[]) => {
+  let hydrationMoved = false;
+  const hydrate = (wanted: RoadmapIssueItem[], reconcile = false) => {
     for (let offset = 0; offset < wanted.length; offset += 10) {
       const batch = wanted.slice(offset, offset + 10);
       const data = object(
         client.graphql(
-          `query($ids:[ID!]!){nodes(ids:$ids){__typename ... on Issue{id number url updatedAt body} ... on PullRequest{id number url updatedAt body} ... on DraftIssue{id updatedAt body}}}`,
+          `query($ids:[ID!]!){nodes(ids:$ids){__typename ... on Issue{id number title state url updatedAt body} ... on PullRequest{id number title state url updatedAt body} ... on DraftIssue{id updatedAt body}}}`,
           { ids: batch.map((i) => i.id) },
         ),
       );
@@ -155,17 +164,65 @@ export function collectRoadmapInventory(
         if (
           !node ||
           typeof node.body !== "string" ||
-          node.updatedAt !== row.updatedAt ||
           node.url !== row.url ||
           node.number !== row.number
         )
-          throw new Error("Issue changed during body hydration");
+          throw new Error(`Hydrated identity mismatch for issue #${row.number} (${row.id})`);
+        if (node.updatedAt !== row.updatedAt) {
+          if (
+            !reconcile ||
+            typeof node.updatedAt !== "string" ||
+            !Number.isFinite(Date.parse(node.updatedAt)) ||
+            typeof node.title !== "string" ||
+            (node.state !== "OPEN" && node.state !== "CLOSED")
+          )
+            throw new Error(
+              `Issue #${row.number} changed during body hydration: ${String(row.updatedAt)} -> ${String(node.updatedAt)}`,
+            );
+          // Adopt the whole atomic issue observation, then verify its membership/revision below.
+          row.updatedAt = node.updatedAt;
+          row.title = node.title;
+          row.state = node.state;
+          hydrationMoved = true;
+        }
         row.body = node.body;
         bodyReads++;
       }
     }
   };
-  hydrate(needs);
+  hydrate(needs, true);
+  let stableMarker = before;
+  const afterHydration = marker();
+  if (hydrationMoved || observationHash(afterHydration) !== observationHash(before)) {
+    // One semantic reconciliation pass; failed requests and a second drift are never retried.
+    stableMarker = afterHydration;
+    const refreshed = enumerate();
+    const prior = new Map(rows.map((row) => [row.id, row]));
+    if (refreshed.length !== rows.length)
+      throw new Error("Repository membership changed during inventory collection");
+    const changed: RoadmapIssueItem[] = [];
+    for (const row of refreshed) {
+      const old = prior.get(row.id);
+      if (
+        !old ||
+        old.url !== row.url ||
+        old.number !== row.number ||
+        typeof row.updatedAt !== "string" ||
+        !Number.isFinite(Date.parse(row.updatedAt))
+      )
+        throw new Error(
+          `Repository identity changed during reconciliation for issue #${row.number}`,
+        );
+      if (old.updatedAt === row.updatedAt) row.body = old.body;
+      else changed.push(row);
+    }
+    hydrate(changed);
+    if (observationHash(marker()) !== observationHash(stableMarker))
+      throw new Error(
+        "Repository changed during the single inventory reconciliation; resume on a later run",
+      );
+    rows = refreshed;
+  }
   client._completeProjectContext = undefined;
   client._projectContext = undefined;
   const context = client.completeProjectContext();
@@ -208,7 +265,9 @@ export function collectRoadmapInventory(
         content.number !== local.number ||
         content.updatedAt !== local.updatedAt
       )
-        throw new Error("Project/repository issue revision mismatch");
+        throw new Error(
+          `Project/repository issue revision mismatch for #${local.number}: ${String(local.updatedAt)} -> ${String(content.updatedAt)}`,
+        );
       content.body = local.body;
     } else foreign.push(content);
     const blockers = content.blockedBy;
@@ -230,7 +289,7 @@ export function collectRoadmapInventory(
   hydrate(foreign);
   if (observationHash(projectMarker()) !== observationHash(projectBefore))
     throw new Error("Project changed during inventory collection");
-  if (observationHash(marker()) !== observationHash(before))
+  if (observationHash(marker()) !== observationHash(stableMarker))
     throw new Error("Repository changed during inventory collection");
   for (const row of rows) {
     row.type = "Issue";

@@ -12776,7 +12776,7 @@ fn main() {
                 path: source,
                 sha256: "d6b8538dd63f0132ecb2856e7d32816ed3c30e3e479aecd23cf83fb6ba17a5da".into(),
                 size: storage_size,
-                storage_sha256,
+                storage_sha256: storage_sha256.clone(),
                 storage_size,
                 updated_at: Library::now(),
                 observed_identity: None,
@@ -12784,6 +12784,20 @@ fn main() {
             .unwrap();
         let service = PortcoveService::new(library).unwrap();
 
+        let error = service.verify_source("mario-kart-64").unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
+        assert!(error.message.contains("changed since registration"));
+        assert_eq!(
+            error.details.get("actual_storage_sha256"),
+            Some(&storage_sha256)
+        );
+        let mut baseline = service.library().source("mario-kart-64").unwrap().unwrap();
+        assert_eq!(error.details.get("recorded_sha256"), Some(&baseline.sha256));
+
+        // Even a baseline matching the actual bytes cannot manufacture input
+        // compatibility. Verification still inspects the unsupported content.
+        baseline.sha256 = storage_sha256;
+        service.library().register_source(&baseline).unwrap();
         let error = service.verify_source("mario-kart-64").unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
         assert!(error.message.contains("not a supported"));

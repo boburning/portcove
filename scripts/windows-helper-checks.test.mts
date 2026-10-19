@@ -198,9 +198,14 @@ function New-Paths {
 function Invoke-Case([string]$kind) {
  $script:prepared=0;$script:entered=0;$script:verified=0;$script:observed=0;$script:reverted=0
  $paths=New-Paths
+ $paths[0].BrokerAttributes=16;$paths[0].BrokerMetadataError=0
+ if($kind -eq 'broker-denied'){$paths[0].BrokerMetadataError=5}
+ if($kind -eq 'broker-unknown'){$paths[0].BrokerAttributes=$null}
+ if($kind -eq 'broker-file'){$paths[0].BrokerAttributes=128}
  if($kind -eq 'bad-path'){$paths[0].Path='relative'}
  if($kind -eq 'oversized'){$paths[0].Sddl='x'*4097}
  if($kind -eq 'descriptor'){$paths[0].DescriptorError=5;$paths[0].Sddl=$null}
+ if($kind -match '^descriptor-([1-4])$'){$paths[[int]$Matches[1]].DescriptorError=5;$paths[[int]$Matches[1]].Sddl=$null}
  $script:kind=$kind
  $prepare=[StorageLookupFixture]::Prepare([Action]{
   if($script:entered -or $script:verified -or $script:observed){throw 'lookup entered reviewer scope'}
@@ -210,11 +215,15 @@ function Invoke-Case([string]$kind) {
   $script:observed++
   if($script:kind -eq 'throw'){throw 'inert metadata failure'}
   foreach($p in $rows){$p.Attributes=16}
+  if($script:kind -eq 'root-denied'){$rows[0].Attributes=$null;$rows[0].MetadataError=5}
+  if($script:kind -eq 'root-unknown'){$rows[0].Attributes=$null}
+  if($script:kind -match '^child-([1-4])$'){$rows[[int]$Matches[1]].Attributes=$null;$rows[[int]$Matches[1]].MetadataError=5}
+  if($script:kind -eq 'actual-denials'){foreach($p in $rows){$p.Attributes=$null;$p.MetadataError=5}}
   if($script:kind -eq 'denied'){$rows[2].Attributes=$null;$rows[2].MetadataError=5}
   if($script:kind -eq 'unknown'){$rows[2].Attributes=$null}
   if($script:kind -eq 'file'){$rows[2].Attributes=128}
  },[Func[bool]]{$script:reverted++;$script:kind -ne 'revert-failed'},$prepare)
- if($result.Passed -ne ($kind -eq 'pass')){throw "incorrect acceptance: $kind"}
+ if($result.Passed -ne ($kind -in @('pass','root-denied','root-unknown'))){throw "incorrect acceptance: $kind"}
  $expectedPrepare=if($kind -in @('bad-path','oversized')){0}else{1}
  $expectedEnter=if($kind -in @('bad-path','oversized','prepare-failed')){0}else{1}
  $expectedRevert=if($kind -in @('bad-path','oversized','prepare-failed','enter-failed')){0}else{1}
@@ -226,8 +235,8 @@ function Invoke-Case([string]$kind) {
  if($kind -eq 'revert-failed' -and $result.Reverted){throw 'failed revert described as complete'}
  if($kind -eq 'prepare-failed' -and $result.NativeErrorCode -ne 1314){throw 'native error code lost'}
 }
-foreach($kind in @('pass','bad-path','oversized','prepare-failed','enter-failed','identity','descriptor','denied','unknown','file','throw','revert-failed')){Invoke-Case $kind}
-@{cases=12;native_processes=0;storage_operations=0}|ConvertTo-Json -Compress
+foreach($kind in @('pass','bad-path','oversized','prepare-failed','enter-failed','identity','descriptor','denied','unknown','file','throw','revert-failed','broker-unknown','broker-file','broker-denied','descriptor-1','descriptor-2','descriptor-3','descriptor-4','root-denied','root-unknown','child-1','child-2','child-3','child-4','actual-denials')){Invoke-Case $kind}
+@{cases=26;native_processes=0;storage_operations=0}|ConvertTo-Json -Compress
 `;
     const output = execFileSync(
       "pwsh.exe",
@@ -241,7 +250,7 @@ foreach($kind in @('pass','bad-path','oversized','prepare-failed','enter-failed'
       ],
       { encoding: "utf8", windowsHide: true, timeout: 20000 },
     );
-    assert.deepEqual(JSON.parse(output), { cases: 12, native_processes: 0, storage_operations: 0 });
+    assert.deepEqual(JSON.parse(output), { cases: 26, native_processes: 0, storage_operations: 0 });
   },
 );
 
@@ -355,6 +364,8 @@ void test("native tool inputs retain affected Windows proof without frontend ins
 
 void test("Windows helper selection includes rename/delete sides and policy inputs without changing Rust selection", () => {
   for (const file of [
+    "scripts/daily-discovery-session.mts",
+    "scripts/daily-discovery.test.mts",
     "apps/desktop/scripts/native-window-discovery.ps1",
     "apps/desktop/scripts/desktop-native-confirmation.mts",
     "apps/desktop/scripts/browser-script.mts",
