@@ -325,7 +325,15 @@ impl Adapter for StandardAdapter {
         };
         let mut arguments = port.launch_arguments.clone();
         arguments.extend(adapter_arguments);
+        for recipe in port.release.managed_build.values() {
+            recipe.require_runtime_environment()?;
+        }
         Ok(LaunchSpec {
+            fixed_arguments_only: port
+                .release
+                .managed_build
+                .values()
+                .any(|recipe| recipe.fixed_launch_arguments_only()),
             launch_kind: LaunchKind::for_executable(&executable),
             executable,
             install_root: install_root.to_path_buf(),

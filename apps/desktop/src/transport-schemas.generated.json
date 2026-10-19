@@ -2800,7 +2800,9 @@
       "CartridgeBuildRecipe": {
         "enum": [
           "yoshis-cookie-nes-cycle-v1.1.0",
-          "dr-mario-nes-cycle-v1.3.0-usa"
+          "dr-mario-nes-cycle-v1.3.0-usa",
+          "advance-wars-gba-source-cb3facb53b6b-usa-rev1",
+          "earthbound-snes-source-fe1155dc26ff-usa"
         ],
         "type": "string"
       },
@@ -14926,7 +14928,9 @@
       "CartridgeBuildRecipe": {
         "enum": [
           "yoshis-cookie-nes-cycle-v1.1.0",
-          "dr-mario-nes-cycle-v1.3.0-usa"
+          "dr-mario-nes-cycle-v1.3.0-usa",
+          "advance-wars-gba-source-cb3facb53b6b-usa-rev1",
+          "earthbound-snes-source-fe1155dc26ff-usa"
         ],
         "type": "string"
       },
@@ -19160,7 +19164,9 @@
       "CartridgeBuildRecipe": {
         "enum": [
           "yoshis-cookie-nes-cycle-v1.1.0",
-          "dr-mario-nes-cycle-v1.3.0-usa"
+          "dr-mario-nes-cycle-v1.3.0-usa",
+          "advance-wars-gba-source-cb3facb53b6b-usa-rev1",
+          "earthbound-snes-source-fe1155dc26ff-usa"
         ],
         "type": "string"
       },

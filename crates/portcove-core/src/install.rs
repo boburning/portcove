@@ -179,8 +179,8 @@ impl InstallQualification {
             .chain(
                 port.release
                     .managed_build
-                    .contains_key(&platform)
-                    .then_some("game.nes".into()),
+                    .get(&platform)
+                    .map(|recipe| recipe.original_filename().into()),
             )
             .chain(
                 port.release
@@ -519,8 +519,8 @@ impl Installer {
             .qualification
             .require_cartridge_build_preparation(&request.release, request.managed.is_some())?;
         let mut storage_key = artifact_storage_key(&request.release.asset.sha256)?;
-        if let Some(recipe) = request.qualification.native_build_recipe {
-            storage_key = recipe.storage_identity(&request.release.asset.sha256)?;
+        if let Some(preparation) = &request.qualification.native_build_preparation {
+            storage_key = preparation.storage_identity(&request.release.asset.sha256)?;
         }
         if let Some(runtime) = &request.qualification.runtime {
             storage_key = hex::encode(Sha256::digest(serde_json::to_vec(&(
