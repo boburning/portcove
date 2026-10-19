@@ -3,6 +3,16 @@
   "source_catalog": {
     "evidence": [
       {
+        "id": "f-zero-managed-windows-2026-10-19",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "2c5c929d814642b6961ff5c874a1c5c76cd74edc",
+        "reviewed_at": "2026-10-19",
+        "claim": "Exact Windows v1.8.3 managed source/package checks, native title-menu startup and administrative persistence; gameplay and version update/rollback remain untested",
+        "immutable_url": "https://github.com/boburning/portcove/blob/2c5c929d814642b6961ff5c874a1c5c76cd74edc/docs/qualification/f-zero-managed-windows-2026-10-19.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/f-zero-managed-windows-2026-10-19.md"
+      },
+      {
         "id": "alpha1-schema1-source-contracts",
         "role": "byte_identity",
         "authority": "Portcove Alpha 1 source catalog",
@@ -9365,6 +9375,60 @@
       }
     ],
     "qualification": [
+      {
+        "scope": {
+          "port_id": "f-zero-snes-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+          "upstream_ref": "v1.8.3",
+          "contract_id": "f-zero-snes-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "f-zero-snes-usa",
+              "variant_id": "usa",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "fzero-managed-startup-persistence-v1"
+        },
+        "outcome": "passed",
+        "observed_at": 1792439748,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "67550c6c7b3cafc63914d6ec59a37863ed842458",
+        "kind": "structural_check",
+        "method": "Pinned source/package/ownership review; actual invalid source and stale-review refusal, exact original registration, official package acquisition and 70-file immutable verification. Windows x64 v1.8.3 and headerless USA source only.",
+        "evidence_ids": [
+          "f-zero-managed-windows-2026-10-19"
+        ]
+      },
+      {
+        "scope": {
+          "port_id": "f-zero-snes-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+          "upstream_ref": "v1.8.3",
+          "contract_id": "f-zero-snes-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "f-zero-snes-usa",
+              "variant_id": "usa",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "fzero-managed-startup-persistence-v1"
+        },
+        "outcome": "passed",
+        "observed_at": 1792439748,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "67550c6c7b3cafc63914d6ec59a37863ed842458",
+        "kind": "automated_lifecycle",
+        "method": "Actual isolated Core/CLI install, native title/menu startup and ordinary close; synthetic persistence probe backup/restore, reviewed removal, reinstall and corrupted runtime-source recreation with matching retained marker. Protected and registered originals unchanged. No gameplay, input, audio, in-game save/load, GUI workflow, version-to-version update/rollback or minimum-OS claim.",
+        "evidence_ids": [
+          "f-zero-managed-windows-2026-10-19"
+        ]
+      },
       {
         "scope": {
           "port_id": "snap64-recomp",
