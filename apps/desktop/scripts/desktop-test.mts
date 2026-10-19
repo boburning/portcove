@@ -1,4 +1,5 @@
 import { observeVisibleTarget } from "./browser-readiness.mts";
+import { captureStartupDiagnostics } from "./desktop-startup-diagnostics.mts";
 import { errorCode, errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import { reenterResourceCommand } from "../../../scripts/resource-command.mts";
@@ -4205,6 +4206,11 @@ try {
     message: errorMessage(error),
   });
   if (browser) {
+    const diagnostics = path.join(output, "harness-failure-diagnostics.json");
+    await captureStartupDiagnostics(browser)
+      .then((details) => writeFile(diagnostics, JSON.stringify(details, null, 2), { flag: "wx" }))
+      .then(() => artifacts.push(diagnostics))
+      .catch(() => {});
     const screenshot = path.join(output, "harness-failure.png");
     await browser
       .takeScreenshot()
