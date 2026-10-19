@@ -38,7 +38,7 @@ describe("source identity presentation", () => {
     }
     const html = renderToStaticMarkup(<SourceIdentityPanel report={value} />);
     expect(html).not.toContain("Exact member match");
-    expect(html).toContain("Digest comparison unavailable");
+    expect(html).toContain("Observed member evidence");
     expect(html).toContain("CONSTRUCTOR"); // The raw algorithm remains only in technical evidence.
   });
 
@@ -192,8 +192,7 @@ describe("source identity presentation", () => {
       "program.bin",
       "12 tracks",
       "GAME_DISC_1",
-      "Exact member match",
-      "Expected identity missing",
+      "Observed member evidence",
       "Missing from reviewed evidence",
       "Recorded automated results",
       "Recorded hands-on results",
@@ -205,4 +204,53 @@ describe("source identity presentation", () => {
     expect(html).toContain("Copy Calculated SHA256 for normalized content");
     expect(html).toContain("Open reviewed evidence from Sample authority");
   });
+});
+
+it("keeps partial multi-disc digests neutral while retaining Core's overall result", () => {
+  const value = report("ambiguous_identity");
+  const component = fixtureValue(value.inspection?.components[0], "first observed component");
+  component.id = "disc-1";
+  component.kind = "optical_disc";
+  component.digests = [
+    { algorithm: "sha1", scope: "disc-set-member", value: "a".repeat(40), size: 2048 },
+  ];
+  const identity = fixtureValue(value.expected_identity, "expected identity");
+  identity.kind = "multi-disc-set";
+  const variant = fixtureValue(identity.variants[0], "first variant");
+  variant.representations = [
+    {
+      id: "discs",
+      kind: "multi-disc-set",
+      extensions: [],
+      evidence_ids: [],
+      discs: [
+        {
+          id: "disc-1",
+          label: "Disc one",
+          track_counts: [1],
+          volume_ids: [],
+          identities: [
+            { scope: "disc-set-member", sha1: "a".repeat(40), sha256: null, crc32: "12345678" },
+          ],
+        },
+        {
+          id: "disc-2",
+          label: "Disc two",
+          track_counts: [1],
+          volume_ids: [],
+          identities: [
+            { scope: "disc-set-member", sha1: "b".repeat(40), sha256: null, crc32: "87654321" },
+          ],
+        },
+      ],
+    },
+  ];
+  const html = renderToStaticMarkup(<SourceIdentityPanel report={value} />);
+  expect(html).toContain("Calculated SHA1");
+  expect(html).toContain("Expected CRC32");
+  expect(html).toContain("12345678");
+  expect(html).toContain("Observed member evidence");
+  expect(html).toContain("More checks needed · edition unclear");
+  expect(html).not.toContain("Exact member match");
+  expect(html).not.toContain("Member doesn&#x27;t match");
 });

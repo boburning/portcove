@@ -273,11 +273,11 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       } satisfies Awaited<ReturnType<typeof desktopApi.cliCommandContext>>;
     },
     get_game_file_roots: (args) => {
-      requireArgs("get_game_file_roots", args, {});
+      requireArgs("get_game_file_roots", args, { generation });
       return [];
     },
     get_game_file_scan_snapshot: (args) => {
-      requireArgs("get_game_file_scan_snapshot", args, {});
+      requireArgs("get_game_file_scan_snapshot", args, { generation });
       return null;
     },
     get_backups: (args) => {

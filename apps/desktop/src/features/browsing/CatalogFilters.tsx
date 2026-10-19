@@ -158,17 +158,8 @@ export function CatalogFilters({
         <DialogContent finalFocus={trigger}>
           <DialogTitle>{view === "library" ? "Library" : "Catalog"} filters</DialogTitle>
           <DialogDescription>
-            Match any selected value in each group and all groups together for one setup or
-            installed context. Platforms describe catalog targets or the retained installation; they
-            do not confirm tested compatibility. Library membership means an active managed
-            installation or a registered external runtime in the selected library; it does not
-            confirm readiness. Installation attention uses observed Core reasons for the current
-            installation. Changed or unreadable files are not missing; these choices do not
-            establish game-file compatibility or authorize an action. Observed updates match the
-            current managed version and its last checked candidate. Available excludes that
-            candidate when it is verified and staged. Other downloaded versions do not establish a
-            matching staged update. Filtering never checks for a newer release. Missing retained
-            platform or setup facts remain unavailable. For this device uses Core's host platform.
+            Choose any matching option within a group. A game must match every selected group for
+            the same setup or installation to appear.
           </DialogDescription>
           {!editable && (
             <p role="alert">
@@ -187,6 +178,36 @@ export function CatalogFilters({
           {groups.map((group) => (
             <fieldset key={group.key} className="grid gap-2">
               <legend className="mb-2 font-medium">{group.label}</legend>
+              {group.key === "platforms" && (
+                <p>
+                  Platforms describe release targets, not tested compatibility. For this device uses
+                  this PC’s platform.
+                </p>
+              )}
+              {group.key === "membership" && (
+                <p>
+                  Includes managed installations and registered runtimes in this library. Readiness
+                  may still need checking.
+                </p>
+              )}
+              {group.key === "updates" && (
+                <p>
+                  Uses the last check for the current installation. A matching staged update is
+                  downloaded and verified. Filtering does not check for newer releases.
+                </p>
+              )}
+              {group.key === "gameFiles" && (
+                <p>
+                  Uses the same setup or installation as your other filters. Changed or unreadable
+                  files need checking; they are not counted as missing.
+                </p>
+              )}
+              {group.key === "attention" && (
+                <p>
+                  Shows recorded needs for the current installation. Unavailable details remain
+                  unknown.
+                </p>
+              )}
               <div className="flex flex-wrap gap-2">
                 {group.values.map((value) => (
                   <Button
