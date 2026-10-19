@@ -16,7 +16,7 @@ void test("accepts a clean report", () => {
 
 void test("future versions and schemas require explicit compatibility review", () => {
   for (const value of [
-    { ...report(), version: "3.34.1" },
+    { ...report(), version: "3.34.2" },
     { ...report(), schema_version: 15 },
   ])
     assert.throws(() => evaluateFallowReport(value), /Unsupported Fallow report/);

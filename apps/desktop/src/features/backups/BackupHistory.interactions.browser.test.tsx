@@ -38,6 +38,7 @@ beforeEach(async () => {
           backup: backups.find((backup) => backup.id === id)!,
           current_user_data_exists: true,
           safety_backup_will_be_created: false,
+          retained_runtime_copy_will_be_deleted: false,
           preview_sha256: "reviewed-data",
         },
       }) satisfies BackupReview,

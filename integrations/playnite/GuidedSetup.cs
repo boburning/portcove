@@ -22,7 +22,7 @@ namespace Portcove.ReferenceClient
             {
                 var assessment = Json.OptionalObjectField(readiness, role + "_assessment");
                 if (assessment == null) continue; // Missing legacy evidence remains unknown.
-                if (schema < 69) throw new InvalidOperationException("Source assessments require API schema 69.");
+                if (schema < 70) throw new InvalidOperationException("Source assessments require API schema 70.");
                 var health = Json.Text(assessment, "health");
                 if (!new[] { "unregistered", "not_checked", "not_baselined", "current", "missing", "unreadable", "changed" }.Contains(health))
                     throw new InvalidOperationException("Unknown source assessment health.");
@@ -56,8 +56,8 @@ namespace Portcove.ReferenceClient
                     throw new InvalidOperationException("Launch readiness contradicts a known input failure.");
             }
             object blockers;
-            if (schema < 69 && Json.TryField(readiness, "blockers", out blockers) && Json.Array(blockers).Contains("incompatible_bios"))
-                throw new InvalidOperationException("BIOS compatibility guidance requires API schema 69.");
+            if (schema < 70 && Json.TryField(readiness, "blockers", out blockers) && Json.Array(blockers).Contains("incompatible_bios"))
+                throw new InvalidOperationException("BIOS compatibility guidance requires API schema 70.");
         }
 
         internal static bool Confirmed(object readiness, string profile, string role)

@@ -375,7 +375,7 @@ impl PortcoveService {
         self.finish_activity(activity, result)
     }
 
-    fn create_backup_locked(&self, port_id: &str) -> Result<BackupRecord> {
+    pub(super) fn create_backup_locked(&self, port_id: &str) -> Result<BackupRecord> {
         let source = self.library.user_dir(port_id);
         if !source.is_dir() {
             return Err(PortcoveError::not_found(format!(
@@ -465,7 +465,9 @@ impl PortcoveService {
         self.faults.check(LifecycleFaultPoint::BackupStagingKept)?;
         publish_backup_directory(&staging_path, &final_path, &parent, directory_sync)?;
         self.faults.check(LifecycleFaultPoint::BackupPublished)?;
-        Ok(backup_record(manifest, final_path))
+        let record = backup_record(manifest, final_path);
+        self.qualify_legacy_backup(&record)?;
+        Ok(record)
     }
 
     pub fn list_backups(&self, port_id: &str) -> Result<BackupInventory> {
@@ -924,8 +926,17 @@ impl PortcoveService {
         } else {
             None
         };
-        let preview_sha256 =
+        let mut preview_sha256 =
             backup_action_fingerprint(action, &backup, &backup_plan, user_plan.as_ref())?;
+        let runtime_safety = if action == BackupAction::Delete {
+            self.runtime_safety_binding(&backup)?
+        } else {
+            None
+        };
+        if let Some(binding) = &runtime_safety {
+            preview_sha256 =
+                crate::signed_catalog::digest(&serde_json::to_vec(&(&preview_sha256, binding))?);
+        }
         Ok(BackupActionPreview {
             action,
             backup,
@@ -934,6 +945,8 @@ impl PortcoveService {
                 && user_plan
                     .as_ref()
                     .is_some_and(|plan| !plan.files.is_empty()),
+            retained_runtime_copy_will_be_deleted: action == BackupAction::Delete
+                && runtime_safety.is_some(),
             preview_sha256,
         })
     }
@@ -1135,6 +1148,8 @@ impl PortcoveService {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "delete-backup")?;
             self.require_completed_backup_deletion(port_id)?;
+            let deletion_binding =
+                self.runtime_safety_binding(&self.load_backup(port_id, backup_id)?)?;
             let locked_preview =
                 self.preview_backup_action(port_id, backup_id, BackupAction::Delete)?;
             self.library.consume_authorization(
@@ -1156,10 +1171,22 @@ impl PortcoveService {
             lifecycle.paths.final_path = Some(backup.path.clone());
             lifecycle.paths.quarantine = Some(deleting.clone());
             lifecycle.phase = LifecyclePhase::Prepared;
+            if serde_json::to_value(self.runtime_safety_binding(&backup)?)?
+                != serde_json::to_value(&deletion_binding)?
+            {
+                return Err(PortcoveError::conflict(
+                    "runtime safety copy changed after its deletion preview",
+                ));
+            }
+            lifecycle.backup_deletion = deletion_binding;
             let mut deletion = self.validate_backup_deletion_operation(&lifecycle)?;
             store.put(&mut lifecycle)?;
             self.faults
                 .check(LifecycleFaultPoint::DeleteBackupPrepared)?;
+            self.require_backup_deletion_preimage(
+                &backup.path,
+                lifecycle.backup_deletion.as_ref(),
+            )?;
             crate::durability::rename_noreplace(&backup.path, &deleting)?;
             self.faults
                 .check(LifecycleFaultPoint::DeleteBackupQuarantined)?;
@@ -1167,12 +1194,13 @@ impl PortcoveService {
             self.faults
                 .check(LifecycleFaultPoint::DeleteBackupDeleting)?;
             refuse_symlink_ancestors(&deleting)?;
-            fs::remove_dir_all(&deleting)?;
+            self.delete_backup_owned_tree(&deleting, lifecycle.backup_deletion.as_ref())?;
             self.faults
                 .check(LifecycleFaultPoint::DeleteBackupDeleted)?;
             deletion.advance(BackupDeletionPhase::Deleted, &mut lifecycle, &store)?;
             self.faults
                 .check(LifecycleFaultPoint::DeleteBackupMetadataCommitted)?;
+            self.retire_ghostship_backup_authority(port_id, backup_id)?;
             store.remove(&lifecycle.id)?;
             Ok(backup)
         })();
@@ -1204,7 +1232,7 @@ impl PortcoveService {
         self.finish_activity(activity, result)
     }
 
-    fn load_backup(&self, port_id: &str, backup_id: &str) -> Result<BackupRecord> {
+    pub(super) fn load_backup(&self, port_id: &str, backup_id: &str) -> Result<BackupRecord> {
         let parsed = Uuid::parse_str(backup_id).map_err(|_| {
             PortcoveError::not_found(format!("backup {backup_id} was not found for {port_id}"))
         })?;

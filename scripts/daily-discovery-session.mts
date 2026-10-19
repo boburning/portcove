@@ -131,7 +131,7 @@ export function atomic(file: string, value: unknown) {
     }
   }
 }
-export const discoveryMaterial = (v: ReturnType<typeof investigateDiscoveryUpstream>) =>
+const discoveryMaterial = (v: ReturnType<typeof investigateDiscoveryUpstream>) =>
   observationHash({
     repository_id: v.metadata.id,
     repository: v.metadata.full_name,

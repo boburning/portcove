@@ -32,9 +32,15 @@
     "scripts/resource-status.{mjs,mts}",
     "scripts/test-duration-reporter.{mjs,mts}",
     "scripts/upstream-observer.{mjs,mts}",
-    "scripts/viteplus-cli.{mjs,mts}"
+    "scripts/viteplus-cli.{mjs,mts}",
+    "scripts/daily-discovery.mts",
+    "scripts/qualify-semantic-isolation.mts",
+    "scripts/release-reviewed-inputs.mts"
   ],
-  "ignoreUnresolvedImports": ["/theme-bootstrap.js"],
+  "ignoreUnresolvedImports": [
+    "/theme-bootstrap.js",
+    "../.github/workflows/release-reviewed-inputs.yml"
+  ],
   "ignorePatterns": [
     "target/**",
     "work/**",
@@ -48,9 +54,52 @@
   ],
   "boundaries": {
     "zones": [
-      { "name": "shared", "patterns": ["apps/desktop/src/shared/**"] },
-      { "name": "features", "patterns": ["apps/desktop/src/features/**"] }
+      {
+        "name": "shared",
+        "patterns": ["apps/desktop/src/shared/**"]
+      },
+      {
+        "name": "features",
+        "patterns": ["apps/desktop/src/features/**"]
+      }
     ],
-    "rules": [{ "from": "shared", "allow": ["shared"], "allowTypeOnly": [] }]
-  }
+    "rules": [
+      {
+        "from": "shared",
+        "allow": ["shared"],
+        "allowTypeOnly": []
+      }
+    ]
+  },
+  "framework": [
+    {
+      "name": "portcove-tooling-consumers",
+      "detection": {
+        "type": "fileExists",
+        "pattern": "vite.config.ts"
+      },
+      "entryPoints": ["vite.config.ts"],
+      "entryPointRole": "support",
+      "usedExports": [
+        {
+          "pattern": "vite.config.ts",
+          "exports": ["default"]
+        },
+        {
+          "pattern": "scripts/maintainer-config.mts",
+          "exports": ["maintainerConfigPath"]
+        }
+      ],
+      "toolingDependencies": ["vite-plus", "yaml"]
+    },
+    {
+      "name": "portcove-desktop-unit-tests",
+      "detection": {
+        "type": "fileExists",
+        "pattern": "apps/desktop/scripts/**/*.test.{ts,mts}"
+      },
+      "entryPoints": ["apps/desktop/scripts/**/*.test.{ts,mts}"],
+      "entryPointRole": "test"
+    }
+  ]
 }

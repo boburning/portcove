@@ -1,5 +1,5 @@
 import { isRecord } from "./runtime-values.mts";
-export type PackageIdentity =
+type PackageIdentity =
   | { name: string; version: string; integrity: string; unsupported?: never; record?: never }
   | { unsupported: string; record: unknown; name?: never; version?: never; integrity?: never };
 function entries(value: unknown): [string, unknown][] {

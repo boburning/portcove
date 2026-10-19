@@ -1599,6 +1599,27 @@ impl Installer {
         retained_catalog_for_install(install)
     }
 
+    pub(crate) fn require_same_retained_contract(
+        &self,
+        original: &InstallRecord,
+        derivative: &InstallRecord,
+    ) -> Result<()> {
+        let original = verified_manifest(original)?
+            .retained_contract
+            .ok_or_else(|| {
+                PortcoveError::verification("historical installation has no retained contract")
+            })?;
+        let derivative = verified_manifest(derivative)?
+            .retained_contract
+            .ok_or_else(|| PortcoveError::verification("derivative has no retained contract"))?;
+        if serde_json::to_value(&original)? != serde_json::to_value(&derivative)? {
+            return Err(PortcoveError::verification(
+                "derivative changed its exact historical definition or admission envelope",
+            ));
+        }
+        Ok(())
+    }
+
     fn retained_qualification(
         &self,
         install: &InstallRecord,

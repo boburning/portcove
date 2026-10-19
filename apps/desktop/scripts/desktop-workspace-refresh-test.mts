@@ -1,3 +1,7 @@
+import {
+  requiredFixtureValue as required,
+  fixtureObject as object,
+} from "./desktop-scenario-state.mts";
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
 import type { InstallRecord, ActivityRecord } from "../src/transport-types.generated.d.ts";
 import { transportValue } from "./transport-values.mts";
@@ -72,20 +76,12 @@ interface ReconciliationObservations {
     activity_rows_after: number;
   };
 }
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
-}
-function required<Value>(value: Value | null | undefined): Value {
-  assert.ok(value !== null && value !== undefined);
-  return value;
-}
 function activity(value: unknown) {
   const reply = object(value);
   assert.equal(reply.ok, true);
   return transportValue("activity", reply.value);
 }
-import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
+import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import assert from "node:assert/strict";

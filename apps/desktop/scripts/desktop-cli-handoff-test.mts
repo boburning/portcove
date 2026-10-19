@@ -1,20 +1,11 @@
+import {
+  fixtureSuccess as success,
+  requiredFixtureValue as required,
+  fixtureObject as object,
+} from "./desktop-scenario-state.mts";
 import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import { transportValue } from "./transport-values.mts";
-import { isRecord } from "../../../scripts/runtime-values.mts";
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
-}
-function required<T>(value: T | null | undefined): T {
-  assert.ok(value !== null && value !== undefined);
-  return value;
-}
-function success(value: unknown) {
-  const reply = object(value);
-  assert.equal(reply.ok, true, JSON.stringify(reply));
-  return reply.value;
-}
 interface CliHandoffContext extends ScenarioContext {
   invoke: ScenarioInvoke;
   cli: string;

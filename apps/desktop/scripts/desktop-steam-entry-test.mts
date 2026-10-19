@@ -1,3 +1,4 @@
+import { fixtureObject as object } from "./desktop-scenario-state.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import { assertReviewFieldPresentation } from "./desktop-review-controls.mts";
 // Controlled native consumer proof for one explicit Steam profile. No Steam client is launched.
@@ -21,17 +22,12 @@ import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import type { PortDefinition } from "../src/transport-types.generated.d.ts";
 import { transportValue, transportValues } from "./transport-values.mts";
-import { isRecord } from "../../../scripts/runtime-values.mts";
 interface SteamEntryContext extends ScenarioContext {
   invoke: ScenarioInvoke;
   command: FixtureCommand;
   seed: (portId: string, mode: "success") => Promise<{ port: PortDefinition }>;
   open: (port: PortDefinition, waitForPreparation?: boolean) => Promise<unknown>;
   confirmNative: ReturnType<typeof nativeConfirmation>;
-}
-function object(value: unknown) {
-  assert.ok(isRecord(value));
-  return value;
 }
 function success(value: unknown) {
   const reply = object(value);

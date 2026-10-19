@@ -92,6 +92,36 @@ backup is planned before replacement. Declining leaves the reviewed data intact.
 `--jsonl` retain their existing output without that document. Core rechecks the
 reviewed contents when executing the authorized action.
 
+API 69 adds the optional Windows Ghostship legacy recovery leaves:
+
+```text
+portcove --library <path> --json backup ghostship-legacy-plan <backup-id>
+portcove --library <path> --json backup ghostship-legacy-recover <backup-id> --expected-plan <sha256> --yes
+```
+
+The selected snapshot must have Core-owned qualification from successful exact
+prepared 2.0.0 consumption before the selected 3.0.0 transition. Historical
+successful sessions, ordinary backup files and imported metadata do not grant
+that qualification. Plan review binds source/code, the complete installation
+tuple and both canonical/newer-runtime preimages. Recovery preserves both old
+installations and the selected snapshot, stages a fresh 2.0.0 derivative with
+only the retained persistent entries restored, and atomically selects it with
+3.0.0 previous while preserving another staged installation. It creates a full
+canonical safety backup with a separate newer-runtime persistent-data companion.
+Ordinary restore uses only canonical `data/`; deleting that backup also deletes
+the companion, which deletion preview and confirmation explicitly disclose.
+The successful result returns `install`, `restored_backup`, `safety_backup` and
+`runtime_safety_path`, identifying the committed derivative and both retained
+backup records without a separate lookup.
+
+An unfinished Ghostship launch or lifecycle operation holds this route. A
+Preparing interruption retains private work for review. Validated Prepared
+recovery rechecks phase-owned content and current policy before publication;
+committed recovery only finishes forward. It never collects newer runtime data
+over the selected legacy snapshot. This route is distinct from ordinary
+`backup restore` and `rollback`; it does not weaken the held unqualified 3→2
+transition. See the [exact contract](qualification/ghostship-legacy-data-safety-2026-10-18.md#qualified-pre-transition-snapshot-recovery).
+
 An official port that offers a user-prepared runtime uses a separate route:
 prepare the exact accepted package outside Portcove, run `portcove external
 preview PORT_ID PATH` against its extracted folder, then `portcove external
@@ -189,7 +219,7 @@ the outside runtime or grant ownership of it. On another host or after moving
 the external folder, prepare and register it again against an accepted catalog
 entry.
 
-Schema 69 adds optional readiness `source_assessment` and `bios_assessment`,
+Schema 70 adds optional readiness `source_assessment` and `bios_assessment`,
 plus the `incompatible_bios` blocker/action reason. These assessments bind input
 identity and compatibility to the retained installed release; unchanged bytes
 alone do not confirm compatibility. Missing legacy facts, unreviewed releases and
@@ -197,7 +227,7 @@ unreconstructable observations remain unknown. Unknown compatibility alone is
 not a launch prohibition: clients may offer an explained trial/setup action
 when Core permits it. Known input rejection is checked again before launch side
 effects. Clean process exits and launch-history counts never establish gameplay.
-Clients must understand these fields/reasons before accepting schema 69; the
+Clients must understand these fields/reasons before accepting schema 70; the
 maintained reference reader retains its supported older schema membership.
 Schema 68 adds `ghostship200_legacy` to preparation modes. On the exact reviewed
 Ghostship 2.0.0 Windows installation, the ordinary default request returns this

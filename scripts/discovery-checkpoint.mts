@@ -1,8 +1,4 @@
 import { isRecord, errorCode, errorMessage } from "./runtime-values.mts";
-export interface ObservationRecord {
-  key: string;
-  fingerprint: string;
-}
 interface SuccessfulSource {
   completed_at: string;
   evidence: string;

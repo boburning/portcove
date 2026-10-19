@@ -1477,6 +1477,8 @@ impl CapabilityDocument {
             commands: vec![
                 "auth".into(),
                 "backup".into(),
+                "backup.ghostship-legacy-plan".into(),
+                "backup.ghostship-legacy-recover".into(),
                 "artwork".into(),
                 "artwork.handoff".into(),
                 "artwork.handoff-bytes".into(),

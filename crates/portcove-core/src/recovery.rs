@@ -391,6 +391,9 @@ pub(crate) fn recover_backup_deletion(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
+    service
+        .library
+        .require_no_ghostship_recovery(&operation.port_id)?;
     let mut deletion = service.validate_backup_deletion_operation(operation)?;
     if deletion.phase == crate::service::BackupDeletionPhase::Unconfirmed {
         return Err(PortcoveError::state(
@@ -408,13 +411,23 @@ pub(crate) fn recover_backup_deletion(
                     &operation.port_id,
                     &deletion.backup_id,
                 )?;
+                service.require_backup_deletion_preimage(
+                    &deletion.original,
+                    operation.backup_deletion.as_ref(),
+                )?;
                 crate::durability::rename_noreplace(&deletion.original, &deletion.quarantine)?;
             }
-            (false, true) => service.validate_backup_directory_identity(
-                &deletion.quarantine,
-                &operation.port_id,
-                &deletion.backup_id,
-            )?,
+            (false, true) => {
+                service.validate_backup_directory_identity(
+                    &deletion.quarantine,
+                    &operation.port_id,
+                    &deletion.backup_id,
+                )?;
+                service.require_backup_deletion_preimage(
+                    &deletion.quarantine,
+                    operation.backup_deletion.as_ref(),
+                )?;
+            }
             (true, true) => {
                 return Err(PortcoveError::conflict(
                     "both visible and quarantined backup paths exist; refusing automatic deletion",
@@ -439,7 +452,10 @@ pub(crate) fn recover_backup_deletion(
             ));
         }
         if path_exists(&deletion.quarantine)? {
-            fs::remove_dir_all(&deletion.quarantine)?;
+            service.delete_backup_owned_tree(
+                &deletion.quarantine,
+                operation.backup_deletion.as_ref(),
+            )?;
         }
         deletion.advance(
             crate::service::BackupDeletionPhase::Deleted,
@@ -458,8 +474,12 @@ pub(crate) fn recover_backup_deletion(
             ));
         }
         if path_exists(&deletion.quarantine)? {
-            fs::remove_dir_all(&deletion.quarantine)?;
+            service.delete_backup_owned_tree(
+                &deletion.quarantine,
+                operation.backup_deletion.as_ref(),
+            )?;
         }
+        service.retire_ghostship_backup_authority(&operation.port_id, &deletion.backup_id)?;
         store.remove(&operation.id)?;
     }
     Ok(())

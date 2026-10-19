@@ -610,6 +610,8 @@ export interface TransportOutputs {
   game_file_scan_snapshot: OutputGameFileScanSnapshot;
   game_install_plan: OutputGameInstallPlan;
   game_update_plan: OutputGameUpdatePlan;
+  ghostship_recovery_plan: OutputGhostshipRecoveryPlan;
+  ghostship_recovery_result: OutputGhostshipRecoveryResult;
   github_auth_status: GithubAuthStatus;
   github_device_login: OutputGithubDeviceLogin;
   github_device_login_result: OutputGithubDeviceLoginResult;
@@ -1149,6 +1151,7 @@ export interface BackupActionPreview {
   backup: BackupRecord;
   current_user_data_exists: boolean;
   preview_sha256: string;
+  retained_runtime_copy_will_be_deleted: boolean;
   safety_backup_will_be_created: boolean;
   [k: string]: unknown;
 }
@@ -2031,6 +2034,31 @@ export interface PortActionAssessment3 {
    */
   definition?: DefinitionEligibility | null;
   reason: PortActionReason;
+  [k: string]: unknown;
+}
+export interface OutputGhostshipRecoveryPlan {
+  active_install: InstallRecord;
+  active_install_tree: AdoptionCopyPlan;
+  backup: BackupRecord;
+  canonical_data: AdoptionCopyPlan;
+  channel: ReleaseChannel;
+  format_version: number;
+  legacy_install: InstallRecord;
+  legacy_install_tree: AdoptionCopyPlan;
+  library_root: string;
+  plan_sha256: string;
+  qualification_sha256: string;
+  required_bytes: number;
+  snapshot_data: AdoptionCopyPlan;
+  source: SourceRecord;
+  staged_install: InstallRecord | null;
+  update_policy: UpdatePolicy;
+}
+export interface OutputGhostshipRecoveryResult {
+  install: InstallRecord;
+  restored_backup: BackupRecord;
+  runtime_safety_path: string;
+  safety_backup: BackupRecord;
   [k: string]: unknown;
 }
 export interface GithubAuthStatus {
