@@ -15,11 +15,13 @@ pub(super) enum SourceRecipe {
 }
 
 #[cfg(test)]
-mod tests {
+pub(in crate::cartridge_build) mod tests {
     use super::*;
     use std::collections::BTreeMap;
 
-    fn fixture(recipe: SourceRecipe) -> (crate::PortDefinition, crate::SourceProfile) {
+    pub(in crate::cartridge_build) fn fixture(
+        recipe: SourceRecipe,
+    ) -> (crate::PortDefinition, crate::SourceProfile) {
         let (mut port, mut profile) = super::super::tests::fixture_port();
         let facts = recipe.facts();
         let asset = recipe.primary_asset();

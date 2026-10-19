@@ -30,20 +30,39 @@ async fn ordinary_cartridge_plan_includes_execution_inputs_and_temporary_capacit
             dr_mario_fixture(),
             230_716_233,
         ),
+        (
+            CartridgeBuildRecipe::AdvanceWarsGbaSourceV1,
+            source_build::tests::fixture(source_build::SourceRecipe::AdvanceWarsUsaRev1),
+            224_932_042,
+        ),
+        (
+            CartridgeBuildRecipe::EarthBoundSnesSourceV1,
+            source_build::tests::fixture(source_build::SourceRecipe::EarthBoundUsa),
+            228_366_267,
+        ),
     ] {
-        let facts = recipe.facts();
+        let (version, asset) = if let Some(source) = recipe.source_recipe() {
+            (source.facts().version, source.primary_asset())
+        } else {
+            let facts = recipe.facts().unwrap();
+            (
+                facts.release_version,
+                ReleaseAsset {
+                    name: facts.asset_name.into(),
+                    url: "https://example.invalid/primary.zip".into(),
+                    size: facts.asset_size,
+                    sha256: facts.asset_sha256.into(),
+                },
+            )
+        };
+        let primary_bytes = asset.size;
         let root = tempfile::tempdir().unwrap();
         let library = crate::Library::open(root.path()).unwrap();
         let release = ResolvedRelease {
-            version: facts.release_version.into(),
+            version: version.into(),
             channel: crate::ReleaseChannel::Stable,
             published_at: None,
-            asset: ReleaseAsset {
-                name: facts.asset_name.into(),
-                url: "https://example.invalid/primary.zip".into(),
-                size: facts.asset_size,
-                sha256: facts.asset_sha256.into(),
-            },
+            asset,
         };
         let mut service = crate::PortcoveService::with_provider_read_only(
             library.clone(),
@@ -85,7 +104,7 @@ async fn ordinary_cartridge_plan_includes_execution_inputs_and_temporary_capacit
                 .collect::<Vec<_>>()
         );
         let space = plan.temporary_space.unwrap();
-        assert_eq!(space.required_bytes, 2_147_483_648 + facts.asset_size);
+        assert_eq!(space.required_bytes, 2_147_483_648 + primary_bytes);
         assert_eq!(space.path, plan.output_location.effective_output_directory);
         assert_eq!(space.volume_identity.as_deref(), Some("fixture-volume"));
         assert_eq!(space.sufficient, Some(false));

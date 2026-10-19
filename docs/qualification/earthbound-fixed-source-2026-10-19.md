@@ -24,6 +24,19 @@ The execution catalog also contained an unexecuted Advance Wars proposal. That
 does not qualify Advance Wars. The repository admission proposal adds EarthBound
 alone; its later bytes do not replace this actual execution provenance.
 
+Composition with target `f4e713ca3ec8d7f2b71ea54662e34c06c5f119f7` preserves
+all 107 target entries and adds EarthBound's original-game title. Compiled
+transport parity, 22 cartridge tests including read-only plans for all four
+recipes, and isolated API71/v9 capability readback pass. Earlier combined feedback
+also passed 109 catalog, 28 process, 12 capability, 17 entry, 12 projection and
+19 source-inspection tests; four pre-existing process tests remained ignored.
+The later qualification CLI SHA256
+`b5446fe5d8e8aece2c6f4e5c33cd33f274666859cc60b63618ce9dd99233291e`
+recognized the actual original and its exact release-bound install route.
+Its read-only plan reports 228,366,267 cold acquisition bytes, four auxiliary
+archives and a 2,147,553,089-byte temporary-space floor. This does not replace
+the earlier actual game executable or its operation receipts.
+
 ## Build and offered route
 
 Core acquires exact source archives, official SDL2 2.32.10 development input and
@@ -99,6 +112,15 @@ message. Their raw observations remain retained. After fresh zero-launch/databas
 and bounded process checks, only their exact owned stale reservations were
 archived with nonce/preimage evidence. Foreign reservations were preserved.
 The successful fourth collector reused the already-observed argument refusal.
+
+Combined-source collector attempt 1 stopped on a zero-match test filter after
+the other selected families passed. Corrected module filters passed in attempt 2;
+its subsequent capability read omitted an explicit library and received a database
+migration-history refusal. No database repair was attempted. Explicit isolated
+library capability readback passed, as did attempt 3's compiled parity, expanded
+cartridge fixture, CLI build and isolated capabilities. These raw collector
+failures remain under the corresponding `earthbound-combined-validation-a1/a2`
+evidence paths; the later pass does not relabel them.
 
 Separate non-writing source review and actual receipt review cleared their
 respective scopes. No visual, audio, physical-controller, gameplay or populated
