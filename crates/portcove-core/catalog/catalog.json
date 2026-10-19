@@ -16375,7 +16375,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own exact headerless F-Zero (USA) original. Portcove installs the reviewed Windows package and keeps a SHA256-checked fzero.sfc copy beside it. Saves and settings belong to this managed copy; existing external folders and their saves remain separate. The packaged default enables its built-in BS Deluxe presentation; this route keeps those packaged assets and patches unchanged. Additional imported mods, MSU music, developer tracing and capture paths require separate review. The runtime remains at its reviewed artifact until a compatible release is qualified. Windows gameplay has not been validated.",
+        "manual_preparation": "Provide your own F-Zero (USA) .sfc file without a copier header. Portcove installs the Windows port and manages its saves and settings separately from existing external copies. This package enables BS Deluxe changes by default. Other mods, MSU music, developer tracing and capture setups are outside this reviewed route. Windows gameplay remains untested.",
         "artwork": {
           "game_id": 3490,
           "cover_id": 319391,
