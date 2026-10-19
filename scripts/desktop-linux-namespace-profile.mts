@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 assert.equal(process.platform, "linux");
@@ -81,29 +81,34 @@ if (process.argv[2] === "--prepare") {
   assert.ok("node_sha256" in prior && digest(readFileSync(binary)) === prior.node_sha256);
   assert.equal(readFileSync(policy, "utf8"), text);
   // Cleanup is invoked with the original interpreter, after supervised joins.
-  // An extant/opaque same-user process refuses profile withdrawal and deletion.
+  // Include privileged provisioning descendants. Any opaque userspace process
+  // refuses withdrawal; kernel threads cannot execute this interpreter.
   assert.ok(!readFileSync("/proc/self/attr/current", "utf8").startsWith(name));
-  for (const pid of readdirSync("/proc").filter((pid) => /^[0-9]+$/u.test(pid))) {
-    let status: string;
-    try {
-      status = readFileSync(`/proc/${pid}/status`, "utf8");
-    } catch {
-      continue;
-    }
-    if (
-      !status.match(/^Uid:\s+([0-9]+)/mu)?.[1] ||
-      Number(status.match(/^Uid:\s+([0-9]+)/mu)?.[1]) !== process.getuid()
-    )
-      continue;
-    let label: string;
-    try {
-      label = readFileSync(`/proc/${pid}/attr/current`, "utf8");
-    } catch (error) {
-      if (!String(error).includes("ENOENT")) throw error;
-      else continue;
-    }
-    assert.ok(!label.startsWith(name), `Qualification process ${pid} remains; retain profile`);
-  }
+  const scan = sudo(
+    "/usr/bin/python3",
+    "-c",
+    `
+import errno,json,pathlib,re,sys
+name=sys.argv[1]
+pids=[p for p in pathlib.Path('/proc').iterdir() if p.name.isdigit()]
+assert len(pids)<=8192, 'Process inventory exceeds bound'
+matches=[]; unknown=[]; kernel_threads=0
+for p in pids:
+    try:
+        status=(p/'status').read_text()
+        if re.search(r'^Kthread:\\s+1$',status,re.M):
+            kernel_threads+=1
+            continue
+        label=(p/'attr/current').read_text()
+        if label.startswith(name): matches.append({'pid':p.name,'label':label})
+    except OSError as error:
+        if error.errno not in (errno.ENOENT,errno.ESRCH): unknown.append({'pid':p.name,'error':str(error)})
+print(json.dumps({'matches':matches,'unknown':unknown,'observed':len(pids),'kernel_threads':kernel_threads}))
+sys.exit(1 if matches or unknown else 0)
+`,
+    name,
+  );
+  writeFileSync(path.join(output, "quiescence.json"), scan, { flag: "wx" });
   sudo("apparmor_parser", "--remove", policy);
   sudo("rm", "--", policy, binary);
   sudo("rmdir", "--", directory);
