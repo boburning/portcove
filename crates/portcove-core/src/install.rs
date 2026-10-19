@@ -1216,7 +1216,7 @@ impl Installer {
         staged_fallback: bool,
     ) -> Result<VerificationReport> {
         let manifest = verified_manifest(install)?;
-        let strict_staged = staged_source_integrity(&manifest, install, staged_fallback)?;
+        let strict_staged = full_immutable_integrity(&manifest, install, staged_fallback)?;
         let staged_candidates = if strict_staged {
             Some(staged_install_files(&install.path)?)
         } else {
@@ -1272,7 +1272,9 @@ impl Installer {
             {
                 let executable = install.path.join(&manifest.selected_executable);
                 let platform = manifest.platform.unwrap_or(Platform::current()?);
-                if is_executable_companion(&candidate, &executable, platform)? {
+                if (strict_staged && is_executable_member(&candidate, platform)?)
+                    || is_executable_companion(&candidate, &executable, platform)?
+                {
                     failures.push(format!("unexpected launch-sensitive file: {relative}"));
                 }
                 continue;
@@ -1381,11 +1383,11 @@ impl Installer {
             &manifest,
             crate::definition_repository::publisher_policy::CuratedArtifactOperation::LocalUse,
         )?;
-        if staged_source_integrity(&manifest, install, qualification.strict_staged_source)? {
+        if full_immutable_integrity(&manifest, install, qualification.strict_staged_source)? {
             let report = self.verify_managed(install, qualification)?;
             if !report.valid {
                 return Err(PortcoveError::verification(format!(
-                    "immutable staged-source install integrity failed for {}",
+                    "immutable install integrity failed for {}",
                     install.port_id,
                 ))
                 .detail("install_id", &install.id)
@@ -2440,19 +2442,41 @@ fn manifest_relative(root: &Path, path: &Path) -> Result<String> {
     Ok(value.replace('\\', "/"))
 }
 
-fn staged_source_integrity(
+fn full_immutable_integrity(
     manifest: &InstallManifest,
     install: &InstallRecord,
     fallback: bool,
 ) -> Result<bool> {
-    match &manifest.retained_contract {
-        Some(contract) => Ok(contract
-            .catalog(&install.port_id)?
-            .port(&install.port_id)?
-            .adapter
-            == AdapterKind::StagedSourcePortable),
-        None => Ok(fallback),
+    let staged_source = match &manifest.retained_contract {
+        Some(contract) => {
+            contract
+                .catalog(&install.port_id)?
+                .port(&install.port_id)?
+                .adapter
+                == AdapterKind::StagedSourcePortable
+        }
+        None => fallback,
+    };
+    if staged_source {
+        return Ok(true);
     }
+    // Historical manifests did not mark nested executable companions critical.
+    // Classify from authenticated members, never today's filesystem or mutable
+    // projection: a deleted helper must not turn off complete verification.
+    let selected = Path::new(&manifest.selected_executable);
+    let platform = manifest.platform.unwrap_or(Platform::current()?);
+    Ok(manifest.files.iter().any(|file| {
+        let path = Path::new(&file.path);
+        path.parent() != selected.parent()
+            && (file.executable || is_executable_companion_name(path, platform))
+            && !manifest.mutable_paths.iter().any(|mutable| {
+                file.path == *mutable || file.path.starts_with(&format!("{mutable}/"))
+            })
+            && !manifest
+                .mutable_file_patterns
+                .iter()
+                .any(|pattern| pattern.matches(&file.path))
+    }))
 }
 
 fn refuse_staged_redirect(path: &Path, metadata: &fs::Metadata) -> Result<()> {
@@ -2611,6 +2635,10 @@ fn is_executable_companion(path: &Path, selected: &Path, platform: Platform) -> 
     if path.parent() != selected.parent() {
         return Ok(false);
     }
+    is_executable_member(path, platform)
+}
+
+fn is_executable_member(path: &Path, platform: Platform) -> Result<bool> {
     if is_executable_companion_name(path, platform) {
         return Ok(true);
     }
