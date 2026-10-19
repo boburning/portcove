@@ -207,9 +207,9 @@ void test("ordinary Linux package operation is fixed and isolated from fixture b
   );
   assert.match(
     block,
-    /if: \$\{\{ inputs\.operation == 'linux-package-boundary' && inputs\.runner == 'ubuntu-22\.04' && !inputs\.edge_driver_proof \}\}/u,
+    /if: \$\{\{ inputs\.operation == 'linux-package-boundary' && \(inputs\.runner == 'ubuntu-22\.04' \|\| inputs\.runner == 'ubuntu-24\.04'\) && !inputs\.edge_driver_proof \}\}/u,
   );
-  assert.match(block, /runs-on: ubuntu-22\.04/u);
+  assert.match(block, /runs-on: \$\{\{ inputs\.runner \}\}/u);
   assert.doesNotMatch(
     block,
     /VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE|--features|secrets\.|continue-on-error|sysctl|apparmor_parser/u,
@@ -560,7 +560,7 @@ void test("native design compatibility remains explicit, isolated, and non-publi
   assert.match(nativeDesignCompatibilityWorkflow, /^permissions:\r?\n {2}contents: read$/m);
   assert.match(
     nativeDesignCompatibilityWorkflow,
-    /options:\r?\n {10}- ubuntu-22\.04\r?\n {10}- macos-15\r?\n {10}- macos-15-intel/,
+    /options:\r?\n {10}- ubuntu-22\.04\r?\n {10}- ubuntu-24\.04\r?\n {10}- macos-15\r?\n {10}- macos-15-intel/,
   );
   assert.match(nativeDesignCompatibilityWorkflow, /--scenario native-design-system-compatibility/);
   assert.match(nativeDesignCompatibilityWorkflow, /test:desktop \\\r?\n {14}--app/);
@@ -914,7 +914,7 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   );
   assert.match(
     updaterRehearsal,
-    /linux_runner:\r?\n\s+description: [^\r\n]+\r?\n\s+type: choice\r?\n\s+default: ubuntu-22\.04\r?\n\s+options: \[ubuntu-22\.04, ubuntu-24\.04\]/,
+    /linux_runner:\r?\n\s+description: [^\r\n]+\r?\n\s+type: choice\r?\n\s+default: ubuntu-24\.04\r?\n\s+options: \[ubuntu-22\.04, ubuntu-24\.04\]/,
   );
   assert.match(
     updaterRehearsal,

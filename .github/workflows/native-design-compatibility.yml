@@ -109,7 +109,6 @@ jobs:
           version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
           cargo install tauri-driver --locked --version "$version"
           {
-            cat /etc/os-release
             uname -m
             dpkg-query -W -f='${Package}=${Version}\n' libwebkit2gtk-4.1-0 libjavascriptcoregtk-4.1-0
             pkg-config --modversion webkit2gtk-4.1
