@@ -2311,7 +2311,7 @@ export interface PreparationOptions {
   /**
    * This family currently exposes the catalog's reviewed defaults only.
    */
-  mode: "default";
+  mode: "default" | "ghostship200_legacy";
   target: Platform;
 }
 export interface OutputPreparationPlan {

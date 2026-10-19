@@ -1,10 +1,13 @@
 //! Exact, read-only plans for the existing upstream-managed setup family.
 #[path = "preparation_execution.rs"]
 mod execution;
+#[path = "preparation_ghostship.rs"]
+mod ghostship;
 #[path = "preparation_readiness.rs"]
 mod readiness;
 pub(crate) use execution::recover;
 pub(crate) use readiness::managed;
+pub(crate) use readiness::managed_install;
 pub(crate) const RECEIPT_FILE: &str = ".portcove-preparation.json";
 use std::path::PathBuf;
 
@@ -23,6 +26,22 @@ use crate::{
 pub enum PreparationMode {
     #[default]
     Default,
+    /// Exact historical Windows bootstrap; this is not a generic argument override.
+    Ghostship200Legacy,
+}
+
+pub(crate) fn bind_prepared_setup_manifest(
+    mode: PreparationMode,
+    setup_root: &std::path::Path,
+    manifest_sha256: &str,
+) -> Result<()> {
+    if mode == PreparationMode::Ghostship200Legacy {
+        // The retained portable definition records this source metadata as an
+        // immutable member. Its receipt and generated archive own preparation
+        // provenance; rebinding would invalidate the just-created manifest.
+        return Ok(());
+    }
+    crate::adapter::bind_upstream_setup_manifest(setup_root, manifest_sha256)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -61,6 +80,48 @@ pub struct PreparationPlan {
     /// A copy identity, checked only after the existing install trust checks pass.
     pub copy: AdoptionCopyPlan,
     pub plan_sha256: String,
+}
+
+fn format_matches(plan: &PreparationPlan) -> bool {
+    match plan.inputs.options.mode {
+        PreparationMode::Default => plan.format_version == 1,
+        PreparationMode::Ghostship200Legacy => plan.format_version == 2,
+    }
+}
+
+fn execution_contract(
+    plan: &PreparationPlan,
+    port: &crate::PortDefinition,
+) -> Result<crate::PortDefinition> {
+    if !format_matches(plan) {
+        return Err(PortcoveError::verification(
+            "preparation plan format does not match its mode",
+        ));
+    }
+    match plan.inputs.options.mode {
+        PreparationMode::Default => Ok(port.clone()),
+        PreparationMode::Ghostship200Legacy => ghostship::validate_plan(plan, port),
+    }
+}
+
+pub(crate) fn legacy_execution_contract(
+    port: &crate::PortDefinition,
+    install: &InstallRecord,
+    platform: Platform,
+) -> Result<crate::PortDefinition> {
+    ghostship::execution_contract(port, install, platform)
+}
+
+pub(crate) fn require_legacy_runtime_path(path: &std::path::Path) -> Result<()> {
+    ghostship::require_path(path)
+}
+
+pub(crate) fn require_legacy_no_binary_importer(root: &std::path::Path) -> Result<()> {
+    ghostship::require_no_binary_importer(root)
+}
+
+pub(crate) fn legacy_generated_path(root: &std::path::Path) -> PathBuf {
+    ghostship::generated_path(root)
 }
 
 /// Exact retained private work that may be discarded after explicit review.
@@ -106,13 +167,28 @@ impl PortcoveService {
         let port = catalog.port(port_id)?;
         let result = (|| -> Result<PreparationPlan> {
             let host = Platform::current()?;
-            if !managed(port) {
+            let legacy = options.mode == PreparationMode::Ghostship200Legacy
+                || (options.mode == PreparationMode::Default
+                    && port.id == "ghostship"
+                    && host == Platform::WindowsX86_64
+                    && active
+                        .as_ref()
+                        .is_some_and(|install| install.version == "2.0.0"));
+            let options = PreparationOptions {
+                mode: if legacy {
+                    PreparationMode::Ghostship200Legacy
+                } else {
+                    options.mode
+                },
+                ..options
+            };
+            if !managed(port) && !legacy {
                 return Err(PortcoveError::unsupported(
                     "this port has no managed preparation operation",
                 )
                 .detail("port_id", port_id));
             }
-            if port.setup_output_paths.is_empty() {
+            if port.setup_output_paths.is_empty() && !legacy {
                 return Err(PortcoveError::unsupported(
                     "this definition has no reviewed managed preparation output contract",
                 ));
@@ -126,13 +202,20 @@ impl PortcoveService {
                 PortcoveError::not_found("install this port before preparing its source")
                     .detail("port_id", port_id)
             })?;
+            let legacy_contract = legacy
+                .then(|| ghostship::execution_contract(port, &install, host))
+                .transpose()?;
+            let execution_port = legacy_contract.as_ref().unwrap_or(port);
+            if legacy {
+                ghostship::require_path(&self.library.user_dir(port_id).join("sm64.o2r"))?;
+            }
             crate::output_root::validate_install_path(self.library(), port_id, &install.path)?;
             let qualification = InstallQualification::from_port(port, host)?;
             let installer = Installer::new(self.library().clone())?;
             let selected = installer.verify_critical(&install, &qualification)?;
             let working = crate::adapter::launch_working_directory(
-                port.adapter,
-                port,
+                execution_port.adapter,
+                execution_port,
                 &install.path,
                 &selected,
             )?;
@@ -159,6 +242,9 @@ impl PortcoveService {
                     .detail("profile_id", profile_id)
             })?;
             crate::source_inspection::verify_registered(catalog, &source)?;
+            if legacy {
+                ghostship::require_source(&source)?;
+            }
             let source_inspection =
                 crate::source_report::registered_report(catalog, source.clone())?;
             self.require_definition_operation(
@@ -170,9 +256,12 @@ impl PortcoveService {
                     install.verified,
                 ),
             )?;
-            let hints = port.setup_executable_hints.get(&host).ok_or_else(|| {
-                PortcoveError::unsupported("this host has no declared setup executable")
-            })?;
+            let hints = execution_port
+                .setup_executable_hints
+                .get(&host)
+                .ok_or_else(|| {
+                    PortcoveError::unsupported("this host has no declared setup executable")
+                })?;
             let setup = crate::install::resolve_executable_hints(
                 &working,
                 host,
@@ -180,7 +269,15 @@ impl PortcoveService {
                 "setup executable",
             )?;
             let setup_tool = tool_identity(setup, ChildProcessClass::UpstreamSetup)?;
-            let conversion_tool_path = match port.runtime_source_materialization {
+            if legacy
+                && (setup_tool.sha256 != ghostship::EXECUTABLE_SHA256
+                    || setup_tool.size != 11_533_312)
+            {
+                return Err(PortcoveError::verification(
+                    "legacy bootstrap executable differs from the reviewed official package",
+                ));
+            }
+            let conversion_tool_path = match execution_port.runtime_source_materialization {
                 Some(crate::RuntimeSourceMaterialization::Ps2Iso)
                     if source
                         .path
@@ -205,7 +302,7 @@ impl PortcoveService {
             ))?);
             let copy = crate::library_transfer::reviewed_tree(&install.path)?;
             let mut plan = PreparationPlan {
-                format_version: 1,
+                format_version: if legacy { 2 } else { 1 },
                 port_id: port_id.into(),
                 inputs: PreparationInputs {
                     install,

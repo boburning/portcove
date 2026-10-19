@@ -18,6 +18,10 @@ static DECODED_CATALOG: Mutex<Option<(u32, String, Catalog)>> = Mutex::new(None)
 #[serde(deny_unknown_fields)]
 pub(crate) struct InstalledContract {
     format: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    original_format: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    preparation_mode: Option<crate::PreparationMode>,
     port_id: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     catalog_json: String,
@@ -44,6 +48,8 @@ impl InstalledContract {
             } else {
                 1
             },
+            original_format: None,
+            preparation_mode: None,
             port_id: port_id.into(),
             catalog_json: if definition.is_some() {
                 String::new()
@@ -58,16 +64,29 @@ impl InstalledContract {
     }
 
     pub(crate) fn catalog(&self, port_id: &str) -> Result<Catalog> {
+        let original_format = match (self.format, self.original_format, self.preparation_mode) {
+            (format @ 1..=3, None, None) => format,
+            (4, Some(format @ 1..=3), Some(crate::PreparationMode::Ghostship200Legacy))
+                if self.port_id == "ghostship" =>
+            {
+                format
+            }
+            _ => {
+                return Err(PortcoveError::verification(
+                    "retained preparation interpretation is unsupported or malformed",
+                ));
+            }
+        };
         if self.port_id != port_id
             || !matches!(
                 (
-                    self.format,
+                    original_format,
                     self.definition.as_ref(),
                     self.admission.as_ref()
                 ),
                 (1, None, None) | (2, Some(_), None) | (3, Some(_), Some(_))
             )
-            || (self.format >= 2 && !self.catalog_json.is_empty())
+            || (original_format >= 2 && !self.catalog_json.is_empty())
         {
             return Err(PortcoveError::verification(
                 "retained definition contract does not match this installation",
@@ -78,7 +97,7 @@ impl InstalledContract {
                 "retained definition contract exceeds the supported content bound",
             ));
         }
-        let cache_key = match &self.definition {
+        let mut cache_key = match &self.definition {
             Some(definition) => {
                 definition.validate_bounds()?;
                 if definition.port_id() != port_id {
@@ -90,6 +109,10 @@ impl InstalledContract {
             }
             None => self.catalog_json.clone(),
         };
+        if self.format == 4 {
+            cache_key =
+                serde_json::to_string(&(self.original_format, self.preparation_mode, cache_key))?;
+        }
         if let Ok(cache) = DECODED_CATALOG.lock()
             && let Some((format, content, catalog)) = cache.as_ref()
             && *format == self.format
@@ -121,11 +144,107 @@ impl InstalledContract {
         }
         Ok(catalog)
     }
+
+    /// Preserve the exact verified origin; never recapture authority from a catalog clone.
+    pub(crate) fn for_ghostship_legacy_preparation(&self) -> Result<Self> {
+        self.catalog("ghostship")?;
+        if self.format == 4
+            && self.preparation_mode == Some(crate::PreparationMode::Ghostship200Legacy)
+        {
+            // Rebinding the identical reviewed original preserves this single
+            // interpretation, never another envelope around format 4.
+            return Ok(self.clone());
+        }
+        if !matches!(self.format, 1..=3) {
+            return Err(PortcoveError::verification(
+                "legacy preparation cannot wrap an already prepared interpretation",
+            ));
+        }
+        let mut prepared = self.clone();
+        prepared.original_format = Some(self.format);
+        prepared.preparation_mode = Some(crate::PreparationMode::Ghostship200Legacy);
+        prepared.format = 4;
+        prepared.catalog("ghostship")?;
+        Ok(prepared)
+    }
+
+    pub(crate) fn preparation_mode(&self) -> Option<crate::PreparationMode> {
+        self.preparation_mode
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_preparation_preserves_all_three_verified_origins_and_rejects_invalid_envelopes() {
+        let embedded = Catalog::embedded().unwrap();
+        for catalog in [
+            embedded.clone(),
+            crate::test_fixture::indexed_catalog(&embedded, "ghostship"),
+            crate::test_fixture::admitted_indexed_catalog(&embedded, "ghostship"),
+        ] {
+            let original = InstalledContract::capture(&catalog, "ghostship").unwrap();
+            let before = serde_json::to_value(&original).unwrap();
+            assert!(before.get("original_format").is_none());
+            assert!(before.get("preparation_mode").is_none());
+            let prepared = original.for_ghostship_legacy_preparation().unwrap();
+            let after = serde_json::to_value(&prepared).unwrap();
+            assert_eq!(after["format"], 4);
+            assert_eq!(after["original_format"], before["format"]);
+            for field in ["catalog_json", "definition", "admission", "port_id"] {
+                assert_eq!(before.get(field), after.get(field), "{field}");
+            }
+            assert_eq!(
+                serde_json::to_value(
+                    prepared
+                        .catalog("ghostship")
+                        .unwrap()
+                        .authoritative_document()
+                )
+                .unwrap(),
+                serde_json::to_value(
+                    original
+                        .catalog("ghostship")
+                        .unwrap()
+                        .authoritative_document()
+                )
+                .unwrap()
+            );
+            assert_eq!(
+                serde_json::to_value(prepared.for_ghostship_legacy_preparation().unwrap()).unwrap(),
+                after
+            );
+            for (field, value) in [
+                ("original_format", serde_json::Value::Null),
+                ("original_format", serde_json::json!(4)),
+                ("preparation_mode", serde_json::Value::Null),
+                ("preparation_mode", serde_json::json!("default")),
+                ("port_id", serde_json::json!("shipwright")),
+            ] {
+                let mut malformed = after.clone();
+                malformed[field] = value;
+                let decoded: InstalledContract = serde_json::from_value(malformed).unwrap();
+                assert!(decoded.catalog("ghostship").is_err(), "{field}");
+                // A rejected envelope cannot poison the pure decode cache.
+                prepared.catalog("ghostship").unwrap();
+            }
+            let mut downgraded = prepared.clone();
+            downgraded.format = original.format;
+            assert!(downgraded.catalog("ghostship").is_err());
+            let mut mode_on_original = original.clone();
+            mode_on_original.preparation_mode = Some(crate::PreparationMode::Ghostship200Legacy);
+            assert!(mode_on_original.catalog("ghostship").is_err());
+            assert_eq!(serde_json::to_value(&original).unwrap(), before);
+        }
+        assert!(
+            InstalledContract::capture(&embedded, "shipwright")
+                .unwrap()
+                .for_ghostship_legacy_preparation()
+                .is_err()
+        );
+    }
 
     #[test]
     fn retained_initial_renderer_does_not_follow_later_catalog_choices() {
@@ -227,6 +346,8 @@ mod tests {
         successor.catalog("zelda64-recomp").unwrap();
         let impostor = InstalledContract {
             format: 1,
+            original_format: None,
+            preparation_mode: None,
             port_id: "zelda64-recomp".into(),
             catalog_json: serde_json::to_string(successor.definition.as_ref().unwrap()).unwrap(),
             definition: None,
