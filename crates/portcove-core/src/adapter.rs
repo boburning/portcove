@@ -22,6 +22,9 @@ pub(crate) const UPSTREAM_SETUP_METADATA: &str = ".portcove-upstream-setup.json"
 pub(crate) const GAMECUBE_DISC_CAPACITY_BYTES: u64 = 1_459_978_240;
 const MANAGED_PSX_RUNTIME_CONFIG: &str = ".portcove-psx-runtime.toml";
 
+#[path = "admitted_zip_source.rs"]
+mod admitted_zip_source;
+
 #[derive(Debug, Clone, Copy)]
 pub struct LaunchSpecRequest<'a> {
     pub library: &'a Library,
@@ -325,7 +328,15 @@ impl Adapter for StandardAdapter {
         };
         let mut arguments = port.launch_arguments.clone();
         arguments.extend(adapter_arguments);
+        for recipe in port.release.managed_build.values() {
+            recipe.require_runtime_environment()?;
+        }
         Ok(LaunchSpec {
+            fixed_arguments_only: port
+                .release
+                .managed_build
+                .values()
+                .any(|recipe| recipe.fixed_launch_arguments_only()),
             launch_kind: LaunchKind::for_executable(&executable),
             executable,
             install_root: install_root.to_path_buf(),
@@ -400,14 +411,33 @@ impl Adapter for StandardAdapter {
             if let Some(parent) = stored_source.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            prepare_runtime_source(
-                source,
-                &stored_source,
-                port.runtime_source_materialization
-                    .unwrap_or(RuntimeSourceMaterialization::N64BigEndian),
-                &port.runtime_source_hashes,
-                checkpoint,
-            )?;
+            let materialization = port
+                .runtime_source_materialization
+                .unwrap_or(RuntimeSourceMaterialization::N64BigEndian);
+            if let Some(record) = request.source_record {
+                if record.path != source {
+                    return Err(PortcoveError::verification(
+                        "runtime source does not match its admitted record",
+                    ));
+                }
+                prepare_admitted_runtime_source(
+                    record,
+                    &stored_source,
+                    materialization,
+                    &port.runtime_source_hashes,
+                    None,
+                    checkpoint,
+                    crate::tool_process::ToolProcessObserver::default(),
+                )?;
+            } else {
+                prepare_runtime_source(
+                    source,
+                    &stored_source,
+                    materialization,
+                    &port.runtime_source_hashes,
+                    checkpoint,
+                )?;
+            }
             checkpoint()?;
         }
         (self.0 == AdapterKind::PsxRecompManaged)
@@ -638,8 +668,70 @@ pub(crate) fn prepare_runtime_source_with_tool(
     checkpoint: &dyn Fn() -> Result<()>,
     observer: crate::tool_process::ToolProcessObserver<'_>,
 ) -> Result<()> {
+    prepare_runtime_source_input(
+        RuntimeSourceInput::Legacy(source),
+        destination,
+        materialization,
+        required_hashes,
+        pinned_host_tool,
+        checkpoint,
+        observer,
+    )
+}
+
+pub(crate) fn prepare_admitted_runtime_source(
+    source: &SourceRecord,
+    destination: &Path,
+    materialization: RuntimeSourceMaterialization,
+    required_hashes: &BTreeMap<String, String>,
+    pinned_host_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+) -> Result<()> {
+    prepare_runtime_source_input(
+        RuntimeSourceInput::Admitted(source),
+        destination,
+        materialization,
+        required_hashes,
+        pinned_host_tool,
+        checkpoint,
+        observer,
+    )
+}
+
+enum RuntimeSourceInput<'a> {
+    Legacy(&'a Path),
+    Admitted(&'a SourceRecord),
+}
+
+fn prepare_runtime_source_input(
+    input: RuntimeSourceInput<'_>,
+    destination: &Path,
+    materialization: RuntimeSourceMaterialization,
+    required_hashes: &BTreeMap<String, String>,
+    pinned_host_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+) -> Result<()> {
+    let (source, admitted_zip) = match input {
+        RuntimeSourceInput::Legacy(path) => (path, None),
+        RuntimeSourceInput::Admitted(record) => (
+            record.path.as_path(),
+            admitted_zip_source::AdmittedZipCopy::select(record, materialization, required_hashes)?,
+        ),
+    };
     let marker_path = runtime_source_marker_path(destination)?;
-    let expected = runtime_source_marker(source, None, materialization, checkpoint)?;
+    let expected = runtime_source_marker(
+        source,
+        admitted_zip
+            .as_ref()
+            .map(|copy| copy.member_name().to_owned()),
+        materialization,
+        checkpoint,
+    )?;
+    if let Some(copy) = &admitted_zip {
+        copy.verify_container(&expected.storage_sha256, expected.storage_size)?;
+    }
     let destination_ready = match materialization {
         RuntimeSourceMaterialization::PsxBinCue
         | RuntimeSourceMaterialization::PsxRawSet
@@ -653,7 +745,13 @@ pub(crate) fn prepare_runtime_source_with_tool(
             .as_ref()
             == Some(&expected);
     if reusable {
-        match verify_runtime_source_hashes(destination, required_hashes, checkpoint) {
+        let verified = verify_runtime_source_hashes(destination, required_hashes, checkpoint)
+            .and_then(|()| {
+                admitted_zip.as_ref().map_or(Ok(()), |copy| {
+                    copy.verify_destination(destination, checkpoint)
+                })
+            });
+        match verified {
             Ok(()) => return Ok(()),
             Err(error) if error.code == crate::ErrorCode::Verification => {}
             Err(error) => return Err(error),
@@ -662,7 +760,10 @@ pub(crate) fn prepare_runtime_source_with_tool(
 
     match materialization {
         RuntimeSourceMaterialization::N64BigEndian => prepare_n64_source(source, destination)?,
-        RuntimeSourceMaterialization::Copy => copy_runtime_source(source, destination)?,
+        RuntimeSourceMaterialization::Copy => match &admitted_zip {
+            Some(copy) => copy.materialize(destination, checkpoint)?,
+            None => copy_runtime_source(source, destination)?,
+        },
         RuntimeSourceMaterialization::GamecubeIso => materialize_gamecube_iso_with_tool(
             source,
             destination,
@@ -683,6 +784,9 @@ pub(crate) fn prepare_runtime_source_with_tool(
     }
     checkpoint()?;
     verify_runtime_source_hashes(destination, required_hashes, checkpoint)?;
+    if let Some(copy) = &admitted_zip {
+        copy.verify_destination(destination, checkpoint)?;
+    }
     atomic_write_json(&marker_path, &expected)
 }
 

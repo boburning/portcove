@@ -4,6 +4,27 @@ Use only the paragraphs relevant to the explicitly selected operation. The
 entrypoint and canonical QUALITY/CONTRIBUTION contracts own current routing;
 old blanket document-load and local-check wording below does not add a gate.
 
+For restricted reviewer preflights, launch/readiness exclusion and captured
+helper custody, use the shared [native boundary checks](../../portcove-desktop-verification/references/qualification-boundaries.md#platform-preflight-and-input-custody).
+
+Before provisioning qualification infrastructure, establish the consumer's
+startup/authentication requirements and how the proposed isolation addresses
+the observed failure. Separate required properties from implementation choices.
+Stop provisioning retries that produce no new diagnostic evidence; retain the
+failed attempt and exact owned-resource cleanup/resume state while independent
+work continues under its existing gates.
+
+For Windows storage fixtures, validate guards against actual provider values
+before side effects, preferring documented typed values to display labels.
+Distinguish disk UniqueId, partition DiskId, volume identities, file length and
+logical capacity; use explicit image/object associations instead of substituting
+similar identifiers. After partial provisioning, preserve image, intent and logs;
+inspect the exact image association and individual guards under the original
+owner/elevation context before retry or recovery. Exercise rejection after
+attachment and recovery from observed partial phases without inventing completion
+receipts. Parser/static checks do not establish provider behavior; verified
+recovery does not establish successful provisioning or reviewer startup.
+
 Resolve the current checkout root with `git rev-parse --show-toplevel` and read
 [RELEASING.md](../../../../docs/RELEASING.md), [DELIVERY.md](../../../../docs/DELIVERY.md), [UPDATER-TRUST.md](../../../../docs/UPDATER-TRUST.md), [UPGRADING.md](../../../../docs/UPGRADING.md), the linked issue, and current release/dependency fields in the live Project. Read [SIGNED-CATALOG.md](../../../../docs/SIGNED-CATALOG.md) only when catalog signing is in scope. Repository release docs define package and application-signing policy; the Project defines unfinished commitments.
 

@@ -501,6 +501,36 @@ are not a compatible delivery route. Engine capability implementation alone
 establishes no title admission, native operation acceptance, signed definition
 publication or installed-client delivery.
 
+Staged-source version 9 adds two closed Windows x64 source-only recipes:
+`advance-wars-gba-source-cb3facb53b6b-usa-rev1` and
+`earthbound-snes-source-fe1155dc26ff-usa`. They bind exact game/framework
+source archives, the official SDL2 SDK and the existing authenticated toolchain.
+Catalog data supplies no compiler commands or arbitrary recipe extensions. The
+primary ZIP is source input, not a fabricated upstream runtime release.
+
+Advance Wars requires the raw USA Rev 1 GBA original with SHA1
+`15053499d5b3f49128a941d7f2d84876f5424d0c` within the finite cartridge bound;
+no unverified canonical size is invented. EarthBound requires the headerless
+3,145,728-byte USA SNES original with SHA256
+`a8fe2226728002786d68c27ddddf0b90a894db52e4dfe268fdf72a68cae5f02e`.
+Both bind the observed SHA256 and size into private storage and verify the
+owned original copy before generation and packaging. Advance Wars builds the
+fixed GBA translator before generating C; EarthBound explicitly uses the pinned
+Python HiROM backend and disables launcher, mods, netplay, tracing and co-simulation.
+The existing bounded compiler groups, graph identity checks, supervised worker,
+quiescence proof and publication/recovery authority remain in effect.
+
+These recipes allow only their fixed owned `game.gba` or `game.sfc` argument.
+Core refuses forwarded arguments and nonempty inherited `SDL_DYNAMIC_API` for
+these two recipes. It does not rewrite the host environment. The runtime contains
+the fixed executable, authenticated companions, owned original and notices;
+source-only build receipts confer no binary redistribution grant. EarthBound's
+crash reporter may import `dbghelp.dll`; that allowance does not apply to other
+recipes. Version 9 is required for indexed entries; earlier capabilities and
+NES recipe storage identities remain unchanged. Capability implementation,
+repository title admission, actual operation acceptance, optional gameplay and
+protected installed-client delivery retain their separate evidence requirements.
+
 Hosted
 installation still requires a provider digest or verified checksum sidecar;
 an exact direct manifest still requires an accepted HTTPS URL, size, version and
@@ -980,6 +1010,16 @@ digest present in one identity must match; representations remain alternatives,
 and multiple matching representations are an ambiguity rather than an automatic
 choice. Extension-only compatibility can pass existing structural admission but
 is never reported by discovery as an exact identity.
+
+An admitted cartridge archive member may be copied unchanged to a different fixed
+runtime filename, such as `game.md` inside a ZIP becoming `game.bin`. The source
+representation must explicitly admit that member extension; the runtime filename
+does not broaden source admission. Preparation binds both the outer ZIP identity
+and the checked member's name, size and SHA-256, and freshly verifies cached
+runtime bytes. This is exact byte copying, not interleaving or header conversion.
+Registrations without structured member observations retain legacy selection
+until checked again. The bounded ZIP32 source-reader limits and unsupported
+container recovery are documented in the architecture contract.
 
 File-set representations match only when every declared member has exactly one
 top-level filename match and one conjunctive digest identity. Directory

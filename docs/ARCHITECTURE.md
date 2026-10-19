@@ -1592,6 +1592,18 @@ TUF roles without executing candidate tooling with production credentials.
 
 ## Library model
 
+External folder relinking reads the retained registration and catalog in one
+observation, binds their exact stored bytes and the fully inspected proposed
+folder to a distinct reviewed authorization, then rechecks under the port lock.
+An immediate transaction refuses a changed row, managed installation or pending
+launch and changes only the external location and validated preference binding.
+It preserves registration identity, timestamps and the original catalog bytes;
+it never re-captures a possibly newer definition. A missing old folder is allowed,
+while its structural and account scope remain binding. New-folder shared consent
+uses the outer relink fingerprint. No external files or saves are moved or adopted.
+Managed planning, installation and updates refuse an extant external registration
+before provider resolution; the UI and adapters do not create another authority.
+
 The [configured upstream observer](UPSTREAM-OBSERVATIONS.md) owns bounded,
 read-only provider collection and factual operational checkpoints. It submits
 inert observations through the standalone CLI to core's existing release
@@ -2365,7 +2377,9 @@ authorized mutations.
 ### Fixed original-driven cartridge builds
 
 The private Core [`cartridge_build`](../crates/portcove-core/src/cartridge_build.rs)
-module owns the checked NES cycle recipes. Catalog data selects a shipped enum;
+module owns the checked NES cycle recipes and its private
+[`cartridge_source_build`](../crates/portcove-core/src/cartridge_source_build.rs)
+child owns the fixed GBA/SNES source recipes. Catalog data selects a shipped enum;
 it cannot supply build commands or arbitrary executable identities. The service
 binds the verified original before the installer admits download/build work.
 The recipe reuses bounded archive acquisition/extraction, the common
@@ -2391,6 +2405,16 @@ or arbitrary consumer extension is introduced.
 Source/unit fixtures, a compiler run, game operation acceptance and protected
 production delivery remain separate evidence scopes.
 
+Staged-source v9 adds exact Advance Wars USA Rev 1 and EarthBound USA recipes.
+They acquire authenticated game/framework sources, SDL2 SDK and toolchain;
+Core verifies its owned original before generation and packaging. GBA translation
+and the SNES Python HiROM backend use fixed tool invocations and bounded compiler
+groups. These recipes retain the common installer, worker drain and recovery
+authority, require their fixed original argument, and refuse forwarded arguments
+and inherited `SDL_DYNAMIC_API`. EarthBound alone permits the reviewed
+`dbghelp.dll` import. The NES compile graphs and storage identities are unchanged.
+A shipped recipe alone admits neither a catalog title nor a runtime operation.
+
 ### Setup configuration dispositions
 
 The seven `AdapterKind` families retain catalog data and existing generic
@@ -2415,6 +2439,32 @@ gameplay or native termination qualification. New contradictory inputs require
 an exact causal case and compatible normal/recovery consumer migration.
 
 Adapters describe recurring families rather than individual games: libultraship portable releases, N64 recomp portable releases, staged-source portable releases, referenced-disc ports, generated-cache ports, upstream-managed setup, and managed PS1 recomp builds. Port-specific facts stay in `catalog.json`: repository, channels, platform availability, source profile, executable hints, launch behavior, persistent paths, and optional runtime subdirectory and source paths. Source profiles may use exact SHA-1, SHA-256, file-set CRC32, reviewed PS1 ISO-volume allowlists, or a tightly bounded upstream-validator handoff so Portcove can enforce the strongest identity form an upstream actually publishes while continuing to record SHA-256 in local state. A declared runtime subdirectory keeps working-directory, portable-marker, and stored-source behavior inside a stable nested release layout without port-specific code. Runtime source materialization is limited to reviewed generic operations: N64 byte-order normalization, bounded exact copy or ZIP-member extraction, GameCube or PS2 ISO conversion, single-disc PS1 CHD expansion to a multi-BIN/CUE directory, multi-disc PS1 CHD expansion to numbered raw data tracks, and read-only LIVE/STFS extraction into a new directory. STFS extraction validates a bounded ASCII path table, rejects traversal, case collisions, cyclic or out-of-range block chains, caps depth/count/expanded bytes against available storage, and publishes only after declared inner-file SHA-256 checks pass. File replacements and directory swaps preserve the prior destination until the staged replacement is ready; schema-2 source sidecars bind reuse to the current storage SHA-256 and size instead of path metadata, forcing restaging even when changed bytes retain the same path, length, and timestamp.
+
+For an observed cartridge ZIP, exact-copy preparation selects the admitted member
+by its retained name and content identity, independently of the runtime filename.
+It checks the original-container digest and size, streams the member into private
+staging, and verifies its digest and size before replacing the destination. Cache
+reuse also checks the destination bytes even when the catalog has no additional
+runtime hash. Legacy registrations without structured member observations retain
+their extension-based selection; a fresh source check is required to establish a
+different member-extension/runtime-filename pairing. This copies bytes without
+converting the original game format.
+
+Cartridge ZIP inspection and this observed-member copy use a private anonymous
+snapshot with a bounded ZIP32 metadata preflight before the ZIP parser allocates.
+The limits are 1 GiB of container bytes (or a smaller profile limit), 4,096 entries,
+16 MiB of encoded central-directory metadata, 64 extra records per entry and
+16,384 extra records in total. Stored and Deflate members are supported; ZIP64,
+multipart, encrypted, ambiguous-footer and offset-corrected containers are
+rejected with an extracted-original recovery path. Constructor reads cannot fall
+back outside the checked metadata region. Snapshot hashing charges actual
+container bytes to discovery's shared budget, including failed metadata checks;
+selected-member hashing remains separately bounded and charged. Preparation
+requires the parser's entry count to match the raw records so duplicate names
+cannot hide entries. Preparation validates the complete output namespace before
+creating its staged member and preserves the previous destination on cancellation
+or validation failure before publication. A later error may leave the newly
+verified runtime copy in place without a new success sidecar.
 
 Catalog entries may add fixed launch environment values and one dynamic user-data environment variable. Validation rejects session-critical, Portcove-owned, credential-shaped, duplicate, multiline, or empty values before a process is constructed. The dynamic value always resolves to the canonical per-port library user directory; fixed values express an upstream selector or disable an upstream updater that would otherwise compete with Portcove's verified lifecycle. Reviewed nonpersistent exact paths and bounded filename patterns created by managed portable runtimes remain catalog-owned integrity exclusions and cannot overlap persistent data.
 
