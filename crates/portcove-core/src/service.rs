@@ -39,6 +39,7 @@ use crate::{
 };
 
 mod backups;
+mod external_relink;
 mod ghostship_compatibility;
 #[cfg(test)]
 mod ghostship_persistence_tests;
@@ -1029,6 +1030,7 @@ impl PortcoveService {
     ) -> Result<InstallPlan> {
         let port = self.catalog.port(port_id)?;
         let status = self.status(port_id)?;
+        Self::require_managed_runtime_ownership(&status)?;
         self.require_definition_operation(
             &self.catalog,
             port,
@@ -2137,6 +2139,7 @@ impl PortcoveService {
                 Some(status) => status,
                 None => self.status(port_id)?,
             };
+            Self::require_managed_runtime_ownership(&status)?;
             let release = operation
                 .interruptible(self.resolve_release(port, status.channel, Platform::current()?))
                 .await?;
@@ -2280,6 +2283,7 @@ impl PortcoveService {
             self.output_location(port_id, overrides.output_directory)?;
             let _operation = self.library.try_lock_port(port_id, "install")?;
             let status = self.status(port_id)?;
+            Self::require_managed_runtime_ownership(&status)?;
             self.require_definition_operation(
                 &self.catalog,
                 port,
@@ -2383,6 +2387,7 @@ impl PortcoveService {
         let result = async {
             let _operation = self.library.try_lock_port(port_id, "update")?;
             let status = self.status(port_id)?;
+            Self::require_managed_runtime_ownership(&status)?;
             let port = self.catalog.port(port_id)?;
             self.require_definition_operation(
                 &self.catalog,
@@ -3603,6 +3608,16 @@ impl PortcoveService {
                 true,
             ),
         )?;
+        self.inspect_external_runtime_preview(port, spec, requested_root, checkpoint)
+    }
+
+    fn inspect_external_runtime_preview(
+        &self,
+        port: &PortDefinition,
+        spec: &crate::UserPreparedRuntimeSpec,
+        requested_root: &Path,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<ExternalRuntimePreview> {
         let inspected = crate::external_runtime::inspect_with_checkpoint(
             requested_root,
             spec,
@@ -3625,7 +3640,7 @@ impl PortcoveService {
         };
         let preview_sha256 = hex::encode(Sha256::digest(preview_bytes));
         Ok(ExternalRuntimePreview {
-            port_id: port_id.to_owned(),
+            port_id: port.id.clone(),
             path: inspected.root,
             executable: inspected.executable,
             version: spec.version.clone(),
@@ -9567,6 +9582,120 @@ fn main() {
 
     // Admit an inert regular-file runtime through the production review path;
     // these status tests grant no executable or gameplay qualification.
+    #[test]
+    fn external_relink_preserves_retained_identity_when_current_catalog_changes() {
+        let (temporary, mut service, record) = external_location_fixture();
+        let before = service.library.connection().unwrap().query_row(
+            "SELECT retained_catalog_json, registered_at FROM external_runtime_registrations WHERE port_id=?1",
+            [&record.port_id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        ).unwrap();
+        let moved = temporary.path().join("moved-player-folder");
+        fs::rename(&record.path, &moved).unwrap();
+        fs::write(moved.join("player-save"), b"keep my save").unwrap();
+        // The retained registration survives even if this ID leaves the current catalog.
+        service.replace_catalog_for_test(Catalog::embedded().unwrap());
+        let preview = service
+            .preview_external_runtime_relink(&record.port_id, &moved)
+            .unwrap();
+        assert_eq!(preview.previous_path, record.path);
+        assert!(preview.external_files_will_be_preserved);
+        let authorization = service
+            .authorize_external_runtime_relink(
+                &record.port_id,
+                &moved,
+                &preview.preview_sha256,
+                None,
+            )
+            .unwrap();
+        let relinked = service
+            .relink_external_runtime(&record.port_id, &moved, &authorization.token)
+            .unwrap();
+        assert_eq!(relinked.id, record.id);
+        assert_eq!(relinked.registered_at, record.registered_at);
+        assert_eq!(relinked.version, record.version);
+        assert_eq!(relinked.immutable_tree_sha256, record.immutable_tree_sha256);
+        assert_eq!(relinked.path, moved);
+        assert_eq!(
+            fs::read(relinked.path.join("player-save")).unwrap(),
+            b"keep my save"
+        );
+        assert!(!record.path.exists());
+        let after = service.library.connection().unwrap().query_row(
+            "SELECT retained_catalog_json, registered_at FROM external_runtime_registrations WHERE port_id=?1",
+            [&record.port_id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        ).unwrap();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn external_relink_rejects_changed_runtime_and_registration_without_losing_original() {
+        let (temporary, service, record) = external_location_fixture();
+        let moved = temporary.path().join("moved-player-folder");
+        fs::rename(&record.path, &moved).unwrap();
+        let preview = service
+            .preview_external_runtime_relink(&record.port_id, &moved)
+            .unwrap();
+        let authorization = service
+            .authorize_external_runtime_relink(
+                &record.port_id,
+                &moved,
+                &preview.preview_sha256,
+                None,
+            )
+            .unwrap();
+        fs::write(moved.join("Game.exe"), b"changed runtime").unwrap();
+        assert!(
+            service
+                .relink_external_runtime(&record.port_id, &moved, &authorization.token)
+                .is_err()
+        );
+        assert_eq!(
+            service
+                .library
+                .external_runtime_with_port(&record.port_id)
+                .unwrap()
+                .unwrap()
+                .0
+                .path,
+            record.path
+        );
+        fs::write(moved.join("Game.exe"), b"accepted runtime").unwrap();
+        // Even an otherwise equivalent retained row must invalidate an earlier consent.
+        service.library.connection().unwrap().execute(
+            "UPDATE external_runtime_registrations SET retained_catalog_json=retained_catalog_json || ' ' WHERE port_id=?1",
+            [&record.port_id],
+        ).unwrap();
+        assert!(
+            service
+                .relink_external_runtime(&record.port_id, &moved, &authorization.token)
+                .is_err()
+        );
+        assert_eq!(
+            service
+                .library
+                .external_runtime_with_port(&record.port_id)
+                .unwrap()
+                .unwrap()
+                .0
+                .path,
+            record.path
+        );
+        let current = service
+            .preview_external_runtime_relink(&record.port_id, &moved)
+            .unwrap();
+        let authorization = service
+            .authorize_external_runtime_relink(
+                &record.port_id,
+                &moved,
+                &current.preview_sha256,
+                None,
+            )
+            .unwrap();
+        service
+            .relink_external_runtime(&record.port_id, &moved, &authorization.token)
+            .unwrap();
+    }
+
     fn external_location_fixture() -> (tempfile::TempDir, PortcoveService, ExternalRuntimeRecord) {
         external_location_fixture_with_private_data(false)
     }

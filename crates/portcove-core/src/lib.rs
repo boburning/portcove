@@ -146,7 +146,9 @@ pub use definition_repository::{
     },
 };
 pub use error::{ErrorCode, PortcoveError, Result};
-pub use external_runtime::{ExternalRuntimePreview, ExternalRuntimeRemovalPreview};
+pub use external_runtime::{
+    ExternalRuntimePreview, ExternalRuntimeRelinkPreview, ExternalRuntimeRemovalPreview,
+};
 pub use failure::{
     FailurePresentation, FailureRecoveryTarget, FailureReport, FailureTone, MutationState,
     RecoveryAction, redact_diagnostic_text, redact_diagnostic_value, sensitive_diagnostic_field,

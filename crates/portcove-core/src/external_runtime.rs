@@ -175,6 +175,18 @@ pub struct ExternalRuntimeRemovalPreview {
     pub preview_sha256: String,
 }
 
+/// Review of a location change for the same retained external installation.
+/// No files are moved, adopted, deleted or upgraded by this operation.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ExternalRuntimeRelinkPreview {
+    pub port_id: String,
+    pub registration_id: String,
+    pub previous_path: PathBuf,
+    pub proposed: ExternalRuntimePreview,
+    pub external_files_will_be_preserved: bool,
+    pub preview_sha256: String,
+}
+
 /// Observe the registered root and executable without reading or hashing the
 /// player-owned tree. Status is a point-in-time location assessment, not proof
 /// of immutable bytes or execution authority; launch still runs full inspection.
