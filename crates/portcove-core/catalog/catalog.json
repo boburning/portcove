@@ -3,6 +3,16 @@
   "source_catalog": {
     "evidence": [
       {
+        "id": "f-zero-managed-windows-path-policy-2026-10-19",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "1267645e779f47540fba7305721a2ddb2a2964ea",
+        "reviewed_at": "2026-10-19",
+        "claim": "Policy-bearing API73 Windows v1.8.3 managed checks, actual title-menu startup, ordinary close, administrative preservation and matching-marker source recreation; no gameplay or version update/rollback qualification",
+        "immutable_url": "https://github.com/boburning/portcove/blob/1267645e779f47540fba7305721a2ddb2a2964ea/docs/qualification/f-zero-managed-windows-path-policy-2026-10-19.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/f-zero-managed-windows-path-policy-2026-10-19.md"
+      },
+      {
         "id": "f-zero-managed-windows-2026-10-19",
         "role": "portcove_qualification",
         "authority": "boburning/portcove",
@@ -9375,6 +9385,60 @@
       }
     ],
     "qualification": [
+      {
+        "scope": {
+          "port_id": "f-zero-snes-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+          "upstream_ref": "v1.8.3",
+          "contract_id": "f-zero-snes-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "f-zero-snes-usa",
+              "variant_id": "usa",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "fzero-managed-path-policy-startup-persistence-v2"
+        },
+        "outcome": "passed",
+        "observed_at": 1792452741,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "7563fedf1915faaecd87f83f1a4a4f48e0b86c27",
+        "kind": "structural_check",
+        "method": "Actual API73 CLI: invalid source, Unicode and overlong runtime-output refusal before acquisition, changed-original refusal after review, exact official package installation and 70-file verification. Original Unicode path remains usable.",
+        "evidence_ids": [
+          "f-zero-managed-windows-path-policy-2026-10-19"
+        ]
+      },
+      {
+        "scope": {
+          "port_id": "f-zero-snes-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+          "upstream_ref": "v1.8.3",
+          "contract_id": "f-zero-snes-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "f-zero-snes-usa",
+              "variant_id": "usa",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "fzero-managed-path-policy-startup-persistence-v2"
+        },
+        "outcome": "passed",
+        "observed_at": 1792452741,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "7563fedf1915faaecd87f83f1a4a4f48e0b86c27",
+        "kind": "automated_lifecycle",
+        "method": "Actual isolated policy-bearing Core/CLI and native Windows process: visible title-menu startup, ordinary close, active synthetic-probe backup/restore/removal/reinstall preservation, matching-marker corrupted-source recreation and unchanged originals. Cache-check screenshot black; no menu claim for that session. No gameplay, GUI workflow, in-game save/load, version update/rollback or minimum-OS qualification.",
+        "evidence_ids": [
+          "f-zero-managed-windows-path-policy-2026-10-19"
+        ]
+      },
       {
         "scope": {
           "port_id": "f-zero-snes-recomp",
