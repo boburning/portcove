@@ -96,11 +96,16 @@ function location(finding: RscheckFinding) {
   return `${file}:${line}`;
 }
 
-export function main() {
-  const command = process.platform === "win32" ? "rscheck.exe" : "rscheck";
-  const result = spawnSync(command, ["check", "--format", "json"], {
+export function main(
+  command = process.platform === "win32" ? "rscheck.exe" : "rscheck",
+  args = ["check", "--format", "json"],
+) {
+  const result = spawnSync(command, args, {
     cwd: repositoryRoot,
     encoding: "utf8",
+    // Scoped rscheck 0.1.0 reports include informational findings (~9 MiB here).
+    // Retain the complete bounded report so trailing denials stay authoritative.
+    maxBuffer: 16 * 1024 * 1024,
   });
   let report;
   try {
