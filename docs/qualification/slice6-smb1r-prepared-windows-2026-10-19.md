@@ -173,6 +173,21 @@ negative cases. Product behavior is unchanged. `smb-lint-repair-a1` passed the
 complete Vite+ check and all three exact disclosure unit tests. Required hosted
 qualification belongs to the subsequent source head, not this failed run.
 
+CI `39337422288/1` at `8dcf2de3a9a38c7b0b9404739401b683c1c96739`
+retains three Rust failures: the new catalog entry omitted its original-game
+title and authored setup guide, and prepared-route/capability inventory tests
+still expected eleven routes and staged-source versions through eight.
+The repair adds the title and four concrete preparation steps with ownership
+warnings, retains the existing preparation notes, and explicitly tests versions
+nine and ten and twelve prepared routes. Runtime behavior and native producer
+identities are unchanged. The other 2,064 Rust tests passed in that failed run;
+this is not a complete Rust-lane pass.
+`smb-ci-rust-repair-a2` passed all 109 catalog tests and the actual CLI
+capability/schema negotiation test. Its generated catalog bytes remain unchanged
+after mirroring the metadata into current authoring and running the maintained
+generator and stale-output check. The earlier A1 queue refused a source change
+before executing any test; that refusal is retained.
+
 The offered minimum is original-bound vanilla Windows registration, manual
 shared-data preparation, launch, retained folder relink and registration-only removal. Gameplay,
 populated-save/load, audio, controller, other platforms, installed Desktop and

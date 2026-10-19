@@ -2374,7 +2374,7 @@ mod tests {
             .iter()
             .filter(|port| port.release.provider == ReleaseSource::UserPrepared)
             .collect::<Vec<_>>();
-        assert_eq!(prepared.len(), 11);
+        assert_eq!(prepared.len(), 12);
         for port in prepared {
             let presentation = port.presentation.as_ref().unwrap();
             let guide = presentation.manual_setup.as_ref().unwrap();

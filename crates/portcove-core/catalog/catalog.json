@@ -19289,7 +19289,32 @@
           }
         ],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Download the exact official 1.1-stable Windows.zip and extract its five unchanged files outside the Portcove library. Do not add portable.txt or mods. Register your recognized World NES original separately. Explicitly review and accept the current Windows account and effective APPDATA/SMB1R shared directory, then manually copy your original there as baserom.nes. Existing settings.cfg must be bounded ordinary data without Godot object/resource constructors. Refresh after manual preparation. Other game copies share originals, settings, saves and custom data; the game can regenerate or trash caches and prune logs. Portcove does not seed, own, migrate, update, back up, restore or delete this shared directory or the prepared runtime. Removal unregisters only. Mods and extra engine/CLI arguments are not offered. Registration is distinct from launch readiness and gameplay observations. This limited route accepts only vanilla BaseAssets. Existing settings must select only BaseAssets. Move custom levels/autosaves, blueprints, custom-character inputs, extra resource packs and Godot loader metadata elsewhere manually before use, preserving their files. Core refuses those executable-bearing inputs without changing them. The route does not offer the optional editor/import workflow or sandbox independent imports while the game runs."
+        "manual_preparation": "Download the exact official 1.1-stable Windows.zip and extract its five unchanged files outside the Portcove library. Do not add portable.txt or mods. Register your recognized World NES original separately. Explicitly review and accept the current Windows account and effective APPDATA/SMB1R shared directory, then manually copy your original there as baserom.nes. Existing settings.cfg must be bounded ordinary data without Godot object/resource constructors. Refresh after manual preparation. Other game copies share originals, settings, saves and custom data; the game can regenerate or trash caches and prune logs. Portcove does not seed, own, migrate, update, back up, restore or delete this shared directory or the prepared runtime. Removal unregisters only. Mods and extra engine/CLI arguments are not offered. Registration is distinct from launch readiness and gameplay observations. This limited route accepts only vanilla BaseAssets. Existing settings must select only BaseAssets. Move custom levels/autosaves, blueprints, custom-character inputs, extra resource packs and Godot loader metadata elsewhere manually before use, preserving their files. Core refuses those executable-bearing inputs without changing them. The route does not offer the optional editor/import workflow or sandbox independent imports while the game runs.",
+        "original_game_title": "Super Mario Bros.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the exact stock runtime",
+              "instruction": "Extract the official 1.1-stable Windows.zip outside the Portcove library. Keep its five files unchanged; do not add portable.txt, loader metadata or mods."
+            },
+            {
+              "title": "Connect your original",
+              "instruction": "Choose and check your exact Super Mario Bros. (World) NES original separately in Portcove."
+            },
+            {
+              "title": "Review the shared account directory",
+              "instruction": "Choose the runtime folder below. Review the resolved Windows account and APPDATA/SMB1R directory, then explicitly accept the shared-data disclosure."
+            },
+            {
+              "title": "Prepare the cached original manually",
+              "instruction": "Copy your checked original unchanged into that shared directory as baserom.nes. Refresh readiness before Play. Core never creates or seeds this shared directory."
+            }
+          ],
+          "warnings": [
+            "Other copies share originals, settings and saves. The game can regenerate or trash caches and prune logs. Portcove does not own, update, back up, restore or delete these files; removal unregisters only.",
+            "Only vanilla BaseAssets is accepted. Preserve and manually move other packs, custom characters, levels/autosaves, blueprints and Godot loader metadata elsewhere before use. Editor/import operations and extra arguments are outside this route."
+          ]
+        }
       }
     }
   ]
