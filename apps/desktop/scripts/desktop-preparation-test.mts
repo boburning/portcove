@@ -1108,6 +1108,7 @@ export async function preparationScenarios({
       15_000,
       "Prepared Core state did not reach the rendered trial-launch action",
     );
+    assert.ok(trial, "Rendered trial-launch action must be available");
     assert.equal(await trial.getText(), "Try launch");
     await browser.wait(until.elementIsEnabled(trial), 15_000);
     await trial.click();
