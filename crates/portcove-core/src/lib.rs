@@ -238,7 +238,7 @@ pub use types::*;
 // Private parked 58/59/64 contracts remain unclaimed. Public 65 adds game-file queries.
 // Public 66 adds reviewed update assessments while retaining both delivered scopes.
 // Public 67 adds caller-bound external review and retained source representation readiness.
-pub const API_SCHEMA_VERSION: u32 = 67;
+pub const API_SCHEMA_VERSION: u32 = 68;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

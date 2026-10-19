@@ -732,13 +732,13 @@ function SourceRequirements({
       <div
         className={
           installedCount > 0
-            ? `${sourceRequirementsBase} complete block border-[var(--color-success-border)] bg-pc-success-subtle text-xs text-pc-success-foreground`
+            ? `${sourceRequirementsBase} complete block border-pc-border bg-pc-surface text-xs text-pc-muted-foreground`
             : sourceRequirementsClass
         }
       >
         <strong>
           {installedCount > 0
-            ? "Required files have been added for ports in your library."
+            ? "Required file locations are saved. Check each game for current file and launch status."
             : "No ports in your library yet. File requirements will appear here after you add a port."}
         </strong>
       </div>
@@ -903,8 +903,9 @@ function SourceHealth({
           </div>
         ))}
       <p>
-        Portcove checks files locally and never uploads or changes them. When you choose a new
-        location, Portcove confirms that the file is an exact match before saving the new path.
+        File checks run locally without uploading or changing your originals. Copying or moving
+        files requires a separate review. When you choose a replacement location, Portcove confirms
+        that the file is an exact match before saving the new path.
       </p>
     </SettingsRow>
   );

@@ -9,12 +9,45 @@ import {
   filterOptions,
   filterPorts,
   indexStatuses,
+  hasUnconfirmedLaunchInput,
   mostRecentPort,
   portReadiness,
   progressPresentation,
   requiredSourceNeeds,
   summarizeLibrary,
 } from "./view-model";
+
+it("does not turn current bytes or missing legacy assessment into confirmed compatibility", () => {
+  const status = portStatus();
+  status.readiness = { launchable: true, pending_setup: false, blockers: [], source: "current" };
+  expect(hasUnconfirmedLaunchInput(status)).toBe(true);
+  const assessment: NonNullable<NonNullable<PortStatus["readiness"]>["source_assessment"]> = {
+    health: "current",
+    classification: {
+      state: "recognized",
+      identity: { game_id: "game", variant_id: "edition", representation_id: "raw" },
+    },
+    contract: { state: "supported", contract_id: "reviewed-release" },
+    admission: { state: "admitted", mode: "exact_identity" },
+    evidence: [],
+  };
+  status.readiness.source_assessment = assessment;
+  expect(hasUnconfirmedLaunchInput(status)).toBe(false);
+  status.readiness.source_assessment = {
+    ...assessment,
+    contract: { state: "unreviewed_for_release" },
+  };
+  expect(hasUnconfirmedLaunchInput(status)).toBe(true);
+  status.readiness.source_assessment = { ...assessment, health: "changed" };
+  expect(hasUnconfirmedLaunchInput(status)).toBe(true);
+  status.readiness.source_assessment = { ...assessment, admission: { state: "not_evaluated" } };
+  expect(hasUnconfirmedLaunchInput(status)).toBe(true);
+  status.readiness = { launchable: true, pending_setup: false, blockers: [] };
+  expect(hasUnconfirmedLaunchInput(status)).toBe(false);
+  expect(
+    hasUnconfirmedLaunchInput(status, { ...portDefinition(), source_profile: "required" }),
+  ).toBe(true);
+});
 
 const port = (id: string, channels: PortDefinition["channels"]): PortDefinition => ({
   ...portDefinition(),

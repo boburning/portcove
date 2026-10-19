@@ -68,7 +68,7 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–57, 60–63 or 65–67 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57, 60–63 or 65–68 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -101,6 +101,14 @@ from readiness and Play. Playnite Uninstall removes only this reviewed
 registration and verifies the installed route is absent before changing its
 installed state. External files remain. Cancel makes no mutation; Playnite's
 ordinary cancellation dialog must be acknowledged to restore the action.
+
+Schema 68 adds separate source/BIOS assessments and BIOS incompatibility guidance.
+The reference consumes these claims in guided setup: absent or unreviewed
+compatibility offers an explained **Try launch** when Core permits launch, while
+confirmed input can offer **Play**. Neither a clean process exit nor a current
+file baseline establishes gameplay. Unknown reasons and contradictory assessment
+health require a compatible reader or refreshed state. Schema 67 reviewed
+external setup remains supported alongside schema 68.
 
 Schema 67 readiness also supplies the effective runtime's required source
 extension. If a validated ZIP cannot be passed to that runtime, management asks

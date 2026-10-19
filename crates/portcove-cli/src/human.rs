@@ -1234,6 +1234,9 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
             PortActionReason::ChangedBios => {
                 "The registered BIOS changed; check its saved location and identity."
             }
+            PortActionReason::IncompatibleBios => {
+                "This BIOS edition is not supported by the installed release; choose a supported BIOS with source add."
+            }
             PortActionReason::MissingRuntime if assessment.action == PortAction::Rollback => {
                 "The previous version needs its verified runtime before it can be restored."
             }
@@ -1974,6 +1977,7 @@ fn readiness(status: &PortStatus) -> String {
             LaunchBlocker::MissingBios => "missing BIOS",
             LaunchBlocker::UnreadableBios => "unreadable BIOS",
             LaunchBlocker::ChangedBios => "changed BIOS",
+            LaunchBlocker::IncompatibleBios => "unsupported BIOS edition",
             LaunchBlocker::MissingRuntime => "needs verified runtime (update port)",
             LaunchBlocker::PreparationRequired => "needs game data preparation",
             LaunchBlocker::InvalidInstallation => "installation needs verification or repair",

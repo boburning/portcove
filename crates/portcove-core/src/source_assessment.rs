@@ -15,6 +15,24 @@ pub struct SourceAssessment {
     pub evidence: Vec<SourceEvidence>,
 }
 
+impl SourceAssessment {
+    pub(crate) fn known_input_failure(&self) -> bool {
+        self.health == SourceHealth::Current
+            && (matches!(
+                self.contract,
+                SourceContractResult::RecognizedNotListed { .. }
+                    | SourceContractResult::KnownIncompatible { .. }
+            ) || matches!(
+                self.admission,
+                SourceAdmission::Rejected {
+                    reason: SourceRejectionReason::KnownMismatch
+                        | SourceRejectionReason::AmbiguousIdentity
+                        | SourceRejectionReason::CheckFailed
+                }
+            ))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum SourceClassification {

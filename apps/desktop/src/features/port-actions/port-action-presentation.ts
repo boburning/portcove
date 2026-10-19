@@ -80,13 +80,18 @@ const actionReasons: Record<string, string> = {
   missing_bios: "A required BIOS file is missing.",
   unreadable_bios: "Portcove cannot read the required BIOS file.",
   changed_bios: "The required BIOS file changed. Review it before playing.",
-  incompatible_bios: "This BIOS edition is not supported by the installed version. Choose a supported BIOS file.",
+  incompatible_bios:
+    "This BIOS edition is not supported by the installed version. Choose a supported BIOS file.",
   missing_runtime: "A required runtime component is missing.",
   preparation_required: "Prepare game data before playing.",
   invalid_installation: "Portcove could not verify the installed files.",
 };
 
 function sourceFormatReason(status: PortStatus | undefined): string {
+  if (status?.readiness?.source_assessment?.contract.state === "recognized_not_listed")
+    return "This game edition is not supported by the installed version. Select and check a supported edition before playing.";
+  if (status?.readiness?.source_assessment?.admission.state === "rejected")
+    return "The registered game files failed their checks. Choose replacement files and check them again.";
   const extension = status?.readiness?.required_source_extension;
   return typeof extension === "string" &&
     extension.length > 0 &&

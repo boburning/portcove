@@ -265,7 +265,9 @@ impl PortSourceContract {
             && artifact_sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
             && self.applicability.iter().any(|binding| {
                 binding.upstream_ref == upstream_ref
-                    && binding.artifact_sha256.as_ref()
+                    && binding
+                        .artifact_sha256
+                        .as_ref()
                         .is_none_or(|hash| hash.eq_ignore_ascii_case(artifact_sha256))
             })
     }

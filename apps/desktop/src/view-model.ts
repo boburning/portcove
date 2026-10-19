@@ -14,6 +14,7 @@ import type {
   SourceRecord,
   UpdateSnapshot,
 } from "./types";
+import { portActionPresentation } from "./features/port-actions/port-action-presentation";
 
 const unfinishedActivityAfterSeconds = 24 * 60 * 60;
 
@@ -295,9 +296,27 @@ export function portReadiness(status: PortStatus | undefined): PortReadiness {
   if (biosMissing) return "bios";
   if (assessment.blockers.includes("missing_runtime")) return "runtime";
   if (assessment.pending_setup) return "setup";
-  if (!assessment.launchable) return "blocked";
+  if (!assessment.launchable || portActionPresentation(status, "launch").blocked) return "blocked";
   if (status.staged) return "staged";
   return "ready";
+}
+
+/** Presentation only. Core still owns whether a launch is permitted. */
+export function hasUnconfirmedLaunchInput(status: PortStatus | undefined, port?: PortDefinition) {
+  const readiness = status?.readiness;
+  return (["source", "bios"] as const).some((role) => {
+    const required = role === "source" ? port?.source_profile : port?.bios_source_profile;
+    if (!required && readiness?.[role] == null) return false;
+    const assessment =
+      role === "source" ? readiness?.source_assessment : readiness?.bios_assessment;
+    return (
+      assessment?.health !== "current" ||
+      assessment.classification.state !== "recognized" ||
+      assessment.contract.state !== "supported" ||
+      assessment.admission.state !== "admitted" ||
+      assessment.admission.mode !== "exact_identity"
+    );
+  });
 }
 
 const SOURCE_BLOCKERS: ReadinessBlocker[] = [
@@ -306,7 +325,12 @@ const SOURCE_BLOCKERS: ReadinessBlocker[] = [
   "changed_source",
   "incompatible_source",
 ];
-const BIOS_BLOCKERS: ReadinessBlocker[] = ["missing_bios", "unreadable_bios", "changed_bios", "incompatible_bios"];
+const BIOS_BLOCKERS: ReadinessBlocker[] = [
+  "missing_bios",
+  "unreadable_bios",
+  "changed_bios",
+  "incompatible_bios",
+];
 
 export function summarizeLibrary(
   ports: PortDefinition[],

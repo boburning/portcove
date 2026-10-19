@@ -1474,16 +1474,55 @@ impl PortcoveService {
         }) {
             blockers.push(LaunchBlocker::InvalidInstallation);
         }
-        let release = status.active.as_ref()
+        let release = status
+            .active
+            .as_ref()
             .map(|install| (install.version.as_str(), install.artifact.sha256.as_str()))
-            .or_else(|| status.external_runtime.as_ref().map(|runtime| (runtime.version.as_str(), runtime.archive_sha256.as_str())));
-        let source_assessment = port.source_profile.as_deref().zip(source).map(|(id, health)|
-            crate::source_inspection::registered_launch_assessment(catalog, id, health, registered_sources.get(id), &port.id, crate::PortSourceRole::Game, release));
-        let bios_assessment = port.bios_source_profile.as_deref().zip(bios).map(|(id, health)|
-            crate::source_inspection::registered_launch_assessment(catalog, id, health, registered_sources.get(id), &port.id, crate::PortSourceRole::Bios, release));
-        for (assessment, blocker) in [(&source_assessment, LaunchBlocker::IncompatibleSource), (&bios_assessment, LaunchBlocker::IncompatibleBios)] {
-            if assessment.as_ref().is_some_and(|assessment| matches!(assessment.contract, crate::SourceContractResult::RecognizedNotListed { .. } | crate::SourceContractResult::KnownIncompatible { .. }))
-                && !blockers.contains(&blocker) {
+            .or_else(|| {
+                status
+                    .external_runtime
+                    .as_ref()
+                    .map(|runtime| (runtime.version.as_str(), runtime.archive_sha256.as_str()))
+            });
+        let source_assessment = port
+            .source_profile
+            .as_deref()
+            .zip(source)
+            .map(|(id, health)| {
+                crate::source_inspection::registered_launch_assessment(
+                    catalog,
+                    id,
+                    health,
+                    registered_sources.get(id),
+                    &port.id,
+                    crate::PortSourceRole::Game,
+                    release,
+                )
+            });
+        let bios_assessment = port
+            .bios_source_profile
+            .as_deref()
+            .zip(bios)
+            .map(|(id, health)| {
+                crate::source_inspection::registered_launch_assessment(
+                    catalog,
+                    id,
+                    health,
+                    registered_sources.get(id),
+                    &port.id,
+                    crate::PortSourceRole::Bios,
+                    release,
+                )
+            });
+        for (assessment, blocker) in [
+            (&source_assessment, LaunchBlocker::IncompatibleSource),
+            (&bios_assessment, LaunchBlocker::IncompatibleBios),
+        ] {
+            if assessment
+                .as_ref()
+                .is_some_and(crate::SourceAssessment::known_input_failure)
+                && !blockers.contains(&blocker)
+            {
                 blockers.push(blocker);
             }
         }
@@ -4354,6 +4393,13 @@ impl PortcoveService {
                     operation.checkpoint()
                 })?
             };
+            crate::source_inspection::require_launch_source_compatibility(
+                retained_catalog,
+                &retained_port.id,
+                &source,
+                crate::PortSourceRole::Game,
+                (&record.version, &record.archive_sha256),
+            )?;
             if let Some(extension) = spec.source_argument_extension.as_deref() {
                 crate::external_runtime::shared_preferences::check_runtime_path(
                     spec,
@@ -4802,7 +4848,7 @@ fn port_action_blocker(blocker: LaunchBlocker) -> (PortActionAvailability, PortA
         LaunchBlocker::MissingBios => (Availability::Waiting, Reason::MissingBios),
         LaunchBlocker::UnreadableBios => (Availability::Held, Reason::UnreadableBios),
         LaunchBlocker::ChangedBios => (Availability::Held, Reason::ChangedBios),
-        LaunchBlocker::IncompatibleBios => (Availability::Held, Reason::IncompatibleBios),
+        LaunchBlocker::IncompatibleBios => (Availability::Waiting, Reason::IncompatibleBios),
         LaunchBlocker::MissingRuntime => (Availability::Held, Reason::MissingRuntime),
         LaunchBlocker::PreparationRequired => (Availability::Waiting, Reason::PreparationRequired),
         LaunchBlocker::InvalidInstallation => (Availability::Held, Reason::InvalidInstallation),

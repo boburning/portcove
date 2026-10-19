@@ -1655,15 +1655,11 @@ pub(crate) fn inspect_file_identity_with_compound(
 ) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
     let observed_digests = observed_digests(identity);
-    let requires_n64 = catalog.source_catalog().into_iter()
-        .flat_map(|catalog| &catalog.identities)
-        .filter(|profile| profile.id == profile_id)
-        .flat_map(|profile| &profile.variants)
-        .flat_map(|variant| &variant.representations)
-        .any(|representation| matches!(representation.kind, SourceRepresentationKind::CanonicalN64 { .. })
-            && representation_extensions_match(representation, identity));
-    if requires_n64 && identity.canonical_n64_sha256.is_none() {
-        return Err(PortcoveError::source("This file is not a valid N64 ROM: its byte-order header is missing or invalid. Choose an original N64 ROM file."));
+    if requires_n64_shape(catalog, profile_id, identity) && identity.canonical_n64_sha256.is_none()
+    {
+        return Err(PortcoveError::source(
+            "This file is not a valid N64 ROM: its byte-order header is missing or invalid. Choose an original N64 ROM file.",
+        ));
     }
     if matching_compound_format(catalog, profile_id, identity, &observed_digests)
         .is_some_and(|format| Some(format) != validated_compound)
@@ -1808,52 +1804,135 @@ pub(crate) fn registered_launch_assessment(
         admission: SourceAdmission::NotEvaluated,
         evidence: Vec::new(),
     };
-    if health != crate::SourceHealth::Current { return assessment; }
-    let Some(source) = source else { return assessment; };
-    let Some(facts) = source.observed_identity.as_ref() else { return assessment; };
+    if health != crate::SourceHealth::Current {
+        return assessment;
+    }
+    let Some(source) = source else {
+        return assessment;
+    };
+    let Some(facts) = source.observed_identity.as_ref() else {
+        return assessment;
+    };
     if facts.validate_for_record(source).is_err()
-        || !catalog.source_profile(profile_id).is_ok_and(|profile| profile.kind == SourceKind::File)
-    { return assessment; }
-    let digest = |algorithm, scope| facts.digests.iter()
-        .find(|digest| digest.algorithm == algorithm && digest.scope == scope);
-    let content_scope = if facts.archive_member_name.is_some() { DigestScope::ArchiveMember } else { DigestScope::OriginalFile };
-    let canonical = digest(SourceDigestAlgorithm::Sha256, DigestScope::CanonicalN64BigEndian);
+        || !catalog
+            .source_profile(profile_id)
+            .is_ok_and(|profile| profile.kind == SourceKind::File)
+    {
+        return assessment;
+    }
+    let digest = |algorithm, scope| {
+        facts
+            .digests
+            .iter()
+            .find(|digest| digest.algorithm == algorithm && digest.scope == scope)
+    };
+    let content_scope = if facts.archive_member_name.is_some() {
+        DigestScope::ArchiveMember
+    } else {
+        DigestScope::OriginalFile
+    };
+    let canonical = digest(
+        SourceDigestAlgorithm::Sha256,
+        DigestScope::CanonicalN64BigEndian,
+    );
     let identity = FileIdentity {
-        sha256: source.sha256.clone(), size: source.size,
-        sha1: digest(SourceDigestAlgorithm::Sha1, content_scope).map_or_else(String::new, |digest| digest.value.clone()),
-        crc32: digest(SourceDigestAlgorithm::Crc32, content_scope).map_or_else(String::new, |digest| digest.value.clone()),
-        storage_sha256: source.storage_sha256.clone(), storage_size: source.storage_size,
-        content_extension: Path::new(facts.archive_member_name.as_deref().unwrap_or_else(|| source.path.to_str().unwrap_or_default()))
-            .extension().and_then(|extension| extension.to_str()).unwrap_or_default().to_ascii_lowercase(),
-        archive_member: facts.archive_member_name.is_some(), archive_member_name: facts.archive_member_name.clone(),
+        sha256: source.sha256.clone(),
+        size: source.size,
+        sha1: digest(SourceDigestAlgorithm::Sha1, content_scope)
+            .map_or_else(String::new, |digest| digest.value.clone()),
+        crc32: digest(SourceDigestAlgorithm::Crc32, content_scope)
+            .map_or_else(String::new, |digest| digest.value.clone()),
+        storage_sha256: source.storage_sha256.clone(),
+        storage_size: source.storage_size,
+        content_extension: Path::new(
+            facts
+                .archive_member_name
+                .as_deref()
+                .unwrap_or_else(|| source.path.to_str().unwrap_or_default()),
+        )
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase(),
+        archive_member: facts.archive_member_name.is_some(),
+        archive_member_name: facts.archive_member_name.clone(),
         canonical_n64_sha256: canonical.map(|digest| digest.value.clone()),
-        canonical_n64_sha1: digest(SourceDigestAlgorithm::Sha1, DigestScope::CanonicalN64BigEndian).map(|digest| digest.value.clone()),
+        canonical_n64_sha1: digest(
+            SourceDigestAlgorithm::Sha1,
+            DigestScope::CanonicalN64BigEndian,
+        )
+        .map(|digest| digest.value.clone()),
         canonical_n64_size: canonical.map(|digest| digest.size),
     };
     if matching_compound_format(catalog, profile_id, &identity, &facts.digests).is_some() {
         return assessment;
     }
-    let Ok(inspected) = inspect_file_identity_with_compound(catalog, profile_id, &source.path, &identity, None) else {
+    let Ok(inspected) =
+        inspect_file_identity_with_compound(catalog, profile_id, &source.path, &identity, None)
+    else {
         return assessment;
     };
     assessment.classification = inspected.assessment.classification;
     assessment.admission = inspected.assessment.admission;
-    let contracts = catalog.source_catalog().into_iter().flat_map(|catalog| &catalog.contracts)
-        .filter(|contract| contract.port_id == port_id && contract.role == role && contract.profile_id == profile_id)
+    let contracts = catalog
+        .source_catalog()
+        .into_iter()
+        .flat_map(|catalog| &catalog.contracts)
+        .filter(|contract| {
+            contract.port_id == port_id
+                && contract.role == role
+                && contract.profile_id == profile_id
+        })
         .collect::<Vec<_>>();
-    let [contract] = contracts.as_slice() else { return assessment; };
+    let [contract] = contracts.as_slice() else {
+        return assessment;
+    };
     assessment.contract = if contract.admission_mode == crate::CatalogAdmissionMode::Informational {
-        SourceContractResult::Informational { contract_id: contract.id.clone() }
+        SourceContractResult::Informational {
+            contract_id: contract.id.clone(),
+        }
     } else if !release.is_some_and(|(version, hash)| contract.applies_to_release(version, hash)) {
         SourceContractResult::UnreviewedForRelease
     } else if let SourceClassification::Recognized { identity } = &assessment.classification {
-        if contract.supported_variant_ids.contains(&identity.variant_id) {
-            SourceContractResult::Supported { contract_id: contract.id.clone() }
+        if contract
+            .supported_variant_ids
+            .contains(&identity.variant_id)
+        {
+            SourceContractResult::Supported {
+                contract_id: contract.id.clone(),
+            }
         } else {
-            SourceContractResult::RecognizedNotListed { contract_id: contract.id.clone() }
+            SourceContractResult::RecognizedNotListed {
+                contract_id: contract.id.clone(),
+            }
         }
-    } else { SourceContractResult::NotEvaluated };
+    } else {
+        SourceContractResult::NotEvaluated
+    };
     assessment
+}
+
+pub(crate) fn require_launch_source_compatibility(
+    catalog: &Catalog,
+    port_id: &str,
+    source: &SourceRecord,
+    role: crate::PortSourceRole,
+    release: (&str, &str),
+) -> Result<()> {
+    let assessment = registered_launch_assessment(
+        catalog,
+        &source.profile_id,
+        crate::SourceHealth::Current,
+        Some(source),
+        port_id,
+        role,
+        Some(release),
+    );
+    if assessment.known_input_failure() {
+        return Err(PortcoveError::source("This original-file edition is not supported by the installed release. Choose a supported edition and check it again.")
+            .detail("profile_id", &source.profile_id));
+    }
+    Ok(())
 }
 
 fn representation_matches(
@@ -1897,6 +1976,22 @@ fn representation_matches(
     identities
         .iter()
         .any(|identity| digest_identity_matches(identity, observed))
+}
+
+fn requires_n64_shape(catalog: &Catalog, profile_id: &str, identity: &FileIdentity) -> bool {
+    catalog
+        .source_catalog()
+        .into_iter()
+        .flat_map(|catalog| &catalog.identities)
+        .filter(|profile| profile.id == profile_id)
+        .flat_map(|profile| &profile.variants)
+        .flat_map(|variant| &variant.representations)
+        .any(|representation| {
+            matches!(
+                representation.kind,
+                SourceRepresentationKind::CanonicalN64 { .. }
+            ) && representation_extensions_match(representation, identity)
+        })
 }
 
 fn representation_extensions_match(
@@ -2316,6 +2411,242 @@ mod tests {
             }
         ));
         assert!(mismatch.record.is_none());
+    }
+
+    #[test]
+    fn declared_n64_rejects_invalid_raw_and_zip_before_structural_admission() {
+        let temporary = tempfile::tempdir().unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        for zipped in [false, true] {
+            let path = temporary
+                .path()
+                .join(if zipped { "invalid.zip" } else { "invalid.z64" });
+            if zipped {
+                let mut archive = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+                archive
+                    .start_file("original.z64", zip::write::SimpleFileOptions::default())
+                    .unwrap();
+                archive.write_all(&[0_u8; 1024]).unwrap();
+                archive.finish().unwrap();
+            } else {
+                fs::write(&path, [0_u8; 1024]).unwrap();
+            }
+            let mut budget = HashBudget {
+                operation: None,
+                limit: u64::MAX,
+                hashed: 0,
+                max_zip_entries: 4096,
+            };
+            let error = inspect_file(&catalog, "ocarina-of-time", &path, u64::MAX, &mut budget)
+                .unwrap_err();
+            assert!(error.message.contains("not a valid N64 ROM"));
+        }
+        let invalid_path = temporary.path().join("invalid.z64");
+        let mut budget = HashBudget {
+            operation: None,
+            limit: u64::MAX,
+            hashed: 0,
+            max_zip_entries: 4096,
+        };
+        let identity =
+            read_identity(&invalid_path, &["z64".into()], u64::MAX, &mut budget).unwrap();
+        let mut legacy_record = identity.record_without_admission("ocarina-of-time", &invalid_path);
+        legacy_record.observed_identity = Some(ObservedSourceIdentity {
+            schema_version: 1,
+            archive_member_name: None,
+            digests: observed_digests(&identity),
+            components: vec![],
+            validator: None,
+        });
+        let assessment = registered_launch_assessment(
+            &catalog,
+            "ocarina-of-time",
+            crate::SourceHealth::Current,
+            Some(&legacy_record),
+            "shipwright",
+            crate::PortSourceRole::Game,
+            Some(("9.2.3", &"a".repeat(64))),
+        );
+        assert_eq!(assessment.health, crate::SourceHealth::Current);
+        // Missing old facts cannot prove that a canonical header check failed.
+        assert!(!assessment.known_input_failure());
+        assert!(matches!(
+            assessment.classification,
+            SourceClassification::NotEvaluated
+        ));
+
+        let path = temporary.path().join("unconfirmed.z64");
+        fs::write(&path, [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4]).unwrap();
+        let inspected = inspect(&catalog, "ocarina-of-time", &path);
+        assert!(matches!(
+            inspected.assessment.classification,
+            SourceClassification::Unrecognized
+        ));
+        assert!(matches!(
+            inspected.assessment.admission,
+            SourceAdmission::Admitted {
+                mode: SourceAdmissionMode::StructuralChecks
+            }
+        ));
+    }
+
+    #[test]
+    fn launch_assessment_reuses_bound_facts_and_requires_current_release_scope() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("bios.bin");
+        let bytes = b"fixture original BIOS identity";
+        fs::write(&path, bytes).unwrap();
+        let catalog = catalog_with_identity("psx-scph-1001-bios", |profile| {
+            for variant in &mut profile.variants {
+                if variant.legacy_projection_only {
+                    continue;
+                }
+                for representation in &mut variant.representations {
+                    let scope = if matches!(
+                        representation.kind,
+                        SourceRepresentationKind::ArchiveMember { .. }
+                    ) {
+                        DigestScope::ArchiveMember
+                    } else {
+                        DigestScope::OriginalFile
+                    };
+                    if let SourceRepresentationKind::RawFile { identities }
+                    | SourceRepresentationKind::ArchiveMember { identities, .. } =
+                        &mut representation.kind
+                    {
+                        *identities = vec![DigestIdentity {
+                            scope,
+                            sha1: None,
+                            sha256: Some(hex::encode(Sha256::digest(bytes))),
+                            crc32: None,
+                        }];
+                    }
+                }
+            }
+        });
+        let mut document = catalog.authoritative_document();
+        let contract = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .contracts
+            .iter_mut()
+            .find(|contract| {
+                contract.profile_id == "psx-scph-1001-bios"
+                    && contract.role == crate::PortSourceRole::Bios
+            })
+            .unwrap();
+        let port_id = contract.port_id.clone();
+        contract.applicability = vec![crate::SourceContractApplicability {
+            upstream_ref: "fixture-1".into(),
+            artifact_sha256: Some("a".repeat(64)),
+        }];
+        let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let record = inspect(&catalog, "psx-scph-1001-bios", &path)
+            .require_admitted_record()
+            .unwrap();
+        fs::remove_file(&path).unwrap(); // The descriptive reassessment itself performs no I/O.
+        let hash = "a".repeat(64);
+        let assess = |record: &SourceRecord, health, version| {
+            registered_launch_assessment(
+                &catalog,
+                &record.profile_id,
+                health,
+                Some(record),
+                &port_id,
+                crate::PortSourceRole::Bios,
+                Some((version, &hash)),
+            )
+        };
+        assert!(matches!(
+            assess(&record, crate::SourceHealth::Current, "fixture-1").contract,
+            SourceContractResult::Supported { .. }
+        ));
+        assert!(matches!(
+            assess(&record, crate::SourceHealth::Current, "fixture-2").contract,
+            SourceContractResult::UnreviewedForRelease
+        ));
+        let mut mismatch_document = catalog.authoritative_document();
+        let sources = mismatch_document.source_catalog.as_mut().unwrap();
+        let profile = sources
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == record.profile_id)
+            .unwrap();
+        let mut other = profile
+            .variants
+            .iter()
+            .find(|variant| !variant.legacy_projection_only)
+            .unwrap()
+            .clone();
+        other.id = "fixture-other-edition".into();
+        for representation in &mut other.representations {
+            if let SourceRepresentationKind::RawFile { identities }
+            | SourceRepresentationKind::ArchiveMember { identities, .. } =
+                &mut representation.kind
+            {
+                for identity in identities {
+                    identity.sha256 = Some("b".repeat(64));
+                }
+            }
+        }
+        profile.variants.push(other);
+        sources
+            .contracts
+            .iter_mut()
+            .find(|contract| {
+                contract.port_id == port_id && contract.role == crate::PortSourceRole::Bios
+            })
+            .unwrap()
+            .supported_variant_ids = vec!["fixture-other-edition".into()];
+        let mismatch =
+            Catalog::from_json(&serde_json::to_string(&mismatch_document).unwrap()).unwrap();
+        assert!(
+            require_launch_source_compatibility(
+                &mismatch,
+                &port_id,
+                &record,
+                crate::PortSourceRole::Bios,
+                ("fixture-1", &hash)
+            )
+            .is_err()
+        );
+        assert!(
+            require_launch_source_compatibility(
+                &mismatch,
+                &port_id,
+                &record,
+                crate::PortSourceRole::Game,
+                ("fixture-1", &hash)
+            )
+            .is_ok()
+        );
+        assert!(
+            require_launch_source_compatibility(
+                &mismatch,
+                &port_id,
+                &record,
+                crate::PortSourceRole::Bios,
+                ("fixture-2", &hash)
+            )
+            .is_ok()
+        );
+        assert!(matches!(
+            assess(&record, crate::SourceHealth::Missing, "fixture-1").contract,
+            SourceContractResult::NotEvaluated
+        ));
+        let mut legacy = record.clone();
+        legacy.observed_identity = None;
+        assert!(matches!(
+            assess(&legacy, crate::SourceHealth::Current, "fixture-1").classification,
+            SourceClassification::NotEvaluated
+        ));
+        let mut changed = record;
+        changed.storage_sha256 = "b".repeat(64);
+        assert!(matches!(
+            assess(&changed, crate::SourceHealth::Current, "fixture-1").contract,
+            SourceContractResult::NotEvaluated
+        ));
     }
 
     #[test]
@@ -2815,7 +3146,11 @@ mod tests {
     fn service_inspection_is_read_only_and_registration_consumes_the_same_result() {
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path().join("source.z64");
-        fs::write(&path, b"synthetic structurally accepted source").unwrap();
+        fs::write(
+            &path,
+            b"\x80\x37\x12\x40synthetic structurally accepted source___",
+        )
+        .unwrap();
         let service = crate::PortcoveService::new(
             crate::Library::open(temporary.path().join("library")).unwrap(),
         )
@@ -2831,7 +3166,7 @@ mod tests {
         assert!(service.library().sources().unwrap().is_empty());
         assert_eq!(
             fs::read(&path).unwrap(),
-            b"synthetic structurally accepted source"
+            b"\x80\x37\x12\x40synthetic structurally accepted source___"
         );
 
         let expected = inspection.record.unwrap();
