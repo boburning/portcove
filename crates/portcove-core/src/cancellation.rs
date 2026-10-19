@@ -87,6 +87,22 @@ impl CancellationScope {
         })
     }
 
+    /// Resume only an existing cancellable activity, without resetting its request.
+    pub(crate) fn resume(library: &Library, id: &str) -> Result<Self> {
+        let guard = library.try_lock_activity(id)?;
+        if cancellation_state(library, id)?.is_none() {
+            return Err(PortcoveError::conflict(
+                "activity is no longer cancellable or finishing",
+            ));
+        }
+        Ok(Self {
+            library: library.clone(),
+            id: id.to_owned(),
+            _guard: guard,
+            checked: Mutex::new(None),
+        })
+    }
+
     pub fn checkpoint(&self) -> Result<()> {
         let mut checked = self
             .checked

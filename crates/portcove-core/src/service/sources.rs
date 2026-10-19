@@ -294,7 +294,12 @@ impl PortcoveService {
         let registered = self.library.source(profile_id)?.ok_or_else(|| {
             PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
         })?;
-        let inspection = self.inspect_registered_source(profile_id)?;
+        #[cfg(test)]
+        self.check_lifecycle_fault(
+            crate::operation::LifecycleFaultPoint::SourceVerificationCaptured,
+        )?;
+        let inspection =
+            crate::source_report::registered_report(&self.catalog, registered.clone())?;
         require_current_admitted_inspection(&inspection)?;
         Ok(SourceVerification {
             profile_id: registered.profile_id,
