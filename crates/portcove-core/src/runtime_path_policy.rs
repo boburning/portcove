@@ -60,6 +60,7 @@ fn path_error() -> PortcoveError {
     PortcoveError::unsupported(
         "This game port needs a shorter installation folder using basic Latin characters. Choose a folder such as C:\\Games\\Portcove in its setup options, then review the installation again.",
     ).detail("runtime_path_requirement", "printable-ascii-max-path")
+    .with_known_cause(crate::failure::KnownFailureCause::RuntimePathRequirement)
 }
 
 /// Shared with the separately scoped legacy shared-preferences path check.
@@ -124,7 +125,33 @@ mod tests {
         port.windows_runtime_path_policy = None;
         check(&port, Platform::WindowsX86_64, Path::new("C:\\日本語")).unwrap();
         port.windows_runtime_path_policy = Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
-        assert!(check(&port, Platform::WindowsX86_64, Path::new("C:\\日本語")).is_err());
+        let refused = check(&port, Platform::WindowsX86_64, Path::new("C:\\日本語"))
+            .unwrap_err()
+            .report();
+        assert_eq!(refused.code, crate::ErrorCode::Unsupported);
+        assert_eq!(
+            refused.details["runtime_path_requirement"],
+            "printable-ascii-max-path"
+        );
+        assert_eq!(
+            refused.presentation.presentation_key,
+            "runtime_path_requirement"
+        );
+        assert_eq!(
+            refused.presentation.summary,
+            "This game port needs a shorter installation folder using basic Latin characters. Choose a folder such as C:\\Games\\Portcove in setup options, then review the installation again. Original game files can stay where they are."
+        );
+        assert_eq!(
+            refused.presentation.mutation_state,
+            crate::MutationState::Unknown
+        );
+        assert_eq!(
+            refused.presentation.recovery_actions,
+            [
+                crate::RecoveryAction::ReviewCurrentState,
+                crate::RecoveryAction::ViewTechnicalDetails
+            ]
+        );
         check(&port, Platform::LinuxX86_64, Path::new("/home/日本語")).unwrap();
         validate(&port).unwrap();
         port.platforms.push(Platform::LinuxX86_64);
