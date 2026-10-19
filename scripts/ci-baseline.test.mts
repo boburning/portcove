@@ -341,3 +341,48 @@ void test("desktop runner selects the same complete contract union in local and 
     assert.equal(local.workspaceRust, false);
   }
 });
+
+void test("semantic helper-only changes retain their actual broker consumer locally and hosted", () => {
+  for (const name of ["reader", "reader-core", "reader-server", "runtime", "inputs"]) {
+    const file = `scripts/release-semantic-${name}.mts`;
+    for (const change of [
+      { status: "M", path: file },
+      { status: "D", path: file },
+      { status: "R100", path: "scripts/moved-helper.mts", previousPath: file },
+      { status: "R100", previousPath: "scripts/moved-helper.mts", path: file },
+    ]) {
+      const local = classifyChanges([change], { fileExists: () => false });
+      assert.ok(
+        local.nodeTests.has("scripts/release-semantic-broker.test.mts"),
+        JSON.stringify(change),
+      );
+      const plan = buildValidationPlan({
+        changes: [
+          {
+            status: change.status,
+            oldPath: change.previousPath ?? change.path,
+            newPath: change.path,
+            oldMode: "100644",
+            newMode: change.status === "D" ? "000000" : "100644",
+          },
+        ],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      assert.ok(plan.areas.includes("release-security"));
+      assert.ok(
+        baselineContractTests(plan, { fileExists: () => false }).includes(
+          "scripts/release-semantic-broker.test.mts",
+        ),
+      );
+    }
+  }
+  assert.ok(
+    !classifyChanges([{ status: "M", path: "scripts/ui-test-selection.mts" }]).nodeTests.has(
+      "scripts/release-semantic-broker.test.mts",
+    ),
+  );
+});
