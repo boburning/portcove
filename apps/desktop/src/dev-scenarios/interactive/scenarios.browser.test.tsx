@@ -147,6 +147,34 @@ it("opens application updates from Game updates without entering custom catalog 
   expect(advanced && getComputedStyle(advanced).display).toBe("none");
 });
 
+it("checks a one-time update channel in actual Settings without saving consent", async () => {
+  const save = vi.spyOn(desktopApi, "setApplicationUpdatePreferences");
+  await mount("library");
+  await page.getByRole("button", { name: /^Settings/ }).click();
+  await page
+    .getByRole("navigation", { name: "Settings categories" })
+    .getByRole("button", { name: "Updates", exact: true })
+    .click();
+  await page
+    .getByRole("group", { name: "One-time update channel", exact: true })
+    .getByRole("button", { name: "Stable", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Check for updates", exact: true }).click();
+  await expect.element(page.getByText("One-time check · Stable", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      page.getByText("Renderer fixture only: no update service or native trust checks were run.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Save application update settings", exact: true }))
+    .toBeDisabled();
+  expect(save).not.toHaveBeenCalled();
+  expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
+});
+
 it.each([
   [960, 640, 3],
   [1280, 800, 4],

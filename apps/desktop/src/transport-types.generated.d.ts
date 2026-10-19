@@ -668,6 +668,7 @@ export interface TransportOutputs {
   upstream_observation_report: OutputUpstreamObservationReport;
   desktop_application_update_check_phase: OutputDesktopApplicationUpdateCheckPhase;
   desktop_application_update_check_result: ApplicationUpdateCheckResult;
+  desktop_application_update_manual_check_result: OutputDesktopApplicationUpdateManualCheckResult;
   desktop_application_update_notice: OutputDesktopApplicationUpdateNotice;
   desktop_application_update_preferences: ApplicationUpdatePreferences;
   desktop_application_update_production_transition: ApplicationUpdateProductionTransition;
@@ -2696,6 +2697,11 @@ export interface ApplicationUpdateCandidateSummary {
   bytes: number;
   channel: ApplicationChannel;
   version: string;
+}
+export interface OutputDesktopApplicationUpdateManualCheckResult {
+  checked_channel: ApplicationChannel;
+  result: ApplicationUpdateCheckResult;
+  [k: string]: unknown;
 }
 export interface OutputDesktopApplicationUpdateNotice {
   notice: ApplicationUpdateNotice | null;

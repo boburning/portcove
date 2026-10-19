@@ -523,6 +523,7 @@ mod tests {
 
     struct FakeChecker {
         calls: AtomicUsize,
+        channels: Mutex<Vec<ApplicationChannel>>,
         result: Mutex<Option<Result<AuthenticatedCandidateSelection, CandidateLoadError>>>,
     }
 
@@ -608,9 +609,10 @@ mod tests {
     impl ApplicationUpdateChecker for FakeChecker {
         async fn check(
             &self,
-            _channel: ApplicationChannel,
+            channel: ApplicationChannel,
         ) -> Result<AuthenticatedCandidateSelection, CandidateLoadError> {
             self.calls.fetch_add(1, Ordering::SeqCst);
+            self.channels.lock().unwrap().push(channel);
             self.result.lock().unwrap().take().unwrap()
         }
     }
@@ -629,6 +631,7 @@ mod tests {
     fn checker(result: Result<AuthenticatedCandidateSelection, CandidateLoadError>) -> FakeChecker {
         FakeChecker {
             calls: AtomicUsize::new(0),
+            channels: Mutex::new(Vec::new()),
             result: Mutex::new(Some(result)),
         }
     }
@@ -681,6 +684,88 @@ mod tests {
                     paused,
                 },
             )
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn one_time_checks_do_not_read_consent_or_record_automatic_cadence() {
+        let (temporary, coordinator, preferences, schedule, _clock) = fixture();
+        let preference_path = temporary.path().join("application-updates.json");
+        let schedule_path = temporary.path().join("application-update-schedule.json");
+        for saved_choice in [false, true] {
+            if saved_choice {
+                choose(&preferences, 0, ApplicationUpdateMode::Automatic, true);
+                schedule.record_success(0, 1, 1_999).unwrap();
+            }
+            let before_preferences = std::fs::read(&preference_path).ok();
+            let before_schedule = std::fs::read(&schedule_path).ok();
+            for channel in [ApplicationChannel::Stable, ApplicationChannel::Preview] {
+                let checker = checker(Ok(selection()));
+                coordinator.check_once(channel, &checker).await.unwrap();
+                assert_eq!(checker.calls.load(Ordering::SeqCst), 1);
+                assert_eq!(*checker.channels.lock().unwrap(), [channel]);
+                assert_eq!(std::fs::read(&preference_path).ok(), before_preferences);
+                assert_eq!(std::fs::read(&schedule_path).ok(), before_schedule);
+            }
+            let rejected = checker(Err(CandidateLoadError::InvalidIndex(
+                "rejected metadata".into(),
+            )));
+            assert!(
+                coordinator
+                    .check_once(ApplicationChannel::Stable, &rejected)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(std::fs::read(&preference_path).ok(), before_preferences);
+            assert_eq!(std::fs::read(&schedule_path).ok(), before_schedule);
+            let limited = checker(Err(CandidateLoadError::Trust(
+                crate::application_update_trust::TrustedRepositoryError::RateLimited {
+                    retry_at_unix_seconds: Some(50_000),
+                },
+            )));
+            assert!(matches!(
+                coordinator
+                    .check_once(ApplicationChannel::Stable, &limited)
+                    .await,
+                Err(ApplicationUpdateCoordinatorError::Check {
+                    failure: CandidateLoadFailureKind::RateLimited,
+                    ..
+                })
+            ));
+            assert_eq!(std::fs::read(&preference_path).ok(), before_preferences);
+            assert_eq!(std::fs::read(&schedule_path).ok(), before_schedule);
+        }
+    }
+
+    #[tokio::test]
+    async fn one_time_checks_share_ownership_and_release_it_when_dropped() {
+        let (_temporary, coordinator, preferences, _schedule, _clock) = fixture();
+        choose(&preferences, 0, ApplicationUpdateMode::Automatic, false);
+        let blocking = BlockingChecker::new();
+        let mut running = Box::pin(coordinator.check_once(ApplicationChannel::Stable, &blocking));
+        tokio::select! {
+            _ = &mut running => panic!("blocking checker unexpectedly completed"),
+            permit = blocking.started.acquire() => permit.unwrap().forget(),
+        }
+        assert!(matches!(
+            coordinator
+                .check_once(ApplicationChannel::Preview, &checker(Ok(selection())))
+                .await,
+            Err(ApplicationUpdateCoordinatorError::Busy)
+        ));
+        assert!(matches!(
+            coordinator
+                .run(
+                    environment(ApplicationUpdateCheckRequest::Automatic),
+                    &checker(Ok(selection()))
+                )
+                .await,
+            Err(ApplicationUpdateCoordinatorError::Busy)
+        ));
+        drop(running);
+        coordinator
+            .check_once(ApplicationChannel::Preview, &checker(Ok(selection())))
+            .await
             .unwrap();
     }
 

@@ -1301,7 +1301,7 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Disk unavailable");
-    expect(html).toContain("Choose how Portcove updates");
+    expect(html).toContain("Portcove updates");
     expect(html).toContain("Backup in progress");
   });
 
@@ -1556,7 +1556,7 @@ describe("desktop components", () => {
     expect(groupMarkup("library-storage")).toContain("Files and capacity");
     expect(groupMarkup("game-files")).toContain("Game files and BIOS");
     expect(groupMarkup("game-files")).toContain("Disc tools");
-    expect(groupMarkup("updates")).toContain("Choose how Portcove updates");
+    expect(groupMarkup("updates")).toContain("Portcove updates");
     expect(groupMarkup("updates")).toContain("Portcove &amp; catalog updates");
     expect(groupMarkup("updates")).toContain(
       "Game updates and activity are in the Game updates workspace.",
@@ -1935,7 +1935,7 @@ describe("desktop components", () => {
     expect(html.indexOf("Library at startup")).toBeLessThan(html.indexOf("Files and capacity"));
     expect(html.indexOf("Game-file libraries")).toBeLessThan(html.indexOf("Game files and BIOS"));
     expect(html.indexOf("Game files and BIOS")).toBeLessThan(html.indexOf("Disc tools"));
-    expect(html.indexOf("Choose how Portcove updates")).toBeLessThan(html.indexOf("Game catalog"));
+    expect(html.indexOf("Portcove updates")).toBeLessThan(html.indexOf("Game catalog"));
     expect(advanced.indexOf("metadata may remain")).toBeLessThan(
       advanced.indexOf(">Create support bundle</button>"),
     );

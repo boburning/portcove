@@ -63,15 +63,24 @@ fixed journal before clearing it, so a stale renderer cannot erase state that an
 process already repaired.
 Preference corruption has its own explicit reset and returns to no consent.
 
-The Settings card also exposes one manual check and a cancellation action. The
-renderer supplies no repository, installed-package, signature, key or path input;
-the host uses only its compiled provider and saved choice. Fixed progress phases and
-the final candidate summary are transient presentation state. Automatic mode may
-stage a verified newer payload during that manual request, while notification-only
-and manual modes report availability without opening the payload. Unsaved preference
-changes disable the action so the visible draft cannot be mistaken for the persisted
-host policy. Ordinary alpha builds return an explicit unavailable result because
-they contain no production repository configuration.
+Settings leads with a cancellable one-time Stable/Preview metadata check. An omitted
+channel defaults in the host to Preview for 0.x/prerelease builds and Stable for a
+production-form version. The strict request accepts no repository, installed-package,
+signature, key or path input. Selection uses the compiled authenticated provider.
+This query shares check ownership but reads no saved consent, changes no automatic
+schedule, opens no payload stream and performs no staging/apply reconciliation.
+Authentication may retain trusted metadata and replay/time floors. Missing choices,
+paused automatic activity and unsaved preference drafts do not grant consent or
+prevent this query. Ordinary alpha builds without repository configuration still
+report that application updating is unavailable.
+
+The sanitized result names its checked channel. It is transient and independent of
+saved-preference revisions; changing the one-time selector invalidates it. Existing
+automatic notices and staged updates remain independent. An explicit download still
+requires an unpaused saved choice matching the result's channel and fresh host
+reauthentication of its preference revision and candidate identity. Unsaved drafts
+block downloading and applying. Checking once never saves a preference or enables
+automatic downloads; future update behavior remains a separate explicit save.
 
 The separate host schedule records successful-check cadence and bounded retry state,
 not a device identity or updater operation. A pure decision delays automatic work
@@ -79,9 +88,10 @@ for 30 seconds after startup, at least 24 hours after success, and 15 minutes th
 at most six hours after failure with bounded jitter. Automatic checks require a
 recorded nonmanual, unpaused choice and unmetered connectivity. Each outcome binds
 the preference revision observed by its check, so a later channel or mode change
-ignores stale cadence. Unknown metering holds for an explicit manual choice. Manual
-checks bypass local cadence and policy
-holds but still refuse known offline state. The strict bounded document uses
+ignores stale cadence. Unknown metering holds for an explicit manual choice.
+Policy-controlled explicit downloads bypass local cadence but still refuse known
+offline state. Independent one-time metadata queries report provider/network errors
+without recording automatic cadence or retry state. The strict bounded document uses
 compare-and-swap revisions, path-keyed process and OS locks, durable atomic writes,
 and explicit reset for malformed or future state. No decision performs network,
 download, staging or application work.
@@ -93,13 +103,14 @@ payload-verification rejection. Numeric `Retry-After` and future
 the host keeps the later value, caps untrusted provider delay at 24 hours, and never
 shortens an existing cadence hold. Missing, malformed, past, and date-form values
 are ignored; when no usable provider hint remains, the host falls back to the
-ordinary bounded retry. Explicit manual retry still reauthenticates the candidate
-and bypasses cadence, while known-offline state prevents even a manual request.
+ordinary bounded retry. Explicit download retry still reauthenticates the candidate
+and bypasses cadence, while known-offline state prevents that request.
 Rate-limit failure opens no payload stream, records no successful check, and leaves
 verified staging unchanged.
 
-One host coordinator serializes due and manual checks across processes, re-evaluates
-policy after taking ownership, and awaits the injected authenticated repository
+One host coordinator serializes saved-policy work and one-time metadata queries
+across processes. The saved-policy/background/download path re-evaluates
+policy after taking ownership and awaits the injected authenticated repository
 checker off the startup path. Completion records success or bounded failure backoff
 against the schedule revision that admitted the check, so a concurrent explicit
 reset wins. Cancellation releases ownership without manufacturing an outcome. An
@@ -112,6 +123,10 @@ candidate. An injected completion can retain that same cross-process owner throu
 selected follow-on step. Its failure records bounded retry instead of the daily
 success interval; success is recorded only after completion. The coordinator adds no
 URL, key, network, staging or apply authority of its own.
+The independent one-time query shares this lock and error classification but does
+not read policy, record cadence/backoff, run a completion, or bind its metadata
+result to a preference revision. Download and apply retain their separate saved
+consent and fresh candidate requirements.
 
 The host `application_update_operation` boundary composes that coordinator with
 authenticated payload acquisition and the verified staging store. Automatic mode
@@ -122,9 +137,10 @@ second download. Fixed checking, acquiring-and-verifying, staged and complete
 phases reveal no URL, signature, key or path. Cooperative cancellation before or
 during network/staging work publishes no unverified bytes, and the staging journal
 restores the prior verified slot on restart. This operation is dependency-injected
-and is registered only behind the fixed manual-check command. It has no production
-metadata origin, automatic startup activation, exit hook or platform replacement
-authority.
+and runs through fixed download commands and host-owned background coordination.
+The one-time check command uses its separate metadata-only method, which has no
+payload-source argument and never calls staging. Neither method chooses an
+independent metadata origin or grants platform replacement authority.
 
 Core supplies a pre-apply quiescence guard under the current library's exclusive
 lifetime lease. Every open CLI or Desktop library already holds the shared side, so

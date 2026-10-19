@@ -771,7 +771,7 @@ fn coordinator_error(error: ApplicationUpdateCoordinatorError) -> DesktopError {
             )
             .into(),
             CandidateLoadFailureKind::RateLimited => portcove_core::PortcoveError::network(
-                "The application update service rate limit was reached. Portcove kept the last trusted state and deferred the next automatic check.",
+                "The application update service rate limit was reached. Portcove kept the last trusted state. Try again later.",
             )
             .into(),
             CandidateLoadFailureKind::Stale => portcove_core::PortcoveError::verification(
@@ -895,6 +895,30 @@ mod tests {
         observed: Arc<Mutex<Option<ApplicationUpdateCheckEnvironment>>>,
     }
 
+    struct MetadataRunner(Arc<Mutex<Vec<ApplicationChannel>>>);
+
+    #[async_trait]
+    impl ApplicationUpdateCommandRunner for MetadataRunner {
+        async fn run(
+            &self,
+            request: ApplicationUpdateCommandRequest,
+            _progress: &dyn ApplicationUpdateProgressSink,
+            _cancellation: &CancellationToken,
+        ) -> Result<ApplicationUpdateOperationOutcome, ApplicationUpdateOperationError> {
+            let ApplicationUpdateCommandRequest::CheckOnce(channel) = request else {
+                panic!("one-time query used saved-policy execution")
+            };
+            self.0.lock().unwrap().push(channel);
+            Ok(ApplicationUpdateOperationOutcome::MetadataChecked {
+                selection: ApplicationUpdateSelectionSummary {
+                    state: crate::application_update::CandidateState::Current,
+                    candidate: None,
+                    reasons: Vec::new(),
+                },
+            })
+        }
+    }
+
     #[async_trait]
     impl ApplicationUpdateCommandRunner for CancelledRunner {
         async fn run(
@@ -939,6 +963,89 @@ mod tests {
             automatic_wake: Arc::new(Notify::new()),
             notice: Arc::new(Mutex::new(ApplicationUpdateNoticeState::default())),
         }
+    }
+
+    #[tokio::test]
+    async fn one_time_command_returns_checked_channel_without_clearing_automatic_notice() {
+        let observed = Arc::new(Mutex::new(Vec::new()));
+        let state = state_with(Arc::new(MetadataRunner(observed.clone())));
+        let notice = state.update_notice(Some(ApplicationUpdateNotice {
+            preference_revision: 7,
+            result: ApplicationUpdateCheckResult {
+                kind: ApplicationUpdateCheckResultKind::Current,
+                candidate: None,
+                reasons: Vec::new(),
+                staged: false,
+            },
+        }));
+        let default = run_check(&state, None, &NoopApplicationUpdateProgressSink)
+            .await
+            .unwrap();
+        assert_eq!(
+            default.checked_channel,
+            default_check_channel(env!("CARGO_PKG_VERSION")).unwrap()
+        );
+        for channel in [ApplicationChannel::Stable, ApplicationChannel::Preview] {
+            let checked = run_check(
+                &state,
+                Some(ApplicationUpdateManualCheckRequest {
+                    channel: Some(channel),
+                }),
+                &NoopApplicationUpdateProgressSink,
+            )
+            .await
+            .unwrap();
+            assert_eq!(checked.checked_channel, channel);
+            assert!(!checked.result.staged);
+            assert_eq!(state.notice(), notice);
+        }
+        assert_eq!(
+            *observed.lock().unwrap(),
+            [
+                default.checked_channel,
+                ApplicationChannel::Stable,
+                ApplicationChannel::Preview
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn one_time_request_defaults_and_channel_are_host_owned() {
+        assert_eq!(
+            default_check_channel("0.1.0-alpha.2").unwrap(),
+            ApplicationChannel::Preview
+        );
+        assert_eq!(
+            default_check_channel("0.9.0").unwrap(),
+            ApplicationChannel::Preview
+        );
+        assert_eq!(
+            default_check_channel("1.0.0-beta.1").unwrap(),
+            ApplicationChannel::Preview
+        );
+        assert_eq!(
+            default_check_channel("1.0.0").unwrap(),
+            ApplicationChannel::Stable
+        );
+        assert!(default_check_channel("invalid").is_err());
+        assert!(
+            serde_json::from_value::<ApplicationUpdateManualCheckRequest>(
+                serde_json::json!({"channel":"nightly"})
+            )
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<ApplicationUpdateManualCheckRequest>(
+                serde_json::json!({"channel":"stable", "url":"https://invalid.example"})
+            )
+            .is_err()
+        );
+        assert_eq!(
+            serde_json::from_value::<ApplicationUpdateManualCheckRequest>(serde_json::json!({}))
+                .unwrap()
+                .channel,
+            None
+        );
     }
 
     #[tokio::test]
@@ -1166,7 +1273,8 @@ mod tests {
         assert_eq!(error.code, portcove_core::ErrorCode::Network);
         assert!(error.message.contains("rate limit"));
         assert!(error.message.contains("last trusted state"));
-        assert!(error.message.contains("deferred"));
+        assert!(error.message.contains("Try again later"));
+        assert!(!error.message.contains("automatic"));
         assert!(!error.message.contains("9999"));
     }
 }

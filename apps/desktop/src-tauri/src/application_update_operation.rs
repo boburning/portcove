@@ -438,6 +438,19 @@ mod tests {
         result: Mutex<Option<Result<AuthenticatedCandidateSelection, CandidateLoadError>>>,
     }
 
+    struct PendingMetadataChecker(tokio::sync::Semaphore);
+
+    #[async_trait]
+    impl ApplicationUpdateChecker for PendingMetadataChecker {
+        async fn check(
+            &self,
+            _channel: ApplicationChannel,
+        ) -> Result<AuthenticatedCandidateSelection, CandidateLoadError> {
+            self.0.add_permits(1);
+            std::future::pending().await
+        }
+    }
+
     #[async_trait]
     impl ApplicationUpdateChecker for FakeChecker {
         async fn check(
@@ -666,6 +679,105 @@ mod tests {
         FakeChecker {
             result: Mutex::new(Some(Ok(result))),
         }
+    }
+
+    #[tokio::test]
+    async fn one_time_cancellation_releases_check_ownership_without_staging() {
+        let (temporary, operation, _preferences) = fixture(ApplicationUpdateMode::Automatic);
+        let blocking = PendingMetadataChecker(tokio::sync::Semaphore::new(0));
+        let progress = RecordingProgress::default();
+        let cancellation = CancellationToken::new();
+        let mut running = Box::pin(operation.check_once(
+            ApplicationChannel::Preview,
+            &blocking,
+            &progress,
+            &cancellation,
+        ));
+        tokio::select! {
+            _ = &mut running => panic!("pending metadata check completed"),
+            permit = blocking.0.acquire() => permit.unwrap().forget(),
+        }
+        cancellation.cancel();
+        assert!(matches!(
+            running.await,
+            Err(ApplicationUpdateOperationError::Cancelled)
+        ));
+        assert_eq!(
+            *progress.0.lock().unwrap(),
+            [ApplicationUpdateOperationPhase::Checking]
+        );
+        assert!(!temporary.path().join("staging").exists());
+        operation
+            .check_once(
+                ApplicationChannel::Stable,
+                &checker(authenticated(CandidateState::Current, None)),
+                &RecordingProgress::default(),
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert!(!temporary.path().join("staging").exists());
+    }
+
+    #[tokio::test]
+    async fn one_time_check_preserves_staged_payload_and_never_downloads() {
+        let (temporary, operation, preferences) = fixture(ApplicationUpdateMode::Automatic);
+        let source = FakePayloadSource {
+            bytes: b"test".to_vec(),
+            calls: AtomicUsize::new(0),
+        };
+        operation
+            .check_and_stage(
+                environment(),
+                &checker(authenticated(
+                    CandidateState::UpdateAvailable,
+                    Some(candidate(b"test")),
+                )),
+                &source,
+                &RecordingProgress::default(),
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        let payload = operation.staging.payload_path();
+        let before_payload = std::fs::read(&payload).unwrap();
+        let staging_journal = temporary.path().join("staging/staging.json");
+        let before_staging = std::fs::read(&staging_journal).unwrap();
+        let before_preferences = preferences.load().unwrap();
+        let schedule = temporary.path().join("schedule.json");
+        let before_schedule = std::fs::read(&schedule).unwrap();
+        let progress = RecordingProgress::default();
+        let mut newer = candidate(b"other available payload");
+        newer.promotion.channel = ApplicationChannel::Stable;
+        let result = operation
+            .check_once(
+                ApplicationChannel::Stable,
+                &checker(authenticated(CandidateState::UpdateAvailable, Some(newer))),
+                &progress,
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert!(matches!(
+            result,
+            ApplicationUpdateOperationOutcome::MetadataChecked { .. }
+        ));
+        assert_eq!(
+            source.calls.load(Ordering::SeqCst),
+            1,
+            "only the earlier saved-policy operation downloaded"
+        );
+        assert_eq!(std::fs::read(payload).unwrap(), before_payload);
+        assert_eq!(std::fs::read(staging_journal).unwrap(), before_staging);
+        assert_eq!(preferences.load().unwrap(), before_preferences);
+        assert_eq!(std::fs::read(schedule).unwrap(), before_schedule);
+        assert_eq!(
+            *progress.0.lock().unwrap(),
+            [
+                ApplicationUpdateOperationPhase::Checking,
+                ApplicationUpdateOperationPhase::Complete
+            ]
+        );
     }
 
     #[tokio::test]
