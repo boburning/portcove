@@ -93,6 +93,7 @@ export async function dailyDiscoveryMain(args: string[]) {
         "discovery-budget.mts",
         "discovery-cache.mts",
         "github-api.mts",
+        "json-values.mts",
         "observe-configured-upstream.mts",
         "release-path-safety.mts",
         "upstream-observer.mts",

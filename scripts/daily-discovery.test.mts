@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { once } from "node:events";
+import { stripTypeScriptTypes } from "node:module";
 import {
   DiscoveryBudget,
   selectDiscoveryProfile,
@@ -90,6 +91,25 @@ void test(
     }
   },
 );
+void test("bootstrap identity covers the complete statically loaded module closure", () => {
+  const entry = new URL("./daily-discovery.mts", import.meta.url);
+  const source = readFileSync(entry, "utf8");
+  const declaration = source.match(/const bootstrap = \[([\s\S]*?)\];/u);
+  assert.ok(declaration, "bootstrap identity list is present");
+  const bound = [...declaration[1]!.matchAll(/"([^"]+)"/gu)].map((match) => match[1]);
+  const loaded = new Set<string>();
+  function visit(file: URL) {
+    const name = path.relative(path.dirname(fileURLToPath(entry)), fileURLToPath(file));
+    if (loaded.has(name)) return;
+    loaded.add(name);
+    const runtime = stripTypeScriptTypes(readFileSync(file, "utf8"));
+    for (const match of runtime.matchAll(/^import\s+(?:[^;]+?\s+from\s+)?["']([^"']+)["'];/gmu)) {
+      if (match[1]!.startsWith(".")) visit(new URL(match[1]!, file));
+    }
+  }
+  visit(entry);
+  assert.deepEqual([...new Set(bound)].sort(), [...loaded].sort());
+});
 void test("noninteractive run refuses before Git, credentials, inventory or lock acquisition", (t) => {
   const root = fileURLToPath(new URL("../", import.meta.url));
   mkdirSync(path.join(root, "work"), { recursive: true });
