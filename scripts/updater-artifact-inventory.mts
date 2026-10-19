@@ -24,7 +24,7 @@ export interface UpdaterInventory {
   packages: InventoryPackage[];
   updater: InventoryUpdater;
 }
-export type SignatureVerifier = (
+type SignatureVerifier = (
   verifier: string | undefined,
   artifact: string,
   signature: string,

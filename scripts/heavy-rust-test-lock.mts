@@ -649,12 +649,6 @@ export async function acquireHeavyRustTestLock(
   }
 }
 
-export const heavyRustLockEnvironment = Object.freeze({
-  inheritedToken: inheritedTokenEnvironmentName,
-  processToken: processTokenEnvironmentName,
-  waitMilliseconds: waitEnvironmentName,
-});
-
 export const heavyRustLockTiming = Object.freeze({
   defaultWaitMilliseconds,
   maximumWaitMilliseconds,

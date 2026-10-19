@@ -500,15 +500,16 @@ impl Catalog {
                             || text.chars().any(char::is_control)
                     };
                     let invalid_url = guide.help_url.as_ref().is_some_and(|value| {
-                        match reqwest::Url::parse(value) {
-                            Ok(url) => {
-                                url.scheme() != "https"
-                                    || url.host_str().is_none()
-                                    || !url.username().is_empty()
-                                    || url.password().is_some()
+                        invalid_text(value)
+                            || match reqwest::Url::parse(value) {
+                                Ok(url) => {
+                                    url.scheme() != "https"
+                                        || url.host_str().is_none()
+                                        || !url.username().is_empty()
+                                        || url.password().is_some()
+                                }
+                                Err(_) => true,
                             }
-                            Err(_) => true,
-                        }
                     });
                     if !(1..=8).contains(&guide.steps.len())
                         || guide.warnings.len() > 8
@@ -2427,6 +2428,8 @@ mod tests {
             "http://example.com/guide",
             "file:///C:/private",
             "https://user:secret@example.com/guide",
+            " https://example.com/guide",
+            "https://example.com/\tguide",
             "invalid",
         ] {
             let mut bad = guide.clone();

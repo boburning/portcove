@@ -2,6 +2,26 @@ import { platformLabel, releaseChannelPresentation } from "../../view-model";
 import { routes } from "./game-file-query-context";
 import type { GameFileObservationPresentation } from "./use-game-file-observation";
 
+function observationStatus(
+  { outcome, usable, expired }: GameFileObservationPresentation,
+  catalog: boolean,
+) {
+  if (outcome === "checking")
+    return catalog ? "Checking game files for the catalog…" : "Checking game files for this setup…";
+  if (outcome === "waiting") return "Waiting for the previous check to finish.";
+  if (outcome === "failed") return "The latest check failed. No current file check is available.";
+  if (outcome === "cancelled")
+    return "The latest check was canceled. No current file check is available.";
+  if (expired) return "The file check expired. Check again.";
+  if (usable)
+    return catalog
+      ? "Game-file checks are ready to use in Filters."
+      : "Game-file check is current.";
+  return catalog
+    ? "Check game files before using game-file filters."
+    : "No current game-file check for this selection. Check again.";
+}
+
 /** Displays metadata independently of current classifications and matching-build evidence. */
 export function GameFileObservationSummary({
   observation,
@@ -12,30 +32,11 @@ export function GameFileObservationSummary({
   catalog?: boolean;
   portId?: string;
 }) {
-  const { lastAccepted, usable, expired, outcome } = observation;
+  const { lastAccepted, usable, expired } = observation;
   if (portId !== undefined && !lastAccepted?.routes.some((route) => route.port_id === portId))
     return null;
   const scope = lastAccepted?.routes[0];
-  const status =
-    outcome === "checking"
-      ? catalog
-        ? "Checking game files for the catalog…"
-        : "Checking game files for this setup…"
-      : outcome === "waiting"
-        ? "Waiting for the previous check to finish."
-        : outcome === "failed"
-          ? "The latest check failed. No current file check is available."
-          : outcome === "cancelled"
-            ? "The latest check was canceled. No current file check is available."
-            : expired
-              ? "The file check expired. Check again."
-              : usable
-                ? catalog
-                  ? "Game-file checks are ready to use in Filters."
-                  : "Game-file check is current."
-                : catalog
-                  ? "Check game files before using game-file filters."
-                  : "No current game-file check for this selection. Check again.";
+  const status = observationStatus(observation, catalog);
   return (
     <div className="space-y-1">
       <p role="status">{status}</p>

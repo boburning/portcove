@@ -25,10 +25,11 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             AuthCommand::Login | AuthCommand::SetToken { .. } | AuthCommand::Logout => Recovering,
         },
         Commands::Backup { command } => match command {
-            BackupCommand::List { .. } => ReadOnly,
+            BackupCommand::List { .. } | BackupCommand::GhostshipLegacyPlan { .. } => ReadOnly,
             BackupCommand::Create { .. }
             | BackupCommand::Delete { .. }
-            | BackupCommand::Restore { .. } => Recovering,
+            | BackupCommand::Restore { .. }
+            | BackupCommand::GhostshipLegacyRecover { .. } => Recovering,
         },
         Commands::Catalog { command } => match command {
             CatalogCommand::List
@@ -158,6 +159,28 @@ fn apply_mode(apply: bool) -> StartupMode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_recovery_plan_is_read_only_and_application_can_resume_its_journal() {
+        use clap::Parser;
+        let plan =
+            Cli::try_parse_from(["portcove", "backup", "ghostship-legacy-plan", "backup"]).unwrap();
+        assert_eq!(startup_mode(&plan.command), StartupMode::ReadOnly);
+        let apply = Cli::try_parse_from([
+            "portcove",
+            "backup",
+            "ghostship-legacy-recover",
+            "backup",
+            "--expected-plan",
+            "hash",
+        ])
+        .unwrap();
+        assert_eq!(startup_mode(&apply.command), StartupMode::Recovering);
+        assert!(
+            Cli::try_parse_from(["portcove", "backup", "ghostship-legacy-recover", "backup"])
+                .is_err()
+        );
+    }
 
     // Literal expectations transcribed from the independently reviewed pre-change
     // policy at 9be54ea7. These are parser/constructor-policy tests, not native

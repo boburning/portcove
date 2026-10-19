@@ -3,6 +3,65 @@ using System.Linq;
 
 namespace Portcove.ReferenceClient
 {
+    // Descriptive instructions only. No step is treated as completed or authorized.
+    internal static class SetupInstructions
+    {
+        internal static string Summary(object presentation)
+        {
+            if (presentation == null) return null;
+            var guide = Json.OptionalObjectField(presentation, "manual_setup");
+            if (guide == null) return OptionalTextField(presentation, "manual_preparation");
+            if (Json.Object(guide).Keys.Any(key => !new[] { "steps", "warnings", "help_url" }.Contains(key)))
+                throw new InvalidOperationException("Unknown manual setup guidance field.");
+            var steps = Json.Array(Json.Field(guide, "steps"));
+            var warnings = Json.Array(Json.Field(guide, "warnings"));
+            if (steps.Length < 1 || steps.Length > 8 || warnings.Length > 8)
+                throw new InvalidOperationException("Incomplete manual setup guidance.");
+            if (steps.Any(step => Json.Object(step).Keys.Any(key => key != "title" && key != "instruction")))
+                throw new InvalidOperationException("Unknown manual setup step field.");
+            var result = string.Join("\n", warnings.Select(value => "Before you begin: " + Text(value)));
+            result += "\n" + string.Join("\n", steps.Select((step, index) =>
+                (index + 1) + ". " + Text(Json.Field(step, "title")) + ": " + Text(Json.Field(step, "instruction"))));
+            var help = OptionalTextField(guide, "help_url");
+            if (help != null)
+            {
+                help = Text(help);
+                Uri url;
+                if (!Uri.TryCreate(help, UriKind.Absolute, out url) || url.Scheme != "https" || string.IsNullOrEmpty(url.Host) || !string.IsNullOrEmpty(url.UserInfo))
+                    throw new InvalidOperationException("Unsafe manual setup guide URL.");
+            }
+            return result.Trim();
+        }
+
+        internal static string HelpUrl(object presentation)
+        {
+            Summary(presentation); // Apply the same strict guidance and URL checks before opening a link.
+            if (presentation == null) return null;
+            var guide = Json.OptionalObjectField(presentation, "manual_setup");
+            return guide == null ? null : OptionalTextField(guide, "help_url");
+        }
+
+        internal static string TechnicalNotes(object presentation)
+        {
+            if (presentation == null || Json.OptionalObjectField(presentation, "manual_setup") == null) return null;
+            return OptionalTextField(presentation, "manual_preparation");
+        }
+
+        private static string OptionalTextField(object value, string key)
+        {
+            object result;
+            return Json.TryField(value, key, out result) ? Json.OptionalText(value, key) : null;
+        }
+
+        private static string Text(object value)
+        {
+            var text = value as string;
+            if (string.IsNullOrWhiteSpace(text) || text.Trim() != text || text.Any(char.IsControl))
+                throw new InvalidOperationException("Invalid manual setup instruction.");
+            return text;
+        }
+    }
+
     internal enum GuidedStepKind
     {
         ChooseSource, ChooseBios, ValidateSources, RegisterExternal, Install, FinishSetup, Play, ReviewProblem
@@ -22,7 +81,7 @@ namespace Portcove.ReferenceClient
             {
                 var assessment = Json.OptionalObjectField(readiness, role + "_assessment");
                 if (assessment == null) continue; // Missing legacy evidence remains unknown.
-                if (schema < 69) throw new InvalidOperationException("Source assessments require API schema 69.");
+                if (schema < 70) throw new InvalidOperationException("Source assessments require API schema 70.");
                 var health = Json.Text(assessment, "health");
                 if (!new[] { "unregistered", "not_checked", "not_baselined", "current", "missing", "unreadable", "changed" }.Contains(health))
                     throw new InvalidOperationException("Unknown source assessment health.");
@@ -56,8 +115,8 @@ namespace Portcove.ReferenceClient
                     throw new InvalidOperationException("Launch readiness contradicts a known input failure.");
             }
             object blockers;
-            if (schema < 69 && Json.TryField(readiness, "blockers", out blockers) && Json.Array(blockers).Contains("incompatible_bios"))
-                throw new InvalidOperationException("BIOS compatibility guidance requires API schema 69.");
+            if (schema < 70 && Json.TryField(readiness, "blockers", out blockers) && Json.Array(blockers).Contains("incompatible_bios"))
+                throw new InvalidOperationException("BIOS compatibility guidance requires API schema 70.");
         }
 
         internal static bool Confirmed(object readiness, string profile, string role)

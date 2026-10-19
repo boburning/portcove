@@ -525,7 +525,14 @@ pub(crate) fn backup_action_preview(
     let (action, consequences) = match preview.action {
         BackupAction::Delete => (
             "Delete backup",
-            "Changes: permanently delete only the selected backup.\nPreserved: live managed saved data and other backups.\nPortcove cannot undo this deletion.".to_owned(),
+            format!(
+                "Changes: permanently delete only the selected backup.{}\nPreserved: live managed saved data and other backups.\nPortcove cannot undo this deletion.",
+                if preview.retained_runtime_copy_will_be_deleted {
+                    "\nThis also permanently deletes its retained Ghostship 3.0.0 runtime saves/settings copy."
+                } else {
+                    ""
+                }
+            ),
         ),
         BackupAction::Restore => (
             "Restore backup",
@@ -1538,6 +1545,19 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
         ),
         output_location_source(plan.output_location.selection_source),
         format_bytes(plan.storage.volume_available_bytes),
+    )
+}
+
+pub(crate) fn ghostship_recovery_plan(plan: &portcove_core::GhostshipRecoveryPlan) -> String {
+    format!(
+        "Ghostship legacy recovery review\nSelected qualified backup: {}\nSnapshot folder: {}\nRetained 2.0.0 installation: {}\nCurrent 3.0.0 installation: {}\nOriginal: {}\nRequired free space: {} bytes\nPlan SHA-256: {}\nChanges: activate a fresh derivative of the retained 2.0.0 installation and replace canonical data with this qualified legacy snapshot.\nPreserved: both existing installations, the selected backup, other staged installations, and independent safety copies of current canonical data and newer-runtime persistent data.\nThe runtime safety copy is retained alongside the canonical safety backup; ordinary restore uses only its canonical data. Deleting that backup also deletes its runtime safety copy.\nPlanning does not launch a game or prove gameplay/save-load compatibility.",
+        clean(&plan.backup.id),
+        clean(&plan.backup.path.display().to_string()),
+        clean(&plan.legacy_install.path.display().to_string()),
+        clean(&plan.active_install.path.display().to_string()),
+        clean(&plan.source.path.display().to_string()),
+        plan.required_bytes,
+        clean(&plan.plan_sha256),
     )
 }
 
@@ -2959,8 +2979,24 @@ mod tests {
             },
             current_user_data_exists: true,
             safety_backup_will_be_created: true,
+            retained_runtime_copy_will_be_deleted: false,
             preview_sha256: "b".repeat(64),
         }
+    }
+
+    #[test]
+    fn backup_deletion_discloses_the_bound_newer_runtime_copy() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let mut preview = backup_action_fixture();
+        preview.action = portcove_core::BackupAction::Delete;
+        assert!(
+            !super::backup_action_preview(&preview, &catalog)
+                .contains("runtime saves/settings copy")
+        );
+        preview.retained_runtime_copy_will_be_deleted = true;
+        assert!(super::backup_action_preview(&preview, &catalog).contains(
+            "permanently deletes its retained Ghostship 3.0.0 runtime saves/settings copy"
+        ));
     }
 
     #[test]

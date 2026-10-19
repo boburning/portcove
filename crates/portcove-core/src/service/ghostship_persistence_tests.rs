@@ -78,6 +78,65 @@ fn fixture() -> (
 }
 
 #[test]
+fn ghostship_derivative_preserves_the_exact_retained_envelope_not_only_port_facts() {
+    let (_temporary, service, _original, prepared) = fixture();
+    let installer = Installer::new(service.library.clone()).unwrap();
+    let root = service
+        .library
+        .versions_dir()
+        .join("ghostship/second-prepared");
+    copy_tree(&prepared.path, &root).unwrap();
+    let qualification = service
+        .installed_mutability_qualification(&prepared)
+        .unwrap();
+    let mut derivative = installer
+        .create_prepared_manifest(
+            &prepared,
+            "second-prepared",
+            &qualification,
+            crate::PreparationMode::Ghostship200Legacy,
+            &root,
+        )
+        .unwrap();
+    installer
+        .require_same_retained_contract(&prepared, &derivative)
+        .unwrap();
+    let manifest = root.join(".portcove-manifest.json");
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&fs::read(&manifest).unwrap()).unwrap();
+    let catalog: serde_json::Value =
+        serde_json::from_str(value["retained_contract"]["catalog_json"].as_str().unwrap()).unwrap();
+    value["retained_contract"]["catalog_json"] =
+        serde_json::Value::String(serde_json::to_string_pretty(&catalog).unwrap());
+    let bytes = serde_json::to_vec(&value).unwrap();
+    fs::write(&manifest, &bytes).unwrap();
+    derivative.manifest_sha256 = crate::signed_catalog::digest(&bytes);
+    assert_eq!(
+        serde_json::to_value(
+            installer
+                .retained_catalog(&prepared)
+                .unwrap()
+                .unwrap()
+                .authoritative_document()
+        )
+        .unwrap(),
+        serde_json::to_value(
+            installer
+                .retained_catalog(&derivative)
+                .unwrap()
+                .unwrap()
+                .authoritative_document()
+        )
+        .unwrap()
+    );
+    assert!(
+        installer
+            .require_same_retained_contract(&prepared, &derivative)
+            .is_err()
+    );
+}
+
+#[test]
 fn ghostship_legacy_persistence_restores_collects_and_synchronizes_cwd() {
     let (_temporary, service, original, prepared) = fixture();
     let port = service.catalog.port("ghostship").unwrap();

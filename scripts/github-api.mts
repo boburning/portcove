@@ -124,7 +124,7 @@ export function parseIncludedResponse(output: unknown): IncludedResponse {
   return { status, headers, body: bodyText ? JSON.parse(bodyText) : null };
 }
 
-export function numericHeader(headers: ReadonlyMap<string, string>, name: string) {
+function numericHeader(headers: ReadonlyMap<string, string>, name: string) {
   const raw = headers.get(name.toLowerCase());
   if (raw === undefined) return null;
   const value = Number(raw);

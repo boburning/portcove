@@ -34,7 +34,7 @@ import { fallowSource } from "./fallow-source.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const cli = fileURLToPath(new URL("../node_modules/fallow/bin/fallow", import.meta.url));
-const version = "3.34.0";
+const version = "3.34.1";
 
 export function fallowArguments(
   mode: string,

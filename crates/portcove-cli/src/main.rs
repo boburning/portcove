@@ -436,6 +436,16 @@ enum AuthCommand {
 
 #[derive(Debug, Subcommand)]
 enum BackupCommand {
+    /// Review the exact qualified Ghostship 2.0.0 snapshot recovery route.
+    GhostshipLegacyPlan { backup_id: String },
+    /// Recover qualified legacy data into a fresh retained-runtime derivative.
+    GhostshipLegacyRecover {
+        backup_id: String,
+        #[arg(long)]
+        expected_plan: String,
+        #[arg(long)]
+        yes: bool,
+    },
     /// Copy and verify managed persistent data for one port.
     Create { port_id: String },
     /// List retained backups and their verification state.
@@ -1482,6 +1492,46 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         }
         Commands::Catalog { command } => {
             catalog::execute(command, &service, mode, cli.non_interactive).await?;
+        }
+        Commands::Backup {
+            command: BackupCommand::GhostshipLegacyPlan { backup_id },
+        } => {
+            render_read_success(
+                mode,
+                "backup.ghostship-legacy-plan",
+                service.plan_ghostship_legacy_recovery(&backup_id)?,
+                human::ghostship_recovery_plan,
+            )?;
+        }
+        Commands::Backup {
+            command:
+                BackupCommand::GhostshipLegacyRecover {
+                    backup_id,
+                    expected_plan,
+                    yes,
+                },
+        } => {
+            let plan = service.plan_ghostship_legacy_recovery(&backup_id)?;
+            if plan.plan_sha256 != expected_plan {
+                return Err(PortcoveError::conflict(
+                    "legacy recovery inputs changed; review the plan again",
+                ));
+            }
+            if mode == OutputMode::Human {
+                println!("{}", human::ghostship_recovery_plan(&plan));
+            }
+            require_confirmation(
+                "Activate a fresh Ghostship 2.0.0 derivative with the selected legacy data, retaining independent copies of current canonical and newer-runtime data?",
+                yes,
+                cli.non_interactive,
+            )?;
+            let authorization =
+                service.authorize_ghostship_legacy_recovery(&backup_id, &expected_plan)?;
+            render_success(
+                mode,
+                "backup.ghostship-legacy-recover",
+                service.recover_ghostship_legacy_data(&backup_id, &authorization.token)?,
+            )?;
         }
         Commands::Backup {
             command: BackupCommand::Create { port_id },
@@ -3206,6 +3256,8 @@ fn command_name(command: &Commands) -> &'static str {
             AuthCommand::Logout => "auth.logout",
         },
         Commands::Backup { command } => match command {
+            BackupCommand::GhostshipLegacyPlan { .. } => "backup.ghostship-legacy-plan",
+            BackupCommand::GhostshipLegacyRecover { .. } => "backup.ghostship-legacy-recover",
             BackupCommand::Create { .. } => "backup.create",
             BackupCommand::List { .. } => "backup.list",
             BackupCommand::Delete { .. } => "backup.delete",

@@ -193,7 +193,7 @@ async function command(
   }
 }
 
-export async function retainedPackageBuild(output: string) {
+async function retainedPackageBuild(output: string) {
   assert.equal(process.platform, "win32", "Ordinary retained NSIS preparation requires Windows");
   const initial = await json(path.join(output, "preparation.json"));
   const capturedSource = await source();
@@ -284,7 +284,7 @@ export async function retainedPackageBuild(output: string) {
   await writeNew(path.join(output, "build-result.json"), receipt);
 }
 
-export async function retainedPackageInstall(output: string) {
+async function retainedPackageInstall(output: string) {
   const build = await json(path.join(output, "build-result.json"));
   const installer = await verifyIdentity(identity(build.installer), output);
   const raw = await verifyIdentity(identity(build.raw_executable), output);

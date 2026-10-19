@@ -1,14 +1,12 @@
 @layer theme {
   @theme inline {
     --font-pc-heading: "Geist Variable", var(--font-ui);
-    --font-pc-sans: "Geist Variable", var(--font-ui);
     --color-pc-background: var(--color-bg);
     --color-pc-foreground: var(--color-text);
     --color-pc-surface: var(--color-bg-elevated);
     --color-pc-surface-muted: var(--color-bg-hover);
     --color-pc-muted-foreground: var(--color-text-muted);
     --color-pc-interactive: var(--color-interactive);
-    --color-pc-interactive-hover: var(--color-interactive-hover);
     --color-pc-action-foreground: var(--color-text-on-dark);
     --color-pc-primary: var(--color-primary-surface);
     --color-pc-primary-hover: var(--color-primary-hover);

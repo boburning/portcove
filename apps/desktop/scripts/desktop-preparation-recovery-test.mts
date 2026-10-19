@@ -1,3 +1,4 @@
+import { fixtureObject as object } from "./desktop-scenario-state.mts";
 import type { PreparationContext } from "./desktop-preparation-test.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type {
@@ -8,7 +9,6 @@ import type {
   TransportOutputs,
 } from "../src/transport-types.generated.d.ts";
 import type { SQLInputValue, SQLOutputValue } from "node:sqlite";
-import { isRecord } from "../../../scripts/runtime-values.mts";
 import { transportValue } from "./transport-values.mts";
 type RecoveryBase = Pick<
   PreparationContext,
@@ -35,10 +35,6 @@ type LiveRecoveryContext = RecoveryBase &
     ordinaryClose?: boolean;
   };
 type SQLRow = Record<string, SQLOutputValue>;
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
-}
 function required<Value>(value: Value | null | undefined): Value {
   assert.ok(value !== undefined && value !== null);
   return value;

@@ -224,7 +224,7 @@ Structural heuristics advise: dependency duplication, unmaintained transitive de
 
 ## Fallow scopes and policy
 
-The repository pins Fallow 3.33.1. Use the maintained wrappers so reports retain
+The repository pins Fallow 3.34.0. Use the maintained wrappers so reports retain
 their source identity and Portcove's enforcement mapping. Ordinary fast PR CI
 and default focused local checks do not run an exhaustive Fallow scan.
 
@@ -257,12 +257,20 @@ entry points and follows helper imports; generated inputs, fixtures and dynamic
 consumers still require checking before accepting an unused-code candidate.
 Fallow does not analyze Rust, PowerShell or native application behavior.
 
-The root graph explicitly includes catalog generators executed by test runners,
-Docker's copied entry script, and other dynamically launched tools. Its sole
-unresolved-import exception is `/theme-bootstrap.js`: Vite serves the verified
-`apps/desktop/public/theme-bootstrap.js` at that URL, while repository-root
-resolution cannot model the app's public root. The scope test verifies that file
-and the dynamic tooling entry points remain included.
+The root graph explicitly includes catalog generators, discovery and semantic
+qualification commands, Docker's copied entry script, and Desktop script tests.
+Native harnesses and development scenarios have test roles; their dependencies
+do not become production requirements. Narrow export credits identify symbols
+consumed by repository tests outside the Desktop graph, including the maintainer
+configuration helper imported by an isolated child process. Other exports in
+those modules remain checked. The scope fixtures retain orphan detection and
+shared-to-feature enforcement, and distinguish test-only from production imports.
+
+Two unresolved-import exceptions represent resources rather than module edges.
+Vite serves `apps/desktop/public/theme-bootstrap.js` at `/theme-bootstrap.js`,
+which repository-root resolution cannot model. The reviewed-input reader reads
+`../.github/workflows/release-reviewed-inputs.yml` as workflow bytes. Preserve
+the actual files and their consumers when maintaining either exception.
 
 Every wrapper invocation retains original analyzer output, stderr and source,
 scope, version and comparison metadata below ignored `work/fallow-reports`.

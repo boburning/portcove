@@ -760,6 +760,9 @@
           "preview_sha256": {
             "type": "string"
           },
+          "retained_runtime_copy_will_be_deleted": {
+            "type": "boolean"
+          },
           "safety_backup_will_be_created": {
             "type": "boolean"
           }
@@ -769,6 +772,7 @@
           "backup",
           "current_user_data_exists",
           "safety_backup_will_be_created",
+          "retained_runtime_copy_will_be_deleted",
           "preview_sha256"
         ],
         "type": "object"
@@ -7588,6 +7592,51 @@
         ],
         "type": "object"
       },
+      "ManualSetupGuide": {
+        "additionalProperties": false,
+        "description": "Authored instructions only; these steps grant no operation or file authority.",
+        "properties": {
+          "help_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/$defs/ManualSetupStep"
+            },
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps",
+          "warnings"
+        ],
+        "type": "object"
+      },
+      "ManualSetupStep": {
+        "additionalProperties": false,
+        "properties": {
+          "instruction": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "instruction"
+        ],
+        "type": "object"
+      },
       "MutationState": {
         "enum": [
           "not_started",
@@ -8191,6 +8240,16 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "manual_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManualSetupGuide"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "original_game_title": {

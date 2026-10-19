@@ -610,6 +610,8 @@ export interface TransportOutputs {
   game_file_scan_snapshot: OutputGameFileScanSnapshot;
   game_install_plan: OutputGameInstallPlan;
   game_update_plan: OutputGameUpdatePlan;
+  ghostship_recovery_plan: OutputGhostshipRecoveryPlan;
+  ghostship_recovery_result: OutputGhostshipRecoveryResult;
   github_auth_status: GithubAuthStatus;
   github_device_login: OutputGithubDeviceLogin;
   github_device_login_result: OutputGithubDeviceLoginResult;
@@ -1150,6 +1152,7 @@ export interface BackupActionPreview {
   backup: BackupRecord;
   current_user_data_exists: boolean;
   preview_sha256: string;
+  retained_runtime_copy_will_be_deleted: boolean;
   safety_backup_will_be_created: boolean;
   [k: string]: unknown;
 }
@@ -1319,6 +1322,7 @@ export interface PortPresentation {
   artwork?: IgdbArtwork | null;
   installation_method: InstallationMethod;
   manual_preparation?: string | null;
+  manual_setup?: ManualSetupGuide | null;
   /**
    * Descriptive display metadata only. This never replaces the port, source,
    * release or library identity, and does not group different implementations.
@@ -1328,6 +1332,18 @@ export interface PortPresentation {
   source_requirements: SourceRequirementPresentation[];
   variant_label?: string | null;
   [k: string]: unknown;
+}
+/**
+ * Authored instructions only; these steps grant no operation or file authority.
+ */
+export interface ManualSetupGuide {
+  help_url?: string | null;
+  steps: ManualSetupStep[];
+  warnings: string[];
+}
+export interface ManualSetupStep {
+  instruction: string;
+  title: string;
 }
 export interface SourceRequirementPresentation {
   label: string;
@@ -2038,6 +2054,31 @@ export interface PortActionAssessment3 {
    */
   definition?: DefinitionEligibility | null;
   reason: PortActionReason;
+  [k: string]: unknown;
+}
+export interface OutputGhostshipRecoveryPlan {
+  active_install: InstallRecord;
+  active_install_tree: AdoptionCopyPlan;
+  backup: BackupRecord;
+  canonical_data: AdoptionCopyPlan;
+  channel: ReleaseChannel;
+  format_version: number;
+  legacy_install: InstallRecord;
+  legacy_install_tree: AdoptionCopyPlan;
+  library_root: string;
+  plan_sha256: string;
+  qualification_sha256: string;
+  required_bytes: number;
+  snapshot_data: AdoptionCopyPlan;
+  source: SourceRecord;
+  staged_install: InstallRecord | null;
+  update_policy: UpdatePolicy;
+}
+export interface OutputGhostshipRecoveryResult {
+  install: InstallRecord;
+  restored_backup: BackupRecord;
+  runtime_safety_path: string;
+  safety_backup: BackupRecord;
   [k: string]: unknown;
 }
 export interface GithubAuthStatus {

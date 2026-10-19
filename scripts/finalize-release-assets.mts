@@ -52,7 +52,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assertExactArtifactNames } from "./release-package-policy.mts";
-import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
+import {
+  assertOwnedUnlinkedPath,
+  releasePathContains as contains,
+} from "./release-path-safety.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const defaultProjectRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -86,14 +89,6 @@ function validateSbom(sbom: unknown) {
     throw new Error("release SBOM must use the SPDX CC0-1.0 data license");
   if (!Array.isArray(sbom.packages) || sbom.packages.length === 0)
     throw new Error("release SBOM must describe at least one package");
-}
-
-function contains(parent: string, child: string) {
-  const relative = path.relative(parent, child);
-  return (
-    relative === "" ||
-    (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))
-  );
 }
 
 export async function finalizeReleaseAssets(

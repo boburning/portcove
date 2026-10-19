@@ -147,8 +147,14 @@ fn backup_consent(review: &BackupReview) -> (&'static str, String, &'static str)
         BackupAction::Delete => (
             "Confirm backup deletion",
             format!(
-                "Delete the backup from {date} for {} (catalog ID: {})? This cannot be undone.\n\nSelected backup: {snapshot}\nCurrent saved data: {saved_data}\n\nCurrent saved data and other backups remain. Portcove does not create a safety copy of the deleted backup.",
-                review.port_name, backup.port_id,
+                "Delete the backup from {date} for {} (catalog ID: {})? This cannot be undone.\n\nSelected backup: {snapshot}\nCurrent saved data: {saved_data}\n\nCurrent saved data and other backups remain. Portcove does not create a safety copy of the deleted backup.{}",
+                review.port_name,
+                backup.port_id,
+                if review.preview.retained_runtime_copy_will_be_deleted {
+                    " This also permanently deletes the retained Ghostship 3.0.0 runtime saves/settings copy stored with this backup."
+                } else {
+                    ""
+                },
             ),
             "Delete backup permanently",
         ),
@@ -177,6 +183,7 @@ mod tests {
                 },
                 current_user_data_exists: safety_backup_will_be_created,
                 safety_backup_will_be_created,
+                retained_runtime_copy_will_be_deleted: false,
                 preview_sha256: "b".repeat(64),
             },
             port_name: "Sample Port".to_owned(),
@@ -206,5 +213,12 @@ mod tests {
         assert!(delete.contains("This cannot be undone"));
         assert!(delete.contains("backups/sample-port/selected"));
         assert!(delete.contains("Current saved data and other backups remain"));
+        assert!(!delete.contains("runtime saves/settings copy"));
+        let mut runtime = review(BackupAction::Delete, false);
+        runtime.preview.retained_runtime_copy_will_be_deleted = true;
+        let (_, delete_runtime, _) = backup_consent(&runtime);
+        assert!(delete_runtime.contains(
+            "permanently deletes the retained Ghostship 3.0.0 runtime saves/settings copy"
+        ));
     }
 }

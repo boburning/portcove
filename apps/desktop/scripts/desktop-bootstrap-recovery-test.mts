@@ -1,3 +1,7 @@
+import {
+  requiredFixtureValue as required,
+  fixtureObject as object,
+} from "./desktop-scenario-state.mts";
 import type { WebDriver, By, until } from "selenium-webdriver";
 import type { ScenarioArtifacts } from "./desktop-scenario-context.mts";
 import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
@@ -8,7 +12,6 @@ import type {
 } from "../src/transport-types.generated.d.ts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import type { captureAccessibilityReport as captureAccessibility } from "./desktop-review-controls.mts";
-import { isRecord } from "../../../scripts/runtime-values.mts";
 
 export function technicalDetailHasSeparation(row: {
   labelRight: number;
@@ -37,14 +40,6 @@ type BootstrapContext = RecoveryContext<
 > & {
   chooseOwnedLibrary: ReturnType<typeof nativeConfirmation>;
 };
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
-}
-function required<Value>(value: Value | null | undefined): Value {
-  assert.ok(value !== null && value !== undefined);
-  return value;
-}
 function text(value: unknown): string {
   assert.ok(typeof value === "string");
   return value;

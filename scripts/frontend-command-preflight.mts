@@ -22,8 +22,8 @@ export type FrontendProbeRunner = (
   },
 ) => ProbeResult;
 
-export const frontendProbeTimeoutMs = 10_000;
-export const frontendProbeOutputBytes = 16 * 1024;
+const frontendProbeTimeoutMs = 10_000;
+const frontendProbeOutputBytes = 16 * 1024;
 
 // File availability is a plan observation, never successful execution/version proof.
 export function frontendCommandPlan({ cwd }: { cwd: string }) {

@@ -42,7 +42,7 @@ interface EssentialSnapshotIdentity {
   browsing: string;
 }
 
-export function essentialSnapshotIdentity(snapshot: WorkspaceSnapshot): EssentialSnapshotIdentity {
+function essentialSnapshotIdentity(snapshot: WorkspaceSnapshot): EssentialSnapshotIdentity {
   return {
     catalog: JSON.stringify(snapshot.catalog),
     statuses: JSON.stringify(snapshot.statuses),

@@ -16,7 +16,7 @@ function canonicalTarget(value: unknown) {
   return value.toLowerCase();
 }
 
-export function validateClosureIntent(intent: unknown) {
+function validateClosureIntent(intent: unknown) {
   if (
     !isRecord(intent) ||
     JSON.stringify(Object.keys(intent).sort()) !==
@@ -33,7 +33,7 @@ export function validateClosureIntent(intent: unknown) {
   return [...targets].sort();
 }
 
-export function closingReferences(text: unknown, repository: string) {
+function closingReferences(text: unknown, repository: string) {
   if (typeof text !== "string") throw new Error("Closure candidate text is unavailable");
   const targets = [];
   const expression =
