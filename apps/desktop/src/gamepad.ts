@@ -241,8 +241,26 @@ function moveFocus(direction: NavigationDirection) {
     !origin.closest("[inert], [hidden], [aria-hidden=true]") &&
     origin.getClientRects().length > 0 &&
     getComputedStyle(origin).visibility !== "hidden"
-  )
+  ) {
+    // Enter the section that owns a focused heading before considering sticky
+    // navigation that may now sit geometrically between it and its controls.
+    const section = origin.closest<HTMLElement>(
+      "section[aria-labelledby], article[aria-labelledby], [role=region][aria-labelledby]",
+    );
+    if (
+      direction === "down" &&
+      origin.matches('h1, h2, h3, h4, h5, h6, [role="heading"]') &&
+      origin.id &&
+      section?.getAttribute("aria-labelledby")?.split(/\s+/).includes(origin.id)
+    ) {
+      const first = candidates.find((item) => section.contains(item));
+      if (first) {
+        focusAndReveal(first);
+        return true;
+      }
+    }
     candidates.unshift(origin);
+  }
   const target = spatialTargetIndex(
     candidates.map((item) => item.getBoundingClientRect()),
     origin ? candidates.indexOf(origin) : -1,

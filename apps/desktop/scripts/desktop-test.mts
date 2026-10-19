@@ -903,11 +903,12 @@ async function verifyLongTitleCatalogDetail(theme: string) {
   await browser.manage().window().setRect({ width: 960, height: 640 });
 }
 
-async function refreshSettings() {
+async function refreshSettings(category?: string) {
   const browser = driverBrowser();
   await browser.navigate().refresh();
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
   await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+  if (category) await selectSettingsCategory(category);
 }
 
 async function selectSettingsCategory(id: string) {
@@ -3804,7 +3805,7 @@ try {
       15_000,
     );
 
-    await refreshSettings();
+    await refreshSettings("updates");
     await browser.wait(
       until.elementLocated(By.css('[aria-label="Application update channel"]')),
       15_000,
@@ -3861,7 +3862,7 @@ try {
     assert.deepEqual(success(await invoke("get_activities")), activities.value);
 
     await writeFile(path.join(output, "application-updates.json"), "not-json\n");
-    await refreshSettings();
+    await refreshSettings("updates");
     await browser.wait(
       until.elementLocated(By.xpath('//button[normalize-space(.)="Reset update settings"]')),
       15_000,

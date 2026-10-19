@@ -1095,7 +1095,19 @@ export async function preparationScenarios({
     // This fixture's preliminary source is available but has no exact identity.
     // Preparation does not upgrade that evidence into confirmed compatibility.
     const trialLaunch = By.css("section[data-detail-workspace] .primary-actions button");
-    const trial = await browser.wait(until.elementLocated(trialLaunch), 15_000);
+    const trial = await browser.wait(
+      async () => {
+        const current = (await browser.findElements(trialLaunch))[0];
+        return current &&
+          (await current.isDisplayed()) &&
+          (await current.getText()) === "Try launch" &&
+          (await current.isEnabled())
+          ? current
+          : false;
+      },
+      15_000,
+      "Prepared Core state did not reach the rendered trial-launch action",
+    );
     assert.equal(await trial.getText(), "Try launch");
     await browser.wait(until.elementIsEnabled(trial), 15_000);
     await trial.click();
