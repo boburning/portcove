@@ -381,14 +381,8 @@ function Workspace({
     )
       void refreshDiagnostics();
   }, [catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics, ui.view]);
-  const applicationUpdate = useApplicationUpdateNotice(operations.setError);
-  const applicationUpdateChoice = useApplicationUpdateChoice(operations.setError);
-  const applicationUpdateProductionTransition = useApplicationUpdateProductionTransition({
-    preferences: applicationUpdateChoice.preferences,
-    acceptPreferences: applicationUpdateChoice.accept,
-    refreshPreferences: applicationUpdateChoice.refresh,
-    reportError: operations.setError,
-  });
+  const { applicationUpdate, applicationUpdateChoice, applicationUpdateProductionTransition } =
+    useWorkspaceApplicationUpdates(operations.setError);
   const {
     request: sourceIntake,
     open: openSourceIntake,
@@ -493,24 +487,7 @@ function Workspace({
     setPrimaryView("settings");
     window.requestAnimationFrame(() => focusDiscTool());
   };
-  useEffect(() => {
-    if (
-      !pendingToolId ||
-      ui.view !== "settings" ||
-      (!data.doctor && (!data.diagnosticFailure || data.diagnosticRefreshing))
-    )
-      return;
-    const frame = window.requestAnimationFrame(() => {
-      const heading = document.getElementById("disc-tools-heading");
-      if (document.activeElement !== heading && document.activeElement !== document.body) {
-        setPendingToolId(undefined);
-        return;
-      }
-      focusDiscTool(pendingToolId);
-      setPendingToolId(undefined);
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [data.diagnosticFailure, data.diagnosticRefreshing, data.doctor, pendingToolId, ui.view]);
+  usePendingHostToolFocus(data, ui.view, pendingToolId, setPendingToolId);
   const commandSurface = useCommandSurface({
     recent: model.recent,
     installedCount: model.overview.installed,
@@ -692,6 +669,11 @@ function Workspace({
         hostToolActions={hostToolActions}
       />
     );
+  const recoveryPort = preparationRecoveryPort(
+    operations.error,
+    data.catalog?.ports ?? [],
+    data.statuses,
+  );
   return (
     <ArtworkProvider generation={bootstrap.generation} catalog={data.catalog}>
       <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)] max-[75rem]:grid-cols-[var(--layout-sidebar-compact)_minmax(0,_1fr)]">
@@ -728,13 +710,9 @@ function Workspace({
             clearError={() => operations.setError(undefined)}
             reviewCurrentState={data.retryRefresh}
             reviewPreparation={
-              preparationRecoveryPort(operations.error, data.catalog?.ports ?? [], data.statuses)
+              recoveryPort
                 ? () => {
-                    const id = preparationRecoveryPort(
-                      operations.error,
-                      data.catalog?.ports ?? [],
-                      data.statuses,
-                    );
+                    const id = recoveryPort;
                     if (id) openPortDetails(id, "error:preparation-review");
                   }
                 : undefined
@@ -1433,4 +1411,49 @@ function sourcePickerPurpose(
   ports: readonly PortDefinition[],
 ): SourcePickerPurpose {
   return ports.some((port) => port.bios_source_profile === profileId) ? "bios" : "game";
+}
+
+function usePendingHostToolFocus(
+  data: DataState,
+  view: UiState["view"],
+  pendingToolId: string | undefined,
+  setPendingToolId: (value: string | undefined) => void,
+) {
+  useEffect(() => {
+    if (
+      !pendingToolId ||
+      view !== "settings" ||
+      (!data.doctor && (!data.diagnosticFailure || data.diagnosticRefreshing))
+    )
+      return;
+    const frame = window.requestAnimationFrame(() => {
+      const heading = document.getElementById("disc-tools-heading");
+      if (document.activeElement !== heading && document.activeElement !== document.body) {
+        setPendingToolId(undefined);
+        return;
+      }
+      focusDiscTool(pendingToolId);
+      setPendingToolId(undefined);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    data.diagnosticFailure,
+    data.diagnosticRefreshing,
+    data.doctor,
+    pendingToolId,
+    setPendingToolId,
+    view,
+  ]);
+}
+
+function useWorkspaceApplicationUpdates(reportError: OperationState["setError"]) {
+  const applicationUpdate = useApplicationUpdateNotice(reportError);
+  const applicationUpdateChoice = useApplicationUpdateChoice(reportError);
+  const applicationUpdateProductionTransition = useApplicationUpdateProductionTransition({
+    preferences: applicationUpdateChoice.preferences,
+    acceptPreferences: applicationUpdateChoice.accept,
+    refreshPreferences: applicationUpdateChoice.refresh,
+    reportError: reportError,
+  });
+  return { applicationUpdate, applicationUpdateChoice, applicationUpdateProductionTransition };
 }

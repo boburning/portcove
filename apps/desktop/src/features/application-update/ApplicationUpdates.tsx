@@ -758,7 +758,7 @@ function ApplicationUpdateCheckPanel({
   );
 }
 
-export function ApplicationUpdateSettings({
+function useApplicationUpdateSettings({
   currentVersion,
   generation = 0,
   disabled = false,
@@ -979,6 +979,215 @@ export function ApplicationUpdateSettings({
     );
   }, [unavailable]);
 
+  return {
+    currentVersion,
+    disabled,
+    preferencesState,
+    headingRef,
+    preferences,
+    draft,
+    setDraft,
+    busy,
+    status,
+    statusBusy,
+    error,
+    canRecoverPreferences,
+    statusError,
+    notice,
+    changed,
+    updateOperation,
+    load,
+    save,
+    reset,
+    recover,
+    restartToUpdate,
+    unavailable,
+    loadStatus,
+  };
+}
+
+export function ApplicationUpdateSettings(
+  props: Parameters<typeof useApplicationUpdateSettings>[0],
+) {
+  const {
+    currentVersion,
+    disabled,
+    preferencesState,
+    headingRef,
+    preferences,
+    draft,
+    setDraft,
+    busy,
+    status,
+    statusBusy,
+    error,
+    canRecoverPreferences,
+    statusError,
+    notice,
+    changed,
+    updateOperation,
+    load,
+    save,
+    reset,
+    recover,
+    restartToUpdate,
+    unavailable,
+    loadStatus,
+  } = useApplicationUpdateSettings(props);
+  const renderPreferences = () =>
+    preferences && (
+      <section
+        className="grid gap-5"
+        aria-labelledby="application-preferences-title"
+        aria-busy={Boolean(busy)}
+      >
+        <h3 id="application-preferences-title" tabIndex={-1}>
+          Future update behavior
+        </h3>
+        {!preferences.choice && (
+          <p className="application-update-consent rounded-pc-md border border-[var(--color-warning-border)] bg-pc-warning-subtle p-3 text-pc-warning-foreground">
+            No application update choice is saved. Automatic checks remain off until you save one.
+          </p>
+        )}
+
+        <section className={updateChoiceClass} aria-labelledby="application-channel-label">
+          <h3 id="application-channel-label" className="text-sm">
+            Channel
+          </h3>
+          <div
+            className="segmented grid [grid-auto-columns:1fr] [grid-auto-flow:column] rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-[3px]"
+            role="group"
+            aria-label="Application update channel"
+          >
+            {(["preview", "stable"] as const).map((channel) => (
+              <Button
+                key={channel}
+                data-focusable
+                variant={draft.channel === channel ? "selected" : "ghost"}
+                className={updateChoiceButtonClass}
+                aria-pressed={draft.channel === channel}
+                disabled={unavailable}
+                onClick={() => setDraft((value) => ({ ...value, channel }))}
+              >
+                {channel === "preview" ? "Preview" : "Stable"}
+              </Button>
+            ))}
+          </div>
+          <p className={updateMutedCopyClass}>
+            {draft.channel === "preview"
+              ? "Preview receives public test releases and later eligible final releases."
+              : "Stable waits for an eligible production release that is newer than your installed version; it never downgrades Portcove."}
+          </p>
+        </section>
+
+        <section className={updateChoiceClass} aria-labelledby="application-mode-label">
+          <h3 id="application-mode-label" className="text-sm">
+            Update mode
+          </h3>
+          <div
+            className="segmented grid [grid-auto-columns:1fr] [grid-auto-flow:column] rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-[3px]"
+            role="group"
+            aria-label="Application update mode"
+          >
+            {(
+              [
+                ["automatic", "Automatic"],
+                ["notify-only", "Notify only"],
+                ["manual", "Manual"],
+              ] as const
+            ).map(([mode, label]) => (
+              <Button
+                key={mode}
+                data-focusable
+                variant={draft.mode === mode ? "selected" : "ghost"}
+                className={updateChoiceButtonClass}
+                aria-pressed={draft.mode === mode}
+                disabled={unavailable}
+                onClick={() => setDraft((value) => ({ ...value, mode }))}
+              >
+                {label}
+                {mode === "automatic" && (
+                  <small className="text-[length:var(--text-2xs)] normal-case">Recommended</small>
+                )}
+              </Button>
+            ))}
+          </div>
+          <p className={updateMutedCopyClass}>
+            {draft.mode === "automatic"
+              ? "Allows Portcove to check and stage verified updates without asking for each release. Applying still waits for a safe exit or an explicit Restart to update action."
+              : draft.mode === "notify-only"
+                ? "Checks for eligible updates and tells you when one is available. Downloading and applying require explicit actions."
+                : "Does not check automatically. Use Check for updates when you want to look for a release."}
+          </p>
+        </section>
+
+        <div className="application-update-pause flex cursor-pointer items-start gap-3 rounded-pc-md bg-[var(--color-bg-subtle)] p-3">
+          <input
+            data-focusable
+            className="mt-[3px] w-auto"
+            id="pause-application-updates"
+            type="checkbox"
+            aria-describedby="pause-application-updates-description"
+            checked={draft.paused}
+            disabled={unavailable}
+            onChange={(event) => setDraft((value) => ({ ...value, paused: event.target.checked }))}
+          />
+          <span className="grid gap-0.5">
+            <label
+              htmlFor="pause-application-updates"
+              className="cursor-pointer font-bold text-pc-foreground"
+            >
+              Pause application update activity
+            </label>
+            <small id="pause-application-updates-description" className={updateMutedCopyClass}>
+              Stop automatic checks and all downloads until resumed. Manual checks remain available.
+            </small>
+          </span>
+        </div>
+
+        <p className={updateDisclosureClass}>Saving these settings does not start an update.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            data-focusable
+            variant="primary"
+            size="sm"
+            disabled={unavailable || !changed}
+            onClick={() => void save()}
+          >
+            Save application update settings
+          </Button>
+          <Button
+            data-focusable
+            variant="outline"
+            size="sm"
+            disabled={unavailable || !changed}
+            onClick={() => setDraft(preferences.choice ?? recommendedChoice)}
+          >
+            Discard changes
+          </Button>
+          <Button
+            data-focusable
+            variant="destructive"
+            size="sm"
+            disabled={unavailable || !preferences.choice}
+            onClick={() => void reset()}
+          >
+            Reset update preferences
+          </Button>
+        </div>
+        <p className={updateDisclosureClass}>
+          Reset update preferences clears your saved choice and turns off automatic checks until you
+          choose again.
+        </p>
+      </section>
+    );
+  const restartAvailability = applicationRestartAvailability(
+    disabled,
+    Boolean(busy),
+    updateOperation.busy,
+    changed,
+    preferences,
+  );
   return (
     <SettingsRow
       className="application-update-settings grid min-h-0 gap-5"
@@ -1032,155 +1241,7 @@ export function ApplicationUpdateSettings({
         </div>
       )}
 
-      {preferences && (
-        <section
-          className="grid gap-5"
-          aria-labelledby="application-preferences-title"
-          aria-busy={Boolean(busy)}
-        >
-          <h3 id="application-preferences-title" tabIndex={-1}>
-            Future update behavior
-          </h3>
-          {!preferences.choice && (
-            <p className="application-update-consent rounded-pc-md border border-[var(--color-warning-border)] bg-pc-warning-subtle p-3 text-pc-warning-foreground">
-              No application update choice is saved. Automatic checks remain off until you save one.
-            </p>
-          )}
-
-          <section className={updateChoiceClass} aria-labelledby="application-channel-label">
-            <h3 id="application-channel-label" className="text-sm">
-              Channel
-            </h3>
-            <div
-              className="segmented grid [grid-auto-columns:1fr] [grid-auto-flow:column] rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-[3px]"
-              role="group"
-              aria-label="Application update channel"
-            >
-              {(["preview", "stable"] as const).map((channel) => (
-                <Button
-                  key={channel}
-                  data-focusable
-                  variant={draft.channel === channel ? "selected" : "ghost"}
-                  className={updateChoiceButtonClass}
-                  aria-pressed={draft.channel === channel}
-                  disabled={unavailable}
-                  onClick={() => setDraft((value) => ({ ...value, channel }))}
-                >
-                  {channel === "preview" ? "Preview" : "Stable"}
-                </Button>
-              ))}
-            </div>
-            <p className={updateMutedCopyClass}>
-              {draft.channel === "preview"
-                ? "Preview receives public test releases and later eligible final releases."
-                : "Stable waits for an eligible production release that is newer than your installed version; it never downgrades Portcove."}
-            </p>
-          </section>
-
-          <section className={updateChoiceClass} aria-labelledby="application-mode-label">
-            <h3 id="application-mode-label" className="text-sm">
-              Update mode
-            </h3>
-            <div
-              className="segmented grid [grid-auto-columns:1fr] [grid-auto-flow:column] rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-[3px]"
-              role="group"
-              aria-label="Application update mode"
-            >
-              {(
-                [
-                  ["automatic", "Automatic"],
-                  ["notify-only", "Notify only"],
-                  ["manual", "Manual"],
-                ] as const
-              ).map(([mode, label]) => (
-                <Button
-                  key={mode}
-                  data-focusable
-                  variant={draft.mode === mode ? "selected" : "ghost"}
-                  className={updateChoiceButtonClass}
-                  aria-pressed={draft.mode === mode}
-                  disabled={unavailable}
-                  onClick={() => setDraft((value) => ({ ...value, mode }))}
-                >
-                  {label}
-                  {mode === "automatic" && (
-                    <small className="text-[length:var(--text-2xs)] normal-case">Recommended</small>
-                  )}
-                </Button>
-              ))}
-            </div>
-            <p className={updateMutedCopyClass}>
-              {draft.mode === "automatic"
-                ? "Allows Portcove to check and stage verified updates without asking for each release. Applying still waits for a safe exit or an explicit Restart to update action."
-                : draft.mode === "notify-only"
-                  ? "Checks for eligible updates and tells you when one is available. Downloading and applying require explicit actions."
-                  : "Does not check automatically. Use Check for updates when you want to look for a release."}
-            </p>
-          </section>
-
-          <div className="application-update-pause flex cursor-pointer items-start gap-3 rounded-pc-md bg-[var(--color-bg-subtle)] p-3">
-            <input
-              data-focusable
-              className="mt-[3px] w-auto"
-              id="pause-application-updates"
-              type="checkbox"
-              aria-describedby="pause-application-updates-description"
-              checked={draft.paused}
-              disabled={unavailable}
-              onChange={(event) =>
-                setDraft((value) => ({ ...value, paused: event.target.checked }))
-              }
-            />
-            <span className="grid gap-0.5">
-              <label
-                htmlFor="pause-application-updates"
-                className="cursor-pointer font-bold text-pc-foreground"
-              >
-                Pause application update activity
-              </label>
-              <small id="pause-application-updates-description" className={updateMutedCopyClass}>
-                Stop automatic checks and all downloads until resumed. Manual checks remain
-                available.
-              </small>
-            </span>
-          </div>
-
-          <p className={updateDisclosureClass}>Saving these settings does not start an update.</p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              data-focusable
-              variant="primary"
-              size="sm"
-              disabled={unavailable || !changed}
-              onClick={() => void save()}
-            >
-              Save application update settings
-            </Button>
-            <Button
-              data-focusable
-              variant="outline"
-              size="sm"
-              disabled={unavailable || !changed}
-              onClick={() => setDraft(preferences.choice ?? recommendedChoice)}
-            >
-              Discard changes
-            </Button>
-            <Button
-              data-focusable
-              variant="destructive"
-              size="sm"
-              disabled={unavailable || !preferences.choice}
-              onClick={() => void reset()}
-            >
-              Reset update preferences
-            </Button>
-          </div>
-          <p className={updateDisclosureClass}>
-            Reset update preferences clears your saved choice and turns off automatic checks until
-            you choose again.
-          </p>
-        </section>
-      )}
+      {renderPreferences()}
 
       <ApplicationUpdateStatusPanel
         status={status}
@@ -1190,16 +1251,7 @@ export function ApplicationUpdateSettings({
         onRefresh={loadStatus}
         onRecover={recover}
         onRestart={restartToUpdate}
-        restartDisabled={
-          disabled || Boolean(busy) || updateOperation.busy || changed || !preferences?.choice
-        }
-        restartBlocker={
-          !preferences?.choice
-            ? "Save your update settings before restarting to update."
-            : changed
-              ? "Save or discard your changes before restarting to update."
-              : undefined
-        }
+        {...restartAvailability}
       />
 
       {busy && <p role="status">{busy}</p>}
@@ -1209,4 +1261,21 @@ export function ApplicationUpdateSettings({
       )}
     </SettingsRow>
   );
+}
+
+function applicationRestartAvailability(
+  disabled: boolean,
+  busy: boolean,
+  operationBusy: boolean,
+  changed: boolean,
+  preferences: ApplicationUpdatePreferences | undefined,
+) {
+  return {
+    restartDisabled: disabled || busy || operationBusy || changed || !preferences?.choice,
+    restartBlocker: !preferences?.choice
+      ? "Save your update settings before restarting to update."
+      : changed
+        ? "Save or discard your changes before restarting to update."
+        : undefined,
+  };
 }

@@ -125,16 +125,7 @@ function ExternalRuntimeContext({
   if (port.release.provider !== "user-prepared" && !status?.external_runtime) return null;
   const registered = status?.external_runtime;
   const removal = removalReviewPresentation(status, "remove_external");
-  const registration = catalogSetupPresentation(status).routes.find(
-    (action) => action.action === "register_external",
-  );
-  // Earlier status contracts omitted this projection or serialized an empty list.
-  // A missing whole status or a partial current projection is not that legacy case.
-  const legacyStatus =
-    status !== undefined &&
-    (status.port_actions === undefined ||
-      (Array.isArray(status.port_actions) && status.port_actions.length === 0));
-  const canRegister = legacyStatus || registration?.availability === "waiting";
+  const { registration, canRegister } = externalRegistration(status);
   const select = async () => {
     const request = pickerRequests.current.begin();
     const path = await pickInstallFolder("");
@@ -362,4 +353,18 @@ function RemoveExternalDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function externalRegistration(status: PortStatus | undefined) {
+  const registration = catalogSetupPresentation(status).routes.find(
+    (action) => action.action === "register_external",
+  );
+  // Earlier status contracts omitted this projection or serialized an empty list.
+  // A missing whole status or a partial current projection is not that legacy case.
+  const legacyStatus =
+    status !== undefined &&
+    (status.port_actions === undefined ||
+      (Array.isArray(status.port_actions) && status.port_actions.length === 0));
+  const canRegister = legacyStatus || registration?.availability === "waiting";
+  return { registration, canRegister };
 }
