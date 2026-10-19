@@ -55,7 +55,7 @@ if($Operation -eq 'Provision') {
   $volume=Format-Volume -Partition $partitions[0] -FileSystem NTFS -NewFileSystemLabel 'PortcoveSemantic' -Confirm:$false -ErrorAction Stop
   if($volume.Size -gt 536870912 -or $volume.FileSystem -ne 'NTFS' -or (Get-OwnedDisk).UniqueId -ne $unique) { throw 'formatted volume outside fixed boundary' }
   New-Item -ItemType Directory -Path $mount -ErrorAction Stop | Out-Null
-  Add-PartitionAccessPath -DiskId $unique -Offset $partitions[0].Offset -AccessPath ($mount+'\') -ErrorAction Stop
+  Add-PartitionAccessPath -InputObject $partitions[0] -AccessPath ($mount+'\') -ErrorAction Stop
   # Only the broker/SYSTEM own the volume until a separately launched,
   # non-elevated fixture grants one disposable reviewer subdirectory.
   Set-Acl -LiteralPath $volume.Path -AclObject $acl

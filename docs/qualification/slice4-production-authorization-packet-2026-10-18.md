@@ -819,15 +819,27 @@ unset; #144 outside compiled catalog; production held; slice 5 excluded.
 
 Delivery details and exact evidence: [reader/upstream checkpoint](slice4-reader-and-upstream-checkpoint-2026-10-18.md), [evidence](slice4-reader-and-upstream-evidence-2026-10-18.json).
 
-## Local storage diagnostic: first attempt recovered; corrected next attempt pending
+## Local storage diagnostic: cleanup complete; retained completion proposed
 
 Later preparation supersedes the pending-operation wording below: the owner ran
 the corrected Provision once. It failed at `Add-PartitionAccessPath` after the
 earlier initialization/format stages; no fixture ran. The second exact image
-remains attached pending its separately prepared partial cleanup. Neither the
+was detached by the owner under its approved exact cleanup, with positive
+independent readback and the backing file retained. The cleanup grant is
+fulfilled; neither the
 earlier intent phase nor the failed command proves absence of partial effects.
 Further VHD provisioning and fixture retries are stopped. These are retained
 diagnostic failures, not semantic acceptance.
+
+The elevated cleanup readback established the exact GPT/NTFS partitions and the
+provider identifier mismatch behind the mount failure. The one-line repair now
+passes the returned partition object. The
+[retained-volume completion proposal](slice4-semantic-retained-volume-completion-2026-10-18.md)
+prepares completion of that exact existing image without creating, initializing
+or formatting a disk. It includes an exclusive completion/recovery lock, fresh
+provider readback and matching recovery for one subsequent credential-free
+fixture. It is preparation only: that completion/diagnostic grant remains
+outstanding, and no attachment or fixture was performed during implementation.
 
 Pinned Codex `rust-v0.162.0` source at
 `c1382380de69521303b416720a52f42d51af6248` shows that app-server initialization

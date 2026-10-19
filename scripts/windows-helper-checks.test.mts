@@ -216,3 +216,204 @@ Reset-Fixture;$script:diskSet=@($script:diskSet[0],$script:diskSet[0]);Must-Refu
     });
   },
 );
+
+void test(
+  "semantic storage provisioning binds the returned partition object through its complete provider sequence",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const { execFileSync } = await import("node:child_process");
+    const { fileURLToPath } = await import("node:url");
+    const { mkdtemp, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const parent = await mkdtemp(path.join(tmpdir(), "portcove-storage-provider-"));
+    t.after(() => rm(parent, { recursive: true, force: true }));
+    const helper = fileURLToPath(
+      new URL("./prepare-semantic-storage.ps1", import.meta.url),
+    ).replaceAll("'", "''");
+    const root = path.join(parent, "owned").replaceAll("'", "''");
+    const script = `
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${helper}',[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'helper parse failed'}
+$guards=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-OwnedDisk'},$true))
+$branches=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.IfStatementAst] -and $n.Clauses[0].Item1.Extent.Text -eq "$"+"Operation -eq 'Provision'"},$true))
+if($guards.Count -ne 1 -or $branches.Count -ne 1){throw 'exact production stages missing'}
+$body=$branches[0].Clauses[0].Item2
+foreach($command in $body.FindAll({param($n)$n -is [Management.Automation.Language.CommandAst]},$true)){
+ if($command.GetCommandName() -notin @('Test-Path','New-Item','Set-Acl','Join-Path','diskpart.exe','Get-OwnedDisk','ConvertTo-Json','Set-Content','Initialize-Disk','New-Partition','Format-Volume','Add-PartitionAccessPath','Get-Content','Out-Null')){throw 'unexpected production command'}
+}
+Invoke-Expression $guards[0].Extent.Text
+Invoke-Expression ('function Invoke-ProductionProvision '+$body.Extent.Text)
+$root='${root}';$image=Join-Path $root 'reviewer.vhd';$mount=Join-Path $root 'data'
+$identity=[Security.Principal.WindowsIdentity]::GetCurrent();$ExpectedConfigurationSha256='a'*64
+$script:disk=[pscustomobject]@{UniqueId='6002248094AE6EFC7984F0EC20A288AC';Path='provider-partition-disk-path';Size=536870912;IsBoot=$false;IsSystem=$false;BusType='File Backed Virtual';PartitionStyle='RAW'}
+$script:partition=[pscustomobject]@{DiskId=$script:disk.Path;Offset=16777216}
+$script:volume=[pscustomobject]@{Path='fixture-volume-guid';FileSystem='NTFS';Size=520024064}
+$script:steps=[Collections.Generic.List[string]]::new()
+function Get-DiskImage {param($ImagePath,$ErrorAction) if($ImagePath -ne $image){throw 'wrong image'};[pscustomobject]@{Attached=$true}}
+function Get-Disk {param([Parameter(ValueFromPipeline=$true)]$InputObject) process{$script:disk}}
+function Set-Acl {param($LiteralPath,$AclObject) if($LiteralPath -eq $root){$script:steps.Add('root-acl')}elseif($LiteralPath -eq $script:volume.Path){$script:steps.Add('volume-acl')}else{throw 'unexpected ACL target'}}
+function diskpart.exe {param($s,$scriptFile) if($scriptFile -ne (Join-Path $root 'diskpart.txt')){throw 'wrong command file'};$script:steps.Add('attach');$global:LASTEXITCODE=0}
+function Initialize-Disk {param($UniqueId,$PartitionStyle,$ErrorAction) if($UniqueId -ne $script:disk.UniqueId){throw 'wrong unique disk'};$script:steps.Add('initialize');$script:disk.PartitionStyle='GPT'}
+function New-Partition {param($DiskId,[switch]$UseMaximumSize,$ErrorAction) if($DiskId -ne $script:disk.UniqueId){throw 'wrong partition input'};$script:steps.Add('partition');$script:partition}
+function Format-Volume {param($Partition,$FileSystem,$NewFileSystemLabel,$Confirm,$ErrorAction) if(-not [object]::ReferenceEquals($Partition,$script:partition)){throw 'wrong format partition'};$script:steps.Add('format');$script:volume}
+function Add-PartitionAccessPath {param($InputObject,$DiskId,$Offset,$AccessPath,$ErrorAction) if(-not [object]::ReferenceEquals($InputObject,$script:partition) -or $AccessPath -ne ($mount+'\\')){throw 'partition provider requires its returned object, not disk UniqueId'};$script:steps.Add('bind')}
+$null=Invoke-ProductionProvision
+$receipt=Get-Content -Raw -LiteralPath (Join-Path $root 'storage.json')|ConvertFrom-Json
+if($receipt.disk_unique_id -ne $script:disk.UniqueId -or $receipt.volume_guid -ne $script:volume.Path -or $receipt.observed_volume_bytes -ne 520024064 -or $receipt.configuration_sha256 -ne $ExpectedConfigurationSha256){throw 'storage receipt differs'}
+if(Test-Path -LiteralPath $image){throw 'inert provider test created an image'}
+@{steps=@($script:steps);native_storage_calls=0;receipt='actual production branch'}|ConvertTo-Json -Compress
+`;
+    const output = execFileSync(
+      "pwsh.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-OutputFormat",
+        "Text",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 20000 },
+    );
+    assert.deepEqual(JSON.parse(output), {
+      steps: ["root-acl", "attach", "initialize", "partition", "format", "bind", "volume-acl"],
+      native_storage_calls: 0,
+      receipt: "actual production branch",
+    });
+  },
+);
+
+void test(
+  "retained storage completion verifies exact provider association and fresh mount readback",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const { execFileSync } = await import("node:child_process");
+    const { fileURLToPath } = await import("node:url");
+    const helper = fileURLToPath(
+      new URL("./complete-semantic-storage.ps1", import.meta.url),
+    ).replaceAll("'", "''");
+    const script = `
+$ErrorActionPreference='Stop';$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${helper}',[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'completion parse failed'}
+$functions=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -in @('Get-PreparedPartition','Connect-PreparedPartition')},$true))
+if($functions.Count -ne 2){throw 'exact completion functions missing'}
+foreach($function in $functions){
+ foreach($command in $function.FindAll({param($n)$n -is [Management.Automation.Language.CommandAst]},$true)){
+  if($command.GetCommandName() -notin @('Get-Partition','Where-Object','Get-Volume','Get-PreparedPartition','Add-PartitionAccessPath')){throw 'unexpected provider command'}
+ }
+ Invoke-Expression $function.Extent.Text
+}
+$mount='X:/inert-only/data';$script:disk=[pscustomobject]@{Path='partition-provider-id';UniqueId='physical-disk-id'}
+function Reset-Fixture {
+ $script:reserved=[pscustomobject]@{DiskId=$script:disk.Path;Offset=17408;Size=16759808}
+ $script:data=[pscustomobject]@{DiskId=$script:disk.Path;Offset=16777216;Size=520028160;AccessPaths=@('fixture-volume-guid')}
+ $script:volume=[pscustomobject]@{Path='fixture-volume-guid';UniqueId='fixture-volume-guid';FileSystem='NTFS';FileSystemLabel='PortcoveSemantic';Size=520024064}
+ $script:binds=0;$script:omitReadback=$false
+}
+function Get-Partition {param($Disk,$ErrorAction) if(-not [object]::ReferenceEquals($Disk,$script:disk)){throw 'wrong disk object'};$script:reserved;$script:data}
+function Get-Volume {param($Partition,$ErrorAction) if(-not [object]::ReferenceEquals($Partition,$script:data)){throw 'wrong volume association'};$script:volume}
+function Add-PartitionAccessPath {param($InputObject,$AccessPath,$ErrorAction) if(-not [object]::ReferenceEquals($InputObject,$script:data) -or $AccessPath -ne ($mount+'\\')){throw 'wrong partition binding'};$script:binds++;if(-not $script:omitReadback){$script:data.AccessPaths+=($mount+'\\')}}
+function Must-Refuse {try{$null=Connect-PreparedPartition $script:disk 'fixture-volume-guid'}catch{return};throw 'unsafe retained volume accepted'}
+Reset-Fixture
+if((Connect-PreparedPartition $script:disk 'fixture-volume-guid').Path -ne 'fixture-volume-guid' -or $script:binds -ne 1){throw 'valid retained volume refused'}
+$cases=1
+foreach($change in @(@{DiskId='physical-disk-id'},@{Offset=16777217},@{Size=520028159},@{AccessPaths=@('fixture-volume-guid','C:/unrelated/')})){
+ Reset-Fixture;foreach($key in $change.Keys){$script:data.$key=$change[$key]};Must-Refuse;if($script:binds -ne 0){throw 'mutated before partition refusal'};$cases++
+}
+foreach($change in @(@{Path='other-volume'},@{UniqueId='other-volume'},@{FileSystem='FAT32'},@{FileSystemLabel='other-owner'},@{Size=520024065})){
+ Reset-Fixture;foreach($key in $change.Keys){$script:volume.$key=$change[$key]};Must-Refuse;if($script:binds -ne 0){throw 'mutated before volume refusal'};$cases++
+}
+Reset-Fixture;$script:omitReadback=$true;Must-Refuse;if($script:binds -ne 1){throw 'ambiguous mount effect disappeared'};$cases++
+@{cases=$cases;native_storage_calls=0;ambiguous_binding='retained; no automatic undo or retry'}|ConvertTo-Json -Compress
+`;
+    const output = execFileSync(
+      "pwsh.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-OutputFormat",
+        "Text",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 20000 },
+    );
+    assert.deepEqual(JSON.parse(output), {
+      cases: 11,
+      native_storage_calls: 0,
+      ambiguous_binding: "retained; no automatic undo or retry",
+    });
+  },
+);
+
+void test(
+  "completion and incomplete recovery share one exclusive operator boundary before attach",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const { execFileSync } = await import("node:child_process");
+    const { fileURLToPath } = await import("node:url");
+    const { mkdtemp, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const root = await mkdtemp(path.join(tmpdir(), "portcove-completion-lock-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const helper = fileURLToPath(
+      new URL("./complete-semantic-storage.ps1", import.meta.url),
+    ).replaceAll("'", "''");
+    const script = `
+$ErrorActionPreference='Stop';$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${helper}',[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'completion parse failed'}
+$functions=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -in @('Open-CompletionOperationLock','Write-NewCompletionRecord')},$true))
+if($functions.Count -ne 2){throw 'exact operator boundary missing'}
+foreach($function in $functions){Invoke-Expression $function.Extent.Text}
+$root='${root.replaceAll("'", "''")}'
+$completion=Open-CompletionOperationLock $root
+try{
+ # Completion has persisted its intent, but has not reached the attach effect.
+ Write-NewCompletionRecord (Join-Path $root 'completion-intent.json') @{phase='detached-before-completion'}
+ $recovery=$null;$refused=$false
+ try{$recovery=Open-CompletionOperationLock $root}catch{$refused=$true}finally{if($recovery){$recovery.Dispose()}}
+ if(-not $refused){throw 'recovery entered while completion could still attach'}
+}finally{$completion.Dispose()}
+$settled=Open-CompletionOperationLock $root
+try{
+ # Recovery's sentinel and the launcher use the same CreateNew primitive. The
+ # loser cannot start a reviewer or replace a preexisting ownership record.
+ $marker=Join-Path $root 'reviewer-active.json'
+ Write-NewCompletionRecord $marker @{kind='pre-fixture-completion-detach';fixture_started=$false}
+ $launcher=$null;$refused=$false
+ try{$launcher=[IO.File]::Open($marker,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)}catch{$refused=$true}finally{if($launcher){$launcher.Dispose()}}
+ if(-not $refused){throw 'launcher replaced recovery ownership'}
+ try{Write-NewCompletionRecord $marker @{kind='replacement'};throw 'sentinel overwritten'}catch{if($_.Exception.Message -eq 'sentinel overwritten'){throw}}
+}finally{$settled.Dispose()}
+$locks=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.TryStatementAst] -and $null -ne $n.Finally -and $n.Finally.Extent.Text.Contains('$operationLock.Dispose()')},$true))
+if($locks.Count -ne 1){throw 'operator lock not held to final readback'}
+$commands=@($locks[0].Body.FindAll({param($n)$n -is [Management.Automation.Language.CommandAst]},$true)|ForEach-Object GetCommandName)
+foreach($required in @('Mount-DiskImage','Dismount-DiskImage','Connect-PreparedPartition','Get-ExactImage')){if($required -notin $commands){throw 'mutation/readback escaped shared boundary'}}
+@{live_completion='recovery refused';settled_completion='recovery lock acquired';recovery_marker='launcher refused';native_storage_calls=0}|ConvertTo-Json -Compress
+`;
+    const output = execFileSync(
+      "pwsh.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-OutputFormat",
+        "Text",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 20000 },
+    );
+    assert.deepEqual(JSON.parse(output), {
+      live_completion: "recovery refused",
+      settled_completion: "recovery lock acquired",
+      recovery_marker: "launcher refused",
+      native_storage_calls: 0,
+    });
+  },
+);
