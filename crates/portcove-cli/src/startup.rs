@@ -71,8 +71,12 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             },
         },
         Commands::External { command } => match command {
-            ExternalCommand::Preview { .. } | ExternalCommand::RemovalPreview { .. } => ReadOnly,
-            ExternalCommand::Register { .. } | ExternalCommand::Remove { .. } => Recovering,
+            ExternalCommand::Preview { .. }
+            | ExternalCommand::RemovalPreview { .. }
+            | ExternalCommand::RelinkPreview { .. } => ReadOnly,
+            ExternalCommand::Register { .. }
+            | ExternalCommand::Remove { .. }
+            | ExternalCommand::Relink { .. } => Recovering,
         },
         Commands::Installation { command } => match command {
             InstallationCommand::Plan { .. } => ReadOnly,

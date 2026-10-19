@@ -438,6 +438,7 @@ pub fn export_transport_schemas() -> Value {
             "game_file_query_snapshot": output::<portcove_core::GameFileQuerySnapshot>(),
             "preparation_cleanup_preview": output::<portcove_core::PreparationCleanupPreview>(),
             "external_runtime_preview": output::<portcove_core::ExternalRuntimePreview>(),
+            "external_runtime_relink_preview": output::<portcove_core::ExternalRuntimeRelinkPreview>(),
             "external_runtime_removal_preview": output::<portcove_core::ExternalRuntimeRemovalPreview>(),
             "external_runtime_record": output::<portcove_core::ExternalRuntimeRecord>(),
             "steam_entry_review": output::<SteamEntryReview>(),

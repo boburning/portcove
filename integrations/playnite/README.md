@@ -68,7 +68,7 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–57, 60–63 or 65–71 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57, 60–63 or 65–72 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -106,6 +106,14 @@ from readiness and Play. Playnite Uninstall removes only this reviewed
 registration and verifies the installed route is absent before changing its
 installed state. External files remain. Cancel makes no mutation; Playnite's
 ordinary cancellation dialog must be acknowledged to restore the action.
+
+Schema 72 adds reviewed external folder changes. Management offers **Change
+external game folder…** only when the CLI advertises `external.relink` and the
+game has an external registration. The reader checks the outer review fingerprint,
+file preservation promise, proposed runtime and unchanged registration ID. No
+unregister-first step is used. Runtimes requiring shared-preference acknowledgment
+remain directed to Desktop or the explicit CLI flow; this client does not grant
+that consent implicitly. Existing launch/readiness authority is unchanged.
 
 Schema 71 adds optional original-game titles and variant labels. The personal
 library displays the game first, followed by the project and relevant variant,

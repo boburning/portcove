@@ -26,6 +26,7 @@ namespace Portcove.ReferenceClient
         private readonly List<Button> pathButtons = new List<Button>();
         private readonly Button cancel = new Button { Content = "Request cancellation", IsEnabled = false, Margin = new Thickness(4), Padding = new Thickness(10, 6, 10, 6) };
         private Button cleanupAction;
+        private Button relinkAction;
         private Button preparationHelp;
         private Button installAction;
         private Button updateAction;
@@ -82,6 +83,8 @@ namespace Portcove.ReferenceClient
             AddAction(buttons, "Register supplied files", RegisterSources);
             installAction = AddAction(buttons, "Install / use existing", () => Manage("ensure"));
             prepareAction = AddAction(buttons, "Review preparation", Prepare);
+            relinkAction = AddAction(buttons, "Change external game folder…", RelinkExternal);
+            relinkAction.IsEnabled = false;
             cleanupAction = AddAction(buttons, "Review retained cleanup", CleanupPreparation);
             cleanupAction.IsEnabled = false;
             panel.Children.Add(new Expander { Header = "Other Portcove actions", Content = buttons });
@@ -183,6 +186,8 @@ namespace Portcove.ReferenceClient
                 pathButtons.ForEach(button => button.IsEnabled = true);
                 actions.ForEach(button => button.IsEnabled = cli != null && port != null);
                 if (cleanupAction != null) cleanupAction.IsEnabled = cleanupAction.IsEnabled && retainedCleanupAvailable;
+                if (relinkAction != null) relinkAction.IsEnabled = cli != null && cli.SupportsExternalRelink &&
+                    CurrentStatus != null && Json.OptionalObjectField(CurrentStatus, "external_runtime") != null;
                 if (externalRoute)
                 {
                     installAction.IsEnabled = false;
@@ -465,6 +470,31 @@ namespace Portcove.ReferenceClient
             if (Json.Text(fresh, "port_id") != port || Json.Field(fresh, "active") != null || record == null ||
                 review.RequireRegistered(record) != registration)
                 throw new InvalidOperationException("The reviewed registration was not confirmed by current state. Refresh before retrying.");
+            await Refresh();
+        }
+
+        private async Task RelinkExternal()
+        {
+            if (!cli.SupportsExternalRelink)
+                throw new InvalidOperationException("Changing an external folder requires API schema72 and external.relink. Update the selected CLI/client pair.");
+            var selected = plugin.PlayniteApi.Dialogs.SelectFolder();
+            if (string.IsNullOrWhiteSpace(selected)) return;
+            PublicCli.RequireAbsolute(selected);
+            await cli.AssertIdentity();
+            var preview = await cli.Read("external.relink-preview", "external", "relink-preview", port, selected);
+            technical.Text = Json.Print(preview);
+            var review = ExternalRuntimeReview.ReadRelink(preview, port, selected);
+            if (MessageBox.Show(window, review.Description, "Change game folder", MessageBoxButton.OKCancel,
+                MessageBoxImage.Question) != MessageBoxResult.OK) return;
+            await cli.AssertIdentity();
+            CurrentStatus = null;
+            var result = await cli.Manage("external.relink", new[] { "external", "relink", port, review.Path,
+                "--expected-preview", review.Fingerprint, "--yes" }, OnProgress);
+            var registration = review.RequireRegistered(result);
+            var fresh = await cli.Read("status", "status", port);
+            var record = Json.OptionalObjectField(fresh, "external_runtime");
+            if (Json.Text(fresh, "port_id") != port || record == null || review.RequireRegistered(record) != registration)
+                throw new InvalidOperationException("The changed folder was not confirmed by current state. Refresh before retrying.");
             await Refresh();
         }
 

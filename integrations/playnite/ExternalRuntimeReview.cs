@@ -16,6 +16,25 @@ namespace Portcove.ReferenceClient
         private string archive;
         private string tree;
         private bool removal;
+        private string registrationId;
+
+        internal static ExternalRuntimeReview ReadRelink(object value, string port, string selectedPath)
+        {
+            if (Text(value, "port_id") != port || !Json.Boolean(value, "external_files_will_be_preserved"))
+                throw new InvalidOperationException("Folder change does not preserve the selected registration and external files.");
+            var previous = Text(value, "previous_path");
+            PublicCli.RequireAbsolute(previous);
+            var proposed = Json.Field(value, "proposed");
+            object shared;
+            if (Json.TryField(proposed, "shared_preferences", out shared) && shared != null)
+                throw new InvalidOperationException("This runtime requires shared-preferences acknowledgment. Change its folder in Portcove Desktop or use the reviewed CLI flow with explicit acknowledgment.");
+            var review = Read(proposed, port, selectedPath);
+            review.registrationId = Text(value, "registration_id");
+            review.Fingerprint = Digest(value, "preview_sha256");
+            review.Description = "Change the registered game folder? Previous folder: " + previous +
+                "\nIts files stay where they are. The registration and retained version stay the same.\n\n" + review.Description;
+            return review;
+        }
 
         private static string Text(object value, string field)
         {
@@ -82,6 +101,8 @@ namespace Portcove.ReferenceClient
 
         internal string RequireRegistered(object record)
         {
+            if (registrationId != null && Text(record, "id") != registrationId)
+                throw new InvalidOperationException("Folder change replaced the registration identity. Refresh before retrying.");
             if (removal || Text(record, "port_id") != port || !SamePath(Text(record, "path"), Path) ||
                 !SamePath(Text(record, "executable"), executable) || Text(record, "version") != version ||
                 !string.Equals(Digest(record, "archive_sha256"), archive, StringComparison.OrdinalIgnoreCase) ||
