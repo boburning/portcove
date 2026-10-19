@@ -518,24 +518,24 @@ internal static class ContractTests
                 var presentation = Json.Field(definition, "presentation");
                 return game.Name.StartsWith(Json.Text(presentation, "original_game_title"), StringComparison.Ordinal)
                     && game.GameId == Identity.Game("compiled-game-title-library", game.PortId);
-            }), "compiled schema71 catalog titles lead actual reader names without changing port identities");
+            }), "compiled current-schema catalog titles lead actual reader names without changing port identities");
             var prepared = catalog.Where(port => Json.Text(Json.Field(port, "release"), "provider") == "user-prepared").ToArray();
-            Check(prepared.Length == 11 && prepared.All(port => SetupInstructions.Summary(Json.Field(port, "presentation")).Contains("1. ")),
-                "compiled schema71 authored setup steps are consumed by the actual client");
+            Check(prepared.Length == 10 && prepared.All(port => SetupInstructions.Summary(Json.Field(port, "presentation")).Contains("1. ")),
+                "compiled current-schema authored setup steps are consumed by the actual client");
             Check(prepared.All(port => SetupInstructions.TechnicalNotes(Json.Field(port, "presentation"))
                     == Json.Text(Json.Field(port, "presentation"), "manual_preparation"))
                 && prepared.Count(port => SetupInstructions.HelpUrl(Json.Field(port, "presentation")) != null) == 1,
-                "compiled schema71 technical notes and the optional preparation link reach dedicated client controls");
+                "compiled current-schema technical notes and the optional preparation link reach dedicated client controls");
             Check(real.ApiSchemaVersion == ProtocolStream.Schema && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
                 PortActions.Read(status).Count(value => value.Action == "update") == 1),
-                "compiled schema71 producer and actual reader consume one rollback and update assessment per catalog status");
+                "compiled current-schema producer and actual reader consume one rollback and update assessment per catalog status");
             var portId = Json.Text(statuses[0], "port_id");
             var inventory = await real.Read("backup.list", "backup", "list", portId);
             Check(PortActionDecision.Read(Json.Field(inventory, "create_assessment")).Action == "backup_create",
-                "compiled schema71 backup producer and actual strict reader consume creation assessment");
+                "compiled current-schema backup producer and actual strict reader consume creation assessment");
             Check(PortActionDecision.Read(Json.Field(inventory, "restore_assessment")).Action == "backup_restore",
-                "compiled schema71 backup producer and actual strict reader consume restore assessment");
+                "compiled current-schema backup producer and actual strict reader consume restore assessment");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
     }
@@ -755,7 +755,7 @@ internal static class ContractTests
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 73 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 74 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);
